@@ -37,7 +37,7 @@ use crate::backend::{
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::lock::FileLock;
 use crate::merge::{Merge, MergeBuilder};
-use crate::repo_path::{RepoPath, RepoPathComponent};
+use crate::repo_path::{RepoPath, RepoPathComponentBuf};
 use crate::settings::UserSettings;
 use crate::stacked_table::{
     MutableTable, ReadonlyTable, TableSegment, TableStore, TableStoreError,
@@ -766,7 +766,7 @@ impl Backend for GitBackend {
                     (name, TreeValue::GitSubmodule(id))
                 }
             };
-            tree.set(RepoPathComponent::from(name), value);
+            tree.set(RepoPathComponentBuf::from(name), value);
         }
         Ok(tree)
     }

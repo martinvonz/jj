@@ -26,7 +26,7 @@ use thiserror::Error;
 
 use crate::content_hash::ContentHash;
 use crate::merge::Merge;
-use crate::repo_path::{RepoPath, RepoPathComponent};
+use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathComponentBuf};
 
 pub trait ObjectId {
     fn new(value: Vec<u8>) -> Self;
@@ -358,7 +358,7 @@ impl<'a> TreeEntry<'a> {
 }
 
 pub struct TreeEntriesNonRecursiveIterator<'a> {
-    iter: std::collections::btree_map::Iter<'a, RepoPathComponent, TreeValue>,
+    iter: std::collections::btree_map::Iter<'a, RepoPathComponentBuf, TreeValue>,
 }
 
 impl<'a> Iterator for TreeEntriesNonRecursiveIterator<'a> {
@@ -374,7 +374,7 @@ impl<'a> Iterator for TreeEntriesNonRecursiveIterator<'a> {
 content_hash! {
     #[derive(Default, PartialEq, Eq, Debug, Clone)]
     pub struct Tree {
-        entries: BTreeMap<RepoPathComponent, TreeValue>,
+        entries: BTreeMap<RepoPathComponentBuf, TreeValue>,
     }
 }
 
@@ -393,7 +393,7 @@ impl Tree {
         }
     }
 
-    pub fn set(&mut self, name: RepoPathComponent, value: TreeValue) {
+    pub fn set(&mut self, name: RepoPathComponentBuf, value: TreeValue) {
         self.entries.insert(name, value);
     }
 

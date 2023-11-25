@@ -19,7 +19,7 @@ use std::iter;
 
 use tracing::instrument;
 
-use crate::repo_path::{RepoPath, RepoPathComponent};
+use crate::repo_path::{RepoPath, RepoPathComponentBuf};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Visit {
@@ -39,7 +39,7 @@ pub enum Visit {
 }
 
 impl Visit {
-    fn sets(dirs: HashSet<RepoPathComponent>, files: HashSet<RepoPathComponent>) -> Self {
+    fn sets(dirs: HashSet<RepoPathComponentBuf>, files: HashSet<RepoPathComponentBuf>) -> Self {
         if dirs.is_empty() && files.is_empty() {
             Self::Nothing
         } else {
@@ -58,13 +58,13 @@ impl Visit {
 #[derive(PartialEq, Eq, Debug)]
 pub enum VisitDirs {
     All,
-    Set(HashSet<RepoPathComponent>),
+    Set(HashSet<RepoPathComponentBuf>),
 }
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum VisitFiles {
     All,
-    Set(HashSet<RepoPathComponent>),
+    Set(HashSet<RepoPathComponentBuf>),
 }
 
 pub trait Matcher: Sync {
@@ -263,7 +263,7 @@ impl Matcher for IntersectionMatcher<'_> {
 /// visited.
 #[derive(PartialEq, Eq, Debug)]
 struct RepoPathTree {
-    entries: HashMap<RepoPathComponent, RepoPathTree>,
+    entries: HashMap<RepoPathComponentBuf, RepoPathTree>,
     // is_dir/is_file aren't exclusive, both can be set to true. If entries is not empty,
     // is_dir should be set.
     is_dir: bool,
@@ -313,7 +313,7 @@ impl RepoPathTree {
     fn walk_to<'a>(
         &'a self,
         dir: &'a RepoPath,
-    ) -> impl Iterator<Item = (&RepoPathTree, &[RepoPathComponent])> + 'a {
+    ) -> impl Iterator<Item = (&RepoPathTree, &[RepoPathComponentBuf])> + 'a {
         iter::successors(
             Some((self, dir.components().as_slice())),
             |(sub, components)| {
@@ -343,7 +343,6 @@ mod tests {
     use maplit::hashset;
 
     use super::*;
-    use crate::repo_path::{RepoPath, RepoPathComponent};
 
     #[test]
     fn test_repo_path_tree_empty() {
@@ -364,12 +363,12 @@ mod tests {
         tree.add_dir(&RepoPath::from_internal_string("dir"));
         assert_eq!(
             tree.get_visit_sets(&RepoPath::root()),
-            Visit::sets(hashset! {RepoPathComponent::from("dir")}, hashset! {}),
+            Visit::sets(hashset! {RepoPathComponentBuf::from("dir")}, hashset! {}),
         );
         tree.add_dir(&RepoPath::from_internal_string("dir/sub"));
         assert_eq!(
             tree.get_visit_sets(&RepoPath::from_internal_string("dir")),
-            Visit::sets(hashset! {RepoPathComponent::from("sub")}, hashset! {}),
+            Visit::sets(hashset! {RepoPathComponentBuf::from("sub")}, hashset! {}),
         );
     }
 
@@ -379,11 +378,11 @@ mod tests {
         tree.add_file(&RepoPath::from_internal_string("dir/file"));
         assert_eq!(
             tree.get_visit_sets(&RepoPath::root()),
-            Visit::sets(hashset! {RepoPathComponent::from("dir")}, hashset! {}),
+            Visit::sets(hashset! {RepoPathComponentBuf::from("dir")}, hashset! {}),
         );
         assert_eq!(
             tree.get_visit_sets(&RepoPath::from_internal_string("dir")),
-            Visit::sets(hashset! {}, hashset! {RepoPathComponent::from("file")}),
+            Visit::sets(hashset! {}, hashset! {RepoPathComponentBuf::from("file")}),
         );
     }
 
@@ -421,14 +420,17 @@ mod tests {
         assert_eq!(
             m.visit(&RepoPath::root()),
             Visit::sets(
-                hashset! {RepoPathComponent::from("dir1")},
-                hashset! {RepoPathComponent::from("file4")}
+                hashset! {RepoPathComponentBuf::from("dir1")},
+                hashset! {RepoPathComponentBuf::from("file4")}
             )
         );
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("dir1")),
             Visit::sets(
-                hashset! {RepoPathComponent::from("subdir1"), RepoPathComponent::from("subdir2")},
+                hashset! {
+                    RepoPathComponentBuf::from("subdir1"),
+                    RepoPathComponentBuf::from("subdir2"),
+                },
                 hashset! {}
             )
         );
@@ -436,12 +438,15 @@ mod tests {
             m.visit(&RepoPath::from_internal_string("dir1/subdir1")),
             Visit::sets(
                 hashset! {},
-                hashset! {RepoPathComponent::from("file1"), RepoPathComponent::from("file2")}
+                hashset! {
+                    RepoPathComponentBuf::from("file1"),
+                    RepoPathComponentBuf::from("file2"),
+                },
             )
         );
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("dir1/subdir2")),
-            Visit::sets(hashset! {}, hashset! {RepoPathComponent::from("file3")})
+            Visit::sets(hashset! {}, hashset! {RepoPathComponentBuf::from("file3")})
         );
     }
 
@@ -488,15 +493,15 @@ mod tests {
         // shouldn't be visited)
         assert_eq!(
             m.visit(&RepoPath::root()),
-            Visit::sets(hashset! {RepoPathComponent::from("foo")}, hashset! {})
+            Visit::sets(hashset! {RepoPathComponentBuf::from("foo")}, hashset! {})
         );
         // Inside parent directory "foo/", both subdirectory "bar" and file "bar" may
         // match
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("foo")),
             Visit::sets(
-                hashset! {RepoPathComponent::from("bar")},
-                hashset! {RepoPathComponent::from("bar")}
+                hashset! {RepoPathComponentBuf::from("bar")},
+                hashset! {RepoPathComponentBuf::from("bar")}
             )
         );
         // Inside a directory that matches the prefix, everything matches recursively
@@ -533,8 +538,8 @@ mod tests {
         assert_eq!(
             m.visit(&RepoPath::root()),
             Visit::sets(
-                hashset! {RepoPathComponent::from("foo")},
-                hashset! {RepoPathComponent::from("foo")}
+                hashset! {RepoPathComponentBuf::from("foo")},
+                hashset! {RepoPathComponentBuf::from("foo")}
             )
         );
         // Inside a directory that matches the prefix, everything matches recursively
@@ -567,8 +572,14 @@ mod tests {
         assert_eq!(
             m.visit(&RepoPath::root()),
             Visit::sets(
-                hashset! {RepoPathComponent::from("foo"), RepoPathComponent::from("bar")},
-                hashset! {RepoPathComponent::from("foo"), RepoPathComponent::from("bar")}
+                hashset! {
+                    RepoPathComponentBuf::from("foo"),
+                    RepoPathComponentBuf::from("bar"),
+                },
+                hashset! {
+                    RepoPathComponentBuf::from("foo"),
+                    RepoPathComponentBuf::from("bar"),
+                },
             )
         );
         assert_eq!(
@@ -609,8 +620,14 @@ mod tests {
         assert_eq!(
             m.visit(&RepoPath::root()),
             Visit::sets(
-                hashset! {RepoPathComponent::from("foo"), RepoPathComponent::from("bar")},
-                hashset! {RepoPathComponent::from("foo"), RepoPathComponent::from("bar")}
+                hashset! {
+                    RepoPathComponentBuf::from("foo"),
+                    RepoPathComponentBuf::from("bar"),
+                },
+                hashset! {
+                    RepoPathComponentBuf::from("foo"),
+                    RepoPathComponentBuf::from("bar"),
+                },
             )
         );
         assert_eq!(
@@ -653,8 +670,8 @@ mod tests {
         assert_eq!(
             m.visit(&RepoPath::root()),
             Visit::sets(
-                hashset! {RepoPathComponent::from("bar")},
-                hashset! {RepoPathComponent::from("bar")}
+                hashset! {RepoPathComponentBuf::from("bar")},
+                hashset! {RepoPathComponentBuf::from("bar")}
             )
         );
         assert_eq!(
@@ -697,7 +714,7 @@ mod tests {
 
         assert_eq!(
             m.visit(&RepoPath::root()),
-            Visit::sets(hashset! {RepoPathComponent::from("foo")}, hashset! {})
+            Visit::sets(hashset! {RepoPathComponentBuf::from("foo")}, hashset! {})
         );
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("bar")),
@@ -706,8 +723,8 @@ mod tests {
         assert_eq!(
             m.visit(&RepoPath::from_internal_string("foo")),
             Visit::sets(
-                hashset! {RepoPathComponent::from("bar")},
-                hashset! {RepoPathComponent::from("bar")}
+                hashset! {RepoPathComponentBuf::from("bar")},
+                hashset! {RepoPathComponentBuf::from("bar")}
             )
         );
         assert_eq!(

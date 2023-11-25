@@ -30,7 +30,7 @@ use crate::backend::{
 use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{trivial_merge, Merge, MergedTreeValue};
-use crate::repo_path::{RepoPath, RepoPathComponent};
+use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathComponentBuf};
 use crate::store::Store;
 use crate::{backend, files};
 
@@ -159,7 +159,8 @@ impl Tree {
         self.store.get_tree(subdir, id).unwrap()
     }
 
-    fn sub_tree_recursive(&self, components: &[RepoPathComponent]) -> Option<Tree> {
+    // TODO: switch to borrowed &RepoPath type or RepoPathComponents iterator
+    fn sub_tree_recursive(&self, components: &[RepoPathComponentBuf]) -> Option<Tree> {
         if let Some((first, tail)) = components.split_first() {
             tail.iter()
                 .try_fold(self.sub_tree(first)?, |tree, name| tree.sub_tree(name))

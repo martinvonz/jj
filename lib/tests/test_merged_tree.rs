@@ -123,9 +123,9 @@ fn test_from_legacy_tree() {
     tree_builder.set(file5_path.clone(), TreeValue::Conflict(file5_conflict_id));
 
     // dir1: directory without conflicts
-    let dir1_basename = RepoPathComponent::from("dir1");
+    let dir1_basename = &RepoPathComponent::from("dir1");
     let dir1_filename = RepoPath::root()
-        .join(&dir1_basename)
+        .join(dir1_basename)
         .join(&RepoPathComponent::from("file"));
     let dir1_filename_id = write_file(store.as_ref(), &dir1_filename, "file5_v2");
     tree_builder.set(dir1_filename.clone(), file_value(&dir1_filename_id));
@@ -195,8 +195,8 @@ fn test_from_legacy_tree() {
     );
     // file6: directory without conflicts
     assert_eq!(
-        merged_tree.value(&dir1_basename),
-        MergedTreeVal::Resolved(tree.value(&dir1_basename))
+        merged_tree.value(dir1_basename),
+        MergedTreeVal::Resolved(tree.value(dir1_basename))
     );
 
     // Also test that MergedTreeBuilder can create the same tree by starting from an
@@ -859,7 +859,7 @@ fn test_diff_dir_file() {
     let path4 = RepoPath::from_internal_string("path4");
     let path5 = RepoPath::from_internal_string("path5");
     let path6 = RepoPath::from_internal_string("path6");
-    let file = RepoPathComponent::from("file");
+    let file = &RepoPathComponent::from("file");
     let left_base = create_single_tree(
         repo,
         &[
@@ -867,8 +867,8 @@ fn test_diff_dir_file() {
             (&path2, "left"),
             (&path3, "left"),
             (&path4, "left-base"),
-            (&path5.join(&file), "left"),
-            (&path6.join(&file), "left"),
+            (&path5.join(file), "left"),
+            (&path6.join(file), "left"),
         ],
     );
     let left_side1 = create_single_tree(
@@ -878,8 +878,8 @@ fn test_diff_dir_file() {
             (&path2, "left"),
             (&path3, "left"),
             (&path4, "left-side1"),
-            (&path5.join(&file), "left"),
-            (&path6.join(&file), "left"),
+            (&path5.join(file), "left"),
+            (&path6.join(file), "left"),
         ],
     );
     let left_side2 = create_single_tree(
@@ -889,17 +889,17 @@ fn test_diff_dir_file() {
             (&path2, "left"),
             (&path3, "left"),
             (&path4, "left-side2"),
-            (&path5.join(&file), "left"),
-            (&path6.join(&file), "left"),
+            (&path5.join(file), "left"),
+            (&path6.join(file), "left"),
         ],
     );
     let right_base = create_single_tree(
         repo,
         &[
-            (&path1.join(&file), "right"),
+            (&path1.join(file), "right"),
             // path2 absent
             // path3 absent
-            (&path4.join(&file), "right-base"),
+            (&path4.join(file), "right-base"),
             // path5 is absent
             // path6 is absent
         ],
@@ -907,10 +907,10 @@ fn test_diff_dir_file() {
     let right_side1 = create_single_tree(
         repo,
         &[
-            (&path1.join(&file), "right"),
-            (&path2.join(&file), "right"),
-            (&path3.join(&file), "right-side1"),
-            (&path4.join(&file), "right-side1"),
+            (&path1.join(file), "right"),
+            (&path2.join(file), "right"),
+            (&path3.join(file), "right-side1"),
+            (&path4.join(file), "right-side1"),
             (&path5, "right-side1"),
             (&path6, "right"),
         ],
@@ -918,12 +918,12 @@ fn test_diff_dir_file() {
     let right_side2 = create_single_tree(
         repo,
         &[
-            (&path1.join(&file), "right"),
-            (&path2.join(&file), "right"),
+            (&path1.join(file), "right"),
+            (&path2.join(file), "right"),
             (&path3, "right-side2"),
-            (&path4.join(&file), "right-side2"),
+            (&path4.join(file), "right-side2"),
             (&path5, "right-side2"),
-            (&path6.join(&file), "right"),
+            (&path6.join(file), "right"),
         ],
     );
     let left_merged = MergedTree::new(Merge::from_removes_adds(
@@ -948,8 +948,8 @@ fn test_diff_dir_file() {
                 (left_merged.path_value(&path1), Merge::absent()),
             ),
             (
-                path1.join(&file),
-                (Merge::absent(), right_merged.path_value(&path1.join(&file))),
+                path1.join(file),
+                (Merge::absent(), right_merged.path_value(&path1.join(file))),
             ),
             // path2: file1 -> directory1+(directory2-absent)
             (
@@ -957,8 +957,8 @@ fn test_diff_dir_file() {
                 (left_merged.path_value(&path2), Merge::absent()),
             ),
             (
-                path2.join(&file),
-                (Merge::absent(), right_merged.path_value(&path2.join(&file))),
+                path2.join(file),
+                (Merge::absent(), right_merged.path_value(&path2.join(file))),
             ),
             // path3: file1 -> directory1+(file1-absent)
             (
@@ -974,13 +974,13 @@ fn test_diff_dir_file() {
                 (left_merged.path_value(&path4), Merge::absent()),
             ),
             (
-                path4.join(&file),
-                (Merge::absent(), right_merged.path_value(&path4.join(&file))),
+                path4.join(file),
+                (Merge::absent(), right_merged.path_value(&path4.join(file))),
             ),
             // path5: directory1 -> file1+(file2-absent)
             (
-                path5.join(&file),
-                (left_merged.path_value(&path5.join(&file)), Merge::absent()),
+                path5.join(file),
+                (left_merged.path_value(&path5.join(file)), Merge::absent()),
             ),
             (
                 path5.clone(),
@@ -988,8 +988,8 @@ fn test_diff_dir_file() {
             ),
             // path6: directory1 -> file1+(directory1-absent)
             (
-                path6.join(&file),
-                (left_merged.path_value(&path6.join(&file)), Merge::absent()),
+                path6.join(file),
+                (left_merged.path_value(&path6.join(file)), Merge::absent()),
             ),
             (
                 path6.clone(),
@@ -1009,8 +1009,8 @@ fn test_diff_dir_file() {
         let expected_diff = vec![
             // path1: file1 -> directory1
             (
-                path1.join(&file),
-                (right_merged.path_value(&path1.join(&file)), Merge::absent()),
+                path1.join(file),
+                (right_merged.path_value(&path1.join(file)), Merge::absent()),
             ),
             (
                 path1.clone(),
@@ -1018,8 +1018,8 @@ fn test_diff_dir_file() {
             ),
             // path2: file1 -> directory1+(directory2-absent)
             (
-                path2.join(&file),
-                (right_merged.path_value(&path2.join(&file)), Merge::absent()),
+                path2.join(file),
+                (right_merged.path_value(&path2.join(file)), Merge::absent()),
             ),
             (
                 path2.clone(),
@@ -1035,8 +1035,8 @@ fn test_diff_dir_file() {
             ),
             // path4: file1+(file2-file3) -> directory1+(directory2-directory3)
             (
-                path4.join(&file),
-                (right_merged.path_value(&path4.join(&file)), Merge::absent()),
+                path4.join(file),
+                (right_merged.path_value(&path4.join(file)), Merge::absent()),
             ),
             (
                 path4.clone(),
@@ -1048,8 +1048,8 @@ fn test_diff_dir_file() {
                 (right_merged.path_value(&path5), Merge::absent()),
             ),
             (
-                path5.join(&file),
-                (Merge::absent(), left_merged.path_value(&path5.join(&file))),
+                path5.join(file),
+                (Merge::absent(), left_merged.path_value(&path5.join(file))),
             ),
             // path6: directory1 -> file1+(directory1-absent)
             (
@@ -1057,8 +1057,8 @@ fn test_diff_dir_file() {
                 (right_merged.path_value(&path6), Merge::absent()),
             ),
             (
-                path6.join(&file),
-                (Merge::absent(), left_merged.path_value(&path6.join(&file))),
+                path6.join(file),
+                (Merge::absent(), left_merged.path_value(&path6.join(file))),
             ),
         ];
         assert_eq!(actual_diff, expected_diff);
@@ -1085,7 +1085,7 @@ fn test_diff_dir_file() {
 
     // Diff while filtering by `path1/file` (file1 -> directory1) as a file
     {
-        let matcher = FilesMatcher::new(&[path1.join(&file)]);
+        let matcher = FilesMatcher::new(&[path1.join(file)]);
         let actual_diff = left_merged
             .diff(&right_merged, &matcher)
             .map(|(path, diff)| (path, diff.unwrap()))
@@ -1093,8 +1093,8 @@ fn test_diff_dir_file() {
         let expected_diff = vec![
             // path1: file1 -> directory1
             (
-                path1.join(&file),
-                (Merge::absent(), right_merged.path_value(&path1.join(&file))),
+                path1.join(file),
+                (Merge::absent(), right_merged.path_value(&path1.join(file))),
             ),
         ];
         assert_eq!(actual_diff, expected_diff);
@@ -1114,8 +1114,8 @@ fn test_diff_dir_file() {
                 (left_merged.path_value(&path1), Merge::absent()),
             ),
             (
-                path1.join(&file),
-                (Merge::absent(), right_merged.path_value(&path1.join(&file))),
+                path1.join(file),
+                (Merge::absent(), right_merged.path_value(&path1.join(file))),
             ),
         ];
         assert_eq!(actual_diff, expected_diff);

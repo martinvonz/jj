@@ -22,6 +22,9 @@ use thiserror::Error;
 
 use crate::file_util;
 
+// TODO: make RepoPathComponent a borrowed type
+pub type RepoPathComponentBuf = RepoPathComponent;
+
 content_hash! {
     #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
     pub struct RepoPathComponent {
@@ -35,22 +38,22 @@ impl RepoPathComponent {
     }
 }
 
-impl From<&str> for RepoPathComponent {
+impl From<&str> for RepoPathComponentBuf {
     fn from(value: &str) -> Self {
-        RepoPathComponent::from(value.to_owned())
+        RepoPathComponentBuf::from(value.to_owned())
     }
 }
 
-impl From<String> for RepoPathComponent {
+impl From<String> for RepoPathComponentBuf {
     fn from(value: String) -> Self {
         assert!(is_valid_repo_path_component_str(&value));
-        RepoPathComponent { value }
+        RepoPathComponentBuf { value }
     }
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RepoPath {
-    components: Vec<RepoPathComponent>,
+    components: Vec<RepoPathComponentBuf>,
 }
 
 impl Debug for RepoPath {
@@ -75,7 +78,7 @@ impl RepoPath {
         } else {
             let components = value
                 .split('/')
-                .map(|value| RepoPathComponent {
+                .map(|value| RepoPathComponentBuf {
                     value: value.to_string(),
                 })
                 .collect();
@@ -91,7 +94,7 @@ impl RepoPath {
         let components = relative_path
             .components()
             .map(|c| match c {
-                Component::Normal(a) => Some(RepoPathComponent::from(a.to_str().unwrap())),
+                Component::Normal(a) => Some(RepoPathComponentBuf::from(a.to_str().unwrap())),
                 // TODO: better to return Err instead of None?
                 _ => None,
             })
@@ -99,7 +102,7 @@ impl RepoPath {
         Some(RepoPath::from_components(components))
     }
 
-    pub fn from_components(components: Vec<RepoPathComponent>) -> Self {
+    pub fn from_components(components: Vec<RepoPathComponentBuf>) -> Self {
         RepoPath { components }
     }
 
@@ -181,7 +184,7 @@ impl RepoPath {
         }
     }
 
-    pub fn components(&self) -> &Vec<RepoPathComponent> {
+    pub fn components(&self) -> &Vec<RepoPathComponentBuf> {
         &self.components
     }
 
@@ -269,11 +272,11 @@ mod tests {
     #[test]
     fn test_parent() {
         let root = RepoPath::root();
-        let dir_component = RepoPathComponent::from("dir");
-        let subdir_component = RepoPathComponent::from("subdir");
+        let dir_component = &RepoPathComponent::from("dir");
+        let subdir_component = &RepoPathComponent::from("subdir");
 
-        let dir = root.join(&dir_component);
-        let subdir = dir.join(&subdir_component);
+        let dir = root.join(dir_component);
+        let subdir = dir.join(subdir_component);
 
         assert_eq!(root.parent(), None);
         assert_eq!(dir.parent(), Some(root));
@@ -283,15 +286,15 @@ mod tests {
     #[test]
     fn test_split() {
         let root = RepoPath::root();
-        let dir_component = RepoPathComponent::from("dir");
-        let file_component = RepoPathComponent::from("file");
+        let dir_component = &RepoPathComponent::from("dir");
+        let file_component = &RepoPathComponent::from("file");
 
-        let dir = root.join(&dir_component);
-        let file = dir.join(&file_component);
+        let dir = root.join(dir_component);
+        let file = dir.join(file_component);
 
         assert_eq!(root.split(), None);
-        assert_eq!(dir.split(), Some((root, &dir_component)));
-        assert_eq!(file.split(), Some((dir, &file_component)));
+        assert_eq!(dir.split(), Some((root, dir_component)));
+        assert_eq!(file.split(), Some((dir, file_component)));
     }
 
     #[test]
@@ -299,13 +302,13 @@ mod tests {
         assert_eq!(RepoPath::root().components(), &vec![]);
         assert_eq!(
             repo_path("dir").components(),
-            &vec![RepoPathComponent::from("dir")]
+            &vec![RepoPathComponentBuf::from("dir")]
         );
         assert_eq!(
             repo_path("dir/subdir").components(),
             &vec![
-                RepoPathComponent::from("dir"),
-                RepoPathComponent::from("subdir")
+                RepoPathComponentBuf::from("dir"),
+                RepoPathComponentBuf::from("subdir")
             ]
         );
     }
