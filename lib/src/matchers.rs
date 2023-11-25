@@ -19,7 +19,7 @@ use std::iter;
 
 use tracing::instrument;
 
-use crate::repo_path::{RepoPath, RepoPathComponentBuf};
+use crate::repo_path::{RepoPath, RepoPathComponentBuf, RepoPathComponentsIter};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Visit {
@@ -146,13 +146,13 @@ impl Matcher for PrefixMatcher {
     }
 
     fn visit(&self, dir: &RepoPath) -> Visit {
-        for (sub, tail_components) in self.tree.walk_to(dir) {
+        for (sub, mut tail_components) in self.tree.walk_to(dir) {
             // 'is_file' means the current path matches prefix paths
             if sub.is_file {
                 return Visit::AllRecursively;
             }
             // 'dir' found, and is an ancestor of prefix paths
-            if tail_components.is_empty() {
+            if tail_components.next().is_none() {
                 return sub.to_visit_sets();
             }
         }
@@ -280,11 +280,11 @@ impl RepoPathTree {
     }
 
     fn add(&mut self, dir: &RepoPath) -> &mut RepoPathTree {
-        dir.components().iter().fold(self, |sub, name| {
+        dir.components().fold(self, |sub, name| {
             // Avoid name.clone() if entry already exists.
             if !sub.entries.contains_key(name) {
                 sub.is_dir = true;
-                sub.entries.insert(name.clone(), RepoPathTree::new());
+                sub.entries.insert(name.to_owned(), RepoPathTree::new());
             }
             sub.entries.get_mut(name).unwrap()
         })
@@ -300,7 +300,6 @@ impl RepoPathTree {
 
     fn get(&self, dir: &RepoPath) -> Option<&RepoPathTree> {
         dir.components()
-            .iter()
             .try_fold(self, |sub, name| sub.entries.get(name))
     }
 
@@ -310,17 +309,17 @@ impl RepoPathTree {
             .unwrap_or(Visit::Nothing)
     }
 
-    fn walk_to<'a>(
+    fn walk_to<'a, 'b: 'a>(
         &'a self,
-        dir: &'a RepoPath,
-    ) -> impl Iterator<Item = (&RepoPathTree, &[RepoPathComponentBuf])> + 'a {
-        iter::successors(
-            Some((self, dir.components().as_slice())),
-            |(sub, components)| {
-                let (name, tail) = components.split_first()?;
-                Some((sub.entries.get(name)?, tail))
-            },
-        )
+        dir: &'b RepoPath,
+    ) -> impl Iterator<Item = (&'a RepoPathTree, RepoPathComponentsIter<'b>)> + 'a {
+        iter::successors(Some((self, dir.components())), |(sub, components)| {
+            // TODO: Add cheap as_path() method to the components iterator.
+            // Cloning iterator should be cheap, but looks a bit weird.
+            let mut components = components.clone();
+            let name = components.next()?;
+            Some((sub.entries.get(name)?, components))
+        })
     }
 
     fn to_visit_sets(&self) -> Visit {

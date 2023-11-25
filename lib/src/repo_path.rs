@@ -111,6 +111,12 @@ impl ToOwned for RepoPathComponent {
     }
 }
 
+/// Iterator over `RepoPath` components.
+pub type RepoPathComponentsIter<'a> = std::iter::Map<
+    std::slice::Iter<'a, RepoPathComponentBuf>,
+    fn(&RepoPathComponentBuf) -> &RepoPathComponent,
+>;
+
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RepoPath {
     components: Vec<RepoPathComponentBuf>,
@@ -244,8 +250,8 @@ impl RepoPath {
         }
     }
 
-    pub fn components(&self) -> &Vec<RepoPathComponentBuf> {
-        &self.components
+    pub fn components(&self) -> RepoPathComponentsIter<'_> {
+        self.components.iter().map(AsRef::as_ref)
     }
 
     pub fn join(&self, entry: &RepoPathComponent) -> RepoPath {
@@ -361,16 +367,30 @@ mod tests {
 
     #[test]
     fn test_components() {
-        assert_eq!(RepoPath::root().components(), &vec![]);
+        assert!(RepoPath::root().components().next().is_none());
         assert_eq!(
-            repo_path("dir").components(),
-            &vec![RepoPathComponentBuf::from("dir")]
+            repo_path("dir").components().collect_vec(),
+            vec![RepoPathComponent::new("dir")]
         );
         assert_eq!(
-            repo_path("dir/subdir").components(),
-            &vec![
-                RepoPathComponentBuf::from("dir"),
-                RepoPathComponentBuf::from("subdir")
+            repo_path("dir/subdir").components().collect_vec(),
+            vec![
+                RepoPathComponent::new("dir"),
+                RepoPathComponent::new("subdir"),
+            ]
+        );
+
+        // Iterates from back
+        assert!(RepoPath::root().components().next_back().is_none());
+        assert_eq!(
+            repo_path("dir").components().rev().collect_vec(),
+            vec![RepoPathComponent::new("dir")]
+        );
+        assert_eq!(
+            repo_path("dir/subdir").components().rev().collect_vec(),
+            vec![
+                RepoPathComponent::new("subdir"),
+                RepoPathComponent::new("dir"),
             ]
         );
     }

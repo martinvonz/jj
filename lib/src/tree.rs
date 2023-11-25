@@ -30,7 +30,7 @@ use crate::backend::{
 use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{trivial_merge, Merge, MergedTreeValue};
-use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathComponentBuf};
+use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathComponentsIter};
 use crate::store::Store;
 use crate::{backend, files};
 
@@ -159,11 +159,9 @@ impl Tree {
         self.store.get_tree(subdir, id).unwrap()
     }
 
-    // TODO: switch to borrowed &RepoPath type or RepoPathComponents iterator
-    fn sub_tree_recursive(&self, components: &[RepoPathComponentBuf]) -> Option<Tree> {
-        if let Some((first, tail)) = components.split_first() {
-            tail.iter()
-                .try_fold(self.sub_tree(first)?, |tree, name| tree.sub_tree(name))
+    fn sub_tree_recursive(&self, mut components: RepoPathComponentsIter) -> Option<Tree> {
+        if let Some(first) = components.next() {
+            components.try_fold(self.sub_tree(first)?, |tree, name| tree.sub_tree(name))
         } else {
             // TODO: It would be nice to be able to return a reference here, but
             // then we would have to figure out how to share Tree instances

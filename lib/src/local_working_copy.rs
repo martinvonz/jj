@@ -301,9 +301,10 @@ fn create_parent_dirs(
     working_copy_path: &Path,
     repo_path: &RepoPath,
 ) -> Result<bool, CheckoutError> {
-    let (_, dir_components) = repo_path
-        .components()
-        .split_last()
+    // TODO: make RepoPath::parent() cheap and use it instead
+    let mut dir_components = repo_path.components();
+    dir_components
+        .next_back()
         .expect("repo path shouldn't be root");
     let mut dir_path = working_copy_path.to_owned();
     for c in dir_components {
