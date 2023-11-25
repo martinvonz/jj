@@ -306,9 +306,10 @@ mod tests {
     fn test_order() {
         assert!(RepoPath::root() < repo_path("dir"));
         assert!(repo_path("dir") < repo_path("dirx"));
-        // '#' < '/'
+        // '#' < '/', but ["dir", "sub"] < ["dir#"]
         assert!(repo_path("dir") < repo_path("dir#"));
         assert!(repo_path("dir") < repo_path("dir/sub"));
+        assert!(repo_path("dir/sub") < repo_path("dir#"));
 
         assert!(repo_path("abc") < repo_path("dir/file"));
         assert!(repo_path("dir") < repo_path("dir/file"));
