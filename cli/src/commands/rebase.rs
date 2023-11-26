@@ -382,14 +382,30 @@ fn rebase_revision(
     let num_rebased_descendants = rebased_commit_ids.len();
 
     // We now update `new_parents` to account for the rebase of all of
-    // `old_commit`'s descendants. Even if some of the original `new_parents` were
-    // descendants of `old_commit`, this will no longer be the case after the
-    // update.
+    // `old_commit`'s descendants. Even if some of the original `new_parents`
+    // were descendants of `old_commit`, this will no longer be the case after
+    // the update.
     //
     // To make the update simpler, we assume that each commit was rewritten only
     // once; we don't have a situation where both `(A,B)` and `(B,C)` are in
-    // `rebased_commit_ids`. This assumption relies on the fact that a descendant of
-    // a child of `old_commit` cannot also be a direct child of `old_commit`.
+    // `rebased_commit_ids`.
+    //
+    // TODO(BUG #2650): There is something wrong with this assumption, the next TODO
+    // seems to be a little optimistic. See the panicked test in
+    // `test_rebase_with_child_and_descendant_bug_2600`.
+    //
+    // TODO(ilyagr): This assumption relies on the fact that, after
+    // `rebase_descendants`, a descendant of `old_commit` cannot also be a
+    // direct child of `old_commit`. This fact will likely change, see
+    // https://github.com/martinvonz/jj/issues/2600. So, the code needs to be
+    // updated before that happens. This would also affect
+    // `test_rebase_with_child_and_descendant_bug_2600`.
+    //
+    // The issue is that if a child and a descendant of `old_commit` were the
+    // same commit (call it `Q`), it would be rebased first by `rebase_commit`
+    // above, and then the result would be rebased again by
+    // `rebase_descendants_return_map`. Then, if we were trying to rebase
+    // `old_commit` onto `Q`, new_parents would only account for one of these.
     let new_parents: Vec<_> = new_parents
         .iter()
         .map(|new_parent| {

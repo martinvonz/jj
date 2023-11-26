@@ -631,3 +631,261 @@ fn test_rebase_with_descendants() {
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(repo_path, &["log", "-T", "branches"])
 }
+
+// This behavior illustrates https://github.com/martinvonz/jj/issues/2600
+// The behavior of `rebase -r A -d descendant_of_A` can also be affected or
+// broken depending on how #2600 is fixed, so we test that as well.
+#[test]
+fn test_rebase_with_child_and_descendant_bug_2600() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "base", &[]);
+    create_commit(&test_env, &repo_path, "a", &["base"]);
+    create_commit(&test_env, &repo_path, "b", &["base", "a"]);
+    create_commit(&test_env, &repo_path, "c", &["b"]);
+    let setup_opid = test_env.current_operation_id(&repo_path);
+
+    // Test the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  c
+    ◉    b
+    ├─╮
+    │ ◉  a
+    ├─╯
+    ◉  base
+    ◉
+    "###);
+
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "base", "-d", "root()"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Also rebased 4 descendant commits onto parent of rebased commit
+    Working copy now at: vruxwmqv 1fdab507 c | c
+    Parent commit      : royxmykx 4d413a39 b | b
+    Added 0 files, modified 0 files, removed 1 files
+    "###);
+    // The user would expect unsimplified ancestry here.
+    // ◉  base
+    // │ @  c
+    // │ ◉    b
+    // │ ├─╮
+    // │ │ ◉  a
+    // │ ├─╯
+    // ├─╯
+    // ◉
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  base
+    │ @  c
+    │ ◉  b
+    │ ◉  a
+    ├─╯
+    ◉
+    "###);
+
+    // TODO(#2650) !!!!! The panic here is a BUG !!!
+    // This tests the algorithm for rebasing onto descendants. The result should be
+    // simplified if and only if it's simplified in the above case.
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+    let stderr = test_env.jj_cmd_panic(&repo_path, &["rebase", "-r", "base", "-d", "b"]);
+    assert!(stderr.contains("graph has cycle"));
+    // // At time of writing:
+    // insta::assert_snapshot!(stderr, @r###"
+    // thread 'main' panicked at lib/src/dag_walk.rs:113:13:
+    // graph has cycle
+    // stack backtrace:
+    //    0: rust_begin_unwind
+    //              at
+    // /rustc/6cf088810f66fff15d05bf7135c5f5888b7c93b4/library/std/src/panicking.rs:
+    // 645:5    1: core::panicking::panic_fmt
+    //              at
+    // /rustc/6cf088810f66fff15d05bf7135c5f5888b7c93b4/library/core/src/panicking.
+    // rs:72:14    2: jj_lib::dag_walk::topo_order_forward_ok
+    //              at
+    // /usr/local/google/home/ilyagr/dev/jj/lib/src/dag_walk.rs:113:13
+    //    3: jj_lib::dag_walk::topo_order_reverse_ok
+    //              at
+    // /usr/local/google/home/ilyagr/dev/jj/lib/src/dag_walk.rs:160:22
+    //    4: jj_lib::dag_walk::topo_order_reverse
+    //              at
+    // /usr/local/google/home/ilyagr/dev/jj/lib/src/dag_walk.rs:142:5
+    //    5: jj_lib::rewrite::DescendantRebaser::new
+    //              at
+    // /usr/local/google/home/ilyagr/dev/jj/lib/src/rewrite.rs:306:24
+    //    6: jj_lib::repo::MutableRepo::create_descendant_rebaser
+    //              at /usr/local/google/home/ilyagr/dev/jj/lib/src/repo.rs:844:9
+    //    7: jj_lib::repo::MutableRepo::rebase_descendants_return_rebaser
+    //              at /usr/local/google/home/ilyagr/dev/jj/lib/src/repo.rs:861:27
+    //    8: jj_lib::repo::MutableRepo::rebase_descendants_with_options
+    //              at /usr/local/google/home/ilyagr/dev/jj/lib/src/repo.rs:872:12
+    //    9: jj_lib::repo::MutableRepo::rebase_descendants
+    //              at /usr/local/google/home/ilyagr/dev/jj/lib/src/repo.rs:878:9
+    //   10: jj_cli::commands::rebase::rebase_revision
+    //              at
+    // /usr/local/google/home/ilyagr/dev/jj/cli/src/commands/rebase.rs:420:22
+    //   11: jj_cli::commands::rebase::cmd_rebase
+    //              at
+    // /usr/local/google/home/ilyagr/dev/jj/cli/src/commands/rebase.rs:197:9
+    //   12: jj_cli::commands::run_command
+    //              at
+    // /usr/local/google/home/ilyagr/dev/jj/cli/src/commands/mod.rs:187:39   13:
+    // core::ops::function::FnOnce::call_once              at
+    // /rustc/6cf088810f66fff15d05bf7135c5f5888b7c93b4/library/core/src/ops/
+    // function.rs:250:5   14: core::ops::function::FnOnce::call_once{{vtable.
+    // shim}}              at
+    // /rustc/6cf088810f66fff15d05bf7135c5f5888b7c93b4/library/core/src/ops/
+    // function.rs:250:5   15: <alloc::boxed::Box<F,A> as
+    // core::ops::function::FnOnce<Args>>::call_once              at
+    // /rustc/6cf088810f66fff15d05bf7135c5f5888b7c93b4/library/alloc/src/boxed.rs:
+    // 2007:9   16: jj_cli::cli_util::CliRunner::run_internal
+    //              at
+    // /usr/local/google/home/ilyagr/dev/jj/cli/src/cli_util.rs:2867:9
+    //   17: jj_cli::cli_util::CliRunner::run
+    //              at
+    // /usr/local/google/home/ilyagr/dev/jj/cli/src/cli_util.rs:2884:22
+    //   18: jj::main
+    //              at /usr/local/google/home/ilyagr/dev/jj/cli/src/main.rs:18:5
+    //   19: core::ops::function::FnOnce::call_once
+    //              at
+    // /rustc/6cf088810f66fff15d05bf7135c5f5888b7c93b4/library/core/src/ops/
+    // function.rs:250:5 note: Some details are omitted, run with
+    // `RUST_BACKTRACE=full` for a verbose backtrace. "###);
+    //
+    // Unsimlified ancestry would look like
+    // @  c
+    // │ ◉  base
+    // ├─╯
+    // ◉    b
+    // ├─╮
+    // │ ◉  a
+    // ├─╯
+    // ◉
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  c
+    ◉    b
+    ├─╮
+    │ ◉  a
+    ├─╯
+    ◉  base
+    ◉
+    "###);
+
+    // This tests the algorithm for rebasing onto descendants. The result should be
+    // simplified if and only if it's simplified in the above case.
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "base", "-d", "a"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Also rebased 4 descendant commits onto parent of rebased commit
+    Working copy now at: vruxwmqv ea69166f c | c
+    Parent commit      : royxmykx ee9e59c1 b | b
+    Added 0 files, modified 0 files, removed 1 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  base
+    │ @  c
+    │ ◉  b
+    ├─╯
+    ◉  a
+    ◉
+    "###);
+
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+    // ====== Reminder of the setup =========
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  c
+    ◉    b
+    ├─╮
+    │ ◉  a
+    ├─╯
+    ◉  base
+    ◉
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "a", "-d", "root()"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Also rebased 2 descendant commits onto parent of rebased commit
+    Working copy now at: vruxwmqv 3f36363f c | c
+    Parent commit      : royxmykx a969d119 b | b
+    Added 0 files, modified 0 files, removed 1 files
+    "###);
+    // In this case, it is unclear whether the user would always prefer unsimplified
+    // ancestry (whether `b` should also be a direct child of the root commit).
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  a
+    │ @  c
+    │ ◉  b
+    │ ◉  base
+    ├─╯
+    ◉
+    "###);
+
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "b", "-d", "root()"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Also rebased 1 descendant commits onto parent of rebased commit
+    Working copy now at: vruxwmqv 28f17d8e c | c
+    Parent commit      : zsuskuln 2c5b7858 a | a
+    Added 0 files, modified 0 files, removed 1 files
+    "###);
+    // The user would expect unsimplified ancestry here.
+    // ◉  b
+    // │ @  c
+    // │ ├─╮
+    // │ │ ◉  a
+    // │ ├─╯
+    // │ ◉  base
+    // ├─╯
+    // ◉
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  b
+    │ @  c
+    │ ◉  a
+    │ ◉  base
+    ├─╯
+    ◉
+    "###);
+
+    // This tests the algorithm for rebasing onto descendants. The result should be
+    // simplified if and only if it's simplified in the above case.
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "b", "-d", "c"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Also rebased 1 descendant commits onto parent of rebased commit
+    Working copy now at: vruxwmqv ee203f6d c | c
+    Parent commit      : zsuskuln 2c5b7858 a | a
+    Added 0 files, modified 0 files, removed 1 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  b
+    @  c
+    ◉  a
+    ◉  base
+    ◉
+    "###);
+
+    // In this test, the commit with weird ancestry is not rebased (neither directly
+    // nor indirectly).
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "c", "-d", "a"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: vruxwmqv 5e5eea65 c | c
+    Parent commit      : zsuskuln 2c5b7858 a | a
+    Added 0 files, modified 0 files, removed 1 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  c
+    │ ◉  b
+    ╭─┤
+    ◉ │  a
+    ├─╯
+    ◉  base
+    ◉
+    "###);
+}
