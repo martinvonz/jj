@@ -22,7 +22,7 @@ use jj_lib::backend::{CommitId, ObjectId};
 use jj_lib::commit::Commit;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
-use jj_lib::rewrite::{rebase_commit_with_options, EmptyBehaviour, RebaseOptions};
+use jj_lib::rewrite::{rebase_commit, rebase_commit_with_options, EmptyBehaviour, RebaseOptions};
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
@@ -357,22 +357,15 @@ fn rebase_revision(
 
         rebased_commit_ids.insert(
             child_commit.id().clone(),
-            rebase_commit_with_options(
-                settings,
-                tx.mut_repo(),
-                child_commit,
-                &new_child_parents,
-                rebase_options,
-            )?
-            .id()
-            .clone(),
+            rebase_commit(settings, tx.mut_repo(), child_commit, &new_child_parents)?
+                .id()
+                .clone(),
         );
     }
     // Now, rebase the descendants of the children.
-    rebased_commit_ids.extend(
-        tx.mut_repo()
-            .rebase_descendants_return_map(settings, rebase_options.clone())?,
-    );
+    // TODO(ilyagr): Consider making it possible for these descendants to become
+    // emptied, like --skip_empty. This would require writing careful tests.
+    rebased_commit_ids.extend(tx.mut_repo().rebase_descendants_return_map(settings)?);
     let num_rebased_descendants = rebased_commit_ids.len();
 
     // We now update `new_parents` to account for the rebase of all of
@@ -405,11 +398,7 @@ fn rebase_revision(
         &new_parents,
         rebase_options,
     )?;
-    debug_assert_eq!(
-        tx.mut_repo()
-            .rebase_descendants_with_options(settings, rebase_options.clone())?,
-        0
-    );
+    debug_assert_eq!(tx.mut_repo().rebase_descendants(settings)?, 0);
 
     if num_rebased_descendants > 0 {
         writeln!(
