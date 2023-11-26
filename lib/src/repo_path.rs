@@ -246,8 +246,8 @@ impl RepoPath {
 
     /// The full string form used internally, not for presenting to users (where
     /// we may want to use the platform's separator).
-    pub fn to_internal_file_string(&self) -> String {
-        self.value.to_owned()
+    pub fn as_internal_file_string(&self) -> &str {
+        &self.value
     }
 
     pub fn to_fs_path(&self, base: &Path) -> PathBuf {
@@ -362,10 +362,10 @@ mod tests {
     }
 
     #[test]
-    fn test_to_internal_string() {
-        assert_eq!(RepoPath::root().to_internal_file_string(), "");
-        assert_eq!(repo_path("dir").to_internal_file_string(), "dir");
-        assert_eq!(repo_path("dir/file").to_internal_file_string(), "dir/file");
+    fn test_as_internal_file_string() {
+        assert_eq!(RepoPath::root().as_internal_file_string(), "");
+        assert_eq!(repo_path("dir").as_internal_file_string(), "dir");
+        assert_eq!(repo_path("dir/file").as_internal_file_string(), "dir/file");
     }
 
     #[test]
