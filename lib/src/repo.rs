@@ -881,10 +881,12 @@ impl MutableRepo {
     pub fn rebase_descendants_return_map(
         &mut self,
         settings: &UserSettings,
-        options: RebaseOptions,
     ) -> Result<HashMap<CommitId, CommitId>, TreeMergeError> {
         Ok(self
-            .rebase_descendants_return_rebaser(settings, options)?
+            // We do not set RebaseOptions here, since this function does not currently return
+            // enough information to describe the results of a rebase if some commits got
+            // abandoned
+            .rebase_descendants_return_rebaser(settings, Default::default())?
             .map_or(HashMap::new(), |rebaser| rebaser.rebased().clone()))
     }
 
