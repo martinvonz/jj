@@ -249,13 +249,13 @@ pub struct DescendantRebaser<'settings, 'repo> {
     // because the key commit was abandoned (the value commits are then the abandoned commit's
     // parents). A child of the key commit should be rebased onto all the value commits. A branch
     // pointing to the key commit should become a conflict pointing to all the value commits.
-    new_parents: HashMap<CommitId, Vec<CommitId>>,
+    parent_mapping: HashMap<CommitId, Vec<CommitId>>,
     divergent: HashMap<CommitId, Vec<CommitId>>,
     // In reverse order (parents after children), so we can remove the last one to rebase first.
     to_visit: Vec<Commit>,
     // Commits to visit but skip. These were also in `to_visit` to start with, but we don't
-    // want to rebase them. Instead, we record them in `replacements` when we visit them. That way,
-    // their descendants will be rebased correctly.
+    // want to rebase them. Instead, we record them in `parent_mapping` when we visit them. That
+    // way, their descendants will be rebased correctly.
     abandoned: HashSet<CommitId>,
     new_commits: HashSet<CommitId>,
     rebased: HashMap<CommitId, CommitId>,
@@ -327,11 +327,11 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
 
         let new_commits = rewritten.values().flatten().cloned().collect();
 
-        let mut new_parents = HashMap::new();
+        let mut parent_mapping = HashMap::new();
         let mut divergent = HashMap::new();
         for (old_commit, new_commits) in rewritten {
             if new_commits.len() == 1 {
-                new_parents.insert(old_commit, vec![new_commits.iter().next().unwrap().clone()]);
+                parent_mapping.insert(old_commit, vec![new_commits.iter().next().unwrap().clone()]);
             } else {
                 // The call to index.heads() is mostly to get a predictable order
                 let new_commits = mut_repo.index().heads(&mut new_commits.iter());
@@ -354,7 +354,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         DescendantRebaser {
             settings,
             mut_repo,
-            new_parents,
+            parent_mapping,
             divergent,
             to_visit,
             abandoned,
@@ -391,7 +391,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             }
         };
         for old_id in old_ids {
-            if let Some(new_parent_ids) = self.new_parents.get(old_id) {
+            if let Some(new_parent_ids) = self.parent_mapping.get(old_id) {
                 for new_parent_id in new_parent_ids {
                     // The new parent may itself have been rebased earlier in the process
                     if let Some(newer_parent_id) = self.rebased.get(new_parent_id) {
@@ -494,7 +494,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     pub fn rebase_next(&mut self) -> Result<Option<RebasedDescendant>, TreeMergeError> {
         while let Some(old_commit) = self.to_visit.pop() {
             let old_commit_id = old_commit.id().clone();
-            if let Some(new_parent_ids) = self.new_parents.get(&old_commit_id).cloned() {
+            if let Some(new_parent_ids) = self.parent_mapping.get(&old_commit_id).cloned() {
                 // This is a commit that had already been rebased before `self` was created
                 // (i.e. it's part of the input for this rebase). We don't need
                 // to rebase it, but we still want to update branches pointing
@@ -503,8 +503,8 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 continue;
             }
             if let Some(divergent_ids) = self.divergent.get(&old_commit_id).cloned() {
-                // Leave divergent commits in place. Don't update `new_parents` since we don't
-                // want to rebase descendants either.
+                // Leave divergent commits in place. Don't update `parent_mapping` since we
+                // don't want to rebase descendants either.
                 self.update_references(old_commit_id, divergent_ids, true)?;
                 continue;
             }
@@ -512,7 +512,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             let new_parent_ids = self.new_parents(old_parent_ids);
             if self.abandoned.contains(&old_commit_id) {
                 // Update the `new_parents` map so descendants are rebased correctly.
-                self.new_parents
+                self.parent_mapping
                     .insert(old_commit_id.clone(), new_parent_ids.clone());
                 self.update_references(old_commit_id, new_parent_ids, false)?;
                 continue;
