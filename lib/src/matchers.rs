@@ -343,6 +343,10 @@ mod tests {
 
     use super::*;
 
+    fn repo_path(value: &str) -> RepoPath {
+        RepoPath::from_internal_string(value)
+    }
+
     #[test]
     fn test_repo_path_tree_empty() {
         let tree = RepoPathTree::new();
@@ -359,14 +363,14 @@ mod tests {
     #[test]
     fn test_repo_path_tree_dir() {
         let mut tree = RepoPathTree::new();
-        tree.add_dir(&RepoPath::from_internal_string("dir"));
+        tree.add_dir(&repo_path("dir"));
         assert_eq!(
             tree.get_visit_sets(&RepoPath::root()),
             Visit::sets(hashset! {RepoPathComponentBuf::from("dir")}, hashset! {}),
         );
-        tree.add_dir(&RepoPath::from_internal_string("dir/sub"));
+        tree.add_dir(&repo_path("dir/sub"));
         assert_eq!(
-            tree.get_visit_sets(&RepoPath::from_internal_string("dir")),
+            tree.get_visit_sets(&repo_path("dir")),
             Visit::sets(hashset! {RepoPathComponentBuf::from("sub")}, hashset! {}),
         );
     }
@@ -374,13 +378,13 @@ mod tests {
     #[test]
     fn test_repo_path_tree_file() {
         let mut tree = RepoPathTree::new();
-        tree.add_file(&RepoPath::from_internal_string("dir/file"));
+        tree.add_file(&repo_path("dir/file"));
         assert_eq!(
             tree.get_visit_sets(&RepoPath::root()),
             Visit::sets(hashset! {RepoPathComponentBuf::from("dir")}, hashset! {}),
         );
         assert_eq!(
-            tree.get_visit_sets(&RepoPath::from_internal_string("dir")),
+            tree.get_visit_sets(&repo_path("dir")),
             Visit::sets(hashset! {}, hashset! {RepoPathComponentBuf::from("file")}),
         );
     }
@@ -388,33 +392,33 @@ mod tests {
     #[test]
     fn test_nothingmatcher() {
         let m = NothingMatcher;
-        assert!(!m.matches(&RepoPath::from_internal_string("file")));
-        assert!(!m.matches(&RepoPath::from_internal_string("dir/file")));
+        assert!(!m.matches(&repo_path("file")));
+        assert!(!m.matches(&repo_path("dir/file")));
         assert_eq!(m.visit(&RepoPath::root()), Visit::Nothing);
     }
 
     #[test]
     fn test_filesmatcher_empty() {
         let m = FilesMatcher::new(&[]);
-        assert!(!m.matches(&RepoPath::from_internal_string("file")));
-        assert!(!m.matches(&RepoPath::from_internal_string("dir/file")));
+        assert!(!m.matches(&repo_path("file")));
+        assert!(!m.matches(&repo_path("dir/file")));
         assert_eq!(m.visit(&RepoPath::root()), Visit::Nothing);
     }
 
     #[test]
     fn test_filesmatcher_nonempty() {
         let m = FilesMatcher::new(&[
-            RepoPath::from_internal_string("dir1/subdir1/file1"),
-            RepoPath::from_internal_string("dir1/subdir1/file2"),
-            RepoPath::from_internal_string("dir1/subdir2/file3"),
-            RepoPath::from_internal_string("file4"),
+            repo_path("dir1/subdir1/file1"),
+            repo_path("dir1/subdir1/file2"),
+            repo_path("dir1/subdir2/file3"),
+            repo_path("file4"),
         ]);
 
-        assert!(!m.matches(&RepoPath::from_internal_string("dir1")));
-        assert!(!m.matches(&RepoPath::from_internal_string("dir1/subdir1")));
-        assert!(m.matches(&RepoPath::from_internal_string("dir1/subdir1/file1")));
-        assert!(m.matches(&RepoPath::from_internal_string("dir1/subdir1/file2")));
-        assert!(!m.matches(&RepoPath::from_internal_string("dir1/subdir1/file3")));
+        assert!(!m.matches(&repo_path("dir1")));
+        assert!(!m.matches(&repo_path("dir1/subdir1")));
+        assert!(m.matches(&repo_path("dir1/subdir1/file1")));
+        assert!(m.matches(&repo_path("dir1/subdir1/file2")));
+        assert!(!m.matches(&repo_path("dir1/subdir1/file3")));
 
         assert_eq!(
             m.visit(&RepoPath::root()),
@@ -424,7 +428,7 @@ mod tests {
             )
         );
         assert_eq!(
-            m.visit(&RepoPath::from_internal_string("dir1")),
+            m.visit(&repo_path("dir1")),
             Visit::sets(
                 hashset! {
                     RepoPathComponentBuf::from("subdir1"),
@@ -434,7 +438,7 @@ mod tests {
             )
         );
         assert_eq!(
-            m.visit(&RepoPath::from_internal_string("dir1/subdir1")),
+            m.visit(&repo_path("dir1/subdir1")),
             Visit::sets(
                 hashset! {},
                 hashset! {
@@ -444,7 +448,7 @@ mod tests {
             )
         );
         assert_eq!(
-            m.visit(&RepoPath::from_internal_string("dir1/subdir2")),
+            m.visit(&repo_path("dir1/subdir2")),
             Visit::sets(hashset! {}, hashset! {RepoPathComponentBuf::from("file3")})
         );
     }
@@ -452,8 +456,8 @@ mod tests {
     #[test]
     fn test_prefixmatcher_empty() {
         let m = PrefixMatcher::new(&[]);
-        assert!(!m.matches(&RepoPath::from_internal_string("file")));
-        assert!(!m.matches(&RepoPath::from_internal_string("dir/file")));
+        assert!(!m.matches(&repo_path("file")));
+        assert!(!m.matches(&repo_path("dir/file")));
         assert_eq!(m.visit(&RepoPath::root()), Visit::Nothing);
     }
 
@@ -461,32 +465,29 @@ mod tests {
     fn test_prefixmatcher_root() {
         let m = PrefixMatcher::new(&[RepoPath::root()]);
         // Matches all files
-        assert!(m.matches(&RepoPath::from_internal_string("file")));
-        assert!(m.matches(&RepoPath::from_internal_string("dir/file")));
+        assert!(m.matches(&repo_path("file")));
+        assert!(m.matches(&repo_path("dir/file")));
         // Visits all directories
         assert_eq!(m.visit(&RepoPath::root()), Visit::AllRecursively);
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("foo/bar")),
-            Visit::AllRecursively
-        );
+        assert_eq!(m.visit(&repo_path("foo/bar")), Visit::AllRecursively);
     }
 
     #[test]
     fn test_prefixmatcher_single_prefix() {
-        let m = PrefixMatcher::new(&[RepoPath::from_internal_string("foo/bar")]);
+        let m = PrefixMatcher::new(&[repo_path("foo/bar")]);
 
         // Parts of the prefix should not match
-        assert!(!m.matches(&RepoPath::from_internal_string("foo")));
-        assert!(!m.matches(&RepoPath::from_internal_string("bar")));
+        assert!(!m.matches(&repo_path("foo")));
+        assert!(!m.matches(&repo_path("bar")));
         // A file matching the prefix exactly should match
-        assert!(m.matches(&RepoPath::from_internal_string("foo/bar")));
+        assert!(m.matches(&repo_path("foo/bar")));
         // Files in subdirectories should match
-        assert!(m.matches(&RepoPath::from_internal_string("foo/bar/baz")));
-        assert!(m.matches(&RepoPath::from_internal_string("foo/bar/baz/qux")));
+        assert!(m.matches(&repo_path("foo/bar/baz")));
+        assert!(m.matches(&repo_path("foo/bar/baz/qux")));
         // Sibling files should not match
-        assert!(!m.matches(&RepoPath::from_internal_string("foo/foo")));
+        assert!(!m.matches(&repo_path("foo/foo")));
         // An unrooted "foo/bar" should not match
-        assert!(!m.matches(&RepoPath::from_internal_string("bar/foo/bar")));
+        assert!(!m.matches(&repo_path("bar/foo/bar")));
 
         // The matcher should only visit directory foo/ in the root (file "foo"
         // shouldn't be visited)
@@ -497,42 +498,30 @@ mod tests {
         // Inside parent directory "foo/", both subdirectory "bar" and file "bar" may
         // match
         assert_eq!(
-            m.visit(&RepoPath::from_internal_string("foo")),
+            m.visit(&repo_path("foo")),
             Visit::sets(
                 hashset! {RepoPathComponentBuf::from("bar")},
                 hashset! {RepoPathComponentBuf::from("bar")}
             )
         );
         // Inside a directory that matches the prefix, everything matches recursively
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("foo/bar")),
-            Visit::AllRecursively
-        );
+        assert_eq!(m.visit(&repo_path("foo/bar")), Visit::AllRecursively);
         // Same thing in subdirectories of the prefix
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("foo/bar/baz")),
-            Visit::AllRecursively
-        );
+        assert_eq!(m.visit(&repo_path("foo/bar/baz")), Visit::AllRecursively);
         // Nothing in directories that are siblings of the prefix can match, so don't
         // visit
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("bar")),
-            Visit::Nothing
-        );
+        assert_eq!(m.visit(&repo_path("bar")), Visit::Nothing);
     }
 
     #[test]
     fn test_prefixmatcher_nested_prefixes() {
-        let m = PrefixMatcher::new(&[
-            RepoPath::from_internal_string("foo"),
-            RepoPath::from_internal_string("foo/bar/baz"),
-        ]);
+        let m = PrefixMatcher::new(&[repo_path("foo"), repo_path("foo/bar/baz")]);
 
-        assert!(m.matches(&RepoPath::from_internal_string("foo")));
-        assert!(!m.matches(&RepoPath::from_internal_string("bar")));
-        assert!(m.matches(&RepoPath::from_internal_string("foo/bar")));
+        assert!(m.matches(&repo_path("foo")));
+        assert!(!m.matches(&repo_path("bar")));
+        assert!(m.matches(&repo_path("foo/bar")));
         // Matches because the "foo" pattern matches
-        assert!(m.matches(&RepoPath::from_internal_string("foo/baz/foo")));
+        assert!(m.matches(&repo_path("foo/baz/foo")));
 
         assert_eq!(
             m.visit(&RepoPath::root()),
@@ -542,31 +531,22 @@ mod tests {
             )
         );
         // Inside a directory that matches the prefix, everything matches recursively
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("foo")),
-            Visit::AllRecursively
-        );
+        assert_eq!(m.visit(&repo_path("foo")), Visit::AllRecursively);
         // Same thing in subdirectories of the prefix
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("foo/bar/baz")),
-            Visit::AllRecursively
-        );
+        assert_eq!(m.visit(&repo_path("foo/bar/baz")), Visit::AllRecursively);
     }
 
     #[test]
     fn test_differencematcher_remove_subdir() {
-        let m1 = PrefixMatcher::new(&[
-            RepoPath::from_internal_string("foo"),
-            RepoPath::from_internal_string("bar"),
-        ]);
-        let m2 = PrefixMatcher::new(&[RepoPath::from_internal_string("foo/bar")]);
+        let m1 = PrefixMatcher::new(&[repo_path("foo"), repo_path("bar")]);
+        let m2 = PrefixMatcher::new(&[repo_path("foo/bar")]);
         let m = DifferenceMatcher::new(&m1, &m2);
 
-        assert!(m.matches(&RepoPath::from_internal_string("foo")));
-        assert!(!m.matches(&RepoPath::from_internal_string("foo/bar")));
-        assert!(!m.matches(&RepoPath::from_internal_string("foo/bar/baz")));
-        assert!(m.matches(&RepoPath::from_internal_string("foo/baz")));
-        assert!(m.matches(&RepoPath::from_internal_string("bar")));
+        assert!(m.matches(&repo_path("foo")));
+        assert!(!m.matches(&repo_path("foo/bar")));
+        assert!(!m.matches(&repo_path("foo/bar/baz")));
+        assert!(m.matches(&repo_path("foo/baz")));
+        assert!(m.matches(&repo_path("bar")));
 
         assert_eq!(
             m.visit(&RepoPath::root()),
@@ -582,39 +562,27 @@ mod tests {
             )
         );
         assert_eq!(
-            m.visit(&RepoPath::from_internal_string("foo")),
+            m.visit(&repo_path("foo")),
             Visit::Specific {
                 dirs: VisitDirs::All,
                 files: VisitFiles::All,
             }
         );
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("foo/bar")),
-            Visit::Nothing
-        );
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("foo/baz")),
-            Visit::AllRecursively
-        );
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("bar")),
-            Visit::AllRecursively
-        );
+        assert_eq!(m.visit(&repo_path("foo/bar")), Visit::Nothing);
+        assert_eq!(m.visit(&repo_path("foo/baz")), Visit::AllRecursively);
+        assert_eq!(m.visit(&repo_path("bar")), Visit::AllRecursively);
     }
 
     #[test]
     fn test_differencematcher_shared_patterns() {
-        let m1 = PrefixMatcher::new(&[
-            RepoPath::from_internal_string("foo"),
-            RepoPath::from_internal_string("bar"),
-        ]);
-        let m2 = PrefixMatcher::new(&[RepoPath::from_internal_string("foo")]);
+        let m1 = PrefixMatcher::new(&[repo_path("foo"), repo_path("bar")]);
+        let m2 = PrefixMatcher::new(&[repo_path("foo")]);
         let m = DifferenceMatcher::new(&m1, &m2);
 
-        assert!(!m.matches(&RepoPath::from_internal_string("foo")));
-        assert!(!m.matches(&RepoPath::from_internal_string("foo/bar")));
-        assert!(m.matches(&RepoPath::from_internal_string("bar")));
-        assert!(m.matches(&RepoPath::from_internal_string("bar/foo")));
+        assert!(!m.matches(&repo_path("foo")));
+        assert!(!m.matches(&repo_path("foo/bar")));
+        assert!(m.matches(&repo_path("bar")));
+        assert!(m.matches(&repo_path("bar/foo")));
 
         assert_eq!(
             m.visit(&RepoPath::root()),
@@ -629,42 +597,24 @@ mod tests {
                 },
             )
         );
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("foo")),
-            Visit::Nothing
-        );
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("foo/bar")),
-            Visit::Nothing
-        );
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("bar")),
-            Visit::AllRecursively
-        );
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("bar/foo")),
-            Visit::AllRecursively
-        );
+        assert_eq!(m.visit(&repo_path("foo")), Visit::Nothing);
+        assert_eq!(m.visit(&repo_path("foo/bar")), Visit::Nothing);
+        assert_eq!(m.visit(&repo_path("bar")), Visit::AllRecursively);
+        assert_eq!(m.visit(&repo_path("bar/foo")), Visit::AllRecursively);
     }
 
     #[test]
     fn test_intersectionmatcher_intersecting_roots() {
-        let m1 = PrefixMatcher::new(&[
-            RepoPath::from_internal_string("foo"),
-            RepoPath::from_internal_string("bar"),
-        ]);
-        let m2 = PrefixMatcher::new(&[
-            RepoPath::from_internal_string("bar"),
-            RepoPath::from_internal_string("baz"),
-        ]);
+        let m1 = PrefixMatcher::new(&[repo_path("foo"), repo_path("bar")]);
+        let m2 = PrefixMatcher::new(&[repo_path("bar"), repo_path("baz")]);
         let m = IntersectionMatcher::new(&m1, &m2);
 
-        assert!(!m.matches(&RepoPath::from_internal_string("foo")));
-        assert!(!m.matches(&RepoPath::from_internal_string("foo/bar")));
-        assert!(m.matches(&RepoPath::from_internal_string("bar")));
-        assert!(m.matches(&RepoPath::from_internal_string("bar/foo")));
-        assert!(!m.matches(&RepoPath::from_internal_string("baz")));
-        assert!(!m.matches(&RepoPath::from_internal_string("baz/foo")));
+        assert!(!m.matches(&repo_path("foo")));
+        assert!(!m.matches(&repo_path("foo/bar")));
+        assert!(m.matches(&repo_path("bar")));
+        assert!(m.matches(&repo_path("bar/foo")));
+        assert!(!m.matches(&repo_path("baz")));
+        assert!(!m.matches(&repo_path("baz/foo")));
 
         assert_eq!(
             m.visit(&RepoPath::root()),
@@ -673,62 +623,38 @@ mod tests {
                 hashset! {RepoPathComponentBuf::from("bar")}
             )
         );
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("foo")),
-            Visit::Nothing
-        );
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("foo/bar")),
-            Visit::Nothing
-        );
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("bar")),
-            Visit::AllRecursively
-        );
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("bar/foo")),
-            Visit::AllRecursively
-        );
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("baz")),
-            Visit::Nothing
-        );
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("baz/foo")),
-            Visit::Nothing
-        );
+        assert_eq!(m.visit(&repo_path("foo")), Visit::Nothing);
+        assert_eq!(m.visit(&repo_path("foo/bar")), Visit::Nothing);
+        assert_eq!(m.visit(&repo_path("bar")), Visit::AllRecursively);
+        assert_eq!(m.visit(&repo_path("bar/foo")), Visit::AllRecursively);
+        assert_eq!(m.visit(&repo_path("baz")), Visit::Nothing);
+        assert_eq!(m.visit(&repo_path("baz/foo")), Visit::Nothing);
     }
 
     #[test]
     fn test_intersectionmatcher_subdir() {
-        let m1 = PrefixMatcher::new(&[RepoPath::from_internal_string("foo")]);
-        let m2 = PrefixMatcher::new(&[RepoPath::from_internal_string("foo/bar")]);
+        let m1 = PrefixMatcher::new(&[repo_path("foo")]);
+        let m2 = PrefixMatcher::new(&[repo_path("foo/bar")]);
         let m = IntersectionMatcher::new(&m1, &m2);
 
-        assert!(!m.matches(&RepoPath::from_internal_string("foo")));
-        assert!(!m.matches(&RepoPath::from_internal_string("bar")));
-        assert!(m.matches(&RepoPath::from_internal_string("foo/bar")));
-        assert!(m.matches(&RepoPath::from_internal_string("foo/bar/baz")));
-        assert!(!m.matches(&RepoPath::from_internal_string("foo/baz")));
+        assert!(!m.matches(&repo_path("foo")));
+        assert!(!m.matches(&repo_path("bar")));
+        assert!(m.matches(&repo_path("foo/bar")));
+        assert!(m.matches(&repo_path("foo/bar/baz")));
+        assert!(!m.matches(&repo_path("foo/baz")));
 
         assert_eq!(
             m.visit(&RepoPath::root()),
             Visit::sets(hashset! {RepoPathComponentBuf::from("foo")}, hashset! {})
         );
+        assert_eq!(m.visit(&repo_path("bar")), Visit::Nothing);
         assert_eq!(
-            m.visit(&RepoPath::from_internal_string("bar")),
-            Visit::Nothing
-        );
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("foo")),
+            m.visit(&repo_path("foo")),
             Visit::sets(
                 hashset! {RepoPathComponentBuf::from("bar")},
                 hashset! {RepoPathComponentBuf::from("bar")}
             )
         );
-        assert_eq!(
-            m.visit(&RepoPath::from_internal_string("foo/bar")),
-            Visit::AllRecursively
-        );
+        assert_eq!(m.visit(&repo_path("foo/bar")), Visit::AllRecursively);
     }
 }
