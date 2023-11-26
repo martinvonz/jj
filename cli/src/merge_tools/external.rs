@@ -15,7 +15,7 @@ use jj_lib::local_working_copy::{TreeState, TreeStateError};
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::{Merge, MergedTreeValue};
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
-use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::settings::UserSettings;
 use jj_lib::store::Store;
 use jj_lib::working_copy::{CheckoutError, SnapshotOptions};
@@ -189,7 +189,7 @@ fn check_out(
     wc_dir: PathBuf,
     state_dir: PathBuf,
     tree: &MergedTree,
-    sparse_patterns: Vec<RepoPath>,
+    sparse_patterns: Vec<RepoPathBuf>,
 ) -> Result<TreeState, DiffCheckoutError> {
     std::fs::create_dir(&wc_dir).map_err(DiffCheckoutError::SetUpDir)?;
     std::fs::create_dir(&state_dir).map_err(DiffCheckoutError::SetUpDir)?;
@@ -384,7 +384,7 @@ pub fn run_mergetool_external(
         Err(new_file_ids) => conflict.with_new_file_ids(&new_file_ids),
     };
     let mut tree_builder = MergedTreeBuilder::new(tree.id());
-    tree_builder.set_or_remove(repo_path.clone(), new_tree_value);
+    tree_builder.set_or_remove(repo_path.to_owned(), new_tree_value);
     let new_tree = tree_builder.write_tree(tree.store())?;
     Ok(new_tree)
 }

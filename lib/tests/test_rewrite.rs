@@ -34,17 +34,14 @@ fn test_restore_tree() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let path1 = RepoPath::from_internal_string("file1");
-    let path2 = RepoPath::from_internal_string("dir1/file2");
-    let path3 = RepoPath::from_internal_string("dir1/file3");
-    let path4 = RepoPath::from_internal_string("dir2/file4");
-    let left = create_tree(
-        repo,
-        &[(&path2, "left"), (&path3, "left"), (&path4, "left")],
-    );
+    let path1 = &RepoPath::from_internal_string("file1");
+    let path2 = &RepoPath::from_internal_string("dir1/file2");
+    let path3 = &RepoPath::from_internal_string("dir1/file3");
+    let path4 = &RepoPath::from_internal_string("dir2/file4");
+    let left = create_tree(repo, &[(path2, "left"), (path3, "left"), (path4, "left")]);
     let right = create_tree(
         repo,
-        &[(&path1, "right"), (&path2, "right"), (&path3, "right")],
+        &[(path1, "right"), (path2, "right"), (path3, "right")],
     );
 
     // Restore everything using EverythingMatcher
@@ -61,8 +58,8 @@ fn test_restore_tree() {
     assert_eq!(restored, left.id());
 
     // Restore some files
-    let restored = restore_tree(&left, &right, &FilesMatcher::new([&path1, &path2])).unwrap();
-    let expected = create_tree(repo, &[(&path2, "left"), (&path3, "right")]);
+    let restored = restore_tree(&left, &right, &FilesMatcher::new([path1, path2])).unwrap();
+    let expected = create_tree(repo, &[(path2, "left"), (path3, "right")]);
     assert_eq!(restored, expected.id());
 }
 
@@ -880,8 +877,8 @@ fn test_rebase_descendants_contents() {
     // |/
     // A
     let mut tx = repo.start_transaction(&settings, "test");
-    let path1 = RepoPath::from_internal_string("file1");
-    let tree1 = create_tree(repo, &[(&path1, "content")]);
+    let path1 = &RepoPath::from_internal_string("file1");
+    let tree1 = create_tree(repo, &[(path1, "content")]);
     let commit_a = tx
         .mut_repo()
         .new_commit(
@@ -891,22 +888,22 @@ fn test_rebase_descendants_contents() {
         )
         .write()
         .unwrap();
-    let path2 = RepoPath::from_internal_string("file2");
-    let tree2 = create_tree(repo, &[(&path2, "content")]);
+    let path2 = &RepoPath::from_internal_string("file2");
+    let tree2 = create_tree(repo, &[(path2, "content")]);
     let commit_b = tx
         .mut_repo()
         .new_commit(&settings, vec![commit_a.id().clone()], tree2.id())
         .write()
         .unwrap();
-    let path3 = RepoPath::from_internal_string("file3");
-    let tree3 = create_tree(repo, &[(&path3, "content")]);
+    let path3 = &RepoPath::from_internal_string("file3");
+    let tree3 = create_tree(repo, &[(path3, "content")]);
     let commit_c = tx
         .mut_repo()
         .new_commit(&settings, vec![commit_b.id().clone()], tree3.id())
         .write()
         .unwrap();
-    let path4 = RepoPath::from_internal_string("file4");
-    let tree4 = create_tree(repo, &[(&path4, "content")]);
+    let path4 = &RepoPath::from_internal_string("file4");
+    let tree4 = create_tree(repo, &[(path4, "content")]);
     let commit_d = tx
         .mut_repo()
         .new_commit(&settings, vec![commit_a.id().clone()], tree4.id())
@@ -933,9 +930,9 @@ fn test_rebase_descendants_contents() {
     let tree_c = commit_c.tree().unwrap();
     let tree_d = commit_d.tree().unwrap();
     let new_tree_c = new_commit_c.tree().unwrap();
-    assert_eq!(new_tree_c.path_value(&path3), tree_c.path_value(&path3));
-    assert_eq!(new_tree_c.path_value(&path4), tree_d.path_value(&path4));
-    assert_ne!(new_tree_c.path_value(&path2), tree_b.path_value(&path2));
+    assert_eq!(new_tree_c.path_value(path3), tree_c.path_value(path3));
+    assert_eq!(new_tree_c.path_value(path4), tree_d.path_value(path4));
+    assert_ne!(new_tree_c.path_value(path2), tree_b.path_value(path2));
 }
 
 #[test]

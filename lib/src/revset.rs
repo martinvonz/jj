@@ -38,7 +38,7 @@ use crate::hex_util::to_forward_hex;
 use crate::index::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
-use crate::repo_path::{FsPathParseError, RepoPath};
+use crate::repo_path::{FsPathParseError, RepoPathBuf};
 use crate::revset_graph::RevsetGraphEdge;
 use crate::store::Store;
 use crate::str_util::StringPattern;
@@ -337,7 +337,7 @@ pub enum RevsetFilterPredicate {
     /// Commits with committer's name or email containing the needle.
     Committer(StringPattern),
     /// Commits modifying the paths specified by the pattern.
-    File(Option<Vec<RepoPath>>), // TODO: embed matcher expression?
+    File(Option<Vec<RepoPathBuf>>), // TODO: embed matcher expression?
     /// Commits with conflicts
     HasConflict,
 }
@@ -1286,7 +1286,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
                 .map(|arg| -> Result<_, RevsetParseError> {
                     let span = arg.as_span();
                     let needle = parse_function_argument_to_string(name, arg, state)?;
-                    let path = RepoPath::parse_fs_path(ctx.cwd, ctx.workspace_root, needle)
+                    let path = RepoPathBuf::parse_fs_path(ctx.cwd, ctx.workspace_root, needle)
                         .map_err(|e| {
                             RevsetParseError::with_span(
                                 RevsetParseErrorKind::FsPathParseError(e),
@@ -2870,8 +2870,8 @@ mod tests {
             ))
             .minus(&RevsetExpression::filter(RevsetFilterPredicate::File(
                 Some(vec![
-                    RepoPath::from_internal_string("arg1"),
-                    RepoPath::from_internal_string("arg2"),
+                    RepoPathBuf::from_internal_string("arg1"),
+                    RepoPathBuf::from_internal_string("arg2"),
                 ])
             )))
             .minus(&RevsetExpression::visible_heads()))
@@ -3126,16 +3126,16 @@ mod tests {
         assert_eq!(
             parse_with_workspace("file(foo)", &WorkspaceId::default()),
             Ok(RevsetExpression::filter(RevsetFilterPredicate::File(Some(
-                vec![RepoPath::from_internal_string("foo")]
+                vec![RepoPathBuf::from_internal_string("foo")]
             ))))
         );
         assert_eq!(
             parse_with_workspace("file(foo, bar, baz)", &WorkspaceId::default()),
             Ok(RevsetExpression::filter(RevsetFilterPredicate::File(Some(
                 vec![
-                    RepoPath::from_internal_string("foo"),
-                    RepoPath::from_internal_string("bar"),
-                    RepoPath::from_internal_string("baz"),
+                    RepoPathBuf::from_internal_string("foo"),
+                    RepoPathBuf::from_internal_string("bar"),
+                    RepoPathBuf::from_internal_string("baz"),
                 ]
             ))))
         );

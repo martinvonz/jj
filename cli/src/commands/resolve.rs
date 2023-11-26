@@ -18,7 +18,7 @@ use std::io::Write;
 use itertools::Itertools;
 use jj_lib::backend::{ObjectId, TreeValue};
 use jj_lib::merge::MergedTreeValue;
-use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::RepoPathBuf;
 use tracing::instrument;
 
 use crate::cli_util::{CommandError, CommandHelper, WorkspaceCommandHelper};
@@ -127,7 +127,7 @@ pub(crate) fn cmd_resolve(
 
 #[instrument(skip_all)]
 pub(crate) fn print_conflicted_paths(
-    conflicts: &[(RepoPath, MergedTreeValue)],
+    conflicts: &[(RepoPathBuf, MergedTreeValue)],
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
 ) -> Result<(), CommandError> {

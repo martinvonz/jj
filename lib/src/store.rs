@@ -29,7 +29,7 @@ use crate::backend::{
 use crate::commit::Commit;
 use crate::merge::{Merge, MergedTreeValue};
 use crate::merged_tree::MergedTree;
-use crate::repo_path::RepoPath;
+use crate::repo_path::{RepoPath, RepoPathBuf};
 use crate::tree::Tree;
 use crate::tree_builder::TreeBuilder;
 
@@ -38,7 +38,7 @@ use crate::tree_builder::TreeBuilder;
 pub struct Store {
     backend: Box<dyn Backend>,
     commit_cache: RwLock<HashMap<CommitId, Arc<backend::Commit>>>,
-    tree_cache: RwLock<HashMap<(RepoPath, TreeId), Arc<backend::Tree>>>,
+    tree_cache: RwLock<HashMap<(RepoPathBuf, TreeId), Arc<backend::Tree>>>,
     use_tree_conflict_format: bool,
 }
 
@@ -146,7 +146,7 @@ impl Store {
         id: &TreeId,
     ) -> BackendResult<Tree> {
         let data = self.get_backend_tree(dir, id).await?;
-        Ok(Tree::new(self.clone(), dir.clone(), id.clone(), data))
+        Ok(Tree::new(self.clone(), dir.to_owned(), id.clone(), data))
     }
 
     async fn get_backend_tree(
@@ -154,7 +154,7 @@ impl Store {
         dir: &RepoPath,
         id: &TreeId,
     ) -> BackendResult<Arc<backend::Tree>> {
-        let key = (dir.clone(), id.clone());
+        let key = (dir.to_owned(), id.clone());
         {
             let read_locked_cache = self.tree_cache.read().unwrap();
             if let Some(data) = read_locked_cache.get(&key).cloned() {
@@ -190,10 +190,10 @@ impl Store {
         let data = Arc::new(tree);
         {
             let mut write_locked_cache = self.tree_cache.write().unwrap();
-            write_locked_cache.insert((path.clone(), tree_id.clone()), data.clone());
+            write_locked_cache.insert((path.to_owned(), tree_id.clone()), data.clone());
         }
 
-        Ok(Tree::new(self.clone(), path.clone(), tree_id, data))
+        Ok(Tree::new(self.clone(), path.to_owned(), tree_id, data))
     }
 
     pub fn read_file(&self, path: &RepoPath, id: &FileId) -> BackendResult<Box<dyn Read>> {

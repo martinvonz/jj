@@ -49,7 +49,7 @@ use jj_lib::repo::{
     CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, Repo, RepoLoader,
     RepoLoaderError, RewriteRootCommit, StoreFactories, StoreLoadError,
 };
-use jj_lib::repo_path::{FsPathParseError, RepoPath};
+use jj_lib::repo_path::{FsPathParseError, RepoPath, RepoPathBuf};
 use jj_lib::revset::{
     DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetCommitRef, RevsetEvaluationError,
     RevsetExpression, RevsetIteratorExt, RevsetParseContext, RevsetParseError,
@@ -904,8 +904,8 @@ impl WorkspaceCommandHelper {
 
     /// Parses a path relative to cwd into a RepoPath, which is relative to the
     /// workspace root.
-    pub fn parse_file_path(&self, input: &str) -> Result<RepoPath, FsPathParseError> {
-        RepoPath::parse_fs_path(&self.cwd, self.workspace_root(), input)
+    pub fn parse_file_path(&self, input: &str) -> Result<RepoPathBuf, FsPathParseError> {
+        RepoPathBuf::parse_fs_path(&self.cwd, self.workspace_root(), input)
     }
 
     pub fn matcher_from_values(&self, values: &[String]) -> Result<Box<dyn Matcher>, CommandError> {

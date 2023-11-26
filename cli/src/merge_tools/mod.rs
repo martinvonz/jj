@@ -23,7 +23,7 @@ use jj_lib::conflicts::extract_as_single_hunk;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::matchers::Matcher;
 use jj_lib::merged_tree::MergedTree;
-use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::working_copy::SnapshotError;
 use pollster::FutureExt;
@@ -66,16 +66,16 @@ pub enum ConflictResolveError {
     #[error(transparent)]
     ExternalTool(#[from] ExternalToolError),
     #[error("Couldn't find the path {0:?} in this revision")]
-    PathNotFound(RepoPath),
+    PathNotFound(RepoPathBuf),
     #[error("Couldn't find any conflicts at {0:?} in this revision")]
-    NotAConflict(RepoPath),
+    NotAConflict(RepoPathBuf),
     #[error(
         "Only conflicts that involve normal files (not symlinks, not executable, etc.) are \
          supported. Conflict summary for {0:?}:\n{1}"
     )]
-    NotNormalFiles(RepoPath, String),
+    NotNormalFiles(RepoPathBuf, String),
     #[error("The conflict at {path:?} has {sides} sides. At most 2 sides are supported.")]
-    ConflictTooComplicated { path: RepoPath, sides: usize },
+    ConflictTooComplicated { path: RepoPathBuf, sides: usize },
     #[error(
         "The output file is either unchanged or empty after the editor quit (run with --verbose \
          to see the exact invocation)."
@@ -93,8 +93,8 @@ pub fn run_mergetool(
 ) -> Result<MergedTreeId, ConflictResolveError> {
     let conflict = match tree.path_value(repo_path).into_resolved() {
         Err(conflict) => conflict,
-        Ok(Some(_)) => return Err(ConflictResolveError::NotAConflict(repo_path.clone())),
-        Ok(None) => return Err(ConflictResolveError::PathNotFound(repo_path.clone())),
+        Ok(Some(_)) => return Err(ConflictResolveError::NotAConflict(repo_path.to_owned())),
+        Ok(None) => return Err(ConflictResolveError::PathNotFound(repo_path.to_owned())),
     };
     let file_merge = conflict.to_file_merge().ok_or_else(|| {
         let mut summary_bytes: Vec<u8> = vec![];
@@ -102,14 +102,14 @@ pub fn run_mergetool(
             .describe(&mut summary_bytes)
             .expect("Writing to an in-memory buffer should never fail");
         ConflictResolveError::NotNormalFiles(
-            repo_path.clone(),
+            repo_path.to_owned(),
             String::from_utf8_lossy(summary_bytes.as_slice()).to_string(),
         )
     })?;
     // We only support conflicts with 2 sides (3-way conflicts)
     if file_merge.num_sides() > 2 {
         return Err(ConflictResolveError::ConflictTooComplicated {
-            path: repo_path.clone(),
+            path: repo_path.to_owned(),
             sides: file_merge.num_sides(),
         });
     };

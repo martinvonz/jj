@@ -19,7 +19,7 @@ use std::path::Path;
 use clap::Subcommand;
 use itertools::Itertools;
 use jj_lib::file_util;
-use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
@@ -122,7 +122,7 @@ fn cmd_sparse_set(
     let (mut locked_ws, wc_commit) = workspace_command.start_working_copy_mutation()?;
     let mut new_patterns = HashSet::new();
     if args.reset {
-        new_patterns.insert(RepoPath::root());
+        new_patterns.insert(RepoPathBuf::root());
     } else {
         if !args.clear {
             new_patterns.extend(locked_ws.locked_wc().sparse_patterns()?.iter().cloned());
@@ -161,9 +161,9 @@ fn cmd_sparse_set(
 fn edit_sparse(
     workspace_root: &Path,
     repo_path: &Path,
-    sparse: &[RepoPath],
+    sparse: &[RepoPathBuf],
     settings: &UserSettings,
-) -> Result<Vec<RepoPath>, CommandError> {
+) -> Result<Vec<RepoPathBuf>, CommandError> {
     let file = (|| -> Result<_, io::Error> {
         let mut file = tempfile::Builder::new()
             .prefix("editor-")
@@ -216,7 +216,7 @@ fn edit_sparse(
                     path = file_path.display()
                 ))
             })?;
-            Ok::<_, CommandError>(RepoPath::parse_fs_path(
+            Ok::<_, CommandError>(RepoPathBuf::parse_fs_path(
                 workspace_root,
                 workspace_root,
                 line.trim(),
