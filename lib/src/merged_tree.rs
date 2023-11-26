@@ -133,7 +133,7 @@ impl MergedTree {
             .into_iter()
             .map(|builder| {
                 let tree_id = builder.write_tree();
-                store.get_tree(&RepoPath::root(), &tree_id)
+                store.get_tree(RepoPath::root(), &tree_id)
             })
             .try_collect()?;
         Ok(MergedTree::Merge(Merge::from_vec(new_trees)))
@@ -245,7 +245,7 @@ impl MergedTree {
     /// `self` is a `Conflict`, which happens if the value at the path can be
     /// trivially merged.
     pub fn path_value(&self, path: &RepoPath) -> MergedTreeValue {
-        assert_eq!(self.dir(), &RepoPath::root());
+        assert_eq!(self.dir(), RepoPath::root());
         match path.split() {
             Some((dir, basename)) => match self.sub_tree_recursive(dir.components()) {
                 None => Merge::absent(),
@@ -761,7 +761,7 @@ impl<'matcher> TreeDiffIterator<'matcher> {
     /// Creates a iterator over the differences between two trees. Generally
     /// prefer `MergedTree::diff()` of calling this directly.
     pub fn new(tree1: MergedTree, tree2: MergedTree, matcher: &'matcher dyn Matcher) -> Self {
-        let root_dir = &RepoPath::root();
+        let root_dir = RepoPath::root();
         let mut stack = Vec::new();
         if !matcher.visit(root_dir).is_nothing() {
             stack.push(TreeDiffItem::Dir(TreeDiffDirItem::from_trees(
@@ -1239,7 +1239,7 @@ impl MergedTreeBuilder {
                 }
                 let legacy_id = tree_builder.write_tree();
                 if store.use_tree_conflict_format() {
-                    let legacy_tree = store.get_tree(&RepoPath::root(), &legacy_id)?;
+                    let legacy_tree = store.get_tree(RepoPath::root(), &legacy_id)?;
                     let merged_tree = MergedTree::from_legacy_tree(legacy_tree)?;
                     Ok(merged_tree.id())
                 } else {

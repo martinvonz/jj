@@ -78,7 +78,7 @@ pub fn restore_tree(
     destination: &MergedTree,
     matcher: &dyn Matcher,
 ) -> BackendResult<MergedTreeId> {
-    if matcher.visit(&RepoPath::root()) == Visit::AllRecursively {
+    if matcher.visit(RepoPath::root()) == Visit::AllRecursively {
         // Optimization for a common case
         Ok(source.id())
     } else {

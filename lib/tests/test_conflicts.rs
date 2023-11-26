@@ -28,7 +28,7 @@ fn test_materialize_conflict_basic() {
     let test_repo = TestRepo::init();
     let store = test_repo.repo.store();
 
-    let path = &RepoPath::from_internal_string("file");
+    let path = RepoPath::from_internal_string("file");
     let base_id = testutils::write_file(
         store,
         path,
@@ -118,7 +118,7 @@ fn test_materialize_conflict_multi_rebase_conflicts() {
     let store = test_repo.repo.store();
 
     // Create changes (a, b, c) on top of the base, and linearize them.
-    let path = &RepoPath::from_internal_string("file");
+    let path = RepoPath::from_internal_string("file");
     let base_id = testutils::write_file(
         store,
         path,
@@ -236,7 +236,7 @@ fn test_materialize_parse_roundtrip() {
     let test_repo = TestRepo::init();
     let store = test_repo.repo.store();
 
-    let path = &RepoPath::from_internal_string("file");
+    let path = RepoPath::from_internal_string("file");
     let base_id = testutils::write_file(
         store,
         path,
@@ -331,7 +331,7 @@ fn test_materialize_conflict_modify_delete() {
     let test_repo = TestRepo::init();
     let store = test_repo.repo.store();
 
-    let path = &RepoPath::from_internal_string("file");
+    let path = RepoPath::from_internal_string("file");
     let base_id = testutils::write_file(
         store,
         path,
@@ -595,7 +595,7 @@ fn test_update_conflict_from_content() {
     let test_repo = TestRepo::init();
     let store = test_repo.repo.store();
 
-    let path = &RepoPath::from_internal_string("dir/file");
+    let path = RepoPath::from_internal_string("dir/file");
     let base_file_id = testutils::write_file(store, path, "line 1\nline 2\nline 3\n");
     let left_file_id = testutils::write_file(store, path, "left 1\nline 2\nleft 3\n");
     let right_file_id = testutils::write_file(store, path, "right 1\nline 2\nright 3\n");
@@ -647,7 +647,7 @@ fn test_update_conflict_from_content_modify_delete() {
     let test_repo = TestRepo::init();
     let store = test_repo.repo.store();
 
-    let path = &RepoPath::from_internal_string("dir/file");
+    let path = RepoPath::from_internal_string("dir/file");
     let before_file_id = testutils::write_file(store, path, "line 1\nline 2 before\nline 3\n");
     let after_file_id = testutils::write_file(store, path, "line 1\nline 2 after\nline 3\n");
     let conflict =

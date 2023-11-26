@@ -34,10 +34,10 @@ fn test_restore_tree() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let path1 = &RepoPath::from_internal_string("file1");
-    let path2 = &RepoPath::from_internal_string("dir1/file2");
-    let path3 = &RepoPath::from_internal_string("dir1/file3");
-    let path4 = &RepoPath::from_internal_string("dir2/file4");
+    let path1 = RepoPath::from_internal_string("file1");
+    let path2 = RepoPath::from_internal_string("dir1/file2");
+    let path3 = RepoPath::from_internal_string("dir1/file3");
+    let path4 = RepoPath::from_internal_string("dir2/file4");
     let left = create_tree(repo, &[(path2, "left"), (path3, "left"), (path4, "left")]);
     let right = create_tree(
         repo,
@@ -877,7 +877,7 @@ fn test_rebase_descendants_contents() {
     // |/
     // A
     let mut tx = repo.start_transaction(&settings, "test");
-    let path1 = &RepoPath::from_internal_string("file1");
+    let path1 = RepoPath::from_internal_string("file1");
     let tree1 = create_tree(repo, &[(path1, "content")]);
     let commit_a = tx
         .mut_repo()
@@ -888,21 +888,21 @@ fn test_rebase_descendants_contents() {
         )
         .write()
         .unwrap();
-    let path2 = &RepoPath::from_internal_string("file2");
+    let path2 = RepoPath::from_internal_string("file2");
     let tree2 = create_tree(repo, &[(path2, "content")]);
     let commit_b = tx
         .mut_repo()
         .new_commit(&settings, vec![commit_a.id().clone()], tree2.id())
         .write()
         .unwrap();
-    let path3 = &RepoPath::from_internal_string("file3");
+    let path3 = RepoPath::from_internal_string("file3");
     let tree3 = create_tree(repo, &[(path3, "content")]);
     let commit_c = tx
         .mut_repo()
         .new_commit(&settings, vec![commit_b.id().clone()], tree3.id())
         .write()
         .unwrap();
-    let path4 = &RepoPath::from_internal_string("file4");
+    let path4 = RepoPath::from_internal_string("file4");
     let tree4 = create_tree(repo, &[(path4, "content")]);
     let commit_d = tx
         .mut_repo()
@@ -1527,11 +1527,7 @@ fn test_empty_commit_option(empty: EmptyBehaviour) {
             .iter()
             .map(|&p| (RepoPath::from_internal_string(p), p))
             .collect_vec();
-        let content_map_ref = content_map
-            .iter()
-            .map(|(path, content)| (path, *content))
-            .collect_vec();
-        create_tree(repo, &content_map_ref)
+        create_tree(repo, &content_map)
     };
 
     // The commit_with_parents function generates non-empty merge commits, so it

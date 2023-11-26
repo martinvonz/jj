@@ -885,7 +885,7 @@ fn has_diff_from_parent(
     if let [parent] = parents.as_slice() {
         // Fast path: no need to load the root tree
         let unchanged = commit.tree_id() == parent.tree_id();
-        if matcher.visit(&RepoPath::root()) == Visit::AllRecursively {
+        if matcher.visit(RepoPath::root()) == Visit::AllRecursively {
             return !unchanged;
         } else if unchanged {
             return false;

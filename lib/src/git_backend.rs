@@ -1232,7 +1232,7 @@ mod tests {
 
         let root_tree = backend
             .read_tree(
-                &RepoPath::root(),
+                RepoPath::root(),
                 &TreeId::from_bytes(root_tree_id.as_bytes()),
             )
             .block_on()
@@ -1248,7 +1248,7 @@ mod tests {
 
         let dir_tree = backend
             .read_tree(
-                &RepoPath::from_internal_string("dir"),
+                RepoPath::from_internal_string("dir"),
                 &TreeId::from_bytes(dir_tree_id.as_bytes()),
             )
             .block_on()

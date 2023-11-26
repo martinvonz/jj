@@ -647,7 +647,7 @@ impl TreeState {
         };
 
         let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), fsmonitor_matcher);
-        if matcher.visit(&RepoPath::root()).is_nothing() {
+        if matcher.visit(RepoPath::root()).is_nothing() {
             // No need to load file states
             self.watchman_clock = watchman_clock;
             return Ok(is_dirty);
@@ -796,7 +796,7 @@ impl TreeState {
                         // If the whole directory is ignored, visit only paths we're already
                         // tracking.
                         let tracked_paths = file_states
-                            .range((Bound::Excluded(&path), Bound::Unbounded))
+                            .range::<RepoPath, _>((Bound::Excluded(&*path), Bound::Unbounded))
                             .take_while(|(sub_path, _)| path.contains(sub_path))
                             .map(|(sub_path, file_state)| (sub_path.clone(), file_state.clone()))
                             .collect_vec();

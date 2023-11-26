@@ -1119,7 +1119,7 @@ fn cmd_git_submodule_print_gitmodules(
     let repo = workspace_command.repo();
     let commit = workspace_command.resolve_single_rev(&args.revisions, ui)?;
     let tree = commit.tree()?;
-    let gitmodules_path = &RepoPath::from_internal_string(".gitmodules");
+    let gitmodules_path = RepoPath::from_internal_string(".gitmodules");
     let mut gitmodules_file = match tree.path_value(gitmodules_path).into_resolved() {
         Ok(None) => {
             writeln!(ui.stderr(), "No submodules!")?;

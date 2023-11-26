@@ -2583,9 +2583,9 @@ fn test_evaluate_expression_file() {
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
 
-    let added_clean_clean = &RepoPath::from_internal_string("added_clean_clean");
-    let added_modified_clean = &RepoPath::from_internal_string("added_modified_clean");
-    let added_modified_removed = &RepoPath::from_internal_string("added_modified_removed");
+    let added_clean_clean = RepoPath::from_internal_string("added_clean_clean");
+    let added_modified_clean = RepoPath::from_internal_string("added_modified_clean");
+    let added_modified_removed = RepoPath::from_internal_string("added_modified_removed");
     let tree1 = create_tree(
         repo,
         &[
@@ -2692,8 +2692,8 @@ fn test_evaluate_expression_conflict() {
     let mut_repo = tx.mut_repo();
 
     // Create a few trees, including one with a conflict in `file1`
-    let file_path1 = &RepoPath::from_internal_string("file1");
-    let file_path2 = &RepoPath::from_internal_string("file2");
+    let file_path1 = RepoPath::from_internal_string("file1");
+    let file_path2 = RepoPath::from_internal_string("file2");
     let tree1 = create_tree(repo, &[(file_path1, "1"), (file_path2, "1")]);
     let tree2 = create_tree(repo, &[(file_path1, "2"), (file_path2, "2")]);
     let tree3 = create_tree(repo, &[(file_path1, "3"), (file_path2, "1")]);

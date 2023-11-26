@@ -288,7 +288,7 @@ pub fn create_single_tree(repo: &Arc<ReadonlyRepo>, path_contents: &[(&RepoPath,
         write_normal_file(&mut tree_builder, path, contents);
     }
     let id = tree_builder.write_tree();
-    store.get_tree(&RepoPath::root(), &id).unwrap()
+    store.get_tree(RepoPath::root(), &id).unwrap()
 }
 
 pub fn create_tree(repo: &Arc<ReadonlyRepo>, path_contents: &[(&RepoPath, &str)]) -> MergedTree {
