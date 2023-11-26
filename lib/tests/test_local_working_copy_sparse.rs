@@ -16,9 +16,13 @@ use itertools::Itertools;
 use jj_lib::local_working_copy::LocalWorkingCopy;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::working_copy::{CheckoutStats, WorkingCopy};
 use testutils::{commit_with_tree, create_tree, TestWorkspace};
+
+fn to_owned_path_vec(paths: &[&RepoPath]) -> Vec<RepoPathBuf> {
+    paths.iter().map(|&path| path.to_owned()).collect()
+}
 
 #[test]
 fn test_sparse_checkout() {
@@ -27,25 +31,25 @@ fn test_sparse_checkout() {
     let repo = &test_workspace.repo;
     let working_copy_path = test_workspace.workspace.workspace_root().clone();
 
-    let root_file1_path = RepoPath::from_internal_string("file1");
-    let root_file2_path = RepoPath::from_internal_string("file2");
-    let dir1_path = RepoPath::from_internal_string("dir1");
-    let dir1_file1_path = RepoPath::from_internal_string("dir1/file1");
-    let dir1_file2_path = RepoPath::from_internal_string("dir1/file2");
-    let dir1_subdir1_path = RepoPath::from_internal_string("dir1/subdir1");
-    let dir1_subdir1_file1_path = RepoPath::from_internal_string("dir1/subdir1/file1");
-    let dir2_path = RepoPath::from_internal_string("dir2");
-    let dir2_file1_path = RepoPath::from_internal_string("dir2/file1");
+    let root_file1_path = &RepoPath::from_internal_string("file1");
+    let root_file2_path = &RepoPath::from_internal_string("file2");
+    let dir1_path = &RepoPath::from_internal_string("dir1");
+    let dir1_file1_path = &RepoPath::from_internal_string("dir1/file1");
+    let dir1_file2_path = &RepoPath::from_internal_string("dir1/file2");
+    let dir1_subdir1_path = &RepoPath::from_internal_string("dir1/subdir1");
+    let dir1_subdir1_file1_path = &RepoPath::from_internal_string("dir1/subdir1/file1");
+    let dir2_path = &RepoPath::from_internal_string("dir2");
+    let dir2_file1_path = &RepoPath::from_internal_string("dir2/file1");
 
     let tree = create_tree(
         repo,
         &[
-            (&root_file1_path, "contents"),
-            (&root_file2_path, "contents"),
-            (&dir1_file1_path, "contents"),
-            (&dir1_file2_path, "contents"),
-            (&dir1_subdir1_file1_path, "contents"),
-            (&dir2_file1_path, "contents"),
+            (root_file1_path, "contents"),
+            (root_file2_path, "contents"),
+            (dir1_file1_path, "contents"),
+            (dir1_file2_path, "contents"),
+            (dir1_subdir1_file1_path, "contents"),
+            (dir2_file1_path, "contents"),
         ],
     );
     let commit = commit_with_tree(repo.store(), tree.id());
@@ -58,7 +62,7 @@ fn test_sparse_checkout() {
 
     // Set sparse patterns to only dir1/
     let mut locked_ws = ws.start_working_copy_mutation().unwrap();
-    let sparse_patterns = vec![dir1_path];
+    let sparse_patterns = to_owned_path_vec(&[dir1_path]);
     let stats = locked_ws
         .locked_wc()
         .set_sparse_patterns(sparse_patterns.clone())
@@ -89,8 +93,12 @@ fn test_sparse_checkout() {
     locked_ws.finish(repo.op_id().clone()).unwrap();
     let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
     assert_eq!(
-        wc.file_states().unwrap().keys().collect_vec(),
-        vec![&dir1_file1_path, &dir1_file2_path, &dir1_subdir1_file1_path]
+        wc.file_states()
+            .unwrap()
+            .keys()
+            .map(AsRef::as_ref)
+            .collect_vec(),
+        vec![dir1_file1_path, dir1_file2_path, dir1_subdir1_file1_path]
     );
     assert_eq!(wc.sparse_patterns().unwrap(), sparse_patterns);
 
@@ -101,14 +109,18 @@ fn test_sparse_checkout() {
         wc.state_path().to_path_buf(),
     );
     assert_eq!(
-        wc.file_states().unwrap().keys().collect_vec(),
-        vec![&dir1_file1_path, &dir1_file2_path, &dir1_subdir1_file1_path]
+        wc.file_states()
+            .unwrap()
+            .keys()
+            .map(AsRef::as_ref)
+            .collect_vec(),
+        vec![dir1_file1_path, dir1_file2_path, dir1_subdir1_file1_path]
     );
     assert_eq!(wc.sparse_patterns().unwrap(), sparse_patterns);
 
     // Set sparse patterns to file2, dir1/subdir1/ and dir2/
     let mut locked_wc = wc.start_mutation().unwrap();
-    let sparse_patterns = vec![root_file1_path.clone(), dir1_subdir1_path, dir2_path];
+    let sparse_patterns = to_owned_path_vec(&[root_file1_path, dir1_subdir1_path, dir2_path]);
     let stats = locked_wc
         .set_sparse_patterns(sparse_patterns.clone())
         .unwrap();
@@ -133,8 +145,12 @@ fn test_sparse_checkout() {
     let wc = locked_wc.finish(repo.op_id().clone()).unwrap();
     let wc: &LocalWorkingCopy = wc.as_any().downcast_ref().unwrap();
     assert_eq!(
-        wc.file_states().unwrap().keys().collect_vec(),
-        vec![&dir1_subdir1_file1_path, &dir2_file1_path, &root_file1_path]
+        wc.file_states()
+            .unwrap()
+            .keys()
+            .map(AsRef::as_ref)
+            .collect_vec(),
+        vec![dir1_subdir1_file1_path, dir2_file1_path, root_file1_path]
     );
 }
 
@@ -147,18 +163,18 @@ fn test_sparse_commit() {
     let op_id = repo.op_id().clone();
     let working_copy_path = test_workspace.workspace.workspace_root().clone();
 
-    let root_file1_path = RepoPath::from_internal_string("file1");
-    let dir1_path = RepoPath::from_internal_string("dir1");
-    let dir1_file1_path = RepoPath::from_internal_string("dir1/file1");
-    let dir2_path = RepoPath::from_internal_string("dir2");
-    let dir2_file1_path = RepoPath::from_internal_string("dir2/file1");
+    let root_file1_path = &RepoPath::from_internal_string("file1");
+    let dir1_path = &RepoPath::from_internal_string("dir1");
+    let dir1_file1_path = &RepoPath::from_internal_string("dir1/file1");
+    let dir2_path = &RepoPath::from_internal_string("dir2");
+    let dir2_file1_path = &RepoPath::from_internal_string("dir2/file1");
 
     let tree = create_tree(
         repo,
         &[
-            (&root_file1_path, "contents"),
-            (&dir1_file1_path, "contents"),
-            (&dir2_file1_path, "contents"),
+            (root_file1_path, "contents"),
+            (dir1_file1_path, "contents"),
+            (dir2_file1_path, "contents"),
         ],
     );
 
@@ -173,7 +189,7 @@ fn test_sparse_commit() {
         .workspace
         .start_working_copy_mutation()
         .unwrap();
-    let sparse_patterns = vec![dir1_path.clone()];
+    let sparse_patterns = to_owned_path_vec(&[dir1_path]);
     locked_ws
         .locked_wc()
         .set_sparse_patterns(sparse_patterns)
@@ -192,14 +208,14 @@ fn test_sparse_commit() {
     let modified_tree = test_workspace.snapshot().unwrap();
     let diff = tree.diff(&modified_tree, &EverythingMatcher).collect_vec();
     assert_eq!(diff.len(), 1);
-    assert_eq!(diff[0].0, dir1_file1_path);
+    assert_eq!(diff[0].0.as_ref(), dir1_file1_path);
 
     // Set sparse patterns to also include dir2/
     let mut locked_ws = test_workspace
         .workspace
         .start_working_copy_mutation()
         .unwrap();
-    let sparse_patterns = vec![dir1_path, dir2_path];
+    let sparse_patterns = to_owned_path_vec(&[dir1_path, dir2_path]);
     locked_ws
         .locked_wc()
         .set_sparse_patterns(sparse_patterns)
@@ -211,8 +227,8 @@ fn test_sparse_commit() {
     let modified_tree = test_workspace.snapshot().unwrap();
     let diff = tree.diff(&modified_tree, &EverythingMatcher).collect_vec();
     assert_eq!(diff.len(), 2);
-    assert_eq!(diff[0].0, dir1_file1_path);
-    assert_eq!(diff[1].0, dir2_file1_path);
+    assert_eq!(diff[0].0.as_ref(), dir1_file1_path);
+    assert_eq!(diff[1].0.as_ref(), dir2_file1_path);
 }
 
 #[test]
@@ -223,16 +239,16 @@ fn test_sparse_commit_gitignore() {
     let repo = &test_workspace.repo;
     let working_copy_path = test_workspace.workspace.workspace_root().clone();
 
-    let dir1_path = RepoPath::from_internal_string("dir1");
-    let dir1_file1_path = RepoPath::from_internal_string("dir1/file1");
-    let dir1_file2_path = RepoPath::from_internal_string("dir1/file2");
+    let dir1_path = &RepoPath::from_internal_string("dir1");
+    let dir1_file1_path = &RepoPath::from_internal_string("dir1/file1");
+    let dir1_file2_path = &RepoPath::from_internal_string("dir1/file2");
 
     // Set sparse patterns to only dir1/
     let mut locked_ws = test_workspace
         .workspace
         .start_working_copy_mutation()
         .unwrap();
-    let sparse_patterns = vec![dir1_path.clone()];
+    let sparse_patterns = to_owned_path_vec(&[dir1_path]);
     locked_ws
         .locked_wc()
         .set_sparse_patterns(sparse_patterns)
@@ -250,5 +266,5 @@ fn test_sparse_commit_gitignore() {
     let modified_tree = test_workspace.snapshot().unwrap();
     let entries = modified_tree.entries().collect_vec();
     assert_eq!(entries.len(), 1);
-    assert_eq!(entries[0].0, dir1_file2_path);
+    assert_eq!(entries[0].0.as_ref(), dir1_file2_path);
 }

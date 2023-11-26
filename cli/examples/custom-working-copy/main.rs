@@ -26,7 +26,7 @@ use jj_lib::local_working_copy::LocalWorkingCopy;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::ReadonlyRepo;
-use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::settings::UserSettings;
 use jj_lib::store::Store;
 use jj_lib::working_copy::{
@@ -171,7 +171,7 @@ impl WorkingCopy for ConflictsWorkingCopy {
         self.inner.tree_id()
     }
 
-    fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError> {
+    fn sparse_patterns(&self) -> Result<&[RepoPathBuf], WorkingCopyStateError> {
         self.inner.sparse_patterns()
     }
 
@@ -225,13 +225,13 @@ impl LockedWorkingCopy for LockedConflictsWorkingCopy {
         self.inner.reset(new_tree)
     }
 
-    fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError> {
+    fn sparse_patterns(&self) -> Result<&[RepoPathBuf], WorkingCopyStateError> {
         self.inner.sparse_patterns()
     }
 
     fn set_sparse_patterns(
         &mut self,
-        new_sparse_patterns: Vec<RepoPath>,
+        new_sparse_patterns: Vec<RepoPathBuf>,
     ) -> Result<CheckoutStats, CheckoutError> {
         self.inner.set_sparse_patterns(new_sparse_patterns)
     }

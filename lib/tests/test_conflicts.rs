@@ -28,10 +28,10 @@ fn test_materialize_conflict_basic() {
     let test_repo = TestRepo::init();
     let store = test_repo.repo.store();
 
-    let path = RepoPath::from_internal_string("file");
+    let path = &RepoPath::from_internal_string("file");
     let base_id = testutils::write_file(
         store,
-        &path,
+        path,
         "line 1
 line 2
 line 3
@@ -41,7 +41,7 @@ line 5
     );
     let left_id = testutils::write_file(
         store,
-        &path,
+        path,
         "line 1
 line 2
 left 3.1
@@ -53,7 +53,7 @@ line 5
     );
     let right_id = testutils::write_file(
         store,
-        &path,
+        path,
         "line 1
 line 2
 right 3.1
@@ -69,7 +69,7 @@ line 5
         vec![Some(left_id.clone()), Some(right_id.clone())],
     );
     insta::assert_snapshot!(
-        &materialize_conflict_string(store, &path, &conflict),
+        &materialize_conflict_string(store, path, &conflict),
         @r###"
     line 1
     line 2
@@ -93,7 +93,7 @@ line 5
         vec![Some(right_id.clone()), Some(left_id.clone())],
     );
     insta::assert_snapshot!(
-        &materialize_conflict_string(store, &path, &conflict),
+        &materialize_conflict_string(store, path, &conflict),
         @r###"
     line 1
     line 2
@@ -118,10 +118,10 @@ fn test_materialize_conflict_multi_rebase_conflicts() {
     let store = test_repo.repo.store();
 
     // Create changes (a, b, c) on top of the base, and linearize them.
-    let path = RepoPath::from_internal_string("file");
+    let path = &RepoPath::from_internal_string("file");
     let base_id = testutils::write_file(
         store,
-        &path,
+        path,
         "line 1
 line 2 base
 line 3
@@ -129,7 +129,7 @@ line 3
     );
     let a_id = testutils::write_file(
         store,
-        &path,
+        path,
         "line 1
 line 2 a.1
 line 2 a.2
@@ -139,7 +139,7 @@ line 3
     );
     let b_id = testutils::write_file(
         store,
-        &path,
+        path,
         "line 1
 line 2 b.1
 line 2 b.2
@@ -148,7 +148,7 @@ line 3
     );
     let c_id = testutils::write_file(
         store,
-        &path,
+        path,
         "line 1
 line 2 c.1
 line 3
@@ -162,7 +162,7 @@ line 3
         vec![Some(a_id.clone()), Some(b_id.clone()), Some(c_id.clone())],
     );
     insta::assert_snapshot!(
-        &materialize_conflict_string(store, &path, &conflict),
+        &materialize_conflict_string(store, path, &conflict),
         @r###"
     line 1
     <<<<<<<
@@ -186,7 +186,7 @@ line 3
         vec![Some(c_id.clone()), Some(b_id.clone()), Some(a_id.clone())],
     );
     insta::assert_snapshot!(
-        &materialize_conflict_string(store, &path, &conflict),
+        &materialize_conflict_string(store, path, &conflict),
         @r###"
     line 1
     <<<<<<<
@@ -210,7 +210,7 @@ line 3
         vec![Some(c_id.clone()), Some(a_id.clone()), Some(b_id.clone())],
     );
     insta::assert_snapshot!(
-        &materialize_conflict_string(store, &path, &conflict),
+        &materialize_conflict_string(store, path, &conflict),
         @r###"
     line 1
     <<<<<<<
@@ -236,10 +236,10 @@ fn test_materialize_parse_roundtrip() {
     let test_repo = TestRepo::init();
     let store = test_repo.repo.store();
 
-    let path = RepoPath::from_internal_string("file");
+    let path = &RepoPath::from_internal_string("file");
     let base_id = testutils::write_file(
         store,
-        &path,
+        path,
         "line 1
 line 2
 line 3
@@ -249,7 +249,7 @@ line 5
     );
     let left_id = testutils::write_file(
         store,
-        &path,
+        path,
         "line 1 left
 line 2 left
 line 3
@@ -259,7 +259,7 @@ line 5 left
     );
     let right_id = testutils::write_file(
         store,
-        &path,
+        path,
         "line 1 right
 line 2
 line 3
@@ -272,7 +272,7 @@ line 5 right
         vec![Some(base_id.clone())],
         vec![Some(left_id.clone()), Some(right_id.clone())],
     );
-    let materialized = materialize_conflict_string(store, &path, &conflict);
+    let materialized = materialize_conflict_string(store, path, &conflict);
     insta::assert_snapshot!(
         materialized,
         @r###"
@@ -331,10 +331,10 @@ fn test_materialize_conflict_modify_delete() {
     let test_repo = TestRepo::init();
     let store = test_repo.repo.store();
 
-    let path = RepoPath::from_internal_string("file");
+    let path = &RepoPath::from_internal_string("file");
     let base_id = testutils::write_file(
         store,
-        &path,
+        path,
         "line 1
 line 2
 line 3
@@ -344,7 +344,7 @@ line 5
     );
     let modified_id = testutils::write_file(
         store,
-        &path,
+        path,
         "line 1
 line 2
 modified
@@ -354,7 +354,7 @@ line 5
     );
     let deleted_id = testutils::write_file(
         store,
-        &path,
+        path,
         "line 1
 line 2
 line 4
@@ -367,7 +367,7 @@ line 5
         vec![Some(base_id.clone())],
         vec![Some(modified_id.clone()), Some(deleted_id.clone())],
     );
-    insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
+    insta::assert_snapshot!(&materialize_conflict_string(store, path, &conflict), @r###"
     line 1
     line 2
     <<<<<<<
@@ -386,7 +386,7 @@ line 5
         vec![Some(base_id.clone())],
         vec![Some(deleted_id.clone()), Some(modified_id.clone())],
     );
-    insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
+    insta::assert_snapshot!(&materialize_conflict_string(store, path, &conflict), @r###"
     line 1
     line 2
     <<<<<<<
@@ -405,7 +405,7 @@ line 5
         vec![Some(base_id.clone())],
         vec![Some(modified_id.clone()), None],
     );
-    insta::assert_snapshot!(&materialize_conflict_string(store, &path, &conflict), @r###"
+    insta::assert_snapshot!(&materialize_conflict_string(store, path, &conflict), @r###"
     <<<<<<<
     %%%%%%%
      line 1
@@ -595,10 +595,10 @@ fn test_update_conflict_from_content() {
     let test_repo = TestRepo::init();
     let store = test_repo.repo.store();
 
-    let path = RepoPath::from_internal_string("dir/file");
-    let base_file_id = testutils::write_file(store, &path, "line 1\nline 2\nline 3\n");
-    let left_file_id = testutils::write_file(store, &path, "left 1\nline 2\nleft 3\n");
-    let right_file_id = testutils::write_file(store, &path, "right 1\nline 2\nright 3\n");
+    let path = &RepoPath::from_internal_string("dir/file");
+    let base_file_id = testutils::write_file(store, path, "line 1\nline 2\nline 3\n");
+    let left_file_id = testutils::write_file(store, path, "left 1\nline 2\nleft 3\n");
+    let right_file_id = testutils::write_file(store, path, "right 1\nline 2\nright 3\n");
     let conflict = Merge::from_removes_adds(
         vec![Some(base_file_id.clone())],
         vec![Some(left_file_id.clone()), Some(right_file_id.clone())],
@@ -606,16 +606,16 @@ fn test_update_conflict_from_content() {
 
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
-    let materialized = materialize_conflict_string(store, &path, &conflict);
+    let materialized = materialize_conflict_string(store, path, &conflict);
     let parse = |content| {
-        update_from_content(&conflict, store, &path, content)
+        update_from_content(&conflict, store, path, content)
             .block_on()
             .unwrap()
     };
     assert_eq!(parse(materialized.as_bytes()), conflict);
 
     // If the conflict is resolved, we get None back to indicate that.
-    let expected_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nresolved 3\n");
+    let expected_file_id = testutils::write_file(store, path, "resolved 1\nline 2\nresolved 3\n");
     assert_eq!(
         parse(b"resolved 1\nline 2\nresolved 3\n"),
         Merge::normal(expected_file_id)
@@ -627,9 +627,9 @@ fn test_update_conflict_from_content() {
     );
     assert_ne!(new_conflict, conflict);
     // Calculate expected new FileIds
-    let new_base_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nline 3\n");
-    let new_left_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nleft 3\n");
-    let new_right_file_id = testutils::write_file(store, &path, "resolved 1\nline 2\nright 3\n");
+    let new_base_file_id = testutils::write_file(store, path, "resolved 1\nline 2\nline 3\n");
+    let new_left_file_id = testutils::write_file(store, path, "resolved 1\nline 2\nleft 3\n");
+    let new_right_file_id = testutils::write_file(store, path, "resolved 1\nline 2\nright 3\n");
     assert_eq!(
         new_conflict,
         Merge::from_removes_adds(
@@ -647,24 +647,24 @@ fn test_update_conflict_from_content_modify_delete() {
     let test_repo = TestRepo::init();
     let store = test_repo.repo.store();
 
-    let path = RepoPath::from_internal_string("dir/file");
-    let before_file_id = testutils::write_file(store, &path, "line 1\nline 2 before\nline 3\n");
-    let after_file_id = testutils::write_file(store, &path, "line 1\nline 2 after\nline 3\n");
+    let path = &RepoPath::from_internal_string("dir/file");
+    let before_file_id = testutils::write_file(store, path, "line 1\nline 2 before\nline 3\n");
+    let after_file_id = testutils::write_file(store, path, "line 1\nline 2 after\nline 3\n");
     let conflict =
         Merge::from_removes_adds(vec![Some(before_file_id)], vec![Some(after_file_id), None]);
 
     // If the content is unchanged compared to the materialized value, we get the
     // old conflict id back.
-    let materialized = materialize_conflict_string(store, &path, &conflict);
+    let materialized = materialize_conflict_string(store, path, &conflict);
     let parse = |content| {
-        update_from_content(&conflict, store, &path, content)
+        update_from_content(&conflict, store, path, content)
             .block_on()
             .unwrap()
     };
     assert_eq!(parse(materialized.as_bytes()), conflict);
 
     // If the conflict is resolved, we get None back to indicate that.
-    let expected_file_id = testutils::write_file(store, &path, "resolved\n");
+    let expected_file_id = testutils::write_file(store, path, "resolved\n");
     assert_eq!(parse(b"resolved\n"), Merge::normal(expected_file_id));
 
     // If the conflict is modified, we get a new conflict back.
@@ -672,9 +672,9 @@ fn test_update_conflict_from_content_modify_delete() {
         b"<<<<<<<\n%%%%%%%\n line 1\n-line 2 before\n+line 2 modified after\n line 3\n+++++++\n>>>>>>>\n",
     );
     // Calculate expected new FileIds
-    let new_base_file_id = testutils::write_file(store, &path, "line 1\nline 2 before\nline 3\n");
+    let new_base_file_id = testutils::write_file(store, path, "line 1\nline 2 before\nline 3\n");
     let new_left_file_id =
-        testutils::write_file(store, &path, "line 1\nline 2 modified after\nline 3\n");
+        testutils::write_file(store, path, "line 1\nline 2 modified after\nline 3\n");
 
     assert_eq!(
         new_conflict,

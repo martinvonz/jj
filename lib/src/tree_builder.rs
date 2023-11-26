@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use crate::backend;
 use crate::backend::{TreeId, TreeValue};
-use crate::repo_path::RepoPath;
+use crate::repo_path::RepoPathBuf;
 use crate::store::Store;
 use crate::tree::Tree;
 
@@ -33,7 +33,7 @@ enum Override {
 pub struct TreeBuilder {
     store: Arc<Store>,
     base_tree_id: TreeId,
-    overrides: BTreeMap<RepoPath, Override>,
+    overrides: BTreeMap<RepoPathBuf, Override>,
 }
 
 impl TreeBuilder {
@@ -50,17 +50,17 @@ impl TreeBuilder {
         self.store.as_ref()
     }
 
-    pub fn set(&mut self, path: RepoPath, value: TreeValue) {
+    pub fn set(&mut self, path: RepoPathBuf, value: TreeValue) {
         assert!(!path.is_root());
         self.overrides.insert(path, Override::Replace(value));
     }
 
-    pub fn remove(&mut self, path: RepoPath) {
+    pub fn remove(&mut self, path: RepoPathBuf) {
         assert!(!path.is_root());
         self.overrides.insert(path, Override::Tombstone);
     }
 
-    pub fn set_or_remove(&mut self, path: RepoPath, value: Option<TreeValue>) {
+    pub fn set_or_remove(&mut self, path: RepoPathBuf, value: Option<TreeValue>) {
         assert!(!path.is_root());
         if let Some(value) = value {
             self.overrides.insert(path, Override::Replace(value));
@@ -116,18 +116,18 @@ impl TreeBuilder {
         unreachable!("trees_to_write must contain the root tree");
     }
 
-    fn get_base_trees(&self) -> BTreeMap<RepoPath, backend::Tree> {
+    fn get_base_trees(&self) -> BTreeMap<RepoPathBuf, backend::Tree> {
         let store = &self.store;
         let mut tree_cache = {
-            let dir = RepoPath::root();
+            let dir = RepoPathBuf::root();
             let tree = store.get_tree(&dir, &self.base_tree_id).unwrap();
             BTreeMap::from([(dir, tree)])
         };
 
         fn populate_trees<'a>(
-            tree_cache: &'a mut BTreeMap<RepoPath, Tree>,
+            tree_cache: &'a mut BTreeMap<RepoPathBuf, Tree>,
             store: &Arc<Store>,
-            dir: RepoPath,
+            dir: RepoPathBuf,
         ) -> &'a Tree {
             // `if let Some(tree) = ...` doesn't pass lifetime check as of Rust 1.69.0
             if tree_cache.contains_key(&dir) {

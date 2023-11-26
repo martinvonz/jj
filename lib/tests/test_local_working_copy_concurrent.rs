@@ -17,7 +17,7 @@ use std::thread;
 
 use assert_matches::assert_matches;
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::working_copy::{CheckoutError, SnapshotOptions};
 use jj_lib::workspace::{default_working_copy_factories, Workspace};
 use testutils::{commit_with_tree, create_tree, write_working_copy_file, TestRepo, TestWorkspace};
@@ -87,7 +87,7 @@ fn test_checkout_parallel() {
     let num_threads = max(num_cpus::get(), 4);
     let mut tree_ids = vec![];
     for i in 0..num_threads {
-        let path = RepoPath::from_internal_string(format!("file{i}"));
+        let path = RepoPathBuf::from_internal_string(format!("file{i}"));
         let tree = create_tree(repo, &[(&path, "contents")]);
         tree_ids.push(tree.id());
     }
@@ -147,8 +147,8 @@ fn test_racy_checkout() {
     let op_id = repo.op_id().clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
-    let path = RepoPath::from_internal_string("file");
-    let tree = create_tree(repo, &[(&path, "1")]);
+    let path = &RepoPath::from_internal_string("file");
+    let tree = create_tree(repo, &[(path, "1")]);
     let commit = commit_with_tree(repo.store(), tree.id());
 
     let mut num_matches = 0;
@@ -161,13 +161,13 @@ fn test_racy_checkout() {
         );
         // A file written right after checkout (hopefully, from the test's perspective,
         // within the file system timestamp granularity) is detected as changed.
-        write_working_copy_file(&workspace_root, &path, "x");
+        write_working_copy_file(&workspace_root, path, "x");
         let modified_tree = test_workspace.snapshot().unwrap();
         if modified_tree.id() == tree.id() {
             num_matches += 1;
         }
         // Reset the state for the next round
-        write_working_copy_file(&workspace_root, &path, "1");
+        write_working_copy_file(&workspace_root, path, "1");
     }
     assert_eq!(num_matches, 0);
 }

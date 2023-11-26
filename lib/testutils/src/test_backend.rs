@@ -24,7 +24,7 @@ use jj_lib::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
     ConflictId, FileId, ObjectId, SecureSig, SigningFn, SymlinkId, Tree, TreeId,
 };
-use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 
 const HASH_LENGTH: usize = 10;
 const CHANGE_ID_LENGTH: usize = 16;
@@ -39,10 +39,10 @@ fn backend_data() -> &'static Mutex<HashMap<PathBuf, Arc<Mutex<TestBackendData>>
 #[derive(Default)]
 pub struct TestBackendData {
     commits: HashMap<CommitId, Commit>,
-    trees: HashMap<RepoPath, HashMap<TreeId, Tree>>,
-    files: HashMap<RepoPath, HashMap<FileId, Vec<u8>>>,
-    symlinks: HashMap<RepoPath, HashMap<SymlinkId, String>>,
-    conflicts: HashMap<RepoPath, HashMap<ConflictId, Conflict>>,
+    trees: HashMap<RepoPathBuf, HashMap<TreeId, Tree>>,
+    files: HashMap<RepoPathBuf, HashMap<FileId, Vec<u8>>>,
+    symlinks: HashMap<RepoPathBuf, HashMap<SymlinkId, String>>,
+    conflicts: HashMap<RepoPathBuf, HashMap<ConflictId, Conflict>>,
 }
 
 fn get_hash(content: &(impl jj_lib::content_hash::ContentHash + ?Sized)) -> Vec<u8> {
@@ -166,7 +166,7 @@ impl Backend for TestBackend {
         let id = FileId::new(get_hash(&bytes));
         self.locked_data()
             .files
-            .entry(path.clone())
+            .entry(path.to_owned())
             .or_default()
             .insert(id.clone(), bytes);
         Ok(id)
@@ -193,7 +193,7 @@ impl Backend for TestBackend {
         let id = SymlinkId::new(get_hash(target.as_bytes()));
         self.locked_data()
             .symlinks
-            .entry(path.clone())
+            .entry(path.to_owned())
             .or_default()
             .insert(id.clone(), target.to_string());
         Ok(id)
@@ -223,7 +223,7 @@ impl Backend for TestBackend {
         let id = TreeId::new(get_hash(contents));
         self.locked_data()
             .trees
-            .entry(path.clone())
+            .entry(path.to_owned())
             .or_default()
             .insert(id.clone(), contents.clone());
         Ok(id)
@@ -250,7 +250,7 @@ impl Backend for TestBackend {
         let id = ConflictId::new(get_hash(contents));
         self.locked_data()
             .conflicts
-            .entry(path.clone())
+            .entry(path.to_owned())
             .or_default()
             .insert(id.clone(), contents.clone());
         Ok(id)

@@ -57,7 +57,7 @@ use crate::matchers::{
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
 use crate::merged_tree::{MergedTree, MergedTreeBuilder};
 use crate::op_store::{OperationId, WorkspaceId};
-use crate::repo_path::{RepoPath, RepoPathComponent};
+use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
 use crate::settings::HumanByteSize;
 use crate::store::Store;
 use crate::tree::Tree;
@@ -143,7 +143,7 @@ impl FileState {
 /// build a loaded `BTreeMap<RepoPath, _>` at all.
 #[derive(Clone, Debug)]
 struct LazyFileStatesMap {
-    loaded: OnceLock<BTreeMap<RepoPath, FileState>>,
+    loaded: OnceLock<BTreeMap<RepoPathBuf, FileState>>,
     proto: Option<Vec<crate::protos::working_copy::FileStateEntry>>,
 }
 
@@ -173,14 +173,14 @@ impl LazyFileStatesMap {
         }
     }
 
-    fn get_or_load(&self) -> &BTreeMap<RepoPath, FileState> {
+    fn get_or_load(&self) -> &BTreeMap<RepoPathBuf, FileState> {
         self.loaded.get_or_init(|| {
             let proto = self.proto.as_ref().expect("loaded or proto must exist");
             file_states_from_proto(proto)
         })
     }
 
-    fn make_mut(&mut self) -> &mut BTreeMap<RepoPath, FileState> {
+    fn make_mut(&mut self) -> &mut BTreeMap<RepoPathBuf, FileState> {
         self.get_or_load();
         self.proto.take(); // mark dirty
         self.loaded.get_mut().unwrap()
@@ -194,7 +194,7 @@ pub struct TreeState {
     tree_id: MergedTreeId,
     file_states: LazyFileStatesMap,
     // Currently only path prefixes
-    sparse_patterns: Vec<RepoPath>,
+    sparse_patterns: Vec<RepoPathBuf>,
     own_mtime: MillisSinceEpoch,
 
     /// The most recent clock value returned by Watchman. Will only be set if
@@ -247,19 +247,19 @@ fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::F
 #[instrument(skip(proto))]
 fn file_states_from_proto(
     proto: &[crate::protos::working_copy::FileStateEntry],
-) -> BTreeMap<RepoPath, FileState> {
+) -> BTreeMap<RepoPathBuf, FileState> {
     tracing::debug!("loading file states from proto");
     proto
         .iter()
         .map(|entry| {
-            let path = RepoPath::from_internal_string(&entry.path);
+            let path = RepoPathBuf::from_internal_string(&entry.path);
             (path, file_state_from_proto(entry.state.as_ref().unwrap()))
         })
         .collect()
 }
 
 fn file_states_to_proto(
-    file_states: &BTreeMap<RepoPath, FileState>,
+    file_states: &BTreeMap<RepoPathBuf, FileState>,
 ) -> Vec<crate::protos::working_copy::FileStateEntry> {
     file_states
         .iter()
@@ -274,16 +274,16 @@ fn file_states_to_proto(
 
 fn sparse_patterns_from_proto(
     proto: Option<&crate::protos::working_copy::SparsePatterns>,
-) -> Vec<RepoPath> {
+) -> Vec<RepoPathBuf> {
     let mut sparse_patterns = vec![];
     if let Some(proto_sparse_patterns) = proto {
         for prefix in &proto_sparse_patterns.prefixes {
-            sparse_patterns.push(RepoPath::from_internal_string(prefix));
+            sparse_patterns.push(RepoPathBuf::from_internal_string(prefix));
         }
     } else {
         // For compatibility with old working copies.
         // TODO: Delete this is late 2022 or so.
-        sparse_patterns.push(RepoPath::root());
+        sparse_patterns.push(RepoPathBuf::root());
     }
     sparse_patterns
 }
@@ -382,7 +382,7 @@ struct FsmonitorMatcher {
 }
 
 struct DirectoryToVisit {
-    dir: RepoPath,
+    dir: RepoPathBuf,
     disk_dir: PathBuf,
     git_ignore: Arc<GitIgnoreFile>,
 }
@@ -422,11 +422,11 @@ impl TreeState {
         &self.tree_id
     }
 
-    pub fn file_states(&self) -> &BTreeMap<RepoPath, FileState> {
+    pub fn file_states(&self) -> &BTreeMap<RepoPathBuf, FileState> {
         self.file_states.get_or_load()
     }
 
-    pub fn sparse_patterns(&self) -> &Vec<RepoPath> {
+    pub fn sparse_patterns(&self) -> &Vec<RepoPathBuf> {
         &self.sparse_patterns
     }
 
@@ -454,7 +454,7 @@ impl TreeState {
             state_path,
             tree_id,
             file_states: LazyFileStatesMap::new(),
-            sparse_patterns: vec![RepoPath::root()],
+            sparse_patterns: vec![RepoPathBuf::root()],
             own_mtime: MillisSinceEpoch(0),
             watchman_clock: None,
         }
@@ -660,7 +660,7 @@ impl TreeState {
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
             let current_tree = self.current_tree()?;
             let directory_to_visit = DirectoryToVisit {
-                dir: RepoPath::root(),
+                dir: RepoPathBuf::root(),
                 disk_dir: self.working_copy_path.clone(),
                 git_ignore: base_ignores,
             };
@@ -738,9 +738,9 @@ impl TreeState {
         &self,
         matcher: &dyn Matcher,
         current_tree: &MergedTree,
-        tree_entries_tx: Sender<(RepoPath, MergedTreeValue)>,
-        file_states_tx: Sender<(RepoPath, FileState)>,
-        present_files_tx: Sender<RepoPath>,
+        tree_entries_tx: Sender<(RepoPathBuf, MergedTreeValue)>,
+        file_states_tx: Sender<(RepoPathBuf, FileState)>,
+        present_files_tx: Sender<RepoPathBuf>,
         directory_to_visit: DirectoryToVisit,
         progress: Option<&SnapshotProgress>,
         max_new_file_size: u64,
@@ -936,7 +936,7 @@ impl TreeState {
                 let repo_paths = trace_span!("processing fsmonitor paths").in_scope(|| {
                     changed_files
                         .into_iter()
-                        .filter_map(RepoPath::from_relative_path)
+                        .filter_map(RepoPathBuf::from_relative_path)
                         .collect_vec()
                 });
 
@@ -1164,7 +1164,7 @@ impl TreeState {
 
     pub fn set_sparse_patterns(
         &mut self,
-        sparse_patterns: Vec<RepoPath>,
+        sparse_patterns: Vec<RepoPathBuf>,
     ) -> Result<CheckoutStats, CheckoutError> {
         let tree = self.current_tree().map_err(|err| match err {
             err @ BackendError::ObjectNotFound { .. } => CheckoutError::SourceNotFound {
@@ -1176,7 +1176,7 @@ impl TreeState {
         let new_matcher = PrefixMatcher::new(&sparse_patterns);
         let added_matcher = DifferenceMatcher::new(&new_matcher, &old_matcher);
         let removed_matcher = DifferenceMatcher::new(&old_matcher, &new_matcher);
-        let empty_tree = MergedTree::resolved(Tree::null(self.store.clone(), RepoPath::root()));
+        let empty_tree = MergedTree::resolved(Tree::null(self.store.clone(), RepoPathBuf::root()));
         let added_stats = self.update(&empty_tree, &tree, &added_matcher).block_on()?;
         let removed_stats = self
             .update(&tree, &empty_tree, &removed_matcher)
@@ -1379,7 +1379,7 @@ impl WorkingCopy for LocalWorkingCopy {
         Ok(self.tree_state()?.current_tree_id())
     }
 
-    fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError> {
+    fn sparse_patterns(&self) -> Result<&[RepoPathBuf], WorkingCopyStateError> {
         Ok(self.tree_state()?.sparse_patterns())
     }
 
@@ -1523,7 +1523,7 @@ impl LocalWorkingCopy {
         Ok(self.tree_state.get_mut().unwrap())
     }
 
-    pub fn file_states(&self) -> Result<&BTreeMap<RepoPath, FileState>, WorkingCopyStateError> {
+    pub fn file_states(&self) -> Result<&BTreeMap<RepoPathBuf, FileState>, WorkingCopyStateError> {
         Ok(self.tree_state()?.file_states())
     }
 
@@ -1618,13 +1618,13 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
         Ok(())
     }
 
-    fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError> {
+    fn sparse_patterns(&self) -> Result<&[RepoPathBuf], WorkingCopyStateError> {
         self.wc.sparse_patterns()
     }
 
     fn set_sparse_patterns(
         &mut self,
-        new_sparse_patterns: Vec<RepoPath>,
+        new_sparse_patterns: Vec<RepoPathBuf>,
     ) -> Result<CheckoutStats, CheckoutError> {
         // TODO: Write a "pending_checkout" file with new sparse patterns so we can
         // continue an interrupted update if we find such a file.

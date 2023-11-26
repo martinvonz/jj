@@ -30,7 +30,7 @@ use crate::backend::{
 use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{trivial_merge, Merge, MergedTreeValue};
-use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathComponentsIter};
+use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent, RepoPathComponentsIter};
 use crate::store::Store;
 use crate::{backend, files};
 
@@ -48,7 +48,7 @@ pub enum TreeMergeError {
 #[derive(Clone)]
 pub struct Tree {
     store: Arc<Store>,
-    dir: RepoPath,
+    dir: RepoPathBuf,
     id: TreeId,
     data: Arc<backend::Tree>,
 }
@@ -78,7 +78,7 @@ impl Hash for Tree {
 }
 
 impl Tree {
-    pub fn new(store: Arc<Store>, dir: RepoPath, id: TreeId, data: Arc<backend::Tree>) -> Self {
+    pub fn new(store: Arc<Store>, dir: RepoPathBuf, id: TreeId, data: Arc<backend::Tree>) -> Self {
         Tree {
             store,
             dir,
@@ -87,7 +87,7 @@ impl Tree {
         }
     }
 
-    pub fn null(store: Arc<Store>, dir: RepoPath) -> Self {
+    pub fn null(store: Arc<Store>, dir: RepoPathBuf) -> Self {
         Tree {
             store,
             dir,
@@ -170,7 +170,7 @@ impl Tree {
         }
     }
 
-    pub fn conflicts_matching(&self, matcher: &dyn Matcher) -> Vec<(RepoPath, ConflictId)> {
+    pub fn conflicts_matching(&self, matcher: &dyn Matcher) -> Vec<(RepoPathBuf, ConflictId)> {
         let mut conflicts = vec![];
         for (name, value) in self.entries_matching(matcher) {
             if let TreeValue::Conflict(id) = value {
@@ -181,7 +181,7 @@ impl Tree {
     }
 
     #[instrument]
-    pub fn conflicts(&self) -> Vec<(RepoPath, ConflictId)> {
+    pub fn conflicts(&self) -> Vec<(RepoPathBuf, ConflictId)> {
         self.conflicts_matching(&EverythingMatcher)
     }
 
@@ -197,7 +197,7 @@ pub struct TreeEntriesIterator<'matcher> {
 
 struct TreeEntriesDirItem {
     tree: Tree,
-    entries: Vec<(RepoPath, TreeValue)>,
+    entries: Vec<(RepoPathBuf, TreeValue)>,
 }
 
 impl From<Tree> for TreeEntriesDirItem {
@@ -222,7 +222,7 @@ impl<'matcher> TreeEntriesIterator<'matcher> {
 }
 
 impl Iterator for TreeEntriesIterator<'_> {
-    type Item = (RepoPath, TreeValue);
+    type Item = (RepoPathBuf, TreeValue);
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(top) = self.stack.last_mut() {

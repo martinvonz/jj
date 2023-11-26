@@ -28,7 +28,7 @@ use crate::fsmonitor::FsmonitorKind;
 use crate::gitignore::GitIgnoreFile;
 use crate::merged_tree::MergedTree;
 use crate::op_store::{OperationId, WorkspaceId};
-use crate::repo_path::RepoPath;
+use crate::repo_path::{RepoPath, RepoPathBuf};
 use crate::settings::HumanByteSize;
 
 /// The trait all working-copy implementations must implement.
@@ -56,7 +56,7 @@ pub trait WorkingCopy {
     /// out in the working copy. An empty list means that no paths should be
     /// checked out in the working copy. A single `RepoPath::root()` entry means
     /// that all files should be checked out.
-    fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError>;
+    fn sparse_patterns(&self) -> Result<&[RepoPathBuf], WorkingCopyStateError>;
 
     /// Locks the working copy and returns an instance with methods for updating
     /// the working copy files and state.
@@ -87,7 +87,7 @@ pub trait LockedWorkingCopy {
     fn reset(&mut self, new_tree: &MergedTree) -> Result<(), ResetError>;
 
     /// See `WorkingCopy::sparse_patterns()`
-    fn sparse_patterns(&self) -> Result<&[RepoPath], WorkingCopyStateError>;
+    fn sparse_patterns(&self) -> Result<&[RepoPathBuf], WorkingCopyStateError>;
 
     /// Updates the patterns that decide which paths from the current tree
     /// should be checked out in the working copy.
@@ -97,7 +97,7 @@ pub trait LockedWorkingCopy {
     // to use sparse).
     fn set_sparse_patterns(
         &mut self,
-        new_sparse_patterns: Vec<RepoPath>,
+        new_sparse_patterns: Vec<RepoPathBuf>,
     ) -> Result<CheckoutStats, CheckoutError>;
 
     /// Finish the modifications to the working copy by writing the updated

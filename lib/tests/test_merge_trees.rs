@@ -195,11 +195,11 @@ fn test_executable() {
     let write_tree = |files: &[(&str, bool)]| -> Tree {
         let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
         for &(path, executable) in files {
-            let repo_path = RepoPath::from_internal_string(path);
+            let repo_path = &RepoPath::from_internal_string(path);
             if executable {
-                testutils::write_executable_file(&mut tree_builder, &repo_path, "contents");
+                testutils::write_executable_file(&mut tree_builder, repo_path, "contents");
             } else {
-                testutils::write_normal_file(&mut tree_builder, &repo_path, "contents");
+                testutils::write_normal_file(&mut tree_builder, repo_path, "contents");
             }
         }
         let tree_id = tree_builder.write_tree();
@@ -457,8 +457,8 @@ fn test_simplify_conflict() {
     let store = repo.store();
 
     let component = RepoPathComponent::new("file");
-    let path = RepoPath::from_internal_string("file");
-    let write_tree = |contents: &str| -> Tree { create_single_tree(repo, &[(&path, contents)]) };
+    let path = &RepoPath::from_internal_string("file");
+    let write_tree = |contents: &str| -> Tree { create_single_tree(repo, &[(path, contents)]) };
 
     let base_tree = write_tree("base contents");
     let branch_tree = write_tree("branch contents");
@@ -515,7 +515,7 @@ fn test_simplify_conflict() {
         merge_trees(&upstream2_tree, &upstream1_tree, &rebased1_tree).unwrap();
     match further_rebased_tree.value(component).unwrap() {
         TreeValue::Conflict(id) => {
-            let conflict = store.read_conflict(&path, id).unwrap();
+            let conflict = store.read_conflict(path, id).unwrap();
             assert_eq!(
                 conflict.removes().map(|v| v.as_ref()).collect_vec(),
                 vec![base_tree.value(component)]
@@ -550,9 +550,9 @@ fn test_simplify_conflict_after_resolving_parent() {
     // which creates a conflict. We resolve the conflict in the first line and
     // rebase C2 (the rebased C) onto the resolved conflict. C3 should not have
     // a conflict since it changed an unrelated line.
-    let path = RepoPath::from_internal_string("dir/file");
+    let path = &RepoPath::from_internal_string("dir/file");
     let mut tx = repo.start_transaction(&settings, "test");
-    let tree_a = create_tree(repo, &[(&path, "abc\ndef\nghi\n")]);
+    let tree_a = create_tree(repo, &[(path, "abc\ndef\nghi\n")]);
     let commit_a = tx
         .mut_repo()
         .new_commit(
@@ -562,19 +562,19 @@ fn test_simplify_conflict_after_resolving_parent() {
         )
         .write()
         .unwrap();
-    let tree_b = create_tree(repo, &[(&path, "Abc\ndef\nghi\n")]);
+    let tree_b = create_tree(repo, &[(path, "Abc\ndef\nghi\n")]);
     let commit_b = tx
         .mut_repo()
         .new_commit(&settings, vec![commit_a.id().clone()], tree_b.id())
         .write()
         .unwrap();
-    let tree_c = create_tree(repo, &[(&path, "Abc\ndef\nGhi\n")]);
+    let tree_c = create_tree(repo, &[(path, "Abc\ndef\nGhi\n")]);
     let commit_c = tx
         .mut_repo()
         .new_commit(&settings, vec![commit_b.id().clone()], tree_c.id())
         .write()
         .unwrap();
-    let tree_d = create_tree(repo, &[(&path, "abC\ndef\nghi\n")]);
+    let tree_d = create_tree(repo, &[(path, "abC\ndef\nghi\n")]);
     let commit_d = tx
         .mut_repo()
         .new_commit(&settings, vec![commit_a.id().clone()], tree_d.id())
@@ -588,11 +588,11 @@ fn test_simplify_conflict_after_resolving_parent() {
     // Test the setup: Both B and C should have conflicts.
     let tree_b2 = commit_b2.tree().unwrap();
     let tree_c2 = commit_b2.tree().unwrap();
-    assert!(!tree_b2.path_value(&path).is_resolved());
-    assert!(!tree_c2.path_value(&path).is_resolved());
+    assert!(!tree_b2.path_value(path).is_resolved());
+    assert!(!tree_c2.path_value(path).is_resolved());
 
     // Create the resolved B and rebase C on top.
-    let tree_b3 = create_tree(repo, &[(&path, "AbC\ndef\nghi\n")]);
+    let tree_b3 = create_tree(repo, &[(path, "AbC\ndef\nghi\n")]);
     let commit_b3 = tx
         .mut_repo()
         .rewrite_commit(&settings, &commit_b2)
@@ -605,14 +605,14 @@ fn test_simplify_conflict_after_resolving_parent() {
 
     // The conflict should now be resolved.
     let tree_c2 = commit_c3.tree().unwrap();
-    let resolved_value = tree_c2.path_value(&path);
+    let resolved_value = tree_c2.path_value(path);
     match resolved_value.into_resolved() {
         Ok(Some(TreeValue::File {
             id,
             executable: false,
         })) => {
             assert_eq!(
-                testutils::read_file(repo.store(), &path, &id),
+                testutils::read_file(repo.store(), path, &id),
                 b"AbC\ndef\nGhi\n"
             );
         }

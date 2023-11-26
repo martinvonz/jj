@@ -29,7 +29,7 @@ use jj_lib::git_backend::GitBackend;
 use jj_lib::local_backend::LocalBackend;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader, StoreFactories};
-use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::rewrite::RebasedDescendant;
 use jj_lib::settings::UserSettings;
 use jj_lib::store::Store;
@@ -256,7 +256,7 @@ pub fn write_normal_file(
 ) -> FileId {
     let id = write_file(tree_builder.store(), path, contents);
     tree_builder.set(
-        path.clone(),
+        path.to_owned(),
         TreeValue::File {
             id: id.clone(),
             executable: false,
@@ -268,7 +268,7 @@ pub fn write_normal_file(
 pub fn write_executable_file(tree_builder: &mut TreeBuilder, path: &RepoPath, contents: &str) {
     let id = write_file(tree_builder.store(), path, contents);
     tree_builder.set(
-        path.clone(),
+        path.to_owned(),
         TreeValue::File {
             id,
             executable: true,
@@ -278,7 +278,7 @@ pub fn write_executable_file(tree_builder: &mut TreeBuilder, path: &RepoPath, co
 
 pub fn write_symlink(tree_builder: &mut TreeBuilder, path: &RepoPath, target: &str) {
     let id = tree_builder.store().write_symlink(path, target).unwrap();
-    tree_builder.set(path.clone(), TreeValue::Symlink(id));
+    tree_builder.set(path.to_owned(), TreeValue::Symlink(id));
 }
 
 pub fn create_single_tree(repo: &Arc<ReadonlyRepo>, path_contents: &[(&RepoPath, &str)]) -> Tree {
@@ -298,7 +298,7 @@ pub fn create_tree(repo: &Arc<ReadonlyRepo>, path_contents: &[(&RepoPath, &str)]
 #[must_use]
 pub fn create_random_tree(repo: &Arc<ReadonlyRepo>) -> MergedTreeId {
     let number = rand::random::<u32>();
-    let path = RepoPath::from_internal_string(format!("file{number}"));
+    let path = RepoPathBuf::from_internal_string(format!("file{number}"));
     create_tree(repo, &[(&path, "contents")]).id()
 }
 

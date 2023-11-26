@@ -10,7 +10,7 @@ use jj_lib::files::{self, ContentHunk, MergeResult};
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::Merge;
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
-use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::store::Store;
 use pollster::FutureExt;
 use thiserror::Error;
@@ -23,7 +23,7 @@ pub enum BuiltinToolError {
     ReadFileBackend(BackendError),
     #[error("Failed to read file {path:?} with ID {id:?}: {source}")]
     ReadFileIo {
-        path: RepoPath,
+        path: RepoPathBuf,
         id: FileId,
         source: std::io::Error,
     },
@@ -119,7 +119,7 @@ fn read_file_contents(
             reader
                 .read_to_end(&mut buf)
                 .map_err(|err| BuiltinToolError::ReadFileIo {
-                    path: path.clone(),
+                    path: path.to_owned(),
                     id: id.clone(),
                     source: err,
                 })?;
@@ -235,7 +235,7 @@ pub fn make_diff_files(
     store: &Arc<Store>,
     left_tree: &MergedTree,
     right_tree: &MergedTree,
-    changed_files: &[RepoPath],
+    changed_files: &[RepoPathBuf],
 ) -> Result<Vec<scm_record::File<'static>>, BuiltinToolError> {
     let mut files = Vec::new();
     for changed_path in changed_files {
@@ -361,7 +361,7 @@ pub fn apply_diff_builtin(
     store: Arc<Store>,
     left_tree: &MergedTree,
     right_tree: &MergedTree,
-    changed_files: Vec<RepoPath>,
+    changed_files: Vec<RepoPathBuf>,
     files: &[scm_record::File],
 ) -> Result<MergedTreeId, BackendError> {
     let mut tree_builder = MergedTreeBuilder::new(left_tree.id().clone());
@@ -537,7 +537,7 @@ pub fn edit_merge_builtin(
         tree.store().clone(),
         tree,
         tree,
-        vec![path.clone()],
+        vec![path.to_owned()],
         &[file],
     )
     .map_err(BuiltinToolError::BackendError)
@@ -558,29 +558,33 @@ mod tests {
         let test_repo = TestRepo::init();
         let store = test_repo.repo.store();
 
-        let unused_path = RepoPath::from_internal_string("unused");
-        let unchanged = RepoPath::from_internal_string("unchanged");
-        let changed_path = RepoPath::from_internal_string("changed");
-        let added_path = RepoPath::from_internal_string("added");
+        let unused_path = &RepoPath::from_internal_string("unused");
+        let unchanged = &RepoPath::from_internal_string("unchanged");
+        let changed_path = &RepoPath::from_internal_string("changed");
+        let added_path = &RepoPath::from_internal_string("added");
         let left_tree = testutils::create_tree(
             &test_repo.repo,
             &[
-                (&unused_path, "unused\n"),
-                (&unchanged, "unchanged\n"),
-                (&changed_path, "line1\nline2\nline3\n"),
+                (unused_path, "unused\n"),
+                (unchanged, "unchanged\n"),
+                (changed_path, "line1\nline2\nline3\n"),
             ],
         );
         let right_tree = testutils::create_tree(
             &test_repo.repo,
             &[
-                (&unused_path, "unused\n"),
-                (&unchanged, "unchanged\n"),
-                (&changed_path, "line1\nchanged1\nchanged2\nline3\nadded1\n"),
-                (&added_path, "added\n"),
+                (unused_path, "unused\n"),
+                (unchanged, "unchanged\n"),
+                (changed_path, "line1\nchanged1\nchanged2\nline3\nadded1\n"),
+                (added_path, "added\n"),
             ],
         );
 
-        let changed_files = vec![unchanged.clone(), changed_path.clone(), added_path.clone()];
+        let changed_files = vec![
+            unchanged.to_owned(),
+            changed_path.to_owned(),
+            added_path.to_owned(),
+        ];
         let files = make_diff_files(store, &left_tree, &right_tree, &changed_files).unwrap();
         insta::assert_debug_snapshot!(files, @r###"
         [
@@ -712,18 +716,18 @@ mod tests {
         let test_repo = TestRepo::init();
         let store = test_repo.repo.store();
 
-        let path = RepoPath::from_internal_string("file");
+        let path = &RepoPath::from_internal_string("file");
         let base_tree = testutils::create_tree(
             &test_repo.repo,
-            &[(&path, "base 1\nbase 2\nbase 3\nbase 4\nbase 5\n")],
+            &[(path, "base 1\nbase 2\nbase 3\nbase 4\nbase 5\n")],
         );
         let left_tree = testutils::create_tree(
             &test_repo.repo,
-            &[(&path, "left 1\nbase 2\nbase 3\nbase 4\nleft 5\n")],
+            &[(path, "left 1\nbase 2\nbase 3\nbase 4\nleft 5\n")],
         );
         let right_tree = testutils::create_tree(
             &test_repo.repo,
-            &[(&path, "right 1\nbase 2\nbase 3\nbase 4\nright 5\n")],
+            &[(path, "right 1\nbase 2\nbase 3\nbase 4\nright 5\n")],
         );
 
         fn to_file_id(tree_value: MergedTreeValue) -> Option<FileId> {
@@ -735,11 +739,11 @@ mod tests {
             }
         }
         let merge = Merge::from_vec(vec![
-            to_file_id(left_tree.path_value(&path)),
-            to_file_id(base_tree.path_value(&path)),
-            to_file_id(right_tree.path_value(&path)),
+            to_file_id(left_tree.path_value(path)),
+            to_file_id(base_tree.path_value(path)),
+            to_file_id(right_tree.path_value(path)),
         ]);
-        let content = extract_as_single_hunk(&merge, store, &path).block_on();
+        let content = extract_as_single_hunk(&merge, store, path).block_on();
         let slices = content.map(|ContentHunk(buf)| buf.as_slice());
         let merge_result = files::merge(&slices);
         let sections = make_merge_sections(merge_result).unwrap();

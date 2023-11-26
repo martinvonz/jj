@@ -2583,30 +2583,30 @@ fn test_evaluate_expression_file() {
     let mut tx = repo.start_transaction(&settings, "test");
     let mut_repo = tx.mut_repo();
 
-    let added_clean_clean = RepoPath::from_internal_string("added_clean_clean");
-    let added_modified_clean = RepoPath::from_internal_string("added_modified_clean");
-    let added_modified_removed = RepoPath::from_internal_string("added_modified_removed");
+    let added_clean_clean = &RepoPath::from_internal_string("added_clean_clean");
+    let added_modified_clean = &RepoPath::from_internal_string("added_modified_clean");
+    let added_modified_removed = &RepoPath::from_internal_string("added_modified_removed");
     let tree1 = create_tree(
         repo,
         &[
-            (&added_clean_clean, "1"),
-            (&added_modified_clean, "1"),
-            (&added_modified_removed, "1"),
+            (added_clean_clean, "1"),
+            (added_modified_clean, "1"),
+            (added_modified_removed, "1"),
         ],
     );
     let tree2 = create_tree(
         repo,
         &[
-            (&added_clean_clean, "1"),
-            (&added_modified_clean, "2"),
-            (&added_modified_removed, "2"),
+            (added_clean_clean, "1"),
+            (added_modified_clean, "2"),
+            (added_modified_removed, "2"),
         ],
     );
     let tree3 = create_tree(
         repo,
         &[
-            (&added_clean_clean, "1"),
-            (&added_modified_clean, "2"),
+            (added_clean_clean, "1"),
+            (added_modified_clean, "2"),
             // added_modified_removed,
         ],
     );
@@ -2634,18 +2634,20 @@ fn test_evaluate_expression_file() {
     let resolve = |file_path: &RepoPath| -> Vec<CommitId> {
         let mut_repo = &*mut_repo;
         let expression =
-            RevsetExpression::filter(RevsetFilterPredicate::File(Some(vec![file_path.clone()])));
+            RevsetExpression::filter(RevsetFilterPredicate::File(Some(
+                vec![file_path.to_owned()],
+            )));
         let revset = expression.evaluate_programmatic(mut_repo).unwrap();
         revset.iter().collect()
     };
 
-    assert_eq!(resolve(&added_clean_clean), vec![commit1.id().clone()]);
+    assert_eq!(resolve(added_clean_clean), vec![commit1.id().clone()]);
     assert_eq!(
-        resolve(&added_modified_clean),
+        resolve(added_modified_clean),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
     assert_eq!(
-        resolve(&added_modified_removed),
+        resolve(added_modified_removed),
         vec![
             commit3.id().clone(),
             commit2.id().clone(),
@@ -2690,11 +2692,11 @@ fn test_evaluate_expression_conflict() {
     let mut_repo = tx.mut_repo();
 
     // Create a few trees, including one with a conflict in `file1`
-    let file_path1 = RepoPath::from_internal_string("file1");
-    let file_path2 = RepoPath::from_internal_string("file2");
-    let tree1 = create_tree(repo, &[(&file_path1, "1"), (&file_path2, "1")]);
-    let tree2 = create_tree(repo, &[(&file_path1, "2"), (&file_path2, "2")]);
-    let tree3 = create_tree(repo, &[(&file_path1, "3"), (&file_path2, "1")]);
+    let file_path1 = &RepoPath::from_internal_string("file1");
+    let file_path2 = &RepoPath::from_internal_string("file2");
+    let tree1 = create_tree(repo, &[(file_path1, "1"), (file_path2, "1")]);
+    let tree2 = create_tree(repo, &[(file_path1, "2"), (file_path2, "2")]);
+    let tree3 = create_tree(repo, &[(file_path1, "3"), (file_path2, "1")]);
     let tree4 = tree2.merge(&tree1, &tree3).unwrap();
 
     let mut create_commit = |parent_ids, tree_id| {

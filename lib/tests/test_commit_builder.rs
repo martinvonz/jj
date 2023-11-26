@@ -16,10 +16,14 @@ use jj_lib::backend::{ChangeId, MillisSinceEpoch, ObjectId, Signature, Timestamp
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::merged_tree::DiffSummary;
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::settings::UserSettings;
 use test_case::test_case;
 use testutils::{assert_rebased, create_tree, CommitGraphBuilder, TestRepo, TestRepoBackend};
+
+fn to_owned_path_vec(paths: &[&RepoPath]) -> Vec<RepoPathBuf> {
+    paths.iter().map(|&path| path.to_owned()).collect()
+}
 
 #[test_case(TestRepoBackend::Local ; "local backend")]
 #[test_case(TestRepoBackend::Git ; "git backend")]
@@ -29,13 +33,13 @@ fn test_initial(backend: TestRepoBackend) {
     let repo = &test_repo.repo;
     let store = repo.store();
 
-    let root_file_path = RepoPath::from_internal_string("file");
-    let dir_file_path = RepoPath::from_internal_string("dir/file");
+    let root_file_path = &RepoPath::from_internal_string("file");
+    let dir_file_path = &RepoPath::from_internal_string("dir/file");
     let tree = create_tree(
         repo,
         &[
-            (&root_file_path, "file contents"),
-            (&dir_file_path, "dir/file contents"),
+            (root_file_path, "file contents"),
+            (dir_file_path, "dir/file contents"),
         ],
     );
 
@@ -87,8 +91,8 @@ fn test_initial(backend: TestRepoBackend) {
             .unwrap(),
         DiffSummary {
             modified: vec![],
-            added: vec![dir_file_path, root_file_path],
-            removed: vec![]
+            added: to_owned_path_vec(&[dir_file_path, root_file_path]),
+            removed: vec![],
         }
     );
 }
@@ -101,13 +105,13 @@ fn test_rewrite(backend: TestRepoBackend) {
     let repo = &test_repo.repo;
     let store = repo.store().clone();
 
-    let root_file_path = RepoPath::from_internal_string("file");
-    let dir_file_path = RepoPath::from_internal_string("dir/file");
+    let root_file_path = &RepoPath::from_internal_string("file");
+    let dir_file_path = &RepoPath::from_internal_string("dir/file");
     let initial_tree = create_tree(
         repo,
         &[
-            (&root_file_path, "file contents"),
-            (&dir_file_path, "dir/file contents"),
+            (root_file_path, "file contents"),
+            (dir_file_path, "dir/file contents"),
         ],
     );
 
@@ -126,8 +130,8 @@ fn test_rewrite(backend: TestRepoBackend) {
     let rewritten_tree = create_tree(
         &repo,
         &[
-            (&root_file_path, "file contents"),
-            (&dir_file_path, "updated dir/file contents"),
+            (root_file_path, "file contents"),
+            (dir_file_path, "updated dir/file contents"),
         ],
     );
 
@@ -172,8 +176,8 @@ fn test_rewrite(backend: TestRepoBackend) {
             .unwrap(),
         DiffSummary {
             modified: vec![],
-            added: vec![dir_file_path.clone(), root_file_path],
-            removed: vec![]
+            added: to_owned_path_vec(&[dir_file_path, root_file_path]),
+            removed: vec![],
         }
     );
     assert_eq!(
@@ -183,9 +187,9 @@ fn test_rewrite(backend: TestRepoBackend) {
             .diff_summary(&rewritten_commit.tree().unwrap(), &EverythingMatcher)
             .unwrap(),
         DiffSummary {
-            modified: vec![dir_file_path],
+            modified: to_owned_path_vec(&[dir_file_path]),
             added: vec![],
-            removed: vec![]
+            removed: vec![],
         }
     );
 }
