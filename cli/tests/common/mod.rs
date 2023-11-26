@@ -191,6 +191,14 @@ impl TestEnvironment {
         self.normalize_output(&get_stderr_string(&assert))
     }
 
+    /// Run a `jj` command, check that it failed with code 101, and return its
+    /// stderr
+    #[must_use]
+    pub fn jj_cmd_panic(&self, current_dir: &Path, args: &[&str]) -> String {
+        let assert = self.jj_cmd(current_dir, args).assert().code(101).stdout("");
+        self.normalize_output(&get_stderr_string(&assert))
+    }
+
     pub fn env_root(&self) -> &Path {
         &self.env_root
     }
