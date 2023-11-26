@@ -22,6 +22,7 @@ use std::sync::RwLock;
 use thiserror::Error;
 
 use crate::backend::CommitId;
+use crate::gpg_signing::GpgBackend;
 use crate::settings::UserSettings;
 
 /// A status of the signature, part of the [Verification] type.
@@ -58,6 +59,15 @@ impl Verification {
             status: SigStatus::Unknown,
             key: None,
             display: None,
+        }
+    }
+
+    /// Create a new verification
+    pub fn new(status: SigStatus, key: Option<String>, display: Option<String>) -> Self {
+        Self {
+            status,
+            key,
+            display,
         }
     }
 }
@@ -150,10 +160,10 @@ impl Signer {
     /// Creates a signer based on user settings. Uses all known backends, and
     /// chooses one of them to be used for signing depending on the config.
     pub fn from_settings(settings: &UserSettings) -> Result<Self, SignInitError> {
-        let mut backends: Vec<Box<dyn SigningBackend>> = vec![
-            // Box::new(GpgBackend::from_settings(settings)?),
-            // Box::new(SshBackend::from_settings(settings)?),
-            // Box::new(X509Backend::from_settings(settings)?),
+        let mut backends = vec![
+            Box::new(GpgBackend::from_config(settings.config())) as Box<dyn SigningBackend>,
+            // Box::new(SshBackend::from_settings(settings)?) as Box<dyn SigningBackend>,
+            // Box::new(X509Backend::from_settings(settings)?) as Box<dyn SigningBackend>,
         ];
 
         let main_backend = settings
