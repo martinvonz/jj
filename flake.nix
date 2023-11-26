@@ -52,7 +52,7 @@
     in
     {
       packages = {
-        jujutsu = ourRustPlatform.buildRustPackage rec {
+        jujutsu = ourRustPlatform.buildRustPackage {
           pname = "jujutsu";
           version = "unstable-${self.shortRev or "dirty"}";
 
@@ -72,6 +72,7 @@
             installShellFiles
             makeWrapper
             pkg-config
+            gnupg # for signing tests
           ];
           buildInputs = with pkgs; [
             openssl zstd libgit2 libssh2
@@ -132,6 +133,9 @@
 
           # In case you need to run `cargo run --bin gen-protos`
           protobuf
+
+          # To run the signing tests
+          gnupg
 
           # For building the documentation website
           poetry

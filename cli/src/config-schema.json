@@ -376,7 +376,23 @@
                 "backends": {
                     "type": "object",
                     "description": "Tables of options to pass to specific signing backends",
-                    "properties": {},
+                    "properties": {
+                        "GPG": {
+                            "type": "object",
+                            "properties": {
+                                "program": {
+                                    "type": "string",
+                                    "description": "Path to the gpg program to be called",
+                                    "default": "gpg2"
+                                },
+                                "consider-expired-keys-bad": {
+                                    "type": "boolean",
+                                    "description": "Whether to consider signatures made with an expired key as bad",
+                                    "default": false
+                                }
+                            }
+                        }
+                    },
                     "additionalProperties": true
                 }
             }
