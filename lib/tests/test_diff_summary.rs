@@ -159,7 +159,7 @@ fn test_matcher_dir_file_transition() {
     let tree1 = create_tree(repo, &[(&a_path, "before")]);
     let tree2 = create_tree(repo, &[(&a_a_path, "after")]);
 
-    let matcher = FilesMatcher::new(&[a_path.clone()]);
+    let matcher = FilesMatcher::new([&a_path]);
     assert_eq!(
         tree1.diff_summary(&tree2, &matcher).unwrap(),
         DiffSummary {
@@ -177,7 +177,7 @@ fn test_matcher_dir_file_transition() {
         }
     );
 
-    let matcher = FilesMatcher::new(&[a_a_path.clone()]);
+    let matcher = FilesMatcher::new([&a_a_path]);
     assert_eq!(
         tree1.diff_summary(&tree2, &matcher).unwrap(),
         DiffSummary {
@@ -195,7 +195,7 @@ fn test_matcher_dir_file_transition() {
         }
     );
 
-    let matcher = FilesMatcher::new(&[a_path.clone(), a_a_path.clone()]);
+    let matcher = FilesMatcher::new([&a_path, &a_a_path]);
     assert_eq!(
         tree1.diff_summary(&tree2, &matcher).unwrap(),
         DiffSummary {
@@ -239,7 +239,7 @@ fn test_matcher_normal_cases() {
         ],
     );
 
-    let matcher = FilesMatcher::new(&[a_path.clone(), z_path.clone()]);
+    let matcher = FilesMatcher::new([&a_path, &z_path]);
     assert_eq!(
         tree1.diff_summary(&tree2, &matcher).unwrap(),
         DiffSummary {
@@ -257,7 +257,7 @@ fn test_matcher_normal_cases() {
         }
     );
 
-    let matcher = FilesMatcher::new(&[dir1_a_path.clone(), dir2_b_path.clone()]);
+    let matcher = FilesMatcher::new([&dir1_a_path, &dir2_b_path]);
     assert_eq!(
         tree1.diff_summary(&tree2, &matcher).unwrap(),
         DiffSummary {

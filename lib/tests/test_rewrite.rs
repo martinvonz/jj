@@ -55,18 +55,13 @@ fn test_restore_tree() {
     let restored = restore_tree(
         &left,
         &right,
-        &FilesMatcher::new(&[path1.clone(), path2.clone(), path3.clone(), path4.clone()]),
+        &FilesMatcher::new([&path1, &path2, &path3, &path4]),
     )
     .unwrap();
     assert_eq!(restored, left.id());
 
     // Restore some files
-    let restored = restore_tree(
-        &left,
-        &right,
-        &FilesMatcher::new(&[path1.clone(), path2.clone()]),
-    )
-    .unwrap();
+    let restored = restore_tree(&left, &right, &FilesMatcher::new([&path1, &path2])).unwrap();
     let expected = create_tree(repo, &[(&path2, "left"), (&path3, "right")]);
     assert_eq!(restored, expected.id());
 }

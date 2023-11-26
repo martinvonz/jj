@@ -940,7 +940,7 @@ impl TreeState {
                         .collect_vec()
                 });
 
-                Some(Box::new(FilesMatcher::new(&repo_paths)))
+                Some(Box::new(FilesMatcher::new(repo_paths)))
             }
         };
         Ok(FsmonitorMatcher {

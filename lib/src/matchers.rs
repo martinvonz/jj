@@ -104,10 +104,10 @@ pub struct FilesMatcher {
 }
 
 impl FilesMatcher {
-    pub fn new(files: &[RepoPath]) -> Self {
+    pub fn new(files: impl IntoIterator<Item = impl AsRef<RepoPath>>) -> Self {
         let mut tree = RepoPathTree::new();
         for f in files {
-            tree.add_file(f);
+            tree.add_file(f.as_ref());
         }
         FilesMatcher { tree }
     }
@@ -128,11 +128,11 @@ pub struct PrefixMatcher {
 }
 
 impl PrefixMatcher {
-    #[instrument]
-    pub fn new(prefixes: &[RepoPath]) -> Self {
+    #[instrument(skip(prefixes))]
+    pub fn new(prefixes: impl IntoIterator<Item = impl AsRef<RepoPath>>) -> Self {
         let mut tree = RepoPathTree::new();
         for prefix in prefixes {
-            let sub = tree.add(prefix);
+            let sub = tree.add(prefix.as_ref());
             sub.is_dir = true;
             sub.is_file = true;
         }
@@ -399,7 +399,7 @@ mod tests {
 
     #[test]
     fn test_filesmatcher_empty() {
-        let m = FilesMatcher::new(&[]);
+        let m = FilesMatcher::new([] as [&RepoPath; 0]);
         assert!(!m.matches(&repo_path("file")));
         assert!(!m.matches(&repo_path("dir/file")));
         assert_eq!(m.visit(&RepoPath::root()), Visit::Nothing);
@@ -407,7 +407,7 @@ mod tests {
 
     #[test]
     fn test_filesmatcher_nonempty() {
-        let m = FilesMatcher::new(&[
+        let m = FilesMatcher::new([
             repo_path("dir1/subdir1/file1"),
             repo_path("dir1/subdir1/file2"),
             repo_path("dir1/subdir2/file3"),
@@ -455,7 +455,7 @@ mod tests {
 
     #[test]
     fn test_prefixmatcher_empty() {
-        let m = PrefixMatcher::new(&[]);
+        let m = PrefixMatcher::new([] as [&RepoPath; 0]);
         assert!(!m.matches(&repo_path("file")));
         assert!(!m.matches(&repo_path("dir/file")));
         assert_eq!(m.visit(&RepoPath::root()), Visit::Nothing);
@@ -463,7 +463,7 @@ mod tests {
 
     #[test]
     fn test_prefixmatcher_root() {
-        let m = PrefixMatcher::new(&[RepoPath::root()]);
+        let m = PrefixMatcher::new([RepoPath::root()]);
         // Matches all files
         assert!(m.matches(&repo_path("file")));
         assert!(m.matches(&repo_path("dir/file")));
@@ -474,7 +474,7 @@ mod tests {
 
     #[test]
     fn test_prefixmatcher_single_prefix() {
-        let m = PrefixMatcher::new(&[repo_path("foo/bar")]);
+        let m = PrefixMatcher::new([repo_path("foo/bar")]);
 
         // Parts of the prefix should not match
         assert!(!m.matches(&repo_path("foo")));
@@ -515,7 +515,7 @@ mod tests {
 
     #[test]
     fn test_prefixmatcher_nested_prefixes() {
-        let m = PrefixMatcher::new(&[repo_path("foo"), repo_path("foo/bar/baz")]);
+        let m = PrefixMatcher::new([repo_path("foo"), repo_path("foo/bar/baz")]);
 
         assert!(m.matches(&repo_path("foo")));
         assert!(!m.matches(&repo_path("bar")));
@@ -538,8 +538,8 @@ mod tests {
 
     #[test]
     fn test_differencematcher_remove_subdir() {
-        let m1 = PrefixMatcher::new(&[repo_path("foo"), repo_path("bar")]);
-        let m2 = PrefixMatcher::new(&[repo_path("foo/bar")]);
+        let m1 = PrefixMatcher::new([repo_path("foo"), repo_path("bar")]);
+        let m2 = PrefixMatcher::new([repo_path("foo/bar")]);
         let m = DifferenceMatcher::new(&m1, &m2);
 
         assert!(m.matches(&repo_path("foo")));
@@ -575,8 +575,8 @@ mod tests {
 
     #[test]
     fn test_differencematcher_shared_patterns() {
-        let m1 = PrefixMatcher::new(&[repo_path("foo"), repo_path("bar")]);
-        let m2 = PrefixMatcher::new(&[repo_path("foo")]);
+        let m1 = PrefixMatcher::new([repo_path("foo"), repo_path("bar")]);
+        let m2 = PrefixMatcher::new([repo_path("foo")]);
         let m = DifferenceMatcher::new(&m1, &m2);
 
         assert!(!m.matches(&repo_path("foo")));
@@ -605,8 +605,8 @@ mod tests {
 
     #[test]
     fn test_intersectionmatcher_intersecting_roots() {
-        let m1 = PrefixMatcher::new(&[repo_path("foo"), repo_path("bar")]);
-        let m2 = PrefixMatcher::new(&[repo_path("bar"), repo_path("baz")]);
+        let m1 = PrefixMatcher::new([repo_path("foo"), repo_path("bar")]);
+        let m2 = PrefixMatcher::new([repo_path("bar"), repo_path("baz")]);
         let m = IntersectionMatcher::new(&m1, &m2);
 
         assert!(!m.matches(&repo_path("foo")));
@@ -633,8 +633,8 @@ mod tests {
 
     #[test]
     fn test_intersectionmatcher_subdir() {
-        let m1 = PrefixMatcher::new(&[repo_path("foo")]);
-        let m2 = PrefixMatcher::new(&[repo_path("foo/bar")]);
+        let m1 = PrefixMatcher::new([repo_path("foo")]);
+        let m2 = PrefixMatcher::new([repo_path("foo/bar")]);
         let m = IntersectionMatcher::new(&m1, &m2);
 
         assert!(!m.matches(&repo_path("foo")));

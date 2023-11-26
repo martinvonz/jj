@@ -350,10 +350,10 @@ fn test_path_value_and_entries() {
     assert_eq!(actual_entries, expected_entries);
 
     let actual_entries = merged_tree
-        .entries_matching(&FilesMatcher::new(&[
-            resolved_file_path.clone(),
-            modify_delete_path.clone(),
-            file_dir_conflict_sub_path.clone(),
+        .entries_matching(&FilesMatcher::new([
+            &resolved_file_path,
+            &modify_delete_path,
+            &file_dir_conflict_sub_path,
         ]))
         .collect_vec();
     let expected_entries = [&resolved_file_path, &modify_delete_path]
@@ -1067,7 +1067,7 @@ fn test_diff_dir_file() {
 
     // Diff while filtering by `path1` (file1 -> directory1) as a file
     {
-        let matcher = FilesMatcher::new(&[path1.clone()]);
+        let matcher = FilesMatcher::new([&path1]);
         let actual_diff = left_merged
             .diff(&right_merged, &matcher)
             .map(|(path, diff)| (path, diff.unwrap()))
@@ -1085,7 +1085,7 @@ fn test_diff_dir_file() {
 
     // Diff while filtering by `path1/file` (file1 -> directory1) as a file
     {
-        let matcher = FilesMatcher::new(&[path1.join(file)]);
+        let matcher = FilesMatcher::new([path1.join(file)]);
         let actual_diff = left_merged
             .diff(&right_merged, &matcher)
             .map(|(path, diff)| (path, diff.unwrap()))
@@ -1103,7 +1103,7 @@ fn test_diff_dir_file() {
 
     // Diff while filtering by `path1` (file1 -> directory1) as a prefix
     {
-        let matcher = PrefixMatcher::new(&[path1.clone()]);
+        let matcher = PrefixMatcher::new([&path1]);
         let actual_diff = left_merged
             .diff(&right_merged, &matcher)
             .map(|(path, diff)| (path, diff.unwrap()))
@@ -1127,7 +1127,7 @@ fn test_diff_dir_file() {
     // do see the directory that's included in the conflict with a file on the right
     // side.
     {
-        let matcher = FilesMatcher::new(&[path6.clone()]);
+        let matcher = FilesMatcher::new([&path6]);
         let actual_diff = left_merged
             .diff(&right_merged, &matcher)
             .map(|(path, diff)| (path, diff.unwrap()))
