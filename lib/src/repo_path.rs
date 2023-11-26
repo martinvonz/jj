@@ -159,12 +159,19 @@ impl DoubleEndedIterator for RepoPathComponentsIter<'_> {
 
 impl FusedIterator for RepoPathComponentsIter<'_> {}
 
-// TODO: make RepoPath a borrowed type
-pub type RepoPathBuf = RepoPath;
-
+/// Owned repository path.
 #[derive(Clone, Eq, Hash, PartialEq)]
-pub struct RepoPath {
+pub struct RepoPathBuf {
+    // Don't add more fields. Eq, Hash, and Ord must be compatible with the
+    // borrowed RepoPath type.
     value: String,
+}
+
+/// Borrowed repository path.
+#[derive(Eq, Hash, PartialEq, RefCastCustom)]
+#[repr(transparent)]
+pub struct RepoPath {
+    value: str,
 }
 
 impl Debug for RepoPath {
@@ -173,7 +180,14 @@ impl Debug for RepoPath {
     }
 }
 
+impl Debug for RepoPathBuf {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        <RepoPath as Debug>::fmt(self, f)
+    }
+}
+
 impl RepoPathBuf {
+    /// Creates owned repository path pointing to the root.
     pub const fn root() -> Self {
         RepoPathBuf {
             value: String::new(),
@@ -236,6 +250,23 @@ impl RepoPathBuf {
 }
 
 impl RepoPath {
+    /// Returns repository path pointing to the root.
+    pub const fn root() -> &'static Self {
+        Self::from_internal_string_unchecked("")
+    }
+
+    /// Wraps valid string representation as `RepoPath`.
+    ///
+    /// The input `value` must not contain empty path components. For example,
+    /// `"/"`, `"/foo"`, `"foo/"`, `"foo//bar"` are all invalid.
+    pub fn from_internal_string(value: &str) -> &Self {
+        assert!(is_valid_repo_path_str(value));
+        Self::from_internal_string_unchecked(value)
+    }
+
+    #[ref_cast_custom]
+    const fn from_internal_string_unchecked(value: &str) -> &Self;
+
     /// The full string form used internally, not for presenting to users (where
     /// we may want to use the platform's separator). This format includes a
     /// trailing slash, unless this path represents the root directory. That
@@ -316,6 +347,39 @@ impl AsRef<RepoPath> for RepoPath {
     }
 }
 
+impl AsRef<RepoPath> for RepoPathBuf {
+    fn as_ref(&self) -> &RepoPath {
+        self
+    }
+}
+
+impl Borrow<RepoPath> for RepoPathBuf {
+    fn borrow(&self) -> &RepoPath {
+        self
+    }
+}
+
+impl Deref for RepoPathBuf {
+    type Target = RepoPath;
+
+    fn deref(&self) -> &Self::Target {
+        RepoPath::from_internal_string_unchecked(&self.value)
+    }
+}
+
+impl ToOwned for RepoPath {
+    type Owned = RepoPathBuf;
+
+    fn to_owned(&self) -> Self::Owned {
+        let value = self.value.to_owned();
+        RepoPathBuf { value }
+    }
+
+    fn clone_into(&self, target: &mut Self::Owned) {
+        self.value.clone_into(&mut target.value);
+    }
+}
+
 impl Ord for RepoPath {
     fn cmp(&self, other: &Self) -> Ordering {
         // If there were leading/trailing slash, components-based Ord would
@@ -325,7 +389,19 @@ impl Ord for RepoPath {
     }
 }
 
+impl Ord for RepoPathBuf {
+    fn cmp(&self, other: &Self) -> Ordering {
+        <RepoPath as Ord>::cmp(self, other)
+    }
+}
+
 impl PartialOrd for RepoPath {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialOrd for RepoPathBuf {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
@@ -353,7 +429,7 @@ mod tests {
 
     use super::*;
 
-    fn repo_path(value: &str) -> RepoPath {
+    fn repo_path(value: &str) -> &RepoPath {
         RepoPath::from_internal_string(value)
     }
 
@@ -366,6 +442,13 @@ mod tests {
 
     #[test]
     fn test_from_internal_string() {
+        let repo_path_buf = |value: &str| RepoPathBuf::from_internal_string(value);
+        assert_eq!(repo_path_buf(""), RepoPathBuf::root());
+        assert!(panic::catch_unwind(|| repo_path_buf("/")).is_err());
+        assert!(panic::catch_unwind(|| repo_path_buf("/x")).is_err());
+        assert!(panic::catch_unwind(|| repo_path_buf("x/")).is_err());
+        assert!(panic::catch_unwind(|| repo_path_buf("x//y")).is_err());
+
         assert_eq!(repo_path(""), RepoPath::root());
         assert!(panic::catch_unwind(|| repo_path("/")).is_err());
         assert!(panic::catch_unwind(|| repo_path("/x")).is_err());
@@ -389,20 +472,20 @@ mod tests {
 
     #[test]
     fn test_contains() {
-        assert!(repo_path("").contains(&repo_path("")));
-        assert!(repo_path("").contains(&repo_path("x")));
-        assert!(!repo_path("x").contains(&repo_path("")));
+        assert!(repo_path("").contains(repo_path("")));
+        assert!(repo_path("").contains(repo_path("x")));
+        assert!(!repo_path("x").contains(repo_path("")));
 
-        assert!(repo_path("x").contains(&repo_path("x")));
-        assert!(repo_path("x").contains(&repo_path("x/y")));
-        assert!(!repo_path("x").contains(&repo_path("xy")));
-        assert!(!repo_path("y").contains(&repo_path("x/y")));
+        assert!(repo_path("x").contains(repo_path("x")));
+        assert!(repo_path("x").contains(repo_path("x/y")));
+        assert!(!repo_path("x").contains(repo_path("xy")));
+        assert!(!repo_path("y").contains(repo_path("x/y")));
 
-        assert!(repo_path("x/y").contains(&repo_path("x/y")));
-        assert!(repo_path("x/y").contains(&repo_path("x/y/z")));
-        assert!(!repo_path("x/y").contains(&repo_path("x/yz")));
-        assert!(!repo_path("x/y").contains(&repo_path("x")));
-        assert!(!repo_path("x/y").contains(&repo_path("xy")));
+        assert!(repo_path("x/y").contains(repo_path("x/y")));
+        assert!(repo_path("x/y").contains(repo_path("x/y/z")));
+        assert!(!repo_path("x/y").contains(repo_path("x/yz")));
+        assert!(!repo_path("x/y").contains(repo_path("x")));
+        assert!(!repo_path("x/y").contains(repo_path("xy")));
     }
 
     #[test]
@@ -425,11 +508,11 @@ mod tests {
     fn test_join() {
         let root = RepoPath::root();
         let dir = root.join(RepoPathComponent::new("dir"));
-        assert_eq!(dir, repo_path("dir"));
+        assert_eq!(dir.as_ref(), repo_path("dir"));
         let subdir = dir.join(RepoPathComponent::new("subdir"));
-        assert_eq!(subdir, repo_path("dir/subdir"));
+        assert_eq!(subdir.as_ref(), repo_path("dir/subdir"));
         assert_eq!(
-            subdir.join(RepoPathComponent::new("file")),
+            subdir.join(RepoPathComponent::new("file")).as_ref(),
             repo_path("dir/subdir/file")
         );
     }
@@ -444,7 +527,7 @@ mod tests {
         let subdir = dir.join(subdir_component);
 
         assert_eq!(root.parent(), None);
-        assert_eq!(dir.parent(), Some(root));
+        assert_eq!(dir.parent().as_deref(), Some(root));
         assert_eq!(subdir.parent(), Some(dir));
     }
 
@@ -458,7 +541,7 @@ mod tests {
         let file = dir.join(file_component);
 
         assert_eq!(root.split(), None);
-        assert_eq!(dir.split(), Some((root, dir_component)));
+        assert_eq!(dir.split(), Some((root.to_owned(), dir_component)));
         assert_eq!(file.split(), Some((dir, file_component)));
     }
 
@@ -520,15 +603,15 @@ mod tests {
         let wc_path = &cwd_path;
 
         assert_eq!(
-            RepoPathBuf::parse_fs_path(&cwd_path, wc_path, ""),
+            RepoPathBuf::parse_fs_path(&cwd_path, wc_path, "").as_deref(),
             Ok(RepoPath::root())
         );
         assert_eq!(
-            RepoPathBuf::parse_fs_path(&cwd_path, wc_path, "."),
+            RepoPathBuf::parse_fs_path(&cwd_path, wc_path, ".").as_deref(),
             Ok(RepoPath::root())
         );
         assert_eq!(
-            RepoPathBuf::parse_fs_path(&cwd_path, wc_path, "file"),
+            RepoPathBuf::parse_fs_path(&cwd_path, wc_path, "file").as_deref(),
             Ok(repo_path("file"))
         );
         // Both slash and the platform's separator are allowed
@@ -537,11 +620,12 @@ mod tests {
                 &cwd_path,
                 wc_path,
                 format!("dir{}file", std::path::MAIN_SEPARATOR)
-            ),
+            )
+            .as_deref(),
             Ok(repo_path("dir/file"))
         );
         assert_eq!(
-            RepoPathBuf::parse_fs_path(&cwd_path, wc_path, "dir/file"),
+            RepoPathBuf::parse_fs_path(&cwd_path, wc_path, "dir/file").as_deref(),
             Ok(repo_path("dir/file"))
         );
         assert_eq!(
@@ -549,11 +633,11 @@ mod tests {
             Err(FsPathParseError::InputNotInRepo("..".into()))
         );
         assert_eq!(
-            RepoPathBuf::parse_fs_path(&cwd_path, &cwd_path, "../repo"),
+            RepoPathBuf::parse_fs_path(&cwd_path, &cwd_path, "../repo").as_deref(),
             Ok(RepoPath::root())
         );
         assert_eq!(
-            RepoPathBuf::parse_fs_path(&cwd_path, &cwd_path, "../repo/file"),
+            RepoPathBuf::parse_fs_path(&cwd_path, &cwd_path, "../repo/file").as_deref(),
             Ok(repo_path("file"))
         );
         // Input may be absolute path with ".."
@@ -562,7 +646,8 @@ mod tests {
                 &cwd_path,
                 &cwd_path,
                 cwd_path.join("../repo").to_str().unwrap()
-            ),
+            )
+            .as_deref(),
             Ok(RepoPath::root())
         );
     }
@@ -574,23 +659,23 @@ mod tests {
         let wc_path = cwd_path.parent().unwrap().to_path_buf();
 
         assert_eq!(
-            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, ""),
+            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "").as_deref(),
             Ok(repo_path("dir"))
         );
         assert_eq!(
-            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "."),
+            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, ".").as_deref(),
             Ok(repo_path("dir"))
         );
         assert_eq!(
-            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "file"),
+            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "file").as_deref(),
             Ok(repo_path("dir/file"))
         );
         assert_eq!(
-            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "subdir/file"),
+            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "subdir/file").as_deref(),
             Ok(repo_path("dir/subdir/file"))
         );
         assert_eq!(
-            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, ".."),
+            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "..").as_deref(),
             Ok(RepoPath::root())
         );
         assert_eq!(
@@ -598,7 +683,7 @@ mod tests {
             Err(FsPathParseError::InputNotInRepo("../..".into()))
         );
         assert_eq!(
-            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "../other-dir/file"),
+            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "../other-dir/file").as_deref(),
             Ok(repo_path("other-dir/file"))
         );
     }
@@ -618,15 +703,15 @@ mod tests {
             Err(FsPathParseError::InputNotInRepo("not-repo".into()))
         );
         assert_eq!(
-            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "repo"),
+            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "repo").as_deref(),
             Ok(RepoPath::root())
         );
         assert_eq!(
-            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "repo/file"),
+            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "repo/file").as_deref(),
             Ok(repo_path("file"))
         );
         assert_eq!(
-            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "repo/dir/file"),
+            RepoPathBuf::parse_fs_path(&cwd_path, &wc_path, "repo/dir/file").as_deref(),
             Ok(repo_path("dir/file"))
         );
     }

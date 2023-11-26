@@ -80,7 +80,7 @@ impl LocalBackend {
         fs::create_dir(store_path.join("conflicts")).unwrap();
         let backend = Self::load(store_path);
         let empty_tree_id = backend
-            .write_tree(&RepoPath::root(), &Tree::default())
+            .write_tree(RepoPath::root(), &Tree::default())
             .unwrap();
         assert_eq!(empty_tree_id, backend.empty_tree_id);
         backend

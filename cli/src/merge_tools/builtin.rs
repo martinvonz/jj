@@ -558,10 +558,10 @@ mod tests {
         let test_repo = TestRepo::init();
         let store = test_repo.repo.store();
 
-        let unused_path = &RepoPath::from_internal_string("unused");
-        let unchanged = &RepoPath::from_internal_string("unchanged");
-        let changed_path = &RepoPath::from_internal_string("changed");
-        let added_path = &RepoPath::from_internal_string("added");
+        let unused_path = RepoPath::from_internal_string("unused");
+        let unchanged = RepoPath::from_internal_string("unchanged");
+        let changed_path = RepoPath::from_internal_string("changed");
+        let added_path = RepoPath::from_internal_string("added");
         let left_tree = testutils::create_tree(
             &test_repo.repo,
             &[
@@ -716,7 +716,7 @@ mod tests {
         let test_repo = TestRepo::init();
         let store = test_repo.repo.store();
 
-        let path = &RepoPath::from_internal_string("file");
+        let path = RepoPath::from_internal_string("file");
         let base_tree = testutils::create_tree(
             &test_repo.repo,
             &[(path, "base 1\nbase 2\nbase 3\nbase 4\nbase 5\n")],

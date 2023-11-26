@@ -96,7 +96,7 @@ fn test_checkout_parallel() {
     // first update
     let tree = create_tree(
         repo,
-        &[(&RepoPath::from_internal_string("other file"), "contents")],
+        &[(RepoPath::from_internal_string("other file"), "contents")],
     );
     let commit = commit_with_tree(repo.store(), tree.id());
     test_workspace
@@ -147,7 +147,7 @@ fn test_racy_checkout() {
     let op_id = repo.op_id().clone();
     let workspace_root = test_workspace.workspace.workspace_root().clone();
 
-    let path = &RepoPath::from_internal_string("file");
+    let path = RepoPath::from_internal_string("file");
     let tree = create_tree(repo, &[(path, "1")]);
     let commit = commit_with_tree(repo.store(), tree.id());
 

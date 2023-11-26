@@ -26,10 +26,10 @@ fn test_types() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let clean_path = &RepoPath::from_internal_string("clean");
-    let modified_path = &RepoPath::from_internal_string("modified");
-    let added_path = &RepoPath::from_internal_string("added");
-    let removed_path = &RepoPath::from_internal_string("removed");
+    let clean_path = RepoPath::from_internal_string("clean");
+    let modified_path = RepoPath::from_internal_string("modified");
+    let added_path = RepoPath::from_internal_string("added");
+    let removed_path = RepoPath::from_internal_string("removed");
 
     let tree1 = create_tree(
         repo,
@@ -64,8 +64,8 @@ fn test_tree_file_transition() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let dir_file_path = &RepoPath::from_internal_string("dir/file");
-    let dir_path = &RepoPath::from_internal_string("dir");
+    let dir_file_path = RepoPath::from_internal_string("dir/file");
+    let dir_path = RepoPath::from_internal_string("dir");
 
     let tree1 = create_tree(repo, &[(dir_file_path, "contents")]);
     let tree2 = create_tree(repo, &[(dir_path, "contents")]);
@@ -93,15 +93,15 @@ fn test_sorting() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let a_path = &RepoPath::from_internal_string("a");
-    let b_path = &RepoPath::from_internal_string("b");
-    let f_a_path = &RepoPath::from_internal_string("f/a");
-    let f_b_path = &RepoPath::from_internal_string("f/b");
-    let f_f_a_path = &RepoPath::from_internal_string("f/f/a");
-    let f_f_b_path = &RepoPath::from_internal_string("f/f/b");
-    let n_path = &RepoPath::from_internal_string("n");
-    let s_b_path = &RepoPath::from_internal_string("s/b");
-    let z_path = &RepoPath::from_internal_string("z");
+    let a_path = RepoPath::from_internal_string("a");
+    let b_path = RepoPath::from_internal_string("b");
+    let f_a_path = RepoPath::from_internal_string("f/a");
+    let f_b_path = RepoPath::from_internal_string("f/b");
+    let f_f_a_path = RepoPath::from_internal_string("f/f/a");
+    let f_f_b_path = RepoPath::from_internal_string("f/f/b");
+    let n_path = RepoPath::from_internal_string("n");
+    let s_b_path = RepoPath::from_internal_string("s/b");
+    let z_path = RepoPath::from_internal_string("z");
 
     let tree1 = create_tree(
         repo,
@@ -150,8 +150,8 @@ fn test_matcher_dir_file_transition() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let a_path = &RepoPath::from_internal_string("a");
-    let a_a_path = &RepoPath::from_internal_string("a/a");
+    let a_path = RepoPath::from_internal_string("a");
+    let a_a_path = RepoPath::from_internal_string("a/a");
 
     let tree1 = create_tree(repo, &[(a_path, "before")]);
     let tree2 = create_tree(repo, &[(a_a_path, "after")]);
@@ -216,10 +216,10 @@ fn test_matcher_normal_cases() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let a_path = &RepoPath::from_internal_string("a");
-    let dir1_a_path = &RepoPath::from_internal_string("dir1/a");
-    let dir2_b_path = &RepoPath::from_internal_string("dir2/b");
-    let z_path = &RepoPath::from_internal_string("z");
+    let a_path = RepoPath::from_internal_string("a");
+    let dir1_a_path = RepoPath::from_internal_string("dir1/a");
+    let dir2_b_path = RepoPath::from_internal_string("dir2/b");
+    let z_path = RepoPath::from_internal_string("z");
 
     let tree1 = create_tree(repo, &[(a_path, "before"), (dir1_a_path, "before")]);
     // File "a" gets modified

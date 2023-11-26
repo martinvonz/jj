@@ -55,13 +55,13 @@ fn test_same_type() {
             if contents != "_" {
                 testutils::write_normal_file(
                     &mut tree_builder,
-                    &RepoPath::from_internal_string(path),
+                    RepoPath::from_internal_string(path),
                     contents,
                 );
             }
         }
         let tree_id = tree_builder.write_tree();
-        store.get_tree(&RepoPath::root(), &tree_id).unwrap()
+        store.get_tree(RepoPath::root(), &tree_id).unwrap()
     };
 
     let base_tree = write_tree(0);
@@ -116,7 +116,7 @@ fn test_same_type() {
     match merged_tree.value(component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
-                .read_conflict(&RepoPath::from_internal_string("_ab"), id)
+                .read_conflict(RepoPath::from_internal_string("_ab"), id)
                 .unwrap();
             assert_eq!(
                 conflict.adds().map(|v| v.as_ref()).collect_vec(),
@@ -133,7 +133,7 @@ fn test_same_type() {
     match merged_tree.value(component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
-                .read_conflict(&RepoPath::from_internal_string("a_b"), id)
+                .read_conflict(RepoPath::from_internal_string("a_b"), id)
                 .unwrap();
             assert_eq!(
                 conflict.removes().map(|v| v.as_ref()).collect_vec(),
@@ -150,7 +150,7 @@ fn test_same_type() {
     match merged_tree.value(component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
-                .read_conflict(&RepoPath::from_internal_string("ab_"), id)
+                .read_conflict(RepoPath::from_internal_string("ab_"), id)
                 .unwrap();
             assert_eq!(
                 conflict.removes().map(|v| v.as_ref()).collect_vec(),
@@ -167,7 +167,7 @@ fn test_same_type() {
     match merged_tree.value(component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
-                .read_conflict(&RepoPath::from_internal_string("abc"), id)
+                .read_conflict(RepoPath::from_internal_string("abc"), id)
                 .unwrap();
             assert_eq!(
                 conflict.removes().map(|v| v.as_ref()).collect_vec(),
@@ -195,7 +195,7 @@ fn test_executable() {
     let write_tree = |files: &[(&str, bool)]| -> Tree {
         let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
         for &(path, executable) in files {
-            let repo_path = &RepoPath::from_internal_string(path);
+            let repo_path = RepoPath::from_internal_string(path);
             if executable {
                 testutils::write_executable_file(&mut tree_builder, repo_path, "contents");
             } else {
@@ -203,7 +203,7 @@ fn test_executable() {
             }
         }
         let tree_id = tree_builder.write_tree();
-        store.get_tree(&RepoPath::root(), &tree_id).unwrap()
+        store.get_tree(RepoPath::root(), &tree_id).unwrap()
     };
 
     fn contents_in_tree<'a>(files: &[&'a str], index: usize) -> Vec<(&'a str, bool)> {
@@ -246,12 +246,12 @@ fn test_subtrees() {
         for path in paths {
             testutils::write_normal_file(
                 &mut tree_builder,
-                &RepoPath::from_internal_string(path),
+                RepoPath::from_internal_string(path),
                 &format!("contents of {path:?}"),
             );
         }
         let tree_id = tree_builder.write_tree();
-        store.get_tree(&RepoPath::root(), &tree_id).unwrap()
+        store.get_tree(RepoPath::root(), &tree_id).unwrap()
     };
 
     let base_tree = write_tree(vec!["f1", "d1/f1", "d1/d1/f1", "d1/d1/d1/f1"]);
@@ -300,12 +300,12 @@ fn test_subtree_becomes_empty() {
         for path in paths {
             testutils::write_normal_file(
                 &mut tree_builder,
-                &RepoPath::from_internal_string(path),
+                RepoPath::from_internal_string(path),
                 &format!("contents of {path:?}"),
             );
         }
         let tree_id = tree_builder.write_tree();
-        store.get_tree(&RepoPath::root(), &tree_id).unwrap()
+        store.get_tree(RepoPath::root(), &tree_id).unwrap()
     };
 
     let base_tree = write_tree(vec!["f1", "d1/f1", "d1/d1/d1/f1", "d1/d1/d1/f2"]);
@@ -329,12 +329,12 @@ fn test_subtree_one_missing() {
         for path in paths {
             testutils::write_normal_file(
                 &mut tree_builder,
-                &RepoPath::from_internal_string(path),
+                RepoPath::from_internal_string(path),
                 &format!("contents of {path:?}"),
             );
         }
         let tree_id = tree_builder.write_tree();
-        store.get_tree(&RepoPath::root(), &tree_id).unwrap()
+        store.get_tree(RepoPath::root(), &tree_id).unwrap()
     };
 
     let tree1 = write_tree(vec![]);
@@ -372,40 +372,40 @@ fn test_types() {
     let mut side2_tree_builder = store.tree_builder(store.empty_tree_id().clone());
     testutils::write_normal_file(
         &mut base_tree_builder,
-        &RepoPath::from_internal_string("normal_executable_symlink"),
+        RepoPath::from_internal_string("normal_executable_symlink"),
         "contents",
     );
     testutils::write_executable_file(
         &mut side1_tree_builder,
-        &RepoPath::from_internal_string("normal_executable_symlink"),
+        RepoPath::from_internal_string("normal_executable_symlink"),
         "contents",
     );
     testutils::write_symlink(
         &mut side2_tree_builder,
-        &RepoPath::from_internal_string("normal_executable_symlink"),
+        RepoPath::from_internal_string("normal_executable_symlink"),
         "contents",
     );
     let tree_id = store.empty_tree_id().clone();
     base_tree_builder.set(
-        RepoPath::from_internal_string("tree_normal_symlink"),
+        RepoPath::from_internal_string("tree_normal_symlink").to_owned(),
         TreeValue::Tree(tree_id),
     );
     testutils::write_normal_file(
         &mut side1_tree_builder,
-        &RepoPath::from_internal_string("tree_normal_symlink"),
+        RepoPath::from_internal_string("tree_normal_symlink"),
         "contents",
     );
     testutils::write_symlink(
         &mut side2_tree_builder,
-        &RepoPath::from_internal_string("tree_normal_symlink"),
+        RepoPath::from_internal_string("tree_normal_symlink"),
         "contents",
     );
     let base_tree_id = base_tree_builder.write_tree();
-    let base_tree = store.get_tree(&RepoPath::root(), &base_tree_id).unwrap();
+    let base_tree = store.get_tree(RepoPath::root(), &base_tree_id).unwrap();
     let side1_tree_id = side1_tree_builder.write_tree();
-    let side1_tree = store.get_tree(&RepoPath::root(), &side1_tree_id).unwrap();
+    let side1_tree = store.get_tree(RepoPath::root(), &side1_tree_id).unwrap();
     let side2_tree_id = side2_tree_builder.write_tree();
-    let side2_tree = store.get_tree(&RepoPath::root(), &side2_tree_id).unwrap();
+    let side2_tree = store.get_tree(RepoPath::root(), &side2_tree_id).unwrap();
 
     // Created the merged tree
     let merged_tree = merge_trees(&side1_tree, &base_tree, &side2_tree).unwrap();
@@ -416,7 +416,7 @@ fn test_types() {
         TreeValue::Conflict(id) => {
             let conflict = store
                 .read_conflict(
-                    &RepoPath::from_internal_string("normal_executable_symlink"),
+                    RepoPath::from_internal_string("normal_executable_symlink"),
                     id,
                 )
                 .unwrap();
@@ -435,7 +435,7 @@ fn test_types() {
     match merged_tree.value(component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
-                .read_conflict(&RepoPath::from_internal_string("tree_normal_symlink"), id)
+                .read_conflict(RepoPath::from_internal_string("tree_normal_symlink"), id)
                 .unwrap();
             assert_eq!(
                 conflict.removes().map(|v| v.as_ref()).collect_vec(),
@@ -457,7 +457,7 @@ fn test_simplify_conflict() {
     let store = repo.store();
 
     let component = RepoPathComponent::new("file");
-    let path = &RepoPath::from_internal_string("file");
+    let path = RepoPath::from_internal_string("file");
     let write_tree = |contents: &str| -> Tree { create_single_tree(repo, &[(path, contents)]) };
 
     let base_tree = write_tree("base contents");
@@ -495,7 +495,7 @@ fn test_simplify_conflict() {
     match further_rebased_tree.value(component).unwrap() {
         TreeValue::Conflict(id) => {
             let conflict = store
-                .read_conflict(&RepoPath::from_internal_string(component.as_str()), id)
+                .read_conflict(RepoPath::from_internal_string(component.as_str()), id)
                 .unwrap();
             assert_eq!(
                 conflict.removes().map(|v| v.as_ref()).collect_vec(),
@@ -550,7 +550,7 @@ fn test_simplify_conflict_after_resolving_parent() {
     // which creates a conflict. We resolve the conflict in the first line and
     // rebase C2 (the rebased C) onto the resolved conflict. C3 should not have
     // a conflict since it changed an unrelated line.
-    let path = &RepoPath::from_internal_string("dir/file");
+    let path = RepoPath::from_internal_string("dir/file");
     let mut tx = repo.start_transaction(&settings, "test");
     let tree_a = create_tree(repo, &[(path, "abc\ndef\nghi\n")]);
     let commit_a = tx
