@@ -304,6 +304,12 @@ impl RepoPath {
     }
 }
 
+impl AsRef<RepoPath> for RepoPath {
+    fn as_ref(&self) -> &RepoPath {
+        self
+    }
+}
+
 impl Ord for RepoPath {
     fn cmp(&self, other: &Self) -> Ordering {
         // If there were leading/trailing slash, components-based Ord would

@@ -917,7 +917,7 @@ impl WorkspaceCommandHelper {
                 .iter()
                 .map(|v| self.parse_file_path(v))
                 .try_collect()?;
-            Ok(Box::new(PrefixMatcher::new(&paths)))
+            Ok(Box::new(PrefixMatcher::new(paths)))
         }
     }
 
