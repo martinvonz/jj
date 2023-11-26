@@ -215,7 +215,7 @@ impl LockedWorkingCopy for LockedConflictsWorkingCopy {
         let conflicts = commit
             .tree()?
             .conflicts()
-            .map(|(path, _value)| format!("{}\n", path.to_internal_file_string()))
+            .map(|(path, _value)| format!("{}\n", path.as_internal_file_string()))
             .join("");
         std::fs::write(self.wc_path.join(".conflicts"), conflicts).unwrap();
         self.inner.check_out(commit)

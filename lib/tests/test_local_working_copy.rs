@@ -204,7 +204,7 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
     assert_eq!(new_tree.id(), right_tree_id);
 
     for (_left_kind, right_kind, path) in &files {
-        let wc_path = workspace_root.join(path.to_internal_file_string());
+        let wc_path = workspace_root.join(path.as_internal_file_string());
         let maybe_metadata = wc_path.symlink_metadata();
         match right_kind {
             Kind::Missing => {

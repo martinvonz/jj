@@ -686,7 +686,7 @@ pub fn show_git_diff(
     formatter.push_label("diff")?;
     async {
         while let Some((path, diff)) = tree_diff.next().await {
-            let path_string = path.to_internal_file_string();
+            let path_string = path.as_internal_file_string();
             let (left_value, right_value) = diff?;
             let left_value = materialize_tree_value(store, &path, left_value).block_on()?;
             let right_value = materialize_tree_value(store, &path, right_value).block_on()?;

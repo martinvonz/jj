@@ -265,7 +265,7 @@ fn file_states_to_proto(
         .iter()
         .map(
             |(path, state)| crate::protos::working_copy::FileStateEntry {
-                path: path.to_internal_file_string(),
+                path: path.as_internal_file_string().to_owned(),
                 state: Some(file_state_to_proto(state)),
             },
         )
@@ -538,7 +538,7 @@ impl TreeState {
         for path in &self.sparse_patterns {
             sparse_patterns
                 .prefixes
-                .push(path.to_internal_file_string());
+                .push(path.as_internal_file_string().to_owned());
         }
         proto.sparse_patterns = Some(sparse_patterns);
         proto.watchman_clock = self.watchman_clock.clone();
@@ -862,7 +862,7 @@ impl TreeState {
                     }
                     let maybe_current_file_state = file_states.get(&path);
                     if maybe_current_file_state.is_none()
-                        && git_ignore.matches(&path.to_internal_file_string())
+                        && git_ignore.matches(path.as_internal_file_string())
                     {
                         // If it wasn't already tracked and it matches
                         // the ignored paths, then
