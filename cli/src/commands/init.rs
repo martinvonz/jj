@@ -65,6 +65,8 @@ pub(crate) fn cmd_init(
     let wc_path = wc_path
         .canonicalize()
         .map_err(|e| user_error(format!("Failed to create workspace: {e}")))?; // raced?
+    let cwd = command.cwd().canonicalize().unwrap();
+    let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
 
     if let Some(git_store_str) = &args.git_repo {
         let mut git_store_path = command.cwd().join(git_store_str);
@@ -101,6 +103,16 @@ pub(crate) fn cmd_init(
         }
         print_trackable_remote_branches(ui, workspace_command.repo().view())?;
     } else if args.git {
+        if wc_path.join(".git").exists() {
+            return Err(user_error_with_hint(
+                "Did not create a jj repo because there is an existing Git repo in this directory.",
+                format!(
+                    r#"To create a repo backed by the existing Git repo, run `jj init --git-repo={}` instead."#,
+                    relative_wc_path.display()
+                ),
+            ));
+        }
+
         Workspace::init_internal_git(command.settings(), &wc_path)?;
     } else {
         if !command.settings().allow_native_backend() {
@@ -112,22 +124,12 @@ Set `ui.allow-init-native` to allow initializing a repo with the native backend.
         }
         Workspace::init_local(command.settings(), &wc_path)?;
     };
-    let cwd = command.cwd().canonicalize().unwrap();
-    let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
+
     writeln!(
         ui.stderr(),
         "Initialized repo in \"{}\"",
         relative_wc_path.display()
     )?;
-    if args.git && wc_path.join(".git").exists() {
-        writeln!(ui.warning(), "Empty repo created.")?;
-        writeln!(
-            ui.hint(),
-            "Hint: To create a repo backed by the existing Git repo, run `jj init --git-repo={}` \
-             instead.",
-            relative_wc_path.display()
-        )?;
-    }
     Ok(())
 }
 

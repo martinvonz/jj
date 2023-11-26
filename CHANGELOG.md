@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj branch set` no longer creates a new branch. Use `jj branch create`
   instead.
+  
+* `jj init --git` in an existing Git repository now errors and exits rather than
+  creating a second Git store.
 
 ### New features
 

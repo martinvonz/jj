@@ -418,16 +418,14 @@ fn test_init_git_external_but_git_dir_exists() {
 }
 
 #[test]
-fn test_init_git_internal_but_could_be_colocated() {
+fn test_init_git_internal_must_be_colocated() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
     init_git_repo(&workspace_root, false);
 
-    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["init", "--git"]);
-    insta::assert_snapshot!(stdout, @"");
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["init", "--git"]);
     insta::assert_snapshot!(stderr, @r###"
-    Initialized repo in "."
-    Empty repo created.
+    Error: Did not create a jj repo because there is an existing Git repo in this directory.
     Hint: To create a repo backed by the existing Git repo, run `jj init --git-repo=.` instead.
     "###);
 }
