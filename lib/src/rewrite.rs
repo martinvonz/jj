@@ -271,6 +271,12 @@ pub struct DescendantRebaser<'settings, 'repo> {
 }
 
 impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
+    /// Panics if any commit is rewritten to its own descendant.
+    ///
+    /// There should not be any cycles in the `rewritten` map (e.g. A is
+    /// rewritten to B, which is rewritten to A). The same commit should not
+    /// be rewritten and abandoned at the same time. In either case, panics are
+    /// likely when using the DescendantRebaser.
     pub fn new(
         settings: &'settings UserSettings,
         mut_repo: &'repo mut MutableRepo,
@@ -379,34 +385,58 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         &self.rebased
     }
 
+    /// Panics if `parent_mapping` contains cycles
     fn new_parents(&self, old_ids: &[CommitId]) -> Vec<CommitId> {
-        // This should be a set, but performance of a vec is much better since we expect
-        // 99% of commits to have <= 2 parents.
-        let mut new_ids = vec![];
-        let mut add_parent = |id: &CommitId| {
-            // This can trigger if we abandon an empty commit, as both the empty commit and
-            // its parent are succeeded by the same commit.
-            if !new_ids.contains(id) {
-                new_ids.push(id.clone());
-            }
-        };
-        for old_id in old_ids {
-            if let Some(new_parent_ids) = self.parent_mapping.get(old_id) {
-                for new_parent_id in new_parent_ids {
-                    // The new parent may itself have been rebased earlier in the process
-                    if let Some(newer_parent_id) = self.rebased.get(new_parent_id) {
-                        add_parent(newer_parent_id);
-                    } else {
-                        add_parent(new_parent_id);
+        fn single_substitution_round(
+            parent_mapping: &HashMap<CommitId, Vec<CommitId>>,
+            ids: Vec<CommitId>,
+        ) -> (Vec<CommitId>, bool) {
+            let mut made_replacements = false;
+            let mut new_ids = vec![];
+            // TODO(ilyagr): (Maybe?) optimize common case of replacements all
+            // being singletons. If CommitId-s were Copy. no allocations would be needed in
+            // that case, but it probably doesn't matter much while they are Vec<u8>-s.
+            for id in ids.into_iter() {
+                match parent_mapping.get(&id) {
+                    None => new_ids.push(id),
+                    Some(replacements) => {
+                        assert!(
+                            // Each commit must have a parent, so a parent can
+                            // not just be mapped to nothing. This assertion
+                            // could be removed if this function is used for
+                            // mapping something other than a commit's parents.
+                            !replacements.is_empty(),
+                            "Found empty value for key {id:?} in the parent mapping",
+                        );
+                        made_replacements = true;
+                        new_ids.extend(replacements.iter().cloned())
                     }
-                }
-            } else if let Some(new_parent_id) = self.rebased.get(old_id) {
-                add_parent(new_parent_id);
-            } else {
-                add_parent(old_id);
-            };
+                };
+            }
+            (new_ids, made_replacements)
         }
-        new_ids
+
+        let mut new_ids: Vec<CommitId> = old_ids.to_vec();
+        // The longest possible non-cycle substitution sequence goes through each key of
+        // parent_mapping once.
+        let mut allowed_iterations = 0..self.parent_mapping.len();
+        loop {
+            let made_replacements;
+            (new_ids, made_replacements) = single_substitution_round(&self.parent_mapping, new_ids);
+            if !made_replacements {
+                break;
+            }
+            allowed_iterations
+                .next()
+                .expect("cycle detected in the parent mapping");
+        }
+        match new_ids.as_slice() {
+            // The first two cases are an optimization for the common case of commits with <=2
+            // parents
+            [_singleton] => new_ids,
+            [a, b] if a != b => new_ids,
+            _ => new_ids.into_iter().unique().collect(),
+        }
     }
 
     fn ref_target_update(old_id: CommitId, new_ids: Vec<CommitId>) -> (RefTarget, RefTarget) {
@@ -540,8 +570,17 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 &new_parents,
                 &self.options,
             )?;
-            self.rebased
+            let previous_rebased_value = self
+                .rebased
                 .insert(old_commit_id.clone(), new_commit.id().clone());
+            let previous_mapping_value = self
+                .parent_mapping
+                .insert(old_commit_id.clone(), vec![new_commit.id().clone()]);
+            assert_eq!(
+                (previous_rebased_value, previous_mapping_value),
+                (None, None),
+                "Trying to rebase the same commit {old_commit_id:?} in two different ways",
+            );
             self.update_references(old_commit_id, vec![new_commit.id().clone()], true)?;
             return Ok(Some(RebasedDescendant {
                 old_commit,
