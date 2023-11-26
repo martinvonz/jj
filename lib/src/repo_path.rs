@@ -197,53 +197,49 @@ pub enum FsPathParseError {
 mod tests {
     use super::*;
 
+    fn repo_path(value: &str) -> RepoPath {
+        RepoPath::from_internal_string(value)
+    }
+
     #[test]
     fn test_is_root() {
         assert!(RepoPath::root().is_root());
-        assert!(RepoPath::from_internal_string("").is_root());
-        assert!(!RepoPath::from_internal_string("foo").is_root());
+        assert!(repo_path("").is_root());
+        assert!(!repo_path("foo").is_root());
     }
 
     #[test]
     fn test_to_internal_string() {
         assert_eq!(RepoPath::root().to_internal_file_string(), "");
-        assert_eq!(
-            RepoPath::from_internal_string("dir").to_internal_file_string(),
-            "dir"
-        );
-        assert_eq!(
-            RepoPath::from_internal_string("dir/file").to_internal_file_string(),
-            "dir/file"
-        );
+        assert_eq!(repo_path("dir").to_internal_file_string(), "dir");
+        assert_eq!(repo_path("dir/file").to_internal_file_string(), "dir/file");
     }
 
     #[test]
     fn test_order() {
-        assert!(RepoPath::root() < RepoPath::from_internal_string("dir"));
-        assert!(RepoPath::from_internal_string("dir") < RepoPath::from_internal_string("dirx"));
+        assert!(RepoPath::root() < repo_path("dir"));
+        assert!(repo_path("dir") < repo_path("dirx"));
         // '#' < '/'
-        assert!(RepoPath::from_internal_string("dir") < RepoPath::from_internal_string("dir#"));
-        assert!(RepoPath::from_internal_string("dir") < RepoPath::from_internal_string("dir/sub"));
+        assert!(repo_path("dir") < repo_path("dir#"));
+        assert!(repo_path("dir") < repo_path("dir/sub"));
 
-        assert!(RepoPath::from_internal_string("abc") < RepoPath::from_internal_string("dir/file"));
-        assert!(RepoPath::from_internal_string("dir") < RepoPath::from_internal_string("dir/file"));
-        assert!(RepoPath::from_internal_string("dis") > RepoPath::from_internal_string("dir/file"));
-        assert!(RepoPath::from_internal_string("xyz") > RepoPath::from_internal_string("dir/file"));
-        assert!(
-            RepoPath::from_internal_string("dir1/xyz") < RepoPath::from_internal_string("dir2/abc")
-        );
+        assert!(repo_path("abc") < repo_path("dir/file"));
+        assert!(repo_path("dir") < repo_path("dir/file"));
+        assert!(repo_path("dis") > repo_path("dir/file"));
+        assert!(repo_path("xyz") > repo_path("dir/file"));
+        assert!(repo_path("dir1/xyz") < repo_path("dir2/abc"));
     }
 
     #[test]
     fn test_join() {
         let root = RepoPath::root();
         let dir = root.join(&RepoPathComponent::from("dir"));
-        assert_eq!(dir, RepoPath::from_internal_string("dir"));
+        assert_eq!(dir, repo_path("dir"));
         let subdir = dir.join(&RepoPathComponent::from("subdir"));
-        assert_eq!(subdir, RepoPath::from_internal_string("dir/subdir"));
+        assert_eq!(subdir, repo_path("dir/subdir"));
         assert_eq!(
             subdir.join(&RepoPathComponent::from("file")),
-            RepoPath::from_internal_string("dir/subdir/file")
+            repo_path("dir/subdir/file")
         );
     }
 
@@ -279,11 +275,11 @@ mod tests {
     fn test_components() {
         assert_eq!(RepoPath::root().components(), &vec![]);
         assert_eq!(
-            RepoPath::from_internal_string("dir").components(),
+            repo_path("dir").components(),
             &vec![RepoPathComponent::from("dir")]
         );
         assert_eq!(
-            RepoPath::from_internal_string("dir/subdir").components(),
+            repo_path("dir/subdir").components(),
             &vec![
                 RepoPathComponent::from("dir"),
                 RepoPathComponent::from("subdir")
@@ -294,23 +290,20 @@ mod tests {
     #[test]
     fn test_to_fs_path() {
         assert_eq!(
-            RepoPath::from_internal_string("").to_fs_path(Path::new("base/dir")),
+            repo_path("").to_fs_path(Path::new("base/dir")),
             Path::new("base/dir")
         );
+        assert_eq!(repo_path("").to_fs_path(Path::new("")), Path::new(""));
         assert_eq!(
-            RepoPath::from_internal_string("").to_fs_path(Path::new("")),
-            Path::new("")
-        );
-        assert_eq!(
-            RepoPath::from_internal_string("file").to_fs_path(Path::new("base/dir")),
+            repo_path("file").to_fs_path(Path::new("base/dir")),
             Path::new("base/dir/file")
         );
         assert_eq!(
-            RepoPath::from_internal_string("some/deep/dir/file").to_fs_path(Path::new("base/dir")),
+            repo_path("some/deep/dir/file").to_fs_path(Path::new("base/dir")),
             Path::new("base/dir/some/deep/dir/file")
         );
         assert_eq!(
-            RepoPath::from_internal_string("dir/file").to_fs_path(Path::new("")),
+            repo_path("dir/file").to_fs_path(Path::new("")),
             Path::new("dir/file")
         );
     }
@@ -331,7 +324,7 @@ mod tests {
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, wc_path, "file"),
-            Ok(RepoPath::from_internal_string("file"))
+            Ok(repo_path("file"))
         );
         // Both slash and the platform's separator are allowed
         assert_eq!(
@@ -340,11 +333,11 @@ mod tests {
                 wc_path,
                 format!("dir{}file", std::path::MAIN_SEPARATOR)
             ),
-            Ok(RepoPath::from_internal_string("dir/file"))
+            Ok(repo_path("dir/file"))
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, wc_path, "dir/file"),
-            Ok(RepoPath::from_internal_string("dir/file"))
+            Ok(repo_path("dir/file"))
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, wc_path, ".."),
@@ -356,7 +349,7 @@ mod tests {
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, &cwd_path, "../repo/file"),
-            Ok(RepoPath::from_internal_string("file"))
+            Ok(repo_path("file"))
         );
         // Input may be absolute path with ".."
         assert_eq!(
@@ -377,19 +370,19 @@ mod tests {
 
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, &wc_path, ""),
-            Ok(RepoPath::from_internal_string("dir"))
+            Ok(repo_path("dir"))
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, &wc_path, "."),
-            Ok(RepoPath::from_internal_string("dir"))
+            Ok(repo_path("dir"))
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, &wc_path, "file"),
-            Ok(RepoPath::from_internal_string("dir/file"))
+            Ok(repo_path("dir/file"))
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, &wc_path, "subdir/file"),
-            Ok(RepoPath::from_internal_string("dir/subdir/file"))
+            Ok(repo_path("dir/subdir/file"))
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, &wc_path, ".."),
@@ -401,7 +394,7 @@ mod tests {
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, &wc_path, "../other-dir/file"),
-            Ok(RepoPath::from_internal_string("other-dir/file"))
+            Ok(repo_path("other-dir/file"))
         );
     }
 
@@ -425,11 +418,11 @@ mod tests {
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, &wc_path, "repo/file"),
-            Ok(RepoPath::from_internal_string("file"))
+            Ok(repo_path("file"))
         );
         assert_eq!(
             RepoPath::parse_fs_path(&cwd_path, &wc_path, "repo/dir/file"),
-            Ok(RepoPath::from_internal_string("dir/file"))
+            Ok(repo_path("dir/file"))
         );
     }
 }
