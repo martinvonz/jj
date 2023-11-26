@@ -647,13 +647,14 @@ fn test_rebase_descendants_multiple_sideways() {
 }
 
 #[test]
+#[should_panic(expected = "cycle detected")]
 fn test_rebase_descendants_multiple_swap() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     // Commit B was replaced by commit D. Commit D was replaced by commit B.
-    // Commit C and commit E should swap places.
+    // This results in an infinite loop and a panic
     //
     // C E
     // B D
@@ -663,9 +664,9 @@ fn test_rebase_descendants_multiple_swap() {
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
-    let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
+    let _commit_c = graph_builder.commit_with_parents(&[&commit_b]);
     let commit_d = graph_builder.commit_with_parents(&[&commit_a]);
-    let commit_e = graph_builder.commit_with_parents(&[&commit_d]);
+    let _commit_e = graph_builder.commit_with_parents(&[&commit_d]);
 
     let mut rebaser = DescendantRebaser::new(
         &settings,
@@ -676,18 +677,7 @@ fn test_rebase_descendants_multiple_swap() {
         },
         hashset! {},
     );
-    let new_commit_c = assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&commit_d]);
-    let new_commit_e = assert_rebased(rebaser.rebase_next().unwrap(), &commit_e, &[&commit_b]);
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 2);
-
-    assert_eq!(
-        *tx.mut_repo().view().heads(),
-        hashset! {
-            new_commit_c.id().clone(),
-            new_commit_e.id().clone()
-        }
-    );
+    let _ = rebaser.rebase_next(); // Panics because of the cycle
 }
 
 #[test]
