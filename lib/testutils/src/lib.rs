@@ -298,7 +298,7 @@ pub fn create_tree(repo: &Arc<ReadonlyRepo>, path_contents: &[(&RepoPath, &str)]
 #[must_use]
 pub fn create_random_tree(repo: &Arc<ReadonlyRepo>) -> MergedTreeId {
     let number = rand::random::<u32>();
-    let path = RepoPath::from_internal_string(format!("file{number}").as_str());
+    let path = RepoPath::from_internal_string(format!("file{number}"));
     create_tree(repo, &[(&path, "contents")]).id()
 }
 

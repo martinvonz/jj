@@ -181,11 +181,10 @@ impl RepoPath {
     ///
     /// The input `value` must not contain empty path components. For example,
     /// `"/"`, `"/foo"`, `"foo/"`, `"foo//bar"` are all invalid.
-    pub fn from_internal_string(value: &str) -> Self {
-        assert!(is_valid_repo_path_str(value));
-        RepoPath {
-            value: value.to_owned(),
-        }
+    pub fn from_internal_string(value: impl Into<String>) -> Self {
+        let value = value.into();
+        assert!(is_valid_repo_path_str(&value));
+        RepoPath { value }
     }
 
     /// Converts repo-relative `Path` to `RepoPath`.

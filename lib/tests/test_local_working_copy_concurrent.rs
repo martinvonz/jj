@@ -87,7 +87,7 @@ fn test_checkout_parallel() {
     let num_threads = max(num_cpus::get(), 4);
     let mut tree_ids = vec![];
     for i in 0..num_threads {
-        let path = RepoPath::from_internal_string(format!("file{i}").as_str());
+        let path = RepoPath::from_internal_string(format!("file{i}"));
         let tree = create_tree(repo, &[(&path, "contents")]);
         tree_ids.push(tree.id());
     }

@@ -50,7 +50,7 @@ fn test_same_type() {
 
     let write_tree = |index: usize| -> Tree {
         let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
-        for path in &files {
+        for &path in &files {
             let contents = &path[index..][..1];
             if contents != "_" {
                 testutils::write_normal_file(
@@ -194,9 +194,9 @@ fn test_executable() {
 
     let write_tree = |files: &[(&str, bool)]| -> Tree {
         let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
-        for (path, executable) in files {
+        for &(path, executable) in files {
             let repo_path = RepoPath::from_internal_string(path);
-            if *executable {
+            if executable {
                 testutils::write_executable_file(&mut tree_builder, &repo_path, "contents");
             } else {
                 testutils::write_normal_file(&mut tree_builder, &repo_path, "contents");
