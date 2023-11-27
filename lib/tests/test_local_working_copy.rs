@@ -426,7 +426,7 @@ fn test_reset() {
     // Test the setup: the file should exist on disk and in the tree state.
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
-    assert!(wc.file_states().unwrap().contains_key(ignored_path));
+    assert!(wc.file_states().unwrap().contains_path(ignored_path));
 
     // After we reset to the commit without the file, it should still exist on disk,
     // but it should not be in the tree state, and it should not get added when we
@@ -436,7 +436,7 @@ fn test_reset() {
     locked_ws.finish(op_id.clone()).unwrap();
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
-    assert!(!wc.file_states().unwrap().contains_key(ignored_path));
+    assert!(!wc.file_states().unwrap().contains_path(ignored_path));
     let new_tree = test_workspace.snapshot().unwrap();
     assert_eq!(new_tree.id(), tree_without_file.id());
 
@@ -448,7 +448,7 @@ fn test_reset() {
     locked_ws.finish(op_id.clone()).unwrap();
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
-    assert!(wc.file_states().unwrap().contains_key(ignored_path));
+    assert!(wc.file_states().unwrap().contains_path(ignored_path));
     let new_tree = test_workspace.snapshot().unwrap();
     assert_eq!(new_tree.id(), tree_with_file.id());
 }
@@ -480,7 +480,7 @@ fn test_checkout_discard() {
     // Test the setup: the file should exist on disk and in the tree state.
     assert!(file1_path.to_fs_path(&workspace_root).is_file());
     let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
-    assert!(wc.file_states().unwrap().contains_key(file1_path));
+    assert!(wc.file_states().unwrap().contains_path(file1_path));
 
     // Start a checkout
     let mut locked_ws = ws.start_working_copy_mutation().unwrap();
@@ -490,19 +490,19 @@ fn test_checkout_discard() {
     assert!(file2_path.to_fs_path(&workspace_root).is_file());
     let reloaded_wc =
         LocalWorkingCopy::load(store.clone(), workspace_root.clone(), state_path.clone());
-    assert!(reloaded_wc.file_states().unwrap().contains_key(file1_path));
-    assert!(!reloaded_wc.file_states().unwrap().contains_key(file2_path));
+    assert!(reloaded_wc.file_states().unwrap().contains_path(file1_path));
+    assert!(!reloaded_wc.file_states().unwrap().contains_path(file2_path));
     drop(locked_ws);
 
     // The change should remain in the working copy, but not in memory and not saved
     let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
-    assert!(wc.file_states().unwrap().contains_key(file1_path));
-    assert!(!wc.file_states().unwrap().contains_key(file2_path));
+    assert!(wc.file_states().unwrap().contains_path(file1_path));
+    assert!(!wc.file_states().unwrap().contains_path(file2_path));
     assert!(!file1_path.to_fs_path(&workspace_root).is_file());
     assert!(file2_path.to_fs_path(&workspace_root).is_file());
     let reloaded_wc = LocalWorkingCopy::load(store.clone(), workspace_root, state_path);
-    assert!(reloaded_wc.file_states().unwrap().contains_key(file1_path));
-    assert!(!reloaded_wc.file_states().unwrap().contains_key(file2_path));
+    assert!(reloaded_wc.file_states().unwrap().contains_path(file1_path));
+    assert!(!reloaded_wc.file_states().unwrap().contains_path(file2_path));
 }
 
 #[test]
@@ -578,11 +578,7 @@ fn test_snapshot_special_file() {
     );
     let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
     assert_eq!(
-        wc.file_states()
-            .unwrap()
-            .keys()
-            .map(AsRef::as_ref)
-            .collect_vec(),
+        wc.file_states().unwrap().paths().collect_vec(),
         vec![file1_path, file2_path]
     );
 
@@ -598,11 +594,7 @@ fn test_snapshot_special_file() {
     let ws = &mut test_workspace.workspace;
     let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
     assert_eq!(
-        wc.file_states()
-            .unwrap()
-            .keys()
-            .map(AsRef::as_ref)
-            .collect_vec(),
+        wc.file_states().unwrap().paths().collect_vec(),
         vec![file2_path]
     );
 }

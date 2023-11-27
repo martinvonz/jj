@@ -93,11 +93,7 @@ fn test_sparse_checkout() {
     locked_ws.finish(repo.op_id().clone()).unwrap();
     let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
     assert_eq!(
-        wc.file_states()
-            .unwrap()
-            .keys()
-            .map(AsRef::as_ref)
-            .collect_vec(),
+        wc.file_states().unwrap().paths().collect_vec(),
         vec![dir1_file1_path, dir1_file2_path, dir1_subdir1_file1_path]
     );
     assert_eq!(wc.sparse_patterns().unwrap(), sparse_patterns);
@@ -109,11 +105,7 @@ fn test_sparse_checkout() {
         wc.state_path().to_path_buf(),
     );
     assert_eq!(
-        wc.file_states()
-            .unwrap()
-            .keys()
-            .map(AsRef::as_ref)
-            .collect_vec(),
+        wc.file_states().unwrap().paths().collect_vec(),
         vec![dir1_file1_path, dir1_file2_path, dir1_subdir1_file1_path]
     );
     assert_eq!(wc.sparse_patterns().unwrap(), sparse_patterns);
@@ -145,11 +137,7 @@ fn test_sparse_checkout() {
     let wc = locked_wc.finish(repo.op_id().clone()).unwrap();
     let wc: &LocalWorkingCopy = wc.as_any().downcast_ref().unwrap();
     assert_eq!(
-        wc.file_states()
-            .unwrap()
-            .keys()
-            .map(AsRef::as_ref)
-            .collect_vec(),
+        wc.file_states().unwrap().paths().collect_vec(),
         vec![dir1_subdir1_file1_path, dir2_file1_path, root_file1_path]
     );
 }
