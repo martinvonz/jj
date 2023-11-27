@@ -118,12 +118,10 @@ pub struct RepoPathComponentsIter<'a> {
     value: &'a str,
 }
 
-impl RepoPathComponentsIter<'_> {
-    // TODO: add borrowed RepoPath type and implement as_path() instead
-    fn to_path(&self) -> RepoPathBuf {
-        RepoPathBuf {
-            value: self.value.to_owned(),
-        }
+impl<'a> RepoPathComponentsIter<'a> {
+    /// Returns the remaining part as repository path.
+    pub fn as_path(&self) -> &'a RepoPath {
+        RepoPath::from_internal_string_unchecked(self.value)
     }
 }
 
@@ -315,16 +313,16 @@ impl RepoPath {
         }
     }
 
-    // TODO: make it return borrowed RepoPath type
-    pub fn parent(&self) -> Option<RepoPathBuf> {
+    /// Returns the parent path without the base name component.
+    pub fn parent(&self) -> Option<&RepoPath> {
         self.split().map(|(parent, _)| parent)
     }
 
-    // TODO: make it return borrowed RepoPath type
-    pub fn split(&self) -> Option<(RepoPathBuf, &RepoPathComponent)> {
+    /// Splits this into the parent path and base name component.
+    pub fn split(&self) -> Option<(&RepoPath, &RepoPathComponent)> {
         let mut components = self.components();
         let basename = components.next_back()?;
-        Some((components.to_path(), basename))
+        Some((components.as_path(), basename))
     }
 
     pub fn components(&self) -> RepoPathComponentsIter<'_> {
@@ -527,8 +525,8 @@ mod tests {
         let subdir = dir.join(subdir_component);
 
         assert_eq!(root.parent(), None);
-        assert_eq!(dir.parent().as_deref(), Some(root));
-        assert_eq!(subdir.parent(), Some(dir));
+        assert_eq!(dir.parent(), Some(root));
+        assert_eq!(subdir.parent(), Some(dir.as_ref()));
     }
 
     #[test]
@@ -541,8 +539,8 @@ mod tests {
         let file = dir.join(file_component);
 
         assert_eq!(root.split(), None);
-        assert_eq!(dir.split(), Some((root.to_owned(), dir_component)));
-        assert_eq!(file.split(), Some((dir, file_component)));
+        assert_eq!(dir.split(), Some((root, dir_component)));
+        assert_eq!(file.split(), Some((dir.as_ref(), file_component)));
     }
 
     #[test]
