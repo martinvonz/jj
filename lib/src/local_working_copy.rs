@@ -15,18 +15,18 @@
 #![allow(missing_docs)]
 
 use std::any::Any;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 use std::error::Error;
 use std::fs::{File, Metadata, OpenOptions};
 use std::io::{Read, Write};
-use std::ops::{Bound, Range};
+use std::ops::Range;
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Sender};
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 use std::{fs, iter, mem, slice};
 
@@ -143,7 +143,6 @@ struct FileStatesMap {
     data: Vec<crate::protos::working_copy::FileStateEntry>,
 }
 
-#[allow(unused)] // TODO
 impl FileStatesMap {
     fn new() -> Self {
         FileStatesMap { data: Vec::new() }
@@ -209,7 +208,6 @@ pub struct FileStates<'a> {
     data: &'a [crate::protos::working_copy::FileStateEntry],
 }
 
-#[allow(unused)] // TODO
 impl<'a> FileStates<'a> {
     fn from_sorted(data: &'a [crate::protos::working_copy::FileStateEntry]) -> Self {
         debug_assert!(is_file_state_entries_proto_unique_and_sorted(data));
@@ -281,62 +279,12 @@ impl<'a> IntoIterator for FileStates<'a> {
     }
 }
 
-/// Lazily constructs file states map from proto data.
-///
-/// If fsmonitor is enabled and the working-copy is clean, we don't need to
-/// build a loaded `BTreeMap<RepoPath, _>` at all.
-#[derive(Clone, Debug)]
-struct LazyFileStatesMap {
-    loaded: OnceLock<BTreeMap<RepoPathBuf, FileState>>,
-    proto: Option<Vec<crate::protos::working_copy::FileStateEntry>>,
-}
-
-impl LazyFileStatesMap {
-    fn new() -> Self {
-        LazyFileStatesMap {
-            loaded: OnceLock::from(BTreeMap::new()),
-            proto: None,
-        }
-    }
-
-    fn from_proto(proto: Vec<crate::protos::working_copy::FileStateEntry>) -> Self {
-        LazyFileStatesMap {
-            loaded: OnceLock::new(),
-            proto: Some(proto),
-        }
-    }
-
-    fn to_proto(&self) -> Vec<crate::protos::working_copy::FileStateEntry> {
-        if let Some(proto) = self.proto.as_ref() {
-            proto.clone()
-        } else {
-            // Just return new proto data. There would be no point to cache it
-            // since we've already paid the cost to build a loaded BTreeMap.
-            let loaded = self.loaded.get().expect("loaded or proto must exist");
-            file_states_to_proto(loaded)
-        }
-    }
-
-    fn get_or_load(&self) -> &BTreeMap<RepoPathBuf, FileState> {
-        self.loaded.get_or_init(|| {
-            let proto = self.proto.as_ref().expect("loaded or proto must exist");
-            file_states_from_proto(proto)
-        })
-    }
-
-    fn make_mut(&mut self) -> &mut BTreeMap<RepoPathBuf, FileState> {
-        self.get_or_load();
-        self.proto.take(); // mark dirty
-        self.loaded.get_mut().unwrap()
-    }
-}
-
 pub struct TreeState {
     store: Arc<Store>,
     working_copy_path: PathBuf,
     state_path: PathBuf,
     tree_id: MergedTreeId,
-    file_states: LazyFileStatesMap,
+    file_states: FileStatesMap,
     // Currently only path prefixes
     sparse_patterns: Vec<RepoPathBuf>,
     own_mtime: MillisSinceEpoch,
@@ -412,34 +360,6 @@ fn is_file_state_entries_proto_unique_and_sorted(
         .map(|entry| RepoPath::from_internal_string(&entry.path))
         .tuple_windows()
         .all(|(path1, path2)| path1 < path2)
-}
-
-#[instrument(skip(proto))]
-fn file_states_from_proto(
-    proto: &[crate::protos::working_copy::FileStateEntry],
-) -> BTreeMap<RepoPathBuf, FileState> {
-    tracing::debug!("loading file states from proto");
-    proto
-        .iter()
-        .map(|entry| {
-            let path = RepoPathBuf::from_internal_string(&entry.path);
-            (path, file_state_from_proto(entry.state.as_ref().unwrap()))
-        })
-        .collect()
-}
-
-fn file_states_to_proto(
-    file_states: &BTreeMap<RepoPathBuf, FileState>,
-) -> Vec<crate::protos::working_copy::FileStateEntry> {
-    file_states
-        .iter()
-        .map(
-            |(path, state)| crate::protos::working_copy::FileStateEntry {
-                path: path.as_internal_file_string().to_owned(),
-                state: Some(file_state_to_proto(state)),
-            },
-        )
-        .collect()
 }
 
 fn sparse_patterns_from_proto(
@@ -588,8 +508,8 @@ impl TreeState {
         &self.tree_id
     }
 
-    pub fn file_states(&self) -> &BTreeMap<RepoPathBuf, FileState> {
-        self.file_states.get_or_load()
+    pub fn file_states(&self) -> FileStates<'_> {
+        self.file_states.all()
     }
 
     pub fn sparse_patterns(&self) -> &Vec<RepoPathBuf> {
@@ -619,7 +539,7 @@ impl TreeState {
             working_copy_path: working_copy_path.canonicalize().unwrap(),
             state_path,
             tree_id,
-            file_states: LazyFileStatesMap::new(),
+            file_states: FileStatesMap::new(),
             sparse_patterns: vec![RepoPathBuf::root()],
             own_mtime: MillisSinceEpoch(0),
             watchman_clock: None,
@@ -682,7 +602,7 @@ impl TreeState {
                 .collect();
             self.tree_id = MergedTreeId::Merge(tree_ids_builder.build());
         }
-        self.file_states = LazyFileStatesMap::from_proto(proto.file_states);
+        self.file_states = FileStatesMap::from_proto_unsorted(proto.file_states);
         self.sparse_patterns = sparse_patterns_from_proto(proto.sparse_patterns.as_ref());
         self.watchman_clock = proto.watchman_clock;
         Ok(())
@@ -699,7 +619,7 @@ impl TreeState {
             }
         }
 
-        proto.file_states = self.file_states.to_proto();
+        proto.file_states = self.file_states.data.clone();
         let mut sparse_patterns = crate::protos::working_copy::SparsePatterns::default();
         for path in &self.sparse_patterns {
             sparse_patterns
@@ -814,7 +734,7 @@ impl TreeState {
 
         let matcher = IntersectionMatcher::new(sparse_matcher.as_ref(), fsmonitor_matcher);
         if matcher.visit(RepoPath::root()).is_nothing() {
-            // No need to load file states
+            // No need to iterate file states to build empty deleted_files.
             self.watchman_clock = watchman_clock;
             return Ok(is_dirty);
         }
@@ -847,13 +767,13 @@ impl TreeState {
             trace_span!("collecting existing files").in_scope(|| {
                 // Since file_states shouldn't contain files excluded by the sparse patterns,
                 // fsmonitor_matcher here is identical to the intersected matcher.
-                let file_states = self.file_states.get_or_load();
+                let file_states = self.file_states.all();
                 file_states
                     .iter()
-                    .filter(|&(path, state)| {
+                    .filter(|(path, state)| {
                         fsmonitor_matcher.matches(path) && state.file_type != FileType::GitSubmodule
                     })
-                    .map(|(path, _state)| path.clone())
+                    .map(|(path, _state)| path.to_owned())
                     .collect()
             });
         trace_span!("process tree entries").in_scope(|| -> Result<(), SnapshotError> {
@@ -874,13 +794,13 @@ impl TreeState {
             }
         });
         trace_span!("process file states").in_scope(|| {
-            let changed_file_states = file_states_rx.iter().collect_vec();
+            let changed_file_states = file_states_rx
+                .iter()
+                .sorted_unstable_by(|(path1, _), (path2, _)| path1.cmp(path2))
+                .collect_vec();
             is_dirty |= !changed_file_states.is_empty();
-            let file_states = self.file_states.make_mut();
-            file_states.extend(changed_file_states);
-            for file in &deleted_files {
-                file_states.remove(file);
-            }
+            self.file_states
+                .merge_in(changed_file_states, &deleted_files);
         });
         trace_span!("write tree").in_scope(|| {
             let new_tree_id = tree_builder.write_tree(&self.store).unwrap();
@@ -893,8 +813,8 @@ impl TreeState {
                 .entries_matching(sparse_matcher.as_ref())
                 .map(|(path, _)| path)
                 .collect();
-            let file_states = self.file_states.get_or_load();
-            let state_paths: HashSet<_> = file_states.keys().cloned().collect();
+            let file_states = self.file_states.all();
+            let state_paths: HashSet<_> = file_states.paths().map(|path| path.to_owned()).collect();
             assert_eq!(state_paths, tree_paths);
         }
         self.watchman_clock = watchman_clock;
@@ -923,8 +843,8 @@ impl TreeState {
             return Ok(());
         }
 
-        // Don't try to load file states by multiple worker threads.
-        let file_states = self.file_states.get_or_load();
+        // TODO: maybe file_states can be narrowed by the dir path?
+        let file_states = self.file_states.all();
         let git_ignore =
             git_ignore.chain_with_file(&dir.to_internal_dir_string(), disk_dir.join(".gitignore"));
         let dir_entries = disk_dir
@@ -954,7 +874,7 @@ impl TreeState {
                 }
                 let path = dir.join(RepoPathComponent::new(name));
                 let maybe_current_file_state = file_states.get(&path);
-                if let Some(file_state) = maybe_current_file_state {
+                if let Some(file_state) = &maybe_current_file_state {
                     if file_state.file_type == FileType::GitSubmodule {
                         return Ok(());
                     }
@@ -964,13 +884,9 @@ impl TreeState {
                     if git_ignore.matches(&path.to_internal_dir_string()) {
                         // If the whole directory is ignored, visit only paths we're already
                         // tracking.
-                        let tracked_paths = file_states
-                            .range::<RepoPath, _>((Bound::Excluded(&*path), Bound::Unbounded))
-                            .take_while(|(sub_path, _)| sub_path.starts_with(&path))
-                            .map(|(sub_path, file_state)| (sub_path.clone(), file_state.clone()))
-                            .collect_vec();
+                        let tracked_paths = file_states.prefixed(&path);
                         for (tracked_path, current_file_state) in tracked_paths {
-                            if !matcher.matches(&tracked_path) {
+                            if !matcher.matches(tracked_path) {
                                 continue;
                             }
                             let disk_path = tracked_path.to_fs_path(&self.working_copy_path);
@@ -990,9 +906,9 @@ impl TreeState {
                                 }
                             };
                             if let Some(new_file_state) = file_state(&metadata) {
-                                present_files_tx.send(tracked_path.clone()).ok();
+                                present_files_tx.send(tracked_path.to_owned()).ok();
                                 let update = self.get_updated_tree_value(
-                                    &tracked_path,
+                                    tracked_path,
                                     disk_path,
                                     Some(&current_file_state),
                                     current_tree,
@@ -1000,11 +916,13 @@ impl TreeState {
                                 )?;
                                 if let Some(tree_value) = update {
                                     tree_entries_tx
-                                        .send((tracked_path.clone(), tree_value))
+                                        .send((tracked_path.to_owned(), tree_value))
                                         .ok();
                                 }
                                 if new_file_state != current_file_state {
-                                    file_states_tx.send((tracked_path, new_file_state)).ok();
+                                    file_states_tx
+                                        .send((tracked_path.to_owned(), new_file_state))
+                                        .ok();
                                 }
                             }
                         }
@@ -1053,14 +971,14 @@ impl TreeState {
                             let update = self.get_updated_tree_value(
                                 &path,
                                 entry.path(),
-                                maybe_current_file_state,
+                                maybe_current_file_state.as_ref(),
                                 current_tree,
                                 &new_file_state,
                             )?;
                             if let Some(tree_value) = update {
                                 tree_entries_tx.send((path.clone(), tree_value)).ok();
                             }
-                            if Some(&new_file_state) != maybe_current_file_state {
+                            if Some(&new_file_state) != maybe_current_file_state.as_ref() {
                                 file_states_tx.send((path, new_file_state)).ok();
                             }
                         }
@@ -1442,11 +1360,8 @@ impl TreeState {
             };
             changed_file_states.push((path, file_state));
         }
-        let file_states = self.file_states.make_mut();
-        file_states.extend(changed_file_states);
-        for file in &deleted_files {
-            file_states.remove(file);
-        }
+        self.file_states
+            .merge_in(changed_file_states, &deleted_files);
         Ok(stats)
     }
 
@@ -1500,11 +1415,8 @@ impl TreeState {
                 changed_file_states.push((path, file_state));
             }
         }
-        let file_states = self.file_states.make_mut();
-        file_states.extend(changed_file_states);
-        for file in &deleted_files {
-            file_states.remove(file);
-        }
+        self.file_states
+            .merge_in(changed_file_states, &deleted_files);
         self.tree_id = new_tree.id();
         Ok(())
     }
@@ -1701,7 +1613,7 @@ impl LocalWorkingCopy {
         Ok(self.tree_state.get_mut().unwrap())
     }
 
-    pub fn file_states(&self) -> Result<&BTreeMap<RepoPathBuf, FileState>, WorkingCopyStateError> {
+    pub fn file_states(&self) -> Result<FileStates<'_>, WorkingCopyStateError> {
         Ok(self.tree_state()?.file_states())
     }
 
