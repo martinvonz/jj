@@ -1,8 +1,9 @@
+use assert_matches::assert_matches;
 use jj_lib::backend::{MillisSinceEpoch, Signature, Timestamp};
 use jj_lib::mock_signing::MockSigningBackend;
 use jj_lib::repo::Repo;
 use jj_lib::settings::UserSettings;
-use jj_lib::signing::{SigStatus, SignBehavior, Signer, Verification};
+use jj_lib::signing::{SignBehavior, Signer};
 use test_case::test_case;
 use testutils::{create_random_commit, write_random_commit, TestRepoBackend, TestWorkspace};
 
@@ -33,13 +34,7 @@ fn someone_else() -> Signature {
     }
 }
 
-fn good_verification() -> Option<Verification> {
-    Some(Verification {
-        status: SigStatus::Good,
-        key: Some("impeccable".to_owned()),
-        display: None,
-    })
-}
+const GOOD_VERIFICATION: &str = r#"Ok(Some(Verification { status: Good, key: Some("impeccable"), display: None, backend: Some("mock") }))"#;
 
 #[test_case(TestRepoBackend::Local ; "local backend")]
 #[test_case(TestRepoBackend::Git ; "git backend")]
@@ -66,10 +61,10 @@ fn manual(backend: TestRepoBackend) {
     tx.commit("test");
 
     let commit1 = repo.store().get_commit(commit1.id()).unwrap();
-    assert_eq!(commit1.verification().unwrap(), good_verification());
+    assert_eq!(format!("{:?}", commit1.verification()), GOOD_VERIFICATION);
 
     let commit2 = repo.store().get_commit(commit2.id()).unwrap();
-    assert_eq!(commit2.verification().unwrap(), None);
+    assert_matches!(commit2.verification(), Ok(None));
 }
 
 #[test_case(TestRepoBackend::Git ; "git backend")]
@@ -95,7 +90,7 @@ fn keep_on_rewrite(backend: TestRepoBackend) {
     let rewritten = mut_repo.rewrite_commit(&settings, &commit).write().unwrap();
 
     let commit = repo.store().get_commit(rewritten.id()).unwrap();
-    assert_eq!(commit.verification().unwrap(), good_verification());
+    assert_eq!(format!("{:?}", commit.verification()), GOOD_VERIFICATION);
 }
 
 #[test_case(TestRepoBackend::Git ; "git backend")]
@@ -148,7 +143,7 @@ fn forced(backend: TestRepoBackend) {
     tx.commit("test");
 
     let commit = repo.store().get_commit(commit.id()).unwrap();
-    assert_eq!(commit.verification().unwrap(), good_verification());
+    assert_eq!(format!("{:?}", commit.verification()), GOOD_VERIFICATION);
 }
 
 #[test_case(TestRepoBackend::Git ; "git backend")]
@@ -167,5 +162,5 @@ fn configured(backend: TestRepoBackend) {
     tx.commit("test");
 
     let commit = repo.store().get_commit(commit.id()).unwrap();
-    assert_eq!(commit.verification().unwrap(), good_verification());
+    assert_eq!(format!("{:?}", commit.verification()), GOOD_VERIFICATION);
 }

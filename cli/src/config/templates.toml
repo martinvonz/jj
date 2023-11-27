@@ -161,11 +161,69 @@ commit_summary_separator = 'label("separator", " | ")'
 # commit id to refer to a hidden revision regardless.
 builtin_change_id_with_hidden_and_divergent_info = '''
 if(hidden,
-  label("hidden", 
+  label("hidden",
     format_short_change_id(change_id) ++ " hidden"
   ),
   label(if(divergent, "divergent"),
     format_short_change_id(change_id) ++ if(divergent,"??")
+  )
+)
+'''
+
+'builtin_log_detailed_with_sig' = '''
+concat(
+  "Commit ID: " ++ commit_id ++ "\n",
+  "Change ID: " ++ change_id ++ "\n",
+  surround("Branches: ", "\n", separate(" ", local_branches, remote_branches)),
+  surround("Tags: ", "\n", tags),
+  "Author: " ++ format_detailed_signature(author) ++ "\n",
+  "Committer: " ++ format_detailed_signature(committer)  ++ "\n",
+  builtin_sig_detailed,
+  "\n",
+  indent("    ", if(description, description, description_placeholder ++ "\n")),
+  "\n",
+)
+'''
+
+builtin_sig_status = '''
+if(signature.present(),
+  label("signature",
+    concat(
+      "[",
+      label("status",
+        if(signature.good(), label("good", "✓︎"),
+          if(signature.unknown(), label("unknown", "?"),
+            if(signature.bad(), label("bad", "x"),
+              if(signature.invalid(), label("invalid", "x"))
+            )
+          )
+        )
+      ),
+      "]"
+    )
+  )
+)
+'''
+
+builtin_sig_detailed = '''
+if(signature.present(),
+  concat(
+    "Signature: ",
+    label("signature",
+      if(signature.good(), label("good", "Good"),
+        if(signature.unknown(), label("unknown", "Unknown"),
+          if(signature.bad(), label("bad", "Bad"),
+            if(signature.invalid(), label("invalid", "Invalid"))
+          )
+        )
+      )
+    ),
+    if(signature.backend(), " " ++ label("backend", signature.backend()) ++ " signature"),
+    if(signature.display(),
+      ". By " ++ label("display", signature.display()) ++ if(signature.key(), " (key " ++ label("key", signature.key()) ++ ")"),
+      if(signature.key(), ". Key " ++ label("key", signature.key()))
+    ),
+    "\n"
   )
 )
 '''

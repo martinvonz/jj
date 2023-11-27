@@ -35,14 +35,14 @@ y2yxhhHnagH52avUqw5hAAAAAAECAwQF
 static PUBLIC_KEY: &str =
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGj+J6N6SO+4P8dOZqfR1oiay2yxhhHnagH52avUqw5h";
 
-struct SshEnvironment {
+pub struct SshEnvironment {
     _keys: tempfile::TempDir,
-    private_key_path: PathBuf,
-    allowed_signers: Option<tempfile::TempPath>,
+    pub private_key_path: PathBuf,
+    pub allowed_signers: Option<tempfile::TempPath>,
 }
 
 impl SshEnvironment {
-    fn new() -> Result<Self, std::process::Output> {
+    pub fn new() -> Result<Self, std::process::Output> {
         let keys_dir = tempfile::Builder::new()
             .prefix("jj-test-signing-keys-")
             .tempdir()

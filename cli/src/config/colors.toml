@@ -82,3 +82,9 @@
 "op_log current_operation id" = "bright blue"
 "op_log current_operation user" = "yellow"                    # No bright yellow, see comment above
 "op_log current_operation time" = "bright cyan"
+"signature good" = "green"
+"signature unknown" = "bright black"
+"signature bad" = "red"
+"signature invalid" = "yellow"
+"signature key" = "blue"
+"signature display" = "yellow"
