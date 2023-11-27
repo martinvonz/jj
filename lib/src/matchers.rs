@@ -19,7 +19,7 @@ use std::iter;
 
 use tracing::instrument;
 
-use crate::repo_path::{RepoPath, RepoPathComponentBuf, RepoPathComponentsIter};
+use crate::repo_path::{RepoPath, RepoPathComponentBuf};
 
 #[derive(PartialEq, Eq, Debug)]
 pub enum Visit {
@@ -146,13 +146,13 @@ impl Matcher for PrefixMatcher {
     }
 
     fn visit(&self, dir: &RepoPath) -> Visit {
-        for (sub, mut tail_components) in self.tree.walk_to(dir) {
+        for (sub, tail_path) in self.tree.walk_to(dir) {
             // 'is_file' means the current path matches prefix paths
             if sub.is_file {
                 return Visit::AllRecursively;
             }
             // 'dir' found, and is an ancestor of prefix paths
-            if tail_components.next().is_none() {
+            if tail_path.is_root() {
                 return sub.to_visit_sets();
             }
         }
@@ -309,16 +309,16 @@ impl RepoPathTree {
             .unwrap_or(Visit::Nothing)
     }
 
+    /// Walks the tree from the root to the given `dir`, yielding each sub tree
+    /// and remaining path.
     fn walk_to<'a, 'b: 'a>(
         &'a self,
         dir: &'b RepoPath,
-    ) -> impl Iterator<Item = (&'a RepoPathTree, RepoPathComponentsIter<'b>)> + 'a {
-        iter::successors(Some((self, dir.components())), |(sub, components)| {
-            // TODO: Add cheap as_path() method to the components iterator.
-            // Cloning iterator should be cheap, but looks a bit weird.
-            let mut components = components.clone();
+    ) -> impl Iterator<Item = (&'a RepoPathTree, &'b RepoPath)> + 'a {
+        iter::successors(Some((self, dir)), |(sub, dir)| {
+            let mut components = dir.components();
             let name = components.next()?;
-            Some((sub.entries.get(name)?, components))
+            Some((sub.entries.get(name)?, components.as_path()))
         })
     }
 
