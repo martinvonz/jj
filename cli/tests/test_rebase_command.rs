@@ -72,6 +72,19 @@ fn test_rebase_invalid() {
     For more information, try '--help'.
     "###);
 
+    // Both -r and --skip-empty
+    let stderr = test_env.jj_cmd_cli_error(
+        &repo_path,
+        &["rebase", "-r", "a", "-d", "b", "--skip-empty"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    error: the argument '--revision <REVISION>' cannot be used with '--skip-empty'
+
+    Usage: jj rebase --destination <DESTINATION> --revision <REVISION>
+
+    For more information, try '--help'.
+    "###);
+
     // Rebase onto self with -r
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "a"]);
     insta::assert_snapshot!(stderr, @r###"
