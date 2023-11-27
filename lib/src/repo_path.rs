@@ -299,16 +299,17 @@ impl RepoPath {
         other.strip_prefix(self).is_some()
     }
 
-    // TODO: make it return borrowed RepoPath type
-    fn strip_prefix(&self, base: &RepoPath) -> Option<&str> {
+    /// Returns the remaining path with the `base` path removed.
+    pub fn strip_prefix(&self, base: &RepoPath) -> Option<&RepoPath> {
         if base.value.is_empty() {
-            Some(&self.value)
+            Some(self)
         } else {
             let tail = self.value.strip_prefix(&base.value)?;
             if tail.is_empty() {
-                Some(tail)
+                Some(RepoPath::from_internal_string_unchecked(tail))
             } else {
                 tail.strip_prefix('/')
+                    .map(RepoPath::from_internal_string_unchecked)
             }
         }
     }
@@ -484,6 +485,42 @@ mod tests {
         assert!(!repo_path("x/y").contains(repo_path("x/yz")));
         assert!(!repo_path("x/y").contains(repo_path("x")));
         assert!(!repo_path("x/y").contains(repo_path("xy")));
+    }
+
+    #[test]
+    fn test_strip_prefix() {
+        assert_eq!(
+            repo_path("").strip_prefix(repo_path("")),
+            Some(repo_path(""))
+        );
+        assert_eq!(
+            repo_path("x").strip_prefix(repo_path("")),
+            Some(repo_path("x"))
+        );
+        assert_eq!(repo_path("").strip_prefix(repo_path("x")), None);
+
+        assert_eq!(
+            repo_path("x").strip_prefix(repo_path("x")),
+            Some(repo_path(""))
+        );
+        assert_eq!(
+            repo_path("x/y").strip_prefix(repo_path("x")),
+            Some(repo_path("y"))
+        );
+        assert_eq!(repo_path("xy").strip_prefix(repo_path("x")), None);
+        assert_eq!(repo_path("x/y").strip_prefix(repo_path("y")), None);
+
+        assert_eq!(
+            repo_path("x/y").strip_prefix(repo_path("x/y")),
+            Some(repo_path(""))
+        );
+        assert_eq!(
+            repo_path("x/y/z").strip_prefix(repo_path("x/y")),
+            Some(repo_path("z"))
+        );
+        assert_eq!(repo_path("x/yz").strip_prefix(repo_path("x/y")), None);
+        assert_eq!(repo_path("x").strip_prefix(repo_path("x/y")), None);
+        assert_eq!(repo_path("xy").strip_prefix(repo_path("x/y")), None);
     }
 
     #[test]
