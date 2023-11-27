@@ -171,11 +171,7 @@ impl SigningBackend for GpgBackend {
                 let display = parts
                     .next()
                     .and_then(|bs| String::from_utf8(bs.to_owned()).ok());
-                Verification {
-                    status,
-                    key,
-                    display,
-                }
+                Verification::new(status, key, display)
             })
             .ok_or(SignError::InvalidSignatureFormat)
     }

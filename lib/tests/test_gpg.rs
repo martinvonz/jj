@@ -6,8 +6,9 @@ use std::path::PathBuf;
 use std::process::Stdio;
 
 use assert_matches::assert_matches;
+use insta::assert_debug_snapshot;
 use jj_lib::gpg_signing::GpgBackend;
-use jj_lib::signing::{SigStatus, SignError, SigningBackend, Verification};
+use jj_lib::signing::{SigStatus, SignError, SigningBackend};
 use once_cell::sync::Lazy;
 
 static GPG_HOME: Lazy<PathBuf> = Lazy::new(|| {
@@ -74,21 +75,22 @@ fn roundtrip() {
     let data = b"hello world";
     let signature = backend.sign(data, None).unwrap();
 
+    let check = backend.verify(data, &signature).unwrap();
+    assert_eq!(check.status, SigStatus::Good);
+    assert_eq!(check.backend(), None); // backend is set by the signer
+    assert_eq!(check.key.unwrap(), "638785CB16FEA061");
     assert_eq!(
-        backend.verify(data, &signature).unwrap(),
-        Verification {
-            status: SigStatus::Good,
-            key: Some("638785CB16FEA061".to_owned()),
-            display: Some("Someone (jj test signing key) <someone@example.com>".to_owned()),
-        }
+        check.display.unwrap(),
+        "Someone (jj test signing key) <someone@example.com>"
     );
+
+    let check = backend.verify(b"so so bad", &signature).unwrap();
+    assert_eq!(check.status, SigStatus::Bad);
+    assert_eq!(check.backend(), None);
+    assert_eq!(check.key.unwrap(), "638785CB16FEA061");
     assert_eq!(
-        backend.verify(b"so so bad", &signature).unwrap(),
-        Verification {
-            status: SigStatus::Bad,
-            key: Some("638785CB16FEA061".to_owned()),
-            display: Some("Someone (jj test signing key) <someone@example.com>".to_owned()),
-        }
+        check.display.unwrap(),
+        "Someone (jj test signing key) <someone@example.com>"
     );
 }
 
@@ -98,26 +100,30 @@ fn roundtrip_explicit_key() {
     let data = b"hello world";
     let signature = backend.sign(data, Some("Someone Else")).unwrap();
 
-    assert_eq!(
-        backend.verify(data, &signature).unwrap(),
-        Verification {
-            status: SigStatus::Good,
-            key: Some("4ED556E9729E000F".to_owned()),
-            display: Some(
-                "Someone Else (jj test signing key) <someone-else@example.com>".to_owned()
-            ),
-        }
-    );
-    assert_eq!(
-        backend.verify(b"so so bad", &signature).unwrap(),
-        Verification {
-            status: SigStatus::Bad,
-            key: Some("4ED556E9729E000F".to_owned()),
-            display: Some(
-                "Someone Else (jj test signing key) <someone-else@example.com>".to_owned()
-            ),
-        }
-    );
+    assert_debug_snapshot!(backend.verify(data, &signature).unwrap(), @r###"
+    Verification {
+        status: Good,
+        key: Some(
+            "4ED556E9729E000F",
+        ),
+        display: Some(
+            "Someone Else (jj test signing key) <someone-else@example.com>",
+        ),
+        backend: None,
+    }
+    "###);
+    assert_debug_snapshot!(backend.verify(b"so so bad", &signature).unwrap(), @r###"
+    Verification {
+        status: Bad,
+        key: Some(
+            "4ED556E9729E000F",
+        ),
+        display: Some(
+            "Someone Else (jj test signing key) <someone-else@example.com>",
+        ),
+        backend: None,
+    }
+    "###);
 }
 
 #[test]
@@ -130,22 +136,26 @@ fn unknown_key() {
     e+U6bvqw3pOBoI53Th35drQ0qPI+jAE=
     =kwsk
     -----END PGP SIGNATURE-----";
-    assert_eq!(
-        backend.verify(b"hello world", signature).unwrap(),
-        Verification {
-            status: SigStatus::Unknown,
-            key: Some("071FE3E324DD7333".to_owned()),
-            display: None,
-        }
-    );
-    assert_eq!(
-        backend.verify(b"so bad", signature).unwrap(),
-        Verification {
-            status: SigStatus::Unknown, // no key, no idea ¯\_(ツ)_/¯
-            key: Some("071FE3E324DD7333".to_owned()),
-            display: None,
-        }
-    );
+    assert_debug_snapshot!(backend.verify(b"hello world", signature).unwrap(), @r###"
+    Verification {
+        status: Unknown,
+        key: Some(
+            "071FE3E324DD7333",
+        ),
+        display: None,
+        backend: None,
+    }
+    "###);
+    assert_debug_snapshot!(backend.verify(b"so bad", signature).unwrap(), @r###"
+    Verification {
+        status: Unknown,
+        key: Some(
+            "071FE3E324DD7333",
+        ),
+        display: None,
+        backend: None,
+    }
+    "###);
 }
 
 #[test]
