@@ -215,7 +215,7 @@ pub fn back_out_commit(
         .write()?)
 }
 
-#[derive(Clone, Default, PartialEq)]
+#[derive(Clone, Default, PartialEq, Eq, Debug)]
 pub enum EmptyBehaviour {
     /// Always keep empty commits
     #[default]
@@ -236,7 +236,7 @@ pub enum EmptyBehaviour {
 // change the RebaseOptions construction in the CLI, and changing the
 // rebase_commit function to actually use the flag, and ensure we don't need to
 // plumb it in.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, PartialEq, Eq, Debug)]
 pub struct RebaseOptions {
     pub empty: EmptyBehaviour,
 }

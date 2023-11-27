@@ -147,7 +147,7 @@ pub(crate) struct RebaseArgs {
     /// If true, when rebasing would produce an empty commit, the commit is
     /// skipped.
     /// Will never skip merge commits with multiple non-empty parents.
-    #[arg(long)]
+    #[arg(long, conflicts_with = "revision")]
     skip_empty: bool,
 
     /// Deprecated. Please prefix the revset with `all:` instead.
@@ -179,13 +179,27 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
         .into_iter()
         .collect_vec();
     if let Some(rev_str) = &args.revision {
+        assert_eq!(
+            // In principle, `-r --skip-empty` could mean to abandon the `-r`
+            // commit if it becomes empty. This seems internally consistent with
+            // the behavior of other commands, but is not very useful.
+            //
+            // It would become even more confusing once `-r --before` is
+            // implemented. If `rebase -r` behaves like `abandon`, the
+            // descendants of the `-r` commits should not be abandoned if
+            // emptied. But it would also make sense for the descendants of the
+            // `--before` commit to be abandoned if emptied. A commit can easily
+            // be in both categories.
+            rebase_options.empty,
+            EmptyBehaviour::Keep,
+            "clap should forbid `-r --skip-empty`"
+        );
         rebase_revision(
             ui,
             command.settings(),
             &mut workspace_command,
             &new_parents,
             rev_str,
-            &rebase_options,
         )?;
     } else if !args.source.is_empty() {
         let source_commits =
@@ -297,7 +311,6 @@ fn rebase_revision(
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
     rev_str: &str,
-    rebase_options: &RebaseOptions,
 ) -> Result<(), CommandError> {
     let old_commit = workspace_command.resolve_single_rev(rev_str, ui)?;
     workspace_command.check_rewritable([&old_commit])?;
@@ -391,13 +404,7 @@ fn rebase_revision(
     // Finally, it's safe to rebase `old_commit`. At this point, it should no longer
     // have any children; they have all been rebased and the originals have been
     // abandoned.
-    rebase_commit_with_options(
-        settings,
-        tx.mut_repo(),
-        &old_commit,
-        &new_parents,
-        rebase_options,
-    )?;
+    rebase_commit(settings, tx.mut_repo(), &old_commit, &new_parents)?;
     debug_assert_eq!(tx.mut_repo().rebase_descendants(settings)?, 0);
 
     if num_rebased_descendants > 0 {
