@@ -182,7 +182,7 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
     let mut files = vec![];
     for left_kind in &kinds {
         for right_kind in &kinds {
-            let path = RepoPath::from_internal_string(&format!("{left_kind:?}_{right_kind:?}"));
+            let path = RepoPath::from_internal_string(format!("{left_kind:?}_{right_kind:?}"));
             write_path(&settings, repo, &mut left_tree_builder, *left_kind, &path);
             write_path(&settings, repo, &mut right_tree_builder, *right_kind, &path);
             files.push((*left_kind, *right_kind, path));
