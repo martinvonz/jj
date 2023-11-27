@@ -21,6 +21,7 @@ The following keywords can be used in `jj log`/`jj obslog` templates.
 * `parents: List<Commit>`
 * `author: Signature`
 * `committer: Signature`
+* `signature: CommitSignature`: The information about a cryptographic signature of the commit.
 * `working_copies: String`: For multi-workspace repository, indicate
   working-copy commit as `<workspace name>@`.
 * `current_working_copy: Boolean`: True for the working-copy commit of the
@@ -149,6 +150,18 @@ The following methods are defined.
 * `.email() -> String`
 * `.username() -> String`
 * `.timestamp() -> Timestamp`
+
+### CommitSignature type
+
+The following methods are defined.
+
+* `.present() -> Boolean`: True if the commit has a cryptographic signature.
+* `.good() -> Boolean`: True if the signature matches the commit data.
+* `.unknown() -> Boolean`: True if the signing backend cannot verify the signature (e.g. due a missing public key), or if there's no backend implemented that can verify the signature.
+* `.bad() -> Boolean`: True if the signature does not match the commit data.
+* `.invalid() -> Boolean`: True if the signature is detected to be made with a signing backend (e.g. has a PGP prefix) but is otherwise invalid.
+* `.key() -> String`: Signing backend specific key id. For GPG, it's a long key ID, present for all non-invalid signatures.
+* `.display() -> String`: Signing backend specific display string. For GPG, it's a formatted primary user ID, only present if the public key is known (only for good/bad signatures).
 
 ### String type
 

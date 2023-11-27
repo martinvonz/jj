@@ -25,6 +25,7 @@ use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::{RefTarget, WorkspaceId};
 use jj_lib::repo::Repo;
+use jj_lib::signing::{SigStatus, SignError, Verification};
 use jj_lib::{git, rewrite};
 use once_cell::unsync::OnceCell;
 
@@ -98,6 +99,9 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
             CommitTemplatePropertyKind::ShortestIdPrefix(property) => {
                 build_shortest_id_prefix_method(self, build_ctx, property, function)
             }
+            CommitTemplatePropertyKind::CommitSignature(property) => {
+                build_commit_signature_method(self, build_ctx, property, function)
+            }
         }
     }
 }
@@ -146,6 +150,13 @@ impl<'repo> CommitTemplateLanguage<'repo, '_> {
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::ShortestIdPrefix(Box::new(property))
     }
+
+    fn wrap_commit_signature(
+        &self,
+        property: impl TemplateProperty<Commit, Output = CommitSignature> + 'repo,
+    ) -> CommitTemplatePropertyKind<'repo> {
+        CommitTemplatePropertyKind::CommitSignature(Box::new(property))
+    }
 }
 
 enum CommitTemplatePropertyKind<'repo> {
@@ -156,6 +167,51 @@ enum CommitTemplatePropertyKind<'repo> {
     RefNameList(Box<dyn TemplateProperty<Commit, Output = Vec<RefName>> + 'repo>),
     CommitOrChangeId(Box<dyn TemplateProperty<Commit, Output = CommitOrChangeId> + 'repo>),
     ShortestIdPrefix(Box<dyn TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo>),
+    CommitSignature(Box<dyn TemplateProperty<Commit, Output = CommitSignature> + 'repo>),
+}
+
+enum CommitSignature {
+    Present(Verification),
+    Absent,
+    Invalid,
+}
+
+impl CommitSignature {
+    fn is_present(&self) -> bool {
+        matches!(self, CommitSignature::Present(_))
+    }
+
+    fn is_invalid(&self) -> bool {
+        matches!(self, CommitSignature::Invalid)
+    }
+
+    fn is(&self, status: SigStatus) -> bool {
+        match self {
+            CommitSignature::Present(v) => v.status == status,
+            _ => false,
+        }
+    }
+
+    fn key(self) -> String {
+        match self {
+            CommitSignature::Present(v) => v.key.unwrap_or_default(),
+            _ => Default::default(),
+        }
+    }
+
+    fn display(self) -> String {
+        match self {
+            CommitSignature::Present(v) => v.display.unwrap_or_default(),
+            _ => Default::default(),
+        }
+    }
+
+    fn backend(self) -> String {
+        match self {
+            CommitSignature::Present(v) => v.backend().unwrap_or_default().to_owned(),
+            _ => Default::default(),
+        }
+    }
 }
 
 impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'repo> {
@@ -172,6 +228,7 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
             }
             CommitTemplatePropertyKind::CommitOrChangeId(_) => None,
             CommitTemplatePropertyKind::ShortestIdPrefix(_) => None,
+            CommitTemplatePropertyKind::CommitSignature(_) => None,
         }
     }
 
@@ -207,6 +264,7 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
             CommitTemplatePropertyKind::ShortestIdPrefix(property) => {
                 Some(property.into_template())
             }
+            CommitTemplatePropertyKind::CommitSignature(_) => None,
         }
     }
 }
@@ -300,6 +358,15 @@ fn build_commit_keyword_opt<'repo>(
         "author" => language.wrap_signature(wrap_fn(property, |commit| commit.author().clone())),
         "committer" => {
             language.wrap_signature(wrap_fn(property, |commit| commit.committer().clone()))
+        }
+        "signature" => {
+            language.wrap_commit_signature(wrap_fn(property, |commit| {
+                match commit.verification() {
+                    Ok(Some(v)) => CommitSignature::Present(v),
+                    Err(SignError::InvalidSignatureFormat) => CommitSignature::Invalid,
+                    _ => CommitSignature::Absent, // todo don't ignore verification errors
+                }
+            }))
         }
         "working_copies" => {
             language.wrap_string(wrap_repo_fn(repo, property, extract_working_copies))
@@ -703,6 +770,32 @@ fn build_shortest_id_prefix_method<'repo>(
         _ => {
             return Err(TemplateParseError::no_such_method(
                 "ShortestIdPrefix",
+                function,
+            ))
+        }
+    };
+    Ok(property)
+}
+
+fn build_commit_signature_method<'repo>(
+    lang: &CommitTemplateLanguage<'repo, '_>,
+    _build_ctx: &BuildContext<CommitTemplatePropertyKind<'repo>>,
+    prop: impl TemplateProperty<Commit, Output = CommitSignature> + 'repo,
+    function: &FunctionCallNode,
+) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
+    template_parser::expect_no_arguments(function)?;
+    let property = match function.name {
+        "present" => lang.wrap_boolean(TemplateFunction::new(prop, |s| s.is_present())),
+        "good" => lang.wrap_boolean(TemplateFunction::new(prop, |s| s.is(SigStatus::Good))),
+        "unknown" => lang.wrap_boolean(TemplateFunction::new(prop, |s| s.is(SigStatus::Unknown))),
+        "bad" => lang.wrap_boolean(TemplateFunction::new(prop, |s| s.is(SigStatus::Bad))),
+        "invalid" => lang.wrap_boolean(TemplateFunction::new(prop, |s| s.is_invalid())),
+        "key" => lang.wrap_string(TemplateFunction::new(prop, |v| v.key())),
+        "display" => lang.wrap_string(TemplateFunction::new(prop, |v| v.display())),
+        "backend" => lang.wrap_string(TemplateFunction::new(prop, |v| v.backend())),
+        _ => {
+            return Err(TemplateParseError::no_such_method(
+                "CommitSignature",
                 function,
             ))
         }

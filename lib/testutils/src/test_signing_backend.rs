@@ -37,18 +37,11 @@ impl SigningBackend for TestSigningBackend {
         let key = (!key.is_empty()).then_some(std::str::from_utf8(key).unwrap().to_owned());
 
         let sig = self.sign(data, key.as_deref())?;
-        if sig == signature {
-            Ok(Verification {
-                status: SigStatus::Good,
-                key,
-                display: None,
-            })
+        let status = if sig == signature {
+            SigStatus::Good
         } else {
-            Ok(Verification {
-                status: SigStatus::Bad,
-                key,
-                display: None,
-            })
-        }
+            SigStatus::Bad
+        };
+        Ok(Verification::new(status, key, None))
     }
 }
