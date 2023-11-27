@@ -46,7 +46,7 @@ impl SigningBackend for TestSigningBackend {
 
         let hash: String = blake2b_hash(&body).encode_hex();
 
-        Ok(format!("{PREFIX}{key}\n{hash}").into_bytes())
+        Ok(format!("{PREFIX}{key}\n{hash}\n").into_bytes())
     }
 
     fn verify(&self, data: &[u8], signature: &[u8]) -> SignResult<Verification> {
@@ -60,17 +60,19 @@ impl SigningBackend for TestSigningBackend {
 
         let sig = self.sign(data, key.as_deref())?;
         if sig == signature {
-            Ok(Verification {
-                status: SigStatus::Good,
+            Ok(Verification::new(
+                SigStatus::Good,
                 key,
-                display: None,
-            })
+                None,
+                Some(self.name().into()),
+            ))
         } else {
-            Ok(Verification {
-                status: SigStatus::Bad,
+            Ok(Verification::new(
+                SigStatus::Bad,
                 key,
-                display: None,
-            })
+                None,
+                Some(self.name().into()),
+            ))
         }
     }
 }

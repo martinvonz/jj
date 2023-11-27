@@ -45,11 +45,12 @@ fn someone_else() -> Signature {
 }
 
 fn good_verification() -> Option<Verification> {
-    Some(Verification {
-        status: SigStatus::Good,
-        key: Some("impeccable".to_owned()),
-        display: None,
-    })
+    Some(Verification::new(
+        SigStatus::Good,
+        Some("impeccable".to_owned()),
+        None,
+        Some("test".into()),
+    ))
 }
 
 #[test_case(TestRepoBackend::Local ; "local backend")]
