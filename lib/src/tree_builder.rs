@@ -19,7 +19,7 @@ use std::sync::Arc;
 
 use crate::backend;
 use crate::backend::{TreeId, TreeValue};
-use crate::repo_path::RepoPathBuf;
+use crate::repo_path::{RepoPath, RepoPathBuf};
 use crate::store::Store;
 use crate::tree::Tree;
 
@@ -79,7 +79,7 @@ impl TreeBuilder {
         // Update entries in parent trees for file overrides
         for (path, file_override) in self.overrides {
             let (dir, basename) = path.split().unwrap();
-            let tree = trees_to_write.get_mut(&dir).unwrap();
+            let tree = trees_to_write.get_mut(dir).unwrap();
             match file_override {
                 Override::Replace(value) => {
                     tree.set(basename.to_owned(), value);
@@ -95,7 +95,7 @@ impl TreeBuilder {
         let store = &self.store;
         while let Some((dir, tree)) = trees_to_write.pop_last() {
             if let Some((parent, basename)) = dir.split() {
-                let parent_tree = trees_to_write.get_mut(&parent).unwrap();
+                let parent_tree = trees_to_write.get_mut(parent).unwrap();
                 if tree.is_empty() {
                     if let Some(TreeValue::Tree(_)) = parent_tree.value(basename) {
                         parent_tree.remove(basename);
@@ -127,17 +127,17 @@ impl TreeBuilder {
         fn populate_trees<'a>(
             tree_cache: &'a mut BTreeMap<RepoPathBuf, Tree>,
             store: &Arc<Store>,
-            dir: RepoPathBuf,
+            dir: &RepoPath,
         ) -> &'a Tree {
             // `if let Some(tree) = ...` doesn't pass lifetime check as of Rust 1.69.0
-            if tree_cache.contains_key(&dir) {
-                return tree_cache.get(&dir).unwrap();
+            if tree_cache.contains_key(dir) {
+                return tree_cache.get(dir).unwrap();
             }
             let (parent, basename) = dir.split().expect("root must be populated");
             let tree = populate_trees(tree_cache, store, parent)
                 .sub_tree(basename)
-                .unwrap_or_else(|| Tree::null(store.clone(), dir.clone()));
-            tree_cache.entry(dir).or_insert(tree)
+                .unwrap_or_else(|| Tree::null(store.clone(), dir.to_owned()));
+            tree_cache.entry(dir.to_owned()).or_insert(tree)
         }
 
         for path in self.overrides.keys() {
