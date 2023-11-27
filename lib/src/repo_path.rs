@@ -294,9 +294,9 @@ impl RepoPath {
         self.value.is_empty()
     }
 
-    // TODO: might be better to add .starts_with() instead
-    pub fn contains(&self, other: &RepoPath) -> bool {
-        other.strip_prefix(self).is_some()
+    /// Returns true if the `base` is a prefix of this path.
+    pub fn starts_with(&self, base: &RepoPath) -> bool {
+        self.strip_prefix(base).is_some()
     }
 
     /// Returns the remaining path with the `base` path removed.
@@ -470,21 +470,21 @@ mod tests {
     }
 
     #[test]
-    fn test_contains() {
-        assert!(repo_path("").contains(repo_path("")));
-        assert!(repo_path("").contains(repo_path("x")));
-        assert!(!repo_path("x").contains(repo_path("")));
+    fn test_starts_with() {
+        assert!(repo_path("").starts_with(repo_path("")));
+        assert!(repo_path("x").starts_with(repo_path("")));
+        assert!(!repo_path("").starts_with(repo_path("x")));
 
-        assert!(repo_path("x").contains(repo_path("x")));
-        assert!(repo_path("x").contains(repo_path("x/y")));
-        assert!(!repo_path("x").contains(repo_path("xy")));
-        assert!(!repo_path("y").contains(repo_path("x/y")));
+        assert!(repo_path("x").starts_with(repo_path("x")));
+        assert!(repo_path("x/y").starts_with(repo_path("x")));
+        assert!(!repo_path("xy").starts_with(repo_path("x")));
+        assert!(!repo_path("x/y").starts_with(repo_path("y")));
 
-        assert!(repo_path("x/y").contains(repo_path("x/y")));
-        assert!(repo_path("x/y").contains(repo_path("x/y/z")));
-        assert!(!repo_path("x/y").contains(repo_path("x/yz")));
-        assert!(!repo_path("x/y").contains(repo_path("x")));
-        assert!(!repo_path("x/y").contains(repo_path("xy")));
+        assert!(repo_path("x/y").starts_with(repo_path("x/y")));
+        assert!(repo_path("x/y/z").starts_with(repo_path("x/y")));
+        assert!(!repo_path("x/yz").starts_with(repo_path("x/y")));
+        assert!(!repo_path("x").starts_with(repo_path("x/y")));
+        assert!(!repo_path("xy").starts_with(repo_path("x/y")));
     }
 
     #[test]

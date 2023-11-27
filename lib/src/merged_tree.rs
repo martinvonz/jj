@@ -984,9 +984,9 @@ impl Ord for DiffStreamKey {
     fn cmp(&self, other: &Self) -> Ordering {
         if self == other {
             Ordering::Equal
-        } else if self.file_after_dir && self.path.contains(&other.path) {
+        } else if self.file_after_dir && other.path.starts_with(&self.path) {
             Ordering::Greater
-        } else if other.file_after_dir && other.path.contains(&self.path) {
+        } else if other.file_after_dir && self.path.starts_with(&other.path) {
             Ordering::Less
         } else {
             self.path.cmp(&other.path)

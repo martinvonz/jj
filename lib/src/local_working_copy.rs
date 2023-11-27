@@ -793,7 +793,7 @@ impl TreeState {
                         // tracking.
                         let tracked_paths = file_states
                             .range::<RepoPath, _>((Bound::Excluded(&*path), Bound::Unbounded))
-                            .take_while(|(sub_path, _)| path.contains(sub_path))
+                            .take_while(|(sub_path, _)| sub_path.starts_with(&path))
                             .map(|(sub_path, file_state)| (sub_path.clone(), file_state.clone()))
                             .collect_vec();
                         for (tracked_path, current_file_state) in tracked_paths {
