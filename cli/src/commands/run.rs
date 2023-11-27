@@ -58,9 +58,7 @@ pub fn cmd_run(ui: &mut Ui, command: &CommandHelper, args: &RunArgs) -> Result<(
     let _jobs = match args.jobs {
         Some(0) => return Err(user_error("must pass at least one job")),
         Some(jobs) => Some(jobs),
-        None => std::thread::available_parallelism()
-            .ok()
-            .and_then(|t| t.try_into().ok()),
+        None => std::thread::available_parallelism().map(|t| t.into()).ok(),
     }
     // Fallback to a single user-visible job.
     .unwrap_or(1usize);
