@@ -672,12 +672,12 @@ impl TreeState {
             )
         })?;
 
-        let file_states = self.file_states.make_mut();
         let mut tree_builder = MergedTreeBuilder::new(self.tree_id.clone());
         let mut deleted_files: HashSet<_> =
             trace_span!("collecting existing files").in_scope(|| {
                 // Since file_states shouldn't contain files excluded by the sparse patterns,
                 // fsmonitor_matcher here is identical to the intersected matcher.
+                let file_states = self.file_states.get_or_load();
                 file_states
                     .iter()
                     .filter(|&(path, state)| {
@@ -692,22 +692,24 @@ impl TreeState {
             }
             Ok(())
         })?;
-        trace_span!("process file states").in_scope(|| {
-            while let Ok((path, file_state)) = file_states_rx.recv() {
-                is_dirty = true;
-                file_states.insert(path, file_state);
-            }
-        });
         trace_span!("process present files").in_scope(|| {
             while let Ok(path) = present_files_rx.recv() {
                 deleted_files.remove(&path);
             }
         });
-        trace_span!("process deleted files").in_scope(|| {
+        trace_span!("process deleted tree entries").in_scope(|| {
+            is_dirty |= !deleted_files.is_empty();
             for file in &deleted_files {
-                is_dirty = true;
-                file_states.remove(file);
                 tree_builder.set_or_remove(file.clone(), Merge::absent());
+            }
+        });
+        trace_span!("process file states").in_scope(|| {
+            let changed_file_states = file_states_rx.iter().collect_vec();
+            is_dirty |= !changed_file_states.is_empty();
+            let file_states = self.file_states.make_mut();
+            file_states.extend(changed_file_states);
+            for file in &deleted_files {
+                file_states.remove(file);
             }
         });
         trace_span!("write tree").in_scope(|| {
@@ -1205,6 +1207,8 @@ impl TreeState {
             removed_files: 0,
             skipped_files: 0,
         };
+        let mut changed_file_states = Vec::new();
+        let mut deleted_files = HashSet::new();
         let mut diff_stream = old_tree.diff_stream(new_tree, matcher);
         while let Some((path, diff)) = diff_stream.next().await {
             let (before, after) = diff?;
@@ -1221,18 +1225,14 @@ impl TreeState {
                 fs::remove_file(&disk_path).ok();
             }
             if before.is_absent() && disk_path.exists() {
-                self.file_states
-                    .make_mut()
-                    .insert(path, FileState::placeholder());
+                changed_file_states.push((path, FileState::placeholder()));
                 stats.skipped_files += 1;
                 continue;
             }
             if after.is_present() {
                 let skip = create_parent_dirs(&self.working_copy_path, &path)?;
                 if skip {
-                    self.file_states
-                        .make_mut()
-                        .insert(path, FileState::placeholder());
+                    changed_file_states.push((path, FileState::placeholder()));
                     stats.skipped_files += 1;
                     continue;
                 }
@@ -1248,7 +1248,7 @@ impl TreeState {
                         }
                         parent_dir = parent_dir.parent().unwrap();
                     }
-                    self.file_states.make_mut().remove(&path);
+                    deleted_files.insert(path);
                     continue;
                 }
                 MaterializedTreeValue::File {
@@ -1270,7 +1270,12 @@ impl TreeState {
                     self.write_conflict(&disk_path, contents)?
                 }
             };
-            self.file_states.make_mut().insert(path, file_state);
+            changed_file_states.push((path, file_state));
+        }
+        let file_states = self.file_states.make_mut();
+        file_states.extend(changed_file_states);
+        for file in &deleted_files {
+            file_states.remove(file);
         }
         Ok(stats)
     }
@@ -1284,11 +1289,13 @@ impl TreeState {
         })?;
 
         let matcher = self.sparse_matcher();
+        let mut changed_file_states = Vec::new();
+        let mut deleted_files = HashSet::new();
         let mut diff_stream = old_tree.diff_stream(new_tree, matcher.as_ref());
         while let Some((path, diff)) = diff_stream.next().await {
             let (_before, after) = diff?;
             if after.is_absent() {
-                self.file_states.make_mut().remove(&path);
+                deleted_files.insert(path);
             } else {
                 let file_type = match after.into_resolved() {
                     Ok(value) => match value.unwrap() {
@@ -1320,8 +1327,13 @@ impl TreeState {
                     mtime: MillisSinceEpoch(0),
                     size: 0,
                 };
-                self.file_states.make_mut().insert(path.clone(), file_state);
+                changed_file_states.push((path, file_state));
             }
+        }
+        let file_states = self.file_states.make_mut();
+        file_states.extend(changed_file_states);
+        for file in &deleted_files {
+            file_states.remove(file);
         }
         self.tree_id = new_tree.id();
         Ok(())
