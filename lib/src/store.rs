@@ -138,7 +138,7 @@ impl Store {
     pub fn write_commit(
         self: &Arc<Self>,
         commit: backend::Commit,
-        sign_with: Option<SigningFn>,
+        sign_with: Option<&mut SigningFn>,
     ) -> BackendResult<Commit> {
         assert!(!commit.parents.is_empty());
 

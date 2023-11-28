@@ -267,7 +267,7 @@ impl Backend for LocalBackend {
     fn write_commit(
         &self,
         mut commit: Commit,
-        sign_with: Option<SigningFn>,
+        sign_with: Option<&mut SigningFn>,
     ) -> BackendResult<(CommitId, Commit)> {
         assert!(commit.secure_sig.is_none(), "commit.secure_sig was set");
 
@@ -279,7 +279,7 @@ impl Backend for LocalBackend {
         let temp_file = NamedTempFile::new_in(&self.path).map_err(to_other_err)?;
 
         let mut proto = commit_to_proto(&commit);
-        if let Some(mut sign) = sign_with {
+        if let Some(sign) = sign_with {
             let data = proto.encode_to_vec();
             let sig = sign(&data).map_err(to_other_err)?;
             proto.secure_sig = Some(sig.clone());

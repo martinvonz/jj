@@ -148,7 +148,7 @@ content_hash! {
     }
 }
 
-pub type SigningFn = Box<dyn FnMut(&[u8]) -> SignResult<Vec<u8>>>;
+pub type SigningFn<'a> = dyn FnMut(&[u8]) -> SignResult<Vec<u8>> + 'a;
 
 /// Identifies a single legacy tree, which may have path-level conflicts, or a
 /// merge of multiple trees, where the individual trees do not have conflicts.
@@ -531,6 +531,6 @@ pub trait Backend: Send + Sync + Debug {
     fn write_commit(
         &self,
         contents: Commit,
-        sign_with: Option<SigningFn>,
+        sign_with: Option<&mut SigningFn>,
     ) -> BackendResult<(CommitId, Commit)>;
 }
