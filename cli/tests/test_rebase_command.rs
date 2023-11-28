@@ -658,13 +658,143 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     ◉
     "###);
 
+    // ===================== rebase -s tests =================
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["rebase", "-s", "base", "-d", "root()"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 4 commits
+    Working copy now at: vruxwmqv bda47523 c | c
+    Parent commit      : royxmykx caeef796 b | b
+    "###);
+    // This should be a no-op, but isn't.
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  c
+    ◉  b
+    ◉  a
+    ◉  base
+    ◉
+    "###);
+
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s", "a", "-d", "base"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 3 commits
+    Working copy now at: vruxwmqv 2ce41b33 c | c
+    Parent commit      : royxmykx f16045cb b | b
+    "###);
+    // This should be a no-op
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  c
+    ◉  b
+    ◉  a
+    ◉  base
+    ◉
+    "###);
+
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s", "a", "-d", "root()"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 3 commits
+    Working copy now at: vruxwmqv 2b10f149 c | c
+    Parent commit      : royxmykx 3b233bd8 b | b
+    "###);
+    // This works as expected
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  c
+    ◉    b
+    ├─╮
+    │ ◉  a
+    ◉ │  base
+    ├─╯
+    ◉
+    "###);
+
+    // ===================== rebase -b tests =================
+    // ====== Reminder of the setup =========
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  c
+    ◉    b
+    ├─╮
+    │ ◉  a
+    ├─╯
+    ◉  base
+    ◉
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "c", "-d", "base"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 3 commits
+    Working copy now at: vruxwmqv 4c7dc623 c | c
+    Parent commit      : royxmykx 5ea34bfd b | b
+    "###);
+    // This should be a no-op
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  c
+    ◉  b
+    ◉  a
+    ◉  base
+    ◉
+    "###);
+
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "c", "-d", "a"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 2 commits
+    Working copy now at: vruxwmqv 2fc4ef73 c | c
+    Parent commit      : royxmykx 9912ef4b b | b
+    "###);
+    // I'm unsure what the user would expect here, probably a no-op
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  c
+    ◉  b
+    ◉  a
+    ◉  base
+    ◉
+    "###);
+
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "a", "-d", "root()"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 4 commits
+    Working copy now at: vruxwmqv 0a026b90 c | c
+    Parent commit      : royxmykx d1b575a5 b | b
+    "###);
+    // I'm unsure what the user would expect here, probably a no-op
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  c
+    ◉  b
+    ◉  a
+    ◉  base
+    ◉
+    "###);
+
+    // ===================== rebase -r tests =================
+    // ====== Reminder of the setup =========
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  c
+    ◉    b
+    ├─╮
+    │ ◉  a
+    ├─╯
+    ◉  base
+    ◉
+    "###);
+
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "base", "-d", "root()"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 4 descendant commits onto parent of rebased commit
-    Working copy now at: vruxwmqv 1fdab507 c | c
-    Parent commit      : royxmykx 4d413a39 b | b
+    Working copy now at: vruxwmqv 57aaa944 c | c
+    Parent commit      : royxmykx c8495a71 b | b
     Added 0 files, modified 0 files, removed 1 files
     "###);
     // The user would expect unsimplified ancestry here.
@@ -779,8 +909,8 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 4 descendant commits onto parent of rebased commit
-    Working copy now at: vruxwmqv ea69166f c | c
-    Parent commit      : royxmykx ee9e59c1 b | b
+    Working copy now at: vruxwmqv 0b91d0eb c | c
+    Parent commit      : royxmykx fb944989 b | b
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -808,8 +938,8 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 2 descendant commits onto parent of rebased commit
-    Working copy now at: vruxwmqv 3f36363f c | c
-    Parent commit      : royxmykx a969d119 b | b
+    Working copy now at: vruxwmqv f366e099 c | c
+    Parent commit      : royxmykx bfc7c538 b | b
     Added 0 files, modified 0 files, removed 1 files
     "###);
     // In this case, it is unclear whether the user would always prefer unsimplified
@@ -828,7 +958,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
-    Working copy now at: vruxwmqv 28f17d8e c | c
+    Working copy now at: vruxwmqv 4d1fd267 c | c
     Parent commit      : zsuskuln 2c5b7858 a | a
     Added 0 files, modified 0 files, removed 1 files
     "###);
@@ -857,7 +987,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
-    Working copy now at: vruxwmqv ee203f6d c | c
+    Working copy now at: vruxwmqv 0bacac66 c | c
     Parent commit      : zsuskuln 2c5b7858 a | a
     Added 0 files, modified 0 files, removed 1 files
     "###);
@@ -875,7 +1005,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "c", "-d", "a"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: vruxwmqv 5e5eea65 c | c
+    Working copy now at: vruxwmqv e64d4b0d c | c
     Parent commit      : zsuskuln 2c5b7858 a | a
     Added 0 files, modified 0 files, removed 1 files
     "###);
