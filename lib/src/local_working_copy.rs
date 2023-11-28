@@ -17,10 +17,9 @@
 use std::any::Any;
 use std::collections::{BTreeMap, HashSet};
 use std::error::Error;
-use std::fs;
 use std::fs::{File, Metadata, OpenOptions};
 use std::io::{Read, Write};
-use std::ops::Bound;
+use std::ops::{Bound, Range};
 #[cfg(unix)]
 use std::os::unix::fs::symlink;
 #[cfg(unix)]
@@ -29,9 +28,10 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Sender};
 use std::sync::{Arc, OnceLock};
 use std::time::UNIX_EPOCH;
+use std::{fs, iter, mem, slice};
 
 use futures::StreamExt;
-use itertools::Itertools;
+use itertools::{EitherOrBoth, Itertools};
 use once_cell::unsync::OnceCell;
 use pollster::FutureExt;
 use prost::Message;
@@ -134,6 +134,150 @@ impl FileState {
             mtime: MillisSinceEpoch(0),
             size: 0,
         }
+    }
+}
+
+/// Owned map of path to file states, backed by proto data.
+#[derive(Clone, Debug)]
+struct FileStatesMap {
+    data: Vec<crate::protos::working_copy::FileStateEntry>,
+}
+
+#[allow(unused)] // TODO
+impl FileStatesMap {
+    fn new() -> Self {
+        FileStatesMap { data: Vec::new() }
+    }
+
+    // TODO: skip sorting if the data is known to be sorted?
+    fn from_proto_unsorted(mut data: Vec<crate::protos::working_copy::FileStateEntry>) -> Self {
+        data.sort_unstable_by(|entry1, entry2| {
+            let path1 = RepoPath::from_internal_string(&entry1.path);
+            let path2 = RepoPath::from_internal_string(&entry2.path);
+            path1.cmp(path2)
+        });
+        debug_assert!(is_file_state_entries_proto_unique_and_sorted(&data));
+        FileStatesMap { data }
+    }
+
+    /// Merges changed and deleted entries into this map. The changed entries
+    /// must be sorted by path.
+    fn merge_in(
+        &mut self,
+        changed_file_states: Vec<(RepoPathBuf, FileState)>,
+        deleted_files: &HashSet<RepoPathBuf>,
+    ) {
+        if changed_file_states.is_empty() && deleted_files.is_empty() {
+            return;
+        }
+        debug_assert!(
+            changed_file_states
+                .iter()
+                .tuple_windows()
+                .all(|((path1, _), (path2, _))| path1 < path2),
+            "changed_file_states must be sorted and have no duplicates"
+        );
+        self.data = itertools::merge_join_by(
+            mem::take(&mut self.data),
+            changed_file_states,
+            |old_entry, (changed_path, _)| {
+                RepoPath::from_internal_string(&old_entry.path).cmp(changed_path)
+            },
+        )
+        .filter_map(|diff| match diff {
+            EitherOrBoth::Both(_, (path, state)) | EitherOrBoth::Right((path, state)) => {
+                debug_assert!(!deleted_files.contains(&path));
+                Some(file_state_entry_to_proto(path, &state))
+            }
+            EitherOrBoth::Left(entry) => {
+                let present = !deleted_files.contains(RepoPath::from_internal_string(&entry.path));
+                present.then_some(entry)
+            }
+        })
+        .collect();
+    }
+
+    /// Returns read-only map containing all file states.
+    fn all(&self) -> FileStates<'_> {
+        FileStates::from_sorted(&self.data)
+    }
+}
+
+/// Read-only map of path to file states, possibly filtered by path prefix.
+#[derive(Clone, Copy, Debug)]
+pub struct FileStates<'a> {
+    data: &'a [crate::protos::working_copy::FileStateEntry],
+}
+
+#[allow(unused)] // TODO
+impl<'a> FileStates<'a> {
+    fn from_sorted(data: &'a [crate::protos::working_copy::FileStateEntry]) -> Self {
+        debug_assert!(is_file_state_entries_proto_unique_and_sorted(data));
+        FileStates { data }
+    }
+
+    /// Returns file states under the given directory path.
+    pub fn prefixed(&self, base: &RepoPath) -> Self {
+        let range = self.prefixed_range(base);
+        Self::from_sorted(&self.data[range])
+    }
+
+    /// Returns true if this contains no entries.
+    pub fn is_empty(&self) -> bool {
+        self.data.is_empty()
+    }
+
+    /// Returns true if the given `path` exists.
+    pub fn contains_path(&self, path: &RepoPath) -> bool {
+        self.exact_position(path).is_some()
+    }
+
+    /// Returns file state for the given `path`.
+    pub fn get(&self, path: &RepoPath) -> Option<FileState> {
+        let pos = self.exact_position(path)?;
+        let (_, state) = file_state_entry_from_proto(&self.data[pos]);
+        Some(state)
+    }
+
+    fn exact_position(&self, path: &RepoPath) -> Option<usize> {
+        self.data
+            .binary_search_by(|entry| RepoPath::from_internal_string(&entry.path).cmp(path))
+            .ok()
+    }
+
+    fn prefixed_range(&self, base: &RepoPath) -> Range<usize> {
+        let start = self
+            .data
+            .partition_point(|entry| RepoPath::from_internal_string(&entry.path) < base);
+        let len = self.data[start..]
+            .partition_point(|entry| RepoPath::from_internal_string(&entry.path).starts_with(base));
+        start..(start + len)
+    }
+
+    /// Iterates file state entries sorted by path.
+    pub fn iter(&self) -> FileStatesIter<'a> {
+        self.data.iter().map(file_state_entry_from_proto)
+    }
+
+    /// Iterates sorted file paths.
+    pub fn paths(&self) -> impl ExactSizeIterator<Item = &'a RepoPath> {
+        self.data
+            .iter()
+            .map(|entry| RepoPath::from_internal_string(&entry.path))
+    }
+}
+
+type FileStatesIter<'a> = iter::Map<
+    slice::Iter<'a, crate::protos::working_copy::FileStateEntry>,
+    fn(&crate::protos::working_copy::FileStateEntry) -> (&RepoPath, FileState),
+>;
+
+impl<'a> IntoIterator for FileStates<'a> {
+    type Item = (&'a RepoPath, FileState);
+    type IntoIter = FileStatesIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }
 
@@ -242,6 +386,32 @@ fn file_state_to_proto(file_state: &FileState) -> crate::protos::working_copy::F
     proto.mtime_millis_since_epoch = file_state.mtime.0;
     proto.size = file_state.size;
     proto
+}
+
+fn file_state_entry_from_proto(
+    proto: &crate::protos::working_copy::FileStateEntry,
+) -> (&RepoPath, FileState) {
+    let path = RepoPath::from_internal_string(&proto.path);
+    (path, file_state_from_proto(proto.state.as_ref().unwrap()))
+}
+
+fn file_state_entry_to_proto(
+    path: RepoPathBuf,
+    state: &FileState,
+) -> crate::protos::working_copy::FileStateEntry {
+    crate::protos::working_copy::FileStateEntry {
+        path: path.into_internal_string(),
+        state: Some(file_state_to_proto(state)),
+    }
+}
+
+fn is_file_state_entries_proto_unique_and_sorted(
+    data: &[crate::protos::working_copy::FileStateEntry],
+) -> bool {
+    data.iter()
+        .map(|entry| RepoPath::from_internal_string(&entry.path))
+        .tuple_windows()
+        .all(|(path1, path2)| path1 < path2)
 }
 
 #[instrument(skip(proto))]
@@ -1683,5 +1853,128 @@ impl LockedLocalWorkingCopy {
             .reset_watchman();
         self.tree_state_dirty = true;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use maplit::hashset;
+
+    use super::*;
+
+    fn repo_path(value: &str) -> &RepoPath {
+        RepoPath::from_internal_string(value)
+    }
+
+    #[test]
+    fn test_file_states_merge() {
+        let new_state = |size| FileState {
+            file_type: FileType::Normal {
+                executable: FileExecutableFlag::default(),
+            },
+            mtime: MillisSinceEpoch(0),
+            size,
+        };
+        let new_static_entry = |path: &'static str, size| (repo_path(path), new_state(size));
+        let new_owned_entry = |path: &str, size| (repo_path(path).to_owned(), new_state(size));
+        let new_proto_entry = |path: &str, size| {
+            file_state_entry_to_proto(repo_path(path).to_owned(), &new_state(size))
+        };
+        let data = vec![
+            new_proto_entry("aa", 0),
+            new_proto_entry("b#", 4), // '#' < '/'
+            new_proto_entry("b/c", 1),
+            new_proto_entry("b/d/e", 2),
+            new_proto_entry("b/e", 3),
+            new_proto_entry("bc", 5),
+        ];
+        let mut file_states = FileStatesMap::from_proto_unsorted(data);
+
+        let changed_file_states = vec![
+            new_owned_entry("aa", 10),    // change
+            new_owned_entry("b/d/f", 11), // add
+            new_owned_entry("b/e", 12),   // change
+            new_owned_entry("c", 13),     // add
+        ];
+        let deleted_files = hashset! {
+            repo_path("b/c").to_owned(),
+            repo_path("b#").to_owned(),
+        };
+        file_states.merge_in(changed_file_states, &deleted_files);
+        assert_eq!(
+            file_states.all().iter().collect_vec(),
+            vec![
+                new_static_entry("aa", 10),
+                new_static_entry("b/d/e", 2),
+                new_static_entry("b/d/f", 11),
+                new_static_entry("b/e", 12),
+                new_static_entry("bc", 5),
+                new_static_entry("c", 13),
+            ],
+        );
+    }
+
+    #[test]
+    fn test_file_states_lookup() {
+        let new_state = |size| FileState {
+            file_type: FileType::Normal {
+                executable: FileExecutableFlag::default(),
+            },
+            mtime: MillisSinceEpoch(0),
+            size,
+        };
+        let new_proto_entry = |path: &str, size| {
+            file_state_entry_to_proto(repo_path(path).to_owned(), &new_state(size))
+        };
+        let data = vec![
+            new_proto_entry("aa", 0),
+            new_proto_entry("b/c", 1),
+            new_proto_entry("b/d/e", 2),
+            new_proto_entry("b/e", 3),
+            new_proto_entry("b#", 4), // '#' < '/'
+            new_proto_entry("bc", 5),
+        ];
+        let file_states = FileStates::from_sorted(&data);
+
+        assert_eq!(
+            file_states.prefixed(repo_path("")).paths().collect_vec(),
+            ["aa", "b/c", "b/d/e", "b/e", "b#", "bc"].map(repo_path)
+        );
+        assert!(file_states.prefixed(repo_path("a")).is_empty());
+        assert_eq!(
+            file_states.prefixed(repo_path("aa")).paths().collect_vec(),
+            ["aa"].map(repo_path)
+        );
+        assert_eq!(
+            file_states.prefixed(repo_path("b")).paths().collect_vec(),
+            ["b/c", "b/d/e", "b/e"].map(repo_path)
+        );
+        assert_eq!(
+            file_states.prefixed(repo_path("b/d")).paths().collect_vec(),
+            ["b/d/e"].map(repo_path)
+        );
+        assert_eq!(
+            file_states.prefixed(repo_path("b#")).paths().collect_vec(),
+            ["b#"].map(repo_path)
+        );
+        assert_eq!(
+            file_states.prefixed(repo_path("bc")).paths().collect_vec(),
+            ["bc"].map(repo_path)
+        );
+        assert!(file_states.prefixed(repo_path("z")).is_empty());
+
+        assert!(!file_states.contains_path(repo_path("a")));
+        assert!(file_states.contains_path(repo_path("aa")));
+        assert!(file_states.contains_path(repo_path("b/d/e")));
+        assert!(!file_states.contains_path(repo_path("b/d")));
+        assert!(file_states.contains_path(repo_path("b#")));
+        assert!(file_states.contains_path(repo_path("bc")));
+        assert!(!file_states.contains_path(repo_path("z")));
+
+        assert_eq!(file_states.get(repo_path("a")), None);
+        assert_eq!(file_states.get(repo_path("aa")), Some(new_state(0)));
+        assert_eq!(file_states.get(repo_path("b/d/e")), Some(new_state(2)));
+        assert_eq!(file_states.get(repo_path("bc")), Some(new_state(5)));
+        assert_eq!(file_states.get(repo_path("z")), None);
     }
 }

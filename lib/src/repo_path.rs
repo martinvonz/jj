@@ -245,6 +245,11 @@ impl RepoPathBuf {
         Self::from_relative_path(repo_relative_path)
             .ok_or_else(|| FsPathParseError::InputNotInRepo(input.to_owned()))
     }
+
+    /// Consumes this and returns the underlying string representation.
+    pub fn into_internal_string(self) -> String {
+        self.value
+    }
 }
 
 impl RepoPath {
