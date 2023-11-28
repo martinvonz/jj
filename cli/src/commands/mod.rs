@@ -45,6 +45,7 @@ mod resolve;
 mod restore;
 mod run;
 mod show;
+mod sign;
 mod sparse;
 mod split;
 mod squash;
@@ -122,6 +123,7 @@ enum Command {
     // TODO: Flesh out.
     Run(run::RunArgs),
     Show(show::ShowArgs),
+    Sign(sign::SignArgs),
     #[command(subcommand)]
     Sparse(sparse::SparseArgs),
     Split(split::SplitArgs),
@@ -162,6 +164,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Cat(sub_args) => cat::cmd_cat(ui, command_helper, sub_args),
         Command::Diff(sub_args) => diff::cmd_diff(ui, command_helper, sub_args),
         Command::Show(sub_args) => show::cmd_show(ui, command_helper, sub_args),
+        Command::Sign(sub_args) => sign::cmd_sign(ui, command_helper, sub_args),
         Command::Status(sub_args) => status::cmd_status(ui, command_helper, sub_args),
         Command::Log(sub_args) => log::cmd_log(ui, command_helper, sub_args),
         Command::Interdiff(sub_args) => interdiff::cmd_interdiff(ui, command_helper, sub_args),

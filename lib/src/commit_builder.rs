@@ -170,8 +170,8 @@ impl CommitBuilder<'_> {
         self
     }
 
-    pub fn set_sign_key(mut self, sign_key: Option<String>) -> Self {
-        self.sign_settings.key = sign_key;
+    pub fn override_sign_key(mut self, sign_key: Option<String>) -> Self {
+        self.sign_settings.key = sign_key.or(self.sign_settings.key);
         self
     }
 
