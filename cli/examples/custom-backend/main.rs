@@ -166,7 +166,7 @@ impl Backend for JitBackend {
     fn write_commit(
         &self,
         contents: Commit,
-        sign_with: Option<SigningFn>,
+        sign_with: Option<&mut SigningFn>,
     ) -> BackendResult<(CommitId, Commit)> {
         self.inner.write_commit(contents, sign_with)
     }

@@ -904,7 +904,7 @@ impl Backend for GitBackend {
     fn write_commit(
         &self,
         mut contents: Commit,
-        mut sign_with: Option<SigningFn>,
+        mut sign_with: Option<&mut SigningFn>,
     ) -> BackendResult<(CommitId, Commit)> {
         assert!(contents.secure_sig.is_none(), "commit.secure_sig was set");
 
@@ -1668,12 +1668,14 @@ mod tests {
             secure_sig: None,
         };
 
-        let signer = Box::new(|data: &_| {
+        let mut signer = |data: &_| {
             let hash: String = blake2b_hash(data).encode_hex();
             Ok(format!("test sig\n\n\nhash={hash}").into_bytes())
-        });
+        };
 
-        let (id, commit) = backend.write_commit(commit, Some(signer)).unwrap();
+        let (id, commit) = backend
+            .write_commit(commit, Some(&mut signer as &mut SigningFn))
+            .unwrap();
 
         let git_repo = backend.git_repo();
         let obj = git_repo.find_object(id.as_bytes()).unwrap();

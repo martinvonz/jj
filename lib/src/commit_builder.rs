@@ -183,14 +183,13 @@ impl CommitBuilder<'_> {
             }
         }
 
-        let sign_settings = self.sign_settings;
+        let sign_settings = &self.sign_settings;
         let store = self.mut_repo.store();
 
-        let signing_fn = (store.signer().can_sign() && sign_settings.should_sign(&self.commit))
-            .then(|| {
+        let mut signing_fn = (store.signer().can_sign() && sign_settings.should_sign(&self.commit))
+            .then(|| -> Box<SigningFn> {
                 let store = store.clone();
                 Box::new(move |data: &_| store.signer().sign(data, sign_settings.key.as_deref()))
-                    as SigningFn
             });
 
         // Commit backend doesn't use secure_sig for writing and enforces it with an
@@ -198,7 +197,9 @@ impl CommitBuilder<'_> {
         // if we're rewriting a signed commit
         self.commit.secure_sig = None;
 
-        let commit = self.mut_repo.write_commit(self.commit, signing_fn)?;
+        let commit = self
+            .mut_repo
+            .write_commit(self.commit, signing_fn.as_deref_mut())?;
         if let Some(rewrite_source_id) = rewrite_source_id {
             self.mut_repo
                 .record_rewritten_commit(rewrite_source_id, commit.id().clone())

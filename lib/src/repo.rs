@@ -801,7 +801,7 @@ impl MutableRepo {
     pub fn write_commit(
         &mut self,
         commit: backend::Commit,
-        sign_with: Option<SigningFn>,
+        sign_with: Option<&mut SigningFn>,
     ) -> BackendResult<Commit> {
         let commit = self.store().write_commit(commit, sign_with)?;
         self.add_head(&commit);

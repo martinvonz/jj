@@ -276,7 +276,7 @@ impl Backend for TestBackend {
     fn write_commit(
         &self,
         mut contents: Commit,
-        mut sign_with: Option<SigningFn>,
+        mut sign_with: Option<&mut SigningFn>,
     ) -> BackendResult<(CommitId, Commit)> {
         assert!(contents.secure_sig.is_none(), "commit.secure_sig was set");
 
