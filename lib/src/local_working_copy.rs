@@ -467,10 +467,11 @@ struct FsmonitorMatcher {
     watchman_clock: Option<crate::protos::working_copy::WatchmanClock>,
 }
 
-struct DirectoryToVisit {
+struct DirectoryToVisit<'a> {
     dir: RepoPathBuf,
     disk_dir: PathBuf,
     git_ignore: Arc<GitIgnoreFile>,
+    file_states: FileStates<'a>,
 }
 
 #[derive(Debug, Error)]
@@ -749,6 +750,7 @@ impl TreeState {
                 dir: RepoPathBuf::root(),
                 disk_dir: self.working_copy_path.clone(),
                 git_ignore: base_ignores,
+                file_states: self.file_states.all(),
             };
             self.visit_directory(
                 &matcher,
@@ -837,14 +839,13 @@ impl TreeState {
             dir,
             disk_dir,
             git_ignore,
+            file_states,
         } = directory_to_visit;
 
         if matcher.visit(&dir).is_nothing() {
             return Ok(());
         }
 
-        // TODO: maybe file_states can be narrowed by the dir path?
-        let file_states = self.file_states.all();
         let git_ignore =
             git_ignore.chain_with_file(&dir.to_internal_dir_string(), disk_dir.join(".gitignore"));
         let dir_entries = disk_dir
@@ -881,11 +882,11 @@ impl TreeState {
                 }
 
                 if file_type.is_dir() {
+                    let file_states = file_states.prefixed(&path);
                     if git_ignore.matches(&path.to_internal_dir_string()) {
                         // If the whole directory is ignored, visit only paths we're already
                         // tracking.
-                        let tracked_paths = file_states.prefixed(&path);
-                        for (tracked_path, current_file_state) in tracked_paths {
+                        for (tracked_path, current_file_state) in file_states {
                             if !matcher.matches(tracked_path) {
                                 continue;
                             }
@@ -931,6 +932,7 @@ impl TreeState {
                             dir: path,
                             disk_dir: entry.path(),
                             git_ignore: git_ignore.clone(),
+                            file_states,
                         };
                         self.visit_directory(
                             matcher,
