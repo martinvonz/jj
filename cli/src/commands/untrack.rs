@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::Write;
-
 use itertools::Itertools;
 use jj_lib::merge::Merge;
 use jj_lib::merged_tree::MergedTreeBuilder;
@@ -21,7 +19,7 @@ use jj_lib::repo::Repo;
 use jj_lib::working_copy::SnapshotOptions;
 use tracing::instrument;
 
-use crate::cli_util::CommandHelper;
+use crate::cli_util::{print_rebase_info, CommandHelper};
 use crate::command_error::{user_error_with_hint, CommandError};
 use crate::ui::Ui;
 
@@ -98,10 +96,8 @@ Make sure they're ignored, then try again.",
             locked_ws.locked_wc().reset(&new_commit)?;
         }
     }
-    let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
-    if num_rebased > 0 {
-        writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
-    }
+    let rebase_counts = tx.mut_repo().rebase_descendants(command.settings())?;
+    print_rebase_info(ui, &rebase_counts)?;
     let repo = tx.commit("untrack paths");
     locked_ws.finish(repo.op_id().clone())?;
     Ok(())

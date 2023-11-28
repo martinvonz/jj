@@ -273,6 +273,7 @@ pub(crate) struct DescendantRebaser<'settings, 'repo> {
     abandoned: HashSet<CommitId>,
     new_commits: HashSet<CommitId>,
     rebased: HashMap<CommitId, CommitId>,
+    dropped_signatures: HashSet<CommitId>,
     // Names of branches where local target includes the commit id in the key.
     branches: HashMap<CommitId, HashSet<String>>,
     // Parents of rebased/abandoned commit that should become new heads once their descendants
@@ -380,6 +381,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             abandoned,
             new_commits,
             rebased: Default::default(),
+            dropped_signatures: Default::default(),
             branches,
             heads_to_add,
             heads_to_remove: Default::default(),
@@ -397,6 +399,12 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     /// `rebase_descendants`.
     pub fn into_map(self) -> HashMap<CommitId, CommitId> {
         self.rebased
+    }
+
+    /// Returns a set of commits whose cryptographic signatures were dropped
+    /// during the rebase.
+    pub fn dropped_signatures(&self) -> &HashSet<CommitId> {
+        &self.dropped_signatures
     }
 
     /// Panics if `parent_mapping` contains cycles
@@ -590,6 +598,9 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 parent
             }
         };
+        if old_commit.is_signed() && !new_commit.is_signed() {
+            self.dropped_signatures.insert(old_commit_id.clone());
+        }
         let previous_rebased_value = self
             .rebased
             .insert(old_commit_id.clone(), new_commit.id().clone());
