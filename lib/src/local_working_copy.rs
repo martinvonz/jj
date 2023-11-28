@@ -781,7 +781,8 @@ impl TreeState {
                     return Ok(());
                 }
                 let path = dir.join(RepoPathComponent::new(name));
-                if let Some(file_state) = file_states.get(&path) {
+                let maybe_current_file_state = file_states.get(&path);
+                if let Some(file_state) = maybe_current_file_state {
                     if file_state.file_type == FileType::GitSubmodule {
                         return Ok(());
                     }
@@ -856,7 +857,6 @@ impl TreeState {
                     if let Some(progress) = progress {
                         progress(&path);
                     }
-                    let maybe_current_file_state = file_states.get(&path);
                     if maybe_current_file_state.is_none()
                         && git_ignore.matches(path.as_internal_file_string())
                     {
