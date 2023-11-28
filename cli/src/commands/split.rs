@@ -148,7 +148,8 @@ don't make any changes, then the operation will be aborted.
     // descendants.
     tx.mut_repo()
         .set_rewritten_commit(commit.id().clone(), [second_commit.id().clone()]);
-    let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
+    let rebase_counts = tx.mut_repo().rebase_descendants(command.settings())?;
+    let num_rebased = rebase_counts.rebased;
     if num_rebased > 0 {
         writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
     }

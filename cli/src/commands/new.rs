@@ -23,7 +23,8 @@ use jj_lib::rewrite::{merge_commit_trees, rebase_commit};
 use tracing::instrument;
 
 use crate::cli_util::{
-    self, short_commit_hash, user_error, CommandError, CommandHelper, RevisionArg,
+    self, print_dropped_signatures, short_commit_hash, user_error, CommandError, CommandHelper,
+    RevisionArg,
 };
 use crate::ui::Ui;
 
@@ -104,6 +105,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
     let target_ids = target_commits.iter().map(|c| c.id().clone()).collect_vec();
     let mut tx = workspace_command.start_transaction();
     let mut num_rebased;
+    let mut dropped_signatures = 0;
     let new_commit;
     if args.insert_before {
         // Instead of having the new commit as a child of the changes given on the
@@ -146,12 +148,15 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             .write()?;
         num_rebased = target_ids.len();
         for child_commit in target_commits {
-            rebase_commit(
+            let rebased = rebase_commit(
                 command.settings(),
                 tx.mut_repo(),
                 &child_commit,
                 &[new_commit.clone()],
             )?;
+            if child_commit.is_signed() && !rebased.is_signed() {
+                dropped_signatures += 1;
+            }
         }
     } else {
         let old_parents = RevsetExpression::commits(target_ids.clone());
@@ -186,15 +191,20 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
                 .commits(tx.base_repo().store())
                 .try_collect()?;
             new_parent_commits.push(new_commit.clone());
-            rebase_commit(
+            let rebased = rebase_commit(
                 command.settings(),
                 tx.mut_repo(),
                 &child_commit,
                 &new_parent_commits,
             )?;
+            if child_commit.is_signed() && !rebased.is_signed() {
+                dropped_signatures += 1;
+            }
         }
     }
-    num_rebased += tx.mut_repo().rebase_descendants(command.settings())?;
+    let rebase_counts = tx.mut_repo().rebase_descendants(command.settings())?;
+    num_rebased += rebase_counts.rebased;
+    dropped_signatures += rebase_counts.dropped_signatures;
     if args.no_edit {
         write!(ui.stderr(), "Created new commit ")?;
         tx.write_commit_summary(ui.stderr_formatter().as_mut(), &new_commit)?;
@@ -206,6 +216,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
     if num_rebased > 0 {
         writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
     }
+    print_dropped_signatures(ui, dropped_signatures)?;
     tx.finish(ui, "new empty commit")?;
     Ok(())
 }

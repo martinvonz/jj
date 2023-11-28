@@ -29,8 +29,9 @@ use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
 use crate::cli_util::{
-    self, resolve_multiple_nonempty_revsets_default_single, short_commit_hash, user_error,
-    CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
+    self, print_dropped_signatures, resolve_multiple_nonempty_revsets_default_single,
+    short_commit_hash, user_error, CommandError, CommandHelper, RevisionArg,
+    WorkspaceCommandHelper,
 };
 use crate::ui::Ui;
 
@@ -291,18 +292,24 @@ fn rebase_descendants(
     let mut tx = workspace_command.start_transaction();
     // `rebase_descendants` takes care of sorting in reverse topological order, so
     // no need to do it here.
+    let mut dropped_signatures = 0;
     for old_commit in old_commits {
-        rebase_commit_with_options(
+        let rebased = rebase_commit_with_options(
             settings,
             tx.mut_repo(),
             old_commit,
             new_parents,
             &rebase_options,
         )?;
+        if old_commit.is_signed() && !rebased.is_signed() {
+            dropped_signatures += 1;
+        }
     }
-    let num_rebased = old_commits.len()
-        + tx.mut_repo()
-            .rebase_descendants_with_options(settings, rebase_options)?;
+    let counts = tx
+        .mut_repo()
+        .rebase_descendants_with_options(settings, rebase_options)?;
+    dropped_signatures += counts.dropped_signatures;
+    let num_rebased = old_commits.len() + counts.rebased;
     writeln!(ui.stderr(), "Rebased {num_rebased} commits")?;
     let tx_message = if old_commits.len() == 1 {
         format!(
@@ -312,6 +319,7 @@ fn rebase_descendants(
     } else {
         format!("rebase {} commits and their descendants", old_commits.len())
     };
+    print_dropped_signatures(ui, dropped_signatures)?;
     tx.finish(ui, tx_message)?;
     Ok(())
 }
@@ -388,6 +396,7 @@ fn rebase_revision(
     // Now, rebase the descendants of the children.
     // TODO(ilyagr): Consider making it possible for these descendants to become
     // emptied, like --skip_empty. This would require writing careful tests.
+
     rebased_commit_ids.extend(tx.mut_repo().rebase_descendants_return_map(settings)?);
     let num_rebased_descendants = rebased_commit_ids.len();
 
@@ -431,7 +440,7 @@ fn rebase_revision(
     // have any children; they have all been rebased and the originals have been
     // abandoned.
     rebase_commit(settings, tx.mut_repo(), &old_commit, &new_parents)?;
-    debug_assert_eq!(tx.mut_repo().rebase_descendants(settings)?, 0);
+    debug_assert_eq!(tx.mut_repo().rebase_descendants(settings)?.rebased, 0);
 
     if num_rebased_descendants > 0 {
         writeln!(
