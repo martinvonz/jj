@@ -67,6 +67,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj restore`↴](#jj-restore)
 * [`jj root`↴](#jj-root)
 * [`jj show`↴](#jj-show)
+* [`jj sign`↴](#jj-sign)
 * [`jj sparse`↴](#jj-sparse)
 * [`jj sparse list`↴](#jj-sparse-list)
 * [`jj sparse set`↴](#jj-sparse-set)
@@ -131,6 +132,7 @@ repository.
 * `restore` — Restore paths from another revision
 * `root` — Show the current workspace root directory
 * `show` — Show commit description and changes in a revision
+* `sign` — Cryptographically sign a revision
 * `sparse` — Manage which paths from the working-copy commit are present in the working copy
 * `split` — Split a revision in two
 * `squash` — Move changes from a revision into its parent
@@ -1577,6 +1579,32 @@ Show commit description and changes in a revision
   Possible values: `true`, `false`
 
 * `--tool <TOOL>` — Generate diff by external command
+
+
+
+## `jj sign`
+
+Cryptographically sign a revision
+
+**Usage:** `jj sign [OPTIONS] [KEY]`
+
+###### **Arguments:**
+
+* `<KEY>` — What key to use, depends on the configured signing backend
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>` — What revision to sign
+
+  Default value: `@`
+* `-f`, `--force` — Sign a commit that is not authored by you or was already signed
+
+  Possible values: `true`, `false`
+
+* `-D`, `--drop` — Drop the signature, explicitly "un-signing" the commit
+
+  Possible values: `true`, `false`
+
 
 
 
