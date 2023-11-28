@@ -632,7 +632,8 @@ impl CommandHelper {
                         start_repo_transaction(&base_repo, &self.settings, &self.string_args);
                     for other_op_head in op_heads.into_iter().skip(1) {
                         tx.merge_operation(other_op_head)?;
-                        let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
+                        let rebase_counts = tx.mut_repo().rebase_descendants(&self.settings)?;
+                        let num_rebased = rebase_counts.rebased;
                         if num_rebased > 0 {
                             writeln!(
                                 ui.stderr(),
@@ -640,6 +641,7 @@ impl CommandHelper {
                                  by other operation"
                             )?;
                         }
+                        print_dropped_signatures(ui, rebase_counts.dropped_signatures)?;
                     }
                     Ok(tx
                         .write("resolve concurrent operations")
@@ -833,7 +835,8 @@ impl WorkspaceCommandHelper {
                 locked_ws.finish(self.user_repo.repo.op_id().clone())?;
             }
             _ => {
-                let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
+                let rebase_counts = tx.mut_repo().rebase_descendants(&self.settings)?;
+                let num_rebased = rebase_counts.rebased;
                 if num_rebased > 0 {
                     writeln!(
                         ui.stderr(),
@@ -841,6 +844,7 @@ impl WorkspaceCommandHelper {
                          git"
                     )?;
                 }
+                print_dropped_signatures(ui, rebase_counts.dropped_signatures)?;
                 self.finish_transaction(ui, tx, "import git refs")?;
             }
         }
@@ -1373,13 +1377,15 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             mut_repo.set_wc_commit(workspace_id, commit.id().clone())?;
 
             // Rebase descendants
-            let num_rebased = mut_repo.rebase_descendants(&self.settings)?;
+            let rebase_counts = mut_repo.rebase_descendants(&self.settings)?;
+            let num_rebased = rebase_counts.rebased;
             if num_rebased > 0 {
                 writeln!(
                     ui.stderr(),
                     "Rebased {num_rebased} descendant commits onto updated working copy"
                 )?;
             }
+            print_dropped_signatures(ui, rebase_counts.dropped_signatures)?;
 
             if self.working_copy_shared_with_git {
                 let failed_branches = git::export_refs(mut_repo)?;
@@ -1406,6 +1412,16 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             new_commit,
         )?;
         if Some(new_commit) != maybe_old_commit {
+            if let Some(old_commit) = maybe_old_commit {
+                if old_commit.is_signed() && !new_commit.is_signed() {
+                    writeln!(
+                        ui.warning(),
+                        "Working copy was signed, but that signature was dropped. You should \
+                         probably configure signing"
+                    )?;
+                }
+            }
+
             write!(ui.stderr(), "Working copy now at: ")?;
             ui.stderr_formatter().with_label("working_copy", |fmt| {
                 self.write_commit_summary(fmt, new_commit)
@@ -1439,10 +1455,12 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             writeln!(ui.stderr(), "Nothing changed.")?;
             return Ok(());
         }
-        let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
+        let rebase_counts = tx.mut_repo().rebase_descendants(&self.settings)?;
+        let num_rebased = rebase_counts.rebased;
         if num_rebased > 0 {
             writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
         }
+        print_dropped_signatures(ui, rebase_counts.dropped_signatures)?;
 
         let old_repo = tx.base_repo().clone();
 
@@ -2010,6 +2028,24 @@ another (e.g. `foo` and `foo/bar`). Try to rename the branches that failed to
 export or their "parent" branches."#,
             )?;
         }
+    }
+    Ok(())
+}
+
+pub fn check_dropped_signature(
+    ui: &Ui,
+    old_commit: &Commit,
+    rewritten: &Commit,
+) -> Result<(), std::io::Error> {
+    if old_commit.is_signed() && !rewritten.is_signed() {
+        writeln!(ui.warning(), "Dropped a commit signature")?;
+    }
+    Ok(())
+}
+
+pub fn print_dropped_signatures(ui: &Ui, num_dropped: usize) -> Result<(), std::io::Error> {
+    if num_dropped > 0 {
+        writeln!(ui.warning(), "Dropped {} commit signatures", num_dropped)?;
     }
     Ok(())
 }

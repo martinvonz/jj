@@ -878,13 +878,19 @@ impl MutableRepo {
         &mut self,
         settings: &UserSettings,
         options: RebaseOptions,
-    ) -> Result<usize, TreeMergeError> {
+    ) -> Result<RebaseCounts, TreeMergeError> {
         Ok(self
             .rebase_descendants_return_rebaser(settings, options)?
-            .map_or(0, |rebaser| rebaser.rebased().len()))
+            .map(|rebaser| {
+                RebaseCounts::new(rebaser.rebased().len(), rebaser.dropped_signatures().len())
+            })
+            .unwrap_or_default())
     }
 
-    pub fn rebase_descendants(&mut self, settings: &UserSettings) -> Result<usize, TreeMergeError> {
+    pub fn rebase_descendants(
+        &mut self,
+        settings: &UserSettings,
+    ) -> Result<RebaseCounts, TreeMergeError> {
         self.rebase_descendants_with_options(settings, Default::default())
     }
 
@@ -1343,6 +1349,23 @@ impl Repo for MutableRepo {
         let revset = RevsetExpression::all().evaluate_programmatic(self).unwrap();
         let change_id_index = revset.change_id_index();
         change_id_index.shortest_unique_prefix_len(target_id)
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct RebaseCounts {
+    /// Number of commits that were rebased.
+    pub rebased: usize,
+    /// Number of commits that had their cryptographic signatures dropped.
+    pub dropped_signatures: usize,
+}
+
+impl RebaseCounts {
+    pub fn new(rebased: usize, dropped_signatures: usize) -> Self {
+        Self {
+            rebased,
+            dropped_signatures,
+        }
     }
 }
 

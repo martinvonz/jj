@@ -19,7 +19,7 @@ use jj_lib::matchers::EverythingMatcher;
 use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
-use crate::cli_util::{CommandError, CommandHelper, RevisionArg};
+use crate::cli_util::{print_dropped_signatures, CommandError, CommandHelper, RevisionArg};
 use crate::ui::Ui;
 
 /// Touch up the content changes in a revision with a diff editor
@@ -102,13 +102,15 @@ don't make any changes, then the operation will be aborted.",
             .write()?;
         // rebase_descendants early; otherwise `new_commit` would always have
         // a conflicted change id at this point.
-        let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
+        let rebase_counts = tx.mut_repo().rebase_descendants(command.settings())?;
         write!(ui.stderr(), "Created ")?;
         tx.write_commit_summary(ui.stderr_formatter().as_mut(), &new_commit)?;
         writeln!(ui.stderr())?;
+        let num_rebased = rebase_counts.rebased;
         if num_rebased > 0 {
             writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
         }
+        print_dropped_signatures(ui, rebase_counts.dropped_signatures)?;
         tx.finish(ui, format!("edit commit {}", target_commit.id().hex()))?;
     }
     Ok(())

@@ -21,7 +21,9 @@ use jj_lib::repo::Repo;
 use jj_lib::working_copy::SnapshotOptions;
 use tracing::instrument;
 
-use crate::cli_util::{user_error_with_hint, CommandError, CommandHelper};
+use crate::cli_util::{
+    print_dropped_signatures, user_error_with_hint, CommandError, CommandHelper,
+};
 use crate::ui::Ui;
 
 /// Stop tracking specified paths in the working copy
@@ -97,10 +99,12 @@ Make sure they're ignored, then try again.",
         .rewrite_commit(command.settings(), &wc_commit)
         .set_tree_id(new_tree_id)
         .write()?;
-    let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
+    let rebase_counts = tx.mut_repo().rebase_descendants(command.settings())?;
+    let num_rebased = rebase_counts.rebased;
     if num_rebased > 0 {
         writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
     }
+    print_dropped_signatures(ui, rebase_counts.dropped_signatures)?;
     let repo = tx.commit("untrack paths");
     locked_ws.finish(repo.op_id().clone())?;
     Ok(())
