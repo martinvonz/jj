@@ -1580,7 +1580,63 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             }
         }
 
-        // TODO: Hint about doing `jj new <first commit with conflicts>`.
+        // Hint that the user might want to `jj new` to the first conflict commit to
+        // resolve conflicts. Only show the hints if there were any new or resolved
+        // conflicts, and only if there are still some conflicts.
+        if !(added_conflict_commits.is_empty()
+            || resolved_conflicts_by_change_id.is_empty() && new_conflicts_by_change_id.is_empty())
+        {
+            // If the user just resolved some conflict and squashed them in, there won't be
+            // any new conflicts. Clarify to them that there are still some other conflicts
+            // to resolve. (We don't mention conflicts in commits that weren't affected by
+            // the operation, however.)
+            if new_conflicts_by_change_id.is_empty() {
+                writeln!(
+                    fmt,
+                    "There are still unresolved conflicts in rebased descendants.",
+                )?;
+            }
+            let root_conflicts_revset = RevsetExpression::commits(
+                added_conflict_commits
+                    .iter()
+                    .map(|commit| commit.id().clone())
+                    .collect(),
+            )
+            .roots()
+            .evaluate_programmatic(new_repo)?;
+
+            let root_conflict_commits: Vec<_> = root_conflicts_revset
+                .iter()
+                .commits(new_repo.store())
+                .try_collect()?;
+            if !root_conflict_commits.is_empty() {
+                fmt.push_label("hint")?;
+                if added_conflict_commits.len() == 1 {
+                    writeln!(fmt, "To resolve the conflicts, start by updating to it:",)?;
+                } else if root_conflict_commits.len() == 1 {
+                    writeln!(
+                        fmt,
+                        "To resolve the conflicts, start by updating to the first one:",
+                    )?;
+                } else {
+                    writeln!(
+                        fmt,
+                        "To resolve the conflicts, start by updating to one of the first ones:",
+                    )?;
+                }
+                for commit in root_conflict_commits {
+                    writeln!(fmt, "  jj new {}", short_change_hash(commit.change_id()))?;
+                }
+                writeln!(
+                    fmt,
+                    r#"Then use `jj resolve`, or edit the conflict markers in the file directly.
+Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+Then run `jj squash` to move the resolution into the conflicted commit."#,
+                )?;
+                fmt.pop_label()?;
+            }
+        }
+
         Ok(())
     }
 }
