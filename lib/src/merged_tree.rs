@@ -453,6 +453,17 @@ fn merged_tree_basenames<'a>(
     }
 }
 
+fn merged_tree_entry_diff<'a>(
+    before: &'a MergedTree,
+    after: &'a MergedTree,
+) -> impl Iterator<Item = (&'a RepoPathComponent, MergedTreeVal<'a>, MergedTreeVal<'a>)> {
+    merged_tree_basenames(before, after).filter_map(|basename| {
+        let value_before = before.value(basename);
+        let value_after = after.value(basename);
+        (value_after != value_before).then_some((basename, value_before, value_after))
+    })
+}
+
 fn trees_value<'a>(trees: &'a Merge<Tree>, basename: &RepoPathComponent) -> MergedTreeVal<'a> {
     if let Some(tree) = trees.as_resolved() {
         return MergedTreeVal::Resolved(tree.value(basename));
@@ -704,38 +715,6 @@ impl Iterator for ConflictIterator {
     }
 }
 
-struct TreeEntryDiffIterator<'a> {
-    before: &'a MergedTree,
-    after: &'a MergedTree,
-    basename_iter: Box<dyn Iterator<Item = &'a RepoPathComponent> + 'a>,
-}
-
-impl<'a> TreeEntryDiffIterator<'a> {
-    fn new(before: &'a MergedTree, after: &'a MergedTree) -> Self {
-        let basename_iter = merged_tree_basenames(before, after);
-        TreeEntryDiffIterator {
-            before,
-            after,
-            basename_iter,
-        }
-    }
-}
-
-impl<'a> Iterator for TreeEntryDiffIterator<'a> {
-    type Item = (&'a RepoPathComponent, MergedTreeVal<'a>, MergedTreeVal<'a>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        for basename in self.basename_iter.by_ref() {
-            let value_before = self.before.value(basename);
-            let value_after = self.after.value(basename);
-            if value_after != value_before {
-                return Some((basename, value_before, value_after));
-            }
-        }
-        None
-    }
-}
-
 /// Iterator over the differences between two trees.
 pub struct TreeDiffIterator<'matcher> {
     stack: Vec<TreeDiffItem>,
@@ -809,7 +788,7 @@ impl TreeDiffDirItem {
         matcher: &dyn Matcher,
     ) -> Self {
         let mut entries = vec![];
-        for (name, before, after) in TreeEntryDiffIterator::new(&tree1, &tree2) {
+        for (name, before, after) in merged_tree_entry_diff(&tree1, &tree2) {
             let path = dir.join(name);
             let before = before.to_merge();
             let after = after.to_merge();
