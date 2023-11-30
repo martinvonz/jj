@@ -1389,10 +1389,19 @@ appreciate feedback and bug reports.</p>
 other encodings.</p>
 <p>Commits created by <code>jj</code> have a ref starting with <code>refs/jj/</code> to prevent GC.</p>
 <p>Commit metadata that cannot be represented in Git commits (such as the Change
-ID) is stored outside of the Git repo (currently in <code>.jj/store/extra/</code>).</p>
-<p>Paths with conflicts cannot be represented in Git. They appear as files with
-a <code>.jjconflict</code> suffix in the Git repo. They contain a JSON representation with
-information about the conflict. They are not meant to be human-readable.</p>
+ID and information about conflicts) is stored outside of the Git repo (currently
+in <code>.jj/store/extra/</code>).</p>
+<p>Commits with conflicts cannot be represented in Git. They appear in the Git
+commit as as root directories called<code>.jjconflict-base-*/</code> and
+<code>.jjconflict-side-*/</code>. Note that the purpose of this representation is only to
+prevent GC of the relevant trees; the authoritative information is in the
+Git-external storage mentioned in the paragraph above. As long as you use <code>jj</code>
+commands to work with them, you won't notice those paths. If, on the other hand,
+you use e.g. <code>git switch</code> to check one of them out, you will see those
+directories in your working copy. If you then run e.g. <code>jj status</code>, the
+resulting snapshot will contain those directories, making it look like they
+replaced all the other paths in your repo. You will probably want to run
+<code>jj abandon</code> to get back to the state with the unresolved conflicts.</p>
 
 
 
