@@ -186,6 +186,11 @@ conflict
     insta::assert_snapshot!(stderr, @r###"
     New conflicts appeared in these commits:
       vruxwmqv ff4e8c6b conflict | (conflict) conflict
+    To resolve the conflicts, start by updating to it:
+      jj new vruxwmqvtpmx
+    Then use `jj resolve`, or edit the conflict markers in the file directly.
+    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: vruxwmqv ff4e8c6b conflict | (conflict) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
@@ -639,6 +644,11 @@ fn test_multiple_conflicts() {
     insta::assert_snapshot!(stderr, @r###"
     New conflicts appeared in these commits:
       vruxwmqv c3c25bce conflict | (conflict) conflict
+    To resolve the conflicts, start by updating to it:
+      jj new vruxwmqvtpmx
+    Then use `jj resolve`, or edit the conflict markers in the file directly.
+    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: vruxwmqv c3c25bce conflict | (conflict) conflict
     Parent commit      : zsuskuln de7553ef a | a
     Parent commit      : royxmykx f68bc2f0 b | b
@@ -670,6 +680,11 @@ fn test_multiple_conflicts() {
     insta::assert_snapshot!(stderr, @r###"
     New conflicts appeared in these commits:
       vruxwmqv fd3874cd conflict | (conflict) conflict
+    To resolve the conflicts, start by updating to it:
+      jj new vruxwmqvtpmx
+    Then use `jj resolve`, or edit the conflict markers in the file directly.
+    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: vruxwmqv fd3874cd conflict | (conflict) conflict
     Parent commit      : zsuskuln de7553ef a | a
     Parent commit      : royxmykx f68bc2f0 b | b

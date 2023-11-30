@@ -65,6 +65,11 @@ fn test_restore() {
     Rebased 1 descendant commits
     New conflicts appeared in these commits:
       kkmpptxz e301deb3 (conflict) (no description set)
+    To resolve the conflicts, start by updating to it:
+      jj new kkmpptxzrspx
+    Then use `jj resolve`, or edit the conflict markers in the file directly.
+    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: kkmpptxz e301deb3 (conflict) (no description set)
     Parent commit      : rlvkpnrz e25100af (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
