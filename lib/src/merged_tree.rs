@@ -1029,59 +1029,55 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
             }
         };
 
-        for basename in merged_tree_basenames(&tree1, &tree2) {
-            let value_before = tree1.value(basename);
-            let value_after = tree2.value(basename);
-            if value_after != value_before {
-                let path = dir.join(basename);
-                let before = value_before.to_merge();
-                let after = value_after.to_merge();
-                let tree_before = before.is_tree();
-                let tree_after = after.is_tree();
-                // Check if trees and files match, but only if either side is a tree or a file
-                // (don't query the matcher unnecessarily).
-                let tree_matches =
-                    (tree_before || tree_after) && !self.matcher.visit(&path).is_nothing();
-                let file_matches = (!tree_before || !tree_after) && self.matcher.matches(&path);
+        for (basename, value_before, value_after) in merged_tree_entry_diff(&tree1, &tree2) {
+            let path = dir.join(basename);
+            let before = value_before.to_merge();
+            let after = value_after.to_merge();
+            let tree_before = before.is_tree();
+            let tree_after = after.is_tree();
+            // Check if trees and files match, but only if either side is a tree or a file
+            // (don't query the matcher unnecessarily).
+            let tree_matches =
+                (tree_before || tree_after) && !self.matcher.visit(&path).is_nothing();
+            let file_matches = (!tree_before || !tree_after) && self.matcher.matches(&path);
 
-                // Replace trees or files that don't match by `Merge::absent()`
-                let before = if (tree_before && tree_matches) || (!tree_before && file_matches) {
-                    before
-                } else {
-                    Merge::absent()
-                };
-                let after = if (tree_after && tree_matches) || (!tree_after && file_matches) {
-                    after
-                } else {
-                    Merge::absent()
-                };
-                if before.is_absent() && after.is_absent() {
-                    continue;
-                }
-
-                // If the path was a tree on either side of the diff, read those trees.
-                if tree_matches {
-                    let before_tree_future = Self::tree(
-                        tree1.store().clone(),
-                        self.legacy_format_before,
-                        path.clone(),
-                        before.clone(),
-                    );
-                    let after_tree_future = Self::tree(
-                        tree2.store().clone(),
-                        self.legacy_format_after,
-                        path.clone(),
-                        after.clone(),
-                    );
-                    let both_trees_future =
-                        async { futures::try_join!(before_tree_future, after_tree_future) };
-                    self.pending_trees
-                        .push_back((path.clone(), Box::pin(both_trees_future)));
-                }
-
-                self.items
-                    .insert(DiffStreamKey::normal(path), Ok((before, after)));
+            // Replace trees or files that don't match by `Merge::absent()`
+            let before = if (tree_before && tree_matches) || (!tree_before && file_matches) {
+                before
+            } else {
+                Merge::absent()
+            };
+            let after = if (tree_after && tree_matches) || (!tree_after && file_matches) {
+                after
+            } else {
+                Merge::absent()
+            };
+            if before.is_absent() && after.is_absent() {
+                continue;
             }
+
+            // If the path was a tree on either side of the diff, read those trees.
+            if tree_matches {
+                let before_tree_future = Self::tree(
+                    tree1.store().clone(),
+                    self.legacy_format_before,
+                    path.clone(),
+                    before.clone(),
+                );
+                let after_tree_future = Self::tree(
+                    tree2.store().clone(),
+                    self.legacy_format_after,
+                    path.clone(),
+                    after.clone(),
+                );
+                let both_trees_future =
+                    async { futures::try_join!(before_tree_future, after_tree_future) };
+                self.pending_trees
+                    .push_back((path.clone(), Box::pin(both_trees_future)));
+            }
+
+            self.items
+                .insert(DiffStreamKey::normal(path), Ok((before, after)));
         }
     }
 
