@@ -122,22 +122,22 @@ pub enum RepoInitError {
 }
 
 impl ReadonlyRepo {
-    pub fn default_op_store_initializer() -> &'static OpStoreInitializer {
+    pub fn default_op_store_initializer() -> &'static OpStoreInitializer<'static> {
         &|_settings, store_path| Box::new(SimpleOpStore::init(store_path))
     }
 
-    pub fn default_op_heads_store_initializer() -> &'static OpHeadsStoreInitializer {
+    pub fn default_op_heads_store_initializer() -> &'static OpHeadsStoreInitializer<'static> {
         &|_settings, store_path| {
             let store = SimpleOpHeadsStore::init(store_path);
             Box::new(store)
         }
     }
 
-    pub fn default_index_store_initializer() -> &'static IndexStoreInitializer {
+    pub fn default_index_store_initializer() -> &'static IndexStoreInitializer<'static> {
         &|_settings, store_path| Box::new(DefaultIndexStore::init(store_path))
     }
 
-    pub fn default_submodule_store_initializer() -> &'static SubmoduleStoreInitializer {
+    pub fn default_submodule_store_initializer() -> &'static SubmoduleStoreInitializer<'static> {
         &|_settings, store_path| Box::new(DefaultSubmoduleStore::init(store_path))
     }
 
@@ -343,12 +343,13 @@ impl Repo for ReadonlyRepo {
     }
 }
 
-pub type BackendInitializer =
-    dyn Fn(&UserSettings, &Path) -> Result<Box<dyn Backend>, BackendInitError>;
-pub type OpStoreInitializer = dyn Fn(&UserSettings, &Path) -> Box<dyn OpStore>;
-pub type OpHeadsStoreInitializer = dyn Fn(&UserSettings, &Path) -> Box<dyn OpHeadsStore>;
-pub type IndexStoreInitializer = dyn Fn(&UserSettings, &Path) -> Box<dyn IndexStore>;
-pub type SubmoduleStoreInitializer = dyn Fn(&UserSettings, &Path) -> Box<dyn SubmoduleStore>;
+pub type BackendInitializer<'a> =
+    dyn Fn(&UserSettings, &Path) -> Result<Box<dyn Backend>, BackendInitError> + 'a;
+pub type OpStoreInitializer<'a> = dyn Fn(&UserSettings, &Path) -> Box<dyn OpStore> + 'a;
+pub type OpHeadsStoreInitializer<'a> = dyn Fn(&UserSettings, &Path) -> Box<dyn OpHeadsStore> + 'a;
+pub type IndexStoreInitializer<'a> = dyn Fn(&UserSettings, &Path) -> Box<dyn IndexStore> + 'a;
+pub type SubmoduleStoreInitializer<'a> =
+    dyn Fn(&UserSettings, &Path) -> Box<dyn SubmoduleStore> + 'a;
 
 type BackendFactory =
     Box<dyn Fn(&UserSettings, &Path) -> Result<Box<dyn Backend>, BackendLoadError>>;
