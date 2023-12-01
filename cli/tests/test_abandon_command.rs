@@ -43,15 +43,15 @@ fn test_basics() {
     create_commit(&test_env, &repo_path, "e", &["a", "d"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @    e
+    @    [znk] e
     ├─╮
-    │ ◉  d
-    │ ◉  c
-    │ │ ◉  b
+    │ ◉  [vru] d
+    │ ◉  [roy] c
+    │ │ ◉  [zsu] b
     ├───╯
-    ◉ │  a
+    ◉ │  [rlv] a
     ├─╯
-    ◉
+    ◉  [zzz]
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "d"]);
@@ -65,14 +65,14 @@ fn test_basics() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @    e
+    @    [znk] e
     ├─╮
-    │ ◉  c d
-    │ │ ◉  b
+    │ ◉  [roy] c d
+    │ │ ◉  [zsu] b
     ├───╯
-    ◉ │  a
+    ◉ │  [rlv] a
     ├─╯
-    ◉
+    ◉  [zzz]
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -85,14 +85,14 @@ fn test_basics() {
     Added 0 files, modified 0 files, removed 3 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @
-    │ ◉  b
+    @  [nkm]
+    │ ◉  [zsu] b
     ├─╯
-    ◉  a e??
-    │ ◉  d e??
-    │ ◉  c
+    ◉  [rlv] a e??
+    │ ◉  [vru] d e??
+    │ ◉  [roy] c
     ├─╯
-    ◉
+    ◉  [zzz]
     "###);
 
     // Abandoning `a` would normally result in its descendant merge commit, `e`,
@@ -109,12 +109,12 @@ fn test_basics() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  e
-    ◉  d
-    ◉  c
-    │ ◉  b
+    @  [znk] e
+    ◉  [vru] d
+    ◉  [roy] c
+    │ ◉  [zsu] b
     ├─╯
-    ◉  a
+    ◉  [zzz] a
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -130,11 +130,11 @@ fn test_basics() {
     Added 0 files, modified 0 files, removed 3 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @
-    │ ◉  b
+    @  [wvu]
+    │ ◉  [zsu] b
     ├─╯
-    ◉  a e??
-    ◉  c d e??
+    ◉  [rlv] a e??
+    ◉  [zzz] c d e??
     "###);
 
     // Test abandoning the same commit twice directly
@@ -145,13 +145,13 @@ fn test_basics() {
     Abandoned commit zsuskuln 1394f625 b | b
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @    e
+    @    [znk] e
     ├─╮
-    │ ◉  d
-    │ ◉  c
-    ◉ │  a b
+    │ ◉  [vru] d
+    │ ◉  [roy] c
+    ◉ │  [rlv] a b
     ├─╯
-    ◉
+    ◉  [zzz]
     "###);
 
     // Test abandoning the same commit twice indirectly
@@ -169,10 +169,10 @@ fn test_basics() {
     Added 0 files, modified 0 files, removed 4 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @
-    │ ◉  c d e??
+    @  [oup]
+    │ ◉  [roy] c d e??
     ├─╯
-    ◉  a b e??
+    ◉  [zzz] a b e??
     "###);
 }
 
@@ -213,5 +213,12 @@ fn test_double_abandon() {
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["log", "-T", "branches"])
+    test_env.jj_cmd_success(
+        repo_path,
+        &[
+            "log",
+            "-T",
+            r#"separate(" ", "[" ++ change_id.short(3) ++ "]", branches)"#,
+        ],
+    )
 }
