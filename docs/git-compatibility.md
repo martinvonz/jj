@@ -130,8 +130,8 @@ repos may require you to deal with more involved Jujutsu and Git concepts.
 
 * In co-located repos with a very large number of branches or other refs, `jj`
   commands can get noticeably slower because of the automatic `jj git import`
-  executed on each command. This can be mitigated by occasionally running `git
-  pack-refs --all` to speed up the import.
+  executed on each command. This can be mitigated by occasionally running `jj util
+  gc` to speed up the import (that command includes packing the Git refs).
 
 * Git tools will have trouble with revisions that contain conflicted files. While
   `jj` renders these files with conflict markers in the working copy, they are

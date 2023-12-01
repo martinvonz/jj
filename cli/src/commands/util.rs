@@ -15,15 +15,17 @@
 use std::io::Write;
 
 use clap::Subcommand;
+use jj_lib::repo::Repo;
 use tracing::instrument;
 
-use crate::cli_util::{CommandError, CommandHelper};
+use crate::cli_util::{user_error, CommandError, CommandHelper};
 use crate::ui::Ui;
 
 /// Infrequently used commands such as for generating shell completions
 #[derive(Subcommand, Clone, Debug)]
 pub(crate) enum UtilCommand {
     Completion(UtilCompletionArgs),
+    Gc(UtilGcArgs),
     Mangen(UtilMangenArgs),
     ConfigSchema(UtilConfigSchemaArgs),
 }
@@ -56,6 +58,10 @@ pub(crate) struct UtilCompletionArgs {
     zsh: bool,
 }
 
+/// Run backend-dependent garbage collection.
+#[derive(clap::Args, Clone, Debug)]
+pub(crate) struct UtilGcArgs {}
+
 /// Print a ROFF (manpage)
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct UtilMangenArgs {}
@@ -72,6 +78,7 @@ pub(crate) fn cmd_util(
 ) -> Result<(), CommandError> {
     match subcommand {
         UtilCommand::Completion(args) => cmd_util_completion(ui, command, args),
+        UtilCommand::Gc(args) => cmd_util_gc(ui, command, args),
         UtilCommand::Mangen(args) => cmd_util_mangen(ui, command, args),
         UtilCommand::ConfigSchema(args) => cmd_util_config_schema(ui, command, args),
     }
@@ -93,6 +100,17 @@ fn cmd_util_completion(
     };
     clap_complete::generate(shell, &mut app, "jj", &mut buf);
     ui.stdout_formatter().write_all(&buf)?;
+    Ok(())
+}
+
+fn cmd_util_gc(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &UtilGcArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let store = workspace_command.repo().store();
+    store.gc().map_err(|err| user_error(err.to_string()))?;
     Ok(())
 }
 

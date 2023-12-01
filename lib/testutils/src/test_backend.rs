@@ -292,4 +292,8 @@ impl Backend for TestBackend {
             .insert(id.clone(), contents.clone());
         Ok((id, contents))
     }
+
+    fn gc(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        Ok(())
+    }
 }
