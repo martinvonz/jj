@@ -128,7 +128,7 @@ impl ConflictsWorkingCopy {
         })
     }
 
-    fn initializer() -> Box<WorkingCopyInitializer> {
+    fn initializer() -> Box<WorkingCopyInitializer<'static>> {
         Box::new(
             |store, working_copy_path, state_path, workspace_id, operation_id| {
                 let wc = Self::init(

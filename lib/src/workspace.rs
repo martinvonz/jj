@@ -147,7 +147,7 @@ impl Workspace {
         user_settings: &UserSettings,
         workspace_root: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        let backend_initializer: &'static BackendInitializer =
+        let backend_initializer: &BackendInitializer =
             &|_settings, store_path| Ok(Box::new(LocalBackend::init(store_path)));
         let signer = Signer::from_settings(user_settings)?;
         Self::init_with_backend(user_settings, workspace_root, backend_initializer, signer)
@@ -159,7 +159,7 @@ impl Workspace {
         user_settings: &UserSettings,
         workspace_root: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        let backend_initializer: &'static BackendInitializer =
+        let backend_initializer: &BackendInitializer =
             &|settings, store_path| Ok(Box::new(GitBackend::init_internal(settings, store_path)?));
         let signer = Signer::from_settings(user_settings)?;
         Self::init_with_backend(user_settings, workspace_root, backend_initializer, signer)
@@ -171,25 +171,21 @@ impl Workspace {
         user_settings: &UserSettings,
         workspace_root: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        let backend_initializer = {
-            let workspace_root = workspace_root.to_owned();
-            move |settings: &UserSettings, store_path: &Path| -> Result<Box<dyn Backend>, _> {
-                // TODO: Clean up path normalization. store_path is canonicalized by
-                // ReadonlyRepo::init(). workspace_root will be canonicalized by
-                // Workspace::new(), but it's not yet here.
-                let store_relative_workspace_root =
-                    if let Ok(workspace_root) = workspace_root.canonicalize() {
-                        file_util::relative_path(store_path, &workspace_root)
-                    } else {
-                        workspace_root.to_owned()
-                    };
-                let backend = GitBackend::init_colocated(
-                    settings,
-                    store_path,
-                    &store_relative_workspace_root,
-                )?;
-                Ok(Box::new(backend))
-            }
+        let backend_initializer = |settings: &UserSettings,
+                                   store_path: &Path|
+         -> Result<Box<dyn Backend>, _> {
+            // TODO: Clean up path normalization. store_path is canonicalized by
+            // ReadonlyRepo::init(). workspace_root will be canonicalized by
+            // Workspace::new(), but it's not yet here.
+            let store_relative_workspace_root =
+                if let Ok(workspace_root) = workspace_root.canonicalize() {
+                    file_util::relative_path(store_path, &workspace_root)
+                } else {
+                    workspace_root.to_owned()
+                };
+            let backend =
+                GitBackend::init_colocated(settings, store_path, &store_relative_workspace_root)?;
+            Ok(Box::new(backend))
         };
         let signer = Signer::from_settings(user_settings)?;
         Self::init_with_backend(user_settings, workspace_root, &backend_initializer, signer)
@@ -502,7 +498,7 @@ impl WorkspaceLoader {
     }
 }
 
-pub fn default_working_copy_initializer() -> &'static WorkingCopyInitializer {
+pub fn default_working_copy_initializer() -> &'static WorkingCopyInitializer<'static> {
     &|store: Arc<Store>, working_copy_path, state_path, workspace_id, operation_id| {
         let wc = LocalWorkingCopy::init(
             store,
@@ -530,11 +526,12 @@ pub fn default_working_copy_factories() -> HashMap<String, WorkingCopyFactory> {
     factories
 }
 
-pub type WorkingCopyInitializer = dyn Fn(
-    Arc<Store>,
-    PathBuf,
-    PathBuf,
-    WorkspaceId,
-    OperationId,
-) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError>;
+pub type WorkingCopyInitializer<'a> = dyn Fn(
+        Arc<Store>,
+        PathBuf,
+        PathBuf,
+        WorkspaceId,
+        OperationId,
+    ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError>
+    + 'a;
 pub type WorkingCopyFactory = Box<dyn Fn(&Arc<Store>, &Path, &Path) -> Box<dyn WorkingCopy>>;
