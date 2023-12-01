@@ -170,4 +170,8 @@ impl Backend for JitBackend {
     ) -> BackendResult<(CommitId, Commit)> {
         self.inner.write_commit(contents, sign_with)
     }
+
+    fn gc(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        self.inner.gc()
+    }
 }

@@ -297,6 +297,10 @@ impl Backend for LocalBackend {
             .map_err(to_other_err)?;
         Ok((id, commit))
     }
+
+    fn gc(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        Ok(())
+    }
 }
 
 pub fn commit_to_proto(commit: &Commit) -> crate::protos::local_store::Commit {

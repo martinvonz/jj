@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj rebase` now takes the flag `--skip-empty`, which doesn't copy over commits
   that would become empty after a rebase.
 
+* There is a new `jj util gc` command for cleaning up the repository storage.
+  For now, it simply runs `git gc` on the backing Git repo (when using the Git
+  backend).
+
 ### Fixed bugs
 
 * Fixed another file conflict resolution issue where `jj status` would disagree

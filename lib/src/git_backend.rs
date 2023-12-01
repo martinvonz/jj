@@ -18,6 +18,7 @@ use std::any::Any;
 use std::fmt::{Debug, Error, Formatter};
 use std::io::{Cursor, Read};
 use std::path::Path;
+use std::process::ExitStatus;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::{fs, str};
 
@@ -92,6 +93,14 @@ impl From<GitBackendError> for BackendError {
     fn from(err: GitBackendError) -> Self {
         BackendError::Other(err.into())
     }
+}
+
+#[derive(Debug, Error)]
+pub enum GitGcError {
+    #[error("Failed to run git gc command: {0}")]
+    GcCommand(#[source] std::io::Error),
+    #[error("git gc command exited with an error: {0}")]
+    GcCommandErrorStatus(ExitStatus),
 }
 
 pub struct GitBackend {
@@ -1006,6 +1015,18 @@ impl Backend for GitBackend {
         mut_table.add_entry(id.to_bytes(), extras);
         self.save_extra_metadata_table(mut_table, &table_lock)?;
         Ok((id, contents))
+    }
+
+    fn gc(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let mut git = std::process::Command::new("git");
+        git.env("GIT_DIR", self.git_repo_path());
+        git.args(["gc"]);
+        // TODO: pass output to UI layer instead of printing directly here
+        let status = git.status().map_err(GitGcError::GcCommand)?;
+        if !status.success() {
+            return Err(Box::new(GitGcError::GcCommandErrorStatus(status)));
+        }
+        Ok(())
     }
 }
 
