@@ -37,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+* Fixed another file conflict resolution issue where `jj status` would disagree
+  with the actual file content.
+  [#2654](https://github.com/martinvonz/jj/issues/2654)
+
 
 ## [0.11.0] - 2023-11-01
 
