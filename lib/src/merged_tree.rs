@@ -537,12 +537,10 @@ fn merge_tree_values(
     if let Some(trees) = values.to_tree_merge(store, path)? {
         // If all sides are trees or missing, merge the trees recursively, treating
         // missing trees as empty.
+        let empty_tree_id = store.empty_tree_id();
         let merged_tree = merge_trees(&trees)?;
-        if merged_tree.as_resolved().map(|tree| tree.id()) == Some(store.empty_tree_id()) {
-            Ok(Merge::absent())
-        } else {
-            Ok(merged_tree.map(|tree| Some(TreeValue::Tree(tree.id().clone()))))
-        }
+        Ok(merged_tree
+            .map(|tree| (tree.id() != empty_tree_id).then(|| TreeValue::Tree(tree.id().clone()))))
     } else {
         // Try to resolve file conflicts by merging the file contents. Treats missing
         // files as empty.
