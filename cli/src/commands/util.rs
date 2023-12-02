@@ -71,30 +71,50 @@ pub(crate) fn cmd_util(
     subcommand: &UtilCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        UtilCommand::Completion(completion_args) => {
-            let mut app = command.app().clone();
-            let mut buf = vec![];
-            let shell = if completion_args.zsh {
-                clap_complete::Shell::Zsh
-            } else if completion_args.fish {
-                clap_complete::Shell::Fish
-            } else {
-                clap_complete::Shell::Bash
-            };
-            clap_complete::generate(shell, &mut app, "jj", &mut buf);
-            ui.stdout_formatter().write_all(&buf)?;
-        }
-        UtilCommand::Mangen(_mangen_args) => {
-            let mut buf = vec![];
-            let man = clap_mangen::Man::new(command.app().clone());
-            man.render(&mut buf)?;
-            ui.stdout_formatter().write_all(&buf)?;
-        }
-        UtilCommand::ConfigSchema(_config_schema_args) => {
-            // TODO(#879): Consider generating entire schema dynamically vs. static file.
-            let buf = include_bytes!("../config-schema.json");
-            ui.stdout_formatter().write_all(buf)?;
-        }
+        UtilCommand::Completion(args) => cmd_util_completion(ui, command, args),
+        UtilCommand::Mangen(args) => cmd_util_mangen(ui, command, args),
+        UtilCommand::ConfigSchema(args) => cmd_util_config_schema(ui, command, args),
     }
+}
+
+fn cmd_util_completion(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &UtilCompletionArgs,
+) -> Result<(), CommandError> {
+    let mut app = command.app().clone();
+    let mut buf = vec![];
+    let shell = if args.zsh {
+        clap_complete::Shell::Zsh
+    } else if args.fish {
+        clap_complete::Shell::Fish
+    } else {
+        clap_complete::Shell::Bash
+    };
+    clap_complete::generate(shell, &mut app, "jj", &mut buf);
+    ui.stdout_formatter().write_all(&buf)?;
+    Ok(())
+}
+
+fn cmd_util_mangen(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &UtilMangenArgs,
+) -> Result<(), CommandError> {
+    let mut buf = vec![];
+    let man = clap_mangen::Man::new(command.app().clone());
+    man.render(&mut buf)?;
+    ui.stdout_formatter().write_all(&buf)?;
+    Ok(())
+}
+
+fn cmd_util_config_schema(
+    ui: &mut Ui,
+    _command: &CommandHelper,
+    _args: &UtilConfigSchemaArgs,
+) -> Result<(), CommandError> {
+    // TODO(#879): Consider generating entire schema dynamically vs. static file.
+    let buf = include_bytes!("../config-schema.json");
+    ui.stdout_formatter().write_all(buf)?;
     Ok(())
 }
