@@ -1455,3 +1455,34 @@ fn test_merge_simplify_file_conflict() {
         MergeResult::Conflict(_)
     ));
 }
+
+/// Like `test_merge_simplify_file_conflict()`, but some of the conflicts are
+/// absent.
+#[test]
+fn test_merge_simplify_file_conflict_with_absent() {
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    // conflict_path doesn't exist in parent and child2_left, and these two
+    // trees can't be canceled out at the root level. Still the file merge
+    // should succeed by eliminating absent entries.
+    let child2_path = RepoPath::from_internal_string("file_child2");
+    let conflict_path = RepoPath::from_internal_string("dir/file_conflict");
+    let child1 = create_single_tree(repo, &[(conflict_path, "1\n0\n")]);
+    let parent = create_single_tree(repo, &[]);
+    let child2_left = create_single_tree(repo, &[(child2_path, "")]);
+    let child2_base = create_single_tree(repo, &[(child2_path, ""), (conflict_path, "0\n")]);
+    let child2_right = create_single_tree(repo, &[(child2_path, ""), (conflict_path, "0\n2\n")]);
+    let child1_merged = MergedTree::resolved(child1);
+    let parent_merged = MergedTree::resolved(parent);
+    let child2_merged = MergedTree::new(Merge::from_removes_adds(
+        vec![child2_base],
+        vec![child2_left, child2_right],
+    ));
+
+    let expected = create_single_tree(repo, &[(child2_path, ""), (conflict_path, "1\n0\n2\n")]);
+    let expected_merged = MergedTree::resolved(expected);
+
+    let merged = child1_merged.merge(&parent_merged, &child2_merged).unwrap();
+    assert_eq!(merged, expected_merged);
+}

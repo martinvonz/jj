@@ -396,6 +396,10 @@ fn merge_tree_value(
     })
 }
 
+/// Resolves file-level conflict by merging content hunks.
+///
+/// The input `conflict` is supposed to be simplified. It shouldn't contain
+/// non-file values that cancel each other.
 pub fn try_resolve_file_conflict(
     store: &Store,
     filename: &RepoPath,
@@ -430,7 +434,9 @@ pub fn try_resolve_file_conflict(
         }));
     }
 
-    // Simplify the conflict for two reasons:
+    // While the input conflict should be simplified by caller, it might contain
+    // terms which only differ in executable bits. Simplify the conflict further
+    // for two reasons:
     // 1. Avoid reading unchanged file contents
     // 2. The simplified conflict can sometimes be resolved when the unsimplfied one
     //    cannot

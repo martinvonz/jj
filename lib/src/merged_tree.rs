@@ -543,8 +543,12 @@ fn merge_tree_values(
             .map(|tree| (tree.id() != empty_tree_id).then(|| TreeValue::Tree(tree.id().clone()))))
     } else {
         // Try to resolve file conflicts by merging the file contents. Treats missing
-        // files as empty.
-        if let Some(resolved) = try_resolve_file_conflict(store, path, &values)? {
+        // files as empty. The values may contain trees canceling each other (notably
+        // padded absent trees), so we need to simplify them first.
+        let simplified = values.clone().simplify();
+        // No fast path for simplified.is_resolved(). If it could be resolved, it would
+        // have been caught by values.resolve_trivial() above.
+        if let Some(resolved) = try_resolve_file_conflict(store, path, &simplified)? {
             Ok(Merge::normal(resolved))
         } else {
             // Failed to merge the files, or the paths are not files
