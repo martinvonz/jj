@@ -113,7 +113,7 @@ pub fn cmd_debug(
 ) -> Result<(), CommandError> {
     match subcommand {
         DebugCommands::Revset(args) => cmd_debug_revset(ui, command, args)?,
-        DebugCommands::WorkingCopy(_wc_matches) => {
+        DebugCommands::WorkingCopy(_wc_args) => {
             let workspace_command = command.workspace_helper(ui)?;
             let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
             writeln!(ui.stdout(), "Current operation: {:?}", wc.operation_id())?;
@@ -129,11 +129,11 @@ pub fn cmd_debug(
                 )?;
             }
         }
-        DebugCommands::Template(template_matches) => {
-            let node = template_parser::parse_template(&template_matches.template)?;
+        DebugCommands::Template(template_args) => {
+            let node = template_parser::parse_template(&template_args.template)?;
             writeln!(ui.stdout(), "{node:#?}")?;
         }
-        DebugCommands::Index(_index_matches) => {
+        DebugCommands::Index(_index_args) => {
             let workspace_command = command.workspace_helper(ui)?;
             let repo = workspace_command.repo();
             let index_impl: Option<&ReadonlyIndexWrapper> =
@@ -162,7 +162,7 @@ pub fn cmd_debug(
                 )));
             }
         }
-        DebugCommands::ReIndex(_reindex_matches) => {
+        DebugCommands::ReIndex(_reindex_args) => {
             let workspace_command = command.workspace_helper(ui)?;
             let repo = workspace_command.repo();
             let default_index_store: Option<&DefaultIndexStore> =

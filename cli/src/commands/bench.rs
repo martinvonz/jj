@@ -130,65 +130,57 @@ pub(crate) fn cmd_bench(
     subcommand: &BenchCommands,
 ) -> Result<(), CommandError> {
     match subcommand {
-        BenchCommands::CommonAncestors(command_matches) => {
+        BenchCommands::CommonAncestors(args) => {
             let workspace_command = command.workspace_helper(ui)?;
-            let commit1 = workspace_command.resolve_single_rev(&command_matches.revision1, ui)?;
-            let commit2 = workspace_command.resolve_single_rev(&command_matches.revision2, ui)?;
+            let commit1 = workspace_command.resolve_single_rev(&args.revision1, ui)?;
+            let commit2 = workspace_command.resolve_single_rev(&args.revision2, ui)?;
             let index = workspace_command.repo().index();
             let routine =
                 || index.common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()]);
             run_bench(
                 ui,
-                &format!(
-                    "commonancestors-{}-{}",
-                    &command_matches.revision1, &command_matches.revision2
-                ),
-                &command_matches.criterion,
+                &format!("commonancestors-{}-{}", &args.revision1, &args.revision2),
+                &args.criterion,
                 routine,
             )?;
         }
-        BenchCommands::IsAncestor(command_matches) => {
+        BenchCommands::IsAncestor(args) => {
             let workspace_command = command.workspace_helper(ui)?;
-            let ancestor_commit =
-                workspace_command.resolve_single_rev(&command_matches.ancestor, ui)?;
-            let descendant_commit =
-                workspace_command.resolve_single_rev(&command_matches.descendant, ui)?;
+            let ancestor_commit = workspace_command.resolve_single_rev(&args.ancestor, ui)?;
+            let descendant_commit = workspace_command.resolve_single_rev(&args.descendant, ui)?;
             let index = workspace_command.repo().index();
             let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
             run_bench(
                 ui,
-                &format!(
-                    "isancestor-{}-{}",
-                    &command_matches.ancestor, &command_matches.descendant
-                ),
-                &command_matches.criterion,
+                &format!("isancestor-{}-{}", &args.ancestor, &args.descendant),
+                &args.criterion,
                 routine,
             )?;
         }
-        BenchCommands::ResolvePrefix(command_matches) => {
+        BenchCommands::ResolvePrefix(args) => {
             let workspace_command = command.workspace_helper(ui)?;
-            let prefix = HexPrefix::new(&command_matches.prefix).unwrap();
+            let prefix = HexPrefix::new(&args.prefix).unwrap();
             let index = workspace_command.repo().index();
             let routine = || index.resolve_prefix(&prefix);
             run_bench(
                 ui,
                 &format!("resolveprefix-{}", prefix.hex()),
-                &command_matches.criterion,
+                &args.criterion,
                 routine,
             )?;
         }
-        BenchCommands::Revset(command_matches) => {
+        BenchCommands::Revset(args) => {
             let workspace_command = command.workspace_helper(ui)?;
-            let revsets = if let Some(file_path) = &command_matches.file {
+            let revsets = if let Some(file_path) = &args.file {
                 std::fs::read_to_string(command.cwd().join(file_path))?
                     .lines()
                     .map(|line| line.trim().to_owned())
                     .filter(|line| !line.is_empty() && !line.starts_with('#'))
                     .collect()
             } else {
-                command_matches.revisions.clone()
+                args.revisions.clone()
             };
-            let mut criterion = new_criterion(ui, &command_matches.criterion);
+            let mut criterion = new_criterion(ui, &args.criterion);
             let mut group = criterion.benchmark_group("revsets");
             for revset in &revsets {
                 bench_revset(ui, command, &workspace_command, &mut group, revset)?;

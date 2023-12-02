@@ -71,12 +71,12 @@ pub(crate) fn cmd_util(
     subcommand: &UtilCommands,
 ) -> Result<(), CommandError> {
     match subcommand {
-        UtilCommands::Completion(completion_matches) => {
+        UtilCommands::Completion(completion_args) => {
             let mut app = command.app().clone();
             let mut buf = vec![];
-            let shell = if completion_matches.zsh {
+            let shell = if completion_args.zsh {
                 clap_complete::Shell::Zsh
-            } else if completion_matches.fish {
+            } else if completion_args.fish {
                 clap_complete::Shell::Fish
             } else {
                 clap_complete::Shell::Bash
@@ -84,13 +84,13 @@ pub(crate) fn cmd_util(
             clap_complete::generate(shell, &mut app, "jj", &mut buf);
             ui.stdout_formatter().write_all(&buf)?;
         }
-        UtilCommands::Mangen(_mangen_matches) => {
+        UtilCommands::Mangen(_mangen_args) => {
             let mut buf = vec![];
             let man = clap_mangen::Man::new(command.app().clone());
             man.render(&mut buf)?;
             ui.stdout_formatter().write_all(&buf)?;
         }
-        UtilCommands::ConfigSchema(_config_schema_matches) => {
+        UtilCommands::ConfigSchema(_config_schema_args) => {
             // TODO(#879): Consider generating entire schema dynamically vs. static file.
             let buf = include_bytes!("../config-schema.json");
             ui.stdout_formatter().write_all(buf)?;
