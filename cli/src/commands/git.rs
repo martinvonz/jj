@@ -41,23 +41,23 @@ use crate::ui::Ui;
 /// For a comparison with Git, including a table of commands, see
 /// https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.
 #[derive(Subcommand, Clone, Debug)]
-pub enum GitCommands {
+pub enum GitCommand {
     #[command(subcommand)]
-    Remote(GitRemoteCommands),
+    Remote(GitRemoteCommand),
     Fetch(GitFetchArgs),
     Clone(GitCloneArgs),
     Push(GitPushArgs),
     Import(GitImportArgs),
     Export(GitExportArgs),
     #[command(subcommand, hide = true)]
-    Submodule(GitSubmoduleCommands),
+    Submodule(GitSubmoduleCommand),
 }
 
 /// Manage Git remotes
 ///
 /// The Git repo will be a bare git repo stored inside the `.jj/` directory.
 #[derive(Subcommand, Clone, Debug)]
-pub enum GitRemoteCommands {
+pub enum GitRemoteCommand {
     Add(GitRemoteAddArgs),
     Remove(GitRemoteRemoveArgs),
     Rename(GitRemoteRenameArgs),
@@ -175,7 +175,7 @@ pub struct GitExportArgs {}
 
 /// FOR INTERNAL USE ONLY Interact with git submodules
 #[derive(Subcommand, Clone, Debug)]
-pub enum GitSubmoduleCommands {
+pub enum GitSubmoduleCommand {
     /// Print the relevant contents from .gitmodules. For debugging purposes
     /// only.
     PrintGitmodules(GitSubmodulePrintGitmodulesArgs),
@@ -1147,25 +1147,23 @@ fn cmd_git_submodule_print_gitmodules(
 pub fn cmd_git(
     ui: &mut Ui,
     command: &CommandHelper,
-    subcommand: &GitCommands,
+    subcommand: &GitCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        GitCommands::Fetch(args) => cmd_git_fetch(ui, command, args),
-        GitCommands::Clone(args) => cmd_git_clone(ui, command, args),
-        GitCommands::Remote(GitRemoteCommands::Add(args)) => cmd_git_remote_add(ui, command, args),
-        GitCommands::Remote(GitRemoteCommands::Remove(args)) => {
+        GitCommand::Fetch(args) => cmd_git_fetch(ui, command, args),
+        GitCommand::Clone(args) => cmd_git_clone(ui, command, args),
+        GitCommand::Remote(GitRemoteCommand::Add(args)) => cmd_git_remote_add(ui, command, args),
+        GitCommand::Remote(GitRemoteCommand::Remove(args)) => {
             cmd_git_remote_remove(ui, command, args)
         }
-        GitCommands::Remote(GitRemoteCommands::Rename(args)) => {
+        GitCommand::Remote(GitRemoteCommand::Rename(args)) => {
             cmd_git_remote_rename(ui, command, args)
         }
-        GitCommands::Remote(GitRemoteCommands::List(args)) => {
-            cmd_git_remote_list(ui, command, args)
-        }
-        GitCommands::Push(args) => cmd_git_push(ui, command, args),
-        GitCommands::Import(args) => cmd_git_import(ui, command, args),
-        GitCommands::Export(args) => cmd_git_export(ui, command, args),
-        GitCommands::Submodule(GitSubmoduleCommands::PrintGitmodules(args)) => {
+        GitCommand::Remote(GitRemoteCommand::List(args)) => cmd_git_remote_list(ui, command, args),
+        GitCommand::Push(args) => cmd_git_push(ui, command, args),
+        GitCommand::Import(args) => cmd_git_import(ui, command, args),
+        GitCommand::Export(args) => cmd_git_export(ui, command, args),
+        GitCommand::Submodule(GitSubmoduleCommand::PrintGitmodules(args)) => {
             cmd_git_submodule_print_gitmodules(ui, command, args)
         }
     }

@@ -42,7 +42,7 @@ use crate::ui::Ui;
 /// workspace attached to a repo, they are indicated by `@<workspace name>` in
 /// `jj log`.
 #[derive(Subcommand, Clone, Debug)]
-pub(crate) enum WorkspaceCommands {
+pub(crate) enum WorkspaceCommand {
     Add(WorkspaceAddArgs),
     Forget(WorkspaceForgetArgs),
     List(WorkspaceListArgs),
@@ -107,14 +107,14 @@ pub(crate) struct WorkspaceUpdateStaleArgs {}
 pub(crate) fn cmd_workspace(
     ui: &mut Ui,
     command: &CommandHelper,
-    subcommand: &WorkspaceCommands,
+    subcommand: &WorkspaceCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        WorkspaceCommands::Add(args) => cmd_workspace_add(ui, command, args),
-        WorkspaceCommands::Forget(args) => cmd_workspace_forget(ui, command, args),
-        WorkspaceCommands::List(args) => cmd_workspace_list(ui, command, args),
-        WorkspaceCommands::Root(args) => cmd_workspace_root(ui, command, args),
-        WorkspaceCommands::UpdateStale(args) => cmd_workspace_update_stale(ui, command, args),
+        WorkspaceCommand::Add(args) => cmd_workspace_add(ui, command, args),
+        WorkspaceCommand::Forget(args) => cmd_workspace_forget(ui, command, args),
+        WorkspaceCommand::List(args) => cmd_workspace_list(ui, command, args),
+        WorkspaceCommand::Root(args) => cmd_workspace_root(ui, command, args),
+        WorkspaceCommand::UpdateStale(args) => cmd_workspace_update_stale(ui, command, args),
     }
 }
 

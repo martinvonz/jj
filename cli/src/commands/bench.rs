@@ -29,7 +29,7 @@ use crate::ui::Ui;
 /// Commands for benchmarking internal operations
 #[derive(Subcommand, Clone, Debug)]
 #[command(hide = true)]
-pub enum BenchCommands {
+pub enum BenchCommand {
     #[command(name = "commonancestors")]
     CommonAncestors(BenchCommonAncestorsArgs),
     #[command(name = "isancestor")]
@@ -127,10 +127,10 @@ where
 pub(crate) fn cmd_bench(
     ui: &mut Ui,
     command: &CommandHelper,
-    subcommand: &BenchCommands,
+    subcommand: &BenchCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        BenchCommands::CommonAncestors(args) => {
+        BenchCommand::CommonAncestors(args) => {
             let workspace_command = command.workspace_helper(ui)?;
             let commit1 = workspace_command.resolve_single_rev(&args.revision1, ui)?;
             let commit2 = workspace_command.resolve_single_rev(&args.revision2, ui)?;
@@ -144,7 +144,7 @@ pub(crate) fn cmd_bench(
                 routine,
             )?;
         }
-        BenchCommands::IsAncestor(args) => {
+        BenchCommand::IsAncestor(args) => {
             let workspace_command = command.workspace_helper(ui)?;
             let ancestor_commit = workspace_command.resolve_single_rev(&args.ancestor, ui)?;
             let descendant_commit = workspace_command.resolve_single_rev(&args.descendant, ui)?;
@@ -157,7 +157,7 @@ pub(crate) fn cmd_bench(
                 routine,
             )?;
         }
-        BenchCommands::ResolvePrefix(args) => {
+        BenchCommand::ResolvePrefix(args) => {
             let workspace_command = command.workspace_helper(ui)?;
             let prefix = HexPrefix::new(&args.prefix).unwrap();
             let index = workspace_command.repo().index();
@@ -169,7 +169,7 @@ pub(crate) fn cmd_bench(
                 routine,
             )?;
         }
-        BenchCommands::Revset(args) => {
+        BenchCommand::Revset(args) => {
             let workspace_command = command.workspace_helper(ui)?;
             let revsets = if let Some(file_path) = &args.file {
                 std::fs::read_to_string(command.cwd().join(file_path))?

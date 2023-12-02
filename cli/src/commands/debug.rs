@@ -30,7 +30,7 @@ use crate::ui::Ui;
 /// Low-level commands not intended for users
 #[derive(Subcommand, Clone, Debug)]
 #[command(hide = true)]
-pub enum DebugCommands {
+pub enum DebugCommand {
     Revset(DebugRevsetArgs),
     #[command(name = "workingcopy")]
     WorkingCopy(DebugWorkingCopyArgs),
@@ -109,11 +109,11 @@ pub enum DebugWatchmanSubcommand {
 pub fn cmd_debug(
     ui: &mut Ui,
     command: &CommandHelper,
-    subcommand: &DebugCommands,
+    subcommand: &DebugCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        DebugCommands::Revset(args) => cmd_debug_revset(ui, command, args)?,
-        DebugCommands::WorkingCopy(_wc_args) => {
+        DebugCommand::Revset(args) => cmd_debug_revset(ui, command, args)?,
+        DebugCommand::WorkingCopy(_wc_args) => {
             let workspace_command = command.workspace_helper(ui)?;
             let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
             writeln!(ui.stdout(), "Current operation: {:?}", wc.operation_id())?;
@@ -129,11 +129,11 @@ pub fn cmd_debug(
                 )?;
             }
         }
-        DebugCommands::Template(template_args) => {
+        DebugCommand::Template(template_args) => {
             let node = template_parser::parse_template(&template_args.template)?;
             writeln!(ui.stdout(), "{node:#?}")?;
         }
-        DebugCommands::Index(_index_args) => {
+        DebugCommand::Index(_index_args) => {
             let workspace_command = command.workspace_helper(ui)?;
             let repo = workspace_command.repo();
             let index_impl: Option<&ReadonlyIndexWrapper> =
@@ -162,7 +162,7 @@ pub fn cmd_debug(
                 )));
             }
         }
-        DebugCommands::ReIndex(_reindex_args) => {
+        DebugCommand::ReIndex(_reindex_args) => {
             let workspace_command = command.workspace_helper(ui)?;
             let repo = workspace_command.repo();
             let default_index_store: Option<&DefaultIndexStore> =
@@ -187,7 +187,7 @@ pub fn cmd_debug(
                 )));
             }
         }
-        DebugCommands::Operation(operation_args) => {
+        DebugCommand::Operation(operation_args) => {
             // Resolve the operation without loading the repo, so this command can be used
             // even if e.g. the view object is broken.
             let workspace = command.load_workspace()?;
@@ -208,8 +208,8 @@ pub fn cmd_debug(
                 writeln!(ui.stdout(), "{:#?}", op.view()?.store_view())?;
             }
         }
-        DebugCommands::Tree(sub_args) => cmd_debug_tree(ui, command, sub_args)?,
-        DebugCommands::Watchman(watchman_subcommand) => {
+        DebugCommand::Tree(sub_args) => cmd_debug_tree(ui, command, sub_args)?,
+        DebugCommand::Watchman(watchman_subcommand) => {
             cmd_debug_watchman(ui, command, watchman_subcommand)?;
         }
     }

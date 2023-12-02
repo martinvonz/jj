@@ -57,19 +57,19 @@ mod workspace;
 
 use std::fmt::Debug;
 
-use clap::{Command, CommandFactory, FromArgMatches, Subcommand};
+use clap::{CommandFactory, FromArgMatches, Subcommand};
 use tracing::instrument;
 
 use crate::cli_util::{user_error_with_hint, Args, CommandError, CommandHelper};
 use crate::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]
-enum Commands {
+enum Command {
     Abandon(abandon::AbandonArgs),
     Backout(backout::BackoutArgs),
     #[cfg(feature = "bench")]
     #[command(subcommand)]
-    Bench(bench::BenchCommands),
+    Bench(bench::BenchCommand),
     #[command(subcommand)]
     Branch(branch::BranchSubcommand),
     #[command(alias = "print")]
@@ -80,7 +80,7 @@ enum Commands {
     #[command(subcommand)]
     Config(config::ConfigSubcommand),
     #[command(subcommand)]
-    Debug(debug::DebugCommands),
+    Debug(debug::DebugCommand),
     Describe(describe::DescribeArgs),
     Diff(diff::DiffArgs),
     Diffedit(diffedit::DiffeditArgs),
@@ -88,7 +88,7 @@ enum Commands {
     Edit(edit::EditArgs),
     Files(files::FilesArgs),
     #[command(subcommand)]
-    Git(git::GitCommands),
+    Git(git::GitCommand),
     Init(init::InitArgs),
     Interdiff(interdiff::InterdiffArgs),
     Log(log::LogArgs),
@@ -108,7 +108,7 @@ enum Commands {
     Obslog(obslog::ObslogArgs),
     #[command(subcommand)]
     #[command(visible_alias = "op")]
-    Operation(operation::OperationCommands),
+    Operation(operation::OperationCommand),
     Prev(prev::PrevArgs),
     Rebase(rebase::RebaseArgs),
     Resolve(resolve::ResolveArgs),
@@ -128,14 +128,14 @@ enum Commands {
     Squash(squash::SquashArgs),
     Status(status::StatusArgs),
     #[command(subcommand)]
-    Util(util::UtilCommands),
+    Util(util::UtilCommand),
     /// Undo an operation (shortcut for `jj op undo`)
     Undo(operation::OperationUndoArgs),
     Unsquash(unsquash::UnsquashArgs),
     Untrack(untrack::UntrackArgs),
     Version(version::VersionArgs),
     #[command(subcommand)]
-    Workspace(workspace::WorkspaceCommands),
+    Workspace(workspace::WorkspaceCommand),
 }
 
 /// A dummy command that accepts any arguments
@@ -145,59 +145,58 @@ struct DummyCommandArgs {
     _args: Vec<String>,
 }
 
-pub fn default_app() -> Command {
-    Commands::augment_subcommands(Args::command())
+pub fn default_app() -> clap::Command {
+    Command::augment_subcommands(Args::command())
 }
 
 #[instrument(skip_all)]
 pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), CommandError> {
-    let derived_subcommands: Commands =
-        Commands::from_arg_matches(command_helper.matches()).unwrap();
+    let derived_subcommands: Command = Command::from_arg_matches(command_helper.matches()).unwrap();
     match &derived_subcommands {
-        Commands::Version(sub_args) => version::cmd_version(ui, command_helper, sub_args),
-        Commands::Init(sub_args) => init::cmd_init(ui, command_helper, sub_args),
-        Commands::Config(sub_args) => config::cmd_config(ui, command_helper, sub_args),
-        Commands::Checkout(sub_args) => checkout::cmd_checkout(ui, command_helper, sub_args),
-        Commands::Untrack(sub_args) => untrack::cmd_untrack(ui, command_helper, sub_args),
-        Commands::Files(sub_args) => files::cmd_files(ui, command_helper, sub_args),
-        Commands::Cat(sub_args) => cat::cmd_cat(ui, command_helper, sub_args),
-        Commands::Diff(sub_args) => diff::cmd_diff(ui, command_helper, sub_args),
-        Commands::Show(sub_args) => show::cmd_show(ui, command_helper, sub_args),
-        Commands::Status(sub_args) => status::cmd_status(ui, command_helper, sub_args),
-        Commands::Log(sub_args) => log::cmd_log(ui, command_helper, sub_args),
-        Commands::Interdiff(sub_args) => interdiff::cmd_interdiff(ui, command_helper, sub_args),
-        Commands::Obslog(sub_args) => obslog::cmd_obslog(ui, command_helper, sub_args),
-        Commands::Describe(sub_args) => describe::cmd_describe(ui, command_helper, sub_args),
-        Commands::Commit(sub_args) => commit::cmd_commit(ui, command_helper, sub_args),
-        Commands::Duplicate(sub_args) => duplicate::cmd_duplicate(ui, command_helper, sub_args),
-        Commands::Abandon(sub_args) => abandon::cmd_abandon(ui, command_helper, sub_args),
-        Commands::Edit(sub_args) => edit::cmd_edit(ui, command_helper, sub_args),
-        Commands::Next(sub_args) => next::cmd_next(ui, command_helper, sub_args),
-        Commands::Prev(sub_args) => prev::cmd_prev(ui, command_helper, sub_args),
-        Commands::New(sub_args) => new::cmd_new(ui, command_helper, sub_args),
-        Commands::Move(sub_args) => r#move::cmd_move(ui, command_helper, sub_args),
-        Commands::Squash(sub_args) => squash::cmd_squash(ui, command_helper, sub_args),
-        Commands::Unsquash(sub_args) => unsquash::cmd_unsquash(ui, command_helper, sub_args),
-        Commands::Restore(sub_args) => restore::cmd_restore(ui, command_helper, sub_args),
-        Commands::Revert(_args) => revert(),
-        Commands::Run(sub_args) => run::cmd_run(ui, command_helper, sub_args),
-        Commands::Diffedit(sub_args) => diffedit::cmd_diffedit(ui, command_helper, sub_args),
-        Commands::Split(sub_args) => split::cmd_split(ui, command_helper, sub_args),
-        Commands::Merge(sub_args) => merge::cmd_merge(ui, command_helper, sub_args),
-        Commands::Rebase(sub_args) => rebase::cmd_rebase(ui, command_helper, sub_args),
-        Commands::Backout(sub_args) => backout::cmd_backout(ui, command_helper, sub_args),
-        Commands::Resolve(sub_args) => resolve::cmd_resolve(ui, command_helper, sub_args),
-        Commands::Branch(sub_args) => branch::cmd_branch(ui, command_helper, sub_args),
-        Commands::Undo(sub_args) => operation::cmd_op_undo(ui, command_helper, sub_args),
-        Commands::Operation(sub_args) => operation::cmd_operation(ui, command_helper, sub_args),
-        Commands::Workspace(sub_args) => workspace::cmd_workspace(ui, command_helper, sub_args),
-        Commands::Sparse(sub_args) => sparse::cmd_sparse(ui, command_helper, sub_args),
-        Commands::Chmod(sub_args) => chmod::cmd_chmod(ui, command_helper, sub_args),
-        Commands::Git(sub_args) => git::cmd_git(ui, command_helper, sub_args),
-        Commands::Util(sub_args) => util::cmd_util(ui, command_helper, sub_args),
+        Command::Version(sub_args) => version::cmd_version(ui, command_helper, sub_args),
+        Command::Init(sub_args) => init::cmd_init(ui, command_helper, sub_args),
+        Command::Config(sub_args) => config::cmd_config(ui, command_helper, sub_args),
+        Command::Checkout(sub_args) => checkout::cmd_checkout(ui, command_helper, sub_args),
+        Command::Untrack(sub_args) => untrack::cmd_untrack(ui, command_helper, sub_args),
+        Command::Files(sub_args) => files::cmd_files(ui, command_helper, sub_args),
+        Command::Cat(sub_args) => cat::cmd_cat(ui, command_helper, sub_args),
+        Command::Diff(sub_args) => diff::cmd_diff(ui, command_helper, sub_args),
+        Command::Show(sub_args) => show::cmd_show(ui, command_helper, sub_args),
+        Command::Status(sub_args) => status::cmd_status(ui, command_helper, sub_args),
+        Command::Log(sub_args) => log::cmd_log(ui, command_helper, sub_args),
+        Command::Interdiff(sub_args) => interdiff::cmd_interdiff(ui, command_helper, sub_args),
+        Command::Obslog(sub_args) => obslog::cmd_obslog(ui, command_helper, sub_args),
+        Command::Describe(sub_args) => describe::cmd_describe(ui, command_helper, sub_args),
+        Command::Commit(sub_args) => commit::cmd_commit(ui, command_helper, sub_args),
+        Command::Duplicate(sub_args) => duplicate::cmd_duplicate(ui, command_helper, sub_args),
+        Command::Abandon(sub_args) => abandon::cmd_abandon(ui, command_helper, sub_args),
+        Command::Edit(sub_args) => edit::cmd_edit(ui, command_helper, sub_args),
+        Command::Next(sub_args) => next::cmd_next(ui, command_helper, sub_args),
+        Command::Prev(sub_args) => prev::cmd_prev(ui, command_helper, sub_args),
+        Command::New(sub_args) => new::cmd_new(ui, command_helper, sub_args),
+        Command::Move(sub_args) => r#move::cmd_move(ui, command_helper, sub_args),
+        Command::Squash(sub_args) => squash::cmd_squash(ui, command_helper, sub_args),
+        Command::Unsquash(sub_args) => unsquash::cmd_unsquash(ui, command_helper, sub_args),
+        Command::Restore(sub_args) => restore::cmd_restore(ui, command_helper, sub_args),
+        Command::Revert(_args) => revert(),
+        Command::Run(sub_args) => run::cmd_run(ui, command_helper, sub_args),
+        Command::Diffedit(sub_args) => diffedit::cmd_diffedit(ui, command_helper, sub_args),
+        Command::Split(sub_args) => split::cmd_split(ui, command_helper, sub_args),
+        Command::Merge(sub_args) => merge::cmd_merge(ui, command_helper, sub_args),
+        Command::Rebase(sub_args) => rebase::cmd_rebase(ui, command_helper, sub_args),
+        Command::Backout(sub_args) => backout::cmd_backout(ui, command_helper, sub_args),
+        Command::Resolve(sub_args) => resolve::cmd_resolve(ui, command_helper, sub_args),
+        Command::Branch(sub_args) => branch::cmd_branch(ui, command_helper, sub_args),
+        Command::Undo(sub_args) => operation::cmd_op_undo(ui, command_helper, sub_args),
+        Command::Operation(sub_args) => operation::cmd_operation(ui, command_helper, sub_args),
+        Command::Workspace(sub_args) => workspace::cmd_workspace(ui, command_helper, sub_args),
+        Command::Sparse(sub_args) => sparse::cmd_sparse(ui, command_helper, sub_args),
+        Command::Chmod(sub_args) => chmod::cmd_chmod(ui, command_helper, sub_args),
+        Command::Git(sub_args) => git::cmd_git(ui, command_helper, sub_args),
+        Command::Util(sub_args) => util::cmd_util(ui, command_helper, sub_args),
         #[cfg(feature = "bench")]
-        Commands::Bench(sub_args) => bench::cmd_bench(ui, command_helper, sub_args),
-        Commands::Debug(sub_args) => debug::cmd_debug(ui, command_helper, sub_args),
+        Command::Bench(sub_args) => bench::cmd_bench(ui, command_helper, sub_args),
+        Command::Debug(sub_args) => debug::cmd_debug(ui, command_helper, sub_args),
     }
 }
 
