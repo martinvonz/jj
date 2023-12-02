@@ -112,108 +112,15 @@ pub fn cmd_debug(
     subcommand: &DebugCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        DebugCommand::Revset(args) => cmd_debug_revset(ui, command, args)?,
-        DebugCommand::WorkingCopy(_wc_args) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
-            writeln!(ui.stdout(), "Current operation: {:?}", wc.operation_id())?;
-            writeln!(ui.stdout(), "Current tree: {:?}", wc.tree_id()?)?;
-            for (file, state) in wc.file_states()? {
-                writeln!(
-                    ui.stdout(),
-                    "{:?} {:13?} {:10?} {:?}",
-                    state.file_type,
-                    state.size,
-                    state.mtime.0,
-                    file
-                )?;
-            }
-        }
-        DebugCommand::Template(template_args) => {
-            let node = template_parser::parse_template(&template_args.template)?;
-            writeln!(ui.stdout(), "{node:#?}")?;
-        }
-        DebugCommand::Index(_index_args) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let repo = workspace_command.repo();
-            let index_impl: Option<&ReadonlyIndexWrapper> =
-                repo.readonly_index().as_any().downcast_ref();
-            if let Some(index_impl) = index_impl {
-                let stats = index_impl.as_composite().stats();
-                writeln!(ui.stdout(), "Number of commits: {}", stats.num_commits)?;
-                writeln!(ui.stdout(), "Number of merges: {}", stats.num_merges)?;
-                writeln!(
-                    ui.stdout(),
-                    "Max generation number: {}",
-                    stats.max_generation_number
-                )?;
-                writeln!(ui.stdout(), "Number of heads: {}", stats.num_heads)?;
-                writeln!(ui.stdout(), "Number of changes: {}", stats.num_changes)?;
-                writeln!(ui.stdout(), "Stats per level:")?;
-                for (i, level) in stats.levels.iter().enumerate() {
-                    writeln!(ui.stdout(), "  Level {i}:")?;
-                    writeln!(ui.stdout(), "    Number of commits: {}", level.num_commits)?;
-                    writeln!(ui.stdout(), "    Name: {}", level.name.as_ref().unwrap())?;
-                }
-            } else {
-                return Err(user_error(format!(
-                    "Cannot get stats for indexes of type '{}'",
-                    repo.index_store().name()
-                )));
-            }
-        }
-        DebugCommand::ReIndex(_reindex_args) => {
-            let workspace_command = command.workspace_helper(ui)?;
-            let repo = workspace_command.repo();
-            let default_index_store: Option<&DefaultIndexStore> =
-                repo.index_store().as_any().downcast_ref();
-            if let Some(default_index_store) = default_index_store {
-                default_index_store.reinit();
-                let repo = repo.reload_at(repo.operation())?;
-                let index_impl: &ReadonlyIndexWrapper = repo
-                    .readonly_index()
-                    .as_any()
-                    .downcast_ref()
-                    .expect("Default index should be a ReadonlyIndexWrapper");
-                writeln!(
-                    ui.stderr(),
-                    "Finished indexing {:?} commits.",
-                    index_impl.as_composite().stats().num_commits
-                )?;
-            } else {
-                return Err(user_error(format!(
-                    "Cannot reindex indexes of type '{}'",
-                    repo.index_store().name()
-                )));
-            }
-        }
-        DebugCommand::Operation(operation_args) => {
-            // Resolve the operation without loading the repo, so this command can be used
-            // even if e.g. the view object is broken.
-            let workspace = command.load_workspace()?;
-            let repo_loader = workspace.repo_loader();
-            let op = resolve_op_for_load(
-                repo_loader.op_store(),
-                repo_loader.op_heads_store(),
-                &operation_args.operation,
-            )?;
-            if operation_args.display == DebugOperationDisplay::Id {
-                writeln!(ui.stdout(), "{}", op.id().hex())?;
-                return Ok(());
-            }
-            if operation_args.display != DebugOperationDisplay::View {
-                writeln!(ui.stdout(), "{:#?}", op.store_operation())?;
-            }
-            if operation_args.display != DebugOperationDisplay::Operation {
-                writeln!(ui.stdout(), "{:#?}", op.view()?.store_view())?;
-            }
-        }
-        DebugCommand::Tree(sub_args) => cmd_debug_tree(ui, command, sub_args)?,
-        DebugCommand::Watchman(watchman_subcommand) => {
-            cmd_debug_watchman(ui, command, watchman_subcommand)?;
-        }
+        DebugCommand::Revset(args) => cmd_debug_revset(ui, command, args),
+        DebugCommand::WorkingCopy(args) => cmd_debug_working_copy(ui, command, args),
+        DebugCommand::Template(args) => cmd_debug_template(ui, command, args),
+        DebugCommand::Index(args) => cmd_debug_index(ui, command, args),
+        DebugCommand::ReIndex(args) => cmd_debug_reindex(ui, command, args),
+        DebugCommand::Operation(args) => cmd_debug_operation(ui, command, args),
+        DebugCommand::Tree(args) => cmd_debug_tree(ui, command, args),
+        DebugCommand::Watchman(args) => cmd_debug_watchman(ui, command, args),
     }
-    Ok(())
 }
 
 fn cmd_debug_revset(
@@ -249,6 +156,130 @@ fn cmd_debug_revset(
     writeln!(ui.stdout(), "-- Commit IDs:")?;
     for commit_id in revset.iter() {
         writeln!(ui.stdout(), "{}", commit_id.hex())?;
+    }
+    Ok(())
+}
+
+fn cmd_debug_working_copy(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &DebugWorkingCopyArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
+    writeln!(ui.stdout(), "Current operation: {:?}", wc.operation_id())?;
+    writeln!(ui.stdout(), "Current tree: {:?}", wc.tree_id()?)?;
+    for (file, state) in wc.file_states()? {
+        writeln!(
+            ui.stdout(),
+            "{:?} {:13?} {:10?} {:?}",
+            state.file_type,
+            state.size,
+            state.mtime.0,
+            file
+        )?;
+    }
+    Ok(())
+}
+
+fn cmd_debug_template(
+    ui: &mut Ui,
+    _command: &CommandHelper,
+    args: &DebugTemplateArgs,
+) -> Result<(), CommandError> {
+    let node = template_parser::parse_template(&args.template)?;
+    writeln!(ui.stdout(), "{node:#?}")?;
+    Ok(())
+}
+
+fn cmd_debug_index(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &DebugIndexArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
+    let index_impl: Option<&ReadonlyIndexWrapper> = repo.readonly_index().as_any().downcast_ref();
+    if let Some(index_impl) = index_impl {
+        let stats = index_impl.as_composite().stats();
+        writeln!(ui.stdout(), "Number of commits: {}", stats.num_commits)?;
+        writeln!(ui.stdout(), "Number of merges: {}", stats.num_merges)?;
+        writeln!(
+            ui.stdout(),
+            "Max generation number: {}",
+            stats.max_generation_number
+        )?;
+        writeln!(ui.stdout(), "Number of heads: {}", stats.num_heads)?;
+        writeln!(ui.stdout(), "Number of changes: {}", stats.num_changes)?;
+        writeln!(ui.stdout(), "Stats per level:")?;
+        for (i, level) in stats.levels.iter().enumerate() {
+            writeln!(ui.stdout(), "  Level {i}:")?;
+            writeln!(ui.stdout(), "    Number of commits: {}", level.num_commits)?;
+            writeln!(ui.stdout(), "    Name: {}", level.name.as_ref().unwrap())?;
+        }
+    } else {
+        return Err(user_error(format!(
+            "Cannot get stats for indexes of type '{}'",
+            repo.index_store().name()
+        )));
+    }
+    Ok(())
+}
+
+fn cmd_debug_reindex(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &DebugReIndexArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
+    let default_index_store: Option<&DefaultIndexStore> =
+        repo.index_store().as_any().downcast_ref();
+    if let Some(default_index_store) = default_index_store {
+        default_index_store.reinit();
+        let repo = repo.reload_at(repo.operation())?;
+        let index_impl: &ReadonlyIndexWrapper = repo
+            .readonly_index()
+            .as_any()
+            .downcast_ref()
+            .expect("Default index should be a ReadonlyIndexWrapper");
+        writeln!(
+            ui.stderr(),
+            "Finished indexing {:?} commits.",
+            index_impl.as_composite().stats().num_commits
+        )?;
+    } else {
+        return Err(user_error(format!(
+            "Cannot reindex indexes of type '{}'",
+            repo.index_store().name()
+        )));
+    }
+    Ok(())
+}
+
+fn cmd_debug_operation(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &DebugOperationArgs,
+) -> Result<(), CommandError> {
+    // Resolve the operation without loading the repo, so this command can be used
+    // even if e.g. the view object is broken.
+    let workspace = command.load_workspace()?;
+    let repo_loader = workspace.repo_loader();
+    let op = resolve_op_for_load(
+        repo_loader.op_store(),
+        repo_loader.op_heads_store(),
+        &args.operation,
+    )?;
+    if args.display == DebugOperationDisplay::Id {
+        writeln!(ui.stdout(), "{}", op.id().hex())?;
+        return Ok(());
+    }
+    if args.display != DebugOperationDisplay::View {
+        writeln!(ui.stdout(), "{:#?}", op.store_operation())?;
+    }
+    if args.display != DebugOperationDisplay::Operation {
+        writeln!(ui.stdout(), "{:#?}", op.view()?.store_view())?;
     }
     Ok(())
 }
