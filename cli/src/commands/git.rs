@@ -1150,25 +1150,23 @@ pub fn cmd_git(
     subcommand: &GitCommands,
 ) -> Result<(), CommandError> {
     match subcommand {
-        GitCommands::Fetch(command_matches) => cmd_git_fetch(ui, command, command_matches),
-        GitCommands::Clone(command_matches) => cmd_git_clone(ui, command, command_matches),
-        GitCommands::Remote(GitRemoteCommands::Add(command_matches)) => {
-            cmd_git_remote_add(ui, command, command_matches)
+        GitCommands::Fetch(args) => cmd_git_fetch(ui, command, args),
+        GitCommands::Clone(args) => cmd_git_clone(ui, command, args),
+        GitCommands::Remote(GitRemoteCommands::Add(args)) => cmd_git_remote_add(ui, command, args),
+        GitCommands::Remote(GitRemoteCommands::Remove(args)) => {
+            cmd_git_remote_remove(ui, command, args)
         }
-        GitCommands::Remote(GitRemoteCommands::Remove(command_matches)) => {
-            cmd_git_remote_remove(ui, command, command_matches)
+        GitCommands::Remote(GitRemoteCommands::Rename(args)) => {
+            cmd_git_remote_rename(ui, command, args)
         }
-        GitCommands::Remote(GitRemoteCommands::Rename(command_matches)) => {
-            cmd_git_remote_rename(ui, command, command_matches)
+        GitCommands::Remote(GitRemoteCommands::List(args)) => {
+            cmd_git_remote_list(ui, command, args)
         }
-        GitCommands::Remote(GitRemoteCommands::List(command_matches)) => {
-            cmd_git_remote_list(ui, command, command_matches)
-        }
-        GitCommands::Push(command_matches) => cmd_git_push(ui, command, command_matches),
-        GitCommands::Import(command_matches) => cmd_git_import(ui, command, command_matches),
-        GitCommands::Export(command_matches) => cmd_git_export(ui, command, command_matches),
-        GitCommands::Submodule(GitSubmoduleCommands::PrintGitmodules(command_matches)) => {
-            cmd_git_submodule_print_gitmodules(ui, command, command_matches)
+        GitCommands::Push(args) => cmd_git_push(ui, command, args),
+        GitCommands::Import(args) => cmd_git_import(ui, command, args),
+        GitCommands::Export(args) => cmd_git_export(ui, command, args),
+        GitCommands::Submodule(GitSubmoduleCommands::PrintGitmodules(args)) => {
+            cmd_git_submodule_print_gitmodules(ui, command, args)
         }
     }
 }

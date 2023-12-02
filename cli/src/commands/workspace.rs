@@ -110,19 +110,11 @@ pub(crate) fn cmd_workspace(
     subcommand: &WorkspaceCommands,
 ) -> Result<(), CommandError> {
     match subcommand {
-        WorkspaceCommands::Add(command_matches) => cmd_workspace_add(ui, command, command_matches),
-        WorkspaceCommands::Forget(command_matches) => {
-            cmd_workspace_forget(ui, command, command_matches)
-        }
-        WorkspaceCommands::List(command_matches) => {
-            cmd_workspace_list(ui, command, command_matches)
-        }
-        WorkspaceCommands::Root(command_matches) => {
-            cmd_workspace_root(ui, command, command_matches)
-        }
-        WorkspaceCommands::UpdateStale(command_matches) => {
-            cmd_workspace_update_stale(ui, command, command_matches)
-        }
+        WorkspaceCommands::Add(args) => cmd_workspace_add(ui, command, args),
+        WorkspaceCommands::Forget(args) => cmd_workspace_forget(ui, command, args),
+        WorkspaceCommands::List(args) => cmd_workspace_list(ui, command, args),
+        WorkspaceCommands::Root(args) => cmd_workspace_root(ui, command, args),
+        WorkspaceCommands::UpdateStale(args) => cmd_workspace_update_stale(ui, command, args),
     }
 }
 

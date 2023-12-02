@@ -243,8 +243,8 @@ pub fn cmd_operation(
     subcommand: &OperationCommands,
 ) -> Result<(), CommandError> {
     match subcommand {
-        OperationCommands::Log(command_matches) => cmd_op_log(ui, command, command_matches),
-        OperationCommands::Restore(command_matches) => cmd_op_restore(ui, command, command_matches),
-        OperationCommands::Undo(command_matches) => cmd_op_undo(ui, command, command_matches),
+        OperationCommands::Log(args) => cmd_op_log(ui, command, args),
+        OperationCommands::Restore(args) => cmd_op_restore(ui, command, args),
+        OperationCommands::Undo(args) => cmd_op_undo(ui, command, args),
     }
 }
