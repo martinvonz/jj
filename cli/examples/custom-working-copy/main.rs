@@ -39,7 +39,7 @@ use jj_lib::workspace::{
 };
 
 #[derive(clap::Parser, Clone, Debug)]
-enum CustomCommands {
+enum CustomCommand {
     /// Initialize a workspace using the "conflicts" working copy
     InitConflicts,
 }
@@ -47,10 +47,10 @@ enum CustomCommands {
 fn run_custom_command(
     _ui: &mut Ui,
     command_helper: &CommandHelper,
-    command: CustomCommands,
+    command: CustomCommand,
 ) -> Result<(), CommandError> {
     match command {
-        CustomCommands::InitConflicts => {
+        CustomCommand::InitConflicts => {
             let wc_path = command_helper.cwd();
             let backend_initializer = |settings: &UserSettings, store_path: &Path| {
                 let backend: Box<dyn Backend> =

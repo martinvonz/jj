@@ -18,7 +18,7 @@ use jj_cli::cli_util::{CliRunner, CommandError, CommandHelper};
 use jj_cli::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]
-enum CustomCommands {
+enum CustomCommand {
     Frobnicate(FrobnicateArgs),
 }
 
@@ -33,10 +33,10 @@ struct FrobnicateArgs {
 fn run_custom_command(
     ui: &mut Ui,
     command_helper: &CommandHelper,
-    command: CustomCommands,
+    command: CustomCommand,
 ) -> Result<(), CommandError> {
     match command {
-        CustomCommands::Frobnicate(args) => {
+        CustomCommand::Frobnicate(args) => {
             let mut workspace_command = command_helper.workspace_helper(ui)?;
             let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
             let mut tx = workspace_command.start_transaction("Frobnicate");

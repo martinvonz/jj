@@ -14,7 +14,7 @@ use crate::ui::Ui;
 /// For information about the operation log, see
 /// https://github.com/martinvonz/jj/blob/main/docs/operation-log.md.
 #[derive(Subcommand, Clone, Debug)]
-pub enum OperationCommands {
+pub enum OperationCommand {
     Log(OperationLogArgs),
     Undo(OperationUndoArgs),
     Restore(OperationRestoreArgs),
@@ -240,11 +240,11 @@ fn cmd_op_restore(
 pub fn cmd_operation(
     ui: &mut Ui,
     command: &CommandHelper,
-    subcommand: &OperationCommands,
+    subcommand: &OperationCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        OperationCommands::Log(args) => cmd_op_log(ui, command, args),
-        OperationCommands::Restore(args) => cmd_op_restore(ui, command, args),
-        OperationCommands::Undo(args) => cmd_op_undo(ui, command, args),
+        OperationCommand::Log(args) => cmd_op_log(ui, command, args),
+        OperationCommand::Restore(args) => cmd_op_restore(ui, command, args),
+        OperationCommand::Undo(args) => cmd_op_undo(ui, command, args),
     }
 }

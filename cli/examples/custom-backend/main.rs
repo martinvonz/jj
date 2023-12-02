@@ -31,7 +31,7 @@ use jj_lib::signing::Signer;
 use jj_lib::workspace::{Workspace, WorkspaceInitError};
 
 #[derive(clap::Parser, Clone, Debug)]
-enum CustomCommands {
+enum CustomCommand {
     /// Initialize a workspace using the Jit backend
     InitJit,
 }
@@ -50,10 +50,10 @@ fn create_store_factories() -> StoreFactories {
 fn run_custom_command(
     _ui: &mut Ui,
     command_helper: &CommandHelper,
-    command: CustomCommands,
+    command: CustomCommand,
 ) -> Result<(), CommandError> {
     match command {
-        CustomCommands::InitJit => {
+        CustomCommand::InitJit => {
             let wc_path = command_helper.cwd();
             // Initialize a workspace with the custom backend
             Workspace::init_with_backend(
