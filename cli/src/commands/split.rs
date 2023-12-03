@@ -47,6 +47,8 @@ pub(crate) struct SplitArgs {
     /// Put these paths in the first commit
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
+    #[arg(long)]
+    left_new: bool,
 }
 
 #[instrument(skip_all)]
@@ -107,12 +109,16 @@ don't make any changes, then the operation will be aborted.
         &middle_tree,
     )?;
     let first_description = edit_description(tx.base_repo(), &first_template, command.settings())?;
-    let first_commit = tx
+    let first_commit_builder = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)
         .set_tree_id(tree_id)
-        .set_description(first_description)
-        .write()?;
+        .set_description(first_description);
+    let first_commit = if args.left_new {
+        first_commit_builder.generate_new_change_id().write()?
+    } else {
+        first_commit_builder.write()?
+    };
     let second_description = if commit.description().is_empty() {
         // If there was no description before, don't ask for one for the second commit.
         "".to_string()
@@ -128,14 +134,17 @@ don't make any changes, then the operation will be aborted.
         )?;
         edit_description(tx.base_repo(), &second_template, command.settings())?
     };
-    let second_commit = tx
+    let second_commit_builder = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)
         .set_parents(vec![first_commit.id().clone()])
         .set_tree_id(commit.tree_id().clone())
-        .generate_new_change_id()
-        .set_description(second_description)
-        .write()?;
+        .set_description(second_description);
+    let second_commit = if !args.left_new {
+        second_commit_builder.generate_new_change_id().write()?
+    } else {
+        second_commit_builder.write()?
+    };
     let mut rebaser = DescendantRebaser::new(
         command.settings(),
         tx.mut_repo(),
