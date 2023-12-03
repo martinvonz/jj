@@ -1332,8 +1332,8 @@ time.</p>
 <li>
 <p>In co-located repos with a very large number of branches or other refs, <code>jj</code>
   commands can get noticeably slower because of the automatic <code>jj git import</code>
-  executed on each command. This can be mitigated by occasionally running <code>git
-  pack-refs --all</code> to speed up the import.</p>
+  executed on each command. This can be mitigated by occasionally running <code>jj util
+  gc</code> to speed up the import (that command includes packing the Git refs).</p>
 </li>
 <li>
 <p>Git tools will have trouble with revisions that contain conflicted files. While
