@@ -9,6 +9,7 @@ merge-args = ["$left", "$base", "$right", "-o", "$output", "--auto-merge"]
 
 [merge-tools.meld-3]
 program="meld"
+# If using this as a template, note that `$output` is repeated twice below
 edit-args = ["$left", "$output", "$right", "-o", "$output"]
 
 [merge-tools.vimdiff]
