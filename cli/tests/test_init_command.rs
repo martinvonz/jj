@@ -20,11 +20,14 @@ use crate::common::TestEnvironment;
 
 pub mod common;
 
-fn init_git_repo(git_repo_path: &Path, bare: bool) {
-    init_git_repo_with_opts(git_repo_path, git2::RepositoryInitOptions::new().bare(bare));
+fn init_git_repo(git_repo_path: &Path, bare: bool) -> git2::Repository {
+    init_git_repo_with_opts(git_repo_path, git2::RepositoryInitOptions::new().bare(bare))
 }
 
-fn init_git_repo_with_opts(git_repo_path: &Path, opts: &git2::RepositoryInitOptions) {
+fn init_git_repo_with_opts(
+    git_repo_path: &Path,
+    opts: &git2::RepositoryInitOptions,
+) -> git2::Repository {
     let git_repo = git2::Repository::init_opts(git_repo_path, opts).unwrap();
     let git_blob_oid = git_repo.blob(b"some content").unwrap();
     let mut git_tree_builder = git_repo.treebuilder(None).unwrap();
@@ -32,6 +35,7 @@ fn init_git_repo_with_opts(git_repo_path: &Path, opts: &git2::RepositoryInitOpti
         .insert("some-file", git_blob_oid, 0o100644)
         .unwrap();
     let git_tree_id = git_tree_builder.write().unwrap();
+    drop(git_tree_builder);
     let git_tree = git_repo.find_tree(git_tree_id).unwrap();
     let git_signature = git2::Signature::new(
         "Git User",
@@ -49,7 +53,9 @@ fn init_git_repo_with_opts(git_repo_path: &Path, opts: &git2::RepositoryInitOpti
             &[],
         )
         .unwrap();
+    drop(git_tree);
     git_repo.set_head("refs/heads/my-branch").unwrap();
+    git_repo
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
@@ -274,6 +280,47 @@ fn test_init_git_colocated_symlink_directory() {
     insta::assert_snapshot!(stdout, @r###"
     ◉  sqpuoqvx test.user@example.com 2001-02-03 04:05:07.000 +07:00 HEAD@git f61b77cd
     │  (no description set)
+    ~
+    "###);
+}
+
+#[cfg(unix)]
+#[test]
+fn test_init_git_colocated_symlink_directory_without_bare_config() {
+    let test_env = TestEnvironment::default();
+    // <workspace_root>/.git -> <git_repo_path>
+    let git_repo_path = test_env.env_root().join("git-repo.git");
+    let workspace_root = test_env.env_root().join("repo");
+    // Set up git repo without core.bare set (as the "repo" tool would do.)
+    // The core.bare config is deduced from the directory name.
+    let git_repo = init_git_repo(&workspace_root, false);
+    git_repo.config().unwrap().remove("core.bare").unwrap();
+    std::fs::rename(workspace_root.join(".git"), &git_repo_path).unwrap();
+    std::os::unix::fs::symlink(&git_repo_path, workspace_root.join(".git")).unwrap();
+    // FIXME: Working copy shouldn't be updated
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: sqpuoqvx f6950fc1 (empty) (no description set)
+    Parent commit      : mwrttmos 8d698d4a my-branch | My commit message
+    Added 1 files, modified 0 files, removed 0 files
+    Initialized repo in "."
+    "###);
+
+    // Check that the Git repo's HEAD got checked out
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    ◉  mwrttmos git.user@example.com 1970-01-01 01:02:03.000 +01:00 my-branch HEAD@git 8d698d4a
+    │  My commit message
+    ~
+    "###);
+
+    // FIXME: Check that the Git repo's HEAD moves
+    test_env.jj_cmd_ok(&workspace_root, &["new"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    ◉  sqpuoqvx test.user@example.com 2001-02-03 04:05:07.000 +07:00 f6950fc1
+    │  (empty) (no description set)
     ~
     "###);
 }
