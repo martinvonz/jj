@@ -886,7 +886,7 @@ dependencies = [
 
 [[package]]
 name = "gen-protos"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "prost-build",
 ]
@@ -1587,7 +1587,7 @@ checksum = "af150ab688ff2122fcef229be89cb50dd66af9e01a4ff320cc137eecc9bacc38"
 
 [[package]]
 name = "jj-cli"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -1638,7 +1638,7 @@ dependencies = [
 
 [[package]]
 name = "jj-lib"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "assert_matches",
  "async-trait",
@@ -2779,7 +2779,7 @@ dependencies = [
 
 [[package]]
 name = "testutils"
-version = "0.11.0"
+version = "0.12.0"
 dependencies = [
  "async-trait",
  "config",
