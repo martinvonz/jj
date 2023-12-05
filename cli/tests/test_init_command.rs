@@ -297,13 +297,10 @@ fn test_init_git_colocated_symlink_directory_without_bare_config() {
     git_repo.config().unwrap().remove("core.bare").unwrap();
     std::fs::rename(workspace_root.join(".git"), &git_repo_path).unwrap();
     std::os::unix::fs::symlink(&git_repo_path, workspace_root.join(".git")).unwrap();
-    // FIXME: Working copy shouldn't be updated
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: sqpuoqvx f6950fc1 (empty) (no description set)
-    Parent commit      : mwrttmos 8d698d4a my-branch | My commit message
-    Added 1 files, modified 0 files, removed 0 files
+    Done importing changes from the underlying Git repo.
     Initialized repo in "."
     "###);
 
@@ -315,12 +312,12 @@ fn test_init_git_colocated_symlink_directory_without_bare_config() {
     ~
     "###);
 
-    // FIXME: Check that the Git repo's HEAD moves
+    // Check that the Git repo's HEAD moves
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  sqpuoqvx test.user@example.com 2001-02-03 04:05:07.000 +07:00 f6950fc1
-    │  (empty) (no description set)
+    ◉  sqpuoqvx test.user@example.com 2001-02-03 04:05:07.000 +07:00 HEAD@git f61b77cd
+    │  (no description set)
     ~
     "###);
 }

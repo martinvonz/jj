@@ -1671,19 +1671,18 @@ fn is_colocated_git_workspace(workspace: &Workspace, repo: &ReadonlyRepo) -> boo
     let Some(git_backend) = repo.store().backend_impl().downcast_ref::<GitBackend>() else {
         return false;
     };
-    let Some(git_workdir) = git_backend
-        .git_workdir()
-        .and_then(|path| path.canonicalize().ok())
-    else {
+    let Some(git_workdir) = git_backend.git_workdir() else {
         return false; // Bare repository
     };
-    // Colocated workspace should have ".git" directory, file, or symlink. Since the
-    // backend is loaded from the canonical path, its working directory should also
-    // be resolved from the canonical ".git" path.
+    if git_workdir == workspace.workspace_root() {
+        return true;
+    }
+    // Colocated workspace should have ".git" directory, file, or symlink. Compare
+    // its parent as the git_workdir might be resolved from the real ".git" path.
     let Ok(dot_git_path) = workspace.workspace_root().join(".git").canonicalize() else {
         return false;
     };
-    Some(git_workdir.as_ref()) == dot_git_path.parent()
+    git_workdir.canonicalize().ok().as_deref() == dot_git_path.parent()
 }
 
 pub fn start_repo_transaction(

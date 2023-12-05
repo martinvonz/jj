@@ -17,10 +17,10 @@
 use std::any::Any;
 use std::fmt::{Debug, Error, Formatter};
 use std::io::{Cursor, Read};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::ExitStatus;
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::{fs, str};
+use std::{fs, io, str};
 
 use async_trait::async_trait;
 use gix::objs::{CommitRefIter, WriteTo};
@@ -185,7 +185,7 @@ impl GitBackend {
     ) -> Result<Self, Box<GitBackendInitError>> {
         let canonical_git_repo_path = {
             let path = store_path.join(git_repo_path);
-            path.canonicalize()
+            canonicalize_git_repo_path(&path)
                 .context(&path)
                 .map_err(GitBackendInitError::Path)?
         };
@@ -240,8 +240,7 @@ impl GitBackend {
                 .context(&target_path)
                 .map_err(GitBackendLoadError::Path)?;
             let git_repo_path = store_path.join(git_repo_path_str);
-            git_repo_path
-                .canonicalize()
+            canonicalize_git_repo_path(&git_repo_path)
                 .context(&git_repo_path)
                 .map_err(GitBackendLoadError::Path)?
         };
@@ -365,6 +364,21 @@ impl GitBackend {
             .try_into_blob()
             .map_err(|err| to_read_object_err(err, id))?;
         Ok(Box::new(Cursor::new(blob.take_data())))
+    }
+}
+
+/// Canonicalizes the given `path` except for the last `".git"` component.
+///
+/// The last path component matters when opening a Git repo without `core.bare`
+/// config. This config is usually set, but the "repo" tool will set up such
+/// repositories and symlinks. Opening such repo with fully-canonicalized path
+/// would turn a colocated Git repo into a bare repo.
+fn canonicalize_git_repo_path(path: &Path) -> io::Result<PathBuf> {
+    if path.ends_with(".git") {
+        let workdir = path.parent().unwrap();
+        workdir.canonicalize().map(|dir| dir.join(".git"))
+    } else {
+        path.canonicalize()
     }
 }
 
