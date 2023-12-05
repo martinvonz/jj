@@ -17,6 +17,6 @@ jobs:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
         with:
           fetch-depth: 0
-      - uses: DeterminateSystems/nix-installer-action@07b8bcba1b22d847db7ee507180c33e115499665
-      - uses: DeterminateSystems/magic-nix-cache-action@a04e6275a6bea232cd04fc6f3cbf20d4cb02a3e1
+      - uses: DeterminateSystems/nix-installer-action@cd46bde16ab981b0a7b2dce0574509104543276e
+      - uses: DeterminateSystems/magic-nix-cache-action@1402a2dd8f56a6a6306c015089c5086f5e1ca3ef
       - run: nix build --print-build-logs --show-trace
