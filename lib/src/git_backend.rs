@@ -385,14 +385,17 @@ pub fn canonicalize_git_repo_path(path: &Path) -> io::Result<PathBuf> {
 fn gix_open_opts_from_settings(settings: &UserSettings) -> gix::open::Options {
     let user_name = settings.user_name();
     let user_email = settings.user_email();
-    gix::open::Options::default().config_overrides([
-        // Committer has to be configured to record reflog. Author isn't
-        // needed, but let's copy the same values.
-        format!("author.name={user_name}"),
-        format!("author.email={user_email}"),
-        format!("committer.name={user_name}"),
-        format!("committer.email={user_email}"),
-    ])
+    gix::open::Options::default()
+        .config_overrides([
+            // Committer has to be configured to record reflog. Author isn't
+            // needed, but let's copy the same values.
+            format!("author.name={user_name}"),
+            format!("author.email={user_email}"),
+            format!("committer.name={user_name}"),
+            format!("committer.email={user_email}"),
+        ])
+        // The git_target path should point the repository, not the working directory.
+        .open_path_as_is(true)
 }
 
 fn commit_from_git_without_root_parent(
