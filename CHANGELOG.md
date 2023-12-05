@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+### New features
+
+### Fixed bugs
+
+
+## [0.12.0] - 2023-12-05
+
+### Breaking changes
+
 * The `remote_branches()` revset no longer includes branches exported to the Git
   repository (so called Git-tracking branches.)
 
@@ -44,6 +53,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed another file conflict resolution issue where `jj status` would disagree
   with the actual file content.
   [#2654](https://github.com/martinvonz/jj/issues/2654)
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+* Antoine Cezar (@AntoineCezar)
+* Anton Bulakh (@necauqua)
+* Austin Seipp (@thoughtpolice)
+* Benjamin Saunders (@Ralith)
+* Carlos Precioso (@cprecioso)
+* Chris Krycho (@chriskrycho)
+* Ilya Grigoriev (@ilyagr)
+* Jason R. Coombs (@jaraco)
+* Jesse Somerville (@jessesomerville)
+* Łukasz Kurowski (@crackcomm)
+* Martin von Zweigbergk (@martinvonz)
+* mlcui (@mlcui-google)
+* Philip Metzger (@PhilipMetzger)
+* Waleed Khan (@arxanas)
+* Yuya Nishihara (@yuja)
 
 
 ## [0.11.0] - 2023-11-01

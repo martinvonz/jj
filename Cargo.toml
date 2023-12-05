@@ -5,7 +5,7 @@ resolver = "2"
 members = ["cli", "lib", "lib/testutils", "lib/gen-protos"]
 
 [workspace.package]
-version = "0.11.0"
+version = "0.12.0"
 license = "Apache-2.0"
 rust-version = "1.71"                                 # NOTE: remember to update CI, contributing.md, changelog.md, and flake.nix
 edition = "2021"
@@ -103,7 +103,7 @@ zstd = "0.12.4"
 # put all inter-workspace libraries, i.e. those that use 'path = ...' here in
 # their own (alphabetically sorted) block
 
-jj-lib = { path = "lib", version = "0.11.0" }
+jj-lib = { path = "lib", version = "0.12.0" }
 testutils = { path = "lib/testutils" }
 
 [profile.release]
