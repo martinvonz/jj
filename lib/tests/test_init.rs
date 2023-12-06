@@ -108,8 +108,12 @@ fn test_init_external_git() {
     let git_repo_path = uncanonical.join("git");
     git2::Repository::init(&git_repo_path).unwrap();
     std::fs::create_dir(uncanonical.join("jj")).unwrap();
-    let (workspace, repo) =
-        Workspace::init_external_git(&settings, &uncanonical.join("jj"), &git_repo_path).unwrap();
+    let (workspace, repo) = Workspace::init_external_git(
+        &settings,
+        &uncanonical.join("jj"),
+        &git_repo_path.join(".git"),
+    )
+    .unwrap();
     let git_backend = repo
         .store()
         .backend_impl()
