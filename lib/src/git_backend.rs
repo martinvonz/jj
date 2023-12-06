@@ -1167,7 +1167,7 @@ mod tests {
         let temp_dir = testutils::new_temp_dir();
         let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
-        let git_repo = git2::Repository::init(&git_repo_path).unwrap();
+        let git_repo = git2::Repository::init(git_repo_path).unwrap();
 
         // Add a commit with some files in
         let blob1 = git_repo.blob(b"content1").unwrap();
@@ -1223,7 +1223,7 @@ mod tests {
             .unwrap();
         let commit_id2 = CommitId::from_bytes(git_commit_id2.as_bytes());
 
-        let backend = GitBackend::init_external(&settings, store_path, &git_repo_path).unwrap();
+        let backend = GitBackend::init_external(&settings, store_path, git_repo.path()).unwrap();
 
         // Import the head commit and its ancestors
         backend
@@ -1329,7 +1329,7 @@ mod tests {
         let temp_dir = testutils::new_temp_dir();
         let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
-        let git_repo = git2::Repository::init(&git_repo_path).unwrap();
+        let git_repo = git2::Repository::init(git_repo_path).unwrap();
 
         let signature = git2::Signature::now("Someone", "someone@example.com").unwrap();
         let empty_tree_id = Oid::from_str("4b825dc642cb6eb9a060e54bf8d69288fbee4904").unwrap();
@@ -1345,7 +1345,7 @@ mod tests {
             )
             .unwrap();
 
-        let backend = GitBackend::init_external(&settings, store_path, &git_repo_path).unwrap();
+        let backend = GitBackend::init_external(&settings, store_path, git_repo.path()).unwrap();
 
         // read_commit() without import_head_commits() works as of now. This might be
         // changed later.
@@ -1369,7 +1369,7 @@ mod tests {
         let temp_dir = testutils::new_temp_dir();
         let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
-        let git_repo = git2::Repository::init(&git_repo_path).unwrap();
+        let git_repo = git2::Repository::init(git_repo_path).unwrap();
 
         let signature = git2::Signature::now("Someone", "someone@example.com").unwrap();
         let empty_tree_id = Oid::from_str("4b825dc642cb6eb9a060e54bf8d69288fbee4904").unwrap();
@@ -1394,7 +1394,7 @@ mod tests {
             .commit_signed(commit_buf, secure_sig, None)
             .unwrap();
 
-        let backend = GitBackend::init_external(&settings, store_path, &git_repo_path).unwrap();
+        let backend = GitBackend::init_external(&settings, store_path, git_repo.path()).unwrap();
 
         let commit = backend
             .read_commit(&CommitId::from_bytes(git_commit_id.as_bytes()))
@@ -1461,9 +1461,9 @@ mod tests {
         let temp_dir = testutils::new_temp_dir();
         let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
-        let git_repo = git2::Repository::init(&git_repo_path).unwrap();
+        let git_repo = git2::Repository::init(git_repo_path).unwrap();
 
-        let backend = GitBackend::init_external(&settings, store_path, &git_repo_path).unwrap();
+        let backend = GitBackend::init_external(&settings, store_path, git_repo.path()).unwrap();
         let mut commit = Commit {
             parents: vec![],
             predecessors: vec![],
@@ -1526,9 +1526,9 @@ mod tests {
         let temp_dir = testutils::new_temp_dir();
         let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
-        let git_repo = git2::Repository::init(&git_repo_path).unwrap();
+        let git_repo = git2::Repository::init(git_repo_path).unwrap();
 
-        let backend = GitBackend::init_external(&settings, store_path, &git_repo_path).unwrap();
+        let backend = GitBackend::init_external(&settings, store_path, git_repo.path()).unwrap();
         let create_tree = |i| {
             let blob_id = git_repo.blob(b"content {i}").unwrap();
             let mut tree_builder = git_repo.treebuilder(None).unwrap();

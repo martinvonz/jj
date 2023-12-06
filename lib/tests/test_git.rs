@@ -1113,7 +1113,7 @@ impl GitRepoData {
         let origin_repo = git2::Repository::init_bare(&origin_repo_dir).unwrap();
         let git_repo_dir = temp_dir.path().join("git");
         let git_repo =
-            git2::Repository::clone(origin_repo_dir.to_str().unwrap(), &git_repo_dir).unwrap();
+            git2::Repository::clone(origin_repo_dir.to_str().unwrap(), git_repo_dir).unwrap();
         let jj_repo_dir = temp_dir.path().join("jj");
         std::fs::create_dir(&jj_repo_dir).unwrap();
         let repo = ReadonlyRepo::init(
@@ -1123,7 +1123,7 @@ impl GitRepoData {
                 Ok(Box::new(GitBackend::init_external(
                     settings,
                     store_path,
-                    &git_repo_dir,
+                    git_repo.path(),
                 )?))
             },
             Signer::from_settings(&settings).unwrap(),
@@ -1979,7 +1979,7 @@ fn test_init() {
     let temp_dir = testutils::new_temp_dir();
     let git_repo_dir = temp_dir.path().join("git");
     let jj_repo_dir = temp_dir.path().join("jj");
-    let git_repo = git2::Repository::init_bare(&git_repo_dir).unwrap();
+    let git_repo = git2::Repository::init_bare(git_repo_dir).unwrap();
     let initial_git_commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     std::fs::create_dir(&jj_repo_dir).unwrap();
     let repo = &ReadonlyRepo::init(
@@ -1989,7 +1989,7 @@ fn test_init() {
             Ok(Box::new(GitBackend::init_external(
                 settings,
                 store_path,
-                &git_repo_dir,
+                git_repo.path(),
             )?))
         },
         Signer::from_settings(&settings).unwrap(),
@@ -2306,7 +2306,8 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     let jj_repo_dir = temp_dir.path().join("jj");
     let source_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
     let initial_git_commit = empty_git_commit(&source_repo, "refs/heads/main", &[]);
-    git2::Repository::clone(source_repo_dir.to_str().unwrap(), &clone_repo_dir).unwrap();
+    let clone_repo =
+        git2::Repository::clone(source_repo_dir.to_str().unwrap(), clone_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
     let jj_repo = ReadonlyRepo::init(
         settings,
@@ -2315,7 +2316,7 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
             Ok(Box::new(GitBackend::init_external(
                 settings,
                 store_path,
-                &clone_repo_dir,
+                clone_repo.path(),
             )?))
         },
         Signer::from_settings(settings).unwrap(),
