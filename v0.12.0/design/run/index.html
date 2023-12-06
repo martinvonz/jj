@@ -1,0 +1,1649 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://martinvonz.github.io/jj/v0.12.0/design/run/">
+      
+      
+        <link rel="prev" href="../git-submodule-storage/">
+      
+      
+        <link rel="next" href="../tracking-branches/">
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.4.7">
+    
+    
+      
+        <title>JJ run - Jujutsu docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.4b4a2bd9.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&"object"==typeof palette.color)for(var key of Object.keys(palette.color))document.body.setAttribute("data-md-color-"+key,palette.color[key])</script>
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#introducing-jj-run" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Jujutsu docs" class="md-header__button md-logo" aria-label="Jujutsu docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Jujutsu docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              JJ run
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Jujutsu docs" class="md-nav__button md-logo" aria-label="Jujutsu docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    Jujutsu docs
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Getting started
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install-and-setup/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation and Setup
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tutorial and Birds-Eye View
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../github/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working with GitHub
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../FAQ/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FAQ
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Concepts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../working-copy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working Copy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../branches/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Branches
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../conflicts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conflicts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operation-log/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Operation Log
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../glossary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Glossary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Configuration
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Configuration
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Settings
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../revsets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Revset language
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../templates/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Templating language
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Comparisons
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Comparisons
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../git-comparison/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Git comparison
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../git-compatibility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Git compatibility
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sapling-comparison/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sapling
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../related-work/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Other related work
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Technical details
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Technical details
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../technical/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../technical/concurrency/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Concurrency
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../technical/conflicts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conflicts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Contributing
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Contributing
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Guidelines and "How to...?"
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../code-of-conduct/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Code of conduct
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Design docs
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            Design docs
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../git-submodules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    git-submodules
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../git-submodule-storage/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    git-submodule-storage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    JJ run
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    JJ run
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#preface" class="md-nav__link">
+    Preface
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-and-scope" class="md-nav__link">
+    Context and Scope
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#goals-and-non-goals" class="md-nav__link">
+    Goals and Non-Goals
+  </a>
+  
+    <nav class="md-nav" aria-label="Goals and Non-Goals">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#goals" class="md-nav__link">
+    Goals
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#non-goals" class="md-nav__link">
+    Non-Goals
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use-cases-of-jj-run" class="md-nav__link">
+    Use-Cases of jj run
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#design" class="md-nav__link">
+    Design
+  </a>
+  
+    <nav class="md-nav" aria-label="Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#base-design" class="md-nav__link">
+    Base Design
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modifying-the-working-copy" class="md-nav__link">
+    Modifying the Working Copy
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modifying-the-repo" class="md-nav__link">
+    Modifying the Repo
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rewriting-the-revisions" class="md-nav__link">
+    Rewriting the revisions
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#execution-orderparallelism" class="md-nav__link">
+    Execution order/parallelism
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dealing-with-failure" class="md-nav__link">
+    Dealing with failure
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resource-constraints" class="md-nav__link">
+    Resource constraints
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-options" class="md-nav__link">
+    Command Options
+  </a>
+  
+    <nav class="md-nav" aria-label="Command Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#integrating-with-other-commands" class="md-nav__link">
+    Integrating with other commands
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-points" class="md-nav__link">
+    Open Points
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future-possibilities" class="md-nav__link">
+    Future possibilities
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracking-branches/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tracking branches
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#preface" class="md-nav__link">
+    Preface
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-and-scope" class="md-nav__link">
+    Context and Scope
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#goals-and-non-goals" class="md-nav__link">
+    Goals and Non-Goals
+  </a>
+  
+    <nav class="md-nav" aria-label="Goals and Non-Goals">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#goals" class="md-nav__link">
+    Goals
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#non-goals" class="md-nav__link">
+    Non-Goals
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use-cases-of-jj-run" class="md-nav__link">
+    Use-Cases of jj run
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#design" class="md-nav__link">
+    Design
+  </a>
+  
+    <nav class="md-nav" aria-label="Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#base-design" class="md-nav__link">
+    Base Design
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modifying-the-working-copy" class="md-nav__link">
+    Modifying the Working Copy
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#modifying-the-repo" class="md-nav__link">
+    Modifying the Repo
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rewriting-the-revisions" class="md-nav__link">
+    Rewriting the revisions
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#execution-orderparallelism" class="md-nav__link">
+    Execution order/parallelism
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dealing-with-failure" class="md-nav__link">
+    Dealing with failure
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#resource-constraints" class="md-nav__link">
+    Resource constraints
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#command-options" class="md-nav__link">
+    Command Options
+  </a>
+  
+    <nav class="md-nav" aria-label="Command Options">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#integrating-with-other-commands" class="md-nav__link">
+    Integrating with other commands
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#open-points" class="md-nav__link">
+    Open Points
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#future-possibilities" class="md-nav__link">
+    Future possibilities
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+<h1 id="introducing-jj-run">Introducing JJ run<a class="headerlink" href="#introducing-jj-run" title="Permanent link">&para;</a></h1>
+<p>Authors: <a href="mailto:philipmetzger@bluewin.ch">Philip Metzger</a>, <a href="mailto:martinvonz@google.com">Martin von Zweigberk</a>, <a href="mailto:hooper@google.com">Danny Hooper</a>, <a href="mailto:me@waleedkhan.name">Waleed Khan</a></p>
+<p>Initial Version, 10.12.2022 (view full history <a href="https://docs.google.com/document/d/14BiAoEEy_e-BRPHYpXRFjvHMfgYVKh-pKWzzTDi-v-g/edit">here</a>)</p>
+<p><strong>Summary:</strong> This Document documents the design of a new <code>run</code> command for 
+Jujutsu which will be used to seamlessly integrate with build systems, linters
+and formatters. This is achieved by running a user-provided command or script 
+across multiple revisions. For more details, read the 
+<a href="#Use-Cases-of-jj-run">Use-Cases of jj run</a>.</p>
+<h2 id="preface">Preface<a class="headerlink" href="#preface" title="Permanent link">&para;</a></h2>
+<p>The goal of this Design Document is to specify the correct behavior of <code>jj run</code>.
+The points we decide on here I (Philip Metzger) will try to implement. There 
+exists some prior work in other DVCS:</p>
+<ul>
+<li><code>git test</code>: part of <a href="https://github.com/arxanas/git-branchless">git-branchless</a>. Similar to this proposal for <code>jj run</code>. </li>
+<li><code>hg run</code>: Google's internal Mercurial extension. Similar to this proposal for
+<code>jj run</code>.
+Details not available. </li>
+<li><code>hg fix</code>: Google's open source Mercurial extension: <a href="https://repo.mercurial-scm.org/hg/file/tip/hgext/fix.py">source code</a>. A
+more specialized approach to rewriting file content without full context of the
+working directory. </li>
+<li><code>git rebase -x</code>: runs commands opportunistically as part of rebase. </li>
+<li><code>git bisect run</code>: run a command to determine which commit introduced a bug.</li>
+</ul>
+<h2 id="context-and-scope">Context and Scope<a class="headerlink" href="#context-and-scope" title="Permanent link">&para;</a></h2>
+<p>The initial need for some kind of command runner integrated in the VCS, surfaced
+in a <a href="https://github.com/martinvonz/jj/issues/405">github discussion</a>. In a <a href="https://discord.com/channels/968932220549103686/969829516539228222/1047958933161119795">discussion on discord</a> about
+the git-hook model, there was consensus about not repeating their mistakes.</p>
+<p>For <code>jj run</code> there is prior art in Mercurial, git branchless and Google's 
+internal Mercurial. Currently git-branchless <code>git test</code> and <code>hg fix</code> implement
+some kind of command runner. The Google internal <code>hg run</code> works in 
+conjunction with CitC (Clients in the Cloud) which allows it to lazily apply
+the current command to any affected file. Currently no Jujutsu backend
+(Git, Native) has a fancy virtual filesystem supporting it, so we 
+can't apply this optimization. We could do the same once we have an 
+implementation of the working copy based on a virtual file system. Until then, 
+we have to run the commands in regular local-disk working copies. </p>
+<h2 id="goals-and-non-goals">Goals and Non-Goals<a class="headerlink" href="#goals-and-non-goals" title="Permanent link">&para;</a></h2>
+<h3 id="goals">Goals<a class="headerlink" href="#goals" title="Permanent link">&para;</a></h3>
+<ul>
+<li>We should be able to apply the command to any revision, published or unpublished.</li>
+<li>We should be able to parallelize running the actual command, while preserving a
+good console output.</li>
+<li>The run command should be able to work in any commit, the working-copy commit
+itself or any other commit. </li>
+<li>There should exist some way to signal hard failure. </li>
+<li>The command should build enough infrastructure for <code>jj test</code>, <code>jj fix</code> and 
+<code>jj format</code>.</li>
+<li>The main goal is to be good enough, as we can always expand the functionality 
+in the future.</li>
+</ul>
+<h3 id="non-goals">Non-Goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h3>
+<ul>
+<li>While we should build a base for <code>jj test</code>, <code>jj format</code> and <code>jj fix</code>, we 
+shouldn't mash their use-cases into <code>jj run</code>.</li>
+<li>The command shouldn't be too smart, as too many assumptions about workflows 
+makes the command confusing for users. </li>
+<li>The smart caching of outputs, as user input commands can be unpredictable.
+makes the command confusing for users. </li>
+<li>Avoid the smart caching of outputs, as user input commands can be 
+unpredictable.</li>
+<li>Fine grained user facing configuration, as it's unwarranted complexity.</li>
+<li>A <code>fix</code> subcommand as it cuts too much design space.</li>
+</ul>
+<h2 id="use-cases-of-jj-run">Use-Cases of jj run<a class="headerlink" href="#use-cases-of-jj-run" title="Permanent link">&para;</a></h2>
+<p><strong>Linting and Formatting:</strong></p>
+<ul>
+<li><code>jj run 'pre-commit run' -r $revset</code></li>
+<li><code>jj run 'cargo clippy' -r $revset</code></li>
+<li><code>jj run 'cargo +nightly fmt'</code></li>
+</ul>
+<p><strong>Large scale changes across repositories, local and remote:</strong></p>
+<ul>
+<li><code>jj run 'sed /some/test/' -r 'mine() &amp; ~remote_branches(exact:"origin")'</code></li>
+<li><code>jj run '$rewrite-tool' -r '$revset'</code></li>
+</ul>
+<p><strong>Build systems:</strong></p>
+<ul>
+<li><code>jj run 'bazel build //some/target:somewhere'</code></li>
+<li><code>jj run 'ninja check-lld'</code></li>
+</ul>
+<p>Some of these use-cases should get a specialized command, as this allows 
+further optimization. A command could be <code>jj format</code>, which runs a list of 
+formatters over a subset of a file in a revision. Another command could be 
+<code>jj fix</code>, which runs a command like <code>rustfmt --fix</code> or <code>cargo clippy --fix</code> over
+a subset of a file in a revision.</p>
+<h2 id="design">Design<a class="headerlink" href="#design" title="Permanent link">&para;</a></h2>
+<h3 id="base-design">Base Design<a class="headerlink" href="#base-design" title="Permanent link">&para;</a></h3>
+<p>All the work will be done in the <code>.jj/</code> directory. This allows us to hide all 
+complexity from the users, while preserving the user's current workspace.</p>
+<p>We will copy the approach from git-branchless's <code>git test</code> of creating a 
+temporary working copy for each parallel command. The working copies will be 
+reused between <code>jj run</code> invocations. They will also be reused within <code>jj run</code> 
+invocation if there are more commits to run on than there are parallel jobs.</p>
+<p>We will leave ignored files in the temporary directory between runs. That 
+enables incremental builds (e.g by letting cargo reuse its <code>target/</code> directory).
+However, it also means that runs potentially become less reproducible. We will 
+provide a flag for removing ignored files from the temporary working copies to
+address that. </p>
+<p>Another problem with leaving ignored files in the temporary directories is that
+they take up space. That is especially problematic in the case of cargo (the 
+<code>target/</code> directory often takes up tens of GBs). The same flag for cleaning up
+ignored files can be used to address that. We may want to also have a flag for 
+cleaning up temporary working copies <em>after</em> running the command. </p>
+<p>An early version of the command will directly use <a href="https://github.com/martinvonz/jj/blob/af85f552b676d66ed0e9ae0d401cd0c4ffbbeb21/lib/src/working_copy.rs#L117">Treestate</a> to 
+to manage the temporary working copies. That means that running <code>jj</code> inside the 
+temporary working copies will not work . We can later extend that to use a full
+<a href="https://github.com/martinvonz/jj/blob/af85f552b676d66ed0e9ae0d401cd0c4ffbbeb21/lib/src/workspace.rs#L54">Workspace</a>. To prevent operations in the working copies from 
+impacting the repo, we can use a separate <a href="https://github.com/martinvonz/jj/blob/main/lib/src/op_heads_store.rs">OpHeadsStore</a> for it.</p>
+<h3 id="modifying-the-working-copy">Modifying the Working Copy<a class="headerlink" href="#modifying-the-working-copy" title="Permanent link">&para;</a></h3>
+<p>Since the subprocesses will run in temporary working copies, they 
+won't interfere with the user's working copy. The user can therefore continue
+to work in it while <code>jj run</code> is running. </p>
+<p>We want subprocesses to be able to make changes to the repo by updating their
+assigned working copy. Let's say the user runs <code>jj run</code> on just commits A and 
+B, where B's parent is A. Any changes made on top of A would be squashed into 
+A, forming A'. Similarly B' would be formed by squasing it into B. We can then
+either do a normal rebase of B' onto A', or we can simply update its parent to
+A'. The former is useful, e.g when the subprocess only makes a partial update
+of the tree based on the parent commit. In addition to these two modes, we may 
+want to have an option to ignore any changes made in the subprocess's working 
+copy.</p>
+<h3 id="modifying-the-repo">Modifying the Repo<a class="headerlink" href="#modifying-the-repo" title="Permanent link">&para;</a></h3>
+<p>Once we give the subprocess access to a fork of the repo via separate 
+<a href="https://github.com/martinvonz/jj/blob/main/lib/src/op_heads_store.rs">OpHeadsStore</a>, it will be able to create new operations in its fork.
+If the user runs <code>jj run -r foo</code> and the subprocess checks out another commit,
+it's not clear what that should do. We should probably just verify that the 
+working-copy commit's parents are unchanged after the subprocess returns. Any
+operations created by the subprocess will be ignored. </p>
+<h3 id="rewriting-the-revisions">Rewriting the revisions<a class="headerlink" href="#rewriting-the-revisions" title="Permanent link">&para;</a></h3>
+<p>Like all commands, <code>jj run</code> will refuse to rewrite public/immutable commits.
+For private/unpublished revisions, we either amend or reparent the changes, 
+which are available as command options.</p>
+<h2 id="execution-orderparallelism">Execution order/parallelism<a class="headerlink" href="#execution-orderparallelism" title="Permanent link">&para;</a></h2>
+<p>It may be useful to execute commands in topological order. For example, 
+commands with costs proportional to incremental changes, like build systems. 
+There may also be other revelant heuristics, but topological order is an easy
+and effective way to start. </p>
+<p>Parallel execution of commands on different commits may choose to schedule 
+commits to still reduce incremental changes in the working copy used by each
+execution slot/"thread". However, running the command on all commits 
+concurrently should be possible if desired. </p>
+<p>Executing commands in topological order allows for more meaningful use of any 
+potential features that stop execution "at the first failure". For example, 
+when running tests on a chain of commits, it might be useful to proceed in 
+topological/chronological order, and stop on the first failure, because it 
+might imply that the remaining executions will be undesirable because they will
+also fail.</p>
+<h2 id="dealing-with-failure">Dealing with failure<a class="headerlink" href="#dealing-with-failure" title="Permanent link">&para;</a></h2>
+<p>It will be useful to have multiple strategies to deal with failures on a single
+or multiple revisions. The reason for these strategies is to allow customized
+conflict handling. These strategies then can be exposed in the ui with a 
+matching option.</p>
+<p><strong>Continue:</strong> If any subprocess fails, we will continue the work on child 
+revisions. Notify the user on exit about the failed revisions. </p>
+<p><strong>Stop:</strong> Signal a fatal failure and cancel any scheduled work that has not
+yet started running, but let any already started subprocess finish. Notify the
+user about the failed command and display the generated error from the 
+subprocess. </p>
+<p><strong>Fatal:</strong> Signal a fatal failure and immediately stop processing and kill any 
+running processes. Notify the user that we failed to apply the command to the 
+specific revision. </p>
+<p>We will leave any affected commit in its current state, if any subprocess fails.
+This allows us provide a better user experience, as leaving revisions in an 
+undesirable state, e.g partially formatted, may confuse users.</p>
+<h2 id="resource-constraints">Resource constraints<a class="headerlink" href="#resource-constraints" title="Permanent link">&para;</a></h2>
+<p>It will be useful to constrain the execution to prevent resource exhaustion. 
+Relevant resources could include:</p>
+<ul>
+<li>CPU and memory available on the machine running the commands. <code>jj run</code> can
+provide some simple mitigations like limiting parallelism to "number of CPUs" 
+by default, and limiting parallelism by dividing "available memory" by some 
+estimate or measurement of per-invocation memory use of the commands.</li>
+<li>External resources that are not immediately known to jj. For example, 
+commands run in parallel may wish to limit the total number of connections
+to a server. We might choose to defer any handling of this to the 
+implementation of the command being invoked, instead of trying to 
+communicate that information to jj.</li>
+</ul>
+<h2 id="command-options">Command Options<a class="headerlink" href="#command-options" title="Permanent link">&para;</a></h2>
+<p>The base command of any jj command should be usable. By default <code>jj run</code> works 
+on the <code>@</code> the current working copy.</p>
+<ul>
+<li>--command, explicit name of the first argument</li>
+<li>-x, for git compatibility (may alias another command)</li>
+<li>-j, --jobs, the amount of parallelism to use</li>
+<li>-k, --keep-going, continue on failure (may alias another command)</li>
+<li>--show, display the diff for an affected revision</li>
+<li>--dry-run, do the command execution without doing any work, logging all 
+intended files and arguments</li>
+<li>--rebase, rebase all parents on the consulitng diff (may alias another 
+command)</li>
+<li>--reparent, change the parent of an effected revision to the new change 
+(may alias another command)</li>
+<li>--clean, remove existing workspaces and remove the ignored files</li>
+<li>--readonly, ignore changes across multiple run invocations</li>
+<li>--error-strategy=<code>continue|stop|fatal</code>, see <a href="#Dealing-with-failure">Dealing with failure</a></li>
+</ul>
+<h3 id="integrating-with-other-commands">Integrating with other commands<a class="headerlink" href="#integrating-with-other-commands" title="Permanent link">&para;</a></h3>
+<p><code>jj log</code>: No special handling needed
+<code>jj diff</code>: No special handling needed
+<code>jj st</code>: For now reprint the final output of <code>jj run</code>
+<code>jj op log</code>: No special handling needed, but awaits further discussion in 
+<a href="https://github.com/martinvonz/jj/issues/963">#963</a>
+<code>jj undo/jj op undo</code>: No special handling needed</p>
+<h2 id="open-points">Open Points<a class="headerlink" href="#open-points" title="Permanent link">&para;</a></h2>
+<p>Should the command be working copy backend specific?<br />
+How do we manage the Processes which the command will spawn?<br />
+Configuration options, User and Repository Wide?</p>
+<h2 id="future-possibilities">Future possibilities<a class="headerlink" href="#future-possibilities" title="Permanent link">&para;</a></h2>
+<ul>
+<li>We could rewrite the file in memory, which is a neat optimization  </li>
+<li>Exposing some internal state, to allow preciser resource constraints  </li>
+<li>Integration options for virtual filesystems, which allow them to cache the 
+needed working copies.  </li>
+<li>A Jujutsu wide concept for a cached working copy, as they could be expensive
+to materialize.  </li>
+<li>Customized failure messages, this maybe useful for bots, it could be similar 
+to Bazel's <code>select(..., message = "arch not supported for $project")</code>.</li>
+<li>Make <code>jj run</code> asynchronous by spawning a <code>main</code> process, directly return to the
+user and incrementally updating the output of <code>jj st</code>. </li>
+</ul>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.f886a092.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.aecac24b.min.js"></script>
+      
+    
+  </body>
+</html>
