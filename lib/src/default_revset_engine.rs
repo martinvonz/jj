@@ -306,12 +306,16 @@ fn predicate_fn_from_positions<'iter>(
 }
 
 #[derive(Debug)]
-struct FilterRevset<P> {
-    candidates: Box<dyn InternalRevset>,
+struct FilterRevset<S, P> {
+    candidates: S,
     predicate: P,
 }
 
-impl<P: ToPredicateFn> InternalRevset for FilterRevset<P> {
+impl<S, P> InternalRevset for FilterRevset<S, P>
+where
+    S: InternalRevset,
+    P: ToPredicateFn,
+{
     fn iter<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
@@ -328,7 +332,11 @@ impl<P: ToPredicateFn> InternalRevset for FilterRevset<P> {
     }
 }
 
-impl<P: ToPredicateFn> ToPredicateFn for FilterRevset<P> {
+impl<S, P> ToPredicateFn for FilterRevset<S, P>
+where
+    S: ToPredicateFn,
+    P: ToPredicateFn,
+{
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
@@ -703,13 +711,13 @@ impl<'index> EvaluationContext<'index> {
                     .collect_vec();
                 if generation_from_roots == &(1..2) {
                     let root_positions_set: HashSet<_> = root_positions.iter().copied().collect();
-                    let candidates = Box::new(RevWalkRevset::new(move |index| {
+                    let candidates = RevWalkRevset::new(move |index| {
                         Box::new(
                             index
                                 .walk_revs(&head_positions, &[])
                                 .take_until_roots(&root_positions),
                         )
-                    }));
+                    });
                     let predicate = as_pure_predicate_fn(move |_index, entry| {
                         entry
                             .parent_positions()
