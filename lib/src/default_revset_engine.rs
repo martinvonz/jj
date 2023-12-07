@@ -24,7 +24,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
-use crate::default_index::{CompositeIndex, IndexEntry, IndexEntryByPosition, IndexPosition};
+use crate::default_index::{CompositeIndex, IndexEntry, IndexPosition};
 use crate::default_revset_graph_iterator::RevsetGraphIterator;
 use crate::id_prefix::{IdIndex, IdIndexSource, IdIndexSourceEntry};
 use crate::index::{HexPrefix, PrefixResolution};
@@ -175,27 +175,31 @@ impl IdIndexSourceEntry<ChangeId> for IndexEntry<'_> {
 }
 
 #[derive(Debug)]
-struct EagerRevset<'index> {
-    index_entries: Vec<IndexEntry<'index>>,
+struct EagerRevset {
+    positions: Vec<IndexPosition>,
 }
 
-impl EagerRevset<'static> {
+impl EagerRevset {
     pub const fn empty() -> Self {
         EagerRevset {
-            index_entries: Vec::new(),
+            positions: Vec::new(),
         }
     }
 }
 
-impl<'index> InternalRevset<'index> for EagerRevset<'index> {
+impl<'index> InternalRevset<'index> for EagerRevset {
     fn iter<'a>(
         &'a self,
-        _index: CompositeIndex<'index>,
+        index: CompositeIndex<'index>,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>
     where
         'index: 'a,
     {
-        Box::new(self.index_entries.iter().cloned())
+        let entries = self
+            .positions
+            .iter()
+            .map(move |&pos| index.entry_by_pos(pos));
+        Box::new(entries)
     }
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
@@ -206,12 +210,12 @@ impl<'index> InternalRevset<'index> for EagerRevset<'index> {
     }
 }
 
-impl ToPredicateFn for EagerRevset<'_> {
+impl ToPredicateFn for EagerRevset {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
         _index: CompositeIndex<'index>,
     ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
-        predicate_fn_from_iter(self.index_entries.iter().cloned())
+        predicate_fn_from_positions(self.positions.iter().copied())
     }
 }
 
@@ -256,19 +260,25 @@ where
         &'a self,
         _index: CompositeIndex<'index2>,
     ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
-        predicate_fn_from_iter(self.walk.clone())
+        predicate_fn_from_entries(self.walk.clone())
     }
 }
 
-fn predicate_fn_from_iter<'index, 'iter>(
+fn predicate_fn_from_entries<'index, 'iter>(
     iter: impl Iterator<Item = IndexEntry<'index>> + 'iter,
+) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'iter> {
+    predicate_fn_from_positions(iter.map(|entry| entry.position()))
+}
+
+fn predicate_fn_from_positions<'iter>(
+    iter: impl Iterator<Item = IndexPosition> + 'iter,
 ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'iter> {
     let mut iter = iter.fuse().peekable();
     Box::new(move |entry| {
-        while iter.next_if(|e| e.position() > entry.position()).is_some() {
+        while iter.next_if(|&pos| pos > entry.position()).is_some() {
             continue;
         }
-        iter.next_if(|e| e.position() == entry.position()).is_some()
+        iter.next_if(|&pos| pos == entry.position()).is_some()
     })
 }
 
@@ -682,25 +692,27 @@ impl<'index> EvaluationContext<'index> {
                         predicate,
                     }))
                 } else if generation_from_roots == &GENERATION_RANGE_FULL {
-                    let mut index_entries = index
+                    let mut positions = index
                         .walk_revs(&head_positions, &[])
                         .descendants(&root_positions)
+                        .map(|entry| entry.position())
                         .collect_vec();
-                    index_entries.reverse();
-                    Ok(Box::new(EagerRevset { index_entries }))
+                    positions.reverse();
+                    Ok(Box::new(EagerRevset { positions }))
                 } else {
                     // For small generation range, it might be better to build a reachable map
                     // with generation bit set, which can be calculated incrementally from roots:
                     //   reachable[pos] = (reachable[parent_pos] | ...) << 1
-                    let mut index_entries = index
+                    let mut positions = index
                         .walk_revs(&head_positions, &[])
                         .descendants_filtered_by_generation(
                             &root_positions,
                             to_u32_generation_range(generation_from_roots)?,
                         )
+                        .map(|entry| entry.position())
                         .collect_vec();
-                    index_entries.reverse();
-                    Ok(Box::new(EagerRevset { index_entries }))
+                    positions.reverse();
+                    Ok(Box::new(EagerRevset { positions }))
                 }
             }
             ResolvedExpression::Heads(candidates) => {
@@ -711,12 +723,8 @@ impl<'index> EvaluationContext<'index> {
                         .map(|entry| entry.position())
                         .collect(),
                 );
-                let index_entries = head_positions
-                    .into_iter()
-                    .rev()
-                    .map(|pos| index.entry_by_pos(pos))
-                    .collect();
-                Ok(Box::new(EagerRevset { index_entries }))
+                let positions = head_positions.into_iter().rev().collect();
+                Ok(Box::new(EagerRevset { positions }))
             }
             ResolvedExpression::Roots(candidates) => {
                 let candidate_entries = self.evaluate(candidates)?.iter(index).collect_vec();
@@ -728,17 +736,17 @@ impl<'index> EvaluationContext<'index> {
                     .walk_revs(&candidate_positions, &[])
                     .descendants(&candidate_positions)
                     .collect_positions_set();
-                let mut index_entries = vec![];
+                let mut positions = vec![];
                 for candidate in candidate_entries {
                     if !candidate
                         .parent_positions()
                         .iter()
                         .any(|parent| filled.contains(parent))
                     {
-                        index_entries.push(candidate);
+                        positions.push(candidate.position());
                     }
                 }
-                Ok(Box::new(EagerRevset { index_entries }))
+                Ok(Box::new(EagerRevset { positions }))
             }
             ResolvedExpression::Latest { candidates, count } => {
                 let candidate_set = self.evaluate(candidates)?;
@@ -796,36 +804,36 @@ impl<'index> EvaluationContext<'index> {
         }
     }
 
-    fn revset_for_commit_ids(&self, commit_ids: &[CommitId]) -> EagerRevset<'index> {
-        let mut index_entries = vec![];
-        for id in commit_ids {
-            index_entries.push(self.index.entry_by_id(id).unwrap());
-        }
-        index_entries.sort_unstable_by_key(|b| Reverse(b.position()));
-        index_entries.dedup();
-        EagerRevset { index_entries }
+    fn revset_for_commit_ids(&self, commit_ids: &[CommitId]) -> EagerRevset {
+        let mut positions = commit_ids
+            .iter()
+            .map(|id| self.index.commit_id_to_pos(id).unwrap())
+            .collect_vec();
+        positions.sort_unstable_by_key(|&pos| Reverse(pos));
+        positions.dedup();
+        EagerRevset { positions }
     }
 
     fn take_latest_revset(
         &self,
         candidate_set: &dyn InternalRevset<'index>,
         count: usize,
-    ) -> EagerRevset<'index> {
+    ) -> EagerRevset {
         if count == 0 {
             return EagerRevset::empty();
         }
 
         #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-        struct Item<'a> {
+        struct Item {
             timestamp: MillisSinceEpoch,
-            entry: IndexEntryByPosition<'a>, // tie-breaker
+            pos: IndexPosition, // tie-breaker
         }
 
-        let make_rev_item = |entry: IndexEntry<'index>| {
+        let make_rev_item = |entry: IndexEntry<'_>| {
             let commit = self.store.get_commit(&entry.commit_id()).unwrap();
             Reverse(Item {
                 timestamp: commit.committer().timestamp.timestamp.clone(),
-                entry: IndexEntryByPosition(entry),
+                pos: entry.position(),
             })
         };
 
@@ -842,12 +850,12 @@ impl<'index> EvaluationContext<'index> {
         }
 
         assert!(latest_items.len() <= count);
-        let mut index_entries = latest_items
+        let mut positions = latest_items
             .into_iter()
-            .map(|item| item.0.entry.0)
+            .map(|item| item.0.pos)
             .collect_vec();
-        index_entries.sort_unstable_by_key(|b| Reverse(b.position()));
-        EagerRevset { index_entries }
+        positions.sort_unstable_by_key(|&pos| Reverse(pos));
+        EagerRevset { positions }
     }
 }
 
@@ -976,11 +984,12 @@ mod tests {
         index.add_commit_data(id_3.clone(), new_change_id(), &[id_2.clone()]);
         index.add_commit_data(id_4.clone(), new_change_id(), &[id_3.clone()]);
 
+        let get_pos = |id: &CommitId| index.as_composite().commit_id_to_pos(id).unwrap();
         let get_entry = |id: &CommitId| index.as_composite().entry_by_id(id).unwrap();
         let make_entries = |ids: &[&CommitId]| ids.iter().map(|id| get_entry(id)).collect_vec();
         let make_set = |ids: &[&CommitId]| -> Box<dyn InternalRevset> {
-            let index_entries = make_entries(ids);
-            Box::new(EagerRevset { index_entries })
+            let positions = ids.iter().copied().map(get_pos).collect();
+            Box::new(EagerRevset { positions })
         };
 
         let set = make_set(&[&id_4, &id_3, &id_2, &id_0]);
