@@ -19,7 +19,6 @@ use std::fmt::{Debug, Formatter};
 use std::io::ErrorKind;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use std::pin::Pin;
 use std::sync::Arc;
 use std::{fs, slice};
 
@@ -49,7 +48,7 @@ use crate::operation::Operation;
 use crate::refs::{
     diff_named_ref_targets, diff_named_remote_refs, merge_ref_targets, merge_remote_refs,
 };
-use crate::revset::{self, ChangeIdIndex, Revset, RevsetExpression};
+use crate::revset::{ChangeIdIndex, RevsetExpression};
 use crate::rewrite::{DescendantRebaser, RebaseOptions};
 use crate::settings::{RepoSettings, UserSettings};
 use crate::signing::{SignInitError, Signer};
@@ -60,7 +59,7 @@ use crate::submodule_store::SubmoduleStore;
 use crate::transaction::Transaction;
 use crate::tree::TreeMergeError;
 use crate::view::View;
-use crate::{backend, dag_walk, op_store};
+use crate::{backend, dag_walk, op_store, revset};
 
 pub trait Repo {
     fn store(&self) -> &Arc<Store>;
@@ -97,8 +96,7 @@ pub struct ReadonlyRepo {
     settings: RepoSettings,
     index_store: Arc<dyn IndexStore>,
     submodule_store: Arc<dyn SubmoduleStore>,
-    index: OnceCell<Pin<Box<dyn ReadonlyIndex>>>,
-    // Declared after `change_id_index` since it must outlive it on drop.
+    index: OnceCell<Box<dyn ReadonlyIndex>>,
     change_id_index: OnceCell<Box<dyn ChangeIdIndex>>,
     // TODO: This should eventually become part of the index and not be stored fully in memory.
     view: View,
@@ -255,28 +253,25 @@ impl ReadonlyRepo {
     pub fn readonly_index(&self) -> &dyn ReadonlyIndex {
         self.index
             .get_or_init(|| {
-                Box::into_pin(
-                    self.index_store
-                        .get_index_at_op(&self.operation, &self.store),
-                )
+                self.index_store
+                    .get_index_at_op(&self.operation, &self.store)
             })
             .deref()
     }
 
-    fn change_id_index<'a>(&'a self) -> &'a (dyn ChangeIdIndex + 'a) {
-        let change_id_index: &'a (dyn ChangeIdIndex + 'a) = self
-            .change_id_index
+    fn change_id_index(&self) -> &dyn ChangeIdIndex {
+        self.change_id_index
             .get_or_init(|| {
-                let revset: Box<dyn Revset<'a>> =
-                    RevsetExpression::all().evaluate_programmatic(self).unwrap();
-                let change_id_index: Box<dyn ChangeIdIndex + 'a> = revset.change_id_index();
-                // evaluate() above only borrows the index, not the whole repo
-                let change_id_index: Box<dyn ChangeIdIndex> =
-                    unsafe { std::mem::transmute(change_id_index) };
-                change_id_index
+                // TODO: maybe add abstraction over 'static/'index revset
+                // evaluation, and use it.
+                let expression = RevsetExpression::all().resolve_programmatic(self);
+                let revset = self
+                    .readonly_index()
+                    .evaluate_revset_static(&expression, self.store())
+                    .unwrap();
+                revset.change_id_index()
             })
-            .as_ref();
-        change_id_index
+            .as_ref()
     }
 
     pub fn op_heads_store(&self) -> &Arc<dyn OpHeadsStore> {
@@ -693,7 +688,7 @@ impl RepoLoader {
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
             submodule_store: self.submodule_store.clone(),
-            index: OnceCell::with_value(Box::into_pin(index)),
+            index: OnceCell::with_value(index),
             change_id_index: OnceCell::new(),
             view,
         };
