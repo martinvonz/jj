@@ -14,7 +14,7 @@
 
 use itertools::Itertools;
 use jj_lib::commit::Commit;
-use jj_lib::default_index::{AsCompositeIndex as _, DefaultReadonlyIndex};
+use jj_lib::default_index::DefaultReadonlyIndex;
 use jj_lib::default_revset_engine::{evaluate, RevsetImpl};
 use jj_lib::repo::{ReadonlyRepo, Repo as _};
 use jj_lib::revset::ResolvedExpression;
@@ -25,13 +25,12 @@ use testutils::{CommitGraphBuilder, TestRepo};
 fn revset_for_commits<'index>(
     repo: &'index ReadonlyRepo,
     commits: &[&Commit],
-) -> RevsetImpl<'index> {
+) -> RevsetImpl<&'index DefaultReadonlyIndex> {
     let index = repo
         .readonly_index()
         .as_any()
         .downcast_ref::<DefaultReadonlyIndex>()
-        .unwrap()
-        .as_composite();
+        .unwrap();
     let expression =
         ResolvedExpression::Commits(commits.iter().map(|commit| commit.id().clone()).collect());
     evaluate(&expression, repo.store(), index).unwrap()
