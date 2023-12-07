@@ -30,6 +30,7 @@ use super::entry::{IndexEntry, IndexPosition, SmallIndexPositionsVec};
 use super::mutable::DefaultMutableIndex;
 use super::store::IndexLoadError;
 use crate::backend::{ChangeId, CommitId, ObjectId};
+use crate::default_revset_engine;
 use crate::index::{HexPrefix, Index, MutableIndex, PrefixResolution, ReadonlyIndex};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
@@ -373,7 +374,7 @@ impl IndexSegment for ReadonlyIndexSegment {
 }
 
 /// Commit index backend which stores data on local disk.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct DefaultReadonlyIndex(Arc<ReadonlyIndexSegment>);
 
 impl DefaultReadonlyIndex {
@@ -438,6 +439,15 @@ impl ReadonlyIndex for DefaultReadonlyIndex {
 
     fn as_index(&self) -> &dyn Index {
         self
+    }
+
+    fn evaluate_revset_static(
+        &self,
+        expression: &ResolvedExpression,
+        store: &Arc<Store>,
+    ) -> Result<Box<dyn Revset<'static>>, RevsetEvaluationError> {
+        let revset_impl = default_revset_engine::evaluate(expression, store, self.clone())?;
+        Ok(Box::new(revset_impl))
     }
 
     fn start_modification(&self) -> Box<dyn MutableIndex> {
