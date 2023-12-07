@@ -14,7 +14,6 @@
 
 #![allow(missing_docs)]
 
-use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 
@@ -104,21 +103,6 @@ impl<'a> IndexEntry<'a> {
         self.parent_positions()
             .into_iter()
             .map(move |pos| composite.entry_by_pos(pos))
-    }
-}
-
-#[derive(Clone, Eq, PartialEq)]
-pub struct IndexEntryByPosition<'a>(pub IndexEntry<'a>);
-
-impl Ord for IndexEntryByPosition<'_> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.0.pos.cmp(&other.0.pos)
-    }
-}
-
-impl PartialOrd for IndexEntryByPosition<'_> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
     }
 }
 

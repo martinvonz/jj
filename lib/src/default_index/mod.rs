@@ -22,7 +22,7 @@ mod rev_walk;
 mod store;
 
 pub use self::composite::{CompositeIndex, IndexLevelStats, IndexStats};
-pub use self::entry::{IndexEntry, IndexEntryByPosition, IndexPosition};
+pub use self::entry::{IndexEntry, IndexPosition};
 pub use self::mutable::DefaultMutableIndex;
 pub use self::readonly::DefaultReadonlyIndex;
 pub use self::rev_walk::{
