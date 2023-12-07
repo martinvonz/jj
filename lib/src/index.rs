@@ -75,6 +75,14 @@ pub trait ReadonlyIndex: Send + Sync {
 
     fn as_index(&self) -> &dyn Index;
 
+    // TODO: might be better to split Index::evaluate_revset() to
+    // Readonly/MutableIndex::evaluate_static().
+    fn evaluate_revset_static(
+        &self,
+        expression: &ResolvedExpression,
+        store: &Arc<Store>,
+    ) -> Result<Box<dyn Revset<'static>>, RevsetEvaluationError>;
+
     fn start_modification(&self) -> Box<dyn MutableIndex>;
 }
 

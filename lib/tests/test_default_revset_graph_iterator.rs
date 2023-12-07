@@ -22,10 +22,10 @@ use jj_lib::revset_graph::RevsetGraphEdge;
 use test_case::test_case;
 use testutils::{CommitGraphBuilder, TestRepo};
 
-fn revset_for_commits<'index>(
-    repo: &'index ReadonlyRepo,
+fn revset_for_commits(
+    repo: &ReadonlyRepo,
     commits: &[&Commit],
-) -> RevsetImpl<&'index DefaultReadonlyIndex> {
+) -> RevsetImpl<DefaultReadonlyIndex> {
     let index = repo
         .readonly_index()
         .as_any()
@@ -33,7 +33,7 @@ fn revset_for_commits<'index>(
         .unwrap();
     let expression =
         ResolvedExpression::Commits(commits.iter().map(|commit| commit.id().clone()).collect());
-    evaluate(&expression, repo.store(), index).unwrap()
+    evaluate(&expression, repo.store(), index.clone()).unwrap()
 }
 
 fn direct(commit: &Commit) -> RevsetGraphEdge {
