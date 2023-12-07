@@ -63,6 +63,26 @@ pub(super) trait IndexSegment: Send + Sync {
     fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry;
 }
 
+/// Abstraction over owned and borrowed types that can be cheaply converted to
+/// a `CompositeIndex` reference.
+pub trait AsCompositeIndex {
+    /// Returns reference wrapper that provides global access to this index.
+    fn as_composite(&self) -> CompositeIndex<'_>;
+}
+
+impl<T: AsCompositeIndex + ?Sized> AsCompositeIndex for &T {
+    fn as_composite(&self) -> CompositeIndex<'_> {
+        <T as AsCompositeIndex>::as_composite(self)
+    }
+}
+
+impl<T: AsCompositeIndex + ?Sized> AsCompositeIndex for &mut T {
+    fn as_composite(&self) -> CompositeIndex<'_> {
+        <T as AsCompositeIndex>::as_composite(self)
+    }
+}
+
+/// Reference wrapper that provides global access to nested index segments.
 #[derive(Clone, Copy)]
 pub struct CompositeIndex<'a>(&'a dyn IndexSegment);
 
@@ -285,6 +305,12 @@ impl<'a> CompositeIndex<'a> {
     ) -> Result<Box<dyn Revset<'a> + 'a>, RevsetEvaluationError> {
         let revset_impl = default_revset_engine::evaluate(expression, store, *self)?;
         Ok(Box::new(revset_impl))
+    }
+}
+
+impl AsCompositeIndex for CompositeIndex<'_> {
+    fn as_composite(&self) -> CompositeIndex<'_> {
+        *self
     }
 }
 

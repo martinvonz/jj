@@ -21,7 +21,7 @@ mod readonly;
 mod rev_walk;
 mod store;
 
-pub use self::composite::{CompositeIndex, IndexLevelStats, IndexStats};
+pub use self::composite::{AsCompositeIndex, CompositeIndex, IndexLevelStats, IndexStats};
 pub use self::entry::{IndexEntry, IndexPosition};
 pub use self::mutable::DefaultMutableIndex;
 pub use self::readonly::DefaultReadonlyIndex;

@@ -25,7 +25,7 @@ use std::sync::Arc;
 use byteorder::{LittleEndian, ReadBytesExt};
 use smallvec::SmallVec;
 
-use super::composite::{CompositeIndex, IndexSegment};
+use super::composite::{AsCompositeIndex, CompositeIndex, IndexSegment};
 use super::entry::{IndexEntry, IndexPosition, SmallIndexPositionsVec};
 use super::mutable::DefaultMutableIndex;
 use super::store::IndexLoadError;
@@ -384,8 +384,10 @@ impl DefaultReadonlyIndex {
     pub(super) fn as_segment(&self) -> &Arc<ReadonlyIndexSegment> {
         &self.0
     }
+}
 
-    pub fn as_composite(&self) -> CompositeIndex {
+impl AsCompositeIndex for DefaultReadonlyIndex {
+    fn as_composite(&self) -> CompositeIndex<'_> {
         self.0.as_composite()
     }
 }

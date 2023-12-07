@@ -978,7 +978,7 @@ fn has_diff_from_parent(
 mod tests {
     use super::*;
     use crate::backend::{ChangeId, CommitId, ObjectId};
-    use crate::default_index::DefaultMutableIndex;
+    use crate::default_index::{AsCompositeIndex as _, DefaultMutableIndex};
 
     /// Generator of unique 16-byte ChangeId excluding root id
     fn change_id_generator() -> impl FnMut() -> ChangeId {
