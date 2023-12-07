@@ -30,7 +30,7 @@ use itertools::Itertools;
 use smallvec::SmallVec;
 use tempfile::NamedTempFile;
 
-use super::composite::{CompositeIndex, IndexSegment};
+use super::composite::{AsCompositeIndex, CompositeIndex, IndexSegment};
 use super::entry::{IndexEntry, IndexPosition, SmallIndexPositionsVec};
 use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexSegment};
 use super::store::IndexLoadError;
@@ -403,10 +403,6 @@ impl DefaultMutableIndex {
         DefaultMutableIndex(mutable_segment)
     }
 
-    pub fn as_composite(&self) -> CompositeIndex {
-        self.0.as_composite()
-    }
-
     #[cfg(test)]
     pub(crate) fn add_commit_data(
         &mut self,
@@ -419,6 +415,12 @@ impl DefaultMutableIndex {
 
     pub(super) fn save_in(self, dir: PathBuf) -> io::Result<Arc<ReadonlyIndexSegment>> {
         self.0.save_in(dir)
+    }
+}
+
+impl AsCompositeIndex for DefaultMutableIndex {
+    fn as_composite(&self) -> CompositeIndex<'_> {
+        self.0.as_composite()
     }
 }
 
