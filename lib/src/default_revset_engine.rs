@@ -57,15 +57,12 @@ impl<T: ToPredicateFn + ?Sized> ToPredicateFn for Box<T> {
     }
 }
 
-// TODO: move <'index> parameter to iter<'a, 'index: 'a>
-trait InternalRevset<'index>: fmt::Debug + ToPredicateFn {
+trait InternalRevset: fmt::Debug + ToPredicateFn {
     // All revsets currently iterate in order of descending index position
-    fn iter<'a>(
+    fn iter<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
-    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>
-    where
-        'index: 'a;
+    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>;
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
     where
@@ -73,15 +70,12 @@ trait InternalRevset<'index>: fmt::Debug + ToPredicateFn {
 }
 
 pub struct RevsetImpl<'index> {
-    inner: Box<dyn InternalRevset<'index> + 'index>,
+    inner: Box<dyn InternalRevset>,
     index: CompositeIndex<'index>,
 }
 
 impl<'index> RevsetImpl<'index> {
-    fn new(
-        revset: Box<dyn InternalRevset<'index> + 'index>,
-        index: CompositeIndex<'index>,
-    ) -> Self {
+    fn new(revset: Box<dyn InternalRevset>, index: CompositeIndex<'index>) -> Self {
         Self {
             inner: revset,
             index,
@@ -187,14 +181,11 @@ impl EagerRevset {
     }
 }
 
-impl<'index> InternalRevset<'index> for EagerRevset {
-    fn iter<'a>(
+impl InternalRevset for EagerRevset {
+    fn iter<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
-    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>
-    where
-        'index: 'a,
-    {
+    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
         let entries = self
             .positions
             .iter()
@@ -248,17 +239,14 @@ impl<F> fmt::Debug for RevWalkRevset<F> {
     }
 }
 
-impl<'index, F> InternalRevset<'index> for RevWalkRevset<F>
+impl<F> InternalRevset for RevWalkRevset<F>
 where
     F: Fn(CompositeIndex<'_>) -> Box<dyn Iterator<Item = IndexEntry<'_>> + '_>,
 {
-    fn iter<'a>(
+    fn iter<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
-    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>
-    where
-        'index: 'a,
-    {
+    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
         (self.walk)(index)
     }
 
@@ -301,19 +289,16 @@ fn predicate_fn_from_positions<'iter>(
 }
 
 #[derive(Debug)]
-struct FilterRevset<'index, P> {
-    candidates: Box<dyn InternalRevset<'index> + 'index>,
+struct FilterRevset<P> {
+    candidates: Box<dyn InternalRevset>,
     predicate: P,
 }
 
-impl<'index, P: ToPredicateFn> InternalRevset<'index> for FilterRevset<'index, P> {
-    fn iter<'a>(
+impl<P: ToPredicateFn> InternalRevset for FilterRevset<P> {
+    fn iter<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
-    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>
-    where
-        'index: 'a,
-    {
+    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
         let p = self.predicate.to_predicate_fn(index);
         Box::new(self.candidates.iter(index).filter(p))
     }
@@ -326,7 +311,7 @@ impl<'index, P: ToPredicateFn> InternalRevset<'index> for FilterRevset<'index, P
     }
 }
 
-impl<P: ToPredicateFn> ToPredicateFn for FilterRevset<'_, P> {
+impl<P: ToPredicateFn> ToPredicateFn for FilterRevset<P> {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
@@ -351,19 +336,16 @@ impl<S: ToPredicateFn> ToPredicateFn for NotInPredicate<S> {
 }
 
 #[derive(Debug)]
-struct UnionRevset<'index> {
-    set1: Box<dyn InternalRevset<'index> + 'index>,
-    set2: Box<dyn InternalRevset<'index> + 'index>,
+struct UnionRevset {
+    set1: Box<dyn InternalRevset>,
+    set2: Box<dyn InternalRevset>,
 }
 
-impl<'index> InternalRevset<'index> for UnionRevset<'index> {
-    fn iter<'a>(
+impl InternalRevset for UnionRevset {
+    fn iter<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
-    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>
-    where
-        'index: 'a,
-    {
+    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
         Box::new(UnionRevsetIterator {
             iter1: self.set1.iter(index).peekable(),
             iter2: self.set2.iter(index).peekable(),
@@ -378,7 +360,7 @@ impl<'index> InternalRevset<'index> for UnionRevset<'index> {
     }
 }
 
-impl ToPredicateFn for UnionRevset<'_> {
+impl ToPredicateFn for UnionRevset {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
@@ -441,19 +423,16 @@ impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexE
 }
 
 #[derive(Debug)]
-struct IntersectionRevset<'index> {
-    set1: Box<dyn InternalRevset<'index> + 'index>,
-    set2: Box<dyn InternalRevset<'index> + 'index>,
+struct IntersectionRevset {
+    set1: Box<dyn InternalRevset>,
+    set2: Box<dyn InternalRevset>,
 }
 
-impl<'index> InternalRevset<'index> for IntersectionRevset<'index> {
-    fn iter<'a>(
+impl InternalRevset for IntersectionRevset {
+    fn iter<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
-    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>
-    where
-        'index: 'a,
-    {
+    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
         Box::new(IntersectionRevsetIterator {
             iter1: self.set1.iter(index).peekable(),
             iter2: self.set2.iter(index).peekable(),
@@ -468,7 +447,7 @@ impl<'index> InternalRevset<'index> for IntersectionRevset<'index> {
     }
 }
 
-impl ToPredicateFn for IntersectionRevset<'_> {
+impl ToPredicateFn for IntersectionRevset {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
@@ -520,21 +499,18 @@ impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexE
 }
 
 #[derive(Debug)]
-struct DifferenceRevset<'index> {
+struct DifferenceRevset {
     // The minuend (what to subtract from)
-    set1: Box<dyn InternalRevset<'index> + 'index>,
+    set1: Box<dyn InternalRevset>,
     // The subtrahend (what to subtract)
-    set2: Box<dyn InternalRevset<'index> + 'index>,
+    set2: Box<dyn InternalRevset>,
 }
 
-impl<'index> InternalRevset<'index> for DifferenceRevset<'index> {
-    fn iter<'a>(
+impl InternalRevset for DifferenceRevset {
+    fn iter<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
-    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>
-    where
-        'index: 'a,
-    {
+    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
         Box::new(DifferenceRevsetIterator {
             iter1: self.set1.iter(index).peekable(),
             iter2: self.set2.iter(index).peekable(),
@@ -549,7 +525,7 @@ impl<'index> InternalRevset<'index> for DifferenceRevset<'index> {
     }
 }
 
-impl ToPredicateFn for DifferenceRevset<'_> {
+impl ToPredicateFn for DifferenceRevset {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
@@ -633,7 +609,7 @@ impl<'index> EvaluationContext<'index> {
     fn evaluate(
         &self,
         expression: &ResolvedExpression,
-    ) -> Result<Box<dyn InternalRevset<'index> + 'index>, RevsetEvaluationError> {
+    ) -> Result<Box<dyn InternalRevset>, RevsetEvaluationError> {
         let index = self.index;
         match expression {
             ResolvedExpression::Commits(commit_ids) => {
@@ -817,7 +793,7 @@ impl<'index> EvaluationContext<'index> {
     fn evaluate_predicate(
         &self,
         expression: &ResolvedPredicateExpression,
-    ) -> Result<Box<dyn ToPredicateFn + 'index>, RevsetEvaluationError> {
+    ) -> Result<Box<dyn ToPredicateFn>, RevsetEvaluationError> {
         match expression {
             ResolvedPredicateExpression::Filter(predicate) => {
                 Ok(build_predicate_fn(self.store.clone(), predicate))
@@ -847,11 +823,7 @@ impl<'index> EvaluationContext<'index> {
         EagerRevset { positions }
     }
 
-    fn take_latest_revset(
-        &self,
-        candidate_set: &dyn InternalRevset<'index>,
-        count: usize,
-    ) -> EagerRevset {
+    fn take_latest_revset(&self, candidate_set: &dyn InternalRevset, count: usize) -> EagerRevset {
         if count == 0 {
             return EagerRevset::empty();
         }
