@@ -24,7 +24,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
-use crate::default_index::{CompositeIndex, IndexEntry, IndexPosition};
+use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexEntry, IndexPosition};
 use crate::default_revset_graph_iterator::RevsetGraphIterator;
 use crate::id_prefix::{IdIndex, IdIndexSource, IdIndexSourceEntry};
 use crate::index::{HexPrefix, PrefixResolution};
@@ -69,29 +69,26 @@ trait InternalRevset: fmt::Debug + ToPredicateFn {
         Self: 'a;
 }
 
-pub struct RevsetImpl<'index> {
+pub struct RevsetImpl<I> {
     inner: Box<dyn InternalRevset>,
-    index: CompositeIndex<'index>,
+    index: I,
 }
 
-impl<'index> RevsetImpl<'index> {
-    fn new(revset: Box<dyn InternalRevset>, index: CompositeIndex<'index>) -> Self {
-        Self {
-            inner: revset,
-            index,
-        }
+impl<I: AsCompositeIndex> RevsetImpl<I> {
+    fn new(inner: Box<dyn InternalRevset>, index: I) -> Self {
+        Self { inner, index }
     }
 
-    fn entries(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
-        self.inner.iter(self.index)
+    fn entries(&self) -> Box<dyn Iterator<Item = IndexEntry<'_>> + '_> {
+        self.inner.iter(self.index.as_composite())
     }
 
-    pub fn iter_graph_impl(&self) -> RevsetGraphIterator<'_, 'index> {
-        RevsetGraphIterator::new(self.index, self.entries())
+    pub fn iter_graph_impl(&self) -> RevsetGraphIterator<'_, '_> {
+        RevsetGraphIterator::new(self.index.as_composite(), self.entries())
     }
 }
 
-impl fmt::Debug for RevsetImpl<'_> {
+impl<I> fmt::Debug for RevsetImpl<I> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("RevsetImpl")
             .field("inner", &self.inner)
@@ -99,7 +96,11 @@ impl fmt::Debug for RevsetImpl<'_> {
     }
 }
 
-impl<'index> Revset<'index> for RevsetImpl<'index> {
+impl<'index, I> Revset<'index> for RevsetImpl<I>
+where
+    // Clone + Send + Sync for change_id_index()
+    I: AsCompositeIndex + Clone + Send + Sync + 'index,
+{
     fn iter(&self) -> Box<dyn Iterator<Item = CommitId> + '_> {
         Box::new(self.entries().map(|index_entry| index_entry.commit_id()))
     }
@@ -122,7 +123,7 @@ impl<'index> Revset<'index> for RevsetImpl<'index> {
             pos_by_change.insert(&entry.change_id(), entry.position());
         }
         Box::new(ChangeIdIndexImpl {
-            index: self.index,
+            index: self.index.clone(),
             pos_by_change: pos_by_change.build(),
         })
     }
@@ -136,21 +137,21 @@ impl<'index> Revset<'index> for RevsetImpl<'index> {
     }
 }
 
-struct ChangeIdIndexImpl<'index> {
-    index: CompositeIndex<'index>,
+struct ChangeIdIndexImpl<I> {
+    index: I,
     pos_by_change: IdIndex<ChangeId, IndexPosition, 4>,
 }
 
-impl ChangeIdIndex for ChangeIdIndexImpl<'_> {
+impl<I: AsCompositeIndex + Send + Sync> ChangeIdIndex for ChangeIdIndexImpl<I> {
     fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
         self.pos_by_change
-            .resolve_prefix_with(self.index, prefix, |entry| entry.commit_id())
+            .resolve_prefix_with(self.index.as_composite(), prefix, |entry| entry.commit_id())
             .map(|(_, commit_ids)| commit_ids)
     }
 
     fn shortest_unique_prefix_len(&self, change_id: &ChangeId) -> usize {
         self.pos_by_change
-            .shortest_unique_prefix_len(self.index, change_id)
+            .shortest_unique_prefix_len(self.index.as_composite(), change_id)
     }
 }
 
@@ -576,14 +577,14 @@ impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexE
     }
 }
 
-pub fn evaluate<'index>(
+pub fn evaluate<I: AsCompositeIndex>(
     expression: &ResolvedExpression,
     store: &Arc<Store>,
-    index: CompositeIndex<'index>,
-) -> Result<RevsetImpl<'index>, RevsetEvaluationError> {
+    index: I,
+) -> Result<RevsetImpl<I>, RevsetEvaluationError> {
     let context = EvaluationContext {
         store: store.clone(),
-        index,
+        index: index.as_composite(),
     };
     let internal_revset = context.evaluate(expression)?;
     Ok(RevsetImpl::new(internal_revset, index))
@@ -978,7 +979,7 @@ fn has_diff_from_parent(
 mod tests {
     use super::*;
     use crate::backend::{ChangeId, CommitId, ObjectId};
-    use crate::default_index::{AsCompositeIndex as _, DefaultMutableIndex};
+    use crate::default_index::DefaultMutableIndex;
 
     /// Generator of unique 16-byte ChangeId excluding root id
     fn change_id_generator() -> impl FnMut() -> ChangeId {
