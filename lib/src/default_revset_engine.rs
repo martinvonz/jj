@@ -714,7 +714,7 @@ impl<'index> EvaluationContext<'index> {
                                 .take_until_roots(&root_positions),
                         )
                     }));
-                    let predicate = as_pure_predicate_fn(move |entry| {
+                    let predicate = as_pure_predicate_fn(move |_index, entry| {
                         entry
                             .parent_positions()
                             .iter()
@@ -819,11 +819,9 @@ impl<'index> EvaluationContext<'index> {
         expression: &ResolvedPredicateExpression,
     ) -> Result<Box<dyn ToPredicateFn + 'index>, RevsetEvaluationError> {
         match expression {
-            ResolvedPredicateExpression::Filter(predicate) => Ok(build_predicate_fn(
-                self.store.clone(),
-                self.index,
-                predicate,
-            )),
+            ResolvedPredicateExpression::Filter(predicate) => {
+                Ok(build_predicate_fn(self.store.clone(), predicate))
+            }
             ResolvedPredicateExpression::Set(expression) => {
                 Ok(self.evaluate(expression)?.into_predicate())
             }
@@ -902,41 +900,46 @@ impl<F> fmt::Debug for PurePredicateFn<F> {
     }
 }
 
-impl<F: Fn(&IndexEntry<'_>) -> bool> ToPredicateFn for PurePredicateFn<F> {
+impl<F> ToPredicateFn for PurePredicateFn<F>
+where
+    F: Fn(CompositeIndex<'_>, &IndexEntry<'_>) -> bool,
+{
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
-        _index: CompositeIndex<'index>,
+        index: CompositeIndex<'index>,
     ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
-        Box::new(&self.0)
+        let f = &self.0;
+        Box::new(move |entry| f(index, entry))
     }
 }
 
 fn as_pure_predicate_fn<F>(f: F) -> PurePredicateFn<F>
 where
-    F: Fn(&IndexEntry<'_>) -> bool,
+    F: Fn(CompositeIndex<'_>, &IndexEntry<'_>) -> bool,
 {
     PurePredicateFn(f)
 }
 
-fn box_pure_predicate_fn<'index>(
-    f: impl Fn(&IndexEntry<'_>) -> bool + 'index,
-) -> Box<dyn ToPredicateFn + 'index> {
+fn box_pure_predicate_fn<'a>(
+    f: impl Fn(CompositeIndex<'_>, &IndexEntry<'_>) -> bool + 'a,
+) -> Box<dyn ToPredicateFn + 'a> {
     Box::new(PurePredicateFn(f))
 }
 
-fn build_predicate_fn<'index>(
+fn build_predicate_fn(
     store: Arc<Store>,
-    index: CompositeIndex<'index>,
     predicate: &RevsetFilterPredicate,
-) -> Box<dyn ToPredicateFn + 'index> {
+) -> Box<dyn ToPredicateFn> {
     match predicate {
         RevsetFilterPredicate::ParentCount(parent_count_range) => {
             let parent_count_range = parent_count_range.clone();
-            box_pure_predicate_fn(move |entry| parent_count_range.contains(&entry.num_parents()))
+            box_pure_predicate_fn(move |_index, entry| {
+                parent_count_range.contains(&entry.num_parents())
+            })
         }
         RevsetFilterPredicate::Description(pattern) => {
             let pattern = pattern.clone();
-            box_pure_predicate_fn(move |entry| {
+            box_pure_predicate_fn(move |_index, entry| {
                 let commit = store.get_commit(&entry.commit_id()).unwrap();
                 pattern.matches(commit.description())
             })
@@ -946,14 +949,14 @@ fn build_predicate_fn<'index>(
             // TODO: Make these functions that take a needle to search for accept some
             // syntax for specifying whether it's a regex and whether it's
             // case-sensitive.
-            box_pure_predicate_fn(move |entry| {
+            box_pure_predicate_fn(move |_index, entry| {
                 let commit = store.get_commit(&entry.commit_id()).unwrap();
                 pattern.matches(&commit.author().name) || pattern.matches(&commit.author().email)
             })
         }
         RevsetFilterPredicate::Committer(pattern) => {
             let pattern = pattern.clone();
-            box_pure_predicate_fn(move |entry| {
+            box_pure_predicate_fn(move |_index, entry| {
                 let commit = store.get_commit(&entry.commit_id()).unwrap();
                 pattern.matches(&commit.committer().name)
                     || pattern.matches(&commit.committer().email)
@@ -966,11 +969,11 @@ fn build_predicate_fn<'index>(
             } else {
                 Box::new(EverythingMatcher)
             };
-            box_pure_predicate_fn(move |entry| {
+            box_pure_predicate_fn(move |index, entry| {
                 has_diff_from_parent(&store, index, entry, matcher.as_ref())
             })
         }
-        RevsetFilterPredicate::HasConflict => box_pure_predicate_fn(move |entry| {
+        RevsetFilterPredicate::HasConflict => box_pure_predicate_fn(move |_index, entry| {
             let commit = store.get_commit(&entry.commit_id()).unwrap();
             commit.has_conflict().unwrap()
         }),
@@ -1049,7 +1052,7 @@ mod tests {
 
         let set = FilterRevset {
             candidates: make_set(&[&id_4, &id_2, &id_0]),
-            predicate: as_pure_predicate_fn(|entry| entry.commit_id() != id_4),
+            predicate: as_pure_predicate_fn(|_index, entry| entry.commit_id() != id_4),
         };
         assert_eq!(
             set.iter(index.as_composite()).collect_vec(),
