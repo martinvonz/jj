@@ -18,7 +18,7 @@ use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::default_index_store::{
-    CompositeIndex, IndexPosition, MutableIndexImpl, ReadonlyIndexWrapper,
+    CompositeIndex, DefaultReadonlyIndex, IndexPosition, MutableIndexImpl,
 };
 use jj_lib::index::Index as _;
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
@@ -446,7 +446,7 @@ fn create_n_commits(
 fn as_readonly_composite(repo: &Arc<ReadonlyRepo>) -> CompositeIndex<'_> {
     repo.readonly_index()
         .as_any()
-        .downcast_ref::<ReadonlyIndexWrapper>()
+        .downcast_ref::<DefaultReadonlyIndex>()
         .unwrap()
         .as_composite()
 }

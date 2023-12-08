@@ -238,7 +238,7 @@ impl IndexStore for DefaultIndexStore {
         } else {
             self.index_at_operation(store, op).unwrap()
         };
-        Box::new(ReadonlyIndexWrapper(index_impl))
+        Box::new(DefaultReadonlyIndex(index_impl))
     }
 
     fn write_index(
@@ -259,7 +259,7 @@ impl IndexStore for DefaultIndexStore {
                     "Failed to associate commit index file with a operation {op_id:?}: {err}"
                 ))
             })?;
-        Ok(Box::new(ReadonlyIndexWrapper(index)))
+        Ok(Box::new(DefaultReadonlyIndex(index)))
     }
 }
 
@@ -385,9 +385,11 @@ pub(crate) struct ReadonlyIndexImpl {
     overflow_parent: Vec<u8>,
 }
 
-pub struct ReadonlyIndexWrapper(Arc<ReadonlyIndexImpl>);
+/// Commit index backend which stores data on local disk.
+#[derive(Debug)]
+pub struct DefaultReadonlyIndex(Arc<ReadonlyIndexImpl>);
 
-impl ReadonlyIndex for ReadonlyIndexWrapper {
+impl ReadonlyIndex for DefaultReadonlyIndex {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -410,7 +412,7 @@ impl Debug for ReadonlyIndexImpl {
     }
 }
 
-impl ReadonlyIndexWrapper {
+impl DefaultReadonlyIndex {
     pub fn as_composite(&self) -> CompositeIndex {
         self.0.as_composite()
     }
@@ -704,8 +706,8 @@ impl MutableIndex for MutableIndexImpl {
     fn merge_in(&mut self, other: &dyn ReadonlyIndex) {
         let other = other
             .as_any()
-            .downcast_ref::<ReadonlyIndexWrapper>()
-            .expect("index to merge in must be a ReadonlyIndexWrapper");
+            .downcast_ref::<DefaultReadonlyIndex>()
+            .expect("index to merge in must be a DefaultReadonlyIndex");
 
         let mut maybe_own_ancestor = self.parent_file.clone();
         let mut maybe_other_ancestor = Some(other.0.clone());

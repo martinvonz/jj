@@ -14,7 +14,7 @@
 
 use itertools::Itertools;
 use jj_lib::commit::Commit;
-use jj_lib::default_index_store::ReadonlyIndexWrapper;
+use jj_lib::default_index_store::DefaultReadonlyIndex;
 use jj_lib::default_revset_engine::{evaluate, RevsetImpl};
 use jj_lib::repo::{ReadonlyRepo, Repo as _};
 use jj_lib::revset::ResolvedExpression;
@@ -29,7 +29,7 @@ fn revset_for_commits<'index>(
     let index = repo
         .readonly_index()
         .as_any()
-        .downcast_ref::<ReadonlyIndexWrapper>()
+        .downcast_ref::<DefaultReadonlyIndex>()
         .unwrap()
         .as_composite();
     let expression =
