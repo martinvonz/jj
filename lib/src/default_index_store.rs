@@ -157,7 +157,7 @@ impl DefaultIndexStore {
         let parent_file_has_id = |id: &CommitId| {
             maybe_parent_file
                 .as_ref()
-                .map_or(false, |index| index.has_id(id))
+                .map_or(false, |segment| segment.as_composite().has_id(id))
         };
         let commits = dag_walk::topo_order_reverse_ord(
             new_heads
@@ -395,7 +395,7 @@ impl ReadonlyIndex for DefaultReadonlyIndex {
     }
 
     fn as_index(&self) -> &dyn Index {
-        self.0.as_ref()
+        self
     }
 
     fn start_modification(&self) -> Box<dyn MutableIndex> {
@@ -1935,33 +1935,34 @@ impl ReadonlyIndexSegment {
     }
 }
 
-impl Index for ReadonlyIndexSegment {
+impl Index for DefaultReadonlyIndex {
     fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
-        CompositeIndex(self).shortest_unique_commit_id_prefix_len(commit_id)
+        self.as_composite()
+            .shortest_unique_commit_id_prefix_len(commit_id)
     }
 
     fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
-        CompositeIndex(self).resolve_prefix(prefix)
+        self.as_composite().resolve_prefix(prefix)
     }
 
     fn has_id(&self, commit_id: &CommitId) -> bool {
-        CompositeIndex(self).has_id(commit_id)
+        self.as_composite().has_id(commit_id)
     }
 
     fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
-        CompositeIndex(self).is_ancestor(ancestor_id, descendant_id)
+        self.as_composite().is_ancestor(ancestor_id, descendant_id)
     }
 
     fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
-        CompositeIndex(self).common_ancestors(set1, set2)
+        self.as_composite().common_ancestors(set1, set2)
     }
 
     fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
-        CompositeIndex(self).heads(candidates)
+        self.as_composite().heads(candidates)
     }
 
     fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
-        CompositeIndex(self).topo_order(input)
+        self.as_composite().topo_order(input)
     }
 
     fn evaluate_revset<'index>(
@@ -1969,7 +1970,7 @@ impl Index for ReadonlyIndexSegment {
         expression: &ResolvedExpression,
         store: &Arc<Store>,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
-        CompositeIndex(self).evaluate_revset(expression, store)
+        self.as_composite().evaluate_revset(expression, store)
     }
 }
 
