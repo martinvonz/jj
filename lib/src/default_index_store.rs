@@ -136,14 +136,14 @@ impl DefaultIndexStore {
         match parent_op_id {
             None => {
                 maybe_parent_file = None;
-                data = MutableIndexImpl::full(commit_id_length, change_id_length);
+                data = MutableIndexSegment::full(commit_id_length, change_id_length);
             }
             Some(parent_op_id) => {
                 let parent_file = self
                     .load_index_at_operation(commit_id_length, change_id_length, &parent_op_id)
                     .unwrap();
                 maybe_parent_file = Some(parent_file.clone());
-                data = MutableIndexImpl::incremental(parent_file)
+                data = MutableIndexSegment::incremental(parent_file)
             }
         }
 
@@ -399,7 +399,7 @@ impl ReadonlyIndex for DefaultReadonlyIndex {
     }
 
     fn start_modification(&self) -> Box<dyn MutableIndex> {
-        let mutable_segment = MutableIndexImpl::incremental(self.0.clone());
+        let mutable_segment = MutableIndexSegment::incremental(self.0.clone());
         Box::new(DefaultMutableIndex(mutable_segment))
     }
 }
@@ -427,7 +427,7 @@ struct MutableGraphEntry {
     parent_positions: SmallIndexPositionsVec,
 }
 
-struct MutableIndexImpl {
+struct MutableIndexSegment {
     parent_file: Option<Arc<ReadonlyIndexSegment>>,
     num_parent_commits: u32,
     commit_id_length: usize,
@@ -436,7 +436,7 @@ struct MutableIndexImpl {
     lookup: BTreeMap<CommitId, IndexPosition>,
 }
 
-impl MutableIndexImpl {
+impl MutableIndexSegment {
     fn full(commit_id_length: usize, change_id_length: usize) -> Self {
         Self {
             parent_file: None,
@@ -615,7 +615,7 @@ impl MutableIndexImpl {
     /// If the MutableIndex has more than half the commits of its parent
     /// ReadonlyIndex, return MutableIndex with the commits from both. This
     /// is done recursively, so the stack of index files has O(log n) files.
-    fn maybe_squash_with_ancestors(self) -> MutableIndexImpl {
+    fn maybe_squash_with_ancestors(self) -> MutableIndexSegment {
         let mut num_new_commits = self.segment_num_commits();
         let mut files_to_squash = vec![];
         let mut maybe_parent_file = self.parent_file.clone();
@@ -626,7 +626,7 @@ impl MutableIndexImpl {
                     // TODO: We should probably also squash if the parent file has less than N
                     // commits, regardless of how many (few) are in `self`.
                     if 2 * num_new_commits < parent_file.segment_num_commits() {
-                        squashed = MutableIndexImpl::incremental(parent_file);
+                        squashed = MutableIndexSegment::incremental(parent_file);
                         break;
                     }
                     num_new_commits += parent_file.segment_num_commits();
@@ -634,7 +634,8 @@ impl MutableIndexImpl {
                     maybe_parent_file = parent_file.parent_file.clone();
                 }
                 None => {
-                    squashed = MutableIndexImpl::full(self.commit_id_length, self.change_id_length);
+                    squashed =
+                        MutableIndexSegment::full(self.commit_id_length, self.change_id_length);
                     break;
                 }
             }
@@ -687,12 +688,12 @@ impl MutableIndexImpl {
 }
 
 /// In-memory mutable records for the on-disk commit index backend.
-pub struct DefaultMutableIndex(MutableIndexImpl);
+pub struct DefaultMutableIndex(MutableIndexSegment);
 
 impl DefaultMutableIndex {
     #[cfg(test)]
     pub(crate) fn full(commit_id_length: usize, change_id_length: usize) -> Self {
-        let mutable_segment = MutableIndexImpl::full(commit_id_length, change_id_length);
+        let mutable_segment = MutableIndexSegment::full(commit_id_length, change_id_length);
         DefaultMutableIndex(mutable_segment)
     }
 
@@ -1703,7 +1704,7 @@ impl IndexSegment for ReadonlyIndexSegment {
     }
 }
 
-impl IndexSegment for MutableIndexImpl {
+impl IndexSegment for MutableIndexSegment {
     fn segment_num_parent_commits(&self) -> u32 {
         self.num_parent_commits
     }
@@ -2034,12 +2035,12 @@ mod tests {
     #[test_case(true; "file")]
     fn index_empty(on_disk: bool) {
         let temp_dir = testutils::new_temp_dir();
-        let index = MutableIndexImpl::full(3, 16);
+        let mutable_segment = MutableIndexSegment::full(3, 16);
         let index_segment: Box<dyn IndexSegment> = if on_disk {
-            let saved_index = index.save_in(temp_dir.path().to_owned()).unwrap();
+            let saved_index = mutable_segment.save_in(temp_dir.path().to_owned()).unwrap();
             Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
-            Box::new(index)
+            Box::new(mutable_segment)
         };
         let index = CompositeIndex(index_segment.as_ref());
 
@@ -2062,15 +2063,15 @@ mod tests {
     fn index_root_commit(on_disk: bool) {
         let temp_dir = testutils::new_temp_dir();
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndexImpl::full(3, 16);
+        let mut mutable_segment = MutableIndexSegment::full(3, 16);
         let id_0 = CommitId::from_hex("000000");
         let change_id0 = new_change_id();
-        index.add_commit_data(id_0.clone(), change_id0.clone(), &[]);
+        mutable_segment.add_commit_data(id_0.clone(), change_id0.clone(), &[]);
         let index_segment: Box<dyn IndexSegment> = if on_disk {
-            let saved_index = index.save_in(temp_dir.path().to_owned()).unwrap();
+            let saved_index = mutable_segment.save_in(temp_dir.path().to_owned()).unwrap();
             Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
-            Box::new(index)
+            Box::new(mutable_segment)
         };
         let index = CompositeIndex(index_segment.as_ref());
 
@@ -2114,7 +2115,7 @@ mod tests {
     fn index_multiple_commits(incremental: bool, on_disk: bool) {
         let temp_dir = testutils::new_temp_dir();
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndexImpl::full(3, 16);
+        let mut mutable_segment = MutableIndexSegment::full(3, 16);
         // 5
         // |\
         // 4 | 3
@@ -2131,15 +2132,15 @@ mod tests {
         // TODO: Remove the exception after https://github.com/rust-lang/rust-clippy/issues/10577
         // is fixed or file a new bug.
         let change_id2 = change_id1.clone();
-        index.add_commit_data(id_0.clone(), change_id0, &[]);
-        index.add_commit_data(id_1.clone(), change_id1.clone(), &[id_0.clone()]);
-        index.add_commit_data(id_2.clone(), change_id2.clone(), &[id_0.clone()]);
+        mutable_segment.add_commit_data(id_0.clone(), change_id0, &[]);
+        mutable_segment.add_commit_data(id_1.clone(), change_id1.clone(), &[id_0.clone()]);
+        mutable_segment.add_commit_data(id_2.clone(), change_id2.clone(), &[id_0.clone()]);
 
         // If testing incremental indexing, write the first three commits to one file
         // now and build the remainder as another segment on top.
         if incremental {
-            let initial_file = index.save_in(temp_dir.path().to_owned()).unwrap();
-            index = MutableIndexImpl::incremental(initial_file);
+            let initial_file = mutable_segment.save_in(temp_dir.path().to_owned()).unwrap();
+            mutable_segment = MutableIndexSegment::incremental(initial_file);
         }
 
         let id_3 = CommitId::from_hex("333333");
@@ -2148,14 +2149,14 @@ mod tests {
         let change_id4 = new_change_id();
         let id_5 = CommitId::from_hex("555555");
         let change_id5 = change_id3.clone();
-        index.add_commit_data(id_3.clone(), change_id3.clone(), &[id_2.clone()]);
-        index.add_commit_data(id_4.clone(), change_id4, &[id_1.clone()]);
-        index.add_commit_data(id_5.clone(), change_id5, &[id_4.clone(), id_2.clone()]);
+        mutable_segment.add_commit_data(id_3.clone(), change_id3.clone(), &[id_2.clone()]);
+        mutable_segment.add_commit_data(id_4.clone(), change_id4, &[id_1.clone()]);
+        mutable_segment.add_commit_data(id_5.clone(), change_id5, &[id_4.clone(), id_2.clone()]);
         let index_segment: Box<dyn IndexSegment> = if on_disk {
-            let saved_index = index.save_in(temp_dir.path().to_owned()).unwrap();
+            let saved_index = mutable_segment.save_in(temp_dir.path().to_owned()).unwrap();
             Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
-            Box::new(index)
+            Box::new(mutable_segment)
         };
         let index = CompositeIndex(index_segment.as_ref());
 
@@ -2226,7 +2227,7 @@ mod tests {
     fn index_many_parents(on_disk: bool) {
         let temp_dir = testutils::new_temp_dir();
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndexImpl::full(3, 16);
+        let mut mutable_segment = MutableIndexSegment::full(3, 16);
         //     6
         //    /|\
         //   / | \
@@ -2243,22 +2244,22 @@ mod tests {
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
         let id_6 = CommitId::from_hex("666666");
-        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
-        index.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
-        index.add_commit_data(id_2.clone(), new_change_id(), &[id_0.clone()]);
-        index.add_commit_data(id_3.clone(), new_change_id(), &[id_0.clone()]);
-        index.add_commit_data(id_4.clone(), new_change_id(), &[id_0.clone()]);
-        index.add_commit_data(id_5.clone(), new_change_id(), &[id_0]);
-        index.add_commit_data(
+        mutable_segment.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
+        mutable_segment.add_commit_data(id_2.clone(), new_change_id(), &[id_0.clone()]);
+        mutable_segment.add_commit_data(id_3.clone(), new_change_id(), &[id_0.clone()]);
+        mutable_segment.add_commit_data(id_4.clone(), new_change_id(), &[id_0.clone()]);
+        mutable_segment.add_commit_data(id_5.clone(), new_change_id(), &[id_0]);
+        mutable_segment.add_commit_data(
             id_6.clone(),
             new_change_id(),
             &[id_1, id_2, id_3, id_4, id_5],
         );
         let index_segment: Box<dyn IndexSegment> = if on_disk {
-            let saved_index = index.save_in(temp_dir.path().to_owned()).unwrap();
+            let saved_index = mutable_segment.save_in(temp_dir.path().to_owned()).unwrap();
             Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
-            Box::new(index)
+            Box::new(mutable_segment)
         };
         let index = CompositeIndex(index_segment.as_ref());
 
@@ -2290,28 +2291,28 @@ mod tests {
     fn resolve_prefix() {
         let temp_dir = testutils::new_temp_dir();
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndexImpl::full(3, 16);
+        let mut mutable_segment = MutableIndexSegment::full(3, 16);
 
         // Create some commits with different various common prefixes.
         let id_0 = CommitId::from_hex("000000");
         let id_1 = CommitId::from_hex("009999");
         let id_2 = CommitId::from_hex("055488");
-        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
-        index.add_commit_data(id_1.clone(), new_change_id(), &[]);
-        index.add_commit_data(id_2.clone(), new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_1.clone(), new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_2.clone(), new_change_id(), &[]);
 
         // Write the first three commits to one file and build the remainder on top.
-        let initial_file = index.save_in(temp_dir.path().to_owned()).unwrap();
-        index = MutableIndexImpl::incremental(initial_file);
+        let initial_file = mutable_segment.save_in(temp_dir.path().to_owned()).unwrap();
+        mutable_segment = MutableIndexSegment::incremental(initial_file);
 
         let id_3 = CommitId::from_hex("055444");
         let id_4 = CommitId::from_hex("055555");
         let id_5 = CommitId::from_hex("033333");
-        index.add_commit_data(id_3, new_change_id(), &[]);
-        index.add_commit_data(id_4, new_change_id(), &[]);
-        index.add_commit_data(id_5, new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_3, new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_4, new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_5, new_change_id(), &[]);
 
-        let index = index.as_composite();
+        let index = mutable_segment.as_composite();
 
         // Can find commits given the full hex number
         assert_eq!(
@@ -2362,26 +2363,26 @@ mod tests {
     fn neighbor_commit_ids() {
         let temp_dir = testutils::new_temp_dir();
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndexImpl::full(3, 16);
+        let mut mutable_segment = MutableIndexSegment::full(3, 16);
 
         // Create some commits with different various common prefixes.
         let id_0 = CommitId::from_hex("000001");
         let id_1 = CommitId::from_hex("009999");
         let id_2 = CommitId::from_hex("055488");
-        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
-        index.add_commit_data(id_1.clone(), new_change_id(), &[]);
-        index.add_commit_data(id_2.clone(), new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_1.clone(), new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_2.clone(), new_change_id(), &[]);
 
         // Write the first three commits to one file and build the remainder on top.
-        let initial_file = index.save_in(temp_dir.path().to_owned()).unwrap();
-        index = MutableIndexImpl::incremental(initial_file.clone());
+        let initial_file = mutable_segment.save_in(temp_dir.path().to_owned()).unwrap();
+        mutable_segment = MutableIndexSegment::incremental(initial_file.clone());
 
         let id_3 = CommitId::from_hex("055444");
         let id_4 = CommitId::from_hex("055555");
         let id_5 = CommitId::from_hex("033333");
-        index.add_commit_data(id_3.clone(), new_change_id(), &[]);
-        index.add_commit_data(id_4.clone(), new_change_id(), &[]);
-        index.add_commit_data(id_5.clone(), new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_3.clone(), new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_4.clone(), new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_5.clone(), new_change_id(), &[]);
 
         // Local lookup in readonly index, commit_id exists.
         assert_eq!(
@@ -2413,34 +2414,34 @@ mod tests {
 
         // Local lookup in mutable index, commit_id exists. id_5 < id_3 < id_4
         assert_eq!(
-            index.segment_commit_id_to_neighbor_positions(&id_5),
+            mutable_segment.segment_commit_id_to_neighbor_positions(&id_5),
             (None, Some(IndexPosition(3))),
         );
         assert_eq!(
-            index.segment_commit_id_to_neighbor_positions(&id_3),
+            mutable_segment.segment_commit_id_to_neighbor_positions(&id_3),
             (Some(IndexPosition(5)), Some(IndexPosition(4))),
         );
         assert_eq!(
-            index.segment_commit_id_to_neighbor_positions(&id_4),
+            mutable_segment.segment_commit_id_to_neighbor_positions(&id_4),
             (Some(IndexPosition(3)), None),
         );
 
         // Local lookup in mutable index, commit_id does not exist. id_5 < id_3 < id_4
         assert_eq!(
-            index.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("033332")),
+            mutable_segment.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("033332")),
             (None, Some(IndexPosition(5))),
         );
         assert_eq!(
-            index.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("033334")),
+            mutable_segment.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("033334")),
             (Some(IndexPosition(5)), Some(IndexPosition(3))),
         );
         assert_eq!(
-            index.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("ffffff")),
+            mutable_segment.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("ffffff")),
             (Some(IndexPosition(4)), None),
         );
 
         // Global lookup, commit_id exists. id_0 < id_1 < id_5 < id_3 < id_2 < id_4
-        let composite_index = CompositeIndex(&index);
+        let composite_index = CompositeIndex(&mutable_segment);
         assert_eq!(
             composite_index.resolve_neighbor_commit_ids(&id_0),
             (None, Some(id_1.clone())),
@@ -2490,28 +2491,28 @@ mod tests {
     fn shortest_unique_commit_id_prefix() {
         let temp_dir = testutils::new_temp_dir();
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndexImpl::full(3, 16);
+        let mut mutable_segment = MutableIndexSegment::full(3, 16);
 
         // Create some commits with different various common prefixes.
         let id_0 = CommitId::from_hex("000001");
         let id_1 = CommitId::from_hex("009999");
         let id_2 = CommitId::from_hex("055488");
-        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
-        index.add_commit_data(id_1.clone(), new_change_id(), &[]);
-        index.add_commit_data(id_2.clone(), new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_1.clone(), new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_2.clone(), new_change_id(), &[]);
 
         // Write the first three commits to one file and build the remainder on top.
-        let initial_file = index.save_in(temp_dir.path().to_owned()).unwrap();
-        index = MutableIndexImpl::incremental(initial_file);
+        let initial_file = mutable_segment.save_in(temp_dir.path().to_owned()).unwrap();
+        mutable_segment = MutableIndexSegment::incremental(initial_file);
 
         let id_3 = CommitId::from_hex("055444");
         let id_4 = CommitId::from_hex("055555");
         let id_5 = CommitId::from_hex("033333");
-        index.add_commit_data(id_3.clone(), new_change_id(), &[]);
-        index.add_commit_data(id_4.clone(), new_change_id(), &[]);
-        index.add_commit_data(id_5.clone(), new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_3.clone(), new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_4.clone(), new_change_id(), &[]);
+        mutable_segment.add_commit_data(id_5.clone(), new_change_id(), &[]);
 
-        let index = index.as_composite();
+        let index = mutable_segment.as_composite();
 
         // Public API: calculate shortest unique prefix len with known commit_id
         assert_eq!(index.shortest_unique_commit_id_prefix_len(&id_0), 3);
