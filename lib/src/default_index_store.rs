@@ -465,6 +465,14 @@ impl MutableIndexImpl {
         CompositeIndex(self)
     }
 
+    fn add_commit(&mut self, commit: &Commit) {
+        self.add_commit_data(
+            commit.id().clone(),
+            commit.change_id().clone(),
+            commit.parent_ids(),
+        );
+    }
+
     pub(crate) fn add_commit_data(
         &mut self,
         commit_id: CommitId,
@@ -729,11 +737,7 @@ impl MutableIndex for MutableIndexImpl {
     }
 
     fn add_commit(&mut self, commit: &Commit) {
-        self.add_commit_data(
-            commit.id().clone(),
-            commit.change_id().clone(),
-            commit.parent_ids(),
-        );
+        self.add_commit(commit);
     }
 
     fn merge_in(&mut self, other: &dyn ReadonlyIndex) {
