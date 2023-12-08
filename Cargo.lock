@@ -2475,9 +2475,9 @@ checksum = "d626bb9dae77e28219937af045c257c28bfd3f69333c512553507f5f9798cb76"
 
 [[package]]
 name = "rustix"
-version = "0.38.26"
+version = "0.38.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9470c4bf8246c8daf25f9598dca807fb6510347b1e1cfa55749113850c79d88a"
+checksum = "bfeae074e687625746172d639330f1de242a178bf3189b51e35a7a21573513ac"
 dependencies = [
  "bitflags 2.4.0",
  "errno",
