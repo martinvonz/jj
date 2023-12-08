@@ -506,6 +506,39 @@ impl MutableIndexImpl {
         }
     }
 
+    fn merge_in(&mut self, other: Arc<ReadonlyIndexSegment>) {
+        let mut maybe_own_ancestor = self.parent_file.clone();
+        let mut maybe_other_ancestor = Some(other);
+        let mut files_to_add = vec![];
+        loop {
+            if maybe_other_ancestor.is_none() {
+                break;
+            }
+            let other_ancestor = maybe_other_ancestor.as_ref().unwrap();
+            if maybe_own_ancestor.is_none() {
+                files_to_add.push(other_ancestor.clone());
+                maybe_other_ancestor = other_ancestor.parent_file.clone();
+                continue;
+            }
+            let own_ancestor = maybe_own_ancestor.as_ref().unwrap();
+            if own_ancestor.name == other_ancestor.name {
+                break;
+            }
+            if own_ancestor.as_composite().num_commits()
+                < other_ancestor.as_composite().num_commits()
+            {
+                files_to_add.push(other_ancestor.clone());
+                maybe_other_ancestor = other_ancestor.parent_file.clone();
+            } else {
+                maybe_own_ancestor = own_ancestor.parent_file.clone();
+            }
+        }
+
+        for file in files_to_add.iter().rev() {
+            self.add_commits_from(file.as_ref());
+        }
+    }
+
     fn serialize(self) -> Vec<u8> {
         assert_eq!(self.graph.len(), self.lookup.len());
 
@@ -708,37 +741,7 @@ impl MutableIndex for MutableIndexImpl {
             .as_any()
             .downcast_ref::<DefaultReadonlyIndex>()
             .expect("index to merge in must be a DefaultReadonlyIndex");
-
-        let mut maybe_own_ancestor = self.parent_file.clone();
-        let mut maybe_other_ancestor = Some(other.0.clone());
-        let mut files_to_add = vec![];
-        loop {
-            if maybe_other_ancestor.is_none() {
-                break;
-            }
-            let other_ancestor = maybe_other_ancestor.as_ref().unwrap();
-            if maybe_own_ancestor.is_none() {
-                files_to_add.push(other_ancestor.clone());
-                maybe_other_ancestor = other_ancestor.parent_file.clone();
-                continue;
-            }
-            let own_ancestor = maybe_own_ancestor.as_ref().unwrap();
-            if own_ancestor.name == other_ancestor.name {
-                break;
-            }
-            if own_ancestor.as_composite().num_commits()
-                < other_ancestor.as_composite().num_commits()
-            {
-                files_to_add.push(other_ancestor.clone());
-                maybe_other_ancestor = other_ancestor.parent_file.clone();
-            } else {
-                maybe_own_ancestor = own_ancestor.parent_file.clone();
-            }
-        }
-
-        for file in files_to_add.iter().rev() {
-            self.add_commits_from(file.as_ref());
-        }
+        self.merge_in(other.0.clone());
     }
 }
 
