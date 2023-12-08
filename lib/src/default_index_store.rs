@@ -248,9 +248,9 @@ impl IndexStore for DefaultIndexStore {
     ) -> Result<Box<dyn ReadonlyIndex>, IndexWriteError> {
         let index = index
             .into_any()
-            .downcast::<MutableIndexImpl>()
-            .expect("index to merge in must be a MutableIndexImpl");
-        let index_segment = index.save_in(self.dir.clone()).map_err(|err| {
+            .downcast::<DefaultMutableIndex>()
+            .expect("index to merge in must be a DefaultMutableIndex");
+        let index_segment = index.0.save_in(self.dir.clone()).map_err(|err| {
             IndexWriteError::Other(format!("Failed to write commit index file: {err}"))
         })?;
         self.associate_file_with_operation(&index_segment, op_id)
@@ -399,7 +399,8 @@ impl ReadonlyIndex for DefaultReadonlyIndex {
     }
 
     fn start_modification(&self) -> Box<dyn MutableIndex> {
-        Box::new(MutableIndexImpl::incremental(self.0.clone()))
+        let mutable_segment = MutableIndexImpl::incremental(self.0.clone());
+        Box::new(DefaultMutableIndex(mutable_segment))
     }
 }
 
@@ -426,7 +427,7 @@ struct MutableGraphEntry {
     parent_positions: SmallIndexPositionsVec,
 }
 
-pub struct MutableIndexImpl {
+struct MutableIndexImpl {
     parent_file: Option<Arc<ReadonlyIndexSegment>>,
     num_parent_commits: u32,
     commit_id_length: usize,
@@ -436,7 +437,7 @@ pub struct MutableIndexImpl {
 }
 
 impl MutableIndexImpl {
-    pub(crate) fn full(commit_id_length: usize, change_id_length: usize) -> Self {
+    fn full(commit_id_length: usize, change_id_length: usize) -> Self {
         Self {
             parent_file: None,
             num_parent_commits: 0,
@@ -461,7 +462,7 @@ impl MutableIndexImpl {
         }
     }
 
-    pub fn as_composite(&self) -> CompositeIndex {
+    fn as_composite(&self) -> CompositeIndex {
         CompositeIndex(self)
     }
 
@@ -473,13 +474,13 @@ impl MutableIndexImpl {
         );
     }
 
-    pub(crate) fn add_commit_data(
+    fn add_commit_data(
         &mut self,
         commit_id: CommitId,
         change_id: ChangeId,
         parent_ids: &[CommitId],
     ) {
-        if self.has_id(&commit_id) {
+        if self.as_composite().has_id(&commit_id) {
             return;
         }
         let mut entry = MutableGraphEntry {
@@ -685,33 +686,59 @@ impl MutableIndexImpl {
     }
 }
 
-impl Index for MutableIndexImpl {
+/// In-memory mutable records for the on-disk commit index backend.
+pub struct DefaultMutableIndex(MutableIndexImpl);
+
+impl DefaultMutableIndex {
+    #[cfg(test)]
+    pub(crate) fn full(commit_id_length: usize, change_id_length: usize) -> Self {
+        let mutable_segment = MutableIndexImpl::full(commit_id_length, change_id_length);
+        DefaultMutableIndex(mutable_segment)
+    }
+
+    pub fn as_composite(&self) -> CompositeIndex {
+        self.0.as_composite()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn add_commit_data(
+        &mut self,
+        commit_id: CommitId,
+        change_id: ChangeId,
+        parent_ids: &[CommitId],
+    ) {
+        self.0.add_commit_data(commit_id, change_id, parent_ids);
+    }
+}
+
+impl Index for DefaultMutableIndex {
     fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
-        CompositeIndex(self).shortest_unique_commit_id_prefix_len(commit_id)
+        self.as_composite()
+            .shortest_unique_commit_id_prefix_len(commit_id)
     }
 
     fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
-        CompositeIndex(self).resolve_prefix(prefix)
+        self.as_composite().resolve_prefix(prefix)
     }
 
     fn has_id(&self, commit_id: &CommitId) -> bool {
-        CompositeIndex(self).has_id(commit_id)
+        self.as_composite().has_id(commit_id)
     }
 
     fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
-        CompositeIndex(self).is_ancestor(ancestor_id, descendant_id)
+        self.as_composite().is_ancestor(ancestor_id, descendant_id)
     }
 
     fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
-        CompositeIndex(self).common_ancestors(set1, set2)
+        self.as_composite().common_ancestors(set1, set2)
     }
 
     fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
-        CompositeIndex(self).heads(candidates)
+        self.as_composite().heads(candidates)
     }
 
     fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
-        CompositeIndex(self).topo_order(input)
+        self.as_composite().topo_order(input)
     }
 
     fn evaluate_revset<'index>(
@@ -719,11 +746,11 @@ impl Index for MutableIndexImpl {
         expression: &ResolvedExpression,
         store: &Arc<Store>,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
-        CompositeIndex(self).evaluate_revset(expression, store)
+        self.as_composite().evaluate_revset(expression, store)
     }
 }
 
-impl MutableIndex for MutableIndexImpl {
+impl MutableIndex for DefaultMutableIndex {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -737,7 +764,7 @@ impl MutableIndex for MutableIndexImpl {
     }
 
     fn add_commit(&mut self, commit: &Commit) {
-        self.add_commit(commit);
+        self.0.add_commit(commit);
     }
 
     fn merge_in(&mut self, other: &dyn ReadonlyIndex) {
@@ -745,7 +772,7 @@ impl MutableIndex for MutableIndexImpl {
             .as_any()
             .downcast_ref::<DefaultReadonlyIndex>()
             .expect("index to merge in must be a DefaultReadonlyIndex");
-        self.merge_in(other.0.clone());
+        self.0.merge_in(other.0.clone());
     }
 }
 
@@ -2074,7 +2101,7 @@ mod tests {
     #[should_panic(expected = "parent commit is not indexed")]
     fn index_missing_parent_commit() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndexImpl::full(3, 16);
+        let mut index = DefaultMutableIndex::full(3, 16);
         let id_0 = CommitId::from_hex("000000");
         let id_1 = CommitId::from_hex("111111");
         index.add_commit_data(id_1, new_change_id(), &[id_0]);
@@ -2284,6 +2311,8 @@ mod tests {
         index.add_commit_data(id_4, new_change_id(), &[]);
         index.add_commit_data(id_5, new_change_id(), &[]);
 
+        let index = index.as_composite();
+
         // Can find commits given the full hex number
         assert_eq!(
             index.resolve_prefix(&HexPrefix::new(&id_0.hex()).unwrap()),
@@ -2482,6 +2511,8 @@ mod tests {
         index.add_commit_data(id_4.clone(), new_change_id(), &[]);
         index.add_commit_data(id_5.clone(), new_change_id(), &[]);
 
+        let index = index.as_composite();
+
         // Public API: calculate shortest unique prefix len with known commit_id
         assert_eq!(index.shortest_unique_commit_id_prefix_len(&id_0), 3);
         assert_eq!(index.shortest_unique_commit_id_prefix_len(&id_1), 3);
@@ -2512,7 +2543,7 @@ mod tests {
     #[test]
     fn test_is_ancestor() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndexImpl::full(3, 16);
+        let mut index = DefaultMutableIndex::full(3, 16);
         // 5
         // |\
         // 4 | 3
@@ -2549,7 +2580,7 @@ mod tests {
     #[test]
     fn test_common_ancestors() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndexImpl::full(3, 16);
+        let mut index = DefaultMutableIndex::full(3, 16);
         // 5
         // |\
         // 4 |
@@ -2631,7 +2662,7 @@ mod tests {
     #[test]
     fn test_common_ancestors_criss_cross() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndexImpl::full(3, 16);
+        let mut index = DefaultMutableIndex::full(3, 16);
         // 3 4
         // |X|
         // 1 2
@@ -2656,7 +2687,7 @@ mod tests {
     #[test]
     fn test_common_ancestors_merge_with_ancestor() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndexImpl::full(3, 16);
+        let mut index = DefaultMutableIndex::full(3, 16);
         // 4   5
         // |\ /|
         // 1 2 3
@@ -2683,7 +2714,7 @@ mod tests {
     #[test]
     fn test_walk_revs() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndexImpl::full(3, 16);
+        let mut index = DefaultMutableIndex::full(3, 16);
         // 5
         // |\
         // 4 | 3
@@ -2765,7 +2796,7 @@ mod tests {
     #[test]
     fn test_walk_revs_filter_by_generation() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndexImpl::full(3, 16);
+        let mut index = DefaultMutableIndex::full(3, 16);
         // 8 6
         // | |
         // 7 5
@@ -2857,7 +2888,7 @@ mod tests {
     #[allow(clippy::redundant_clone)] // allow id_n.clone()
     fn test_walk_revs_filter_by_generation_range_merging() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndexImpl::full(3, 16);
+        let mut index = DefaultMutableIndex::full(3, 16);
         // Long linear history with some short branches
         let ids = (0..11)
             .map(|n| CommitId::from_hex(&format!("{n:06x}")))
@@ -2914,7 +2945,7 @@ mod tests {
     #[test]
     fn test_walk_revs_descendants_filtered_by_generation() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndexImpl::full(3, 16);
+        let mut index = DefaultMutableIndex::full(3, 16);
         // 8 6
         // | |
         // 7 5
@@ -3023,7 +3054,7 @@ mod tests {
     #[test]
     fn test_heads() {
         let mut new_change_id = change_id_generator();
-        let mut index = MutableIndexImpl::full(3, 16);
+        let mut index = DefaultMutableIndex::full(3, 16);
         // 5
         // |\
         // 4 | 3
