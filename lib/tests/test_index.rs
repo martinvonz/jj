@@ -443,26 +443,20 @@ fn create_n_commits(
     tx.commit()
 }
 
-fn as_readonly_wrapper(repo: &Arc<ReadonlyRepo>) -> &ReadonlyIndexWrapper {
+fn as_readonly_composite(repo: &Arc<ReadonlyRepo>) -> CompositeIndex<'_> {
     repo.readonly_index()
         .as_any()
         .downcast_ref::<ReadonlyIndexWrapper>()
         .unwrap()
+        .as_composite()
 }
 
-fn as_readonly_composite(repo: &Arc<ReadonlyRepo>) -> CompositeIndex<'_> {
-    as_readonly_wrapper(repo).as_composite()
-}
-
-fn as_mutable_impl(repo: &MutableRepo) -> &MutableIndexImpl {
+fn as_mutable_composite(repo: &MutableRepo) -> CompositeIndex<'_> {
     repo.mutable_index()
         .as_any()
         .downcast_ref::<MutableIndexImpl>()
         .unwrap()
-}
-
-fn as_mutable_composite(repo: &MutableRepo) -> CompositeIndex<'_> {
-    as_mutable_impl(repo).as_composite()
+        .as_composite()
 }
 
 fn commits_by_level(repo: &Arc<ReadonlyRepo>) -> Vec<u32> {
