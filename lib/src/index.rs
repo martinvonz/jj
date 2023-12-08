@@ -78,7 +78,7 @@ pub trait ReadonlyIndex: Send + Sync {
     fn start_modification(&self) -> Box<dyn MutableIndex>;
 }
 
-pub trait MutableIndex: Any {
+pub trait MutableIndex {
     fn as_any(&self) -> &dyn Any;
 
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
