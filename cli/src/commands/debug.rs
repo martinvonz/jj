@@ -18,7 +18,7 @@ use std::io::Write as _;
 
 use clap::Subcommand;
 use jj_lib::backend::ObjectId;
-use jj_lib::default_index_store::{DefaultIndexStore, ReadonlyIndexWrapper};
+use jj_lib::default_index_store::{DefaultIndexStore, DefaultReadonlyIndex};
 use jj_lib::local_working_copy::LocalWorkingCopy;
 use jj_lib::revset;
 use jj_lib::working_copy::WorkingCopy;
@@ -199,9 +199,10 @@ fn cmd_debug_index(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-    let index_impl: Option<&ReadonlyIndexWrapper> = repo.readonly_index().as_any().downcast_ref();
-    if let Some(index_impl) = index_impl {
-        let stats = index_impl.as_composite().stats();
+    let default_index: Option<&DefaultReadonlyIndex> =
+        repo.readonly_index().as_any().downcast_ref();
+    if let Some(default_index) = default_index {
+        let stats = default_index.as_composite().stats();
         writeln!(ui.stdout(), "Number of commits: {}", stats.num_commits)?;
         writeln!(ui.stdout(), "Number of merges: {}", stats.num_merges)?;
         writeln!(
@@ -238,15 +239,15 @@ fn cmd_debug_reindex(
     if let Some(default_index_store) = default_index_store {
         default_index_store.reinit();
         let repo = repo.reload_at(repo.operation())?;
-        let index_impl: &ReadonlyIndexWrapper = repo
+        let default_index: &DefaultReadonlyIndex = repo
             .readonly_index()
             .as_any()
             .downcast_ref()
-            .expect("Default index should be a ReadonlyIndexWrapper");
+            .expect("Default index should be a DefaultReadonlyIndex");
         writeln!(
             ui.stderr(),
             "Finished indexing {:?} commits.",
-            index_impl.as_composite().stats().num_commits
+            default_index.as_composite().stats().num_commits
         )?;
     } else {
         return Err(user_error(format!(
