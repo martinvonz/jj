@@ -69,7 +69,7 @@ fn test_git_export_conflicting_git_refs() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Failed to export some branches:
-      main/sub
+      main/sub: Failed to set: A lock could not be obtained for reference "refs/heads/main/sub"
     Hint: Git doesn't allow a branch name that looks like a parent directory of
     another (e.g. `foo` and `foo/bar`). Try to rename the branches that failed to
     export or their "parent" branches.

@@ -74,7 +74,7 @@ fn test_branch_at_root() {
     insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     Failed to export some branches:
-      fred
+      fred: Ref cannot point to the root commit in Git
     "###);
 }
 
