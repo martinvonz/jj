@@ -543,25 +543,33 @@ pub struct FailedRefExport {
 }
 
 /// The reason we failed to export a ref to Git.
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum FailedRefExportReason {
     /// The name is not allowed in Git.
+    #[error("Name is not allowed in Git")]
     InvalidGitName,
     /// The ref was in a conflicted state from the last import. A re-import
     /// should fix it.
+    #[error("Ref was in a conflicted state from the last import")]
     ConflictedOldState,
     /// The branch points to the root commit, which Git doesn't have
+    #[error("Ref cannot point to the root commit in Git")]
     OnRootCommit,
     /// We wanted to delete it, but it had been modified in Git.
+    #[error("Deleted ref had been modified in Git")]
     DeletedInJjModifiedInGit,
     /// We wanted to add it, but Git had added it with a different target
+    #[error("Added ref had been added with a different target in Git")]
     AddedInJjAddedInGit,
     /// We wanted to modify it, but Git had deleted it
+    #[error("Modified ref had been deleted in Git")]
     ModifiedInJjDeletedInGit,
     /// Failed to delete the ref from the Git repo
-    FailedToDelete(Box<gix::reference::edit::Error>),
+    #[error("Failed to delete: {0}")]
+    FailedToDelete(#[source] Box<gix::reference::edit::Error>),
     /// Failed to set the ref in the Git repo
-    FailedToSet(Box<gix::reference::edit::Error>),
+    #[error("Failed to set: {0}")]
+    FailedToSet(#[source] Box<gix::reference::edit::Error>),
 }
 
 #[derive(Debug)]

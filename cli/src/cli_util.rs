@@ -1843,10 +1843,10 @@ pub fn print_failed_git_export(
     if !failed_branches.is_empty() {
         writeln!(ui.warning(), "Failed to export some branches:")?;
         let mut formatter = ui.stderr_formatter();
-        for failed_ref_export in failed_branches {
+        for FailedRefExport { name, reason } in failed_branches {
             formatter.write_str("  ")?;
-            write!(formatter.labeled("branch"), "{}", failed_ref_export.name)?;
-            formatter.write_str("\n")?;
+            write!(formatter.labeled("branch"), "{name}")?;
+            writeln!(formatter, ": {reason}")?;
         }
         drop(formatter);
         if failed_branches
