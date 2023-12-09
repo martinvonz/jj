@@ -27,8 +27,8 @@ use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git;
 use jj_lib::git::{
-    FailedRefExport, FailedRefExportReason, GitBranchPushTargets, GitFetchError, GitImportError,
-    GitPushError, GitRefUpdate, RefName, SubmoduleConfig,
+    FailedRefExportReason, GitBranchPushTargets, GitFetchError, GitImportError, GitPushError,
+    GitRefUpdate, RefName, SubmoduleConfig,
 };
 use jj_lib::git_backend::GitBackend;
 use jj_lib::op_store::{BranchTarget, RefTarget, RemoteRef, RemoteRefState};
@@ -1284,7 +1284,7 @@ fn test_export_refs_no_detach() {
     mut_repo.rebase_descendants(&test_data.settings).unwrap();
 
     // Do an initial export to make sure `main` is considered
-    assert_eq!(git::export_refs(mut_repo).unwrap(), vec![]);
+    assert!(git::export_refs(mut_repo).unwrap().is_empty());
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
         RefTarget::normal(jj_id(&commit1))
@@ -1314,14 +1314,14 @@ fn test_export_refs_branch_changed() {
     let mut_repo = tx.mut_repo();
     git::import_refs(mut_repo, &git_settings).unwrap();
     mut_repo.rebase_descendants(&test_data.settings).unwrap();
-    assert_eq!(git::export_refs(mut_repo).unwrap(), vec![]);
+    assert!(git::export_refs(mut_repo).unwrap().is_empty());
 
     let new_commit = create_random_commit(mut_repo, &test_data.settings)
         .set_parents(vec![jj_id(&commit)])
         .write()
         .unwrap();
     mut_repo.set_local_branch_target("main", RefTarget::normal(new_commit.id().clone()));
-    assert_eq!(git::export_refs(mut_repo).unwrap(), vec![]);
+    assert!(git::export_refs(mut_repo).unwrap().is_empty());
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
         RefTarget::normal(new_commit.id().clone())
@@ -1353,14 +1353,14 @@ fn test_export_refs_current_branch_changed() {
     let mut_repo = tx.mut_repo();
     git::import_refs(mut_repo, &git_settings).unwrap();
     mut_repo.rebase_descendants(&test_data.settings).unwrap();
-    assert_eq!(git::export_refs(mut_repo).unwrap(), vec![]);
+    assert!(git::export_refs(mut_repo).unwrap().is_empty());
 
     let new_commit = create_random_commit(mut_repo, &test_data.settings)
         .set_parents(vec![jj_id(&commit1)])
         .write()
         .unwrap();
     mut_repo.set_local_branch_target("main", RefTarget::normal(new_commit.id().clone()));
-    assert_eq!(git::export_refs(mut_repo).unwrap(), vec![]);
+    assert!(git::export_refs(mut_repo).unwrap().is_empty());
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
         RefTarget::normal(new_commit.id().clone())
@@ -1390,11 +1390,11 @@ fn test_export_refs_unborn_git_branch() {
     let mut_repo = tx.mut_repo();
     git::import_refs(mut_repo, &git_settings).unwrap();
     mut_repo.rebase_descendants(&test_data.settings).unwrap();
-    assert_eq!(git::export_refs(mut_repo).unwrap(), vec![]);
+    assert!(git::export_refs(mut_repo).unwrap().is_empty());
 
     let new_commit = write_random_commit(mut_repo, &test_data.settings);
     mut_repo.set_local_branch_target("main", RefTarget::normal(new_commit.id().clone()));
-    assert_eq!(git::export_refs(mut_repo).unwrap(), vec![]);
+    assert!(git::export_refs(mut_repo).unwrap().is_empty());
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
         RefTarget::normal(new_commit.id().clone())
@@ -1444,7 +1444,7 @@ fn test_export_import_sequence() {
     mut_repo.set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));
 
     // Export the branch to git
-    assert_eq!(git::export_refs(mut_repo).unwrap(), vec![]);
+    assert!(git::export_refs(mut_repo).unwrap().is_empty());
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
         RefTarget::normal(commit_b.id().clone())
@@ -1500,7 +1500,7 @@ fn test_import_export_non_tracking_branch() {
     );
 
     // Export the branch to git
-    assert_eq!(git::export_refs(mut_repo).unwrap(), vec![]);
+    assert!(git::export_refs(mut_repo).unwrap().is_empty());
     assert_eq!(mut_repo.get_git_ref("refs/heads/main"), RefTarget::absent());
 
     // Reimport with auto-local-branch on. Local branch shouldn't be created for
@@ -1572,7 +1572,7 @@ fn test_export_conflicts() {
     let commit_c = write_random_commit(mut_repo, &test_data.settings);
     mut_repo.set_local_branch_target("main", RefTarget::normal(commit_a.id().clone()));
     mut_repo.set_local_branch_target("feature", RefTarget::normal(commit_a.id().clone()));
-    assert_eq!(git::export_refs(mut_repo).unwrap(), vec![]);
+    assert!(git::export_refs(mut_repo).unwrap().is_empty());
 
     // Create a conflict and export. It should not be exported, but other changes
     // should be.
@@ -1584,7 +1584,7 @@ fn test_export_conflicts() {
             [commit_b.id().clone(), commit_c.id().clone()],
         ),
     );
-    assert_eq!(git::export_refs(mut_repo).unwrap(), vec![]);
+    assert!(git::export_refs(mut_repo).unwrap().is_empty());
     assert_eq!(
         git_repo
             .find_reference("refs/heads/feature")
@@ -1631,13 +1631,10 @@ fn test_export_branch_on_root_commit() {
         "on_root",
         RefTarget::normal(mut_repo.store().root_commit_id().clone()),
     );
-    assert_eq!(
-        git::export_refs(mut_repo).unwrap(),
-        vec![FailedRefExport {
-            name: RefName::LocalBranch("on_root".to_string()),
-            reason: FailedRefExportReason::OnRootCommit,
-        }]
-    );
+    let failed = git::export_refs(mut_repo).unwrap();
+    assert_eq!(failed.len(), 1);
+    assert_eq!(failed[0].name, RefName::LocalBranch("on_root".to_string()));
+    assert_matches!(failed[0].reason, FailedRefExportReason::OnRootCommit);
 }
 
 #[test]
@@ -1765,7 +1762,7 @@ fn test_export_reexport_transitions() {
     ] {
         mut_repo.set_local_branch_target(branch, RefTarget::normal(commit_a.id().clone()));
     }
-    assert_eq!(git::export_refs(mut_repo).unwrap(), vec![]);
+    assert!(git::export_refs(mut_repo).unwrap().is_empty());
 
     // Make changes on the jj side
     for branch in ["AXA", "AXB", "AXX"] {

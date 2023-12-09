@@ -526,14 +526,14 @@ pub enum GitExportError {
 }
 
 /// A ref we failed to export to Git, along with the reason it failed.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub struct FailedRefExport {
     pub name: RefName,
     pub reason: FailedRefExportReason,
 }
 
 /// The reason we failed to export a ref to Git.
-#[derive(Debug, PartialEq)]
+#[derive(Debug)]
 pub enum FailedRefExportReason {
     /// The name is not allowed in Git.
     InvalidGitName,
