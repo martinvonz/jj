@@ -236,7 +236,7 @@ impl IndexStore for DefaultIndexStore {
         } else {
             self.index_at_operation(store, op).unwrap()
         };
-        Box::new(DefaultReadonlyIndex(index_segment))
+        Box::new(DefaultReadonlyIndex::from_segment(index_segment))
     }
 
     fn write_index(
@@ -257,6 +257,6 @@ impl IndexStore for DefaultIndexStore {
                     "Failed to associate commit index file with a operation {op_id:?}: {err}"
                 ))
             })?;
-        Ok(Box::new(DefaultReadonlyIndex(index_segment)))
+        Ok(Box::new(DefaultReadonlyIndex::from_segment(index_segment)))
     }
 }
