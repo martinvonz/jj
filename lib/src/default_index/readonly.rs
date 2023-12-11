@@ -123,7 +123,7 @@ impl CommitLookupEntry<'_> {
 //       ids
 // TODO: add a fanout table like git's commit graph has?
 pub(super) struct ReadonlyIndexSegment {
-    pub(super) parent_file: Option<Arc<ReadonlyIndexSegment>>,
+    parent_file: Option<Arc<ReadonlyIndexSegment>>,
     pub(super) num_parent_commits: u32,
     pub(super) name: String,
     pub(super) commit_id_length: usize,

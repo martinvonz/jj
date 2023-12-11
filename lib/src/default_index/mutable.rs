@@ -149,7 +149,7 @@ impl MutableIndexSegment {
             let other_ancestor = maybe_other_ancestor.as_ref().unwrap();
             if maybe_own_ancestor.is_none() {
                 files_to_add.push(other_ancestor.clone());
-                maybe_other_ancestor = other_ancestor.parent_file.clone();
+                maybe_other_ancestor = other_ancestor.segment_parent_file().cloned();
                 continue;
             }
             let own_ancestor = maybe_own_ancestor.as_ref().unwrap();
@@ -160,9 +160,9 @@ impl MutableIndexSegment {
                 < other_ancestor.as_composite().num_commits()
             {
                 files_to_add.push(other_ancestor.clone());
-                maybe_other_ancestor = other_ancestor.parent_file.clone();
+                maybe_other_ancestor = other_ancestor.segment_parent_file().cloned();
             } else {
-                maybe_own_ancestor = own_ancestor.parent_file.clone();
+                maybe_own_ancestor = own_ancestor.segment_parent_file().cloned();
             }
         }
 
@@ -254,7 +254,7 @@ impl MutableIndexSegment {
                     }
                     num_new_commits += parent_file.segment_num_commits();
                     files_to_squash.push(parent_file.clone());
-                    maybe_parent_file = parent_file.parent_file.clone();
+                    maybe_parent_file = parent_file.segment_parent_file().cloned();
                 }
                 None => {
                     squashed =
