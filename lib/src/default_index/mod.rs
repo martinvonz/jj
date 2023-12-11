@@ -33,7 +33,6 @@ use smallvec::SmallVec;
 
 pub use self::composite::{CompositeIndex, IndexLevelStats, IndexStats};
 pub use self::mutable::DefaultMutableIndex;
-use self::mutable::MutableIndexSegment;
 pub use self::rev_walk::{
     RevWalk, RevWalkDescendants, RevWalkDescendantsGenerationRange, RevWalkGenerationRange,
 };
@@ -171,8 +170,7 @@ impl ReadonlyIndex for DefaultReadonlyIndex {
     }
 
     fn start_modification(&self) -> Box<dyn MutableIndex> {
-        let mutable_segment = MutableIndexSegment::incremental(self.0.clone());
-        Box::new(DefaultMutableIndex(mutable_segment))
+        Box::new(DefaultMutableIndex::incremental(self.0.clone()))
     }
 }
 
@@ -602,6 +600,7 @@ mod tests {
     use smallvec::smallvec_inline;
     use test_case::test_case;
 
+    use super::mutable::MutableIndexSegment;
     use super::*;
     use crate::backend::{ChangeId, CommitId, ObjectId};
     use crate::index::Index;

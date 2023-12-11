@@ -395,12 +395,17 @@ impl IndexSegment for MutableIndexSegment {
 }
 
 /// In-memory mutable records for the on-disk commit index backend.
-pub struct DefaultMutableIndex(pub(super) MutableIndexSegment);
+pub struct DefaultMutableIndex(MutableIndexSegment);
 
 impl DefaultMutableIndex {
     #[cfg(test)]
     pub(crate) fn full(commit_id_length: usize, change_id_length: usize) -> Self {
         let mutable_segment = MutableIndexSegment::full(commit_id_length, change_id_length);
+        DefaultMutableIndex(mutable_segment)
+    }
+
+    pub(super) fn incremental(parent_file: Arc<ReadonlyIndexSegment>) -> Self {
+        let mutable_segment = MutableIndexSegment::incremental(parent_file);
         DefaultMutableIndex(mutable_segment)
     }
 
@@ -416,6 +421,10 @@ impl DefaultMutableIndex {
         parent_ids: &[CommitId],
     ) {
         self.0.add_commit_data(commit_id, change_id, parent_ids);
+    }
+
+    pub(super) fn save_in(self, dir: PathBuf) -> io::Result<Arc<ReadonlyIndexSegment>> {
+        self.0.save_in(dir)
     }
 }
 
