@@ -21,15 +21,47 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use super::entry::{IndexEntry, IndexPosition, IndexPositionByGeneration};
+use super::entry::{IndexEntry, IndexPosition, IndexPositionByGeneration, SmallIndexPositionsVec};
 use super::readonly::ReadonlyIndexSegment;
 use super::rev_walk::RevWalk;
-use super::IndexSegment;
-use crate::backend::{CommitId, ObjectId};
+use crate::backend::{ChangeId, CommitId, ObjectId};
 use crate::index::{HexPrefix, Index, PrefixResolution};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
 use crate::{backend, default_revset_engine};
+
+pub(super) trait IndexSegment: Send + Sync {
+    fn segment_num_parent_commits(&self) -> u32;
+
+    fn segment_num_commits(&self) -> u32;
+
+    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyIndexSegment>>;
+
+    fn segment_name(&self) -> Option<String>;
+
+    fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition>;
+
+    /// Suppose the given `commit_id` exists, returns the positions of the
+    /// previous and next commit ids in lexicographical order.
+    fn segment_commit_id_to_neighbor_positions(
+        &self,
+        commit_id: &CommitId,
+    ) -> (Option<IndexPosition>, Option<IndexPosition>);
+
+    fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId>;
+
+    fn segment_generation_number(&self, local_pos: u32) -> u32;
+
+    fn segment_commit_id(&self, local_pos: u32) -> CommitId;
+
+    fn segment_change_id(&self, local_pos: u32) -> ChangeId;
+
+    fn segment_num_parents(&self, local_pos: u32) -> u32;
+
+    fn segment_parent_positions(&self, local_pos: u32) -> SmallIndexPositionsVec;
+
+    fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry;
+}
 
 #[derive(Clone, Copy)]
 pub struct CompositeIndex<'a>(&'a dyn IndexSegment);
