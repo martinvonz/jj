@@ -21,66 +21,30 @@ mod readonly;
 mod rev_walk;
 mod store;
 
-use std::sync::Arc;
-
 pub use self::composite::{CompositeIndex, IndexLevelStats, IndexStats};
-use self::entry::SmallIndexPositionsVec;
 pub use self::entry::{IndexEntry, IndexEntryByPosition, IndexPosition};
 pub use self::mutable::DefaultMutableIndex;
 pub use self::readonly::DefaultReadonlyIndex;
-use self::readonly::ReadonlyIndexSegment;
 pub use self::rev_walk::{
     RevWalk, RevWalkDescendants, RevWalkDescendantsGenerationRange, RevWalkGenerationRange,
 };
 pub use self::store::{DefaultIndexStore, DefaultIndexStoreError, IndexLoadError};
-use crate::backend::{ChangeId, CommitId};
-use crate::index::{HexPrefix, PrefixResolution};
-
-trait IndexSegment: Send + Sync {
-    fn segment_num_parent_commits(&self) -> u32;
-
-    fn segment_num_commits(&self) -> u32;
-
-    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyIndexSegment>>;
-
-    fn segment_name(&self) -> Option<String>;
-
-    fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition>;
-
-    /// Suppose the given `commit_id` exists, returns the positions of the
-    /// previous and next commit ids in lexicographical order.
-    fn segment_commit_id_to_neighbor_positions(
-        &self,
-        commit_id: &CommitId,
-    ) -> (Option<IndexPosition>, Option<IndexPosition>);
-
-    fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId>;
-
-    fn segment_generation_number(&self, local_pos: u32) -> u32;
-
-    fn segment_commit_id(&self, local_pos: u32) -> CommitId;
-
-    fn segment_change_id(&self, local_pos: u32) -> ChangeId;
-
-    fn segment_num_parents(&self, local_pos: u32) -> u32;
-
-    fn segment_parent_positions(&self, local_pos: u32) -> SmallIndexPositionsVec;
-
-    fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry;
-}
 
 #[cfg(test)]
 mod tests {
     use std::ops::Range;
+    use std::sync::Arc;
 
     use itertools::Itertools;
     use smallvec::smallvec_inline;
     use test_case::test_case;
 
+    use super::composite::IndexSegment;
+    use super::entry::SmallIndexPositionsVec;
     use super::mutable::MutableIndexSegment;
     use super::*;
     use crate::backend::{ChangeId, CommitId, ObjectId};
-    use crate::index::Index;
+    use crate::index::{HexPrefix, Index, PrefixResolution};
 
     /// Generator of unique 16-byte ChangeId excluding root id
     fn change_id_generator() -> impl FnMut() -> ChangeId {

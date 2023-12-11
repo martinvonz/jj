@@ -20,8 +20,7 @@ use std::hash::{Hash, Hasher};
 
 use smallvec::SmallVec;
 
-use super::composite::CompositeIndex;
-use super::IndexSegment;
+use super::composite::{CompositeIndex, IndexSegment};
 use crate::backend::{ChangeId, CommitId, ObjectId};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
