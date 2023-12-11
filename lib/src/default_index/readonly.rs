@@ -125,7 +125,7 @@ impl CommitLookupEntry<'_> {
 pub(super) struct ReadonlyIndexSegment {
     parent_file: Option<Arc<ReadonlyIndexSegment>>,
     pub(super) num_parent_commits: u32,
-    pub(super) name: String,
+    name: String,
     pub(super) commit_id_length: usize,
     pub(super) change_id_length: usize,
     commit_graph_entry_size: usize,
