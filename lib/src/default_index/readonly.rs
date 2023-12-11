@@ -126,8 +126,8 @@ pub(super) struct ReadonlyIndexSegment {
     parent_file: Option<Arc<ReadonlyIndexSegment>>,
     num_parent_commits: u32,
     name: String,
-    pub(super) commit_id_length: usize,
-    pub(super) change_id_length: usize,
+    commit_id_length: usize,
+    change_id_length: usize,
     commit_graph_entry_size: usize,
     commit_lookup_entry_size: usize,
     // Number of commits not counting the parent file
@@ -213,6 +213,14 @@ impl ReadonlyIndexSegment {
 
     pub(super) fn name(&self) -> &str {
         &self.name
+    }
+
+    pub(super) fn commit_id_length(&self) -> usize {
+        self.commit_id_length
+    }
+
+    pub(super) fn change_id_length(&self) -> usize {
+        self.change_id_length
     }
 
     fn graph_entry(&self, local_pos: u32) -> CommitGraphEntry {

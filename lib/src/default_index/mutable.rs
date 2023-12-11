@@ -72,8 +72,8 @@ impl MutableIndexSegment {
 
     pub(super) fn incremental(parent_file: Arc<ReadonlyIndexSegment>) -> Self {
         let num_parent_commits = parent_file.as_composite().num_commits();
-        let commit_id_length = parent_file.commit_id_length;
-        let change_id_length = parent_file.change_id_length;
+        let commit_id_length = parent_file.commit_id_length();
+        let change_id_length = parent_file.change_id_length();
         Self {
             parent_file: Some(parent_file),
             num_parent_commits,
