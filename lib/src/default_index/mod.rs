@@ -14,20 +14,21 @@
 
 #![allow(missing_docs)]
 
+mod composite;
 mod store;
 
 use std::any::Any;
-use std::cmp::{max, min, Ordering, Reverse};
-use std::collections::{BTreeMap, BTreeSet, BinaryHeap, Bound, HashMap, HashSet};
+use std::cmp::{max, Ordering, Reverse};
+use std::collections::{BTreeMap, BinaryHeap, Bound, HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::fs::File;
 use std::hash::{Hash, Hasher};
+use std::io;
 use std::io::{Read, Write};
 use std::iter::FusedIterator;
 use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::{io, iter};
 
 use blake2::Blake2b512;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
@@ -36,6 +37,7 @@ use itertools::Itertools;
 use smallvec::SmallVec;
 use tempfile::NamedTempFile;
 
+pub use self::composite::{CompositeIndex, IndexLevelStats, IndexStats};
 pub use self::store::{DefaultIndexStore, DefaultIndexStoreError, IndexLoadError};
 use crate::backend::{ChangeId, CommitId, ObjectId};
 use crate::commit::Commit;
@@ -43,7 +45,6 @@ use crate::file_util::persist_content_addressed_temp_file;
 use crate::index::{HexPrefix, Index, MutableIndex, PrefixResolution, ReadonlyIndex};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
-use crate::{backend, default_revset_engine};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct IndexPosition(u32);
@@ -584,316 +585,6 @@ trait IndexSegment: Send + Sync {
     fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry;
 }
 
-#[derive(Clone, Copy)]
-pub struct CompositeIndex<'a>(&'a dyn IndexSegment);
-
-impl<'a> CompositeIndex<'a> {
-    fn ancestor_files_without_local(&self) -> impl Iterator<Item = &'a Arc<ReadonlyIndexSegment>> {
-        let parent_file = self.0.segment_parent_file();
-        iter::successors(parent_file, |file| file.segment_parent_file())
-    }
-
-    fn ancestor_index_segments(&self) -> impl Iterator<Item = &'a dyn IndexSegment> {
-        iter::once(self.0).chain(
-            self.ancestor_files_without_local()
-                .map(|file| file.as_ref() as &dyn IndexSegment),
-        )
-    }
-
-    pub fn num_commits(&self) -> u32 {
-        self.0.segment_num_parent_commits() + self.0.segment_num_commits()
-    }
-
-    pub fn stats(&self) -> IndexStats {
-        let num_commits = self.num_commits();
-        let mut num_merges = 0;
-        let mut max_generation_number = 0;
-        let mut is_head = vec![true; num_commits as usize];
-        let mut change_ids = HashSet::new();
-        for pos in 0..num_commits {
-            let entry = self.entry_by_pos(IndexPosition(pos));
-            max_generation_number = max(max_generation_number, entry.generation_number());
-            if entry.num_parents() > 1 {
-                num_merges += 1;
-            }
-            for parent_pos in entry.parent_positions() {
-                is_head[parent_pos.0 as usize] = false;
-            }
-            change_ids.insert(entry.change_id());
-        }
-        let num_heads = is_head.iter().filter(|is_head| **is_head).count() as u32;
-
-        let mut levels = self
-            .ancestor_index_segments()
-            .map(|segment| IndexLevelStats {
-                num_commits: segment.segment_num_commits(),
-                name: segment.segment_name(),
-            })
-            .collect_vec();
-        levels.reverse();
-
-        IndexStats {
-            num_commits,
-            num_merges,
-            max_generation_number,
-            num_heads,
-            num_changes: change_ids.len() as u32,
-            levels,
-        }
-    }
-
-    pub fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry<'a> {
-        self.ancestor_index_segments()
-            .find_map(|segment| {
-                u32::checked_sub(pos.0, segment.segment_num_parent_commits())
-                    .map(|local_pos| segment.segment_entry_by_pos(pos, local_pos))
-            })
-            .unwrap()
-    }
-
-    pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
-        self.ancestor_index_segments()
-            .find_map(|segment| segment.segment_commit_id_to_pos(commit_id))
-    }
-
-    /// Suppose the given `commit_id` exists, returns the previous and next
-    /// commit ids in lexicographical order.
-    fn resolve_neighbor_commit_ids(
-        &self,
-        commit_id: &CommitId,
-    ) -> (Option<CommitId>, Option<CommitId>) {
-        self.ancestor_index_segments()
-            .map(|segment| {
-                let num_parent_commits = segment.segment_num_parent_commits();
-                let to_local_pos = |pos: IndexPosition| pos.0 - num_parent_commits;
-                let (prev_pos, next_pos) =
-                    segment.segment_commit_id_to_neighbor_positions(commit_id);
-                (
-                    prev_pos.map(|p| segment.segment_commit_id(to_local_pos(p))),
-                    next_pos.map(|p| segment.segment_commit_id(to_local_pos(p))),
-                )
-            })
-            .reduce(|(acc_prev_id, acc_next_id), (prev_id, next_id)| {
-                (
-                    acc_prev_id.into_iter().chain(prev_id).max(),
-                    acc_next_id.into_iter().chain(next_id).min(),
-                )
-            })
-            .unwrap()
-    }
-
-    pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'a>> {
-        self.commit_id_to_pos(commit_id)
-            .map(|pos| self.entry_by_pos(pos))
-    }
-
-    fn is_ancestor_pos(&self, ancestor_pos: IndexPosition, descendant_pos: IndexPosition) -> bool {
-        let ancestor_generation = self.entry_by_pos(ancestor_pos).generation_number();
-        let mut work = vec![descendant_pos];
-        let mut visited = HashSet::new();
-        while let Some(descendant_pos) = work.pop() {
-            let descendant_entry = self.entry_by_pos(descendant_pos);
-            if descendant_pos == ancestor_pos {
-                return true;
-            }
-            if !visited.insert(descendant_entry.pos) {
-                continue;
-            }
-            if descendant_entry.generation_number() <= ancestor_generation {
-                continue;
-            }
-            work.extend(descendant_entry.parent_positions());
-        }
-        false
-    }
-
-    fn common_ancestors_pos(
-        &self,
-        set1: &[IndexPosition],
-        set2: &[IndexPosition],
-    ) -> BTreeSet<IndexPosition> {
-        let mut items1: BinaryHeap<_> = set1
-            .iter()
-            .map(|pos| IndexPositionByGeneration::from(&self.entry_by_pos(*pos)))
-            .collect();
-        let mut items2: BinaryHeap<_> = set2
-            .iter()
-            .map(|pos| IndexPositionByGeneration::from(&self.entry_by_pos(*pos)))
-            .collect();
-
-        let mut result = BTreeSet::new();
-        while let (Some(item1), Some(item2)) = (items1.peek(), items2.peek()) {
-            match item1.cmp(item2) {
-                Ordering::Greater => {
-                    let item1 = dedup_pop(&mut items1).unwrap();
-                    let entry1 = self.entry_by_pos(item1.pos);
-                    for parent_entry in entry1.parents() {
-                        assert!(parent_entry.pos < entry1.pos);
-                        items1.push(IndexPositionByGeneration::from(&parent_entry));
-                    }
-                }
-                Ordering::Less => {
-                    let item2 = dedup_pop(&mut items2).unwrap();
-                    let entry2 = self.entry_by_pos(item2.pos);
-                    for parent_entry in entry2.parents() {
-                        assert!(parent_entry.pos < entry2.pos);
-                        items2.push(IndexPositionByGeneration::from(&parent_entry));
-                    }
-                }
-                Ordering::Equal => {
-                    result.insert(item1.pos);
-                    dedup_pop(&mut items1).unwrap();
-                    dedup_pop(&mut items2).unwrap();
-                }
-            }
-        }
-        self.heads_pos(result)
-    }
-
-    pub fn walk_revs(&self, wanted: &[IndexPosition], unwanted: &[IndexPosition]) -> RevWalk<'a> {
-        let mut rev_walk = RevWalk::new(*self);
-        rev_walk.extend_wanted(wanted.iter().copied());
-        rev_walk.extend_unwanted(unwanted.iter().copied());
-        rev_walk
-    }
-
-    pub fn heads_pos(
-        &self,
-        mut candidate_positions: BTreeSet<IndexPosition>,
-    ) -> BTreeSet<IndexPosition> {
-        // Add all parents of the candidates to the work queue. The parents and their
-        // ancestors are not heads.
-        // Also find the smallest generation number among the candidates.
-        let mut work = BinaryHeap::new();
-        let mut min_generation = u32::MAX;
-        for pos in &candidate_positions {
-            let entry = self.entry_by_pos(*pos);
-            min_generation = min(min_generation, entry.generation_number());
-            for parent_entry in entry.parents() {
-                work.push(IndexPositionByGeneration::from(&parent_entry));
-            }
-        }
-
-        // Walk ancestors of the parents of the candidates. Remove visited commits from
-        // set of candidates. Stop walking when we have gone past the minimum
-        // candidate generation.
-        while let Some(item) = dedup_pop(&mut work) {
-            if item.generation < min_generation {
-                break;
-            }
-            candidate_positions.remove(&item.pos);
-            let entry = self.entry_by_pos(item.pos);
-            for parent_entry in entry.parents() {
-                assert!(parent_entry.pos < entry.pos);
-                work.push(IndexPositionByGeneration::from(&parent_entry));
-            }
-        }
-        candidate_positions
-    }
-
-    fn evaluate_revset(
-        &self,
-        expression: &ResolvedExpression,
-        store: &Arc<Store>,
-    ) -> Result<Box<dyn Revset<'a> + 'a>, RevsetEvaluationError> {
-        let revset_impl = default_revset_engine::evaluate(expression, store, *self)?;
-        Ok(Box::new(revset_impl))
-    }
-}
-
-impl Index for CompositeIndex<'_> {
-    /// Suppose the given `commit_id` exists, returns the minimum prefix length
-    /// to disambiguate it. The length to be returned is a number of hexadecimal
-    /// digits.
-    ///
-    /// If the given `commit_id` doesn't exist, this will return the prefix
-    /// length that never matches with any commit ids.
-    fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
-        let (prev_id, next_id) = self.resolve_neighbor_commit_ids(commit_id);
-        itertools::chain(prev_id, next_id)
-            .map(|id| backend::common_hex_len(commit_id.as_bytes(), id.as_bytes()) + 1)
-            .max()
-            .unwrap_or(0)
-    }
-
-    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
-        self.ancestor_index_segments()
-            .fold(PrefixResolution::NoMatch, |acc_match, segment| {
-                if acc_match == PrefixResolution::AmbiguousMatch {
-                    acc_match // avoid checking the parent file(s)
-                } else {
-                    let local_match = segment.segment_resolve_prefix(prefix);
-                    acc_match.plus(&local_match)
-                }
-            })
-    }
-
-    fn has_id(&self, commit_id: &CommitId) -> bool {
-        self.commit_id_to_pos(commit_id).is_some()
-    }
-
-    fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool {
-        let ancestor_pos = self.commit_id_to_pos(ancestor_id).unwrap();
-        let descendant_pos = self.commit_id_to_pos(descendant_id).unwrap();
-        self.is_ancestor_pos(ancestor_pos, descendant_pos)
-    }
-
-    fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
-        let pos1 = set1
-            .iter()
-            .map(|id| self.commit_id_to_pos(id).unwrap())
-            .collect_vec();
-        let pos2 = set2
-            .iter()
-            .map(|id| self.commit_id_to_pos(id).unwrap())
-            .collect_vec();
-        self.common_ancestors_pos(&pos1, &pos2)
-            .iter()
-            .map(|pos| self.entry_by_pos(*pos).commit_id())
-            .collect()
-    }
-
-    fn heads(&self, candidate_ids: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
-        let candidate_positions: BTreeSet<_> = candidate_ids
-            .map(|id| self.commit_id_to_pos(id).unwrap())
-            .collect();
-
-        self.heads_pos(candidate_positions)
-            .iter()
-            .map(|pos| self.entry_by_pos(*pos).commit_id())
-            .collect()
-    }
-
-    /// Parents before children
-    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
-        let mut ids = input.cloned().collect_vec();
-        ids.sort_by_cached_key(|id| self.commit_id_to_pos(id).unwrap());
-        ids
-    }
-
-    fn evaluate_revset<'index>(
-        &'index self,
-        expression: &ResolvedExpression,
-        store: &Arc<Store>,
-    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
-        CompositeIndex::evaluate_revset(self, expression, store)
-    }
-}
-
-pub struct IndexLevelStats {
-    pub num_commits: u32,
-    pub name: Option<String>,
-}
-
-pub struct IndexStats {
-    pub num_commits: u32,
-    pub num_merges: u32,
-    pub max_generation_number: u32,
-    pub num_heads: u32,
-    pub num_changes: u32,
-    pub levels: Vec<IndexLevelStats>,
-}
-
 #[derive(Clone, Eq, PartialEq)]
 pub struct IndexEntryByPosition<'a>(pub IndexEntry<'a>);
 
@@ -1414,16 +1105,6 @@ impl<'a> Iterator for RevWalkDescendants<'a> {
 }
 
 impl FusedIterator for RevWalkDescendants<'_> {}
-
-/// Removes the greatest items (including duplicates) from the heap, returns
-/// one.
-fn dedup_pop<T: Ord>(heap: &mut BinaryHeap<T>) -> Option<T> {
-    let item = heap.pop()?;
-    while heap.peek() == Some(&item) {
-        heap.pop().unwrap();
-    }
-    Some(item)
-}
 
 impl IndexSegment for ReadonlyIndexSegment {
     fn segment_num_parent_commits(&self) -> u32 {
