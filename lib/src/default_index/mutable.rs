@@ -31,11 +31,9 @@ use smallvec::SmallVec;
 use tempfile::NamedTempFile;
 
 use super::composite::CompositeIndex;
+use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexSegment};
 use super::store::IndexLoadError;
-use super::{
-    DefaultReadonlyIndex, IndexEntry, IndexPosition, IndexSegment, ReadonlyIndexSegment,
-    SmallIndexPositionsVec,
-};
+use super::{IndexEntry, IndexPosition, IndexSegment, SmallIndexPositionsVec};
 use crate::backend::{ChangeId, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::file_util::persist_content_addressed_temp_file;
