@@ -51,7 +51,7 @@ hex = "0.4.3"
 indexmap = "2.1.0"
 insta = { version = "1.34.0", features = ["filters"] }
 itertools = "0.11.0"
-libc = { version = "0.2.150" }
+libc = { version = "0.2.151" }
 maplit = "1.0.2"
 num_cpus = "1.16.0"
 once_cell = "1.19.0"
@@ -68,7 +68,7 @@ rayon = "1.8.0"
 ref-cast = "1.0.20"
 regex = "1.10.2"
 rpassword = "7.3.1"
-rustix = { version = "0.38.27", features = ["fs"] }
+rustix = { version = "0.38.28", features = ["fs"] }
 scm-record = "0.1.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.108"
@@ -84,7 +84,7 @@ test-case = "3.3.1"
 textwrap = "0.16.0"
 thiserror = "1.0.50"
 timeago = { version = "0.4.2", default-features = false }
-tokio = { version = "1.34.0" }
+tokio = { version = "1.35.0" }
 toml_edit = { version = "0.19.15", features = ["serde"] }
 tracing = "0.1.40"
 tracing-chrome = "0.7.1"
