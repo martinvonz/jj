@@ -385,11 +385,7 @@ impl IndexSegment for MutableIndexSegment {
     }
 
     fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry {
-        IndexEntry {
-            source: self,
-            local_pos,
-            pos,
-        }
+        IndexEntry::new(self, pos, local_pos)
     }
 }
 
