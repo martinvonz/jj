@@ -153,7 +153,7 @@ impl MutableIndexSegment {
                 continue;
             }
             let own_ancestor = maybe_own_ancestor.as_ref().unwrap();
-            if own_ancestor.name == other_ancestor.name {
+            if own_ancestor.name() == other_ancestor.name() {
                 break;
             }
             if own_ancestor.as_composite().num_commits()
@@ -179,9 +179,9 @@ impl MutableIndexSegment {
         let mut buf = vec![];
 
         if let Some(parent_file) = &self.parent_file {
-            buf.write_u32::<LittleEndian>(parent_file.name.len() as u32)
+            buf.write_u32::<LittleEndian>(parent_file.name().len() as u32)
                 .unwrap();
-            buf.write_all(parent_file.name.as_bytes()).unwrap();
+            buf.write_all(parent_file.name().as_bytes()).unwrap();
         } else {
             buf.write_u32::<LittleEndian>(0).unwrap();
         }
