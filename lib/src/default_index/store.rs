@@ -25,7 +25,8 @@ use itertools::Itertools;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
-use super::{DefaultMutableIndex, DefaultReadonlyIndex, MutableIndexSegment, ReadonlyIndexSegment};
+use super::mutable::{DefaultMutableIndex, MutableIndexSegment};
+use super::{DefaultReadonlyIndex, ReadonlyIndexSegment};
 use crate::backend::{CommitId, ObjectId};
 use crate::commit::CommitByCommitterTimestamp;
 use crate::dag_walk;
