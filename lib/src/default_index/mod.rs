@@ -238,7 +238,7 @@ impl MutableIndexSegment {
     }
 
     fn as_composite(&self) -> CompositeIndex {
-        CompositeIndex(self)
+        CompositeIndex::new(self)
     }
 
     fn add_commit(&mut self, commit: &Commit) {
@@ -265,7 +265,8 @@ impl MutableIndexSegment {
             parent_positions: SmallVec::new(),
         };
         for parent_id in parent_ids {
-            let parent_entry = CompositeIndex(self)
+            let parent_entry = self
+                .as_composite()
                 .entry_by_id(parent_id)
                 .expect("parent commit is not indexed");
             entry.generation_number = max(
@@ -282,7 +283,7 @@ impl MutableIndexSegment {
     }
 
     fn add_commits_from(&mut self, other_segment: &dyn IndexSegment) {
-        let other = CompositeIndex(other_segment);
+        let other = CompositeIndex::new(other_segment);
         for pos in other_segment.segment_num_parent_commits()..other.num_commits() {
             let entry = other.entry_by_pos(IndexPosition(pos));
             let parent_ids = entry.parents().map(|entry| entry.commit_id()).collect_vec();
@@ -1351,7 +1352,7 @@ impl<'a> IndexEntry<'a> {
     }
 
     pub fn parents(&self) -> impl ExactSizeIterator<Item = IndexEntry<'a>> {
-        let composite = CompositeIndex(self.source);
+        let composite = CompositeIndex::new(self.source);
         self.parent_positions()
             .into_iter()
             .map(move |pos| composite.entry_by_pos(pos))
@@ -1420,7 +1421,7 @@ impl ReadonlyIndexSegment {
     }
 
     fn as_composite(&self) -> CompositeIndex {
-        CompositeIndex(self)
+        CompositeIndex::new(self)
     }
 
     fn name(&self) -> &str {
@@ -1549,7 +1550,7 @@ mod tests {
         } else {
             Box::new(mutable_segment)
         };
-        let index = CompositeIndex(index_segment.as_ref());
+        let index = CompositeIndex::new(index_segment.as_ref());
 
         // Stats are as expected
         let stats = index.stats();
@@ -1580,7 +1581,7 @@ mod tests {
         } else {
             Box::new(mutable_segment)
         };
-        let index = CompositeIndex(index_segment.as_ref());
+        let index = CompositeIndex::new(index_segment.as_ref());
 
         // Stats are as expected
         let stats = index.stats();
@@ -1665,7 +1666,7 @@ mod tests {
         } else {
             Box::new(mutable_segment)
         };
-        let index = CompositeIndex(index_segment.as_ref());
+        let index = CompositeIndex::new(index_segment.as_ref());
 
         // Stats are as expected
         let stats = index.stats();
@@ -1768,7 +1769,7 @@ mod tests {
         } else {
             Box::new(mutable_segment)
         };
-        let index = CompositeIndex(index_segment.as_ref());
+        let index = CompositeIndex::new(index_segment.as_ref());
 
         // Stats are as expected
         let stats = index.stats();
@@ -1948,7 +1949,7 @@ mod tests {
         );
 
         // Global lookup, commit_id exists. id_0 < id_1 < id_5 < id_3 < id_2 < id_4
-        let composite_index = CompositeIndex(&mutable_segment);
+        let composite_index = CompositeIndex::new(&mutable_segment);
         assert_eq!(
             composite_index.resolve_neighbor_commit_ids(&id_0),
             (None, Some(id_1.clone())),

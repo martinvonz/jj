@@ -32,9 +32,13 @@ use crate::store::Store;
 use crate::{backend, default_revset_engine};
 
 #[derive(Clone, Copy)]
-pub struct CompositeIndex<'a>(pub(super) &'a dyn IndexSegment);
+pub struct CompositeIndex<'a>(&'a dyn IndexSegment);
 
 impl<'a> CompositeIndex<'a> {
+    pub(super) fn new(segment: &'a dyn IndexSegment) -> Self {
+        CompositeIndex(segment)
+    }
+
     fn ancestor_files_without_local(&self) -> impl Iterator<Item = &'a Arc<ReadonlyIndexSegment>> {
         let parent_file = self.0.segment_parent_file();
         iter::successors(parent_file, |file| file.segment_parent_file())
