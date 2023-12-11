@@ -76,8 +76,12 @@ impl<'index> RevsetImpl<'index> {
         }
     }
 
+    fn entries(&self) -> Box<dyn Iterator<Item = IndexEntry<'index>> + '_> {
+        self.inner.iter()
+    }
+
     pub fn iter_graph_impl(&self) -> RevsetGraphIterator<'_, 'index> {
-        RevsetGraphIterator::new(self.index, self.inner.iter())
+        RevsetGraphIterator::new(self.index, self.entries())
     }
 }
 
@@ -91,13 +95,12 @@ impl fmt::Debug for RevsetImpl<'_> {
 
 impl<'index> Revset<'index> for RevsetImpl<'index> {
     fn iter(&self) -> Box<dyn Iterator<Item = CommitId> + '_> {
-        Box::new(self.inner.iter().map(|index_entry| index_entry.commit_id()))
+        Box::new(self.entries().map(|index_entry| index_entry.commit_id()))
     }
 
     fn commit_change_ids(&self) -> Box<dyn Iterator<Item = (CommitId, ChangeId)> + '_> {
         Box::new(
-            self.inner
-                .iter()
+            self.entries()
                 .map(|index_entry| (index_entry.commit_id(), index_entry.change_id())),
         )
     }
@@ -109,7 +112,7 @@ impl<'index> Revset<'index> for RevsetImpl<'index> {
     fn change_id_index(&self) -> Box<dyn ChangeIdIndex + 'index> {
         // TODO: Create a persistent lookup from change id to commit ids.
         let mut pos_by_change = IdIndex::builder();
-        for entry in self.inner.iter() {
+        for entry in self.entries() {
             pos_by_change.insert(&entry.change_id(), entry.position());
         }
         Box::new(ChangeIdIndexImpl {
@@ -119,11 +122,11 @@ impl<'index> Revset<'index> for RevsetImpl<'index> {
     }
 
     fn is_empty(&self) -> bool {
-        self.iter().next().is_none()
+        self.entries().next().is_none()
     }
 
     fn count(&self) -> usize {
-        self.inner.iter().count()
+        self.entries().count()
     }
 }
 
