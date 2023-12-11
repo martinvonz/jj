@@ -17,7 +17,7 @@ use std::sync::Arc;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
-use jj_lib::default_index_store::{
+use jj_lib::default_index::{
     CompositeIndex, DefaultMutableIndex, DefaultReadonlyIndex, IndexPosition,
 };
 use jj_lib::index::Index as _;

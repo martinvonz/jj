@@ -18,7 +18,7 @@ use std::io::Write as _;
 
 use clap::Subcommand;
 use jj_lib::backend::ObjectId;
-use jj_lib::default_index_store::{DefaultIndexStore, DefaultReadonlyIndex};
+use jj_lib::default_index::{DefaultIndexStore, DefaultReadonlyIndex};
 use jj_lib::local_working_copy::LocalWorkingCopy;
 use jj_lib::revset;
 use jj_lib::working_copy::WorkingCopy;

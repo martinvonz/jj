@@ -35,7 +35,7 @@ use crate::backend::{
 };
 use crate::commit::{Commit, CommitByCommitterTimestamp};
 use crate::commit_builder::CommitBuilder;
-use crate::default_index_store::DefaultIndexStore;
+use crate::default_index::DefaultIndexStore;
 use crate::default_submodule_store::DefaultSubmoduleStore;
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::git_backend::GitBackend;

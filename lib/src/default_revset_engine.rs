@@ -24,7 +24,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
-use crate::default_index_store::{CompositeIndex, IndexEntry, IndexEntryByPosition, IndexPosition};
+use crate::default_index::{CompositeIndex, IndexEntry, IndexEntryByPosition, IndexPosition};
 use crate::default_revset_graph_iterator::RevsetGraphIterator;
 use crate::id_prefix::{IdIndex, IdIndexSource, IdIndexSourceEntry};
 use crate::index::{HexPrefix, PrefixResolution};
@@ -857,7 +857,7 @@ fn has_diff_from_parent(
 mod tests {
     use super::*;
     use crate::backend::{ChangeId, CommitId, ObjectId};
-    use crate::default_index_store::DefaultMutableIndex;
+    use crate::default_index::DefaultMutableIndex;
 
     /// Generator of unique 16-byte ChangeId excluding root id
     fn change_id_generator() -> impl FnMut() -> ChangeId {
