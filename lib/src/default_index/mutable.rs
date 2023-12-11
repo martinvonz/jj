@@ -121,7 +121,7 @@ impl MutableIndexSegment {
                 entry.generation_number,
                 parent_entry.generation_number() + 1,
             );
-            entry.parent_positions.push(parent_entry.pos);
+            entry.parent_positions.push(parent_entry.position());
         }
         self.lookup.insert(
             entry.commit_id.clone(),

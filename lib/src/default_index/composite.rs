@@ -151,7 +151,7 @@ impl<'a> CompositeIndex<'a> {
             if descendant_pos == ancestor_pos {
                 return true;
             }
-            if !visited.insert(descendant_entry.pos) {
+            if !visited.insert(descendant_entry.position()) {
                 continue;
             }
             if descendant_entry.generation_number() <= ancestor_generation {
@@ -183,7 +183,7 @@ impl<'a> CompositeIndex<'a> {
                     let item1 = dedup_pop(&mut items1).unwrap();
                     let entry1 = self.entry_by_pos(item1.pos);
                     for parent_entry in entry1.parents() {
-                        assert!(parent_entry.pos < entry1.pos);
+                        assert!(parent_entry.position() < entry1.position());
                         items1.push(IndexPositionByGeneration::from(&parent_entry));
                     }
                 }
@@ -191,7 +191,7 @@ impl<'a> CompositeIndex<'a> {
                     let item2 = dedup_pop(&mut items2).unwrap();
                     let entry2 = self.entry_by_pos(item2.pos);
                     for parent_entry in entry2.parents() {
-                        assert!(parent_entry.pos < entry2.pos);
+                        assert!(parent_entry.position() < entry2.position());
                         items2.push(IndexPositionByGeneration::from(&parent_entry));
                     }
                 }
@@ -239,7 +239,7 @@ impl<'a> CompositeIndex<'a> {
             candidate_positions.remove(&item.pos);
             let entry = self.entry_by_pos(item.pos);
             for parent_entry in entry.parents() {
-                assert!(parent_entry.pos < entry.pos);
+                assert!(parent_entry.position() < entry.position());
                 work.push(IndexPositionByGeneration::from(&parent_entry));
             }
         }
