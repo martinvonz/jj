@@ -38,7 +38,7 @@ pub(super) type SmallIndexPositionsVec = SmallVec<[IndexPosition; 4]>;
 #[derive(Clone)]
 pub struct IndexEntry<'a> {
     source: &'a dyn IndexSegment,
-    pub(super) pos: IndexPosition,
+    pos: IndexPosition,
     // Position within the source segment
     local_pos: u32,
 }

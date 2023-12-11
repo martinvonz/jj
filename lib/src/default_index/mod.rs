@@ -153,7 +153,7 @@ mod tests {
         assert_eq!(index.commit_id_to_pos(&CommitId::from_hex("ffffff")), None);
         // Check properties of root entry
         let entry = index.entry_by_id(&id_0).unwrap();
-        assert_eq!(entry.pos, IndexPosition(0));
+        assert_eq!(entry.position(), IndexPosition(0));
         assert_eq!(entry.commit_id(), id_0);
         assert_eq!(entry.change_id(), change_id0);
         assert_eq!(entry.generation_number(), 0);
@@ -240,9 +240,9 @@ mod tests {
         let entry_4 = index.entry_by_id(&id_4).unwrap();
         let entry_5 = index.entry_by_id(&id_5).unwrap();
         // Check properties of some entries
-        assert_eq!(entry_0.pos, IndexPosition(0));
+        assert_eq!(entry_0.position(), IndexPosition(0));
         assert_eq!(entry_0.commit_id(), id_0);
-        assert_eq!(entry_1.pos, IndexPosition(1));
+        assert_eq!(entry_1.position(), IndexPosition(1));
         assert_eq!(entry_1.commit_id(), id_1);
         assert_eq!(entry_1.change_id(), change_id1);
         assert_eq!(entry_1.generation_number(), 1);
@@ -252,8 +252,11 @@ mod tests {
             smallvec_inline![IndexPosition(0)]
         );
         assert_eq!(entry_1.parents().len(), 1);
-        assert_eq!(entry_1.parents().next().unwrap().pos, IndexPosition(0));
-        assert_eq!(entry_2.pos, IndexPosition(2));
+        assert_eq!(
+            entry_1.parents().next().unwrap().position(),
+            IndexPosition(0)
+        );
+        assert_eq!(entry_2.position(), IndexPosition(2));
         assert_eq!(entry_2.commit_id(), id_2);
         assert_eq!(entry_2.change_id(), change_id2);
         assert_eq!(entry_2.generation_number(), 1);
@@ -268,7 +271,7 @@ mod tests {
             entry_3.parent_positions(),
             smallvec_inline![IndexPosition(2)]
         );
-        assert_eq!(entry_4.pos, IndexPosition(4));
+        assert_eq!(entry_4.position(), IndexPosition(4));
         assert_eq!(entry_4.generation_number(), 2);
         assert_eq!(entry_4.num_parents(), 1);
         assert_eq!(
@@ -282,8 +285,14 @@ mod tests {
             smallvec_inline![IndexPosition(4), IndexPosition(2)]
         );
         assert_eq!(entry_5.parents().len(), 2);
-        assert_eq!(entry_5.parents().next().unwrap().pos, IndexPosition(4));
-        assert_eq!(entry_5.parents().nth(1).unwrap().pos, IndexPosition(2));
+        assert_eq!(
+            entry_5.parents().next().unwrap().position(),
+            IndexPosition(4)
+        );
+        assert_eq!(
+            entry_5.parents().nth(1).unwrap().position(),
+            IndexPosition(2)
+        );
     }
 
     #[test_case(false; "in memory")]
