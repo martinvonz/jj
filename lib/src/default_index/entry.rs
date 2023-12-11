@@ -37,10 +37,10 @@ pub(super) type SmallIndexPositionsVec = SmallVec<[IndexPosition; 4]>;
 
 #[derive(Clone)]
 pub struct IndexEntry<'a> {
-    pub(super) source: &'a dyn IndexSegment,
+    source: &'a dyn IndexSegment,
     pub(super) pos: IndexPosition,
     // Position within the source segment
-    pub(super) local_pos: u32,
+    local_pos: u32,
 }
 
 impl Debug for IndexEntry<'_> {
@@ -68,6 +68,14 @@ impl Hash for IndexEntry<'_> {
 }
 
 impl<'a> IndexEntry<'a> {
+    pub(super) fn new(source: &'a dyn IndexSegment, pos: IndexPosition, local_pos: u32) -> Self {
+        IndexEntry {
+            source,
+            pos,
+            local_pos,
+        }
+    }
+
     pub fn position(&self) -> IndexPosition {
         self.pos
     }
