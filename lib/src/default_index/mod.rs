@@ -15,19 +15,17 @@
 #![allow(missing_docs)]
 
 mod composite;
+mod entry;
 mod mutable;
 mod readonly;
 mod rev_walk;
 mod store;
 
-use std::cmp::Ordering;
-use std::fmt::{Debug, Formatter};
-use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use smallvec::SmallVec;
-
 pub use self::composite::{CompositeIndex, IndexLevelStats, IndexStats};
+use self::entry::SmallIndexPositionsVec;
+pub use self::entry::{IndexEntry, IndexEntryByPosition, IndexPosition};
 pub use self::mutable::DefaultMutableIndex;
 pub use self::readonly::DefaultReadonlyIndex;
 use self::readonly::ReadonlyIndexSegment;
@@ -35,19 +33,8 @@ pub use self::rev_walk::{
     RevWalk, RevWalkDescendants, RevWalkDescendantsGenerationRange, RevWalkGenerationRange,
 };
 pub use self::store::{DefaultIndexStore, DefaultIndexStoreError, IndexLoadError};
-use crate::backend::{ChangeId, CommitId, ObjectId};
+use crate::backend::{ChangeId, CommitId};
 use crate::index::{HexPrefix, PrefixResolution};
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
-pub struct IndexPosition(u32);
-
-impl IndexPosition {
-    pub const MAX: Self = IndexPosition(u32::MAX);
-}
-
-// SmallVec reuses two pointer-size fields as inline area, which meas we can
-// inline up to 16 bytes (on 64-bit platform) for free.
-type SmallIndexPositionsVec = SmallVec<[IndexPosition; 4]>;
 
 trait IndexSegment: Send + Sync {
     fn segment_num_parent_commits(&self) -> u32;
@@ -80,113 +67,6 @@ trait IndexSegment: Send + Sync {
     fn segment_parent_positions(&self, local_pos: u32) -> SmallIndexPositionsVec;
 
     fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry;
-}
-
-#[derive(Clone, Eq, PartialEq)]
-pub struct IndexEntryByPosition<'a>(pub IndexEntry<'a>);
-
-impl Ord for IndexEntryByPosition<'_> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.0.pos.cmp(&other.0.pos)
-    }
-}
-
-impl PartialOrd for IndexEntryByPosition<'_> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-/// Wrapper to sort `IndexPosition` by its generation number.
-///
-/// This is similar to `IndexEntry` newtypes, but optimized for size and cache
-/// locality. The original `IndexEntry` will have to be looked up when needed.
-#[derive(Clone, Copy, Debug, Ord, PartialOrd)]
-struct IndexPositionByGeneration {
-    generation: u32,    // order by generation number
-    pos: IndexPosition, // tie breaker
-}
-
-impl Eq for IndexPositionByGeneration {}
-
-impl PartialEq for IndexPositionByGeneration {
-    fn eq(&self, other: &Self) -> bool {
-        self.pos == other.pos
-    }
-}
-
-impl From<&IndexEntry<'_>> for IndexPositionByGeneration {
-    fn from(entry: &IndexEntry<'_>) -> Self {
-        IndexPositionByGeneration {
-            generation: entry.generation_number(),
-            pos: entry.position(),
-        }
-    }
-}
-
-#[derive(Clone)]
-pub struct IndexEntry<'a> {
-    source: &'a dyn IndexSegment,
-    pos: IndexPosition,
-    // Position within the source segment
-    local_pos: u32,
-}
-
-impl Debug for IndexEntry<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("IndexEntry")
-            .field("pos", &self.pos)
-            .field("local_pos", &self.local_pos)
-            .field("commit_id", &self.commit_id().hex())
-            .finish()
-    }
-}
-
-impl PartialEq for IndexEntry<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.pos == other.pos
-    }
-}
-
-impl Eq for IndexEntry<'_> {}
-
-impl Hash for IndexEntry<'_> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.pos.hash(state)
-    }
-}
-
-impl<'a> IndexEntry<'a> {
-    pub fn position(&self) -> IndexPosition {
-        self.pos
-    }
-
-    pub fn generation_number(&self) -> u32 {
-        self.source.segment_generation_number(self.local_pos)
-    }
-
-    pub fn commit_id(&self) -> CommitId {
-        self.source.segment_commit_id(self.local_pos)
-    }
-
-    pub fn change_id(&self) -> ChangeId {
-        self.source.segment_change_id(self.local_pos)
-    }
-
-    pub fn num_parents(&self) -> u32 {
-        self.source.segment_num_parents(self.local_pos)
-    }
-
-    pub fn parent_positions(&self) -> SmallIndexPositionsVec {
-        self.source.segment_parent_positions(self.local_pos)
-    }
-
-    pub fn parents(&self) -> impl ExactSizeIterator<Item = IndexEntry<'a>> {
-        let composite = CompositeIndex::new(self.source);
-        self.parent_positions()
-            .into_iter()
-            .map(move |pos| composite.entry_by_pos(pos))
-    }
 }
 
 #[cfg(test)]
