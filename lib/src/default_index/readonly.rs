@@ -380,9 +380,17 @@ impl IndexSegment for ReadonlyIndexSegment {
 
 /// Commit index backend which stores data on local disk.
 #[derive(Debug)]
-pub struct DefaultReadonlyIndex(pub(super) Arc<ReadonlyIndexSegment>);
+pub struct DefaultReadonlyIndex(Arc<ReadonlyIndexSegment>);
 
 impl DefaultReadonlyIndex {
+    pub(super) fn from_segment(segment: Arc<ReadonlyIndexSegment>) -> Self {
+        DefaultReadonlyIndex(segment)
+    }
+
+    pub(super) fn as_segment(&self) -> &Arc<ReadonlyIndexSegment> {
+        &self.0
+    }
+
     pub fn as_composite(&self) -> CompositeIndex {
         self.0.as_composite()
     }

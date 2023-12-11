@@ -487,6 +487,6 @@ impl MutableIndex for DefaultMutableIndex {
             .as_any()
             .downcast_ref::<DefaultReadonlyIndex>()
             .expect("index to merge in must be a DefaultReadonlyIndex");
-        self.0.merge_in(other.0.clone());
+        self.0.merge_in(other.as_segment().clone());
     }
 }
