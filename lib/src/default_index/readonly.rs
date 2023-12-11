@@ -124,14 +124,14 @@ impl CommitLookupEntry<'_> {
 // TODO: add a fanout table like git's commit graph has?
 pub(super) struct ReadonlyIndexSegment {
     parent_file: Option<Arc<ReadonlyIndexSegment>>,
-    pub(super) num_parent_commits: u32,
+    num_parent_commits: u32,
     name: String,
     pub(super) commit_id_length: usize,
     pub(super) change_id_length: usize,
     commit_graph_entry_size: usize,
     commit_lookup_entry_size: usize,
     // Number of commits not counting the parent file
-    pub(super) num_local_commits: u32,
+    num_local_commits: u32,
     graph: Vec<u8>,
     lookup: Vec<u8>,
     overflow_parent: Vec<u8>,
