@@ -26,9 +26,10 @@ use byteorder::{LittleEndian, ReadBytesExt};
 use smallvec::SmallVec;
 
 use super::composite::CompositeIndex;
+use super::entry::{IndexEntry, IndexPosition, SmallIndexPositionsVec};
 use super::mutable::DefaultMutableIndex;
 use super::store::IndexLoadError;
-use super::{IndexEntry, IndexPosition, IndexSegment, SmallIndexPositionsVec};
+use super::IndexSegment;
 use crate::backend::{ChangeId, CommitId, ObjectId};
 use crate::index::{HexPrefix, Index, MutableIndex, PrefixResolution, ReadonlyIndex};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};

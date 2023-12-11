@@ -21,9 +21,10 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
+use super::entry::{IndexEntry, IndexPosition, IndexPositionByGeneration};
 use super::readonly::ReadonlyIndexSegment;
 use super::rev_walk::RevWalk;
-use super::{IndexEntry, IndexPosition, IndexPositionByGeneration, IndexSegment};
+use super::IndexSegment;
 use crate::backend::{CommitId, ObjectId};
 use crate::index::{HexPrefix, Index, PrefixResolution};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};

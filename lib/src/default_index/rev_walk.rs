@@ -22,7 +22,7 @@ use std::ops::Range;
 use smallvec::SmallVec;
 
 use super::composite::CompositeIndex;
-use super::{IndexEntry, IndexPosition, SmallIndexPositionsVec};
+use super::entry::{IndexEntry, IndexPosition, SmallIndexPositionsVec};
 
 trait RevWalkIndex<'a> {
     type Position: Copy + Ord;
