@@ -150,7 +150,9 @@ pub struct BranchTrackArgs {
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select branches by wildcard pattern. For details, see
     /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
-    #[arg(required = true)]
+    ///
+    /// Examples: branch@remote, glob:main@*, glob:jjfan-*@upstream
+    #[arg(required = true, value_name = "BRANCH@REMOTE")]
     pub names: Vec<RemoteBranchNamePattern>,
 }
 
@@ -165,7 +167,9 @@ pub struct BranchUntrackArgs {
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select branches by wildcard pattern. For details, see
     /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
-    #[arg(required = true)]
+    ///
+    /// Examples: branch@remote, glob:main@*, glob:jjfan-*@upstream
+    #[arg(required = true, value_name = "BRANCH@REMOTE")]
     pub names: Vec<RemoteBranchNamePattern>,
 }
 

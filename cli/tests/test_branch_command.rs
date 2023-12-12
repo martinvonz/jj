@@ -812,7 +812,7 @@ fn test_branch_track_untrack_patterns() {
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
     insta::assert_snapshot!(
         test_env.jj_cmd_cli_error(&repo_path, &["branch", "track", "main"]), @r###"
-    error: invalid value 'main' for '<NAMES>...': remote branch must be specified in branch@remote form
+    error: invalid value 'main' for '<BRANCH@REMOTE>...': remote branch must be specified in branch@remote form
 
     For more information, try '--help'.
     "###);
