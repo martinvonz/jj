@@ -53,8 +53,7 @@ pub(crate) fn cmd_duplicate(
     }
     let mut duplicated_old_to_new: IndexMap<Commit, Commit> = IndexMap::new();
 
-    let mut tx = workspace_command
-        .start_transaction(&format!("duplicating {} commit(s)", to_duplicate.len()));
+    let mut tx = workspace_command.start_transaction();
     let base_repo = tx.base_repo().clone();
     let store = base_repo.store();
     let mut_repo = tx.mut_repo();
@@ -97,6 +96,6 @@ pub(crate) fn cmd_duplicate(
         tx.write_commit_summary(ui.stderr_formatter().as_mut(), new)?;
         writeln!(ui.stderr())?;
     }
-    tx.finish(ui)?;
+    tx.finish(ui, format!("duplicating {} commit(s)", to_duplicate.len()))?;
     Ok(())
 }

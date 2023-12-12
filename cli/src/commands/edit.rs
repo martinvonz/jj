@@ -45,10 +45,9 @@ pub(crate) fn cmd_edit(
     if workspace_command.get_wc_commit_id() == Some(new_commit.id()) {
         writeln!(ui.stderr(), "Already editing that commit")?;
     } else {
-        let mut tx =
-            workspace_command.start_transaction(&format!("edit commit {}", new_commit.id().hex()));
+        let mut tx = workspace_command.start_transaction();
         tx.edit(&new_commit)?;
-        tx.finish(ui)?;
+        tx.finish(ui, format!("edit commit {}", new_commit.id().hex()))?;
     }
     Ok(())
 }

@@ -43,8 +43,7 @@ pub(crate) fn cmd_checkout(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let target = workspace_command.resolve_single_rev(&args.revision, ui)?;
-    let mut tx =
-        workspace_command.start_transaction(&format!("check out commit {}", target.id().hex()));
+    let mut tx = workspace_command.start_transaction();
     let commit_builder = tx
         .mut_repo()
         .new_commit(
@@ -55,6 +54,6 @@ pub(crate) fn cmd_checkout(
         .set_description(join_message_paragraphs(&args.message_paragraphs));
     let new_commit = commit_builder.write()?;
     tx.edit(&new_commit).unwrap();
-    tx.finish(ui)?;
+    tx.finish(ui, format!("check out commit {}", target.id().hex()))?;
     Ok(())
 }

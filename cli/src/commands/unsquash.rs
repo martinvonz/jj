@@ -58,8 +58,7 @@ pub(crate) fn cmd_unsquash(
     }
     let parent = &parents[0];
     workspace_command.check_rewritable(&parents[..1])?;
-    let mut tx =
-        workspace_command.start_transaction(&format!("unsquash commit {}", commit.id().hex()));
+    let mut tx = workspace_command.start_transaction();
     let parent_base_tree = merge_commit_trees(tx.repo(), &parent.parents())?;
     let new_parent_tree_id;
     if args.interactive {
@@ -117,6 +116,6 @@ aborted.
             .set_parents(vec![new_parent.id().clone()])
             .write()?;
     }
-    tx.finish(ui)?;
+    tx.finish(ui, format!("unsquash commit {}", commit.id().hex()))?;
     Ok(())
 }

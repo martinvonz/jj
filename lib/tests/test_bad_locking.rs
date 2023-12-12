@@ -105,12 +105,12 @@ fn test_bad_locking_children(backend: TestRepoBackend) {
     let repo = &test_workspace.repo;
     let workspace_root = test_workspace.workspace.workspace_root();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let initial = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write()
         .unwrap();
-    tx.commit();
+    tx.commit("test");
 
     // Simulate a write of a commit that happens on one machine
     let machine1_root = test_workspace.root_dir().join("machine1");
@@ -126,12 +126,12 @@ fn test_bad_locking_children(backend: TestRepoBackend) {
         .repo_loader()
         .load_at_head(&settings)
         .unwrap();
-    let mut machine1_tx = machine1_repo.start_transaction(&settings, "test");
+    let mut machine1_tx = machine1_repo.start_transaction(&settings);
     let child1 = create_random_commit(machine1_tx.mut_repo(), &settings)
         .set_parents(vec![initial.id().clone()])
         .write()
         .unwrap();
-    machine1_tx.commit();
+    machine1_tx.commit("test");
 
     // Simulate a write of a commit that happens on another machine
     let machine2_root = test_workspace.root_dir().join("machine2");
@@ -147,12 +147,12 @@ fn test_bad_locking_children(backend: TestRepoBackend) {
         .repo_loader()
         .load_at_head(&settings)
         .unwrap();
-    let mut machine2_tx = machine2_repo.start_transaction(&settings, "test");
+    let mut machine2_tx = machine2_repo.start_transaction(&settings);
     let child2 = create_random_commit(machine2_tx.mut_repo(), &settings)
         .set_parents(vec![initial.id().clone()])
         .write()
         .unwrap();
-    machine2_tx.commit();
+    machine2_tx.commit("test");
 
     // Simulate that the distributed file system now has received the changes from
     // both machines
@@ -186,12 +186,12 @@ fn test_bad_locking_interrupted(backend: TestRepoBackend) {
     let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let repo = &test_workspace.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let initial = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![repo.store().root_commit_id().clone()])
         .write()
         .unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     // Simulate a crash that resulted in the old op-head left in place. We simulate
     // it somewhat hackily by copying the .jj/op_heads/ directory before the
@@ -200,12 +200,12 @@ fn test_bad_locking_interrupted(backend: TestRepoBackend) {
     let op_heads_dir = repo.repo_path().join("op_heads");
     let backup_path = test_workspace.root_dir().join("backup");
     copy_directory(&op_heads_dir, &backup_path);
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![initial.id().clone()])
         .write()
         .unwrap();
-    let op_id = tx.commit().operation().id().clone();
+    let op_id = tx.commit("test").operation().id().clone();
 
     copy_directory(&backup_path, &op_heads_dir);
     // Reload the repo and check that only the new head is present.

@@ -106,10 +106,10 @@ fn test_import_refs() {
 
     git_repo.set_head("refs/heads/main").unwrap();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let stats = git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     let view = repo.view();
 
     assert!(stats.abandoned_commits.is_empty());
@@ -225,10 +225,10 @@ fn test_import_refs_reimport() {
         .reference("refs/tags/my-gpg-key", pgp_key_oid, false, "")
         .unwrap();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let stats = git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     assert!(stats.abandoned_commits.is_empty());
     let expected_heads = hashset! {
@@ -244,19 +244,19 @@ fn test_import_refs_reimport() {
     let commit5 = empty_git_commit(&git_repo, "refs/heads/feature2", &[&commit2]);
 
     // Also modify feature2 on the jj side
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let commit6 = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![jj_id(&commit2)])
         .write()
         .unwrap();
     tx.mut_repo()
         .set_local_branch_target("feature2", RefTarget::normal(commit6.id().clone()));
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let stats = git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     assert_eq!(
         // The order is unstable just because we import heads from Git repo.
@@ -329,7 +329,7 @@ fn test_import_refs_reimport_head_removed() {
     let git_repo = get_git_repo(repo);
 
     let commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     let commit_id = jj_id(&commit);
@@ -356,7 +356,7 @@ fn test_import_refs_reimport_git_head_counts() {
     let commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     git_repo.set_head_detached(commit.id()).unwrap();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
 
@@ -382,7 +382,7 @@ fn test_import_refs_reimport_git_head_without_ref() {
     let git_repo = get_git_repo(repo);
 
     // First, HEAD points to commit1.
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let commit1 = write_random_commit(tx.mut_repo(), &settings);
     let commit2 = write_random_commit(tx.mut_repo(), &settings);
     git_repo.set_head_detached(git_id(&commit1)).unwrap();
@@ -416,7 +416,7 @@ fn test_import_refs_reimport_git_head_with_moved_ref() {
     let git_repo = get_git_repo(repo);
 
     // First, both HEAD and main point to commit1.
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let commit1 = write_random_commit(tx.mut_repo(), &settings);
     let commit2 = write_random_commit(tx.mut_repo(), &settings);
     git_repo
@@ -469,10 +469,10 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
         commit_remote_and_local.id(),
     );
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     let expected_heads = hashset! {
             jj_id(&commit_main),
@@ -525,10 +525,10 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
     delete_git_ref(&git_repo, "refs/remotes/origin/feature-remote-only");
     delete_git_ref(&git_repo, "refs/remotes/origin/feature-remote-and-local");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     let view = repo.view();
     // The local branches were indeed deleted
@@ -585,10 +585,10 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
         commit_remote_and_local.id(),
     );
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     let expected_heads = hashset! {
             jj_id(&commit_main),
@@ -651,10 +651,10 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
         &[&commit_base],
     );
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     let view = repo.view();
     assert_eq!(view.branches().count(), 3);
@@ -718,10 +718,10 @@ fn test_import_refs_reimport_with_moved_untracked_remote_ref() {
     let remote_ref_name = "refs/remotes/origin/feature";
     let commit_base = empty_git_commit(&git_repo, remote_ref_name, &[]);
     let commit_remote_t0 = empty_git_commit(&git_repo, remote_ref_name, &[&commit_base]);
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     let view = repo.view();
 
     assert_eq!(*view.heads(), hashset! { jj_id(&commit_remote_t0) });
@@ -738,10 +738,10 @@ fn test_import_refs_reimport_with_moved_untracked_remote_ref() {
     // Move the reference remotely and fetch the changes.
     delete_git_ref(&git_repo, remote_ref_name);
     let commit_remote_t1 = empty_git_commit(&git_repo, remote_ref_name, &[&commit_base]);
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     let view = repo.view();
 
     // commit_remote_t0 should be abandoned, but commit_base shouldn't because
@@ -768,7 +768,7 @@ fn test_import_refs_reimport_git_head_with_fixed_ref() {
     let git_repo = get_git_repo(repo);
 
     // First, both HEAD and main point to commit1.
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let commit1 = write_random_commit(tx.mut_repo(), &settings);
     let commit2 = write_random_commit(tx.mut_repo(), &settings);
     git_repo
@@ -803,7 +803,7 @@ fn test_import_refs_reimport_all_from_root_removed() {
     let git_repo = get_git_repo(repo);
 
     let commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     // Test the setup
@@ -834,7 +834,7 @@ fn test_import_refs_reimport_abandoning_disabled() {
 
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     let commit2 = empty_git_commit(&git_repo, "refs/heads/delete-me", &[&commit1]);
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     // Test the setup
@@ -861,12 +861,12 @@ fn test_import_refs_reimport_conflicted_remote_branch() {
 
     let commit1 = empty_git_commit(&git_repo, "refs/heads/commit1", &[]);
     git_ref(&git_repo, "refs/remotes/origin/main", commit1.id());
-    let mut tx1 = repo.start_transaction(&settings, "test");
+    let mut tx1 = repo.start_transaction(&settings);
     git::import_refs(tx1.mut_repo(), &git_settings).unwrap();
 
     let commit2 = empty_git_commit(&git_repo, "refs/heads/commit2", &[]);
     git_ref(&git_repo, "refs/remotes/origin/main", commit2.id());
-    let mut tx2 = repo.start_transaction(&settings, "test");
+    let mut tx2 = repo.start_transaction(&settings);
     git::import_refs(tx2.mut_repo(), &git_settings).unwrap();
 
     // Remote branch can diverge by concurrent operations (like `jj git fetch`)
@@ -884,9 +884,9 @@ fn test_import_refs_reimport_conflicted_remote_branch() {
     );
 
     // The conflict can be resolved by importing the current Git state
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_refs(tx.mut_repo(), &git_settings).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     assert_eq!(
         repo.view().get_git_ref("refs/remotes/origin/main"),
         &RefTarget::normal(jj_id(&commit2)),
@@ -910,7 +910,7 @@ fn test_import_refs_reserved_remote_name() {
 
     empty_git_commit(&git_repo, "refs/remotes/git/main", &[]);
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let result = git::import_refs(tx.mut_repo(), &git_settings);
     assert_matches!(result, Err(GitImportError::RemoteReservedForLocalGitRepo));
 }
@@ -943,7 +943,7 @@ fn test_import_some_refs() {
     }
 
     // Import branches feature1, feature2, and feature3.
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_some_refs(tx.mut_repo(), &git_settings, |ref_name| {
         get_remote_branch(ref_name)
             .map(|branch| branch.starts_with("feature"))
@@ -951,7 +951,7 @@ fn test_import_some_refs() {
     })
     .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     // There are two heads, feature2 and feature4.
     let view = repo.view();
@@ -1022,13 +1022,13 @@ fn test_import_some_refs() {
     delete_git_ref(&git_repo, "refs/remotes/origin/feature1");
     delete_git_ref(&git_repo, "refs/remotes/origin/feature3");
     delete_git_ref(&git_repo, "refs/remotes/origin/feature4");
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_some_refs(tx.mut_repo(), &git_settings, |ref_name| {
         get_remote_branch(ref_name) == Some("feature2")
     })
     .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     // feature2 and feature4 will still be heads, and all four branches should be
     // present.
@@ -1038,14 +1038,14 @@ fn test_import_some_refs() {
 
     // Import feature1: this should cause the branch to be deleted, but the
     // corresponding commit should stay because it is reachable from feature2.
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_some_refs(tx.mut_repo(), &git_settings, |ref_name| {
         get_remote_branch(ref_name) == Some("feature1")
     })
     .unwrap();
     // No descendant should be rewritten.
     assert_eq!(tx.mut_repo().rebase_descendants(&settings).unwrap(), 0);
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     // feature2 and feature4 should still be the heads, and all three branches
     // feature2, feature3, and feature3 should exist.
@@ -1055,14 +1055,14 @@ fn test_import_some_refs() {
 
     // Import feature3: this should cause the branch to be deleted, but
     // feature4 should be left alone even though it is no longer in git.
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_some_refs(tx.mut_repo(), &git_settings, |ref_name| {
         get_remote_branch(ref_name) == Some("feature3")
     })
     .unwrap();
     // No descendant should be rewritten
     assert_eq!(tx.mut_repo().rebase_descendants(&settings).unwrap(), 0);
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     // feature2 and feature4 should still be the heads, and both branches
     // should exist.
@@ -1071,14 +1071,14 @@ fn test_import_some_refs() {
     assert_eq!(*view.heads(), expected_heads);
 
     // Import feature4: both the head and the branch will disappear.
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_some_refs(tx.mut_repo(), &git_settings, |ref_name| {
         get_remote_branch(ref_name) == Some("feature4")
     })
     .unwrap();
     // No descendant should be rewritten
     assert_eq!(tx.mut_repo().rebase_descendants(&settings).unwrap(), 0);
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     // feature2 should now be the only head and only branch.
     let view = repo.view();
@@ -1148,14 +1148,12 @@ fn test_import_refs_empty_git_repo() {
     let test_data = GitRepoData::create();
     let git_settings = GitSettings::default();
     let heads_before = test_data.repo.view().heads().clone();
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo()
         .rebase_descendants(&test_data.settings)
         .unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     assert_eq!(*repo.view().heads(), heads_before);
     assert_eq!(repo.view().branches().count(), 0);
     assert_eq!(repo.view().tags().len(), 0);
@@ -1183,7 +1181,7 @@ fn test_import_refs_missing_git_commit() {
     // Missing commit is ancestor of ref
     git_repo.set_head("refs/heads/unborn").unwrap();
     fs::rename(&object_file, &backup_object_file).unwrap();
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let result = git::import_refs(tx.mut_repo(), &git_settings);
     assert_matches!(
         result,
@@ -1200,7 +1198,7 @@ fn test_import_refs_missing_git_commit() {
         .delete()
         .unwrap();
     git_repo.set_head_detached(commit2.id()).unwrap();
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let result = git::import_refs(tx.mut_repo(), &git_settings);
     assert_matches!(
         result,
@@ -1218,7 +1216,7 @@ fn test_import_refs_missing_git_commit() {
         .unwrap();
     git_repo.set_head("refs/heads/unborn").unwrap();
     fs::rename(&object_file, &backup_object_file).unwrap();
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let result = git::import_refs(tx.mut_repo(), &git_settings);
     assert!(result.is_ok());
 
@@ -1232,7 +1230,7 @@ fn test_import_refs_missing_git_commit() {
         .unwrap();
     git_repo.set_head_detached(commit1.id()).unwrap();
     fs::rename(&object_file, &backup_object_file).unwrap();
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let result = git::import_refs(tx.mut_repo(), &git_settings);
     assert!(result.is_ok());
 }
@@ -1252,14 +1250,12 @@ fn test_import_refs_detached_head() {
         .unwrap();
     test_data.git_repo.set_head_detached(commit1.id()).unwrap();
 
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo()
         .rebase_descendants(&test_data.settings)
         .unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     let expected_heads = hashset! { jj_id(&commit1) };
     assert_eq!(*repo.view().heads(), expected_heads);
@@ -1276,9 +1272,7 @@ fn test_export_refs_no_detach() {
     let git_repo = test_data.git_repo;
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     git_repo.set_head("refs/heads/main").unwrap();
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     let mut_repo = tx.mut_repo();
     git::import_refs(mut_repo, &git_settings).unwrap();
     mut_repo.rebase_descendants(&test_data.settings).unwrap();
@@ -1308,9 +1302,7 @@ fn test_export_refs_branch_changed() {
         .unwrap();
     git_repo.set_head("refs/heads/feature").unwrap();
 
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     let mut_repo = tx.mut_repo();
     git::import_refs(mut_repo, &git_settings).unwrap();
     mut_repo.rebase_descendants(&test_data.settings).unwrap();
@@ -1347,9 +1339,7 @@ fn test_export_refs_current_branch_changed() {
     let git_repo = test_data.git_repo;
     let commit1 = empty_git_commit(&git_repo, "refs/heads/main", &[]);
     git_repo.set_head("refs/heads/main").unwrap();
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     let mut_repo = tx.mut_repo();
     git::import_refs(mut_repo, &git_settings).unwrap();
     mut_repo.rebase_descendants(&test_data.settings).unwrap();
@@ -1384,9 +1374,7 @@ fn test_export_refs_unborn_git_branch() {
     let git_settings = GitSettings::default();
     let git_repo = test_data.git_repo;
     git_repo.set_head("refs/heads/main").unwrap();
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     let mut_repo = tx.mut_repo();
     git::import_refs(mut_repo, &git_settings).unwrap();
     mut_repo.rebase_descendants(&test_data.settings).unwrap();
@@ -1422,9 +1410,7 @@ fn test_export_import_sequence() {
     let test_data = GitRepoData::create();
     let git_settings = GitSettings::default();
     let git_repo = test_data.git_repo;
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     let mut_repo = tx.mut_repo();
     let commit_a = write_random_commit(mut_repo, &test_data.settings);
     let commit_b = write_random_commit(mut_repo, &test_data.settings);
@@ -1479,9 +1465,7 @@ fn test_import_export_non_tracking_branch() {
     let git_repo = test_data.git_repo;
     let commit_main_t0 = empty_git_commit(&git_repo, "refs/remotes/origin/main", &[]);
 
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     let mut_repo = tx.mut_repo();
 
     git::import_refs(mut_repo, &git_settings).unwrap();
@@ -1563,9 +1547,7 @@ fn test_export_conflicts() {
     // We skip export of conflicted branches
     let test_data = GitRepoData::create();
     let git_repo = test_data.git_repo;
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     let mut_repo = tx.mut_repo();
     let commit_a = write_random_commit(mut_repo, &test_data.settings);
     let commit_b = write_random_commit(mut_repo, &test_data.settings);
@@ -1623,9 +1605,7 @@ fn test_export_conflicts() {
 fn test_export_branch_on_root_commit() {
     // We skip export of branches pointing to the root commit
     let test_data = GitRepoData::create();
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     let mut_repo = tx.mut_repo();
     mut_repo.set_local_branch_target(
         "on_root",
@@ -1642,9 +1622,7 @@ fn test_export_partial_failure() {
     // Check that we skip branches that fail to export
     let test_data = GitRepoData::create();
     let git_repo = test_data.git_repo;
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     let mut_repo = tx.mut_repo();
     let commit_a = write_random_commit(mut_repo, &test_data.settings);
     let target = RefTarget::normal(commit_a.id().clone());
@@ -1729,9 +1707,7 @@ fn test_export_reexport_transitions() {
     // Test exporting after making changes on the jj side, or the git side, or both
     let test_data = GitRepoData::create();
     let git_repo = test_data.git_repo;
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     let mut_repo = tx.mut_repo();
     let commit_a = write_random_commit(mut_repo, &test_data.settings);
     let commit_b = write_random_commit(mut_repo, &test_data.settings);
@@ -1869,9 +1845,7 @@ fn test_export_reexport_transitions() {
 fn test_export_undo_reexport() {
     let test_data = GitRepoData::create();
     let git_repo = test_data.git_repo;
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     let mut_repo = tx.mut_repo();
 
     // Initial export
@@ -1922,7 +1896,7 @@ fn test_reset_head_to_root() {
         Workspace::init_external_git(&settings, &workspace_root, &workspace_root.join(".git"))
             .unwrap();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
 
     let root_commit_id = repo.store().root_commit_id();
@@ -2005,9 +1979,7 @@ fn test_fetch_empty_repo() {
     let test_data = GitRepoData::create();
     let git_settings = GitSettings::default();
 
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     let stats = git::fetch(
         tx.mut_repo(),
         &test_data.git_repo,
@@ -2030,9 +2002,7 @@ fn test_fetch_initial_commit() {
     let git_settings = GitSettings::default();
     let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     let stats = git::fetch(
         tx.mut_repo(),
         &test_data.git_repo,
@@ -2045,7 +2015,7 @@ fn test_fetch_initial_commit() {
     // No default branch because the origin repo's HEAD wasn't set
     assert_eq!(stats.default_branch, None);
     assert!(stats.import_stats.abandoned_commits.is_empty());
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     // The initial commit is visible after git::fetch().
     let view = repo.view();
     assert!(view.heads().contains(&jj_id(&initial_git_commit)));
@@ -2079,9 +2049,7 @@ fn test_fetch_success() {
     let git_settings = GitSettings::default();
     let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     git::fetch(
         tx.mut_repo(),
         &test_data.git_repo,
@@ -2091,7 +2059,7 @@ fn test_fetch_success() {
         &git_settings,
     )
     .unwrap();
-    test_data.repo = tx.commit();
+    test_data.repo = tx.commit("test");
 
     test_data.origin_repo.set_head("refs/heads/main").unwrap();
     let new_git_commit = empty_git_commit(
@@ -2104,9 +2072,7 @@ fn test_fetch_success() {
         .reference("refs/tags/v1.0", new_git_commit.id(), false, "")
         .unwrap();
 
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     let stats = git::fetch(
         tx.mut_repo(),
         &test_data.git_repo,
@@ -2119,7 +2085,7 @@ fn test_fetch_success() {
     // The default branch is "main"
     assert_eq!(stats.default_branch, Some("main".to_string()));
     assert!(stats.import_stats.abandoned_commits.is_empty());
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     // The new commit is visible after we fetch again
     let view = repo.view();
     assert!(view.heads().contains(&jj_id(&new_git_commit)));
@@ -2160,9 +2126,7 @@ fn test_fetch_prune_deleted_ref() {
     let git_settings = GitSettings::default();
     let commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     git::fetch(
         tx.mut_repo(),
         &test_data.git_repo,
@@ -2201,9 +2165,7 @@ fn test_fetch_no_default_branch() {
     let git_settings = GitSettings::default();
     let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     git::fetch(
         tx.mut_repo(),
         &test_data.git_repo,
@@ -2247,9 +2209,7 @@ fn test_fetch_empty_refspecs() {
     empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
     // Base refspecs shouldn't be respected
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     git::fetch(
         tx.mut_repo(),
         &test_data.git_repo,
@@ -2275,9 +2235,7 @@ fn test_fetch_empty_refspecs() {
 fn test_fetch_no_such_remote() {
     let test_data = GitRepoData::create();
     let git_settings = GitSettings::default();
-    let mut tx = test_data
-        .repo
-        .start_transaction(&test_data.settings, "test");
+    let mut tx = test_data.repo.start_transaction(&test_data.settings);
     let result = git::fetch(
         tx.mut_repo(),
         &test_data.git_repo,
@@ -2332,7 +2290,7 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
         .store()
         .get_commit(&jj_id(&initial_git_commit))
         .unwrap();
-    let mut tx = jj_repo.start_transaction(settings, "test");
+    let mut tx = jj_repo.start_transaction(settings);
     let new_commit = create_random_commit(tx.mut_repo(), settings)
         .set_parents(vec![initial_commit.id().clone()])
         .write()
@@ -2351,7 +2309,7 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
             state: RemoteRefState::Tracking,
         },
     );
-    let jj_repo = tx.commit();
+    let jj_repo = tx.commit("test");
     PushTestSetup {
         source_repo_dir,
         jj_repo,
@@ -2366,7 +2324,7 @@ fn test_push_branches_success() {
     let temp_dir = testutils::new_temp_dir();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
     let clone_repo = get_git_repo(&setup.jj_repo);
-    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
+    let mut tx = setup.jj_repo.start_transaction(&settings);
 
     let targets = GitBranchPushTargets {
         branch_updates: vec![(
@@ -2420,8 +2378,8 @@ fn test_push_branches_success() {
     );
 
     // Check that the repo view reflects the changes in the Git repo
-    setup.jj_repo = tx.commit();
-    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
+    setup.jj_repo = tx.commit("test");
+    let mut tx = setup.jj_repo.start_transaction(&settings);
     git::import_refs(tx.mut_repo(), &GitSettings::default()).unwrap();
     assert!(!tx.mut_repo().has_changes());
 }
@@ -2432,7 +2390,7 @@ fn test_push_branches_deletion() {
     let temp_dir = testutils::new_temp_dir();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
     let clone_repo = get_git_repo(&setup.jj_repo);
-    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
+    let mut tx = setup.jj_repo.start_transaction(&settings);
 
     let source_repo = git2::Repository::open(&setup.source_repo_dir).unwrap();
     // Test the setup
@@ -2473,8 +2431,8 @@ fn test_push_branches_deletion() {
     assert!(view.get_remote_branch("main", "origin").is_absent());
 
     // Check that the repo view reflects the changes in the Git repo
-    setup.jj_repo = tx.commit();
-    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
+    setup.jj_repo = tx.commit("test");
+    let mut tx = setup.jj_repo.start_transaction(&settings);
     git::import_refs(tx.mut_repo(), &GitSettings::default()).unwrap();
     assert!(!tx.mut_repo().has_changes());
 }
@@ -2485,7 +2443,7 @@ fn test_push_branches_mixed_deletion_and_addition() {
     let temp_dir = testutils::new_temp_dir();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
     let clone_repo = get_git_repo(&setup.jj_repo);
-    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
+    let mut tx = setup.jj_repo.start_transaction(&settings);
 
     let targets = GitBranchPushTargets {
         branch_updates: vec![
@@ -2543,8 +2501,8 @@ fn test_push_branches_mixed_deletion_and_addition() {
     );
 
     // Check that the repo view reflects the changes in the Git repo
-    setup.jj_repo = tx.commit();
-    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
+    setup.jj_repo = tx.commit("test");
+    let mut tx = setup.jj_repo.start_transaction(&settings);
     git::import_refs(tx.mut_repo(), &GitSettings::default()).unwrap();
     assert!(!tx.mut_repo().has_changes());
 }
@@ -2554,10 +2512,10 @@ fn test_push_branches_not_fast_forward() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
-    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
+    let mut tx = setup.jj_repo.start_transaction(&settings);
     let new_commit = write_random_commit(tx.mut_repo(), &settings);
-    setup.jj_repo = tx.commit();
-    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
+    setup.jj_repo = tx.commit("test");
+    let mut tx = setup.jj_repo.start_transaction(&settings);
 
     let targets = GitBranchPushTargets {
         branch_updates: vec![(
@@ -2584,10 +2542,10 @@ fn test_push_branches_not_fast_forward_with_force() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
     let mut setup = set_up_push_repos(&settings, &temp_dir);
-    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
+    let mut tx = setup.jj_repo.start_transaction(&settings);
     let new_commit = write_random_commit(tx.mut_repo(), &settings);
-    setup.jj_repo = tx.commit();
-    let mut tx = setup.jj_repo.start_transaction(&settings, "test");
+    setup.jj_repo = tx.commit("test");
+    let mut tx = setup.jj_repo.start_transaction(&settings);
 
     let targets = GitBranchPushTargets {
         branch_updates: vec![(
@@ -2709,10 +2667,10 @@ fn test_bulk_update_extra_on_import_refs() {
             .count()
     };
     let import_refs = |repo: &Arc<ReadonlyRepo>| {
-        let mut tx = repo.start_transaction(&settings, "test");
+        let mut tx = repo.start_transaction(&settings);
         git::import_refs(tx.mut_repo(), &git_settings).unwrap();
         tx.mut_repo().rebase_descendants(&settings).unwrap();
-        tx.commit()
+        tx.commit("test")
     };
 
     // Extra metadata table shouldn't be created per read_commit() call. The number
@@ -2748,14 +2706,14 @@ fn test_rewrite_imported_commit() {
 
     // Import git commit, which generates change id from the commit id.
     let git_commit = empty_git_commit(&git_repo, "refs/heads/main", &[]);
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     let imported_commit = repo.store().get_commit(&jj_id(&git_commit)).unwrap();
 
     // Try to create identical commit with different change id.
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let authored_commit = tx
         .mut_repo()
         .new_commit(
@@ -2768,7 +2726,7 @@ fn test_rewrite_imported_commit() {
         .set_description(imported_commit.description())
         .write()
         .unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     // Imported commit shouldn't be reused, and the timestamp of the authored
     // commit should be adjusted to create new commit.
@@ -2807,12 +2765,12 @@ fn test_concurrent_write_commit() {
             let sender = sender.clone();
             s.spawn(move || {
                 barrier.wait();
-                let mut tx = repo.start_transaction(settings, &format!("writer {i}"));
+                let mut tx = repo.start_transaction(settings);
                 let commit = create_rooted_commit(tx.mut_repo(), settings)
                     .set_description("racy commit")
                     .write()
                     .unwrap();
-                tx.commit();
+                tx.commit(format!("writer {i}"));
                 sender
                     .send((commit.id().clone(), commit.change_id().clone()))
                     .unwrap();
@@ -2892,12 +2850,12 @@ fn test_concurrent_read_write_commit() {
             let barrier = barrier.clone();
             s.spawn(move || {
                 barrier.wait();
-                let mut tx = repo.start_transaction(settings, &format!("writer {i}"));
+                let mut tx = repo.start_transaction(settings);
                 let commit = create_rooted_commit(tx.mut_repo(), settings)
                     .set_description(format!("commit {i}"))
                     .write()
                     .unwrap();
-                tx.commit();
+                tx.commit(format!("writer {i}"));
                 assert_eq!(commit.id(), commit_id);
             });
         }
@@ -2918,7 +2876,7 @@ fn test_concurrent_read_write_commit() {
                     }
                     repo = repo.reload_at_head(settings).unwrap();
                     let git_backend = get_git_backend(&repo);
-                    let mut tx = repo.start_transaction(settings, &format!("reader {i}"));
+                    let mut tx = repo.start_transaction(settings);
                     pending_commit_ids = pending_commit_ids
                         .into_iter()
                         .filter_map(|commit_id| {
@@ -2938,7 +2896,7 @@ fn test_concurrent_read_write_commit() {
                         })
                         .collect_vec();
                     if tx.mut_repo().has_changes() {
-                        tx.commit();
+                        tx.commit(format!("reader {i}"));
                     }
                     thread::yield_now();
                 }

@@ -109,15 +109,16 @@ pub(crate) fn cmd_prev(
     if edit {
         // The target must be rewritable if we're editing.
         workspace_command.check_rewritable([target])?;
-        let mut tx = workspace_command
-            .start_transaction(&format!("prev: {current_short} -> editing {target_short}"));
+        let mut tx = workspace_command.start_transaction();
         tx.edit(target)?;
-        tx.finish(ui)?;
+        tx.finish(
+            ui,
+            format!("prev: {current_short} -> editing {target_short}"),
+        )?;
         return Ok(());
     }
-    let mut tx =
-        workspace_command.start_transaction(&format!("prev: {current_short} -> {target_short}"));
+    let mut tx = workspace_command.start_transaction();
     tx.check_out(target)?;
-    tx.finish(ui)?;
+    tx.finish(ui, format!("prev: {current_short} -> {target_short}"))?;
     Ok(())
 }

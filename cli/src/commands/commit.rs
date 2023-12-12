@@ -49,7 +49,7 @@ pub(crate) fn cmd_commit(
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let mut tx = workspace_command.start_transaction(&format!("commit {}", commit.id().hex()));
+    let mut tx = workspace_command.start_transaction();
     let base_tree = merge_commit_trees(tx.repo(), &commit.parents())?;
     let instructions = format!(
         "\
@@ -117,6 +117,6 @@ new working-copy commit.
             tx.mut_repo().edit(workspace_id, &new_wc_commit).unwrap();
         }
     }
-    tx.finish(ui)?;
+    tx.finish(ui, format!("commit {}", commit.id().hex()))?;
     Ok(())
 }

@@ -78,8 +78,7 @@ pub(crate) fn cmd_diffedit(
     };
     workspace_command.check_rewritable([&target_commit])?;
 
-    let mut tx =
-        workspace_command.start_transaction(&format!("edit commit {}", target_commit.id().hex()));
+    let mut tx = workspace_command.start_transaction();
     let instructions = format!(
         "\
 You are editing changes in: {}
@@ -110,7 +109,7 @@ don't make any changes, then the operation will be aborted.",
         if num_rebased > 0 {
             writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
         }
-        tx.finish(ui)?;
+        tx.finish(ui, format!("edit commit {}", target_commit.id().hex()))?;
     }
     Ok(())
 }

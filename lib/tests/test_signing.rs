@@ -53,7 +53,7 @@ fn manual(backend: TestRepoBackend) {
 
     let settings = settings.clone();
     let repo = repo.clone();
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let commit1 = create_random_commit(tx.mut_repo(), &settings)
         .set_sign_behavior(SignBehavior::Own)
         .write()
@@ -63,7 +63,7 @@ fn manual(backend: TestRepoBackend) {
         .set_author(someone_else())
         .write()
         .unwrap();
-    tx.commit();
+    tx.commit("test");
 
     let commit1 = repo.store().get_commit(commit1.id()).unwrap();
     assert_eq!(commit1.verification().unwrap(), good_verification());
@@ -83,14 +83,14 @@ fn keep_on_rewrite(backend: TestRepoBackend) {
 
     let settings = settings.clone();
     let repo = repo.clone();
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let commit = create_random_commit(tx.mut_repo(), &settings)
         .set_sign_behavior(SignBehavior::Own)
         .write()
         .unwrap();
-    tx.commit();
+    tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let rewritten = mut_repo.rewrite_commit(&settings, &commit).write().unwrap();
 
@@ -109,14 +109,14 @@ fn manual_drop_on_rewrite(backend: TestRepoBackend) {
 
     let settings = settings.clone();
     let repo = repo.clone();
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let commit = create_random_commit(tx.mut_repo(), &settings)
         .set_sign_behavior(SignBehavior::Own)
         .write()
         .unwrap();
-    tx.commit();
+    tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let rewritten = mut_repo
         .rewrite_commit(&settings, &commit)
@@ -139,13 +139,13 @@ fn forced(backend: TestRepoBackend) {
 
     let settings = settings.clone();
     let repo = repo.clone();
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let commit = create_random_commit(tx.mut_repo(), &settings)
         .set_sign_behavior(SignBehavior::Force)
         .set_author(someone_else())
         .write()
         .unwrap();
-    tx.commit();
+    tx.commit("test");
 
     let commit = repo.store().get_commit(commit.id()).unwrap();
     assert_eq!(commit.verification().unwrap(), good_verification());
@@ -162,9 +162,9 @@ fn configured(backend: TestRepoBackend) {
 
     let settings = settings.clone();
     let repo = repo.clone();
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let commit = write_random_commit(tx.mut_repo(), &settings);
-    tx.commit();
+    tx.commit("test");
 
     let commit = repo.store().get_commit(commit.id()).unwrap();
     assert_eq!(commit.verification().unwrap(), good_verification());

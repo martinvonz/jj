@@ -102,8 +102,7 @@ pub(crate) fn cmd_restore(
     if &new_tree_id == to_commit.tree_id() {
         writeln!(ui.stderr(), "Nothing changed.")?;
     } else {
-        let mut tx = workspace_command
-            .start_transaction(&format!("restore into commit {}", to_commit.id().hex()));
+        let mut tx = workspace_command.start_transaction();
         let mut_repo = tx.mut_repo();
         let new_commit = mut_repo
             .rewrite_commit(command.settings(), &to_commit)
@@ -118,7 +117,7 @@ pub(crate) fn cmd_restore(
         if num_rebased > 0 {
             writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
         }
-        tx.finish(ui)?;
+        tx.finish(ui, format!("restore into commit {}", to_commit.id().hex()))?;
     }
     Ok(())
 }

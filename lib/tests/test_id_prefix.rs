@@ -29,7 +29,7 @@ fn test_id_prefix() {
     let root_commit_id = repo.store().root_commit_id();
     let root_change_id = repo.store().root_change_id();
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut create_commit = |parent_id: &CommitId| {
         let signature = Signature {
             name: "Some One".to_string(),
@@ -54,7 +54,7 @@ fn test_id_prefix() {
     for _ in 0..25 {
         commits.push(create_commit(commits.last().unwrap().id()));
     }
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     // Print the commit IDs and change IDs for reference
     let commit_prefixes = commits

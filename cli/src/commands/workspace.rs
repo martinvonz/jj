@@ -164,10 +164,7 @@ fn cmd_workspace_add(
     )?;
 
     let mut new_workspace_command = WorkspaceCommandHelper::new(ui, command, new_workspace, repo)?;
-    let mut tx = new_workspace_command.start_transaction(&format!(
-        "Create initial working-copy commit in workspace {}",
-        &name
-    ));
+    let mut tx = new_workspace_command.start_transaction();
 
     // If no parent revisions are specified, create a working-copy commit based
     // on the parent of the current working-copy commit.
@@ -197,7 +194,10 @@ fn cmd_workspace_add(
         .write()?;
 
     tx.edit(&new_wc_commit)?;
-    tx.finish(ui)?;
+    tx.finish(
+        ui,
+        format!("Create initial working-copy commit in workspace {}", &name),
+    )?;
     Ok(())
 }
 
@@ -247,9 +247,9 @@ fn cmd_workspace_forget(
 
     // bundle every workspace forget into a single transaction, so that e.g.
     // undo correctly restores all of them at once.
-    let mut tx = workspace_command.start_transaction(&description);
+    let mut tx = workspace_command.start_transaction();
     wss.iter().for_each(|ws| tx.mut_repo().remove_wc_commit(ws));
-    tx.finish(ui)?;
+    tx.finish(ui, description)?;
     Ok(())
 }
 

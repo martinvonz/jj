@@ -35,13 +35,9 @@ pub struct Transaction {
 }
 
 impl Transaction {
-    pub fn new(
-        mut_repo: MutableRepo,
-        user_settings: &UserSettings,
-        description: &str,
-    ) -> Transaction {
+    pub fn new(mut_repo: MutableRepo, user_settings: &UserSettings) -> Transaction {
         let parent_ops = vec![mut_repo.base_repo().operation().clone()];
-        let op_metadata = create_op_metadata(user_settings, description.to_string());
+        let op_metadata = create_op_metadata(user_settings, "".to_string());
         let end_time = user_settings.operation_timestamp();
         Transaction {
             mut_repo,
@@ -53,10 +49,6 @@ impl Transaction {
 
     pub fn base_repo(&self) -> &Arc<ReadonlyRepo> {
         self.mut_repo.base_repo()
-    }
-
-    pub fn set_description(&mut self, description: &str) {
-        self.op_metadata.description = description.to_string();
     }
 
     pub fn set_tag(&mut self, key: String, value: String) {
@@ -89,14 +81,14 @@ impl Transaction {
     }
 
     /// Writes the transaction to the operation store and publishes it.
-    pub fn commit(self) -> Arc<ReadonlyRepo> {
-        self.write().publish()
+    pub fn commit(self, description: impl Into<String>) -> Arc<ReadonlyRepo> {
+        self.write(description).publish()
     }
 
     /// Writes the transaction to the operation store, but does not publish it.
     /// That means that a repo can be loaded at the operation, but the
     /// operation will not be seen when loading the repo at head.
-    pub fn write(mut self) -> UnpublishedOperation {
+    pub fn write(mut self, description: impl Into<String>) -> UnpublishedOperation {
         let mut_repo = self.mut_repo;
         // TODO: Should we instead just do the rebasing here if necessary?
         assert!(
@@ -107,6 +99,7 @@ impl Transaction {
         let (mut_index, view) = mut_repo.consume();
 
         let view_id = base_repo.op_store().write_view(view.store_view()).unwrap();
+        self.op_metadata.description = description.into();
         self.op_metadata.end_time = self.end_time.unwrap_or_else(Timestamp::now);
         let parents = self.parent_ops.iter().map(|op| op.id().clone()).collect();
         let store_operation = op_store::Operation {

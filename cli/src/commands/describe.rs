@@ -77,8 +77,7 @@ pub(crate) fn cmd_describe(
     if description == *commit.description() && !args.reset_author {
         writeln!(ui.stderr(), "Nothing changed.")?;
     } else {
-        let mut tx =
-            workspace_command.start_transaction(&format!("describe commit {}", commit.id().hex()));
+        let mut tx = workspace_command.start_transaction();
         let mut commit_builder = tx
             .mut_repo()
             .rewrite_commit(command.settings(), &commit)
@@ -88,7 +87,7 @@ pub(crate) fn cmd_describe(
             commit_builder = commit_builder.set_author(new_author);
         }
         commit_builder.write()?;
-        tx.finish(ui)?;
+        tx.finish(ui, format!("describe commit {}", commit.id().hex()))?;
     }
     Ok(())
 }

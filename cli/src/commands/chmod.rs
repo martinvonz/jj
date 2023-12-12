@@ -66,15 +66,7 @@ pub(crate) fn cmd_chmod(
     let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
     workspace_command.check_rewritable([&commit])?;
 
-    let mut tx = workspace_command.start_transaction(&format!(
-        "make paths {} in commit {}",
-        if executable_bit {
-            "executable"
-        } else {
-            "non-executable"
-        },
-        commit.id().hex(),
-    ));
+    let mut tx = workspace_command.start_transaction();
     let tree = commit.tree()?;
     let store = tree.store();
     let mut tree_builder = MergedTreeBuilder::new(commit.tree_id().clone());
@@ -119,5 +111,16 @@ pub(crate) fn cmd_chmod(
         .rewrite_commit(command.settings(), &commit)
         .set_tree_id(new_tree_id)
         .write()?;
-    tx.finish(ui)
+    tx.finish(
+        ui,
+        format!(
+            "make paths {} in commit {}",
+            if executable_bit {
+                "executable"
+            } else {
+                "non-executable"
+            },
+            commit.id().hex(),
+        ),
+    )
 }

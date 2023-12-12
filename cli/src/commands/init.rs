@@ -86,7 +86,7 @@ pub(crate) fn cmd_init(
         git::maybe_add_gitignore(&workspace_command)?;
         workspace_command.snapshot(ui)?;
         if !workspace_command.working_copy_shared_with_git() {
-            let mut tx = workspace_command.start_transaction("import git refs");
+            let mut tx = workspace_command.start_transaction();
             let stats = jj_lib::git::import_some_refs(
                 tx.mut_repo(),
                 &command.settings().git_settings(),
@@ -98,7 +98,7 @@ pub(crate) fn cmd_init(
                 tx.check_out(&git_head_commit)?;
             }
             if tx.mut_repo().has_changes() {
-                tx.finish(ui)?;
+                tx.finish(ui, "import git refs")?;
             }
         }
         print_trackable_remote_branches(ui, workspace_command.repo().view())?;

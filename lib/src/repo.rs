@@ -294,10 +294,9 @@ impl ReadonlyRepo {
     pub fn start_transaction(
         self: &Arc<ReadonlyRepo>,
         user_settings: &UserSettings,
-        description: &str,
     ) -> Transaction {
         let mut_repo = MutableRepo::new(self.clone(), self.readonly_index(), &self.view);
-        Transaction::new(mut_repo, user_settings, description)
+        Transaction::new(mut_repo, user_settings)
     }
 
     pub fn reload_at_head(
@@ -707,12 +706,14 @@ impl RepoLoader {
         user_settings: &UserSettings,
     ) -> Result<Operation, RepoLoaderError> {
         let base_repo = self.load_at(&op_heads[0])?;
-        let mut tx = base_repo.start_transaction(user_settings, "resolve concurrent operations");
+        let mut tx = base_repo.start_transaction(user_settings);
         for other_op_head in op_heads.into_iter().skip(1) {
             tx.merge_operation(other_op_head)?;
             tx.mut_repo().rebase_descendants(user_settings)?;
         }
-        let merged_repo = tx.write().leave_unpublished();
+        let merged_repo = tx
+            .write("resolve concurrent operations")
+            .leave_unpublished();
         Ok(merged_repo.operation().clone())
     }
 

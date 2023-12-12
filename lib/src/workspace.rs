@@ -106,16 +106,13 @@ fn init_working_copy(
     let working_copy_state_path = jj_dir.join("working_copy");
     std::fs::create_dir(&working_copy_state_path).context(&working_copy_state_path)?;
 
-    let mut tx = repo.start_transaction(
-        user_settings,
-        &format!("add workspace '{}'", workspace_id.as_str()),
-    );
+    let mut tx = repo.start_transaction(user_settings);
     tx.mut_repo().check_out(
         workspace_id.clone(),
         user_settings,
         &repo.store().root_commit(),
     )?;
-    let repo = tx.commit();
+    let repo = tx.commit(format!("add workspace '{}'", workspace_id.as_str()));
 
     let working_copy = working_copy_initializer(
         repo.store().clone(),

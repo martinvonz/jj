@@ -551,7 +551,7 @@ fn test_simplify_conflict_after_resolving_parent() {
     // rebase C2 (the rebased C) onto the resolved conflict. C3 should not have
     // a conflict since it changed an unrelated line.
     let path = RepoPath::from_internal_string("dir/file");
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let tree_a = create_tree(repo, &[(path, "abc\ndef\nghi\n")]);
     let commit_a = tx
         .mut_repo()
@@ -601,7 +601,7 @@ fn test_simplify_conflict_after_resolving_parent() {
         .unwrap();
     let commit_c3 = rebase_commit(&settings, tx.mut_repo(), &commit_c2, &[commit_b3]).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     // The conflict should now be resolved.
     let tree_c2 = commit_c3.tree().unwrap();

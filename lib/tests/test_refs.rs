@@ -32,7 +32,7 @@ fn test_merge_ref_targets() {
     // | 2
     // |/
     // 1
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
@@ -41,7 +41,7 @@ fn test_merge_ref_targets() {
     let commit5 = graph_builder.commit_with_parents(&[&commit1]);
     let commit6 = graph_builder.commit_with_parents(&[&commit5]);
     let commit7 = graph_builder.commit_with_parents(&[&commit5]);
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     let target1 = RefTarget::normal(commit1.id().clone());
     let target2 = RefTarget::normal(commit2.id().clone());
