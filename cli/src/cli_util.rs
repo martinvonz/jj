@@ -628,12 +628,8 @@ impl CommandHelper {
                     )?;
                     let base_repo = repo_loader.load_at(&op_heads[0])?;
                     // TODO: It may be helpful to print each operation we're merging here
-                    let mut tx = start_repo_transaction(
-                        &base_repo,
-                        &self.settings,
-                        &self.string_args,
-                        "resolve concurrent operations",
-                    );
+                    let mut tx =
+                        start_repo_transaction(&base_repo, &self.settings, &self.string_args);
                     for other_op_head in op_heads.into_iter().skip(1) {
                         tx.merge_operation(other_op_head)?;
                         let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
@@ -645,7 +641,11 @@ impl CommandHelper {
                             )?;
                         }
                     }
-                    Ok(tx.write().leave_unpublished().operation().clone())
+                    Ok(tx
+                        .write("resolve concurrent operations")
+                        .leave_unpublished()
+                        .operation()
+                        .clone())
                 },
             )
         } else {
@@ -797,7 +797,7 @@ impl WorkspaceCommandHelper {
     #[instrument(skip_all)]
     fn import_git_refs_and_head(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         let git_settings = self.settings.git_settings();
-        let mut tx = self.start_transaction("import git refs");
+        let mut tx = self.start_transaction();
         // Automated import shouldn't fail because of reserved remote name.
         let stats = git::import_some_refs(tx.mut_repo(), &git_settings, |ref_name| {
             !git::is_reserved_git_remote_ref(ref_name)
@@ -829,7 +829,7 @@ impl WorkspaceCommandHelper {
                 let new_git_head_tree = new_git_head_commit.tree()?;
                 locked_ws.locked_wc().reset(&new_git_head_tree)?;
                 tx.mut_repo().rebase_descendants(&self.settings)?;
-                self.user_repo = ReadonlyUserRepo::new(tx.commit());
+                self.user_repo = ReadonlyUserRepo::new(tx.commit("import git refs"));
                 locked_ws.finish(self.user_repo.repo.op_id().clone())?;
             }
             _ => {
@@ -841,7 +841,7 @@ impl WorkspaceCommandHelper {
                          git"
                     )?;
                 }
-                self.finish_transaction(ui, tx)?;
+                self.finish_transaction(ui, tx, "import git refs")?;
             }
         }
         writeln!(
@@ -1363,12 +1363,8 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         })?;
         drop(progress);
         if new_tree_id != *wc_commit.tree_id() {
-            let mut tx = start_repo_transaction(
-                &self.user_repo.repo,
-                &self.settings,
-                &self.string_args,
-                "snapshot working copy",
-            );
+            let mut tx =
+                start_repo_transaction(&self.user_repo.repo, &self.settings, &self.string_args);
             let mut_repo = tx.mut_repo();
             let commit = mut_repo
                 .rewrite_commit(&self.settings, &wc_commit)
@@ -1390,7 +1386,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                 print_failed_git_export(ui, &failed_branches)?;
             }
 
-            self.user_repo = ReadonlyUserRepo::new(tx.commit());
+            self.user_repo = ReadonlyUserRepo::new(tx.commit("snapshot working copy"));
         }
         locked_ws.finish(self.user_repo.repo.op_id().clone())?;
         Ok(())
@@ -1428,13 +1424,17 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         Ok(())
     }
 
-    pub fn start_transaction(&mut self, description: &str) -> WorkspaceCommandTransaction {
-        let tx =
-            start_repo_transaction(self.repo(), &self.settings, &self.string_args, description);
+    pub fn start_transaction(&mut self) -> WorkspaceCommandTransaction {
+        let tx = start_repo_transaction(self.repo(), &self.settings, &self.string_args);
         WorkspaceCommandTransaction { helper: self, tx }
     }
 
-    fn finish_transaction(&mut self, ui: &mut Ui, mut tx: Transaction) -> Result<(), CommandError> {
+    fn finish_transaction(
+        &mut self,
+        ui: &mut Ui,
+        mut tx: Transaction,
+        description: impl Into<String>,
+    ) -> Result<(), CommandError> {
         if !tx.mut_repo().has_changes() {
             writeln!(ui.stderr(), "Nothing changed.")?;
             return Ok(());
@@ -1465,7 +1465,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             let failed_branches = git::export_refs(tx.mut_repo())?;
             print_failed_git_export(ui, &failed_branches)?;
         }
-        self.user_repo = ReadonlyUserRepo::new(tx.commit());
+        self.user_repo = ReadonlyUserRepo::new(tx.commit(description));
         self.report_repo_changes(ui, &old_repo)?;
 
         if self.may_update_working_copy {
@@ -1665,10 +1665,6 @@ impl WorkspaceCommandTransaction<'_> {
         self.tx.mut_repo()
     }
 
-    pub fn set_description(&mut self, description: &str) {
-        self.tx.set_description(description)
-    }
-
     pub fn check_out(&mut self, commit: &Commit) -> Result<Commit, CheckOutCommitError> {
         let workspace_id = self.helper.workspace_id().to_owned();
         let settings = &self.helper.settings;
@@ -1755,8 +1751,8 @@ impl WorkspaceCommandTransaction<'_> {
         template.format(commit, formatter)
     }
 
-    pub fn finish(self, ui: &mut Ui) -> Result<(), CommandError> {
-        self.helper.finish_transaction(ui, self.tx)
+    pub fn finish(self, ui: &mut Ui, description: impl Into<String>) -> Result<(), CommandError> {
+        self.helper.finish_transaction(ui, self.tx, description)
     }
 
     pub fn into_inner(self) -> Transaction {
@@ -1843,9 +1839,8 @@ pub fn start_repo_transaction(
     repo: &Arc<ReadonlyRepo>,
     settings: &UserSettings,
     string_args: &[String],
-    description: &str,
 ) -> Transaction {
-    let mut tx = repo.start_transaction(settings, description);
+    let mut tx = repo.start_transaction(settings);
     // TODO: Either do better shell-escaping here or store the values in some list
     // type (which we currently don't have).
     let shell_escape = |arg: &String| {

@@ -58,7 +58,7 @@ pub(crate) fn cmd_abandon(
             to_abandon.len() - 1
         )
     };
-    let mut tx = workspace_command.start_transaction(&transaction_description);
+    let mut tx = workspace_command.start_transaction();
     for commit in &to_abandon {
         tx.mut_repo().record_abandoned_commit(commit.id().clone());
     }
@@ -86,6 +86,6 @@ pub(crate) fn cmd_abandon(
             "Rebased {num_rebased} descendant commits onto parents of abandoned commits"
         )?;
     }
-    tx.finish(ui)?;
+    tx.finish(ui, transaction_description)?;
     Ok(())
 }

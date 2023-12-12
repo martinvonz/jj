@@ -200,8 +200,7 @@ pub fn cmd_op_undo(
         return Err(user_error("Cannot undo a merge operation"));
     }
 
-    let mut tx =
-        workspace_command.start_transaction(&format!("undo operation {}", bad_op.id().hex()));
+    let mut tx = workspace_command.start_transaction();
     let repo_loader = tx.base_repo().loader();
     let bad_repo = repo_loader.load_at(&bad_op)?;
     let parent_repo = repo_loader.load_at(&parent_op)?;
@@ -212,7 +211,7 @@ pub fn cmd_op_undo(
         &args.what,
     );
     tx.mut_repo().set_view(new_view);
-    tx.finish(ui)?;
+    tx.finish(ui, format!("undo operation {}", bad_op.id().hex()))?;
 
     Ok(())
 }
@@ -224,15 +223,14 @@ fn cmd_op_restore(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let target_op = workspace_command.resolve_single_op(&args.operation)?;
-    let mut tx = workspace_command
-        .start_transaction(&format!("restore to operation {}", target_op.id().hex()));
+    let mut tx = workspace_command.start_transaction();
     let new_view = view_with_desired_portions_restored(
         target_op.view()?.store_view(),
         tx.base_repo().view().store_view(),
         &args.what,
     );
     tx.mut_repo().set_view(new_view);
-    tx.finish(ui)?;
+    tx.finish(ui, format!("restore to operation {}", target_op.id().hex()))?;
 
     Ok(())
 }

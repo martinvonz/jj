@@ -42,9 +42,7 @@ pub(crate) fn cmd_untrack(
     let store = workspace_command.repo().store().clone();
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
 
-    let mut tx = workspace_command
-        .start_transaction("untrack paths")
-        .into_inner();
+    let mut tx = workspace_command.start_transaction().into_inner();
     let base_ignores = workspace_command.base_ignores();
     let (mut locked_ws, wc_commit) = workspace_command.start_working_copy_mutation()?;
     // Create a new tree without the unwanted files
@@ -100,7 +98,7 @@ Make sure they're ignored, then try again.",
     if num_rebased > 0 {
         writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
     }
-    let repo = tx.commit();
+    let repo = tx.commit("untrack paths");
     locked_ws.finish(repo.op_id().clone())?;
     Ok(())
 }

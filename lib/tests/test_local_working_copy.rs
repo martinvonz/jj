@@ -159,9 +159,9 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
                 return;
             }
             Kind::GitSubmodule => {
-                let mut tx = repo.start_transaction(settings, "test");
+                let mut tx = repo.start_transaction(settings);
                 let id = write_random_commit(tx.mut_repo(), settings).id().clone();
-                tx.commit();
+                tx.commit("test");
                 Merge::normal(TreeValue::GitSubmodule(id))
             }
         };
@@ -847,9 +847,9 @@ fn test_gitsubmodule() {
         },
     );
 
-    let mut tx = repo.start_transaction(&settings, "create submodule commit");
+    let mut tx = repo.start_transaction(&settings);
     let submodule_id = write_random_commit(tx.mut_repo(), &settings).id().clone();
-    tx.commit();
+    tx.commit("create submodule commit");
 
     tree_builder.set(
         submodule_path.to_owned(),

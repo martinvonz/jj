@@ -39,13 +39,13 @@ fn run_custom_command(
         CustomCommand::Frobnicate(args) => {
             let mut workspace_command = command_helper.workspace_helper(ui)?;
             let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
-            let mut tx = workspace_command.start_transaction("Frobnicate");
+            let mut tx = workspace_command.start_transaction();
             let new_commit = tx
                 .mut_repo()
                 .rewrite_commit(command_helper.settings(), &commit)
                 .set_description("Frobnicated!")
                 .write()?;
-            tx.finish(ui)?;
+            tx.finish(ui, "Frobnicate")?;
             writeln!(
                 ui.stderr(),
                 "Frobnicated revision: {}",

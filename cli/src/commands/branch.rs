@@ -285,16 +285,19 @@ fn cmd_branch_create(
         )?;
     }
 
-    let mut tx = workspace_command.start_transaction(&format!(
-        "create {} pointing to commit {}",
-        make_branch_term(branch_names),
-        target_commit.id().hex()
-    ));
+    let mut tx = workspace_command.start_transaction();
     for branch_name in branch_names {
         tx.mut_repo()
             .set_local_branch_target(branch_name, RefTarget::normal(target_commit.id().clone()));
     }
-    tx.finish(ui)?;
+    tx.finish(
+        ui,
+        format!(
+            "create {} pointing to commit {}",
+            make_branch_term(branch_names),
+            target_commit.id().hex()
+        ),
+    )?;
     Ok(())
 }
 
@@ -339,16 +342,19 @@ fn cmd_branch_set(
         )?;
     }
 
-    let mut tx = workspace_command.start_transaction(&format!(
-        "point {} to commit {}",
-        make_branch_term(branch_names),
-        target_commit.id().hex()
-    ));
+    let mut tx = workspace_command.start_transaction();
     for branch_name in branch_names {
         tx.mut_repo()
             .set_local_branch_target(branch_name, RefTarget::normal(target_commit.id().clone()));
     }
-    tx.finish(ui)?;
+    tx.finish(
+        ui,
+        format!(
+            "point {} to commit {}",
+            make_branch_term(branch_names),
+            target_commit.id().hex()
+        ),
+    )?;
     Ok(())
 }
 
@@ -453,13 +459,12 @@ fn cmd_branch_delete(
     }
     let name_patterns = [&args.names[..], &args.glob[..]].concat();
     let names = find_local_branches(view, &name_patterns)?;
-    let mut tx =
-        workspace_command.start_transaction(&format!("delete {}", make_branch_term(&names)));
+    let mut tx = workspace_command.start_transaction();
     for branch_name in names.iter() {
         tx.mut_repo()
             .set_local_branch_target(branch_name, RefTarget::absent());
     }
-    tx.finish(ui)?;
+    tx.finish(ui, format!("delete {}", make_branch_term(&names)))?;
     if names.len() > 1 {
         writeln!(ui.stderr(), "Deleted {} branches.", names.len())?;
     }
@@ -481,12 +486,11 @@ fn cmd_branch_forget(
     }
     let name_patterns = [&args.names[..], &args.glob[..]].concat();
     let names = find_forgettable_branches(view, &name_patterns)?;
-    let mut tx =
-        workspace_command.start_transaction(&format!("forget {}", make_branch_term(&names)));
+    let mut tx = workspace_command.start_transaction();
     for branch_name in names.iter() {
         tx.mut_repo().remove_branch(branch_name);
     }
-    tx.finish(ui)?;
+    tx.finish(ui, format!("forget {}", make_branch_term(&names)))?;
     if names.len() > 1 {
         writeln!(ui.stderr(), "Forgot {} branches.", names.len())?;
     }
@@ -508,13 +512,12 @@ fn cmd_branch_track(
             names.push(name);
         }
     }
-    let mut tx =
-        workspace_command.start_transaction(&format!("track remote {}", make_branch_term(&names)));
+    let mut tx = workspace_command.start_transaction();
     for name in &names {
         tx.mut_repo()
             .track_remote_branch(&name.branch, &name.remote);
     }
-    tx.finish(ui)?;
+    tx.finish(ui, format!("track remote {}", make_branch_term(&names)))?;
     if names.len() > 1 {
         writeln!(
             ui.stderr(),
@@ -546,13 +549,12 @@ fn cmd_branch_untrack(
             names.push(name);
         }
     }
-    let mut tx = workspace_command
-        .start_transaction(&format!("untrack remote {}", make_branch_term(&names)));
+    let mut tx = workspace_command.start_transaction();
     for name in &names {
         tx.mut_repo()
             .untrack_remote_branch(&name.branch, &name.remote);
     }
-    tx.finish(ui)?;
+    tx.finish(ui, format!("untrack remote {}", make_branch_term(&names)))?;
     if names.len() > 1 {
         writeln!(
             ui.stderr(),

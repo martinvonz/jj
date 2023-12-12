@@ -27,14 +27,14 @@ fn test_edit() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let wc_commit = write_random_commit(tx.mut_repo(), &settings);
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let ws_id = WorkspaceId::default();
     tx.mut_repo().edit(ws_id.clone(), &wc_commit).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     assert_eq!(repo.view().get_wc_commit_id(&ws_id), Some(wc_commit.id()));
 }
 
@@ -45,11 +45,11 @@ fn test_checkout() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let wc_commit_parent = write_random_commit(tx.mut_repo(), &settings);
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let ws_id = WorkspaceId::default();
     let wc_commit = tx
         .mut_repo()
@@ -58,7 +58,7 @@ fn test_checkout() {
     assert_eq!(wc_commit.tree_id(), wc_commit_parent.tree_id());
     assert_eq!(wc_commit.parents().len(), 1);
     assert_eq!(wc_commit.parents()[0].id(), wc_commit_parent.id());
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     assert_eq!(repo.view().get_wc_commit_id(&ws_id), Some(wc_commit.id()));
 }
 
@@ -70,14 +70,14 @@ fn test_checkout_previous_not_empty() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let old_wc_commit = write_random_commit(mut_repo, &settings);
     let ws_id = WorkspaceId::default();
     mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let new_wc_commit = write_random_commit(mut_repo, &settings);
     mut_repo.edit(ws_id, &new_wc_commit).unwrap();
@@ -93,7 +93,7 @@ fn test_checkout_previous_empty() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let old_wc_commit = mut_repo
         .new_commit(
@@ -105,9 +105,9 @@ fn test_checkout_previous_empty() {
         .unwrap();
     let ws_id = WorkspaceId::default();
     mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let new_wc_commit = write_random_commit(mut_repo, &settings);
     mut_repo.edit(ws_id, &new_wc_commit).unwrap();
@@ -123,7 +123,7 @@ fn test_checkout_previous_empty_with_description() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let old_wc_commit = mut_repo
         .new_commit(
@@ -136,9 +136,9 @@ fn test_checkout_previous_empty_with_description() {
         .unwrap();
     let ws_id = WorkspaceId::default();
     mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let new_wc_commit = write_random_commit(mut_repo, &settings);
     mut_repo.edit(ws_id, &new_wc_commit).unwrap();
@@ -154,7 +154,7 @@ fn test_checkout_previous_empty_with_local_branch() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let old_wc_commit = mut_repo
         .new_commit(
@@ -167,9 +167,9 @@ fn test_checkout_previous_empty_with_local_branch() {
     mut_repo.set_local_branch_target("b", RefTarget::normal(old_wc_commit.id().clone()));
     let ws_id = WorkspaceId::default();
     mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let new_wc_commit = write_random_commit(mut_repo, &settings);
     mut_repo.edit(ws_id, &new_wc_commit).unwrap();
@@ -185,7 +185,7 @@ fn test_checkout_previous_empty_non_head() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let old_wc_commit = mut_repo
         .new_commit(
@@ -205,9 +205,9 @@ fn test_checkout_previous_empty_non_head() {
         .unwrap();
     let ws_id = WorkspaceId::default();
     mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let new_wc_commit = write_random_commit(mut_repo, &settings);
     mut_repo.edit(ws_id, &new_wc_commit).unwrap();
@@ -226,16 +226,16 @@ fn test_edit_initial() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let wc_commit = write_random_commit(tx.mut_repo(), &settings);
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let workspace_id = WorkspaceId::new("new-workspace".to_string());
     tx.mut_repo()
         .edit(workspace_id.clone(), &wc_commit)
         .unwrap();
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     assert_eq!(
         repo.view().get_wc_commit_id(&workspace_id),
         Some(wc_commit.id())
@@ -252,18 +252,18 @@ fn test_add_head_success() {
 
     // Create a commit outside of the repo by using a temporary transaction. Then
     // add that as a head.
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let new_commit = write_random_commit(tx.mut_repo(), &settings);
     drop(tx);
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     assert!(!mut_repo.view().heads().contains(new_commit.id()));
     assert!(!mut_repo.index().has_id(new_commit.id()));
     mut_repo.add_head(&new_commit);
     assert!(mut_repo.view().heads().contains(new_commit.id()));
     assert!(mut_repo.index().has_id(new_commit.id()));
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     assert!(repo.view().heads().contains(new_commit.id()));
     assert!(repo.index().has_id(new_commit.id()));
 }
@@ -276,15 +276,15 @@ fn test_add_head_ancestor() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
     let commit3 = graph_builder.commit_with_parents(&[&commit2]);
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     assert_eq!(repo.view().heads(), &hashset! {commit3.id().clone()});
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     mut_repo.add_head(&commit1);
     assert_eq!(repo.view().heads(), &hashset! {commit3.id().clone()});
@@ -298,13 +298,13 @@ fn test_add_head_not_immediate_child() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let initial = write_random_commit(tx.mut_repo(), &settings);
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
     // Create some commits outside of the repo by using a temporary transaction.
     // Then add one of them as a head.
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let rewritten = create_random_commit(tx.mut_repo(), &settings)
         .set_change_id(initial.change_id().clone())
         .set_predecessors(vec![initial.id().clone()])
@@ -317,7 +317,7 @@ fn test_add_head_not_immediate_child() {
     drop(tx);
 
     assert_eq!(repo.view().heads(), &hashset! {initial.id().clone()});
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     mut_repo.add_head(&child);
     assert_eq!(
@@ -338,14 +338,14 @@ fn test_remove_head() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
     let commit3 = graph_builder.commit_with_parents(&[&commit2]);
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     assert!(mut_repo.view().heads().contains(commit3.id()));
     mut_repo.remove_head(commit3.id());
@@ -356,7 +356,7 @@ fn test_remove_head() {
     assert!(mut_repo.index().has_id(commit1.id()));
     assert!(mut_repo.index().has_id(commit2.id()));
     assert!(mut_repo.index().has_id(commit3.id()));
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     let heads = repo.view().heads().clone();
     assert!(!heads.contains(commit3.id()));
     assert!(!heads.contains(commit2.id()));
@@ -374,16 +374,16 @@ fn test_add_public_head() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let commit1 = write_random_commit(tx.mut_repo(), &settings);
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     assert!(!mut_repo.view().public_heads().contains(commit1.id()));
     mut_repo.add_public_head(&commit1);
     assert!(mut_repo.view().public_heads().contains(commit1.id()));
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     assert!(repo.view().public_heads().contains(commit1.id()));
 }
 
@@ -395,19 +395,19 @@ fn test_add_public_head_ancestor() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
     tx.mut_repo().add_public_head(&commit2);
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     assert!(!mut_repo.view().public_heads().contains(commit1.id()));
     mut_repo.add_public_head(&commit1);
     assert!(!mut_repo.view().public_heads().contains(commit1.id()));
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     assert!(!repo.view().public_heads().contains(commit1.id()));
 }
 
@@ -419,18 +419,18 @@ fn test_remove_public_head() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let commit1 = write_random_commit(mut_repo, &settings);
     mut_repo.add_public_head(&commit1);
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     assert!(mut_repo.view().public_heads().contains(commit1.id()));
     mut_repo.remove_public_head(commit1.id());
     assert!(!mut_repo.view().public_heads().contains(commit1.id()));
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     assert!(!repo.view().public_heads().contains(commit1.id()));
 }
 
@@ -447,7 +447,7 @@ fn test_has_changed() {
         state: RemoteRefState::Tracking, // doesn't matter
     };
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let commit1 = write_random_commit(mut_repo, &settings);
     let commit2 = write_random_commit(mut_repo, &settings);
@@ -459,12 +459,12 @@ fn test_has_changed() {
         .unwrap();
     mut_repo.set_local_branch_target("main", RefTarget::normal(commit1.id().clone()));
     mut_repo.set_remote_branch("main", "origin", normal_remote_ref(commit1.id()));
-    let repo = tx.commit();
+    let repo = tx.commit("test");
     // Test the setup
     assert_eq!(repo.view().heads(), &hashset! {commit1.id().clone()});
     assert_eq!(repo.view().public_heads(), &hashset! {commit1.id().clone()});
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
 
     mut_repo.add_public_head(&commit1);
@@ -524,16 +524,16 @@ fn test_rebase_descendants_simple() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
     let commit3 = graph_builder.commit_with_parents(&[&commit2]);
     let commit4 = graph_builder.commit_with_parents(&[&commit1]);
     let commit5 = graph_builder.commit_with_parents(&[&commit4]);
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit6 = graph_builder.commit_with_parents(&[&commit1]);
@@ -561,14 +561,14 @@ fn test_rebase_descendants_conflicting_rewrite() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit1 = graph_builder.initial_commit();
     let commit2 = graph_builder.commit_with_parents(&[&commit1]);
     let _commit3 = graph_builder.commit_with_parents(&[&commit2]);
-    let repo = tx.commit();
+    let repo = tx.commit("test");
 
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit4 = graph_builder.commit_with_parents(&[&commit1]);
@@ -592,7 +592,7 @@ fn test_rename_remote() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
-    let mut tx = repo.start_transaction(&settings, "test");
+    let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
     let commit = write_random_commit(mut_repo, &settings);
     let remote_ref = RemoteRef {

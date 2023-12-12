@@ -59,8 +59,7 @@ pub(crate) fn cmd_split(
     let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
     workspace_command.check_rewritable([&commit])?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let mut tx =
-        workspace_command.start_transaction(&format!("split commit {}", commit.id().hex()));
+    let mut tx = workspace_command.start_transaction();
     let end_tree = commit.tree()?;
     let base_tree = merge_commit_trees(tx.repo(), &commit.parents())?;
     let interactive = args.interactive || args.paths.is_empty();
@@ -152,6 +151,6 @@ don't make any changes, then the operation will be aborted.
     write!(ui.stderr(), "\nSecond part: ")?;
     tx.write_commit_summary(ui.stderr_formatter().as_mut(), &second_commit)?;
     writeln!(ui.stderr())?;
-    tx.finish(ui)?;
+    tx.finish(ui, format!("split commit {}", commit.id().hex()))?;
     Ok(())
 }

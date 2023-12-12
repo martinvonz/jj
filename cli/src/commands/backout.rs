@@ -45,17 +45,17 @@ pub(crate) fn cmd_backout(
         let destination = workspace_command.resolve_single_rev(revision_str, ui)?;
         parents.push(destination);
     }
-    let mut tx = workspace_command.start_transaction(&format!(
-        "back out commit {}",
-        commit_to_back_out.id().hex()
-    ));
+    let mut tx = workspace_command.start_transaction();
     back_out_commit(
         command.settings(),
         tx.mut_repo(),
         &commit_to_back_out,
         &parents,
     )?;
-    tx.finish(ui)?;
+    tx.finish(
+        ui,
+        format!("back out commit {}", commit_to_back_out.id().hex()),
+    )?;
 
     Ok(())
 }

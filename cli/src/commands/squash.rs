@@ -63,8 +63,7 @@ pub(crate) fn cmd_squash(
     let parent = &parents[0];
     workspace_command.check_rewritable(&parents[..1])?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let mut tx =
-        workspace_command.start_transaction(&format!("squash commit {}", commit.id().hex()));
+    let mut tx = workspace_command.start_transaction();
     let instructions = format!(
         "\
 You are moving changes from: {}
@@ -143,6 +142,6 @@ from the source will be moved into the parent.
             .set_parents(vec![new_parent.id().clone()])
             .write()?;
     }
-    tx.finish(ui)?;
+    tx.finish(ui, format!("squash commit {}", commit.id().hex()))?;
     Ok(())
 }

@@ -115,16 +115,17 @@ pub(crate) fn cmd_next(
     if edit {
         // We're editing, the target must be rewritable.
         workspace_command.check_rewritable([target])?;
-        let mut tx = workspace_command
-            .start_transaction(&format!("next: {current_short} -> editing {target_short}"));
+        let mut tx = workspace_command.start_transaction();
         tx.edit(target)?;
-        tx.finish(ui)?;
+        tx.finish(
+            ui,
+            format!("next: {current_short} -> editing {target_short}"),
+        )?;
         return Ok(());
     }
-    let mut tx =
-        workspace_command.start_transaction(&format!("next: {current_short} -> {target_short}"));
+    let mut tx = workspace_command.start_transaction();
     // Move the working-copy commit to the new parent.
     tx.check_out(target)?;
-    tx.finish(ui)?;
+    tx.finish(ui, format!("next: {current_short} -> {target_short}"))?;
     Ok(())
 }

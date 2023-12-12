@@ -241,7 +241,7 @@ pub fn commit_transactions(settings: &UserSettings, txs: Vec<Transaction>) -> Ar
     let repo_loader = txs[0].base_repo().loader();
     let mut op_ids = vec![];
     for tx in txs {
-        op_ids.push(tx.commit().op_id().clone());
+        op_ids.push(tx.commit("test").op_id().clone());
         std::thread::sleep(std::time::Duration::from_millis(1));
     }
     let repo = repo_loader.load_at_head(settings).unwrap();

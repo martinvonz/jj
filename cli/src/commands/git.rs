@@ -257,11 +257,10 @@ fn cmd_git_remote_remove(
     let mut workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
-    let mut tx =
-        workspace_command.start_transaction(&format!("remove git remote {}", &args.remote));
+    let mut tx = workspace_command.start_transaction();
     git::remove_remote(tx.mut_repo(), &git_repo, &args.remote)?;
     if tx.mut_repo().has_changes() {
-        tx.finish(ui)
+        tx.finish(ui, format!("remove git remote {}", &args.remote))
     } else {
         Ok(()) // Do not print "Nothing changed."
     }
@@ -275,11 +274,13 @@ fn cmd_git_remote_rename(
     let mut workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
     let git_repo = get_git_repo(repo.store())?;
-    let mut tx = workspace_command
-        .start_transaction(&format!("rename git remote {} to {}", &args.old, &args.new));
+    let mut tx = workspace_command.start_transaction();
     git::rename_remote(tx.mut_repo(), &git_repo, &args.old, &args.new)?;
     if tx.mut_repo().has_changes() {
-        tx.finish(ui)
+        tx.finish(
+            ui,
+            format!("rename git remote {} to {}", &args.old, &args.new),
+        )
     } else {
         Ok(()) // Do not print "Nothing changed."
     }
@@ -320,16 +321,13 @@ fn cmd_git_fetch(
     } else {
         args.remotes.clone()
     };
-    let mut tx = workspace_command.start_transaction(&format!(
-        "fetch from git remote(s) {}",
-        remotes.iter().join(",")
-    ));
-    for remote in remotes {
+    let mut tx = workspace_command.start_transaction();
+    for remote in &remotes {
         let stats = with_remote_callbacks(ui, |cb| {
             git::fetch(
                 tx.mut_repo(),
                 &git_repo,
-                &remote,
+                remote,
                 &args.branch,
                 cb,
                 &command.settings().git_settings(),
@@ -356,7 +354,10 @@ fn cmd_git_fetch(
         })?;
         print_git_import_stats(ui, &stats.import_stats)?;
     }
-    tx.finish(ui)?;
+    tx.finish(
+        ui,
+        format!("fetch from git remote(s) {}", remotes.iter().join(",")),
+    )?;
     Ok(())
 }
 
@@ -505,12 +506,11 @@ fn cmd_git_clone(
             .view()
             .get_remote_branch(default_branch, remote_name);
         if let Some(commit_id) = default_branch_remote_ref.target.as_normal().cloned() {
-            let mut checkout_tx =
-                workspace_command.start_transaction("check out git remote's default branch");
+            let mut checkout_tx = workspace_command.start_transaction();
             if let Ok(commit) = checkout_tx.repo().store().get_commit(&commit_id) {
                 checkout_tx.check_out(&commit)?;
             }
-            checkout_tx.finish(ui)?;
+            checkout_tx.finish(ui, "check out git remote's default branch")?;
         }
     }
     Ok(())
@@ -538,7 +538,7 @@ fn do_git_clone(
     let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
     maybe_add_gitignore(&workspace_command)?;
     git_repo.remote(remote_name, source).unwrap();
-    let mut fetch_tx = workspace_command.start_transaction("fetch from git remote into empty repo");
+    let mut fetch_tx = workspace_command.start_transaction();
 
     let stats = with_remote_callbacks(ui, |cb| {
         git::fetch(
@@ -561,7 +561,7 @@ fn do_git_clone(
         }
     })?;
     print_git_import_stats(ui, &stats.import_stats)?;
-    fetch_tx.finish(ui)?;
+    fetch_tx.finish(ui, "fetch from git remote into empty repo")?;
     Ok((workspace_command, stats))
 }
 
@@ -700,7 +700,7 @@ fn cmd_git_push(
         .map(|change_str| workspace_command.resolve_single_rev(change_str, ui))
         .try_collect()?;
 
-    let mut tx = workspace_command.start_transaction("");
+    let mut tx = workspace_command.start_transaction();
     let tx_description;
     let mut branch_updates = vec![];
     if args.all {
@@ -855,8 +855,6 @@ fn cmd_git_push(
         return Ok(());
     }
 
-    tx.set_description(&tx_description);
-
     let mut new_heads = vec![];
     let mut force_pushed_branches = hashset! {};
     for (branch_name, update) in &branch_updates {
@@ -976,7 +974,7 @@ fn cmd_git_push(
         ),
         _ => user_error(err.to_string()),
     })?;
-    tx.finish(ui)?;
+    tx.finish(ui, tx_description)?;
     Ok(())
 }
 
@@ -1088,10 +1086,10 @@ fn cmd_git_import(
     _args: &GitImportArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let mut tx = workspace_command.start_transaction("import git refs");
+    let mut tx = workspace_command.start_transaction();
     let stats = git::import_refs(tx.mut_repo(), &command.settings().git_settings())?;
     print_git_import_stats(ui, &stats)?;
-    tx.finish(ui)?;
+    tx.finish(ui, "import git refs")?;
     Ok(())
 }
 
@@ -1101,9 +1099,9 @@ fn cmd_git_export(
     _args: &GitExportArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let mut tx = workspace_command.start_transaction("export git refs");
+    let mut tx = workspace_command.start_transaction();
     let failed_branches = git::export_refs(tx.mut_repo())?;
-    tx.finish(ui)?;
+    tx.finish(ui, "export git refs")?;
     print_failed_git_export(ui, &failed_branches)?;
     Ok(())
 }

@@ -102,7 +102,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         .into_iter()
         .collect_vec();
     let target_ids = target_commits.iter().map(|c| c.id().clone()).collect_vec();
-    let mut tx = workspace_command.start_transaction("new empty commit");
+    let mut tx = workspace_command.start_transaction();
     let mut num_rebased;
     let new_commit;
     if args.insert_before {
@@ -206,6 +206,6 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
     if num_rebased > 0 {
         writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
     }
-    tx.finish(ui)?;
+    tx.finish(ui, "new empty commit")?;
     Ok(())
 }

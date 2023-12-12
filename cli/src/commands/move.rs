@@ -66,11 +66,7 @@ pub(crate) fn cmd_move(
     }
     workspace_command.check_rewritable([&source, &destination])?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let mut tx = workspace_command.start_transaction(&format!(
-        "move changes from {} to {}",
-        source.id().hex(),
-        destination.id().hex()
-    ));
+    let mut tx = workspace_command.start_transaction();
     let parent_tree = merge_commit_trees(tx.repo(), &source.parents())?;
     let source_tree = source.tree()?;
     let instructions = format!(
@@ -137,6 +133,13 @@ from the source will be moved into the destination.
         .set_tree_id(new_destination_tree.id().clone())
         .set_description(description)
         .write()?;
-    tx.finish(ui)?;
+    tx.finish(
+        ui,
+        format!(
+            "move changes from {} to {}",
+            source.id().hex(),
+            destination.id().hex()
+        ),
+    )?;
     Ok(())
 }

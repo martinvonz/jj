@@ -285,7 +285,7 @@ fn rebase_descendants(
     } else {
         format!("rebase {} commits and their descendants", old_commits.len())
     };
-    let mut tx = workspace_command.start_transaction(&tx_message);
+    let mut tx = workspace_command.start_transaction();
     // `rebase_descendants` takes care of sorting in reverse topological order, so
     // no need to do it here.
     for old_commit in old_commits {
@@ -301,7 +301,7 @@ fn rebase_descendants(
         + tx.mut_repo()
             .rebase_descendants_with_options(settings, rebase_options)?;
     writeln!(ui.stderr(), "Rebased {num_rebased} commits")?;
-    tx.finish(ui)?;
+    tx.finish(ui, tx_message)?;
     Ok(())
 }
 
@@ -333,8 +333,7 @@ fn rebase_revision(
     debug_assert!(workspace_command.check_rewritable(&child_commits).is_ok());
 
     // First, rebase the children of `old_commit`.
-    let mut tx =
-        workspace_command.start_transaction(&format!("rebase commit {}", old_commit.id().hex()));
+    let mut tx = workspace_command.start_transaction();
     let mut rebased_commit_ids = HashMap::new();
     for child_commit in &child_commits {
         let new_child_parent_ids: Vec<CommitId> = child_commit
@@ -430,7 +429,7 @@ fn rebase_revision(
              commit"
         )?;
     }
-    tx.finish(ui)?;
+    tx.finish(ui, format!("rebase commit {}", old_commit.id().hex()))?;
     Ok(())
 }
 
