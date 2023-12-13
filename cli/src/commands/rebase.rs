@@ -277,14 +277,6 @@ fn rebase_descendants(
     for old_commit in old_commits.iter() {
         check_rebase_destinations(workspace_command.repo(), new_parents, old_commit)?;
     }
-    let tx_message = if old_commits.len() == 1 {
-        format!(
-            "rebase commit {} and descendants",
-            old_commits.first().unwrap().id().hex()
-        )
-    } else {
-        format!("rebase {} commits and their descendants", old_commits.len())
-    };
     let mut tx = workspace_command.start_transaction();
     // `rebase_descendants` takes care of sorting in reverse topological order, so
     // no need to do it here.
@@ -301,6 +293,14 @@ fn rebase_descendants(
         + tx.mut_repo()
             .rebase_descendants_with_options(settings, rebase_options)?;
     writeln!(ui.stderr(), "Rebased {num_rebased} commits")?;
+    let tx_message = if old_commits.len() == 1 {
+        format!(
+            "rebase commit {} and descendants",
+            old_commits.first().unwrap().id().hex()
+        )
+    } else {
+        format!("rebase {} commits and their descendants", old_commits.len())
+    };
     tx.finish(ui, tx_message)?;
     Ok(())
 }

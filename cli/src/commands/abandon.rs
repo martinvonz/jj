@@ -49,15 +49,6 @@ pub(crate) fn cmd_abandon(
     let mut workspace_command = command.workspace_helper(ui)?;
     let to_abandon = resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command, ui)?;
     workspace_command.check_rewritable(to_abandon.iter())?;
-    let transaction_description = if to_abandon.len() == 1 {
-        format!("abandon commit {}", to_abandon[0].id().hex())
-    } else {
-        format!(
-            "abandon commit {} and {} more",
-            to_abandon[0].id().hex(),
-            to_abandon.len() - 1
-        )
-    };
     let mut tx = workspace_command.start_transaction();
     for commit in &to_abandon {
         tx.mut_repo().record_abandoned_commit(commit.id().clone());
@@ -71,10 +62,10 @@ pub(crate) fn cmd_abandon(
         writeln!(ui.stderr())?;
     } else if !args.summary {
         writeln!(ui.stderr(), "Abandoned the following commits:")?;
-        for commit in to_abandon {
+        for commit in &to_abandon {
             write!(ui.stderr(), "  ")?;
             tx.base_workspace_helper()
-                .write_commit_summary(ui.stderr_formatter().as_mut(), &commit)?;
+                .write_commit_summary(ui.stderr_formatter().as_mut(), commit)?;
             writeln!(ui.stderr())?;
         }
     } else {
@@ -86,6 +77,15 @@ pub(crate) fn cmd_abandon(
             "Rebased {num_rebased} descendant commits onto parents of abandoned commits"
         )?;
     }
+    let transaction_description = if to_abandon.len() == 1 {
+        format!("abandon commit {}", to_abandon[0].id().hex())
+    } else {
+        format!(
+            "abandon commit {} and {} more",
+            to_abandon[0].id().hex(),
+            to_abandon.len() - 1
+        )
+    };
     tx.finish(ui, transaction_description)?;
     Ok(())
 }
