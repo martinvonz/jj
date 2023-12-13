@@ -132,9 +132,7 @@ pub(super) struct ReadonlyIndexSegment {
     commit_lookup_entry_size: usize,
     // Number of commits not counting the parent file
     num_local_commits: u32,
-    graph: Vec<u8>,
-    lookup: Vec<u8>,
-    overflow_parent: Vec<u8>,
+    data: Vec<u8>,
 }
 
 impl Debug for ReadonlyIndexSegment {
@@ -189,9 +187,6 @@ impl ReadonlyIndexSegment {
         if data.len() != expected_size {
             return Err(IndexLoadError::IndexCorrupt(name));
         }
-        let overflow_parent = data.split_off(graph_size + lookup_size);
-        let lookup = data.split_off(graph_size);
-        let graph = data;
         Ok(Arc::new(ReadonlyIndexSegment {
             parent_file: maybe_parent_file,
             num_parent_commits,
@@ -201,9 +196,7 @@ impl ReadonlyIndexSegment {
             commit_graph_entry_size,
             commit_lookup_entry_size,
             num_local_commits: num_commits,
-            graph,
-            lookup,
-            overflow_parent,
+            data,
         }))
     }
 
@@ -224,26 +217,31 @@ impl ReadonlyIndexSegment {
     }
 
     fn graph_entry(&self, local_pos: u32) -> CommitGraphEntry {
+        assert!(local_pos < self.num_local_commits);
         let offset = (local_pos as usize) * self.commit_graph_entry_size;
         CommitGraphEntry {
-            data: &self.graph[offset..][..self.commit_graph_entry_size],
+            data: &self.data[offset..][..self.commit_graph_entry_size],
             commit_id_length: self.commit_id_length,
             change_id_length: self.change_id_length,
         }
     }
 
     fn lookup_entry(&self, lookup_pos: u32) -> CommitLookupEntry {
-        let offset = (lookup_pos as usize) * self.commit_lookup_entry_size;
+        assert!(lookup_pos < self.num_local_commits);
+        let offset = (lookup_pos as usize) * self.commit_lookup_entry_size
+            + (self.num_local_commits as usize) * self.commit_graph_entry_size;
         CommitLookupEntry {
-            data: &self.lookup[offset..][..self.commit_lookup_entry_size],
+            data: &self.data[offset..][..self.commit_lookup_entry_size],
             commit_id_length: self.commit_id_length,
         }
     }
 
     fn overflow_parent(&self, overflow_pos: u32) -> IndexPosition {
-        let offset = (overflow_pos as usize) * 4;
+        let offset = (overflow_pos as usize) * 4
+            + (self.num_local_commits as usize) * self.commit_graph_entry_size
+            + (self.num_local_commits as usize) * self.commit_lookup_entry_size;
         IndexPosition(
-            (&self.overflow_parent[offset..][..4])
+            (&self.data[offset..][..4])
                 .read_u32::<LittleEndian>()
                 .unwrap(),
         )
