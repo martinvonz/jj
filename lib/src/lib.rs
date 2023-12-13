@@ -16,6 +16,7 @@
 
 #![warn(missing_docs)]
 #![deny(unused_must_use)]
+#![forbid(unsafe_code)]
 
 #[macro_use]
 pub mod content_hash;
