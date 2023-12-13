@@ -208,30 +208,14 @@ fn cmd_workspace_forget(
     args: &WorkspaceForgetArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let len = args.workspaces.len();
 
-    let mut wss = Vec::new();
-    let description = match len {
-        // NOTE (aseipp): if there's only 1-or-0 arguments, shortcut. this is
-        // mostly so the oplog description can look good: it removes the need,
-        // in the case of more-than-1 argument, to handle pluralization of the
-        // nouns in the description
-        0 | 1 => {
-            let ws = match len == 0 {
-                true => workspace_command.workspace_id().to_owned(),
-                false => WorkspaceId::new(args.workspaces[0].to_string()),
-            };
-            wss.push(ws.clone());
-            format!("forget workspace {}", ws.as_str())
-        }
-        _ => {
-            args.workspaces
-                .iter()
-                .map(|ws| WorkspaceId::new(ws.to_string()))
-                .for_each(|ws| wss.push(ws));
-
-            format!("forget workspaces {}", args.workspaces.join(", "))
-        }
+    let wss: Vec<WorkspaceId> = if args.workspaces.is_empty() {
+        vec![workspace_command.workspace_id().clone()]
+    } else {
+        args.workspaces
+            .iter()
+            .map(|ws| WorkspaceId::new(ws.to_string()))
+            .collect()
     };
 
     for ws in &wss {
@@ -249,6 +233,15 @@ fn cmd_workspace_forget(
     // undo correctly restores all of them at once.
     let mut tx = workspace_command.start_transaction();
     wss.iter().for_each(|ws| tx.mut_repo().remove_wc_commit(ws));
+    let description = if let [ws] = wss.as_slice() {
+        format!("forget workspace {}", ws.as_str())
+    } else {
+        format!(
+            "forget workspaces {}",
+            wss.iter().map(|ws| ws.as_str()).join(", ")
+        )
+    };
+
     tx.finish(ui, description)?;
     Ok(())
 }
