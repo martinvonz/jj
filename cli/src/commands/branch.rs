@@ -705,13 +705,13 @@ fn cmd_branch_list(
                 .any(|&(remote, _)| remote != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
             if found_non_git_remote {
                 writeln!(
-                    formatter,
+                    formatter.labeled("hint"),
                     "  (this branch will be *deleted permanently* on the remote on the next `jj \
                      git push`. Use `jj branch forget` to prevent this)"
                 )?;
             } else {
                 writeln!(
-                    formatter,
+                    formatter.labeled("hint"),
                     "  (this branch will be deleted from the underlying Git repo on the next `jj \
                      git export`)"
                 )?;
