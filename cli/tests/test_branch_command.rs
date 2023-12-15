@@ -333,16 +333,13 @@ fn test_branch_delete_glob() {
       @origin: qpvuntsm 6fbf398c (empty) commit
     foo-1 (deleted)
       @origin: qpvuntsm 6fbf398c (empty) commit
-      (this branch will be *deleted permanently* on the remote on the
-       next `jj git push`. Use `jj branch forget` to prevent this)
+      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     foo-3 (deleted)
       @origin: qpvuntsm 6fbf398c (empty) commit
-      (this branch will be *deleted permanently* on the remote on the
-       next `jj git push`. Use `jj branch forget` to prevent this)
+      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     foo-4 (deleted)
       @origin: qpvuntsm 6fbf398c (empty) commit
-      (this branch will be *deleted permanently* on the remote on the
-       next `jj git push`. Use `jj branch forget` to prevent this)
+      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     "###);
 
     // Malformed glob
@@ -583,8 +580,7 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1 (deleted)
       @origin: mzyxwzks 9f01a0e0 message
-      (this branch will be *deleted permanently* on the remote on the
-       next `jj git push`. Use `jj branch forget` to prevent this)
+      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     "###);
 
     // ============ End of test setup ============
@@ -947,8 +943,7 @@ fn test_branch_list() {
     local-only: wqnwkozp 4e887f78 (empty) local-only
     remote-delete (deleted)
       @origin: mnmymoky 203e60eb (empty) remote-delete
-      (this branch will be *deleted permanently* on the remote on the
-       next `jj git push`. Use `jj branch forget` to prevent this)
+      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     remote-sync: zwtyzrop c761c7ea (empty) remote-sync
     remote-unsync: wqnwkozp 4e887f78 (empty) local-only
       @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
@@ -959,8 +954,7 @@ fn test_branch_list() {
     local-only: wqnwkozp 4e887f78 (empty) local-only
     remote-delete (deleted)
       @origin: mnmymoky 203e60eb (empty) remote-delete
-      (this branch will be *deleted permanently* on the remote on the
-       next `jj git push`. Use `jj branch forget` to prevent this)
+      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     remote-sync: zwtyzrop c761c7ea (empty) remote-sync
       @origin: zwtyzrop c761c7ea (empty) remote-sync
     remote-unsync: wqnwkozp 4e887f78 (empty) local-only
@@ -1023,8 +1017,7 @@ fn test_branch_list_filtered() {
     local-keep: kpqxywon c7b4c09c (empty) local-keep
     remote-delete (deleted)
       @origin: yxusvupt dad5f298 (empty) remote-delete
-      (this branch will be *deleted permanently* on the remote on the
-       next `jj git push`. Use `jj branch forget` to prevent this)
+      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     remote-keep: nlwprzpn 911e9120 (empty) remote-keep
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
       @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
@@ -1067,8 +1060,7 @@ fn test_branch_list_filtered() {
     insta::assert_snapshot!(query(&["remote-delete"]), @r###"
     remote-delete (deleted)
       @origin: yxusvupt dad5f298 (empty) remote-delete
-      (this branch will be *deleted permanently* on the remote on the
-       next `jj git push`. Use `jj branch forget` to prevent this)
+      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     "###);
     insta::assert_snapshot!(query(&["-rbranches(remote-delete)"]), @r###"
     "###);
@@ -1082,8 +1074,7 @@ fn test_branch_list_filtered() {
     local-keep: kpqxywon c7b4c09c (empty) local-keep
     remote-delete (deleted)
       @origin: yxusvupt dad5f298 (empty) remote-delete
-      (this branch will be *deleted permanently* on the remote on the
-       next `jj git push`. Use `jj branch forget` to prevent this)
+      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     remote-keep: nlwprzpn 911e9120 (empty) remote-keep
     "###);
 
