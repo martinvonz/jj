@@ -88,6 +88,8 @@ tempfile = { workspace = true }
 textwrap = { workspace = true }
 thiserror = { workspace = true }
 timeago = { workspace = true }
+# TODO: Evaluate moving the Workqueue to another Crate, ideally `jj-util`.
+tokio = { workspace = true } 
 toml_edit = { workspace = true }
 tracing = { workspace = true }
 tracing-chrome = { workspace = true }
