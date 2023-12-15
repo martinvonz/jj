@@ -86,7 +86,7 @@ fn test_git_clone() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/failed"
-    Error: could not find repository from '$TEST_ENV/bad'; class=Repository (6)
+    Error: could not find repository at '$TEST_ENV/bad'; class=Repository (6)
     "###);
     assert!(!test_env.env_root().join("failed").exists());
 
@@ -101,7 +101,7 @@ fn test_git_clone() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/failed"
-    Error: could not find repository from '$TEST_ENV/bad'; class=Repository (6)
+    Error: could not find repository at '$TEST_ENV/bad'; class=Repository (6)
     "###);
     assert!(test_env.env_root().join("failed").exists());
     assert!(!test_env.env_root().join("failed").join(".jj").exists());
@@ -224,9 +224,9 @@ fn test_git_clone_colocate() {
         .map(|entry| format!("{:?} {}\n", entry.status(), entry.path().unwrap()))
         .collect();
     insta::assert_snapshot!(git_statuses, @r###"
-    IGNORED .jj/.gitignore
-    IGNORED .jj/repo/
-    IGNORED .jj/working_copy/
+    Status(IGNORED) .jj/.gitignore
+    Status(IGNORED) .jj/repo/
+    Status(IGNORED) .jj/working_copy/
     "###);
 
     // The old default branch "master" shouldn't exist.
@@ -262,7 +262,7 @@ fn test_git_clone_colocate() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/failed"
-    Error: could not find repository from '$TEST_ENV/bad'; class=Repository (6)
+    Error: could not find repository at '$TEST_ENV/bad'; class=Repository (6)
     "###);
     assert!(!test_env.env_root().join("failed").exists());
 
@@ -280,7 +280,7 @@ fn test_git_clone_colocate() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/failed"
-    Error: could not find repository from '$TEST_ENV/bad'; class=Repository (6)
+    Error: could not find repository at '$TEST_ENV/bad'; class=Repository (6)
     "###);
     assert!(test_env.env_root().join("failed").exists());
     assert!(!test_env.env_root().join("failed").join(".git").exists());
