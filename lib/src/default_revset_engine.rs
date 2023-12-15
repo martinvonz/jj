@@ -404,17 +404,15 @@ where
     }
 }
 
-struct UnionRevsetIterator<
-    'index,
-    I1: Iterator<Item = IndexEntry<'index>>,
-    I2: Iterator<Item = IndexEntry<'index>>,
-> {
+struct UnionRevsetIterator<I1: Iterator, I2: Iterator> {
     iter1: Peekable<I1>,
     iter2: Peekable<I2>,
 }
 
-impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexEntry<'index>>>
-    Iterator for UnionRevsetIterator<'index, I1, I2>
+impl<'index, I1, I2> Iterator for UnionRevsetIterator<I1, I2>
+where
+    I1: Iterator<Item = IndexEntry<'index>>,
+    I2: Iterator<Item = IndexEntry<'index>>,
 {
     type Item = IndexEntry<'index>;
 
@@ -478,17 +476,15 @@ where
     }
 }
 
-struct IntersectionRevsetIterator<
-    'index,
-    I1: Iterator<Item = IndexEntry<'index>>,
-    I2: Iterator<Item = IndexEntry<'index>>,
-> {
+struct IntersectionRevsetIterator<I1: Iterator, I2: Iterator> {
     iter1: Peekable<I1>,
     iter2: Peekable<I2>,
 }
 
-impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexEntry<'index>>>
-    Iterator for IntersectionRevsetIterator<'index, I1, I2>
+impl<'index, I1, I2> Iterator for IntersectionRevsetIterator<I1, I2>
+where
+    I1: Iterator<Item = IndexEntry<'index>>,
+    I2: Iterator<Item = IndexEntry<'index>>,
 {
     type Item = IndexEntry<'index>;
 
@@ -564,17 +560,15 @@ where
     }
 }
 
-struct DifferenceRevsetIterator<
-    'index,
-    I1: Iterator<Item = IndexEntry<'index>>,
-    I2: Iterator<Item = IndexEntry<'index>>,
-> {
+struct DifferenceRevsetIterator<I1: Iterator, I2: Iterator> {
     iter1: Peekable<I1>,
     iter2: Peekable<I2>,
 }
 
-impl<'index, I1: Iterator<Item = IndexEntry<'index>>, I2: Iterator<Item = IndexEntry<'index>>>
-    Iterator for DifferenceRevsetIterator<'index, I1, I2>
+impl<'index, I1, I2> Iterator for DifferenceRevsetIterator<I1, I2>
+where
+    I1: Iterator<Item = IndexEntry<'index>>,
+    I2: Iterator<Item = IndexEntry<'index>>,
 {
     type Item = IndexEntry<'index>;
 
