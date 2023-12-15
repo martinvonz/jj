@@ -706,8 +706,8 @@ fn cmd_branch_list(
             if found_non_git_remote {
                 writeln!(
                     formatter,
-                    "  (this branch will be *deleted permanently* on the remote on the\n   next \
-                     `jj git push`. Use `jj branch forget` to prevent this)"
+                    "  (this branch will be *deleted permanently* on the remote on the next `jj \
+                     git push`. Use `jj branch forget` to prevent this)"
                 )?;
             } else {
                 writeln!(
