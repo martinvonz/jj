@@ -751,12 +751,12 @@ impl Backend for GitBackend {
             let entry = entry.map_err(|err| to_read_object_err(err, id))?;
             let name =
                 str::from_utf8(entry.filename()).map_err(|err| to_invalid_utf8_err(err, id))?;
-            let (name, value) = match entry.mode() {
-                gix::object::tree::EntryMode::Tree => {
+            let (name, value) = match entry.mode().kind() {
+                gix::object::tree::EntryKind::Tree => {
                     let id = TreeId::from_bytes(entry.oid().as_bytes());
                     (name, TreeValue::Tree(id))
                 }
-                gix::object::tree::EntryMode::Blob => {
+                gix::object::tree::EntryKind::Blob => {
                     let id = FileId::from_bytes(entry.oid().as_bytes());
                     if let Some(basename) = name.strip_suffix(CONFLICT_SUFFIX) {
                         (
@@ -773,7 +773,7 @@ impl Backend for GitBackend {
                         )
                     }
                 }
-                gix::object::tree::EntryMode::BlobExecutable => {
+                gix::object::tree::EntryKind::BlobExecutable => {
                     let id = FileId::from_bytes(entry.oid().as_bytes());
                     (
                         name,
@@ -783,11 +783,11 @@ impl Backend for GitBackend {
                         },
                     )
                 }
-                gix::object::tree::EntryMode::Link => {
+                gix::object::tree::EntryKind::Link => {
                     let id = SymlinkId::from_bytes(entry.oid().as_bytes());
                     (name, TreeValue::Symlink(id))
                 }
-                gix::object::tree::EntryMode::Commit => {
+                gix::object::tree::EntryKind::Commit => {
                     let id = CommitId::from_bytes(entry.oid().as_bytes());
                     (name, TreeValue::GitSubmodule(id))
                 }
@@ -809,7 +809,7 @@ impl Backend for GitBackend {
                         id,
                         executable: false,
                     } => gix::objs::tree::Entry {
-                        mode: gix::object::tree::EntryMode::Blob,
+                        mode: gix::object::tree::EntryKind::Blob.into(),
                         filename: name.into(),
                         oid: id.as_bytes().into(),
                     },
@@ -817,27 +817,27 @@ impl Backend for GitBackend {
                         id,
                         executable: true,
                     } => gix::objs::tree::Entry {
-                        mode: gix::object::tree::EntryMode::BlobExecutable,
+                        mode: gix::object::tree::EntryKind::BlobExecutable.into(),
                         filename: name.into(),
                         oid: id.as_bytes().into(),
                     },
                     TreeValue::Symlink(id) => gix::objs::tree::Entry {
-                        mode: gix::object::tree::EntryMode::Link,
+                        mode: gix::object::tree::EntryKind::Link.into(),
                         filename: name.into(),
                         oid: id.as_bytes().into(),
                     },
                     TreeValue::Tree(id) => gix::objs::tree::Entry {
-                        mode: gix::object::tree::EntryMode::Tree,
+                        mode: gix::object::tree::EntryKind::Tree.into(),
                         filename: name.into(),
                         oid: id.as_bytes().into(),
                     },
                     TreeValue::GitSubmodule(id) => gix::objs::tree::Entry {
-                        mode: gix::object::tree::EntryMode::Commit,
+                        mode: gix::object::tree::EntryKind::Commit.into(),
                         filename: name.into(),
                         oid: id.as_bytes().into(),
                     },
                     TreeValue::Conflict(id) => gix::objs::tree::Entry {
-                        mode: gix::object::tree::EntryMode::Blob,
+                        mode: gix::object::tree::EntryKind::Blob.into(),
                         filename: (name.to_owned() + CONFLICT_SUFFIX).into(),
                         oid: id.as_bytes().into(),
                     },
@@ -1065,7 +1065,7 @@ fn write_tree_conflict(
             .map(|(i, tree_id)| (format!(".jjconflict-side-{i}"), tree_id)),
     )
     .map(|(name, tree_id)| gix::objs::tree::Entry {
-        mode: gix::object::tree::EntryMode::Tree,
+        mode: gix::object::tree::EntryKind::Tree.into(),
         filename: name.into(),
         oid: tree_id.as_bytes().into(),
     })
