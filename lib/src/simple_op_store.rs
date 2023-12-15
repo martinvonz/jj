@@ -668,7 +668,7 @@ fn remote_ref_state_to_proto(state: RemoteRefState) -> Option<i32> {
 }
 
 fn remote_ref_state_from_proto(proto_value: Option<i32>) -> Option<RemoteRefState> {
-    let proto_state = proto_value.and_then(crate::protos::op_store::RemoteRefState::from_i32)?;
+    let proto_state = proto_value?.try_into().ok()?;
     let state = match proto_state {
         crate::protos::op_store::RemoteRefState::New => RemoteRefState::New,
         crate::protos::op_store::RemoteRefState::Tracking => RemoteRefState::Tracking,
