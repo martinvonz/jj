@@ -82,7 +82,7 @@ strsim = "0.10.0"
 tempfile = "3.8.1"
 test-case = "3.3.1"
 textwrap = "0.16.0"
-thiserror = "1.0.50"
+thiserror = "1.0.51"
 timeago = { version = "0.4.2", default-features = false }
 tokio = { version = "1.35.0" }
 toml_edit = { version = "0.19.15", features = ["serde"] }
