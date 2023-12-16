@@ -494,7 +494,7 @@ pub enum TreeStateError {
     #[error("Persisting tree state to file {path}: {source}")]
     PersistTreeState {
         path: PathBuf,
-        source: tempfile::PersistError,
+        source: std::io::Error,
     },
     #[error("Filesystem monitor error: {0}")]
     Fsmonitor(Box<dyn Error + Send + Sync>),
@@ -646,9 +646,11 @@ impl TreeState {
         let target_path = self.state_path.join("tree_state");
         temp_file
             .persist(&target_path)
-            .map_err(|err| TreeStateError::PersistTreeState {
-                path: target_path.clone(),
-                source: err,
+            .map_err(|tempfile::PersistError { error, file: _ }| {
+                TreeStateError::PersistTreeState {
+                    path: target_path.clone(),
+                    source: error,
+                }
             })?;
         Ok(())
     }
