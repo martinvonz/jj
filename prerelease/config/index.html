@@ -1995,17 +1995,17 @@ and parses the conflict markers to get the new state of the conflict. The
 conflict is considered fully resolved when there are no conflict markers left.</p>
 <h2 id="git-settings">Git settings<a class="headerlink" href="#git-settings" title="Permanent link">&para;</a></h2>
 <h3 id="automatic-local-branch-creation">Automatic local branch creation<a class="headerlink" href="#automatic-local-branch-creation" title="Permanent link">&para;</a></h3>
-<p>By default, when <code>jj</code> imports a new remote-tracking branch from Git, it also
-creates a local branch with the same name. In some repositories, this
-may be undesirable, e.g.:</p>
+<p>When <code>jj</code> imports a new remote-tracking branch from Git, it can also create a
+local branch with the same name. This feature is disabled by default because it
+may be undesirable in some repositories, e.g.:</p>
 <ul>
 <li>There is a remote with a lot of historical branches that you don't
   want to be exported to the co-located Git repo.</li>
 <li>There are multiple remotes with conflicting views of that branch,
   resulting in an unhelpful conflicted state.</li>
 </ul>
-<p>You can disable this behavior by setting <code>git.auto-local-branch</code> like so,</p>
-<div class="highlight"><pre><span></span><code><span class="n">git</span><span class="p">.</span><span class="n">auto-local-branch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+<p>You can enable this behavior by setting <code>git.auto-local-branch</code> like so,</p>
+<div class="highlight"><pre><span></span><code><span class="n">git</span><span class="p">.</span><span class="n">auto-local-branch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 </code></pre></div>
 <p>This setting is applied only to new remote branches. Existing remote branches
 can be tracked individually by using <code>jj branch track</code>/<code>untrack</code> commands.</p>
