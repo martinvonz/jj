@@ -39,6 +39,7 @@ fn set_up() -> (TestEnvironment, PathBuf) {
         &[
             "git",
             "clone",
+            "--config-toml=git.auto-local-branch=true",
             origin_git_repo_path.to_str().unwrap(),
             "local",
         ],
@@ -681,6 +682,7 @@ fn test_git_push_deleted() {
 #[test]
 fn test_git_push_conflicting_branches() {
     let (test_env, workspace_root) = set_up();
+    test_env.add_config("git.auto-local-branch = true");
     let git_repo = {
         let mut git_repo_path = workspace_root.clone();
         git_repo_path.extend([".jj", "repo", "store", "git"]);

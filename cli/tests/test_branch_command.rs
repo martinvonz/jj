@@ -453,6 +453,7 @@ fn test_branch_forget_fetched_branch() {
 
     // Set up a git repo with a branch and a jj repo that has it as a remote.
     let test_env = TestEnvironment::default();
+    test_env.add_config("git.auto-local-branch = true");
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let git_repo_path = test_env.env_root().join("git-repo");
@@ -568,6 +569,7 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
     // ======== Beginning of test setup ========
     // Set up a git repo with a branch and a jj repo that has it as a remote.
     let test_env = TestEnvironment::default();
+    test_env.add_config("git.auto-local-branch = true");
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let git_repo_path = test_env.env_root().join("git-repo");
@@ -923,6 +925,7 @@ fn test_branch_track_untrack_patterns() {
 #[test]
 fn test_branch_list() {
     let test_env = TestEnvironment::default();
+    test_env.add_config("git.auto-local-branch = true");
 
     // Initialize remote refs
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "remote", "--git"]);
@@ -989,6 +992,7 @@ fn test_branch_list() {
 #[test]
 fn test_branch_list_filtered() {
     let test_env = TestEnvironment::default();
+    test_env.add_config("git.auto-local-branch = true");
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
 
     // Initialize remote refs

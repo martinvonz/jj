@@ -475,6 +475,7 @@ fn test_git_colocated_checkout_non_empty_working_copy() {
 #[test]
 fn test_git_colocated_fetch_deleted_or_moved_branch() {
     let test_env = TestEnvironment::default();
+    test_env.add_config("git.auto-local-branch = true");
     let origin_path = test_env.env_root().join("origin");
     git2::Repository::init(&origin_path).unwrap();
     test_env.jj_cmd_ok(&origin_path, &["init", "--git-repo=."]);

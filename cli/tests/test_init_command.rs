@@ -369,6 +369,7 @@ fn test_init_git_colocated_symlink_gitlink() {
 #[test]
 fn test_init_git_colocated_imported_refs() {
     let test_env = TestEnvironment::default();
+    test_env.add_config("git.auto-local-branch = true");
 
     // Set up remote refs
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "remote", "--git"]);
