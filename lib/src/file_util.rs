@@ -90,21 +90,33 @@ pub fn normalize_path(path: &Path) -> PathBuf {
     }
 }
 
-// Like NamedTempFile::persist(), but also succeeds if the target already
-// exists.
+/// Like `NamedTempFile::persist()`, but doesn't try to overwrite the existing
+/// target on Windows.
 pub fn persist_content_addressed_temp_file<P: AsRef<Path>>(
     temp_file: NamedTempFile,
     new_path: P,
 ) -> io::Result<File> {
-    match temp_file.persist(&new_path) {
-        Ok(file) => Ok(file),
-        Err(PersistError { error, file: _ }) => {
-            if let Ok(existing_file) = File::open(new_path) {
-                Ok(existing_file)
-            } else {
-                Err(error)
+    if cfg!(windows) {
+        // On Windows, overwriting file can fail if the file is opened without
+        // FILE_SHARE_DELETE for example. We don't need to take a risk if the
+        // file already exists.
+        match temp_file.persist_noclobber(&new_path) {
+            Ok(file) => Ok(file),
+            Err(PersistError { error, file: _ }) => {
+                if let Ok(existing_file) = File::open(new_path) {
+                    Ok(existing_file)
+                } else {
+                    Err(error)
+                }
             }
         }
+    } else {
+        // On Unix, rename() is atomic and should succeed even if the
+        // destination file exists. Checking if the target exists might involve
+        // non-atomic operation, so don't use persist_noclobber().
+        temp_file
+            .persist(new_path)
+            .map_err(|PersistError { error, file: _ }| error)
     }
 }
 
