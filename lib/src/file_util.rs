@@ -95,14 +95,14 @@ pub fn normalize_path(path: &Path) -> PathBuf {
 pub fn persist_content_addressed_temp_file<P: AsRef<Path>>(
     temp_file: NamedTempFile,
     new_path: P,
-) -> Result<File, PersistError> {
+) -> io::Result<File> {
     match temp_file.persist(&new_path) {
         Ok(file) => Ok(file),
-        Err(PersistError { error, file }) => {
+        Err(PersistError { error, file: _ }) => {
             if let Ok(existing_file) = File::open(new_path) {
                 Ok(existing_file)
             } else {
-                Err(PersistError { error, file })
+                Err(error)
             }
         }
     }

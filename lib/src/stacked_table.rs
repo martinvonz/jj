@@ -359,10 +359,7 @@ impl TableSegment for MutableTable {
 
 #[derive(Debug, Error)]
 #[error(transparent)]
-pub enum TableStoreError {
-    IoError(#[from] io::Error),
-    PersistError(#[from] tempfile::PersistError),
-}
+pub struct TableStoreError(#[from] pub io::Error);
 
 pub type TableStoreResult<T> = Result<T, TableStoreError>;
 
