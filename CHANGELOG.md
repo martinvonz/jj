@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+* `jj git fetch` no longer imports new remote branches as local branches. Set
+  `git.auto-local-branch = true` to restore the old behavior.
+
 ### New features
 
 * Information about new and resolved conflicts is now printed by every command.

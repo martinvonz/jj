@@ -352,8 +352,6 @@ Note: desired behavior of `jj branch forget` is to
 
 ## Remaining issues
 
-* `git.auto_local_branch = false` by default to help Git interop?
-  * https://github.com/martinvonz/jj/issues/1862
 * https://github.com/martinvonz/jj/issues/1278 pushing to tracked remote
   * Option could be added to push to all `tracking` remotes?
 * Track remote branch locally with different name

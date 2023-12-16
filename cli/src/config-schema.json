@@ -223,7 +223,7 @@
                 "auto-local-branch": {
                     "type": "boolean",
                     "description": "Whether jj creates a local branch with the same name when it imports a remote-tracking branch from git. See https://github.com/martinvonz/jj/blob/main/docs/config.md#automatic-local-branch-creation",
-                    "default": true
+                    "default": false
                 },
                 "abandon-unreachable-commits": {
                     "type": "boolean",

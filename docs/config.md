@@ -499,19 +499,19 @@ conflict is considered fully resolved when there are no conflict markers left.
 
 ### Automatic local branch creation
 
-By default, when `jj` imports a new remote-tracking branch from Git, it also
-creates a local branch with the same name. In some repositories, this
-may be undesirable, e.g.:
+When `jj` imports a new remote-tracking branch from Git, it can also create a
+local branch with the same name. This feature is disabled by default because it
+may be undesirable in some repositories, e.g.:
 
 - There is a remote with a lot of historical branches that you don't
   want to be exported to the co-located Git repo.
 - There are multiple remotes with conflicting views of that branch,
   resulting in an unhelpful conflicted state.
 
-You can disable this behavior by setting `git.auto-local-branch` like so,
+You can enable this behavior by setting `git.auto-local-branch` like so,
 
 ```toml
-git.auto-local-branch = false
+git.auto-local-branch = true
 ```
 
 This setting is applied only to new remote branches. Existing remote branches
