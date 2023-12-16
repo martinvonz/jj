@@ -165,12 +165,14 @@ The hyphen after `your-feature` comes from the
 
 ## Working with other people's branches
 
-By default `jj git clone` and `jj git fetch` clone all active branches from
-the remote. This means that if you want to iterate or test another
-contributor's branch you can `jj new <branchname>` onto it.
+By default, `jj git clone` imports the default remote branch (which is usually
+`main` or `master`), but `jj git fetch` doesn't import new remote branches to
+local branches. This means that if you want to iterate or test another
+contributor's branch, you'll need to do `jj new <branch>@<remote>` onto it.
 
-If your remote has a large amount of old, inactive branches or this feature is
-undesirable, set `git.auto-local-branch = false` in the config file.
+If you want to import all remote branches including inactive ones, set
+`git.auto-local-branch = true` in the config file. Then you can specify a
+contributor's branch as `jj new <branch>` instead of `jj new <branch>@<remote>`.
 
 You can find more information on that setting [here][auto-branch].
 

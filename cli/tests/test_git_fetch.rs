@@ -74,6 +74,19 @@ fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
 }
 
 #[test]
+fn test_git_fetch_with_default_config() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    add_git_remote(&test_env, &repo_path, "origin");
+
+    test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    origin@origin: oputwtnw ffecd2d6 message
+    "###);
+}
+
+#[test]
 fn test_git_fetch_default_remote() {
     let test_env = TestEnvironment::default();
     test_env.add_config("git.auto-local-branch = true");
