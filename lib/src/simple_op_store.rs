@@ -21,7 +21,7 @@ use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
 
 use prost::Message;
-use tempfile::{NamedTempFile, PersistError};
+use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use crate::backend::{CommitId, MillisSinceEpoch, ObjectId, Timestamp};
@@ -33,12 +33,6 @@ use crate::op_store::{
     RemoteRef, RemoteRefState, RemoteView, View, ViewId, WorkspaceId,
 };
 use crate::{git, op_store};
-
-impl From<PersistError> for OpStoreError {
-    fn from(err: PersistError) -> Self {
-        OpStoreError::Other(err.into())
-    }
-}
 
 #[derive(Debug, Error)]
 #[error("Failed to read {kind} with ID {id}: {err}")]
@@ -119,7 +113,8 @@ impl OpStore for SimpleOpStore {
 
         let id = ViewId::new(blake2b_hash(view).to_vec());
 
-        persist_content_addressed_temp_file(temp_file, self.view_path(&id))?;
+        persist_content_addressed_temp_file(temp_file, self.view_path(&id))
+            .map_err(|err| io_to_write_error(err, "view"))?;
         Ok(id)
     }
 
@@ -148,7 +143,8 @@ impl OpStore for SimpleOpStore {
 
         let id = OperationId::new(blake2b_hash(operation).to_vec());
 
-        persist_content_addressed_temp_file(temp_file, self.operation_path(&id))?;
+        persist_content_addressed_temp_file(temp_file, self.operation_path(&id))
+            .map_err(|err| io_to_write_error(err, "operation"))?;
         Ok(id)
     }
 }
