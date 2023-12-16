@@ -365,6 +365,7 @@ fn test_log_obslog_divergence() {
 #[test]
 fn test_log_branches() {
     let test_env = TestEnvironment::default();
+    test_env.add_config("git.auto-local-branch = true");
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
 
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "origin"]);

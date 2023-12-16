@@ -44,6 +44,7 @@ fn set_up_non_empty_git_repo(git_repo: &git2::Repository) {
 #[test]
 fn test_git_clone() {
     let test_env = TestEnvironment::default();
+    test_env.add_config("git.auto-local-branch = true");
     let git_repo_path = test_env.env_root().join("source");
     let git_repo = git2::Repository::init(git_repo_path).unwrap();
 
@@ -140,6 +141,7 @@ fn test_git_clone() {
 #[test]
 fn test_git_clone_colocate() {
     let test_env = TestEnvironment::default();
+    test_env.add_config("git.auto-local-branch = true");
     let git_repo_path = test_env.env_root().join("source");
     let git_repo = git2::Repository::init(git_repo_path).unwrap();
 

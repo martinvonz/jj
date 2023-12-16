@@ -88,7 +88,10 @@ fn get_git_repo(repo: &Arc<ReadonlyRepo>) -> git2::Repository {
 #[test]
 fn test_import_refs() {
     let settings = testutils::user_settings();
-    let git_settings = GitSettings::default();
+    let git_settings = GitSettings {
+        auto_local_branch: true,
+        ..Default::default()
+    };
     let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
     let git_repo = get_git_repo(repo);
@@ -210,7 +213,10 @@ fn test_import_refs() {
 #[test]
 fn test_import_refs_reimport() {
     let settings = testutils::user_settings();
-    let git_settings = GitSettings::default();
+    let git_settings = GitSettings {
+        auto_local_branch: true,
+        ..Default::default()
+    };
     let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_workspace.repo;
     let git_repo = get_git_repo(repo);
@@ -446,7 +452,10 @@ fn test_import_refs_reimport_git_head_with_moved_ref() {
 #[test]
 fn test_import_refs_reimport_with_deleted_remote_ref() {
     let settings = testutils::user_settings();
-    let git_settings = GitSettings::default();
+    let git_settings = GitSettings {
+        auto_local_branch: true,
+        ..Default::default()
+    };
     let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_workspace.repo;
     let git_repo = get_git_repo(repo);
@@ -562,7 +571,10 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
 #[test]
 fn test_import_refs_reimport_with_moved_remote_ref() {
     let settings = testutils::user_settings();
-    let git_settings = GitSettings::default();
+    let git_settings = GitSettings {
+        auto_local_branch: true,
+        ..Default::default()
+    };
     let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_workspace.repo;
     let git_repo = get_git_repo(repo);
@@ -854,7 +866,10 @@ fn test_import_refs_reimport_abandoning_disabled() {
 #[test]
 fn test_import_refs_reimport_conflicted_remote_branch() {
     let settings = testutils::user_settings();
-    let git_settings = GitSettings::default();
+    let git_settings = GitSettings {
+        auto_local_branch: true,
+        ..Default::default()
+    };
     let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_repo.repo;
     let git_repo = get_git_repo(repo);
@@ -918,7 +933,10 @@ fn test_import_refs_reserved_remote_name() {
 #[test]
 fn test_import_some_refs() {
     let settings = testutils::user_settings();
-    let git_settings = GitSettings::default();
+    let git_settings = GitSettings {
+        auto_local_branch: true,
+        ..Default::default()
+    };
     let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = &test_workspace.repo;
     let git_repo = get_git_repo(repo);
@@ -1999,7 +2017,10 @@ fn test_fetch_empty_repo() {
 #[test]
 fn test_fetch_initial_commit() {
     let test_data = GitRepoData::create();
-    let git_settings = GitSettings::default();
+    let git_settings = GitSettings {
+        auto_local_branch: true,
+        ..Default::default()
+    };
     let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
     let mut tx = test_data.repo.start_transaction(&test_data.settings);
@@ -2046,7 +2067,10 @@ fn test_fetch_initial_commit() {
 #[test]
 fn test_fetch_success() {
     let mut test_data = GitRepoData::create();
-    let git_settings = GitSettings::default();
+    let git_settings = GitSettings {
+        auto_local_branch: true,
+        ..Default::default()
+    };
     let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
     let mut tx = test_data.repo.start_transaction(&test_data.settings);
@@ -2123,7 +2147,10 @@ fn test_fetch_success() {
 #[test]
 fn test_fetch_prune_deleted_ref() {
     let test_data = GitRepoData::create();
-    let git_settings = GitSettings::default();
+    let git_settings = GitSettings {
+        auto_local_branch: true,
+        ..Default::default()
+    };
     let commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
     let mut tx = test_data.repo.start_transaction(&test_data.settings);
@@ -2162,7 +2189,10 @@ fn test_fetch_prune_deleted_ref() {
 #[test]
 fn test_fetch_no_default_branch() {
     let test_data = GitRepoData::create();
-    let git_settings = GitSettings::default();
+    let git_settings = GitSettings {
+        auto_local_branch: true,
+        ..Default::default()
+    };
     let initial_git_commit = empty_git_commit(&test_data.origin_repo, "refs/heads/main", &[]);
 
     let mut tx = test_data.repo.start_transaction(&test_data.settings);
