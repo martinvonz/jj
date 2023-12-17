@@ -237,7 +237,9 @@ fn cmd_debug_reindex(
     let default_index_store: Option<&DefaultIndexStore> =
         repo.index_store().as_any().downcast_ref();
     if let Some(default_index_store) = default_index_store {
-        default_index_store.reinit();
+        default_index_store
+            .reinit()
+            .map_err(|err| CommandError::InternalError(err.to_string()))?;
         let repo = repo.reload_at(repo.operation())?;
         let default_index: &DefaultReadonlyIndex = repo
             .readonly_index()

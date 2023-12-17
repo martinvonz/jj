@@ -26,16 +26,27 @@ use thiserror::Error;
 
 use super::mutable::DefaultMutableIndex;
 use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexLoadError, ReadonlyIndexSegment};
-use crate::backend::{BackendError, CommitId, ObjectId};
+use crate::backend::{BackendError, BackendInitError, CommitId, ObjectId};
 use crate::commit::CommitByCommitterTimestamp;
 use crate::dag_walk;
-use crate::file_util::persist_content_addressed_temp_file;
+use crate::file_util::{persist_content_addressed_temp_file, IoResultExt as _, PathError};
 use crate::index::{
     Index, IndexReadError, IndexStore, IndexWriteError, MutableIndex, ReadonlyIndex,
 };
 use crate::op_store::{OpStoreError, OperationId};
 use crate::operation::Operation;
 use crate::store::Store;
+
+/// Error that may occur during `DefaultIndexStore` initialization.
+#[derive(Debug, Error)]
+#[error("Failed to initialize index store: {0}")]
+pub struct DefaultIndexStoreInitError(#[from] pub PathError);
+
+impl From<DefaultIndexStoreInitError> for BackendInitError {
+    fn from(err: DefaultIndexStoreInitError) -> Self {
+        BackendInitError(err.into())
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum DefaultIndexStoreError {
@@ -69,11 +80,12 @@ impl DefaultIndexStore {
         "default"
     }
 
-    pub fn init(dir: &Path) -> Self {
-        std::fs::create_dir(dir.join("operations")).unwrap();
-        DefaultIndexStore {
+    pub fn init(dir: &Path) -> Result<Self, DefaultIndexStoreInitError> {
+        let op_dir = dir.join("operations");
+        std::fs::create_dir(&op_dir).context(&op_dir)?;
+        Ok(DefaultIndexStore {
             dir: dir.to_owned(),
-        }
+        })
     }
 
     pub fn load(dir: &Path) -> DefaultIndexStore {
@@ -82,10 +94,11 @@ impl DefaultIndexStore {
         }
     }
 
-    pub fn reinit(&self) {
+    pub fn reinit(&self) -> Result<(), DefaultIndexStoreInitError> {
         let op_dir = self.dir.join("operations");
-        std::fs::remove_dir_all(&op_dir).unwrap();
-        std::fs::create_dir(op_dir).unwrap();
+        std::fs::remove_dir_all(&op_dir).context(&op_dir)?;
+        std::fs::create_dir(&op_dir).context(&op_dir)?;
+        Ok(())
     }
 
     fn load_index_at_operation(
@@ -256,9 +269,7 @@ impl IndexStore for DefaultIndexStore {
                     // we just reindex.
                     // TODO: Move this message to a callback or something.
                     println!("The index was corrupt (maybe the format has changed). Reindexing...");
-                    // TODO: propagate error
-                    std::fs::remove_dir_all(self.dir.join("operations")).unwrap();
-                    std::fs::create_dir(self.dir.join("operations")).unwrap();
+                    self.reinit().map_err(|err| IndexReadError(err.into()))?;
                     self.index_at_operation(store, op)
                 }
                 result => result,

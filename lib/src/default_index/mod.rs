@@ -28,7 +28,7 @@ pub use self::readonly::{DefaultReadonlyIndex, ReadonlyIndexLoadError};
 pub use self::rev_walk::{
     RevWalk, RevWalkDescendants, RevWalkDescendantsGenerationRange, RevWalkGenerationRange,
 };
-pub use self::store::{DefaultIndexStore, DefaultIndexStoreError};
+pub use self::store::{DefaultIndexStore, DefaultIndexStoreError, DefaultIndexStoreInitError};
 
 #[cfg(test)]
 mod tests {

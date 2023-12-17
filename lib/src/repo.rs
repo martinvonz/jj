@@ -132,7 +132,7 @@ impl ReadonlyRepo {
     }
 
     pub fn default_index_store_initializer() -> &'static IndexStoreInitializer<'static> {
-        &|_settings, store_path| Ok(Box::new(DefaultIndexStore::init(store_path)))
+        &|_settings, store_path| Ok(Box::new(DefaultIndexStore::init(store_path)?))
     }
 
     pub fn default_submodule_store_initializer() -> &'static SubmoduleStoreInitializer<'static> {
