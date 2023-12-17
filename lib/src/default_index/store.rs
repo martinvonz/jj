@@ -15,7 +15,6 @@
 #![allow(missing_docs)]
 
 use std::any::Any;
-use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -93,12 +92,7 @@ impl DefaultIndexStore {
         let op_id_file = self.dir.join("operations").join(op_id.hex());
         let index_file_id_hex =
             fs::read_to_string(op_id_file).map_err(DefaultIndexStoreError::LoadAssociation)?;
-        let index_file_path = self.dir.join(&index_file_id_hex);
-        let mut index_file = File::open(index_file_path).map_err(|err| {
-            DefaultIndexStoreError::LoadIndex(ReadonlyIndexLoadError::IoError(err))
-        })?;
-        ReadonlyIndexSegment::load_from(
-            &mut index_file,
+        ReadonlyIndexSegment::load(
             &self.dir,
             index_file_id_hex,
             commit_id_length,

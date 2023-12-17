@@ -169,6 +169,17 @@ impl Debug for ReadonlyIndexSegment {
 }
 
 impl ReadonlyIndexSegment {
+    /// Loads both parent segments and local entries from the given file `name`.
+    pub(super) fn load(
+        dir: &Path,
+        name: String,
+        commit_id_length: usize,
+        change_id_length: usize,
+    ) -> Result<Arc<ReadonlyIndexSegment>, ReadonlyIndexLoadError> {
+        let mut file = File::open(dir.join(&name))?;
+        Self::load_from(&mut file, dir, name, commit_id_length, change_id_length)
+    }
+
     /// Loads both parent segments and local entries from the given `file`.
     pub(super) fn load_from(
         file: &mut dyn Read,
@@ -183,10 +194,7 @@ impl ReadonlyIndexSegment {
             file.read_exact(&mut parent_filename_bytes)?;
             let parent_filename = String::from_utf8(parent_filename_bytes)
                 .map_err(|_| ReadonlyIndexLoadError::IndexCorrupt(name.to_owned()))?;
-            let parent_file_path = dir.join(&parent_filename);
-            let mut index_file = File::open(parent_file_path)?;
-            let parent_file = ReadonlyIndexSegment::load_from(
-                &mut index_file,
+            let parent_file = ReadonlyIndexSegment::load(
                 dir,
                 parent_filename,
                 commit_id_length,
