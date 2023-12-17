@@ -36,12 +36,36 @@ use crate::index::{HexPrefix, Index, MutableIndex, PrefixResolution, ReadonlyInd
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
 
+/// Error while loading index segment file.
 #[derive(Debug, Error)]
-pub enum ReadonlyIndexLoadError {
-    #[error("Index file '{0}' is corrupt.")]
-    IndexCorrupt(String),
-    #[error("I/O error while loading index file: {0}")]
-    IoError(#[from] io::Error),
+#[error("Failed to load commit index file '{name}': {error}")]
+pub struct ReadonlyIndexLoadError {
+    /// Index file name.
+    pub name: String,
+    /// Underlying error.
+    #[source]
+    pub error: io::Error,
+}
+
+impl ReadonlyIndexLoadError {
+    fn invalid_data(
+        name: impl Into<String>,
+        error: impl Into<Box<dyn std::error::Error + Send + Sync>>,
+    ) -> Self {
+        Self::from_io_err(name, io::Error::new(io::ErrorKind::InvalidData, error))
+    }
+
+    fn from_io_err(name: impl Into<String>, error: io::Error) -> Self {
+        ReadonlyIndexLoadError {
+            name: name.into(),
+            error,
+        }
+    }
+
+    /// Returns true if the underlying error suggests data corruption.
+    pub(super) fn is_corrupt(&self) -> bool {
+        matches!(self.error.kind(), io::ErrorKind::InvalidData)
+    }
 }
 
 struct CommitGraphEntry<'a> {
@@ -176,7 +200,8 @@ impl ReadonlyIndexSegment {
         commit_id_length: usize,
         change_id_length: usize,
     ) -> Result<Arc<ReadonlyIndexSegment>, ReadonlyIndexLoadError> {
-        let mut file = File::open(dir.join(&name))?;
+        let mut file = File::open(dir.join(&name))
+            .map_err(|err| ReadonlyIndexLoadError::from_io_err(&name, err))?;
         Self::load_from(&mut file, dir, name, commit_id_length, change_id_length)
     }
 
@@ -188,12 +213,15 @@ impl ReadonlyIndexSegment {
         commit_id_length: usize,
         change_id_length: usize,
     ) -> Result<Arc<ReadonlyIndexSegment>, ReadonlyIndexLoadError> {
-        let parent_filename_len = file.read_u32::<LittleEndian>()?;
+        let from_io_err = |err| ReadonlyIndexLoadError::from_io_err(&name, err);
+        let parent_filename_len = file.read_u32::<LittleEndian>().map_err(from_io_err)?;
         let maybe_parent_file = if parent_filename_len > 0 {
             let mut parent_filename_bytes = vec![0; parent_filename_len as usize];
-            file.read_exact(&mut parent_filename_bytes)?;
-            let parent_filename = String::from_utf8(parent_filename_bytes)
-                .map_err(|_| ReadonlyIndexLoadError::IndexCorrupt(name.to_owned()))?;
+            file.read_exact(&mut parent_filename_bytes)
+                .map_err(from_io_err)?;
+            let parent_filename = String::from_utf8(parent_filename_bytes).map_err(|_| {
+                ReadonlyIndexLoadError::invalid_data(&name, "parent file name is not valid UTF-8")
+            })?;
             let parent_file = ReadonlyIndexSegment::load(
                 dir,
                 parent_filename,
@@ -222,13 +250,14 @@ impl ReadonlyIndexSegment {
         commit_id_length: usize,
         change_id_length: usize,
     ) -> Result<Arc<ReadonlyIndexSegment>, ReadonlyIndexLoadError> {
+        let from_io_err = |err| ReadonlyIndexLoadError::from_io_err(&name, err);
         let num_parent_commits = parent_file
             .as_ref()
             .map_or(0, |segment| segment.as_composite().num_commits());
-        let num_local_commits = file.read_u32::<LittleEndian>()?;
-        let num_parent_overflow_entries = file.read_u32::<LittleEndian>()?;
+        let num_local_commits = file.read_u32::<LittleEndian>().map_err(from_io_err)?;
+        let num_parent_overflow_entries = file.read_u32::<LittleEndian>().map_err(from_io_err)?;
         let mut data = vec![];
-        file.read_to_end(&mut data)?;
+        file.read_to_end(&mut data).map_err(from_io_err)?;
         let commit_graph_entry_size = CommitGraphEntry::size(commit_id_length, change_id_length);
         let graph_size = (num_local_commits as usize) * commit_graph_entry_size;
         let commit_lookup_entry_size = CommitLookupEntry::size(commit_id_length);
@@ -236,7 +265,10 @@ impl ReadonlyIndexSegment {
         let parent_overflow_size = (num_parent_overflow_entries as usize) * 4;
         let expected_size = graph_size + lookup_size + parent_overflow_size;
         if data.len() != expected_size {
-            return Err(ReadonlyIndexLoadError::IndexCorrupt(name));
+            return Err(ReadonlyIndexLoadError::invalid_data(
+                name,
+                "unexpected data length",
+            ));
         }
         Ok(Arc::new(ReadonlyIndexSegment {
             parent_file,
