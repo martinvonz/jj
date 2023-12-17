@@ -19,7 +19,7 @@ use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
 use std::fs::File;
 use std::io::Read;
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Arc;
 
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -148,7 +148,7 @@ impl Debug for ReadonlyIndexSegment {
 impl ReadonlyIndexSegment {
     pub(super) fn load_from(
         file: &mut dyn Read,
-        dir: PathBuf,
+        dir: &Path,
         name: String,
         commit_id_length: usize,
         change_id_length: usize,

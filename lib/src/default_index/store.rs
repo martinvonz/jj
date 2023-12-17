@@ -99,7 +99,7 @@ impl DefaultIndexStore {
         let mut index_file = File::open(index_file_path).unwrap();
         ReadonlyIndexSegment::load_from(
             &mut index_file,
-            self.dir.to_owned(),
+            &self.dir,
             index_file_id_hex,
             commit_id_length,
             change_id_length,
@@ -197,7 +197,7 @@ impl DefaultIndexStore {
         op_id: &OperationId,
     ) -> Result<Arc<ReadonlyIndexSegment>, DefaultIndexStoreError> {
         let index_segment = mutable_index
-            .save_in(self.dir.clone())
+            .save_in(&self.dir)
             .map_err(DefaultIndexStoreError::SaveIndex)?;
         self.associate_file_with_operation(&index_segment, op_id)
             .map_err(|source| DefaultIndexStoreError::AssociateIndex {

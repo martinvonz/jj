@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 use std::io;
 use std::io::Write;
 use std::ops::Bound;
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Arc;
 
 use blake2::Blake2b512;
@@ -275,7 +275,7 @@ impl MutableIndexSegment {
         squashed
     }
 
-    pub(super) fn save_in(self, dir: PathBuf) -> io::Result<Arc<ReadonlyIndexSegment>> {
+    pub(super) fn save_in(self, dir: &Path) -> io::Result<Arc<ReadonlyIndexSegment>> {
         if self.segment_num_commits() == 0 && self.parent_file.is_some() {
             return Ok(self.parent_file.unwrap());
         }
@@ -289,7 +289,7 @@ impl MutableIndexSegment {
         let index_file_id_hex = hex::encode(hasher.finalize());
         let index_file_path = dir.join(&index_file_id_hex);
 
-        let mut temp_file = NamedTempFile::new_in(&dir)?;
+        let mut temp_file = NamedTempFile::new_in(dir)?;
         let file = temp_file.as_file_mut();
         file.write_all(&buf)?;
         persist_content_addressed_temp_file(temp_file, index_file_path)?;
@@ -412,7 +412,7 @@ impl DefaultMutableIndex {
         self.0.add_commit_data(commit_id, change_id, parent_ids);
     }
 
-    pub(super) fn save_in(self, dir: PathBuf) -> io::Result<Arc<ReadonlyIndexSegment>> {
+    pub(super) fn save_in(self, dir: &Path) -> io::Result<Arc<ReadonlyIndexSegment>> {
         self.0.save_in(dir)
     }
 }

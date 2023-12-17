@@ -65,7 +65,7 @@ mod tests {
         let temp_dir = testutils::new_temp_dir();
         let mutable_segment = MutableIndexSegment::full(3, 16);
         let index_segment: Box<dyn IndexSegment> = if on_disk {
-            let saved_index = mutable_segment.save_in(temp_dir.path().to_owned()).unwrap();
+            let saved_index = mutable_segment.save_in(temp_dir.path()).unwrap();
             Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
             Box::new(mutable_segment)
@@ -96,7 +96,7 @@ mod tests {
         let change_id0 = new_change_id();
         mutable_segment.add_commit_data(id_0.clone(), change_id0.clone(), &[]);
         let index_segment: Box<dyn IndexSegment> = if on_disk {
-            let saved_index = mutable_segment.save_in(temp_dir.path().to_owned()).unwrap();
+            let saved_index = mutable_segment.save_in(temp_dir.path()).unwrap();
             Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
             Box::new(mutable_segment)
@@ -167,7 +167,7 @@ mod tests {
         // If testing incremental indexing, write the first three commits to one file
         // now and build the remainder as another segment on top.
         if incremental {
-            let initial_file = mutable_segment.save_in(temp_dir.path().to_owned()).unwrap();
+            let initial_file = mutable_segment.save_in(temp_dir.path()).unwrap();
             mutable_segment = MutableIndexSegment::incremental(initial_file);
         }
 
@@ -181,7 +181,7 @@ mod tests {
         mutable_segment.add_commit_data(id_4.clone(), change_id4, &[id_1.clone()]);
         mutable_segment.add_commit_data(id_5.clone(), change_id5, &[id_4.clone(), id_2.clone()]);
         let index_segment: Box<dyn IndexSegment> = if on_disk {
-            let saved_index = mutable_segment.save_in(temp_dir.path().to_owned()).unwrap();
+            let saved_index = mutable_segment.save_in(temp_dir.path()).unwrap();
             Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
             Box::new(mutable_segment)
@@ -293,7 +293,7 @@ mod tests {
             &[id_1, id_2, id_3, id_4, id_5],
         );
         let index_segment: Box<dyn IndexSegment> = if on_disk {
-            let saved_index = mutable_segment.save_in(temp_dir.path().to_owned()).unwrap();
+            let saved_index = mutable_segment.save_in(temp_dir.path()).unwrap();
             Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
             Box::new(mutable_segment)
@@ -339,7 +339,7 @@ mod tests {
         mutable_segment.add_commit_data(id_2.clone(), new_change_id(), &[]);
 
         // Write the first three commits to one file and build the remainder on top.
-        let initial_file = mutable_segment.save_in(temp_dir.path().to_owned()).unwrap();
+        let initial_file = mutable_segment.save_in(temp_dir.path()).unwrap();
         mutable_segment = MutableIndexSegment::incremental(initial_file);
 
         let id_3 = CommitId::from_hex("055444");
@@ -411,7 +411,7 @@ mod tests {
         mutable_segment.add_commit_data(id_2.clone(), new_change_id(), &[]);
 
         // Write the first three commits to one file and build the remainder on top.
-        let initial_file = mutable_segment.save_in(temp_dir.path().to_owned()).unwrap();
+        let initial_file = mutable_segment.save_in(temp_dir.path()).unwrap();
         mutable_segment = MutableIndexSegment::incremental(initial_file.clone());
 
         let id_3 = CommitId::from_hex("055444");
@@ -539,7 +539,7 @@ mod tests {
         mutable_segment.add_commit_data(id_2.clone(), new_change_id(), &[]);
 
         // Write the first three commits to one file and build the remainder on top.
-        let initial_file = mutable_segment.save_in(temp_dir.path().to_owned()).unwrap();
+        let initial_file = mutable_segment.save_in(temp_dir.path()).unwrap();
         mutable_segment = MutableIndexSegment::incremental(initial_file);
 
         let id_3 = CommitId::from_hex("055444");
