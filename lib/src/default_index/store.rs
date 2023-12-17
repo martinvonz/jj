@@ -25,7 +25,7 @@ use itertools::Itertools;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
-use super::mutable::{DefaultMutableIndex, MutableIndexSegment};
+use super::mutable::DefaultMutableIndex;
 use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexSegment};
 use crate::backend::{CommitId, ObjectId};
 use crate::commit::CommitByCommitterTimestamp;
@@ -129,19 +129,19 @@ impl DefaultIndexStore {
                 }
             }
         }
-        let mut data;
         let maybe_parent_file;
+        let mut mutable_index;
         match parent_op_id {
             None => {
                 maybe_parent_file = None;
-                data = MutableIndexSegment::full(commit_id_length, change_id_length);
+                mutable_index = DefaultMutableIndex::full(commit_id_length, change_id_length);
             }
             Some(parent_op_id) => {
                 let parent_file = self
                     .load_index_at_operation(commit_id_length, change_id_length, &parent_op_id)
                     .unwrap();
                 maybe_parent_file = Some(parent_file.clone());
-                data = MutableIndexSegment::incremental(parent_file)
+                mutable_index = DefaultMutableIndex::incremental(parent_file)
             }
         }
 
@@ -173,10 +173,10 @@ impl DefaultIndexStore {
             },
         );
         for CommitByCommitterTimestamp(commit) in commits.iter().rev() {
-            data.add_commit(commit);
+            mutable_index.add_commit(commit);
         }
 
-        let index_file = data.save_in(self.dir.clone())?;
+        let index_file = mutable_index.save_in(self.dir.clone())?;
         self.associate_file_with_operation(&index_file, operation.id())?;
         tracing::info!(
             ?index_file,

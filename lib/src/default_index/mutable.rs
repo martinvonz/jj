@@ -392,7 +392,6 @@ impl IndexSegment for MutableIndexSegment {
 pub struct DefaultMutableIndex(MutableIndexSegment);
 
 impl DefaultMutableIndex {
-    #[cfg(test)]
     pub(crate) fn full(commit_id_length: usize, change_id_length: usize) -> Self {
         let mutable_segment = MutableIndexSegment::full(commit_id_length, change_id_length);
         DefaultMutableIndex(mutable_segment)
