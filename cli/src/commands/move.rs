@@ -113,9 +113,10 @@ from the source will be moved into the destination.
         // rewritten source. Otherwise it will likely already have the content
         // changes we're moving, so applying them will have no effect and the
         // changes will disappear.
-        let mut rebaser = tx.mut_repo().create_descendant_rebaser(command.settings());
-        rebaser.rebase_all()?;
-        let rebased_destination_id = rebaser.rebased().get(destination.id()).unwrap().clone();
+        let rebase_map = tx
+            .mut_repo()
+            .rebase_descendants_return_map(command.settings())?;
+        let rebased_destination_id = rebase_map.get(destination.id()).unwrap().clone();
         destination = tx.mut_repo().store().get_commit(&rebased_destination_id)?;
     }
     // Apply the selected changes onto the destination
