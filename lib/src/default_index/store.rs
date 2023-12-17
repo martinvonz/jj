@@ -26,7 +26,7 @@ use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use super::mutable::DefaultMutableIndex;
-use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexSegment};
+use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexLoadError, ReadonlyIndexSegment};
 use crate::backend::{CommitId, ObjectId};
 use crate::commit::CommitByCommitterTimestamp;
 use crate::dag_walk;
@@ -37,14 +37,6 @@ use crate::index::{
 use crate::op_store::{OpStoreError, OperationId};
 use crate::operation::Operation;
 use crate::store::Store;
-
-#[derive(Error, Debug)]
-pub enum IndexLoadError {
-    #[error("Index file '{0}' is corrupt.")]
-    IndexCorrupt(String),
-    #[error("I/O error while loading index file: {0}")]
-    IoError(#[from] io::Error),
-}
 
 #[derive(Debug, Error)]
 pub enum DefaultIndexStoreError {
@@ -93,7 +85,7 @@ impl DefaultIndexStore {
         commit_id_length: usize,
         change_id_length: usize,
         op_id: &OperationId,
-    ) -> Result<Arc<ReadonlyIndexSegment>, IndexLoadError> {
+    ) -> Result<Arc<ReadonlyIndexSegment>, ReadonlyIndexLoadError> {
         let op_id_file = self.dir.join("operations").join(op_id.hex());
         let buf = fs::read(op_id_file).unwrap();
         let index_file_id_hex = String::from_utf8(buf).unwrap();
@@ -248,7 +240,7 @@ impl IndexStore for DefaultIndexStore {
                 store.change_id_length(),
                 op.id(),
             ) {
-                Err(IndexLoadError::IndexCorrupt(_)) => {
+                Err(ReadonlyIndexLoadError::IndexCorrupt(_)) => {
                     // If the index was corrupt (maybe it was written in a different format),
                     // we just reindex.
                     // TODO: Move this message to a callback or something.

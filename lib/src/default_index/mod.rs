@@ -24,11 +24,11 @@ mod store;
 pub use self::composite::{AsCompositeIndex, CompositeIndex, IndexLevelStats, IndexStats};
 pub use self::entry::{IndexEntry, IndexPosition};
 pub use self::mutable::DefaultMutableIndex;
-pub use self::readonly::DefaultReadonlyIndex;
+pub use self::readonly::{DefaultReadonlyIndex, ReadonlyIndexLoadError};
 pub use self::rev_walk::{
     RevWalk, RevWalkDescendants, RevWalkDescendantsGenerationRange, RevWalkGenerationRange,
 };
-pub use self::store::{DefaultIndexStore, DefaultIndexStoreError, IndexLoadError};
+pub use self::store::{DefaultIndexStore, DefaultIndexStoreError};
 
 #[cfg(test)]
 mod tests {

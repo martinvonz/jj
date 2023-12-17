@@ -32,8 +32,7 @@ use tempfile::NamedTempFile;
 
 use super::composite::{AsCompositeIndex, CompositeIndex, IndexSegment};
 use super::entry::{IndexEntry, IndexPosition, SmallIndexPositionsVec};
-use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexSegment};
-use super::store::IndexLoadError;
+use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexLoadError, ReadonlyIndexSegment};
 use crate::backend::{ChangeId, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::file_util::persist_content_addressed_temp_file;
@@ -302,10 +301,10 @@ impl MutableIndexSegment {
             change_id_length,
         )
         .map_err(|err| match err {
-            IndexLoadError::IndexCorrupt(err) => {
+            ReadonlyIndexLoadError::IndexCorrupt(err) => {
                 panic!("Just-created index file is corrupt: {err}")
             }
-            IndexLoadError::IoError(err) => err,
+            ReadonlyIndexLoadError::IoError(err) => err,
         })
     }
 }

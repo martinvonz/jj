@@ -18,22 +18,31 @@ use std::any::Any;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
 use std::fs::File;
+use std::io;
 use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use smallvec::SmallVec;
+use thiserror::Error;
 
 use super::composite::{AsCompositeIndex, CompositeIndex, IndexSegment};
 use super::entry::{IndexEntry, IndexPosition, SmallIndexPositionsVec};
 use super::mutable::DefaultMutableIndex;
-use super::store::IndexLoadError;
 use crate::backend::{ChangeId, CommitId, ObjectId};
 use crate::default_revset_engine;
 use crate::index::{HexPrefix, Index, MutableIndex, PrefixResolution, ReadonlyIndex};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
+
+#[derive(Debug, Error)]
+pub enum ReadonlyIndexLoadError {
+    #[error("Index file '{0}' is corrupt.")]
+    IndexCorrupt(String),
+    #[error("I/O error while loading index file: {0}")]
+    IoError(#[from] io::Error),
+}
 
 struct CommitGraphEntry<'a> {
     data: &'a [u8],
@@ -166,7 +175,7 @@ impl ReadonlyIndexSegment {
         name: String,
         commit_id_length: usize,
         change_id_length: usize,
-    ) -> Result<Arc<ReadonlyIndexSegment>, IndexLoadError> {
+    ) -> Result<Arc<ReadonlyIndexSegment>, ReadonlyIndexLoadError> {
         let parent_filename_len = file.read_u32::<LittleEndian>()?;
         let num_parent_commits;
         let maybe_parent_file;
@@ -200,7 +209,7 @@ impl ReadonlyIndexSegment {
         let parent_overflow_size = (num_parent_overflow_entries as usize) * 4;
         let expected_size = graph_size + lookup_size + parent_overflow_size;
         if data.len() != expected_size {
-            return Err(IndexLoadError::IndexCorrupt(name));
+            return Err(ReadonlyIndexLoadError::IndexCorrupt(name));
         }
         Ok(Arc::new(ReadonlyIndexSegment {
             parent_file: maybe_parent_file,
