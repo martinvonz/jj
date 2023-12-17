@@ -107,18 +107,32 @@ impl CommitLookupEntry<'_> {
     }
 }
 
-// File format:
-// u32: number of entries
-// u32: number of parent overflow entries
-// for each entry, in some topological order with parents first:
-//   u32: generation number
-//   u32: number of parents
-//   u32: position in this table for parent 1
-//   u32: position in the overflow table of parent 2
-//   <hash length number of bytes>: commit id
-// for each entry, sorted by commit id:
-//   <hash length number of bytes>: commit id
-//    u32: position in the entry table above
+/// Commit index segment backed by immutable file.
+///
+/// File format:
+/// ```text
+/// u32: parent segment file name length (0 means root)
+/// <length number of bytes>: parent segment file name
+///
+/// u32: number of local entries
+/// u32: number of overflow parent entries
+/// for each entry, in some topological order with parents first:
+///   u32: flags (unused)
+///   u32: generation number
+///   u32: number of parents
+///   u32: global index position for parent 1
+///   u32: position in the overflow table of parent 2
+///   <change id length number of bytes>: change id
+///   <commit id length number of bytes>: commit id
+/// for each entry, sorted by commit id:
+///   <commit id length number of bytes>: commit id
+///   u32: global index position
+/// for each overflow parent:
+///   u32: global index position
+/// ```
+///
+/// Note that u32 fields are 4-byte aligned so long as the parent file name
+/// (which is hexadecimal hash) and commit/change ids aren't of exotic length.
 // TODO: add a version number
 // TODO: replace the table by a trie so we don't have to repeat the full commit
 //       ids
