@@ -46,8 +46,13 @@ pub enum IndexLoadError {
 
 #[derive(Debug, Error)]
 pub enum DefaultIndexStoreError {
-    #[error(transparent)]
-    Io(#[from] io::Error),
+    #[error("Failed to associate commit index file with a operation {op_id:?}: {source}")]
+    AssociateIndex {
+        op_id: OperationId,
+        source: io::Error,
+    },
+    #[error("Failed to write commit index file: {0}")]
+    SaveIndex(#[source] io::Error),
     #[error(transparent)]
     OpStore(#[from] OpStoreError),
 }
@@ -176,8 +181,7 @@ impl DefaultIndexStore {
             mutable_index.add_commit(commit);
         }
 
-        let index_file = mutable_index.save_in(self.dir.clone())?;
-        self.associate_file_with_operation(&index_file, operation.id())?;
+        let index_file = self.save_mutable_index(mutable_index, operation.id())?;
         tracing::info!(
             ?index_file,
             commits_count = commits.len(),
@@ -185,6 +189,22 @@ impl DefaultIndexStore {
         );
 
         Ok(index_file)
+    }
+
+    fn save_mutable_index(
+        &self,
+        mutable_index: DefaultMutableIndex,
+        op_id: &OperationId,
+    ) -> Result<Arc<ReadonlyIndexSegment>, DefaultIndexStoreError> {
+        let index_segment = mutable_index
+            .save_in(self.dir.clone())
+            .map_err(DefaultIndexStoreError::SaveIndex)?;
+        self.associate_file_with_operation(&index_segment, op_id)
+            .map_err(|source| DefaultIndexStoreError::AssociateIndex {
+                op_id: op_id.to_owned(),
+                source,
+            })?;
+        Ok(index_segment)
     }
 
     /// Records a link from the given operation to the this index version.
@@ -248,18 +268,9 @@ impl IndexStore for DefaultIndexStore {
             .into_any()
             .downcast::<DefaultMutableIndex>()
             .expect("index to merge in must be a DefaultMutableIndex");
-        let index_segment = index.save_in(self.dir.clone()).map_err(|err| {
-            IndexWriteError(format!("Failed to write commit index file: {err}").into())
-        })?;
-        self.associate_file_with_operation(&index_segment, op_id)
-            .map_err(|err| {
-                IndexWriteError(
-                    format!(
-                        "Failed to associate commit index file with a operation {op_id:?}: {err}"
-                    )
-                    .into(),
-                )
-            })?;
+        let index_segment = self
+            .save_mutable_index(*index, op_id)
+            .map_err(|err| IndexWriteError(err.into()))?;
         Ok(Box::new(DefaultReadonlyIndex::from_segment(index_segment)))
     }
 }
