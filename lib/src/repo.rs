@@ -253,8 +253,11 @@ impl ReadonlyRepo {
     pub fn readonly_index(&self) -> &dyn ReadonlyIndex {
         self.index
             .get_or_init(|| {
+                // TODO: somehow propagate error, but it's weird if all callers
+                // had Result<T, IndexReadError> signature.
                 self.index_store
                     .get_index_at_op(&self.operation, &self.store)
+                    .unwrap()
             })
             .deref()
     }
