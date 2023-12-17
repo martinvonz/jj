@@ -63,8 +63,13 @@ impl ReadonlyIndexLoadError {
     }
 
     /// Returns true if the underlying error suggests data corruption.
-    pub(super) fn is_corrupt(&self) -> bool {
-        matches!(self.error.kind(), io::ErrorKind::InvalidData)
+    pub(super) fn is_corrupt_or_not_found(&self) -> bool {
+        // If the parent file name field is corrupt, the file wouldn't be found.
+        // And there's no need to distinguish it from an empty file.
+        matches!(
+            self.error.kind(),
+            io::ErrorKind::NotFound | io::ErrorKind::InvalidData | io::ErrorKind::UnexpectedEof
+        )
     }
 }
 

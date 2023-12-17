@@ -243,7 +243,7 @@ impl IndexStore for DefaultIndexStore {
                 store.change_id_length(),
                 op.id(),
             ) {
-                Err(DefaultIndexStoreError::LoadIndex(err)) if err.is_corrupt() => {
+                Err(DefaultIndexStoreError::LoadIndex(err)) if err.is_corrupt_or_not_found() => {
                     // If the index was corrupt (maybe it was written in a different format),
                     // we just reindex.
                     // TODO: Move this message to a callback or something.
