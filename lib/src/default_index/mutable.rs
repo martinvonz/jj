@@ -32,7 +32,7 @@ use tempfile::NamedTempFile;
 
 use super::composite::{AsCompositeIndex, CompositeIndex, IndexSegment};
 use super::entry::{IndexEntry, IndexPosition, SmallIndexPositionsVec};
-use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexLoadError, ReadonlyIndexSegment};
+use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexSegment};
 use crate::backend::{ChangeId, CommitId, ObjectId};
 use crate::commit::Commit;
 use crate::file_util::persist_content_addressed_temp_file;
@@ -279,6 +279,7 @@ impl MutableIndexSegment {
         let squashed = self.maybe_squash_with_ancestors();
         let mut buf = Vec::new();
         squashed.serialize_parent_filename(&mut buf);
+        let local_entries_offset = buf.len();
         squashed.serialize_local_entries(&mut buf);
         let mut hasher = Blake2b512::new();
         hasher.update(&buf);
@@ -290,19 +291,14 @@ impl MutableIndexSegment {
         file.write_all(&buf)?;
         persist_content_addressed_temp_file(temp_file, index_file_path)?;
 
-        ReadonlyIndexSegment::load_from(
-            &mut buf.as_slice(),
-            dir,
+        Ok(ReadonlyIndexSegment::load_with_parent_file(
+            &mut &buf[local_entries_offset..],
             index_file_id_hex,
+            squashed.parent_file,
             squashed.commit_id_length,
             squashed.change_id_length,
         )
-        .map_err(|err| match err {
-            ReadonlyIndexLoadError::IndexCorrupt(err) => {
-                panic!("Just-created index file is corrupt: {err}")
-            }
-            ReadonlyIndexLoadError::IoError(err) => err,
-        })
+        .expect("in-memory index data should be valid and readable"))
     }
 }
 
