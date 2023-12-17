@@ -155,6 +155,7 @@ impl Debug for ReadonlyIndexSegment {
 }
 
 impl ReadonlyIndexSegment {
+    /// Loads both parent segments and local entries from the given `file`.
     pub(super) fn load_from(
         file: &mut dyn Read,
         dir: &Path,
@@ -163,9 +164,7 @@ impl ReadonlyIndexSegment {
         change_id_length: usize,
     ) -> Result<Arc<ReadonlyIndexSegment>, ReadonlyIndexLoadError> {
         let parent_filename_len = file.read_u32::<LittleEndian>()?;
-        let num_parent_commits;
-        let maybe_parent_file;
-        if parent_filename_len > 0 {
+        let maybe_parent_file = if parent_filename_len > 0 {
             let mut parent_filename_bytes = vec![0; parent_filename_len as usize];
             file.read_exact(&mut parent_filename_bytes)?;
             let parent_filename = String::from_utf8(parent_filename_bytes).unwrap();
@@ -178,34 +177,53 @@ impl ReadonlyIndexSegment {
                 commit_id_length,
                 change_id_length,
             )?;
-            num_parent_commits = parent_file.num_parent_commits + parent_file.num_local_commits;
-            maybe_parent_file = Some(parent_file);
+            Some(parent_file)
         } else {
-            num_parent_commits = 0;
-            maybe_parent_file = None;
+            None
         };
-        let num_commits = file.read_u32::<LittleEndian>()?;
+        Self::load_with_parent_file(
+            file,
+            name,
+            maybe_parent_file,
+            commit_id_length,
+            change_id_length,
+        )
+    }
+
+    /// Loads local entries from the given `file`, returns new segment linked to
+    /// the given `parent_file`.
+    pub(super) fn load_with_parent_file(
+        file: &mut dyn Read,
+        name: String,
+        parent_file: Option<Arc<ReadonlyIndexSegment>>,
+        commit_id_length: usize,
+        change_id_length: usize,
+    ) -> Result<Arc<ReadonlyIndexSegment>, ReadonlyIndexLoadError> {
+        let num_parent_commits = parent_file
+            .as_ref()
+            .map_or(0, |segment| segment.as_composite().num_commits());
+        let num_local_commits = file.read_u32::<LittleEndian>()?;
         let num_parent_overflow_entries = file.read_u32::<LittleEndian>()?;
         let mut data = vec![];
         file.read_to_end(&mut data)?;
         let commit_graph_entry_size = CommitGraphEntry::size(commit_id_length, change_id_length);
-        let graph_size = (num_commits as usize) * commit_graph_entry_size;
+        let graph_size = (num_local_commits as usize) * commit_graph_entry_size;
         let commit_lookup_entry_size = CommitLookupEntry::size(commit_id_length);
-        let lookup_size = (num_commits as usize) * commit_lookup_entry_size;
+        let lookup_size = (num_local_commits as usize) * commit_lookup_entry_size;
         let parent_overflow_size = (num_parent_overflow_entries as usize) * 4;
         let expected_size = graph_size + lookup_size + parent_overflow_size;
         if data.len() != expected_size {
             return Err(ReadonlyIndexLoadError::IndexCorrupt(name));
         }
         Ok(Arc::new(ReadonlyIndexSegment {
-            parent_file: maybe_parent_file,
+            parent_file,
             num_parent_commits,
             name,
             commit_id_length,
             change_id_length,
             commit_graph_entry_size,
             commit_lookup_entry_size,
-            num_local_commits: num_commits,
+            num_local_commits,
             data,
         }))
     }
