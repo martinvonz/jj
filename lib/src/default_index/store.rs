@@ -46,8 +46,8 @@ pub enum DefaultIndexStoreError {
     },
     #[error("Failed to load associated commit index file name: {0}")]
     LoadAssociation(#[source] io::Error),
-    #[error("Failed to load commit index: {0}")]
-    LoadIndex(#[source] ReadonlyIndexLoadError),
+    #[error(transparent)]
+    LoadIndex(ReadonlyIndexLoadError),
     #[error("Failed to write commit index file: {0}")]
     SaveIndex(#[source] io::Error),
     #[error(transparent)]
@@ -243,7 +243,7 @@ impl IndexStore for DefaultIndexStore {
                 store.change_id_length(),
                 op.id(),
             ) {
-                Err(DefaultIndexStoreError::LoadIndex(ReadonlyIndexLoadError::IndexCorrupt(_))) => {
+                Err(DefaultIndexStoreError::LoadIndex(err)) if err.is_corrupt() => {
                     // If the index was corrupt (maybe it was written in a different format),
                     // we just reindex.
                     // TODO: Move this message to a callback or something.
