@@ -132,7 +132,7 @@ impl ReadonlyRepo {
     }
 
     pub fn default_index_store_initializer() -> &'static IndexStoreInitializer<'static> {
-        &|_settings, store_path| Box::new(DefaultIndexStore::init(store_path))
+        &|_settings, store_path| Ok(Box::new(DefaultIndexStore::init(store_path)))
     }
 
     pub fn default_submodule_store_initializer() -> &'static SubmoduleStoreInitializer<'static> {
@@ -193,7 +193,7 @@ impl ReadonlyRepo {
 
         let index_path = repo_path.join("index");
         fs::create_dir(&index_path).context(&index_path)?;
-        let index_store = index_store_initializer(user_settings, &index_path);
+        let index_store = index_store_initializer(user_settings, &index_path)?;
         let index_type_path = index_path.join("type");
         fs::write(&index_type_path, index_store.name()).context(&index_type_path)?;
         let index_store = Arc::from(index_store);
@@ -344,7 +344,8 @@ pub type BackendInitializer<'a> =
     dyn Fn(&UserSettings, &Path) -> Result<Box<dyn Backend>, BackendInitError> + 'a;
 pub type OpStoreInitializer<'a> = dyn Fn(&UserSettings, &Path) -> Box<dyn OpStore> + 'a;
 pub type OpHeadsStoreInitializer<'a> = dyn Fn(&UserSettings, &Path) -> Box<dyn OpHeadsStore> + 'a;
-pub type IndexStoreInitializer<'a> = dyn Fn(&UserSettings, &Path) -> Box<dyn IndexStore> + 'a;
+pub type IndexStoreInitializer<'a> =
+    dyn Fn(&UserSettings, &Path) -> Result<Box<dyn IndexStore>, BackendInitError> + 'a;
 pub type SubmoduleStoreInitializer<'a> =
     dyn Fn(&UserSettings, &Path) -> Box<dyn SubmoduleStore> + 'a;
 
@@ -352,7 +353,8 @@ type BackendFactory =
     Box<dyn Fn(&UserSettings, &Path) -> Result<Box<dyn Backend>, BackendLoadError>>;
 type OpStoreFactory = Box<dyn Fn(&UserSettings, &Path) -> Box<dyn OpStore>>;
 type OpHeadsStoreFactory = Box<dyn Fn(&UserSettings, &Path) -> Box<dyn OpHeadsStore>>;
-type IndexStoreFactory = Box<dyn Fn(&UserSettings, &Path) -> Box<dyn IndexStore>>;
+type IndexStoreFactory =
+    Box<dyn Fn(&UserSettings, &Path) -> Result<Box<dyn IndexStore>, BackendLoadError>>;
 type SubmoduleStoreFactory = Box<dyn Fn(&UserSettings, &Path) -> Box<dyn SubmoduleStore>>;
 
 pub struct StoreFactories {
@@ -392,7 +394,7 @@ impl Default for StoreFactories {
         // Index
         factories.add_index_store(
             DefaultIndexStore::name(),
-            Box::new(|_settings, store_path| Box::new(DefaultIndexStore::load(store_path))),
+            Box::new(|_settings, store_path| Ok(Box::new(DefaultIndexStore::load(store_path)))),
         );
 
         // SubmoduleStores
@@ -531,7 +533,7 @@ impl StoreFactories {
                 store: "index",
                 store_type: index_store_type.to_string(),
             })?;
-        Ok(index_store_factory(settings, store_path))
+        Ok(index_store_factory(settings, store_path)?)
     }
 
     pub fn add_submodule_store(&mut self, name: &str, factory: SubmoduleStoreFactory) {
