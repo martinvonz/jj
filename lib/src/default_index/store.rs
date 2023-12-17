@@ -45,6 +45,10 @@ pub enum DefaultIndexStoreError {
         op_id: OperationId,
         source: io::Error,
     },
+    #[error("Failed to load associated commit index file name: {0}")]
+    LoadAssociation(#[source] io::Error),
+    #[error("Failed to load commit index: {0}")]
+    LoadIndex(#[source] ReadonlyIndexLoadError),
     #[error("Failed to write commit index file: {0}")]
     SaveIndex(#[source] io::Error),
     #[error(transparent)]
@@ -85,12 +89,14 @@ impl DefaultIndexStore {
         commit_id_length: usize,
         change_id_length: usize,
         op_id: &OperationId,
-    ) -> Result<Arc<ReadonlyIndexSegment>, ReadonlyIndexLoadError> {
+    ) -> Result<Arc<ReadonlyIndexSegment>, DefaultIndexStoreError> {
         let op_id_file = self.dir.join("operations").join(op_id.hex());
-        let buf = fs::read(op_id_file).unwrap();
-        let index_file_id_hex = String::from_utf8(buf).unwrap();
+        let index_file_id_hex =
+            fs::read_to_string(op_id_file).map_err(DefaultIndexStoreError::LoadAssociation)?;
         let index_file_path = self.dir.join(&index_file_id_hex);
-        let mut index_file = File::open(index_file_path).unwrap();
+        let mut index_file = File::open(index_file_path).map_err(|err| {
+            DefaultIndexStoreError::LoadIndex(ReadonlyIndexLoadError::IoError(err))
+        })?;
         ReadonlyIndexSegment::load_from(
             &mut index_file,
             &self.dir,
@@ -98,6 +104,7 @@ impl DefaultIndexStore {
             commit_id_length,
             change_id_length,
         )
+        .map_err(DefaultIndexStoreError::LoadIndex)
     }
 
     #[tracing::instrument(skip(self, store))]
@@ -136,9 +143,11 @@ impl DefaultIndexStore {
                 mutable_index = DefaultMutableIndex::full(commit_id_length, change_id_length);
             }
             Some(parent_op_id) => {
-                let parent_file = self
-                    .load_index_at_operation(commit_id_length, change_id_length, &parent_op_id)
-                    .unwrap();
+                let parent_file = self.load_index_at_operation(
+                    commit_id_length,
+                    change_id_length,
+                    &parent_op_id,
+                )?;
                 maybe_parent_file = Some(parent_file.clone());
                 mutable_index = DefaultMutableIndex::incremental(parent_file)
             }
@@ -240,20 +249,22 @@ impl IndexStore for DefaultIndexStore {
                 store.change_id_length(),
                 op.id(),
             ) {
-                Err(ReadonlyIndexLoadError::IndexCorrupt(_)) => {
+                Err(DefaultIndexStoreError::LoadIndex(ReadonlyIndexLoadError::IndexCorrupt(_))) => {
                     // If the index was corrupt (maybe it was written in a different format),
                     // we just reindex.
                     // TODO: Move this message to a callback or something.
                     println!("The index was corrupt (maybe the format has changed). Reindexing...");
+                    // TODO: propagate error
                     std::fs::remove_dir_all(self.dir.join("operations")).unwrap();
                     std::fs::create_dir(self.dir.join("operations")).unwrap();
-                    self.index_at_operation(store, op).unwrap()
+                    self.index_at_operation(store, op)
                 }
-                result => result.unwrap(),
+                result => result,
             }
         } else {
-            self.index_at_operation(store, op).unwrap()
-        };
+            self.index_at_operation(store, op)
+        }
+        .map_err(|err| IndexReadError(err.into()))?;
         Ok(Box::new(DefaultReadonlyIndex::from_segment(index_segment)))
     }
 

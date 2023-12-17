@@ -181,9 +181,10 @@ impl ReadonlyIndexSegment {
         let maybe_parent_file = if parent_filename_len > 0 {
             let mut parent_filename_bytes = vec![0; parent_filename_len as usize];
             file.read_exact(&mut parent_filename_bytes)?;
-            let parent_filename = String::from_utf8(parent_filename_bytes).unwrap();
+            let parent_filename = String::from_utf8(parent_filename_bytes)
+                .map_err(|_| ReadonlyIndexLoadError::IndexCorrupt(name.to_owned()))?;
             let parent_file_path = dir.join(&parent_filename);
-            let mut index_file = File::open(parent_file_path).unwrap();
+            let mut index_file = File::open(parent_file_path)?;
             let parent_file = ReadonlyIndexSegment::load_from(
                 &mut index_file,
                 dir,
