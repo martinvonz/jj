@@ -27,6 +27,11 @@ use crate::operation::Operation;
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
 
+/// Error while reading index from the `IndexStore`.
+#[derive(Debug, Error)]
+#[error(transparent)]
+pub struct IndexReadError(pub Box<dyn std::error::Error + Send + Sync>);
+
 /// Error while writing index to the `IndexStore`.
 #[derive(Debug, Error)]
 #[error(transparent)]
@@ -37,7 +42,11 @@ pub trait IndexStore: Send + Sync + Debug {
 
     fn name(&self) -> &str;
 
-    fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Box<dyn ReadonlyIndex>;
+    fn get_index_at_op(
+        &self,
+        op: &Operation,
+        store: &Arc<Store>,
+    ) -> Result<Box<dyn ReadonlyIndex>, IndexReadError>;
 
     fn write_index(
         &self,

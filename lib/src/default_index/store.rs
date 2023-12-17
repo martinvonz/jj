@@ -31,7 +31,9 @@ use crate::backend::{CommitId, ObjectId};
 use crate::commit::CommitByCommitterTimestamp;
 use crate::dag_walk;
 use crate::file_util::persist_content_addressed_temp_file;
-use crate::index::{Index, IndexStore, IndexWriteError, MutableIndex, ReadonlyIndex};
+use crate::index::{
+    Index, IndexReadError, IndexStore, IndexWriteError, MutableIndex, ReadonlyIndex,
+};
 use crate::op_store::{OpStoreError, OperationId};
 use crate::operation::Operation;
 use crate::store::Store;
@@ -233,7 +235,11 @@ impl IndexStore for DefaultIndexStore {
         Self::name()
     }
 
-    fn get_index_at_op(&self, op: &Operation, store: &Arc<Store>) -> Box<dyn ReadonlyIndex> {
+    fn get_index_at_op(
+        &self,
+        op: &Operation,
+        store: &Arc<Store>,
+    ) -> Result<Box<dyn ReadonlyIndex>, IndexReadError> {
         let op_id_hex = op.id().hex();
         let op_id_file = self.dir.join("operations").join(op_id_hex);
         let index_segment = if op_id_file.exists() {
@@ -256,7 +262,7 @@ impl IndexStore for DefaultIndexStore {
         } else {
             self.index_at_operation(store, op).unwrap()
         };
-        Box::new(DefaultReadonlyIndex::from_segment(index_segment))
+        Ok(Box::new(DefaultReadonlyIndex::from_segment(index_segment)))
     }
 
     fn write_index(
