@@ -170,13 +170,7 @@ impl MutableIndexSegment {
         }
     }
 
-    fn serialize(self) -> Vec<u8> {
-        assert_eq!(self.graph.len(), self.lookup.len());
-
-        let num_commits = self.graph.len() as u32;
-
-        let mut buf = vec![];
-
+    fn serialize_parent_filename(&self, buf: &mut Vec<u8>) {
         if let Some(parent_file) = &self.parent_file {
             buf.write_u32::<LittleEndian>(parent_file.name().len() as u32)
                 .unwrap();
@@ -184,14 +178,19 @@ impl MutableIndexSegment {
         } else {
             buf.write_u32::<LittleEndian>(0).unwrap();
         }
+    }
 
+    fn serialize_local_entries(&self, buf: &mut Vec<u8>) {
+        assert_eq!(self.graph.len(), self.lookup.len());
+
+        let num_commits = self.graph.len() as u32;
         buf.write_u32::<LittleEndian>(num_commits).unwrap();
         // We'll write the actual value later
         let parent_overflow_offset = buf.len();
         buf.write_u32::<LittleEndian>(0_u32).unwrap();
 
         let mut parent_overflow = vec![];
-        for entry in self.graph {
+        for entry in &self.graph {
             let flags = 0;
             buf.write_u32::<LittleEndian>(flags).unwrap();
 
@@ -219,7 +218,7 @@ impl MutableIndexSegment {
             buf.write_all(entry.commit_id.as_bytes()).unwrap();
         }
 
-        for (commit_id, pos) in self.lookup {
+        for (commit_id, pos) in &self.lookup {
             buf.write_all(commit_id.as_bytes()).unwrap();
             buf.write_u32::<LittleEndian>(pos.0).unwrap();
         }
@@ -230,8 +229,6 @@ impl MutableIndexSegment {
         for parent_pos in parent_overflow {
             buf.write_u32::<LittleEndian>(parent_pos.0).unwrap();
         }
-
-        buf
     }
 
     /// If the MutableIndex has more than half the commits of its parent
@@ -279,10 +276,10 @@ impl MutableIndexSegment {
             return Ok(self.parent_file.unwrap());
         }
 
-        let commit_id_length = self.commit_id_length;
-        let change_id_length = self.change_id_length;
-
-        let buf = self.maybe_squash_with_ancestors().serialize();
+        let squashed = self.maybe_squash_with_ancestors();
+        let mut buf = Vec::new();
+        squashed.serialize_parent_filename(&mut buf);
+        squashed.serialize_local_entries(&mut buf);
         let mut hasher = Blake2b512::new();
         hasher.update(&buf);
         let index_file_id_hex = hex::encode(hasher.finalize());
@@ -297,8 +294,8 @@ impl MutableIndexSegment {
             &mut buf.as_slice(),
             dir,
             index_file_id_hex,
-            commit_id_length,
-            change_id_length,
+            squashed.commit_id_length,
+            squashed.change_id_length,
         )
         .map_err(|err| match err {
             ReadonlyIndexLoadError::IndexCorrupt(err) => {
