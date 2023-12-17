@@ -249,13 +249,16 @@ impl IndexStore for DefaultIndexStore {
             .downcast::<DefaultMutableIndex>()
             .expect("index to merge in must be a DefaultMutableIndex");
         let index_segment = index.save_in(self.dir.clone()).map_err(|err| {
-            IndexWriteError::Other(format!("Failed to write commit index file: {err}"))
+            IndexWriteError(format!("Failed to write commit index file: {err}").into())
         })?;
         self.associate_file_with_operation(&index_segment, op_id)
             .map_err(|err| {
-                IndexWriteError::Other(format!(
-                    "Failed to associate commit index file with a operation {op_id:?}: {err}"
-                ))
+                IndexWriteError(
+                    format!(
+                        "Failed to associate commit index file with a operation {op_id:?}: {err}"
+                    )
+                    .into(),
+                )
             })?;
         Ok(Box::new(DefaultReadonlyIndex::from_segment(index_segment)))
     }

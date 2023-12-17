@@ -27,11 +27,10 @@ use crate::operation::Operation;
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
 
+/// Error while writing index to the `IndexStore`.
 #[derive(Debug, Error)]
-pub enum IndexWriteError {
-    #[error("{0}")]
-    Other(String),
-}
+#[error(transparent)]
+pub struct IndexWriteError(pub Box<dyn std::error::Error + Send + Sync>);
 
 pub trait IndexStore: Send + Sync + Debug {
     fn as_any(&self) -> &dyn Any;
