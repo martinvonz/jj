@@ -29,7 +29,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use blake2::{Blake2b512, Digest};
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt};
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
@@ -256,20 +256,18 @@ impl MutableTable {
         let mut buf = vec![];
 
         if let Some(parent_file) = &self.parent_file {
-            buf.write_u32::<LittleEndian>(parent_file.name.len() as u32)
-                .unwrap();
+            buf.extend((parent_file.name.len() as u32).to_le_bytes());
             buf.extend_from_slice(parent_file.name.as_bytes());
         } else {
-            buf.write_u32::<LittleEndian>(0).unwrap();
+            buf.extend(0_u32.to_le_bytes());
         }
 
-        buf.write_u32::<LittleEndian>(self.entries.len() as u32)
-            .unwrap();
+        buf.extend((self.entries.len() as u32).to_le_bytes());
 
-        let mut value_offset = 0;
+        let mut value_offset = 0_u32;
         for (key, value) in &self.entries {
             buf.extend_from_slice(key);
-            buf.write_u32::<LittleEndian>(value_offset).unwrap();
+            buf.extend(value_offset.to_le_bytes());
             value_offset += value.len() as u32;
         }
         for value in self.entries.values() {

@@ -24,7 +24,6 @@ use std::path::Path;
 use std::sync::Arc;
 
 use blake2::Blake2b512;
-use byteorder::{LittleEndian, WriteBytesExt};
 use digest::Digest;
 use itertools::Itertools;
 use smallvec::SmallVec;
@@ -172,11 +171,10 @@ impl MutableIndexSegment {
 
     fn serialize_parent_filename(&self, buf: &mut Vec<u8>) {
         if let Some(parent_file) = &self.parent_file {
-            buf.write_u32::<LittleEndian>(parent_file.name().len() as u32)
-                .unwrap();
+            buf.extend((parent_file.name().len() as u32).to_le_bytes());
             buf.extend_from_slice(parent_file.name().as_bytes());
         } else {
-            buf.write_u32::<LittleEndian>(0).unwrap();
+            buf.extend(0_u32.to_le_bytes());
         }
     }
 
@@ -184,21 +182,19 @@ impl MutableIndexSegment {
         assert_eq!(self.graph.len(), self.lookup.len());
 
         let num_commits = self.graph.len() as u32;
-        buf.write_u32::<LittleEndian>(num_commits).unwrap();
+        buf.extend(num_commits.to_le_bytes());
         // We'll write the actual value later
         let parent_overflow_offset = buf.len();
-        buf.write_u32::<LittleEndian>(0_u32).unwrap();
+        buf.extend(0_u32.to_le_bytes());
 
         let mut parent_overflow = vec![];
         for entry in &self.graph {
-            let flags = 0;
-            buf.write_u32::<LittleEndian>(flags).unwrap();
+            let flags = 0_u32;
+            buf.extend(flags.to_le_bytes());
 
-            buf.write_u32::<LittleEndian>(entry.generation_number)
-                .unwrap();
+            buf.extend(entry.generation_number.to_le_bytes());
 
-            buf.write_u32::<LittleEndian>(entry.parent_positions.len() as u32)
-                .unwrap();
+            buf.extend((entry.parent_positions.len() as u32).to_le_bytes());
             let mut parent1_pos = IndexPosition(0);
             let parent_overflow_pos = parent_overflow.len() as u32;
             for (i, parent_pos) in entry.parent_positions.iter().enumerate() {
@@ -208,8 +204,8 @@ impl MutableIndexSegment {
                     parent_overflow.push(*parent_pos);
                 }
             }
-            buf.write_u32::<LittleEndian>(parent1_pos.0).unwrap();
-            buf.write_u32::<LittleEndian>(parent_overflow_pos).unwrap();
+            buf.extend(parent1_pos.0.to_le_bytes());
+            buf.extend(parent_overflow_pos.to_le_bytes());
 
             assert_eq!(entry.change_id.as_bytes().len(), self.change_id_length);
             buf.extend_from_slice(entry.change_id.as_bytes());
@@ -220,14 +216,13 @@ impl MutableIndexSegment {
 
         for (commit_id, pos) in &self.lookup {
             buf.extend_from_slice(commit_id.as_bytes());
-            buf.write_u32::<LittleEndian>(pos.0).unwrap();
+            buf.extend(pos.0.to_le_bytes());
         }
 
-        (&mut buf[parent_overflow_offset..][..4])
-            .write_u32::<LittleEndian>(parent_overflow.len() as u32)
-            .unwrap();
+        buf[parent_overflow_offset..][..4]
+            .copy_from_slice(&(parent_overflow.len() as u32).to_le_bytes());
         for parent_pos in parent_overflow {
-            buf.write_u32::<LittleEndian>(parent_pos.0).unwrap();
+            buf.extend(parent_pos.0.to_le_bytes());
         }
     }
 
