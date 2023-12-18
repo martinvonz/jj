@@ -796,6 +796,8 @@ impl MutableRepo {
         predecessor: &Commit,
     ) -> CommitBuilder {
         CommitBuilder::for_rewrite_from(self, settings, predecessor)
+        // CommitBuilder::write will record the rewrite in
+        // `self.rewritten_commits`
     }
 
     pub fn write_commit(
