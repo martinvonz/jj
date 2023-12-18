@@ -810,12 +810,43 @@ impl MutableRepo {
         Ok(commit)
     }
 
-    /// Record a commit as having been rewritten in this transaction. This
-    /// record is used by `rebase_descendants()`.
+    /// Record a commit as having been rewritten to one or more ids in this
+    /// transaction.
     ///
-    /// Rewritten commits don't have to be recorded here. This is just a
-    /// convenient place to record it. It won't matter after the transaction
-    /// has been committed.
+    /// This record is used by `rebase_descendants` to know which commits have
+    /// children that need to be rebased, and where to rebase them to. See the
+    /// docstring for `record_rewritten_commit` for details.
+    //  TODO(ilyagr): Make this API saner, e.g. make `self.rewritten_commits` public
+    // and make empty values correspond to abandoned commits.
+    pub fn set_rewritten_commit(
+        &mut self,
+        old_id: CommitId,
+        new_ids: impl IntoIterator<Item = CommitId>,
+    ) {
+        assert_ne!(old_id, *self.store().root_commit_id());
+        self.rewritten_commits
+            .insert(old_id, new_ids.into_iter().collect());
+    }
+
+    /// Record a commit as having been rewritten in this transaction. If it was
+    /// already rewritten, mark it as divergent (unlike `set_rewritten_commit`)
+    ///
+    /// This record is used by `rebase_descendants` to know which commits have
+    /// children that need to be rebased, and where to rebase the children (as
+    /// well as branches) to.
+    ///
+    /// The `rebase_descendants` logic treats these records as follows:
+    ///
+    /// - If a commit is recorded as rewritten to a single commit, its
+    ///   descendants would be rebased to become descendants of `new_id`. Any
+    ///   branches at `old_id` are also moved to `new_id`.
+    /// - If a commit is recorded as rewritten to more than one commit, it is
+    ///   assumed to have become divergent. Its descendants are *not* rebased.
+    ///   However, the *branches* that were at `old_id` are moved to each of the
+    ///   new ids, and thus become conflicted.
+    ///
+    /// In neither case would `rebase_descendants` modify the `old_id` commit
+    /// itself.
     pub fn record_rewritten_commit(&mut self, old_id: CommitId, new_id: CommitId) {
         assert_ne!(old_id, *self.store().root_commit_id());
         self.rewritten_commits
@@ -828,12 +859,15 @@ impl MutableRepo {
         self.rewritten_commits.clear();
     }
 
-    /// Record a commit as having been abandoned in this transaction. This
-    /// record is used by `rebase_descendants()`.
+    /// Record a commit as having been abandoned in this transaction.
     ///
-    /// Abandoned commits don't have to be recorded here. This is just a
-    /// convenient place to record it. It won't matter after the transaction
-    /// has been committed.
+    /// This record is used by `rebase_descendants` to know which commits have
+    /// children that need to be rebased, and where to rebase the children (as
+    /// well as branches) to.
+    ///
+    /// The `rebase_descendants` logic will rebase the descendants of `old_id`
+    /// to become the descendants of parent(s) of `old_id`. Any branches at
+    /// `old_id` would be moved to the parent(s) of `old_id` as well.
     pub fn record_abandoned_commit(&mut self, old_id: CommitId) {
         assert_ne!(old_id, *self.store().root_commit_id());
         self.abandoned_commits.insert(old_id);
@@ -877,6 +911,9 @@ impl MutableRepo {
         Ok(Some(rebaser))
     }
 
+    // TODO(ilyagr): Either document that this also moves branches (rename the
+    // function and the related functions?) or change things so that this only
+    // rebases descendants.
     pub fn rebase_descendants_with_options(
         &mut self,
         settings: &UserSettings,
