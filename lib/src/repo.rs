@@ -859,10 +859,6 @@ impl MutableRepo {
             .insert(new_id);
     }
 
-    pub fn clear_rewritten_commits(&mut self) {
-        self.rewritten_commits.clear();
-    }
-
     /// Record a commit as having been abandoned in this transaction.
     ///
     /// This record is used by `rebase_descendants` to know which commits have
@@ -877,7 +873,8 @@ impl MutableRepo {
         self.abandoned_commits.insert(old_id);
     }
 
-    pub fn clear_abandoned_commits(&mut self) {
+    fn clear_descendant_rebaser_plans(&mut self) {
+        self.rewritten_commits.clear();
         self.abandoned_commits.clear();
     }
 
@@ -900,6 +897,8 @@ impl MutableRepo {
         )
     }
 
+    /// After the rebaser returned by this function is dropped,
+    /// self.clear_descendant_rebaser_plans() needs to be called.
     fn rebase_descendants_return_rebaser<'settings, 'repo>(
         &'repo mut self,
         settings: &'settings UserSettings,
@@ -923,9 +922,11 @@ impl MutableRepo {
         settings: &UserSettings,
         options: RebaseOptions,
     ) -> Result<usize, TreeMergeError> {
-        Ok(self
+        let result = self
             .rebase_descendants_return_rebaser(settings, options)?
-            .map_or(0, |rebaser| rebaser.rebased().len()))
+            .map_or(0, |rebaser| rebaser.rebased().len());
+        self.clear_descendant_rebaser_plans();
+        Ok(result)
     }
 
     pub fn rebase_descendants(&mut self, settings: &UserSettings) -> Result<usize, TreeMergeError> {
@@ -936,12 +937,14 @@ impl MutableRepo {
         &mut self,
         settings: &UserSettings,
     ) -> Result<HashMap<CommitId, CommitId>, TreeMergeError> {
-        Ok(self
+        let result = Ok(self
             // We do not set RebaseOptions here, since this function does not currently return
             // enough information to describe the results of a rebase if some commits got
             // abandoned
             .rebase_descendants_return_rebaser(settings, Default::default())?
-            .map_or(HashMap::new(), |rebaser| rebaser.rebased().clone()))
+            .map_or(HashMap::new(), |rebaser| rebaser.rebased().clone()));
+        self.clear_descendant_rebaser_plans();
+        result
     }
 
     pub fn set_wc_commit(
