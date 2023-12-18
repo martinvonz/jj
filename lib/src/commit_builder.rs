@@ -32,7 +32,8 @@ pub struct CommitBuilder<'repo> {
 }
 
 impl CommitBuilder<'_> {
-    pub fn for_new_commit<'repo>(
+    // Use MutRepo::new_commit() instead
+    pub(crate) fn for_new_commit<'repo>(
         mut_repo: &'repo mut MutableRepo,
         settings: &UserSettings,
         parents: Vec<CommitId>,
@@ -61,7 +62,8 @@ impl CommitBuilder<'_> {
         }
     }
 
-    pub fn for_rewrite_from<'repo>(
+    // Use MutRepo::rewrite_commit() instead
+    pub(crate) fn for_rewrite_from<'repo>(
         mut_repo: &'repo mut MutableRepo,
         settings: &UserSettings,
         predecessor: &Commit,
