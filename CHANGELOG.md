@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+* `ui.default-command` now accepts a both a list of arguments (eg: `["log", "-l", "5"]`),
+  or just the command name (eg: `"log"`, like before).
+
 ### Breaking changes
 
 ### New features

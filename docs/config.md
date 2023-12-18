@@ -132,7 +132,10 @@ When `jj` is run with no explicit subcommand, the value of the
 subcommand name, subcommand alias, or user-defined alias (defaults to `"log"`).
 
 ```toml
+# No arguments
 ui.default-command = "log"
+# With arguments
+ui.default-command = ["log", "-r", "::@", "-l", "5"]
 ```
 
 ### Default description

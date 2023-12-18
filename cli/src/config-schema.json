@@ -45,6 +45,17 @@
                     "type": "string",
                     "description": "Default command to run when no explicit command is given",
                     "default": "log"
+                    "oneOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    ]
                 },
                 "default-description": {
                     "type": "string",

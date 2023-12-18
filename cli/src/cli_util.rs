@@ -2658,21 +2658,27 @@ fn resolve_default_command(
 
     if let Some(matches) = matches {
         if matches.subcommand_name().is_none() {
-            if config.get_string("ui.default-command").is_err() {
-                writeln!(
-                    ui.hint(),
-                    "Hint: Use `jj -h` for a list of available commands."
-                )?;
-                writeln!(
-                    ui.hint(),
-                    "Set the config `ui.default-command = \"log\"` to disable this message."
-                )?;
+            let mut default_command = match config.get("ui.default-command") {
+                Err(_) | Ok(CommandNameAndArgs::Structured { .. }) => {
+                    writeln!(
+                        ui.hint(),
+                        "Hint: Use `jj -h` for a list of available commands."
+                    )?;
+                    writeln!(
+                        ui.hint(),
+                        "Set the config `ui.default-command = \"log\"` to disable this message."
+                    )?;
+
+                    vec!["log".to_string()]
+                }
+                Ok(CommandNameAndArgs::String(name)) => vec![name],
+                Ok(CommandNameAndArgs::Vec(v)) => v.into(),
+            };
+            default_command.reverse();
+            for arg in default_command {
+                // Insert the default command directly after the path to the binary.
+                string_args.insert(1, arg);
             }
-            let default_command = config
-                .get_string("ui.default-command")
-                .unwrap_or_else(|_| "log".to_string());
-            // Insert the default command directly after the path to the binary.
-            string_args.insert(1, default_command);
         }
     }
     Ok(string_args)
