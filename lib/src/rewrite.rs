@@ -600,8 +600,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         self.heads_to_remove.clear();
         self.heads_to_add.clear();
         self.mut_repo.set_view(view);
-        self.mut_repo.clear_rewritten_commits();
-        self.mut_repo.clear_abandoned_commits();
         Ok(None)
     }
 
