@@ -87,19 +87,19 @@ impl CommitGraphEntry<'_> {
     }
 
     fn generation_number(&self) -> u32 {
-        (&self.data[4..]).read_u32::<LittleEndian>().unwrap()
+        u32::from_le_bytes(self.data[4..8].try_into().unwrap())
     }
 
     fn num_parents(&self) -> u32 {
-        (&self.data[8..]).read_u32::<LittleEndian>().unwrap()
+        u32::from_le_bytes(self.data[8..12].try_into().unwrap())
     }
 
     fn parent1_pos(&self) -> IndexPosition {
-        IndexPosition((&self.data[12..]).read_u32::<LittleEndian>().unwrap())
+        IndexPosition(u32::from_le_bytes(self.data[12..16].try_into().unwrap()))
     }
 
     fn parent2_overflow_pos(&self) -> u32 {
-        (&self.data[16..]).read_u32::<LittleEndian>().unwrap()
+        u32::from_le_bytes(self.data[16..20].try_into().unwrap())
     }
 
     // TODO: Consider storing the change ids in a separate table. That table could
@@ -137,11 +137,8 @@ impl CommitLookupEntry<'_> {
     }
 
     fn pos(&self) -> IndexPosition {
-        IndexPosition(
-            (&self.data[self.commit_id_length..][..4])
-                .read_u32::<LittleEndian>()
-                .unwrap(),
-        )
+        let pos = u32::from_le_bytes(self.data[self.commit_id_length..][..4].try_into().unwrap());
+        IndexPosition(pos)
     }
 }
 
@@ -328,11 +325,8 @@ impl ReadonlyIndexSegment {
         let offset = (overflow_pos as usize) * 4
             + (self.num_local_commits as usize) * self.commit_graph_entry_size
             + (self.num_local_commits as usize) * self.commit_lookup_entry_size;
-        IndexPosition(
-            (&self.data[offset..][..4])
-                .read_u32::<LittleEndian>()
-                .unwrap(),
-        )
+        let pos = u32::from_le_bytes(self.data[offset..][..4].try_into().unwrap());
+        IndexPosition(pos)
     }
 
     fn commit_id_byte_prefix_to_lookup_pos(&self, prefix: &CommitId) -> Option<u32> {
