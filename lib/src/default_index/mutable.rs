@@ -174,7 +174,7 @@ impl MutableIndexSegment {
         if let Some(parent_file) = &self.parent_file {
             buf.write_u32::<LittleEndian>(parent_file.name().len() as u32)
                 .unwrap();
-            buf.write_all(parent_file.name().as_bytes()).unwrap();
+            buf.extend_from_slice(parent_file.name().as_bytes());
         } else {
             buf.write_u32::<LittleEndian>(0).unwrap();
         }
@@ -212,14 +212,14 @@ impl MutableIndexSegment {
             buf.write_u32::<LittleEndian>(parent_overflow_pos).unwrap();
 
             assert_eq!(entry.change_id.as_bytes().len(), self.change_id_length);
-            buf.write_all(entry.change_id.as_bytes()).unwrap();
+            buf.extend_from_slice(entry.change_id.as_bytes());
 
             assert_eq!(entry.commit_id.as_bytes().len(), self.commit_id_length);
-            buf.write_all(entry.commit_id.as_bytes()).unwrap();
+            buf.extend_from_slice(entry.commit_id.as_bytes());
         }
 
         for (commit_id, pos) in &self.lookup {
-            buf.write_all(commit_id.as_bytes()).unwrap();
+            buf.extend_from_slice(commit_id.as_bytes());
             buf.write_u32::<LittleEndian>(pos.0).unwrap();
         }
 

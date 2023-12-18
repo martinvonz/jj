@@ -258,7 +258,7 @@ impl MutableTable {
         if let Some(parent_file) = &self.parent_file {
             buf.write_u32::<LittleEndian>(parent_file.name.len() as u32)
                 .unwrap();
-            buf.write_all(parent_file.name.as_bytes()).unwrap();
+            buf.extend_from_slice(parent_file.name.as_bytes());
         } else {
             buf.write_u32::<LittleEndian>(0).unwrap();
         }
@@ -268,12 +268,12 @@ impl MutableTable {
 
         let mut value_offset = 0;
         for (key, value) in &self.entries {
-            buf.write_all(key).unwrap();
+            buf.extend_from_slice(key);
             buf.write_u32::<LittleEndian>(value_offset).unwrap();
             value_offset += value.len() as u32;
         }
         for value in self.entries.values() {
-            buf.write_all(value).unwrap();
+            buf.extend_from_slice(value);
         }
         buf
     }
