@@ -15,8 +15,7 @@ use std::io::Write;
 
 use jj_lib::backend::ObjectId;
 use jj_lib::repo::Repo;
-use jj_lib::rewrite::{merge_commit_trees, DescendantRebaser};
-use maplit::{hashmap, hashset};
+use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
 use crate::cli_util::{CommandError, CommandHelper, RevisionArg};
@@ -135,14 +134,14 @@ don't make any changes, then the operation will be aborted.
         .generate_new_change_id()
         .set_description(second_description)
         .write()?;
-    let mut rebaser = DescendantRebaser::new(
-        command.settings(),
-        tx.mut_repo(),
-        hashmap! { commit.id().clone() => hashset!{second_commit.id().clone()} },
-        hashset! {},
-    );
-    rebaser.rebase_all()?;
-    let num_rebased = rebaser.rebased().len();
+
+    // Currently, `rebase_descendents` would treat `commit` as being rewritten to
+    // *both* `first_commit` and `second_commit`, as if it was becoming divergent.
+    // However, we want only the `second_commit` to inherit `commit`'s branches and
+    // descendants.
+    tx.mut_repo()
+        .set_rewritten_commit(commit.id().clone(), [second_commit.id().clone()]);
+    let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
     if num_rebased > 0 {
         writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
     }

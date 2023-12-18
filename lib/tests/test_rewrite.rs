@@ -1119,6 +1119,7 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
     // B main         |/B2 main?
     // |         =>   |/
     // A              A
+    // TODO(ilyagr): Check what happens if B had a descendant with a branch on it.
     let mut tx = repo.start_transaction(&settings);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
