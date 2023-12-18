@@ -27,7 +27,10 @@ use crate::ui::Ui;
 /// Stop tracking specified paths in the working copy
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct UntrackArgs {
-    /// Paths to untrack
+    /// Paths to untrack. They must already be ignored.
+    ///
+    /// The paths could be ignored via a .gitignore or .git/info/exclude (in
+    /// colocated repos).
     #[arg(required = true, value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
