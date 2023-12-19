@@ -73,7 +73,7 @@ impl ReadonlyIndexLoadError {
 }
 
 /// Current format version of the index segment file.
-pub(crate) const INDEX_SEGMENT_FILE_FORMAT_VERSION: u32 = 5;
+pub(crate) const INDEX_SEGMENT_FILE_FORMAT_VERSION: u32 = 6;
 
 /// If set, the value is stored in the overflow table.
 pub(crate) const OVERFLOW_FLAG: u32 = 0x8000_0000;
@@ -134,32 +134,12 @@ impl CommitGraphEntry<'_> {
     }
 
     fn commit_id(&self) -> CommitId {
-        CommitId::from_bytes(&self.data[16..])
-    }
-}
-
-struct CommitLookupEntry<'a> {
-    data: &'a [u8],
-    commit_id_length: usize,
-}
-
-impl CommitLookupEntry<'_> {
-    fn size(commit_id_length: usize) -> usize {
-        commit_id_length + 4
-    }
-
-    fn commit_id(&self) -> CommitId {
         CommitId::from_bytes(self.commit_id_bytes())
     }
 
     // might be better to add borrowed version of CommitId
     fn commit_id_bytes(&self) -> &[u8] {
-        &self.data[0..self.commit_id_length]
-    }
-
-    fn local_pos(&self) -> LocalPosition {
-        let pos = u32::from_le_bytes(self.data[self.commit_id_length..][..4].try_into().unwrap());
-        LocalPosition(pos)
+        &self.data[16..]
     }
 }
 
@@ -188,7 +168,6 @@ impl CommitLookupEntry<'_> {
 ///   u32: change id position in the sorted change ids table
 ///   <commit id length number of bytes>: commit id
 /// for each entry, sorted by commit id:
-///   <commit id length number of bytes>: commit id
 ///   u32: local position in the graph entries table
 /// for each entry, sorted by change id:
 ///   <change id length number of bytes>: change id
@@ -324,8 +303,7 @@ impl ReadonlyIndexSegment {
 
         let commit_graph_entry_size = CommitGraphEntry::size(commit_id_length);
         let graph_size = (num_local_commits as usize) * commit_graph_entry_size;
-        let commit_lookup_entry_size = CommitLookupEntry::size(commit_id_length);
-        let commit_lookup_size = (num_local_commits as usize) * commit_lookup_entry_size;
+        let commit_lookup_size = (num_local_commits as usize) * 4;
         let change_id_table_size = (num_local_change_ids as usize) * change_id_length;
         let change_pos_table_size = (num_local_change_ids as usize) * 4;
         let parent_overflow_size = (num_parent_overflow_entries as usize) * 4;
@@ -389,14 +367,10 @@ impl ReadonlyIndexSegment {
         }
     }
 
-    fn commit_lookup_entry(&self, lookup_pos: u32) -> CommitLookupEntry {
+    fn commit_lookup_pos(&self, lookup_pos: u32) -> LocalPosition {
         let table = &self.data[self.commit_lookup_base..self.change_id_table_base];
-        let entry_size = CommitLookupEntry::size(self.commit_id_length);
-        let offset = (lookup_pos as usize) * entry_size;
-        CommitLookupEntry {
-            data: &table[offset..][..entry_size],
-            commit_id_length: self.commit_id_length,
-        }
+        let offset = (lookup_pos as usize) * 4;
+        LocalPosition(u32::from_le_bytes(table[offset..][..4].try_into().unwrap()))
     }
 
     fn change_lookup_id(&self, lookup_pos: u32) -> ChangeId {
@@ -438,7 +412,8 @@ impl ReadonlyIndexSegment {
     /// Binary searches commit id by `prefix`. Returns the lookup position.
     fn commit_id_byte_prefix_to_lookup_pos(&self, prefix: &[u8]) -> PositionLookupResult {
         binary_search_pos_by(self.num_local_commits, |pos| {
-            let entry = self.commit_lookup_entry(pos);
+            let local_pos = self.commit_lookup_pos(pos);
+            let entry = self.graph_entry(local_pos);
             entry.commit_id_bytes().cmp(prefix)
         })
     }
@@ -470,11 +445,9 @@ impl IndexSegment for ReadonlyIndexSegment {
     }
 
     fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<LocalPosition> {
-        let lookup_pos = self
-            .commit_id_byte_prefix_to_lookup_pos(commit_id.as_bytes())
-            .ok()?;
-        let entry = self.commit_lookup_entry(lookup_pos);
-        Some(entry.local_pos())
+        self.commit_id_byte_prefix_to_lookup_pos(commit_id.as_bytes())
+            .ok()
+            .map(|pos| self.commit_lookup_pos(pos))
     }
 
     fn resolve_neighbor_commit_ids(
@@ -482,12 +455,20 @@ impl IndexSegment for ReadonlyIndexSegment {
         commit_id: &CommitId,
     ) -> (Option<CommitId>, Option<CommitId>) {
         self.commit_id_byte_prefix_to_lookup_pos(commit_id.as_bytes())
-            .map_neighbors(|pos| self.commit_lookup_entry(pos).commit_id())
+            .map_neighbors(|pos| {
+                let local_pos = self.commit_lookup_pos(pos);
+                let entry = self.graph_entry(local_pos);
+                entry.commit_id()
+            })
     }
 
     fn resolve_commit_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         self.commit_id_byte_prefix_to_lookup_pos(prefix.min_prefix_bytes())
-            .prefix_matches(prefix, |pos| self.commit_lookup_entry(pos).commit_id())
+            .prefix_matches(prefix, |pos| {
+                let local_pos = self.commit_lookup_pos(pos);
+                let entry = self.graph_entry(local_pos);
+                entry.commit_id()
+            })
             .map(|(id, _)| id)
     }
 
