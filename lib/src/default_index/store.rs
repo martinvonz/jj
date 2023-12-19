@@ -197,7 +197,7 @@ impl DefaultIndexStore {
         op_id: &OperationId,
     ) -> Result<Arc<ReadonlyIndexSegment>, DefaultIndexStoreError> {
         let index_segment = mutable_index
-            .save_in(&self.dir)
+            .squash_and_save_in(&self.dir)
             .map_err(DefaultIndexStoreError::SaveIndex)?;
         self.associate_file_with_operation(&index_segment, op_id)
             .map_err(|source| DefaultIndexStoreError::AssociateIndex {

@@ -273,11 +273,10 @@ impl MutableIndexSegment {
             return Ok(self.parent_file.unwrap());
         }
 
-        let squashed = self.maybe_squash_with_ancestors();
         let mut buf = Vec::new();
-        squashed.serialize_parent_filename(&mut buf);
+        self.serialize_parent_filename(&mut buf);
         let local_entries_offset = buf.len();
-        squashed.serialize_local_entries(&mut buf);
+        self.serialize_local_entries(&mut buf);
         let mut hasher = Blake2b512::new();
         hasher.update(&buf);
         let index_file_id_hex = hex::encode(hasher.finalize());
@@ -291,9 +290,9 @@ impl MutableIndexSegment {
         Ok(ReadonlyIndexSegment::load_with_parent_file(
             &mut &buf[local_entries_offset..],
             index_file_id_hex,
-            squashed.parent_file,
-            squashed.commit_id_length,
-            squashed.change_id_length,
+            self.parent_file,
+            self.commit_id_length,
+            self.change_id_length,
         )
         .expect("in-memory index data should be valid and readable"))
     }
@@ -405,8 +404,8 @@ impl DefaultMutableIndex {
         self.0.add_commit_data(commit_id, change_id, parent_ids);
     }
 
-    pub(super) fn save_in(self, dir: &Path) -> io::Result<Arc<ReadonlyIndexSegment>> {
-        self.0.save_in(dir)
+    pub(super) fn squash_and_save_in(self, dir: &Path) -> io::Result<Arc<ReadonlyIndexSegment>> {
+        self.0.maybe_squash_with_ancestors().save_in(dir)
     }
 }
 
