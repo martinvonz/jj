@@ -91,12 +91,16 @@ impl<'a> CompositeIndex<'a> {
         CompositeIndex(segment)
     }
 
-    fn ancestor_files_without_local(&self) -> impl Iterator<Item = &'a Arc<ReadonlyIndexSegment>> {
+    /// Iterates parent and its ancestor readonly index segments.
+    pub(super) fn ancestor_files_without_local(
+        &self,
+    ) -> impl Iterator<Item = &'a Arc<ReadonlyIndexSegment>> {
         let parent_file = self.0.segment_parent_file();
         iter::successors(parent_file, |file| file.segment_parent_file())
     }
 
-    fn ancestor_index_segments(&self) -> impl Iterator<Item = &'a dyn IndexSegment> {
+    /// Iterates self and its ancestor index segments.
+    pub(super) fn ancestor_index_segments(&self) -> impl Iterator<Item = &'a dyn IndexSegment> {
         iter::once(self.0).chain(
             self.ancestor_files_without_local()
                 .map(|file| file.as_ref() as &dyn IndexSegment),
