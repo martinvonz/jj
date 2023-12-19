@@ -240,33 +240,27 @@ impl MutableIndexSegment {
     fn maybe_squash_with_ancestors(self) -> MutableIndexSegment {
         let mut num_new_commits = self.segment_num_commits();
         let mut files_to_squash = vec![];
-        let mut maybe_parent_file = self.parent_file.clone();
-        let mut squashed;
-        loop {
-            match maybe_parent_file {
-                Some(parent_file) => {
-                    // TODO: We should probably also squash if the parent file has less than N
-                    // commits, regardless of how many (few) are in `self`.
-                    if 2 * num_new_commits < parent_file.segment_num_commits() {
-                        squashed = MutableIndexSegment::incremental(parent_file);
-                        break;
-                    }
-                    num_new_commits += parent_file.segment_num_commits();
-                    files_to_squash.push(parent_file.clone());
-                    maybe_parent_file = parent_file.segment_parent_file().cloned();
-                }
-                None => {
-                    squashed =
-                        MutableIndexSegment::full(self.commit_id_length, self.change_id_length);
-                    break;
-                }
+        let mut base_parent_file = None;
+        for parent_file in self.as_composite().ancestor_files_without_local() {
+            // TODO: We should probably also squash if the parent file has less than N
+            // commits, regardless of how many (few) are in `self`.
+            if 2 * num_new_commits < parent_file.segment_num_commits() {
+                base_parent_file = Some(parent_file.clone());
+                break;
             }
+            num_new_commits += parent_file.segment_num_commits();
+            files_to_squash.push(parent_file.clone());
         }
 
         if files_to_squash.is_empty() {
             return self;
         }
 
+        let mut squashed = if let Some(parent_file) = base_parent_file {
+            MutableIndexSegment::incremental(parent_file)
+        } else {
+            MutableIndexSegment::full(self.commit_id_length, self.change_id_length)
+        };
         for parent_file in files_to_squash.iter().rev() {
             squashed.add_commits_from(parent_file.as_ref());
         }
