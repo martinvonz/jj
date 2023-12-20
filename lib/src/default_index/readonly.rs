@@ -73,7 +73,7 @@ impl ReadonlyIndexLoadError {
 }
 
 /// Current format version of the index segment file.
-pub(crate) const INDEX_SEGMENT_FILE_FORMAT_VERSION: u32 = 1;
+pub(crate) const INDEX_SEGMENT_FILE_FORMAT_VERSION: u32 = 2;
 
 struct CommitGraphEntry<'a> {
     data: &'a [u8],
@@ -85,23 +85,23 @@ struct CommitGraphEntry<'a> {
 // lowest set bit to determine which generation number the pointers point to.
 impl CommitGraphEntry<'_> {
     fn size(commit_id_length: usize, change_id_length: usize) -> usize {
-        20 + commit_id_length + change_id_length
+        16 + commit_id_length + change_id_length
     }
 
     fn generation_number(&self) -> u32 {
-        u32::from_le_bytes(self.data[4..8].try_into().unwrap())
+        u32::from_le_bytes(self.data[0..4].try_into().unwrap())
     }
 
     fn num_parents(&self) -> u32 {
-        u32::from_le_bytes(self.data[8..12].try_into().unwrap())
+        u32::from_le_bytes(self.data[4..8].try_into().unwrap())
     }
 
     fn parent1_pos(&self) -> IndexPosition {
-        IndexPosition(u32::from_le_bytes(self.data[12..16].try_into().unwrap()))
+        IndexPosition(u32::from_le_bytes(self.data[8..12].try_into().unwrap()))
     }
 
     fn parent2_overflow_pos(&self) -> u32 {
-        u32::from_le_bytes(self.data[16..20].try_into().unwrap())
+        u32::from_le_bytes(self.data[12..16].try_into().unwrap())
     }
 
     // TODO: Consider storing the change ids in a separate table. That table could
@@ -111,11 +111,11 @@ impl CommitGraphEntry<'_> {
     // to better cache locality when walking it; ability to quickly find all
     // commits associated with a change id.
     fn change_id(&self) -> ChangeId {
-        ChangeId::new(self.data[20..][..self.change_id_length].to_vec())
+        ChangeId::new(self.data[16..][..self.change_id_length].to_vec())
     }
 
     fn commit_id(&self) -> CommitId {
-        CommitId::from_bytes(&self.data[20 + self.change_id_length..][..self.commit_id_length])
+        CommitId::from_bytes(&self.data[16 + self.change_id_length..][..self.commit_id_length])
     }
 }
 
@@ -155,7 +155,6 @@ impl CommitLookupEntry<'_> {
 /// u32: number of local entries
 /// u32: number of overflow parent entries
 /// for each entry, in some topological order with parents first:
-///   u32: flags (unused)
 ///   u32: generation number
 ///   u32: number of parents
 ///   u32: global index position for parent 1
