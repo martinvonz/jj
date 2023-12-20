@@ -33,6 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj next` and `jj prev` now prompt in the event of the next/previous commit
   being ambiguous, instead of failing outright.
 
+* `jj resolve` now displays the file being resolved.
+
 ### Fixed bugs
 
 
