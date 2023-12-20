@@ -196,9 +196,6 @@ impl MutableIndexSegment {
 
         let mut parent_overflow = vec![];
         for entry in &self.graph {
-            let flags = 0_u32;
-            buf.extend(flags.to_le_bytes());
-
             buf.extend(entry.generation_number.to_le_bytes());
 
             buf.extend(
