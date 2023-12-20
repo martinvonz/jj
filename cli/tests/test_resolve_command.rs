@@ -88,6 +88,7 @@ fn test_resolution() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["resolve"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    Resolving conflicts in: file
     Working copy now at: vruxwmqv e069f073 conflict | conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
@@ -184,6 +185,7 @@ conflict
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    Resolving conflicts in: file
     New conflicts appeared in these commits:
       vruxwmqv ff4e8c6b conflict | (conflict) conflict
     To resolve the conflicts, start by updating to it:
@@ -251,6 +253,7 @@ conflict
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["resolve"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    Resolving conflicts in: file
     Working copy now at: vruxwmqv 95418cb8 conflict | conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
@@ -297,8 +300,9 @@ fn check_resolve_produces_input_file(
     // in the future. See also https://github.com/mitsuhiko/insta/issues/313.
     assert_eq!(
         &test_env.jj_cmd_failure(repo_path, &["resolve", "--config-toml", &merge_arg_config]),
-        "Error: Failed to resolve conflicts: The output file is either unchanged or empty after \
-         the editor quit (run with --verbose to see the exact invocation).\n"
+        "Resolving conflicts in: file\nError: Failed to resolve conflicts: The output file is \
+         either unchanged or empty after the editor quit (run with --verbose to see the exact \
+         invocation).\n"
     );
 }
 
@@ -406,6 +410,7 @@ fn test_too_many_parents() {
 
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
+    Resolving conflicts in: file
     Error: Failed to resolve conflicts: The conflict at "file" has 3 sides. At most 2 sides are supported.
     "###);
 }
@@ -481,6 +486,7 @@ fn test_file_vs_dir() {
     "###);
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
+    Resolving conflicts in: file
     Error: Failed to resolve conflicts: Only conflicts that involve normal files (not symlinks, not executable, etc.) are supported. Conflict summary for "file":
     Conflict:
       Removing file with id df967b96a579e45a18b8251732d16804b2e56a55
@@ -535,6 +541,7 @@ fn test_description_with_dir_and_deletion() {
     "###);
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
+    Resolving conflicts in: file
     Error: Failed to resolve conflicts: Only conflicts that involve normal files (not symlinks, not executable, etc.) are supported. Conflict summary for "file":
     Conflict:
       Removing file with id df967b96a579e45a18b8251732d16804b2e56a55
@@ -642,6 +649,7 @@ fn test_multiple_conflicts() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["resolve", "another_file"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    Resolving conflicts in: another_file
     New conflicts appeared in these commits:
       vruxwmqv c3c25bce conflict | (conflict) conflict
     To resolve the conflicts, start by updating to it:
@@ -678,6 +686,7 @@ fn test_multiple_conflicts() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["resolve", "--quiet", "another_file"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    Resolving conflicts in: another_file
     New conflicts appeared in these commits:
       vruxwmqv fd3874cd conflict | (conflict) conflict
     To resolve the conflicts, start by updating to it:
