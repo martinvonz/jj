@@ -48,6 +48,11 @@ pub(crate) struct DescribeArgs {
     /// Reset the author to the configured user
     ///
     /// This resets the author name, email, and timestamp.
+    ///
+    /// You can use it in combination with the JJ_USER and JJ_EMAIL
+    /// environment variables to set a different author:
+    ///
+    /// $ JJ_USER='Foo Bar' JJ_EMAIL=foo@bar.com jj describe --reset-author
     #[arg(long)]
     reset_author: bool,
 }
