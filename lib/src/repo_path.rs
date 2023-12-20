@@ -598,6 +598,7 @@ mod tests {
     use itertools::Itertools as _;
 
     use super::*;
+    use crate::tests::new_temp_dir;
 
     fn repo_path(value: &str) -> &RepoPath {
         RepoPath::from_internal_string(value)
@@ -804,7 +805,7 @@ mod tests {
 
     #[test]
     fn parse_fs_path_wc_in_cwd() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let cwd_path = temp_dir.path().join("repo");
         let wc_path = &cwd_path;
 
@@ -863,7 +864,7 @@ mod tests {
 
     #[test]
     fn parse_fs_path_wc_in_cwd_parent() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let cwd_path = temp_dir.path().join("dir");
         let wc_path = cwd_path.parent().unwrap().to_path_buf();
 
@@ -902,7 +903,7 @@ mod tests {
 
     #[test]
     fn parse_fs_path_wc_in_cwd_child() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let cwd_path = temp_dir.path().join("cwd");
         let wc_path = cwd_path.join("repo");
 

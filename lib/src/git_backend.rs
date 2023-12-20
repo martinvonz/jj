@@ -1517,12 +1517,13 @@ mod tests {
 
     use super::*;
     use crate::content_hash::blake2b_hash;
+    use crate::tests::new_temp_dir;
 
     #[test_case(false; "legacy tree format")]
     #[test_case(true; "tree-level conflict format")]
     fn read_plain_git_commit(uses_tree_conflict_format: bool) {
         let settings = user_settings();
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
         let git_repo = git2::Repository::init(git_repo_path).unwrap();
@@ -1684,7 +1685,7 @@ mod tests {
     #[test]
     fn read_git_commit_without_importing() {
         let settings = user_settings();
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
         let git_repo = git2::Repository::init(git_repo_path).unwrap();
@@ -1724,7 +1725,7 @@ mod tests {
     #[test]
     fn read_signed_git_commit() {
         let settings = user_settings();
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
         let git_repo = git2::Repository::init(git_repo_path).unwrap();
@@ -1816,7 +1817,7 @@ mod tests {
     #[test]
     fn git_commit_parents() {
         let settings = user_settings();
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
         let git_repo = git2::Repository::init(git_repo_path).unwrap();
@@ -1885,7 +1886,7 @@ mod tests {
     #[test]
     fn write_tree_conflicts() {
         let settings = user_settings();
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let store_path = temp_dir.path();
         let git_repo_path = temp_dir.path().join("git");
         let git_repo = git2::Repository::init(git_repo_path).unwrap();
@@ -1986,7 +1987,7 @@ mod tests {
     #[test]
     fn commit_has_ref() {
         let settings = user_settings();
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let backend = GitBackend::init_internal(&settings, temp_dir.path()).unwrap();
         let git_repo = backend.open_git_repo().unwrap();
         let signature = Signature {
@@ -2036,7 +2037,7 @@ mod tests {
     #[test]
     fn import_head_commits_duplicates() {
         let settings = user_settings();
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let backend = GitBackend::init_internal(&settings, temp_dir.path()).unwrap();
         let git_repo = backend.open_git_repo().unwrap();
 
@@ -2072,7 +2073,7 @@ mod tests {
     #[test]
     fn overlapping_git_commit_id() {
         let settings = user_settings();
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let backend = GitBackend::init_internal(&settings, temp_dir.path()).unwrap();
         let mut commit1 = Commit {
             parents: vec![backend.root_commit_id().clone()],
@@ -2117,7 +2118,7 @@ mod tests {
     #[test]
     fn write_signed_commit() {
         let settings = user_settings();
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let backend = GitBackend::init_internal(&settings, temp_dir.path()).unwrap();
 
         let commit = Commit {
