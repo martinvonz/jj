@@ -553,11 +553,12 @@ mod tests {
     use test_case::test_case;
 
     use super::*;
+    use crate::tests::new_temp_dir;
 
     #[test_case(false; "memory")]
     #[test_case(true; "file")]
     fn stacked_table_empty(on_disk: bool) {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let store = TableStore::init(temp_dir.path().to_path_buf(), 3);
         let mut_table = store.get_head().unwrap().start_mutation();
         let mut _saved_table = None;
@@ -577,7 +578,7 @@ mod tests {
     #[test_case(false; "memory")]
     #[test_case(true; "file")]
     fn stacked_table_single_key(on_disk: bool) {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let store = TableStore::init(temp_dir.path().to_path_buf(), 3);
         let mut mut_table = store.get_head().unwrap().start_mutation();
         mut_table.add_entry(b"abc".to_vec(), b"value".to_vec());
@@ -598,7 +599,7 @@ mod tests {
     #[test_case(false; "memory")]
     #[test_case(true; "file")]
     fn stacked_table_multiple_keys(on_disk: bool) {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let store = TableStore::init(temp_dir.path().to_path_buf(), 3);
         let mut mut_table = store.get_head().unwrap().start_mutation();
         mut_table.add_entry(b"zzz".to_vec(), b"val3".to_vec());
@@ -624,7 +625,7 @@ mod tests {
 
     #[test]
     fn stacked_table_multiple_keys_with_parent_file() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let store = TableStore::init(temp_dir.path().to_path_buf(), 3);
         let mut mut_table = store.get_head().unwrap().start_mutation();
         mut_table.add_entry(b"abd".to_vec(), b"value 2".to_vec());
@@ -654,7 +655,7 @@ mod tests {
 
     #[test]
     fn stacked_table_merge() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let store = TableStore::init(temp_dir.path().to_path_buf(), 3);
         let mut mut_base_table = store.get_head().unwrap().start_mutation();
         mut_base_table.add_entry(b"abc".to_vec(), b"value1".to_vec());
@@ -687,7 +688,7 @@ mod tests {
     #[test]
     fn stacked_table_automatic_merge() {
         // Same test as above, but here we let the store do the merging on load
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let store = TableStore::init(temp_dir.path().to_path_buf(), 3);
         let mut mut_base_table = store.get_head().unwrap().start_mutation();
         mut_base_table.add_entry(b"abc".to_vec(), b"value1".to_vec());
@@ -724,7 +725,7 @@ mod tests {
 
     #[test]
     fn stacked_table_store_save_empty() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let store = TableStore::init(temp_dir.path().to_path_buf(), 3);
 
         let mut mut_table = store.get_head().unwrap().start_mutation();

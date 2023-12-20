@@ -47,11 +47,12 @@ mod tests {
     use test_case::test_case;
 
     use super::*;
+    use crate::tests::new_temp_dir;
 
     #[test_case(FileLock::lock)]
     #[cfg_attr(unix, test_case(fallback::FileLock::lock))]
     fn lock_basic<T>(lock_fn: fn(PathBuf) -> Result<T, FileLockError>) {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let lock_path = temp_dir.path().join("test.lock");
         assert!(!lock_path.exists());
         {
@@ -64,7 +65,7 @@ mod tests {
     #[test_case(FileLock::lock)]
     #[cfg_attr(unix, test_case(fallback::FileLock::lock))]
     fn lock_concurrent<T>(lock_fn: fn(PathBuf) -> Result<T, FileLockError>) {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let data_path = temp_dir.path().join("test");
         let lock_path = temp_dir.path().join("test.lock");
         fs::write(&data_path, 0_u32.to_le_bytes()).unwrap();
