@@ -189,6 +189,11 @@ parent.
       <td><code>git log</code></td>
     </tr>
     <tr>
+      <td>Search among files versioned in the repository</td>
+      <td><code>grep foo $(jj files)</code></td>
+      <td><code>git grep foo</code></td>
+    </tr>
+    <tr>
       <td>Abandon the current change and start a new change</td>
       <td><code>jj abandon</code></td>
       <td><code>git reset --hard</code> (cannot be undone)</td>
