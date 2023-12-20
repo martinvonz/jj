@@ -32,7 +32,7 @@ use tempfile::NamedTempFile;
 use super::composite::{AsCompositeIndex, ChangeIdIndexImpl, CompositeIndex, IndexSegment};
 use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec};
 use super::readonly::{
-    DefaultReadonlyIndex, ReadonlyIndexSegment, INDEX_SEGMENT_FILE_FORMAT_VERSION,
+    DefaultReadonlyIndex, ReadonlyIndexSegment, INDEX_SEGMENT_FILE_FORMAT_VERSION, OVERFLOW_FLAG,
 };
 use crate::backend::{ChangeId, CommitId};
 use crate::commit::Commit;
@@ -198,22 +198,32 @@ impl MutableIndexSegment {
         for entry in &self.graph {
             buf.extend(entry.generation_number.to_le_bytes());
 
-            buf.extend(
-                u32::try_from(entry.parent_positions.len())
-                    .unwrap()
-                    .to_le_bytes(),
-            );
-            let mut parent1_pos = IndexPosition(0);
-            let parent_overflow_pos = u32::try_from(parent_overflow.len()).unwrap();
-            for (i, parent_pos) in entry.parent_positions.iter().enumerate() {
-                if i == 0 {
-                    parent1_pos = *parent_pos;
-                } else {
-                    parent_overflow.push(*parent_pos);
+            match entry.parent_positions.as_slice() {
+                [] => {
+                    buf.extend((!0_u32).to_le_bytes());
+                    buf.extend((!0_u32).to_le_bytes());
+                }
+                [pos1] => {
+                    assert!(pos1.0 < OVERFLOW_FLAG);
+                    buf.extend(pos1.0.to_le_bytes());
+                    buf.extend((!0_u32).to_le_bytes());
+                }
+                [pos1, pos2] => {
+                    assert!(pos1.0 < OVERFLOW_FLAG);
+                    assert!(pos2.0 < OVERFLOW_FLAG);
+                    buf.extend(pos1.0.to_le_bytes());
+                    buf.extend(pos2.0.to_le_bytes());
+                }
+                positions => {
+                    let overflow_pos = u32::try_from(parent_overflow.len()).unwrap();
+                    let num_parents = u32::try_from(positions.len()).unwrap();
+                    assert!(overflow_pos < OVERFLOW_FLAG);
+                    assert!(num_parents < OVERFLOW_FLAG);
+                    buf.extend((!overflow_pos).to_le_bytes());
+                    buf.extend((!num_parents).to_le_bytes());
+                    parent_overflow.extend_from_slice(positions);
                 }
             }
-            buf.extend(parent1_pos.0.to_le_bytes());
-            buf.extend(parent_overflow_pos.to_le_bytes());
 
             assert_eq!(entry.change_id.as_bytes().len(), self.change_id_length);
             buf.extend_from_slice(entry.change_id.as_bytes());

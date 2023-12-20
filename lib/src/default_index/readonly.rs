@@ -23,7 +23,7 @@ use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
 
-use smallvec::SmallVec;
+use smallvec::smallvec;
 use thiserror::Error;
 
 use super::composite::{AsCompositeIndex, ChangeIdIndexImpl, CompositeIndex, IndexSegment};
@@ -73,7 +73,24 @@ impl ReadonlyIndexLoadError {
 }
 
 /// Current format version of the index segment file.
-pub(crate) const INDEX_SEGMENT_FILE_FORMAT_VERSION: u32 = 3;
+pub(crate) const INDEX_SEGMENT_FILE_FORMAT_VERSION: u32 = 4;
+
+/// If set, the value is stored in the overflow table.
+pub(crate) const OVERFLOW_FLAG: u32 = 0x8000_0000;
+
+/// Global index position of parent entry, or overflow pointer.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct ParentIndexPosition(u32);
+
+impl ParentIndexPosition {
+    fn as_inlined(self) -> Option<IndexPosition> {
+        (self.0 & OVERFLOW_FLAG == 0).then_some(IndexPosition(self.0))
+    }
+
+    fn as_overflow(self) -> Option<u32> {
+        (self.0 & OVERFLOW_FLAG != 0).then_some(!self.0)
+    }
+}
 
 struct CommitGraphEntry<'a> {
     data: &'a [u8],
@@ -85,23 +102,19 @@ struct CommitGraphEntry<'a> {
 // lowest set bit to determine which generation number the pointers point to.
 impl CommitGraphEntry<'_> {
     fn size(commit_id_length: usize, change_id_length: usize) -> usize {
-        16 + commit_id_length + change_id_length
+        12 + commit_id_length + change_id_length
     }
 
     fn generation_number(&self) -> u32 {
         u32::from_le_bytes(self.data[0..4].try_into().unwrap())
     }
 
-    fn num_parents(&self) -> u32 {
-        u32::from_le_bytes(self.data[4..8].try_into().unwrap())
+    fn parent1_pos_or_overflow_pos(&self) -> ParentIndexPosition {
+        ParentIndexPosition(u32::from_le_bytes(self.data[4..8].try_into().unwrap()))
     }
 
-    fn parent1_pos(&self) -> IndexPosition {
-        IndexPosition(u32::from_le_bytes(self.data[8..12].try_into().unwrap()))
-    }
-
-    fn parent2_overflow_pos(&self) -> u32 {
-        u32::from_le_bytes(self.data[12..16].try_into().unwrap())
+    fn parent2_pos_or_overflow_len(&self) -> ParentIndexPosition {
+        ParentIndexPosition(u32::from_le_bytes(self.data[8..12].try_into().unwrap()))
     }
 
     // TODO: Consider storing the change ids in a separate table. That table could
@@ -111,11 +124,11 @@ impl CommitGraphEntry<'_> {
     // to better cache locality when walking it; ability to quickly find all
     // commits associated with a change id.
     fn change_id(&self) -> ChangeId {
-        ChangeId::new(self.data[16..][..self.change_id_length].to_vec())
+        ChangeId::new(self.data[12..][..self.change_id_length].to_vec())
     }
 
     fn commit_id(&self) -> CommitId {
-        CommitId::from_bytes(&self.data[16 + self.change_id_length..][..self.commit_id_length])
+        CommitId::from_bytes(&self.data[12 + self.change_id_length..][..self.commit_id_length])
     }
 }
 
@@ -156,9 +169,14 @@ impl CommitLookupEntry<'_> {
 /// u32: number of overflow parent entries
 /// for each entry, in some topological order with parents first:
 ///   u32: generation number
-///   u32: number of parents
-///   u32: global index position for parent 1
-///   u32: position in the overflow table of parent 2
+///   if number of parents <= 2:
+///     u32: (< 0x8000_0000) global index position for parent 1
+///          (==0xffff_ffff) no parent 1
+///     u32: (< 0x8000_0000) global index position for parent 2
+///          (==0xffff_ffff) no parent 2
+///   else:
+///     u32: (>=0x8000_0000) position in the overflow table, bit-negated
+///     u32: (>=0x8000_0000) number of parents (in the overflow table), bit-negated
 ///   <change id length number of bytes>: change id
 ///   <commit id length number of bytes>: commit id
 /// for each entry, sorted by commit id:
@@ -339,12 +357,14 @@ impl ReadonlyIndexSegment {
         }
     }
 
-    fn overflow_parent(&self, overflow_pos: u32) -> IndexPosition {
+    fn overflow_parents(&self, overflow_pos: u32, num_parents: u32) -> SmallIndexPositionsVec {
         let offset = (overflow_pos as usize) * 4
             + (self.num_local_commits as usize) * self.commit_graph_entry_size
             + (self.num_local_commits as usize) * self.commit_lookup_entry_size;
-        let pos = u32::from_le_bytes(self.data[offset..][..4].try_into().unwrap());
-        IndexPosition(pos)
+        self.data[offset..][..(num_parents as usize) * 4]
+            .chunks_exact(4)
+            .map(|chunk| IndexPosition(u32::from_le_bytes(chunk.try_into().unwrap())))
+            .collect()
     }
 
     fn commit_id_byte_prefix_to_lookup_pos(&self, prefix: &CommitId) -> Option<u32> {
@@ -448,23 +468,30 @@ impl IndexSegment for ReadonlyIndexSegment {
     }
 
     fn num_parents(&self, local_pos: LocalPosition) -> u32 {
-        self.graph_entry(local_pos).num_parents()
+        let graph_entry = self.graph_entry(local_pos);
+        let pos1_or_overflow_pos = graph_entry.parent1_pos_or_overflow_pos();
+        let pos2_or_overflow_len = graph_entry.parent2_pos_or_overflow_len();
+        let inlined_len1 = pos1_or_overflow_pos.as_inlined().is_some() as u32;
+        let inlined_len2 = pos2_or_overflow_len.as_inlined().is_some() as u32;
+        let overflow_len = pos2_or_overflow_len.as_overflow().unwrap_or(0);
+        inlined_len1 + inlined_len2 + overflow_len
     }
 
     fn parent_positions(&self, local_pos: LocalPosition) -> SmallIndexPositionsVec {
         let graph_entry = self.graph_entry(local_pos);
-        let mut parent_entries = SmallVec::with_capacity(graph_entry.num_parents() as usize);
-        if graph_entry.num_parents() >= 1 {
-            parent_entries.push(graph_entry.parent1_pos());
-        }
-        if graph_entry.num_parents() >= 2 {
-            let mut parent_overflow_pos = graph_entry.parent2_overflow_pos();
-            for _ in 1..graph_entry.num_parents() {
-                parent_entries.push(self.overflow_parent(parent_overflow_pos));
-                parent_overflow_pos += 1;
+        let pos1_or_overflow_pos = graph_entry.parent1_pos_or_overflow_pos();
+        let pos2_or_overflow_len = graph_entry.parent2_pos_or_overflow_len();
+        if let Some(pos1) = pos1_or_overflow_pos.as_inlined() {
+            if let Some(pos2) = pos2_or_overflow_len.as_inlined() {
+                smallvec![pos1, pos2]
+            } else {
+                smallvec![pos1]
             }
+        } else {
+            let overflow_pos = pos1_or_overflow_pos.as_overflow().unwrap();
+            let num_parents = pos2_or_overflow_len.as_overflow().unwrap();
+            self.overflow_parents(overflow_pos, num_parents)
         }
-        parent_entries
     }
 }
 
