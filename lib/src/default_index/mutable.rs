@@ -122,7 +122,7 @@ impl MutableIndexSegment {
         }
         self.lookup.insert(
             entry.commit_id.clone(),
-            IndexPosition(self.graph.len() as u32 + self.num_parent_commits),
+            IndexPosition(u32::try_from(self.graph.len()).unwrap() + self.num_parent_commits),
         );
         self.graph.push(entry);
     }
@@ -171,7 +171,11 @@ impl MutableIndexSegment {
 
     fn serialize_parent_filename(&self, buf: &mut Vec<u8>) {
         if let Some(parent_file) = &self.parent_file {
-            buf.extend((parent_file.name().len() as u32).to_le_bytes());
+            buf.extend(
+                u32::try_from(parent_file.name().len())
+                    .unwrap()
+                    .to_le_bytes(),
+            );
             buf.extend_from_slice(parent_file.name().as_bytes());
         } else {
             buf.extend(0_u32.to_le_bytes());
@@ -181,7 +185,7 @@ impl MutableIndexSegment {
     fn serialize_local_entries(&self, buf: &mut Vec<u8>) {
         assert_eq!(self.graph.len(), self.lookup.len());
 
-        let num_commits = self.graph.len() as u32;
+        let num_commits = u32::try_from(self.graph.len()).unwrap();
         buf.extend(num_commits.to_le_bytes());
         // We'll write the actual value later
         let parent_overflow_offset = buf.len();
@@ -194,9 +198,13 @@ impl MutableIndexSegment {
 
             buf.extend(entry.generation_number.to_le_bytes());
 
-            buf.extend((entry.parent_positions.len() as u32).to_le_bytes());
+            buf.extend(
+                u32::try_from(entry.parent_positions.len())
+                    .unwrap()
+                    .to_le_bytes(),
+            );
             let mut parent1_pos = IndexPosition(0);
-            let parent_overflow_pos = parent_overflow.len() as u32;
+            let parent_overflow_pos = u32::try_from(parent_overflow.len()).unwrap();
             for (i, parent_pos) in entry.parent_positions.iter().enumerate() {
                 if i == 0 {
                     parent1_pos = *parent_pos;
@@ -220,7 +228,7 @@ impl MutableIndexSegment {
         }
 
         buf[parent_overflow_offset..][..4]
-            .copy_from_slice(&(parent_overflow.len() as u32).to_le_bytes());
+            .copy_from_slice(&u32::try_from(parent_overflow.len()).unwrap().to_le_bytes());
         for parent_pos in parent_overflow {
             buf.extend(parent_pos.0.to_le_bytes());
         }
@@ -303,7 +311,7 @@ impl IndexSegment for MutableIndexSegment {
     }
 
     fn segment_num_commits(&self) -> u32 {
-        self.graph.len() as u32
+        self.graph.len().try_into().unwrap()
     }
 
     fn segment_parent_file(&self) -> Option<&Arc<ReadonlyIndexSegment>> {
@@ -363,7 +371,11 @@ impl IndexSegment for MutableIndexSegment {
     }
 
     fn segment_num_parents(&self, local_pos: u32) -> u32 {
-        self.graph[local_pos as usize].parent_positions.len() as u32
+        self.graph[local_pos as usize]
+            .parent_positions
+            .len()
+            .try_into()
+            .unwrap()
     }
 
     fn segment_parent_positions(&self, local_pos: u32) -> SmallIndexPositionsVec {
