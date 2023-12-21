@@ -2093,7 +2093,7 @@ pub fn print_dropped_signatures(ui: &Ui, num_dropped: usize) -> Result<(), std::
     }
     Ok(())
 }
- 
+
 pub fn parse_string_pattern(src: &str) -> Result<StringPattern, StringPatternParseError> {
     if let Some((kind, pat)) = src.split_once(':') {
         StringPattern::from_str_kind(pat, kind)
@@ -2615,10 +2615,29 @@ pub struct EarlyArgs {
     #[arg(long, value_name = "WHEN", global = true)]
     pub color: Option<ColorChoice>,
     /// Disable the pager
-    #[arg(long, value_name = "WHEN", global = true, action = ArgAction::SetTrue)]
+    #[arg(long, global = true, action = ArgAction::SetTrue)]
     // Parsing with ignore_errors will crash if this is bool, so use
     // Option<bool>.
     pub no_pager: Option<bool>,
+    /// Override the configured key to be used for the commit signing.
+    /// Is only used when a commit signing operation has to be performed by the
+    /// operation.
+    #[arg(
+        long,
+        value_name = "KEY",
+        global = true,
+        help_heading = "Global Options"
+    )]
+    pub sign_with: Option<String>,
+    /// Don't sign unsigned commits when configured to sign all, is ignored
+    /// otherwise.
+    #[arg(
+        long,
+        global = true,
+        help_heading = "Global Options",
+        action = ArgAction::SetTrue
+    )]
+    pub no_sign: Option<bool>,
     /// Additional configuration options (can be repeated)
     //  TODO: Introduce a `--config` option with simpler syntax for simple
     //  cases, designed so that `--config ui.color=auto` works
@@ -2805,6 +2824,13 @@ fn handle_early_args(
     }
     if args.no_pager.unwrap_or_default() {
         args.config_toml.push(r#"ui.paginate="never""#.to_owned());
+    }
+    if let Some(key) = args.sign_with {
+        args.config_toml.push(format!(r#"signing.key="{key}""#));
+    }
+    if args.no_sign.unwrap_or_default() {
+        args.config_toml
+            .push(r#"signing.sign-all=false"#.to_owned());
     }
     if !args.config_toml.is_empty() {
         layered_configs.parse_config_args(&args.config_toml)?;

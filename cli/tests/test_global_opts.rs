@@ -449,6 +449,11 @@ fn test_help() {
       -v, --verbose                      Enable verbose logging
           --color <WHEN>                 When to colorize output (always, never, auto)
           --no-pager                     Disable the pager
+          --sign-with <KEY>              Override the configured key to be used for the commit signing.
+                                         Is only used when a commit signing operation has to be
+                                         performed by the operation
+          --no-sign                      Don't sign unsigned commits when configured to sign all, is
+                                         ignored otherwise
           --config-toml <TOML>           Additional configuration options (can be repeated)
     "###);
 }
