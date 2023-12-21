@@ -122,6 +122,7 @@ impl CommitGraphEntry<'_> {
 struct CommitLookupEntry<'a> {
     data: &'a [u8],
     commit_id_length: usize,
+    num_parent_commits: u32,
 }
 
 impl CommitLookupEntry<'_> {
@@ -141,6 +142,13 @@ impl CommitLookupEntry<'_> {
     fn pos(&self) -> IndexPosition {
         let pos = u32::from_le_bytes(self.data[self.commit_id_length..][..4].try_into().unwrap());
         IndexPosition(pos)
+    }
+
+    // TODO: better to store local pos in lookup table since there should be no
+    // inter-segment entry.
+    fn local_pos(&self) -> LocalPosition {
+        let IndexPosition(pos) = self.pos();
+        LocalPosition(pos - self.num_parent_commits)
     }
 }
 
@@ -336,6 +344,7 @@ impl ReadonlyIndexSegment {
         CommitLookupEntry {
             data: &self.data[offset..][..self.commit_lookup_entry_size],
             commit_id_length: self.commit_id_length,
+            num_parent_commits: self.num_parent_commits,
         }
     }
 
@@ -388,10 +397,10 @@ impl IndexSegment for ReadonlyIndexSegment {
         Some(self.name.clone())
     }
 
-    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
+    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<LocalPosition> {
         let lookup_pos = self.commit_id_byte_prefix_to_lookup_pos(commit_id)?;
         let entry = self.commit_lookup_entry(lookup_pos);
-        (&entry.commit_id() == commit_id).then(|| entry.pos())
+        (&entry.commit_id() == commit_id).then(|| entry.local_pos())
     }
 
     fn resolve_neighbor_commit_ids(

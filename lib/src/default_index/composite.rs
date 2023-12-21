@@ -44,7 +44,7 @@ pub(super) trait IndexSegment: Send + Sync {
 
     fn name(&self) -> Option<String>;
 
-    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition>;
+    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<LocalPosition>;
 
     /// Suppose the given `commit_id` exists, returns the previous and next
     /// commit ids in lexicographical order.
@@ -158,8 +158,10 @@ impl<'a> CompositeIndex<'a> {
     }
 
     pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
-        self.ancestor_index_segments()
-            .find_map(|segment| segment.commit_id_to_pos(commit_id))
+        self.ancestor_index_segments().find_map(|segment| {
+            let LocalPosition(local_pos) = segment.commit_id_to_pos(commit_id)?;
+            Some(IndexPosition(local_pos + segment.num_parent_commits()))
+        })
     }
 
     /// Suppose the given `commit_id` exists, returns the previous and next

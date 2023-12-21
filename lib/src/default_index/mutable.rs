@@ -56,7 +56,7 @@ pub(super) struct MutableIndexSegment {
     commit_id_length: usize,
     change_id_length: usize,
     graph: Vec<MutableGraphEntry>,
-    commit_lookup: BTreeMap<CommitId, IndexPosition>,
+    commit_lookup: BTreeMap<CommitId, LocalPosition>,
 }
 
 impl MutableIndexSegment {
@@ -125,7 +125,7 @@ impl MutableIndexSegment {
         }
         self.commit_lookup.insert(
             entry.commit_id.clone(),
-            IndexPosition(u32::try_from(self.graph.len()).unwrap() + self.num_parent_commits),
+            LocalPosition(u32::try_from(self.graph.len()).unwrap()),
         );
         self.graph.push(entry);
     }
@@ -222,9 +222,9 @@ impl MutableIndexSegment {
             buf.extend_from_slice(entry.commit_id.as_bytes());
         }
 
-        for (commit_id, pos) in &self.commit_lookup {
+        for (commit_id, LocalPosition(pos)) in &self.commit_lookup {
             buf.extend_from_slice(commit_id.as_bytes());
-            buf.extend(pos.0.to_le_bytes());
+            buf.extend((pos + self.num_parent_commits).to_le_bytes());
         }
 
         buf[parent_overflow_offset..][..4]
@@ -316,8 +316,8 @@ impl IndexSegment for MutableIndexSegment {
         None
     }
 
-    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
-        self.commit_lookup.get(commit_id).cloned()
+    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<LocalPosition> {
+        self.commit_lookup.get(commit_id).copied()
     }
 
     fn resolve_neighbor_commit_ids(
