@@ -2,23 +2,20 @@
 
 # Jujutsu—a version control system
 
-![](https://img.shields.io/github/license/martinvonz/jj)
 ![](https://img.shields.io/github/v/release/martinvonz/jj)
 ![](https://img.shields.io/github/release-date/martinvonz/jj)
-![](https://img.shields.io/crates/v/jj-cli)
-[![Discord](https://img.shields.io/discord/968932220549103686.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/dkmfj3aGQN)
 <br/>
+![](https://img.shields.io/github/license/martinvonz/jj)
 ![](https://github.com/martinvonz/jj/workflows/build/badge.svg)
-![](https://img.shields.io/codefactor/grade/github/martinvonz/jj/main)
-![](https://img.shields.io/librariesio/github/martinvonz/jj)
+[![Discord](https://img.shields.io/discord/968932220549103686.svg?label=&logo=discord&logoColor=ffffff&color=7389D8&labelColor=6A7EC2)](https://discord.gg/dkmfj3aGQN)
 
 **[Homepage] &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
 **[Installation] &nbsp;&nbsp;&bull;&nbsp;&nbsp;**
-**[Getting Started Tutorial]**
+**[Getting Started]**
 
 [Homepage]: https://martinvonz.github.io/jj
 [Installation]: https://martinvonz.github.io/jj/latest/install-and-setup
-[Getting Started Tutorial]: https://martinvonz.github.io/jj/latest/tutorial
+[Getting Started]: https://martinvonz.github.io/jj/latest/tutorial
 
 </div>
 
