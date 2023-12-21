@@ -22,12 +22,17 @@ use smallvec::SmallVec;
 use super::composite::{CompositeIndex, IndexSegment};
 use crate::backend::{ChangeId, CommitId, ObjectId};
 
+/// Global index position.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
 pub struct IndexPosition(pub(super) u32);
 
 impl IndexPosition {
     pub const MAX: Self = IndexPosition(u32::MAX);
 }
+
+/// Local position within an index segment.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, Copy, Hash)]
+pub(super) struct LocalPosition(pub(super) u32);
 
 // SmallVec reuses two pointer-size fields as inline area, which meas we can
 // inline up to 16 bytes (on 64-bit platform) for free.
@@ -37,8 +42,8 @@ pub(super) type SmallIndexPositionsVec = SmallVec<[IndexPosition; 4]>;
 pub struct IndexEntry<'a> {
     source: &'a dyn IndexSegment,
     pos: IndexPosition,
-    // Position within the source segment
-    local_pos: u32,
+    /// Position within the source segment
+    local_pos: LocalPosition,
 }
 
 impl Debug for IndexEntry<'_> {
@@ -66,7 +71,11 @@ impl Hash for IndexEntry<'_> {
 }
 
 impl<'a> IndexEntry<'a> {
-    pub(super) fn new(source: &'a dyn IndexSegment, pos: IndexPosition, local_pos: u32) -> Self {
+    pub(super) fn new(
+        source: &'a dyn IndexSegment,
+        pos: IndexPosition,
+        local_pos: LocalPosition,
+    ) -> Self {
         IndexEntry {
             source,
             pos,

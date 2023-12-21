@@ -21,7 +21,9 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use super::entry::{IndexEntry, IndexPosition, IndexPositionByGeneration, SmallIndexPositionsVec};
+use super::entry::{
+    IndexEntry, IndexPosition, IndexPositionByGeneration, LocalPosition, SmallIndexPositionsVec,
+};
 use super::readonly::ReadonlyIndexSegment;
 use super::rev_walk::RevWalk;
 use crate::backend::{ChangeId, CommitId, ObjectId};
@@ -50,15 +52,15 @@ pub(super) trait IndexSegment: Send + Sync {
 
     fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId>;
 
-    fn segment_generation_number(&self, local_pos: u32) -> u32;
+    fn segment_generation_number(&self, local_pos: LocalPosition) -> u32;
 
-    fn segment_commit_id(&self, local_pos: u32) -> CommitId;
+    fn segment_commit_id(&self, local_pos: LocalPosition) -> CommitId;
 
-    fn segment_change_id(&self, local_pos: u32) -> ChangeId;
+    fn segment_change_id(&self, local_pos: LocalPosition) -> ChangeId;
 
-    fn segment_num_parents(&self, local_pos: u32) -> u32;
+    fn segment_num_parents(&self, local_pos: LocalPosition) -> u32;
 
-    fn segment_parent_positions(&self, local_pos: u32) -> SmallIndexPositionsVec;
+    fn segment_parent_positions(&self, local_pos: LocalPosition) -> SmallIndexPositionsVec;
 }
 
 /// Abstraction over owned and borrowed types that can be cheaply converted to
@@ -151,7 +153,7 @@ impl<'a> CompositeIndex<'a> {
         self.ancestor_index_segments()
             .find_map(|segment| {
                 u32::checked_sub(pos.0, segment.segment_num_parent_commits())
-                    .map(|local_pos| IndexEntry::new(segment, pos, local_pos))
+                    .map(|local_pos| IndexEntry::new(segment, pos, LocalPosition(local_pos)))
             })
             .unwrap()
     }
