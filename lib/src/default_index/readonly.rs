@@ -27,7 +27,7 @@ use smallvec::SmallVec;
 use thiserror::Error;
 
 use super::composite::{AsCompositeIndex, CompositeIndex, IndexSegment};
-use super::entry::{IndexPosition, SmallIndexPositionsVec};
+use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec};
 use super::mutable::DefaultMutableIndex;
 use crate::backend::{ChangeId, CommitId, ObjectId};
 use crate::default_revset_engine;
@@ -310,9 +310,9 @@ impl ReadonlyIndexSegment {
         self.change_id_length
     }
 
-    fn graph_entry(&self, local_pos: u32) -> CommitGraphEntry {
-        assert!(local_pos < self.num_local_commits);
-        let offset = (local_pos as usize) * self.commit_graph_entry_size;
+    fn graph_entry(&self, local_pos: LocalPosition) -> CommitGraphEntry {
+        assert!(local_pos.0 < self.num_local_commits);
+        let offset = (local_pos.0 as usize) * self.commit_graph_entry_size;
         CommitGraphEntry {
             data: &self.data[offset..][..self.commit_graph_entry_size],
             commit_id_length: self.commit_id_length,
@@ -426,23 +426,23 @@ impl IndexSegment for ReadonlyIndexSegment {
         }
     }
 
-    fn segment_generation_number(&self, local_pos: u32) -> u32 {
+    fn segment_generation_number(&self, local_pos: LocalPosition) -> u32 {
         self.graph_entry(local_pos).generation_number()
     }
 
-    fn segment_commit_id(&self, local_pos: u32) -> CommitId {
+    fn segment_commit_id(&self, local_pos: LocalPosition) -> CommitId {
         self.graph_entry(local_pos).commit_id()
     }
 
-    fn segment_change_id(&self, local_pos: u32) -> ChangeId {
+    fn segment_change_id(&self, local_pos: LocalPosition) -> ChangeId {
         self.graph_entry(local_pos).change_id()
     }
 
-    fn segment_num_parents(&self, local_pos: u32) -> u32 {
+    fn segment_num_parents(&self, local_pos: LocalPosition) -> u32 {
         self.graph_entry(local_pos).num_parents()
     }
 
-    fn segment_parent_positions(&self, local_pos: u32) -> SmallIndexPositionsVec {
+    fn segment_parent_positions(&self, local_pos: LocalPosition) -> SmallIndexPositionsVec {
         let graph_entry = self.graph_entry(local_pos);
         let mut parent_entries = SmallVec::with_capacity(graph_entry.num_parents() as usize);
         if graph_entry.num_parents() >= 1 {

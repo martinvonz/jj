@@ -30,7 +30,7 @@ use smallvec::SmallVec;
 use tempfile::NamedTempFile;
 
 use super::composite::{AsCompositeIndex, CompositeIndex, IndexSegment};
-use super::entry::{IndexPosition, SmallIndexPositionsVec};
+use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec};
 use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexSegment};
 use crate::backend::{ChangeId, CommitId, ObjectId};
 use crate::commit::Commit;
@@ -351,28 +351,28 @@ impl IndexSegment for MutableIndexSegment {
         }
     }
 
-    fn segment_generation_number(&self, local_pos: u32) -> u32 {
-        self.graph[local_pos as usize].generation_number
+    fn segment_generation_number(&self, local_pos: LocalPosition) -> u32 {
+        self.graph[local_pos.0 as usize].generation_number
     }
 
-    fn segment_commit_id(&self, local_pos: u32) -> CommitId {
-        self.graph[local_pos as usize].commit_id.clone()
+    fn segment_commit_id(&self, local_pos: LocalPosition) -> CommitId {
+        self.graph[local_pos.0 as usize].commit_id.clone()
     }
 
-    fn segment_change_id(&self, local_pos: u32) -> ChangeId {
-        self.graph[local_pos as usize].change_id.clone()
+    fn segment_change_id(&self, local_pos: LocalPosition) -> ChangeId {
+        self.graph[local_pos.0 as usize].change_id.clone()
     }
 
-    fn segment_num_parents(&self, local_pos: u32) -> u32 {
-        self.graph[local_pos as usize]
+    fn segment_num_parents(&self, local_pos: LocalPosition) -> u32 {
+        self.graph[local_pos.0 as usize]
             .parent_positions
             .len()
             .try_into()
             .unwrap()
     }
 
-    fn segment_parent_positions(&self, local_pos: u32) -> SmallIndexPositionsVec {
-        self.graph[local_pos as usize].parent_positions.clone()
+    fn segment_parent_positions(&self, local_pos: LocalPosition) -> SmallIndexPositionsVec {
+        self.graph[local_pos.0 as usize].parent_positions.clone()
     }
 }
 
