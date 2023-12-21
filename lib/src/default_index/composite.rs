@@ -59,8 +59,6 @@ pub(super) trait IndexSegment: Send + Sync {
     fn segment_num_parents(&self, local_pos: u32) -> u32;
 
     fn segment_parent_positions(&self, local_pos: u32) -> SmallIndexPositionsVec;
-
-    fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry;
 }
 
 /// Abstraction over owned and borrowed types that can be cheaply converted to
@@ -153,7 +151,7 @@ impl<'a> CompositeIndex<'a> {
         self.ancestor_index_segments()
             .find_map(|segment| {
                 u32::checked_sub(pos.0, segment.segment_num_parent_commits())
-                    .map(|local_pos| segment.segment_entry_by_pos(pos, local_pos))
+                    .map(|local_pos| IndexEntry::new(segment, pos, local_pos))
             })
             .unwrap()
     }

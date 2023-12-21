@@ -30,7 +30,7 @@ use smallvec::SmallVec;
 use tempfile::NamedTempFile;
 
 use super::composite::{AsCompositeIndex, CompositeIndex, IndexSegment};
-use super::entry::{IndexEntry, IndexPosition, SmallIndexPositionsVec};
+use super::entry::{IndexPosition, SmallIndexPositionsVec};
 use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexSegment};
 use crate::backend::{ChangeId, CommitId, ObjectId};
 use crate::commit::Commit;
@@ -373,10 +373,6 @@ impl IndexSegment for MutableIndexSegment {
 
     fn segment_parent_positions(&self, local_pos: u32) -> SmallIndexPositionsVec {
         self.graph[local_pos as usize].parent_positions.clone()
-    }
-
-    fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry {
-        IndexEntry::new(self, pos, local_pos)
     }
 }
 

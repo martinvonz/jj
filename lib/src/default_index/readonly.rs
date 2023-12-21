@@ -27,7 +27,7 @@ use smallvec::SmallVec;
 use thiserror::Error;
 
 use super::composite::{AsCompositeIndex, CompositeIndex, IndexSegment};
-use super::entry::{IndexEntry, IndexPosition, SmallIndexPositionsVec};
+use super::entry::{IndexPosition, SmallIndexPositionsVec};
 use super::mutable::DefaultMutableIndex;
 use crate::backend::{ChangeId, CommitId, ObjectId};
 use crate::default_revset_engine;
@@ -456,10 +456,6 @@ impl IndexSegment for ReadonlyIndexSegment {
             }
         }
         parent_entries
-    }
-
-    fn segment_entry_by_pos(&self, pos: IndexPosition, local_pos: u32) -> IndexEntry {
-        IndexEntry::new(self, pos, local_pos)
     }
 }
 
