@@ -2658,7 +2658,7 @@ fn resolve_default_command(
 
     if let Some(matches) = matches {
         if matches.subcommand_name().is_none() {
-            let mut default_command = match config.get("ui.default-command") {
+            let default_command = match config.get("ui.default-command") {
                 Err(_) | Ok(CommandNameAndArgs::Structured { .. }) => {
                     writeln!(
                         ui.hint(),
@@ -2674,11 +2674,11 @@ fn resolve_default_command(
                 Ok(CommandNameAndArgs::String(name)) => vec![name],
                 Ok(CommandNameAndArgs::Vec(v)) => v.into(),
             };
-            default_command.reverse();
-            for arg in default_command {
-                // Insert the default command directly after the path to the binary.
-                string_args.insert(1, arg);
-            }
+            // Insert the default command directly after the path to the binary.
+            //
+            // default_command = [cmd, argA, argB]
+            // string_args = [jj, ...default_command, arg0, arg1]
+            let _: Vec<_> = string_args.splice(1..1, default_command).collect();
         }
     }
     Ok(string_args)
