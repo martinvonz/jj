@@ -1498,22 +1498,8 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         let old_view = old_repo.view();
         let new_repo = self.repo().as_ref();
         let new_view = new_repo.view();
-        let added_heads = RevsetExpression::commits(
-            new_view
-                .heads()
-                .iter()
-                .filter(|id| !old_view.heads().contains(id))
-                .cloned()
-                .collect(),
-        );
-        let removed_heads = RevsetExpression::commits(
-            old_view
-                .heads()
-                .iter()
-                .filter(|id| !new_view.heads().contains(id))
-                .cloned()
-                .collect(),
-        );
+        let old_heads = RevsetExpression::commits(old_view.heads().iter().cloned().collect());
+        let new_heads = RevsetExpression::commits(new_view.heads().iter().cloned().collect());
         // Filter the revsets by conflicts instead of reading all commits and doing the
         // filtering here. That way, we can afford to evaluate the revset even if there
         // are millions of commits added to the repo, assuming the revset engine can
@@ -1521,8 +1507,8 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         // `jj new <conflicted commit>` doesn't result in a message about new conflicts.
         let conflicts = RevsetExpression::filter(RevsetFilterPredicate::HasConflict)
             .intersection(&RevsetExpression::filter(RevsetFilterPredicate::File(None)));
-        let removed_conflicts_expr = added_heads.range(&removed_heads).intersection(&conflicts);
-        let added_conflicts_expr = removed_heads.range(&added_heads).intersection(&conflicts);
+        let removed_conflicts_expr = new_heads.range(&old_heads).intersection(&conflicts);
+        let added_conflicts_expr = old_heads.range(&new_heads).intersection(&conflicts);
 
         let get_commits = |expr: Rc<RevsetExpression>| -> Result<Vec<Commit>, CommandError> {
             let commits = expr
