@@ -124,7 +124,7 @@ impl<'a> CompositeIndex<'a> {
             }
             change_ids.insert(entry.change_id());
         }
-        let num_heads = is_head.iter().filter(|is_head| **is_head).count() as u32;
+        let num_heads = u32::try_from(is_head.iter().filter(|is_head| **is_head).count()).unwrap();
 
         let mut levels = self
             .ancestor_index_segments()
@@ -140,7 +140,7 @@ impl<'a> CompositeIndex<'a> {
             num_merges,
             max_generation_number,
             num_heads,
-            num_changes: change_ids.len() as u32,
+            num_changes: change_ids.len().try_into().unwrap(),
             levels,
         }
     }

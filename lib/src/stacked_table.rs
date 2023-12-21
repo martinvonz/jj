@@ -256,19 +256,19 @@ impl MutableTable {
         let mut buf = vec![];
 
         if let Some(parent_file) = &self.parent_file {
-            buf.extend((parent_file.name.len() as u32).to_le_bytes());
+            buf.extend(u32::try_from(parent_file.name.len()).unwrap().to_le_bytes());
             buf.extend_from_slice(parent_file.name.as_bytes());
         } else {
             buf.extend(0_u32.to_le_bytes());
         }
 
-        buf.extend((self.entries.len() as u32).to_le_bytes());
+        buf.extend(u32::try_from(self.entries.len()).unwrap().to_le_bytes());
 
         let mut value_offset = 0_u32;
         for (key, value) in &self.entries {
             buf.extend_from_slice(key);
             buf.extend(value_offset.to_le_bytes());
-            value_offset += value.len() as u32;
+            value_offset += u32::try_from(value.len()).unwrap();
         }
         for value in self.entries.values() {
             buf.extend_from_slice(value);
