@@ -73,7 +73,7 @@ impl ReadonlyIndexLoadError {
 }
 
 /// Current format version of the index segment file.
-pub(crate) const INDEX_SEGMENT_FILE_FORMAT_VERSION: u32 = 2;
+pub(crate) const INDEX_SEGMENT_FILE_FORMAT_VERSION: u32 = 3;
 
 struct CommitGraphEntry<'a> {
     data: &'a [u8],
@@ -122,7 +122,6 @@ impl CommitGraphEntry<'_> {
 struct CommitLookupEntry<'a> {
     data: &'a [u8],
     commit_id_length: usize,
-    num_parent_commits: u32,
 }
 
 impl CommitLookupEntry<'_> {
@@ -139,16 +138,9 @@ impl CommitLookupEntry<'_> {
         &self.data[0..self.commit_id_length]
     }
 
-    fn pos(&self) -> IndexPosition {
-        let pos = u32::from_le_bytes(self.data[self.commit_id_length..][..4].try_into().unwrap());
-        IndexPosition(pos)
-    }
-
-    // TODO: better to store local pos in lookup table since there should be no
-    // inter-segment entry.
     fn local_pos(&self) -> LocalPosition {
-        let IndexPosition(pos) = self.pos();
-        LocalPosition(pos - self.num_parent_commits)
+        let pos = u32::from_le_bytes(self.data[self.commit_id_length..][..4].try_into().unwrap());
+        LocalPosition(pos)
     }
 }
 
@@ -171,7 +163,7 @@ impl CommitLookupEntry<'_> {
 ///   <commit id length number of bytes>: commit id
 /// for each entry, sorted by commit id:
 ///   <commit id length number of bytes>: commit id
-///   u32: global index position
+///   u32: local position in the graph entries table
 /// for each overflow parent:
 ///   u32: global index position
 /// ```
@@ -344,7 +336,6 @@ impl ReadonlyIndexSegment {
         CommitLookupEntry {
             data: &self.data[offset..][..self.commit_lookup_entry_size],
             commit_id_length: self.commit_id_length,
-            num_parent_commits: self.num_parent_commits,
         }
     }
 
