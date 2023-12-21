@@ -804,7 +804,7 @@ impl MutableRepo {
         sign_with: Option<&mut SigningFn>,
     ) -> BackendResult<Commit> {
         let commit = self.store().write_commit(commit, sign_with)?;
-        self.add_head(&commit);
+        self.add_head(&commit)?;
         Ok(commit)
     }
 
@@ -983,11 +983,19 @@ impl MutableRepo {
             .collect();
     }
 
-    pub fn add_head(&mut self, head: &Commit) {
-        self.add_heads(slice::from_ref(head));
+    /// Ensures that the given `head` and ancestor commits are reachable from
+    /// the visible heads.
+    pub fn add_head(&mut self, head: &Commit) -> BackendResult<()> {
+        self.add_heads(slice::from_ref(head))
     }
 
-    pub fn add_heads(&mut self, heads: &[Commit]) {
+    /// Ensures that the given `heads` and ancestor commits are reachable from
+    /// the visible heads.
+    ///
+    /// The `heads` may contain redundant commits such as already visible ones
+    /// and ancestors of the other heads. The `heads` and ancestor commits
+    /// should exist in the store.
+    pub fn add_heads(&mut self, heads: &[Commit]) -> BackendResult<()> {
         let current_heads = self.view.get_mut().heads();
         // Use incremental update for common case of adding a single commit on top a
         // current head. TODO: Also use incremental update when adding a single
@@ -1007,19 +1015,23 @@ impl MutableRepo {
                 }
             }
             _ => {
-                let missing_commits = dag_walk::topo_order_reverse_ord(
-                    heads.iter().cloned().map(CommitByCommitterTimestamp),
+                let missing_commits = dag_walk::topo_order_reverse_ord_ok(
+                    heads
+                        .iter()
+                        .cloned()
+                        .map(CommitByCommitterTimestamp)
+                        .map(Ok),
                     |CommitByCommitterTimestamp(commit)| commit.id().clone(),
                     |CommitByCommitterTimestamp(commit)| {
                         commit
                             .parent_ids()
                             .iter()
                             .filter(|id| !self.index().has_id(id))
-                            .map(|id| self.store().get_commit(id).unwrap())
-                            .map(CommitByCommitterTimestamp)
+                            .map(|id| self.store().get_commit(id))
+                            .map_ok(CommitByCommitterTimestamp)
                             .collect_vec()
                     },
-                );
+                )?;
                 for CommitByCommitterTimestamp(missing_commit) in missing_commits.iter().rev() {
                     self.index.add_commit(missing_commit);
                 }
@@ -1029,6 +1041,7 @@ impl MutableRepo {
                 self.view.mark_dirty();
             }
         }
+        Ok(())
     }
 
     pub fn remove_head(&mut self, head: &CommitId) {

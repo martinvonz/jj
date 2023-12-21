@@ -426,7 +426,7 @@ fn test_index_commits_incremental_already_indexed() {
     assert_eq!(as_readonly_composite(&repo).num_commits(), 1 + 1);
     let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
-    mut_repo.add_head(&commit_a);
+    mut_repo.add_head(&commit_a).unwrap();
     assert_eq!(as_mutable_composite(mut_repo).num_commits(), 1 + 1);
 }
 
