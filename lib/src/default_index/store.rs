@@ -26,7 +26,7 @@ use thiserror::Error;
 
 use super::mutable::DefaultMutableIndex;
 use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexLoadError, ReadonlyIndexSegment};
-use crate::backend::{CommitId, ObjectId};
+use crate::backend::{BackendError, CommitId, ObjectId};
 use crate::commit::CommitByCommitterTimestamp;
 use crate::dag_walk;
 use crate::file_util::persist_content_addressed_temp_file;
@@ -50,6 +50,8 @@ pub enum DefaultIndexStoreError {
     LoadIndex(ReadonlyIndexLoadError),
     #[error("Failed to write commit index file: {0}")]
     SaveIndex(#[source] io::Error),
+    #[error("Failed to index commits: {0}")]
+    IndexCommits(#[source] BackendError),
     #[error(transparent)]
     OpStore(#[from] OpStoreError),
 }
@@ -159,21 +161,22 @@ impl DefaultIndexStore {
                 .as_ref()
                 .map_or(false, |segment| segment.as_composite().has_id(id))
         };
-        let commits = dag_walk::topo_order_reverse_ord(
+        let commits = dag_walk::topo_order_reverse_ord_ok(
             new_heads
                 .iter()
                 .filter(|&id| !parent_file_has_id(id))
-                .map(|id| store.get_commit(id).unwrap())
-                .map(CommitByCommitterTimestamp),
+                .map(|id| store.get_commit(id))
+                .map_ok(CommitByCommitterTimestamp),
             |CommitByCommitterTimestamp(commit)| commit.id().clone(),
             |CommitByCommitterTimestamp(commit)| {
                 itertools::chain(commit.parent_ids(), commit.predecessor_ids())
                     .filter(|&id| !parent_file_has_id(id))
-                    .map(|id| store.get_commit(id).unwrap())
-                    .map(CommitByCommitterTimestamp)
+                    .map(|id| store.get_commit(id))
+                    .map_ok(CommitByCommitterTimestamp)
                     .collect_vec()
             },
-        );
+        )
+        .map_err(DefaultIndexStoreError::IndexCommits)?;
         for CommitByCommitterTimestamp(commit) in commits.iter().rev() {
             mutable_index.add_commit(commit);
         }
