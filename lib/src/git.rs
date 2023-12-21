@@ -185,6 +185,8 @@ pub enum GitImportError {
         name = REMOTE_NAME_FOR_LOCAL_GIT_REPO
     )]
     RemoteReservedForLocalGitRepo,
+    #[error("Unexpected backend error when importing refs: {0}")]
+    InternalBackend(#[source] BackendError),
     #[error("Unexpected git error when importing refs: {0}")]
     InternalGitError(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error("The repo is not backed by a Git repo")]
@@ -295,7 +297,11 @@ pub fn import_some_refs(
             head_commits.push(commit);
         }
     }
-    mut_repo.add_heads(&head_commits);
+    // It's unlikely the imported commits were missing, but I/O-related error
+    // can still occur.
+    mut_repo
+        .add_heads(&head_commits)
+        .map_err(GitImportError::InternalBackend)?;
 
     // Apply the change that happened in git since last time we imported refs.
     if let Some(new_head_target) = changed_git_head {
