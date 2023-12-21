@@ -17,10 +17,10 @@ categories = ["version-control", "development-tools"]
 keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 
 [workspace.dependencies]
-anyhow = "1.0.75"
+anyhow = "1.0.76"
 assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
-async-trait = "0.1.74"
+async-trait = "0.1.75"
 backoff = "0.4.0"
 blake2 = "0.10.6"
 byteorder = "1.5.0"
