@@ -224,7 +224,7 @@ impl MutableIndexSegment {
 
         for (commit_id, LocalPosition(pos)) in &self.commit_lookup {
             buf.extend_from_slice(commit_id.as_bytes());
-            buf.extend((pos + self.num_parent_commits).to_le_bytes());
+            buf.extend(pos.to_le_bytes());
         }
 
         buf[parent_overflow_offset..][..4]
