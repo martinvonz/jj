@@ -23,7 +23,6 @@ use std::io::Read;
 use std::path::Path;
 use std::sync::Arc;
 
-use byteorder::{LittleEndian, ReadBytesExt};
 use smallvec::SmallVec;
 use thiserror::Error;
 
@@ -216,7 +215,12 @@ impl ReadonlyIndexSegment {
         change_id_length: usize,
     ) -> Result<Arc<ReadonlyIndexSegment>, ReadonlyIndexLoadError> {
         let from_io_err = |err| ReadonlyIndexLoadError::from_io_err(&name, err);
-        let parent_filename_len = file.read_u32::<LittleEndian>().map_err(from_io_err)?;
+        let read_u32 = |file: &mut dyn Read| {
+            let mut buf = [0; 4];
+            file.read_exact(&mut buf).map_err(from_io_err)?;
+            Ok(u32::from_le_bytes(buf))
+        };
+        let parent_filename_len = read_u32(file)?;
         let maybe_parent_file = if parent_filename_len > 0 {
             let mut parent_filename_bytes = vec![0; parent_filename_len as usize];
             file.read_exact(&mut parent_filename_bytes)
@@ -253,11 +257,16 @@ impl ReadonlyIndexSegment {
         change_id_length: usize,
     ) -> Result<Arc<ReadonlyIndexSegment>, ReadonlyIndexLoadError> {
         let from_io_err = |err| ReadonlyIndexLoadError::from_io_err(&name, err);
+        let read_u32 = |file: &mut dyn Read| {
+            let mut buf = [0; 4];
+            file.read_exact(&mut buf).map_err(from_io_err)?;
+            Ok(u32::from_le_bytes(buf))
+        };
         let num_parent_commits = parent_file
             .as_ref()
             .map_or(0, |segment| segment.as_composite().num_commits());
-        let num_local_commits = file.read_u32::<LittleEndian>().map_err(from_io_err)?;
-        let num_parent_overflow_entries = file.read_u32::<LittleEndian>().map_err(from_io_err)?;
+        let num_local_commits = read_u32(file)?;
+        let num_parent_overflow_entries = read_u32(file)?;
         let mut data = vec![];
         file.read_to_end(&mut data).map_err(from_io_err)?;
         let commit_graph_entry_size = CommitGraphEntry::size(commit_id_length, change_id_length);

@@ -29,7 +29,6 @@ use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use blake2::{Blake2b512, Digest};
-use byteorder::{LittleEndian, ReadBytesExt};
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
@@ -74,7 +73,12 @@ impl ReadonlyTable {
         name: String,
         key_size: usize,
     ) -> TableStoreResult<Arc<ReadonlyTable>> {
-        let parent_filename_len = file.read_u32::<LittleEndian>()?;
+        let read_u32 = |file: &mut dyn Read| -> io::Result<u32> {
+            let mut buf = [0; 4];
+            file.read_exact(&mut buf)?;
+            Ok(u32::from_le_bytes(buf))
+        };
+        let parent_filename_len = read_u32(file)?;
         let maybe_parent_file = if parent_filename_len > 0 {
             let mut parent_filename_bytes = vec![0; parent_filename_len as usize];
             file.read_exact(&mut parent_filename_bytes)?;
@@ -84,7 +88,7 @@ impl ReadonlyTable {
         } else {
             None
         };
-        let num_local_entries = file.read_u32::<LittleEndian>()? as usize;
+        let num_local_entries = read_u32(file)? as usize;
         let index_size = num_local_entries * ReadonlyTableIndexEntry::size(key_size);
         let mut data = vec![];
         file.read_to_end(&mut data)?;
