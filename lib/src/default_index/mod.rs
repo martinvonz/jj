@@ -46,8 +46,15 @@ mod tests {
     use super::mutable::MutableIndexSegment;
     use super::*;
     use crate::backend::{ChangeId, CommitId};
+    use crate::default_index::entry::{LocalPosition, SmallLocalPositionsVec};
     use crate::index::Index;
     use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
+
+    /// Generator of unique 16-byte CommitId excluding root id
+    fn commit_id_generator() -> impl FnMut() -> CommitId {
+        let mut iter = (1_u128..).map(|n| CommitId::new(n.to_le_bytes().into()));
+        move || iter.next().unwrap()
+    }
 
     /// Generator of unique 16-byte ChangeId excluding root id
     fn change_id_generator() -> impl FnMut() -> ChangeId {
@@ -328,7 +335,7 @@ mod tests {
     }
 
     #[test]
-    fn resolve_prefix() {
+    fn resolve_commit_id_prefix() {
         let temp_dir = testutils::new_temp_dir();
         let mut new_change_id = change_id_generator();
         let mut mutable_segment = MutableIndexSegment::full(3, 16);
@@ -578,6 +585,201 @@ mod tests {
         assert_eq!(
             index.shortest_unique_commit_id_prefix_len(&CommitId::from_hex("ffffff")),
             1
+        );
+    }
+
+    #[test]
+    fn resolve_change_id_prefix() {
+        let temp_dir = testutils::new_temp_dir();
+        let mut new_commit_id = commit_id_generator();
+        let local_positions_vec = |positions: &[u32]| -> SmallLocalPositionsVec {
+            positions.iter().copied().map(LocalPosition).collect()
+        };
+
+        let id_0 = ChangeId::from_hex("00000001");
+        let id_1 = ChangeId::from_hex("00999999");
+        let id_2 = ChangeId::from_hex("05548888");
+        let id_3 = ChangeId::from_hex("05544444");
+        let id_4 = ChangeId::from_hex("05555555");
+        let id_5 = ChangeId::from_hex("05555333");
+
+        // Create some commits with different various common prefixes.
+        let mut mutable_segment = MutableIndexSegment::full(16, 4);
+        mutable_segment.add_commit_data(new_commit_id(), id_0.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_1.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_2.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_1.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_2.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_2.clone(), &[]);
+
+        // Write these commits to one file and build the remainder on top.
+        let initial_file = mutable_segment.save_in(temp_dir.path()).unwrap();
+        mutable_segment = MutableIndexSegment::incremental(initial_file.clone());
+
+        mutable_segment.add_commit_data(new_commit_id(), id_3.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_3.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_4.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_1.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_5.clone(), &[]);
+
+        // Local lookup in readonly index with the full hex digits
+        assert_eq!(
+            initial_file.resolve_change_id_prefix(&HexPrefix::new(&id_0.hex()).unwrap()),
+            PrefixResolution::SingleMatch((id_0.clone(), local_positions_vec(&[0])))
+        );
+        assert_eq!(
+            initial_file.resolve_change_id_prefix(&HexPrefix::new(&id_1.hex()).unwrap()),
+            PrefixResolution::SingleMatch((id_1.clone(), local_positions_vec(&[1, 3])))
+        );
+        assert_eq!(
+            initial_file.resolve_change_id_prefix(&HexPrefix::new(&id_2.hex()).unwrap()),
+            PrefixResolution::SingleMatch((id_2.clone(), local_positions_vec(&[2, 4, 5])))
+        );
+
+        // Local lookup in mutable index with the full hex digits
+        assert_eq!(
+            mutable_segment.resolve_change_id_prefix(&HexPrefix::new(&id_1.hex()).unwrap()),
+            PrefixResolution::SingleMatch((id_1.clone(), local_positions_vec(&[3])))
+        );
+        assert_eq!(
+            mutable_segment.resolve_change_id_prefix(&HexPrefix::new(&id_3.hex()).unwrap()),
+            PrefixResolution::SingleMatch((id_3.clone(), local_positions_vec(&[0, 1])))
+        );
+        assert_eq!(
+            mutable_segment.resolve_change_id_prefix(&HexPrefix::new(&id_4.hex()).unwrap()),
+            PrefixResolution::SingleMatch((id_4.clone(), local_positions_vec(&[2])))
+        );
+        assert_eq!(
+            mutable_segment.resolve_change_id_prefix(&HexPrefix::new(&id_5.hex()).unwrap()),
+            PrefixResolution::SingleMatch((id_5.clone(), local_positions_vec(&[4])))
+        );
+
+        // Local lookup with locally unknown prefix
+        assert_eq!(
+            initial_file.resolve_change_id_prefix(&HexPrefix::new("0555").unwrap()),
+            PrefixResolution::NoMatch
+        );
+        assert_eq!(
+            mutable_segment.resolve_change_id_prefix(&HexPrefix::new("000").unwrap()),
+            PrefixResolution::NoMatch
+        );
+
+        // Local lookup with locally unique prefix
+        assert_eq!(
+            initial_file.resolve_change_id_prefix(&HexPrefix::new("0554").unwrap()),
+            PrefixResolution::SingleMatch((id_2.clone(), local_positions_vec(&[2, 4, 5])))
+        );
+        assert_eq!(
+            mutable_segment.resolve_change_id_prefix(&HexPrefix::new("0554").unwrap()),
+            PrefixResolution::SingleMatch((id_3.clone(), local_positions_vec(&[0, 1])))
+        );
+
+        // Local lookup with locally ambiguous prefix
+        assert_eq!(
+            initial_file.resolve_change_id_prefix(&HexPrefix::new("00").unwrap()),
+            PrefixResolution::AmbiguousMatch
+        );
+        assert_eq!(
+            mutable_segment.resolve_change_id_prefix(&HexPrefix::new("05555").unwrap()),
+            PrefixResolution::AmbiguousMatch
+        );
+    }
+
+    #[test]
+    fn neighbor_change_ids() {
+        let temp_dir = testutils::new_temp_dir();
+        let mut new_commit_id = commit_id_generator();
+
+        let id_0 = ChangeId::from_hex("00000001");
+        let id_1 = ChangeId::from_hex("00999999");
+        let id_2 = ChangeId::from_hex("05548888");
+        let id_3 = ChangeId::from_hex("05544444");
+        let id_4 = ChangeId::from_hex("05555555");
+        let id_5 = ChangeId::from_hex("05555333");
+
+        // Create some commits with different various common prefixes.
+        let mut mutable_segment = MutableIndexSegment::full(16, 4);
+        mutable_segment.add_commit_data(new_commit_id(), id_0.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_1.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_2.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_1.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_2.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_2.clone(), &[]);
+
+        // Write these commits to one file and build the remainder on top.
+        let initial_file = mutable_segment.save_in(temp_dir.path()).unwrap();
+        mutable_segment = MutableIndexSegment::incremental(initial_file.clone());
+
+        mutable_segment.add_commit_data(new_commit_id(), id_3.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_3.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_4.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_1.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_5.clone(), &[]);
+
+        // Local lookup in readonly index, change_id exists.
+        assert_eq!(
+            initial_file.resolve_neighbor_change_ids(&id_0),
+            (None, Some(id_1.clone())),
+        );
+        assert_eq!(
+            initial_file.resolve_neighbor_change_ids(&id_1),
+            (Some(id_0.clone()), Some(id_2.clone())),
+        );
+        assert_eq!(
+            initial_file.resolve_neighbor_change_ids(&id_2),
+            (Some(id_1.clone()), None),
+        );
+
+        // Local lookup in readonly index, change_id does not exist.
+        assert_eq!(
+            initial_file.resolve_neighbor_change_ids(&ChangeId::from_hex("00000000")),
+            (None, Some(id_0.clone())),
+        );
+        assert_eq!(
+            initial_file.resolve_neighbor_change_ids(&ChangeId::from_hex("00000002")),
+            (Some(id_0.clone()), Some(id_1.clone())),
+        );
+        assert_eq!(
+            initial_file.resolve_neighbor_change_ids(&ChangeId::from_hex("ffffffff")),
+            (Some(id_2.clone()), None),
+        );
+
+        // Local lookup in mutable index, change_id exists.
+        // id_1 < id_3 < id_5 < id_4
+        assert_eq!(
+            mutable_segment.resolve_neighbor_change_ids(&id_1),
+            (None, Some(id_3.clone())),
+        );
+        assert_eq!(
+            mutable_segment.resolve_neighbor_change_ids(&id_3),
+            (Some(id_1.clone()), Some(id_5.clone())),
+        );
+        assert_eq!(
+            mutable_segment.resolve_neighbor_change_ids(&id_5),
+            (Some(id_3.clone()), Some(id_4.clone())),
+        );
+        assert_eq!(
+            mutable_segment.resolve_neighbor_change_ids(&id_4),
+            (Some(id_5.clone()), None),
+        );
+
+        // Local lookup in mutable index, change_id does not exist.
+        // id_1 < id_3 < id_5 < id_4
+        assert_eq!(
+            mutable_segment.resolve_neighbor_change_ids(&ChangeId::from_hex("00999998")),
+            (None, Some(id_1.clone())),
+        );
+        assert_eq!(
+            mutable_segment.resolve_neighbor_change_ids(&ChangeId::from_hex("01000000")),
+            (Some(id_1.clone()), Some(id_3.clone())),
+        );
+        assert_eq!(
+            mutable_segment.resolve_neighbor_change_ids(&ChangeId::from_hex("05555332")),
+            (Some(id_3.clone()), Some(id_5.clone())),
+        );
+        assert_eq!(
+            mutable_segment.resolve_neighbor_change_ids(&ChangeId::from_hex("ffffffff")),
+            (Some(id_4.clone()), None),
         );
     }
 

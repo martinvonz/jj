@@ -27,7 +27,7 @@ use smallvec::smallvec;
 use thiserror::Error;
 
 use super::composite::{AsCompositeIndex, ChangeIdIndexImpl, CompositeIndex, IndexSegment};
-use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec};
+use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec, SmallLocalPositionsVec};
 use super::mutable::DefaultMutableIndex;
 use crate::backend::{ChangeId, CommitId};
 use crate::index::{AllHeadsForGcUnsupported, ChangeIdIndex, Index, MutableIndex, ReadonlyIndex};
@@ -85,6 +85,20 @@ struct ParentIndexPosition(u32);
 impl ParentIndexPosition {
     fn as_inlined(self) -> Option<IndexPosition> {
         (self.0 & OVERFLOW_FLAG == 0).then_some(IndexPosition(self.0))
+    }
+
+    fn as_overflow(self) -> Option<u32> {
+        (self.0 & OVERFLOW_FLAG != 0).then_some(!self.0)
+    }
+}
+
+/// Local position of entry pointed by change id, or overflow pointer.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+struct ChangeLocalPosition(u32);
+
+impl ChangeLocalPosition {
+    fn as_inlined(self) -> Option<LocalPosition> {
+        (self.0 & OVERFLOW_FLAG == 0).then_some(LocalPosition(self.0))
     }
 
     fn as_overflow(self) -> Option<u32> {
@@ -206,6 +220,7 @@ pub(super) struct ReadonlyIndexSegment {
     num_local_commits: u32,
     num_local_change_ids: u32,
     num_parent_overflow_entries: u32,
+    num_change_overflow_entries: u32,
     data: Vec<u8>,
 }
 
@@ -334,6 +349,7 @@ impl ReadonlyIndexSegment {
             num_local_commits,
             num_local_change_ids,
             num_parent_overflow_entries,
+            num_change_overflow_entries,
             data,
         }))
     }
@@ -385,6 +401,17 @@ impl ReadonlyIndexSegment {
         &self.data[offset..][..self.change_id_length]
     }
 
+    fn change_lookup_pos(&self, lookup_pos: u32) -> ChangeLocalPosition {
+        assert!(lookup_pos < self.num_local_change_ids);
+        let offset = (lookup_pos as usize) * 4
+            + (self.num_local_commits as usize) * self.commit_graph_entry_size
+            + (self.num_local_commits as usize) * self.commit_lookup_entry_size
+            + (self.num_local_change_ids as usize) * self.change_id_length;
+        ChangeLocalPosition(u32::from_le_bytes(
+            self.data[offset..][..4].try_into().unwrap(),
+        ))
+    }
+
     fn overflow_parents(&self, overflow_pos: u32, num_parents: u32) -> SmallIndexPositionsVec {
         assert!(overflow_pos + num_parents <= self.num_parent_overflow_entries);
         let offset = (overflow_pos as usize) * 4
@@ -398,11 +425,33 @@ impl ReadonlyIndexSegment {
             .collect()
     }
 
+    /// Scans graph entry positions stored in the overflow change ids table.
+    fn overflow_changes_from(&self, overflow_pos: u32) -> impl Iterator<Item = LocalPosition> + '_ {
+        let base = (self.num_local_commits as usize) * self.commit_graph_entry_size
+            + (self.num_local_commits as usize) * self.commit_lookup_entry_size
+            + (self.num_local_change_ids as usize) * self.change_id_length
+            + (self.num_local_change_ids as usize) * 4
+            + (self.num_parent_overflow_entries as usize) * 4;
+        let size = (self.num_change_overflow_entries as usize) * 4;
+        let offset = (overflow_pos as usize) * 4;
+        self.data[base..][..size][offset..]
+            .chunks_exact(4)
+            .map(|chunk| LocalPosition(u32::from_le_bytes(chunk.try_into().unwrap())))
+    }
+
     /// Binary searches commit id by `prefix`. Returns the lookup position.
     fn commit_id_byte_prefix_to_lookup_pos(&self, prefix: &[u8]) -> PositionLookupResult {
         binary_search_pos_by(self.num_local_commits, |pos| {
             let entry = self.commit_lookup_entry(pos);
             entry.commit_id_bytes().cmp(prefix)
+        })
+    }
+
+    /// Binary searches change id by `prefix`. Returns the lookup position.
+    fn change_id_byte_prefix_to_lookup_pos(&self, prefix: &[u8]) -> PositionLookupResult {
+        binary_search_pos_by(self.num_local_change_ids, |pos| {
+            let change_id_bytes = self.change_lookup_id_bytes(pos);
+            change_id_bytes.cmp(prefix)
         })
     }
 }
@@ -443,6 +492,49 @@ impl IndexSegment for ReadonlyIndexSegment {
     fn resolve_commit_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         self.commit_id_byte_prefix_to_lookup_pos(prefix.min_prefix_bytes())
             .prefix_matches(prefix, |pos| self.commit_lookup_entry(pos).commit_id())
+            .map(|(id, _)| id)
+    }
+
+    fn resolve_neighbor_change_ids(
+        &self,
+        change_id: &ChangeId,
+    ) -> (Option<ChangeId>, Option<ChangeId>) {
+        self.change_id_byte_prefix_to_lookup_pos(change_id.as_bytes())
+            .map_neighbors(|pos| self.change_lookup_id(pos))
+    }
+
+    fn resolve_change_id_prefix(
+        &self,
+        prefix: &HexPrefix,
+    ) -> PrefixResolution<(ChangeId, SmallLocalPositionsVec)> {
+        self.change_id_byte_prefix_to_lookup_pos(prefix.min_prefix_bytes())
+            .prefix_matches(prefix, |pos| self.change_lookup_id(pos))
+            .map(|(id, lookup_pos)| {
+                let change_pos = self.change_lookup_pos(lookup_pos);
+                if let Some(local_pos) = change_pos.as_inlined() {
+                    (id, smallvec![local_pos])
+                } else {
+                    let overflow_pos = change_pos.as_overflow().unwrap();
+                    // Collect commits having the same change id. For cache
+                    // locality, it might be better to look for the next few
+                    // change id positions to determine the size.
+                    let positions: SmallLocalPositionsVec = self
+                        .overflow_changes_from(overflow_pos)
+                        .take_while(|&local_pos| {
+                            let entry = self.graph_entry(local_pos);
+                            entry.change_id_lookup_pos() == lookup_pos
+                        })
+                        .collect();
+                    debug_assert_eq!(
+                        overflow_pos + u32::try_from(positions.len()).unwrap(),
+                        (lookup_pos + 1..self.num_local_change_ids)
+                            .find_map(|lookup_pos| self.change_lookup_pos(lookup_pos).as_overflow())
+                            .unwrap_or(self.num_change_overflow_entries),
+                        "all overflow positions to the next change id should be collected"
+                    );
+                    (id, positions)
+                }
+            })
     }
 
     fn generation_number(&self, local_pos: LocalPosition) -> u32 {
@@ -609,14 +701,14 @@ impl PositionLookupResult {
         self,
         prefix: &HexPrefix,
         lookup: impl FnMut(u32) -> T,
-    ) -> PrefixResolution<T> {
+    ) -> PrefixResolution<(T, u32)> {
         let lookup_pos = self.result.unwrap_or_else(|pos| pos);
         let mut matches = (lookup_pos..self.size)
             .map(lookup)
             .take_while(|id| prefix.matches(id))
             .fuse();
         match (matches.next(), matches.next()) {
-            (Some(id), None) => PrefixResolution::SingleMatch(id),
+            (Some(id), None) => PrefixResolution::SingleMatch((id, lookup_pos)),
             (Some(_), Some(_)) => PrefixResolution::AmbiguousMatch,
             (None, _) => PrefixResolution::NoMatch,
         }

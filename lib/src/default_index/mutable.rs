@@ -391,7 +391,24 @@ impl IndexSegment for MutableIndexSegment {
 
     fn resolve_commit_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         let min_bytes_prefix = CommitId::from_bytes(prefix.min_prefix_bytes());
-        resolve_id_prefix(&self.commit_lookup, prefix, &min_bytes_prefix).map(|id| id.clone())
+        resolve_id_prefix(&self.commit_lookup, prefix, &min_bytes_prefix).map(|(id, _)| id.clone())
+    }
+
+    fn resolve_neighbor_change_ids(
+        &self,
+        change_id: &ChangeId,
+    ) -> (Option<ChangeId>, Option<ChangeId>) {
+        let (prev_id, next_id) = resolve_neighbor_ids(&self.change_lookup, change_id);
+        (prev_id.cloned(), next_id.cloned())
+    }
+
+    fn resolve_change_id_prefix(
+        &self,
+        prefix: &HexPrefix,
+    ) -> PrefixResolution<(ChangeId, SmallLocalPositionsVec)> {
+        let min_bytes_prefix = ChangeId::from_bytes(prefix.min_prefix_bytes());
+        resolve_id_prefix(&self.change_lookup, prefix, &min_bytes_prefix)
+            .map(|(id, positions)| (id.clone(), positions.clone()))
     }
 
     fn generation_number(&self, local_pos: LocalPosition) -> u32 {
@@ -551,14 +568,13 @@ fn resolve_id_prefix<'a, K: ObjectId + Ord, V>(
     lookup_table: &'a BTreeMap<K, V>,
     prefix: &HexPrefix,
     min_bytes_prefix: &K,
-) -> PrefixResolution<&'a K> {
+) -> PrefixResolution<(&'a K, &'a V)> {
     let mut matches = lookup_table
         .range((Bound::Included(min_bytes_prefix), Bound::Unbounded))
-        .map(|(id, _pos)| id)
-        .take_while(|&id| prefix.matches(id))
+        .take_while(|&(id, _)| prefix.matches(id))
         .fuse();
     match (matches.next(), matches.next()) {
-        (Some(id), None) => PrefixResolution::SingleMatch(id),
+        (Some(entry), None) => PrefixResolution::SingleMatch(entry),
         (Some(_), Some(_)) => PrefixResolution::AmbiguousMatch,
         (None, _) => PrefixResolution::NoMatch,
     }
