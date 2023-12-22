@@ -2971,7 +2971,7 @@ impl CliRunner {
         let config = layered_configs.merge();
         ui.reset(&config)?;
 
-        let string_args = expand_args(ui, &self.app, std::env::args_os(), &config)?;
+        let string_args = expand_args(ui, &self.app, env::args_os(), &config)?;
         let (matches, args) = parse_args(
             ui,
             &self.app,
@@ -2987,7 +2987,6 @@ impl CliRunner {
             // Invalid -R path is an error. No need to proceed.
             let loader = WorkspaceLoader::init(&cwd.join(path))
                 .map_err(|err| map_workspace_load_error(err, Some(path)))?;
-            // TODO: maybe show error/warning if command aliases expanded differently
             layered_configs.read_repo_config(loader.repo_path())?;
             Ok(loader)
         } else {
@@ -2997,6 +2996,19 @@ impl CliRunner {
         // Apply workspace configs and --config-toml arguments.
         let config = layered_configs.merge();
         ui.reset(&config)?;
+
+        // If -R is specified, check if the expanded arguments differ. Aliases
+        // can also be injected by --config-toml, but that's obviously wrong.
+        if args.global_args.repository.is_some() {
+            let new_string_args = expand_args(ui, &self.app, env::args_os(), &config).ok();
+            if new_string_args.as_ref() != Some(&string_args) {
+                writeln!(
+                    ui.warning(),
+                    "Command aliases cannot be loaded from -R/--repository path"
+                )?;
+            }
+        }
+
         let settings = UserSettings::from_config(config);
         let working_copy_factories = self
             .working_copy_factories
