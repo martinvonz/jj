@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
 use std::env;
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};
@@ -20,8 +21,8 @@ use std::sync::{Arc, Once};
 
 use itertools::Itertools;
 use jj_lib::backend::{
-    self, Backend, BackendInitError, ChangeId, FileId, MergedTreeId, MillisSinceEpoch, ObjectId,
-    Signature, Timestamp, TreeValue,
+    self, Backend, BackendInitError, ChangeId, CommitId, FileId, MergedTreeId, MillisSinceEpoch,
+    ObjectId, Signature, Timestamp, TreeValue,
 };
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
@@ -452,6 +453,32 @@ impl<'settings, 'repo> CommitGraphBuilder<'settings, 'repo> {
     }
 }
 
+pub fn assert_rebased_onto(
+    repo: &impl Repo,
+    rebased: &HashMap<CommitId, CommitId>,
+    expected_old_commit: &Commit,
+    expected_new_parent_ids: &[&CommitId],
+) -> Commit {
+    let new_commit_id = rebased.get(expected_old_commit.id()).unwrap_or_else(|| {
+        panic!(
+            "Expected commit to have been rebased: {}",
+            expected_old_commit.id().hex()
+        )
+    });
+    let new_commit = repo.store().get_commit(new_commit_id).unwrap().clone();
+    assert_eq!(new_commit.change_id(), expected_old_commit.change_id());
+    assert_eq!(
+        new_commit.parent_ids().to_vec(),
+        expected_new_parent_ids
+            .iter()
+            .map(|x| (*x).clone())
+            .collect_vec()
+    );
+    new_commit
+}
+
+// Short-term TODO: We will delete this function shortly; it will be replaced by
+// `assert_rebased_onto` above
 pub fn assert_rebased(
     rebased: Option<RebasedDescendant>,
     expected_old_commit: &Commit,

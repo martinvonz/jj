@@ -25,8 +25,8 @@ use jj_lib::rewrite::{
 use maplit::{hashmap, hashset};
 use test_case::test_case;
 use testutils::{
-    assert_rebased, create_random_commit, create_tree, write_random_commit, CommitGraphBuilder,
-    TestRepo,
+    assert_rebased, assert_rebased_onto, create_random_commit, create_tree, write_random_commit,
+    CommitGraphBuilder, TestRepo,
 };
 
 #[test]
@@ -87,19 +87,17 @@ fn test_rebase_descendants_sideways() {
     let commit_e = graph_builder.commit_with_parents(&[&commit_b]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_a]);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
-        tx.mut_repo(),
-        hashmap! {
-            commit_b.id().clone() => hashset!{commit_f.id().clone()}
-        },
-        hashset! {},
-    );
-    let new_commit_c = assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&commit_f]);
-    let new_commit_d = assert_rebased(rebaser.rebase_next().unwrap(), &commit_d, &[&new_commit_c]);
-    let new_commit_e = assert_rebased(rebaser.rebase_next().unwrap(), &commit_e, &[&commit_f]);
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 3);
+    tx.mut_repo()
+        .record_rewritten_commit(commit_b.id().clone(), commit_f.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    assert_eq!(rebase_map.len(), 3);
+    let new_commit_c = assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[commit_f.id()]);
+    let new_commit_d =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[new_commit_c.id()]);
+    let new_commit_e = assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_e, &[commit_f.id()]);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -143,21 +141,23 @@ fn test_rebase_descendants_forward() {
     let commit_f = graph_builder.commit_with_parents(&[&commit_d]);
     let commit_g = graph_builder.commit_with_parents(&[&commit_f]);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
-        tx.mut_repo(),
-        hashmap! {
-            commit_b.id().clone() => hashset!{commit_f.id().clone()}
-        },
-        hashset! {},
-    );
-    let new_commit_d = assert_rebased(rebaser.rebase_next().unwrap(), &commit_d, &[&commit_f]);
-    let new_commit_f = assert_rebased(rebaser.rebase_next().unwrap(), &commit_f, &[&new_commit_d]);
-    let new_commit_c = assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&new_commit_f]);
-    let new_commit_e = assert_rebased(rebaser.rebase_next().unwrap(), &commit_e, &[&new_commit_d]);
-    let new_commit_g = assert_rebased(rebaser.rebase_next().unwrap(), &commit_g, &[&new_commit_f]);
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 5);
+    tx.mut_repo()
+        .record_rewritten_commit(commit_b.id().clone(), commit_f.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    let new_commit_d =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[&commit_f.id()]);
+    let new_commit_f =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_f, &[&new_commit_d.id()]);
+    let new_commit_c =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[&new_commit_f.id()]);
+    let new_commit_e =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_e, &[&new_commit_d.id()]);
+    let new_commit_g =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_g, &[&new_commit_f.id()]);
+    assert_eq!(rebase_map.len(), 5);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -198,19 +198,19 @@ fn test_rebase_descendants_reorder() {
     let commit_h = graph_builder.commit_with_parents(&[&commit_f]);
     let commit_i = graph_builder.commit_with_parents(&[&commit_g]);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
-        tx.mut_repo(),
-        hashmap! {
-            commit_e.id().clone() => hashset!{commit_d.id().clone()},
-            commit_c.id().clone() => hashset!{commit_f.id().clone()},
-            commit_g.id().clone() => hashset!{commit_h.id().clone()},
-        },
-        hashset! {},
-    );
-    let new_commit_i = assert_rebased(rebaser.rebase_next().unwrap(), &commit_i, &[&commit_h]);
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 1);
+    tx.mut_repo()
+        .record_rewritten_commit(commit_e.id().clone(), commit_d.id().clone());
+    tx.mut_repo()
+        .record_rewritten_commit(commit_c.id().clone(), commit_f.id().clone());
+    tx.mut_repo()
+        .record_rewritten_commit(commit_g.id().clone(), commit_h.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    let new_commit_i =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_i, &[&commit_h.id()]);
+    assert_eq!(rebase_map.len(), 1);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -239,17 +239,15 @@ fn test_rebase_descendants_backward() {
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
     let commit_d = graph_builder.commit_with_parents(&[&commit_c]);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
-        tx.mut_repo(),
-        hashmap! {
-            commit_c.id().clone() => hashset!{commit_b.id().clone()}
-        },
-        hashset! {},
-    );
-    let new_commit_d = assert_rebased(rebaser.rebase_next().unwrap(), &commit_d, &[&commit_b]);
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 1);
+    tx.mut_repo()
+        .record_rewritten_commit(commit_c.id().clone(), commit_b.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    let new_commit_d =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[&commit_b.id()]);
+    assert_eq!(rebase_map.len(), 1);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -282,19 +280,19 @@ fn test_rebase_descendants_chain_becomes_branchy() {
     let commit_e = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_b]);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
-        tx.mut_repo(),
-        hashmap! {
-            commit_b.id().clone() => hashset!{commit_e.id().clone()},
-            commit_c.id().clone() => hashset!{commit_f.id().clone()},
-        },
-        hashset! {},
-    );
-    let new_commit_f = assert_rebased(rebaser.rebase_next().unwrap(), &commit_f, &[&commit_e]);
-    let new_commit_d = assert_rebased(rebaser.rebase_next().unwrap(), &commit_d, &[&new_commit_f]);
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 2);
+    tx.mut_repo()
+        .record_rewritten_commit(commit_b.id().clone(), commit_e.id().clone());
+    tx.mut_repo()
+        .record_rewritten_commit(commit_c.id().clone(), commit_f.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    let new_commit_f =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_f, &[&commit_e.id()]);
+    let new_commit_d =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[&new_commit_f.id()]);
+    assert_eq!(rebase_map.len(), 2);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -329,23 +327,23 @@ fn test_rebase_descendants_internal_merge() {
     let commit_e = graph_builder.commit_with_parents(&[&commit_c, &commit_d]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_a]);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
+    tx.mut_repo()
+        .record_rewritten_commit(commit_b.id().clone(), commit_f.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    let new_commit_c =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[&commit_f.id()]);
+    let new_commit_d =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[&commit_f.id()]);
+    let new_commit_e = assert_rebased_onto(
         tx.mut_repo(),
-        hashmap! {
-            commit_b.id().clone() => hashset!{commit_f.id().clone()}
-        },
-        hashset! {},
-    );
-    let new_commit_c = assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&commit_f]);
-    let new_commit_d = assert_rebased(rebaser.rebase_next().unwrap(), &commit_d, &[&commit_f]);
-    let new_commit_e = assert_rebased(
-        rebaser.rebase_next().unwrap(),
+        &rebase_map,
         &commit_e,
-        &[&new_commit_c, &new_commit_d],
+        &[&new_commit_c.id(), &new_commit_d.id()],
     );
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 3);
+    assert_eq!(rebase_map.len(), 3);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -379,21 +377,19 @@ fn test_rebase_descendants_external_merge() {
     let commit_e = graph_builder.commit_with_parents(&[&commit_c, &commit_d]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_a]);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
+    tx.mut_repo()
+        .record_rewritten_commit(commit_c.id().clone(), commit_f.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    let new_commit_e = assert_rebased_onto(
         tx.mut_repo(),
-        hashmap! {
-            commit_c.id().clone() => hashset!{commit_f.id().clone()}
-        },
-        hashset! {},
-    );
-    let new_commit_e = assert_rebased(
-        rebaser.rebase_next().unwrap(),
+        &rebase_map,
         &commit_e,
-        &[&commit_f, &commit_d],
+        &[&commit_f.id(), &commit_d.id()],
     );
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 1);
+    assert_eq!(rebase_map.len(), 1);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -425,17 +421,19 @@ fn test_rebase_descendants_abandon() {
     let commit_e = graph_builder.commit_with_parents(&[&commit_d]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_e]);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
-        tx.mut_repo(),
-        hashmap! {},
-        hashset! {commit_b.id().clone(), commit_e.id().clone()},
-    );
-    let new_commit_c = assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&commit_a]);
-    let new_commit_d = assert_rebased(rebaser.rebase_next().unwrap(), &commit_d, &[&commit_a]);
-    let new_commit_f = assert_rebased(rebaser.rebase_next().unwrap(), &commit_f, &[&new_commit_d]);
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 3);
+    tx.mut_repo().record_abandoned_commit(commit_b.id().clone());
+    tx.mut_repo().record_abandoned_commit(commit_e.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    let new_commit_c =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[&commit_a.id()]);
+    let new_commit_d =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[&commit_a.id()]);
+    let new_commit_f =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_f, &[&new_commit_d.id()]);
+    assert_eq!(rebase_map.len(), 3);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -463,14 +461,13 @@ fn test_rebase_descendants_abandon_no_descendants() {
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
-        tx.mut_repo(),
-        hashmap! {},
-        hashset! {commit_b.id().clone(), commit_c.id().clone()},
-    );
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 0);
+    tx.mut_repo().record_abandoned_commit(commit_b.id().clone());
+    tx.mut_repo().record_abandoned_commit(commit_c.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    assert_eq!(rebase_map.len(), 0);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -502,15 +499,16 @@ fn test_rebase_descendants_abandon_and_replace() {
     let commit_d = graph_builder.commit_with_parents(&[&commit_c]);
     let commit_e = graph_builder.commit_with_parents(&[&commit_a]);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
-        tx.mut_repo(),
-        hashmap! {commit_b.id().clone() => hashset!{commit_e.id().clone()}},
-        hashset! {commit_c.id().clone()},
-    );
-    let new_commit_d = assert_rebased(rebaser.rebase_next().unwrap(), &commit_d, &[&commit_e]);
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 1);
+    tx.mut_repo()
+        .record_rewritten_commit(commit_b.id().clone(), commit_e.id().clone());
+    tx.mut_repo().record_abandoned_commit(commit_c.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    let new_commit_d =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[&commit_e.id()]);
+    assert_eq!(rebase_map.len(), 1);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -518,6 +516,7 @@ fn test_rebase_descendants_abandon_and_replace() {
     );
 }
 
+// TODO(#2600): This behavior may need to change
 #[test]
 fn test_rebase_descendants_abandon_degenerate_merge() {
     let settings = testutils::user_settings();
@@ -539,15 +538,14 @@ fn test_rebase_descendants_abandon_degenerate_merge() {
     let commit_c = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_d = graph_builder.commit_with_parents(&[&commit_b, &commit_c]);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
-        tx.mut_repo(),
-        hashmap! {},
-        hashset! {commit_b.id().clone()},
-    );
-    let new_commit_d = assert_rebased(rebaser.rebase_next().unwrap(), &commit_d, &[&commit_c]);
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 1);
+    tx.mut_repo().record_abandoned_commit(commit_b.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    let new_commit_d =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[&commit_c.id()]);
+    assert_eq!(rebase_map.len(), 1);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -580,19 +578,18 @@ fn test_rebase_descendants_abandon_widen_merge() {
     let commit_e = graph_builder.commit_with_parents(&[&commit_b, &commit_c]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_e, &commit_d]);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
+    tx.mut_repo().record_abandoned_commit(commit_e.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    let new_commit_f = assert_rebased_onto(
         tx.mut_repo(),
-        hashmap! {},
-        hashset! {commit_e.id().clone()},
-    );
-    let new_commit_f = assert_rebased(
-        rebaser.rebase_next().unwrap(),
+        &rebase_map,
         &commit_f,
-        &[&commit_b, &commit_c, &commit_d],
+        &[&commit_b.id(), &commit_c.id(), &commit_d.id()],
     );
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 1);
+    assert_eq!(rebase_map.len(), 1);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -623,19 +620,19 @@ fn test_rebase_descendants_multiple_sideways() {
     let commit_e = graph_builder.commit_with_parents(&[&commit_d]);
     let commit_f = graph_builder.commit_with_parents(&[&commit_a]);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
-        tx.mut_repo(),
-        hashmap! {
-            commit_b.id().clone() => hashset!{commit_f.id().clone()},
-            commit_d.id().clone() => hashset!{commit_f.id().clone()},
-        },
-        hashset! {},
-    );
-    let new_commit_c = assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&commit_f]);
-    let new_commit_e = assert_rebased(rebaser.rebase_next().unwrap(), &commit_e, &[&commit_f]);
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 2);
+    tx.mut_repo()
+        .record_rewritten_commit(commit_b.id().clone(), commit_f.id().clone());
+    tx.mut_repo()
+        .record_rewritten_commit(commit_d.id().clone(), commit_f.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    let new_commit_c =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[&commit_f.id()]);
+    let new_commit_e =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_e, &[&commit_f.id()]);
+    assert_eq!(rebase_map.len(), 2);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -668,18 +665,15 @@ fn test_rebase_descendants_multiple_swap() {
     let commit_d = graph_builder.commit_with_parents(&[&commit_a]);
     let _commit_e = graph_builder.commit_with_parents(&[&commit_d]);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
-        tx.mut_repo(),
-        hashmap! {
-            commit_b.id().clone() => hashset!{commit_d.id().clone()},
-            commit_d.id().clone() => hashset!{commit_b.id().clone()},
-        },
-        hashset! {},
-    );
-    let _ = rebaser.rebase_next(); // Panics because of the cycle
+    tx.mut_repo()
+        .record_rewritten_commit(commit_b.id().clone(), commit_d.id().clone());
+    tx.mut_repo()
+        .record_rewritten_commit(commit_d.id().clone(), commit_b.id().clone());
+    let _ = tx.mut_repo().rebase_descendants_return_map(&settings); // Panics because of the cycle
 }
 
+// Unlike `test_rebase_descendants_multiple_swap`, this does not currently
+// panic, but it would probably be OK if it did.
 #[test]
 fn test_rebase_descendants_multiple_no_descendants() {
     let settings = testutils::user_settings();
@@ -697,17 +691,15 @@ fn test_rebase_descendants_multiple_no_descendants() {
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_c = graph_builder.commit_with_parents(&[&commit_a]);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
-        tx.mut_repo(),
-        hashmap! {
-            commit_b.id().clone() => hashset!{commit_c.id().clone()},
-            commit_c.id().clone() => hashset!{commit_b.id().clone()},
-        },
-        hashset! {},
-    );
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert!(rebaser.rebased().is_empty());
+    tx.mut_repo()
+        .record_rewritten_commit(commit_b.id().clone(), commit_c.id().clone());
+    tx.mut_repo()
+        .record_rewritten_commit(commit_c.id().clone(), commit_b.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    assert!(rebase_map.is_empty());
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -758,20 +750,24 @@ fn test_rebase_descendants_divergent_rewrite() {
     let commit_d3 = graph_builder.commit_with_parents(&[&commit_a]);
     let commit_f2 = graph_builder.commit_with_parents(&[&commit_a]);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
-        tx.mut_repo(),
-        hashmap! {
-            commit_b.id().clone() => hashset!{commit_b2.id().clone()},
-            commit_d.id().clone() => hashset!{commit_d2.id().clone(), commit_d3.id().clone()},
-            commit_f.id().clone() => hashset!{commit_f2.id().clone()},
-        },
-        hashset! {},
-    );
-    let new_commit_c = assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&commit_b2]);
-    let new_commit_g = assert_rebased(rebaser.rebase_next().unwrap(), &commit_g, &[&commit_f2]);
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 2);
+    tx.mut_repo()
+        .record_rewritten_commit(commit_b.id().clone(), commit_b2.id().clone());
+    // Commit D becomes divergent
+    tx.mut_repo()
+        .record_rewritten_commit(commit_d.id().clone(), commit_d2.id().clone());
+    tx.mut_repo()
+        .record_rewritten_commit(commit_d.id().clone(), commit_d3.id().clone());
+    tx.mut_repo()
+        .record_rewritten_commit(commit_f.id().clone(), commit_f2.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    let new_commit_c =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[commit_b2.id()]);
+    let new_commit_g =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_g, &[&commit_f2.id()]);
+    assert_eq!(rebase_map.len(), 2); // Commit E is not rebased
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -814,10 +810,12 @@ fn test_rebase_descendants_repeated() {
         .set_description("b2")
         .write()
         .unwrap();
-    let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
-    let commit_c2 = assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&commit_b2]);
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 1);
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    let commit_c2 = assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[commit_b2.id()]);
+    assert_eq!(rebase_map.len(), 1);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -827,9 +825,11 @@ fn test_rebase_descendants_repeated() {
     );
 
     // We made no more changes, so nothing should be rebased.
-    let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 0);
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    assert_eq!(rebase_map.len(), 0);
 
     // Now mark B3 as rewritten from B2 and rebase descendants again.
     let commit_b3 = tx
@@ -838,10 +838,12 @@ fn test_rebase_descendants_repeated() {
         .set_description("b3")
         .write()
         .unwrap();
-    let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
-    let commit_c3 = assert_rebased(rebaser.rebase_next().unwrap(), &commit_c2, &[&commit_b3]);
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 1);
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    let commit_c3 = assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c2, &[commit_b3.id()]);
+    assert_eq!(rebase_map.len(), 1);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
@@ -900,20 +902,16 @@ fn test_rebase_descendants_contents() {
         .write()
         .unwrap();
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
-        tx.mut_repo(),
-        hashmap! {
-            commit_b.id().clone() => hashset!{commit_d.id().clone()}
-        },
-        hashset! {},
-    );
-    rebaser.rebase_all().unwrap();
-    let rebased = rebaser.rebased();
-    assert_eq!(rebased.len(), 1);
+    tx.mut_repo()
+        .record_rewritten_commit(commit_b.id().clone(), commit_d.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    assert_eq!(rebase_map.len(), 1);
     let new_commit_c = repo
         .store()
-        .get_commit(rebased.get(commit_c.id()).unwrap())
+        .get_commit(rebase_map.get(commit_c.id()).unwrap())
         .unwrap();
 
     let tree_b = commit_b.tree().unwrap();

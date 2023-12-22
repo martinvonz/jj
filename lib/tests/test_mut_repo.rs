@@ -17,7 +17,7 @@ use jj_lib::op_store::{RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
 use jj_lib::repo::Repo;
 use maplit::hashset;
 use testutils::{
-    assert_rebased, create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo,
+    assert_rebased_onto, create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo,
 };
 
 #[test]
@@ -517,9 +517,7 @@ fn test_has_changed() {
 
 #[test]
 fn test_rebase_descendants_simple() {
-    // Tests that MutableRepo::create_descendant_rebaser() creates a
-    // DescendantRebaser that rebases descendants of rewritten and abandoned
-    // commits.
+    // There are many additional tests of this functionality in `test_rewrite.rs`.
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
@@ -539,24 +537,29 @@ fn test_rebase_descendants_simple() {
     let commit6 = graph_builder.commit_with_parents(&[&commit1]);
     mut_repo.record_rewritten_commit(commit2.id().clone(), commit6.id().clone());
     mut_repo.record_abandoned_commit(commit4.id().clone());
-    let mut rebaser = mut_repo.create_descendant_rebaser(&settings);
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
     // Commit 3 got rebased onto commit 2's replacement, i.e. commit 6
-    assert_rebased(rebaser.rebase_next().unwrap(), &commit3, &[&commit6]);
+    assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit3, &[commit6.id()]);
     // Commit 5 got rebased onto commit 4's parent, i.e. commit 1
-    assert_rebased(rebaser.rebase_next().unwrap(), &commit5, &[&commit1]);
-    assert!(rebaser.rebase_next().unwrap().is_none());
+    assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit5, &[commit1.id()]);
+    assert_eq!(rebase_map.len(), 2);
+
     // No more descendants to rebase if we try again.
-    assert!(mut_repo
-        .create_descendant_rebaser(&settings)
-        .rebase_next()
-        .unwrap()
-        .is_none());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    assert_eq!(rebase_map.len(), 0);
 }
 
 #[test]
 fn test_rebase_descendants_conflicting_rewrite() {
-    // Tests MutableRepo::create_descendant_rebaser() when a commit has been marked
-    // as rewritten to several other commits.
+    // Test rebasing descendants when one commit was rewritten to several other
+    // commits. There are many additional tests of this functionality in
+    // `test_rewrite.rs`.
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
@@ -575,16 +578,13 @@ fn test_rebase_descendants_conflicting_rewrite() {
     let commit5 = graph_builder.commit_with_parents(&[&commit1]);
     mut_repo.record_rewritten_commit(commit2.id().clone(), commit4.id().clone());
     mut_repo.record_rewritten_commit(commit2.id().clone(), commit5.id().clone());
-    let mut rebaser = mut_repo.create_descendant_rebaser(&settings);
     // Commit 3 does *not* get rebased because it's unclear if it should go onto
     // commit 4 or commit 5
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    // No more descendants to rebase if we try again.
-    assert!(mut_repo
-        .create_descendant_rebaser(&settings)
-        .rebase_next()
-        .unwrap()
-        .is_none());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    assert!(rebase_map.is_empty());
 }
 
 #[test]
