@@ -1647,7 +1647,6 @@ dependencies = [
  "async-trait",
  "backoff",
  "blake2",
- "byteorder",
  "bytes 1.5.0",
  "chrono",
  "config",
