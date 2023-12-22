@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fs;
+
 use itertools::Itertools as _;
 
 use crate::common::TestEnvironment;
@@ -236,5 +238,67 @@ fn test_alias_invalid_definition() {
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["non-string-list"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Alias definition for "non-string-list" must be a string list
+    "###);
+}
+
+#[test]
+fn test_alias_in_repo_config() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo1", "--git"]);
+    let repo1_path = test_env.env_root().join("repo1");
+    fs::create_dir(repo1_path.join("sub")).unwrap();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo2", "--git"]);
+    let repo2_path = test_env.env_root().join("repo2");
+    fs::create_dir(repo2_path.join("sub")).unwrap();
+
+    test_env.add_config(r#"aliases.l = ['log', '-r@', '--no-graph', '-T"user alias\n"']"#);
+    fs::write(
+        repo1_path.join(".jj/repo/config.toml"),
+        r#"aliases.l = ['log', '-r@', '--no-graph', '-T"repo1 alias\n"']"#,
+    )
+    .unwrap();
+
+    // In repo1 sub directory, aliases can be loaded from the repo1 config.
+    let stdout = test_env.jj_cmd_success(&repo1_path.join("sub"), &["l"]);
+    insta::assert_snapshot!(stdout, @r###"
+    repo1 alias
+    "###);
+
+    // In repo2 directory, no repo-local aliases exist.
+    let stdout = test_env.jj_cmd_success(&repo2_path, &["l"]);
+    insta::assert_snapshot!(stdout, @r###"
+    user alias
+    "###);
+
+    // Aliases can't be loaded from the -R path due to chicken and egg problem.
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo2_path, &["l", "-R", repo1_path.to_str().unwrap()]);
+    insta::assert_snapshot!(stdout, @r###"
+    user alias
+    "###);
+    insta::assert_snapshot!(stderr, @"");
+
+    // Aliases are loaded from the cwd-relative workspace even with -R.
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo1_path, &["l", "-R", repo2_path.to_str().unwrap()]);
+    insta::assert_snapshot!(stdout, @r###"
+    repo1 alias
+    "###);
+    insta::assert_snapshot!(stderr, @"");
+
+    // Config loaded from the cwd-relative workspace shouldn't persist. It's
+    // used only for command arguments expansion.
+    let stdout = test_env.jj_cmd_success(
+        &repo1_path,
+        &[
+            "config",
+            "list",
+            "aliases",
+            "-R",
+            repo2_path.to_str().unwrap(),
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    aliases.l=["log", "-r@", "--no-graph", "-T\"user alias\\n\""]
     "###);
 }

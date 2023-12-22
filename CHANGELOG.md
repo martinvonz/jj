@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+* Command aliases can now be loaded from repository config relative to the
+  current working directory.
+  [#2414](https://github.com/martinvonz/jj/issues/2414)
+
 
 ## [0.12.0] - 2023-12-05
 

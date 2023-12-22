@@ -2959,9 +2959,18 @@ impl CliRunner {
                 "Did you check-out a commit where the directory doesn't exist?",
             )
         })?;
+        // Use cwd-relative workspace configs to resolve default command and
+        // aliases. WorkspaceLoader::init() won't do any heavy lifting other
+        // than the path resolution.
+        let maybe_cwd_workspace_loader = WorkspaceLoader::init(find_workspace_dir(&cwd))
+            .map_err(|err| map_workspace_load_error(err, None));
         layered_configs.read_user_config()?;
+        if let Ok(loader) = &maybe_cwd_workspace_loader {
+            layered_configs.read_repo_config(loader.repo_path())?;
+        }
         let config = layered_configs.merge();
         ui.reset(&config)?;
+
         let string_args = expand_args(ui, &self.app, std::env::args_os(), &config)?;
         let (matches, args) = parse_args(
             ui,
@@ -2978,15 +2987,14 @@ impl CliRunner {
             // Invalid -R path is an error. No need to proceed.
             let loader = WorkspaceLoader::init(&cwd.join(path))
                 .map_err(|err| map_workspace_load_error(err, Some(path)))?;
+            // TODO: maybe show error/warning if command aliases expanded differently
+            layered_configs.read_repo_config(loader.repo_path())?;
             Ok(loader)
         } else {
-            WorkspaceLoader::init(find_workspace_dir(&cwd))
-                .map_err(|err| map_workspace_load_error(err, None))
+            maybe_cwd_workspace_loader
         };
-        if let Ok(loader) = &maybe_workspace_loader {
-            // TODO: maybe show error/warning if repo config contained command alias
-            layered_configs.read_repo_config(loader.repo_path())?;
-        }
+
+        // Apply workspace configs and --config-toml arguments.
         let config = layered_configs.merge();
         ui.reset(&config)?;
         let settings = UserSettings::from_config(config);
