@@ -200,6 +200,73 @@ impl<'a> CompositeIndex<'a> {
             .unwrap()
     }
 
+    /// Suppose the given `change_id` exists, returns the minimum prefix length
+    /// to disambiguate it within all the indexed ids including hidden ones.
+    #[cfg(test)] // TODO
+    pub(super) fn shortest_unique_change_id_prefix_len(&self, change_id: &ChangeId) -> usize {
+        let (prev_id, next_id) = self.resolve_neighbor_change_ids(change_id);
+        itertools::chain(prev_id, next_id)
+            .map(|id| hex_util::common_hex_len(change_id.as_bytes(), id.as_bytes()) + 1)
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// Suppose the given `change_id` exists, returns the previous and next
+    /// change ids in lexicographical order. The returned change ids may be
+    /// hidden.
+    #[cfg(test)] // TODO
+    pub(super) fn resolve_neighbor_change_ids(
+        &self,
+        change_id: &ChangeId,
+    ) -> (Option<ChangeId>, Option<ChangeId>) {
+        self.ancestor_index_segments()
+            .map(|segment| segment.resolve_neighbor_change_ids(change_id))
+            .reduce(|(acc_prev_id, acc_next_id), (prev_id, next_id)| {
+                (
+                    acc_prev_id.into_iter().chain(prev_id).max(),
+                    acc_next_id.into_iter().chain(next_id).min(),
+                )
+            })
+            .unwrap()
+    }
+
+    /// Resolves the given change id `prefix` to the associated entries. The
+    /// returned entries may be hidden.
+    ///
+    /// The returned index positions are sorted in ascending order.
+    #[cfg(test)] // TODO
+    pub(super) fn resolve_change_id_prefix(
+        &self,
+        prefix: &HexPrefix,
+    ) -> PrefixResolution<(ChangeId, SmallIndexPositionsVec)> {
+        use PrefixResolution::*;
+        self.ancestor_index_segments()
+            .fold(NoMatch, |acc_match, segment| {
+                if acc_match == AmbiguousMatch {
+                    return acc_match; // avoid checking the parent file(s)
+                }
+                let to_global_pos = {
+                    let num_parent_commits = segment.num_parent_commits();
+                    move |LocalPosition(pos)| IndexPosition(pos + num_parent_commits)
+                };
+                // Similar to PrefixResolution::plus(), but merges matches of the same id.
+                match (acc_match, segment.resolve_change_id_prefix(prefix)) {
+                    (NoMatch, local_match) => local_match.map(|(id, positions)| {
+                        (id, positions.into_iter().map(to_global_pos).collect())
+                    }),
+                    (acc_match, NoMatch) => acc_match,
+                    (AmbiguousMatch, _) => AmbiguousMatch,
+                    (_, AmbiguousMatch) => AmbiguousMatch,
+                    (SingleMatch((id1, _)), SingleMatch((id2, _))) if id1 != id2 => AmbiguousMatch,
+                    (SingleMatch((id, mut acc_positions)), SingleMatch((_, local_positions))) => {
+                        acc_positions
+                            .insert_many(0, local_positions.into_iter().map(to_global_pos));
+                        SingleMatch((id, acc_positions))
+                    }
+                }
+            })
+    }
+
     pub(super) fn is_ancestor_pos(
         &self,
         ancestor_pos: IndexPosition,

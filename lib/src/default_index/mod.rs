@@ -595,6 +595,9 @@ mod tests {
         let local_positions_vec = |positions: &[u32]| -> SmallLocalPositionsVec {
             positions.iter().copied().map(LocalPosition).collect()
         };
+        let index_positions_vec = |positions: &[u32]| -> SmallIndexPositionsVec {
+            positions.iter().copied().map(IndexPosition).collect()
+        };
 
         let id_0 = ChangeId::from_hex("00000001");
         let id_1 = ChangeId::from_hex("00999999");
@@ -681,6 +684,76 @@ mod tests {
         );
         assert_eq!(
             mutable_segment.resolve_change_id_prefix(&HexPrefix::new("05555").unwrap()),
+            PrefixResolution::AmbiguousMatch
+        );
+
+        let index = mutable_segment.as_composite();
+
+        // Global lookup with the full hex digits
+        assert_eq!(
+            index.resolve_change_id_prefix(&HexPrefix::new(&id_0.hex()).unwrap()),
+            PrefixResolution::SingleMatch((id_0.clone(), index_positions_vec(&[0])))
+        );
+        assert_eq!(
+            index.resolve_change_id_prefix(&HexPrefix::new(&id_1.hex()).unwrap()),
+            PrefixResolution::SingleMatch((id_1.clone(), index_positions_vec(&[1, 3, 9])))
+        );
+        assert_eq!(
+            index.resolve_change_id_prefix(&HexPrefix::new(&id_2.hex()).unwrap()),
+            PrefixResolution::SingleMatch((id_2.clone(), index_positions_vec(&[2, 4, 5])))
+        );
+        assert_eq!(
+            index.resolve_change_id_prefix(&HexPrefix::new(&id_3.hex()).unwrap()),
+            PrefixResolution::SingleMatch((id_3.clone(), index_positions_vec(&[6, 7])))
+        );
+        assert_eq!(
+            index.resolve_change_id_prefix(&HexPrefix::new(&id_4.hex()).unwrap()),
+            PrefixResolution::SingleMatch((id_4.clone(), index_positions_vec(&[8])))
+        );
+        assert_eq!(
+            index.resolve_change_id_prefix(&HexPrefix::new(&id_5.hex()).unwrap()),
+            PrefixResolution::SingleMatch((id_5.clone(), index_positions_vec(&[10])))
+        );
+
+        // Global lookup with unknown prefix
+        assert_eq!(
+            index.resolve_change_id_prefix(&HexPrefix::new("ffffffff").unwrap()),
+            PrefixResolution::NoMatch
+        );
+        assert_eq!(
+            index.resolve_change_id_prefix(&HexPrefix::new("00000002").unwrap()),
+            PrefixResolution::NoMatch
+        );
+
+        // Global lookup with globally unique prefix
+        assert_eq!(
+            index.resolve_change_id_prefix(&HexPrefix::new("000").unwrap()),
+            PrefixResolution::SingleMatch((id_0.clone(), index_positions_vec(&[0])))
+        );
+        assert_eq!(
+            index.resolve_change_id_prefix(&HexPrefix::new("055553").unwrap()),
+            PrefixResolution::SingleMatch((id_5.clone(), index_positions_vec(&[10])))
+        );
+
+        // Global lookup with globally unique prefix stored in both parts
+        assert_eq!(
+            index.resolve_change_id_prefix(&HexPrefix::new("009").unwrap()),
+            PrefixResolution::SingleMatch((id_1.clone(), index_positions_vec(&[1, 3, 9])))
+        );
+
+        // Global lookup with locally ambiguous prefix
+        assert_eq!(
+            index.resolve_change_id_prefix(&HexPrefix::new("00").unwrap()),
+            PrefixResolution::AmbiguousMatch
+        );
+        assert_eq!(
+            index.resolve_change_id_prefix(&HexPrefix::new("05555").unwrap()),
+            PrefixResolution::AmbiguousMatch
+        );
+
+        // Global lookup with locally unique but globally ambiguous prefix
+        assert_eq!(
+            index.resolve_change_id_prefix(&HexPrefix::new("0554").unwrap()),
             PrefixResolution::AmbiguousMatch
         );
     }
@@ -780,6 +853,114 @@ mod tests {
         assert_eq!(
             mutable_segment.resolve_neighbor_change_ids(&ChangeId::from_hex("ffffffff")),
             (Some(id_4.clone()), None),
+        );
+
+        let index = mutable_segment.as_composite();
+
+        // Global lookup, change_id exists.
+        // id_0 < id_1 < id_3 < id_2 < id_5 < id_4
+        assert_eq!(
+            index.resolve_neighbor_change_ids(&id_0),
+            (None, Some(id_1.clone())),
+        );
+        assert_eq!(
+            index.resolve_neighbor_change_ids(&id_1),
+            (Some(id_0.clone()), Some(id_3.clone())),
+        );
+        assert_eq!(
+            index.resolve_neighbor_change_ids(&id_3),
+            (Some(id_1.clone()), Some(id_2.clone())),
+        );
+        assert_eq!(
+            index.resolve_neighbor_change_ids(&id_2),
+            (Some(id_3.clone()), Some(id_5.clone())),
+        );
+        assert_eq!(
+            index.resolve_neighbor_change_ids(&id_5),
+            (Some(id_2.clone()), Some(id_4.clone())),
+        );
+        assert_eq!(
+            index.resolve_neighbor_change_ids(&id_4),
+            (Some(id_5.clone()), None),
+        );
+
+        // Global lookup, change_id doesn't exist.
+        // id_0 < id_1 < id_3 < id_2 < id_5 < id_4
+        assert_eq!(
+            index.resolve_neighbor_change_ids(&ChangeId::from_hex("00000000")),
+            (None, Some(id_0.clone())),
+        );
+        assert_eq!(
+            index.resolve_neighbor_change_ids(&ChangeId::from_hex("01000000")),
+            (Some(id_1.clone()), Some(id_3.clone())),
+        );
+        assert_eq!(
+            index.resolve_neighbor_change_ids(&ChangeId::from_hex("05544555")),
+            (Some(id_3.clone()), Some(id_2.clone())),
+        );
+        assert_eq!(
+            index.resolve_neighbor_change_ids(&ChangeId::from_hex("ffffffff")),
+            (Some(id_4.clone()), None),
+        );
+    }
+
+    #[test]
+    fn shortest_unique_change_id_prefix() {
+        let temp_dir = testutils::new_temp_dir();
+        let mut new_commit_id = commit_id_generator();
+
+        let id_0 = ChangeId::from_hex("00000001");
+        let id_1 = ChangeId::from_hex("00999999");
+        let id_2 = ChangeId::from_hex("05548888");
+        let id_3 = ChangeId::from_hex("05544444");
+        let id_4 = ChangeId::from_hex("05555555");
+        let id_5 = ChangeId::from_hex("05555333");
+
+        // Create some commits with different various common prefixes.
+        let mut mutable_segment = MutableIndexSegment::full(16, 4);
+        mutable_segment.add_commit_data(new_commit_id(), id_0.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_1.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_2.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_1.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_2.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_2.clone(), &[]);
+
+        // Write these commits to one file and build the remainder on top.
+        let initial_file = mutable_segment.save_in(temp_dir.path()).unwrap();
+        mutable_segment = MutableIndexSegment::incremental(initial_file.clone());
+
+        mutable_segment.add_commit_data(new_commit_id(), id_3.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_3.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_4.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_1.clone(), &[]);
+        mutable_segment.add_commit_data(new_commit_id(), id_5.clone(), &[]);
+
+        let index = mutable_segment.as_composite();
+
+        // Calculate shortest unique prefix len with known change_id
+        assert_eq!(index.shortest_unique_change_id_prefix_len(&id_0), 3);
+        assert_eq!(index.shortest_unique_change_id_prefix_len(&id_1), 3);
+        assert_eq!(index.shortest_unique_change_id_prefix_len(&id_2), 5);
+        assert_eq!(index.shortest_unique_change_id_prefix_len(&id_3), 5);
+        assert_eq!(index.shortest_unique_change_id_prefix_len(&id_4), 6);
+        assert_eq!(index.shortest_unique_change_id_prefix_len(&id_5), 6);
+
+        // Calculate shortest unique prefix len with unknown change_id
+        assert_eq!(
+            index.shortest_unique_change_id_prefix_len(&ChangeId::from_hex("00000002")),
+            8
+        );
+        assert_eq!(
+            index.shortest_unique_change_id_prefix_len(&ChangeId::from_hex("01000000")),
+            2
+        );
+        assert_eq!(
+            index.shortest_unique_change_id_prefix_len(&ChangeId::from_hex("05555344")),
+            7
+        );
+        assert_eq!(
+            index.shortest_unique_change_id_prefix_len(&ChangeId::from_hex("ffffffff")),
+            1
         );
     }
 
