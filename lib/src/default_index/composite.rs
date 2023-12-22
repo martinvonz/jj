@@ -30,7 +30,6 @@ use super::rev_walk::RevWalk;
 use super::revset_engine;
 use crate::backend::{ChangeId, CommitId};
 use crate::hex_util;
-use crate::id_prefix::{IdIndex, IdIndexSource, IdIndexSourceEntry};
 use crate::index::{AllHeadsForGcUnsupported, ChangeIdIndex, Index};
 use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
@@ -202,7 +201,6 @@ impl<'a> CompositeIndex<'a> {
 
     /// Suppose the given `change_id` exists, returns the minimum prefix length
     /// to disambiguate it within all the indexed ids including hidden ones.
-    #[cfg(test)] // TODO
     pub(super) fn shortest_unique_change_id_prefix_len(&self, change_id: &ChangeId) -> usize {
         let (prev_id, next_id) = self.resolve_neighbor_change_ids(change_id);
         itertools::chain(prev_id, next_id)
@@ -214,7 +212,6 @@ impl<'a> CompositeIndex<'a> {
     /// Suppose the given `change_id` exists, returns the previous and next
     /// change ids in lexicographical order. The returned change ids may be
     /// hidden.
-    #[cfg(test)] // TODO
     pub(super) fn resolve_neighbor_change_ids(
         &self,
         change_id: &ChangeId,
@@ -234,7 +231,6 @@ impl<'a> CompositeIndex<'a> {
     /// returned entries may be hidden.
     ///
     /// The returned index positions are sorted in ascending order.
-    #[cfg(test)] // TODO
     pub(super) fn resolve_change_id_prefix(
         &self,
         prefix: &HexPrefix,
@@ -500,50 +496,73 @@ impl Index for CompositeIndex<'_> {
 
 pub(super) struct ChangeIdIndexImpl<I> {
     index: I,
-    pos_by_change: IdIndex<ChangeId, IndexPosition, 4>,
+    reachable_bitset: Vec<u64>,
 }
 
 impl<I: AsCompositeIndex> ChangeIdIndexImpl<I> {
     pub fn new(index: I, heads: &mut dyn Iterator<Item = &CommitId>) -> ChangeIdIndexImpl<I> {
-        let mut pos_by_change = IdIndex::builder();
+        // TODO: Calculate reachable bitset lazily.
         let composite = index.as_composite();
+        let bitset_len =
+            usize::try_from(u32::div_ceil(composite.num_commits(), u64::BITS)).unwrap();
+        let mut reachable_bitset = vec![0; bitset_len]; // request zeroed page
         let head_positions = heads
             .map(|id| composite.commit_id_to_pos(id).unwrap())
             .collect_vec();
         for entry in composite.walk_revs(&head_positions, &[]) {
-            pos_by_change.insert(&entry.change_id(), entry.position());
+            let IndexPosition(pos) = entry.position();
+            let bitset_pos = pos / u64::BITS;
+            let bit = 1_u64 << (pos % u64::BITS);
+            reachable_bitset[usize::try_from(bitset_pos).unwrap()] |= bit;
         }
-        Self {
+        ChangeIdIndexImpl {
             index,
-            pos_by_change: pos_by_change.build(),
+            reachable_bitset,
         }
     }
 }
 
 impl<I: AsCompositeIndex + Send + Sync> ChangeIdIndex for ChangeIdIndexImpl<I> {
+    /// Resolves change id prefix among all ids, then filters out hidden
+    /// entries.
+    ///
+    /// If `SingleMatch` is returned, the commits including in the set are all
+    /// visible. `AmbiguousMatch` may be returned even if the prefix is unique
+    /// within the visible entries.
     fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
-        self.pos_by_change
-            .resolve_prefix_with(self.index.as_composite(), prefix, |entry| entry.commit_id())
-            .map(|(_, commit_ids)| commit_ids)
+        let index = self.index.as_composite();
+        match index.resolve_change_id_prefix(prefix) {
+            PrefixResolution::NoMatch => PrefixResolution::NoMatch,
+            PrefixResolution::SingleMatch((_change_id, positions)) => {
+                let reachable_commit_ids = positions
+                    .iter()
+                    .filter(|IndexPosition(pos)| {
+                        let bitset_pos = pos / u64::BITS;
+                        let bit = 1_u64 << (pos % u64::BITS);
+                        let bits = self.reachable_bitset[usize::try_from(bitset_pos).unwrap()];
+                        bits & bit != 0
+                    })
+                    .map(|&pos| index.entry_by_pos(pos).commit_id())
+                    .collect_vec();
+                if reachable_commit_ids.is_empty() {
+                    PrefixResolution::NoMatch
+                } else {
+                    PrefixResolution::SingleMatch(reachable_commit_ids)
+                }
+            }
+            PrefixResolution::AmbiguousMatch => PrefixResolution::AmbiguousMatch,
+        }
     }
 
+    /// Calculates the shortest prefix length of the given `change_id` among all
+    /// ids including hidden entries.
+    ///
+    /// The returned length is usually a few digits longer than the minimum
+    /// length to disambiguate within the visible entries.
     fn shortest_unique_prefix_len(&self, change_id: &ChangeId) -> usize {
-        self.pos_by_change
-            .shortest_unique_prefix_len(self.index.as_composite(), change_id)
-    }
-}
-
-impl<'index> IdIndexSource<IndexPosition> for CompositeIndex<'index> {
-    type Entry = IndexEntry<'index>;
-
-    fn entry_at(&self, pointer: &IndexPosition) -> Self::Entry {
-        self.entry_by_pos(*pointer)
-    }
-}
-
-impl IdIndexSourceEntry<ChangeId> for IndexEntry<'_> {
-    fn to_key(&self) -> ChangeId {
-        self.change_id()
+        self.index
+            .as_composite()
+            .shortest_unique_change_id_prefix_len(change_id)
     }
 }
 

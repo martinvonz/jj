@@ -821,14 +821,10 @@ fn test_change_id_index() {
     // No match
     assert_eq!(resolve_prefix("ba"), PrefixResolution::NoMatch);
 
-    // Test with a revset containing only some of the commits. We should get shorter
-    // prefixes and be able to resolve shorter prefixes.
+    // Test with an index containing only some of the commits. The shortest
+    // length doesn't have to be minimized further, but unreachable commits
+    // should never be included in the resolved set.
     let change_id_index = index_for_heads(&[&commit_1, &commit_2]);
-    let prefix_len =
-        |commit: &Commit| change_id_index.shortest_unique_prefix_len(commit.change_id());
-    assert_eq!(prefix_len(&commit_1), 2);
-    assert_eq!(prefix_len(&commit_2), 2);
-    assert_eq!(prefix_len(&commit_3), 6);
     let resolve_prefix = |prefix: &str| {
         change_id_index
             .resolve_prefix(&HexPrefix::new(prefix).unwrap())
@@ -839,13 +835,10 @@ fn test_change_id_index() {
         PrefixResolution::SingleMatch(hashset! {root_commit.id().clone()})
     );
     assert_eq!(
-        resolve_prefix("aa"),
+        resolve_prefix("aaaaab"),
         PrefixResolution::SingleMatch(hashset! {commit_2.id().clone()})
     );
-    assert_eq!(
-        resolve_prefix("ab"),
-        PrefixResolution::SingleMatch(hashset! {commit_1.id().clone()})
-    );
+    assert_eq!(resolve_prefix("aaaaaa"), PrefixResolution::NoMatch);
     assert_eq!(resolve_prefix("a"), PrefixResolution::AmbiguousMatch);
     assert_eq!(resolve_prefix("b"), PrefixResolution::NoMatch);
 }
