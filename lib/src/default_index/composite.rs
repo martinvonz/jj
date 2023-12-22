@@ -23,6 +23,7 @@ use itertools::Itertools;
 
 use super::entry::{
     IndexEntry, IndexPosition, IndexPositionByGeneration, LocalPosition, SmallIndexPositionsVec,
+    SmallLocalPositionsVec,
 };
 use super::readonly::ReadonlyIndexSegment;
 use super::rev_walk::RevWalk;
@@ -54,6 +55,16 @@ pub(super) trait IndexSegment: Send + Sync {
     ) -> (Option<CommitId>, Option<CommitId>);
 
     fn resolve_commit_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId>;
+
+    fn resolve_neighbor_change_ids(
+        &self,
+        change_id: &ChangeId,
+    ) -> (Option<ChangeId>, Option<ChangeId>);
+
+    fn resolve_change_id_prefix(
+        &self,
+        prefix: &HexPrefix,
+    ) -> PrefixResolution<(ChangeId, SmallLocalPositionsVec)>;
 
     fn generation_number(&self, local_pos: LocalPosition) -> u32;
 
