@@ -276,7 +276,9 @@ fn test_alias_in_repo_config() {
     insta::assert_snapshot!(stdout, @r###"
     user alias
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Command aliases cannot be loaded from -R/--repository path
+    "###);
 
     // Aliases are loaded from the cwd-relative workspace even with -R.
     let (stdout, stderr) =
@@ -284,6 +286,14 @@ fn test_alias_in_repo_config() {
     insta::assert_snapshot!(stdout, @r###"
     repo1 alias
     "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Command aliases cannot be loaded from -R/--repository path
+    "###);
+
+    // No warning if the expanded command is identical.
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo1_path, &["files", "-R", repo2_path.to_str().unwrap()]);
+    insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
 
     // Config loaded from the cwd-relative workspace shouldn't persist. It's
