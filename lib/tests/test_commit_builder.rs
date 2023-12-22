@@ -19,7 +19,7 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::settings::UserSettings;
 use test_case::test_case;
-use testutils::{assert_rebased, create_tree, CommitGraphBuilder, TestRepo, TestRepoBackend};
+use testutils::{assert_rebased_onto, create_tree, CommitGraphBuilder, TestRepo, TestRepoBackend};
 
 fn to_owned_path_vec(paths: &[&RepoPath]) -> Vec<RepoPathBuf> {
     paths.iter().map(|&path| path.to_owned()).collect()
@@ -269,8 +269,11 @@ fn test_commit_builder_descendants(backend: TestRepoBackend) {
         )
         .write()
         .unwrap();
-    let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
-    assert!(rebaser.rebase_next().unwrap().is_none());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    assert_eq!(rebase_map.len(), 0);
 
     // Test with for_rewrite_from()
     let mut tx = repo.start_transaction(&settings);
@@ -279,9 +282,12 @@ fn test_commit_builder_descendants(backend: TestRepoBackend) {
         .rewrite_commit(&settings, &commit2)
         .write()
         .unwrap();
-    let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
-    assert_rebased(rebaser.rebase_next().unwrap(), &commit3, &[&commit4]);
-    assert!(rebaser.rebase_next().unwrap().is_none());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit3, &[commit4.id()]);
+    assert_eq!(rebase_map.len(), 1);
 
     // Test with for_rewrite_from() but new change id
     let mut tx = repo.start_transaction(&settings);
@@ -290,6 +296,9 @@ fn test_commit_builder_descendants(backend: TestRepoBackend) {
         .generate_new_change_id()
         .write()
         .unwrap();
-    let mut rebaser = tx.mut_repo().create_descendant_rebaser(&settings);
-    assert!(rebaser.rebase_next().unwrap().is_none());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_return_map(&settings)
+        .unwrap();
+    assert!(rebase_map.is_empty());
 }
