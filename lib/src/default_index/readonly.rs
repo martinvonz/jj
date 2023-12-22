@@ -652,7 +652,6 @@ impl ReadonlyIndex for DefaultReadonlyIndex {
         self
     }
 
-    // TODO: Create a persistent lookup from change id to commit ids.
     fn change_id_index(
         &self,
         heads: &mut dyn Iterator<Item = &CommitId>,
