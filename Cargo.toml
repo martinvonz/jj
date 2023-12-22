@@ -23,7 +23,6 @@ assert_matches = "1.5.0"
 async-trait = "0.1.75"
 backoff = "0.4.0"
 blake2 = "0.10.6"
-byteorder = "1.5.0"
 bytes = "1.5.0"
 cargo_metadata = "0.17.0"
 clap = { version = "4.4.11", features = ["derive", "deprecated", "wrap_help"] }
