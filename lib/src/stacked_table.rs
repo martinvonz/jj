@@ -182,9 +182,7 @@ impl<'table> ReadonlyTableIndexEntry<'table> {
     }
 
     fn value_offset(&self) -> usize {
-        (&self.data[self.data.len() - 4..self.data.len()])
-            .read_u32::<LittleEndian>()
-            .unwrap() as usize
+        u32::from_le_bytes(self.data[self.data.len() - 4..].try_into().unwrap()) as usize
     }
 }
 
