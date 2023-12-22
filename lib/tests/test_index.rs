@@ -624,9 +624,11 @@ fn test_reindex_corrupt_segment_files() {
         let entry = entry.unwrap();
         // u32: file format version
         // u32: parent segment file name length (0 means root)
-        // u32: number of local entries
+        // u32: number of local commit entries
+        // u32: number of local change ids
         // u32: number of overflow parent entries
-        fs::write(entry.path(), b"\0".repeat(16)).unwrap()
+        // u32: number of overflow change id positions
+        fs::write(entry.path(), b"\0".repeat(24)).unwrap()
     }
 
     let repo = load_repo_at_head(&settings, repo.repo_path());

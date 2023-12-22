@@ -38,6 +38,7 @@ pub(super) struct LocalPosition(pub(super) u32);
 // SmallVec reuses two pointer-size fields as inline area, which meas we can
 // inline up to 16 bytes (on 64-bit platform) for free.
 pub(super) type SmallIndexPositionsVec = SmallVec<[IndexPosition; 4]>;
+pub(super) type SmallLocalPositionsVec = SmallVec<[LocalPosition; 4]>;
 
 #[derive(Clone)]
 pub struct IndexEntry<'a> {
