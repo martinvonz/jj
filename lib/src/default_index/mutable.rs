@@ -16,7 +16,7 @@
 
 use std::any::Any;
 use std::cmp::max;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::io;
 use std::io::Write;
 use std::ops::Bound;
@@ -26,11 +26,11 @@ use std::sync::Arc;
 use blake2::Blake2b512;
 use digest::Digest;
 use itertools::Itertools;
-use smallvec::SmallVec;
+use smallvec::{smallvec, SmallVec};
 use tempfile::NamedTempFile;
 
 use super::composite::{AsCompositeIndex, ChangeIdIndexImpl, CompositeIndex, IndexSegment};
-use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec};
+use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec, SmallLocalPositionsVec};
 use super::readonly::{
     DefaultReadonlyIndex, ReadonlyIndexSegment, INDEX_SEGMENT_FILE_FORMAT_VERSION, OVERFLOW_FLAG,
 };
@@ -57,6 +57,7 @@ pub(super) struct MutableIndexSegment {
     change_id_length: usize,
     graph: Vec<MutableGraphEntry>,
     commit_lookup: BTreeMap<CommitId, LocalPosition>,
+    change_lookup: BTreeMap<ChangeId, SmallLocalPositionsVec>,
 }
 
 impl MutableIndexSegment {
@@ -68,6 +69,7 @@ impl MutableIndexSegment {
             change_id_length,
             graph: vec![],
             commit_lookup: BTreeMap::new(),
+            change_lookup: BTreeMap::new(),
         }
     }
 
@@ -82,6 +84,7 @@ impl MutableIndexSegment {
             change_id_length,
             graph: vec![],
             commit_lookup: BTreeMap::new(),
+            change_lookup: BTreeMap::new(),
         }
     }
 
@@ -123,10 +126,14 @@ impl MutableIndexSegment {
             );
             entry.parent_positions.push(parent_entry.position());
         }
-        self.commit_lookup.insert(
-            entry.commit_id.clone(),
-            LocalPosition(u32::try_from(self.graph.len()).unwrap()),
-        );
+        let local_pos = LocalPosition(u32::try_from(self.graph.len()).unwrap());
+        self.commit_lookup
+            .insert(entry.commit_id.clone(), local_pos);
+        self.change_lookup
+            .entry(entry.change_id.clone())
+            // positions are inherently sorted
+            .and_modify(|positions| positions.push(local_pos))
+            .or_insert(smallvec![local_pos]);
         self.graph.push(entry);
     }
 
@@ -187,12 +194,28 @@ impl MutableIndexSegment {
 
     fn serialize_local_entries(&self, buf: &mut Vec<u8>) {
         assert_eq!(self.graph.len(), self.commit_lookup.len());
+        debug_assert_eq!(
+            self.graph.len(),
+            self.change_lookup.values().flatten().count()
+        );
 
         let num_commits = u32::try_from(self.graph.len()).unwrap();
         buf.extend(num_commits.to_le_bytes());
-        // We'll write the actual value later
+        let num_change_ids = u32::try_from(self.change_lookup.len()).unwrap();
+        buf.extend(num_change_ids.to_le_bytes());
+        // We'll write the actual values later
         let parent_overflow_offset = buf.len();
         buf.extend(0_u32.to_le_bytes());
+        let change_overflow_offset = buf.len();
+        buf.extend(0_u32.to_le_bytes());
+
+        // Positions of change ids in the sorted table
+        let change_id_pos_map: HashMap<&ChangeId, u32> = self
+            .change_lookup
+            .keys()
+            .enumerate()
+            .map(|(i, change_id)| (change_id, u32::try_from(i).unwrap()))
+            .collect();
 
         let mut parent_overflow = vec![];
         for entry in &self.graph {
@@ -225,8 +248,7 @@ impl MutableIndexSegment {
                 }
             }
 
-            assert_eq!(entry.change_id.as_bytes().len(), self.change_id_length);
-            buf.extend_from_slice(entry.change_id.as_bytes());
+            buf.extend(change_id_pos_map[&entry.change_id].to_le_bytes());
 
             assert_eq!(entry.commit_id.as_bytes().len(), self.commit_id_length);
             buf.extend_from_slice(entry.commit_id.as_bytes());
@@ -237,9 +259,38 @@ impl MutableIndexSegment {
             buf.extend(pos.to_le_bytes());
         }
 
+        for change_id in self.change_lookup.keys() {
+            assert_eq!(change_id.as_bytes().len(), self.change_id_length);
+            buf.extend_from_slice(change_id.as_bytes());
+        }
+
+        let mut change_overflow = vec![];
+        for positions in self.change_lookup.values() {
+            match positions.as_slice() {
+                [] => panic!("change id lookup entry must not be empty"),
+                // Optimize for imported commits
+                [LocalPosition(pos1)] => {
+                    assert!(*pos1 < OVERFLOW_FLAG);
+                    buf.extend(pos1.to_le_bytes());
+                }
+                positions => {
+                    let overflow_pos = u32::try_from(change_overflow.len()).unwrap();
+                    assert!(overflow_pos < OVERFLOW_FLAG);
+                    buf.extend((!overflow_pos).to_le_bytes());
+                    change_overflow.extend_from_slice(positions);
+                }
+            }
+        }
+
         let num_parent_overflow = u32::try_from(parent_overflow.len()).unwrap();
         buf[parent_overflow_offset..][..4].copy_from_slice(&num_parent_overflow.to_le_bytes());
         for IndexPosition(pos) in parent_overflow {
+            buf.extend(pos.to_le_bytes());
+        }
+
+        let num_change_overflow = u32::try_from(change_overflow.len()).unwrap();
+        buf[change_overflow_offset..][..4].copy_from_slice(&num_change_overflow.to_le_bytes());
+        for LocalPosition(pos) in change_overflow {
             buf.extend(pos.to_le_bytes());
         }
     }
