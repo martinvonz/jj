@@ -885,7 +885,7 @@ impl MutableRepo {
     /// Creates a `DescendantRebaser` to rebase descendants of the recorded
     /// rewritten and abandoned commits.
     // TODO(ilyagr): Inline this. It's only used in tests.
-    pub fn create_descendant_rebaser<'settings, 'repo>(
+    fn create_descendant_rebaser<'settings, 'repo>(
         &'repo mut self,
         settings: &'settings UserSettings,
     ) -> DescendantRebaser<'settings, 'repo> {
