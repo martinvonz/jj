@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fs;
 use std::sync::Arc;
 
-use jj_lib::backend::CommitId;
+use jj_lib::backend::{CommitId, ObjectId as _};
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::default_index::{
@@ -24,7 +25,8 @@ use jj_lib::index::Index as _;
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jj_lib::settings::UserSettings;
 use testutils::{
-    create_random_commit, load_repo_at_head, write_random_commit, CommitGraphBuilder, TestRepo,
+    commit_transactions, create_random_commit, load_repo_at_head, write_random_commit,
+    CommitGraphBuilder, TestRepo,
 };
 
 fn child_commit<'repo>(
@@ -529,6 +531,55 @@ fn test_index_commits_incremental_squashed() {
     let repo = create_n_commits(&settings, &repo, 10);
     let repo = create_n_commits(&settings, &repo, 10);
     assert_eq!(commits_by_level(&repo), vec![71, 20]);
+}
+
+#[test]
+fn test_reindex_from_merged_operation() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    // The following operation log:
+    // x (add head, index will be missing)
+    // x (add head, index will be missing)
+    // |\
+    // o o (remove head)
+    // o o (add head)
+    // |/
+    // o
+    let mut txs = Vec::new();
+    for _ in 0..2 {
+        let mut tx = repo.start_transaction(&settings);
+        let commit = write_random_commit(tx.mut_repo(), &settings);
+        let repo = tx.commit("test");
+        let mut tx = repo.start_transaction(&settings);
+        tx.mut_repo().remove_head(commit.id());
+        txs.push(tx);
+    }
+    let repo = commit_transactions(&settings, txs);
+    let mut op_ids_to_delete = Vec::new();
+    op_ids_to_delete.push(repo.op_id());
+    let mut tx = repo.start_transaction(&settings);
+    write_random_commit(tx.mut_repo(), &settings);
+    let repo = tx.commit("test");
+    op_ids_to_delete.push(repo.op_id());
+    let operation_to_reload = repo.operation();
+
+    // Sanity check before corrupting the index store
+    let index = as_readonly_composite(&repo);
+    assert_eq!(index.num_commits(), 4);
+
+    let index_operations_dir = repo.repo_path().join("index").join("operations");
+    for &op_id in &op_ids_to_delete {
+        fs::remove_file(index_operations_dir.join(op_id.hex())).unwrap();
+    }
+
+    // When re-indexing, one of the merge parent operations will be selected as
+    // the parent index segment. The commits in the other side should still be
+    // reachable.
+    let repo = repo.reload_at(operation_to_reload).unwrap();
+    let index = as_readonly_composite(&repo);
+    assert_eq!(index.num_commits(), 4);
 }
 
 /// Test that .jj/repo/index/type is created when the repo is created, and that
