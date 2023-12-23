@@ -129,7 +129,7 @@ impl MutableIndexSegment {
 
     pub(super) fn add_commits_from(&mut self, other_segment: &dyn IndexSegment) {
         let other = CompositeIndex::new(other_segment);
-        for pos in other_segment.segment_num_parent_commits()..other.num_commits() {
+        for pos in other_segment.num_parent_commits()..other.num_commits() {
             let entry = other.entry_by_pos(IndexPosition(pos));
             let parent_ids = entry.parents().map(|entry| entry.commit_id()).collect_vec();
             self.add_commit_data(entry.commit_id(), entry.change_id(), &parent_ids);
@@ -147,7 +147,7 @@ impl MutableIndexSegment {
             let other_ancestor = maybe_other_ancestor.as_ref().unwrap();
             if maybe_own_ancestor.is_none() {
                 files_to_add.push(other_ancestor.clone());
-                maybe_other_ancestor = other_ancestor.segment_parent_file().cloned();
+                maybe_other_ancestor = other_ancestor.parent_file().cloned();
                 continue;
             }
             let own_ancestor = maybe_own_ancestor.as_ref().unwrap();
@@ -158,9 +158,9 @@ impl MutableIndexSegment {
                 < other_ancestor.as_composite().num_commits()
             {
                 files_to_add.push(other_ancestor.clone());
-                maybe_other_ancestor = other_ancestor.segment_parent_file().cloned();
+                maybe_other_ancestor = other_ancestor.parent_file().cloned();
             } else {
-                maybe_own_ancestor = own_ancestor.segment_parent_file().cloned();
+                maybe_own_ancestor = own_ancestor.parent_file().cloned();
             }
         }
 
@@ -238,17 +238,17 @@ impl MutableIndexSegment {
     /// ReadonlyIndex, return MutableIndex with the commits from both. This
     /// is done recursively, so the stack of index files has O(log n) files.
     fn maybe_squash_with_ancestors(self) -> MutableIndexSegment {
-        let mut num_new_commits = self.segment_num_commits();
+        let mut num_new_commits = self.num_local_commits();
         let mut files_to_squash = vec![];
         let mut base_parent_file = None;
         for parent_file in self.as_composite().ancestor_files_without_local() {
             // TODO: We should probably also squash if the parent file has less than N
             // commits, regardless of how many (few) are in `self`.
-            if 2 * num_new_commits < parent_file.segment_num_commits() {
+            if 2 * num_new_commits < parent_file.num_local_commits() {
                 base_parent_file = Some(parent_file.clone());
                 break;
             }
-            num_new_commits += parent_file.segment_num_commits();
+            num_new_commits += parent_file.num_local_commits();
             files_to_squash.push(parent_file.clone());
         }
 
@@ -269,7 +269,7 @@ impl MutableIndexSegment {
     }
 
     pub(super) fn save_in(self, dir: &Path) -> io::Result<Arc<ReadonlyIndexSegment>> {
-        if self.segment_num_commits() == 0 && self.parent_file.is_some() {
+        if self.num_local_commits() == 0 && self.parent_file.is_some() {
             return Ok(self.parent_file.unwrap());
         }
 
@@ -299,27 +299,27 @@ impl MutableIndexSegment {
 }
 
 impl IndexSegment for MutableIndexSegment {
-    fn segment_num_parent_commits(&self) -> u32 {
+    fn num_parent_commits(&self) -> u32 {
         self.num_parent_commits
     }
 
-    fn segment_num_commits(&self) -> u32 {
+    fn num_local_commits(&self) -> u32 {
         self.graph.len().try_into().unwrap()
     }
 
-    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyIndexSegment>> {
+    fn parent_file(&self) -> Option<&Arc<ReadonlyIndexSegment>> {
         self.parent_file.as_ref()
     }
 
-    fn segment_name(&self) -> Option<String> {
+    fn name(&self) -> Option<String> {
         None
     }
 
-    fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
+    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
         self.lookup.get(commit_id).cloned()
     }
 
-    fn segment_resolve_neighbor_commit_ids(
+    fn resolve_neighbor_commit_ids(
         &self,
         commit_id: &CommitId,
     ) -> (Option<CommitId>, Option<CommitId>) {
@@ -336,7 +336,7 @@ impl IndexSegment for MutableIndexSegment {
         (prev_id, next_id)
     }
 
-    fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
+    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         let min_bytes_prefix = CommitId::from_bytes(prefix.min_prefix_bytes());
         let mut matches = self
             .lookup
@@ -351,19 +351,19 @@ impl IndexSegment for MutableIndexSegment {
         }
     }
 
-    fn segment_generation_number(&self, local_pos: LocalPosition) -> u32 {
+    fn generation_number(&self, local_pos: LocalPosition) -> u32 {
         self.graph[local_pos.0 as usize].generation_number
     }
 
-    fn segment_commit_id(&self, local_pos: LocalPosition) -> CommitId {
+    fn commit_id(&self, local_pos: LocalPosition) -> CommitId {
         self.graph[local_pos.0 as usize].commit_id.clone()
     }
 
-    fn segment_change_id(&self, local_pos: LocalPosition) -> ChangeId {
+    fn change_id(&self, local_pos: LocalPosition) -> ChangeId {
         self.graph[local_pos.0 as usize].change_id.clone()
     }
 
-    fn segment_num_parents(&self, local_pos: LocalPosition) -> u32 {
+    fn num_parents(&self, local_pos: LocalPosition) -> u32 {
         self.graph[local_pos.0 as usize]
             .parent_positions
             .len()
@@ -371,7 +371,7 @@ impl IndexSegment for MutableIndexSegment {
             .unwrap()
     }
 
-    fn segment_parent_positions(&self, local_pos: LocalPosition) -> SmallIndexPositionsVec {
+    fn parent_positions(&self, local_pos: LocalPosition) -> SmallIndexPositionsVec {
         self.graph[local_pos.0 as usize].parent_positions.clone()
     }
 }

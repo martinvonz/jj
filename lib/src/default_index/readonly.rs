@@ -363,29 +363,29 @@ impl ReadonlyIndexSegment {
 }
 
 impl IndexSegment for ReadonlyIndexSegment {
-    fn segment_num_parent_commits(&self) -> u32 {
+    fn num_parent_commits(&self) -> u32 {
         self.num_parent_commits
     }
 
-    fn segment_num_commits(&self) -> u32 {
+    fn num_local_commits(&self) -> u32 {
         self.num_local_commits
     }
 
-    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyIndexSegment>> {
+    fn parent_file(&self) -> Option<&Arc<ReadonlyIndexSegment>> {
         self.parent_file.as_ref()
     }
 
-    fn segment_name(&self) -> Option<String> {
+    fn name(&self) -> Option<String> {
         Some(self.name.clone())
     }
 
-    fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
+    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
         let lookup_pos = self.commit_id_byte_prefix_to_lookup_pos(commit_id)?;
         let entry = self.lookup_entry(lookup_pos);
         (&entry.commit_id() == commit_id).then(|| entry.pos())
     }
 
-    fn segment_resolve_neighbor_commit_ids(
+    fn resolve_neighbor_commit_ids(
         &self,
         commit_id: &CommitId,
     ) -> (Option<CommitId>, Option<CommitId>) {
@@ -410,7 +410,7 @@ impl IndexSegment for ReadonlyIndexSegment {
         }
     }
 
-    fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
+    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         let min_bytes_prefix = CommitId::from_bytes(prefix.min_prefix_bytes());
         let lookup_pos = self
             .commit_id_byte_prefix_to_lookup_pos(&min_bytes_prefix)
@@ -426,23 +426,23 @@ impl IndexSegment for ReadonlyIndexSegment {
         }
     }
 
-    fn segment_generation_number(&self, local_pos: LocalPosition) -> u32 {
+    fn generation_number(&self, local_pos: LocalPosition) -> u32 {
         self.graph_entry(local_pos).generation_number()
     }
 
-    fn segment_commit_id(&self, local_pos: LocalPosition) -> CommitId {
+    fn commit_id(&self, local_pos: LocalPosition) -> CommitId {
         self.graph_entry(local_pos).commit_id()
     }
 
-    fn segment_change_id(&self, local_pos: LocalPosition) -> ChangeId {
+    fn change_id(&self, local_pos: LocalPosition) -> ChangeId {
         self.graph_entry(local_pos).change_id()
     }
 
-    fn segment_num_parents(&self, local_pos: LocalPosition) -> u32 {
+    fn num_parents(&self, local_pos: LocalPosition) -> u32 {
         self.graph_entry(local_pos).num_parents()
     }
 
-    fn segment_parent_positions(&self, local_pos: LocalPosition) -> SmallIndexPositionsVec {
+    fn parent_positions(&self, local_pos: LocalPosition) -> SmallIndexPositionsVec {
         let graph_entry = self.graph_entry(local_pos);
         let mut parent_entries = SmallVec::with_capacity(graph_entry.num_parents() as usize);
         if graph_entry.num_parents() >= 1 {
