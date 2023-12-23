@@ -882,21 +882,6 @@ impl MutableRepo {
         !(self.rewritten_commits.is_empty() && self.abandoned_commits.is_empty())
     }
 
-    /// Creates a `DescendantRebaser` to rebase descendants of the recorded
-    /// rewritten and abandoned commits.
-    // TODO(ilyagr): Inline this. It's only used in tests.
-    fn create_descendant_rebaser<'settings, 'repo>(
-        &'repo mut self,
-        settings: &'settings UserSettings,
-    ) -> DescendantRebaser<'settings, 'repo> {
-        DescendantRebaser::new(
-            settings,
-            self,
-            self.rewritten_commits.clone(),
-            self.abandoned_commits.clone(),
-        )
-    }
-
     /// After the rebaser returned by this function is dropped,
     /// self.clear_descendant_rebaser_plans() needs to be called.
     fn rebase_descendants_return_rebaser<'settings, 'repo>(
@@ -908,7 +893,12 @@ impl MutableRepo {
             // Optimization
             return Ok(None);
         }
-        let mut rebaser = self.create_descendant_rebaser(settings);
+        let mut rebaser = DescendantRebaser::new(
+            settings,
+            self,
+            self.rewritten_commits.clone(),
+            self.abandoned_commits.clone(),
+        );
         *rebaser.mut_options() = options;
         rebaser.rebase_all()?;
         Ok(Some(rebaser))
