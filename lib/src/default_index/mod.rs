@@ -353,44 +353,44 @@ mod tests {
 
         // Can find commits given the full hex number
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new(&id_0.hex()).unwrap()),
+            index.resolve_commit_id_prefix(&HexPrefix::new(&id_0.hex()).unwrap()),
             PrefixResolution::SingleMatch(id_0)
         );
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new(&id_1.hex()).unwrap()),
+            index.resolve_commit_id_prefix(&HexPrefix::new(&id_1.hex()).unwrap()),
             PrefixResolution::SingleMatch(id_1)
         );
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new(&id_2.hex()).unwrap()),
+            index.resolve_commit_id_prefix(&HexPrefix::new(&id_2.hex()).unwrap()),
             PrefixResolution::SingleMatch(id_2)
         );
         // Test nonexistent commits
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new("ffffff").unwrap()),
+            index.resolve_commit_id_prefix(&HexPrefix::new("ffffff").unwrap()),
             PrefixResolution::NoMatch
         );
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new("000001").unwrap()),
+            index.resolve_commit_id_prefix(&HexPrefix::new("000001").unwrap()),
             PrefixResolution::NoMatch
         );
         // Test ambiguous prefix
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new("0").unwrap()),
+            index.resolve_commit_id_prefix(&HexPrefix::new("0").unwrap()),
             PrefixResolution::AmbiguousMatch
         );
         // Test a globally unique prefix in initial part
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new("009").unwrap()),
+            index.resolve_commit_id_prefix(&HexPrefix::new("009").unwrap()),
             PrefixResolution::SingleMatch(CommitId::from_hex("009999"))
         );
         // Test a globally unique prefix in incremental part
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new("03").unwrap()),
+            index.resolve_commit_id_prefix(&HexPrefix::new("03").unwrap()),
             PrefixResolution::SingleMatch(CommitId::from_hex("033333"))
         );
         // Test a locally unique but globally ambiguous prefix
         assert_eq!(
-            index.resolve_prefix(&HexPrefix::new("0554").unwrap()),
+            index.resolve_commit_id_prefix(&HexPrefix::new("0554").unwrap()),
             PrefixResolution::AmbiguousMatch
         );
     }

@@ -161,7 +161,7 @@ pub(crate) fn cmd_bench(
             let workspace_command = command.workspace_helper(ui)?;
             let prefix = HexPrefix::new(&args.prefix).unwrap();
             let index = workspace_command.repo().index();
-            let routine = || index.resolve_prefix(&prefix);
+            let routine = || index.resolve_commit_id_prefix(&prefix);
             run_bench(
                 ui,
                 &format!("resolveprefix-{}", prefix.hex()),

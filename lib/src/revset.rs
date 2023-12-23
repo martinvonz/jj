@@ -2046,7 +2046,9 @@ impl<'a> DefaultSymbolResolver<'a> {
     pub fn new(repo: &'a dyn Repo) -> Self {
         DefaultSymbolResolver {
             repo,
-            commit_id_resolver: Box::new(|repo, prefix| repo.index().resolve_prefix(prefix)),
+            commit_id_resolver: Box::new(|repo, prefix| {
+                repo.index().resolve_commit_id_prefix(prefix)
+            }),
             change_id_resolver: Box::new(|repo, prefix| repo.resolve_change_id_prefix(prefix)),
         }
     }

@@ -50,7 +50,7 @@ pub(super) trait IndexSegment: Send + Sync {
         commit_id: &CommitId,
     ) -> (Option<CommitId>, Option<CommitId>);
 
-    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId>;
+    fn resolve_commit_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId>;
 
     fn generation_number(&self, local_pos: LocalPosition) -> u32;
 
@@ -324,13 +324,13 @@ impl Index for CompositeIndex<'_> {
             .unwrap_or(0)
     }
 
-    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
+    fn resolve_commit_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         self.ancestor_index_segments()
             .fold(PrefixResolution::NoMatch, |acc_match, segment| {
                 if acc_match == PrefixResolution::AmbiguousMatch {
                     acc_match // avoid checking the parent file(s)
                 } else {
-                    let local_match = segment.resolve_prefix(prefix);
+                    let local_match = segment.resolve_commit_id_prefix(prefix);
                     acc_match.plus(&local_match)
                 }
             })

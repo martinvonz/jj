@@ -126,7 +126,7 @@ impl IdPrefixContext {
                 return PrefixResolution::SingleMatch(id);
             }
         }
-        repo.index().resolve_prefix(prefix)
+        repo.index().resolve_commit_id_prefix(prefix)
     }
 
     /// Returns the shortest length of a prefix of `commit_id` that

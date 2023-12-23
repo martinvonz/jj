@@ -53,7 +53,7 @@ pub(super) struct MutableIndexSegment {
     commit_id_length: usize,
     change_id_length: usize,
     graph: Vec<MutableGraphEntry>,
-    lookup: BTreeMap<CommitId, IndexPosition>,
+    commit_lookup: BTreeMap<CommitId, IndexPosition>,
 }
 
 impl MutableIndexSegment {
@@ -64,7 +64,7 @@ impl MutableIndexSegment {
             commit_id_length,
             change_id_length,
             graph: vec![],
-            lookup: BTreeMap::new(),
+            commit_lookup: BTreeMap::new(),
         }
     }
 
@@ -78,7 +78,7 @@ impl MutableIndexSegment {
             commit_id_length,
             change_id_length,
             graph: vec![],
-            lookup: BTreeMap::new(),
+            commit_lookup: BTreeMap::new(),
         }
     }
 
@@ -120,7 +120,7 @@ impl MutableIndexSegment {
             );
             entry.parent_positions.push(parent_entry.position());
         }
-        self.lookup.insert(
+        self.commit_lookup.insert(
             entry.commit_id.clone(),
             IndexPosition(u32::try_from(self.graph.len()).unwrap() + self.num_parent_commits),
         );
@@ -183,7 +183,7 @@ impl MutableIndexSegment {
     }
 
     fn serialize_local_entries(&self, buf: &mut Vec<u8>) {
-        assert_eq!(self.graph.len(), self.lookup.len());
+        assert_eq!(self.graph.len(), self.commit_lookup.len());
 
         let num_commits = u32::try_from(self.graph.len()).unwrap();
         buf.extend(num_commits.to_le_bytes());
@@ -222,7 +222,7 @@ impl MutableIndexSegment {
             buf.extend_from_slice(entry.commit_id.as_bytes());
         }
 
-        for (commit_id, pos) in &self.lookup {
+        for (commit_id, pos) in &self.commit_lookup {
             buf.extend_from_slice(commit_id.as_bytes());
             buf.extend(pos.0.to_le_bytes());
         }
@@ -316,7 +316,7 @@ impl IndexSegment for MutableIndexSegment {
     }
 
     fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
-        self.lookup.get(commit_id).cloned()
+        self.commit_lookup.get(commit_id).cloned()
     }
 
     fn resolve_neighbor_commit_ids(
@@ -324,22 +324,22 @@ impl IndexSegment for MutableIndexSegment {
         commit_id: &CommitId,
     ) -> (Option<CommitId>, Option<CommitId>) {
         let prev_id = self
-            .lookup
+            .commit_lookup
             .range((Bound::Unbounded, Bound::Excluded(commit_id)))
             .next_back()
             .map(|(id, _)| id.clone());
         let next_id = self
-            .lookup
+            .commit_lookup
             .range((Bound::Excluded(commit_id), Bound::Unbounded))
             .next()
             .map(|(id, _)| id.clone());
         (prev_id, next_id)
     }
 
-    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
+    fn resolve_commit_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         let min_bytes_prefix = CommitId::from_bytes(prefix.min_prefix_bytes());
         let mut matches = self
-            .lookup
+            .commit_lookup
             .range((Bound::Included(&min_bytes_prefix), Bound::Unbounded))
             .map(|(id, _pos)| id)
             .take_while(|&id| prefix.matches(id))
@@ -417,8 +417,8 @@ impl Index for DefaultMutableIndex {
             .shortest_unique_commit_id_prefix_len(commit_id)
     }
 
-    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
-        self.as_composite().resolve_prefix(prefix)
+    fn resolve_commit_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
+        self.as_composite().resolve_commit_id_prefix(prefix)
     }
 
     fn has_id(&self, commit_id: &CommitId) -> bool {
