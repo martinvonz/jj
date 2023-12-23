@@ -121,14 +121,16 @@ impl DefaultIndexStore {
             |op: &Operation| op.parents().collect_vec(),
         ) {
             let op = op?;
-            if operations_dir.join(op.id().hex()).is_file() {
-                if parent_op_id.is_none() {
-                    parent_op_id = Some(op.id().clone())
-                }
-            } else {
-                for head in op.view()?.heads() {
-                    new_heads.insert(head.clone());
-                }
+            // Pick the latest existing ancestor operation as the parent
+            // segment. Perhaps, breadth-first search is more appropriate here,
+            // but that wouldn't matter in practice as the operation log is
+            // mostly linear.
+            if parent_op_id.is_none() && operations_dir.join(op.id().hex()).is_file() {
+                parent_op_id = Some(op.id().clone());
+            }
+            // TODO: no need to walk ancestors of the parent_op_id operation
+            for head in op.view()?.heads() {
+                new_heads.insert(head.clone());
             }
         }
         let maybe_parent_file;
