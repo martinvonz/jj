@@ -587,9 +587,12 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 new_commit,
             }));
         }
-        // TODO: As the TODO above says, we should probably change the API. Even if we
-        // don't, we should at least make this code not do any work if you call
-        // rebase_next() after we've returned None.
+        Ok(None)
+    }
+
+    pub fn rebase_all(&mut self) -> Result<(), TreeMergeError> {
+        while self.rebase_next()?.is_some() {}
+        // TODO: As the TODO above says, we should probably change the API.
         let mut view = self.mut_repo.view().store_view().clone();
         for commit_id in &self.heads_to_remove {
             view.head_ids.remove(commit_id);
@@ -600,11 +603,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         self.heads_to_remove.clear();
         self.heads_to_add.clear();
         self.mut_repo.set_view(view);
-        Ok(None)
-    }
-
-    pub fn rebase_all(&mut self) -> Result<(), TreeMergeError> {
-        while self.rebase_next()?.is_some() {}
         Ok(())
     }
 }
