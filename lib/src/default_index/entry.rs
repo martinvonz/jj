@@ -88,23 +88,23 @@ impl<'a> IndexEntry<'a> {
     }
 
     pub fn generation_number(&self) -> u32 {
-        self.source.segment_generation_number(self.local_pos)
+        self.source.generation_number(self.local_pos)
     }
 
     pub fn commit_id(&self) -> CommitId {
-        self.source.segment_commit_id(self.local_pos)
+        self.source.commit_id(self.local_pos)
     }
 
     pub fn change_id(&self) -> ChangeId {
-        self.source.segment_change_id(self.local_pos)
+        self.source.change_id(self.local_pos)
     }
 
     pub fn num_parents(&self) -> u32 {
-        self.source.segment_num_parents(self.local_pos)
+        self.source.num_parents(self.local_pos)
     }
 
     pub fn parent_positions(&self) -> SmallIndexPositionsVec {
-        self.source.segment_parent_positions(self.local_pos)
+        self.source.parent_positions(self.local_pos)
     }
 
     pub fn parents(&self) -> impl ExactSizeIterator<Item = IndexEntry<'a>> {

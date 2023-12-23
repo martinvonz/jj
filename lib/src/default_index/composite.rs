@@ -33,34 +33,34 @@ use crate::store::Store;
 use crate::{backend, default_revset_engine};
 
 pub(super) trait IndexSegment: Send + Sync {
-    fn segment_num_parent_commits(&self) -> u32;
+    fn num_parent_commits(&self) -> u32;
 
-    fn segment_num_commits(&self) -> u32;
+    fn num_local_commits(&self) -> u32;
 
-    fn segment_parent_file(&self) -> Option<&Arc<ReadonlyIndexSegment>>;
+    fn parent_file(&self) -> Option<&Arc<ReadonlyIndexSegment>>;
 
-    fn segment_name(&self) -> Option<String>;
+    fn name(&self) -> Option<String>;
 
-    fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition>;
+    fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition>;
 
     /// Suppose the given `commit_id` exists, returns the previous and next
     /// commit ids in lexicographical order.
-    fn segment_resolve_neighbor_commit_ids(
+    fn resolve_neighbor_commit_ids(
         &self,
         commit_id: &CommitId,
     ) -> (Option<CommitId>, Option<CommitId>);
 
-    fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId>;
+    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId>;
 
-    fn segment_generation_number(&self, local_pos: LocalPosition) -> u32;
+    fn generation_number(&self, local_pos: LocalPosition) -> u32;
 
-    fn segment_commit_id(&self, local_pos: LocalPosition) -> CommitId;
+    fn commit_id(&self, local_pos: LocalPosition) -> CommitId;
 
-    fn segment_change_id(&self, local_pos: LocalPosition) -> ChangeId;
+    fn change_id(&self, local_pos: LocalPosition) -> ChangeId;
 
-    fn segment_num_parents(&self, local_pos: LocalPosition) -> u32;
+    fn num_parents(&self, local_pos: LocalPosition) -> u32;
 
-    fn segment_parent_positions(&self, local_pos: LocalPosition) -> SmallIndexPositionsVec;
+    fn parent_positions(&self, local_pos: LocalPosition) -> SmallIndexPositionsVec;
 }
 
 /// Abstraction over owned and borrowed types that can be cheaply converted to
@@ -95,8 +95,8 @@ impl<'a> CompositeIndex<'a> {
     pub(super) fn ancestor_files_without_local(
         &self,
     ) -> impl Iterator<Item = &'a Arc<ReadonlyIndexSegment>> {
-        let parent_file = self.0.segment_parent_file();
-        iter::successors(parent_file, |file| file.segment_parent_file())
+        let parent_file = self.0.parent_file();
+        iter::successors(parent_file, |file| file.parent_file())
     }
 
     /// Iterates self and its ancestor index segments.
@@ -108,7 +108,7 @@ impl<'a> CompositeIndex<'a> {
     }
 
     pub fn num_commits(&self) -> u32 {
-        self.0.segment_num_parent_commits() + self.0.segment_num_commits()
+        self.0.num_parent_commits() + self.0.num_local_commits()
     }
 
     pub fn stats(&self) -> IndexStats {
@@ -133,8 +133,8 @@ impl<'a> CompositeIndex<'a> {
         let mut levels = self
             .ancestor_index_segments()
             .map(|segment| IndexLevelStats {
-                num_commits: segment.segment_num_commits(),
-                name: segment.segment_name(),
+                num_commits: segment.num_local_commits(),
+                name: segment.name(),
             })
             .collect_vec();
         levels.reverse();
@@ -152,7 +152,7 @@ impl<'a> CompositeIndex<'a> {
     pub fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry<'a> {
         self.ancestor_index_segments()
             .find_map(|segment| {
-                u32::checked_sub(pos.0, segment.segment_num_parent_commits())
+                u32::checked_sub(pos.0, segment.num_parent_commits())
                     .map(|local_pos| IndexEntry::new(segment, pos, LocalPosition(local_pos)))
             })
             .unwrap()
@@ -160,7 +160,7 @@ impl<'a> CompositeIndex<'a> {
 
     pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
         self.ancestor_index_segments()
-            .find_map(|segment| segment.segment_commit_id_to_pos(commit_id))
+            .find_map(|segment| segment.commit_id_to_pos(commit_id))
     }
 
     /// Suppose the given `commit_id` exists, returns the previous and next
@@ -170,7 +170,7 @@ impl<'a> CompositeIndex<'a> {
         commit_id: &CommitId,
     ) -> (Option<CommitId>, Option<CommitId>) {
         self.ancestor_index_segments()
-            .map(|segment| segment.segment_resolve_neighbor_commit_ids(commit_id))
+            .map(|segment| segment.resolve_neighbor_commit_ids(commit_id))
             .reduce(|(acc_prev_id, acc_next_id), (prev_id, next_id)| {
                 (
                     acc_prev_id.into_iter().chain(prev_id).max(),
@@ -330,7 +330,7 @@ impl Index for CompositeIndex<'_> {
                 if acc_match == PrefixResolution::AmbiguousMatch {
                     acc_match // avoid checking the parent file(s)
                 } else {
-                    let local_match = segment.segment_resolve_prefix(prefix);
+                    let local_match = segment.resolve_prefix(prefix);
                     acc_match.plus(&local_match)
                 }
             })
