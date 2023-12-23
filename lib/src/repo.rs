@@ -929,6 +929,34 @@ impl MutableRepo {
         Ok(result)
     }
 
+    /// This is similar to `rebase_descendants_return_map`, but the return value
+    /// needs more explaining.
+    ///
+    /// If the `options.empty` is the default, this function will only
+    /// rebase commits, and the return value is what you'd expect it to be.
+    ///
+    /// Otherwise, this function may rebase some commits and abandon others. The
+    /// behavior is such that only commits with a single parent will ever be
+    /// abandoned. In the returned map, an abandoned commit will look as a
+    /// key-value pair where the key is the abandoned commit and the value is
+    /// **its parent**. One can tell this case apart since the change ids of the
+    /// key and the value will not match. The parent will inherit the
+    /// descendants and the branches of the abandoned commit.
+    pub fn rebase_descendants_with_options_return_map(
+        &mut self,
+        settings: &UserSettings,
+        options: RebaseOptions,
+    ) -> Result<HashMap<CommitId, CommitId>, TreeMergeError> {
+        let result = Ok(self
+            // We do not set RebaseOptions here, since this function does not currently return
+            // enough information to describe the results of a rebase if some commits got
+            // abandoned
+            .rebase_descendants_return_rebaser(settings, options)?
+            .map_or(HashMap::new(), |rebaser| rebaser.rebased().clone()));
+        self.clear_descendant_rebaser_plans();
+        result
+    }
+
     pub fn rebase_descendants(&mut self, settings: &UserSettings) -> Result<usize, TreeMergeError> {
         self.rebase_descendants_with_options(settings, Default::default())
     }
@@ -937,14 +965,7 @@ impl MutableRepo {
         &mut self,
         settings: &UserSettings,
     ) -> Result<HashMap<CommitId, CommitId>, TreeMergeError> {
-        let result = Ok(self
-            // We do not set RebaseOptions here, since this function does not currently return
-            // enough information to describe the results of a rebase if some commits got
-            // abandoned
-            .rebase_descendants_return_rebaser(settings, Default::default())?
-            .map_or(HashMap::new(), |rebaser| rebaser.rebased().clone()));
-        self.clear_descendant_rebaser_plans();
-        result
+        self.rebase_descendants_with_options_return_map(settings, Default::default())
     }
 
     pub fn set_wc_commit(
