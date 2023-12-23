@@ -19,14 +19,12 @@ use jj_lib::merged_tree::MergedTree;
 use jj_lib::op_store::{RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
-use jj_lib::rewrite::{
-    restore_tree, DescendantRebaser, EmptyBehaviour, RebaseOptions, RebasedDescendant,
-};
+use jj_lib::rewrite::{restore_tree, EmptyBehaviour, RebaseOptions};
 use maplit::{hashmap, hashset};
 use test_case::test_case;
 use testutils::{
-    assert_rebased, assert_rebased_onto, create_random_commit, create_tree, write_random_commit,
-    CommitGraphBuilder, TestRepo,
+    assert_abandoned_with_parent, assert_rebased_onto, create_random_commit, create_tree,
+    write_random_commit, CommitGraphBuilder, TestRepo,
 };
 
 #[test]
@@ -1474,30 +1472,10 @@ fn test_rebase_descendants_update_checkout_abandoned_merge() {
     assert_eq!(checkout.parent_ids(), vec![commit_b.id().clone()]);
 }
 
-fn assert_rebase_skipped(
-    rebased: Option<RebasedDescendant>,
-    expected_old_commit: &Commit,
-    expected_new_commit: &Commit,
-) -> Commit {
-    if let Some(RebasedDescendant {
-        old_commit,
-        new_commit,
-    }) = rebased
-    {
-        assert_eq!(old_commit, *expected_old_commit,);
-        assert_eq!(new_commit, *expected_new_commit);
-        // Since it was abandoned, the change ID should be different.
-        assert_ne!(old_commit.change_id(), new_commit.change_id());
-        new_commit
-    } else {
-        panic!("expected rebased commit: {rebased:?}");
-    }
-}
-
 #[test_case(EmptyBehaviour::Keep; "keep all commits")]
 #[test_case(EmptyBehaviour::AbandonNewlyEmpty; "abandon newly empty commits")]
 #[test_case(EmptyBehaviour::AbandonAllEmpty ; "abandon all empty commits")]
-fn test_empty_commit_option(empty: EmptyBehaviour) {
+fn test_empty_commit_option(empty_behavior: EmptyBehaviour) {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
@@ -1557,74 +1535,75 @@ fn test_empty_commit_option(empty: EmptyBehaviour) {
     let commit_h = create_commit(&[&commit_g], &tree_g);
     let commit_bd = create_commit(&[&commit_a], &tree_d);
 
-    let mut rebaser = DescendantRebaser::new(
-        &settings,
-        tx.mut_repo(),
-        hashmap! {
-            commit_b.id().clone() => hashset!{commit_bd.id().clone()}
-        },
-        hashset! {},
-    );
-    *rebaser.mut_options() = RebaseOptions {
-        empty: empty.clone(),
-    };
+    tx.mut_repo()
+        .record_rewritten_commit(commit_b.id().clone(), commit_bd.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_with_options_return_map(
+            &settings,
+            RebaseOptions {
+                empty: empty_behavior.clone(),
+            },
+        )
+        .unwrap();
 
-    let new_head = match empty {
+    let new_head = match empty_behavior {
         EmptyBehaviour::Keep => {
             // The commit C isn't empty.
             let new_commit_c =
-                assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&commit_bd]);
+                assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[commit_bd.id()]);
             let new_commit_d =
-                assert_rebased(rebaser.rebase_next().unwrap(), &commit_d, &[&commit_bd]);
+                assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[commit_bd.id()]);
             let new_commit_e =
-                assert_rebased(rebaser.rebase_next().unwrap(), &commit_e, &[&commit_bd]);
-            let new_commit_f = assert_rebased(
-                rebaser.rebase_next().unwrap(),
+                assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_e, &[commit_bd.id()]);
+            let new_commit_f = assert_rebased_onto(
+                tx.mut_repo(),
+                &rebase_map,
                 &commit_f,
-                &[&new_commit_c, &new_commit_d, &new_commit_e],
+                &[&new_commit_c.id(), &new_commit_d.id(), &new_commit_e.id()],
             );
             let new_commit_g =
-                assert_rebased(rebaser.rebase_next().unwrap(), &commit_g, &[&new_commit_f]);
-            assert_rebased(rebaser.rebase_next().unwrap(), &commit_h, &[&new_commit_g])
+                assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_g, &[new_commit_f.id()]);
+            assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_h, &[new_commit_g.id()])
         }
         EmptyBehaviour::AbandonAllEmpty => {
             // The commit C isn't empty.
             let new_commit_c =
-                assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&commit_bd]);
+                assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[commit_bd.id()]);
             // D and E are empty, and F is a clean merge with only one child. Thus, F is
             // also considered empty.
-            assert_rebase_skipped(rebaser.rebase_next().unwrap(), &commit_d, &commit_bd);
-            assert_rebase_skipped(rebaser.rebase_next().unwrap(), &commit_e, &commit_bd);
-            assert_rebase_skipped(rebaser.rebase_next().unwrap(), &commit_f, &new_commit_c);
+            assert_abandoned_with_parent(tx.mut_repo(), &rebase_map, &commit_d, commit_bd.id());
+            assert_abandoned_with_parent(tx.mut_repo(), &rebase_map, &commit_e, commit_bd.id());
+            assert_abandoned_with_parent(tx.mut_repo(), &rebase_map, &commit_f, new_commit_c.id());
             let new_commit_g =
-                assert_rebased(rebaser.rebase_next().unwrap(), &commit_g, &[&new_commit_c]);
-            assert_rebase_skipped(rebaser.rebase_next().unwrap(), &commit_h, &new_commit_g)
+                assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_g, &[new_commit_c.id()]);
+            assert_abandoned_with_parent(tx.mut_repo(), &rebase_map, &commit_h, new_commit_g.id())
         }
         EmptyBehaviour::AbandonNewlyEmpty => {
             // The commit C isn't empty.
             let new_commit_c =
-                assert_rebased(rebaser.rebase_next().unwrap(), &commit_c, &[&commit_bd]);
+                assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[commit_bd.id()]);
 
             // The changes in D are included in BD, so D is newly empty.
-            assert_rebase_skipped(rebaser.rebase_next().unwrap(), &commit_d, &commit_bd);
+            assert_abandoned_with_parent(tx.mut_repo(), &rebase_map, &commit_d, commit_bd.id());
             // E was already empty, so F is a merge commit with C and E as parents.
             // Although it's empty, we still keep it because we don't want to drop merge
             // commits.
             let new_commit_e =
-                assert_rebased(rebaser.rebase_next().unwrap(), &commit_e, &[&commit_bd]);
-            let new_commit_f = assert_rebased(
-                rebaser.rebase_next().unwrap(),
+                assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_e, &[commit_bd.id()]);
+            let new_commit_f = assert_rebased_onto(
+                tx.mut_repo(),
+                &rebase_map,
                 &commit_f,
-                &[&new_commit_c, &new_commit_e],
+                &[&new_commit_c.id(), &new_commit_e.id()],
             );
             let new_commit_g =
-                assert_rebased(rebaser.rebase_next().unwrap(), &commit_g, &[&new_commit_f]);
-            assert_rebased(rebaser.rebase_next().unwrap(), &commit_h, &[&new_commit_g])
+                assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_g, &[&new_commit_f.id()]);
+            assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_h, &[&new_commit_g.id()])
         }
     };
 
-    assert!(rebaser.rebase_next().unwrap().is_none());
-    assert_eq!(rebaser.rebased().len(), 6);
+    assert_eq!(rebase_map.len(), 6);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),

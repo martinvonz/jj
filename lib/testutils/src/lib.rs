@@ -31,7 +31,6 @@ use jj_lib::local_backend::LocalBackend;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader, StoreFactories};
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
-use jj_lib::rewrite::RebasedDescendant;
 use jj_lib::settings::UserSettings;
 use jj_lib::signing::Signer;
 use jj_lib::store::Store;
@@ -453,11 +452,10 @@ impl<'settings, 'repo> CommitGraphBuilder<'settings, 'repo> {
     }
 }
 
-pub fn assert_rebased_onto(
+fn assert_in_rebased_map(
     repo: &impl Repo,
     rebased: &HashMap<CommitId, CommitId>,
     expected_old_commit: &Commit,
-    expected_new_parent_ids: &[&CommitId],
 ) -> Commit {
     let new_commit_id = rebased.get(expected_old_commit.id()).unwrap_or_else(|| {
         panic!(
@@ -466,7 +464,16 @@ pub fn assert_rebased_onto(
         )
     });
     let new_commit = repo.store().get_commit(new_commit_id).unwrap().clone();
-    assert_eq!(new_commit.change_id(), expected_old_commit.change_id());
+    new_commit
+}
+
+pub fn assert_rebased_onto(
+    repo: &impl Repo,
+    rebased: &HashMap<CommitId, CommitId>,
+    expected_old_commit: &Commit,
+    expected_new_parent_ids: &[&CommitId],
+) -> Commit {
+    let new_commit = assert_in_rebased_map(repo, rebased, expected_old_commit);
     assert_eq!(
         new_commit.parent_ids().to_vec(),
         expected_new_parent_ids
@@ -474,32 +481,26 @@ pub fn assert_rebased_onto(
             .map(|x| (*x).clone())
             .collect_vec()
     );
+    assert_eq!(new_commit.change_id(), expected_old_commit.change_id());
     new_commit
 }
 
-// Short-term TODO: We will delete this function shortly; it will be replaced by
-// `assert_rebased_onto` above
-pub fn assert_rebased(
-    rebased: Option<RebasedDescendant>,
+/// If `expected_old_commit` was abandoned, the `rebased` map indicates the
+/// commit the children of `expected_old_commit` should be rebased to, which
+/// would have a different change id. This happens when the EmptyBehavior in
+/// RebaseOptions is not the default; because of the details of the
+/// implementation this returned parent commit is always singular.
+pub fn assert_abandoned_with_parent(
+    repo: &impl Repo,
+    rebased: &HashMap<CommitId, CommitId>,
     expected_old_commit: &Commit,
-    expected_new_parents: &[&Commit],
+    expected_new_parent_id: &CommitId,
 ) -> Commit {
-    if let Some(RebasedDescendant {
-        old_commit,
-        new_commit,
-    }) = rebased
-    {
-        assert_eq!(old_commit, *expected_old_commit);
-        assert_eq!(new_commit.change_id(), expected_old_commit.change_id());
-        assert_eq!(
-            new_commit.parent_ids(),
-            expected_new_parents
-                .iter()
-                .map(|commit| commit.id().clone())
-                .collect_vec()
-        );
-        new_commit
-    } else {
-        panic!("expected rebased commit: {rebased:?}");
-    }
+    let new_parent_commit = assert_in_rebased_map(repo, rebased, expected_old_commit);
+    assert_eq!(new_parent_commit.id(), expected_new_parent_id);
+    assert_ne!(
+        new_parent_commit.change_id(),
+        expected_old_commit.change_id()
+    );
+    new_parent_commit
 }
