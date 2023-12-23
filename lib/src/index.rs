@@ -58,7 +58,7 @@ pub trait IndexStore: Send + Sync + Debug {
 pub trait Index: Send + Sync {
     fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize;
 
-    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId>;
+    fn resolve_commit_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId>;
 
     fn has_id(&self, commit_id: &CommitId) -> bool;
 

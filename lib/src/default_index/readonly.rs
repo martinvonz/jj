@@ -272,9 +272,9 @@ impl ReadonlyIndexSegment {
         let commit_graph_entry_size = CommitGraphEntry::size(commit_id_length, change_id_length);
         let graph_size = (num_local_commits as usize) * commit_graph_entry_size;
         let commit_lookup_entry_size = CommitLookupEntry::size(commit_id_length);
-        let lookup_size = (num_local_commits as usize) * commit_lookup_entry_size;
+        let commit_lookup_size = (num_local_commits as usize) * commit_lookup_entry_size;
         let parent_overflow_size = (num_parent_overflow_entries as usize) * 4;
-        let expected_size = graph_size + lookup_size + parent_overflow_size;
+        let expected_size = graph_size + commit_lookup_size + parent_overflow_size;
         if data.len() != expected_size {
             return Err(ReadonlyIndexLoadError::invalid_data(
                 name,
@@ -320,7 +320,7 @@ impl ReadonlyIndexSegment {
         }
     }
 
-    fn lookup_entry(&self, lookup_pos: u32) -> CommitLookupEntry {
+    fn commit_lookup_entry(&self, lookup_pos: u32) -> CommitLookupEntry {
         assert!(lookup_pos < self.num_local_commits);
         let offset = (lookup_pos as usize) * self.commit_lookup_entry_size
             + (self.num_local_commits as usize) * self.commit_graph_entry_size;
@@ -352,7 +352,7 @@ impl ReadonlyIndexSegment {
             if high == low {
                 return Some(mid);
             }
-            let entry = self.lookup_entry(mid);
+            let entry = self.commit_lookup_entry(mid);
             if entry.commit_id_bytes() < prefix.as_bytes() {
                 low = mid + 1;
             } else {
@@ -381,7 +381,7 @@ impl IndexSegment for ReadonlyIndexSegment {
 
     fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
         let lookup_pos = self.commit_id_byte_prefix_to_lookup_pos(commit_id)?;
-        let entry = self.lookup_entry(lookup_pos);
+        let entry = self.commit_lookup_entry(lookup_pos);
         (&entry.commit_id() == commit_id).then(|| entry.pos())
     }
 
@@ -390,7 +390,7 @@ impl IndexSegment for ReadonlyIndexSegment {
         commit_id: &CommitId,
     ) -> (Option<CommitId>, Option<CommitId>) {
         if let Some(lookup_pos) = self.commit_id_byte_prefix_to_lookup_pos(commit_id) {
-            let entry_commit_id = self.lookup_entry(lookup_pos).commit_id();
+            let entry_commit_id = self.commit_lookup_entry(lookup_pos).commit_id();
             let (prev_lookup_pos, next_lookup_pos) = match entry_commit_id.cmp(commit_id) {
                 Ordering::Less => {
                     assert_eq!(lookup_pos + 1, self.num_local_commits);
@@ -402,21 +402,21 @@ impl IndexSegment for ReadonlyIndexSegment {
                 }
                 Ordering::Greater => (lookup_pos.checked_sub(1), Some(lookup_pos)),
             };
-            let prev_id = prev_lookup_pos.map(|p| self.lookup_entry(p).commit_id());
-            let next_id = next_lookup_pos.map(|p| self.lookup_entry(p).commit_id());
+            let prev_id = prev_lookup_pos.map(|p| self.commit_lookup_entry(p).commit_id());
+            let next_id = next_lookup_pos.map(|p| self.commit_lookup_entry(p).commit_id());
             (prev_id, next_id)
         } else {
             (None, None)
         }
     }
 
-    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
+    fn resolve_commit_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         let min_bytes_prefix = CommitId::from_bytes(prefix.min_prefix_bytes());
         let lookup_pos = self
             .commit_id_byte_prefix_to_lookup_pos(&min_bytes_prefix)
             .unwrap_or(self.num_local_commits);
         let mut matches = (lookup_pos..self.num_local_commits)
-            .map(|pos| self.lookup_entry(pos).commit_id())
+            .map(|pos| self.commit_lookup_entry(pos).commit_id())
             .take_while(|id| prefix.matches(id))
             .fuse();
         match (matches.next(), matches.next()) {
@@ -485,8 +485,8 @@ impl Index for DefaultReadonlyIndex {
             .shortest_unique_commit_id_prefix_len(commit_id)
     }
 
-    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
-        self.as_composite().resolve_prefix(prefix)
+    fn resolve_commit_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
+        self.as_composite().resolve_commit_id_prefix(prefix)
     }
 
     fn has_id(&self, commit_id: &CommitId) -> bool {
