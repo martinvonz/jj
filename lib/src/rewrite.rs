@@ -242,7 +242,7 @@ pub struct RebaseOptions {
 }
 
 /// Rebases descendants of a commit onto a new commit (or several).
-pub struct DescendantRebaser<'settings, 'repo> {
+pub(crate) struct DescendantRebaser<'settings, 'repo> {
     settings: &'settings UserSettings,
     mut_repo: &'repo mut MutableRepo,
     // The commit identified by the key has been replaced by all the ones in the value, typically
@@ -521,7 +521,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
 
     // TODO: Perhaps change the interface since it's not just about rebasing
     // commits.
-    pub fn rebase_next(&mut self) -> Result<Option<RebasedDescendant>, TreeMergeError> {
+    fn rebase_next(&mut self) -> Result<Option<RebasedDescendant>, TreeMergeError> {
         while let Some(old_commit) = self.to_visit.pop() {
             let old_commit_id = old_commit.id().clone();
             if let Some(new_parent_ids) = self.parent_mapping.get(&old_commit_id).cloned() {
