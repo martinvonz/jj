@@ -32,6 +32,10 @@ fn test_split_by_paths() {
     @  qpvuntsmwlqt false
     ◉  zzzzzzzzzzzz true
     "###);
+    insta::assert_snapshot!(get_recorded_dates(&test_env, &repo_path,"@"), @r###"
+    Author date:  2001-02-03 04:05:07.000 +07:00
+    Committer date: 2001-02-03 04:05:08.000 +07:00
+    "###);
 
     let edit_script = test_env.set_up_fake_editor();
     std::fs::write(
@@ -42,10 +46,10 @@ fn test_split_by_paths() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["split", "file2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    First part: qpvuntsm 5eebce1d (no description set)
-    Second part: kkmpptxz 45833353 (no description set)
-    Working copy now at: kkmpptxz 45833353 (no description set)
-    Parent commit      : qpvuntsm 5eebce1d (no description set)
+    First part: qpvuntsm d62c056f (no description set)
+    Second part: zsuskuln 5a32af4a (no description set)
+    Working copy now at: zsuskuln 5a32af4a (no description set)
+    Parent commit      : qpvuntsm d62c056f (no description set)
     "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
@@ -59,9 +63,20 @@ fn test_split_by_paths() {
     assert!(!test_env.env_root().join("editor1").exists());
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  kkmpptxzrspx false
+    @  zsuskulnrvyr false
     ◉  qpvuntsmwlqt false
     ◉  zzzzzzzzzzzz true
+    "###);
+
+    // The author dates of the new commits should be inherited from the commit being
+    // split. The committer dates should be newer.
+    insta::assert_snapshot!(get_recorded_dates(&test_env, &repo_path,"@"), @r###"
+    Author date:  2001-02-03 04:05:07.000 +07:00
+    Committer date: 2001-02-03 04:05:10.000 +07:00
+    "###);
+    insta::assert_snapshot!(get_recorded_dates(&test_env, &repo_path,"@-"), @r###"
+    Author date:  2001-02-03 04:05:07.000 +07:00
+    Committer date: 2001-02-03 04:05:10.000 +07:00
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
@@ -80,15 +95,15 @@ fn test_split_by_paths() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 1 descendant commits
-    First part: qpvuntsm 31425b56 (no description set)
-    Second part: yqosqzyt af096392 (empty) (no description set)
-    Working copy now at: kkmpptxz 28d4ec20 (no description set)
-    Parent commit      : yqosqzyt af096392 (empty) (no description set)
+    First part: qpvuntsm b76d731d (no description set)
+    Second part: znkkpsqq 924604b2 (empty) (no description set)
+    Working copy now at: zsuskuln fffe30fb (no description set)
+    Parent commit      : znkkpsqq 924604b2 (empty) (no description set)
     "###);
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  kkmpptxzrspx false
-    ◉  yqosqzytrlsw true
+    @  zsuskulnrvyr false
+    ◉  znkkpsqqskkl true
     ◉  qpvuntsmwlqt false
     ◉  zzzzzzzzzzzz true
     "###);
@@ -108,15 +123,15 @@ fn test_split_by_paths() {
     insta::assert_snapshot!(stderr, @r###"
     The given paths do not match any file: nonexistent
     Rebased 1 descendant commits
-    First part: qpvuntsm 0647b2cb (empty) (no description set)
-    Second part: kpqxywon d5d77af6 (no description set)
-    Working copy now at: kkmpptxz 86f228dc (no description set)
-    Parent commit      : kpqxywon d5d77af6 (no description set)
+    First part: qpvuntsm 7086b0bc (empty) (no description set)
+    Second part: lylxulpl 2252ed18 (no description set)
+    Working copy now at: zsuskuln a3f2136a (no description set)
+    Parent commit      : lylxulpl 2252ed18 (no description set)
     "###);
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  kkmpptxzrspx false
-    ◉  kpqxywonksrl false
+    @  zsuskulnrvyr false
+    ◉  lylxulplsnyw false
     ◉  qpvuntsmwlqt true
     ◉  zzzzzzzzzzzz true
     "###);
@@ -221,4 +236,9 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"separate(" ", change_id.short(), empty, description)"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
+}
+
+fn get_recorded_dates(test_env: &TestEnvironment, cwd: &Path, revset: &str) -> String {
+    let template = r#"separate("\n", "Author date:  " ++ author.timestamp(), "Committer date: " ++ committer.timestamp())"#;
+    test_env.jj_cmd_success(cwd, &["log", "--no-graph", "-T", template, "-r", revset])
 }
