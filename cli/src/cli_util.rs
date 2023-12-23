@@ -608,7 +608,7 @@ impl CommandHelper {
                 &self.store_factories,
                 &self.working_copy_factories,
             )
-            .map_err(|err| map_workspace_load_error(err, &self.global_args))
+            .map_err(|err| map_workspace_load_error(err, self.global_args.repository.as_deref()))
     }
 
     #[instrument(skip_all)]
@@ -1746,27 +1746,17 @@ impl WorkspaceCommandTransaction<'_> {
     }
 }
 
-#[instrument]
-fn init_workspace_loader(
-    cwd: &Path,
-    global_args: &GlobalArgs,
-) -> Result<WorkspaceLoader, CommandError> {
-    let workspace_root = if let Some(path) = global_args.repository.as_ref() {
-        cwd.join(path)
-    } else {
-        cwd.ancestors()
-            .find(|path| path.join(".jj").is_dir())
-            .unwrap_or(cwd)
-            .to_owned()
-    };
-    WorkspaceLoader::init(&workspace_root).map_err(|err| map_workspace_load_error(err, global_args))
+fn find_workspace_dir(cwd: &Path) -> &Path {
+    cwd.ancestors()
+        .find(|path| path.join(".jj").is_dir())
+        .unwrap_or(cwd)
 }
 
-fn map_workspace_load_error(err: WorkspaceLoadError, global_args: &GlobalArgs) -> CommandError {
+fn map_workspace_load_error(err: WorkspaceLoadError, workspace_path: Option<&str>) -> CommandError {
     match err {
         WorkspaceLoadError::NoWorkspaceHere(wc_path) => {
             // Prefer user-specified workspace_path_str instead of absolute wc_path.
-            let workspace_path_str = global_args.repository.as_deref().unwrap_or(".");
+            let workspace_path_str = workspace_path.unwrap_or(".");
             let message = format!(r#"There is no jj repo in "{workspace_path_str}""#);
             let git_dir = wc_path.join(".git");
             if git_dir.is_dir() {
@@ -2984,7 +2974,13 @@ impl CliRunner {
             process_global_args_fn(ui, &matches)?;
         }
 
-        let maybe_workspace_loader = init_workspace_loader(&cwd, &args.global_args);
+        let maybe_workspace_loader = if let Some(path) = &args.global_args.repository {
+            WorkspaceLoader::init(&cwd.join(path))
+                .map_err(|err| map_workspace_load_error(err, Some(path)))
+        } else {
+            WorkspaceLoader::init(find_workspace_dir(&cwd))
+                .map_err(|err| map_workspace_load_error(err, None))
+        };
         if let Ok(loader) = &maybe_workspace_loader {
             // TODO: maybe show error/warning if repo config contained command alias
             layered_configs.read_repo_config(loader.repo_path())?;
