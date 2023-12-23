@@ -53,9 +53,6 @@ pub(crate) fn cmd_init(
     command: &CommandHelper,
     args: &InitArgs,
 ) -> Result<(), CommandError> {
-    if command.global_args().repository.is_some() {
-        return Err(user_error("'--repository' cannot be used with 'init'"));
-    }
     let wc_path = command.cwd().join(&args.destination);
     match fs::create_dir(&wc_path) {
         Ok(()) => {}

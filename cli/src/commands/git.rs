@@ -442,9 +442,6 @@ fn cmd_git_clone(
     command: &CommandHelper,
     args: &GitCloneArgs,
 ) -> Result<(), CommandError> {
-    if command.global_args().repository.is_some() {
-        return Err(user_error("'--repository' cannot be used with 'git clone'"));
-    }
     let remote_name = "origin";
     let source = absolute_git_source(command.cwd(), &args.source);
     let wc_path_str = args

@@ -2975,8 +2975,10 @@ impl CliRunner {
         }
 
         let maybe_workspace_loader = if let Some(path) = &args.global_args.repository {
-            WorkspaceLoader::init(&cwd.join(path))
-                .map_err(|err| map_workspace_load_error(err, Some(path)))
+            // Invalid -R path is an error. No need to proceed.
+            let loader = WorkspaceLoader::init(&cwd.join(path))
+                .map_err(|err| map_workspace_load_error(err, Some(path)))?;
+            Ok(loader)
         } else {
             WorkspaceLoader::init(find_workspace_dir(&cwd))
                 .map_err(|err| map_workspace_load_error(err, None))

@@ -133,7 +133,7 @@ fn test_repo_arg_with_init() {
     let test_env = TestEnvironment::default();
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["init", "-R=.", "repo"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: '--repository' cannot be used with 'init'
+    Error: There is no jj repo in "."
     "###);
 }
 
@@ -142,7 +142,7 @@ fn test_repo_arg_with_git_clone() {
     let test_env = TestEnvironment::default();
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["git", "clone", "-R=.", "remote"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: '--repository' cannot be used with 'git clone'
+    Error: There is no jj repo in "."
     "###);
 }
 
