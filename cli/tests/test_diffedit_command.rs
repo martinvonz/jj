@@ -14,7 +14,6 @@
 
 use indoc::indoc;
 
-use crate::common::escaped_fake_diff_editor_path;
 use crate::common::TestEnvironment;
 
 #[test]
@@ -436,17 +435,12 @@ fn test_diffedit_3pane() {
 
     // 2 configs for a 3-pane setup. In the first, "$right" is passed to what the
     // fake diff editor considers the "after" state.
-    let config_with_right_as_after = format!(
-        r#"ui.diff-editor=["{}", "$left", "$right", "--ignore=$output"]"#,
-        escaped_fake_diff_editor_path()
-    );
-    let config_with_output_as_after = format!(
-        r#"ui.diff-editor=["{}", "$left", "$output", "--ignore=$right"]"#,
-        escaped_fake_diff_editor_path()
-    );
-    let edit_script = test_env.env_root().join("diff_edit_script");
+    let config_with_right_as_after =
+        "merge-tools.fake-diff-editor.edit-args=['$left', '$right', '--ignore=$output']";
+    let config_with_output_as_after =
+        "merge-tools.fake-diff-editor.edit-args=['$left', '$output', '--ignore=$right']";
+    let edit_script = test_env.set_up_fake_diff_editor();
     std::fs::write(&edit_script, "").unwrap();
-    test_env.add_env_var("DIFF_EDIT_SCRIPT", edit_script.to_str().unwrap());
 
     // Nothing happens if we make no changes
     std::fs::write(
@@ -456,7 +450,7 @@ fn test_diffedit_3pane() {
     .unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["diffedit", "--config", &config_with_output_as_after],
+        &["diffedit", "--config", config_with_output_as_after],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -470,7 +464,7 @@ fn test_diffedit_3pane() {
     // Nothing happens if we make no changes, `config_with_right_as_after` version
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["diffedit", "--config", &config_with_right_as_after],
+        &["diffedit", "--config", config_with_right_as_after],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -486,7 +480,7 @@ fn test_diffedit_3pane() {
     std::fs::write(&edit_script, "reset file2").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["diffedit", "--config", &config_with_output_as_after],
+        &["diffedit", "--config", config_with_output_as_after],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -505,7 +499,7 @@ fn test_diffedit_3pane() {
     std::fs::write(&edit_script, "write file1\nnew content").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["diffedit", "--config", &config_with_output_as_after],
+        &["diffedit", "--config", config_with_output_as_after],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -525,7 +519,7 @@ fn test_diffedit_3pane() {
     std::fs::write(&edit_script, "write file1\nnew content").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["diffedit", "--config", &config_with_right_as_after],
+        &["diffedit", "--config", config_with_right_as_after],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
