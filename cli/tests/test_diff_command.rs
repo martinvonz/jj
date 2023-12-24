@@ -15,8 +15,9 @@
 use indoc::indoc;
 use itertools::Itertools;
 
-use crate::common::escaped_fake_diff_editor_path;
+use crate::common::fake_diff_editor_path;
 use crate::common::strip_last_line;
+use crate::common::to_toml_value;
 use crate::common::TestEnvironment;
 
 #[test]
@@ -2109,8 +2110,8 @@ fn test_diff_external_tool() {
     "###);
 
     // Inlined command arguments
-    let command = escaped_fake_diff_editor_path();
-    let config = format!(r#"--config=ui.diff.tool=["{command}", "$right", "$left"]"#);
+    let command_toml = to_toml_value(fake_diff_editor_path());
+    let config = format!("--config=ui.diff.tool=[{command_toml}, '$right', '$left']");
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", &config]), @r###"
     file2
     file3

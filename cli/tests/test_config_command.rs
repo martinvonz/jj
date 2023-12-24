@@ -18,6 +18,7 @@ use indoc::indoc;
 use itertools::Itertools;
 use regex::Regex;
 
+use crate::common::fake_editor_path;
 use crate::common::TestEnvironment;
 
 #[test]
@@ -819,7 +820,8 @@ fn test_config_edit_user() {
 fn test_config_edit_user_new_file() {
     let mut test_env = TestEnvironment::default();
     let user_config_path = test_env.config_path().join("config").join("file.toml");
-    test_env.set_up_fake_editor(); // set $EDITOR, but added configuration is ignored
+    test_env.set_up_fake_editor(); // set $EDIT_SCRIPT, but added configuration is ignored
+    test_env.add_env_var("EDITOR", fake_editor_path());
     test_env.set_config_path(&user_config_path);
     assert!(!user_config_path.exists());
 
