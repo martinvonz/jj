@@ -71,9 +71,37 @@ fn test_alias_bad_name() {
     insta::assert_snapshot!(stderr, @r###"
     error: unrecognized subcommand 'foo.'
 
-    Usage: jj [OPTIONS] [COMMAND]
+    Usage: jj [OPTIONS] <COMMAND>
 
     For more information, try '--help'.
+    "###);
+}
+
+#[test]
+fn test_alias_calls_empty_command() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(
+        r#"
+    aliases.empty = []
+    aliases.empty_command_with_opts = ["--no-pager"]
+    "#,
+    );
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["empty"]);
+    insta::assert_snapshot!(stderr.lines().take(3).join("\n"), @r###"
+    Jujutsu (An experimental VCS)
+
+    Usage: jj [OPTIONS] <COMMAND>
+    "###);
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["empty", "--no-pager"]);
+    insta::assert_snapshot!(stderr.lines().next().unwrap_or_default(), @r###"
+    error: 'jj' requires a subcommand but one was not provided
+    "###);
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["empty_command_with_opts"]);
+    insta::assert_snapshot!(stderr.lines().next().unwrap_or_default(), @r###"
+    error: 'jj' requires a subcommand but one was not provided
     "###);
 }
 
@@ -90,7 +118,7 @@ fn test_alias_calls_unknown_command() {
 
       tip: a similar subcommand exists: 'next'
 
-    Usage: jj [OPTIONS] [COMMAND]
+    Usage: jj [OPTIONS] <COMMAND>
 
     For more information, try '--help'.
     "###);
@@ -127,7 +155,7 @@ fn test_alias_calls_help() {
 
     To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/docs/tutorial.md.
 
-    Usage: jj [OPTIONS] [COMMAND]
+    Usage: jj [OPTIONS] <COMMAND>
     "###);
 }
 
