@@ -19,6 +19,7 @@ use itertools::Itertools;
 use regex::Regex;
 
 use crate::common::fake_editor_path;
+use crate::common::to_toml_value;
 use crate::common::TestEnvironment;
 
 #[test]
@@ -270,7 +271,10 @@ fn test_config_layer_override_default() {
     "###);
 
     // User
-    test_env.add_config(format!("{config_key} = {value:?}\n", value = "user"));
+    test_env.add_config(format!(
+        "{config_key} = {value}\n",
+        value = to_toml_value("user")
+    ));
     let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
     insta::assert_snapshot!(stdout, @r###"
     merge-tools.vimdiff.program = "user"
@@ -279,7 +283,7 @@ fn test_config_layer_override_default() {
     // Repo
     std::fs::write(
         repo_path.join(".jj/repo/config.toml"),
-        format!("{config_key} = {value:?}\n", value = "repo"),
+        format!("{config_key} = {value}\n", value = to_toml_value("repo")),
     )
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
@@ -295,7 +299,7 @@ fn test_config_layer_override_default() {
             "list",
             config_key,
             "--config",
-            &format!("{config_key}={value:?}", value = "command-arg"),
+            &format!("{config_key}={value}", value = to_toml_value("command-arg")),
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
@@ -311,7 +315,7 @@ fn test_config_layer_override_default() {
             config_key,
             "--include-overridden",
             "--config",
-            &format!("{config_key}={value:?}", value = "command-arg"),
+            &format!("{config_key}={value}", value = to_toml_value("command-arg")),
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
@@ -351,7 +355,10 @@ fn test_config_layer_override_env() {
     "###);
 
     // User
-    test_env.add_config(format!("{config_key} = {value:?}\n", value = "user"));
+    test_env.add_config(format!(
+        "{config_key} = {value}\n",
+        value = to_toml_value("user")
+    ));
     let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
     insta::assert_snapshot!(stdout, @r###"
     ui.editor = "user"
@@ -360,7 +367,7 @@ fn test_config_layer_override_env() {
     // Repo
     std::fs::write(
         repo_path.join(".jj/repo/config.toml"),
-        format!("{config_key} = {value:?}\n", value = "repo"),
+        format!("{config_key} = {value}\n", value = to_toml_value("repo")),
     )
     .unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", config_key]);
@@ -383,7 +390,7 @@ fn test_config_layer_override_env() {
             "list",
             config_key,
             "--config",
-            &format!("{config_key}={value:?}", value = "command-arg"),
+            &format!("{config_key}={value}", value = to_toml_value("command-arg")),
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
@@ -399,7 +406,7 @@ fn test_config_layer_override_env() {
             config_key,
             "--include-overridden",
             "--config",
-            &format!("{config_key}={value:?}", value = "command-arg"),
+            &format!("{config_key}={value}", value = to_toml_value("command-arg")),
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
@@ -429,7 +436,10 @@ fn test_config_layer_workspace() {
     // Repo
     std::fs::write(
         main_path.join(".jj/repo/config.toml"),
-        format!("{config_key} = {value:?}\n", value = "main-repo"),
+        format!(
+            "{config_key} = {value}\n",
+            value = to_toml_value("main-repo")
+        ),
     )
     .unwrap();
     let stdout = test_env.jj_cmd_success(&main_path, &["config", "list", config_key]);
@@ -1139,7 +1149,7 @@ fn test_config_conditional_without_home_dir() {
                 --when.repositories = [{repo_path}]
                 foo = 'repo'
             "},
-            repo_path = toml_edit::Value::from(repo_path.to_str().unwrap())
+            repo_path = to_toml_value(repo_path.to_str().unwrap())
         ),
     )
     .unwrap();

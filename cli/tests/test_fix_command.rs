@@ -16,9 +16,9 @@
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 
-use itertools::Itertools;
 use jj_lib::file_util::try_symlink;
 
+use crate::common::to_toml_value;
 use crate::common::TestEnvironment;
 
 /// Set up a repo where the `jj fix` command uses the fake editor with the given
@@ -35,17 +35,17 @@ fn init_with_fake_formatter(args: &[&str]) -> (TestEnvironment, PathBuf, impl Fn
     // dedicated test coverage for the deprecated syntax until it is removed. We use
     // single quotes here to avoid escaping issues when running the test on Windows.
     test_env.add_config(format!(
-        r#"fix.tool-command = ['{}']"#,
-        [formatter_path.to_str().unwrap()]
-            .iter()
-            .chain(args)
-            .join(r#"', '"#)
+        "fix.tool-command = {}",
+        toml_edit::Value::from_iter(
+            [formatter_path.to_str().unwrap()]
+                .iter()
+                .chain(args)
+                .copied()
+        )
     ));
     (test_env, repo_path, move |snapshot: &str| {
-        // When the test runs on Windows, backslashes in the path complicate things by
-        // changing the double quotes to single quotes in the serialized TOML.
         snapshot.replace(
-            &format!("'{}'", formatter_path.to_str().unwrap()),
+            &to_toml_value(formatter_path.to_str().unwrap()).to_string(),
             "<redacted formatter path>",
         )
     })
@@ -76,17 +76,16 @@ fn test_config_both_legacy_and_table_tools() {
 
     let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
     assert!(formatter_path.is_file());
-    let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
+    let formatter = to_toml_value(formatter_path.to_str().unwrap());
     test_env.add_config(format!(
         r###"
         [fix]
-        tool-command = ["{formatter}", "--append", "legacy change"]
+        tool-command = [{formatter}, "--append", "legacy change"]
 
         [fix.tools.tool-1]
-        command = ["{formatter}", "--append", "tables change"]
+        command = [{formatter}, "--append", "tables change"]
         patterns = ["tables-file"]
         "###,
-        formatter = escaped_formatter_path.as_str()
     ));
 
     std::fs::write(repo_path.join("legacy-file"), "legacy content\n").unwrap();
@@ -114,18 +113,17 @@ fn test_config_multiple_tools() {
     let repo_path = test_env.env_root().join("repo");
     let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
     assert!(formatter_path.is_file());
-    let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
+    let formatter = to_toml_value(formatter_path.to_str().unwrap());
     test_env.add_config(format!(
         r###"
         [fix.tools.tool-1]
-        command = ["{formatter}", "--uppercase"]
+        command = [{formatter}, "--uppercase"]
         patterns = ["foo"]
 
         [fix.tools.tool-2]
-        command = ["{formatter}", "--lowercase"]
+        command = [{formatter}, "--lowercase"]
         patterns = ["bar"]
         "###,
-        formatter = escaped_formatter_path.as_str()
     ));
 
     std::fs::write(repo_path.join("foo"), "Foo\n").unwrap();
@@ -149,21 +147,20 @@ fn test_config_multiple_tools_with_same_name() {
     let repo_path = test_env.env_root().join("repo");
     let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
     assert!(formatter_path.is_file());
-    let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
+    let formatter = to_toml_value(formatter_path.to_str().unwrap());
 
     // Multiple definitions with the same `name` are not allowed, because it is
     // likely to be a mistake, and mistakes are risky when they rewrite files.
     test_env.add_config(format!(
         r###"
         [fix.tools.my-tool]
-        command = ["{formatter}", "--uppercase"]
+        command = [{formatter}, "--uppercase"]
         patterns = ["foo"]
 
         [fix.tools.my-tool]
-        command = ["{formatter}", "--lowercase"]
+        command = [{formatter}, "--lowercase"]
         patterns = ["bar"]
         "###,
-        formatter = escaped_formatter_path.as_str()
     ));
 
     std::fs::write(repo_path.join("foo"), "Foo\n").unwrap();
@@ -197,19 +194,18 @@ fn test_config_tables_overlapping_patterns() {
     let repo_path = test_env.env_root().join("repo");
     let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
     assert!(formatter_path.is_file());
-    let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
+    let formatter = to_toml_value(formatter_path.to_str().unwrap());
 
     test_env.add_config(format!(
         r###"
         [fix.tools.tool-1]
-        command = ["{formatter}", "--append", "tool-1"]
+        command = [{formatter}, "--append", "tool-1"]
         patterns = ["foo", "bar"]
 
         [fix.tools.tool-2]
-        command = ["{formatter}", "--append", "tool-2"]
+        command = [{formatter}, "--append", "tool-2"]
         patterns = ["bar", "baz"]
         "###,
-        formatter = escaped_formatter_path.as_str()
     ));
 
     std::fs::write(repo_path.join("foo"), "foo\n").unwrap();
@@ -273,17 +269,16 @@ fn test_config_tables_some_commands_missing() {
     let repo_path = test_env.env_root().join("repo");
     let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
     assert!(formatter_path.is_file());
-    let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
+    let formatter = to_toml_value(formatter_path.to_str().unwrap());
     test_env.add_config(format!(
         r###"
         [fix.tools.tool-1]
-        command = ["{formatter}", "--uppercase"]
+        command = [{formatter}, "--uppercase"]
         patterns = ["foo"]
 
         [fix.tools.my-tool-missing-command]
         patterns = ['bar']
         "###,
-        formatter = escaped_formatter_path.as_str()
     ));
 
     std::fs::write(repo_path.join("foo"), "foo\n").unwrap();
@@ -308,14 +303,13 @@ fn test_config_tables_empty_patterns_list() {
     let repo_path = test_env.env_root().join("repo");
     let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
     assert!(formatter_path.is_file());
-    let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
+    let formatter = to_toml_value(formatter_path.to_str().unwrap());
     test_env.add_config(format!(
         r###"
         [fix.tools.my-tool-empty-patterns]
-        command = ["{formatter}", "--uppercase"]
+        command = [{formatter}, "--uppercase"]
         patterns = []
         "###,
-        formatter = escaped_formatter_path.as_str()
     ));
 
     std::fs::write(repo_path.join("foo"), "foo\n").unwrap();
@@ -338,22 +332,21 @@ fn test_config_filesets() {
     let repo_path = test_env.env_root().join("repo");
     let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
     assert!(formatter_path.is_file());
-    let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
+    let formatter = to_toml_value(formatter_path.to_str().unwrap());
     test_env.add_config(format!(
         r###"
         [fix.tools.my-tool-match-one]
-        command = ["{formatter}", "--uppercase"]
+        command = [{formatter}, "--uppercase"]
         patterns = ['glob:"a*"']
 
         [fix.tools.my-tool-match-two]
-        command = ["{formatter}", "--reverse"]
+        command = [{formatter}, "--reverse"]
         patterns = ['glob:"b*"']
 
         [fix.tools.my-tool-match-none]
-        command = ["{formatter}", "--append", "SHOULD NOT APPEAR"]
+        command = [{formatter}, "--append", "SHOULD NOT APPEAR"]
         patterns = ['glob:"this-doesnt-match-anything-*"']
         "###,
-        formatter = escaped_formatter_path.as_str()
     ));
 
     std::fs::write(repo_path.join("a1"), "a1\n").unwrap();
@@ -377,14 +370,13 @@ fn test_relative_paths() {
     let repo_path = test_env.env_root().join("repo");
     let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
     assert!(formatter_path.is_file());
-    let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
+    let formatter = to_toml_value(formatter_path.to_str().unwrap());
     test_env.add_config(format!(
         r###"
         [fix.tools.tool]
-        command = ["{formatter}", "--stdout", "Fixed!"]
+        command = [{formatter}, "--stdout", "Fixed!"]
         patterns = ['glob:"foo*"']
         "###,
-        formatter = escaped_formatter_path.as_str()
     ));
 
     std::fs::create_dir(repo_path.join("dir")).unwrap();
@@ -432,7 +424,7 @@ fn test_fix_empty_commit() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--uppercase']
+                command = [<redacted formatter path>, "--uppercase"]
                 patterns = ["all()"]
                 
     Fixed 0 commits of 1 checked.
@@ -453,7 +445,7 @@ fn test_fix_leaf_commit() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--uppercase']
+                command = [<redacted formatter path>, "--uppercase"]
                 patterns = ["all()"]
                 
     Fixed 1 commits of 1 checked.
@@ -486,7 +478,7 @@ fn test_fix_parent_commit() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--uppercase']
+                command = [<redacted formatter path>, "--uppercase"]
                 patterns = ["all()"]
                 
     Fixed 3 commits of 3 checked.
@@ -520,7 +512,7 @@ fn test_fix_sibling_commit() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--uppercase']
+                command = [<redacted formatter path>, "--uppercase"]
                 patterns = ["all()"]
                 
     Fixed 1 commits of 1 checked.
@@ -565,7 +557,7 @@ fn test_default_revset() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--uppercase']
+                command = [<redacted formatter path>, "--uppercase"]
                 patterns = ["all()"]
                 
     Fixed 3 commits of 3 checked.
@@ -608,7 +600,7 @@ fn test_custom_default_revset() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--uppercase']
+                command = [<redacted formatter path>, "--uppercase"]
                 patterns = ["all()"]
                 
     Fixed 1 commits of 1 checked.
@@ -634,7 +626,7 @@ fn test_fix_immutable_commit() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--uppercase']
+                command = [<redacted formatter path>, "--uppercase"]
                 patterns = ["all()"]
                 
     Error: Commit e4b41a3ce243 is immutable
@@ -658,7 +650,7 @@ fn test_fix_empty_file() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--uppercase']
+                command = [<redacted formatter path>, "--uppercase"]
                 patterns = ["all()"]
                 
     Fixed 0 commits of 1 checked.
@@ -680,7 +672,7 @@ fn test_fix_some_paths() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--uppercase']
+                command = [<redacted formatter path>, "--uppercase"]
                 patterns = ["all()"]
                 
     Fixed 1 commits of 1 checked.
@@ -707,7 +699,7 @@ fn test_fix_cyclic() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--reverse']
+                command = [<redacted formatter path>, "--reverse"]
                 patterns = ["all()"]
                 
     Fixed 1 commits of 1 checked.
@@ -724,7 +716,7 @@ fn test_fix_cyclic() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--reverse']
+                command = [<redacted formatter path>, "--reverse"]
                 patterns = ["all()"]
                 
     Fixed 1 commits of 1 checked.
@@ -764,7 +756,7 @@ fn test_deduplication() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--uppercase', '--tee', '$path-fixlog']
+                command = [<redacted formatter path>, "--uppercase", "--tee", "$path-fixlog"]
                 patterns = ["all()"]
                 
     Fixed 4 commits of 4 checked.
@@ -810,7 +802,7 @@ fn test_executed_but_nothing_changed() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--tee', '$path-copy']
+                command = [<redacted formatter path>, "--tee", "$path-copy"]
                 patterns = ["all()"]
                 
     Fixed 0 commits of 1 checked.
@@ -833,7 +825,7 @@ fn test_failure() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--fail']
+                command = [<redacted formatter path>, "--fail"]
                 patterns = ["all()"]
                 
     Fixed 0 commits of 1 checked.
@@ -857,7 +849,7 @@ fn test_stderr_success() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--stderr', 'error', '--stdout', 'new content']
+                command = [<redacted formatter path>, "--stderr", "error", "--stdout", "new content"]
                 patterns = ["all()"]
                 
     errorFixed 1 commits of 1 checked.
@@ -881,7 +873,7 @@ fn test_stderr_failure() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--stderr', 'error', '--stdout', 'new content', '--fail']
+                command = [<redacted formatter path>, "--stderr", "error", "--stdout", "new content", "--fail"]
                 patterns = ["all()"]
                 
     errorFixed 0 commits of 1 checked.
@@ -927,7 +919,7 @@ fn test_fix_file_types() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--uppercase']
+                command = [<redacted formatter path>, "--uppercase"]
                 patterns = ["all()"]
                 
     Fixed 1 commits of 1 checked.
@@ -955,7 +947,7 @@ fn test_fix_executable() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--uppercase']
+                command = [<redacted formatter path>, "--uppercase"]
                 patterns = ["all()"]
                 
     Fixed 1 commits of 1 checked.
@@ -989,7 +981,7 @@ fn test_fix_trivial_merge_commit() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--uppercase']
+                command = [<redacted formatter path>, "--uppercase"]
                 patterns = ["all()"]
                 
     Fixed 0 commits of 1 checked.
@@ -1027,7 +1019,7 @@ fn test_fix_adding_merge_commit() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--uppercase']
+                command = [<redacted formatter path>, "--uppercase"]
                 patterns = ["all()"]
                 
     Fixed 1 commits of 1 checked.
@@ -1060,11 +1052,11 @@ fn test_fix_both_sides_of_conflict() {
     // fixed if we didn't fix the parents also.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["fix", "-s", "a", "-s", "b"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(redact(&stderr), @r###"
+    insta::assert_snapshot!(redact(&stderr), @r#"
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--uppercase']
+                command = [<redacted formatter path>, "--uppercase"]
                 patterns = ["all()"]
                 
     Fixed 3 commits of 3 checked.
@@ -1074,7 +1066,7 @@ fn test_fix_both_sides_of_conflict() {
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
     file    2-sided conflict
-    "###);
+    "#);
     let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "a"]);
     insta::assert_snapshot!(content, @r###"
     CONTENT A
@@ -1114,7 +1106,7 @@ fn test_fix_resolve_conflict() {
     Warning: The `fix.tool-command` config option is deprecated and will be removed in a future version.
     Hint: Replace it with the following:
                 [fix.tools.legacy-tool-command]
-                command = [<redacted formatter path>, '--uppercase']
+                command = [<redacted formatter path>, "--uppercase"]
                 patterns = ["all()"]
                 
     Fixed 3 commits of 3 checked.
@@ -1136,7 +1128,7 @@ fn test_all_files() {
     let repo_path = test_env.env_root().join("repo");
     let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
     assert!(formatter_path.is_file());
-    let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
+    let formatter = to_toml_value(formatter_path.to_str().unwrap());
 
     // Consider a few cases:
     // File A:     in patterns,     changed in child
@@ -1148,10 +1140,9 @@ fn test_all_files() {
     test_env.add_config(format!(
         r###"
         [fix.tools.tool]
-        command = ["{formatter}", "--append", "fixed"]
+        command = [{formatter}, "--append", "fixed"]
         patterns = ["a/a", "b/b"]
         "###,
-        formatter = escaped_formatter_path.as_str()
     ));
 
     std::fs::create_dir(repo_path.join("a")).unwrap();
