@@ -2777,7 +2777,11 @@ pub fn parse_args(
     layered_configs: &mut LayeredConfigs,
 ) -> Result<(ArgMatches, Args), CommandError> {
     handle_early_args(ui, app, string_args, layered_configs)?;
-    let matches = app.clone().try_get_matches_from(string_args)?;
+    let matches = app
+        .clone()
+        .arg_required_else_help(true)
+        .subcommand_required(true)
+        .try_get_matches_from(string_args)?;
 
     let args: Args = Args::from_arg_matches(&matches).unwrap();
     if args.global_args.verbose {
