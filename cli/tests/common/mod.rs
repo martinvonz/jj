@@ -17,6 +17,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 
+use indoc::formatdoc;
 use itertools::Itertools as _;
 use regex::Captures;
 use regex::Regex;
@@ -288,22 +289,16 @@ impl TestEnvironment {
     /// Sets up the fake editor to read an edit script from the returned path
     /// Also sets up the fake editor as a merge tool named "fake-editor"
     pub fn set_up_fake_editor(&mut self) -> PathBuf {
-        let editor_path = assert_cmd::cargo::cargo_bin("fake-editor");
-        assert!(editor_path.is_file());
-        // Simplified TOML escaping, hoping that there are no '"' or control characters
-        // in it
-        let escaped_editor_path = editor_path.to_str().unwrap().replace('\\', r"\\");
-        self.add_env_var("EDITOR", &escaped_editor_path);
-        self.add_config(format!(
-            r###"
-                    [ui]
-                    merge-editor = "fake-editor"
+        let editor_path = to_toml_value(fake_editor_path());
+        self.add_config(formatdoc! {r#"
+            [ui]
+            editor = {editor_path}
+            merge-editor = "fake-editor"
 
-                    [merge-tools]
-                    fake-editor.program="{escaped_editor_path}"
-                    fake-editor.merge-args = ["$output"]
-                "###
-        ));
+            [merge-tools]
+            fake-editor.program = {editor_path}
+            fake-editor.merge-args = ["$output"]
+        "#});
         let edit_script = self.env_root().join("edit_script");
         std::fs::write(&edit_script, "").unwrap();
         self.add_env_var("EDIT_SCRIPT", edit_script.to_str().unwrap());
@@ -313,13 +308,11 @@ impl TestEnvironment {
     /// Sets up the fake diff-editor to read an edit script from the returned
     /// path
     pub fn set_up_fake_diff_editor(&mut self) -> PathBuf {
-        let escaped_diff_editor_path = escaped_fake_diff_editor_path();
-        self.add_config(format!(
-            r###"
+        let diff_editor_path = to_toml_value(fake_diff_editor_path());
+        self.add_config(formatdoc! {r#"
             ui.diff-editor = "fake-diff-editor"
-            merge-tools.fake-diff-editor.program = "{escaped_diff_editor_path}"
-            "###
-        ));
+            merge-tools.fake-diff-editor.program = {diff_editor_path}
+        "#});
         let edit_script = self.env_root().join("diff_edit_script");
         std::fs::write(&edit_script, "").unwrap();
         self.add_env_var("DIFF_EDIT_SCRIPT", edit_script.to_str().unwrap());
@@ -363,12 +356,21 @@ pub fn get_stderr_string(assert: &assert_cmd::assert::Assert) -> String {
     String::from_utf8(assert.get_output().stderr.clone()).unwrap()
 }
 
-pub fn escaped_fake_diff_editor_path() -> String {
-    let diff_editor_path = assert_cmd::cargo::cargo_bin("fake-diff-editor");
-    assert!(diff_editor_path.is_file());
-    // Simplified TOML escaping, hoping that there are no '"' or control characters
-    // in it
-    diff_editor_path.to_str().unwrap().replace('\\', r"\\")
+pub fn fake_editor_path() -> String {
+    let path = assert_cmd::cargo::cargo_bin("fake-editor");
+    assert!(path.is_file());
+    path.into_os_string().into_string().unwrap()
+}
+
+pub fn fake_diff_editor_path() -> String {
+    let path = assert_cmd::cargo::cargo_bin("fake-diff-editor");
+    assert!(path.is_file());
+    path.into_os_string().into_string().unwrap()
+}
+
+/// Coerces the value type to serialize it as TOML.
+pub fn to_toml_value(value: impl Into<toml_edit::Value>) -> toml_edit::Value {
+    value.into()
 }
 
 /// Returns a string with the last line removed.
