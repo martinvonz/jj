@@ -385,10 +385,10 @@ impl IndexSegment for ReadonlyIndexSegment {
         (&entry.commit_id() == commit_id).then(|| entry.pos())
     }
 
-    fn segment_commit_id_to_neighbor_positions(
+    fn segment_resolve_neighbor_commit_ids(
         &self,
         commit_id: &CommitId,
-    ) -> (Option<IndexPosition>, Option<IndexPosition>) {
+    ) -> (Option<CommitId>, Option<CommitId>) {
         if let Some(lookup_pos) = self.commit_id_byte_prefix_to_lookup_pos(commit_id) {
             let entry_commit_id = self.lookup_entry(lookup_pos).commit_id();
             let (prev_lookup_pos, next_lookup_pos) = match entry_commit_id.cmp(commit_id) {
@@ -402,9 +402,9 @@ impl IndexSegment for ReadonlyIndexSegment {
                 }
                 Ordering::Greater => (lookup_pos.checked_sub(1), Some(lookup_pos)),
             };
-            let prev_pos = prev_lookup_pos.map(|p| self.lookup_entry(p).pos());
-            let next_pos = next_lookup_pos.map(|p| self.lookup_entry(p).pos());
-            (prev_pos, next_pos)
+            let prev_id = prev_lookup_pos.map(|p| self.lookup_entry(p).commit_id());
+            let next_id = next_lookup_pos.map(|p| self.lookup_entry(p).commit_id());
+            (prev_id, next_id)
         } else {
             (None, None)
         }
