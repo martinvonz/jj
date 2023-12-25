@@ -1112,18 +1112,21 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
     // Branch "main" points to commit B. B gets rewritten as B2, B3, B4. Branch main
     // should become a conflict pointing to all of them.
     //
-    //                B4 main?
-    //                | B3 main?
+    //                C other
+    // C other        | B4 main?
+    // |              |/B3 main?
     // B main         |/B2 main?
     // |         =>   |/
     // A              A
-    // TODO(ilyagr): Check what happens if B had a descendant with a branch on it.
     let mut tx = repo.start_transaction(&settings);
     let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
     let commit_a = graph_builder.initial_commit();
     let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_c = graph_builder.commit_with_parents(&[&commit_b]);
     tx.mut_repo()
         .set_local_branch_target("main", RefTarget::normal(commit_b.id().clone()));
+    tx.mut_repo()
+        .set_local_branch_target("other", RefTarget::normal(commit_c.id().clone()));
     let repo = tx.commit("test");
 
     let mut tx = repo.start_transaction(&settings);
@@ -1148,14 +1151,14 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
         .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
 
-    let target = tx.mut_repo().get_local_branch("main");
-    assert!(target.has_conflict());
+    let main_target = tx.mut_repo().get_local_branch("main");
+    assert!(main_target.has_conflict());
     assert_eq!(
-        target.removed_ids().counts(),
+        main_target.removed_ids().counts(),
         hashmap! { commit_b.id() => 2 },
     );
     assert_eq!(
-        target.added_ids().counts(),
+        main_target.added_ids().counts(),
         hashmap! {
             commit_b2.id() => 1,
             commit_b3.id() => 1,
@@ -1163,12 +1166,16 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
         },
     );
 
+    let other_target = tx.mut_repo().get_local_branch("other");
+    assert_eq!(other_target.as_normal(), Some(commit_c.id()));
+
     assert_eq!(
         *tx.mut_repo().view().heads(),
         hashset! {
             commit_b2.id().clone(),
             commit_b3.id().clone(),
             commit_b4.id().clone(),
+            commit_c.id().clone(),
         }
     );
 }
