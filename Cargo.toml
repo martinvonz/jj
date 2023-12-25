@@ -39,7 +39,7 @@ digest = "0.10.7"
 dirs = "5.0.1"
 either = "1.9.0"
 esl01-renderdag = "0.3.0"
-futures = "0.3.29"
+futures = "0.3.30"
 git2 = "0.18.1"
 gix = { version = "0.56.0", default-features = false, features = [
     "index",
