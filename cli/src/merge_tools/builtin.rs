@@ -416,12 +416,14 @@ pub fn edit_diff_builtin(
         .try_collect()
         .block_on()?;
     let files = make_diff_files(&store, left_tree, right_tree, &changed_files)?;
+    let mut input = scm_record::helpers::CrosstermInput;
     let recorder = scm_record::Recorder::new(
         scm_record::RecordState {
             is_read_only: false,
             files,
+            commits: Default::default(),
         },
-        scm_record::EventSource::Crossterm,
+        &mut input,
     );
     let result = recorder.run().map_err(BuiltinToolError::Record)?;
     let tree_id = apply_diff_builtin(store, left_tree, right_tree, changed_files, &result.files)
@@ -518,6 +520,7 @@ pub fn edit_merge_builtin(
     let slices = content.map(|ContentHunk(v)| v.as_slice());
     let merge_result = files::merge(&slices);
     let sections = make_merge_sections(merge_result)?;
+    let mut input = scm_record::helpers::CrosstermInput;
     let recorder = scm_record::Recorder::new(
         scm_record::RecordState {
             is_read_only: false,
@@ -527,8 +530,9 @@ pub fn edit_merge_builtin(
                 file_mode: None,
                 sections,
             }],
+            commits: Default::default(),
         },
-        scm_record::EventSource::Crossterm,
+        &mut input,
     );
     let state = recorder.run()?;
 
