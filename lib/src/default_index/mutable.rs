@@ -319,21 +319,21 @@ impl IndexSegment for MutableIndexSegment {
         self.lookup.get(commit_id).cloned()
     }
 
-    fn segment_commit_id_to_neighbor_positions(
+    fn segment_resolve_neighbor_commit_ids(
         &self,
         commit_id: &CommitId,
-    ) -> (Option<IndexPosition>, Option<IndexPosition>) {
-        let prev_pos = self
+    ) -> (Option<CommitId>, Option<CommitId>) {
+        let prev_id = self
             .lookup
             .range((Bound::Unbounded, Bound::Excluded(commit_id)))
             .next_back()
-            .map(|(_, &pos)| pos);
-        let next_pos = self
+            .map(|(id, _)| id.clone());
+        let next_id = self
             .lookup
             .range((Bound::Excluded(commit_id), Bound::Unbounded))
             .next()
-            .map(|(_, &pos)| pos);
-        (prev_pos, next_pos)
+            .map(|(id, _)| id.clone());
+        (prev_id, next_id)
     }
 
     fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {

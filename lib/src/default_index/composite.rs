@@ -41,12 +41,12 @@ pub(super) trait IndexSegment: Send + Sync {
 
     fn segment_commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition>;
 
-    /// Suppose the given `commit_id` exists, returns the positions of the
-    /// previous and next commit ids in lexicographical order.
-    fn segment_commit_id_to_neighbor_positions(
+    /// Suppose the given `commit_id` exists, returns the previous and next
+    /// commit ids in lexicographical order.
+    fn segment_resolve_neighbor_commit_ids(
         &self,
         commit_id: &CommitId,
-    ) -> (Option<IndexPosition>, Option<IndexPosition>);
+    ) -> (Option<CommitId>, Option<CommitId>);
 
     fn segment_resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId>;
 
@@ -168,16 +168,7 @@ impl<'a> CompositeIndex<'a> {
         commit_id: &CommitId,
     ) -> (Option<CommitId>, Option<CommitId>) {
         self.ancestor_index_segments()
-            .map(|segment| {
-                let num_parent_commits = segment.segment_num_parent_commits();
-                let to_local_pos = |pos: IndexPosition| pos.0 - num_parent_commits;
-                let (prev_pos, next_pos) =
-                    segment.segment_commit_id_to_neighbor_positions(commit_id);
-                (
-                    prev_pos.map(|p| segment.segment_commit_id(to_local_pos(p))),
-                    next_pos.map(|p| segment.segment_commit_id(to_local_pos(p))),
-                )
-            })
+            .map(|segment| segment.segment_resolve_neighbor_commit_ids(commit_id))
             .reduce(|(acc_prev_id, acc_next_id), (prev_id, next_id)| {
                 (
                     acc_prev_id.into_iter().chain(prev_id).max(),

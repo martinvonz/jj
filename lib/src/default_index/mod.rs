@@ -423,58 +423,58 @@ mod tests {
 
         // Local lookup in readonly index, commit_id exists.
         assert_eq!(
-            initial_file.segment_commit_id_to_neighbor_positions(&id_0),
-            (None, Some(IndexPosition(1))),
+            initial_file.segment_resolve_neighbor_commit_ids(&id_0),
+            (None, Some(id_1.clone())),
         );
         assert_eq!(
-            initial_file.segment_commit_id_to_neighbor_positions(&id_1),
-            (Some(IndexPosition(0)), Some(IndexPosition(2))),
+            initial_file.segment_resolve_neighbor_commit_ids(&id_1),
+            (Some(id_0.clone()), Some(id_2.clone())),
         );
         assert_eq!(
-            initial_file.segment_commit_id_to_neighbor_positions(&id_2),
-            (Some(IndexPosition(1)), None),
+            initial_file.segment_resolve_neighbor_commit_ids(&id_2),
+            (Some(id_1.clone()), None),
         );
 
         // Local lookup in readonly index, commit_id does not exist.
         assert_eq!(
-            initial_file.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("000000")),
-            (None, Some(IndexPosition(0))),
+            initial_file.segment_resolve_neighbor_commit_ids(&CommitId::from_hex("000000")),
+            (None, Some(id_0.clone())),
         );
         assert_eq!(
-            initial_file.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("000002")),
-            (Some(IndexPosition(0)), Some(IndexPosition(1))),
+            initial_file.segment_resolve_neighbor_commit_ids(&CommitId::from_hex("000002")),
+            (Some(id_0.clone()), Some(id_1.clone())),
         );
         assert_eq!(
-            initial_file.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("ffffff")),
-            (Some(IndexPosition(2)), None),
+            initial_file.segment_resolve_neighbor_commit_ids(&CommitId::from_hex("ffffff")),
+            (Some(id_2.clone()), None),
         );
 
         // Local lookup in mutable index, commit_id exists. id_5 < id_3 < id_4
         assert_eq!(
-            mutable_segment.segment_commit_id_to_neighbor_positions(&id_5),
-            (None, Some(IndexPosition(3))),
+            mutable_segment.segment_resolve_neighbor_commit_ids(&id_5),
+            (None, Some(id_3.clone())),
         );
         assert_eq!(
-            mutable_segment.segment_commit_id_to_neighbor_positions(&id_3),
-            (Some(IndexPosition(5)), Some(IndexPosition(4))),
+            mutable_segment.segment_resolve_neighbor_commit_ids(&id_3),
+            (Some(id_5.clone()), Some(id_4.clone())),
         );
         assert_eq!(
-            mutable_segment.segment_commit_id_to_neighbor_positions(&id_4),
-            (Some(IndexPosition(3)), None),
+            mutable_segment.segment_resolve_neighbor_commit_ids(&id_4),
+            (Some(id_3.clone()), None),
         );
 
         // Local lookup in mutable index, commit_id does not exist. id_5 < id_3 < id_4
         assert_eq!(
-            mutable_segment.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("033332")),
-            (None, Some(IndexPosition(5))),
+            mutable_segment.segment_resolve_neighbor_commit_ids(&CommitId::from_hex("033332")),
+            (None, Some(id_5.clone())),
         );
         assert_eq!(
-            mutable_segment.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("033334")),
-            (Some(IndexPosition(5)), Some(IndexPosition(3))),
+            mutable_segment.segment_resolve_neighbor_commit_ids(&CommitId::from_hex("033334")),
+            (Some(id_5.clone()), Some(id_3.clone())),
         );
         assert_eq!(
-            mutable_segment.segment_commit_id_to_neighbor_positions(&CommitId::from_hex("ffffff")),
-            (Some(IndexPosition(4)), None),
+            mutable_segment.segment_resolve_neighbor_commit_ids(&CommitId::from_hex("ffffff")),
+            (Some(id_4.clone()), None),
         );
 
         // Global lookup, commit_id exists. id_0 < id_1 < id_5 < id_3 < id_2 < id_4
