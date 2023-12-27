@@ -97,9 +97,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.76"
+version = "1.0.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59d2a3357dde987206219e78ecfbbb6e8dad06cbb65292758d3270e6254f7355"
+checksum = "c9d19de80eff169429ac1e9f48fffb163916b448a44e8e046186232046d9e1f9"
 
 [[package]]
 name = "arc-swap"
@@ -580,22 +580,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a22b2d63d4d1dc0b7f1b6b2747dd0088008a9be28b6ddf0b1e7d335e3037294"
 dependencies = [
  "cfg-if",
-]
-
-[[package]]
-name = "crossterm"
-version = "0.26.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a84cda67535339806297f1b331d6dd6320470d2a0fe65381e79ee9e156dd3d13"
-dependencies = [
- "bitflags 1.3.2",
- "crossterm_winapi",
- "libc",
- "mio",
- "parking_lot",
- "signal-hook",
- "signal-hook-mio",
- "winapi",
 ]
 
 [[package]]
@@ -1609,7 +1593,7 @@ dependencies = [
  "clap_mangen",
  "config",
  "criterion",
- "crossterm 0.26.1",
+ "crossterm",
  "dirs",
  "esl01-renderdag",
  "futures 0.3.30",
@@ -2334,7 +2318,7 @@ checksum = "2e2e4cd95294a85c3b4446e63ef054eea43e0205b1fd60120c16b74ff7ff96ad"
 dependencies = [
  "bitflags 2.4.0",
  "cassowary",
- "crossterm 0.27.0",
+ "crossterm",
  "indoc",
  "itertools 0.11.0",
  "paste",
@@ -2545,7 +2529,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e45342a3f095f3b895b4958332c25e7cc2e0ad20caca84c0f22df8f39d279a24"
 dependencies = [
  "cassowary",
- "crossterm 0.27.0",
+ "crossterm",
  "num-traits",
  "ratatui",
  "serde",
