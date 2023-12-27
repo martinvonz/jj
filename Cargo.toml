@@ -17,7 +17,7 @@ categories = ["version-control", "development-tools"]
 keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 
 [workspace.dependencies]
-anyhow = "1.0.76"
+anyhow = "1.0.77"
 assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
 async-trait = "0.1.75"
@@ -34,7 +34,7 @@ chrono = { version = "0.4.31", default-features = false, features = [
 ] }
 config = { version = "0.13.4", default-features = false, features = ["toml"] }
 criterion = "0.5.1"
-crossterm = { version = "0.26", default-features = false }
+crossterm = { version = "0.27", default-features = false }
 digest = "0.10.7"
 dirs = "5.0.1"
 either = "1.9.0"
