@@ -119,6 +119,19 @@ impl DefaultIndexStore {
         .map_err(DefaultIndexStoreError::LoadIndex)
     }
 
+    /// Rebuilds index for the given `operation`.
+    ///
+    /// The index to be built will be calculated from one of the ancestor
+    /// operations if exists. Use `reinit()` to rebuild index from scratch.
+    pub fn build_index_at_operation(
+        &self,
+        operation: &Operation,
+        store: &Arc<Store>,
+    ) -> Result<DefaultReadonlyIndex, DefaultIndexStoreError> {
+        let index_segment = self.build_index_segments_at_operation(operation, store)?;
+        Ok(DefaultReadonlyIndex::from_segment(index_segment))
+    }
+
     #[tracing::instrument(skip(self, store))]
     fn build_index_segments_at_operation(
         &self,
