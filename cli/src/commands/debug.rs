@@ -20,6 +20,7 @@ use clap::Subcommand;
 use jj_lib::backend::ObjectId;
 use jj_lib::default_index::{AsCompositeIndex as _, DefaultIndexStore, DefaultReadonlyIndex};
 use jj_lib::local_working_copy::LocalWorkingCopy;
+use jj_lib::repo::Repo;
 use jj_lib::revset;
 use jj_lib::working_copy::WorkingCopy;
 
@@ -240,12 +241,9 @@ fn cmd_debug_reindex(
         default_index_store
             .reinit()
             .map_err(|err| CommandError::InternalError(err.to_string()))?;
-        let repo = repo.reload_at(repo.operation())?;
-        let default_index: &DefaultReadonlyIndex = repo
-            .readonly_index()
-            .as_any()
-            .downcast_ref()
-            .expect("Default index should be a DefaultReadonlyIndex");
+        let default_index = default_index_store
+            .build_index_at_operation(repo.operation(), repo.store())
+            .map_err(|err| CommandError::InternalError(err.to_string()))?;
         writeln!(
             ui.stderr(),
             "Finished indexing {:?} commits.",
