@@ -26,7 +26,7 @@ blake2 = "0.10.6"
 bytes = "1.5.0"
 cargo_metadata = "0.17.0"
 clap = { version = "4.4.11", features = ["derive", "deprecated", "wrap_help"] }
-clap_complete = "4.4.4"
+clap_complete = "4.4.5"
 clap_mangen = "0.2.10"
 chrono = { version = "0.4.31", default-features = false, features = [
     "std",
@@ -78,7 +78,7 @@ smallvec = { version = "1.11.2", features = [
     "union",
 ] }
 strsim = "0.10.0"
-tempfile = "3.8.1"
+tempfile = "3.9.0"
 test-case = "3.3.1"
 textwrap = "0.16.0"
 thiserror = "1.0.52"
