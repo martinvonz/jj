@@ -35,9 +35,7 @@ pub enum OpHeadResolutionError<E> {
     Err(#[source] E),
 }
 
-pub trait OpHeadsStoreLock<'a> {
-    fn promote_new_op(&self, new_op: &Operation);
-}
+pub trait OpHeadsStoreLock<'a> {}
 
 /// Manages the set of current heads of the operation log.
 pub trait OpHeadsStore: Send + Sync + Debug {
@@ -109,7 +107,7 @@ pub fn resolve_op_heads<E>(
     // Note that the locking isn't necessary for correctness; we take the lock
     // only to prevent other concurrent processes from doing the same work (and
     // producing another set of divergent heads).
-    let lock = op_heads_store.lock();
+    let _lock = op_heads_store.lock();
     let op_head_ids = op_heads_store.get_op_heads();
 
     if op_head_ids.is_empty() {
@@ -139,7 +137,7 @@ pub fn resolve_op_heads<E>(
     op_heads.sort_by_key(|op| op.store_operation().metadata.end_time.timestamp.clone());
     match resolver(op_heads) {
         Ok(new_op) => {
-            lock.promote_new_op(&new_op);
+            op_heads_store.update_op_heads(new_op.parent_ids(), new_op.id());
             Ok(new_op)
         }
         Err(e) => Err(OpHeadResolutionError::Err(e)),

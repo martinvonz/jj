@@ -22,7 +22,6 @@ use crate::backend::ObjectId;
 use crate::lock::FileLock;
 use crate::op_heads_store::{OpHeadsStore, OpHeadsStoreLock};
 use crate::op_store::OperationId;
-use crate::operation::Operation;
 
 pub struct SimpleOpHeadsStore {
     dir: PathBuf,
@@ -53,19 +52,11 @@ impl SimpleOpHeadsStore {
     }
 }
 
-struct SimpleOpHeadsStoreLock<'a> {
-    store: &'a dyn OpHeadsStore,
+struct SimpleOpHeadsStoreLock {
     _lock: FileLock,
 }
 
-impl OpHeadsStoreLock<'_> for SimpleOpHeadsStoreLock<'_> {
-    fn promote_new_op(&self, new_op: &Operation) {
-        self.store.add_op_head(new_op.id());
-        for old_id in new_op.parent_ids() {
-            self.store.remove_op_head(old_id);
-        }
-    }
-}
+impl OpHeadsStoreLock<'_> for SimpleOpHeadsStoreLock {}
 
 impl OpHeadsStore for SimpleOpHeadsStore {
     fn name(&self) -> &str {
@@ -105,7 +96,6 @@ impl OpHeadsStore for SimpleOpHeadsStore {
 
     fn lock<'a>(&'a self) -> Box<dyn OpHeadsStoreLock<'a> + 'a> {
         Box::new(SimpleOpHeadsStoreLock {
-            store: self,
             _lock: FileLock::lock(self.dir.join("lock")),
         })
     }
