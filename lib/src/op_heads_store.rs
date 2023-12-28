@@ -35,7 +35,7 @@ pub enum OpHeadResolutionError<E> {
     Err(#[source] E),
 }
 
-pub trait OpHeadsStoreLock<'a> {}
+pub trait OpHeadsStoreLock {}
 
 /// Manages the set of current heads of the operation log.
 pub trait OpHeadsStore: Send + Sync + Debug {
@@ -54,7 +54,11 @@ pub trait OpHeadsStore: Send + Sync + Debug {
 
     fn get_op_heads(&self) -> Vec<OperationId>;
 
-    fn lock<'a>(&'a self) -> Box<dyn OpHeadsStoreLock<'a> + 'a>;
+    /// Optionally takes a lock on the op heads store. The purpose of the lock
+    /// is to prevent concurrent processes from resolving the same divergent
+    /// operations. It is not needed for correctness; implementations are free
+    /// to return a type that doesn't hold.
+    fn lock(&self) -> Box<dyn OpHeadsStoreLock + '_>;
 
     /// Removes operations in the input that are ancestors of other operations
     /// in the input. The ancestors are removed both from the list and from

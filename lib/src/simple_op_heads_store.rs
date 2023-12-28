@@ -56,7 +56,7 @@ struct SimpleOpHeadsStoreLock {
     _lock: FileLock,
 }
 
-impl OpHeadsStoreLock<'_> for SimpleOpHeadsStoreLock {}
+impl OpHeadsStoreLock for SimpleOpHeadsStoreLock {}
 
 impl OpHeadsStore for SimpleOpHeadsStore {
     fn name(&self) -> &str {
@@ -94,7 +94,7 @@ impl OpHeadsStore for SimpleOpHeadsStore {
         op_heads
     }
 
-    fn lock<'a>(&'a self) -> Box<dyn OpHeadsStoreLock<'a> + 'a> {
+    fn lock(&self) -> Box<dyn OpHeadsStoreLock + '_> {
         Box::new(SimpleOpHeadsStoreLock {
             _lock: FileLock::lock(self.dir.join("lock")),
         })
