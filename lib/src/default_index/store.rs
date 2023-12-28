@@ -15,6 +15,7 @@
 #![allow(missing_docs)]
 
 use std::any::Any;
+use std::collections::HashSet;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -64,8 +65,11 @@ pub enum DefaultIndexStoreError {
     LoadIndex(ReadonlyIndexLoadError),
     #[error("Failed to write commit index file: {0}")]
     SaveIndex(#[source] io::Error),
-    #[error("Failed to index commits: {0}")]
-    IndexCommits(#[source] BackendError),
+    #[error("Failed to index commits at operation {op_id}: {source}", op_id = op_id.hex())]
+    IndexCommits {
+        op_id: OperationId,
+        source: BackendError,
+    },
     #[error(transparent)]
     OpStore(#[from] OpStoreError),
 }
@@ -142,7 +146,11 @@ impl DefaultIndexStore {
         let operations_dir = self.dir.join("operations");
         let commit_id_length = store.commit_id_length();
         let change_id_length = store.change_id_length();
-        let mut new_heads = view.heads().clone();
+        let mut visited_heads: HashSet<CommitId> = view.heads().clone();
+        let mut historical_heads: Vec<(CommitId, OperationId)> = visited_heads
+            .iter()
+            .map(|commit_id| (commit_id.clone(), operation.id().clone()))
+            .collect();
         let mut parent_op_id: Option<OperationId> = None;
         for op in dag_walk::dfs_ok(
             [Ok(operation.clone())],
@@ -158,8 +166,10 @@ impl DefaultIndexStore {
                 parent_op_id = Some(op.id().clone());
             }
             // TODO: no need to walk ancestors of the parent_op_id operation
-            for head in op.view()?.heads() {
-                new_heads.insert(head.clone());
+            for commit_id in op.view()?.heads() {
+                if visited_heads.insert(commit_id.clone()) {
+                    historical_heads.push((commit_id.clone(), op.id().clone()));
+                }
             }
         }
         let maybe_parent_file;
@@ -182,7 +192,7 @@ impl DefaultIndexStore {
 
         tracing::info!(
             ?maybe_parent_file,
-            new_heads_count = new_heads.len(),
+            heads_count = historical_heads.len(),
             "indexing commits reachable from historical heads"
         );
         // Build a list of ancestors of heads where parents and predecessors come after
@@ -192,23 +202,30 @@ impl DefaultIndexStore {
                 .as_ref()
                 .map_or(false, |segment| segment.as_composite().has_id(id))
         };
+        let get_commit_with_op = |commit_id: &CommitId, op_id: &OperationId| {
+            let op_id = op_id.clone();
+            match store.get_commit(commit_id) {
+                // Propagate head's op_id to report possible source of an error.
+                // The op_id doesn't have to be included in the sort key, but
+                // that wouldn't matter since the commit should be unique.
+                Ok(commit) => Ok((CommitByCommitterTimestamp(commit), op_id)),
+                Err(source) => Err(DefaultIndexStoreError::IndexCommits { op_id, source }),
+            }
+        };
         let commits = dag_walk::topo_order_reverse_ord_ok(
-            new_heads
+            historical_heads
                 .iter()
-                .filter(|&id| !parent_file_has_id(id))
-                .map(|id| store.get_commit(id))
-                .map_ok(CommitByCommitterTimestamp),
-            |CommitByCommitterTimestamp(commit)| commit.id().clone(),
-            |CommitByCommitterTimestamp(commit)| {
+                .filter(|&(commit_id, _)| !parent_file_has_id(commit_id))
+                .map(|(commit_id, op_id)| get_commit_with_op(commit_id, op_id)),
+            |(CommitByCommitterTimestamp(commit), _)| commit.id().clone(),
+            |(CommitByCommitterTimestamp(commit), op_id)| {
                 itertools::chain(commit.parent_ids(), commit.predecessor_ids())
                     .filter(|&id| !parent_file_has_id(id))
-                    .map(|id| store.get_commit(id))
-                    .map_ok(CommitByCommitterTimestamp)
+                    .map(|commit_id| get_commit_with_op(commit_id, op_id))
                     .collect_vec()
             },
-        )
-        .map_err(DefaultIndexStoreError::IndexCommits)?;
-        for CommitByCommitterTimestamp(commit) in commits.iter().rev() {
+        )?;
+        for (CommitByCommitterTimestamp(commit), _) in commits.iter().rev() {
             mutable_index.add_commit(commit);
         }
 
