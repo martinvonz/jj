@@ -9,12 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+### New features
+
+### Fixed bugs
+
+
+## [0.13.0] - 2024-01-03
+
+### Breaking changes
+
 * `jj git fetch` no longer imports new remote branches as local branches. Set
   `git.auto-local-branch = true` to restore the old behavior.
 
 ### New features
 
 * Information about new and resolved conflicts is now printed by every command.
+
 * `jj branch` has gained a new `rename` subcommand that allows changing a branch
   name atomically. `jj branch help rename` for details.
 
@@ -23,6 +33,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Command aliases can now be loaded from repository config relative to the
   current working directory.
   [#2414](https://github.com/martinvonz/jj/issues/2414)
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+* Austin Seipp (@thoughtpolice)
+* Essien Ita Essien (@essiene)
+* Gabriel Scherer (@gasche)
+* Ilya Grigoriev (@ilyagr)
+* Martin von Zweigbergk (@martinvonz)
+* Philip Metzger (@PhilipMetzger)
+* Waleed Khan (@arxanas)
+* Yuya Nishihara (@yuja)
 
 
 ## [0.12.0] - 2023-12-05
