@@ -59,26 +59,6 @@ pub trait OpHeadsStore: Send + Sync + Debug {
     /// operations. It is not needed for correctness; implementations are free
     /// to return a type that doesn't hold.
     fn lock(&self) -> Box<dyn OpHeadsStoreLock + '_>;
-
-    /// Removes operations in the input that are ancestors of other operations
-    /// in the input. The ancestors are removed both from the list and from
-    /// storage.
-    // TODO: maybe introduce OpHeadsStoreError?
-    fn handle_ancestor_ops(&self, op_heads: Vec<Operation>) -> OpStoreResult<Vec<Operation>> {
-        let op_head_ids_before: HashSet<_> = op_heads.iter().map(|op| op.id().clone()).collect();
-        // Remove ancestors so we don't create merge operation with an operation and its
-        // ancestor
-        let op_heads = dag_walk::heads_ok(
-            op_heads.into_iter().map(Ok),
-            |op: &Operation| op.id().clone(),
-            |op: &Operation| op.parents().collect_vec(),
-        )?;
-        let op_head_ids_after: HashSet<_> = op_heads.iter().map(|op| op.id().clone()).collect();
-        for removed_op_head in op_head_ids_before.difference(&op_head_ids_after) {
-            self.remove_op_head(removed_op_head);
-        }
-        Ok(op_heads.into_iter().collect())
-    }
 }
 
 // Given an OpHeadsStore, fetch and resolve its op heads down to one under a
@@ -131,7 +111,7 @@ pub fn resolve_op_heads<E>(
             Ok(Operation::new(op_store.clone(), op_id.clone(), data))
         })
         .try_collect()?;
-    let mut op_heads = op_heads_store.handle_ancestor_ops(op_heads)?;
+    let mut op_heads = handle_ancestor_ops(op_heads_store, op_heads)?;
 
     // Return without creating a merge operation
     if op_heads.len() == 1 {
@@ -146,4 +126,26 @@ pub fn resolve_op_heads<E>(
         }
         Err(e) => Err(OpHeadResolutionError::Err(e)),
     }
+}
+
+/// Removes operations in the input that are ancestors of other operations
+/// in the input. The ancestors are removed both from the list and from
+/// storage.
+fn handle_ancestor_ops(
+    op_heads_store: &dyn OpHeadsStore,
+    op_heads: Vec<Operation>,
+) -> OpStoreResult<Vec<Operation>> {
+    let op_head_ids_before: HashSet<_> = op_heads.iter().map(|op| op.id().clone()).collect();
+    // Remove ancestors so we don't create merge operation with an operation and its
+    // ancestor
+    let op_heads = dag_walk::heads_ok(
+        op_heads.into_iter().map(Ok),
+        |op: &Operation| op.id().clone(),
+        |op: &Operation| op.parents().collect_vec(),
+    )?;
+    let op_head_ids_after: HashSet<_> = op_heads.iter().map(|op| op.id().clone()).collect();
+    for removed_op_head in op_head_ids_before.difference(&op_head_ids_after) {
+        op_heads_store.remove_op_head(removed_op_head);
+    }
+    Ok(op_heads.into_iter().collect())
 }
