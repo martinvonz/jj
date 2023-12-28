@@ -72,6 +72,13 @@ impl OpHeadsStore for SimpleOpHeadsStore {
         Self::name()
     }
 
+    fn update_op_heads(&self, old_ids: &[OperationId], new_id: &OperationId) {
+        self.add_op_head(new_id);
+        for old_id in old_ids {
+            self.remove_op_head(old_id)
+        }
+    }
+
     fn add_op_head(&self, id: &OperationId) {
         std::fs::write(self.dir.join(id.hex()), "").unwrap();
     }

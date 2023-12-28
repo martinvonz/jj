@@ -43,8 +43,15 @@ pub trait OpHeadsStoreLock<'a> {
 pub trait OpHeadsStore: Send + Sync + Debug {
     fn name(&self) -> &str;
 
+    /// Remove the old op heads and add the new one.
+    ///
+    /// The old op heads must not contain the new one.
+    fn update_op_heads(&self, old_ids: &[OperationId], new_id: &OperationId);
+
+    // TODO: migrate callers update_op_heads()
     fn add_op_head(&self, id: &OperationId);
 
+    // TODO: migrate callers update_op_heads()
     fn remove_op_head(&self, id: &OperationId);
 
     fn get_op_heads(&self) -> Vec<OperationId>;
