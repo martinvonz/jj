@@ -121,20 +121,24 @@ pub fn resolve_op_heads<E>(
     )?;
     let op_head_ids_after: HashSet<_> =
         filtered_op_heads.iter().map(|op| op.id().clone()).collect();
-    for removed_op_head in op_head_ids_before.difference(&op_head_ids_after) {
-        op_heads_store.remove_op_head(removed_op_head);
-    }
+    let ancestor_op_heads = op_head_ids_before
+        .difference(&op_head_ids_after)
+        .cloned()
+        .collect_vec();
     let mut op_heads = filtered_op_heads.into_iter().collect_vec();
 
     // Return without creating a merge operation
-    if op_heads.len() == 1 {
-        return Ok(op_heads.pop().unwrap());
+    if let [op_head] = &*op_heads {
+        op_heads_store.update_op_heads(&ancestor_op_heads, op_head.id());
+        return Ok(op_head.clone());
     }
 
     op_heads.sort_by_key(|op| op.store_operation().metadata.end_time.timestamp.clone());
     match resolver(op_heads) {
         Ok(new_op) => {
-            op_heads_store.update_op_heads(new_op.parent_ids(), new_op.id());
+            let mut old_op_heads = ancestor_op_heads;
+            old_op_heads.extend_from_slice(new_op.parent_ids());
+            op_heads_store.update_op_heads(&old_op_heads, new_op.id());
             Ok(new_op)
         }
         Err(e) => Err(OpHeadResolutionError::Err(e)),
