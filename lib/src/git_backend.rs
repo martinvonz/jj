@@ -703,7 +703,7 @@ fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
 /// Returns `RefEdit` that will create a ref in `refs/jj/keep` if not exist.
 /// Used for preventing GC of commits we create.
 fn to_no_gc_ref_update(id: &CommitId) -> gix::refs::transaction::RefEdit {
-    let name = format!("{NO_GC_REF_NAMESPACE}{}", id.hex());
+    let name = format!("{NO_GC_REF_NAMESPACE}{id}");
     let new = gix::refs::Target::Object(validate_git_object_id(id).unwrap());
     let expected = gix::refs::transaction::PreviousValue::ExistingMustMatch(new.clone());
     gix::refs::transaction::RefEdit {

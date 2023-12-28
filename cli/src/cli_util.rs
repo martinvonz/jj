@@ -2652,15 +2652,15 @@ pub fn edit_temp_file(
 }
 
 pub fn short_commit_hash(commit_id: &CommitId) -> String {
-    commit_id.hex()[0..12].to_string()
+    format!("{commit_id:.12}")
 }
 
 pub fn short_change_hash(change_id: &ChangeId) -> String {
-    change_id.reverse_hex()[0..12].to_string()
+    format!("{change_id:.12}")
 }
 
 pub fn short_operation_hash(operation_id: &OperationId) -> String {
-    operation_id.hex()[0..12].to_string()
+    format!("{operation_id:.12}")
 }
 
 /// Wrapper around a `DiffEditor` to conditionally start interactive session.

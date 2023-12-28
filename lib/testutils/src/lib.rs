@@ -430,18 +430,13 @@ pub fn dump_tree(store: &Arc<Store>, tree_id: &MergedTreeId) -> String {
             Ok(Some(TreeValue::File { id, executable: _ })) => {
                 let file_buf = read_file(store, &path, &id);
                 let file_contents = String::from_utf8_lossy(&file_buf);
-                writeln!(
-                    &mut buf,
-                    "  file {path:?} ({}): {file_contents:?}",
-                    id.hex()
-                )
-                .unwrap();
+                writeln!(&mut buf, "  file {path:?} ({id}): {file_contents:?}").unwrap();
             }
             Ok(Some(TreeValue::Symlink(id))) => {
-                writeln!(&mut buf, "  symlink {path:?} ({})", id.hex()).unwrap();
+                writeln!(&mut buf, "  symlink {path:?} ({id})").unwrap();
             }
             Ok(Some(TreeValue::GitSubmodule(id))) => {
-                writeln!(&mut buf, "  submodule {path:?} ({})", id.hex()).unwrap();
+                writeln!(&mut buf, "  submodule {path:?} ({id})").unwrap();
             }
             entry => {
                 unimplemented!("dumping tree entry {entry:?}");

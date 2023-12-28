@@ -32,22 +32,22 @@ pub trait ObjectId {
 // ```no_run
 // id_type!(
 //     /// My favorite id type.
-//     pub MyId
+//     pub MyId { hex() }
 // );
 // ```
 macro_rules! id_type {
     (   $(#[$attr:meta])*
-        $vis:vis $name:ident
+        $vis:vis $name:ident { $hex_method:ident() }
     ) => {
         $(#[$attr])*
         #[derive(ContentHash, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
         $vis struct $name(Vec<u8>);
-        $crate::object_id::impl_id_type!($name);
+        $crate::object_id::impl_id_type!($name, $hex_method);
     };
 }
 
 macro_rules! impl_id_type {
-    ($name:ident) => {
+    ($name:ident, $hex_method:ident) => {
         impl $name {
             pub fn new(value: Vec<u8>) -> Self {
                 Self(value)
@@ -73,7 +73,14 @@ macro_rules! impl_id_type {
 
         impl std::fmt::Debug for $name {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+                // TODO: should we use $hex_method here?
                 f.debug_tuple(stringify!($name)).field(&self.hex()).finish()
+            }
+        }
+
+        impl std::fmt::Display for $name {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+                f.pad(&self.$hex_method())
             }
         }
 
@@ -217,7 +224,19 @@ impl<T: Clone> PrefixResolution<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::backend::ChangeId;
     use crate::backend::CommitId;
+
+    #[test]
+    fn test_display_object_id() {
+        let commit_id = CommitId::from_hex("deadbeef0123");
+        assert_eq!(format!("{commit_id}"), "deadbeef0123");
+        assert_eq!(format!("{commit_id:.6}"), "deadbe");
+
+        let change_id = ChangeId::from_hex("deadbeef0123");
+        assert_eq!(format!("{change_id}"), "mlpmollkzyxw");
+        assert_eq!(format!("{change_id:.6}"), "mlpmol");
+    }
 
     #[test]
     fn test_hex_prefix_prefixes() {
