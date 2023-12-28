@@ -15,7 +15,6 @@
 use std::fmt::Debug;
 use std::io::Write as _;
 
-use jj_lib::object_id::ObjectId;
 use jj_lib::revset;
 use jj_lib::revset::RevsetDiagnostics;
 
@@ -69,7 +68,7 @@ pub fn cmd_debug_revset(
 
     writeln!(ui.stdout(), "-- Commit IDs:")?;
     for commit_id in revset.iter() {
-        writeln!(ui.stdout(), "{}", commit_id.hex())?;
+        writeln!(ui.stdout(), "{commit_id}")?;
     }
     Ok(())
 }

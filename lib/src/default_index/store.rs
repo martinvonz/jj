@@ -68,10 +68,7 @@ impl From<DefaultIndexStoreInitError> for BackendInitError {
 
 #[derive(Debug, Error)]
 pub enum DefaultIndexStoreError {
-    #[error(
-        "Failed to associate commit index file with an operation {op_id}",
-        op_id = op_id.hex()
-    )]
+    #[error("Failed to associate commit index file with an operation {op_id}")]
     AssociateIndex {
         op_id: OperationId,
         source: io::Error,
@@ -82,7 +79,7 @@ pub enum DefaultIndexStoreError {
     LoadIndex(ReadonlyIndexLoadError),
     #[error("Failed to write commit index file")]
     SaveIndex(#[source] io::Error),
-    #[error("Failed to index commits at operation {op_id}", op_id = op_id.hex())]
+    #[error("Failed to index commits at operation {op_id}")]
     IndexCommits {
         op_id: OperationId,
         source: BackendError,

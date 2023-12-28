@@ -36,7 +36,6 @@ use crate::backend::TreeId;
 use crate::backend::TreeValue;
 use crate::content_hash::ContentHash;
 use crate::content_hash::DigestUpdate;
-use crate::object_id::ObjectId;
 use crate::repo_path::RepoPath;
 use crate::store::Store;
 use crate::tree::Tree;
@@ -665,25 +664,25 @@ fn describe_conflict_term(value: &TreeValue) -> String {
             id,
             executable: false,
         } => {
-            format!("file with id {}", id.hex())
+            format!("file with id {id}")
         }
         TreeValue::File {
             id,
             executable: true,
         } => {
-            format!("executable file with id {}", id.hex())
+            format!("executable file with id {id}")
         }
         TreeValue::Symlink(id) => {
-            format!("symlink with id {}", id.hex())
+            format!("symlink with id {id}")
         }
         TreeValue::Tree(id) => {
-            format!("tree with id {}", id.hex())
+            format!("tree with id {id}")
         }
         TreeValue::GitSubmodule(id) => {
-            format!("Git submodule with id {}", id.hex())
+            format!("Git submodule with id {id}")
         }
         TreeValue::Conflict(id) => {
-            format!("Conflict with id {}", id.hex())
+            format!("Conflict with id {id}")
         }
     }
 }

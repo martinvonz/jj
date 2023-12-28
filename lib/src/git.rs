@@ -180,7 +180,7 @@ fn resolve_git_ref_to_commit_id(
 
 #[derive(Error, Debug)]
 pub enum GitImportError {
-    #[error("Failed to read Git HEAD target commit {id}", id=id.hex())]
+    #[error("Failed to read Git HEAD target commit {id}")]
     MissingHeadTarget {
         id: CommitId,
         #[source]

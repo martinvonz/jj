@@ -63,8 +63,8 @@ impl WorkspaceId {
     }
 }
 
-id_type!(pub ViewId);
-id_type!(pub OperationId);
+id_type!(pub ViewId { hex() });
+id_type!(pub OperationId { hex() });
 
 #[derive(ContentHash, PartialEq, Eq, Hash, Clone, Debug)]
 pub struct RefTarget {

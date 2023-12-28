@@ -37,7 +37,7 @@ pub enum BuiltinToolError {
     Record(#[from] scm_record::RecordError),
     #[error(transparent)]
     ReadFileBackend(BackendError),
-    #[error("Failed to read file {path:?} with ID {id}", id = id.hex())]
+    #[error("Failed to read file {path:?} with ID {id}")]
     ReadFileIo {
         path: RepoPathBuf,
         id: FileId,

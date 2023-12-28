@@ -850,7 +850,7 @@ fn diff_content(path: &RepoPath, value: MaterializedTreeValue) -> io::Result<Fil
         }),
         MaterializedTreeValue::GitSubmodule(id) => Ok(FileContent {
             is_binary: false,
-            contents: format!("Git submodule checked out at {}", id.hex()).into_bytes(),
+            contents: format!("Git submodule checked out at {id}").into_bytes(),
         }),
         // TODO: are we sure this is never binary?
         MaterializedTreeValue::FileConflict {
