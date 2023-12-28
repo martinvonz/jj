@@ -157,12 +157,27 @@ Usually, the different commits associated with the conflicted branch should all
 appear in the log, but if they don't you can use `jj branch list`to show all the
 commits associated with it.
 
+### How do I integrate Jujutsu with Gerrit? 
+
+At the moment you'll need a script, which adds the required fields for Gerrit
+like the `Change-Id` footer. Then `jj` can invoke it via an `$EDITOR` override
+in an aliased command. Here's an [example][gerrit-integration] from an 
+contributor (look for the `jj signoff` alias).
+
+After you have attached the `Change-Id:` footer to the commit series, you'll 
+have to manually push `git push` your `HEAD` into the remote Gerrit branch
+`refs/for/$BRANCH`, where `$BRANCH` is the base branch you want your changes to
+go to.
+
+We hope to integrate with Gerrit natively in the future.
+
 [branches_conflicts]: branches.md#conflicts
 
 [change ID]: glossary.md#change-id
 [commit ID]: glossary.md#commit-id
 [config]: config.md
 
+[gerrit-integration]: https://gist.github.com/thoughtpolice/8f2fd36ae17cd11b8e7bd93a70e31ad6 
 [gitignore]: https://git-scm.com/docs/gitignore
 
 [glossary_divergent_change]: glossary.md#divergent-change
