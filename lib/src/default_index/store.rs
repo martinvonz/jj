@@ -288,26 +288,25 @@ impl IndexStore for DefaultIndexStore {
         op: &Operation,
         store: &Arc<Store>,
     ) -> Result<Box<dyn ReadonlyIndex>, IndexReadError> {
-        let op_id_hex = op.id().hex();
-        let op_id_file = self.dir.join("operations").join(op_id_hex);
-        let index_segment = if op_id_file.exists() {
-            match self.load_index_segments_at_operation(
-                op.id(),
-                store.commit_id_length(),
-                store.change_id_length(),
-            ) {
-                Err(DefaultIndexStoreError::LoadIndex(err)) if err.is_corrupt_or_not_found() => {
-                    // If the index was corrupt (maybe it was written in a different format),
-                    // we just reindex.
-                    // TODO: Move this message to a callback or something.
-                    println!("The index was corrupt (maybe the format has changed). Reindexing...");
-                    self.reinit().map_err(|err| IndexReadError(err.into()))?;
-                    self.build_index_segments_at_operation(op, store)
-                }
-                result => result,
+        let index_segment = match self.load_index_segments_at_operation(
+            op.id(),
+            store.commit_id_length(),
+            store.change_id_length(),
+        ) {
+            Err(DefaultIndexStoreError::LoadAssociation(err))
+                if err.kind() == io::ErrorKind::NotFound =>
+            {
+                self.build_index_segments_at_operation(op, store)
             }
-        } else {
-            self.build_index_segments_at_operation(op, store)
+            Err(DefaultIndexStoreError::LoadIndex(err)) if err.is_corrupt_or_not_found() => {
+                // If the index was corrupt (maybe it was written in a different format),
+                // we just reindex.
+                // TODO: Move this message to a callback or something.
+                println!("The index was corrupt (maybe the format has changed). Reindexing...");
+                self.reinit().map_err(|err| IndexReadError(err.into()))?;
+                self.build_index_segments_at_operation(op, store)
+            }
+            result => result,
         }
         .map_err(|err| IndexReadError(err.into()))?;
         Ok(Box::new(DefaultReadonlyIndex::from_segment(index_segment)))
