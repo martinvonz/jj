@@ -101,11 +101,11 @@ impl DefaultIndexStore {
         Ok(())
     }
 
-    fn load_index_at_operation(
+    fn load_index_segments_at_operation(
         &self,
+        op_id: &OperationId,
         commit_id_length: usize,
         change_id_length: usize,
-        op_id: &OperationId,
     ) -> Result<Arc<ReadonlyIndexSegment>, DefaultIndexStoreError> {
         let op_id_file = self.dir.join("operations").join(op_id.hex());
         let index_file_id_hex =
@@ -120,10 +120,10 @@ impl DefaultIndexStore {
     }
 
     #[tracing::instrument(skip(self, store))]
-    fn index_at_operation(
+    fn build_index_segments_at_operation(
         &self,
-        store: &Arc<Store>,
         operation: &Operation,
+        store: &Arc<Store>,
     ) -> Result<Arc<ReadonlyIndexSegment>, DefaultIndexStoreError> {
         let view = operation.view()?;
         let operations_dir = self.dir.join("operations");
@@ -157,10 +157,10 @@ impl DefaultIndexStore {
                 mutable_index = DefaultMutableIndex::full(commit_id_length, change_id_length);
             }
             Some(parent_op_id) => {
-                let parent_file = self.load_index_at_operation(
+                let parent_file = self.load_index_segments_at_operation(
+                    &parent_op_id,
                     commit_id_length,
                     change_id_length,
-                    &parent_op_id,
                 )?;
                 maybe_parent_file = Some(parent_file.clone());
                 mutable_index = DefaultMutableIndex::incremental(parent_file)
@@ -259,10 +259,10 @@ impl IndexStore for DefaultIndexStore {
         let op_id_hex = op.id().hex();
         let op_id_file = self.dir.join("operations").join(op_id_hex);
         let index_segment = if op_id_file.exists() {
-            match self.load_index_at_operation(
+            match self.load_index_segments_at_operation(
+                op.id(),
                 store.commit_id_length(),
                 store.change_id_length(),
-                op.id(),
             ) {
                 Err(DefaultIndexStoreError::LoadIndex(err)) if err.is_corrupt_or_not_found() => {
                     // If the index was corrupt (maybe it was written in a different format),
@@ -270,12 +270,12 @@ impl IndexStore for DefaultIndexStore {
                     // TODO: Move this message to a callback or something.
                     println!("The index was corrupt (maybe the format has changed). Reindexing...");
                     self.reinit().map_err(|err| IndexReadError(err.into()))?;
-                    self.index_at_operation(store, op)
+                    self.build_index_segments_at_operation(op, store)
                 }
                 result => result,
             }
         } else {
-            self.index_at_operation(store, op)
+            self.build_index_segments_at_operation(op, store)
         }
         .map_err(|err| IndexReadError(err.into()))?;
         Ok(Box::new(DefaultReadonlyIndex::from_segment(index_segment)))
