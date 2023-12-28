@@ -50,6 +50,18 @@ impl SimpleOpHeadsStore {
         let op_heads_dir = dir.join("heads");
         Self { dir: op_heads_dir }
     }
+
+    fn add_op_head(&self, id: &OperationId) {
+        std::fs::write(self.dir.join(id.hex()), "").unwrap();
+    }
+
+    fn remove_op_head(&self, id: &OperationId) {
+        // It's fine if the old head was not found. It probably means
+        // that we're on a distributed file system where the locking
+        // doesn't work. We'll probably end up with two current
+        // heads. We'll detect that next time we load the view.
+        std::fs::remove_file(self.dir.join(id.hex())).ok();
+    }
 }
 
 struct SimpleOpHeadsStoreLock {
@@ -68,18 +80,6 @@ impl OpHeadsStore for SimpleOpHeadsStore {
         for old_id in old_ids {
             self.remove_op_head(old_id)
         }
-    }
-
-    fn add_op_head(&self, id: &OperationId) {
-        std::fs::write(self.dir.join(id.hex()), "").unwrap();
-    }
-
-    fn remove_op_head(&self, id: &OperationId) {
-        // It's fine if the old head was not found. It probably means
-        // that we're on a distributed file system where the locking
-        // doesn't work. We'll probably end up with two current
-        // heads. We'll detect that next time we load the view.
-        std::fs::remove_file(self.dir.join(id.hex())).ok();
     }
 
     fn get_op_heads(&self) -> Vec<OperationId> {
