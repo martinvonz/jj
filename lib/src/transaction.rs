@@ -175,10 +175,12 @@ impl UnpublishedOperation {
 
     pub fn publish(mut self) -> Arc<ReadonlyRepo> {
         let data = self.data.take().unwrap();
-        self.repo_loader
-            .op_heads_store()
-            .lock()
-            .promote_new_op(&data.operation);
+        {
+            let _lock = self.repo_loader.op_heads_store().lock();
+            self.repo_loader
+                .op_heads_store()
+                .update_op_heads(data.operation.parent_ids(), data.operation.id());
+        }
         let repo = self
             .repo_loader
             .create_from(data.operation, data.view, data.index);
