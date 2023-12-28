@@ -186,7 +186,7 @@ impl ReadonlyRepo {
         let init_operation_id = op_store.write_operation(&init_operation).unwrap();
         let init_operation = Operation::new(op_store.clone(), init_operation_id, init_operation);
         let op_heads_store = op_heads_store_initializer(user_settings, &op_heads_path);
-        op_heads_store.add_op_head(init_operation.id());
+        op_heads_store.update_op_heads(&[], init_operation.id());
         let op_heads_type_path = op_heads_path.join("type");
         fs::write(&op_heads_type_path, op_heads_store.name()).context(&op_heads_type_path)?;
         let op_heads_store = Arc::from(op_heads_store);
