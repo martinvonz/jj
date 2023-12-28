@@ -100,6 +100,10 @@ impl TestBackend {
     fn locked_data(&self) -> MutexGuard<'_, TestBackendData> {
         self.data.lock().unwrap()
     }
+
+    pub fn remove_commit_unchecked(&self, id: &CommitId) {
+        self.locked_data().commits.remove(id);
+    }
 }
 
 impl Debug for TestBackend {

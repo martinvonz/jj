@@ -15,15 +15,18 @@
 use std::fs;
 use std::sync::Arc;
 
+use assert_matches::assert_matches;
 use jj_lib::backend::{CommitId, ObjectId as _};
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::default_index::{
-    AsCompositeIndex as _, CompositeIndex, DefaultMutableIndex, DefaultReadonlyIndex, IndexPosition,
+    AsCompositeIndex as _, CompositeIndex, DefaultIndexStore, DefaultIndexStoreError,
+    DefaultMutableIndex, DefaultReadonlyIndex, IndexPosition,
 };
 use jj_lib::index::Index as _;
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jj_lib::settings::UserSettings;
+use testutils::test_backend::TestBackend;
 use testutils::{
     commit_transactions, create_random_commit, load_repo_at_head, write_random_commit,
     CommitGraphBuilder, TestRepo,
@@ -580,6 +583,38 @@ fn test_reindex_from_merged_operation() {
     let repo = repo.reload_at(operation_to_reload).unwrap();
     let index = as_readonly_composite(&repo);
     assert_eq!(index.num_commits(), 4);
+}
+
+#[test]
+fn test_reindex_missing_commit() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let missing_commit = write_random_commit(tx.mut_repo(), &settings);
+    let repo = tx.commit("test");
+    let bad_op_id = repo.op_id();
+
+    let mut tx = repo.start_transaction(&settings);
+    tx.mut_repo().remove_head(missing_commit.id());
+    let repo = tx.commit("test");
+
+    // Remove historical head commit to simulate bad GC.
+    let test_backend: &TestBackend = repo.store().backend_impl().downcast_ref().unwrap();
+    test_backend.remove_commit_unchecked(missing_commit.id());
+    let repo = load_repo_at_head(&settings, repo.repo_path()); // discard cache
+    assert!(repo.store().get_commit(missing_commit.id()).is_err());
+
+    // Reindexing error should include the operation id where the commit
+    // couldn't be found.
+    let default_index_store: &DefaultIndexStore =
+        repo.index_store().as_any().downcast_ref().unwrap();
+    default_index_store.reinit().unwrap();
+    let err = default_index_store
+        .build_index_at_operation(repo.operation(), repo.store())
+        .unwrap_err();
+    assert_matches!(err, DefaultIndexStoreError::IndexCommits { op_id, .. } if op_id == *bad_op_id);
 }
 
 /// Test that .jj/repo/index/type is created when the repo is created, and that
