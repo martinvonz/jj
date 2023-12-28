@@ -22,7 +22,7 @@ use itertools::Itertools;
 use thiserror::Error;
 
 use crate::dag_walk;
-use crate::op_store::{OpStore, OpStoreError, OpStoreResult, OperationId};
+use crate::op_store::{OpStore, OpStoreError, OperationId};
 use crate::operation::Operation;
 
 #[derive(Debug, Error)]
@@ -104,14 +104,27 @@ pub fn resolve_op_heads<E>(
         return Ok(Operation::new(op_store.clone(), op_head_id, op_head));
     }
 
-    let op_heads = op_head_ids
+    let op_heads: Vec<_> = op_head_ids
         .iter()
         .map(|op_id: &OperationId| -> Result<Operation, OpStoreError> {
             let data = op_store.read_operation(op_id)?;
             Ok(Operation::new(op_store.clone(), op_id.clone(), data))
         })
         .try_collect()?;
-    let mut op_heads = handle_ancestor_ops(op_heads_store, op_heads)?;
+    // Remove ancestors so we don't create merge operation with an operation and its
+    // ancestor
+    let op_head_ids_before: HashSet<_> = op_heads.iter().map(|op| op.id().clone()).collect();
+    let filtered_op_heads = dag_walk::heads_ok(
+        op_heads.into_iter().map(Ok),
+        |op: &Operation| op.id().clone(),
+        |op: &Operation| op.parents().collect_vec(),
+    )?;
+    let op_head_ids_after: HashSet<_> =
+        filtered_op_heads.iter().map(|op| op.id().clone()).collect();
+    for removed_op_head in op_head_ids_before.difference(&op_head_ids_after) {
+        op_heads_store.remove_op_head(removed_op_head);
+    }
+    let mut op_heads = filtered_op_heads.into_iter().collect_vec();
 
     // Return without creating a merge operation
     if op_heads.len() == 1 {
@@ -126,26 +139,4 @@ pub fn resolve_op_heads<E>(
         }
         Err(e) => Err(OpHeadResolutionError::Err(e)),
     }
-}
-
-/// Removes operations in the input that are ancestors of other operations
-/// in the input. The ancestors are removed both from the list and from
-/// storage.
-fn handle_ancestor_ops(
-    op_heads_store: &dyn OpHeadsStore,
-    op_heads: Vec<Operation>,
-) -> OpStoreResult<Vec<Operation>> {
-    let op_head_ids_before: HashSet<_> = op_heads.iter().map(|op| op.id().clone()).collect();
-    // Remove ancestors so we don't create merge operation with an operation and its
-    // ancestor
-    let op_heads = dag_walk::heads_ok(
-        op_heads.into_iter().map(Ok),
-        |op: &Operation| op.id().clone(),
-        |op: &Operation| op.parents().collect_vec(),
-    )?;
-    let op_head_ids_after: HashSet<_> = op_heads.iter().map(|op| op.id().clone()).collect();
-    for removed_op_head in op_head_ids_before.difference(&op_head_ids_after) {
-        op_heads_store.remove_op_head(removed_op_head);
-    }
-    Ok(op_heads.into_iter().collect())
 }
