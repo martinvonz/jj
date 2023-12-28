@@ -39,7 +39,10 @@ use crate::store::Store;
 
 #[derive(Debug, Error)]
 pub enum DefaultIndexStoreError {
-    #[error("Failed to associate commit index file with a operation {op_id:?}: {source}")]
+    #[error(
+        "Failed to associate commit index file with an operation {op_id}: {source}",
+        op_id = op_id.hex()
+    )]
     AssociateIndex {
         op_id: OperationId,
         source: io::Error,
