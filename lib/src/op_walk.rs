@@ -15,6 +15,8 @@
 //! Utility for operation id resolution and traversal.
 
 use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
+use std::slice;
 use std::sync::Arc;
 
 use itertools::Itertools as _;
@@ -229,4 +231,71 @@ pub fn walk_ancestors(head_ops: &[Operation]) -> impl Iterator<Item = OpStoreRes
         |OperationByEndTime(op)| op.parents().map_ok(OperationByEndTime).collect_vec(),
     )
     .map_ok(|OperationByEndTime(op)| op)
+}
+
+/// Stats about `reparent_range()`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReparentStats {
+    /// New head operation ids.
+    pub new_head_ids: Vec<OperationId>,
+    /// The number of rewritten operations.
+    pub rewritten_count: usize,
+    /// The number of ancestor operations that become unreachable from the
+    /// rewritten heads.
+    pub unreachable_count: usize,
+}
+
+/// Reparents the operation range `root_ops..head_ops` onto the `dest_op`.
+///
+/// Returns the new head operation ids as well as some stats. If the old
+/// operation heads are remapped to the new heads, the operations within the
+/// range `dest_op..root_ops` become unreachable.
+///
+/// If the source operation range `root_ops..head_ops` was empty, the
+/// `new_head_ids` will be `[dest_op.id()]`, meaning the `dest_op` is the head.
+// TODO: Find better place to host this function. It might be an OpStore method.
+pub fn reparent_range(
+    op_store: &dyn OpStore,
+    root_ops: &[Operation],
+    head_ops: &[Operation],
+    dest_op: &Operation,
+) -> OpStoreResult<ReparentStats> {
+    // Calculate ::root_ops to exclude them from the source range and count the
+    // number of operations that become unreachable.
+    let mut unwanted_ids: HashSet<_> = walk_ancestors(root_ops)
+        .map_ok(|op| op.id().clone())
+        .try_collect()?;
+    let ops_to_reparent: Vec<_> = walk_ancestors(head_ops)
+        .filter_ok(|op| !unwanted_ids.contains(op.id()))
+        .try_collect()?;
+    for op in walk_ancestors(slice::from_ref(dest_op)) {
+        unwanted_ids.remove(op?.id());
+    }
+    let unreachable_ids = unwanted_ids;
+
+    let mut rewritten_ids = HashMap::new();
+    for old_op in ops_to_reparent.into_iter().rev() {
+        let mut data = old_op.store_operation().clone();
+        let mut dest_once = Some(dest_op.id());
+        data.parents = data
+            .parents
+            .iter()
+            .filter_map(|id| rewritten_ids.get(id).or_else(|| dest_once.take()))
+            .cloned()
+            .collect();
+        let new_id = op_store.write_operation(&data)?;
+        rewritten_ids.insert(old_op.id().clone(), new_id);
+    }
+
+    let mut dest_once = Some(dest_op.id());
+    let new_head_ids = head_ops
+        .iter()
+        .filter_map(|op| rewritten_ids.get(op.id()).or_else(|| dest_once.take()))
+        .cloned()
+        .collect();
+    Ok(ReparentStats {
+        new_head_ids,
+        rewritten_count: rewritten_ids.len(),
+        unreachable_count: unreachable_ids.len(),
+    })
 }

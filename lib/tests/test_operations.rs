@@ -13,12 +13,15 @@
 // limitations under the License.
 
 use std::path::Path;
+use std::slice;
+use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use itertools::Itertools as _;
 use jj_lib::backend::{CommitId, ObjectId};
 use jj_lib::op_walk::{self, OpsetEvaluationError, OpsetResolutionError};
-use jj_lib::repo::Repo;
+use jj_lib::operation::Operation;
+use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::settings::UserSettings;
 use testutils::{create_random_commit, write_random_commit, TestRepo};
 
@@ -180,6 +183,253 @@ fn test_isolation() {
     // After reload, the base repo sees both rewrites.
     let repo = repo.reload_at_head(&settings).unwrap();
     assert_heads(repo.as_ref(), vec![rewrite1.id(), rewrite2.id()]);
+}
+
+#[test]
+fn test_reparent_range_linear() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo_0 = test_repo.repo;
+    let op_store = repo_0.op_store();
+
+    let read_op = |id| {
+        let data = op_store.read_operation(id).unwrap();
+        Operation::new(op_store.clone(), id.clone(), data)
+    };
+
+    fn op_parents<const N: usize>(op: &Operation) -> [Operation; N] {
+        let parents: Vec<_> = op.parents().try_collect().unwrap();
+        parents.try_into().unwrap()
+    }
+
+    // Set up linear operation graph:
+    // D
+    // C
+    // B
+    // A
+    // 0 (initial)
+    let random_tx = |repo: &Arc<ReadonlyRepo>| {
+        let mut tx = repo.start_transaction(&settings);
+        write_random_commit(tx.mut_repo(), &settings);
+        tx
+    };
+    let repo_a = random_tx(&repo_0).commit("op A");
+    let repo_b = random_tx(&repo_a).commit("op B");
+    let repo_c = random_tx(&repo_b).commit("op C");
+    let repo_d = random_tx(&repo_c).commit("op D");
+
+    // Reparent B..D (=C|D) onto A:
+    // D'
+    // C'
+    // A
+    // 0 (initial)
+    let stats = op_walk::reparent_range(
+        op_store.as_ref(),
+        slice::from_ref(repo_b.operation()),
+        slice::from_ref(repo_d.operation()),
+        repo_a.operation(),
+    )
+    .unwrap();
+    assert_eq!(stats.new_head_ids.len(), 1);
+    assert_eq!(stats.rewritten_count, 2);
+    assert_eq!(stats.unreachable_count, 1);
+    let new_op_d = read_op(&stats.new_head_ids[0]);
+    assert_eq!(
+        new_op_d.store_operation().metadata,
+        repo_d.operation().store_operation().metadata
+    );
+    assert_eq!(
+        new_op_d.store_operation().view_id,
+        repo_d.operation().store_operation().view_id
+    );
+    let [new_op_c] = op_parents(&new_op_d);
+    assert_eq!(
+        new_op_c.store_operation().metadata,
+        repo_c.operation().store_operation().metadata
+    );
+    assert_eq!(
+        new_op_c.store_operation().view_id,
+        repo_c.operation().store_operation().view_id
+    );
+    assert_eq!(new_op_c.parent_ids(), slice::from_ref(repo_a.op_id()));
+
+    // Reparent empty range onto A
+    let stats = op_walk::reparent_range(
+        op_store.as_ref(),
+        slice::from_ref(repo_d.operation()),
+        slice::from_ref(repo_d.operation()),
+        repo_a.operation(),
+    )
+    .unwrap();
+    assert_eq!(stats.new_head_ids, vec![repo_a.op_id().clone()]);
+    assert_eq!(stats.rewritten_count, 0);
+    assert_eq!(stats.unreachable_count, 3);
+}
+
+#[test]
+fn test_reparent_range_branchy() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo_0 = test_repo.repo;
+    let op_store = repo_0.op_store();
+
+    let read_op = |id| {
+        let data = op_store.read_operation(id).unwrap();
+        Operation::new(op_store.clone(), id.clone(), data)
+    };
+
+    fn op_parents<const N: usize>(op: &Operation) -> [Operation; N] {
+        let parents: Vec<_> = op.parents().try_collect().unwrap();
+        parents.try_into().unwrap()
+    }
+
+    // Set up branchy operation graph:
+    // G
+    // |\
+    // | F
+    // E |
+    // D |
+    // |/
+    // C
+    // B
+    // A
+    // 0 (initial)
+    let random_tx = |repo: &Arc<ReadonlyRepo>| {
+        let mut tx = repo.start_transaction(&settings);
+        write_random_commit(tx.mut_repo(), &settings);
+        tx
+    };
+    let repo_a = random_tx(&repo_0).commit("op A");
+    let repo_b = random_tx(&repo_a).commit("op B");
+    let repo_c = random_tx(&repo_b).commit("op C");
+    let repo_d = random_tx(&repo_c).commit("op D");
+    let tx_e = random_tx(&repo_d);
+    let tx_f = random_tx(&repo_c);
+    let repo_g = testutils::commit_transactions(&settings, vec![tx_e, tx_f]);
+    let [op_e, op_f] = op_parents(repo_g.operation());
+
+    // Reparent D..G (= E|F|G) onto B:
+    // G'
+    // |\
+    // | F'
+    // E'|
+    // |/
+    // B
+    // A
+    // 0 (initial)
+    let stats = op_walk::reparent_range(
+        op_store.as_ref(),
+        slice::from_ref(repo_d.operation()),
+        slice::from_ref(repo_g.operation()),
+        repo_b.operation(),
+    )
+    .unwrap();
+    assert_eq!(stats.new_head_ids.len(), 1);
+    assert_eq!(stats.rewritten_count, 3);
+    assert_eq!(stats.unreachable_count, 2);
+    let new_op_g = read_op(&stats.new_head_ids[0]);
+    assert_eq!(
+        new_op_g.store_operation().metadata,
+        repo_g.operation().store_operation().metadata
+    );
+    assert_eq!(
+        new_op_g.store_operation().view_id,
+        repo_g.operation().store_operation().view_id
+    );
+    let [new_op_e, new_op_f] = op_parents(&new_op_g);
+    assert_eq!(new_op_e.parent_ids(), slice::from_ref(repo_b.op_id()));
+    assert_eq!(new_op_f.parent_ids(), slice::from_ref(repo_b.op_id()));
+
+    // Reparent B..G (=C|D|E|F|G) onto A:
+    // G'
+    // |\
+    // | F'
+    // E'|
+    // D'|
+    // |/
+    // C'
+    // A
+    // 0 (initial)
+    let stats = op_walk::reparent_range(
+        op_store.as_ref(),
+        slice::from_ref(repo_b.operation()),
+        slice::from_ref(repo_g.operation()),
+        repo_a.operation(),
+    )
+    .unwrap();
+    assert_eq!(stats.new_head_ids.len(), 1);
+    assert_eq!(stats.rewritten_count, 5);
+    assert_eq!(stats.unreachable_count, 1);
+    let new_op_g = read_op(&stats.new_head_ids[0]);
+    assert_eq!(
+        new_op_g.store_operation().metadata,
+        repo_g.operation().store_operation().metadata
+    );
+    assert_eq!(
+        new_op_g.store_operation().view_id,
+        repo_g.operation().store_operation().view_id
+    );
+    let [new_op_e, new_op_f] = op_parents(&new_op_g);
+    let [new_op_d] = op_parents(&new_op_e);
+    assert_eq!(new_op_d.parent_ids(), new_op_f.parent_ids());
+    let [new_op_c] = op_parents(&new_op_d);
+    assert_eq!(new_op_c.parent_ids(), slice::from_ref(repo_a.op_id()));
+
+    // Reparent (E|F)..G (=G) onto D:
+    // G'
+    // D
+    // C
+    // B
+    // A
+    // 0 (initial)
+    let stats = op_walk::reparent_range(
+        op_store.as_ref(),
+        &[op_e.clone(), op_f.clone()],
+        slice::from_ref(repo_g.operation()),
+        repo_d.operation(),
+    )
+    .unwrap();
+    assert_eq!(stats.new_head_ids.len(), 1);
+    assert_eq!(stats.rewritten_count, 1);
+    assert_eq!(stats.unreachable_count, 2);
+    let new_op_g = read_op(&stats.new_head_ids[0]);
+    assert_eq!(
+        new_op_g.store_operation().metadata,
+        repo_g.operation().store_operation().metadata
+    );
+    assert_eq!(
+        new_op_g.store_operation().view_id,
+        repo_g.operation().store_operation().view_id
+    );
+    assert_eq!(new_op_g.parent_ids(), slice::from_ref(repo_d.op_id()));
+
+    // Reparent C..F (=F) onto D (ignoring G):
+    // F'
+    // D
+    // C
+    // B
+    // A
+    // 0 (initial)
+    let stats = op_walk::reparent_range(
+        op_store.as_ref(),
+        slice::from_ref(repo_c.operation()),
+        slice::from_ref(&op_f),
+        repo_d.operation(),
+    )
+    .unwrap();
+    assert_eq!(stats.new_head_ids.len(), 1);
+    assert_eq!(stats.rewritten_count, 1);
+    assert_eq!(stats.unreachable_count, 0);
+    let new_op_f = read_op(&stats.new_head_ids[0]);
+    assert_eq!(
+        new_op_f.store_operation().metadata,
+        op_f.store_operation().metadata
+    );
+    assert_eq!(
+        new_op_f.store_operation().view_id,
+        op_f.store_operation().view_id
+    );
+    assert_eq!(new_op_f.parent_ids(), slice::from_ref(repo_d.op_id()));
 }
 
 fn stable_op_id_settings() -> UserSettings {
