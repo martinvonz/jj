@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::Write as _;
+use std::slice;
+
 use clap::Subcommand;
+use itertools::Itertools as _;
 use jj_lib::backend::ObjectId;
+use jj_lib::op_store::OperationId;
 use jj_lib::op_walk;
 use jj_lib::repo::Repo;
 
-use crate::cli_util::{user_error, CommandError, CommandHelper, LogContentFormat};
+use crate::cli_util::{
+    user_error, user_error_with_hint, CommandError, CommandHelper, LogContentFormat,
+};
 use crate::graphlog::{get_graphlog, Edge};
 use crate::operation_templater;
 use crate::templater::Template as _;
@@ -29,6 +36,7 @@ use crate::ui::Ui;
 /// https://github.com/martinvonz/jj/blob/main/docs/operation-log.md.
 #[derive(Subcommand, Clone, Debug)]
 pub enum OperationCommand {
+    Abandon(OperationAbandonArgs),
     Log(OperationLogArgs),
     Undo(OperationUndoArgs),
     Restore(OperationRestoreArgs),
@@ -87,6 +95,23 @@ pub struct OperationUndoArgs {
     /// This option is EXPERIMENTAL.
     #[arg(long, value_enum, default_values_t = DEFAULT_UNDO_WHAT)]
     what: Vec<UndoWhatToRestore>,
+}
+
+/// Abandon operation history
+///
+/// To discard old operation history, use `jj op abandon ..<operation ID>`. It
+/// will abandon the specified operation and all its ancestors. The descendants
+/// will be reparented onto the root operation.
+///
+/// To discard recent operations, use `jj op restore <operation ID>` followed
+/// by `jj op abandon <operation ID>..@-`.
+///
+/// The abandoned operations, commits, and other unreachable objects can later
+/// be garbage collected by using `jj util gc` command.
+#[derive(clap::Args, Clone, Debug)]
+pub struct OperationAbandonArgs {
+    /// The operation or operation range to abandon
+    operation: String,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum)]
@@ -249,12 +274,82 @@ fn cmd_op_restore(
     Ok(())
 }
 
+fn cmd_op_abandon(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &OperationAbandonArgs,
+) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo();
+    let current_head_op = repo.operation();
+    let (abandon_root_op, abandon_head_op) =
+        if let Some((root_op_str, head_op_str)) = args.operation.split_once("..") {
+            let root_op = if root_op_str.is_empty() {
+                // TODO: Introduce a virtual root operation and use it instead.
+                op_walk::walk_ancestors(slice::from_ref(current_head_op))
+                    .last()
+                    .unwrap()?
+            } else {
+                workspace_command.resolve_single_op(root_op_str)?
+            };
+            let head_op = if head_op_str.is_empty() {
+                current_head_op.clone()
+            } else {
+                workspace_command.resolve_single_op(head_op_str)?
+            };
+            (root_op, head_op)
+        } else {
+            let op = workspace_command.resolve_single_op(&args.operation)?;
+            let parent_ops: Vec<_> = op.parents().try_collect()?;
+            let parent_op = match parent_ops.len() {
+                0 => return Err(user_error("Cannot abandon the root operation")),
+                1 => parent_ops.into_iter().next().unwrap(),
+                _ => return Err(user_error("Cannot abandon a merge operation")),
+            };
+            (parent_op, op)
+        };
+
+    if abandon_head_op == *current_head_op {
+        return Err(user_error_with_hint(
+            "Cannot abandon the current operation",
+            "Run `jj undo` to revert the current operation, then use `jj op abandon`",
+        ));
+    }
+
+    // Reparent descendants, count the number of abandoned operations.
+    let stats = op_walk::reparent_range(
+        repo.op_store().as_ref(),
+        slice::from_ref(&abandon_head_op),
+        slice::from_ref(current_head_op),
+        &abandon_root_op,
+    )?;
+    let [new_head_id]: [OperationId; 1] = stats.new_head_ids.try_into().unwrap();
+    if current_head_op.id() == &new_head_id {
+        writeln!(ui.stderr(), "Nothing changed.")?;
+        return Ok(());
+    }
+    writeln!(
+        ui.stderr(),
+        "Abandoned {} operations and reparented {} descendant operations.",
+        stats.unreachable_count,
+        stats.rewritten_count,
+    )?;
+    repo.op_heads_store()
+        .update_op_heads(slice::from_ref(current_head_op.id()), &new_head_id);
+    // Remap the operation id of the current workspace. If there were any
+    // concurrent operations, user will need to re-abandon their ancestors.
+    let (locked_ws, _) = workspace_command.start_working_copy_mutation()?;
+    locked_ws.finish(new_head_id)?;
+    Ok(())
+}
+
 pub fn cmd_operation(
     ui: &mut Ui,
     command: &CommandHelper,
     subcommand: &OperationCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
+        OperationCommand::Abandon(args) => cmd_op_abandon(ui, command, args),
         OperationCommand::Log(args) => cmd_op_log(ui, command, args),
         OperationCommand::Restore(args) => cmd_op_restore(ui, command, args),
         OperationCommand::Undo(args) => cmd_op_undo(ui, command, args),
