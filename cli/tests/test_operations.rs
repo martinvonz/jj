@@ -279,6 +279,103 @@ fn test_op_log_configurable() {
     assert!(stdout.contains("my-username@my-hostname"));
 }
 
+#[test]
+fn test_op_abandon_ancestors() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 1"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 2"]);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
+    @  bacc8030a969 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    │  commit a8ac27b29a157ae7dabc0deb524df68823505730
+    │  args: jj commit -m 'commit 2'
+    ◉  bb26fe31d66f test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    │  args: jj commit -m 'commit 1'
+    ◉  19b8089fc78b test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    ◉  f1c462c494be test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+       initialize repo
+    "###);
+
+    // Abandon old operations. The working-copy operation id should be updated.
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "abandon", "..@-"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Abandoned 2 operations and reparented 1 descendant operations.
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["debug", "workingcopy"]), @r###"
+    Current operation: OperationId("fb5252a68411468f5e3cf480a75b8b54d8ca9231406a3d0ddc4dfb31d851839a855aca5615ba4b09018fe45d11a04e1c051817a98de1c1ef5dd75cb6c2c09ba8")
+    Current tree: Merge(Resolved(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904")))
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
+    @  fb5252a68411 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    │  commit a8ac27b29a157ae7dabc0deb524df68823505730
+    │  args: jj commit -m 'commit 2'
+    ◉  f1c462c494be test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+       initialize repo
+    "###);
+
+    // Abandon operation range.
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 3"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 4"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 5"]);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "abandon", "@---..@-"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Abandoned 2 operations and reparented 1 descendant operations.
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
+    @  ee40c9ad806a test-username@host.example.com 2001-02-03 04:05:16.000 +07:00 - 2001-02-03 04:05:16.000 +07:00
+    │  commit e184d62c9ab118b0f62de91959b857550a9273a5
+    │  args: jj commit -m 'commit 5'
+    ◉  fb5252a68411 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    │  commit a8ac27b29a157ae7dabc0deb524df68823505730
+    │  args: jj commit -m 'commit 2'
+    ◉  f1c462c494be test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+       initialize repo
+    "###);
+
+    // Can't abandon the current operation.
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["op", "abandon", "..@"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot abandon the current operation
+    Hint: Run `jj undo` to revert the current operation, then use `jj op abandon`
+    "###);
+
+    // Abandon the current operation by undoing it first.
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "abandon", "@-"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Abandoned 1 operations and reparented 1 descendant operations.
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["debug", "workingcopy"]), @r###"
+    Current operation: OperationId("05aebafee59813d56c0ea1576520b3074f5ba3e128f2b31df7370284cee593bed5043475dc2cdd30a6f22662c1dfb6aba92b83806147e77c17ad14356c07079d")
+    Current tree: Merge(Resolved(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904")))
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
+    @  05aebafee598 test-username@host.example.com 2001-02-03 04:05:20.000 +07:00 - 2001-02-03 04:05:20.000 +07:00
+    │  undo operation ee40c9ad806a7d42f351beab5aa81a8ac38d926d02711c059229bf6a7388b7b4a7c04c004067ee6c5b6253e8398fa82bc74d0d621f8bc2c8c11f33d445f90b77
+    │  args: jj undo
+    ◉  fb5252a68411 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    │  commit a8ac27b29a157ae7dabc0deb524df68823505730
+    │  args: jj commit -m 'commit 2'
+    ◉  f1c462c494be test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+       initialize repo
+    "###);
+
+    // Abandon empty range.
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "abandon", "@-..@-"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Nothing changed.
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log", "-l1"]), @r###"
+    @  05aebafee598 test-username@host.example.com 2001-02-03 04:05:20.000 +07:00 - 2001-02-03 04:05:20.000 +07:00
+    │  undo operation ee40c9ad806a7d42f351beab5aa81a8ac38d926d02711c059229bf6a7388b7b4a7c04c004067ee6c5b6253e8398fa82bc74d0d621f8bc2c8c11f33d445f90b77
+    │  args: jj undo
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path, op_id: &str) -> String {
     test_env.jj_cmd_success(
         repo_path,

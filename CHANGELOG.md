@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* New `jj op abandon` command is added to clean up the operation history. If GC
+  is implemented, Git refs and commit objects can be compacted.
+
 ### Fixed bugs
 
 
