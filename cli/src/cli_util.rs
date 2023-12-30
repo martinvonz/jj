@@ -203,14 +203,12 @@ impl From<WorkspaceInitError> for CommandError {
     }
 }
 
-impl From<OpHeadResolutionError<CommandError>> for CommandError {
-    fn from(err: OpHeadResolutionError<CommandError>) -> Self {
+impl From<OpHeadResolutionError> for CommandError {
+    fn from(err: OpHeadResolutionError) -> Self {
         match err {
             OpHeadResolutionError::NoHeads => CommandError::InternalError(
                 "Corrupt repository: there are no operations".to_string(),
             ),
-            OpHeadResolutionError::OpStore(err) => err.into(),
-            OpHeadResolutionError::Err(e) => e,
         }
     }
 }
@@ -617,7 +615,7 @@ impl CommandHelper {
         &self,
         ui: &mut Ui,
         repo_loader: &RepoLoader,
-    ) -> Result<Operation, OpHeadResolutionError<CommandError>> {
+    ) -> Result<Operation, CommandError> {
         if self.global_args.at_operation == "@" {
             op_heads_store::resolve_op_heads(
                 repo_loader.op_heads_store().as_ref(),
@@ -2013,7 +2011,7 @@ pub fn resolve_op_for_load(
     op_store: &Arc<dyn OpStore>,
     op_heads_store: &Arc<dyn OpHeadsStore>,
     op_str: &str,
-) -> Result<Operation, OpHeadResolutionError<CommandError>> {
+) -> Result<Operation, CommandError> {
     let get_current_op = || {
         op_heads_store::resolve_op_heads(op_heads_store.as_ref(), op_store, |_| {
             Err(user_error(format!(
@@ -2021,23 +2019,20 @@ pub fn resolve_op_for_load(
             )))
         })
     };
-    let operation = resolve_single_op(op_store, op_heads_store, get_current_op, op_str)
-        .map_err(OpHeadResolutionError::Err)?;
-    Ok(operation)
+    resolve_single_op(op_store, op_heads_store, get_current_op, op_str)
 }
 
 fn resolve_single_op(
     op_store: &Arc<dyn OpStore>,
     op_heads_store: &Arc<dyn OpHeadsStore>,
-    get_current_op: impl FnOnce() -> Result<Operation, OpHeadResolutionError<CommandError>>,
+    get_current_op: impl FnOnce() -> Result<Operation, CommandError>,
     op_str: &str,
 ) -> Result<Operation, CommandError> {
     let op_symbol = op_str.trim_end_matches('-');
     let op_postfix = &op_str[op_symbol.len()..];
     let mut operation = match op_symbol {
         "@" => get_current_op(),
-        s => resolve_single_op_from_store(op_store, op_heads_store, s)
-            .map_err(OpHeadResolutionError::Err),
+        s => resolve_single_op_from_store(op_store, op_heads_store, s),
     }?;
     for _ in op_postfix.chars() {
         let mut parent_ops = operation.parents();

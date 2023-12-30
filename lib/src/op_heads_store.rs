@@ -26,13 +26,9 @@ use crate::op_store::{OpStore, OpStoreError, OperationId};
 use crate::operation::Operation;
 
 #[derive(Debug, Error)]
-pub enum OpHeadResolutionError<E> {
+pub enum OpHeadResolutionError {
     #[error("Operation log has no heads")]
     NoHeads,
-    #[error(transparent)]
-    OpStore(#[from] OpStoreError),
-    #[error("Op resolution error: {0}")]
-    Err(#[source] E),
 }
 
 pub trait OpHeadsStoreLock {}
@@ -63,12 +59,15 @@ pub fn resolve_op_heads<E>(
     op_heads_store: &dyn OpHeadsStore,
     op_store: &Arc<dyn OpStore>,
     resolver: impl FnOnce(Vec<Operation>) -> Result<Operation, E>,
-) -> Result<Operation, OpHeadResolutionError<E>> {
+) -> Result<Operation, E>
+where
+    E: From<OpHeadResolutionError> + From<OpStoreError>,
+{
     let mut op_heads = op_heads_store.get_op_heads();
 
     // TODO: De-duplicate this 'simple-resolution' code.
     if op_heads.is_empty() {
-        return Err(OpHeadResolutionError::NoHeads);
+        return Err(OpHeadResolutionError::NoHeads.into());
     }
 
     if op_heads.len() == 1 {
@@ -89,7 +88,7 @@ pub fn resolve_op_heads<E>(
     let op_head_ids = op_heads_store.get_op_heads();
 
     if op_head_ids.is_empty() {
-        return Err(OpHeadResolutionError::NoHeads);
+        return Err(OpHeadResolutionError::NoHeads.into());
     }
 
     if op_head_ids.len() == 1 {
@@ -128,13 +127,9 @@ pub fn resolve_op_heads<E>(
     }
 
     op_heads.sort_by_key(|op| op.store_operation().metadata.end_time.timestamp.clone());
-    match resolver(op_heads) {
-        Ok(new_op) => {
-            let mut old_op_heads = ancestor_op_heads;
-            old_op_heads.extend_from_slice(new_op.parent_ids());
-            op_heads_store.update_op_heads(&old_op_heads, new_op.id());
-            Ok(new_op)
-        }
-        Err(e) => Err(OpHeadResolutionError::Err(e)),
-    }
+    let new_op = resolver(op_heads)?;
+    let mut old_op_heads = ancestor_op_heads;
+    old_op_heads.extend_from_slice(new_op.parent_ids());
+    op_heads_store.update_op_heads(&old_op_heads, new_op.id());
+    Ok(new_op)
 }
