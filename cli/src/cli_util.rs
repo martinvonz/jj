@@ -44,6 +44,7 @@ use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use jj_lib::op_store::{OpStore, OpStoreError, OperationId, WorkspaceId};
+use jj_lib::op_walk::{OpsetEvaluationError, OpsetResolutionError};
 use jj_lib::operation::Operation;
 use jj_lib::repo::{
     CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, Repo, RepoLoader,
@@ -209,6 +210,16 @@ impl From<OpHeadResolutionError> for CommandError {
             OpHeadResolutionError::NoHeads => CommandError::InternalError(
                 "Corrupt repository: there are no operations".to_string(),
             ),
+        }
+    }
+}
+
+impl From<OpsetEvaluationError> for CommandError {
+    fn from(err: OpsetEvaluationError) -> Self {
+        match err {
+            OpsetEvaluationError::OpsetResolution(err) => user_error(err.to_string()),
+            OpsetEvaluationError::OpHeadResolution(err) => err.into(),
+            OpsetEvaluationError::OpStore(err) => err.into(),
         }
     }
 }
@@ -648,11 +659,12 @@ impl CommandHelper {
                 },
             )
         } else {
-            resolve_op_for_load(
+            let operation = resolve_op_for_load(
                 repo_loader.op_store(),
                 repo_loader.op_heads_store(),
                 &self.global_args.at_operation,
-            )
+            )?;
+            Ok(operation)
         }
     }
 
@@ -962,7 +974,7 @@ impl WorkspaceCommandHelper {
         git_ignores
     }
 
-    pub fn resolve_single_op(&self, op_str: &str) -> Result<Operation, CommandError> {
+    pub fn resolve_single_op(&self, op_str: &str) -> Result<Operation, OpsetEvaluationError> {
         // When resolving the "@" operation in a `ReadonlyRepo`, we resolve it to the
         // operation the repo was loaded at.
         resolve_single_op(
@@ -2011,12 +2023,10 @@ pub fn resolve_op_for_load(
     op_store: &Arc<dyn OpStore>,
     op_heads_store: &Arc<dyn OpHeadsStore>,
     op_str: &str,
-) -> Result<Operation, CommandError> {
+) -> Result<Operation, OpsetEvaluationError> {
     let get_current_op = || {
         op_heads_store::resolve_op_heads(op_heads_store.as_ref(), op_store, |_| {
-            Err(user_error(format!(
-                r#"The "{op_str}" expression resolved to more than one operation"#
-            )))
+            Err(OpsetResolutionError::MultipleOperations("@".to_owned()).into())
         })
     };
     resolve_single_op(op_store, op_heads_store, get_current_op, op_str)
@@ -2025,9 +2035,9 @@ pub fn resolve_op_for_load(
 fn resolve_single_op(
     op_store: &Arc<dyn OpStore>,
     op_heads_store: &Arc<dyn OpHeadsStore>,
-    get_current_op: impl FnOnce() -> Result<Operation, CommandError>,
+    get_current_op: impl FnOnce() -> Result<Operation, OpsetEvaluationError>,
     op_str: &str,
-) -> Result<Operation, CommandError> {
+) -> Result<Operation, OpsetEvaluationError> {
     let op_symbol = op_str.trim_end_matches('-');
     let op_postfix = &op_str[op_symbol.len()..];
     let mut operation = match op_symbol {
@@ -2037,14 +2047,10 @@ fn resolve_single_op(
     for _ in op_postfix.chars() {
         let mut parent_ops = operation.parents();
         let Some(op) = parent_ops.next().transpose()? else {
-            return Err(user_error(format!(
-                r#"The "{op_str}" expression resolved to no operations"#
-            )));
+            return Err(OpsetResolutionError::EmptyOperations(op_str.to_owned()).into());
         };
         if parent_ops.next().is_some() {
-            return Err(user_error(format!(
-                r#"The "{op_str}" expression resolved to more than one operation"#
-            )));
+            return Err(OpsetResolutionError::MultipleOperations(op_str.to_owned()).into());
         }
         drop(parent_ops);
         operation = op;
@@ -2091,11 +2097,9 @@ fn resolve_single_op_from_store(
     op_store: &Arc<dyn OpStore>,
     op_heads_store: &Arc<dyn OpHeadsStore>,
     op_str: &str,
-) -> Result<Operation, CommandError> {
+) -> Result<Operation, OpsetEvaluationError> {
     if op_str.is_empty() || !op_str.as_bytes().iter().all(|b| b.is_ascii_hexdigit()) {
-        return Err(user_error(format!(
-            "Operation ID \"{op_str}\" is not a valid hexadecimal prefix"
-        )));
+        return Err(OpsetResolutionError::InvalidIdPrefix(op_str.to_owned()).into());
     }
     if let Ok(binary_op_id) = hex::decode(op_str) {
         let op_id = OperationId::new(binary_op_id);
@@ -2107,9 +2111,7 @@ fn resolve_single_op_from_store(
                 // Fall through
             }
             Err(err) => {
-                return Err(CommandError::InternalError(format!(
-                    "Failed to read operation: {err}"
-                )));
+                return Err(OpsetEvaluationError::OpStore(err));
             }
         }
     }
@@ -2120,13 +2122,11 @@ fn resolve_single_op_from_store(
         }
     }
     if matches.is_empty() {
-        Err(user_error(format!("No operation ID matching \"{op_str}\"")))
+        Err(OpsetResolutionError::NoSuchOperation(op_str.to_owned()).into())
     } else if matches.len() == 1 {
         Ok(matches.pop().unwrap())
     } else {
-        Err(user_error(format!(
-            "Operation ID prefix \"{op_str}\" is ambiguous"
-        )))
+        Err(OpsetResolutionError::AmbiguousIdPrefix(op_str.to_owned()).into())
     }
 }
 

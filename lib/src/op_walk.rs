@@ -17,10 +17,49 @@
 use std::cmp::Ordering;
 
 use itertools::Itertools as _;
+use thiserror::Error;
 
 use crate::dag_walk;
-use crate::op_store::OpStoreResult;
+use crate::op_heads_store::OpHeadResolutionError;
+use crate::op_store::{OpStoreError, OpStoreResult};
 use crate::operation::Operation;
+
+/// Error that may occur during evaluation of operation set expression.
+#[derive(Debug, Error)]
+pub enum OpsetEvaluationError {
+    /// Failed to resolve operation set expression.
+    #[error(transparent)]
+    OpsetResolution(#[from] OpsetResolutionError),
+    /// Failed to resolve the current operation heads.
+    #[error(transparent)]
+    OpHeadResolution(#[from] OpHeadResolutionError),
+    /// Failed to access operation object.
+    #[error(transparent)]
+    OpStore(#[from] OpStoreError),
+}
+
+/// Error that may occur during parsing and resolution of operation set
+/// expression.
+#[derive(Debug, Error)]
+pub enum OpsetResolutionError {
+    // TODO: Maybe empty/multiple operations should be allowed, and rejected by
+    // caller as needed.
+    /// Expression resolved to multiple operations.
+    #[error(r#"The "{0}" expression resolved to more than one operation"#)]
+    MultipleOperations(String),
+    /// Expression resolved to no operations.
+    #[error(r#"The "{0}" expression resolved to no operations"#)]
+    EmptyOperations(String),
+    /// Invalid symbol as an operation ID.
+    #[error(r#"Operation ID "{0}" is not a valid hexadecimal prefix"#)]
+    InvalidIdPrefix(String),
+    /// Operation ID not found.
+    #[error(r#"No operation ID matching "{0}""#)]
+    NoSuchOperation(String),
+    /// Operation ID prefix matches multiple operations.
+    #[error(r#"Operation ID prefix "{0}" is ambiguous"#)]
+    AmbiguousIdPrefix(String),
+}
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 struct OperationByEndTime(Operation);
