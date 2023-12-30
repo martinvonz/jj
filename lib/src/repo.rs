@@ -300,7 +300,7 @@ impl ReadonlyRepo {
     pub fn reload_at_head(
         &self,
         user_settings: &UserSettings,
-    ) -> Result<Arc<ReadonlyRepo>, OpHeadResolutionError<RepoLoaderError>> {
+    ) -> Result<Arc<ReadonlyRepo>, RepoLoaderError> {
         self.loader().load_at_head(user_settings)
     }
 
@@ -591,6 +591,8 @@ pub enum RepoLoaderError {
     #[error(transparent)]
     TreeMerge(#[from] TreeMergeError),
     #[error(transparent)]
+    OpHeadResolution(#[from] OpHeadResolutionError),
+    #[error(transparent)]
     OpStore(#[from] OpStoreError),
 }
 
@@ -662,7 +664,7 @@ impl RepoLoader {
     pub fn load_at_head(
         &self,
         user_settings: &UserSettings,
-    ) -> Result<Arc<ReadonlyRepo>, OpHeadResolutionError<RepoLoaderError>> {
+    ) -> Result<Arc<ReadonlyRepo>, RepoLoaderError> {
         let op = op_heads_store::resolve_op_heads(
             self.op_heads_store.as_ref(),
             &self.op_store,
