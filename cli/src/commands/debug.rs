@@ -267,11 +267,7 @@ fn cmd_debug_operation(
     // even if e.g. the view object is broken.
     let workspace = command.load_workspace()?;
     let repo_loader = workspace.repo_loader();
-    let op = op_walk::resolve_op_for_load(
-        repo_loader.op_store(),
-        repo_loader.op_heads_store(),
-        &args.operation,
-    )?;
+    let op = op_walk::resolve_op_for_load(repo_loader, &args.operation)?;
     if args.display == DebugOperationDisplay::Id {
         writeln!(ui.stdout(), "{}", op.id().hex())?;
         return Ok(());

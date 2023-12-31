@@ -25,6 +25,7 @@ use crate::backend::ObjectId as _;
 use crate::op_heads_store::{OpHeadResolutionError, OpHeadsStore};
 use crate::op_store::{OpStore, OpStoreError, OpStoreResult, OperationId};
 use crate::operation::Operation;
+use crate::repo::{ReadonlyRepo, Repo as _, RepoLoader};
 use crate::{dag_walk, op_heads_store};
 
 /// Error that may occur during evaluation of operation set expression.
@@ -66,23 +67,37 @@ pub enum OpsetResolutionError {
 
 /// Resolves operation set expression without loading a repo.
 pub fn resolve_op_for_load(
-    op_store: &Arc<dyn OpStore>,
-    op_heads_store: &Arc<dyn OpHeadsStore>,
+    repo_loader: &RepoLoader,
     op_str: &str,
 ) -> Result<Operation, OpsetEvaluationError> {
+    let op_store = repo_loader.op_store();
+    let op_heads_store = repo_loader.op_heads_store().as_ref();
     let get_current_op = || {
-        op_heads_store::resolve_op_heads(op_heads_store.as_ref(), op_store, |_| {
+        op_heads_store::resolve_op_heads(op_heads_store, op_store, |_| {
             Err(OpsetResolutionError::MultipleOperations("@".to_owned()).into())
         })
     };
     resolve_single_op(op_store, op_heads_store, get_current_op, op_str)
 }
 
+/// Resolves operation set expression against the loaded repo.
+///
+/// The "@" symbol will be resolved to the operation the repo was loaded at.
+pub fn resolve_op_with_repo(
+    repo: &ReadonlyRepo,
+    op_str: &str,
+) -> Result<Operation, OpsetEvaluationError> {
+    let op_store = repo.op_store();
+    let op_heads_store = repo.op_heads_store().as_ref();
+    let get_current_op = || Ok(repo.operation().clone());
+    resolve_single_op(op_store, op_heads_store, get_current_op, op_str)
+}
+
 /// Resolves operation set expression with the given "@" symbol resolution
 /// callback.
-pub fn resolve_single_op(
+fn resolve_single_op(
     op_store: &Arc<dyn OpStore>,
-    op_heads_store: &Arc<dyn OpHeadsStore>,
+    op_heads_store: &dyn OpHeadsStore,
     get_current_op: impl FnOnce() -> Result<Operation, OpsetEvaluationError>,
     op_str: &str,
 ) -> Result<Operation, OpsetEvaluationError> {
@@ -108,7 +123,7 @@ pub fn resolve_single_op(
 
 fn resolve_single_op_from_store(
     op_store: &Arc<dyn OpStore>,
-    op_heads_store: &Arc<dyn OpHeadsStore>,
+    op_heads_store: &dyn OpHeadsStore,
     op_str: &str,
 ) -> Result<Operation, OpsetEvaluationError> {
     if op_str.is_empty() || !op_str.as_bytes().iter().all(|b| b.is_ascii_hexdigit()) {
@@ -145,7 +160,7 @@ fn resolve_single_op_from_store(
 
 fn find_all_operations(
     op_store: &Arc<dyn OpStore>,
-    op_heads_store: &Arc<dyn OpHeadsStore>,
+    op_heads_store: &dyn OpHeadsStore,
 ) -> Result<Vec<Operation>, OpStoreError> {
     let mut visited = HashSet::new();
     let mut work: VecDeque<_> = op_heads_store.get_op_heads().into_iter().collect();
