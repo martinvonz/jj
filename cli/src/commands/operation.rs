@@ -14,7 +14,7 @@
 
 use clap::Subcommand;
 use jj_lib::backend::ObjectId;
-use jj_lib::operation;
+use jj_lib::op_walk;
 use jj_lib::repo::Repo;
 
 use crate::cli_util::{user_error, CommandError, CommandHelper, LogContentFormat};
@@ -125,7 +125,7 @@ fn cmd_op_log(
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
-    let iter = operation::walk_ancestors(&head_op).take(args.limit.unwrap_or(usize::MAX));
+    let iter = op_walk::walk_ancestors(&head_op).take(args.limit.unwrap_or(usize::MAX));
     if !args.no_graph {
         let mut graph = get_graphlog(command.settings(), formatter.raw());
         let default_node_symbol = graph.default_node_symbol().to_owned();
