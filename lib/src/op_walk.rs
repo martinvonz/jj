@@ -101,22 +101,27 @@ fn resolve_single_op(
     get_current_op: impl FnOnce() -> Result<Operation, OpsetEvaluationError>,
     op_str: &str,
 ) -> Result<Operation, OpsetEvaluationError> {
-    let op_symbol = op_str.trim_end_matches('-');
+    let op_symbol = op_str.trim_end_matches(['-', '+']);
     let op_postfix = &op_str[op_symbol.len()..];
+    let head_ops = op_postfix
+        .contains('+')
+        .then(|| get_current_head_ops(op_store, op_heads_store))
+        .transpose()?;
     let mut operation = match op_symbol {
         "@" => get_current_op(),
         s => resolve_single_op_from_store(op_store, op_heads_store, s),
     }?;
-    for _ in op_postfix.chars() {
-        let mut parent_ops = operation.parents();
-        let Some(op) = parent_ops.next().transpose()? else {
-            return Err(OpsetResolutionError::EmptyOperations(op_str.to_owned()).into());
+    for c in op_postfix.chars() {
+        let mut neighbor_ops = match c {
+            '-' => operation.parents().try_collect()?,
+            '+' => find_child_ops(head_ops.as_ref().unwrap(), operation.id())?,
+            _ => unreachable!(),
         };
-        if parent_ops.next().is_some() {
-            return Err(OpsetResolutionError::MultipleOperations(op_str.to_owned()).into());
-        }
-        drop(parent_ops);
-        operation = op;
+        operation = match neighbor_ops.len() {
+            0 => Err(OpsetResolutionError::EmptyOperations(op_str.to_owned()))?,
+            1 => neighbor_ops.pop().unwrap(),
+            _ => Err(OpsetResolutionError::MultipleOperations(op_str.to_owned()))?,
+        };
     }
     Ok(operation)
 }
@@ -175,6 +180,20 @@ fn get_current_head_ops(
             let data = op_store.read_operation(&id)?;
             Ok(Operation::new(op_store.clone(), id, data))
         })
+        .try_collect()
+}
+
+/// Looks up children of the `root_op_id` by traversing from the `head_ops`.
+///
+/// This will be slow if the `root_op_id` is far away (or unreachable) from the
+/// `head_ops`.
+fn find_child_ops(
+    head_ops: &[Operation],
+    root_op_id: &OperationId,
+) -> OpStoreResult<Vec<Operation>> {
+    walk_ancestors(head_ops)
+        .take_while(|res| res.as_ref().map_or(true, |op| op.id() != root_op_id))
+        .filter_ok(|op| op.parent_ids().iter().any(|id| id == root_op_id))
         .try_collect()
 }
 

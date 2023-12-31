@@ -262,7 +262,7 @@ fn test_resolve_op_id() {
 }
 
 #[test]
-fn test_resolve_op_parents() {
+fn test_resolve_op_parents_children() {
     // Use monotonic timestamp to stabilize merge order of transactions
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init_with_settings(&settings);
@@ -275,6 +275,7 @@ fn test_resolve_op_parents() {
         operations.push(repo.operation().clone());
     }
 
+    // Parent
     let op2_id_hex = operations[2].id().hex();
     assert_eq!(
         op_walk::resolve_op_with_repo(&repo, &format!("{op2_id_hex}-")).unwrap(),
@@ -292,12 +293,43 @@ fn test_resolve_op_parents() {
         ))
     );
 
+    // Child
+    let op0_id_hex = operations[0].id().hex();
+    assert_eq!(
+        op_walk::resolve_op_with_repo(&repo, &format!("{op0_id_hex}+")).unwrap(),
+        operations[1]
+    );
+    assert_eq!(
+        op_walk::resolve_op_with_repo(&repo, &format!("{op0_id_hex}++")).unwrap(),
+        operations[2]
+    );
+    assert_matches!(
+        op_walk::resolve_op_with_repo(&repo, &format!("{op0_id_hex}+++")),
+        Err(OpsetEvaluationError::OpsetResolution(
+            OpsetResolutionError::EmptyOperations(_)
+        ))
+    );
+
+    // Child of parent
+    assert_eq!(
+        op_walk::resolve_op_with_repo(&repo, &format!("{op2_id_hex}--+")).unwrap(),
+        operations[1]
+    );
+
+    // Merge and fork
     let tx1 = repo.start_transaction(&settings);
     let tx2 = repo.start_transaction(&settings);
     repo = testutils::commit_transactions(&settings, vec![tx1, tx2]);
     let op5_id_hex = repo.operation().id().hex();
     assert_matches!(
         op_walk::resolve_op_with_repo(&repo, &format!("{op5_id_hex}-")),
+        Err(OpsetEvaluationError::OpsetResolution(
+            OpsetResolutionError::MultipleOperations(_)
+        ))
+    );
+    let op2_id_hex = operations[2].id().hex();
+    assert_matches!(
+        op_walk::resolve_op_with_repo(&repo, &format!("{op2_id_hex}+")),
         Err(OpsetEvaluationError::OpsetResolution(
             OpsetResolutionError::MultipleOperations(_)
         ))

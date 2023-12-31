@@ -17,8 +17,13 @@ The operation log allows you to undo an operation (`jj [op] undo`), which doesn'
 need to be the most recent one. It also lets you restore the entire repo to the
 way it looked at an earlier point (`jj op restore`).
 
-When referring to operations, you can use `@` to represent the current operation
-as well as the `-` operator (e.g. `@-`) to get the parent of an operation.
+When referring to operations, you can use `@` to represent the current
+operation.
+
+The following operators are supported:
+
+* `x-`: Parents of `x` (e.g. `@-`)
+* `x+`: Children of `x`
 
 
 ## Concurrent operations
