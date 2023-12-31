@@ -15,13 +15,13 @@
 //! Utility for operation id resolution and traversal.
 
 use std::cmp::Ordering;
-use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 
 use itertools::Itertools as _;
 use thiserror::Error;
 
 use crate::backend::ObjectId as _;
+use crate::index::HexPrefix;
 use crate::op_heads_store::{OpHeadResolutionError, OpHeadsStore};
 use crate::op_store::{OpStore, OpStoreError, OpStoreResult, OperationId};
 use crate::operation::Operation;
@@ -126,11 +126,13 @@ fn resolve_single_op_from_store(
     op_heads_store: &dyn OpHeadsStore,
     op_str: &str,
 ) -> Result<Operation, OpsetEvaluationError> {
-    if op_str.is_empty() || !op_str.as_bytes().iter().all(|b| b.is_ascii_hexdigit()) {
+    if op_str.is_empty() {
         return Err(OpsetResolutionError::InvalidIdPrefix(op_str.to_owned()).into());
     }
-    if let Ok(binary_op_id) = hex::decode(op_str) {
-        let op_id = OperationId::new(binary_op_id);
+    let prefix = HexPrefix::new(op_str)
+        .ok_or_else(|| OpsetResolutionError::InvalidIdPrefix(op_str.to_owned()))?;
+    if let Some(binary_op_id) = prefix.as_full_bytes() {
+        let op_id = OperationId::from_bytes(binary_op_id);
         match op_store.read_operation(&op_id) {
             Ok(operation) => {
                 return Ok(Operation::new(op_store.clone(), op_id, operation));
@@ -143,12 +145,14 @@ fn resolve_single_op_from_store(
             }
         }
     }
-    let mut matches = vec![];
-    for op in find_all_operations(op_store, op_heads_store)? {
-        if op.id().hex().starts_with(op_str) {
-            matches.push(op);
-        }
-    }
+
+    // TODO: Extract to OpStore method where IDs can be resolved without loading
+    // all operation data?
+    let head_ops = get_current_head_ops(op_store, op_heads_store)?;
+    let mut matches: Vec<_> = walk_ancestors(&head_ops)
+        .filter_ok(|op| prefix.matches(op.id()))
+        .take(2)
+        .try_collect()?;
     if matches.is_empty() {
         Err(OpsetResolutionError::NoSuchOperation(op_str.to_owned()).into())
     } else if matches.len() == 1 {
@@ -158,22 +162,20 @@ fn resolve_single_op_from_store(
     }
 }
 
-fn find_all_operations(
+/// Loads the current head operations. The returned operations may contain
+/// redundant ones which are ancestors of the other heads.
+fn get_current_head_ops(
     op_store: &Arc<dyn OpStore>,
     op_heads_store: &dyn OpHeadsStore,
-) -> Result<Vec<Operation>, OpStoreError> {
-    let mut visited = HashSet::new();
-    let mut work: VecDeque<_> = op_heads_store.get_op_heads().into_iter().collect();
-    let mut operations = vec![];
-    while let Some(op_id) = work.pop_front() {
-        if visited.insert(op_id.clone()) {
-            let store_operation = op_store.read_operation(&op_id)?;
-            work.extend(store_operation.parents.iter().cloned());
-            let operation = Operation::new(op_store.clone(), op_id, store_operation);
-            operations.push(operation);
-        }
-    }
-    Ok(operations)
+) -> OpStoreResult<Vec<Operation>> {
+    op_heads_store
+        .get_op_heads()
+        .into_iter()
+        .map(|id| -> OpStoreResult<Operation> {
+            let data = op_store.read_operation(&id)?;
+            Ok(Operation::new(op_store.clone(), id, data))
+        })
+        .try_collect()
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]

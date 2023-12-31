@@ -149,6 +149,11 @@ impl HexPrefix {
         &self.min_prefix_bytes
     }
 
+    /// Returns the bytes representation if this prefix can be a full id.
+    pub fn as_full_bytes(&self) -> Option<&[u8]> {
+        (!self.has_odd_byte).then_some(&self.min_prefix_bytes)
+    }
+
     fn split_odd_byte(&self) -> (Option<u8>, &[u8]) {
         if self.has_odd_byte {
             let (&odd, prefix) = self.min_prefix_bytes.split_last().unwrap();
