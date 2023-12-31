@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 use std::env::{self, ArgsOs, VarError};
 use std::ffi::{OsStr, OsString};
 use std::fmt::Debug;
@@ -42,9 +42,9 @@ use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
 use jj_lib::merged_tree::MergedTree;
-use jj_lib::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
-use jj_lib::op_store::{OpStore, OpStoreError, OperationId, WorkspaceId};
-use jj_lib::op_walk::{OpsetEvaluationError, OpsetResolutionError};
+use jj_lib::op_heads_store::{self, OpHeadResolutionError};
+use jj_lib::op_store::{OpStoreError, OperationId, WorkspaceId};
+use jj_lib::op_walk::OpsetEvaluationError;
 use jj_lib::operation::Operation;
 use jj_lib::repo::{
     CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, Repo, RepoLoader,
@@ -70,7 +70,7 @@ use jj_lib::workspace::{
     default_working_copy_factories, LockedWorkspace, WorkingCopyFactory, Workspace,
     WorkspaceInitError, WorkspaceLoadError, WorkspaceLoader,
 };
-use jj_lib::{dag_walk, file_util, git, revset};
+use jj_lib::{dag_walk, file_util, git, op_walk, revset};
 use once_cell::unsync::OnceCell;
 use toml_edit;
 use tracing::instrument;
@@ -659,7 +659,7 @@ impl CommandHelper {
                 },
             )
         } else {
-            let operation = resolve_op_for_load(
+            let operation = op_walk::resolve_op_for_load(
                 repo_loader.op_store(),
                 repo_loader.op_heads_store(),
                 &self.global_args.at_operation,
@@ -977,7 +977,7 @@ impl WorkspaceCommandHelper {
     pub fn resolve_single_op(&self, op_str: &str) -> Result<Operation, OpsetEvaluationError> {
         // When resolving the "@" operation in a `ReadonlyRepo`, we resolve it to the
         // operation the repo was loaded at.
-        resolve_single_op(
+        op_walk::resolve_single_op(
             self.repo().op_store(),
             self.repo().op_heads_store(),
             || Ok(self.repo().operation().clone()),
@@ -2019,45 +2019,6 @@ pub fn parse_string_pattern(src: &str) -> Result<StringPattern, StringPatternPar
     }
 }
 
-pub fn resolve_op_for_load(
-    op_store: &Arc<dyn OpStore>,
-    op_heads_store: &Arc<dyn OpHeadsStore>,
-    op_str: &str,
-) -> Result<Operation, OpsetEvaluationError> {
-    let get_current_op = || {
-        op_heads_store::resolve_op_heads(op_heads_store.as_ref(), op_store, |_| {
-            Err(OpsetResolutionError::MultipleOperations("@".to_owned()).into())
-        })
-    };
-    resolve_single_op(op_store, op_heads_store, get_current_op, op_str)
-}
-
-fn resolve_single_op(
-    op_store: &Arc<dyn OpStore>,
-    op_heads_store: &Arc<dyn OpHeadsStore>,
-    get_current_op: impl FnOnce() -> Result<Operation, OpsetEvaluationError>,
-    op_str: &str,
-) -> Result<Operation, OpsetEvaluationError> {
-    let op_symbol = op_str.trim_end_matches('-');
-    let op_postfix = &op_str[op_symbol.len()..];
-    let mut operation = match op_symbol {
-        "@" => get_current_op(),
-        s => resolve_single_op_from_store(op_store, op_heads_store, s),
-    }?;
-    for _ in op_postfix.chars() {
-        let mut parent_ops = operation.parents();
-        let Some(op) = parent_ops.next().transpose()? else {
-            return Err(OpsetResolutionError::EmptyOperations(op_str.to_owned()).into());
-        };
-        if parent_ops.next().is_some() {
-            return Err(OpsetResolutionError::MultipleOperations(op_str.to_owned()).into());
-        }
-        drop(parent_ops);
-        operation = op;
-    }
-    Ok(operation)
-}
-
 /// Resolves revsets into revisions for use; useful for rebases or operations
 /// that take multiple parents.
 pub fn resolve_all_revs(
@@ -2072,61 +2033,6 @@ pub fn resolve_all_revs(
         Err(user_error("Cannot merge with root revision"))
     } else {
         Ok(commits)
-    }
-}
-
-fn find_all_operations(
-    op_store: &Arc<dyn OpStore>,
-    op_heads_store: &Arc<dyn OpHeadsStore>,
-) -> Result<Vec<Operation>, OpStoreError> {
-    let mut visited = HashSet::new();
-    let mut work: VecDeque<_> = op_heads_store.get_op_heads().into_iter().collect();
-    let mut operations = vec![];
-    while let Some(op_id) = work.pop_front() {
-        if visited.insert(op_id.clone()) {
-            let store_operation = op_store.read_operation(&op_id)?;
-            work.extend(store_operation.parents.iter().cloned());
-            let operation = Operation::new(op_store.clone(), op_id, store_operation);
-            operations.push(operation);
-        }
-    }
-    Ok(operations)
-}
-
-fn resolve_single_op_from_store(
-    op_store: &Arc<dyn OpStore>,
-    op_heads_store: &Arc<dyn OpHeadsStore>,
-    op_str: &str,
-) -> Result<Operation, OpsetEvaluationError> {
-    if op_str.is_empty() || !op_str.as_bytes().iter().all(|b| b.is_ascii_hexdigit()) {
-        return Err(OpsetResolutionError::InvalidIdPrefix(op_str.to_owned()).into());
-    }
-    if let Ok(binary_op_id) = hex::decode(op_str) {
-        let op_id = OperationId::new(binary_op_id);
-        match op_store.read_operation(&op_id) {
-            Ok(operation) => {
-                return Ok(Operation::new(op_store.clone(), op_id, operation));
-            }
-            Err(OpStoreError::ObjectNotFound { .. }) => {
-                // Fall through
-            }
-            Err(err) => {
-                return Err(OpsetEvaluationError::OpStore(err));
-            }
-        }
-    }
-    let mut matches = vec![];
-    for op in find_all_operations(op_store, op_heads_store)? {
-        if op.id().hex().starts_with(op_str) {
-            matches.push(op);
-        }
-    }
-    if matches.is_empty() {
-        Err(OpsetResolutionError::NoSuchOperation(op_str.to_owned()).into())
-    } else if matches.len() == 1 {
-        Ok(matches.pop().unwrap())
-    } else {
-        Err(OpsetResolutionError::AmbiguousIdPrefix(op_str.to_owned()).into())
     }
 }
 

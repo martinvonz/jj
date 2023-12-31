@@ -21,10 +21,10 @@ use jj_lib::backend::ObjectId;
 use jj_lib::default_index::{AsCompositeIndex as _, DefaultIndexStore, DefaultReadonlyIndex};
 use jj_lib::local_working_copy::LocalWorkingCopy;
 use jj_lib::repo::Repo;
-use jj_lib::revset;
 use jj_lib::working_copy::WorkingCopy;
+use jj_lib::{op_walk, revset};
 
-use crate::cli_util::{resolve_op_for_load, user_error, CommandError, CommandHelper, RevisionArg};
+use crate::cli_util::{user_error, CommandError, CommandHelper, RevisionArg};
 use crate::template_parser;
 use crate::ui::Ui;
 
@@ -267,7 +267,7 @@ fn cmd_debug_operation(
     // even if e.g. the view object is broken.
     let workspace = command.load_workspace()?;
     let repo_loader = workspace.repo_loader();
-    let op = resolve_op_for_load(
+    let op = op_walk::resolve_op_for_load(
         repo_loader.op_store(),
         repo_loader.op_heads_store(),
         &args.operation,
