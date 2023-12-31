@@ -15,14 +15,17 @@
 //! Utility for operation id resolution and traversal.
 
 use std::cmp::Ordering;
+use std::collections::{HashSet, VecDeque};
+use std::sync::Arc;
 
 use itertools::Itertools as _;
 use thiserror::Error;
 
-use crate::dag_walk;
-use crate::op_heads_store::OpHeadResolutionError;
-use crate::op_store::{OpStoreError, OpStoreResult};
+use crate::backend::ObjectId as _;
+use crate::op_heads_store::{OpHeadResolutionError, OpHeadsStore};
+use crate::op_store::{OpStore, OpStoreError, OpStoreResult, OperationId};
 use crate::operation::Operation;
+use crate::{dag_walk, op_heads_store};
 
 /// Error that may occur during evaluation of operation set expression.
 #[derive(Debug, Error)]
@@ -59,6 +62,103 @@ pub enum OpsetResolutionError {
     /// Operation ID prefix matches multiple operations.
     #[error(r#"Operation ID prefix "{0}" is ambiguous"#)]
     AmbiguousIdPrefix(String),
+}
+
+/// Resolves operation set expression without loading a repo.
+pub fn resolve_op_for_load(
+    op_store: &Arc<dyn OpStore>,
+    op_heads_store: &Arc<dyn OpHeadsStore>,
+    op_str: &str,
+) -> Result<Operation, OpsetEvaluationError> {
+    let get_current_op = || {
+        op_heads_store::resolve_op_heads(op_heads_store.as_ref(), op_store, |_| {
+            Err(OpsetResolutionError::MultipleOperations("@".to_owned()).into())
+        })
+    };
+    resolve_single_op(op_store, op_heads_store, get_current_op, op_str)
+}
+
+/// Resolves operation set expression with the given "@" symbol resolution
+/// callback.
+pub fn resolve_single_op(
+    op_store: &Arc<dyn OpStore>,
+    op_heads_store: &Arc<dyn OpHeadsStore>,
+    get_current_op: impl FnOnce() -> Result<Operation, OpsetEvaluationError>,
+    op_str: &str,
+) -> Result<Operation, OpsetEvaluationError> {
+    let op_symbol = op_str.trim_end_matches('-');
+    let op_postfix = &op_str[op_symbol.len()..];
+    let mut operation = match op_symbol {
+        "@" => get_current_op(),
+        s => resolve_single_op_from_store(op_store, op_heads_store, s),
+    }?;
+    for _ in op_postfix.chars() {
+        let mut parent_ops = operation.parents();
+        let Some(op) = parent_ops.next().transpose()? else {
+            return Err(OpsetResolutionError::EmptyOperations(op_str.to_owned()).into());
+        };
+        if parent_ops.next().is_some() {
+            return Err(OpsetResolutionError::MultipleOperations(op_str.to_owned()).into());
+        }
+        drop(parent_ops);
+        operation = op;
+    }
+    Ok(operation)
+}
+
+fn resolve_single_op_from_store(
+    op_store: &Arc<dyn OpStore>,
+    op_heads_store: &Arc<dyn OpHeadsStore>,
+    op_str: &str,
+) -> Result<Operation, OpsetEvaluationError> {
+    if op_str.is_empty() || !op_str.as_bytes().iter().all(|b| b.is_ascii_hexdigit()) {
+        return Err(OpsetResolutionError::InvalidIdPrefix(op_str.to_owned()).into());
+    }
+    if let Ok(binary_op_id) = hex::decode(op_str) {
+        let op_id = OperationId::new(binary_op_id);
+        match op_store.read_operation(&op_id) {
+            Ok(operation) => {
+                return Ok(Operation::new(op_store.clone(), op_id, operation));
+            }
+            Err(OpStoreError::ObjectNotFound { .. }) => {
+                // Fall through
+            }
+            Err(err) => {
+                return Err(OpsetEvaluationError::OpStore(err));
+            }
+        }
+    }
+    let mut matches = vec![];
+    for op in find_all_operations(op_store, op_heads_store)? {
+        if op.id().hex().starts_with(op_str) {
+            matches.push(op);
+        }
+    }
+    if matches.is_empty() {
+        Err(OpsetResolutionError::NoSuchOperation(op_str.to_owned()).into())
+    } else if matches.len() == 1 {
+        Ok(matches.pop().unwrap())
+    } else {
+        Err(OpsetResolutionError::AmbiguousIdPrefix(op_str.to_owned()).into())
+    }
+}
+
+fn find_all_operations(
+    op_store: &Arc<dyn OpStore>,
+    op_heads_store: &Arc<dyn OpHeadsStore>,
+) -> Result<Vec<Operation>, OpStoreError> {
+    let mut visited = HashSet::new();
+    let mut work: VecDeque<_> = op_heads_store.get_op_heads().into_iter().collect();
+    let mut operations = vec![];
+    while let Some(op_id) = work.pop_front() {
+        if visited.insert(op_id.clone()) {
+            let store_operation = op_store.read_operation(&op_id)?;
+            work.extend(store_operation.parents.iter().cloned());
+            let operation = Operation::new(op_store.clone(), op_id, store_operation);
+            operations.push(operation);
+        }
+    }
+    Ok(operations)
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
