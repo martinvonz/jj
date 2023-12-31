@@ -659,11 +659,8 @@ impl CommandHelper {
                 },
             )
         } else {
-            let operation = op_walk::resolve_op_for_load(
-                repo_loader.op_store(),
-                repo_loader.op_heads_store(),
-                &self.global_args.at_operation,
-            )?;
+            let operation =
+                op_walk::resolve_op_for_load(repo_loader, &self.global_args.at_operation)?;
             Ok(operation)
         }
     }
@@ -975,14 +972,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn resolve_single_op(&self, op_str: &str) -> Result<Operation, OpsetEvaluationError> {
-        // When resolving the "@" operation in a `ReadonlyRepo`, we resolve it to the
-        // operation the repo was loaded at.
-        op_walk::resolve_single_op(
-            self.repo().op_store(),
-            self.repo().op_heads_store(),
-            || Ok(self.repo().operation().clone()),
-            op_str,
-        )
+        op_walk::resolve_op_with_repo(self.repo(), op_str)
     }
 
     /// Resolve a revset to a single revision. Return an error if the revset is
