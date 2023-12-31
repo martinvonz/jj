@@ -68,34 +68,14 @@ fn test_op_log() {
     @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
     ◉  0000000000000000000000000000000000000000
     "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path, "@--"), @r###"
-    ◉  0000000000000000000000000000000000000000
-    "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "@---"]), @r###"
     Error: The "@---" expression resolved to no operations
-    "###);
-    // "ID-" also resolves to the parent.
-    insta::assert_snapshot!(
-        get_log_output(&test_env, &repo_path, &format!("{add_workspace_id}-")), @r###"
-    ◉  0000000000000000000000000000000000000000
     "###);
 
     // We get a reasonable message if an invalid operation ID is specified
     insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "foo"]), @r###"
     Error: Operation ID "foo" is not a valid hexadecimal prefix
-    "###);
-    // Odd length
-    insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "123456789"]), @r###"
-    Error: No operation ID matching "123456789"
-    "###);
-    // Even length
-    insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "0123456789"]), @r###"
-    Error: No operation ID matching "0123456789"
-    "###);
-    // Empty ID
-    insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", ""]), @r###"
-    Error: Operation ID "" is not a valid hexadecimal prefix
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 1"]);
@@ -111,10 +91,6 @@ fn test_op_log() {
     );
     insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "@-"]), @r###"
     Error: The "@" expression resolved to more than one operation
-    "###);
-    test_env.jj_cmd_ok(&repo_path, &["st"]);
-    insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "@-"]), @r###"
-    Error: The "@-" expression resolved to more than one operation
     "###);
 }
 

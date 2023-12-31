@@ -131,17 +131,27 @@ impl TestRepo {
     }
 
     pub fn init_with_backend(backend: TestRepoBackend) -> Self {
-        let settings = user_settings();
+        Self::init_with_backend_and_settings(backend, &user_settings())
+    }
+
+    pub fn init_with_settings(settings: &UserSettings) -> Self {
+        Self::init_with_backend_and_settings(TestRepoBackend::Test, settings)
+    }
+
+    pub fn init_with_backend_and_settings(
+        backend: TestRepoBackend,
+        settings: &UserSettings,
+    ) -> Self {
         let temp_dir = new_temp_dir();
 
         let repo_dir = temp_dir.path().join("repo");
         fs::create_dir(&repo_dir).unwrap();
 
         let repo = ReadonlyRepo::init(
-            &settings,
+            settings,
             &repo_dir,
             &move |settings, store_path| backend.init_backend(settings, store_path),
-            Signer::from_settings(&settings).unwrap(),
+            Signer::from_settings(settings).unwrap(),
             ReadonlyRepo::default_op_store_initializer(),
             ReadonlyRepo::default_op_heads_store_initializer(),
             ReadonlyRepo::default_index_store_initializer(),
