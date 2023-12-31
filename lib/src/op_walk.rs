@@ -195,12 +195,15 @@ impl PartialOrd for OperationByEndTime {
     }
 }
 
-/// Walks `head_op` and its ancestors in reverse topological order.
-pub fn walk_ancestors(head_op: &Operation) -> impl Iterator<Item = OpStoreResult<Operation>> {
+/// Walks `head_ops` and their ancestors in reverse topological order.
+pub fn walk_ancestors(head_ops: &[Operation]) -> impl Iterator<Item = OpStoreResult<Operation>> {
     // Lazily load operations based on timestamp-based heuristic. This works so long
     // as the operation history is mostly linear.
     dag_walk::topo_order_reverse_lazy_ok(
-        [Ok(OperationByEndTime(head_op.clone()))],
+        head_ops
+            .iter()
+            .map(|op| Ok(OperationByEndTime(op.clone())))
+            .collect_vec(),
         |OperationByEndTime(op)| op.id().clone(),
         |OperationByEndTime(op)| op.parents().map_ok(OperationByEndTime).collect_vec(),
     )
