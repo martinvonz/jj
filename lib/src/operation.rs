@@ -76,7 +76,7 @@ impl Operation {
         &self.id
     }
 
-    pub fn parent_ids(&self) -> &Vec<OperationId> {
+    pub fn parent_ids(&self) -> &[OperationId] {
         &self.data.parents
     }
 
