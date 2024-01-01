@@ -447,6 +447,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#how-do-i-integrate-jujutsu-with-gerrit" class="md-nav__link">
+    How do I integrate Jujutsu with Gerrit?
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1243,6 +1250,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#how-do-i-integrate-jujutsu-with-gerrit" class="md-nav__link">
+    How do I integrate Jujutsu with Gerrit?
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1374,6 +1388,16 @@ correct commit using <code>jj branch set &lt;commit ID&gt;</code>.</p>
 <p>Usually, the different commits associated with the conflicted branch should all
 appear in the log, but if they don't you can use <code>jj branch list</code>to show all the
 commits associated with it.</p>
+<h3 id="how-do-i-integrate-jujutsu-with-gerrit">How do I integrate Jujutsu with Gerrit?<a class="headerlink" href="#how-do-i-integrate-jujutsu-with-gerrit" title="Permanent link">&para;</a></h3>
+<p>At the moment you'll need a script, which adds the required fields for Gerrit
+like the <code>Change-Id</code> footer. Then <code>jj</code> can invoke it via an <code>$EDITOR</code> override
+in an aliased command. Here's an <a href="https://gist.github.com/thoughtpolice/8f2fd36ae17cd11b8e7bd93a70e31ad6">example</a> from an 
+contributor (look for the <code>jj signoff</code> alias).</p>
+<p>After you have attached the <code>Change-Id:</code> footer to the commit series, you'll 
+have to manually push <code>git push</code> your <code>HEAD</code> into the remote Gerrit branch
+<code>refs/for/$BRANCH</code>, where <code>$BRANCH</code> is the base branch you want your changes to
+go to.</p>
+<p>We hope to integrate with Gerrit natively in the future.</p>
 
 
 
