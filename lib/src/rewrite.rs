@@ -159,11 +159,10 @@ pub fn rebase_commit_with_options(
             EmptyBehaviour::AbandonAllEmpty => *parent.tree_id() == new_tree_id,
         };
         if should_abandon {
-            mut_repo.record_abandoned_commit(old_commit.id().clone());
-            // Record old_commit as being succeeded by the parent for the purposes of
-            // the rebase.
+            // Record old_commit as being succeeded by the parent.
             // This ensures that when we stack commits, the second commit knows to
             // rebase on top of the parent commit, rather than the abandoned commit.
+            mut_repo.record_rewritten_commit(old_commit.id().clone(), parent.id().clone());
             return Ok(parent.clone());
         }
     }

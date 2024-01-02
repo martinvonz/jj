@@ -19,7 +19,7 @@ use jj_lib::merged_tree::MergedTree;
 use jj_lib::op_store::{RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
-use jj_lib::rewrite::{restore_tree, EmptyBehaviour, RebaseOptions};
+use jj_lib::rewrite::{rebase_commit_with_options, restore_tree, EmptyBehaviour, RebaseOptions};
 use maplit::{hashmap, hashset};
 use test_case::test_case;
 use testutils::{
@@ -1610,5 +1610,59 @@ fn test_empty_commit_option(empty_behavior: EmptyBehaviour) {
         hashset! {
             new_head.id().clone(),
         }
+    );
+}
+
+#[test]
+fn test_rebase_commit_via_rebase_api() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    // Rebase B onto B2
+    //
+    // C
+    // |
+    // B B2
+    // |/
+    // A
+    let mut tx = repo.start_transaction(&settings);
+    let commit_a = write_random_commit(tx.mut_repo(), &settings);
+    let commit_b = create_random_commit(tx.mut_repo(), &settings)
+        .set_parents(vec![commit_a.id().clone()])
+        .write()
+        .unwrap();
+    let commit_c = create_random_commit(tx.mut_repo(), &settings)
+        .set_parents(vec![commit_b.id().clone()])
+        .write()
+        .unwrap();
+    let commit_b2 = create_random_commit(tx.mut_repo(), &settings)
+        .set_parents(vec![commit_a.id().clone()])
+        .set_tree_id(commit_b.tree_id().clone())
+        .write()
+        .unwrap();
+
+    let rebase_options = RebaseOptions {
+        empty: EmptyBehaviour::AbandonAllEmpty,
+    };
+    rebase_commit_with_options(
+        &settings,
+        tx.mut_repo(),
+        &commit_b,
+        &[commit_b2.clone()],
+        &rebase_options,
+    )
+    .unwrap();
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_with_options_return_map(&settings, rebase_options)
+        .unwrap();
+    assert_eq!(rebase_map.len(), 1);
+    let new_commit_c =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[&commit_b2.id()]);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {new_commit_c.id().clone()}
     );
 }
