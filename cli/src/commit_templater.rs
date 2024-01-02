@@ -660,6 +660,40 @@ impl Template<()> for ShortestIdPrefix {
     }
 }
 
+/// An alphabet for case-insensitive ids that picks the case to make letters
+/// more distinguishable at a glance.
+///
+/// Currently, the cases are chosen for writing change ids, so only the letters
+/// `k-z` are considered, and the rest are left alone. 6 out of 16 letters z-k
+/// are capitalized. We should prefer to only have a minority of letters
+/// capitalized to make sure there are few fully upper-case ids; some people
+/// perceive uppercase as yelling.
+//
+// I made this alphabet manually, guided by thinking about confusable pairs. See
+// the test below for illustrations.
+//
+// TODO(ilyagr): It'd be fun to generate this alphabet programmatically from a
+// list of confusable pairs (either weighted by how confusable they are or not).
+// In other words, start with the constraints that both `v` and `u` shouldn't be
+// in the alphabet and neither should both `O` and `Q`, etc. See also:
+// https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3541865/
+// https://www.readnaturally.com/about-us/blog/a-strategy-for-students-who-confuse-letters
+#[allow(unused)]
+fn to_readable_case(s: &str) -> String {
+    s.chars()
+        .map(|c| match c.to_ascii_lowercase() {
+            // Focus on k-z for now
+            'w' => 'W', // vs uvm
+            'v' => 'V', // vs uy
+            'q' => 'Q', // vs op
+            'l' => 'L', // vs 1i, even though those are not k-z
+            'n' => 'N', // vn m
+            'k' => 'K', // vs x
+            c => c,
+        })
+        .collect()
+}
+
 impl ShortestIdPrefix {
     fn to_upper(&self) -> Self {
         Self {
@@ -725,4 +759,43 @@ pub fn parse<'repo>(
     };
     let node = template_parser::parse(template_text, aliases_map)?;
     template_builder::build(&language, &node)
+}
+
+#[cfg(test)]
+mod test {
+    use super::to_readable_case;
+
+    #[test]
+    fn test_readable_case() {
+        insta::assert_snapshot!(
+            to_readable_case(
+                // commit_id       unused    change_id
+                "0123456789abcdef   ghij   klmnopqrstuvwxyz"
+            ),
+            @"0123456789abcdef   ghij   KLmNopQrstuVWxyz"
+        );
+        insta::assert_snapshot!(
+            to_readable_case(
+                // commit_id       unused    change_id
+                "0123456789ABCDEF   GHIJ   KLMnOPQRSTUVWXYZ"
+            ),
+            @"0123456789abcdef   ghij   KLmNopQrstuVWxyz"
+        );
+
+        // Demos
+        // V and W are still a little confusable, but two out of three in `uvw`
+        // have to have the same case.
+        insta::assert_snapshot!(
+            to_readable_case("pqqopopqvuvyyvuwwuwmnmmuxkkx"),
+            @"pQQopopQVuVyyVuWWuWmNmmuxKKx"
+        );
+        insta::assert_snapshot!(
+            to_readable_case("uuyu uvywu uuvu uvvwu uyyu vywyu"),
+            @"uuyu uVyWu uuVu uVVWu uyyu VyWyu"
+        );
+        insta::assert_snapshot!(
+            to_readable_case("UUYU UVYU UUVU UVVWU UYYU VYWYU"),
+            @"uuyu uVyu uuVu uVVWu uyyu VyWyu"
+        );
+    }
 }
