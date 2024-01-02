@@ -696,11 +696,11 @@ fn to_readable_case(s: &str) -> String {
 impl ShortestIdPrefix {
     fn to_upper(&self) -> Self {
         Self {
-            prefix: self.prefix.to_ascii_uppercase(),
-            rest: self.rest.to_ascii_uppercase(),
+            // TODO: Undo this
+            prefix: to_readable_case(&self.prefix),
+            rest: to_readable_case(&self.rest),
         }
     }
-
     fn to_readable(&self) -> Self {
         Self {
             prefix: to_readable_case(&self.prefix),

@@ -512,8 +512,8 @@ fn test_log_customize_short_id() {
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
-    @  QPVUNTSM test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c19
+    @  QpVuNtsm test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c19
     │  (empty) first
-    ◉  ZZZZZZZZ root() 00000000
+    ◉  zzzzzzzz root() 00000000
     "###);
 }
