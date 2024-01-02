@@ -452,6 +452,33 @@
     Remotes
   </a>
   
+    <nav class="md-nav" aria-label="Remotes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-does-gitauto-local-branch-actually-do" class="md-nav__link">
+    What does git.auto-local-branch actually do?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tracking-a-branch" class="md-nav__link">
+    Tracking a branch
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#untracking-a-branch" class="md-nav__link">
+    Untracking a branch
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1110,6 +1137,33 @@
     Remotes
   </a>
   
+    <nav class="md-nav" aria-label="Remotes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-does-gitauto-local-branch-actually-do" class="md-nav__link">
+    What does git.auto-local-branch actually do?
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tracking-a-branch" class="md-nav__link">
+    Tracking a branch
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#untracking-a-branch" class="md-nav__link">
+    Untracking a branch
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1168,6 +1222,56 @@ branch <code>main</code>. If the local target had also moved compared to <code>m
 (probably because you had run <code>jj branch set main</code>), then the two updates will be
 merged. If one is ahead of the other, then that target will be the new target.
 Otherwise, the local branch will be conflicted (see next section for details).</p>
+<!-- TODO: Adjust this paragraph to the new defaults which were introduced in #2736 -->
+<p>As of December 2023 Jujutsu tracks<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup> and fetches all branches by default, 
+which is confusing users coming from Git. To smoothen the transition branch 
+tracking was introduced. </p>
+<h3 id="what-does-gitauto-local-branch-actually-do">What does <code>git.auto-local-branch</code> actually do?<a class="headerlink" href="#what-does-gitauto-local-branch-actually-do" title="Permanent link">&para;</a></h3>
+<p>Jujutsu's fetch operations consist of several steps. First <code>jj git fetch</code>
+fetches all Git refs under <code>/refs/remotes/origin</code> (or, if you have 
+multiple remotes <code>/refs/remotes/&lt;remote name&gt;</code> for each remote).<br />
+Then Jujutsu stores these refs as remote tracking branches. Finally, by default, 
+Jujutsu creates local branches for them. This is similar to Mercurial, which 
+fetches all it's Booksmarks (equivalent to Git branches) by default. </p>
+<p>There are two ways to disable the creation (or modification) of the local 
+branches by <code>jj git fetch</code>: </p>
+<ul>
+<li>You can use <code>jj branch untrack &lt;branch-name&gt;@&lt;remote name&gt;</code> to stop tracking
+ specific branches when fetching from specific remotes. </li>
+<li>You can set <code>git.auto-local-branch = false</code> to change the default behavior.
+ Then, Jujutsu will only create local branches for remote branches which you 
+ explicitly track with <code>jj branch track&lt;branch name&gt;@&lt;remote name&gt;</code>.</li>
+</ul>
+<h3 id="tracking-a-branch">Tracking a branch<a class="headerlink" href="#tracking-a-branch" title="Permanent link">&para;</a></h3>
+<p>To track a branch permanently use <code>jj branch track &lt;branch name&gt;@&lt;remote name&gt;</code>. 
+It will now be imported as a local branch until you untrack it or it is deleted
+on the remote. </p>
+<p>Example:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># List all available branches, as we want our colleague&#39;s branch.</span>
+$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span>list<span class="w"> </span>--all
+$<span class="w"> </span><span class="c1"># Find the branch.</span>
+$<span class="w"> </span><span class="c1"># [...]</span>
+$<span class="w"> </span><span class="c1"># Actually track the branch.</span>
+$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span>track<span class="w"> </span>&lt;branch<span class="w"> </span>name&gt;@&lt;remote<span class="w"> </span>name&gt;<span class="w"> </span><span class="c1"># Example: jj branch track my-feature@origin</span>
+$<span class="w"> </span><span class="c1"># From this point on, branch &lt;name&gt; is tracked and will always be imported.</span>
+$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>fetch<span class="w"> </span><span class="c1"># Update the repository</span>
+$<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>&lt;name&gt;<span class="w"> </span><span class="c1"># Do some local testing, etc.</span>
+</code></pre></div>
+<h3 id="untracking-a-branch">Untracking a branch<a class="headerlink" href="#untracking-a-branch" title="Permanent link">&para;</a></h3>
+<p>To no longer have a branch available in a repository, you can 
+<code>jj branch untrack</code> it. After that subsequent fetches will no longer copy the 
+branch into the local repository. </p>
+<p>Example: </p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span><span class="c1"># List all local and remote branches.</span>
+$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span>list<span class="w"> </span>--all
+$<span class="w"> </span><span class="c1"># Find the branch we no longer want to track.</span>
+$<span class="w"> </span><span class="c1"># [...]</span>
+<span class="c1"># # Actually untrack it.</span>
+$<span class="w"> </span>jj<span class="w"> </span>branch<span class="w"> </span>untrack<span class="w"> </span>&lt;branch<span class="w"> </span>name&gt;@&lt;remote<span class="w"> </span>name&gt;<span class="w"> </span><span class="c1"># Example: jj branch untrack stuff@origin</span>
+$<span class="w"> </span><span class="c1"># From this point on, it won&#39;t be imported anymore. </span>
+</code></pre></div>
+<p>If you want to know the internals of branch tracking, consult the 
+<a href="../design/tracking-branches/">Design Doc</a>.</p>
 <h2 id="conflicts">Conflicts<a class="headerlink" href="#conflicts" title="Permanent link">&para;</a></h2>
 <p>Branches can end up in a conflicted state. When that happens, <code>jj status</code> will
 include information about the conflicted branches (and instructions for how to
@@ -1187,6 +1291,14 @@ on top of the other with <code>jj rebase</code>.</p>
 <p>To resolve a conflicted state in a remote branch (e.g. <code>main@origin</code>), simply
 pull from the remote (e.g. <code>jj git fetch</code>). The conflict resolution will also
 propagate to the local branch (which was presumably also conflicted).</p>
+<div class="footnote">
+<hr />
+<ol>
+<li id="fn:1">
+<p>Tracking in this context means if <code>jj</code> should create a local branch for a remote branch.&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+</li>
+</ol>
+</div>
 
 
 
