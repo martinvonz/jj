@@ -8,6 +8,26 @@ theme:
   language: 'en'
   features:
     # - navigation.top
+
+  # Respect the users default settings and add a toggle for manually choosing 
+  # automatic/light/dark palette.
+  # taken from https://squidfunk.github.io/mkdocs-material/setup/changing-the-colors/#system-preference
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to system preference
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to dark mode
+
 extra:
   version:
     provider: mike
