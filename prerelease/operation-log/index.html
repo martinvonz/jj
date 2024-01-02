@@ -1148,8 +1148,13 @@ username, hostname, description.</p>
 <p>The operation log allows you to undo an operation (<code>jj [op] undo</code>), which doesn't
 need to be the most recent one. It also lets you restore the entire repo to the
 way it looked at an earlier point (<code>jj op restore</code>).</p>
-<p>When referring to operations, you can use <code>@</code> to represent the current operation
-as well as the <code>-</code> operator (e.g. <code>@-</code>) to get the parent of an operation.</p>
+<p>When referring to operations, you can use <code>@</code> to represent the current
+operation.</p>
+<p>The following operators are supported:</p>
+<ul>
+<li><code>x-</code>: Parents of <code>x</code> (e.g. <code>@-</code>)</li>
+<li><code>x+</code>: Children of <code>x</code></li>
+</ul>
 <h2 id="concurrent-operations">Concurrent operations<a class="headerlink" href="#concurrent-operations" title="Permanent link">&para;</a></h2>
 <p>One benefit of the operation log (and the reason for its creation) is that it
 allows lock-free concurrency -- you can run concurrent <code>jj</code> commands without
