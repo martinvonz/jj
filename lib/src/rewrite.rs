@@ -381,8 +381,8 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     /// Returns a map from `CommitId` of old commit to new commit. Includes the
     /// commits rebase so far. Does not include the inputs passed to
     /// `rebase_descendants`.
-    pub fn rebased(&self) -> &HashMap<CommitId, CommitId> {
-        &self.rebased
+    pub fn into_map(self) -> HashMap<CommitId, CommitId> {
+        self.rebased
     }
 
     /// Panics if `parent_mapping` contains cycles
