@@ -76,6 +76,7 @@ impl OpHeadsStore for SimpleOpHeadsStore {
     }
 
     fn update_op_heads(&self, old_ids: &[OperationId], new_id: &OperationId) {
+        assert!(!old_ids.contains(new_id));
         self.add_op_head(new_id);
         for old_id in old_ids {
             self.remove_op_head(old_id)
