@@ -914,7 +914,7 @@ impl MutableRepo {
     ) -> Result<usize, TreeMergeError> {
         let result = self
             .rebase_descendants_return_rebaser(settings, options)?
-            .map_or(0, |rebaser| rebaser.rebased().len());
+            .map_or(0, |rebaser| rebaser.into_map().len());
         self.clear_descendant_rebaser_plans();
         Ok(result)
     }
@@ -942,7 +942,7 @@ impl MutableRepo {
             // enough information to describe the results of a rebase if some commits got
             // abandoned
             .rebase_descendants_return_rebaser(settings, options)?
-            .map_or(HashMap::new(), |rebaser| rebaser.rebased().clone()));
+            .map_or(HashMap::new(), |rebaser| rebaser.into_map()));
         self.clear_descendant_rebaser_plans();
         result
     }
