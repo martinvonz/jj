@@ -678,7 +678,6 @@ impl Template<()> for ShortestIdPrefix {
 // in the alphabet and neither should both `O` and `Q`, etc. See also:
 // https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3541865/
 // https://www.readnaturally.com/about-us/blog/a-strategy-for-students-who-confuse-letters
-#[allow(unused)]
 fn to_readable_case(s: &str) -> String {
     s.chars()
         .map(|c| match c.to_ascii_lowercase() {
@@ -699,6 +698,13 @@ impl ShortestIdPrefix {
         Self {
             prefix: self.prefix.to_ascii_uppercase(),
             rest: self.rest.to_ascii_uppercase(),
+        }
+    }
+
+    fn to_readable(&self) -> Self {
+        Self {
+            prefix: to_readable_case(&self.prefix),
+            rest: to_readable_case(&self.rest),
         }
     }
     fn to_lower(&self) -> Self {
@@ -733,6 +739,12 @@ fn build_shortest_id_prefix_method<'repo>(
             template_parser::expect_no_arguments(function)?;
             language
                 .wrap_shortest_id_prefix(TemplateFunction::new(self_property, |id| id.to_lower()))
+        }
+        "readable" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_shortest_id_prefix(TemplateFunction::new(self_property, |id| {
+                id.to_readable()
+            }))
         }
         _ => {
             return Err(TemplateParseError::no_such_method(
