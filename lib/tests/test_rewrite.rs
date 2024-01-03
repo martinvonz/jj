@@ -1614,18 +1614,25 @@ fn test_empty_commit_option(empty_behavior: EmptyBehaviour) {
 }
 
 #[test]
-fn test_rebase_commit_via_rebase_api() {
+fn test_rebase_abandoning_empty() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    // Rebase B onto B2
+    // Rebase B onto B2, where B2 and B have the same tree, abandoning all empty
+    // commits.
     //
-    // C
-    // |
-    // B B2
-    // |/
-    // A
+    // We expect B and D to be skipped because they're empty, but not E because it's
+    // the working commit.
+    //
+    // D (empty)  E (WC, empty)       E' (WC, empty)
+    // |         /                    |
+    // C---------                     C'
+    // |                           => |
+    // B B2                           B2
+    // |/                             |
+    // A                              A
+
     let mut tx = repo.start_transaction(&settings);
     let commit_a = write_random_commit(tx.mut_repo(), &settings);
     let commit_b = create_random_commit(tx.mut_repo(), &settings)
@@ -1636,10 +1643,25 @@ fn test_rebase_commit_via_rebase_api() {
         .set_parents(vec![commit_b.id().clone()])
         .write()
         .unwrap();
+    let commit_d = create_random_commit(tx.mut_repo(), &settings)
+        .set_parents(vec![commit_c.id().clone()])
+        .set_tree_id(commit_c.tree_id().clone())
+        .write()
+        .unwrap();
+    let commit_e = create_random_commit(tx.mut_repo(), &settings)
+        .set_parents(vec![commit_c.id().clone()])
+        .set_tree_id(commit_c.tree_id().clone())
+        .write()
+        .unwrap();
     let commit_b2 = create_random_commit(tx.mut_repo(), &settings)
         .set_parents(vec![commit_a.id().clone()])
         .set_tree_id(commit_b.tree_id().clone())
         .write()
+        .unwrap();
+
+    let workspace = WorkspaceId::new("ws".to_string());
+    tx.mut_repo()
+        .set_wc_commit(workspace.clone(), commit_e.id().clone())
         .unwrap();
 
     let rebase_options = RebaseOptions {
@@ -1657,12 +1679,20 @@ fn test_rebase_commit_via_rebase_api() {
         .mut_repo()
         .rebase_descendants_with_options_return_map(&settings, rebase_options)
         .unwrap();
-    assert_eq!(rebase_map.len(), 1);
+    assert_eq!(rebase_map.len(), 3);
     let new_commit_c =
         assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[&commit_b2.id()]);
+    assert_abandoned_with_parent(tx.mut_repo(), &rebase_map, &commit_d, new_commit_c.id());
+    let new_commit_e =
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_e, &[&new_commit_c.id()]);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
-        hashset! {new_commit_c.id().clone()}
+        hashset! {new_commit_e.id().clone()}
+    );
+
+    assert_eq!(
+        tx.mut_repo().view().get_wc_commit_id(&workspace),
+        Some(new_commit_e.id())
     );
 }
