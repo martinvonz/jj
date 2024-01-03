@@ -158,7 +158,12 @@ pub fn rebase_commit_with_options(
             }
             EmptyBehaviour::AbandonAllEmpty => *parent.tree_id() == new_tree_id,
         };
-        if should_abandon {
+        // If the user runs `jj checkout foo`, then `jj rebase -s foo -d bar`, and we
+        // drop the checked out empty commit, then the user will unknowingly
+        // have done the equivalent of `jj edit foo` instead of `jj checkout
+        // foo`. Thus, we never allow dropping the working commit. See #2766 and
+        // #2760 for discussions.
+        if should_abandon && !mut_repo.view().is_wc_commit_id(old_commit.id()) {
             // Record old_commit as being succeeded by the parent.
             // This ensures that when we stack commits, the second commit knows to
             // rebase on top of the parent commit, rather than the abandoned commit.

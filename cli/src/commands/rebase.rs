@@ -148,6 +148,7 @@ pub(crate) struct RebaseArgs {
     /// If true, when rebasing would produce an empty commit, the commit is
     /// skipped.
     /// Will never skip merge commits with multiple non-empty parents.
+    /// Will never skip the working commit.
     #[arg(long, conflicts_with = "revision")]
     skip_empty: bool,
 
