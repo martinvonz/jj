@@ -21,7 +21,8 @@ use std::rc::Rc;
 use itertools::Itertools as _;
 use once_cell::unsync::OnceCell;
 
-use crate::backend::{self, ChangeId, CommitId, ObjectId};
+use crate::backend::{ChangeId, CommitId, ObjectId};
+use crate::hex_util;
 use crate::index::{HexPrefix, PrefixResolution};
 use crate::repo::Repo;
 use crate::revset::{DefaultSymbolResolver, RevsetExpression};
@@ -421,7 +422,7 @@ where
 
         // Left/right neighbors should have unique short keys. For the current chunk,
         // we need to look up full-length keys.
-        let unique_len = |a: &[u8], b: &[u8]| backend::common_hex_len(a, b) + 1;
+        let unique_len = |a: &[u8], b: &[u8]| hex_util::common_hex_len(a, b) + 1;
         let neighbor_lens = left
             .iter()
             .chain(&right)
