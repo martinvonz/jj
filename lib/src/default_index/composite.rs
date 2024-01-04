@@ -27,8 +27,8 @@ use super::entry::{
 use super::readonly::ReadonlyIndexSegment;
 use super::rev_walk::RevWalk;
 use crate::backend::{ChangeId, CommitId};
-use crate::index::{HexPrefix, Index, PrefixResolution};
-use crate::object_id::ObjectId;
+use crate::index::Index;
+use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
 use crate::{default_revset_engine, hex_util};

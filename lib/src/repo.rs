@@ -38,9 +38,9 @@ use crate::default_index::DefaultIndexStore;
 use crate::default_submodule_store::DefaultSubmoduleStore;
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::git_backend::GitBackend;
-use crate::index::{HexPrefix, Index, IndexStore, MutableIndex, PrefixResolution, ReadonlyIndex};
+use crate::index::{Index, IndexStore, MutableIndex, ReadonlyIndex};
 use crate::local_backend::LocalBackend;
-use crate::object_id::ObjectId;
+use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
 use crate::op_store::{
     OpStore, OpStoreError, OperationId, RefTarget, RemoteRef, RemoteRefState, WorkspaceId,

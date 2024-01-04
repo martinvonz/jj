@@ -20,7 +20,7 @@ use std::time::Instant;
 use clap::Subcommand;
 use criterion::measurement::Measurement;
 use criterion::{BatchSize, BenchmarkGroup, BenchmarkId, Criterion};
-use jj_lib::index::HexPrefix;
+use jj_lib::object_id::HexPrefix;
 use jj_lib::repo::Repo;
 
 use crate::cli_util::{CommandError, CommandHelper, WorkspaceCommandHelper};

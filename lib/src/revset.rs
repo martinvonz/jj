@@ -35,7 +35,7 @@ use crate::backend::{BackendError, BackendResult, ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::git;
 use crate::hex_util::to_forward_hex;
-use crate::index::{HexPrefix, PrefixResolution};
+use crate::object_id::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
 use crate::repo_path::{FsPathParseError, RepoPathBuf};

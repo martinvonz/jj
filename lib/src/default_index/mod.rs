@@ -44,8 +44,8 @@ mod tests {
     use super::mutable::MutableIndexSegment;
     use super::*;
     use crate::backend::{ChangeId, CommitId};
-    use crate::index::{HexPrefix, Index, PrefixResolution};
-    use crate::object_id::ObjectId;
+    use crate::index::Index;
+    use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 
     /// Generator of unique 16-byte ChangeId excluding root id
     fn change_id_generator() -> impl FnMut() -> ChangeId {
