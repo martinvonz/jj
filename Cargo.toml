@@ -12,7 +12,7 @@ edition = "2021"
 readme = "README.md"
 homepage = "https://github.com/martinvonz/jj"
 repository = "https://github.com/martinvonz/jj"
-documentation = "https://github.com/martinvonz/jj"
+documentation = "https://martinvonz.github.io/jj/"
 categories = ["version-control", "development-tools"]
 keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 
