@@ -27,8 +27,8 @@ use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexEntry, IndexPosition};
 use crate::default_revset_graph_iterator::RevsetGraphIterator;
 use crate::id_prefix::{IdIndex, IdIndexSource, IdIndexSourceEntry};
-use crate::index::{HexPrefix, PrefixResolution};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
+use crate::object_id::{HexPrefix, PrefixResolution};
 use crate::repo_path::RepoPath;
 use crate::revset::{
     ChangeIdIndex, ResolvedExpression, ResolvedPredicateExpression, Revset, RevsetEvaluationError,

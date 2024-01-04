@@ -35,8 +35,8 @@ use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexSegment};
 use crate::backend::{ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::file_util::persist_content_addressed_temp_file;
-use crate::index::{HexPrefix, Index, MutableIndex, PrefixResolution, ReadonlyIndex};
-use crate::object_id::ObjectId;
+use crate::index::{Index, MutableIndex, ReadonlyIndex};
+use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
 

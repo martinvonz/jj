@@ -23,8 +23,7 @@ use once_cell::unsync::OnceCell;
 
 use crate::backend::{ChangeId, CommitId};
 use crate::hex_util;
-use crate::index::{HexPrefix, PrefixResolution};
-use crate::object_id::ObjectId;
+use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::repo::Repo;
 use crate::revset::{DefaultSymbolResolver, RevsetExpression};
 

@@ -31,8 +31,8 @@ use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec};
 use super::mutable::DefaultMutableIndex;
 use crate::backend::{ChangeId, CommitId};
 use crate::default_revset_engine;
-use crate::index::{HexPrefix, Index, MutableIndex, PrefixResolution, ReadonlyIndex};
-use crate::object_id::ObjectId;
+use crate::index::{Index, MutableIndex, ReadonlyIndex};
+use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
 
