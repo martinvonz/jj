@@ -17,9 +17,9 @@ use std::fmt::Debug;
 use std::io::Write as _;
 
 use clap::Subcommand;
-use jj_lib::backend::ObjectId;
 use jj_lib::default_index::{AsCompositeIndex as _, DefaultIndexStore, DefaultReadonlyIndex};
 use jj_lib::local_working_copy::LocalWorkingCopy;
+use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use jj_lib::working_copy::WorkingCopy;
 use jj_lib::{op_walk, revset};

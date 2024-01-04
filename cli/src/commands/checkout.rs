@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::backend::ObjectId;
+use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
 use crate::cli_util::{join_message_paragraphs, CommandError, CommandHelper, RevisionArg};

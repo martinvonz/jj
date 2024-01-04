@@ -28,12 +28,13 @@ use tempfile::NamedTempFile;
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, ConflictTerm, FileId, MergedTreeId, MillisSinceEpoch, ObjectId, SecureSig,
-    Signature, SigningFn, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
+    ConflictId, ConflictTerm, FileId, MergedTreeId, MillisSinceEpoch, SecureSig, Signature,
+    SigningFn, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::merge::MergeBuilder;
+use crate::object_id::ObjectId;
 use crate::repo_path::{RepoPath, RepoPathComponentBuf};
 
 const COMMIT_ID_LENGTH: usize = 64;

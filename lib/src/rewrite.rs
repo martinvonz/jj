@@ -22,12 +22,13 @@ use itertools::Itertools;
 use pollster::FutureExt;
 use tracing::instrument;
 
-use crate::backend::{BackendError, BackendResult, CommitId, MergedTreeId, ObjectId};
+use crate::backend::{BackendError, BackendResult, CommitId, MergedTreeId};
 use crate::commit::Commit;
 use crate::dag_walk;
 use crate::index::Index;
 use crate::matchers::{Matcher, Visit};
 use crate::merged_tree::{MergedTree, MergedTreeBuilder};
+use crate::object_id::ObjectId;
 use crate::op_store::RefTarget;
 use crate::repo::{MutableRepo, Repo};
 use crate::repo_path::RepoPath;

@@ -21,9 +21,10 @@ use std::rc::Rc;
 use itertools::Itertools as _;
 use once_cell::unsync::OnceCell;
 
-use crate::backend::{ChangeId, CommitId, ObjectId};
+use crate::backend::{ChangeId, CommitId};
 use crate::hex_util;
 use crate::index::{HexPrefix, PrefixResolution};
+use crate::object_id::ObjectId;
 use crate::repo::Repo;
 use crate::revset::{DefaultSymbolResolver, RevsetExpression};
 
@@ -445,7 +446,8 @@ fn unwrap_as_short_key<const N: usize>(key_bytes: &[u8]) -> &[u8; N] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::{ChangeId, ObjectId};
+    use crate::backend::ChangeId;
+    use crate::object_id::ObjectId;
 
     #[derive(Clone, Copy, Eq, PartialEq)]
     struct Position(usize);

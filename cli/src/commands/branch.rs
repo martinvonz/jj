@@ -19,8 +19,9 @@ use std::str::FromStr;
 
 use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
-use jj_lib::backend::{CommitId, ObjectId};
+use jj_lib::backend::CommitId;
 use jj_lib::git;
+use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::{RefTarget, RemoteRef};
 use jj_lib::repo::Repo;
 use jj_lib::revset::{self, RevsetExpression};

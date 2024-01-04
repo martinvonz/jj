@@ -205,7 +205,7 @@ pub fn classify_branch_push_action(targets: TrackingRefPair) -> BranchPushAction
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::ObjectId;
+    use crate::object_id::ObjectId;
     use crate::op_store::RemoteRefState;
 
     fn new_remote_ref(target: RefTarget) -> RemoteRef {

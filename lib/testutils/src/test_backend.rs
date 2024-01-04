@@ -22,8 +22,9 @@ use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use async_trait::async_trait;
 use jj_lib::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, FileId, ObjectId, SecureSig, SigningFn, SymlinkId, Tree, TreeId,
+    ConflictId, FileId, SecureSig, SigningFn, SymlinkId, Tree, TreeId,
 };
+use jj_lib::object_id::ObjectId;
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 
 const HASH_LENGTH: usize = 10;

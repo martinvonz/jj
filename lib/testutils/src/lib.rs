@@ -22,13 +22,14 @@ use std::sync::{Arc, Once};
 use itertools::Itertools;
 use jj_lib::backend::{
     self, Backend, BackendInitError, ChangeId, CommitId, FileId, MergedTreeId, MillisSinceEpoch,
-    ObjectId, Signature, Timestamp, TreeValue,
+    Signature, Timestamp, TreeValue,
 };
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::local_backend::LocalBackend;
 use jj_lib::merged_tree::MergedTree;
+use jj_lib::object_id::ObjectId;
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader, StoreFactories};
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::settings::UserSettings;

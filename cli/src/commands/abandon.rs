@@ -14,7 +14,7 @@
 
 use std::io::Write;
 
-use jj_lib::backend::ObjectId;
+use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
 use crate::cli_util::{

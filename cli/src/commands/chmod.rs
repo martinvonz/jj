@@ -13,8 +13,9 @@
 // limitations under the License.
 
 use itertools::Itertools;
-use jj_lib::backend::{ObjectId, TreeValue};
+use jj_lib::backend::TreeValue;
 use jj_lib::merged_tree::MergedTreeBuilder;
+use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
 use crate::cli_util::{user_error, CommandError, CommandHelper, RevisionArg};

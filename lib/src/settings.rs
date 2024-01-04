@@ -21,9 +21,10 @@ use chrono::DateTime;
 use rand::prelude::*;
 use rand_chacha::ChaCha20Rng;
 
-use crate::backend::{ChangeId, Commit, ObjectId, Signature, Timestamp};
+use crate::backend::{ChangeId, Commit, Signature, Timestamp};
 use crate::fmt_util::binary_prefix;
 use crate::fsmonitor::FsmonitorKind;
+use crate::object_id::ObjectId;
 use crate::signing::SignBehavior;
 
 #[derive(Debug, Clone)]

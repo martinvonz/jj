@@ -20,8 +20,9 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use crate::backend::{CommitId, ObjectId};
+use crate::backend::CommitId;
 use crate::commit::Commit;
+use crate::object_id::ObjectId;
 use crate::op_store::OperationId;
 use crate::operation::Operation;
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};

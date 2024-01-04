@@ -26,74 +26,9 @@ use thiserror::Error;
 
 use crate::content_hash::ContentHash;
 use crate::merge::Merge;
+use crate::object_id::{id_type, ObjectId};
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathComponentBuf};
 use crate::signing::SignResult;
-
-pub trait ObjectId {
-    fn new(value: Vec<u8>) -> Self;
-    fn object_type(&self) -> String;
-    fn from_bytes(bytes: &[u8]) -> Self;
-    fn as_bytes(&self) -> &[u8];
-    fn to_bytes(&self) -> Vec<u8>;
-    fn from_hex(hex: &str) -> Self;
-    fn hex(&self) -> String;
-}
-
-macro_rules! id_type {
-    ($vis:vis $name:ident) => {
-        content_hash! {
-            #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-            $vis struct $name(Vec<u8>);
-        }
-        $crate::backend::impl_id_type!($name);
-    };
-}
-
-macro_rules! impl_id_type {
-    ($name:ident) => {
-        impl std::fmt::Debug for $name {
-            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-                f.debug_tuple(stringify!($name)).field(&self.hex()).finish()
-            }
-        }
-
-        impl crate::backend::ObjectId for $name {
-            fn new(value: Vec<u8>) -> Self {
-                Self(value)
-            }
-
-            fn object_type(&self) -> String {
-                stringify!($name)
-                    .strip_suffix("Id")
-                    .unwrap()
-                    .to_ascii_lowercase()
-                    .to_string()
-            }
-
-            fn from_bytes(bytes: &[u8]) -> Self {
-                Self(bytes.to_vec())
-            }
-
-            fn as_bytes(&self) -> &[u8] {
-                &self.0
-            }
-
-            fn to_bytes(&self) -> Vec<u8> {
-                self.0.clone()
-            }
-
-            fn from_hex(hex: &str) -> Self {
-                Self(hex::decode(hex).unwrap())
-            }
-
-            fn hex(&self) -> String {
-                hex::encode(&self.0)
-            }
-        }
-    };
-}
-
-pub(crate) use {id_type, impl_id_type};
 
 id_type!(pub CommitId);
 id_type!(pub ChangeId);

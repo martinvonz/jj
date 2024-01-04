@@ -18,10 +18,11 @@ use std::io;
 use std::rc::Rc;
 
 use itertools::Itertools as _;
-use jj_lib::backend::{ChangeId, CommitId, ObjectId as _};
+use jj_lib::backend::{ChangeId, CommitId};
 use jj_lib::commit::Commit;
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
+use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::{RefTarget, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::{git, rewrite};
