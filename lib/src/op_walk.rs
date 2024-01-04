@@ -22,7 +22,7 @@ use std::sync::Arc;
 use itertools::Itertools as _;
 use thiserror::Error;
 
-use crate::object_id::{HexPrefix, ObjectId as _};
+use crate::object_id::HexPrefix;
 use crate::op_heads_store::{OpHeadResolutionError, OpHeadsStore};
 use crate::op_store::{OpStore, OpStoreError, OpStoreResult, OperationId};
 use crate::operation::Operation;

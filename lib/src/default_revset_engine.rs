@@ -1001,7 +1001,6 @@ mod tests {
     use super::*;
     use crate::backend::{ChangeId, CommitId};
     use crate::default_index::DefaultMutableIndex;
-    use crate::object_id::ObjectId;
 
     /// Generator of unique 16-byte ChangeId excluding root id
     fn change_id_generator() -> impl FnMut() -> ChangeId {

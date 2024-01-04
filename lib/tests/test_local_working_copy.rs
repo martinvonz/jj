@@ -31,7 +31,6 @@ use jj_lib::fsmonitor::FsmonitorKind;
 use jj_lib::local_working_copy::LocalWorkingCopy;
 use jj_lib::merge::Merge;
 use jj_lib::merged_tree::MergedTreeBuilder;
-use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
