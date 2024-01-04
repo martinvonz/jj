@@ -51,7 +51,7 @@ some remote.
 If you want to know the internals of branch tracking, consult the 
 [Design Doc][design].
 
-### Tracking a branch
+### Manually tracking a branch
 
 To track a branch permanently use `jj branch track <branch name>@<remote name>`. 
 It will now be imported as a local branch until you untrack it or it is deleted
@@ -66,16 +66,17 @@ $ # Find the branch.
 $ # [...]
 $ # Actually track the branch.
 $ jj branch track <branch name>@<remote name> # Example: jj branch track my-feature@origin
-$ # From this point on, branch <name> is tracked and will always be imported.
-$ jj git fetch # Update the repository
-$ jj new <name> # Do some local testing, etc.
+$ # From this point on, <branch name> will be imported when fetching from <remote name>.
+$ jj git fetch --remote <remote name>
+$ # A local branch <branch name> should have been created or updated while fetching.
+$ jj new <branch name> # Do some local testing, etc.
 ```
 
 ### Untracking a branch
 
-To no longer have a branch available in a repository, you can 
-`jj branch untrack` it. After that subsequent fetches will no longer copy the 
-branch into the local repository. 
+To stop following a remote branch, you can `jj branch untrack` it. After that,
+subsequent fetches of that remote will no longer move the local branch to match
+the position of the remote branch.
 
 Example: 
 
@@ -86,7 +87,9 @@ $ # Find the branch we no longer want to track.
 $ # [...]
 # # Actually untrack it.
 $ jj branch untrack <branch name>@<remote name> # Example: jj branch untrack stuff@origin
-$ # From this point on, it won't be imported anymore. 
+$ # From this point on, this remote branch won't be imported anymore.
+$ # The local branch (e.g. stuff) is unaffected. It may or may not still
+$ # be tracking branches on other remotes (e.g. stuff@upstream).
 ```
 
 ### Automatic tracking of branches & `git.auto-local-branch` option
