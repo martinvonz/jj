@@ -173,6 +173,14 @@ A tree object represents a snapshot of a directory in the repository. Tree
 objects are defined recursively; each tree object only has the files and
 directories contained directly in the directory it represents.
 
+## Tracked branches and tracking branches
+
+A remote branch can be made "tracked" with the `jj branch track` command. This
+results in a "tracking" local branch that tracks the remote branch.
+
+See [the branches documentation](branches.md#terminology-summary) for a more
+detailed definition of these terms.
+
 ## Visible commits
 
 Visible commits are the commits you see in `jj log -r 'all()'`. They are the

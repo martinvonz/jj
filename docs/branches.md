@@ -51,6 +51,27 @@ some remote.
 If you want to know the internals of branch tracking, consult the 
 [Design Doc][design].
 
+### Terminology summary
+
+- A **remote branch** is a branch ref on the remote. `jj` can find out its
+  actual state only when it's actively communicating with the remote. However,
+  `jj` does store the last-seen position of the remote branch; this is the
+  commit `jj show <branch name>@<remote name>` would show. This notion is
+  completely analogous to Git's "remote-tracking branches".
+- A **tracked (remote) branch** is defined above. You can make a remote branch
+  tracked with the [`jj branch track` command](#manually-tracking-a-branch), for
+  example.
+- A **tracking (local) branch** is the local branch that `jj` tries to keep in
+  sync with the tracked remote branch. For example, after `jj branch track
+  mybranch@origin`, there will be a local branch `mybranch` that's tracking the
+  remote `mybranch@origin` branch. A local branch can track a branch of the same
+  name on 0 or more remotes.
+
+The notion of tracked branches serves a similar function to the Git notion of an
+"upstream branch". Unlike Git, a single local branch can be tracking remote
+branches on multiple remotes, and the names of the local and remote branches
+must match.
+
 ### Manually tracking a branch
 
 To track a branch permanently use `jj branch track <branch name>@<remote name>`. 
