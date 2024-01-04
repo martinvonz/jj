@@ -350,6 +350,19 @@ fn cmd_branch_rename(
         return Err(user_error(format!("Branch already exists: {new_branch}")));
     }
 
+    if view
+        .remote_branches_matching(
+            &StringPattern::exact(old_branch),
+            &StringPattern::everything(),
+        )
+        .any(|(_, remote_ref)| remote_ref.is_tracking())
+    {
+        writeln!(
+            ui.warning(),
+            "warning: Branch {old_branch} has remote branches which will not be renamed"
+        )?;
+    }
+
     let mut tx = workspace_command.start_transaction();
     tx.mut_repo()
         .set_local_branch_target(new_branch, ref_target);
@@ -363,6 +376,7 @@ fn cmd_branch_rename(
             make_branch_term(&[new_branch]),
         ),
     )?;
+
     Ok(())
 }
 

@@ -195,20 +195,41 @@ fn test_branch_rename() {
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "rename", "foo", "bar"]);
+    // Set up remote
+    let git_repo_path = test_env.env_root().join("git-repo");
+    git2::Repository::init_bare(git_repo_path).unwrap();
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["git", "remote", "add", "origin", "../git-repo"],
+    );
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "rename", "bnoexist", "blocal"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: No such branch: foo
+    Error: No such branch: bnoexist
     "###);
 
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
-    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "rename", "foo", "bar"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m=commit-0"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "blocal"]);
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["branch", "rename", "blocal", "blocal1"]);
     insta::assert_snapshot!(stderr, @"");
 
     test_env.jj_cmd_ok(&repo_path, &["new"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "conflictfoo"]);
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "rename", "bar", "conflictfoo"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m=commit-1"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "bexist"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "rename", "blocal1", "bexist"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Branch already exists: conflictfoo
+    Error: Branch already exists: bexist
+    "###);
+
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m=commit-2"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "bremote"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "push", "-b=bremote"]);
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["branch", "rename", "bremote", "bremote2"]);
+    insta::assert_snapshot!(stderr, @r###"
+    warning: Branch bremote has remote branches which will not be renamed
     "###);
 }
 

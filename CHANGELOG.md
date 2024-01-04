@@ -14,6 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * New `jj op abandon` command is added to clean up the operation history. If GC
   is implemented, Git refs and commit objects can be compacted.
 
+* `jj branch rename` will now warn if the renamed branch has a remote branch, since
+  those will have to be manually renamed outside of `jj`.
+
 ### Fixed bugs
 
 
