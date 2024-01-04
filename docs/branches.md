@@ -11,48 +11,45 @@ pass a branch's name to commands that want a revision as argument. For example,
 `jj branch list` to list branches and `jj branch` to create, move, or delete
 branches. There is currently no concept of an active/current/checked-out branch.
 
-## Remotes
+## Remotes and tracked branches
 
-Jujutsu records the last seen position on each remote (just like Git's
-remote-tracking branches). You can refer to these with
-`<branch name>@<remote name>`, such as `jj new main@origin`.
+Jujutsu records the last seen position of a branch on each remote (just like
+Git's remote-tracking branches). This record is updated on every `jj git fetch`
+and `jj git push` of the branch. You can refer to the remembered remote branch
+positions with `<branch name>@<remote name>`, such as `jj new main@origin`. `jj`
+does not provide a way to manually edit these recorded positions.
 
-A remote branch can be associated with a local branch of the same name. It's
-sometimes called a tracking branch. When you pull from a remote, any changes
-compared to the current record of the remote's state will be propagated to the
-tracking local branch. Let's say you run `jj git fetch --remote origin` and the
-remote's "main" branch has moved so its target is now ahead of the local record
-in `main@origin`. That will update `main@origin` to the new target. It will also
-apply the change to the local branch `main`. If the local target had also moved
-compared to `main@origin` (probably because you had run `jj branch set main`),
-then the two updates will be merged. If one is ahead of the other, then that
-target will be the new target. Otherwise, the local branch will be conflicted
-(see the next "Conflicts" section for details).
+A remote branch can be associated with a local branch of the same name. This is
+called a **tracked remote branch**. When you pull a tracked branch from a
+remote, any changes compared to the current record of the remote's state will be
+propagated to the corresponding local branch, which will be created if it
+doesn't exist already.
 
-Most commands don't show the tracking remote branch if it has the same target as
+!!! note "Details: how `fetch` pulls branches"
+
+    Let's say you run `jj git fetch --remote origin` and, during the fetch, `jj`
+    determines that the remote's "main" branch has been moved so that its target is
+    now ahead of the local record in `main@origin`.
+
+    `jj` will then update `main@origin` to the new target. If `main@origin` is
+    **tracked**, `jj` will also apply the change to the local branch `main`. If the
+    local target has also been moved compared to `main@origin` (probably because you
+    ran `jj branch set main`), then the two updates will be merged. If one is ahead
+    of the other, then that target will become the new target. Otherwise, the local
+    branch will become conflicted (see the ["Conflicts" section](#conflicts) below
+    for details).
+
+Most commands don't show the tracked remote branch if it has the same target as
 the local branch. The local branch (without `@<remote name>`) is considered the
 branch's desired target. Consequently, if you want to update a branch on a
 remote, you first update the branch locally and then push the update to the
 remote. If a local branch also exists on some remote but points to a different
-target there, `jj log` will show the branch name with an asterisk suffix
-(e.g. `main*`). That is meant to remind you that you may want to push the branch
-to some remote.
+target there, `jj log` will show the branch name with an asterisk suffix (e.g.
+`main*`). That is meant to remind you that you may want to push the branch to
+some remote.
 
-By default, the default remote branch (e.g. `main@origin`) will be tracked
-automatically. You can use `jj branch track` to track existing remote branches
-individually, or set `git.auto-local-branch = true` configuration to track all
-new remote branches automatically.
-
-### What does `git.auto-local-branch = true` actually do?
-
-Jujutsu's fetch operation consist of several steps. First `jj git fetch` fetches
-all Git refs under `refs/remotes/<remote name>`. Then Jujutsu stores these refs
-as remote tracking branches. Finally, if `git.auto-local-branch = true`, Jujutsu
-creates local branches for them. This is similar to Mercurial, which fetches all
-its bookmarks (equivalent to Git branches) by default.
-
-You can use `jj branch untrack <branch name>@<remote name>` to stop tracking
-specific branches when fetching from specific remotes.
+If you want to know the internals of branch tracking, consult the 
+[Design Doc][design].
 
 ### Tracking a branch
 
@@ -92,8 +89,22 @@ $ jj branch untrack <branch name>@<remote name> # Example: jj branch untrack stu
 $ # From this point on, it won't be imported anymore. 
 ```
 
-If you want to know the internals of branch tracking, consult the 
-[Design Doc][design].
+### Automatic tracking of branches & `git.auto-local-branch` option
+
+There are two situations where `jj` tracks branches automatically. `jj git
+clone` automatically sets up the default remote branch (e.g. `main@origin`) as
+tracked. When you push a local branch, the newly created branch on the remote is
+marked as tracked.
+
+By default, every other remote branch is marked as "not tracked" when it's
+fetched. If desired, you need to manually `jj branch track` them. This works
+well for repositories where multiple people work on a large number of branches. 
+
+The default can be changed by setting the config `git.auto-local-branch = true`.
+Then, `jj git fetch` tracks every *newly fetched* branch with a local branch.
+Branches that already existed before the `jj git fetch` are not affected. This
+is similar to Mercurial, which fetches all its bookmarks (equivalent to Git
+branches) by default.
 
 
 ## Conflicts
