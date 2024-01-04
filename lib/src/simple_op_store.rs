@@ -16,9 +16,9 @@
 
 use std::collections::BTreeMap;
 use std::fmt::Debug;
-use std::fs;
 use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
+use std::{fs, io};
 
 use prost::Message;
 use tempfile::NamedTempFile;
@@ -26,14 +26,17 @@ use thiserror::Error;
 
 use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
 use crate::content_hash::blake2b_hash;
-use crate::file_util::persist_content_addressed_temp_file;
+use crate::file_util::{persist_content_addressed_temp_file, IoResultExt as _};
 use crate::merge::Merge;
-use crate::object_id::ObjectId;
+use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::op_store::{
     OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata, RefTarget,
     RemoteRef, RemoteRefState, RemoteView, View, ViewId, WorkspaceId,
 };
 use crate::{git, op_store};
+
+// BLAKE2b-512 hash length in bytes
+const OPERATION_ID_LENGTH: usize = 64;
 
 #[derive(Debug, Error)]
 #[error("Failed to read {kind} with ID {id}: {err}")]
@@ -147,6 +150,50 @@ impl OpStore for SimpleOpStore {
         persist_content_addressed_temp_file(temp_file, self.operation_path(&id))
             .map_err(|err| io_to_write_error(err, "operation"))?;
         Ok(id)
+    }
+
+    fn resolve_operation_id_prefix(
+        &self,
+        prefix: &HexPrefix,
+    ) -> OpStoreResult<PrefixResolution<OperationId>> {
+        let op_dir = self.path.join("operations");
+        let find = || -> io::Result<_> {
+            let hex_prefix = prefix.hex();
+            if hex_prefix.len() == OPERATION_ID_LENGTH * 2 {
+                // Fast path for full-length ID
+                if op_dir.join(hex_prefix).try_exists()? {
+                    let id = OperationId::from_bytes(prefix.as_full_bytes().unwrap());
+                    return Ok(PrefixResolution::SingleMatch(id));
+                } else {
+                    return Ok(PrefixResolution::NoMatch);
+                }
+            }
+
+            let mut matched = None;
+            for entry in op_dir.read_dir()? {
+                let Ok(name) = entry?.file_name().into_string() else {
+                    continue; // Skip invalid UTF-8
+                };
+                if !name.starts_with(&hex_prefix) {
+                    continue;
+                }
+                let Ok(id) = OperationId::try_from_hex(&name) else {
+                    continue; // Skip invalid hex
+                };
+                if matched.is_some() {
+                    return Ok(PrefixResolution::AmbiguousMatch);
+                }
+                matched = Some(id);
+            }
+            if let Some(id) = matched {
+                Ok(PrefixResolution::SingleMatch(id))
+            } else {
+                Ok(PrefixResolution::NoMatch)
+            }
+        };
+        find()
+            .context(&op_dir)
+            .map_err(|err| OpStoreError::Other(err.into()))
     }
 }
 

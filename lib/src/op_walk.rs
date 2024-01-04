@@ -22,7 +22,7 @@ use std::sync::Arc;
 use itertools::Itertools as _;
 use thiserror::Error;
 
-use crate::object_id::HexPrefix;
+use crate::object_id::{HexPrefix, PrefixResolution};
 use crate::op_heads_store::{OpHeadResolutionError, OpHeadsStore};
 use crate::op_store::{OpStore, OpStoreError, OpStoreResult, OperationId};
 use crate::operation::Operation;
@@ -110,7 +110,7 @@ fn resolve_single_op(
         .transpose()?;
     let mut operation = match op_symbol {
         "@" => get_current_op(),
-        s => resolve_single_op_from_store(op_store, op_heads_store, s),
+        s => resolve_single_op_from_store(op_store, s),
     }?;
     for c in op_postfix.chars() {
         let mut neighbor_ops = match c {
@@ -129,7 +129,6 @@ fn resolve_single_op(
 
 fn resolve_single_op_from_store(
     op_store: &Arc<dyn OpStore>,
-    op_heads_store: &dyn OpHeadsStore,
     op_str: &str,
 ) -> Result<Operation, OpsetEvaluationError> {
     if op_str.is_empty() {
@@ -137,34 +136,17 @@ fn resolve_single_op_from_store(
     }
     let prefix = HexPrefix::new(op_str)
         .ok_or_else(|| OpsetResolutionError::InvalidIdPrefix(op_str.to_owned()))?;
-    if let Some(binary_op_id) = prefix.as_full_bytes() {
-        let op_id = OperationId::from_bytes(binary_op_id);
-        match op_store.read_operation(&op_id) {
-            Ok(operation) => {
-                return Ok(Operation::new(op_store.clone(), op_id, operation));
-            }
-            Err(OpStoreError::ObjectNotFound { .. }) => {
-                // Fall through
-            }
-            Err(err) => {
-                return Err(OpsetEvaluationError::OpStore(err));
-            }
+    match op_store.resolve_operation_id_prefix(&prefix)? {
+        PrefixResolution::NoMatch => {
+            Err(OpsetResolutionError::NoSuchOperation(op_str.to_owned()).into())
         }
-    }
-
-    // TODO: Extract to OpStore method where IDs can be resolved without loading
-    // all operation data?
-    let head_ops = get_current_head_ops(op_store, op_heads_store)?;
-    let mut matches: Vec<_> = walk_ancestors(&head_ops)
-        .filter_ok(|op| prefix.matches(op.id()))
-        .take(2)
-        .try_collect()?;
-    if matches.is_empty() {
-        Err(OpsetResolutionError::NoSuchOperation(op_str.to_owned()).into())
-    } else if matches.len() == 1 {
-        Ok(matches.pop().unwrap())
-    } else {
-        Err(OpsetResolutionError::AmbiguousIdPrefix(op_str.to_owned()).into())
+        PrefixResolution::SingleMatch(op_id) => {
+            let data = op_store.read_operation(&op_id)?;
+            Ok(Operation::new(op_store.clone(), op_id, data))
+        }
+        PrefixResolution::AmbiguousMatch => {
+            Err(OpsetResolutionError::AmbiguousIdPrefix(op_str.to_owned()).into())
+        }
     }
 }
 

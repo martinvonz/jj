@@ -25,7 +25,7 @@ use thiserror::Error;
 use crate::backend::{CommitId, Timestamp};
 use crate::content_hash::ContentHash;
 use crate::merge::Merge;
-use crate::object_id::{id_type, ObjectId};
+use crate::object_id::{id_type, HexPrefix, ObjectId, PrefixResolution};
 
 content_hash! {
     #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
@@ -418,6 +418,12 @@ pub trait OpStore: Send + Sync + Debug {
     fn read_operation(&self, id: &OperationId) -> OpStoreResult<Operation>;
 
     fn write_operation(&self, contents: &Operation) -> OpStoreResult<OperationId>;
+
+    /// Resolves an unambiguous operation ID prefix.
+    fn resolve_operation_id_prefix(
+        &self,
+        prefix: &HexPrefix,
+    ) -> OpStoreResult<PrefixResolution<OperationId>>;
 }
 
 #[cfg(test)]
