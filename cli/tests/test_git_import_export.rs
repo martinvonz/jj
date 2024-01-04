@@ -15,7 +15,6 @@ use std::path::Path;
 
 use itertools::Itertools as _;
 use jj_lib::backend::CommitId;
-use jj_lib::object_id::ObjectId as _;
 
 use crate::common::TestEnvironment;
 
