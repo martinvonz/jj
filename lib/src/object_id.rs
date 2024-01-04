@@ -42,8 +42,16 @@ macro_rules! impl_id_type {
                 Self(bytes.to_vec())
             }
 
+            /// Parses the given hex string into an ObjectId.
+            ///
+            /// The given string is usually a literal, and must be valid.
             pub fn from_hex(hex: &str) -> Self {
-                Self(hex::decode(hex).unwrap())
+                Self::try_from_hex(hex).unwrap()
+            }
+
+            /// Parses the given hex string into an ObjectId.
+            pub fn try_from_hex(hex: &str) -> Result<Self, hex::FromHexError> {
+                hex::decode(hex).map(Self)
             }
         }
 
