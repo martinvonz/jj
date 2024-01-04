@@ -30,7 +30,7 @@ use crate::backend::{ChangeId, CommitId, ObjectId};
 use crate::index::{HexPrefix, Index, PrefixResolution};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
-use crate::{backend, default_revset_engine};
+use crate::{default_revset_engine, hex_util};
 
 pub(super) trait IndexSegment: Send + Sync {
     fn num_parent_commits(&self) -> u32;
@@ -319,7 +319,7 @@ impl Index for CompositeIndex<'_> {
     fn shortest_unique_commit_id_prefix_len(&self, commit_id: &CommitId) -> usize {
         let (prev_id, next_id) = self.resolve_neighbor_commit_ids(commit_id);
         itertools::chain(prev_id, next_id)
-            .map(|id| backend::common_hex_len(commit_id.as_bytes(), id.as_bytes()) + 1)
+            .map(|id| hex_util::common_hex_len(commit_id.as_bytes(), id.as_bytes()) + 1)
             .max()
             .unwrap_or(0)
     }
