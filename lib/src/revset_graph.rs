@@ -296,7 +296,7 @@ mod tests {
     use renderdag::{Ancestor, GraphRowRenderer, Renderer as _};
 
     use super::*;
-    use crate::backend::ObjectId;
+    use crate::object_id::ObjectId;
 
     fn id(c: char) -> CommitId {
         let d = u8::try_from(c).unwrap();

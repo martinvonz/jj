@@ -14,8 +14,8 @@
 
 use std::io::Write;
 
-use jj_lib::backend::ObjectId;
 use jj_lib::matchers::EverythingMatcher;
+use jj_lib::object_id::ObjectId;
 use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 

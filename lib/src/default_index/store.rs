@@ -27,13 +27,14 @@ use thiserror::Error;
 
 use super::mutable::DefaultMutableIndex;
 use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexLoadError, ReadonlyIndexSegment};
-use crate::backend::{BackendError, BackendInitError, CommitId, ObjectId};
+use crate::backend::{BackendError, BackendInitError, CommitId};
 use crate::commit::CommitByCommitterTimestamp;
 use crate::dag_walk;
 use crate::file_util::{persist_content_addressed_temp_file, IoResultExt as _, PathError};
 use crate::index::{
     Index, IndexReadError, IndexStore, IndexWriteError, MutableIndex, ReadonlyIndex,
 };
+use crate::object_id::ObjectId;
 use crate::op_store::{OpStoreError, OperationId};
 use crate::operation::Operation;
 use crate::store::Store;

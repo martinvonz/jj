@@ -32,10 +32,11 @@ use tempfile::NamedTempFile;
 use super::composite::{AsCompositeIndex, CompositeIndex, IndexSegment};
 use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec};
 use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexSegment};
-use crate::backend::{ChangeId, CommitId, ObjectId};
+use crate::backend::{ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::index::{HexPrefix, Index, MutableIndex, PrefixResolution, ReadonlyIndex};
+use crate::object_id::ObjectId;
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
 

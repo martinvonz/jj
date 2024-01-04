@@ -29,9 +29,10 @@ use thiserror::Error;
 use super::composite::{AsCompositeIndex, CompositeIndex, IndexSegment};
 use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec};
 use super::mutable::DefaultMutableIndex;
-use crate::backend::{ChangeId, CommitId, ObjectId};
+use crate::backend::{ChangeId, CommitId};
 use crate::default_revset_engine;
 use crate::index::{HexPrefix, Index, MutableIndex, PrefixResolution, ReadonlyIndex};
+use crate::object_id::ObjectId;
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
 

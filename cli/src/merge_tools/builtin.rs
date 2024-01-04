@@ -4,12 +4,13 @@ use std::sync::Arc;
 
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
-use jj_lib::backend::{BackendError, FileId, MergedTreeId, ObjectId, TreeValue};
+use jj_lib::backend::{BackendError, FileId, MergedTreeId, TreeValue};
 use jj_lib::diff::{find_line_ranges, Diff, DiffHunk};
 use jj_lib::files::{self, ContentHunk, MergeResult};
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::Merge;
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
+use jj_lib::object_id::ObjectId;
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::store::Store;
 use pollster::FutureExt;

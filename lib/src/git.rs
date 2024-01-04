@@ -26,9 +26,10 @@ use itertools::Itertools;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
-use crate::backend::{BackendError, CommitId, ObjectId};
+use crate::backend::{BackendError, CommitId};
 use crate::commit::Commit;
 use crate::git_backend::GitBackend;
+use crate::object_id::ObjectId;
 use crate::op_store::{RefTarget, RefTargetOptionExt, RemoteRef, RemoteRefState};
 use crate::refs::BranchPushUpdate;
 use crate::repo::{MutableRepo, Repo};

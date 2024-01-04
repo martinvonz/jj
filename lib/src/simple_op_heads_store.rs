@@ -18,8 +18,8 @@ use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::backend::ObjectId;
 use crate::lock::FileLock;
+use crate::object_id::ObjectId;
 use crate::op_heads_store::{OpHeadsStore, OpHeadsStoreLock};
 use crate::op_store::OperationId;
 

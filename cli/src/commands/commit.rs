@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::backend::ObjectId;
+use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;

@@ -24,12 +24,12 @@ use thiserror::Error;
 use tracing::instrument;
 
 use crate::backend::{
-    BackendError, ConflictId, FileId, ObjectId, TreeEntriesNonRecursiveIterator, TreeEntry, TreeId,
-    TreeValue,
+    BackendError, ConflictId, FileId, TreeEntriesNonRecursiveIterator, TreeEntry, TreeId, TreeValue,
 };
 use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{trivial_merge, Merge, MergedTreeValue};
+use crate::object_id::ObjectId;
 use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent, RepoPathComponentsIter};
 use crate::store::Store;
 use crate::{backend, files};

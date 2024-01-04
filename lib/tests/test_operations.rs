@@ -18,7 +18,8 @@ use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use itertools::Itertools as _;
-use jj_lib::backend::{CommitId, ObjectId};
+use jj_lib::backend::CommitId;
+use jj_lib::object_id::ObjectId;
 use jj_lib::op_walk::{self, OpsetEvaluationError, OpsetResolutionError};
 use jj_lib::operation::Operation;
 use jj_lib::repo::{ReadonlyRepo, Repo};

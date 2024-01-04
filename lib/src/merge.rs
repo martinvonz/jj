@@ -28,8 +28,9 @@ use itertools::Itertools;
 use smallvec::{smallvec_inline, SmallVec};
 
 use crate::backend;
-use crate::backend::{BackendError, FileId, ObjectId, TreeId, TreeValue};
+use crate::backend::{BackendError, FileId, TreeId, TreeValue};
 use crate::content_hash::ContentHash;
+use crate::object_id::ObjectId;
 use crate::repo_path::RepoPath;
 use crate::store::Store;
 use crate::tree::Tree;

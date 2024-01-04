@@ -24,10 +24,11 @@ use prost::Message;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
-use crate::backend::{CommitId, MillisSinceEpoch, ObjectId, Timestamp};
+use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::merge::Merge;
+use crate::object_id::ObjectId;
 use crate::op_store::{
     OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata, RefTarget,
     RemoteRef, RemoteRefState, RemoteView, View, ViewId, WorkspaceId,
@@ -528,8 +529,9 @@ mod tests {
     use maplit::{btreemap, hashmap, hashset};
 
     use super::*;
-    use crate::backend::{CommitId, MillisSinceEpoch, ObjectId, Timestamp};
+    use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
     use crate::content_hash::blake2b_hash;
+    use crate::object_id::ObjectId;
     use crate::op_store::{OperationMetadata, RefTarget, WorkspaceId};
 
     fn create_view() -> View {

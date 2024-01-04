@@ -42,7 +42,7 @@ use thiserror::Error;
 use tracing::{instrument, trace_span};
 
 use crate::backend::{
-    BackendError, FileId, MergedTreeId, MillisSinceEpoch, ObjectId, SymlinkId, TreeId, TreeValue,
+    BackendError, FileId, MergedTreeId, MillisSinceEpoch, SymlinkId, TreeId, TreeValue,
 };
 use crate::commit::Commit;
 use crate::conflicts::{self, materialize_tree_value, MaterializedTreeValue};
@@ -56,6 +56,7 @@ use crate::matchers::{
 };
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
 use crate::merged_tree::{MergedTree, MergedTreeBuilder};
+use crate::object_id::ObjectId;
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
 use crate::settings::HumanByteSize;

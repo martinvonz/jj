@@ -22,9 +22,10 @@ use itertools::Itertools as _;
 use once_cell::sync::Lazy;
 use thiserror::Error;
 
-use crate::backend::{id_type, CommitId, ObjectId, Timestamp};
+use crate::backend::{CommitId, Timestamp};
 use crate::content_hash::ContentHash;
 use crate::merge::Merge;
+use crate::object_id::{id_type, ObjectId};
 
 content_hash! {
     #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]

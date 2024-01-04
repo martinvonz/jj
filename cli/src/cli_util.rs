@@ -30,7 +30,7 @@ use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFact
 use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
-use jj_lib::backend::{BackendError, ChangeId, CommitId, MergedTreeId, ObjectId};
+use jj_lib::backend::{BackendError, ChangeId, CommitId, MergedTreeId};
 use jj_lib::commit::Commit;
 use jj_lib::git::{
     FailedRefExport, FailedRefExportReason, GitConfigParseError, GitExportError, GitImportError,
@@ -42,6 +42,7 @@ use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
 use jj_lib::merged_tree::MergedTree;
+use jj_lib::object_id::ObjectId;
 use jj_lib::op_heads_store::{self, OpHeadResolutionError};
 use jj_lib::op_store::{OpStoreError, OperationId, WorkspaceId};
 use jj_lib::op_walk::OpsetEvaluationError;

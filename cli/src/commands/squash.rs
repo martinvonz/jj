@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use clap::parser::ValueSource;
-use jj_lib::backend::ObjectId;
+use jj_lib::object_id::ObjectId;
 use jj_lib::revset;
 use tracing::instrument;
 

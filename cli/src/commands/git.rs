@@ -23,11 +23,12 @@ use std::{fmt, fs, io};
 
 use clap::{ArgGroup, Subcommand};
 use itertools::Itertools;
-use jj_lib::backend::{ObjectId, TreeValue};
+use jj_lib::backend::TreeValue;
 use jj_lib::git::{
     self, parse_gitmodules, GitBranchPushTargets, GitFetchError, GitFetchStats, GitPushError,
 };
 use jj_lib::git_backend::GitBackend;
+use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::RefTarget;
 use jj_lib::refs::{
     classify_branch_push_action, BranchPushAction, BranchPushUpdate, TrackingRefPair,

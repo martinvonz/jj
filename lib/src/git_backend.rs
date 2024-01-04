@@ -32,12 +32,13 @@ use thiserror::Error;
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendInitError, BackendLoadError, BackendResult,
     ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictTerm, FileId, MergedTreeId,
-    MillisSinceEpoch, ObjectId, SecureSig, Signature, SigningFn, SymlinkId, Timestamp, Tree,
-    TreeId, TreeValue,
+    MillisSinceEpoch, SecureSig, Signature, SigningFn, SymlinkId, Timestamp, Tree, TreeId,
+    TreeValue,
 };
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::lock::FileLock;
 use crate::merge::{Merge, MergeBuilder};
+use crate::object_id::ObjectId;
 use crate::repo_path::{RepoPath, RepoPathComponentBuf};
 use crate::settings::UserSettings;
 use crate::stacked_table::{

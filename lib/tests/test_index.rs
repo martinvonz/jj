@@ -16,7 +16,7 @@ use std::fs;
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
-use jj_lib::backend::{CommitId, ObjectId as _};
+use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::default_index::{
@@ -24,6 +24,7 @@ use jj_lib::default_index::{
     DefaultMutableIndex, DefaultReadonlyIndex, IndexPosition,
 };
 use jj_lib::index::Index as _;
+use jj_lib::object_id::ObjectId as _;
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jj_lib::settings::UserSettings;
 use testutils::test_backend::TestBackend;

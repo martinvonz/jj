@@ -16,8 +16,9 @@ use std::collections::BTreeMap;
 use std::io::Write;
 
 use itertools::Itertools;
-use jj_lib::backend::{ObjectId, TreeValue};
+use jj_lib::backend::TreeValue;
 use jj_lib::merge::MergedTreeValue;
+use jj_lib::object_id::ObjectId;
 use jj_lib::repo_path::RepoPathBuf;
 use tracing::instrument;
 
