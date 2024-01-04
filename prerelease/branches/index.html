@@ -456,8 +456,8 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#what-does-gitauto-local-branch-actually-do" class="md-nav__link">
-    What does git.auto-local-branch actually do?
+  <a href="#what-does-gitauto-local-branch-true-actually-do" class="md-nav__link">
+    What does git.auto-local-branch = true actually do?
   </a>
   
 </li>
@@ -1141,8 +1141,8 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#what-does-gitauto-local-branch-actually-do" class="md-nav__link">
-    What does git.auto-local-branch actually do?
+  <a href="#what-does-gitauto-local-branch-true-actually-do" class="md-nav__link">
+    What does git.auto-local-branch = true actually do?
   </a>
   
 </li>
@@ -1198,50 +1198,40 @@ pass a branch's name to commands that want a revision as argument. For example,
 <code>jj branch list</code> to list branches and <code>jj branch</code> to create, move, or delete
 branches. There is currently no concept of an active/current/checked-out branch.</p>
 <h2 id="remotes">Remotes<a class="headerlink" href="#remotes" title="Permanent link">&para;</a></h2>
-<p>Jujutsu identifies a branch by its name across remotes (this is unlike Git and
-more like Mercurial's "bookmarks"). For example, a branch called "main" in your
-local repo is considered the same branch as a branch by the same name on a
-remote. When you pull from a remote (currently only via <code>jj git fetch</code>), any
-branches from the remote will be imported as branches in your local repo.</p>
-<p>Jujutsu also records the last seen position on each remote (just like Git's
+<p>Jujutsu records the last seen position on each remote (just like Git's
 remote-tracking branches). You can refer to these with
-<code>&lt;branch name&gt;@&lt;remote name&gt;</code>, such as <code>jj new main@origin</code>. Most commands don't
-show the remote branch if it has the same target as the local branch. The local
-branch (without <code>@&lt;remote name&gt;</code>) is considered the branch's desired target.
-Consequently, if you want to update a branch on a remote, you first update the
-branch locally and then push the update to the remote. If a local branch also
-exists on some remote but points to a different target there, <code>jj log</code> will
-show the branch name with an asterisk suffix (e.g. <code>main*</code>). That is meant to
-remind you that you may want to push the branch to some remote.</p>
-<p>When you pull from a remote, any changes compared to the current record of the
-remote's state will be propagated to the local branch. Let's say you run
-<code>jj git fetch --remote origin</code> and the remote's "main" branch has moved so its
-target is now ahead of the local record in <code>main@origin</code>. That will update
-<code>main@origin</code> to the new target. It will also apply the change to the local
-branch <code>main</code>. If the local target had also moved compared to <code>main@origin</code>
-(probably because you had run <code>jj branch set main</code>), then the two updates will be
-merged. If one is ahead of the other, then that target will be the new target.
-Otherwise, the local branch will be conflicted (see next section for details).</p>
-<!-- TODO: Adjust this paragraph to the new defaults which were introduced in #2736 -->
-<p>As of December 2023 Jujutsu tracks<sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup> and fetches all branches by default, 
-which is confusing users coming from Git. To smoothen the transition branch 
-tracking was introduced. </p>
-<h3 id="what-does-gitauto-local-branch-actually-do">What does <code>git.auto-local-branch</code> actually do?<a class="headerlink" href="#what-does-gitauto-local-branch-actually-do" title="Permanent link">&para;</a></h3>
-<p>Jujutsu's fetch operations consist of several steps. First <code>jj git fetch</code>
-fetches all Git refs under <code>/refs/remotes/origin</code> (or, if you have 
-multiple remotes <code>/refs/remotes/&lt;remote name&gt;</code> for each remote).<br />
-Then Jujutsu stores these refs as remote tracking branches. Finally, by default, 
-Jujutsu creates local branches for them. This is similar to Mercurial, which 
-fetches all it's Booksmarks (equivalent to Git branches) by default. </p>
-<p>There are two ways to disable the creation (or modification) of the local 
-branches by <code>jj git fetch</code>: </p>
-<ul>
-<li>You can use <code>jj branch untrack &lt;branch-name&gt;@&lt;remote name&gt;</code> to stop tracking
- specific branches when fetching from specific remotes. </li>
-<li>You can set <code>git.auto-local-branch = false</code> to change the default behavior.
- Then, Jujutsu will only create local branches for remote branches which you 
- explicitly track with <code>jj branch track&lt;branch name&gt;@&lt;remote name&gt;</code>.</li>
-</ul>
+<code>&lt;branch name&gt;@&lt;remote name&gt;</code>, such as <code>jj new main@origin</code>.</p>
+<p>A remote branch can be associated with a local branch of the same name. It's
+sometimes called a tracking branch. When you pull from a remote, any changes
+compared to the current record of the remote's state will be propagated to the
+tracking local branch. Let's say you run <code>jj git fetch --remote origin</code> and the
+remote's "main" branch has moved so its target is now ahead of the local record
+in <code>main@origin</code>. That will update <code>main@origin</code> to the new target. It will also
+apply the change to the local branch <code>main</code>. If the local target had also moved
+compared to <code>main@origin</code> (probably because you had run <code>jj branch set main</code>),
+then the two updates will be merged. If one is ahead of the other, then that
+target will be the new target. Otherwise, the local branch will be conflicted
+(see the next "Conflicts" section for details).</p>
+<p>Most commands don't show the tracking remote branch if it has the same target as
+the local branch. The local branch (without <code>@&lt;remote name&gt;</code>) is considered the
+branch's desired target. Consequently, if you want to update a branch on a
+remote, you first update the branch locally and then push the update to the
+remote. If a local branch also exists on some remote but points to a different
+target there, <code>jj log</code> will show the branch name with an asterisk suffix
+(e.g. <code>main*</code>). That is meant to remind you that you may want to push the branch
+to some remote.</p>
+<p>By default, the default remote branch (e.g. <code>main@origin</code>) will be tracked
+automatically. You can use <code>jj branch track</code> to track existing remote branches
+individually, or set <code>git.auto-local-branch = true</code> configuration to track all
+new remote branches automatically.</p>
+<h3 id="what-does-gitauto-local-branch-true-actually-do">What does <code>git.auto-local-branch = true</code> actually do?<a class="headerlink" href="#what-does-gitauto-local-branch-true-actually-do" title="Permanent link">&para;</a></h3>
+<p>Jujutsu's fetch operation consist of several steps. First <code>jj git fetch</code> fetches
+all Git refs under <code>refs/remotes/&lt;remote name&gt;</code>. Then Jujutsu stores these refs
+as remote tracking branches. Finally, if <code>git.auto-local-branch = true</code>, Jujutsu
+creates local branches for them. This is similar to Mercurial, which fetches all
+its bookmarks (equivalent to Git branches) by default.</p>
+<p>You can use <code>jj branch untrack &lt;branch name&gt;@&lt;remote name&gt;</code> to stop tracking
+specific branches when fetching from specific remotes.</p>
 <h3 id="tracking-a-branch">Tracking a branch<a class="headerlink" href="#tracking-a-branch" title="Permanent link">&para;</a></h3>
 <p>To track a branch permanently use <code>jj branch track &lt;branch name&gt;@&lt;remote name&gt;</code>. 
 It will now be imported as a local branch until you untrack it or it is deleted
@@ -1291,14 +1281,6 @@ on top of the other with <code>jj rebase</code>.</p>
 <p>To resolve a conflicted state in a remote branch (e.g. <code>main@origin</code>), simply
 pull from the remote (e.g. <code>jj git fetch</code>). The conflict resolution will also
 propagate to the local branch (which was presumably also conflicted).</p>
-<div class="footnote">
-<hr />
-<ol>
-<li id="fn:1">
-<p>Tracking in this context means if <code>jj</code> should create a local branch for a remote branch.&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
-</li>
-</ol>
-</div>
 
 
 
