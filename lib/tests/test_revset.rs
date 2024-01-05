@@ -2792,7 +2792,7 @@ fn test_change_id_index() {
 
     let root_commit = repo.store().root_commit();
     let mut commit_number = 0;
-    let mut commit_with_change_id = |change_id: &str| {
+    let mut commit_with_change_id = |change_id| {
         commit_number += 1;
         tx.mut_repo()
             .new_commit(
