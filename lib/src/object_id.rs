@@ -44,8 +44,9 @@ macro_rules! impl_id_type {
 
             /// Parses the given hex string into an ObjectId.
             ///
-            /// The given string is usually a literal, and must be valid.
-            pub fn from_hex(hex: &str) -> Self {
+            /// The given string must be valid. A static str is required to
+            /// prevent API misuse.
+            pub fn from_hex(hex: &'static str) -> Self {
                 Self::try_from_hex(hex).unwrap()
             }
 

@@ -757,12 +757,12 @@ mod tests {
 
     #[test]
     fn test_migrate_git_refs_remote_named_git() {
-        let normal_ref_target = |id_hex: &str| RefTarget::normal(CommitId::from_hex(id_hex));
-        let normal_new_remote_ref = |id_hex: &str| RemoteRef {
+        let normal_ref_target = |id_hex| RefTarget::normal(CommitId::from_hex(id_hex));
+        let normal_new_remote_ref = |id_hex| RemoteRef {
             target: normal_ref_target(id_hex),
             state: RemoteRefState::New,
         };
-        let normal_tracking_remote_ref = |id_hex: &str| RemoteRef {
+        let normal_tracking_remote_ref = |id_hex| RemoteRef {
             target: normal_ref_target(id_hex),
             state: RemoteRefState::Tracking,
         };
