@@ -2783,8 +2783,8 @@ impl CliRunner {
     }
 
     /// Set the version to be displayed by `jj version`.
-    pub fn version(mut self, version: &'static str) -> Self {
-        self.app = self.app.version(version);
+    pub fn version(mut self, version: &str) -> Self {
+        self.app = self.app.version(version.to_string());
         self
     }
 
