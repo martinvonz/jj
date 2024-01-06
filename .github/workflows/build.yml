@@ -93,6 +93,9 @@ jobs:
           # Test with the version of Poetry in Debian stable. If this starts
           # failing, we should increase this version and document the minimum
           # necessary version of Poetry in contributing.md.
+          #
+          # One way to install old `poetry` is using `pipx`:
+          #    pipx install 'poetry<1.4' --suffix -1.3
           poetry-version: 1.3.2
       - name: Install dependencies
         run: poetry install --no-root
