@@ -104,6 +104,7 @@ pub fn persist_content_addressed_temp_file<P: AsRef<Path>>(
             Ok(file) => Ok(file),
             Err(PersistError { error, file: _ }) => {
                 if let Ok(existing_file) = File::open(new_path) {
+                    // TODO: Update mtime to help GC keep this file
                     Ok(existing_file)
                 } else {
                     Err(error)
