@@ -23,15 +23,16 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
+use super::composite::ChangeIdIndexImpl;
 use super::revset_graph_iterator::RevsetGraphIterator;
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexEntry, IndexPosition};
-use crate::id_prefix::{IdIndex, IdIndexSource, IdIndexSourceEntry};
+use crate::id_prefix::IdIndex;
+use crate::index::ChangeIdIndex;
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
-use crate::object_id::{HexPrefix, PrefixResolution};
 use crate::repo_path::RepoPath;
 use crate::revset::{
-    ChangeIdIndex, ResolvedExpression, ResolvedPredicateExpression, Revset, RevsetEvaluationError,
+    ResolvedExpression, ResolvedPredicateExpression, Revset, RevsetEvaluationError,
     RevsetFilterPredicate, GENERATION_RANGE_FULL,
 };
 use crate::revset_graph::RevsetGraphEdge;
@@ -150,38 +151,6 @@ where
 
     fn count(&self) -> usize {
         self.entries().count()
-    }
-}
-
-struct ChangeIdIndexImpl<I> {
-    index: I,
-    pos_by_change: IdIndex<ChangeId, IndexPosition, 4>,
-}
-
-impl<I: AsCompositeIndex + Send + Sync> ChangeIdIndex for ChangeIdIndexImpl<I> {
-    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
-        self.pos_by_change
-            .resolve_prefix_with(self.index.as_composite(), prefix, |entry| entry.commit_id())
-            .map(|(_, commit_ids)| commit_ids)
-    }
-
-    fn shortest_unique_prefix_len(&self, change_id: &ChangeId) -> usize {
-        self.pos_by_change
-            .shortest_unique_prefix_len(self.index.as_composite(), change_id)
-    }
-}
-
-impl<'index> IdIndexSource<IndexPosition> for CompositeIndex<'index> {
-    type Entry = IndexEntry<'index>;
-
-    fn entry_at(&self, pointer: &IndexPosition) -> Self::Entry {
-        self.entry_by_pos(*pointer)
-    }
-}
-
-impl IdIndexSourceEntry<ChangeId> for IndexEntry<'_> {
-    fn to_key(&self) -> ChangeId {
-        self.change_id()
     }
 }
 

@@ -29,7 +29,8 @@ use super::rev_walk::RevWalk;
 use super::revset_engine;
 use crate::backend::{ChangeId, CommitId};
 use crate::hex_util;
-use crate::index::Index;
+use crate::id_prefix::{IdIndex, IdIndexSource, IdIndexSourceEntry};
+use crate::index::{ChangeIdIndex, Index};
 use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
@@ -387,6 +388,38 @@ impl Index for CompositeIndex<'_> {
         store: &Arc<Store>,
     ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
         CompositeIndex::evaluate_revset(self, expression, store)
+    }
+}
+
+pub(super) struct ChangeIdIndexImpl<I> {
+    pub index: I,
+    pub pos_by_change: IdIndex<ChangeId, IndexPosition, 4>,
+}
+
+impl<I: AsCompositeIndex + Send + Sync> ChangeIdIndex for ChangeIdIndexImpl<I> {
+    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
+        self.pos_by_change
+            .resolve_prefix_with(self.index.as_composite(), prefix, |entry| entry.commit_id())
+            .map(|(_, commit_ids)| commit_ids)
+    }
+
+    fn shortest_unique_prefix_len(&self, change_id: &ChangeId) -> usize {
+        self.pos_by_change
+            .shortest_unique_prefix_len(self.index.as_composite(), change_id)
+    }
+}
+
+impl<'index> IdIndexSource<IndexPosition> for CompositeIndex<'index> {
+    type Entry = IndexEntry<'index>;
+
+    fn entry_at(&self, pointer: &IndexPosition) -> Self::Entry {
+        self.entry_by_pos(*pointer)
+    }
+}
+
+impl IdIndexSourceEntry<ChangeId> for IndexEntry<'_> {
+    fn to_key(&self) -> ChangeId {
+        self.change_id()
     }
 }
 

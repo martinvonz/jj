@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use crate::backend::CommitId;
+use crate::backend::{ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::object_id::{HexPrefix, PrefixResolution};
 use crate::op_store::OperationId;
@@ -105,4 +105,25 @@ pub trait MutableIndex {
     fn add_commit(&mut self, commit: &Commit);
 
     fn merge_in(&mut self, other: &dyn ReadonlyIndex);
+}
+
+pub trait ChangeIdIndex: Send + Sync {
+    /// Resolve an unambiguous change ID prefix to the commit IDs in the index.
+    fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>>;
+
+    /// This function returns the shortest length of a prefix of `key` that
+    /// disambiguates it from every other key in the index.
+    ///
+    /// The length to be returned is a number of hexadecimal digits.
+    ///
+    /// This has some properties that we do not currently make much use of:
+    ///
+    /// - The algorithm works even if `key` itself is not in the index.
+    ///
+    /// - In the special case when there are keys in the trie for which our
+    ///   `key` is an exact prefix, returns `key.len() + 1`. Conceptually, in
+    ///   order to disambiguate, you need every letter of the key *and* the
+    ///   additional fact that it's the entire key). This case is extremely
+    ///   unlikely for hashes with 12+ hexadecimal characters.
+    fn shortest_unique_prefix_len(&self, change_id: &ChangeId) -> usize;
 }
