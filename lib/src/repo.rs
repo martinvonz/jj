@@ -38,7 +38,7 @@ use crate::default_index::DefaultIndexStore;
 use crate::default_submodule_store::DefaultSubmoduleStore;
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::git_backend::GitBackend;
-use crate::index::{Index, IndexStore, MutableIndex, ReadonlyIndex};
+use crate::index::{ChangeIdIndex, Index, IndexStore, MutableIndex, ReadonlyIndex};
 use crate::local_backend::LocalBackend;
 use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
@@ -49,7 +49,7 @@ use crate::operation::Operation;
 use crate::refs::{
     diff_named_ref_targets, diff_named_remote_refs, merge_ref_targets, merge_remote_refs,
 };
-use crate::revset::{ChangeIdIndex, RevsetExpression};
+use crate::revset::RevsetExpression;
 use crate::rewrite::{DescendantRebaser, RebaseOptions};
 use crate::settings::{RepoSettings, UserSettings};
 use crate::signing::{SignInitError, Signer};
