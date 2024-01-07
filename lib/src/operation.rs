@@ -76,6 +76,10 @@ impl Operation {
         &self.id
     }
 
+    pub fn view_id(&self) -> &ViewId {
+        &self.data.view_id
+    }
+
     pub fn parent_ids(&self) -> &[OperationId] {
         &self.data.parents
     }
