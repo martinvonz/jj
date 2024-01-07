@@ -16,7 +16,7 @@ use std::fs;
 use std::sync::Arc;
 
 use assert_matches::assert_matches;
-use jj_lib::backend::CommitId;
+use jj_lib::backend::{ChangeId, CommitId};
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::default_index::{
@@ -24,8 +24,9 @@ use jj_lib::default_index::{
     DefaultMutableIndex, DefaultReadonlyIndex, IndexPosition,
 };
 use jj_lib::index::Index as _;
-use jj_lib::object_id::ObjectId as _;
+use jj_lib::object_id::{HexPrefix, ObjectId as _, PrefixResolution};
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
+use jj_lib::revset::RevsetExpression;
 use jj_lib::settings::UserSettings;
 use testutils::test_backend::TestBackend;
 use testutils::{
@@ -641,4 +642,109 @@ fn test_index_store_type() {
         "default"
     );
     assert_eq!(as_readonly_composite(&repo).num_commits(), 1);
+}
+
+#[test]
+fn test_change_id_index() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+
+    let root_commit = repo.store().root_commit();
+    let mut commit_number = 0;
+    let mut commit_with_change_id = |change_id| {
+        commit_number += 1;
+        tx.mut_repo()
+            .new_commit(
+                &settings,
+                vec![root_commit.id().clone()],
+                root_commit.tree_id().clone(),
+            )
+            .set_change_id(ChangeId::from_hex(change_id))
+            .set_description(format!("commit {commit_number}"))
+            .write()
+            .unwrap()
+    };
+    let commit_1 = commit_with_change_id("abbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+    let commit_2 = commit_with_change_id("aaaaabbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+    let commit_3 = commit_with_change_id("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
+    let commit_4 = commit_with_change_id("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+    let commit_5 = commit_with_change_id("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
+
+    let index_for_heads = |commits: &[&Commit]| {
+        RevsetExpression::commits(commits.iter().map(|commit| commit.id().clone()).collect())
+            .ancestors()
+            .evaluate_programmatic(tx.repo())
+            .unwrap()
+            .change_id_index()
+    };
+    let change_id_index = index_for_heads(&[&commit_1, &commit_2, &commit_3, &commit_4, &commit_5]);
+    let prefix_len =
+        |commit: &Commit| change_id_index.shortest_unique_prefix_len(commit.change_id());
+    assert_eq!(prefix_len(&root_commit), 1);
+    assert_eq!(prefix_len(&commit_1), 2);
+    assert_eq!(prefix_len(&commit_2), 6);
+    assert_eq!(prefix_len(&commit_3), 6);
+    assert_eq!(prefix_len(&commit_4), 1);
+    assert_eq!(prefix_len(&commit_5), 1);
+    let resolve_prefix =
+        |prefix: &str| change_id_index.resolve_prefix(&HexPrefix::new(prefix).unwrap());
+    // Ambiguous matches
+    assert_eq!(resolve_prefix("a"), PrefixResolution::AmbiguousMatch);
+    assert_eq!(resolve_prefix("aaaaa"), PrefixResolution::AmbiguousMatch);
+    // Exactly the necessary length
+    assert_eq!(
+        resolve_prefix("0"),
+        PrefixResolution::SingleMatch(vec![root_commit.id().clone()])
+    );
+    assert_eq!(
+        resolve_prefix("aaaaaa"),
+        PrefixResolution::SingleMatch(vec![commit_3.id().clone()])
+    );
+    assert_eq!(
+        resolve_prefix("aaaaab"),
+        PrefixResolution::SingleMatch(vec![commit_2.id().clone()])
+    );
+    assert_eq!(
+        resolve_prefix("ab"),
+        PrefixResolution::SingleMatch(vec![commit_1.id().clone()])
+    );
+    assert_eq!(
+        resolve_prefix("b"),
+        PrefixResolution::SingleMatch(vec![commit_5.id().clone(), commit_4.id().clone()])
+    );
+    // Longer than necessary
+    assert_eq!(
+        resolve_prefix("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+        PrefixResolution::SingleMatch(vec![commit_3.id().clone()])
+    );
+    // No match
+    assert_eq!(resolve_prefix("ba"), PrefixResolution::NoMatch);
+
+    // Test with a revset containing only some of the commits. We should get shorter
+    // prefixes and be able to resolve shorter prefixes.
+    let change_id_index = index_for_heads(&[&commit_1, &commit_2]);
+    let prefix_len =
+        |commit: &Commit| change_id_index.shortest_unique_prefix_len(commit.change_id());
+    assert_eq!(prefix_len(&commit_1), 2);
+    assert_eq!(prefix_len(&commit_2), 2);
+    assert_eq!(prefix_len(&commit_3), 6);
+    let resolve_prefix =
+        |prefix: &str| change_id_index.resolve_prefix(&HexPrefix::new(prefix).unwrap());
+    assert_eq!(
+        resolve_prefix("0"),
+        PrefixResolution::SingleMatch(vec![root_commit.id().clone()])
+    );
+    assert_eq!(
+        resolve_prefix("aa"),
+        PrefixResolution::SingleMatch(vec![commit_2.id().clone()])
+    );
+    assert_eq!(
+        resolve_prefix("ab"),
+        PrefixResolution::SingleMatch(vec![commit_1.id().clone()])
+    );
+    assert_eq!(resolve_prefix("a"), PrefixResolution::AmbiguousMatch);
+    assert_eq!(resolve_prefix("b"), PrefixResolution::NoMatch);
 }
