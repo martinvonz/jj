@@ -35,7 +35,7 @@ use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexSegment};
 use crate::backend::{ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::file_util::persist_content_addressed_temp_file;
-use crate::index::{Index, MutableIndex, ReadonlyIndex};
+use crate::index::{ChangeIdIndex, Index, MutableIndex, ReadonlyIndex};
 use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
@@ -440,6 +440,13 @@ impl Index for DefaultMutableIndex {
 
     fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
         self.as_composite().topo_order(input)
+    }
+
+    fn change_id_index(
+        &self,
+        heads: &mut dyn Iterator<Item = &CommitId>,
+    ) -> Box<dyn ChangeIdIndex + '_> {
+        self.as_composite().change_id_index(heads)
     }
 
     fn evaluate_revset<'index>(

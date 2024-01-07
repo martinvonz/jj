@@ -72,6 +72,11 @@ pub trait Index: Send + Sync {
     /// Parents before children
     fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId>;
 
+    fn change_id_index(
+        &self,
+        heads: &mut dyn Iterator<Item = &CommitId>,
+    ) -> Box<dyn ChangeIdIndex + '_>;
+
     fn evaluate_revset<'index>(
         &'index self,
         expression: &ResolvedExpression,

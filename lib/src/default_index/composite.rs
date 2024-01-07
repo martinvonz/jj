@@ -296,6 +296,13 @@ impl<'a> CompositeIndex<'a> {
         candidate_positions
     }
 
+    pub(super) fn change_id_index(
+        &self,
+        heads: &mut dyn Iterator<Item = &CommitId>,
+    ) -> Box<dyn ChangeIdIndex + 'a> {
+        Box::new(ChangeIdIndexImpl::new(*self, heads))
+    }
+
     pub(super) fn evaluate_revset(
         &self,
         expression: &ResolvedExpression,
@@ -382,6 +389,13 @@ impl Index for CompositeIndex<'_> {
         ids
     }
 
+    fn change_id_index(
+        &self,
+        heads: &mut dyn Iterator<Item = &CommitId>,
+    ) -> Box<dyn ChangeIdIndex + '_> {
+        CompositeIndex::change_id_index(self, heads)
+    }
+
     fn evaluate_revset<'index>(
         &'index self,
         expression: &ResolvedExpression,
@@ -392,8 +406,8 @@ impl Index for CompositeIndex<'_> {
 }
 
 pub(super) struct ChangeIdIndexImpl<I> {
-    pub index: I,
-    pub pos_by_change: IdIndex<ChangeId, IndexPosition, 4>,
+    index: I,
+    pos_by_change: IdIndex<ChangeId, IndexPosition, 4>,
 }
 
 impl<I: AsCompositeIndex> ChangeIdIndexImpl<I> {

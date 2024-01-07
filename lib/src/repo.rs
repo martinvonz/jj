@@ -49,7 +49,6 @@ use crate::operation::Operation;
 use crate::refs::{
     diff_named_ref_targets, diff_named_remote_refs, merge_ref_targets, merge_remote_refs,
 };
-use crate::revset::RevsetExpression;
 use crate::rewrite::{DescendantRebaser, RebaseOptions};
 use crate::settings::{RepoSettings, UserSettings};
 use crate::signing::{SignInitError, Signer};
@@ -1402,14 +1401,16 @@ impl Repo for MutableRepo {
     }
 
     fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
-        let revset = RevsetExpression::all().evaluate_programmatic(self).unwrap();
-        let change_id_index = revset.change_id_index();
+        let change_id_index = self
+            .index()
+            .change_id_index(&mut self.view().heads().iter());
         change_id_index.resolve_prefix(prefix)
     }
 
     fn shortest_unique_change_id_prefix_len(&self, target_id: &ChangeId) -> usize {
-        let revset = RevsetExpression::all().evaluate_programmatic(self).unwrap();
-        let change_id_index = revset.change_id_index();
+        let change_id_index = self
+            .index()
+            .change_id_index(&mut self.view().heads().iter());
         change_id_index.shortest_unique_prefix_len(target_id)
     }
 }

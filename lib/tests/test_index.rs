@@ -26,7 +26,6 @@ use jj_lib::default_index::{
 use jj_lib::index::Index as _;
 use jj_lib::object_id::{HexPrefix, ObjectId as _, PrefixResolution};
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
-use jj_lib::revset::RevsetExpression;
 use jj_lib::settings::UserSettings;
 use testutils::test_backend::TestBackend;
 use testutils::{
@@ -674,11 +673,9 @@ fn test_change_id_index() {
     let commit_5 = commit_with_change_id("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb");
 
     let index_for_heads = |commits: &[&Commit]| {
-        RevsetExpression::commits(commits.iter().map(|commit| commit.id().clone()).collect())
-            .ancestors()
-            .evaluate_programmatic(tx.repo())
-            .unwrap()
-            .change_id_index()
+        tx.repo()
+            .index()
+            .change_id_index(&mut commits.iter().map(|commit| commit.id()))
     };
     let change_id_index = index_for_heads(&[&commit_1, &commit_2, &commit_3, &commit_4, &commit_5]);
     let prefix_len =
