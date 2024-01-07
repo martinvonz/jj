@@ -17,6 +17,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Debug, Error, Formatter};
 use std::iter;
+use std::time::SystemTime;
 
 use itertools::Itertools as _;
 use once_cell::sync::Lazy;
@@ -424,6 +425,15 @@ pub trait OpStore: Send + Sync + Debug {
         &self,
         prefix: &HexPrefix,
     ) -> OpStoreResult<PrefixResolution<OperationId>>;
+
+    /// Prunes unreachable operations and views.
+    ///
+    /// All operations and views reachable from the `head_ids` won't be
+    /// removed. In addition to that, objects created after `keep_newer` will be
+    /// preserved. This mitigates a risk of deleting new heads created
+    /// concurrently by another process.
+    // TODO: return stats?
+    fn gc(&self, head_ids: &[OperationId], keep_newer: SystemTime) -> OpStoreResult<()>;
 }
 
 #[cfg(test)]

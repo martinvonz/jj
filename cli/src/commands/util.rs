@@ -13,6 +13,8 @@
 // limitations under the License.
 
 use std::io::Write;
+use std::slice;
+use std::time::{Duration, SystemTime};
 
 use clap::Subcommand;
 use jj_lib::repo::Repo;
@@ -114,8 +116,14 @@ fn cmd_util_gc(
         ));
     }
     let workspace_command = command.workspace_helper(ui)?;
-    let store = workspace_command.repo().store();
-    store.gc().map_err(|err| user_error(err.to_string()))?;
+    // TODO: add command argument to specify the expiration time?
+    let keep_newer = SystemTime::now() - Duration::from_secs(14 * 86400);
+    let repo = workspace_command.repo();
+    repo.op_store()
+        .gc(slice::from_ref(repo.op_id()), keep_newer)?;
+    repo.store()
+        .gc()
+        .map_err(|err| user_error(err.to_string()))?;
     Ok(())
 }
 

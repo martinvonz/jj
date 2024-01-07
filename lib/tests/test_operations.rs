@@ -15,6 +15,7 @@
 use std::path::Path;
 use std::slice;
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use assert_matches::assert_matches;
 use itertools::Itertools as _;
@@ -30,6 +31,7 @@ fn list_dir(dir: &Path) -> Vec<String> {
     std::fs::read_dir(dir)
         .unwrap()
         .map(|entry| entry.unwrap().file_name().to_str().unwrap().to_owned())
+        .sorted()
         .collect()
 }
 
@@ -567,4 +569,82 @@ fn test_resolve_op_parents_children() {
             OpsetResolutionError::MultipleOperations(_)
         ))
     );
+}
+
+#[test]
+fn test_gc() {
+    let settings = stable_op_id_settings();
+    let test_repo = TestRepo::init();
+    let repo_0 = test_repo.repo;
+    let op_store = repo_0.op_store();
+    let op_dir = repo_0.repo_path().join("op_store").join("operations");
+    let view_dir = repo_0.repo_path().join("op_store").join("views");
+
+    // Set up operation graph:
+    //
+    //   F
+    //   E (empty)
+    // D |
+    // C |
+    // |/
+    // B
+    // A
+    // 0 (initial)
+    let empty_tx = |repo: &Arc<ReadonlyRepo>| repo.start_transaction(&settings);
+    let random_tx = |repo: &Arc<ReadonlyRepo>| {
+        let mut tx = repo.start_transaction(&settings);
+        write_random_commit(tx.mut_repo(), &settings);
+        tx
+    };
+    let repo_a = random_tx(&repo_0).commit("op A");
+    let repo_b = random_tx(&repo_a).commit("op B");
+    let repo_c = random_tx(&repo_b).commit("op C");
+    let repo_d = random_tx(&repo_c).commit("op D");
+    let repo_e = empty_tx(&repo_b).commit("op E");
+    let repo_f = random_tx(&repo_e).commit("op F");
+
+    // Sanity check for the original state
+    let mut expected_op_entries = list_dir(&op_dir);
+    let mut expected_view_entries = list_dir(&view_dir);
+    assert_eq!(expected_op_entries.len(), 7);
+    assert_eq!(expected_view_entries.len(), 6);
+
+    // No heads, but all kept by file modification time
+    op_store.gc(&[], SystemTime::UNIX_EPOCH).unwrap();
+    assert_eq!(list_dir(&op_dir), expected_op_entries);
+    assert_eq!(list_dir(&view_dir), expected_view_entries);
+
+    // All reachable from heads
+    let now = SystemTime::now();
+    let head_ids = [repo_d.op_id().clone(), repo_f.op_id().clone()];
+    op_store.gc(&head_ids, now).unwrap();
+    assert_eq!(list_dir(&op_dir), expected_op_entries);
+    assert_eq!(list_dir(&view_dir), expected_view_entries);
+
+    // E|F are no longer reachable, but E's view is still reachable
+    op_store.gc(slice::from_ref(repo_d.op_id()), now).unwrap();
+    expected_op_entries
+        .retain(|name| *name != repo_e.op_id().hex() && *name != repo_f.op_id().hex());
+    expected_view_entries.retain(|name| *name != repo_f.operation().view_id().hex());
+    assert_eq!(list_dir(&op_dir), expected_op_entries);
+    assert_eq!(list_dir(&view_dir), expected_view_entries);
+
+    // B|C|D are no longer reachable
+    op_store.gc(slice::from_ref(repo_a.op_id()), now).unwrap();
+    expected_op_entries.retain(|name| {
+        *name != repo_b.op_id().hex()
+            && *name != repo_c.op_id().hex()
+            && *name != repo_d.op_id().hex()
+    });
+    expected_view_entries.retain(|name| {
+        *name != repo_b.operation().view_id().hex()
+            && *name != repo_c.operation().view_id().hex()
+            && *name != repo_d.operation().view_id().hex()
+    });
+    assert_eq!(list_dir(&op_dir), expected_op_entries);
+    assert_eq!(list_dir(&view_dir), expected_view_entries);
+
+    // Sanity check for the last state
+    assert_eq!(expected_op_entries.len(), 2);
+    assert_eq!(expected_view_entries.len(), 2);
 }

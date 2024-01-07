@@ -14,26 +14,28 @@
 
 #![allow(missing_docs)]
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
 use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 use std::{fs, io};
 
+use itertools::Itertools as _;
 use prost::Message;
 use tempfile::NamedTempFile;
 use thiserror::Error;
 
 use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
 use crate::content_hash::blake2b_hash;
-use crate::file_util::{persist_content_addressed_temp_file, IoResultExt as _};
+use crate::file_util::{persist_content_addressed_temp_file, IoResultExt as _, PathError};
 use crate::merge::Merge;
 use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::op_store::{
     OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata, RefTarget,
     RemoteRef, RemoteRefState, RemoteView, View, ViewId, WorkspaceId,
 };
-use crate::{git, op_store};
+use crate::{dag_walk, git, op_store};
 
 // BLAKE2b-512 hash length in bytes
 const OPERATION_ID_LENGTH: usize = 64;
@@ -194,6 +196,89 @@ impl OpStore for SimpleOpStore {
         find()
             .context(&op_dir)
             .map_err(|err| OpStoreError::Other(err.into()))
+    }
+
+    #[tracing::instrument(skip(self))]
+    fn gc(&self, head_ids: &[OperationId], keep_newer: SystemTime) -> OpStoreResult<()> {
+        let to_op_id = |entry: &fs::DirEntry| -> Option<OperationId> {
+            let name = entry.file_name().into_string().ok()?;
+            OperationId::try_from_hex(&name).ok()
+        };
+        let to_view_id = |entry: &fs::DirEntry| -> Option<ViewId> {
+            let name = entry.file_name().into_string().ok()?;
+            ViewId::try_from_hex(&name).ok()
+        };
+        let remove_file_if_not_new = |entry: &fs::DirEntry| -> Result<(), PathError> {
+            let path = entry.path();
+            // Check timestamp, but there's still TOCTOU problem if an existing
+            // file is renewed.
+            let metadata = entry.metadata().context(&path)?;
+            let mtime = metadata.modified().expect("unsupported platform?");
+            if mtime > keep_newer {
+                tracing::trace!(?path, "not removing");
+                Ok(())
+            } else {
+                tracing::trace!(?path, "removing");
+                fs::remove_file(&path).context(&path)
+            }
+        };
+
+        // Reachable objects are resolved without considering the keep_newer
+        // parameter. We could collect ancestors of the "new" operations here,
+        // but more files can be added anyway after that.
+        let read_op = |id: &OperationId| self.read_operation(id).map(|data| (id.clone(), data));
+        let reachable_ops: HashMap<OperationId, Operation> = dag_walk::dfs_ok(
+            head_ids.iter().map(read_op),
+            |(id, _)| id.clone(),
+            |(_, data)| data.parents.iter().map(read_op).collect_vec(),
+        )
+        .try_collect()?;
+        let reachable_views: HashSet<&ViewId> =
+            reachable_ops.values().map(|data| &data.view_id).collect();
+        tracing::info!(
+            reachable_op_count = reachable_ops.len(),
+            reachable_view_count = reachable_views.len(),
+            "collected reachable objects"
+        );
+
+        let prune_ops = || -> Result<(), PathError> {
+            let op_dir = self.path.join("operations");
+            for entry in op_dir.read_dir().context(&op_dir)? {
+                let entry = entry.context(&op_dir)?;
+                let Some(id) = to_op_id(&entry) else {
+                    tracing::trace!(?entry, "skipping invalid file name");
+                    continue;
+                };
+                if reachable_ops.contains_key(&id) {
+                    continue;
+                }
+                // If the operation was added after collecting reachable_views,
+                // its view mtime would also be renewed. So there's no need to
+                // update the reachable_views set to preserve the view.
+                remove_file_if_not_new(&entry)?;
+            }
+            Ok(())
+        };
+        prune_ops().map_err(|err| OpStoreError::Other(err.into()))?;
+
+        let prune_views = || -> Result<(), PathError> {
+            let view_dir = self.path.join("views");
+            for entry in view_dir.read_dir().context(&view_dir)? {
+                let entry = entry.context(&view_dir)?;
+                let Some(id) = to_view_id(&entry) else {
+                    tracing::trace!(?entry, "skipping invalid file name");
+                    continue;
+                };
+                if reachable_views.contains(&id) {
+                    continue;
+                }
+                remove_file_if_not_new(&entry)?;
+            }
+            Ok(())
+        };
+        prune_views().map_err(|err| OpStoreError::Other(err.into()))?;
+
+        Ok(())
     }
 }
 
