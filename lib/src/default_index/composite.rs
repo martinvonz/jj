@@ -396,6 +396,23 @@ pub(super) struct ChangeIdIndexImpl<I> {
     pub pos_by_change: IdIndex<ChangeId, IndexPosition, 4>,
 }
 
+impl<I: AsCompositeIndex> ChangeIdIndexImpl<I> {
+    pub fn new(index: I, heads: &mut dyn Iterator<Item = &CommitId>) -> ChangeIdIndexImpl<I> {
+        let mut pos_by_change = IdIndex::builder();
+        let composite = index.as_composite();
+        let head_positions = heads
+            .map(|id| composite.commit_id_to_pos(id).unwrap())
+            .collect_vec();
+        for entry in composite.walk_revs(&head_positions, &[]) {
+            pos_by_change.insert(&entry.change_id(), entry.position());
+        }
+        Self {
+            index,
+            pos_by_change: pos_by_change.build(),
+        }
+    }
+}
+
 impl<I: AsCompositeIndex + Send + Sync> ChangeIdIndex for ChangeIdIndexImpl<I> {
     fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
         self.pos_by_change

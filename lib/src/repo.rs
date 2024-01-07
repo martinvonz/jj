@@ -268,12 +268,8 @@ impl ReadonlyRepo {
             .get_or_init(|| {
                 // TODO: maybe add abstraction over 'static/'index revset
                 // evaluation, and use it.
-                let expression = RevsetExpression::all().resolve_programmatic(self);
-                let revset = self
-                    .readonly_index()
-                    .evaluate_revset_static(&expression, self.store())
-                    .unwrap();
-                revset.change_id_index()
+                self.readonly_index()
+                    .change_id_index_static(&mut self.view().heads().iter())
             })
             .as_ref()
     }
