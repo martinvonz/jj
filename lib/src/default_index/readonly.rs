@@ -26,12 +26,11 @@ use std::sync::Arc;
 use smallvec::SmallVec;
 use thiserror::Error;
 
-use super::composite::{AsCompositeIndex, CompositeIndex, IndexSegment};
+use super::composite::{AsCompositeIndex, ChangeIdIndexImpl, CompositeIndex, IndexSegment};
 use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec};
 use super::mutable::DefaultMutableIndex;
-use super::revset_engine;
 use crate::backend::{ChangeId, CommitId};
-use crate::index::{Index, MutableIndex, ReadonlyIndex};
+use crate::index::{ChangeIdIndex, Index, MutableIndex, ReadonlyIndex};
 use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
@@ -528,13 +527,11 @@ impl ReadonlyIndex for DefaultReadonlyIndex {
         self
     }
 
-    fn evaluate_revset_static(
+    fn change_id_index_static(
         &self,
-        expression: &ResolvedExpression,
-        store: &Arc<Store>,
-    ) -> Result<Box<dyn Revset<'static>>, RevsetEvaluationError> {
-        let revset_impl = revset_engine::evaluate(expression, store, self.clone())?;
-        Ok(Box::new(revset_impl))
+        heads: &mut dyn Iterator<Item = &CommitId>,
+    ) -> Box<dyn ChangeIdIndex> {
+        Box::new(ChangeIdIndexImpl::new(self.clone(), heads))
     }
 
     fn start_modification(&self) -> Box<dyn MutableIndex> {
