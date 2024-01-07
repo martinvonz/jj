@@ -39,6 +39,7 @@ use crate::{dag_walk, git, op_store};
 
 // BLAKE2b-512 hash length in bytes
 const OPERATION_ID_LENGTH: usize = 64;
+const VIEW_ID_LENGTH: usize = 64;
 
 #[derive(Debug, Error)]
 #[error("Failed to read {kind} with ID {id}: {err}")]
@@ -58,6 +59,8 @@ impl From<DecodeError> for OpStoreError {
 #[derive(Debug)]
 pub struct SimpleOpStore {
     path: PathBuf,
+    empty_view_id: ViewId,
+    root_operation_id: OperationId,
 }
 
 impl SimpleOpStore {
@@ -69,15 +72,15 @@ impl SimpleOpStore {
     pub fn init(store_path: &Path) -> Self {
         fs::create_dir(store_path.join("views")).unwrap();
         fs::create_dir(store_path.join("operations")).unwrap();
-        SimpleOpStore {
-            path: store_path.to_owned(),
-        }
+        Self::load(store_path)
     }
 
     /// Load an existing OpStore
     pub fn load(store_path: &Path) -> Self {
         SimpleOpStore {
             path: store_path.to_path_buf(),
+            empty_view_id: ViewId::from_bytes(&[0; VIEW_ID_LENGTH]),
+            root_operation_id: OperationId::from_bytes(&[0; OPERATION_ID_LENGTH]),
         }
     }
 
@@ -95,7 +98,15 @@ impl OpStore for SimpleOpStore {
         Self::name()
     }
 
+    fn root_operation_id(&self) -> &OperationId {
+        &self.root_operation_id
+    }
+
     fn read_view(&self, id: &ViewId) -> OpStoreResult<View> {
+        if *id == self.empty_view_id {
+            return Ok(View::default());
+        }
+
         let path = self.view_path(id);
         let buf = fs::read(path).map_err(|err| io_to_read_error(err, id))?;
 
@@ -125,6 +136,10 @@ impl OpStore for SimpleOpStore {
     }
 
     fn read_operation(&self, id: &OperationId) -> OpStoreResult<Operation> {
+        if *id == self.root_operation_id {
+            return Ok(Operation::make_root(self.empty_view_id.clone()));
+        }
+
         let path = self.operation_path(id);
         let buf = fs::read(path).map_err(|err| io_to_read_error(err, id))?;
 
@@ -134,10 +149,17 @@ impl OpStore for SimpleOpStore {
                 id: id.hex(),
                 err,
             })?;
-        Ok(operation_from_proto(proto))
+        let mut operation = operation_from_proto(proto);
+        if operation.parents.is_empty() {
+            // Repos created before we had the root operation will have an operation without
+            // parents.
+            operation.parents.push(self.root_operation_id.clone());
+        }
+        Ok(operation)
     }
 
     fn write_operation(&self, operation: &Operation) -> OpStoreResult<OperationId> {
+        assert!(!operation.parents.is_empty());
         let temp_file =
             NamedTempFile::new_in(&self.path).map_err(|err| io_to_write_error(err, "operation"))?;
 

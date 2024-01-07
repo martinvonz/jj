@@ -177,7 +177,7 @@ impl ReadonlyRepo {
         let root_view_id = op_store.write_view(&root_view).unwrap();
         let init_operation = op_store::Operation {
             view_id: root_view_id,
-            parents: vec![],
+            parents: vec![op_store.root_operation_id().clone()],
             metadata: operation_metadata,
         };
         let init_operation_id = op_store.write_operation(&init_operation).unwrap();
