@@ -27,8 +27,6 @@ pub mod commit_builder;
 pub mod conflicts;
 pub mod dag_walk;
 pub mod default_index;
-pub mod default_revset_engine;
-pub mod default_revset_graph_iterator;
 pub mod default_submodule_store;
 pub mod diff;
 pub mod file_util;

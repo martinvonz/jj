@@ -14,8 +14,8 @@
 
 use itertools::Itertools;
 use jj_lib::commit::Commit;
+use jj_lib::default_index::revset_engine::{evaluate, RevsetImpl};
 use jj_lib::default_index::DefaultReadonlyIndex;
-use jj_lib::default_revset_engine::{evaluate, RevsetImpl};
 use jj_lib::repo::{ReadonlyRepo, Repo as _};
 use jj_lib::revset::ResolvedExpression;
 use jj_lib::revset_graph::RevsetGraphEdge;
