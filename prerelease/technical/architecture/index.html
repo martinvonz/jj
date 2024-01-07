@@ -18,7 +18,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.4.7">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.3">
     
     
       
@@ -26,7 +26,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.4b4a2bd9.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.50c56a3b.min.css">
       
       
 
@@ -57,9 +57,6 @@
   
     <body dir="ltr">
   
-    
-    
-      <script>var palette=__md_get("__palette");if(palette&&"object"==typeof palette.color)for(var key of Object.keys(palette.color))document.body.setAttribute("data-md-color-"+key,palette.color[key])</script>
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
@@ -113,6 +110,9 @@
         </div>
       </div>
     </div>
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
     
     
     
@@ -195,6 +195,7 @@
   
   
   
+  
     <li class="md-nav__item">
       <a href="../.." class="md-nav__link">
         
@@ -211,6 +212,7 @@
     
       
       
+  
   
   
   
@@ -250,6 +252,7 @@
   
   
   
+  
     <li class="md-nav__item">
       <a href="../../install-and-setup/" class="md-nav__link">
         
@@ -270,6 +273,7 @@
   
   
   
+  
     <li class="md-nav__item">
       <a href="../../tutorial/" class="md-nav__link">
         
@@ -287,6 +291,7 @@
             
               
                 
+  
   
   
   
@@ -317,6 +322,7 @@
   
   
   
+  
     <li class="md-nav__item">
       <a href="../../FAQ/" class="md-nav__link">
         
@@ -333,6 +339,7 @@
     
       
       
+  
   
   
   
@@ -372,6 +379,7 @@
   
   
   
+  
     <li class="md-nav__item">
       <a href="../../working-copy/" class="md-nav__link">
         
@@ -389,6 +397,7 @@
             
               
                 
+  
   
   
   
@@ -412,6 +421,7 @@
   
   
   
+  
     <li class="md-nav__item">
       <a href="../../conflicts/" class="md-nav__link">
         
@@ -432,6 +442,7 @@
   
   
   
+  
     <li class="md-nav__item">
       <a href="../../operation-log/" class="md-nav__link">
         
@@ -449,6 +460,7 @@
             
               
                 
+  
   
   
   
@@ -476,6 +488,7 @@
     
       
       
+  
   
   
   
@@ -515,6 +528,7 @@
   
   
   
+  
     <li class="md-nav__item">
       <a href="../../config/" class="md-nav__link">
         
@@ -535,6 +549,7 @@
   
   
   
+  
     <li class="md-nav__item">
       <a href="../../revsets/" class="md-nav__link">
         
@@ -552,6 +567,7 @@
             
               
                 
+  
   
   
   
@@ -579,6 +595,7 @@
     
       
       
+  
   
   
   
@@ -618,6 +635,7 @@
   
   
   
+  
     <li class="md-nav__item">
       <a href="../../git-comparison/" class="md-nav__link">
         
@@ -635,6 +653,7 @@
             
               
                 
+  
   
   
   
@@ -658,6 +677,7 @@
   
   
   
+  
     <li class="md-nav__item">
       <a href="../../sapling-comparison/" class="md-nav__link">
         
@@ -675,6 +695,7 @@
             
               
                 
+  
   
   
   
@@ -705,6 +726,7 @@
   
   
     
+  
   
   
     
@@ -743,6 +765,7 @@
   
   
     
+  
   
   
     <li class="md-nav__item md-nav__item--active">
@@ -791,28 +814,36 @@
       
         <li class="md-nav__item">
   <a href="#data-model" class="md-nav__link">
-    Data model
+    <span class="md-ellipsis">
+      Data model
+    </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
   <a href="#separation-of-library-from-ui" class="md-nav__link">
-    Separation of library from UI
+    <span class="md-ellipsis">
+      Separation of library from UI
+    </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
   <a href="#storage-independent-apis" class="md-nav__link">
-    Storage-independent APIs
+    <span class="md-ellipsis">
+      Storage-independent APIs
+    </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
   <a href="#design-of-the-library-crate" class="md-nav__link">
-    Design of the library crate
+    <span class="md-ellipsis">
+      Design of the library crate
+    </span>
   </a>
   
     <nav class="md-nav" aria-label="Design of the library crate">
@@ -820,105 +851,135 @@
         
           <li class="md-nav__item">
   <a href="#overview" class="md-nav__link">
-    Overview
+    <span class="md-ellipsis">
+      Overview
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#backend" class="md-nav__link">
-    Backend
+    <span class="md-ellipsis">
+      Backend
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#gitbackend" class="md-nav__link">
-    GitBackend
+    <span class="md-ellipsis">
+      GitBackend
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#localbackend" class="md-nav__link">
-    LocalBackend
+    <span class="md-ellipsis">
+      LocalBackend
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#store" class="md-nav__link">
-    Store
+    <span class="md-ellipsis">
+      Store
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#readonlyrepo" class="md-nav__link">
-    ReadonlyRepo
+    <span class="md-ellipsis">
+      ReadonlyRepo
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#mutablerepo" class="md-nav__link">
-    MutableRepo
+    <span class="md-ellipsis">
+      MutableRepo
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#transaction" class="md-nav__link">
-    Transaction
+    <span class="md-ellipsis">
+      Transaction
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#repoloader" class="md-nav__link">
-    RepoLoader
+    <span class="md-ellipsis">
+      RepoLoader
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#treestate" class="md-nav__link">
-    TreeState
+    <span class="md-ellipsis">
+      TreeState
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#workingcopy" class="md-nav__link">
-    WorkingCopy
+    <span class="md-ellipsis">
+      WorkingCopy
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#workspace" class="md-nav__link">
-    Workspace
+    <span class="md-ellipsis">
+      Workspace
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#git" class="md-nav__link">
-    Git
+    <span class="md-ellipsis">
+      Git
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#revsets" class="md-nav__link">
-    Revsets
+    <span class="md-ellipsis">
+      Revsets
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#stackedtable" class="md-nav__link">
-    StackedTable
+    <span class="md-ellipsis">
+      StackedTable
+    </span>
   </a>
   
 </li>
@@ -930,7 +991,9 @@
       
         <li class="md-nav__item">
   <a href="#design-of-the-cli-crate" class="md-nav__link">
-    Design of the CLI crate
+    <span class="md-ellipsis">
+      Design of the CLI crate
+    </span>
   </a>
   
     <nav class="md-nav" aria-label="Design of the CLI crate">
@@ -938,14 +1001,18 @@
         
           <li class="md-nav__item">
   <a href="#templates" class="md-nav__link">
-    Templates
+    <span class="md-ellipsis">
+      Templates
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#diff-editing" class="md-nav__link">
-    Diff-editing
+    <span class="md-ellipsis">
+      Diff-editing
+    </span>
   </a>
   
 </li>
@@ -969,6 +1036,7 @@
   
   
   
+  
     <li class="md-nav__item">
       <a href="../concurrency/" class="md-nav__link">
         
@@ -986,6 +1054,7 @@
             
               
                 
+  
   
   
   
@@ -1013,6 +1082,7 @@
     
       
       
+  
   
   
   
@@ -1052,6 +1122,7 @@
   
   
   
+  
     <li class="md-nav__item">
       <a href="../../contributing/" class="md-nav__link">
         
@@ -1069,6 +1140,7 @@
             
               
                 
+  
   
   
   
@@ -1096,6 +1168,7 @@
     
       
       
+  
   
   
   
@@ -1135,6 +1208,7 @@
   
   
   
+  
     <li class="md-nav__item">
       <a href="../../design/git-submodules/" class="md-nav__link">
         
@@ -1152,6 +1226,7 @@
             
               
                 
+  
   
   
   
@@ -1175,6 +1250,7 @@
   
   
   
+  
     <li class="md-nav__item">
       <a href="../../design/run/" class="md-nav__link">
         
@@ -1192,6 +1268,7 @@
             
               
                 
+  
   
   
   
@@ -1245,28 +1322,36 @@
       
         <li class="md-nav__item">
   <a href="#data-model" class="md-nav__link">
-    Data model
+    <span class="md-ellipsis">
+      Data model
+    </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
   <a href="#separation-of-library-from-ui" class="md-nav__link">
-    Separation of library from UI
+    <span class="md-ellipsis">
+      Separation of library from UI
+    </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
   <a href="#storage-independent-apis" class="md-nav__link">
-    Storage-independent APIs
+    <span class="md-ellipsis">
+      Storage-independent APIs
+    </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
   <a href="#design-of-the-library-crate" class="md-nav__link">
-    Design of the library crate
+    <span class="md-ellipsis">
+      Design of the library crate
+    </span>
   </a>
   
     <nav class="md-nav" aria-label="Design of the library crate">
@@ -1274,105 +1359,135 @@
         
           <li class="md-nav__item">
   <a href="#overview" class="md-nav__link">
-    Overview
+    <span class="md-ellipsis">
+      Overview
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#backend" class="md-nav__link">
-    Backend
+    <span class="md-ellipsis">
+      Backend
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#gitbackend" class="md-nav__link">
-    GitBackend
+    <span class="md-ellipsis">
+      GitBackend
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#localbackend" class="md-nav__link">
-    LocalBackend
+    <span class="md-ellipsis">
+      LocalBackend
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#store" class="md-nav__link">
-    Store
+    <span class="md-ellipsis">
+      Store
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#readonlyrepo" class="md-nav__link">
-    ReadonlyRepo
+    <span class="md-ellipsis">
+      ReadonlyRepo
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#mutablerepo" class="md-nav__link">
-    MutableRepo
+    <span class="md-ellipsis">
+      MutableRepo
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#transaction" class="md-nav__link">
-    Transaction
+    <span class="md-ellipsis">
+      Transaction
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#repoloader" class="md-nav__link">
-    RepoLoader
+    <span class="md-ellipsis">
+      RepoLoader
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#treestate" class="md-nav__link">
-    TreeState
+    <span class="md-ellipsis">
+      TreeState
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#workingcopy" class="md-nav__link">
-    WorkingCopy
+    <span class="md-ellipsis">
+      WorkingCopy
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#workspace" class="md-nav__link">
-    Workspace
+    <span class="md-ellipsis">
+      Workspace
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#git" class="md-nav__link">
-    Git
+    <span class="md-ellipsis">
+      Git
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#revsets" class="md-nav__link">
-    Revsets
+    <span class="md-ellipsis">
+      Revsets
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#stackedtable" class="md-nav__link">
-    StackedTable
+    <span class="md-ellipsis">
+      StackedTable
+    </span>
   </a>
   
 </li>
@@ -1384,7 +1499,9 @@
       
         <li class="md-nav__item">
   <a href="#design-of-the-cli-crate" class="md-nav__link">
-    Design of the CLI crate
+    <span class="md-ellipsis">
+      Design of the CLI crate
+    </span>
   </a>
   
     <nav class="md-nav" aria-label="Design of the CLI crate">
@@ -1392,14 +1509,18 @@
         
           <li class="md-nav__item">
   <a href="#templates" class="md-nav__link">
-    Templates
+    <span class="md-ellipsis">
+      Templates
+    </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
   <a href="#diff-editing" class="md-nav__link">
-    Diff-editing
+    <span class="md-ellipsis">
+      Diff-editing
+    </span>
   </a>
   
 </li>
@@ -1621,11 +1742,19 @@ upgrades of the repo format&#160;<a class="footnote-backref" href="#fnref:1" tit
 
 
 
+
+
+
+
+
+
+
                 
               </article>
             </div>
           
           
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
         </div>
         
       </main>
@@ -1657,7 +1786,7 @@ upgrades of the repo format&#160;<a class="footnote-backref" href="#fnref:1" tit
     <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.f886a092.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.aecac24b.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7c377c4.min.js"></script>
       
     
   </body>
