@@ -239,19 +239,13 @@ fn test_reparent_range_linear() {
         new_op_d.store_operation().metadata,
         repo_d.operation().store_operation().metadata
     );
-    assert_eq!(
-        new_op_d.store_operation().view_id,
-        repo_d.operation().store_operation().view_id
-    );
+    assert_eq!(new_op_d.view_id(), repo_d.operation().view_id());
     let [new_op_c] = op_parents(&new_op_d);
     assert_eq!(
         new_op_c.store_operation().metadata,
         repo_c.operation().store_operation().metadata
     );
-    assert_eq!(
-        new_op_c.store_operation().view_id,
-        repo_c.operation().store_operation().view_id
-    );
+    assert_eq!(new_op_c.view_id(), repo_c.operation().view_id());
     assert_eq!(new_op_c.parent_ids(), slice::from_ref(repo_a.op_id()));
 
     // Reparent empty range onto A
@@ -333,10 +327,7 @@ fn test_reparent_range_branchy() {
         new_op_g.store_operation().metadata,
         repo_g.operation().store_operation().metadata
     );
-    assert_eq!(
-        new_op_g.store_operation().view_id,
-        repo_g.operation().store_operation().view_id
-    );
+    assert_eq!(new_op_g.view_id(), repo_g.operation().view_id());
     let [new_op_e, new_op_f] = op_parents(&new_op_g);
     assert_eq!(new_op_e.parent_ids(), slice::from_ref(repo_b.op_id()));
     assert_eq!(new_op_f.parent_ids(), slice::from_ref(repo_b.op_id()));
@@ -366,10 +357,7 @@ fn test_reparent_range_branchy() {
         new_op_g.store_operation().metadata,
         repo_g.operation().store_operation().metadata
     );
-    assert_eq!(
-        new_op_g.store_operation().view_id,
-        repo_g.operation().store_operation().view_id
-    );
+    assert_eq!(new_op_g.view_id(), repo_g.operation().view_id());
     let [new_op_e, new_op_f] = op_parents(&new_op_g);
     let [new_op_d] = op_parents(&new_op_e);
     assert_eq!(new_op_d.parent_ids(), new_op_f.parent_ids());
@@ -398,10 +386,7 @@ fn test_reparent_range_branchy() {
         new_op_g.store_operation().metadata,
         repo_g.operation().store_operation().metadata
     );
-    assert_eq!(
-        new_op_g.store_operation().view_id,
-        repo_g.operation().store_operation().view_id
-    );
+    assert_eq!(new_op_g.view_id(), repo_g.operation().view_id());
     assert_eq!(new_op_g.parent_ids(), slice::from_ref(repo_d.op_id()));
 
     // Reparent C..F (=F) onto D (ignoring G):
@@ -426,10 +411,7 @@ fn test_reparent_range_branchy() {
         new_op_f.store_operation().metadata,
         op_f.store_operation().metadata
     );
-    assert_eq!(
-        new_op_f.store_operation().view_id,
-        op_f.store_operation().view_id
-    );
+    assert_eq!(new_op_f.view_id(), op_f.view_id());
     assert_eq!(new_op_f.parent_ids(), slice::from_ref(repo_d.op_id()));
 }
 
