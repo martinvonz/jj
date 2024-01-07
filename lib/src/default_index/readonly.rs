@@ -29,8 +29,8 @@ use thiserror::Error;
 use super::composite::{AsCompositeIndex, CompositeIndex, IndexSegment};
 use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec};
 use super::mutable::DefaultMutableIndex;
+use super::revset_engine;
 use crate::backend::{ChangeId, CommitId};
-use crate::default_revset_engine;
 use crate::index::{Index, MutableIndex, ReadonlyIndex};
 use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
@@ -533,7 +533,7 @@ impl ReadonlyIndex for DefaultReadonlyIndex {
         expression: &ResolvedExpression,
         store: &Arc<Store>,
     ) -> Result<Box<dyn Revset<'static>>, RevsetEvaluationError> {
-        let revset_impl = default_revset_engine::evaluate(expression, store, self.clone())?;
+        let revset_impl = revset_engine::evaluate(expression, store, self.clone())?;
         Ok(Box::new(revset_impl))
     }
 

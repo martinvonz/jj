@@ -23,9 +23,9 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
+use super::revset_graph_iterator::RevsetGraphIterator;
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexEntry, IndexPosition};
-use crate::default_revset_graph_iterator::RevsetGraphIterator;
 use crate::id_prefix::{IdIndex, IdIndexSource, IdIndexSourceEntry};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use crate::object_id::{HexPrefix, PrefixResolution};

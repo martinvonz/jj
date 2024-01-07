@@ -26,12 +26,13 @@ use super::entry::{
 };
 use super::readonly::ReadonlyIndexSegment;
 use super::rev_walk::RevWalk;
+use super::revset_engine;
 use crate::backend::{ChangeId, CommitId};
+use crate::hex_util;
 use crate::index::Index;
 use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
-use crate::{default_revset_engine, hex_util};
 
 pub(super) trait IndexSegment: Send + Sync {
     fn num_parent_commits(&self) -> u32;
@@ -299,7 +300,7 @@ impl<'a> CompositeIndex<'a> {
         expression: &ResolvedExpression,
         store: &Arc<Store>,
     ) -> Result<Box<dyn Revset<'a> + 'a>, RevsetEvaluationError> {
-        let revset_impl = default_revset_engine::evaluate(expression, store, *self)?;
+        let revset_impl = revset_engine::evaluate(expression, store, *self)?;
         Ok(Box::new(revset_impl))
     }
 }
