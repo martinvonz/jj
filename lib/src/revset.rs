@@ -35,7 +35,6 @@ use crate::backend::{BackendError, BackendResult, ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::git;
 use crate::hex_util::to_forward_hex;
-use crate::index::ChangeIdIndex;
 use crate::object_id::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
@@ -2413,8 +2412,6 @@ pub trait Revset<'index>: fmt::Debug {
     fn commit_change_ids(&self) -> Box<dyn Iterator<Item = (CommitId, ChangeId)> + '_>;
 
     fn iter_graph(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + '_>;
-
-    fn change_id_index(&self) -> Box<dyn ChangeIdIndex + 'index>;
 
     fn is_empty(&self) -> bool;
 

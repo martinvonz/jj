@@ -23,12 +23,9 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use super::composite::ChangeIdIndexImpl;
 use super::revset_graph_iterator::RevsetGraphIterator;
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexEntry, IndexPosition};
-use crate::id_prefix::IdIndex;
-use crate::index::ChangeIdIndex;
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
 use crate::repo_path::RepoPath;
 use crate::revset::{
@@ -131,18 +128,6 @@ where
 
     fn iter_graph(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + '_> {
         Box::new(self.iter_graph_impl())
-    }
-
-    fn change_id_index(&self) -> Box<dyn ChangeIdIndex + 'index> {
-        // TODO: Create a persistent lookup from change id to commit ids.
-        let mut pos_by_change = IdIndex::builder();
-        for entry in self.entries() {
-            pos_by_change.insert(&entry.change_id(), entry.position());
-        }
-        Box::new(ChangeIdIndexImpl {
-            index: self.index.clone(),
-            pos_by_change: pos_by_change.build(),
-        })
     }
 
     fn is_empty(&self) -> bool {
