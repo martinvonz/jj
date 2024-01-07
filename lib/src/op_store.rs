@@ -23,7 +23,7 @@ use itertools::Itertools as _;
 use once_cell::sync::Lazy;
 use thiserror::Error;
 
-use crate::backend::{CommitId, Timestamp};
+use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
 use crate::content_hash::ContentHash;
 use crate::merge::Merge;
 use crate::object_id::{id_type, HexPrefix, ObjectId, PrefixResolution};
@@ -369,6 +369,28 @@ content_hash! {
     }
 }
 
+impl Operation {
+    pub fn make_root(empty_view_id: ViewId) -> Operation {
+        let timestamp = Timestamp {
+            timestamp: MillisSinceEpoch(0),
+            tz_offset: 0,
+        };
+        let metadata = OperationMetadata {
+            start_time: timestamp.clone(),
+            end_time: timestamp,
+            description: "".to_string(),
+            hostname: "".to_string(),
+            username: "".to_string(),
+            tags: HashMap::new(),
+        };
+        Operation {
+            view_id: empty_view_id,
+            parents: vec![],
+            metadata,
+        }
+    }
+}
+
 content_hash! {
     #[derive(PartialEq, Eq, Clone, Debug)]
     pub struct OperationMetadata {
@@ -409,6 +431,8 @@ pub type OpStoreResult<T> = Result<T, OpStoreError>;
 
 pub trait OpStore: Send + Sync + Debug {
     fn name(&self) -> &str;
+
+    fn root_operation_id(&self) -> &OperationId;
 
     fn read_view(&self, id: &ViewId) -> OpStoreResult<View>;
 
