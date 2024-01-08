@@ -1,4 +1,4 @@
-// Copyright 2020 The Jujutsu Authors
+// Copyright 2024 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -69,13 +69,11 @@ fn read_git_target(workspace_root: &Path) -> String {
 }
 
 #[test]
-fn test_init_git_internal() {
+fn test_git_init_internal() {
     let test_env = TestEnvironment::default();
-    let (stdout, stderr) = test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    warning: `--git` and `--git-repo` are deprecated.
-    Use `jj git init` instead
     Initialized repo in "repo"
     "###);
 
@@ -94,7 +92,7 @@ fn test_init_git_internal() {
 
 #[test_case(false; "full")]
 #[test_case(true; "bare")]
-fn test_init_git_external(bare: bool) {
+fn test_git_init_external(bare: bool) {
     let test_env = TestEnvironment::default();
     let git_repo_path = test_env.env_root().join("git-repo");
     init_git_repo(&git_repo_path, bare);
@@ -102,6 +100,7 @@ fn test_init_git_external(bare: bool) {
     let (stdout, stderr) = test_env.jj_cmd_ok(
         test_env.env_root(),
         &[
+            "git",
             "init",
             "repo",
             "--git-repo",
@@ -115,8 +114,6 @@ fn test_init_git_external(bare: bool) {
         Working copy now at: sqpuoqvx f6950fc1 (empty) (no description set)
         Parent commit      : mwrttmos 8d698d4a my-branch | My commit message
         Added 1 files, modified 0 files, removed 0 files
-        warning: `--git` and `--git-repo` are deprecated.
-        Use `jj git init` instead
         Initialized repo in "repo"
         "###);
     }
@@ -149,11 +146,11 @@ fn test_init_git_external(bare: bool) {
 }
 
 #[test]
-fn test_init_git_external_non_existent_directory() {
+fn test_git_init_external_non_existent_directory() {
     let test_env = TestEnvironment::default();
     let stderr = test_env.jj_cmd_failure(
         test_env.env_root(),
-        &["init", "repo", "--git-repo", "non-existent"],
+        &["git", "init", "repo", "--git-repo", "non-existent"],
     );
     insta::assert_snapshot!(stderr, @r###"
     Error: $TEST_ENV/non-existent doesn't exist
@@ -161,11 +158,13 @@ fn test_init_git_external_non_existent_directory() {
 }
 
 #[test]
-fn test_init_git_external_non_existent_git_directory() {
+fn test_git_init_external_non_existent_git_directory() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
-    let stderr =
-        test_env.jj_cmd_failure(test_env.env_root(), &["init", "repo", "--git-repo", "repo"]);
+    let stderr = test_env.jj_cmd_failure(
+        test_env.env_root(),
+        &["git", "init", "repo", "--git-repo", "repo"],
+    );
 
     insta::assert_snapshot!(&stderr, @r###"
     Error: Failed to access the repository
@@ -179,16 +178,14 @@ fn test_init_git_external_non_existent_git_directory() {
 }
 
 #[test]
-fn test_init_git_colocated() {
+fn test_git_init_colocated_via_git_repo_path() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
     init_git_repo(&workspace_root, false);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--git-repo", "."]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Done importing changes from the underlying Git repo.
-    warning: `--git` and `--git-repo` are deprecated.
-    Use `jj git init` instead
     Initialized repo in "."
     "###);
 
@@ -223,7 +220,7 @@ fn test_init_git_colocated() {
 }
 
 #[test]
-fn test_init_git_colocated_gitlink() {
+fn test_git_init_colocated_via_git_repo_path_gitlink() {
     let test_env = TestEnvironment::default();
     // <workspace_root>/.git -> <git_repo_path>
     let git_repo_path = test_env.env_root().join("git-repo");
@@ -233,12 +230,10 @@ fn test_init_git_colocated_gitlink() {
         git2::RepositoryInitOptions::new().workdir_path(&workspace_root),
     );
     assert!(workspace_root.join(".git").is_file());
-    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--git-repo", "."]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Done importing changes from the underlying Git repo.
-    warning: `--git` and `--git-repo` are deprecated.
-    Use `jj git init` instead
     Initialized repo in "."
     "###);
     insta::assert_snapshot!(read_git_target(&workspace_root), @"../../../.git");
@@ -263,7 +258,7 @@ fn test_init_git_colocated_gitlink() {
 
 #[cfg(unix)]
 #[test]
-fn test_init_git_colocated_symlink_directory() {
+fn test_git_init_colocated_via_git_repo_path_symlink_directory() {
     let test_env = TestEnvironment::default();
     // <workspace_root>/.git -> <git_repo_path>
     let git_repo_path = test_env.env_root().join("git-repo");
@@ -271,12 +266,10 @@ fn test_init_git_colocated_symlink_directory() {
     init_git_repo(&git_repo_path, false);
     std::fs::create_dir(&workspace_root).unwrap();
     std::os::unix::fs::symlink(git_repo_path.join(".git"), workspace_root.join(".git")).unwrap();
-    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--git-repo", "."]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Done importing changes from the underlying Git repo.
-    warning: `--git` and `--git-repo` are deprecated.
-    Use `jj git init` instead
     Initialized repo in "."
     "###);
     insta::assert_snapshot!(read_git_target(&workspace_root), @"../../../.git");
@@ -301,7 +294,7 @@ fn test_init_git_colocated_symlink_directory() {
 
 #[cfg(unix)]
 #[test]
-fn test_init_git_colocated_symlink_directory_without_bare_config() {
+fn test_git_init_colocated_via_git_repo_path_symlink_directory_without_bare_config() {
     let test_env = TestEnvironment::default();
     // <workspace_root>/.git -> <git_repo_path>
     let git_repo_path = test_env.env_root().join("git-repo.git");
@@ -312,12 +305,10 @@ fn test_init_git_colocated_symlink_directory_without_bare_config() {
     git_repo.config().unwrap().remove("core.bare").unwrap();
     std::fs::rename(workspace_root.join(".git"), &git_repo_path).unwrap();
     std::os::unix::fs::symlink(&git_repo_path, workspace_root.join(".git")).unwrap();
-    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--git-repo", "."]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Done importing changes from the underlying Git repo.
-    warning: `--git` and `--git-repo` are deprecated.
-    Use `jj git init` instead
     Initialized repo in "."
     "###);
     insta::assert_snapshot!(read_git_target(&workspace_root), @"../../../.git");
@@ -342,7 +333,7 @@ fn test_init_git_colocated_symlink_directory_without_bare_config() {
 
 #[cfg(unix)]
 #[test]
-fn test_init_git_colocated_symlink_gitlink() {
+fn test_git_init_colocated_via_git_repo_path_symlink_gitlink() {
     let test_env = TestEnvironment::default();
     // <workspace_root>/.git -> <git_workdir_path>/.git -> <git_repo_path>
     let git_repo_path = test_env.env_root().join("git-repo");
@@ -355,12 +346,10 @@ fn test_init_git_colocated_symlink_gitlink() {
     assert!(git_workdir_path.join(".git").is_file());
     std::fs::create_dir(&workspace_root).unwrap();
     std::os::unix::fs::symlink(git_workdir_path.join(".git"), workspace_root.join(".git")).unwrap();
-    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--git-repo", "."]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Done importing changes from the underlying Git repo.
-    warning: `--git` and `--git-repo` are deprecated.
-    Use `jj git init` instead
     Initialized repo in "."
     "###);
     insta::assert_snapshot!(read_git_target(&workspace_root), @"../../../.git");
@@ -384,12 +373,12 @@ fn test_init_git_colocated_symlink_gitlink() {
 }
 
 #[test]
-fn test_init_git_colocated_imported_refs() {
+fn test_git_init_colocated_via_git_repo_path_imported_refs() {
     let test_env = TestEnvironment::default();
     test_env.add_config("git.auto-local-branch = true");
 
     // Set up remote refs
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "remote", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "remote"]);
     let remote_path = test_env.env_root().join("remote");
     test_env.jj_cmd_ok(
         &remote_path,
@@ -418,11 +407,9 @@ fn test_init_git_colocated_imported_refs() {
     // With git.auto-local-branch = true
     let local_path = test_env.env_root().join("local1");
     set_up_local_repo(&local_path);
-    let (_stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["init", "--git-repo=."]);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["git", "init", "--git-repo=."]);
     insta::assert_snapshot!(stderr, @r###"
     Done importing changes from the underlying Git repo.
-    warning: `--git` and `--git-repo` are deprecated.
-    Use `jj git init` instead
     Initialized repo in "."
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &local_path), @r###"
@@ -438,14 +425,12 @@ fn test_init_git_colocated_imported_refs() {
     test_env.add_config("git.auto-local-branch = false");
     let local_path = test_env.env_root().join("local2");
     set_up_local_repo(&local_path);
-    let (_stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["init", "--git-repo=."]);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["git", "init", "--git-repo=."]);
     insta::assert_snapshot!(stderr, @r###"
     Done importing changes from the underlying Git repo.
     The following remote branches aren't associated with the existing local branches:
       local-remote@origin
     Hint: Run `jj branch track local-remote@origin` to keep local branches updated on future pulls.
-    warning: `--git` and `--git-repo` are deprecated.
-    Use `jj git init` instead
     Initialized repo in "."
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &local_path), @r###"
@@ -457,7 +442,7 @@ fn test_init_git_colocated_imported_refs() {
 }
 
 #[test]
-fn test_init_git_external_but_git_dir_exists() {
+fn test_git_init_external_but_git_dir_exists() {
     let test_env = TestEnvironment::default();
     let git_repo_path = test_env.env_root().join("git-repo");
     let workspace_root = test_env.env_root().join("repo");
@@ -465,12 +450,10 @@ fn test_init_git_external_but_git_dir_exists() {
     init_git_repo(&workspace_root, false);
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_root,
-        &["init", "--git-repo", git_repo_path.to_str().unwrap()],
+        &["git", "init", "--git-repo", git_repo_path.to_str().unwrap()],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    warning: `--git` and `--git-repo` are deprecated.
-    Use `jj git init` instead
     Initialized repo in "."
     "###);
 
@@ -491,59 +474,35 @@ fn test_init_git_external_but_git_dir_exists() {
 }
 
 #[test]
-fn test_init_git_internal_must_be_colocated() {
+fn test_git_init_colocated_via_flag_git_dir_exists() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
     init_git_repo(&workspace_root, false);
 
-    let stderr = test_env.jj_cmd_failure(&workspace_root, &["init", "--git"]);
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "init", "--colocated"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Did not create a jj repo because there is an existing Git repo in this directory.
-    Hint: To create a repo backed by the existing Git repo, run `jj git init --git-repo=.` instead.
+    Error: Failed to access the repository
+    Caused by:
+    1: Failed to initialize git repository
+    2: Refusing to initialize the existing '$TEST_ENV/repo/.git' directory
     "###);
 }
 
 #[test]
-fn test_init_git_bad_wc_path() {
+fn test_git_init_colocated_via_flag_git_dir_not_exists() {
     let test_env = TestEnvironment::default();
-    std::fs::write(test_env.env_root().join("existing-file"), b"").unwrap();
-    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["init", "--git", "existing-file"]);
-    assert!(stderr.contains("Failed to create workspace"));
-}
-
-#[test]
-fn test_init_local_disallowed() {
-    let test_env = TestEnvironment::default();
-    let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["init", "repo"]);
-    insta::assert_snapshot!(stdout, @r###"
-    Error: The native backend is disallowed by default.
-    Hint: Did you mean to call `jj git init`?
-    Set `ui.allow-init-native` to allow initializing a repo with the native backend.
-    "###);
-}
-
-#[test]
-fn test_init_local() {
-    let test_env = TestEnvironment::default();
-    test_env.add_config(r#"ui.allow-init-native = true"#);
-    let (stdout, stderr) = test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocated", "repo"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Initialized repo in "repo"
     "###);
+}
 
-    let workspace_root = test_env.env_root().join("repo");
-    let jj_path = workspace_root.join(".jj");
-    let repo_path = jj_path.join("repo");
-    let store_path = repo_path.join("store");
-    assert!(workspace_root.is_dir());
-    assert!(jj_path.is_dir());
-    assert!(jj_path.join("working_copy").is_dir());
-    assert!(repo_path.is_dir());
-    assert!(store_path.is_dir());
-    assert!(store_path.join("commits").is_dir());
-    assert!(store_path.join("trees").is_dir());
-    assert!(store_path.join("files").is_dir());
-    assert!(store_path.join("symlinks").is_dir());
-    assert!(store_path.join("conflicts").is_dir());
+#[test]
+fn test_git_init_bad_wc_path() {
+    let test_env = TestEnvironment::default();
+    std::fs::write(test_env.env_root().join("existing-file"), b"").unwrap();
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["git", "init", "existing-file"]);
+    assert!(stderr.contains("Failed to create workspace"));
 }
