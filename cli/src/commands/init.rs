@@ -14,6 +14,7 @@
 
 use std::io;
 use std::io::Write;
+use std::path::Path;
 
 use clap::ArgGroup;
 use itertools::Itertools as _;
@@ -56,42 +57,9 @@ pub(crate) fn cmd_init(
     let wc_path = file_util::create_or_reuse_dir(&wc_path)
         .and_then(|_| wc_path.canonicalize())
         .map_err(|e| user_error_with_message("Failed to create workspace", e))?;
-    let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
 
-    if let Some(git_store_str) = &args.git_repo {
-        let git_store_path = cwd.join(git_store_str);
-        let (workspace, repo) =
-            Workspace::init_external_git(command.settings(), &wc_path, &git_store_path)?;
-        let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
-        git::maybe_add_gitignore(&workspace_command)?;
-        // Import refs first so all the reachable commits are indexed in
-        // chronological order.
-        workspace_command.import_git_refs(ui)?;
-        workspace_command.maybe_snapshot(ui)?;
-        if !workspace_command.working_copy_shared_with_git() {
-            let mut tx = workspace_command.start_transaction();
-            jj_lib::git::import_head(tx.mut_repo())?;
-            if let Some(git_head_id) = tx.mut_repo().view().git_head().as_normal().cloned() {
-                let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
-                tx.check_out(&git_head_commit)?;
-            }
-            if tx.mut_repo().has_changes() {
-                tx.finish(ui, "import git head")?;
-            }
-        }
-        print_trackable_remote_branches(ui, workspace_command.repo().view())?;
-    } else if args.git {
-        if wc_path.join(".git").exists() {
-            return Err(user_error_with_hint(
-                "Did not create a jj repo because there is an existing Git repo in this directory.",
-                format!(
-                    r#"To create a repo backed by the existing Git repo, run `jj init --git-repo={}` instead."#,
-                    relative_wc_path.display()
-                ),
-            ));
-        }
-
-        Workspace::init_internal_git(command.settings(), &wc_path)?;
+    if args.git || args.git_repo.is_some() {
+        git_init(ui, command, &wc_path, args.git_repo.as_deref())?;
     } else {
         if !command.settings().allow_native_backend() {
             return Err(user_error_with_hint(
@@ -101,8 +69,9 @@ Set `ui.allow-init-native` to allow initializing a repo with the native backend.
             ));
         }
         Workspace::init_local(command.settings(), &wc_path)?;
-    };
+    }
 
+    let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
     writeln!(
         ui.stderr(),
         "Initialized repo in \"{}\"",
@@ -142,5 +111,54 @@ fn print_trackable_remote_branches(ui: &Ui, view: &View) -> io::Result<()> {
         "Hint: Run `jj branch track {names}` to keep local branches updated on future pulls.",
         names = remote_branch_names.join(" "),
     )?;
+    Ok(())
+}
+
+// TODO(essiene): Move to cli/src/commands/git.rs for `jj git init`
+fn git_init(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    workspace_root: &Path,
+    git_repo: Option<&str>,
+) -> Result<(), CommandError> {
+    let cwd = command.cwd().canonicalize().unwrap();
+    let relative_wc_path = file_util::relative_path(&cwd, workspace_root);
+
+    if let Some(git_store_str) = git_repo {
+        let git_store_path = cwd.join(git_store_str);
+        let (workspace, repo) =
+            Workspace::init_external_git(command.settings(), workspace_root, &git_store_path)?;
+        let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
+        git::maybe_add_gitignore(&workspace_command)?;
+        // Import refs first so all the reachable commits are indexed in
+        // chronological order.
+        workspace_command.import_git_refs(ui)?;
+        workspace_command.maybe_snapshot(ui)?;
+        if !workspace_command.working_copy_shared_with_git() {
+            let mut tx = workspace_command.start_transaction();
+            jj_lib::git::import_head(tx.mut_repo())?;
+            if let Some(git_head_id) = tx.mut_repo().view().git_head().as_normal().cloned() {
+                let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
+                tx.check_out(&git_head_commit)?;
+            }
+            if tx.mut_repo().has_changes() {
+                tx.finish(ui, "import git head")?;
+            }
+        }
+        print_trackable_remote_branches(ui, workspace_command.repo().view())?;
+    } else {
+        if workspace_root.join(".git").exists() {
+            return Err(user_error_with_hint(
+                "Did not create a jj repo because there is an existing Git repo in this directory.",
+                format!(
+                    r#"To create a repo backed by the existing Git repo, run `jj init --git-repo={}` instead."#,
+                    relative_wc_path.display()
+                ),
+            ));
+        }
+
+        Workspace::init_internal_git(command.settings(), workspace_root)?;
+    }
+
     Ok(())
 }
