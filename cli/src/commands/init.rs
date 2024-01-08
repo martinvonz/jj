@@ -66,17 +66,7 @@ pub(crate) fn cmd_init(
     let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
 
     if let Some(git_store_str) = &args.git_repo {
-        let mut git_store_path = command.cwd().join(git_store_str);
-        git_store_path = git_store_path
-            .canonicalize()
-            .map_err(|_| user_error(format!("{} doesn't exist", git_store_path.display())))?;
-        if !git_store_path.ends_with(".git") {
-            git_store_path.push(".git");
-            // Undo if .git doesn't exist - likely a bare repo.
-            if !git_store_path.exists() {
-                git_store_path.pop();
-            }
-        }
+        let git_store_path = cwd.join(git_store_str);
         let (workspace, repo) =
             Workspace::init_external_git(command.settings(), &wc_path, &git_store_path)?;
         let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
