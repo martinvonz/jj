@@ -110,11 +110,7 @@ impl<I> fmt::Debug for RevsetImpl<I> {
     }
 }
 
-impl<'index, I> Revset<'index> for RevsetImpl<I>
-where
-    // Clone + Send + Sync for change_id_index()
-    I: AsCompositeIndex + Clone + Send + Sync + 'index,
-{
+impl<I: AsCompositeIndex> Revset for RevsetImpl<I> {
     fn iter(&self) -> Box<dyn Iterator<Item = CommitId> + '_> {
         Box::new(self.entries().map(|index_entry| index_entry.commit_id()))
     }

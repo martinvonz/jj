@@ -307,7 +307,7 @@ impl<'a> CompositeIndex<'a> {
         &self,
         expression: &ResolvedExpression,
         store: &Arc<Store>,
-    ) -> Result<Box<dyn Revset<'a> + 'a>, RevsetEvaluationError> {
+    ) -> Result<Box<dyn Revset + 'a>, RevsetEvaluationError> {
         let revset_impl = revset_engine::evaluate(expression, store, *self)?;
         Ok(Box::new(revset_impl))
     }
@@ -400,7 +400,7 @@ impl Index for CompositeIndex<'_> {
         &'index self,
         expression: &ResolvedExpression,
         store: &Arc<Store>,
-    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
+    ) -> Result<Box<dyn Revset + 'index>, RevsetEvaluationError> {
         CompositeIndex::evaluate_revset(self, expression, store)
     }
 }

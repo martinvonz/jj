@@ -81,7 +81,7 @@ pub trait Index: Send + Sync {
         &'index self,
         expression: &ResolvedExpression,
         store: &Arc<Store>,
-    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError>;
+    ) -> Result<Box<dyn Revset + 'index>, RevsetEvaluationError>;
 }
 
 pub trait ReadonlyIndex: Send + Sync {

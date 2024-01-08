@@ -453,7 +453,7 @@ impl Index for DefaultMutableIndex {
         &'index self,
         expression: &ResolvedExpression,
         store: &Arc<Store>,
-    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
+    ) -> Result<Box<dyn Revset + 'index>, RevsetEvaluationError> {
         self.as_composite().evaluate_revset(expression, store)
     }
 }

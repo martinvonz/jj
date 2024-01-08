@@ -663,7 +663,7 @@ impl RevsetExpression {
     pub fn evaluate_programmatic<'index>(
         self: Rc<Self>,
         repo: &'index dyn Repo,
-    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
+    ) -> Result<Box<dyn Revset + 'index>, RevsetEvaluationError> {
         optimize(self).resolve_programmatic(repo).evaluate(repo)
     }
 }
@@ -728,7 +728,7 @@ impl ResolvedExpression {
     pub fn evaluate<'index>(
         &self,
         repo: &'index dyn Repo,
-    ) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
+    ) -> Result<Box<dyn Revset + 'index>, RevsetEvaluationError> {
         repo.index().evaluate_revset(self, repo.store())
     }
 }
@@ -1945,7 +1945,7 @@ pub fn walk_revs<'index>(
     repo: &'index dyn Repo,
     wanted: &[CommitId],
     unwanted: &[CommitId],
-) -> Result<Box<dyn Revset<'index> + 'index>, RevsetEvaluationError> {
+) -> Result<Box<dyn Revset + 'index>, RevsetEvaluationError> {
     RevsetExpression::commits(unwanted.to_vec())
         .range(&RevsetExpression::commits(wanted.to_vec()))
         .evaluate_programmatic(repo)
@@ -2404,7 +2404,7 @@ impl VisibilityResolutionContext<'_> {
     }
 }
 
-pub trait Revset<'index>: fmt::Debug {
+pub trait Revset: fmt::Debug {
     /// Iterate in topological order with children before parents.
     fn iter(&self) -> Box<dyn Iterator<Item = CommitId> + '_>;
 

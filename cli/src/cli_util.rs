@@ -1139,7 +1139,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
     pub fn evaluate_revset<'repo>(
         &'repo self,
         revset_expression: Rc<RevsetExpression>,
-    ) -> Result<Box<dyn Revset<'repo> + 'repo>, CommandError> {
+    ) -> Result<Box<dyn Revset + 'repo>, CommandError> {
         let symbol_resolver = self.revset_symbol_resolver()?;
         let revset_expression =
             revset_expression.resolve_user_expression(self.repo().as_ref(), &symbol_resolver)?;
