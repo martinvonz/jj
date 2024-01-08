@@ -72,11 +72,6 @@ pub trait Index: Send + Sync {
     /// Parents before children
     fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId>;
 
-    fn change_id_index(
-        &self,
-        heads: &mut dyn Iterator<Item = &CommitId>,
-    ) -> Box<dyn ChangeIdIndex + '_>;
-
     fn evaluate_revset<'index>(
         &'index self,
         expression: &ResolvedExpression,
@@ -89,12 +84,8 @@ pub trait ReadonlyIndex: Send + Sync {
 
     fn as_index(&self) -> &dyn Index;
 
-    // TODO: might be better to split Index::change_id_index() to
-    // Readonly/MutableIndex::change_id_index_static().
-    fn change_id_index_static(
-        &self,
-        heads: &mut dyn Iterator<Item = &CommitId>,
-    ) -> Box<dyn ChangeIdIndex>;
+    fn change_id_index(&self, heads: &mut dyn Iterator<Item = &CommitId>)
+        -> Box<dyn ChangeIdIndex>;
 
     fn start_modification(&self) -> Box<dyn MutableIndex>;
 }
@@ -105,6 +96,11 @@ pub trait MutableIndex {
     fn into_any(self: Box<Self>) -> Box<dyn Any>;
 
     fn as_index(&self) -> &dyn Index;
+
+    fn change_id_index(
+        &self,
+        heads: &mut dyn Iterator<Item = &CommitId>,
+    ) -> Box<dyn ChangeIdIndex + '_>;
 
     fn add_commit(&mut self, commit: &Commit);
 

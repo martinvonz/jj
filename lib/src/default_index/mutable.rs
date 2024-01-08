@@ -29,7 +29,7 @@ use itertools::Itertools;
 use smallvec::SmallVec;
 use tempfile::NamedTempFile;
 
-use super::composite::{AsCompositeIndex, CompositeIndex, IndexSegment};
+use super::composite::{AsCompositeIndex, ChangeIdIndexImpl, CompositeIndex, IndexSegment};
 use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec};
 use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexSegment};
 use crate::backend::{ChangeId, CommitId};
@@ -442,13 +442,6 @@ impl Index for DefaultMutableIndex {
         self.as_composite().topo_order(input)
     }
 
-    fn change_id_index(
-        &self,
-        heads: &mut dyn Iterator<Item = &CommitId>,
-    ) -> Box<dyn ChangeIdIndex + '_> {
-        self.as_composite().change_id_index(heads)
-    }
-
     fn evaluate_revset<'index>(
         &'index self,
         expression: &ResolvedExpression,
@@ -469,6 +462,13 @@ impl MutableIndex for DefaultMutableIndex {
 
     fn as_index(&self) -> &dyn Index {
         self
+    }
+
+    fn change_id_index(
+        &self,
+        heads: &mut dyn Iterator<Item = &CommitId>,
+    ) -> Box<dyn ChangeIdIndex + '_> {
+        Box::new(ChangeIdIndexImpl::new(self, heads))
     }
 
     fn add_commit(&mut self, commit: &Commit) {
