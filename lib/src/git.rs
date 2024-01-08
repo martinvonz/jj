@@ -260,20 +260,22 @@ pub fn import_some_refs(
 
     // Bulk-import all reachable Git commits to the backend to reduce overhead of
     // table merging.
-    let head_ids = itertools::chain(
+    let index = mut_repo.index();
+    let missing_head_ids = itertools::chain(
         &changed_git_head,
         changed_git_refs.iter().map(|(_, new_target)| new_target),
         // changed_remote_refs might contain new_targets that are not in changed_git_refs,
         // but such targets should have already been imported to the backend.
     )
-    .flat_map(|target| target.added_ids());
-    let heads_imported = git_backend.import_head_commits(head_ids).is_ok();
+    .flat_map(|target| target.added_ids())
+    .filter(|&id| !index.has_id(id));
+    let heads_imported = git_backend.import_head_commits(missing_head_ids).is_ok();
 
     // Import new remote heads
     let mut head_commits = Vec::new();
     let get_commit = |id| {
         // If bulk-import failed, try again to find bad head or ref.
-        if !heads_imported {
+        if !heads_imported && !index.has_id(id) {
             git_backend.import_head_commits([id])?;
         }
         store.get_commit(id)

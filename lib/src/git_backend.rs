@@ -333,31 +333,35 @@ impl GitBackend {
     }
 
     /// Imports the given commits and ancestors from the backing Git repo.
+    ///
+    /// The `head_ids` may contain commits that have already been imported, but
+    /// the caller should filter them out to eliminate redundant I/O processing.
     #[tracing::instrument(skip(self, head_ids))]
     pub fn import_head_commits<'a>(
         &self,
         head_ids: impl IntoIterator<Item = &'a CommitId>,
     ) -> BackendResult<()> {
-        let table = self.cached_extra_metadata_table()?;
-        let mut missing_head_ids = head_ids
+        let head_ids = head_ids
             .into_iter()
-            .filter(|&id| *id != self.root_commit_id && table.get_value(id.as_bytes()).is_none())
+            .filter(|&id| *id != self.root_commit_id)
             .collect_vec();
-        if missing_head_ids.is_empty() {
+        if head_ids.is_empty() {
             return Ok(());
         }
 
         // These commits are imported from Git. Make our change ids persist (otherwise
         // future write_commit() could reassign new change id.)
         tracing::debug!(
-            heads_count = missing_head_ids.len(),
+            heads_count = head_ids.len(),
             "import extra metadata entries"
         );
         let locked_repo = self.lock_git_repo();
         let (table, table_lock) = self.read_extra_metadata_table_locked()?;
         let mut mut_table = table.start_mutation();
-        // Concurrent write_commit() might have updated the table before taking a lock.
-        missing_head_ids.retain(|&id| mut_table.get_value(id.as_bytes()).is_none());
+        let missing_head_ids = head_ids
+            .into_iter()
+            .filter(|&id| mut_table.get_value(id.as_bytes()).is_none())
+            .collect_vec();
         import_extra_metadata_entries_from_heads(
             &locked_repo,
             &mut mut_table,
