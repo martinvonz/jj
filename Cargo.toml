@@ -55,7 +55,7 @@ hex = "0.4.3"
 indexmap = "2.1.0"
 insta = { version = "1.34.0", features = ["filters"] }
 itertools = "0.11.0"
-libc = { version = "0.2.151" }
+libc = { version = "0.2.152" }
 maplit = "1.0.2"
 num_cpus = "1.16.0"
 once_cell = "1.19.0"
