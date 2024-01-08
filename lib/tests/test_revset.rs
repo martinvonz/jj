@@ -61,7 +61,7 @@ fn resolve_symbol(repo: &dyn Repo, symbol: &str) -> Result<Vec<CommitId>, Revset
 fn revset_for_commits<'index>(
     repo: &'index dyn Repo,
     commits: &[&Commit],
-) -> Box<dyn Revset<'index> + 'index> {
+) -> Box<dyn Revset + 'index> {
     let symbol_resolver = DefaultSymbolResolver::new(repo);
     RevsetExpression::commits(commits.iter().map(|commit| commit.id().clone()).collect())
         .resolve_user_expression(repo, &symbol_resolver)
