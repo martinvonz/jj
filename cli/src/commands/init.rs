@@ -33,11 +33,13 @@ pub(crate) struct InitArgs {
     /// The destination directory
     #[arg(default_value = ".", value_hint = clap::ValueHint::DirPath)]
     destination: String,
+    /// DEPRECATED: Use `jj git init`
     /// Use the Git backend, creating a jj repo backed by a Git repo
-    #[arg(long)]
+    #[arg(long, hide = true)]
     git: bool,
+    /// DEPRECATED: Use `jj git init`
     /// Path to a git repo the jj repo will be backed by
-    #[arg(long, value_hint = clap::ValueHint::DirPath)]
+    #[arg(long, hide = true, value_hint = clap::ValueHint::DirPath)]
     git_repo: Option<String>,
 }
 
@@ -53,13 +55,21 @@ pub(crate) fn cmd_init(
         .and_then(|_| wc_path.canonicalize())
         .map_err(|e| user_error_with_message("Failed to create workspace", e))?;
 
+    // Preserve existing behaviour where `jj init` is not able to create
+    // a colocated repo.
+    let colocated = false;
     if args.git || args.git_repo.is_some() {
-        git::git_init(ui, command, &wc_path, args.git_repo.as_deref())?;
+        git::git_init(ui, command, &wc_path, colocated, args.git_repo.as_deref())?;
+        writeln!(
+            ui.warning(),
+            "warning: `--git` and `--git-repo` are deprecated.
+Use `jj git init` instead"
+        )?;
     } else {
         if !command.settings().allow_native_backend() {
             return Err(user_error_with_hint(
                 "The native backend is disallowed by default.",
-                "Did you mean to pass `--git`?
+                "Did you mean to call `jj git init`?
 Set `ui.allow-init-native` to allow initializing a repo with the native backend.",
             ));
         }

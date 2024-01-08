@@ -58,6 +58,7 @@ use crate::ui::Ui;
 pub enum GitCommand {
     #[command(subcommand)]
     Remote(GitRemoteCommand),
+    Init(GitInitArgs),
     Fetch(GitFetchArgs),
     Clone(GitCloneArgs),
     Push(GitPushArgs),
@@ -106,6 +107,49 @@ pub struct GitRemoteRenameArgs {
 /// List Git remotes
 #[derive(clap::Args, Clone, Debug)]
 pub struct GitRemoteListArgs {}
+
+/// Create a new Git backed repo.
+#[derive(clap::Args, Clone, Debug)]
+pub struct GitInitArgs {
+    /// The destination directory where the `jj` repo will be created.
+    /// If the directory does not exist, it will be created.
+    /// If no directory is diven, the current directory is used.
+    ///
+    /// By default the `git` repo is under `$destination/.jj`
+    #[arg(default_value = ".", value_hint = clap::ValueHint::DirPath)]
+    destination: String,
+
+    /// Specifies that the `jj` repo should also be a valid
+    /// `git` repo, allowing the use of both `jj` and `git` commands
+    /// in the same directory.
+    ///
+    /// This is done by placing the backing git repo into a `.git` directory
+    /// in the root of the `jj` repo along with the `.jj` directory.
+    ///
+    /// This option is only valid when creating new repos. To
+    /// reuse an existing `.git` directory in an existing git
+    /// repo, see the `--git-repo` param below.
+    ///
+    /// This option is mutually exclusive with `--git-repo`.
+    #[arg(long, conflicts_with = "git_repo")]
+    colocated: bool,
+
+    /// Specifies a path to an **existing** git repository to be
+    /// used as the backing git repo for the newly created `jj` repo.
+    ///
+    /// If the specified `--git-repo` path happens to be the same as
+    /// the `jj` repo path (both .jj and .git directories are in the
+    /// same working directory), then both `jj` and `git` commands
+    /// will work on the repo, with the exception that changes from `jj`
+    /// will not be auto-exported to the git repo.
+    ///
+    /// Auto-exporting from `jj` to `git` is only enabled for new repos.
+    /// See `--colocated` above.
+    ///
+    /// This option is mutually exclusive with `--colocated`.
+    #[arg(long, conflicts_with = "colocated", value_hint = clap::ValueHint::DirPath)]
+    git_repo: Option<String>,
+}
 
 /// Fetch from a Git remote
 #[derive(clap::Args, Clone, Debug)]
@@ -317,10 +361,18 @@ pub fn git_init(
     ui: &mut Ui,
     command: &CommandHelper,
     workspace_root: &Path,
+    colocated: bool,
     git_repo: Option<&str>,
 ) -> Result<(), CommandError> {
     let cwd = command.cwd().canonicalize().unwrap();
     let relative_wc_path = file_util::relative_path(&cwd, workspace_root);
+
+    if colocated {
+        let (workspace, repo) = Workspace::init_colocated_git(command.settings(), workspace_root)?;
+        let workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
+        maybe_add_gitignore(&workspace_command)?;
+        return Ok(());
+    }
 
     if let Some(git_store_str) = git_repo {
         let git_store_path = cwd.join(git_store_str);
@@ -349,7 +401,7 @@ pub fn git_init(
             return Err(user_error_with_hint(
                 "Did not create a jj repo because there is an existing Git repo in this directory.",
                 format!(
-                    r#"To create a repo backed by the existing Git repo, run `jj init --git-repo={}` instead."#,
+                    r#"To create a repo backed by the existing Git repo, run `jj git init --git-repo={}` instead."#,
                     relative_wc_path.display()
                 ),
             ));
@@ -357,6 +409,35 @@ pub fn git_init(
 
         Workspace::init_internal_git(command.settings(), workspace_root)?;
     }
+
+    Ok(())
+}
+
+fn cmd_git_init(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &GitInitArgs,
+) -> Result<(), CommandError> {
+    let cwd = command.cwd().canonicalize().unwrap();
+    let wc_path = cwd.join(&args.destination);
+    let wc_path = file_util::create_or_reuse_dir(&wc_path)
+        .and_then(|_| wc_path.canonicalize())
+        .map_err(|e| user_error_with_message("Failed to create workspace", e))?;
+
+    git_init(
+        ui,
+        command,
+        &wc_path,
+        args.colocated,
+        args.git_repo.as_deref(),
+    )?;
+
+    let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
+    writeln!(
+        ui.stderr(),
+        r#"Initialized repo in "{}""#,
+        relative_wc_path.display()
+    )?;
 
     Ok(())
 }
@@ -1106,6 +1187,7 @@ pub fn cmd_git(
     subcommand: &GitCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
+        GitCommand::Init(args) => cmd_git_init(ui, command, args),
         GitCommand::Fetch(args) => cmd_git_fetch(ui, command, args),
         GitCommand::Clone(args) => cmd_git_clone(ui, command, args),
         GitCommand::Remote(GitRemoteCommand::Add(args)) => cmd_git_remote_add(ui, command, args),

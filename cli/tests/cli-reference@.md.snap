@@ -49,6 +49,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj git remote remove`↴](#jj-git-remote-remove)
 * [`jj git remote rename`↴](#jj-git-remote-rename)
 * [`jj git remote list`↴](#jj-git-remote-list)
+* [`jj git init`↴](#jj-git-init)
 * [`jj git fetch`↴](#jj-git-fetch)
 * [`jj git clone`↴](#jj-git-clone)
 * [`jj git push`↴](#jj-git-push)
@@ -746,6 +747,7 @@ For a comparison with Git, including a table of commands, see https://github.com
 ###### **Subcommands:**
 
 * `remote` — Manage Git remotes
+* `init` — Create a new Git backed repo
 * `fetch` — Fetch from a Git remote
 * `clone` — Create a new repo backed by a clone of a Git repo
 * `push` — Push to a Git remote
@@ -814,6 +816,28 @@ Rename a Git remote
 List Git remotes
 
 **Usage:** `jj git remote list`
+
+
+
+## `jj git init`
+
+Create a new Git backed repo
+
+**Usage:** `jj git init [OPTIONS] [DESTINATION]`
+
+###### **Arguments:**
+
+* `<DESTINATION>` — The destination directory where the `jj` repo will be created. If the directory does not exist, it will be created. If no directory is diven, the current directory is used
+
+  Default value: `.`
+
+###### **Options:**
+
+* `--colocated` — Specifies that the `jj` repo should also be a valid `git` repo, allowing the use of both `jj` and `git` commands in the same directory
+
+  Possible values: `true`, `false`
+
+* `--git-repo <GIT_REPO>` — Specifies a path to an **existing** git repository to be used as the backing git repo for the newly created `jj` repo
 
 
 
@@ -909,7 +933,7 @@ Create a new repo in the given directory
 
 If the given directory does not exist, it will be created. If no directory is given, the current directory is used.
 
-**Usage:** `jj init [OPTIONS] [DESTINATION]`
+**Usage:** `jj init [DESTINATION]`
 
 ###### **Arguments:**
 
@@ -919,11 +943,11 @@ If the given directory does not exist, it will be created. If no directory is gi
 
 ###### **Options:**
 
-* `--git` — Use the Git backend, creating a jj repo backed by a Git repo
+* `--git` — DEPRECATED: Use `jj git init` Use the Git backend, creating a jj repo backed by a Git repo
 
   Possible values: `true`, `false`
 
-* `--git-repo <GIT_REPO>` — Path to a git repo the jj repo will be backed by
+* `--git-repo <GIT_REPO>` — DEPRECATED: Use `jj git init` Path to a git repo the jj repo will be backed by
 
 
 

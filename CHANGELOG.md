@@ -33,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **Deadline**: `jj checkout` and `jj merge` will be deleted and are expected
   become a **hard error later in 2024**.
 
+* `jj init --git` and `jj init --git-repo` are now deprecated and will be removed
+  in the near future.
+
+  Use `jj git init` instead.
+
+
 ### Breaking changes
 
 * (Minor) Diff summaries (e.g. `jj diff -s`) now use `D` for "Deleted" instead
@@ -80,6 +86,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj workspace root` was aliased to `jj root`, for ease of discoverability
 
 * `jj diff` no longer shows the contents of binary files.
+
+* `jj git` now has an `init` command that initializes a git backed repo.
+ 
 
 ### Fixed bugs
 
