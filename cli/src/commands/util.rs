@@ -108,6 +108,11 @@ fn cmd_util_gc(
     command: &CommandHelper,
     _args: &UtilGcArgs,
 ) -> Result<(), CommandError> {
+    if command.global_args().at_operation != "@" {
+        return Err(user_error(
+            "Cannot garbage collect from a non-head operation",
+        ));
+    }
     let workspace_command = command.workspace_helper(ui)?;
     let store = workspace_command.repo().store();
     store.gc().map_err(|err| user_error(err.to_string()))?;
