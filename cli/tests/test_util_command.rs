@@ -37,3 +37,22 @@ fn test_util_config_schema() {
         "###)
     });
 }
+
+#[test]
+fn test_gc_args() {
+    let test_env = TestEnvironment::default();
+    // Use the local backend because GitBackend::gc() depends on the git CLI.
+    test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &["init", "repo", "--config-toml=ui.allow-init-native=true"],
+    );
+    let repo_path = test_env.env_root().join("repo");
+
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["util", "gc"]);
+    insta::assert_snapshot!(stderr, @"");
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["util", "gc", "--at-op=@-"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot garbage collect from a non-head operation
+    "###);
+}
