@@ -14,7 +14,7 @@
 
 #![allow(missing_docs)]
 
-use std::fs::File;
+use std::fs::{self, File};
 use std::path::{Component, Path, PathBuf};
 use std::{io, iter};
 
@@ -39,6 +39,19 @@ impl<T> IoResultExt<T> for io::Result<T> {
             path: path.as_ref().to_path_buf(),
             error,
         })
+    }
+}
+
+/// Creates a directory or does nothing if the directory already exists.
+///
+/// Returns the underlying error if the directory can't be created.
+/// The function will also fail if intermediate directories on the path do not
+/// already exist.
+pub fn create_or_reuse_dir(dirname: &Path) -> io::Result<()> {
+    match fs::create_dir(dirname) {
+        Ok(()) => Ok(()),
+        Err(_) if dirname.is_dir() => Ok(()),
+        Err(e) => Err(e),
     }
 }
 

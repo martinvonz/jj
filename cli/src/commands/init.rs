@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io;
 use std::io::Write;
-use std::{fs, io};
 
 use clap::ArgGroup;
 use itertools::Itertools as _;
@@ -51,16 +51,11 @@ pub(crate) fn cmd_init(
     command: &CommandHelper,
     args: &InitArgs,
 ) -> Result<(), CommandError> {
-    let wc_path = command.cwd().join(&args.destination);
-    match fs::create_dir(&wc_path) {
-        Ok(()) => {}
-        Err(_) if wc_path.is_dir() => {}
-        Err(e) => return Err(user_error_with_message("Failed to create workspace", e)),
-    }
-    let wc_path = wc_path
-        .canonicalize()
-        .map_err(|e| user_error_with_message("Failed to create workspace", e))?; // raced?
     let cwd = command.cwd().canonicalize().unwrap();
+    let wc_path = cwd.join(&args.destination);
+    let wc_path = file_util::create_or_reuse_dir(&wc_path)
+        .and_then(|_| wc_path.canonicalize())
+        .map_err(|e| user_error_with_message("Failed to create workspace", e))?;
     let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
 
     if let Some(git_store_str) = &args.git_repo {
