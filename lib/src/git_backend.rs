@@ -349,29 +349,28 @@ impl GitBackend {
             return Ok(());
         }
 
+        // Create no-gc ref even if known to the extras table. Concurrent GC
+        // process might have deleted the no-gc ref.
+        let locked_repo = self.lock_git_repo();
+        for &id in &head_ids {
+            prevent_gc(&locked_repo, id)?;
+        }
+
         // These commits are imported from Git. Make our change ids persist (otherwise
         // future write_commit() could reassign new change id.)
         tracing::debug!(
             heads_count = head_ids.len(),
             "import extra metadata entries"
         );
-        let locked_repo = self.lock_git_repo();
         let (table, table_lock) = self.read_extra_metadata_table_locked()?;
         let mut mut_table = table.start_mutation();
-        let missing_head_ids = head_ids
-            .into_iter()
-            .filter(|&id| mut_table.get_value(id.as_bytes()).is_none())
-            .collect_vec();
         import_extra_metadata_entries_from_heads(
             &locked_repo,
             &mut mut_table,
             &table_lock,
-            &missing_head_ids,
+            &head_ids,
             self.imported_commit_uses_tree_conflict_format,
         )?;
-        for &id in &missing_head_ids {
-            prevent_gc(&locked_repo, id)?;
-        }
         self.save_extra_metadata_table(mut_table, &table_lock)
     }
 
@@ -660,10 +659,14 @@ fn import_extra_metadata_entries_from_heads(
     git_repo: &gix::Repository,
     mut_table: &mut MutableTable,
     _table_lock: &FileLock,
-    missing_head_ids: &[&CommitId],
+    head_ids: &[&CommitId],
     uses_tree_conflict_format: bool,
 ) -> BackendResult<()> {
-    let mut work_ids = missing_head_ids.iter().map(|&id| id.clone()).collect_vec();
+    let mut work_ids = head_ids
+        .iter()
+        .filter(|&id| mut_table.get_value(id.as_bytes()).is_none())
+        .map(|&id| id.clone())
+        .collect_vec();
     while let Some(id) = work_ids.pop() {
         let git_object = git_repo
             .find_object(validate_git_object_id(&id)?)
@@ -1658,6 +1661,7 @@ mod tests {
         let settings = user_settings();
         let temp_dir = testutils::new_temp_dir();
         let backend = GitBackend::init_internal(&settings, temp_dir.path()).unwrap();
+        let git_repo = backend.open_git_repo().unwrap();
         let signature = Signature {
             name: "Someone".to_string(),
             email: "someone@example.com".to_string(),
@@ -1677,14 +1681,29 @@ mod tests {
             secure_sig: None,
         };
         let commit_id = backend.write_commit(commit, None).unwrap().0;
-        let git_refs = backend
-            .open_git_repo()
-            .unwrap()
+        let git_refs: Vec<_> = git_repo
             .references_glob("refs/jj/keep/*")
             .unwrap()
-            .map(|git_ref| git_ref.unwrap().target().unwrap())
-            .collect_vec();
-        assert_eq!(git_refs, vec![git_id(&commit_id)]);
+            .try_collect()
+            .unwrap();
+        assert!(git_refs
+            .iter()
+            .any(|git_ref| git_ref.target().unwrap() == git_id(&commit_id)));
+
+        // Concurrently-running GC deletes the ref, leaving the extra metadata.
+        for mut git_ref in git_refs {
+            git_ref.delete().unwrap();
+        }
+        // Re-imported commit should have new ref.
+        backend.import_head_commits([&commit_id]).unwrap();
+        let git_refs: Vec<_> = git_repo
+            .references_glob("refs/jj/keep/*")
+            .unwrap()
+            .try_collect()
+            .unwrap();
+        assert!(git_refs
+            .iter()
+            .any(|git_ref| git_ref.target().unwrap() == git_id(&commit_id)));
     }
 
     #[test]
