@@ -48,6 +48,8 @@ pub enum WorkspaceInitError {
     DestinationExists(PathBuf),
     #[error("Repo path could not be interpreted as Unicode text")]
     NonUnicodePath,
+    #[error("Path {0} does not exist")]
+    PathNotFound(PathBuf),
     #[error(transparent)]
     CheckOutCommit(#[from] CheckOutCommitError),
     #[error(transparent)]
@@ -194,6 +196,17 @@ impl Workspace {
         workspace_root: &Path,
         git_repo_path: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
+        let mut git_repo_path = git_repo_path
+            .canonicalize()
+            .map_err(|_| WorkspaceInitError::PathNotFound(git_repo_path.to_path_buf()))?;
+        if !git_repo_path.ends_with(".git") {
+            git_repo_path.push(".git");
+
+            if !git_repo_path.exists() {
+                git_repo_path.pop();
+            }
+        }
+
         let backend_initializer =
             |settings: &UserSettings, store_path: &Path| -> Result<Box<dyn Backend>, _> {
                 // If the git repo is inside the workspace, use a relative path to it so the
@@ -203,7 +216,7 @@ impl Workspace {
                 // Workspace::new(), but it's not yet here.
                 let store_relative_git_repo_path = match (
                     workspace_root.canonicalize(),
-                    canonicalize_git_repo_path(git_repo_path),
+                    canonicalize_git_repo_path(&git_repo_path),
                 ) {
                     (Ok(workspace_root), Ok(git_repo_path))
                         if git_repo_path.starts_with(&workspace_root) =>
