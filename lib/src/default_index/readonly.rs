@@ -509,14 +509,6 @@ impl Index for DefaultReadonlyIndex {
         self.as_composite().topo_order(input)
     }
 
-    // TODO: Create a persistent lookup from change id to commit ids.
-    fn change_id_index(
-        &self,
-        heads: &mut dyn Iterator<Item = &CommitId>,
-    ) -> Box<dyn ChangeIdIndex + '_> {
-        self.as_composite().change_id_index(heads)
-    }
-
     fn evaluate_revset<'index>(
         &'index self,
         expression: &ResolvedExpression,
@@ -535,7 +527,8 @@ impl ReadonlyIndex for DefaultReadonlyIndex {
         self
     }
 
-    fn change_id_index_static(
+    // TODO: Create a persistent lookup from change id to commit ids.
+    fn change_id_index(
         &self,
         heads: &mut dyn Iterator<Item = &CommitId>,
     ) -> Box<dyn ChangeIdIndex> {

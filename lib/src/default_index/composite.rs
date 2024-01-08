@@ -296,13 +296,6 @@ impl<'a> CompositeIndex<'a> {
         candidate_positions
     }
 
-    pub(super) fn change_id_index(
-        &self,
-        heads: &mut dyn Iterator<Item = &CommitId>,
-    ) -> Box<dyn ChangeIdIndex + 'a> {
-        Box::new(ChangeIdIndexImpl::new(*self, heads))
-    }
-
     pub(super) fn evaluate_revset(
         &self,
         expression: &ResolvedExpression,
@@ -387,13 +380,6 @@ impl Index for CompositeIndex<'_> {
         let mut ids = input.cloned().collect_vec();
         ids.sort_by_cached_key(|id| self.commit_id_to_pos(id).unwrap());
         ids
-    }
-
-    fn change_id_index(
-        &self,
-        heads: &mut dyn Iterator<Item = &CommitId>,
-    ) -> Box<dyn ChangeIdIndex + '_> {
-        CompositeIndex::change_id_index(self, heads)
     }
 
     fn evaluate_revset<'index>(

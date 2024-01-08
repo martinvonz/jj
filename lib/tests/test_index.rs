@@ -674,7 +674,7 @@ fn test_change_id_index() {
 
     let index_for_heads = |commits: &[&Commit]| {
         tx.repo()
-            .index()
+            .mutable_index()
             .change_id_index(&mut commits.iter().map(|commit| commit.id()))
     };
     let change_id_index = index_for_heads(&[&commit_1, &commit_2, &commit_3, &commit_4, &commit_5]);

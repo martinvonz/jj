@@ -265,10 +265,8 @@ impl ReadonlyRepo {
     fn change_id_index(&self) -> &dyn ChangeIdIndex {
         self.change_id_index
             .get_or_init(|| {
-                // TODO: maybe add abstraction over 'static/'index revset
-                // evaluation, and use it.
                 self.readonly_index()
-                    .change_id_index_static(&mut self.view().heads().iter())
+                    .change_id_index(&mut self.view().heads().iter())
             })
             .as_ref()
     }
@@ -1401,16 +1399,12 @@ impl Repo for MutableRepo {
     }
 
     fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
-        let change_id_index = self
-            .index()
-            .change_id_index(&mut self.view().heads().iter());
+        let change_id_index = self.index.change_id_index(&mut self.view().heads().iter());
         change_id_index.resolve_prefix(prefix)
     }
 
     fn shortest_unique_change_id_prefix_len(&self, target_id: &ChangeId) -> usize {
-        let change_id_index = self
-            .index()
-            .change_id_index(&mut self.view().heads().iter());
+        let change_id_index = self.index.change_id_index(&mut self.view().heads().iter());
         change_id_index.shortest_unique_prefix_len(target_id)
     }
 }
