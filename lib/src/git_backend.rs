@@ -607,6 +607,88 @@ fn to_no_gc_ref_update(id: &CommitId) -> gix::refs::transaction::RefEdit {
     }
 }
 
+fn to_ref_deletion(git_ref: gix::refs::Reference) -> gix::refs::transaction::RefEdit {
+    let expected = gix::refs::transaction::PreviousValue::ExistingMustMatch(git_ref.target);
+    gix::refs::transaction::RefEdit {
+        change: gix::refs::transaction::Change::Delete {
+            expected,
+            log: gix::refs::transaction::RefLog::AndReference,
+        },
+        name: git_ref.name,
+        deref: false,
+    }
+}
+
+/// Recreates `refs/jj/keep` refs for the `new_heads`, and removes the other
+/// unreachable and non-head refs.
+fn recreate_no_gc_refs(
+    git_repo: &gix::Repository,
+    new_heads: impl IntoIterator<Item = CommitId>,
+    keep_newer: SystemTime,
+) -> Result<(), BackendError> {
+    // Calculate diff between existing no-gc refs and new heads.
+    let new_heads: HashSet<CommitId> = new_heads.into_iter().collect();
+    let mut no_gc_refs_to_keep_count: usize = 0;
+    let mut no_gc_refs_to_delete: Vec<gix::refs::Reference> = Vec::new();
+    let git_references = git_repo
+        .references()
+        .map_err(|err| BackendError::Other(err.into()))?;
+    let no_gc_refs_iter = git_references
+        .prefixed(NO_GC_REF_NAMESPACE)
+        .map_err(|err| BackendError::Other(err.into()))?;
+    for git_ref in no_gc_refs_iter {
+        let git_ref = git_ref.map_err(BackendError::Other)?.detach();
+        let oid = git_ref.target.try_id().ok_or_else(|| {
+            let name = git_ref.name.as_bstr();
+            BackendError::Other(format!("Symbolic no-gc ref found: {name}").into())
+        })?;
+        let id = CommitId::from_bytes(oid.as_bytes());
+        let name_good = git_ref.name.as_bstr()[NO_GC_REF_NAMESPACE.len()..] == id.hex();
+        if new_heads.contains(&id) && name_good {
+            no_gc_refs_to_keep_count += 1;
+            continue;
+        }
+        // Check timestamp of loose ref, but this is still racy on re-import
+        // because:
+        // - existing packed ref won't be demoted to loose ref
+        // - existing loose ref won't be touched
+        //
+        // TODO: might be better to switch to a dummy merge, where new no-gc ref
+        // will always have a unique name. Doing that with the current
+        // ref-per-head strategy would increase the number of the no-gc refs.
+        // https://github.com/martinvonz/jj/pull/2659#issuecomment-1837057782
+        let loose_ref_path = git_repo.path().join(git_ref.name.to_path());
+        if let Ok(metadata) = loose_ref_path.metadata() {
+            let mtime = metadata.modified().expect("unsupported platform?");
+            if mtime > keep_newer {
+                tracing::trace!(?git_ref, "not deleting new");
+                no_gc_refs_to_keep_count += 1;
+                continue;
+            }
+        }
+        // Also deletes no-gc ref of random name created by old jj.
+        tracing::trace!(?git_ref, ?name_good, "will delete");
+        no_gc_refs_to_delete.push(git_ref);
+    }
+    tracing::info!(
+        new_heads_count = new_heads.len(),
+        no_gc_refs_to_keep_count,
+        no_gc_refs_to_delete_count = no_gc_refs_to_delete.len(),
+        "collected reachable refs"
+    );
+
+    // It's slow to delete packed refs one by one, so update refs all at once.
+    let ref_edits = itertools::chain(
+        no_gc_refs_to_delete.into_iter().map(to_ref_deletion),
+        new_heads.iter().map(to_no_gc_ref_update),
+    );
+    git_repo
+        .edit_references(ref_edits)
+        .map_err(|err| BackendError::Other(err.into()))?;
+
+    Ok(())
+}
+
 fn run_git_gc(git_dir: &Path) -> Result<(), GitGcError> {
     let mut git = Command::new("git");
     git.arg("--git-dir=."); // turn off discovery
@@ -1083,7 +1165,18 @@ impl Backend for GitBackend {
         Ok((id, contents))
     }
 
-    fn gc(&self, _index: &dyn Index, _keep_newer: SystemTime) -> BackendResult<()> {
+    #[tracing::instrument(skip(self, index))]
+    fn gc(&self, index: &dyn Index, keep_newer: SystemTime) -> BackendResult<()> {
+        let git_repo = self.lock_git_repo();
+        let new_heads = index
+            .all_heads_for_gc()
+            .map_err(|err| BackendError::Other(err.into()))?
+            .filter(|id| *id != self.root_commit_id);
+        recreate_no_gc_refs(&git_repo, new_heads, keep_newer)?;
+        // TODO: remove unreachable entries from extras table if segment file
+        // mtime <= keep_newer? (it won't be consistent with no-gc refs
+        // preserved by the keep_newer timestamp though)
+        // TODO: remove unreachable extras table segments
         // TODO: pass in keep_newer to "git gc" command
         run_git_gc(self.git_repo_path()).map_err(|err| BackendError::Other(err.into()))
     }
