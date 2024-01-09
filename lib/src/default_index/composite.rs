@@ -30,7 +30,7 @@ use super::revset_engine;
 use crate::backend::{ChangeId, CommitId};
 use crate::hex_util;
 use crate::id_prefix::{IdIndex, IdIndexSource, IdIndexSourceEntry};
-use crate::index::{ChangeIdIndex, Index};
+use crate::index::{AllHeadsForGcUnsupported, ChangeIdIndex, Index};
 use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
@@ -118,7 +118,6 @@ impl<'a> CompositeIndex<'a> {
         let num_commits = self.num_commits();
         let mut num_merges = 0;
         let mut max_generation_number = 0;
-        let mut is_head = vec![true; num_commits as usize];
         let mut change_ids = HashSet::new();
         for pos in 0..num_commits {
             let entry = self.entry_by_pos(IndexPosition(pos));
@@ -126,12 +125,9 @@ impl<'a> CompositeIndex<'a> {
             if entry.num_parents() > 1 {
                 num_merges += 1;
             }
-            for parent_pos in entry.parent_positions() {
-                is_head[parent_pos.0 as usize] = false;
-            }
             change_ids.insert(entry.change_id());
         }
-        let num_heads = u32::try_from(is_head.iter().filter(|is_head| **is_head).count()).unwrap();
+        let num_heads = u32::try_from(self.all_heads_pos().count()).unwrap();
 
         let mut levels = self
             .ancestor_index_segments()
@@ -262,6 +258,28 @@ impl<'a> CompositeIndex<'a> {
         rev_walk
     }
 
+    pub(super) fn all_heads(self) -> impl Iterator<Item = CommitId> + 'a {
+        self.all_heads_pos()
+            .map(move |pos| self.entry_by_pos(pos).commit_id())
+    }
+
+    pub(super) fn all_heads_pos(&self) -> impl Iterator<Item = IndexPosition> {
+        // TODO: can be optimized to use bit vec and leading/trailing_ones()
+        let num_commits = self.num_commits();
+        let mut not_head: Vec<bool> = vec![false; num_commits as usize];
+        for pos in 0..num_commits {
+            let entry = self.entry_by_pos(IndexPosition(pos));
+            for IndexPosition(parent_pos) in entry.parent_positions() {
+                not_head[parent_pos as usize] = true;
+            }
+        }
+        not_head
+            .into_iter()
+            .enumerate()
+            .filter(|&(_, b)| !b)
+            .map(|(i, _)| IndexPosition(u32::try_from(i).unwrap()))
+    }
+
     pub fn heads_pos(
         &self,
         mut candidate_positions: BTreeSet<IndexPosition>,
@@ -362,6 +380,12 @@ impl Index for CompositeIndex<'_> {
             .iter()
             .map(|pos| self.entry_by_pos(*pos).commit_id())
             .collect()
+    }
+
+    fn all_heads_for_gc(
+        &self,
+    ) -> Result<Box<dyn Iterator<Item = CommitId> + '_>, AllHeadsForGcUnsupported> {
+        Ok(Box::new(self.all_heads()))
     }
 
     fn heads(&self, candidate_ids: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {

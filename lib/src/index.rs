@@ -38,6 +38,12 @@ pub struct IndexReadError(pub Box<dyn std::error::Error + Send + Sync>);
 #[error(transparent)]
 pub struct IndexWriteError(pub Box<dyn std::error::Error + Send + Sync>);
 
+/// Error to be returned if `Index::all_heads_for_gc()` is not supported by the
+/// index backend.
+#[derive(Debug, Error)]
+#[error("Cannot collect all heads by index of this type")]
+pub struct AllHeadsForGcUnsupported;
+
 pub trait IndexStore: Send + Sync + Debug {
     fn as_any(&self) -> &dyn Any;
 
@@ -66,6 +72,18 @@ pub trait Index: Send + Sync {
     fn is_ancestor(&self, ancestor_id: &CommitId, descendant_id: &CommitId) -> bool;
 
     fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId>;
+
+    /// Heads among all indexed commits at the associated operation.
+    ///
+    /// Suppose the index contains all the historical heads and their
+    /// ancestors/predecessors reachable from the associated operation, this
+    /// function returns the heads that should be preserved on garbage
+    /// collection.
+    ///
+    /// The iteration order is unspecified.
+    fn all_heads_for_gc(
+        &self,
+    ) -> Result<Box<dyn Iterator<Item = CommitId> + '_>, AllHeadsForGcUnsupported>;
 
     fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId>;
 
