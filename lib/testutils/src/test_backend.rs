@@ -298,7 +298,7 @@ impl Backend for TestBackend {
         Ok((id, contents))
     }
 
-    fn gc(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    fn gc(&self) -> BackendResult<()> {
         Ok(())
     }
 }

@@ -605,6 +605,18 @@ fn to_no_gc_ref_update(id: &CommitId) -> gix::refs::transaction::RefEdit {
     }
 }
 
+fn run_git_gc(git_dir: &Path) -> Result<(), GitGcError> {
+    let mut git = std::process::Command::new("git");
+    git.env("GIT_DIR", git_dir);
+    git.args(["gc"]);
+    // TODO: pass output to UI layer instead of printing directly here
+    let status = git.status().map_err(GitGcError::GcCommand)?;
+    if !status.success() {
+        return Err(GitGcError::GcCommandErrorStatus(status));
+    }
+    Ok(())
+}
+
 fn validate_git_object_id(id: &impl ObjectId) -> Result<gix::ObjectId, BackendError> {
     if id.as_bytes().len() != HASH_LENGTH {
         return Err(BackendError::InvalidHashLength {
@@ -1066,16 +1078,8 @@ impl Backend for GitBackend {
         Ok((id, contents))
     }
 
-    fn gc(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        let mut git = std::process::Command::new("git");
-        git.env("GIT_DIR", self.git_repo_path());
-        git.args(["gc"]);
-        // TODO: pass output to UI layer instead of printing directly here
-        let status = git.status().map_err(GitGcError::GcCommand)?;
-        if !status.success() {
-            return Err(Box::new(GitGcError::GcCommandErrorStatus(status)));
-        }
-        Ok(())
+    fn gc(&self) -> BackendResult<()> {
+        run_git_gc(self.git_repo_path()).map_err(|err| BackendError::Other(err.into()))
     }
 }
 
