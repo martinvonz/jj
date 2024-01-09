@@ -20,6 +20,7 @@ use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 
 use async_trait::async_trait;
 use blake2::{Blake2b512, Digest};
@@ -33,6 +34,7 @@ use crate::backend::{
 };
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
+use crate::index::Index;
 use crate::merge::MergeBuilder;
 use crate::object_id::ObjectId;
 use crate::repo_path::{RepoPath, RepoPathComponentBuf};
@@ -299,7 +301,7 @@ impl Backend for LocalBackend {
         Ok((id, commit))
     }
 
-    fn gc(&self) -> BackendResult<()> {
+    fn gc(&self, _index: &dyn Index, _keep_newer: SystemTime) -> BackendResult<()> {
         Ok(())
     }
 }

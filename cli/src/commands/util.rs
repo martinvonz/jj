@@ -136,7 +136,7 @@ fn cmd_util_gc(
     let repo = workspace_command.repo();
     repo.op_store()
         .gc(slice::from_ref(repo.op_id()), keep_newer)?;
-    repo.store().gc()?;
+    repo.store().gc(repo.index(), keep_newer)?;
     Ok(())
 }
 

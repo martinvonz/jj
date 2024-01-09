@@ -15,6 +15,7 @@
 use std::any::Any;
 use std::io::Read;
 use std::path::Path;
+use std::time::SystemTime;
 
 use async_trait::async_trait;
 use jj_cli::cli_util::{CliRunner, CommandError, CommandHelper};
@@ -24,6 +25,7 @@ use jj_lib::backend::{
     Conflict, ConflictId, FileId, SigningFn, SymlinkId, Tree, TreeId,
 };
 use jj_lib::git_backend::GitBackend;
+use jj_lib::index::Index;
 use jj_lib::repo::StoreFactories;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::UserSettings;
@@ -171,7 +173,7 @@ impl Backend for JitBackend {
         self.inner.write_commit(contents, sign_with)
     }
 
-    fn gc(&self) -> BackendResult<()> {
-        self.inner.gc()
+    fn gc(&self, index: &dyn Index, keep_newer: SystemTime) -> BackendResult<()> {
+        self.inner.gc(index, keep_newer)
     }
 }

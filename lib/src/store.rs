@@ -19,6 +19,7 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::io::Read;
 use std::sync::{Arc, RwLock};
+use std::time::SystemTime;
 
 use pollster::FutureExt;
 
@@ -27,6 +28,7 @@ use crate::backend::{
     SymlinkId, TreeId,
 };
 use crate::commit::Commit;
+use crate::index::Index;
 use crate::merge::{Merge, MergedTreeValue};
 use crate::merged_tree::MergedTree;
 use crate::repo_path::{RepoPath, RepoPathBuf};
@@ -266,7 +268,7 @@ impl Store {
         TreeBuilder::new(self.clone(), base_tree_id)
     }
 
-    pub fn gc(&self) -> BackendResult<()> {
-        self.backend.gc()
+    pub fn gc(&self, index: &dyn Index, keep_newer: SystemTime) -> BackendResult<()> {
+        self.backend.gc(index, keep_newer)
     }
 }

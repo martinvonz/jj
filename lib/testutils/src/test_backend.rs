@@ -18,12 +18,14 @@ use std::fmt::{Debug, Error, Formatter};
 use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
+use std::time::SystemTime;
 
 use async_trait::async_trait;
 use jj_lib::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
     ConflictId, FileId, SecureSig, SigningFn, SymlinkId, Tree, TreeId,
 };
+use jj_lib::index::Index;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 
@@ -298,7 +300,7 @@ impl Backend for TestBackend {
         Ok((id, contents))
     }
 
-    fn gc(&self) -> BackendResult<()> {
+    fn gc(&self, _index: &dyn Index, _keep_newer: SystemTime) -> BackendResult<()> {
         Ok(())
     }
 }
