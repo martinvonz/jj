@@ -35,7 +35,7 @@ use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexSegment};
 use crate::backend::{ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::file_util::persist_content_addressed_temp_file;
-use crate::index::{ChangeIdIndex, Index, MutableIndex, ReadonlyIndex};
+use crate::index::{AllHeadsForGcUnsupported, ChangeIdIndex, Index, MutableIndex, ReadonlyIndex};
 use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
@@ -432,6 +432,12 @@ impl Index for DefaultMutableIndex {
 
     fn common_ancestors(&self, set1: &[CommitId], set2: &[CommitId]) -> Vec<CommitId> {
         self.as_composite().common_ancestors(set1, set2)
+    }
+
+    fn all_heads_for_gc(
+        &self,
+    ) -> Result<Box<dyn Iterator<Item = CommitId> + '_>, AllHeadsForGcUnsupported> {
+        Ok(Box::new(self.as_composite().all_heads()))
     }
 
     fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {

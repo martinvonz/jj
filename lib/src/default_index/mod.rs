@@ -1143,7 +1143,12 @@ mod tests {
         // Merge commit and other commit
         assert_eq!(
             index.heads(&mut [id_5.clone(), id_3.clone()].iter()),
-            vec![id_3, id_5]
+            vec![id_3.clone(), id_5.clone()]
+        );
+
+        assert_eq!(
+            index.all_heads_for_gc().unwrap().collect_vec(),
+            vec![id_3.clone(), id_5.clone()]
         );
     }
 }
