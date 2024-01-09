@@ -217,7 +217,7 @@ pub enum BackendError {
         object_type: &'static str,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
-    #[error("Error: {0}")]
+    #[error(transparent)]
     Other(Box<dyn std::error::Error + Send + Sync>),
 }
 
