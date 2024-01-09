@@ -451,5 +451,5 @@ pub trait Backend: Send + Sync + Debug {
 
     /// Perform garbage collection.
     // TODO: pass in the set of commits to keep here
-    fn gc(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
+    fn gc(&self) -> BackendResult<()>;
 }

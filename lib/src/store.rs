@@ -266,7 +266,7 @@ impl Store {
         TreeBuilder::new(self.clone(), base_tree_id)
     }
 
-    pub fn gc(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub fn gc(&self) -> BackendResult<()> {
         self.backend.gc()
     }
 }

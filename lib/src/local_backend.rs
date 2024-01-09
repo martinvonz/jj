@@ -299,7 +299,7 @@ impl Backend for LocalBackend {
         Ok((id, commit))
     }
 
-    fn gc(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    fn gc(&self) -> BackendResult<()> {
         Ok(())
     }
 }
