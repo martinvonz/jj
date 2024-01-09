@@ -21,6 +21,7 @@ use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::time::SystemTime;
 use std::{fs, io, str};
 
 use async_trait::async_trait;
@@ -37,6 +38,7 @@ use crate::backend::{
     TreeValue,
 };
 use crate::file_util::{IoResultExt as _, PathError};
+use crate::index::Index;
 use crate::lock::FileLock;
 use crate::merge::{Merge, MergeBuilder};
 use crate::object_id::ObjectId;
@@ -1081,7 +1083,8 @@ impl Backend for GitBackend {
         Ok((id, contents))
     }
 
-    fn gc(&self) -> BackendResult<()> {
+    fn gc(&self, _index: &dyn Index, _keep_newer: SystemTime) -> BackendResult<()> {
+        // TODO: pass in keep_newer to "git gc" command
         run_git_gc(self.git_repo_path()).map_err(|err| BackendError::Other(err.into()))
     }
 }

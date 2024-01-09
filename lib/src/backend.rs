@@ -19,12 +19,14 @@ use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::io::Read;
 use std::result::Result;
+use std::time::SystemTime;
 use std::vec::Vec;
 
 use async_trait::async_trait;
 use thiserror::Error;
 
 use crate::content_hash::ContentHash;
+use crate::index::Index;
 use crate::merge::Merge;
 use crate::object_id::{id_type, ObjectId};
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathComponentBuf};
@@ -450,6 +452,9 @@ pub trait Backend: Send + Sync + Debug {
     ) -> BackendResult<(CommitId, Commit)>;
 
     /// Perform garbage collection.
-    // TODO: pass in the set of commits to keep here
-    fn gc(&self) -> BackendResult<()>;
+    ///
+    /// All commits found in the `index` won't be removed. In addition to that,
+    /// objects created after `keep_newer` will be preserved. This mitigates a
+    /// risk of deleting new commits created concurrently by another process.
+    fn gc(&self, index: &dyn Index, keep_newer: SystemTime) -> BackendResult<()>;
 }
