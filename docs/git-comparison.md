@@ -303,6 +303,11 @@ parent.
       <td><code>git co &lt;destination&gt;; git cherry-pick &lt;source&gt;</code></td>
     </tr>
     <tr>
+      <td>Find the root of the working copy (or check if in a repo)</td>
+      <td><code>jj workspace root</code></td>
+      <td><code>git rev-parse --show-toplevel</code></td>
+    </tr>
+    <tr>
       <td>List branches</td>
       <td><code>jj branch list</code></td>
       <td><code>git branch</code></td>
