@@ -501,28 +501,29 @@ fn test_resolve_op_parents_children() {
     // Use monotonic timestamp to stabilize merge order of transactions
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init_with_settings(&settings);
-    let mut repo = test_repo.repo;
+    let mut repo = &test_repo.repo;
 
-    let mut operations = Vec::new();
+    let mut repos = Vec::new();
     for _ in 0..3 {
         let tx = repo.start_transaction(&settings);
-        repo = tx.commit("test");
-        operations.push(repo.operation().clone());
+        repos.push(tx.commit("test"));
+        repo = repos.last().unwrap();
     }
+    let operations = repos.iter().map(|repo| repo.operation()).collect_vec();
 
     // Parent
     let op2_id_hex = operations[2].id().hex();
     assert_eq!(
-        op_walk::resolve_op_with_repo(&repo, &format!("{op2_id_hex}-")).unwrap(),
-        operations[1]
+        op_walk::resolve_op_with_repo(repo, &format!("{op2_id_hex}-")).unwrap(),
+        *operations[1]
     );
     assert_eq!(
-        op_walk::resolve_op_with_repo(&repo, &format!("{op2_id_hex}--")).unwrap(),
-        operations[0]
+        op_walk::resolve_op_with_repo(repo, &format!("{op2_id_hex}--")).unwrap(),
+        *operations[0]
     );
     // "{op2_id_hex}---" is the operation to initialize the repo.
     assert_matches!(
-        op_walk::resolve_op_with_repo(&repo, &format!("{op2_id_hex}----")),
+        op_walk::resolve_op_with_repo(repo, &format!("{op2_id_hex}----")),
         Err(OpsetEvaluationError::OpsetResolution(
             OpsetResolutionError::EmptyOperations(_)
         ))
@@ -531,15 +532,15 @@ fn test_resolve_op_parents_children() {
     // Child
     let op0_id_hex = operations[0].id().hex();
     assert_eq!(
-        op_walk::resolve_op_with_repo(&repo, &format!("{op0_id_hex}+")).unwrap(),
-        operations[1]
+        op_walk::resolve_op_with_repo(repo, &format!("{op0_id_hex}+")).unwrap(),
+        *operations[1]
     );
     assert_eq!(
-        op_walk::resolve_op_with_repo(&repo, &format!("{op0_id_hex}++")).unwrap(),
-        operations[2]
+        op_walk::resolve_op_with_repo(repo, &format!("{op0_id_hex}++")).unwrap(),
+        *operations[2]
     );
     assert_matches!(
-        op_walk::resolve_op_with_repo(&repo, &format!("{op0_id_hex}+++")),
+        op_walk::resolve_op_with_repo(repo, &format!("{op0_id_hex}+++")),
         Err(OpsetEvaluationError::OpsetResolution(
             OpsetResolutionError::EmptyOperations(_)
         ))
@@ -547,14 +548,26 @@ fn test_resolve_op_parents_children() {
 
     // Child of parent
     assert_eq!(
-        op_walk::resolve_op_with_repo(&repo, &format!("{op2_id_hex}--+")).unwrap(),
-        operations[1]
+        op_walk::resolve_op_with_repo(repo, &format!("{op2_id_hex}--+")).unwrap(),
+        *operations[1]
+    );
+
+    // Child at old repo: new operations shouldn't be visible
+    assert_eq!(
+        op_walk::resolve_op_with_repo(&repos[1], &format!("{op0_id_hex}+")).unwrap(),
+        *operations[1]
+    );
+    assert_matches!(
+        op_walk::resolve_op_with_repo(&repos[0], &format!("{op0_id_hex}+")),
+        Err(OpsetEvaluationError::OpsetResolution(
+            OpsetResolutionError::EmptyOperations(_)
+        ))
     );
 
     // Merge and fork
     let tx1 = repo.start_transaction(&settings);
     let tx2 = repo.start_transaction(&settings);
-    repo = testutils::commit_transactions(&settings, vec![tx1, tx2]);
+    let repo = testutils::commit_transactions(&settings, vec![tx1, tx2]);
     let op5_id_hex = repo.operation().id().hex();
     assert_matches!(
         op_walk::resolve_op_with_repo(&repo, &format!("{op5_id_hex}-")),

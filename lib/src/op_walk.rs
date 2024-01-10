@@ -78,7 +78,8 @@ pub fn resolve_op_for_load(
             Err(OpsetResolutionError::MultipleOperations("@".to_owned()).into())
         })
     };
-    resolve_single_op(op_store, op_heads_store, get_current_op, op_str)
+    let get_head_ops = || get_current_head_ops(op_store, op_heads_store);
+    resolve_single_op(op_store, get_current_op, get_head_ops, op_str)
 }
 
 /// Resolves operation set expression against the loaded repo.
@@ -89,25 +90,22 @@ pub fn resolve_op_with_repo(
     op_str: &str,
 ) -> Result<Operation, OpsetEvaluationError> {
     let op_store = repo.op_store();
-    let op_heads_store = repo.op_heads_store().as_ref();
     let get_current_op = || Ok(repo.operation().clone());
-    resolve_single_op(op_store, op_heads_store, get_current_op, op_str)
+    let get_head_ops = || Ok(vec![repo.operation().clone()]);
+    resolve_single_op(op_store, get_current_op, get_head_ops, op_str)
 }
 
 /// Resolves operation set expression with the given "@" symbol resolution
-/// callback.
+/// callbacks.
 fn resolve_single_op(
     op_store: &Arc<dyn OpStore>,
-    op_heads_store: &dyn OpHeadsStore,
     get_current_op: impl FnOnce() -> Result<Operation, OpsetEvaluationError>,
+    get_head_ops: impl FnOnce() -> OpStoreResult<Vec<Operation>>,
     op_str: &str,
 ) -> Result<Operation, OpsetEvaluationError> {
     let op_symbol = op_str.trim_end_matches(['-', '+']);
     let op_postfix = &op_str[op_symbol.len()..];
-    let head_ops = op_postfix
-        .contains('+')
-        .then(|| get_current_head_ops(op_store, op_heads_store))
-        .transpose()?;
+    let head_ops = op_postfix.contains('+').then(get_head_ops).transpose()?;
     let mut operation = match op_symbol {
         "@" => get_current_op(),
         s => resolve_single_op_from_store(op_store, s),
