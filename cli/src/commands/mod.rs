@@ -43,6 +43,7 @@ mod prev;
 mod rebase;
 mod resolve;
 mod restore;
+mod root;
 mod run;
 mod show;
 mod sparse;
@@ -119,6 +120,7 @@ enum Command {
         help_template = "Not a real subcommand; consider `jj backout` or `jj restore`"
     )]
     Revert(DummyCommandArgs),
+    Root(root::RootArgs),
     #[command(hide = true)]
     // TODO: Flesh out.
     Run(run::RunArgs),
@@ -182,6 +184,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Unsquash(sub_args) => unsquash::cmd_unsquash(ui, command_helper, sub_args),
         Command::Restore(sub_args) => restore::cmd_restore(ui, command_helper, sub_args),
         Command::Revert(_args) => revert(),
+        Command::Root(sub_args) => root::cmd_root(ui, command_helper, sub_args),
         Command::Run(sub_args) => run::cmd_run(ui, command_helper, sub_args),
         Command::Diffedit(sub_args) => diffedit::cmd_diffedit(ui, command_helper, sub_args),
         Command::Split(sub_args) => split::cmd_split(ui, command_helper, sub_args),
