@@ -2379,7 +2379,7 @@ pub struct GlobalArgs {
     /// By default, Jujutsu snapshots the working copy at the beginning of every
     /// command. The working copy is also updated at the end of the command,
     /// if the command modified the working-copy commit (`@`). If you want
-    /// to avoid snapshotting the working and instead see a possibly
+    /// to avoid snapshotting the working copy and instead see a possibly
     /// stale working copy commit, you can use `--ignore-working-copy`.
     /// This may be useful e.g. in a command prompt, especially if you have
     /// another process that commits the working copy.
