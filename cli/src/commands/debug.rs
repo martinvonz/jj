@@ -197,11 +197,16 @@ fn cmd_debug_index(
     command: &CommandHelper,
     _args: &DebugIndexArgs,
 ) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo();
-    let default_index: Option<&DefaultReadonlyIndex> =
-        repo.readonly_index().as_any().downcast_ref();
-    if let Some(default_index) = default_index {
+    // Resolve the operation without loading the repo, so this command won't
+    // merge concurrent operations and update the index.
+    let workspace = command.load_workspace()?;
+    let repo_loader = workspace.repo_loader();
+    let op = op_walk::resolve_op_for_load(repo_loader, &command.global_args().at_operation)?;
+    let index_store = repo_loader.index_store();
+    let index = index_store
+        .get_index_at_op(&op, repo_loader.store())
+        .map_err(|err| CommandError::InternalError(err.to_string()))?;
+    if let Some(default_index) = index.as_any().downcast_ref::<DefaultReadonlyIndex>() {
         let stats = default_index.as_composite().stats();
         writeln!(ui.stdout(), "Number of commits: {}", stats.num_commits)?;
         writeln!(ui.stdout(), "Number of merges: {}", stats.num_merges)?;
@@ -221,7 +226,7 @@ fn cmd_debug_index(
     } else {
         return Err(user_error(format!(
             "Cannot get stats for indexes of type '{}'",
-            repo.index_store().name()
+            index_store.name()
         )));
     }
     Ok(())
