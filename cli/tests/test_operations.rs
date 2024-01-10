@@ -305,9 +305,10 @@ fn test_op_abandon_ancestors() {
     insta::assert_snapshot!(stderr, @r###"
     Abandoned 2 operations and reparented 1 descendant operations.
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["debug", "workingcopy"]), @r###"
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["debug", "workingcopy", "--ignore-working-copy"]), @r###"
     Current operation: OperationId("fb5252a68411468f5e3cf480a75b8b54d8ca9231406a3d0ddc4dfb31d851839a855aca5615ba4b09018fe45d11a04e1c051817a98de1c1ef5dd75cb6c2c09ba8")
-    Current tree: Merge(Resolved(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904")))
+    Current tree: Legacy(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904"))
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
     @  fb5252a68411 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
@@ -349,9 +350,10 @@ fn test_op_abandon_ancestors() {
     insta::assert_snapshot!(stderr, @r###"
     Abandoned 1 operations and reparented 1 descendant operations.
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["debug", "workingcopy"]), @r###"
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["debug", "workingcopy", "--ignore-working-copy"]), @r###"
     Current operation: OperationId("05aebafee59813d56c0ea1576520b3074f5ba3e128f2b31df7370284cee593bed5043475dc2cdd30a6f22662c1dfb6aba92b83806147e77c17ad14356c07079d")
-    Current tree: Merge(Resolved(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904")))
+    Current tree: Legacy(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904"))
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
     @  05aebafee598 test-username@host.example.com 2001-02-03 04:05:20.000 +07:00 - 2001-02-03 04:05:20.000 +07:00
