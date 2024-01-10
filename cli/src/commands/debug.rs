@@ -20,7 +20,6 @@ use clap::Subcommand;
 use jj_lib::default_index::{AsCompositeIndex as _, DefaultIndexStore, DefaultReadonlyIndex};
 use jj_lib::local_working_copy::LocalWorkingCopy;
 use jj_lib::object_id::ObjectId;
-use jj_lib::repo::Repo;
 use jj_lib::working_copy::WorkingCopy;
 use jj_lib::{op_walk, revset};
 
@@ -233,16 +232,18 @@ fn cmd_debug_reindex(
     command: &CommandHelper,
     _args: &DebugReIndexArgs,
 ) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo();
-    let default_index_store: Option<&DefaultIndexStore> =
-        repo.index_store().as_any().downcast_ref();
-    if let Some(default_index_store) = default_index_store {
+    // Resolve the operation without loading the repo. The index might have to
+    // be rebuilt while loading the repo.
+    let workspace = command.load_workspace()?;
+    let repo_loader = workspace.repo_loader();
+    let op = op_walk::resolve_op_for_load(repo_loader, &command.global_args().at_operation)?;
+    let index_store = repo_loader.index_store();
+    if let Some(default_index_store) = index_store.as_any().downcast_ref::<DefaultIndexStore>() {
         default_index_store
             .reinit()
             .map_err(|err| CommandError::InternalError(err.to_string()))?;
         let default_index = default_index_store
-            .build_index_at_operation(repo.operation(), repo.store())
+            .build_index_at_operation(&op, repo_loader.store())
             .map_err(|err| CommandError::InternalError(err.to_string()))?;
         writeln!(
             ui.stderr(),
@@ -252,7 +253,7 @@ fn cmd_debug_reindex(
     } else {
         return Err(user_error(format!(
             "Cannot reindex indexes of type '{}'",
-            repo.index_store().name()
+            index_store.name()
         )));
     }
     Ok(())
