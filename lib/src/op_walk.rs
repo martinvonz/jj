@@ -89,9 +89,17 @@ pub fn resolve_op_with_repo(
     repo: &ReadonlyRepo,
     op_str: &str,
 ) -> Result<Operation, OpsetEvaluationError> {
-    let op_store = repo.op_store();
-    let get_current_op = || Ok(repo.operation().clone());
-    let get_head_ops = || Ok(vec![repo.operation().clone()]);
+    resolve_op_at(repo.op_store(), repo.operation(), op_str)
+}
+
+/// Resolves operation set expression at the given head operation.
+pub fn resolve_op_at(
+    op_store: &Arc<dyn OpStore>,
+    head_op: &Operation,
+    op_str: &str,
+) -> Result<Operation, OpsetEvaluationError> {
+    let get_current_op = || Ok(head_op.clone());
+    let get_head_ops = || Ok(vec![head_op.clone()]);
     resolve_single_op(op_store, get_current_op, get_head_ops, op_str)
 }
 
