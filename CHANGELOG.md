@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj resolve` now displays the file being resolved.
 
+* `jj workspace root` was aliased to `jj root`, for ease of discoverability
+
 ### Fixed bugs
 
 * Fixed snapshots of symlinks in `gitignore`-d directory.
