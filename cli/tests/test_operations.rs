@@ -344,6 +344,12 @@ fn test_op_abandon_ancestors() {
     Hint: Run `jj undo` to revert the current operation, then use `jj op abandon`
     "###);
 
+    // Can't create concurrent abandoned operations explicitly.
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["op", "abandon", "--at-op=@-", "@"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: --at-op is not respected
+    "###);
+
     // Abandon the current operation by undoing it first.
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "abandon", "@-"]);
@@ -352,11 +358,11 @@ fn test_op_abandon_ancestors() {
     "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["debug", "workingcopy", "--ignore-working-copy"]), @r###"
-    Current operation: OperationId("05aebafee59813d56c0ea1576520b3074f5ba3e128f2b31df7370284cee593bed5043475dc2cdd30a6f22662c1dfb6aba92b83806147e77c17ad14356c07079d")
+    Current operation: OperationId("571221174898ef510c580f96bfb54f720bcfe0cd457e2ac5531d511fd10762b883f89b06c4ce5a8924db74406ddb59adbc2cbe0204540c7749ca24ded3fce94b")
     Current tree: Legacy(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904"))
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
-    @  05aebafee598 test-username@host.example.com 2001-02-03 04:05:20.000 +07:00 - 2001-02-03 04:05:20.000 +07:00
+    @  571221174898 test-username@host.example.com 2001-02-03 04:05:21.000 +07:00 - 2001-02-03 04:05:21.000 +07:00
     │  undo operation ee40c9ad806a7d42f351beab5aa81a8ac38d926d02711c059229bf6a7388b7b4a7c04c004067ee6c5b6253e8398fa82bc74d0d621f8bc2c8c11f33d445f90b77
     │  args: jj undo
     ◉  fb5252a68411 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
@@ -372,9 +378,60 @@ fn test_op_abandon_ancestors() {
     Nothing changed.
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log", "-l1"]), @r###"
-    @  05aebafee598 test-username@host.example.com 2001-02-03 04:05:20.000 +07:00 - 2001-02-03 04:05:20.000 +07:00
+    @  571221174898 test-username@host.example.com 2001-02-03 04:05:21.000 +07:00 - 2001-02-03 04:05:21.000 +07:00
     │  undo operation ee40c9ad806a7d42f351beab5aa81a8ac38d926d02711c059229bf6a7388b7b4a7c04c004067ee6c5b6253e8398fa82bc74d0d621f8bc2c8c11f33d445f90b77
     │  args: jj undo
+    "###);
+}
+
+#[test]
+fn test_op_abandon_without_updating_working_copy() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 1"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 2"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 3"]);
+
+    // Abandon without updating the working copy.
+    let (_stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["op", "abandon", "@-", "--ignore-working-copy"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Abandoned 1 operations and reparented 1 descendant operations.
+    "###);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["debug", "workingcopy", "--ignore-working-copy"]), @r###"
+    Current operation: OperationId("a6a87becb46cb138b33b8bc238ff066e1141da3e988574260ab54db676a68a070a592cacfd37e06177f604882f7de01189e2efb75148bc00ee5f9f55513feb26")
+    Current tree: Legacy(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904"))
+    "###);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["op", "log", "-l1", "--ignore-working-copy"]), @r###"
+    @  5dca1e30e810 test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
+    │  commit 268f5f16139313ff25bef31280b2ec2e675200f3
+    │  args: jj commit -m 'commit 3'
+    "###);
+
+    // The working-copy operation id isn't updated if it differs from the repo.
+    // It could be updated if the tree matches, but there's no extra logic for
+    // that.
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "abandon", "@-"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Abandoned 1 operations and reparented 1 descendant operations.
+    The working copy operation a6a87becb46c is not updated because it differs from the repo 5dca1e30e810.
+    "###);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["debug", "workingcopy", "--ignore-working-copy"]), @r###"
+    Current operation: OperationId("a6a87becb46cb138b33b8bc238ff066e1141da3e988574260ab54db676a68a070a592cacfd37e06177f604882f7de01189e2efb75148bc00ee5f9f55513feb26")
+    Current tree: Legacy(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904"))
+    "###);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["op", "log", "-l1", "--ignore-working-copy"]), @r###"
+    @  e3b64811d26b test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
+    │  commit 268f5f16139313ff25bef31280b2ec2e675200f3
+    │  args: jj commit -m 'commit 3'
     "###);
 }
 
