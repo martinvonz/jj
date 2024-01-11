@@ -311,6 +311,50 @@ impl View {
         self.data.git_head = target;
     }
 
+    /// Iterates all commit ids referenced by this view.
+    ///
+    /// This can include hidden commits referenced by remote branches, previous
+    /// positions of conflicted branches, etc. The ancestors and predecessors of
+    /// the returned commits should be considered reachable from the view. Use
+    /// this to build commit index from scratch.
+    ///
+    /// The iteration order is unspecified, and may include duplicated entries.
+    pub fn all_referenced_commit_ids(&self) -> impl Iterator<Item = &CommitId> {
+        // Include both added/removed ids since ancestry information of old
+        // references will be needed while merging views.
+        fn ref_target_ids(target: &RefTarget) -> impl Iterator<Item = &CommitId> {
+            target.as_merge().iter().flatten()
+        }
+
+        // Some of the fields (e.g. wc_commit_ids) would be redundant, but let's
+        // not be smart here. Callers will build a larger set of commits anyway.
+        let op_store::View {
+            head_ids,
+            public_head_ids,
+            local_branches,
+            tags,
+            remote_views,
+            git_refs,
+            git_head,
+            wc_commit_ids,
+        } = &self.data;
+        itertools::chain!(
+            head_ids,
+            public_head_ids,
+            local_branches.values().flat_map(ref_target_ids),
+            tags.values().flat_map(ref_target_ids),
+            remote_views.values().flat_map(|remote_view| {
+                let op_store::RemoteView { branches } = remote_view;
+                branches
+                    .values()
+                    .flat_map(|remote_ref| ref_target_ids(&remote_ref.target))
+            }),
+            git_refs.values().flat_map(ref_target_ids),
+            ref_target_ids(git_head),
+            wc_commit_ids.values()
+        )
+    }
+
     pub fn set_view(&mut self, data: op_store::View) {
         self.data = data;
     }

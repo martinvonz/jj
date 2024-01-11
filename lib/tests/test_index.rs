@@ -25,6 +25,7 @@ use jj_lib::default_index::{
 };
 use jj_lib::index::Index as _;
 use jj_lib::object_id::{HexPrefix, ObjectId as _, PrefixResolution};
+use jj_lib::op_store::{RefTarget, RemoteRef};
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jj_lib::settings::UserSettings;
 use testutils::test_backend::TestBackend;
@@ -311,6 +312,54 @@ fn test_index_commits_previous_operations() {
     assert_eq!(generation_number(index, commit_a.id()), 1);
     assert_eq!(generation_number(index, commit_b.id()), 2);
     assert_eq!(generation_number(index, commit_c.id()), 3);
+}
+
+#[test]
+fn test_index_commits_hidden_but_referenced() {
+    // Test that hidden-but-referenced commits are indexed.
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    // Remote branches are usually visible at a certain point in operation
+    // history, but that's not guaranteed if old operations have been discarded.
+    // This can also happen if imported remote branches get immediately
+    // abandoned because the other branch has moved.
+    let mut tx = repo.start_transaction(&settings);
+    let commit_a = write_random_commit(tx.mut_repo(), &settings);
+    let commit_b = write_random_commit(tx.mut_repo(), &settings);
+    let commit_c = write_random_commit(tx.mut_repo(), &settings);
+    tx.mut_repo().remove_head(commit_a.id());
+    tx.mut_repo().remove_head(commit_b.id());
+    tx.mut_repo().remove_head(commit_c.id());
+    tx.mut_repo().set_remote_branch(
+        "branch",
+        "origin",
+        RemoteRef {
+            target: RefTarget::from_legacy_form(
+                [commit_a.id().clone()],
+                [commit_b.id().clone(), commit_c.id().clone()],
+            ),
+            state: jj_lib::op_store::RemoteRefState::New,
+        },
+    );
+    let repo = tx.commit("test");
+
+    // All commits should be indexed
+    assert!(repo.index().has_id(commit_a.id()));
+    assert!(repo.index().has_id(commit_b.id()));
+    assert!(repo.index().has_id(commit_c.id()));
+
+    // Delete index from disk
+    let default_index_store: &DefaultIndexStore =
+        repo.index_store().as_any().downcast_ref().unwrap();
+    default_index_store.reinit().unwrap();
+
+    let repo = load_repo_at_head(&settings, repo.repo_path());
+    // All commits should be reindexed
+    assert!(repo.index().has_id(commit_a.id()));
+    assert!(repo.index().has_id(commit_b.id()));
+    assert!(repo.index().has_id(commit_c.id()));
 }
 
 #[test]

@@ -147,7 +147,8 @@ impl DefaultIndexStore {
         let operations_dir = self.dir.join("operations");
         let commit_id_length = store.commit_id_length();
         let change_id_length = store.change_id_length();
-        let mut visited_heads: HashSet<CommitId> = view.heads().clone();
+        let mut visited_heads: HashSet<CommitId> =
+            view.all_referenced_commit_ids().cloned().collect();
         let mut historical_heads: Vec<(CommitId, OperationId)> = visited_heads
             .iter()
             .map(|commit_id| (commit_id.clone(), operation.id().clone()))
@@ -167,7 +168,7 @@ impl DefaultIndexStore {
                 parent_op_id = Some(op.id().clone());
             }
             // TODO: no need to walk ancestors of the parent_op_id operation
-            for commit_id in op.view()?.heads() {
+            for commit_id in op.view()?.all_referenced_commit_ids() {
                 if visited_heads.insert(commit_id.clone()) {
                     historical_heads.push((commit_id.clone(), op.id().clone()));
                 }
