@@ -230,8 +230,10 @@ pub fn cmd_op_undo(
     command: &CommandHelper,
     args: &OperationUndoArgs,
 ) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
+    // Resolve the target operation against the pre-snapshot state.
+    let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
     let bad_op = workspace_command.resolve_single_op(&args.operation)?;
+    workspace_command.maybe_snapshot(ui)?;
     let mut parent_ops = bad_op.parents();
     let Some(parent_op) = parent_ops.next().transpose()? else {
         return Err(user_error("Cannot undo repo initialization"));
@@ -261,8 +263,10 @@ fn cmd_op_restore(
     command: &CommandHelper,
     args: &OperationRestoreArgs,
 ) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
+    // Resolve the target operation against the pre-snapshot state.
+    let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
     let target_op = workspace_command.resolve_single_op(&args.operation)?;
+    workspace_command.maybe_snapshot(ui)?;
     let mut tx = workspace_command.start_transaction();
     let new_view = view_with_desired_portions_restored(
         target_op.view()?.store_view(),

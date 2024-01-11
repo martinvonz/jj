@@ -49,6 +49,90 @@ fn test_undo_rewrite_with_child() {
 }
 
 #[test]
+fn test_undo_in_dirty_working_copy() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-mcommit1"]);
+    std::fs::write(repo_path.join("file2"), "").unwrap();
+
+    // This should undo the commit1, not the snapshot of the working copy.
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "undo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 1 descendant commits
+    Working copy now at: rlvkpnrz b811feb0 (no description set)
+    Parent commit      : qpvuntsm 230dd059 (empty) (no description set)
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-s"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  rlvkpnrz test.user@example.com 2001-02-03 04:05:09.000 +07:00 b811feb0
+    │  (no description set)
+    │  A file2
+    ◉  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
+    │  (empty) (no description set)
+    ◉  zzzzzzzz root() 00000000
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
+    @  593305332dfe test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    │  undo operation 10ad5feba032fd172057df92f45905c38133bbe0fe533c9d0ba1dcb9335b4ed8e644a54a2137817b9884c856aa5a5868c390c96139c872d82f24a76838e002d5
+    │  args: jj op undo
+    ◉  841868e6c503 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    │  snapshot working copy
+    │  args: jj op undo
+    ◉  10ad5feba032 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    │  args: jj commit -mcommit1
+    ◉  19b8089fc78b test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    ◉  f1c462c494be test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+       initialize repo
+    "###);
+}
+
+#[test]
+fn test_op_restore_in_dirty_working_copy() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-mcommit1"]);
+    std::fs::write(repo_path.join("file2"), "").unwrap();
+
+    // This should restore to the previous state, not to the current state
+    // before snapshotting the working copy.
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "restore", "@-"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: qpvuntsm 230dd059 (empty) (no description set)
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    Added 0 files, modified 0 files, removed 1 files
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-s"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
+    │  (empty) (no description set)
+    ◉  zzzzzzzz root() 00000000
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
+    @  80b89dd58913 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    │  restore to operation 19b8089fc78b7c49171f3c8934248be6f89f52311005e961cab5780f9f138b142456d77b27d223d7ee84d21d8c30c4a80100eaf6735b548b1acd0da688f94c80
+    │  args: jj op restore @-
+    ◉  176b5fa491b0 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    │  snapshot working copy
+    │  args: jj op restore @-
+    ◉  10ad5feba032 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    │  args: jj commit -mcommit1
+    ◉  19b8089fc78b test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    ◉  f1c462c494be test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+       initialize repo
+    "###);
+}
+
+#[test]
 fn test_git_push_undo() {
     let test_env = TestEnvironment::default();
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
