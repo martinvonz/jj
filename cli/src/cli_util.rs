@@ -587,7 +587,7 @@ impl CommandHelper {
     #[instrument(skip(self, ui))]
     pub fn workspace_helper(&self, ui: &mut Ui) -> Result<WorkspaceCommandHelper, CommandError> {
         let mut workspace_command = self.workspace_helper_no_snapshot(ui)?;
-        workspace_command.snapshot(ui)?;
+        workspace_command.maybe_snapshot(ui)?;
         Ok(workspace_command)
     }
 
@@ -787,7 +787,7 @@ impl WorkspaceCommandHelper {
     /// Snapshot the working copy if allowed, and import Git refs if the working
     /// copy is collocated with Git.
     #[instrument(skip_all)]
-    pub fn snapshot(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
+    pub fn maybe_snapshot(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         if self.may_update_working_copy {
             if self.working_copy_shared_with_git {
                 self.import_git_refs_and_head(ui)?;
@@ -1289,7 +1289,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
     }
 
     #[instrument(skip_all)]
-    pub fn snapshot_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
+    fn snapshot_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         let workspace_id = self.workspace_id().to_owned();
         let get_wc_commit = |repo: &ReadonlyRepo| -> Result<Option<_>, _> {
             repo.view()

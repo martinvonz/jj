@@ -290,7 +290,7 @@ fn cmd_workspace_update_stale(
     // fine if we picked the new wc_commit_id.
     let known_wc_commit = {
         let mut workspace_command = command.for_stale_working_copy(ui)?;
-        workspace_command.snapshot(ui)?;
+        workspace_command.maybe_snapshot(ui)?;
         let wc_commit_id = workspace_command.get_wc_commit_id().unwrap();
         workspace_command.repo().store().get_commit(wc_commit_id)?
     };
