@@ -180,15 +180,16 @@ fn test_log_builtin_templates() {
             "new",
         ],
     );
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "my-branch"]);
 
     insta::assert_snapshot!(render(r#"builtin_log_oneline"#), @r###"
-    @  rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 dc315397 (empty) (no description set)
+    @  rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 my-branch dc315397 (empty) (no description set)
     ◉  qpvuntsm test.user 2001-02-03 04:05:07.000 +07:00 230dd059 (empty) (no description set)
     ◉  zzzzzzzz root() 00000000
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_log_compact"#), @r###"
-    @  rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 dc315397
+    @  rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 my-branch dc315397
     │  (empty) (no description set)
     ◉  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
     │  (empty) (no description set)
@@ -196,7 +197,7 @@ fn test_log_builtin_templates() {
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_log_comfortable"#), @r###"
-    @  rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 dc315397
+    @  rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 my-branch dc315397
     │  (empty) (no description set)
     │
     ◉  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
@@ -208,6 +209,7 @@ fn test_log_builtin_templates() {
     insta::assert_snapshot!(render(r#"builtin_log_detailed"#), @r###"
     @  Commit ID: dc31539712c7294d1d712cec63cef4504b94ca74
     │  Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
+    │  Branches: my-branch
     │  Author: (no name set) <(no email set)> (2001-02-03 04:05:08.000 +07:00)
     │  Committer: (no name set) <(no email set)> (2001-02-03 04:05:08.000 +07:00)
     │
@@ -246,15 +248,16 @@ fn test_log_builtin_templates_colored() {
             "new",
         ],
     );
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "my-branch"]);
 
     insta::assert_snapshot!(render(r#"builtin_log_oneline"#), @r###"
-    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;9m(no email set)[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;12md[38;5;8mc315397[39m [38;5;10m(empty)[39m [38;5;10m(no description set)[39m[0m
+    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;9m(no email set)[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12md[38;5;8mc315397[39m [38;5;10m(empty)[39m [38;5;10m(no description set)[39m[0m
     ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m [38;5;2m(empty)[39m [38;5;2m(no description set)[39m
     ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot()[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_log_compact"#), @r###"
-    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;9m(no email set)[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;12md[38;5;8mc315397[39m[0m
+    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;9m(no email set)[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12md[38;5;8mc315397[39m[0m
     │  [1m[38;5;10m(empty)[39m [38;5;10m(no description set)[39m[0m
     ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m
     │  [38;5;2m(empty)[39m [38;5;2m(no description set)[39m
@@ -262,7 +265,7 @@ fn test_log_builtin_templates_colored() {
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_log_comfortable"#), @r###"
-    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;9m(no email set)[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;12md[38;5;8mc315397[39m[0m
+    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;9m(no email set)[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12md[38;5;8mc315397[39m[0m
     │  [1m[38;5;10m(empty)[39m [38;5;10m(no description set)[39m[0m
     │
     ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m
@@ -274,6 +277,7 @@ fn test_log_builtin_templates_colored() {
     insta::assert_snapshot!(render(r#"builtin_log_detailed"#), @r###"
     @  Commit ID: [38;5;4mdc31539712c7294d1d712cec63cef4504b94ca74[39m
     │  Change ID: [38;5;5mrlvkpnrzqnoowoytxnquwvuryrwnrmlp[39m
+    │  Branches: [38;5;5mmy-branch[39m
     │  Author: [38;5;1m(no name set)[39m <[38;5;1m(no email set)[39m> ([38;5;6m2001-02-03 04:05:08.000 +07:00[39m)
     │  Committer: [38;5;1m(no name set)[39m <[38;5;1m(no email set)[39m> ([38;5;6m2001-02-03 04:05:08.000 +07:00[39m)
     │

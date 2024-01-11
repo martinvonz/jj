@@ -76,11 +76,12 @@ if(root,
 )
 '''
 builtin_log_comfortable = 'builtin_log_compact ++ "\n"'
-# TODO: Add branches, tags, etc
 'builtin_log_detailed' = '''
 concat(
   "Commit ID: " ++ commit_id ++ "\n",
   "Change ID: " ++ change_id ++ "\n",
+  if(branches, "Branches: " ++ separate(" ", local_branches, remote_branches) ++ "\n"),
+  if(tags, "Tags: " ++ tags ++ "\n"),
   "Author: " ++ format_detailed_signature(author) ++ "\n",
   "Committer: " ++ format_detailed_signature(committer)  ++ "\n",
   "\n",
