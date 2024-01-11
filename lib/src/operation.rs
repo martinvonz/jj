@@ -15,14 +15,13 @@
 #![allow(missing_docs)]
 
 use std::cmp::Ordering;
-use std::collections::HashSet;
 use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use crate::backend::CommitId;
 use crate::op_store;
 use crate::op_store::{OpStore, OpStoreResult, OperationId, ViewId};
+use crate::view::View;
 
 #[derive(Clone)]
 pub struct Operation {
@@ -94,76 +93,10 @@ impl Operation {
 
     pub fn view(&self) -> OpStoreResult<View> {
         let data = self.op_store.read_view(&self.data.view_id)?;
-        let view = View::new(self.op_store.clone(), self.data.view_id.clone(), data);
-        Ok(view)
+        Ok(View::new(data))
     }
 
     pub fn store_operation(&self) -> &op_store::Operation {
         &self.data
-    }
-}
-
-#[derive(Clone)]
-pub struct View {
-    op_store: Arc<dyn OpStore>,
-    id: ViewId,
-    data: op_store::View,
-}
-
-impl Debug for View {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
-        f.debug_struct("View").field("id", &self.id).finish()
-    }
-}
-
-impl PartialEq for View {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-impl Eq for View {}
-
-impl Ord for View {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.id.cmp(&other.id)
-    }
-}
-
-impl PartialOrd for View {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Hash for View {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.id.hash(state)
-    }
-}
-
-impl View {
-    pub fn new(op_store: Arc<dyn OpStore>, id: ViewId, data: op_store::View) -> Self {
-        View { op_store, id, data }
-    }
-
-    pub fn op_store(&self) -> Arc<dyn OpStore> {
-        self.op_store.clone()
-    }
-
-    pub fn id(&self) -> &ViewId {
-        &self.id
-    }
-
-    pub fn store_view(&self) -> &op_store::View {
-        &self.data
-    }
-
-    pub fn take_store_view(self) -> op_store::View {
-        self.data
-    }
-
-    pub fn heads(&self) -> &HashSet<CommitId> {
-        &self.data.head_ids
     }
 }
