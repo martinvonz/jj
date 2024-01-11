@@ -32,6 +32,21 @@ fn test_concurrent_operation_divergence() {
         &["describe", "-m", "message 2", "--at-op", "@-"],
     );
 
+    // "op log" doesn't merge the concurrent operations
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
+    insta::assert_snapshot!(stdout, @r###"
+    ◉  94fce7319d45 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    │  args: jj describe -m 'message 2' --at-op @-
+    │ ◉  15e35d1e9190 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    ├─╯  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    │    args: jj describe -m 'message 1'
+    ◉  19b8089fc78b test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    ◉  f1c462c494be test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+       initialize repo
+    "###);
+
     // We should be informed about the concurrent modification
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-T", "description"]);
     insta::assert_snapshot!(stdout, @r###"

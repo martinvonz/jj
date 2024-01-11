@@ -158,7 +158,7 @@ fn resolve_single_op_from_store(
 
 /// Loads the current head operations. The returned operations may contain
 /// redundant ones which are ancestors of the other heads.
-fn get_current_head_ops(
+pub fn get_current_head_ops(
     op_store: &Arc<dyn OpStore>,
     op_heads_store: &dyn OpHeadsStore,
 ) -> OpStoreResult<Vec<Operation>> {

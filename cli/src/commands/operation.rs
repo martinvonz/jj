@@ -132,26 +132,45 @@ fn cmd_op_log(
     command: &CommandHelper,
     args: &OperationLogArgs,
 ) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo();
-    let head_op = repo.operation().clone();
-    let head_op_id = head_op.id().clone();
+    // Don't load the repo so that the operation history can be inspected even
+    // with a corrupted repo state. For example, you can find the first bad
+    // operation id to be abandoned.
+    let workspace = command.load_workspace()?;
+    let repo_loader = workspace.repo_loader();
+    let head_op_str = &command.global_args().at_operation;
+    let head_ops = if head_op_str == "@" {
+        // If multiple head ops can't be resolved without merging, let the
+        // current op be empty. Beware that resolve_op_for_load() will eliminate
+        // redundant heads whereas get_current_head_ops() won't.
+        let current_op = op_walk::resolve_op_for_load(repo_loader, head_op_str).ok();
+        if let Some(op) = current_op {
+            vec![op]
+        } else {
+            op_walk::get_current_head_ops(
+                repo_loader.op_store(),
+                repo_loader.op_heads_store().as_ref(),
+            )?
+        }
+    } else {
+        vec![op_walk::resolve_op_for_load(repo_loader, head_op_str)?]
+    };
+    let current_op_id = match &*head_ops {
+        [op] => Some(op.id()),
+        _ => None,
+    };
 
     let template_string = match &args.template {
         Some(value) => value.to_owned(),
         None => command.settings().config().get_string("templates.op_log")?,
     };
-    let template = operation_templater::parse(
-        Some(repo.op_id()),
-        &template_string,
-        workspace_command.template_aliases_map(),
-    )?;
+    let template_aliases = command.load_template_aliases(ui)?;
+    let template = operation_templater::parse(current_op_id, &template_string, &template_aliases)?;
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
-    let iter = op_walk::walk_ancestors(&[head_op]).take(args.limit.unwrap_or(usize::MAX));
+    let iter = op_walk::walk_ancestors(&head_ops).take(args.limit.unwrap_or(usize::MAX));
     if !args.no_graph {
         let mut graph = get_graphlog(command.settings(), formatter.raw());
         let default_node_symbol = graph.default_node_symbol().to_owned();
@@ -161,7 +180,7 @@ fn cmd_op_log(
             for id in op.parent_ids() {
                 edges.push(Edge::direct(id.clone()));
             }
-            let is_head_op = op.id() == &head_op_id;
+            let is_current_op = Some(op.id()) == current_op_id;
             let mut buffer = vec![];
             with_content_format.write_graph_text(
                 ui.new_formatter(&mut buffer).as_mut(),
@@ -173,7 +192,7 @@ fn cmd_op_log(
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
-            let node_symbol = if is_head_op {
+            let node_symbol = if is_current_op {
                 "@"
             } else {
                 &default_node_symbol
