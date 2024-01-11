@@ -81,7 +81,7 @@ pub(crate) fn cmd_init(
             Workspace::init_external_git(command.settings(), &wc_path, &git_store_path)?;
         let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
         git::maybe_add_gitignore(&workspace_command)?;
-        workspace_command.snapshot(ui)?;
+        workspace_command.maybe_snapshot(ui)?;
         if !workspace_command.working_copy_shared_with_git() {
             let mut tx = workspace_command.start_transaction();
             let stats = jj_lib::git::import_some_refs(
