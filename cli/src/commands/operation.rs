@@ -142,7 +142,7 @@ fn cmd_op_log(
         None => command.settings().config().get_string("templates.op_log")?,
     };
     let template = operation_templater::parse(
-        repo,
+        Some(repo.op_id()),
         &template_string,
         workspace_command.template_aliases_map(),
     )?;

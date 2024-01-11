@@ -18,7 +18,6 @@ use itertools::Itertools as _;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::{OperationId, OperationMetadata};
 use jj_lib::operation::Operation;
-use jj_lib::repo::ReadonlyRepo;
 
 use crate::formatter::Formatter;
 use crate::template_builder::{
@@ -33,7 +32,7 @@ use crate::templater::{
 };
 
 struct OperationTemplateLanguage<'b> {
-    head_op_id: &'b OperationId,
+    current_op_id: Option<&'b OperationId>,
 }
 
 impl TemplateLanguage<'static> for OperationTemplateLanguage<'_> {
@@ -126,8 +125,8 @@ fn build_operation_keyword(
 
     let property = match name {
         "current_operation" => {
-            let head_op_id = language.head_op_id.clone();
-            language.wrap_boolean(wrap_fn(move |op| op.id() == &head_op_id))
+            let current_op_id = language.current_op_id.cloned();
+            language.wrap_boolean(wrap_fn(move |op| Some(op.id()) == current_op_id.as_ref()))
         }
         "description" => {
             language.wrap_string(wrap_metadata_fn(|metadata| metadata.description.clone()))
@@ -187,12 +186,11 @@ fn build_operation_id_method(
 }
 
 pub fn parse(
-    repo: &ReadonlyRepo,
+    current_op_id: Option<&OperationId>,
     template_text: &str,
     aliases_map: &TemplateAliasesMap,
 ) -> TemplateParseResult<Box<dyn Template<Operation>>> {
-    let head_op_id = repo.op_id();
-    let language = OperationTemplateLanguage { head_op_id };
+    let language = OperationTemplateLanguage { current_op_id };
     let node = template_parser::parse(template_text, aliases_map)?;
     template_builder::build(&language, &node)
 }
