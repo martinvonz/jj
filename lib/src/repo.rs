@@ -664,13 +664,13 @@ impl RepoLoader {
             &self.op_store,
             |op_heads| self._resolve_op_heads(op_heads, user_settings),
         )?;
-        let view = View::new(op.view()?.take_store_view());
+        let view = op.view()?;
         Ok(self._finish_load(op, view))
     }
 
     #[instrument(skip(self))]
     pub fn load_at(&self, op: &Operation) -> Result<Arc<ReadonlyRepo>, RepoLoaderError> {
-        let view = View::new(op.view()?.take_store_view());
+        let view = op.view()?;
         Ok(self._finish_load(op.clone(), view))
     }
 
