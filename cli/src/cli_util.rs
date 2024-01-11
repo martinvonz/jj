@@ -583,31 +583,25 @@ impl CommandHelper {
         self.maybe_workspace_loader.as_ref().map_err(Clone::clone)
     }
 
+    /// Loads workspace and repo, then snapshots the working copy if allowed.
     #[instrument(skip(self, ui))]
-    fn workspace_helper_internal(
-        &self,
-        ui: &mut Ui,
-        snapshot: bool,
-    ) -> Result<WorkspaceCommandHelper, CommandError> {
-        let workspace = self.load_workspace()?;
-        let op_head = self.resolve_operation(ui, workspace.repo_loader())?;
-        let repo = workspace.repo_loader().load_at(&op_head)?;
-        let mut workspace_command = self.for_loaded_repo(ui, workspace, repo)?;
-        if snapshot {
-            workspace_command.snapshot(ui)?;
-        }
+    pub fn workspace_helper(&self, ui: &mut Ui) -> Result<WorkspaceCommandHelper, CommandError> {
+        let mut workspace_command = self.workspace_helper_no_snapshot(ui)?;
+        workspace_command.snapshot(ui)?;
         Ok(workspace_command)
     }
 
-    pub fn workspace_helper(&self, ui: &mut Ui) -> Result<WorkspaceCommandHelper, CommandError> {
-        self.workspace_helper_internal(ui, true)
-    }
-
+    /// Loads workspace and repo, but never snapshots the working copy. Most
+    /// commands should use `workspace_helper()` instead.
+    #[instrument(skip(self, ui))]
     pub fn workspace_helper_no_snapshot(
         &self,
         ui: &mut Ui,
     ) -> Result<WorkspaceCommandHelper, CommandError> {
-        self.workspace_helper_internal(ui, false)
+        let workspace = self.load_workspace()?;
+        let op_head = self.resolve_operation(ui, workspace.repo_loader())?;
+        let repo = workspace.repo_loader().load_at(&op_head)?;
+        self.for_loaded_repo(ui, workspace, repo)
     }
 
     #[instrument(skip_all)]
