@@ -2361,18 +2361,13 @@ pub struct Args {
 }
 
 #[derive(clap::Args, Clone, Debug)]
+#[command(next_help_heading = "Global Options")]
 pub struct GlobalArgs {
     /// Path to repository to operate on
     ///
     /// By default, Jujutsu searches for the closest .jj/ directory in an
     /// ancestor of the current working directory.
-    #[arg(
-    long,
-    short = 'R',
-    global = true,
-    help_heading = "Global Options",
-    value_hint = clap::ValueHint::DirPath,
-    )]
+    #[arg(long, short = 'R', global = true, value_hint = clap::ValueHint::DirPath)]
     pub repository: Option<String>,
     /// Don't snapshot the working copy, and don't update it
     ///
@@ -2386,7 +2381,7 @@ pub struct GlobalArgs {
     ///
     /// Loading the repository is at a specific operation with `--at-operation`
     /// implies `--ignore-working-copy`.
-    #[arg(long, global = true, help_heading = "Global Options")]
+    #[arg(long, global = true)]
     pub ignore_working_copy: bool,
     /// Operation to load the repo at
     ///
@@ -2406,16 +2401,10 @@ pub struct GlobalArgs {
     /// earlier operation. Doing that is equivalent to having run concurrent
     /// commands starting at the earlier operation. There's rarely a reason to
     /// do that, but it is possible.
-    #[arg(
-        long,
-        visible_alias = "at-op",
-        global = true,
-        help_heading = "Global Options",
-        default_value = "@"
-    )]
+    #[arg(long, visible_alias = "at-op", global = true, default_value = "@")]
     pub at_operation: String,
     /// Enable verbose logging
-    #[arg(long, short = 'v', global = true, help_heading = "Global Options")]
+    #[arg(long, short = 'v', global = true)]
     pub verbose: bool,
 
     #[command(flatten)]
@@ -2425,33 +2414,17 @@ pub struct GlobalArgs {
 #[derive(clap::Args, Clone, Debug)]
 pub struct EarlyArgs {
     /// When to colorize output (always, never, auto)
-    #[arg(
-        long,
-        value_name = "WHEN",
-        global = true,
-        help_heading = "Global Options"
-    )]
+    #[arg(long, value_name = "WHEN", global = true)]
     pub color: Option<ColorChoice>,
     /// Disable the pager
-    #[arg(
-        long,
-        value_name = "WHEN",
-        global = true,
-        help_heading = "Global Options",
-        action = ArgAction::SetTrue
-    )]
+    #[arg(long, value_name = "WHEN", global = true, action = ArgAction::SetTrue)]
     // Parsing with ignore_errors will crash if this is bool, so use
     // Option<bool>.
     pub no_pager: Option<bool>,
     /// Additional configuration options (can be repeated)
     //  TODO: Introduce a `--config` option with simpler syntax for simple
     //  cases, designed so that `--config ui.color=auto` works
-    #[arg(
-        long,
-        value_name = "TOML",
-        global = true,
-        help_heading = "Global Options"
-    )]
+    #[arg(long, value_name = "TOML", global = true)]
     pub config_toml: Vec<String>,
 }
 
