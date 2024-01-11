@@ -17,7 +17,6 @@
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
-use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fs, slice};
@@ -37,7 +36,7 @@ use crate::commit_builder::CommitBuilder;
 use crate::default_index::{DefaultIndexStore, DefaultMutableIndex};
 use crate::default_submodule_store::DefaultSubmoduleStore;
 use crate::file_util::{IoResultExt as _, PathError};
-use crate::index::{ChangeIdIndex, Index, IndexStore, MutableIndex, ReadonlyIndex};
+use crate::index::{ChangeIdIndex, Index, IndexReadError, IndexStore, MutableIndex, ReadonlyIndex};
 use crate::local_backend::LocalBackend;
 use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
@@ -95,7 +94,7 @@ pub struct ReadonlyRepo {
     settings: RepoSettings,
     index_store: Arc<dyn IndexStore>,
     submodule_store: Arc<dyn SubmoduleStore>,
-    index: OnceCell<Box<dyn ReadonlyIndex>>,
+    index: Box<dyn ReadonlyIndex>,
     change_id_index: OnceCell<Box<dyn ChangeIdIndex>>,
     // TODO: This should eventually become part of the index and not be stored fully in memory.
     view: View,
@@ -179,7 +178,7 @@ impl ReadonlyRepo {
         let index_store = index_store_initializer(user_settings, &index_path)?;
         let index_type_path = index_path.join("type");
         fs::write(&index_type_path, index_store.name()).context(&index_type_path)?;
-        let index_store = Arc::from(index_store);
+        let index_store: Arc<dyn IndexStore> = Arc::from(index_store);
 
         let submodule_store_path = repo_path.join("submodule_store");
         fs::create_dir(&submodule_store_path).context(&submodule_store_path)?;
@@ -198,6 +197,11 @@ impl ReadonlyRepo {
             root_operation_data,
         );
         let root_view = root_operation.view().expect("failed to read root view");
+        let index = index_store
+            .get_index_at_op(&root_operation, &store)
+            // If the root op index couldn't be read, the index backend wouldn't
+            // be initialized properly.
+            .map_err(|err| BackendInitError(err.into()))?;
         let repo = Arc::new(ReadonlyRepo {
             repo_path,
             store,
@@ -206,7 +210,7 @@ impl ReadonlyRepo {
             operation: root_operation,
             settings: repo_settings,
             index_store,
-            index: OnceCell::new(),
+            index,
             change_id_index: OnceCell::new(),
             view: root_view,
             submodule_store,
@@ -247,15 +251,7 @@ impl ReadonlyRepo {
     }
 
     pub fn readonly_index(&self) -> &dyn ReadonlyIndex {
-        self.index
-            .get_or_init(|| {
-                // TODO: somehow propagate error, but it's weird if all callers
-                // had Result<T, IndexReadError> signature.
-                self.index_store
-                    .get_index_at_op(&self.operation, &self.store)
-                    .unwrap()
-            })
-            .deref()
+        self.index.as_ref()
     }
 
     fn change_id_index(&self) -> &dyn ChangeIdIndex {
@@ -589,6 +585,8 @@ pub enum RepoLoaderError {
     #[error(transparent)]
     Backend(#[from] BackendError),
     #[error(transparent)]
+    IndexRead(#[from] IndexReadError),
+    #[error(transparent)]
     OpHeadResolution(#[from] OpHeadResolutionError),
     #[error(transparent)]
     OpStore(#[from] OpStoreError),
@@ -669,13 +667,13 @@ impl RepoLoader {
             |op_heads| self._resolve_op_heads(op_heads, user_settings),
         )?;
         let view = op.view()?;
-        Ok(self._finish_load(op, view))
+        self._finish_load(op, view)
     }
 
     #[instrument(skip(self))]
     pub fn load_at(&self, op: &Operation) -> Result<Arc<ReadonlyRepo>, RepoLoaderError> {
         let view = op.view()?;
-        Ok(self._finish_load(op.clone(), view))
+        self._finish_load(op.clone(), view)
     }
 
     pub fn create_from(
@@ -693,7 +691,7 @@ impl RepoLoader {
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
             submodule_store: self.submodule_store.clone(),
-            index: OnceCell::with_value(index),
+            index,
             change_id_index: OnceCell::new(),
             view,
         };
@@ -743,7 +741,12 @@ impl RepoLoader {
         )
     }
 
-    fn _finish_load(&self, operation: Operation, view: View) -> Arc<ReadonlyRepo> {
+    fn _finish_load(
+        &self,
+        operation: Operation,
+        view: View,
+    ) -> Result<Arc<ReadonlyRepo>, RepoLoaderError> {
+        let index = self.index_store.get_index_at_op(&operation, &self.store)?;
         let repo = ReadonlyRepo {
             repo_path: self.repo_path.clone(),
             store: self.store.clone(),
@@ -753,11 +756,11 @@ impl RepoLoader {
             settings: self.repo_settings.clone(),
             index_store: self.index_store.clone(),
             submodule_store: self.submodule_store.clone(),
-            index: OnceCell::new(),
+            index,
             change_id_index: OnceCell::new(),
             view,
         };
-        Arc::new(repo)
+        Ok(Arc::new(repo))
     }
 }
 
