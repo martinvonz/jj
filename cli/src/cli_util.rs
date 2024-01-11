@@ -579,6 +579,14 @@ impl CommandHelper {
         self.layered_configs.resolved_config_values(prefix)
     }
 
+    /// Loads template aliases from the configs.
+    ///
+    /// For most commands that depend on a loaded repo, you should use
+    /// `WorkspaceCommandHelper::template_aliases_map()` instead.
+    pub fn load_template_aliases(&self, ui: &Ui) -> Result<TemplateAliasesMap, CommandError> {
+        load_template_aliases(ui, &self.layered_configs)
+    }
+
     pub fn workspace_loader(&self) -> Result<&WorkspaceLoader, CommandError> {
         self.maybe_workspace_loader.as_ref().map_err(Clone::clone)
     }
@@ -737,7 +745,7 @@ impl WorkspaceCommandHelper {
         repo: Arc<ReadonlyRepo>,
     ) -> Result<Self, CommandError> {
         let revset_aliases_map = load_revset_aliases(ui, &command.layered_configs)?;
-        let template_aliases_map = load_template_aliases(ui, &command.layered_configs)?;
+        let template_aliases_map = command.load_template_aliases(ui)?;
         // Parse commit_summary template early to report error before starting mutable
         // operation.
         // TODO: Parsed template can be cached if it doesn't capture repo
