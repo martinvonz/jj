@@ -966,10 +966,6 @@ impl WorkspaceCommandHelper {
         git_ignores
     }
 
-    pub fn resolve_single_op(&self, op_str: &str) -> Result<Operation, OpsetEvaluationError> {
-        op_walk::resolve_op_with_repo(self.repo(), op_str)
-    }
-
     /// Resolve a revset to a single revision. Return an error if the revset is
     /// empty or has multiple revisions.
     pub fn resolve_single_rev(

@@ -232,7 +232,7 @@ pub fn cmd_op_undo(
 ) -> Result<(), CommandError> {
     // Resolve the target operation against the pre-snapshot state.
     let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
-    let bad_op = workspace_command.resolve_single_op(&args.operation)?;
+    let bad_op = op_walk::resolve_op_with_repo(workspace_command.repo(), &args.operation)?;
     workspace_command.maybe_snapshot(ui)?;
     let mut parent_ops = bad_op.parents();
     let Some(parent_op) = parent_ops.next().transpose()? else {
@@ -265,7 +265,7 @@ fn cmd_op_restore(
 ) -> Result<(), CommandError> {
     // Resolve the target operation against the pre-snapshot state.
     let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
-    let target_op = workspace_command.resolve_single_op(&args.operation)?;
+    let target_op = op_walk::resolve_op_with_repo(workspace_command.repo(), &args.operation)?;
     workspace_command.maybe_snapshot(ui)?;
     let mut tx = workspace_command.start_transaction();
     let new_view = view_with_desired_portions_restored(
