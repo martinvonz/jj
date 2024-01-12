@@ -71,7 +71,7 @@ jobs:
         with:
           python-version: 3.11
       - name: Install poetry
-        uses: abatilo/actions-poetry@v2
+        uses: abatilo/actions-poetry@v3
         with:
           poetry-version: latest
       - name: Install dependencies
@@ -88,7 +88,7 @@ jobs:
         with:
           python-version: 3.11
       - name: Install poetry
-        uses: abatilo/actions-poetry@v2
+        uses: abatilo/actions-poetry@v3
         with:
           # Test with the version of Poetry in Debian stable. If this starts
           # failing, we should increase this version and document the minimum
