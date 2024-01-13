@@ -275,14 +275,14 @@ fn test_workspaces_conflicting_edits() {
     "###);
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["st"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: The working copy is stale (not updated since operation 5c95db542ebd).
+    Error: The working copy is stale (not updated since operation 86c5150a3a9c).
     Hint: Run `jj workspace update-stale` to update it.
     See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
     "###);
     // Same error on second run, and from another command
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["log"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: The working copy is stale (not updated since operation 5c95db542ebd).
+    Error: The working copy is stale (not updated since operation 86c5150a3a9c).
     Hint: Run `jj workspace update-stale` to update it.
     See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
     "###);
@@ -362,7 +362,7 @@ fn test_workspaces_updated_by_other() {
     "###);
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["st"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: The working copy is stale (not updated since operation 5c95db542ebd).
+    Error: The working copy is stale (not updated since operation 86c5150a3a9c).
     Hint: Run `jj workspace update-stale` to update it.
     See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
     "###);
@@ -543,7 +543,7 @@ fn test_workspaces_forget_multi_transaction() {
     // the op log should have multiple workspaces forgotten in a single tx
     let stdout = test_env.jj_cmd_success(&main_path, &["op", "log", "--limit", "1"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  e18f223ba3d3 test-username@host.example.com 2001-02-03 04:05:12.000 +07:00 - 2001-02-03 04:05:12.000 +07:00
+    @  a2acfd91b649 test-username@host.example.com 2001-02-03 04:05:12.000 +07:00 - 2001-02-03 04:05:12.000 +07:00
     │  forget workspaces second, third
     │  args: jj workspace forget second third
     "###);

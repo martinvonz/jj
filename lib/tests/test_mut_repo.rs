@@ -367,74 +367,6 @@ fn test_remove_head() {
 }
 
 #[test]
-fn test_add_public_head() {
-    // Test that MutableRepo::add_public_head() adds the head, and that it's still
-    // there after commit.
-    let settings = testutils::user_settings();
-    let test_repo = TestRepo::init();
-    let repo = &test_repo.repo;
-
-    let mut tx = repo.start_transaction(&settings);
-    let commit1 = write_random_commit(tx.mut_repo(), &settings);
-    let repo = tx.commit("test");
-
-    let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
-    assert!(!mut_repo.view().public_heads().contains(commit1.id()));
-    mut_repo.add_public_head(&commit1);
-    assert!(mut_repo.view().public_heads().contains(commit1.id()));
-    let repo = tx.commit("test");
-    assert!(repo.view().public_heads().contains(commit1.id()));
-}
-
-#[test]
-fn test_add_public_head_ancestor() {
-    // Test that MutableRepo::add_public_head() does not add a public head if it's
-    // an ancestor of an existing public head.
-    let settings = testutils::user_settings();
-    let test_repo = TestRepo::init();
-    let repo = &test_repo.repo;
-
-    let mut tx = repo.start_transaction(&settings);
-    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
-    let commit1 = graph_builder.initial_commit();
-    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
-    tx.mut_repo().add_public_head(&commit2);
-    let repo = tx.commit("test");
-
-    let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
-    assert!(!mut_repo.view().public_heads().contains(commit1.id()));
-    mut_repo.add_public_head(&commit1);
-    assert!(!mut_repo.view().public_heads().contains(commit1.id()));
-    let repo = tx.commit("test");
-    assert!(!repo.view().public_heads().contains(commit1.id()));
-}
-
-#[test]
-fn test_remove_public_head() {
-    // Test that MutableRepo::remove_public_head() removes the head, and that it's
-    // still removed after commit.
-    let settings = testutils::user_settings();
-    let test_repo = TestRepo::init();
-    let repo = &test_repo.repo;
-
-    let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
-    let commit1 = write_random_commit(mut_repo, &settings);
-    mut_repo.add_public_head(&commit1);
-    let repo = tx.commit("test");
-
-    let mut tx = repo.start_transaction(&settings);
-    let mut_repo = tx.mut_repo();
-    assert!(mut_repo.view().public_heads().contains(commit1.id()));
-    mut_repo.remove_public_head(commit1.id());
-    assert!(!mut_repo.view().public_heads().contains(commit1.id()));
-    let repo = tx.commit("test");
-    assert!(!repo.view().public_heads().contains(commit1.id()));
-}
-
-#[test]
 fn test_has_changed() {
     // Test that MutableRepo::has_changed() reports changes iff the view has changed
     // (e.g. not after setting a branch to point to where it was already
@@ -452,7 +384,6 @@ fn test_has_changed() {
     let commit1 = write_random_commit(mut_repo, &settings);
     let commit2 = write_random_commit(mut_repo, &settings);
     mut_repo.remove_head(commit2.id());
-    mut_repo.add_public_head(&commit1);
     let ws_id = WorkspaceId::default();
     mut_repo
         .set_wc_commit(ws_id.clone(), commit1.id().clone())
@@ -462,12 +393,10 @@ fn test_has_changed() {
     let repo = tx.commit("test");
     // Test the setup
     assert_eq!(repo.view().heads(), &hashset! {commit1.id().clone()});
-    assert_eq!(repo.view().public_heads(), &hashset! {commit1.id().clone()});
 
     let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
 
-    mut_repo.add_public_head(&commit1);
     mut_repo.add_head(&commit1).unwrap();
     mut_repo
         .set_wc_commit(ws_id.clone(), commit1.id().clone())
@@ -476,7 +405,6 @@ fn test_has_changed() {
     mut_repo.set_remote_branch("main", "origin", normal_remote_ref(commit1.id()));
     assert!(!mut_repo.has_changes());
 
-    mut_repo.remove_public_head(commit2.id());
     mut_repo.remove_head(commit2.id());
     mut_repo.set_local_branch_target("stable", RefTarget::absent());
     mut_repo.set_remote_branch("stable", "origin", RemoteRef::absent());
@@ -484,16 +412,6 @@ fn test_has_changed() {
 
     mut_repo.add_head(&commit2).unwrap();
     assert!(mut_repo.has_changes());
-    mut_repo.remove_head(commit2.id());
-    assert!(!mut_repo.has_changes());
-
-    mut_repo.add_public_head(&commit2);
-    assert!(mut_repo.has_changes());
-    mut_repo.remove_public_head(commit2.id());
-    // The commit was added as a visible head when we called has_changes() above.
-    // That's a weird side-effect.
-    // TODO: Should we make add_public_head() also add it as a visible head? Or
-    // should we decouple the two sets completely?
     mut_repo.remove_head(commit2.id());
     assert!(!mut_repo.has_changes());
 

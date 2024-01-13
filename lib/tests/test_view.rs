@@ -31,10 +31,6 @@ fn test_heads_empty() {
         *repo.view().heads(),
         hashset! {repo.store().root_commit_id().clone()}
     );
-    assert_eq!(
-        *repo.view().public_heads(),
-        hashset! {repo.store().root_commit_id().clone()}
-    );
 }
 
 #[test]
@@ -88,29 +84,15 @@ fn test_merge_views_heads() {
     let head_unchanged = write_random_commit(mut_repo, &settings);
     let head_remove_tx1 = write_random_commit(mut_repo, &settings);
     let head_remove_tx2 = write_random_commit(mut_repo, &settings);
-    let public_head_unchanged = write_random_commit(mut_repo, &settings);
-    mut_repo.add_public_head(&public_head_unchanged);
-    let public_head_remove_tx1 = write_random_commit(mut_repo, &settings);
-    mut_repo.add_public_head(&public_head_remove_tx1);
-    let public_head_remove_tx2 = write_random_commit(mut_repo, &settings);
-    mut_repo.add_public_head(&public_head_remove_tx2);
     let repo = tx.commit("test");
 
     let mut tx1 = repo.start_transaction(&settings);
     tx1.mut_repo().remove_head(head_remove_tx1.id());
-    tx1.mut_repo()
-        .remove_public_head(public_head_remove_tx1.id());
     let head_add_tx1 = write_random_commit(tx1.mut_repo(), &settings);
-    let public_head_add_tx1 = write_random_commit(tx1.mut_repo(), &settings);
-    tx1.mut_repo().add_public_head(&public_head_add_tx1);
 
     let mut tx2 = repo.start_transaction(&settings);
     tx2.mut_repo().remove_head(head_remove_tx2.id());
-    tx2.mut_repo()
-        .remove_public_head(public_head_remove_tx2.id());
     let head_add_tx2 = write_random_commit(tx2.mut_repo(), &settings);
-    let public_head_add_tx2 = write_random_commit(tx2.mut_repo(), &settings);
-    tx2.mut_repo().add_public_head(&public_head_add_tx2);
 
     let repo = commit_transactions(&settings, vec![tx1, tx2]);
 
@@ -118,20 +100,8 @@ fn test_merge_views_heads() {
         head_unchanged.id().clone(),
         head_add_tx1.id().clone(),
         head_add_tx2.id().clone(),
-        public_head_unchanged.id().clone(),
-        public_head_remove_tx1.id().clone(),
-        public_head_remove_tx2.id().clone(),
-        public_head_add_tx1.id().clone(),
-        public_head_add_tx2.id().clone(),
     };
     assert_eq!(repo.view().heads(), &expected_heads);
-
-    let expected_public_heads = hashset! {
-        public_head_unchanged.id().clone(),
-        public_head_add_tx1.id().clone(),
-        public_head_add_tx2.id().clone(),
-    };
-    assert_eq!(repo.view().public_heads(), &expected_public_heads);
 }
 
 #[test]

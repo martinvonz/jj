@@ -62,10 +62,6 @@ impl View {
         &self.data.head_ids
     }
 
-    pub fn public_heads(&self) -> &HashSet<CommitId> {
-        &self.data.public_head_ids
-    }
-
     /// Iterates pair of local and remote branches by branch name.
     pub fn branches(&self) -> impl Iterator<Item = (&str, BranchTarget<'_>)> {
         op_store::merge_join_branch_views(&self.data.local_branches, &self.data.remote_views)
@@ -97,14 +93,6 @@ impl View {
 
     pub fn remove_head(&mut self, head_id: &CommitId) {
         self.data.head_ids.remove(head_id);
-    }
-
-    pub fn add_public_head(&mut self, head_id: &CommitId) {
-        self.data.public_head_ids.insert(head_id.clone());
-    }
-
-    pub fn remove_public_head(&mut self, head_id: &CommitId) {
-        self.data.public_head_ids.remove(head_id);
     }
 
     /// Returns true if any local or remote branch of the given `name` exists.
@@ -330,7 +318,6 @@ impl View {
         // not be smart here. Callers will build a larger set of commits anyway.
         let op_store::View {
             head_ids,
-            public_head_ids,
             local_branches,
             tags,
             remote_views,
@@ -340,7 +327,6 @@ impl View {
         } = &self.data;
         itertools::chain!(
             head_ids,
-            public_head_ids,
             local_branches.values().flat_map(ref_target_ids),
             tags.values().flat_map(ref_target_ids),
             remote_views.values().flat_map(|remote_view| {

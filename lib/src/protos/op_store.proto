@@ -77,7 +77,7 @@ message Tag {
 
 message View {
   repeated bytes head_ids = 1;
-  repeated bytes public_head_ids = 4;
+  reserved 4;
   bytes wc_commit_id = 2 [deprecated = true];
   map<string, bytes> wc_commit_ids = 8;
   repeated Branch branches = 5;
