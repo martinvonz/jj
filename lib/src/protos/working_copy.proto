@@ -66,8 +66,5 @@ message Checkout {
   // TODO: Is it better to make this a UUID and a have map that to a name in
   // config? That way users can rename a workspace.
   string workspace_id = 3;
-  // The checked-out commit, which can be viewed as a cache of the working-copy
-  // commit ID recorded in `operation_id`'s operation. No longer used.
-  // TODO: Delete this mid 2022 or so
-  bytes commit_id = 1;
+  reserved 1;
 }

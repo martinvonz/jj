@@ -71,11 +71,6 @@ pub struct Checkout {
     /// config? That way users can rename a workspace.
     #[prost(string, tag = "3")]
     pub workspace_id: ::prost::alloc::string::String,
-    /// The checked-out commit, which can be viewed as a cache of the working-copy
-    /// commit ID recorded in `operation_id`'s operation. No longer used.
-    /// TODO: Delete this mid 2022 or so
-    #[prost(bytes = "vec", tag = "1")]
-    pub commit_id: ::prost::alloc::vec::Vec<u8>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
