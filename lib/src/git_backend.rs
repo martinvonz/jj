@@ -594,7 +594,7 @@ fn prevent_gc(git_repo: &gix::Repository, id: &CommitId) -> Result<(), BackendEr
 fn to_no_gc_ref_update(id: &CommitId) -> gix::refs::transaction::RefEdit {
     let name = format!("{NO_GC_REF_NAMESPACE}{}", id.hex());
     let new = gix::refs::Target::Peeled(validate_git_object_id(id).unwrap());
-    let expected = gix::refs::transaction::PreviousValue::Any;
+    let expected = gix::refs::transaction::PreviousValue::ExistingMustMatch(new.clone());
     gix::refs::transaction::RefEdit {
         change: gix::refs::transaction::Change::Update {
             log: gix::refs::transaction::LogChange {
