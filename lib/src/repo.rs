@@ -169,9 +169,6 @@ impl ReadonlyRepo {
 
         let mut root_view = op_store::View::default();
         root_view.head_ids.insert(store.root_commit_id().clone());
-        root_view
-            .public_head_ids
-            .insert(store.root_commit_id().clone());
 
         let op_heads_path = repo_path.join("op_heads");
         fs::create_dir(&op_heads_path).context(&op_heads_path)?;
@@ -1020,13 +1017,7 @@ impl MutableRepo {
 
     fn enforce_view_invariants(&self, view: &mut View) {
         let view = view.store_view_mut();
-        view.public_head_ids = self
-            .index()
-            .heads(&mut view.public_head_ids.iter())
-            .iter()
-            .cloned()
-            .collect();
-        view.head_ids.extend(view.public_head_ids.iter().cloned());
+        view.head_ids.insert(self.store().root_commit_id().clone());
         view.head_ids = self
             .index()
             .heads(&mut view.head_ids.iter())
@@ -1098,16 +1089,6 @@ impl MutableRepo {
 
     pub fn remove_head(&mut self, head: &CommitId) {
         self.view_mut().remove_head(head);
-        self.view.mark_dirty();
-    }
-
-    pub fn add_public_head(&mut self, head: &Commit) {
-        self.view_mut().add_public_head(head.id());
-        self.view.mark_dirty();
-    }
-
-    pub fn remove_public_head(&mut self, head: &CommitId) {
-        self.view_mut().remove_public_head(head);
         self.view.mark_dirty();
     }
 
@@ -1276,13 +1257,6 @@ impl MutableRepo {
                 self.view_mut()
                     .set_wc_commit(workspace_id.clone(), other_wc_commit.clone());
             }
-        }
-
-        for removed_head in base.public_heads().difference(other.public_heads()) {
-            self.view_mut().remove_public_head(removed_head);
-        }
-        for added_head in other.public_heads().difference(base.public_heads()) {
-            self.view_mut().add_public_head(added_head);
         }
 
         let base_heads = base.heads().iter().cloned().collect_vec();

@@ -384,9 +384,6 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
     for head_id in &view.head_ids {
         proto.head_ids.push(head_id.to_bytes());
     }
-    for head_id in &view.public_head_ids {
-        proto.public_head_ids.push(head_id.to_bytes());
-    }
 
     proto.branches = branch_views_to_proto_legacy(&view.local_branches, &view.remote_views);
 
@@ -425,9 +422,6 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     }
     for head_id_bytes in proto.head_ids {
         view.head_ids.insert(CommitId::new(head_id_bytes));
-    }
-    for head_id_bytes in proto.public_head_ids {
-        view.public_head_ids.insert(CommitId::new(head_id_bytes));
     }
 
     let (local_branches, remote_views) = branch_views_from_proto_legacy(proto.branches);
@@ -677,8 +671,6 @@ mod tests {
         };
         let head_id1 = CommitId::from_hex("aaa111");
         let head_id2 = CommitId::from_hex("aaa222");
-        let public_head_id1 = CommitId::from_hex("bbb444");
-        let public_head_id2 = CommitId::from_hex("bbb555");
         let branch_main_local_target = RefTarget::normal(CommitId::from_hex("ccc111"));
         let branch_main_origin_target = RefTarget::normal(CommitId::from_hex("ccc222"));
         let branch_deleted_origin_target = RefTarget::normal(CommitId::from_hex("ccc333"));
@@ -692,7 +684,6 @@ mod tests {
         let test_wc_commit_id = CommitId::from_hex("abc222");
         View {
             head_ids: hashset! {head_id1, head_id2},
-            public_head_ids: hashset! {public_head_id1, public_head_id2},
             local_branches: btreemap! {
                 "main".to_string() => branch_main_local_target,
             },
@@ -751,7 +742,7 @@ mod tests {
         // Test exact output so we detect regressions in compatibility
         assert_snapshot!(
             ViewId::new(blake2b_hash(&create_view()).to_vec()).hex(),
-            @"d6d19f3edcb3b2fed6104801b7938e6be1147ab036e9fa81b7624fd5ff0149a6c221c3abb6fb7380c3f37e077a03b234313b44cbb6faca0b8c76f68f24ea7174"
+            @"19af495b5a828c38e933c518a53eb9f7fb7129348a0950d7971b86adf7eb25a13bf45c7f358da1776b27fe6f4bc9134787389d976b768e46ac6cef56bc20c083"
         );
     }
 

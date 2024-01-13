@@ -441,15 +441,15 @@ fn test_resolve_op_id() {
         repo = tx.commit(format!("transaction {i}"));
         operations.push(repo.operation().clone());
     }
-    // "2" is ambiguous
+    // "8" is ambiguous
     insta::assert_debug_snapshot!(operations.iter().map(|op| op.id().hex()).collect_vec(), @r###"
     [
-        "27f8c802c8378c5c85825365e83928936ae84d7ae3b5bd26d1cd046aa9a2f791dd7b272338d0d2da8a4359523f25daf217f99128a155ba4bc728d279fc3d8f7f",
-        "8a6b19ed474dfad1efa49d64d265f80f74c1d10bf77439900d92d8e6a29fdb64ad1137a92928bfd409096bf84b6fbfb50ebdcc6a28323f9f8e5893548f21b7fb",
-        "65198b538e0f6558d875c49712b0b3570e3a0eb697fd22f5817e39139937b4498e9e9080df1353e116880e36c683f5dddc39d048007ef50da83690a94502bc68",
-        "59da2544953d8d5851e8f64ed5949c8c26f676b87ab84e9fe153bca76912de3753dee8c9cb641f53f57c51a0e876cd43f08c28ca651ad312e5bc09354e9ec40f",
-        "f40d12f62b921bdf96c2d191a4d04845fa26043d131ea1e69eb06fa7a4bbfed6668ab48bed7ec728f7e2c9e675d394b382a332c68399d7f4c446450610479ecf",
-        "2b45a4f90854dd3d4833d998f4fa2e4d4c4eda5212edd3845e8ccb3618d9d538d7a98c173791995898e68d272697ffed1b69838cf839d96cb770856cf499eea8",
+        "c304846fd5419130f961dc29a19e382ba1b48eeef92505da2f6be65c09a5321e36b3642bc8bf052cd47c2f0fa6cb103a837fc0d6b86a2ab5ef18c7ecfa6bec38",
+        "bffef6b286529cdebb9e48e209ea0eef96989bb23d8af4773847564d0b3b7961676ad9e23ddcd46774712198f5b3e28c2eb4fbba159ac640919b0c5f7d5a71d8",
+        "98d92c1e65617b594741968302d7225238f9f13e8126a6e12ee73f17def310a7b5be75a0d761399e2a9f3d13f066a274a4f40e6b9d588824da606a8888854f62",
+        "34d4b6ec40a425036a3e267cbe61ddc99582a1ec2601501d19a6a6c402d255aef5109ddc5bb6a79afaa17acc56a2e04bba8e69ef90a764aebb769f5038d24b64",
+        "89f50ea6a566fc5794164653511f35c40011321989a2499a6aec18780f0110cb5ce0fc0b248026cb32aa2b6a017a65a9472c497920933d13f68a95211c30bf2d",
+        "8913bd72461b92b2323b49a8789219f842942fd2040ddc078a4b7f731630f4bce8dabf181c3c55a3c54950023c04f6fc8f4174b92e9953230592a534222a5297",
     ]
     "###);
 
@@ -470,7 +470,7 @@ fn test_resolve_op_id() {
     );
     // Ambiguous id
     assert_matches!(
-        op_walk::resolve_op_with_repo(&repo, "2"),
+        op_walk::resolve_op_with_repo(&repo, "8"),
         Err(OpsetEvaluationError::OpsetResolution(
             OpsetResolutionError::AmbiguousIdPrefix(_)
         ))

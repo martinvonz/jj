@@ -234,7 +234,6 @@ fn view_with_desired_portions_restored(
     };
     jj_lib::op_store::View {
         head_ids: repo_source.head_ids.clone(),
-        public_head_ids: repo_source.public_head_ids.clone(),
         local_branches: repo_source.local_branches.clone(),
         tags: repo_source.tags.clone(),
         remote_views: remote_source.remote_views.clone(),

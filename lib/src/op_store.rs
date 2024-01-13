@@ -268,8 +268,6 @@ content_hash! {
     pub struct View {
         /// All head commits
         pub head_ids: HashSet<CommitId>,
-        /// Heads of the set of public commits.
-        pub public_head_ids: HashSet<CommitId>,
         pub local_branches: BTreeMap<String, RefTarget>,
         pub tags: BTreeMap<String, RefTarget>,
         pub remote_views: BTreeMap<String, RemoteView>,

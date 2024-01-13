@@ -98,8 +98,6 @@ pub struct Tag {
 pub struct View {
     #[prost(bytes = "vec", repeated, tag = "1")]
     pub head_ids: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
-    #[prost(bytes = "vec", repeated, tag = "4")]
-    pub public_head_ids: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
     #[deprecated]
     #[prost(bytes = "vec", tag = "2")]
     pub wc_commit_id: ::prost::alloc::vec::Vec<u8>,
