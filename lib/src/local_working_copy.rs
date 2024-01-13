@@ -1533,7 +1533,6 @@ impl LocalWorkingCopy {
         let proto = crate::protos::working_copy::Checkout {
             operation_id: operation_id.to_bytes(),
             workspace_id: workspace_id.as_str().to_string(),
-            ..Default::default()
         };
         let mut file = OpenOptions::new()
             .create_new(true)
@@ -1638,7 +1637,6 @@ impl LocalWorkingCopy {
         self.write_proto(crate::protos::working_copy::Checkout {
             operation_id: self.operation_id().to_bytes(),
             workspace_id: self.workspace_id().as_str().to_string(),
-            ..Default::default()
         });
     }
 
