@@ -352,9 +352,9 @@ impl GitBackend {
         // Create no-gc ref even if known to the extras table. Concurrent GC
         // process might have deleted the no-gc ref.
         let locked_repo = self.lock_git_repo();
-        for &id in &head_ids {
-            prevent_gc(&locked_repo, id)?;
-        }
+        locked_repo
+            .edit_references(head_ids.iter().copied().map(to_no_gc_ref_update))
+            .map_err(|err| BackendError::Other(Box::new(err)))?;
 
         // These commits are imported from Git. Make our change ids persist (otherwise
         // future write_commit() could reassign new change id.)
@@ -582,14 +582,6 @@ fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
     for predecessor in &proto.predecessors {
         commit.predecessors.push(CommitId::from_bytes(predecessor));
     }
-}
-
-/// Creates a ref in refs/jj/. Used for preventing GC of commits we create.
-fn prevent_gc(git_repo: &gix::Repository, id: &CommitId) -> Result<(), BackendError> {
-    git_repo
-        .edit_reference(to_no_gc_ref_update(id))
-        .map_err(|err| BackendError::Other(Box::new(err)))?;
-    Ok(())
 }
 
 /// Returns `RefEdit` that will create a ref in `refs/jj/keep` if not exist.
@@ -1060,7 +1052,9 @@ impl Backend for GitBackend {
 
         // Everything up to this point had no permanent effect on the repo except
         // GC-able objects
-        prevent_gc(&locked_repo, &id)?;
+        locked_repo
+            .edit_reference(to_no_gc_ref_update(&id))
+            .map_err(|err| BackendError::Other(Box::new(err)))?;
 
         // Update the signature to match the one that was actually written to the object
         // store

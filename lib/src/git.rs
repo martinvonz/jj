@@ -259,7 +259,7 @@ pub fn import_some_refs(
     } = diff_refs_to_import(mut_repo.view(), &git_repo, git_ref_filter)?;
 
     // Bulk-import all reachable Git commits to the backend to reduce overhead of
-    // table merging.
+    // table merging and ref updates.
     let index = mut_repo.index();
     let missing_head_ids = itertools::chain(
         &changed_git_head,
