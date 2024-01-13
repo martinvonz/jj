@@ -164,8 +164,41 @@ These are listed roughly in order of decreasing importance.
    every `jj log`.
 
 6. To run tests more quickly, use `cargo nextest run --workspace`. To
-   use `nextest` with `insta`,
-   use `cargo insta test --workspace --test-runner nextest`.
+   use `nextest` with `insta`, use `cargo insta test --workspace
+   --test-runner nextest`.
+
+   On Linux, you may be able to speed up `nextest` even further by using
+   the `mold` linker, as explained below.
+
+### Using `mold` for faster tests on Linux
+
+On a machine with a multi-core CPU, one way to speed up
+`cargo nextest` on Linux is to use the multi-threaded [`mold`
+linker](https://github.com/rui314/mold). This linker may help
+if, currently, your CPU is underused while Rust is linking test
+binaries. Before proceeding with `mold`, you can check whether this is
+an issue worth solving using a system monitoring tool such as `htop`.
+
+`mold` is packaged for many distributions. On Debian, for example,
+`sudo apt install mold` should just work.
+
+A simple way to use `mold` is via the `-run` option, e.g.:
+
+```shell
+mold -run cargo insta test --workspace --test-runner nextest
+```
+
+There will be no indication that a different linker is used, except for
+higher CPU usage while linking and, hopefully, faster completion. You
+can verify that `mold` was indeed used by running
+`readelf -p .comment target/debug/jj`.
+
+There are also ways of having Rust use `mold` by default, see the ["How
+to use" instructions](https://github.com/rui314/mold#how-to-use).
+
+On recent versions of MacOS, the default linker Rust uses is already
+multi-threaded. It should use all the CPU cores without any configuration.
+
 
 ## Previewing the HTML documentation
 
