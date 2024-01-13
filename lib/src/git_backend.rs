@@ -584,14 +584,29 @@ fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
 /// Creates a ref in refs/jj/. Used for preventing GC of commits we create.
 fn prevent_gc(git_repo: &gix::Repository, id: &CommitId) -> Result<(), BackendError> {
     git_repo
-        .reference(
-            format!("{NO_GC_REF_NAMESPACE}{}", id.hex()),
-            validate_git_object_id(id).unwrap(),
-            gix::refs::transaction::PreviousValue::Any,
-            "used by jj",
-        )
+        .edit_reference(to_no_gc_ref_update(id))
         .map_err(|err| BackendError::Other(Box::new(err)))?;
     Ok(())
+}
+
+/// Returns `RefEdit` that will create a ref in `refs/jj/keep` if not exist.
+/// Used for preventing GC of commits we create.
+fn to_no_gc_ref_update(id: &CommitId) -> gix::refs::transaction::RefEdit {
+    let name = format!("{NO_GC_REF_NAMESPACE}{}", id.hex());
+    let new = gix::refs::Target::Peeled(validate_git_object_id(id).unwrap());
+    let expected = gix::refs::transaction::PreviousValue::Any;
+    gix::refs::transaction::RefEdit {
+        change: gix::refs::transaction::Change::Update {
+            log: gix::refs::transaction::LogChange {
+                message: "used by jj".into(),
+                ..Default::default()
+            },
+            expected,
+            new,
+        },
+        name: name.try_into().unwrap(),
+        deref: false,
+    }
 }
 
 fn validate_git_object_id(id: &impl ObjectId) -> Result<gix::ObjectId, BackendError> {
