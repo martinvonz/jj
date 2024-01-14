@@ -434,14 +434,15 @@ fn test_resolve_op_id() {
     let settings = stable_op_id_settings();
     let test_repo = TestRepo::init_with_settings(&settings);
     let repo = test_repo.repo;
+    let op_store = repo.op_store();
 
     let mut operations = Vec::new();
-    for i in 0..6 {
+    for i in (0..6).chain([16]) {
         let tx = repo.start_transaction(&settings);
         let repo = tx.commit(format!("transaction {i}"));
         operations.push(repo.operation().clone());
     }
-    // "c" is ambiguous
+    // "c" and "0" are ambiguous
     insta::assert_debug_snapshot!(operations.iter().map(|op| op.id().hex()).collect_vec(), @r###"
     [
         "4ff2007de55a2f649f7ab0c98618e4126ef49f0d40a086c8e0a4612a0d5ab4992e1baf4b4fa0a2a224fab39fc5e5b200ac4cddf964db29c6be1379ab2b6d4572",
@@ -450,6 +451,7 @@ fn test_resolve_op_id() {
         "cdb35f2826be9a561ae452f06a86e020feec43419d38406f731190732fe143bd69b0e8496ee23817ce13ff6abf9202ec3279b9cb21222be89d5592faa779ff6c",
         "19971a76da2927c916c079813a0e1e8d91fab52065f926018973b6b5e9d0a22cfdefe3d937ed3ec8e323074a50f6e747a2d6cee0e95185980594ffda8c438a84",
         "689a23c147a58d70a6f30005d64e49e68fe96a2e9143d78b5957bf26fd9cf06d218279430d7c87b6c5ba163f1557fe2f3b951f0ad126bbe1b804e992c590616a",
+        "09baae9e4e6aeaa9a6107ec4b2a6e86350dbefc227d962983a32631e8f9c65a5cdd73a7420f79eb139ee10f01cf9fcab579abc4596f1844499fdeed75a382db6",
     ]
     "###);
 
@@ -487,6 +489,21 @@ fn test_resolve_op_id() {
         resolve("deadbee"),
         Err(OpsetEvaluationError::OpsetResolution(
             OpsetResolutionError::NoSuchOperation(_)
+        ))
+    );
+    // Virtual root id
+    let root_operation = {
+        let id = op_store.root_operation_id();
+        let data = op_store.read_operation(id).unwrap();
+        Operation::new(op_store.clone(), id.clone(), data)
+    };
+    assert_eq!(resolve(&root_operation.id().hex()).unwrap(), root_operation);
+    assert_eq!(resolve("00").unwrap(), root_operation);
+    assert_eq!(resolve("09").unwrap(), operations[6]);
+    assert_matches!(
+        resolve("0"),
+        Err(OpsetEvaluationError::OpsetResolution(
+            OpsetResolutionError::AmbiguousIdPrefix(_)
         ))
     );
 }
