@@ -91,16 +91,19 @@ concat(
 '''
 
 builtin_op_log_compact = '''
-label(if(current_operation, "current_operation"),
-  concat(
-    separate(" ",
-      id.short(),
-      user,
-      format_time_range(time),
-    ) ++ "\n",
-    description.first_line() ++ "\n",
-    if(tags, tags ++ "\n"),
-  ),
+if(root,
+  builtin_op_log_root(id),
+  label(if(current_operation, "current_operation"),
+    concat(
+      separate(" ",
+        id.short(),
+        user,
+        format_time_range(time),
+      ) ++ "\n",
+      description.first_line() ++ "\n",
+      if(tags, tags ++ "\n"),
+    ),
+  )
 )
 '''
 builtin_op_log_comfortable = 'builtin_op_log_compact ++ "\n"'
@@ -113,6 +116,14 @@ separate(" ",
   branches
 )
 '''
+
+'builtin_op_log_root(op_id)' = '''
+separate(" ",
+  op_id.short(),
+  label("root", "root()"),
+)
+'''
+
 
 description_placeholder = '''
   label(if(empty, "empty ") ++ "description placeholder", "(no description set)")'''

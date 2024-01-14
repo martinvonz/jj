@@ -50,6 +50,7 @@ The following keywords can be used in `jj op log` templates.
 * `tags: String`
 * `time: TimestampRange`
 * `user: String`
+* `root: Boolean`: True if the commit is the root commit.
 
 ## Operators
 

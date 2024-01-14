@@ -164,7 +164,12 @@ fn cmd_op_log(
         None => command.settings().config().get_string("templates.op_log")?,
     };
     let template_aliases = command.load_template_aliases(ui)?;
-    let template = operation_templater::parse(current_op_id, &template_string, &template_aliases)?;
+    let template = operation_templater::parse(
+        repo_loader.op_store().root_operation_id(),
+        current_op_id,
+        &template_string,
+        &template_aliases,
+    )?;
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
     ui.request_pager();
