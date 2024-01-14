@@ -1348,14 +1348,6 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                         short_operation_hash(&old_op_id)
                     )));
                 }
-                WorkingCopyFreshness::UnrelatedOperation => {
-                    return Err(CommandError::InternalError(format!(
-                        "The repo was loaded at operation {}, which seems unrelated to the \
-                         working copy's operation {}",
-                        short_operation_hash(repo.op_id()),
-                        short_operation_hash(&old_op_id)
-                    )));
-                }
             };
         self.user_repo = ReadonlyUserRepo::new(repo);
         let progress = crate::progress::snapshot_progress(ui);
@@ -1861,8 +1853,6 @@ pub enum WorkingCopyFreshness {
     WorkingCopyStale,
     /// The working copy is a sibling of the latest operation.
     SiblingOperation,
-    /// "The working copy is unrelated to the latest operation.
-    UnrelatedOperation,
 }
 
 impl WorkingCopyFreshness {
@@ -1871,9 +1861,7 @@ impl WorkingCopyFreshness {
     pub fn is_stale(&self) -> bool {
         match self {
             WorkingCopyFreshness::Fresh | WorkingCopyFreshness::Updated(_) => false,
-            WorkingCopyFreshness::WorkingCopyStale
-            | WorkingCopyFreshness::SiblingOperation
-            | WorkingCopyFreshness::UnrelatedOperation => true,
+            WorkingCopyFreshness::WorkingCopyStale | WorkingCopyFreshness::SiblingOperation => true,
         }
     }
 }
@@ -1899,26 +1887,23 @@ pub fn check_stale_working_copy(
             wc_operation_data,
         );
         let repo_operation = repo.operation();
-        let maybe_ancestor_op = dag_walk::closest_common_node_ok(
+        let ancestor_op = dag_walk::closest_common_node_ok(
             [Ok(wc_operation.clone())],
             [Ok(repo_operation.clone())],
             |op: &Operation| op.id().clone(),
             |op: &Operation| op.parents().collect_vec(),
-        )?;
-        if let Some(ancestor_op) = maybe_ancestor_op {
-            if ancestor_op.id() == repo_operation.id() {
-                // The working copy was updated since we loaded the repo. The repo must be
-                // reloaded at the working copy's operation.
-                Ok(WorkingCopyFreshness::Updated(Box::new(wc_operation)))
-            } else if ancestor_op.id() == wc_operation.id() {
-                // The working copy was not updated when some repo operation committed,
-                // meaning that it's stale compared to the repo view.
-                Ok(WorkingCopyFreshness::WorkingCopyStale)
-            } else {
-                Ok(WorkingCopyFreshness::SiblingOperation)
-            }
+        )?
+        .expect("unrelated operations");
+        if ancestor_op.id() == repo_operation.id() {
+            // The working copy was updated since we loaded the repo. The repo must be
+            // reloaded at the working copy's operation.
+            Ok(WorkingCopyFreshness::Updated(Box::new(wc_operation)))
+        } else if ancestor_op.id() == wc_operation.id() {
+            // The working copy was not updated when some repo operation committed,
+            // meaning that it's stale compared to the repo view.
+            Ok(WorkingCopyFreshness::WorkingCopyStale)
         } else {
-            Ok(WorkingCopyFreshness::UnrelatedOperation)
+            Ok(WorkingCopyFreshness::SiblingOperation)
         }
     }
 }
