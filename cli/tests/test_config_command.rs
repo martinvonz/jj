@@ -127,6 +127,60 @@ fn test_config_list_all() {
 }
 
 #[test]
+fn test_config_list_layer() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let user_config_path = test_env.config_path().join("config.toml");
+    test_env.set_config_path(user_config_path.to_owned());
+    let repo_path = test_env.env_root().join("repo");
+
+    // User
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["config", "set", "--user", "test-key", "test-val"],
+    );
+
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "config",
+            "set",
+            "--user",
+            "test-layered-key",
+            "test-original-val",
+        ],
+    );
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", "--user"]);
+    insta::assert_snapshot!(stdout, @r###"
+    test-key="test-val"
+    test-layered-key="test-original-val"
+    "###);
+
+    // Repo
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "config",
+            "set",
+            "--repo",
+            "test-layered-key",
+            "test-layered-val",
+        ],
+    );
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", "--user"]);
+    insta::assert_snapshot!(stdout, @r###"
+    test-key="test-val"
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", "--repo"]);
+    insta::assert_snapshot!(stdout, @r###"
+    test-layered-key="test-layered-val"
+    "###);
+}
+
+#[test]
 fn test_config_layer_override_default() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);

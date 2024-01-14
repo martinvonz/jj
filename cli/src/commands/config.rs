@@ -71,18 +71,37 @@ pub(crate) enum ConfigSubcommand {
 
 /// List variables set in config file, along with their values.
 #[derive(clap::Args, Clone, Debug)]
+#[command(group(clap::ArgGroup::new("specific").args(&["repo", "user"])))]
 pub(crate) struct ConfigListArgs {
     /// An optional name of a specific config option to look up.
     #[arg(value_parser = NonEmptyStringValueParser::new())]
     pub name: Option<String>,
     /// Whether to explicitly include built-in default values in the list.
-    #[arg(long)]
+    #[arg(long, conflicts_with = "specific")]
     pub include_defaults: bool,
     /// Allow printing overridden values.
     #[arg(long)]
     pub include_overridden: bool,
+    /// Target the user-level config
+    #[arg(long)]
+    user: bool,
+    /// Target the repo-level config
+    #[arg(long)]
+    repo: bool,
     // TODO(#1047): Support --show-origin using LayeredConfigs.
-    // TODO(#1047): Support ConfigArgs (--user or --repo).
+}
+
+impl ConfigListArgs {
+    fn get_source_kind(&self) -> Option<ConfigSource> {
+        if self.user {
+            Some(ConfigSource::User)
+        } else if self.repo {
+            Some(ConfigSource::Repo)
+        } else {
+            //List all variables
+            None
+        }
+    }
 }
 
 /// Get the value of a given config option.
@@ -156,6 +175,12 @@ pub(crate) fn cmd_config_list(
         // Remove overridden values.
         if *is_overridden && !args.include_overridden {
             continue;
+        }
+
+        if let Some(target_source) = args.get_source_kind() {
+            if target_source != *source {
+                continue;
+            }
         }
 
         // Skip built-ins if not included.

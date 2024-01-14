@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj config list` gained a `--include-overridden` option to allow
   printing overridden config values.
 
+* `jj config list` now accepts `--user` or `--repo` option to specify
+  config origin.
+
 ### Fixed bugs
 
 
