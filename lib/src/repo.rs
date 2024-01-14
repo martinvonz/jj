@@ -1017,13 +1017,20 @@ impl MutableRepo {
 
     fn enforce_view_invariants(&self, view: &mut View) {
         let view = view.store_view_mut();
-        view.head_ids.insert(self.store().root_commit_id().clone());
-        view.head_ids = self
-            .index()
-            .heads(&mut view.head_ids.iter())
-            .iter()
-            .cloned()
-            .collect();
+        let root_commit_id = self.store().root_commit_id();
+        if view.head_ids.is_empty() {
+            view.head_ids.insert(root_commit_id.clone());
+        } else if view.head_ids.len() > 1 {
+            // An empty head_ids set is padded with the root_commit_id, but the
+            // root id is unwanted during the heads resolution.
+            view.head_ids.remove(root_commit_id);
+            view.head_ids = self
+                .index()
+                .heads(&mut view.head_ids.iter())
+                .into_iter()
+                .collect();
+        }
+        assert!(!view.head_ids.is_empty());
     }
 
     /// Ensures that the given `head` and ancestor commits are reachable from
