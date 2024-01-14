@@ -20,6 +20,7 @@ use itertools::Itertools as _;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::OperationId;
 use jj_lib::op_walk;
+use jj_lib::operation::Operation;
 use jj_lib::repo::Repo;
 
 use crate::cli_util::{
@@ -319,10 +320,9 @@ fn cmd_op_abandon(
     let (abandon_root_op, abandon_head_op) =
         if let Some((root_op_str, head_op_str)) = args.operation.split_once("..") {
             let root_op = if root_op_str.is_empty() {
-                // TODO: Introduce a virtual root operation and use it instead.
-                op_walk::walk_ancestors(slice::from_ref(&current_head_op))
-                    .last()
-                    .unwrap()?
+                let id = op_store.root_operation_id();
+                let data = op_store.read_operation(id)?;
+                Operation::new(op_store.clone(), id.clone(), data)
             } else {
                 resolve_op(root_op_str)?
             };
