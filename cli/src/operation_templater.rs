@@ -32,6 +32,7 @@ use crate::templater::{
 };
 
 struct OperationTemplateLanguage<'b> {
+    root_op_id: &'b OperationId,
     current_op_id: Option<&'b OperationId>,
 }
 
@@ -148,6 +149,10 @@ fn build_operation_keyword(
             // TODO: introduce dedicated type and provide accessors?
             format!("{}@{}", metadata.username, metadata.hostname)
         })),
+        "root" => {
+            let root_op_id = language.root_op_id.clone();
+            language.wrap_boolean(wrap_fn(move |op| op.id() == &root_op_id))
+        }
         _ => return Err(TemplateParseError::no_such_keyword(name, span)),
     };
     Ok(property)
@@ -186,11 +191,15 @@ fn build_operation_id_method(
 }
 
 pub fn parse(
+    root_op_id: &OperationId,
     current_op_id: Option<&OperationId>,
     template_text: &str,
     aliases_map: &TemplateAliasesMap,
 ) -> TemplateParseResult<Box<dyn Template<Operation>>> {
-    let language = OperationTemplateLanguage { current_op_id };
+    let language = OperationTemplateLanguage {
+        root_op_id,
+        current_op_id,
+    };
     let node = template_parser::parse(template_text, aliases_map)?;
     template_builder::build(&language, &node)
 }

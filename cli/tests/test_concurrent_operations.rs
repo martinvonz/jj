@@ -45,8 +45,7 @@ fn test_concurrent_operation_divergence() {
     │  add workspace 'default'
     ◉  0e8aee02e242 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
-    ◉  000000000000 @ 1970-01-01 00:00:00.000 +00:00 - 1970-01-01 00:00:00.000 +00:00
-
+    ◉  000000000000 root()
     "###);
 
     // We should be informed about the concurrent modification
@@ -82,8 +81,7 @@ fn test_concurrent_operations_auto_rebase() {
     │  add workspace 'default'
     ◉  0e8aee02e242 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
-    ◉  000000000000 @ 1970-01-01 00:00:00.000 +00:00 - 1970-01-01 00:00:00.000 +00:00
-
+    ◉  000000000000 root()
     "###);
     let op_id_hex = stdout[3..15].to_string();
 

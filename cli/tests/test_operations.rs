@@ -45,8 +45,7 @@ fn test_op_log() {
     │  add workspace 'default'
     ◉  0e8aee02e242 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
-    ◉  000000000000 @ 1970-01-01 00:00:00.000 +00:00 - 1970-01-01 00:00:00.000 +00:00
-
+    ◉  000000000000 root()
     "###);
     let op_log_lines = stdout.lines().collect_vec();
     let add_workspace_id = op_log_lines[3].split(' ').nth(2).unwrap();
@@ -121,8 +120,7 @@ fn test_op_log_no_graph() {
     [1madd workspace 'default'[0m
     [38;5;4m0e8aee02e242[39m [38;5;3mtest-username@host.example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m - [38;5;6m2001-02-03 04:05:07.000 +07:00[39m
     initialize repo
-    [38;5;4m000000000000[39m [38;5;3m@[39m [38;5;6m1970-01-01 00:00:00.000 +00:00[39m - [38;5;6m1970-01-01 00:00:00.000 +00:00[39m
-
+    [38;5;4m000000000000[39m [38;5;2mroot()[39m
     "###);
 }
 
@@ -191,8 +189,7 @@ fn test_op_log_template() {
     │  add workspace 'default'
     ◉  0e8aee02e242 test-username@host.example.com NN years ago, lasted less than a microsecond
     │  initialize repo
-    ◉  000000000000 @ NN years ago, lasted less than a microsecond
-
+    ◉  000000000000 root()
     "###);
 }
 
@@ -212,8 +209,7 @@ fn test_op_log_builtin_templates() {
     │  add workspace 'default'
     ◉  0e8aee02e242 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
-    ◉  000000000000 @ 1970-01-01 00:00:00.000 +00:00 - 1970-01-01 00:00:00.000 +00:00
-
+    ◉  000000000000 root()
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_op_log_comfortable"#), @r###"
@@ -227,9 +223,7 @@ fn test_op_log_builtin_templates() {
     ◉  0e8aee02e242 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
     │
-    ◉  000000000000 @ 1970-01-01 00:00:00.000 +00:00 - 1970-01-01 00:00:00.000 +00:00
-
-
+    ◉  000000000000 root()
     "###);
 }
 
@@ -258,8 +252,7 @@ fn test_op_log_word_wrap() {
     │  add workspace 'default'
     ◉  0e8aee02e242 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
-    ◉  000000000000 @ 1970-01-01 00:00:00.000 +00:00 - 1970-01-01 00:00:00.000 +00:00
-
+    ◉  000000000000 root()
     "###);
     insta::assert_snapshot!(render(&["op", "log"], 40, true), @r###"
     @  27143b59c690
@@ -272,10 +265,7 @@ fn test_op_log_word_wrap() {
     │  2001-02-03 04:05:07.000 +07:00 -
     │  2001-02-03 04:05:07.000 +07:00
     │  initialize repo
-    ◉  000000000000 @ 1970-01-01
-       00:00:00.000 +00:00 - 1970-01-01
-       00:00:00.000 +00:00
-
+    ◉  000000000000 root()
     "###);
 }
 
@@ -318,8 +308,7 @@ fn test_op_abandon_ancestors() {
     │  add workspace 'default'
     ◉  0e8aee02e242 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
-    ◉  000000000000 @ 1970-01-01 00:00:00.000 +00:00 - 1970-01-01 00:00:00.000 +00:00
-
+    ◉  000000000000 root()
     "###);
 
     // Abandon old operations. The working-copy operation id should be updated.
@@ -336,8 +325,7 @@ fn test_op_abandon_ancestors() {
     @  1c88fada5b95 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
     │  commit a8ac27b29a157ae7dabc0deb524df68823505730
     │  args: jj commit -m 'commit 2'
-    ◉  000000000000 @ 1970-01-01 00:00:00.000 +00:00 - 1970-01-01 00:00:00.000 +00:00
-
+    ◉  000000000000 root()
     "###);
 
     // Abandon operation range.
@@ -355,8 +343,7 @@ fn test_op_abandon_ancestors() {
     ◉  1c88fada5b95 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
     │  commit a8ac27b29a157ae7dabc0deb524df68823505730
     │  args: jj commit -m 'commit 2'
-    ◉  000000000000 @ 1970-01-01 00:00:00.000 +00:00 - 1970-01-01 00:00:00.000 +00:00
-
+    ◉  000000000000 root()
     "###);
 
     // Can't abandon the current operation.
@@ -390,8 +377,7 @@ fn test_op_abandon_ancestors() {
     ◉  1c88fada5b95 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
     │  commit a8ac27b29a157ae7dabc0deb524df68823505730
     │  args: jj commit -m 'commit 2'
-    ◉  000000000000 @ 1970-01-01 00:00:00.000 +00:00 - 1970-01-01 00:00:00.000 +00:00
-
+    ◉  000000000000 root()
     "###);
 
     // Abandon empty range.
