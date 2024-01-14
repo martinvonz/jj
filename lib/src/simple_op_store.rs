@@ -182,10 +182,11 @@ impl OpStore for SimpleOpStore {
     ) -> OpStoreResult<PrefixResolution<OperationId>> {
         let op_dir = self.path.join("operations");
         let find = || -> io::Result<_> {
+            let matches_root = prefix.matches(&self.root_operation_id);
             let hex_prefix = prefix.hex();
             if hex_prefix.len() == OPERATION_ID_LENGTH * 2 {
                 // Fast path for full-length ID
-                if op_dir.join(hex_prefix).try_exists()? {
+                if matches_root || op_dir.join(hex_prefix).try_exists()? {
                     let id = OperationId::from_bytes(prefix.as_full_bytes().unwrap());
                     return Ok(PrefixResolution::SingleMatch(id));
                 } else {
@@ -193,7 +194,7 @@ impl OpStore for SimpleOpStore {
                 }
             }
 
-            let mut matched = None;
+            let mut matched = matches_root.then(|| self.root_operation_id.clone());
             for entry in op_dir.read_dir()? {
                 let Ok(name) = entry?.file_name().into_string() else {
                     continue; // Skip invalid UTF-8
