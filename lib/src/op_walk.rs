@@ -264,6 +264,12 @@ pub fn reparent_range(
     }
     let unreachable_ids = unwanted_ids;
 
+    assert!(
+        ops_to_reparent
+            .last()
+            .map_or(true, |op| op.id() != op_store.root_operation_id()),
+        "root operation cannot be rewritten"
+    );
     let mut rewritten_ids = HashMap::new();
     for old_op in ops_to_reparent.into_iter().rev() {
         let mut data = old_op.store_operation().clone();
