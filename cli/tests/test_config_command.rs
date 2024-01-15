@@ -174,6 +174,24 @@ fn test_config_layer_override_default() {
     insta::assert_snapshot!(stdout, @r###"
     merge-tools.vimdiff.program="command-arg"
     "###);
+
+    // Allow printing overridden values
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "config",
+            "list",
+            config_key,
+            "--include-overridden",
+            "--config-toml",
+            &format!("{config_key}={value:?}", value = "command-arg"),
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    # merge-tools.vimdiff.program="user"
+    # merge-tools.vimdiff.program="repo"
+    merge-tools.vimdiff.program="command-arg"
+    "###);
 }
 
 #[test]
@@ -227,6 +245,26 @@ fn test_config_layer_override_env() {
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
+    ui.editor="command-arg"
+    "###);
+
+    // Allow printing overridden values
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "config",
+            "list",
+            config_key,
+            "--include-overridden",
+            "--config-toml",
+            &format!("{config_key}={value:?}", value = "command-arg"),
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    # ui.editor="env-base"
+    # ui.editor="user"
+    # ui.editor="repo"
+    # ui.editor="env-override"
     ui.editor="command-arg"
     "###);
 }
