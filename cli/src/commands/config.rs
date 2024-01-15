@@ -78,6 +78,9 @@ pub(crate) struct ConfigListArgs {
     /// Whether to explicitly include built-in default values in the list.
     #[arg(long)]
     pub include_defaults: bool,
+    /// Allow printing overridden values.
+    #[arg(long)]
+    pub include_overridden: bool,
     // TODO(#1047): Support --show-origin using LayeredConfigs.
     // TODO(#1047): Support ConfigArgs (--user or --repo).
 }
@@ -151,17 +154,18 @@ pub(crate) fn cmd_config_list(
     } in &values
     {
         // Remove overridden values.
-        // TODO(#1047): Allow printing overridden values via `--include-overridden`.
-        if *is_overridden {
+        if *is_overridden && !args.include_overridden {
             continue;
         }
+
         // Skip built-ins if not included.
         if !args.include_defaults && *source == ConfigSource::Default {
             continue;
         }
         writeln!(
             ui.stdout(),
-            "{}={}",
+            "{}{}={}",
+            if *is_overridden { "# " } else { "" },
             path.join("."),
             serialize_config_value(value)
         )?;
