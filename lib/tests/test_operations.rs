@@ -433,23 +433,23 @@ fn stable_op_id_settings() -> UserSettings {
 fn test_resolve_op_id() {
     let settings = stable_op_id_settings();
     let test_repo = TestRepo::init_with_settings(&settings);
-    let mut repo = test_repo.repo;
+    let repo = test_repo.repo;
 
     let mut operations = Vec::new();
     for i in 0..6 {
         let tx = repo.start_transaction(&settings);
-        repo = tx.commit(format!("transaction {i}"));
+        let repo = tx.commit(format!("transaction {i}"));
         operations.push(repo.operation().clone());
     }
-    // "1" is ambiguous
+    // "c" is ambiguous
     insta::assert_debug_snapshot!(operations.iter().map(|op| op.id().hex()).collect_vec(), @r###"
     [
         "4ff2007de55a2f649f7ab0c98618e4126ef49f0d40a086c8e0a4612a0d5ab4992e1baf4b4fa0a2a224fab39fc5e5b200ac4cddf964db29c6be1379ab2b6d4572",
-        "cf1fd9ea3065ae077e13641278a213b371f98eb237334489c059e50e0a92a79cb058939f6fd2a89492f32dcecb14b6237f3e1fcf6fa454a9c21ef5425d78574c",
-        "5b29edf367805ca7e1dc9219ec25dae70ec853afbeed9a113dc2adba428f71eea944122097276fb664e2c8d6cc99a080d49ef58ce14356b5887d27b45952bfef",
-        "126647a88e08bc46f72db1eff34abe426cdd54e4e4c05b9b6773c288442bed2c5add304d4978e377694516ee89ed3436cec20ef2af4921247e6b6a90c3685a2a",
-        "5131849d86fe586dbbad3992d85b953b0ebe554f0bd7c42ee09628ab85db7ad909242901688a7d00590d326c8bdde21e8ed933f7ab4d6b7b16077e3d1c07b284",
-        "14073ae915621d1ec2358129440dc2a26e67e45995f46cf6199a6bb09b44d16a522451079a2480e4d2026d368759eacd1d5b3bc7a5915d9345d354b8e7ad46b4",
+        "c9fb43476d60aad9f44d13e7789377e0cf585e62f905e78eab815361ed96a0c5905508e868cea79e0c3df2ef3778bf1f812d8379a4e5ae91d7ba39d875594bb1",
+        "7556549ffe31d303a9cb99974a11fb56aca05726c608564368648503e5edcc95d505e55323b086cb7a731972efc9094256548f745bfd9d886407c42a5f894d26",
+        "cdb35f2826be9a561ae452f06a86e020feec43419d38406f731190732fe143bd69b0e8496ee23817ce13ff6abf9202ec3279b9cb21222be89d5592faa779ff6c",
+        "19971a76da2927c916c079813a0e1e8d91fab52065f926018973b6b5e9d0a22cfdefe3d937ed3ec8e323074a50f6e747a2d6cee0e95185980594ffda8c438a84",
+        "689a23c147a58d70a6f30005d64e49e68fe96a2e9143d78b5957bf26fd9cf06d218279430d7c87b6c5ba163f1557fe2f3b951f0ad126bbe1b804e992c590616a",
     ]
     "###);
 
@@ -470,7 +470,7 @@ fn test_resolve_op_id() {
     );
     // Ambiguous id
     assert_matches!(
-        resolve("1"),
+        resolve("c"),
         Err(OpsetEvaluationError::OpsetResolution(
             OpsetResolutionError::AmbiguousIdPrefix(_)
         ))
