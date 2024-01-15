@@ -453,43 +453,50 @@ fn test_resolve_op_id() {
     ]
     "###);
 
+    let repo_loader = repo.loader();
+    let resolve = |op_str: &str| op_walk::resolve_op_for_load(&repo_loader, op_str);
+
     // Full id
-    assert_eq!(
-        op_walk::resolve_op_with_repo(&repo, &operations[0].id().hex()).unwrap(),
-        operations[0]
-    );
+    assert_eq!(resolve(&operations[0].id().hex()).unwrap(), operations[0]);
     // Short id, odd length
     assert_eq!(
-        op_walk::resolve_op_with_repo(&repo, &operations[0].id().hex()[..3]).unwrap(),
+        resolve(&operations[0].id().hex()[..3]).unwrap(),
         operations[0]
     );
     // Short id, even length
     assert_eq!(
-        op_walk::resolve_op_with_repo(&repo, &operations[1].id().hex()[..2]).unwrap(),
+        resolve(&operations[1].id().hex()[..2]).unwrap(),
         operations[1]
     );
     // Ambiguous id
     assert_matches!(
-        op_walk::resolve_op_with_repo(&repo, "1"),
+        resolve("1"),
         Err(OpsetEvaluationError::OpsetResolution(
             OpsetResolutionError::AmbiguousIdPrefix(_)
         ))
     );
     // Empty id
     assert_matches!(
-        op_walk::resolve_op_with_repo(&repo, ""),
+        resolve(""),
         Err(OpsetEvaluationError::OpsetResolution(
             OpsetResolutionError::InvalidIdPrefix(_)
         ))
     );
     // Unknown id
     assert_matches!(
-        op_walk::resolve_op_with_repo(&repo, "deadbee"),
+        resolve("deadbee"),
         Err(OpsetEvaluationError::OpsetResolution(
             OpsetResolutionError::NoSuchOperation(_)
         ))
     );
-    // Current op
+}
+
+#[test]
+fn test_resolve_current_op() {
+    let settings = stable_op_id_settings();
+    let test_repo = TestRepo::init_with_settings(&settings);
+    let repo = test_repo.repo;
+
     assert_eq!(
         op_walk::resolve_op_with_repo(&repo, "@").unwrap(),
         *repo.operation()
