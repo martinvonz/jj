@@ -763,16 +763,24 @@ fn cmd_branch_list(
                     revset::walk_revs(repo.as_ref(), &remote_added_ids, &local_added_ids)?.count();
                 let local_ahead_count =
                     revset::walk_revs(repo.as_ref(), &local_added_ids, &remote_added_ids)?.count();
-                if remote_ahead_count != 0 && local_ahead_count == 0 {
-                    write!(formatter, " (ahead by {remote_ahead_count} commits)")?;
-                } else if remote_ahead_count == 0 && local_ahead_count != 0 {
-                    write!(formatter, " (behind by {local_ahead_count} commits)")?;
-                } else if remote_ahead_count != 0 && local_ahead_count != 0 {
-                    write!(
-                        formatter,
-                        " (ahead by {remote_ahead_count} commits, behind by {local_ahead_count} \
-                         commits)"
-                    )?;
+                let remote_ahead_message = if remote_ahead_count != 0 {
+                    Some(format!("ahead by {remote_ahead_count} commits"))
+                } else {
+                    None
+                };
+                let local_ahead_message = if local_ahead_count != 0 {
+                    Some(format!("behind by {local_ahead_count} commits"))
+                } else {
+                    None
+                };
+                match (remote_ahead_message, local_ahead_message) {
+                    (Some(rm), Some(lm)) => {
+                        write!(formatter, " ({rm}, {lm})")?;
+                    }
+                    (Some(m), None) | (None, Some(m)) => {
+                        write!(formatter, " ({m})")?;
+                    }
+                    (None, None) => { /* do nothing */ }
                 }
             }
             print_branch_target(formatter, &remote_ref.target)?;
