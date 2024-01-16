@@ -1139,6 +1139,50 @@ fn test_branch_list_filtered() {
     "###);
 }
 
+#[test]
+fn test_branch_list_much_remote_divergence() {
+    let test_env = TestEnvironment::default();
+    test_env.add_config("git.auto-local-branch = true");
+
+    // Initialize remote refs
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "remote", "--git"]);
+    let remote_path = test_env.env_root().join("remote");
+    test_env.jj_cmd_ok(&remote_path, &["new", "root()", "-m", "remote-unsync"]);
+    for _ in 0..15 {
+        test_env.jj_cmd_ok(&remote_path, &["new", "-m", "remote-unsync"]);
+    }
+    test_env.jj_cmd_ok(&remote_path, &["branch", "create", "remote-unsync"]);
+    test_env.jj_cmd_ok(&remote_path, &["new"]);
+    test_env.jj_cmd_ok(&remote_path, &["git", "export"]);
+
+    // Initialize local refs
+    let mut remote_git_path = remote_path;
+    remote_git_path.extend([".jj", "repo", "store", "git"]);
+    test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &["git", "clone", remote_git_path.to_str().unwrap(), "local"],
+    );
+    let local_path = test_env.env_root().join("local");
+    test_env.jj_cmd_ok(&local_path, &["new", "root()", "-m", "local-only"]);
+    for _ in 0..15 {
+        test_env.jj_cmd_ok(&local_path, &["new", "-m", "local-only"]);
+    }
+    test_env.jj_cmd_ok(&local_path, &["branch", "create", "local-only"]);
+
+    // Mutate refs in local repository
+    test_env.jj_cmd_ok(
+        &local_path,
+        &["branch", "set", "--allow-backwards", "remote-unsync"],
+    );
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&local_path, &["branch", "list"]), @r###"
+    local-only: zkyosouw 4ab3f751 (empty) local-only
+    remote-unsync: zkyosouw 4ab3f751 (empty) local-only
+      @origin (ahead by at least 10 commits, behind by at least 10 commits): lxyktnks 19582022 (empty) remote-unsync
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"branches ++ " " ++ commit_id.short()"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])

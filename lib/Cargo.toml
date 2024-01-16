@@ -74,3 +74,4 @@ tokio = { workspace = true, features = ["full"] }
 default = []
 vendored-openssl = ["git2/vendored-openssl"]
 watchman = ["dep:tokio", "dep:watchman_client"]
+testing = []

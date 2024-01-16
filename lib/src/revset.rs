@@ -2415,7 +2415,11 @@ pub trait Revset: fmt::Debug {
 
     fn is_empty(&self) -> bool;
 
-    fn count(&self) -> usize;
+    /// Inclusive lower bound and, optionally, inclusive upper bound of how many
+    /// commits are in the revset. The implementation can use its discretion as
+    /// to how much effort should be put into the estimation, and how accurate
+    /// the resulting estimate should be.
+    fn count_estimate(&self) -> (usize, Option<usize>);
 }
 
 pub trait RevsetIteratorExt<'index, I> {
