@@ -84,7 +84,7 @@ jj-cli = { path = ".", features = ["test-fakes"], default-features = false }
 default = ["watchman"]
 bench = ["dep:criterion"]
 packaging = []
-test-fakes = []
+test-fakes = ["jj-lib/testing"]
 vendored-openssl = ["git2/vendored-openssl", "jj-lib/vendored-openssl"]
 watchman = ["jj-lib/watchman"]
 

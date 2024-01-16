@@ -759,19 +759,25 @@ fn cmd_branch_list(
             if local_target.is_present() && !synced {
                 let remote_added_ids = remote_ref.target.added_ids().cloned().collect_vec();
                 let local_added_ids = local_target.added_ids().cloned().collect_vec();
-                let remote_ahead_count =
-                    revset::walk_revs(repo.as_ref(), &remote_added_ids, &local_added_ids)?.count();
-                let local_ahead_count =
-                    revset::walk_revs(repo.as_ref(), &local_added_ids, &remote_added_ids)?.count();
-                let remote_ahead_message = if remote_ahead_count != 0 {
-                    Some(format!("ahead by {remote_ahead_count} commits"))
-                } else {
-                    None
+                let (remote_ahead_lower, remote_ahead_upper) =
+                    revset::walk_revs(repo.as_ref(), &remote_added_ids, &local_added_ids)?
+                        .count_estimate();
+                let (local_ahead_lower, local_ahead_upper) =
+                    revset::walk_revs(repo.as_ref(), &local_added_ids, &remote_added_ids)?
+                        .count_estimate();
+                let remote_ahead_message = match remote_ahead_upper {
+                    Some(0) => None,
+                    Some(upper) if upper == remote_ahead_lower => {
+                        Some(format!("ahead by {remote_ahead_lower} commits"))
+                    }
+                    _ => Some(format!("ahead by at least {remote_ahead_lower} commits")),
                 };
-                let local_ahead_message = if local_ahead_count != 0 {
-                    Some(format!("behind by {local_ahead_count} commits"))
-                } else {
-                    None
+                let local_ahead_message = match local_ahead_upper {
+                    Some(0) => None,
+                    Some(upper) if upper == local_ahead_lower => {
+                        Some(format!("behind by {local_ahead_lower} commits"))
+                    }
+                    _ => Some(format!("behind by at least {local_ahead_lower} commits")),
                 };
                 match (remote_ahead_message, local_ahead_message) {
                     (Some(rm), Some(lm)) => {

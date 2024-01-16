@@ -130,8 +130,21 @@ impl<I: AsCompositeIndex> Revset for RevsetImpl<I> {
         self.entries().next().is_none()
     }
 
-    fn count(&self) -> usize {
-        self.entries().count()
+    fn count_estimate(&self) -> (usize, Option<usize>) {
+        if cfg!(feature = "testing") {
+            // Exercise the estimation feature in tests. (If we ever have a Revset
+            // implementation in production code that returns estimates, we can probably
+            // remove this and rewrite the associated tests.)
+            let count = self.entries().take(10).count();
+            if count < 10 {
+                (count, Some(count))
+            } else {
+                (10, None)
+            }
+        } else {
+            let count = self.iter().count();
+            (count, Some(count))
+        }
     }
 }
 
