@@ -19,7 +19,7 @@ use std::collections::HashSet;
 use std::fmt::{Debug, Error, Formatter};
 use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
-use std::process::ExitStatus;
+use std::process::{Command, ExitStatus};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::{fs, io, str};
 
@@ -606,9 +606,12 @@ fn to_no_gc_ref_update(id: &CommitId) -> gix::refs::transaction::RefEdit {
 }
 
 fn run_git_gc(git_dir: &Path) -> Result<(), GitGcError> {
-    let mut git = std::process::Command::new("git");
-    git.env("GIT_DIR", git_dir);
-    git.args(["gc"]);
+    let mut git = Command::new("git");
+    git.arg("--git-dir=."); // turn off discovery
+    git.arg("gc");
+    // Don't specify it by GIT_DIR/--git-dir. On Windows, the "\\?\" path might
+    // not be supported by git.
+    git.current_dir(git_dir);
     // TODO: pass output to UI layer instead of printing directly here
     let status = git.status().map_err(GitGcError::GcCommand)?;
     if !status.success() {
