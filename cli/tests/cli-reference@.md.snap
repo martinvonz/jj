@@ -21,7 +21,6 @@ This document contains the help content for the `jj` command-line program.
 * [`jj branch track`↴](#jj-branch-track)
 * [`jj branch untrack`↴](#jj-branch-untrack)
 * [`jj cat`↴](#jj-cat)
-* [`jj checkout`↴](#jj-checkout)
 * [`jj chmod`↴](#jj-chmod)
 * [`jj commit`↴](#jj-commit)
 * [`jj config`↴](#jj-config)
@@ -105,7 +104,6 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `backout` — Apply the reverse of a revision on top of another revision
 * `branch` — Manage branches
 * `cat` — Print contents of a file in a revision
-* `checkout` — Create a new, empty change and edit it in the working copy
 * `chmod` — Sets or removes the executable bit for paths in the repo
 * `commit` — Update the description and create a new change on top
 * `config` — Manage config options
@@ -384,28 +382,6 @@ Print contents of a file in a revision
 * `-r`, `--revision <REVISION>` — The revision to get the file contents from
 
   Default value: `@`
-
-
-
-## `jj checkout`
-
-Create a new, empty change and edit it in the working copy
-
-For more information, see https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
-
-**Usage:** `jj checkout [OPTIONS] <REVISION>`
-
-###### **Arguments:**
-
-* `<REVISION>` — The revision to update to
-
-###### **Options:**
-
-* `-r` — Ignored (but lets you pass `-r` for consistency with other commands)
-
-  Possible values: `true`, `false`
-
-* `-m`, `--message <MESSAGE>` — The change description to use
 
 
 
