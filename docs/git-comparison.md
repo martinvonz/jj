@@ -234,7 +234,7 @@ parent.
     </tr>
     <tr>
       <td>Start working on a new change based on the &lt;main&gt; branch</td>
-      <td><code>jj co main</code></td>
+      <td><code>jj new main</code></td>
       <td><code>git switch -c topic main</code> or
         <code>git checkout -b topic main</code> (may need to stash or commit
         first)</td>

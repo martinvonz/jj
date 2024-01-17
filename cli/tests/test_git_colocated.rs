@@ -127,7 +127,7 @@ fn test_git_colocated_unborn_branch() {
 
     // Stage some change, and check out root. This shouldn't clobber the HEAD.
     add_file_to_index("file0", "");
-    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["checkout", "root()"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["new", "root()"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Working copy now at: kkmpptxz fcdbbd73 (empty) (no description set)
@@ -188,7 +188,7 @@ fn test_git_colocated_unborn_branch() {
     // Stage some change, and check out root again. This should unset the HEAD.
     // https://github.com/martinvonz/jj/issues/1495
     add_file_to_index("file2", "");
-    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["checkout", "root()"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["new", "root()"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Working copy now at: znkkpsqq 10dd328b (empty) (no description set)
