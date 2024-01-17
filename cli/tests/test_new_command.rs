@@ -123,10 +123,14 @@ fn test_new_merge() {
     // `jj merge` with less than two arguments is an error
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["merge"]);
     insta::assert_snapshot!(stderr, @r###"
+    warning: `jj merge` is deprecated; use `jj new` instead, which is equivalent
+    warning: `jj merge` will be removed in a future version, and this will be a hard error
     Error: Merge requires at least two revisions
     "###);
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["merge", "main"]);
     insta::assert_snapshot!(stderr, @r###"
+    warning: `jj merge` is deprecated; use `jj new` instead, which is equivalent
+    warning: `jj merge` will be removed in a future version, and this will be a hard error
     Error: Merge requires at least two revisions
     "###);
 

@@ -49,7 +49,6 @@ This document contains the help content for the `jj` command-line program.
 * [`jj init`↴](#jj-init)
 * [`jj interdiff`↴](#jj-interdiff)
 * [`jj log`↴](#jj-log)
-* [`jj merge`↴](#jj-merge)
 * [`jj move`↴](#jj-move)
 * [`jj new`↴](#jj-new)
 * [`jj next`↴](#jj-next)
@@ -117,7 +116,6 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `init` — Create a new repo in the given directory
 * `interdiff` — Compare the changes of two commits
 * `log` — Show commit history
-* `merge` — Merge work from multiple branches
 * `move` — Move changes from one revision into another
 * `new` — Create a new, empty change and (by default) edit it in the working copy
 * `next` — Move the current working copy commit to the next child revision in the
@@ -1009,52 +1007,6 @@ Show commit history
   Possible values: `true`, `false`
 
 * `--tool <TOOL>` — Generate diff by external command
-
-
-
-## `jj merge`
-
-Merge work from multiple branches
-
-Unlike most other VCSs, `jj merge` does not implicitly include the working copy revision's parent as one of the parents of the merge; you need to explicitly list all revisions that should become parents of the merge.
-
-This is the same as `jj new`, except that it requires at least two arguments.
-
-**Usage:** `jj merge [OPTIONS] [REVISIONS]...`
-
-###### **Arguments:**
-
-* `<REVISIONS>` — Parent(s) of the new change
-
-  Default value: `@`
-
-###### **Options:**
-
-* `-r` — Ignored (but lets you pass `-r` for consistency with other commands)
-
-  Possible values: `true`, `false`
-
-* `-m`, `--message <MESSAGE>` — The change description to use
-* `-L`, `--allow-large-revsets` — Deprecated. Please prefix the revset with `all:` instead
-
-  Possible values: `true`, `false`
-
-* `--no-edit` — Do not edit the newly created change
-
-  Possible values: `true`, `false`
-
-* `--edit` — No-op flag to pair with --no-edit
-
-  Possible values: `true`, `false`
-
-* `-A`, `--insert-after` — Insert the new change between the target commit(s) and their children
-
-  Possible values: `true`, `false`
-
-* `-B`, `--insert-before` — Insert the new change between the target commit(s) and their parents
-
-  Possible values: `true`, `false`
-
 
 
 
