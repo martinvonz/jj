@@ -104,6 +104,7 @@ enum Command {
     ///
     /// This is the same as `jj new`, except that it requires at least two
     /// arguments.
+    #[command(hide = true)]
     Merge(new::NewArgs),
     Move(r#move::MoveArgs),
     New(new::NewArgs),
