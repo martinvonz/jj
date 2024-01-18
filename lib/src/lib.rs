@@ -40,6 +40,7 @@ pub mod extensions_map;
 pub mod file_util;
 pub mod files;
 pub mod fmt_util;
+pub mod footer;
 pub mod fsmonitor;
 pub mod git;
 pub mod git_backend;
