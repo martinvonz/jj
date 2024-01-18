@@ -24,9 +24,8 @@ use jj_lib::workspace::Workspace;
 use tracing::instrument;
 
 use super::git;
-use crate::cli_util::{
-    print_git_import_stats, user_error, user_error_with_hint, CommandError, CommandHelper,
-};
+use crate::cli_util::{user_error, user_error_with_hint, CommandError, CommandHelper};
+use crate::git_util::print_git_import_stats;
 use crate::ui::Ui;
 
 /// Create a new repo in the given directory

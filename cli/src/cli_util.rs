@@ -32,10 +32,7 @@ use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jj_lib::backend::{BackendError, ChangeId, CommitId, MergedTreeId};
 use jj_lib::commit::Commit;
-use jj_lib::git::{
-    FailedRefExport, FailedRefExportReason, GitConfigParseError, GitExportError, GitImportError,
-    GitImportStats, GitRemoteManagementError,
-};
+use jj_lib::git::{GitConfigParseError, GitExportError, GitImportError, GitRemoteManagementError};
 use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::hex_util::to_reverse_hex;
@@ -82,6 +79,7 @@ use crate::config::{
     new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigSource, LayeredConfigs,
 };
 use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
+use crate::git_util::{print_failed_git_export, print_git_import_stats};
 use crate::merge_tools::{ConflictResolveError, DiffEditError, DiffGenerateError};
 use crate::template_parser::{TemplateAliasesMap, TemplateParseError};
 use crate::templater::Template;
@@ -946,7 +944,9 @@ impl WorkspaceCommandHelper {
             // TODO: maybe use path_by_key() and interpolate(), which can process non-utf-8
             // path on Unix.
             if let Some(value) = config.string_by_key("core.excludesFile") {
-                str::from_utf8(&value).ok().map(expand_git_path)
+                str::from_utf8(&value)
+                    .ok()
+                    .map(crate::git_util::expand_git_path)
             } else {
                 xdg_config_home().ok().map(|x| x.join("git").join("ignore"))
             }
@@ -1941,55 +1941,6 @@ Discard the conflicting changes with `jj restore --from {}`.",
         )?;
     }
     Ok(())
-}
-
-pub fn print_git_import_stats(ui: &mut Ui, stats: &GitImportStats) -> Result<(), CommandError> {
-    if !stats.abandoned_commits.is_empty() {
-        writeln!(
-            ui.stderr(),
-            "Abandoned {} commits that are no longer reachable.",
-            stats.abandoned_commits.len()
-        )?;
-    }
-    Ok(())
-}
-
-pub fn print_failed_git_export(
-    ui: &Ui,
-    failed_branches: &[FailedRefExport],
-) -> Result<(), std::io::Error> {
-    if !failed_branches.is_empty() {
-        writeln!(ui.warning(), "Failed to export some branches:")?;
-        let mut formatter = ui.stderr_formatter();
-        for FailedRefExport { name, reason } in failed_branches {
-            formatter.write_str("  ")?;
-            write!(formatter.labeled("branch"), "{name}")?;
-            writeln!(formatter, ": {reason}")?;
-        }
-        drop(formatter);
-        if failed_branches
-            .iter()
-            .any(|failed| matches!(failed.reason, FailedRefExportReason::FailedToSet(_)))
-        {
-            writeln!(
-                ui.hint(),
-                r#"Hint: Git doesn't allow a branch name that looks like a parent directory of
-another (e.g. `foo` and `foo/bar`). Try to rename the branches that failed to
-export or their "parent" branches."#,
-            )?;
-        }
-    }
-    Ok(())
-}
-
-/// Expands "~/" to "$HOME/" as Git seems to do for e.g. core.excludesFile.
-fn expand_git_path(path_str: &str) -> PathBuf {
-    if let Some(remainder) = path_str.strip_prefix("~/") {
-        if let Ok(home_dir_str) = std::env::var("HOME") {
-            return PathBuf::from(home_dir_str).join(remainder);
-        }
-    }
-    PathBuf::from(path_str)
 }
 
 pub fn parse_string_pattern(src: &str) -> Result<StringPattern, StringPatternParseError> {
