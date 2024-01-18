@@ -13,12 +13,9 @@
 // limitations under the License.
 
 use std::collections::HashSet;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
-use std::sync::Mutex;
-use std::time::Instant;
 use std::{fmt, fs, io};
 
 use clap::{ArgGroup, Subcommand};
@@ -27,7 +24,6 @@ use jj_lib::backend::TreeValue;
 use jj_lib::git::{
     self, parse_gitmodules, GitBranchPushTargets, GitFetchError, GitFetchStats, GitPushError,
 };
-use jj_lib::git_backend::GitBackend;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::RefTarget;
 use jj_lib::refs::{
@@ -37,18 +33,19 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::revset::{self, RevsetExpression, RevsetIteratorExt as _};
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
-use jj_lib::store::Store;
 use jj_lib::str_util::StringPattern;
 use jj_lib::view::View;
 use jj_lib::workspace::Workspace;
 use maplit::hashset;
 
 use crate::cli_util::{
-    parse_string_pattern, print_failed_git_export, print_git_import_stats,
-    resolve_multiple_nonempty_revsets, short_change_hash, short_commit_hash, user_error,
-    user_error_with_hint, CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
+    parse_string_pattern, resolve_multiple_nonempty_revsets, short_change_hash, short_commit_hash,
+    user_error, user_error_with_hint, CommandError, CommandHelper, RevisionArg,
+    WorkspaceCommandHelper,
 };
-use crate::progress::Progress;
+use crate::git_util::{
+    get_git_repo, print_failed_git_export, print_git_import_stats, with_remote_git_callbacks,
+};
 use crate::ui::Ui;
 
 /// Commands for working with the underlying Git repo
@@ -212,13 +209,6 @@ fn make_branch_term(branch_names: &[impl fmt::Display]) -> String {
     }
 }
 
-fn get_git_repo(store: &Store) -> Result<git2::Repository, CommandError> {
-    match store.backend_impl().downcast_ref::<GitBackend>() {
-        None => Err(user_error("The repo is not backed by a git repo")),
-        Some(git_backend) => Ok(git_backend.open_git_repo()?),
-    }
-}
-
 fn map_git_error(err: git2::Error) -> CommandError {
     if err.class() == git2::ErrorClass::Ssh {
         let hint =
@@ -338,7 +328,7 @@ fn cmd_git_fetch(
     };
     let mut tx = workspace_command.start_transaction();
     for remote in &remotes {
-        let stats = with_remote_callbacks(ui, |cb| {
+        let stats = with_remote_git_callbacks(ui, |cb| {
             git::fetch(
                 tx.mut_repo(),
                 &git_repo,
@@ -556,7 +546,7 @@ fn do_git_clone(
     git_repo.remote(remote_name, source).unwrap();
     let mut fetch_tx = workspace_command.start_transaction();
 
-    let stats = with_remote_callbacks(ui, |cb| {
+    let stats = with_remote_git_callbacks(ui, |cb| {
         git::fetch(
             fetch_tx.mut_repo(),
             &git_repo,
@@ -579,119 +569,6 @@ fn do_git_clone(
     print_git_import_stats(ui, &stats.import_stats)?;
     fetch_tx.finish(ui, "fetch from git remote into empty repo")?;
     Ok((workspace_command, stats))
-}
-
-fn with_remote_callbacks<T>(ui: &mut Ui, f: impl FnOnce(git::RemoteCallbacks<'_>) -> T) -> T {
-    let mut ui = Mutex::new(ui);
-    let mut callback = None;
-    if let Some(mut output) = ui.get_mut().unwrap().progress_output() {
-        let mut progress = Progress::new(Instant::now());
-        callback = Some(move |x: &git::Progress| {
-            _ = progress.update(Instant::now(), x, &mut output);
-        });
-    }
-    let mut callbacks = git::RemoteCallbacks::default();
-    callbacks.progress = callback
-        .as_mut()
-        .map(|x| x as &mut dyn FnMut(&git::Progress));
-    let mut get_ssh_keys = get_ssh_keys; // Coerce to unit fn type
-    callbacks.get_ssh_keys = Some(&mut get_ssh_keys);
-    let mut get_pw = |url: &str, _username: &str| {
-        pinentry_get_pw(url).or_else(|| terminal_get_pw(*ui.lock().unwrap(), url))
-    };
-    callbacks.get_password = Some(&mut get_pw);
-    let mut get_user_pw = |url: &str| {
-        let ui = &mut *ui.lock().unwrap();
-        Some((terminal_get_username(ui, url)?, terminal_get_pw(ui, url)?))
-    };
-    callbacks.get_username_password = Some(&mut get_user_pw);
-    f(callbacks)
-}
-
-fn terminal_get_username(ui: &mut Ui, url: &str) -> Option<String> {
-    ui.prompt(&format!("Username for {url}")).ok()
-}
-
-fn terminal_get_pw(ui: &mut Ui, url: &str) -> Option<String> {
-    ui.prompt_password(&format!("Passphrase for {url}: ")).ok()
-}
-
-fn pinentry_get_pw(url: &str) -> Option<String> {
-    let mut pinentry = Command::new("pinentry")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()
-        .ok()?;
-    #[rustfmt::skip]
-    pinentry
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(
-            format!(
-                "SETTITLE jj passphrase\n\
-                 SETDESC Enter passphrase for {url}\n\
-                 SETPROMPT Passphrase:\n\
-                 GETPIN\n"
-            )
-            .as_bytes(),
-        )
-        .ok()?;
-    let mut out = String::new();
-    pinentry
-        .stdout
-        .take()
-        .unwrap()
-        .read_to_string(&mut out)
-        .ok()?;
-    _ = pinentry.wait();
-    for line in out.split('\n') {
-        if !line.starts_with("D ") {
-            continue;
-        }
-        let (_, encoded) = line.split_at(2);
-        return decode_assuan_data(encoded);
-    }
-    None
-}
-
-// https://www.gnupg.org/documentation/manuals/assuan/Server-responses.html#Server-responses
-fn decode_assuan_data(encoded: &str) -> Option<String> {
-    let encoded = encoded.as_bytes();
-    let mut decoded = Vec::with_capacity(encoded.len());
-    let mut i = 0;
-    while i < encoded.len() {
-        if encoded[i] != b'%' {
-            decoded.push(encoded[i]);
-            i += 1;
-            continue;
-        }
-        i += 1;
-        let byte =
-            u8::from_str_radix(std::str::from_utf8(encoded.get(i..i + 2)?).ok()?, 16).ok()?;
-        decoded.push(byte);
-        i += 2;
-    }
-    String::from_utf8(decoded).ok()
-}
-
-#[tracing::instrument]
-fn get_ssh_keys(_username: &str) -> Vec<PathBuf> {
-    let mut paths = vec![];
-    if let Some(home_dir) = dirs::home_dir() {
-        let ssh_dir = Path::new(&home_dir).join(".ssh");
-        for filename in ["id_ed25519_sk", "id_ed25519", "id_rsa"] {
-            let key_path = ssh_dir.join(filename);
-            if key_path.is_file() {
-                tracing::info!(path = ?key_path, "found ssh key");
-                paths.push(key_path);
-            }
-        }
-    }
-    if paths.is_empty() {
-        tracing::info!("no ssh key found");
-    }
-    paths
 }
 
 fn cmd_git_push(
@@ -978,7 +855,7 @@ fn cmd_git_push(
         branch_updates,
         force_pushed_branches,
     };
-    with_remote_callbacks(ui, |cb| {
+    with_remote_git_callbacks(ui, |cb| {
         git::push_branches(tx.mut_repo(), &git_repo, &remote, &targets, cb)
     })
     .map_err(|err| match err {
