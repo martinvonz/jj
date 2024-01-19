@@ -353,6 +353,53 @@ impl Ui {
         Ok(buf)
     }
 
+    /// Repeat the given prompt until the input is one of the specified choices.
+    pub fn prompt_choice(
+        &mut self,
+        prompt: &str,
+        choices: &[impl AsRef<str>],
+        default: Option<&str>,
+    ) -> io::Result<String> {
+        if !io::stdout().is_terminal() {
+            if let Some(default) = default {
+                // Choose the default automatically without waiting.
+                writeln!(self.stdout(), "{prompt}: {default}")?;
+                return Ok(default.to_owned());
+            }
+        }
+
+        loop {
+            let choice = self.prompt(prompt)?.trim().to_owned();
+            if choice.is_empty() {
+                if let Some(default) = default {
+                    return Ok(default.to_owned());
+                }
+            }
+            if choices.iter().any(|c| choice == c.as_ref()) {
+                return Ok(choice);
+            }
+
+            writeln!(self.warning(), "unrecognized response")?;
+        }
+    }
+
+    /// Prompts for a yes-or-no response, with yes = true and no = false.
+    pub fn prompt_yes_no(&mut self, prompt: &str, default: Option<bool>) -> io::Result<bool> {
+        let default_str = match &default {
+            Some(true) => "(Yn)",
+            Some(false) => "(yN)",
+            None => "(yn)",
+        };
+        let default_choice = default.map(|c| if c { "Y" } else { "N" });
+
+        let choice = self.prompt_choice(
+            &format!("{} {}", prompt, default_str),
+            &["y", "n", "yes", "no", "Yes", "No", "YES", "NO"],
+            default_choice,
+        )?;
+        Ok(choice.to_lowercase().starts_with(['y', 'Y']))
+    }
+
     pub fn prompt_password(&mut self, prompt: &str) -> io::Result<String> {
         if !io::stdout().is_terminal() {
             return Err(io::Error::new(
