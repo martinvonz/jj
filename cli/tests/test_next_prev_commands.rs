@@ -117,27 +117,56 @@ fn test_next_exceeding_history() {
 }
 
 #[test]
+fn test_next_fails_on_merge_commit() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "left"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "right"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "left", "right"]);
+    // Try to advance the working copy commit.
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["next"]);
+    insta::assert_snapshot!(stderr,@r###"
+    Error: Cannot run `jj next` on a merge commit
+    "###);
+}
+
+#[test]
 fn test_next_fails_on_branching_children() {
     // TODO(#2126): Fix this behavior
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    // Create a main branch for this test
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
-    // Create a branching child.
-    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "into-the-future"]);
-    test_env.jj_cmd_ok(&repo_path, &["co", "into-the-future"]);
-    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "42"]);
-    test_env.jj_cmd_ok(&repo_path, &["co", "main"]);
-    // Make the default branch have two possible children.
-    test_env.jj_cmd_ok(&repo_path, &["new", "into-the-future", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
     // Try to advance the working copy commit.
     let stderr = test_env.jj_cmd_failure(&repo_path, &["next"]);
     insta::assert_snapshot!(stderr,@r###"
-    Error: Cannot run `jj next` on a merge commit
+    Error: Ambiguous target commit
+    "###);
+}
+
+#[test]
+fn test_prev_fails_on_merge_commit() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "left"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "right"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "left", "right"]);
+    // Try to advance the working copy commit.
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["prev"]);
+    insta::assert_snapshot!(stderr,@r###"
+    Error: Cannot run `jj prev` on a merge commit
     "###);
 }
 
@@ -147,18 +176,18 @@ fn test_prev_fails_on_multiple_parents() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "left"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "right"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "all-about"]);
-    test_env.jj_cmd_ok(&repo_path, &["co", "all-about"]);
-    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "soname"]);
     // Create a merge commit, which has two parents.
-    test_env.jj_cmd_ok(&repo_path, &["new", "@-", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "left", "right"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "merge"]);
     // We have more than one parent, prev fails.
     let stderr = test_env.jj_cmd_failure(&repo_path, &["prev"]);
     insta::assert_snapshot!(stderr,@r###"
-    Error: Cannot run `jj prev` on a merge commit
+    Error: Ambiguous target commit
     "###);
 }
 
