@@ -222,7 +222,7 @@ parent.
     </tr>
     <tr>
       <td>Temporarily put away the current change</td>
-      <td>Not needed</td>
+      <td><code>jj new @-</code> (the old working-copy commit remains as a sibling commit)</td>
       <td><code>git stash</code></td>
     </tr>
     <tr>
