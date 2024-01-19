@@ -329,8 +329,15 @@ impl Ui {
         }
     }
 
+    pub fn can_prompt() -> bool {
+        io::stdout().is_terminal()
+            || env::var("JJ_INTERACTIVE")
+                .map(|v| v == "1")
+                .unwrap_or(false)
+    }
+
     pub fn prompt(&mut self, prompt: &str) -> io::Result<String> {
-        if !io::stdout().is_terminal() {
+        if !Self::can_prompt() {
             return Err(io::Error::new(
                 io::ErrorKind::Unsupported,
                 "Cannot prompt for input since the output is not connected to a terminal",
@@ -360,7 +367,7 @@ impl Ui {
         choices: &[impl AsRef<str>],
         default: Option<&str>,
     ) -> io::Result<String> {
-        if !io::stdout().is_terminal() {
+        if !Self::can_prompt() {
             if let Some(default) = default {
                 // Choose the default automatically without waiting.
                 writeln!(self.stdout(), "{prompt}: {default}")?;
