@@ -62,7 +62,18 @@ pub(crate) struct UtilCompletionArgs {
 
 /// Run backend-dependent garbage collection.
 #[derive(clap::Args, Clone, Debug)]
-pub(crate) struct UtilGcArgs {}
+pub(crate) struct UtilGcArgs {
+    /// Time threshold
+    ///
+    /// By default, only obsolete objects and operations older than 2 weeks are
+    /// pruned.
+    ///
+    /// Only the string "now" can be passed to this parameter. Support for
+    /// arbitrary absolute and relative timestamps will come in a subsequent
+    /// release.
+    #[arg(long)]
+    expire: Option<String>,
+}
 
 /// Print a ROFF (manpage)
 #[derive(clap::Args, Clone, Debug)]
@@ -108,16 +119,20 @@ fn cmd_util_completion(
 fn cmd_util_gc(
     ui: &mut Ui,
     command: &CommandHelper,
-    _args: &UtilGcArgs,
+    args: &UtilGcArgs,
 ) -> Result<(), CommandError> {
     if command.global_args().at_operation != "@" {
         return Err(user_error(
             "Cannot garbage collect from a non-head operation",
         ));
     }
+    let keep_newer = match args.expire.as_deref() {
+        None => SystemTime::now() - Duration::from_secs(14 * 86400),
+        Some("now") => SystemTime::now() - Duration::ZERO,
+        _ => return Err(user_error("--expire only accepts 'now'")),
+    };
     let workspace_command = command.workspace_helper(ui)?;
-    // TODO: add command argument to specify the expiration time?
-    let keep_newer = SystemTime::now() - Duration::from_secs(14 * 86400);
+
     let repo = workspace_command.repo();
     repo.op_store()
         .gc(slice::from_ref(repo.op_id()), keep_newer)?;

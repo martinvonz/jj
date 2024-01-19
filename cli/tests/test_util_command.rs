@@ -55,4 +55,42 @@ fn test_gc_args() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Cannot garbage collect from a non-head operation
     "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["util", "gc", "--expire=foobar"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: --expire only accepts 'now'
+    "###);
+}
+
+#[test]
+fn test_gc_operation_log() {
+    let test_env = TestEnvironment::default();
+    // Use the local backend because GitBackend::gc() depends on the git CLI.
+    test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &["init", "repo", "--config-toml=ui.allow-init-native=true"],
+    );
+    let repo_path = test_env.env_root().join("repo");
+
+    // Create an operation.
+    std::fs::write(repo_path.join("file"), "a change\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "a change"]);
+    let op_to_remove = test_env.current_operation_id(&repo_path);
+
+    // Make another operation the head.
+    std::fs::write(repo_path.join("file"), "another change\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "another change"]);
+
+    // This works before the operation is removed.
+    test_env.jj_cmd_ok(&repo_path, &["debug", "operation", &op_to_remove]);
+
+    // Remove some operations.
+    test_env.jj_cmd_ok(&repo_path, &["operation", "abandon", "..@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["util", "gc", "--expire=now"]);
+
+    // Now this doesn't work.
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["debug", "operation", &op_to_remove]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No operation ID matching "35688918195690874cbf1f282140cda33c882e48a84dbb0f92c262b52ace4a5753777432b18e9de01bc23121b23261eb2c828622836b9ec7ded7c0ca3c7c1670"
+    "###);
 }
