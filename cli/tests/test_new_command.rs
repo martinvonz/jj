@@ -464,6 +464,65 @@ fn test_new_insert_before_root() {
     "###);
 }
 
+#[test]
+fn test_new_conflicting_branches() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "one"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "two", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "--at-op=@-",
+            "branch",
+            "create",
+            "foo",
+            "-r",
+            r#"description("one")"#,
+        ],
+    );
+
+    // Trigger resolution of concurrent operations
+    test_env.jj_cmd_ok(&repo_path, &["st"]);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "foo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revset "foo" resolved to more than one revision
+    Hint: Branch foo resolved to multiple revisions because it's conflicted.
+    It resolved to these revisions:
+    kkmpptxz 66c6502d foo?? | (empty) two
+    qpvuntsm a9330854 foo?? | (empty) one
+    Set which revision the branch points to with `jj branch set foo -r <REVISION>`.
+    Prefix the expression with 'all' to allow any number of revisions (i.e. 'all:foo').
+    "###);
+}
+
+#[test]
+fn test_new_conflicting_change_ids() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "one"]);
+    test_env.jj_cmd_ok(&repo_path, &["--at-op=@-", "describe", "-m", "two"]);
+
+    // Trigger resolution of concurrent operations
+    test_env.jj_cmd_ok(&repo_path, &["st"]);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "qpvuntsm"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revset "qpvuntsm" resolved to more than one revision
+    Hint: The revset "qpvuntsm" resolved to these revisions:
+    qpvuntsm?? d2ae6806 (empty) two
+    qpvuntsm?? a9330854 (empty) one
+    Some of these commits have the same change id. Abandon one of them with `jj abandon -r <REVISION>`.
+    Prefix the expression with 'all' to allow any number of revisions (i.e. 'all:qpvuntsm').
+    "###);
+}
+
 fn setup_before_insertion(test_env: &TestEnvironment, repo_path: &Path) {
     test_env.jj_cmd_ok(repo_path, &["branch", "create", "A"]);
     test_env.jj_cmd_ok(repo_path, &["commit", "-m", "A"]);
