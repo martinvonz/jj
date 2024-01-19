@@ -30,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj tag list` command prints imported git tags.
 
+* `jj next` and `jj prev` now prompt in the event of the next/previous commit
+  being ambiguous, instead of failing outright.
+
 ### Fixed bugs
 
 
