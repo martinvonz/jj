@@ -17,6 +17,7 @@ use jj_lib::repo::Repo;
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 
 use crate::cli_util::{short_commit_hash, user_error, CommandError, CommandHelper};
+use crate::commands::next::choose_commit;
 use crate::ui::Ui;
 
 /// Move the working copy commit to the parent of the current revision.
@@ -101,7 +102,7 @@ pub(crate) fn cmd_prev(
                 if amount > 1 { "s" } else { "" }
             )))
         }
-        _ => return Err(user_error("Ambiguous target commit")),
+        commits => choose_commit(ui, &workspace_command, "prev", commits)?,
     };
     // Generate a short commit hash, to make it readable in the op log.
     let target_short = short_commit_hash(target.id());

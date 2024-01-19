@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-use crate::common::TestEnvironment;
+use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
 
 pub mod common;
 
@@ -135,8 +135,7 @@ fn test_next_fails_on_merge_commit() {
 }
 
 #[test]
-fn test_next_fails_on_branching_children() {
-    // TODO(#2126): Fix this behavior
+fn test_next_fails_on_branching_children_no_stdin() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -145,10 +144,67 @@ fn test_next_fails_on_branching_children() {
     test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
     test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+
     // Try to advance the working copy commit.
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["next"]);
+    let assert = test_env.jj_cmd(&repo_path, &["next"]).assert().code(255);
+    let stderr = test_env.normalize_output(&get_stderr_string(&assert));
     insta::assert_snapshot!(stderr,@r###"
-    Error: Ambiguous target commit
+    Internal error: I/O error: Cannot prompt for input since the output is not connected to a terminal
+    "###);
+}
+
+#[test]
+fn test_next_fails_on_branching_children_quit_prompt() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+
+    // Try to advance the working copy commit.
+    let assert = test_env
+        .jj_cmd_stdin(&repo_path, &["next"], "q\n")
+        .assert()
+        .code(1);
+    let stdout = test_env.normalize_output(&get_stdout_string(&assert));
+    let stderr = test_env.normalize_output(&get_stderr_string(&assert));
+    insta::assert_snapshot!(stdout,@r###"
+    ambiguous next commit, choose one to target:
+    1: zsuskuln 40a959a0 (empty) third
+    2: rlvkpnrz 5c52832c (empty) second
+    q: quit the prompt
+    enter the index of the commit you want to target: 
+    "###);
+    insta::assert_snapshot!(stderr,@r###"
+    Error: ambiguous target commit
+    "###);
+}
+
+#[test]
+fn test_next_choose_branching_child() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+    // Advance the working copy commit.
+    let (stdout, stderr) = test_env.jj_cmd_stdin_ok(&repo_path, &["next"], "1\n");
+    insta::assert_snapshot!(stdout,@r###"
+    ambiguous next commit, choose one to target:
+    1: zsuskuln 40a959a0 (empty) third
+    2: rlvkpnrz 5c52832c (empty) second
+    q: quit the prompt
+    enter the index of the commit you want to target: 
+    "###);
+    insta::assert_snapshot!(stderr,@r###"
+    Working copy now at: yqosqzyt f9f7101a (empty) (no description set)
+    Parent commit      : zsuskuln 40a959a0 (empty) third
     "###);
 }
 
@@ -172,7 +228,6 @@ fn test_prev_fails_on_merge_commit() {
 
 #[test]
 fn test_prev_fails_on_multiple_parents() {
-    // TODO(#2126): Fix this behavior
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -184,10 +239,18 @@ fn test_prev_fails_on_multiple_parents() {
     // Create a merge commit, which has two parents.
     test_env.jj_cmd_ok(&repo_path, &["new", "left", "right"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "merge"]);
-    // We have more than one parent, prev fails.
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["prev"]);
+    // Advance the working copy commit.
+    let (stdout, stderr) = test_env.jj_cmd_stdin_ok(&repo_path, &["prev"], "2\n");
+    insta::assert_snapshot!(stdout,@r###"
+    ambiguous prev commit, choose one to target:
+    1: zsuskuln edad76e9 right | (empty) second
+    2: qpvuntsm 5ae1a6a5 left | (empty) first
+    q: quit the prompt
+    enter the index of the commit you want to target: 
+    "###);
     insta::assert_snapshot!(stderr,@r###"
-    Error: Ambiguous target commit
+    Working copy now at: yostqsxw a9de0711 (empty) (no description set)
+    Parent commit      : qpvuntsm 5ae1a6a5 left | (empty) first
     "###);
 }
 

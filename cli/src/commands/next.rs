@@ -12,12 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::Write;
+
 use itertools::Itertools;
 use jj_lib::commit::Commit;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 
-use crate::cli_util::{short_commit_hash, user_error, CommandError, CommandHelper};
+use crate::cli_util::{
+    short_commit_hash, user_error, CommandError, CommandHelper, WorkspaceCommandHelper,
+};
 use crate::ui::Ui;
 
 /// Move the current working copy commit to the next child revision in the
@@ -45,7 +49,6 @@ use crate::ui::Ui;
 /// B => @
 /// |    |
 /// @    A
-// TODO(#2126): Handle multiple child revisions properly.
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 pub(crate) struct NextArgs {
@@ -58,6 +61,38 @@ pub(crate) struct NextArgs {
     /// edit`).
     #[arg(long)]
     edit: bool,
+}
+
+pub fn choose_commit<'a>(
+    ui: &mut Ui,
+    workspace_command: &WorkspaceCommandHelper,
+    cmd: &str,
+    commits: &'a [Commit],
+) -> Result<&'a Commit, CommandError> {
+    writeln!(ui.stdout(), "ambiguous {cmd} commit, choose one to target:")?;
+    let mut choices: Vec<String> = Default::default();
+    for (i, commit) in commits.iter().enumerate() {
+        writeln!(
+            ui.stdout(),
+            "{}: {}",
+            i + 1,
+            workspace_command.format_commit_summary(commit)
+        )?;
+        choices.push(format!("{}", i + 1));
+    }
+    writeln!(ui.stdout(), "q: quit the prompt")?;
+    choices.push("q".to_string());
+
+    let choice = ui.prompt_choice(
+        "enter the index of the commit you want to target",
+        &choices,
+        None,
+    )?;
+    if choice == "q" {
+        return Err(user_error("ambiguous target commit"));
+    }
+
+    Ok(&commits[choice.parse::<usize>().unwrap() - 1])
 }
 
 pub(crate) fn cmd_next(
@@ -104,11 +139,7 @@ pub(crate) fn cmd_next(
                 if amount > 1 { "s" } else { "" }
             )));
         }
-        _ => {
-            // TODO(#2126) We currently cannot deal with multiple children, which result
-            // from branches. Prompt the user for resolution.
-            return Err(user_error("Ambiguous target commit"));
-        }
+        commits => choose_commit(ui, &workspace_command, "next", commits)?,
     };
     let target_short = short_commit_hash(target.id());
     // We're editing, just move to the target commit.
