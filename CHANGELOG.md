@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Deprecations
+
+* `jj checkout` and `jj merge` are both deprecated; use `jj new` instead to
+  replace both of these commands in all instances.
+
+  **Rationale**: `jj checkout` and `jj merge` both implement identical
+  functionality, which is a subset of `jj new`. `checkout` creates a new working
+  copy commit on top of a single specified revision, i.e. with one parent.
+  `merge` creates a new working copy commit on top of *at least* two specified
+  revisions, i.e. with two or more parents.
+  
+  The only difference between these commands and `jj new`, which *also* creates
+  a new working copy commit, is that `new` can create a working copy commit on
+  top of any arbitrary number of revisions, so it can handle both the previous
+  cases at once. The only actual difference between these three commands is the
+  command syntax and their name. These names were chosen to be familiar to users
+  of other version control systems, but we instead encourage all users to adopt
+  `jj new` instead; it is more general and easier to remember than both of
+  these.
+
+  `jj checkout` and `jj merge` will no longer be shown as part of `jj help`, but
+  will still function for now, emitting a warning about their deprecation.
+
+  **Deadline**: `jj checkout` and `jj merge` will be deleted and are expected
+  become a **hard error later in 2024**.
+
 ### Breaking changes
 
 * (Minor) Diff summaries (e.g. `jj diff -s`) now use `D` for "Deleted" instead
