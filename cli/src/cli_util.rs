@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use core::fmt;
 use std::collections::{HashMap, HashSet};
 use std::env::{self, ArgsOs, VarError};
 use std::ffi::{OsStr, OsString};
@@ -2289,6 +2290,67 @@ pub fn short_change_hash(change_id: &ChangeId) -> String {
 
 pub fn short_operation_hash(operation_id: &OperationId) -> String {
     operation_id.hex()[0..12].to_string()
+}
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct RemoteBranchName {
+    pub branch: String,
+    pub remote: String,
+}
+
+impl fmt::Display for RemoteBranchName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let RemoteBranchName { branch, remote } = self;
+        write!(f, "{branch}@{remote}")
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct RemoteBranchNamePattern {
+    pub branch: StringPattern,
+    pub remote: StringPattern,
+}
+
+impl FromStr for RemoteBranchNamePattern {
+    type Err = String;
+
+    fn from_str(src: &str) -> Result<Self, Self::Err> {
+        // The kind prefix applies to both branch and remote fragments. It's
+        // weird that unanchored patterns like substring:branch@remote is split
+        // into two, but I can't think of a better syntax.
+        // TODO: should we disable substring pattern? what if we added regex?
+        let (maybe_kind, pat) = src
+            .split_once(':')
+            .map_or((None, src), |(kind, pat)| (Some(kind), pat));
+        let to_pattern = |pat: &str| {
+            if let Some(kind) = maybe_kind {
+                StringPattern::from_str_kind(pat, kind).map_err(|err| err.to_string())
+            } else {
+                Ok(StringPattern::exact(pat))
+            }
+        };
+        // TODO: maybe reuse revset parser to handle branch/remote name containing @
+        let (branch, remote) = pat
+            .rsplit_once('@')
+            .ok_or_else(|| "remote branch must be specified in branch@remote form".to_owned())?;
+        Ok(RemoteBranchNamePattern {
+            branch: to_pattern(branch)?,
+            remote: to_pattern(remote)?,
+        })
+    }
+}
+
+impl RemoteBranchNamePattern {
+    pub fn is_exact(&self) -> bool {
+        self.branch.is_exact() && self.remote.is_exact()
+    }
+}
+
+impl fmt::Display for RemoteBranchNamePattern {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let RemoteBranchNamePattern { branch, remote } = self;
+        write!(f, "{branch}@{remote}")
+    }
 }
 
 /// Jujutsu (An experimental VCS)

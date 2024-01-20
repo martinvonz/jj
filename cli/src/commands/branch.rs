@@ -15,7 +15,6 @@
 use std::collections::HashSet;
 use std::fmt;
 use std::io::Write as _;
-use std::str::FromStr;
 
 use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
@@ -30,7 +29,7 @@ use jj_lib::view::View;
 
 use crate::cli_util::{
     parse_string_pattern, user_error, user_error_with_hint, CommandError, CommandHelper,
-    RevisionArg,
+    RemoteBranchName, RemoteBranchNamePattern, RevisionArg,
 };
 use crate::formatter::Formatter;
 use crate::ui::Ui;
@@ -201,67 +200,6 @@ pub struct BranchUntrackArgs {
     /// Examples: branch@remote, glob:main@*, glob:jjfan-*@upstream
     #[arg(required = true, value_name = "BRANCH@REMOTE")]
     pub names: Vec<RemoteBranchNamePattern>,
-}
-
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct RemoteBranchName {
-    pub branch: String,
-    pub remote: String,
-}
-
-impl fmt::Display for RemoteBranchName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let RemoteBranchName { branch, remote } = self;
-        write!(f, "{branch}@{remote}")
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct RemoteBranchNamePattern {
-    pub branch: StringPattern,
-    pub remote: StringPattern,
-}
-
-impl FromStr for RemoteBranchNamePattern {
-    type Err = String;
-
-    fn from_str(src: &str) -> Result<Self, Self::Err> {
-        // The kind prefix applies to both branch and remote fragments. It's
-        // weird that unanchored patterns like substring:branch@remote is split
-        // into two, but I can't think of a better syntax.
-        // TODO: should we disable substring pattern? what if we added regex?
-        let (maybe_kind, pat) = src
-            .split_once(':')
-            .map_or((None, src), |(kind, pat)| (Some(kind), pat));
-        let to_pattern = |pat: &str| {
-            if let Some(kind) = maybe_kind {
-                StringPattern::from_str_kind(pat, kind).map_err(|err| err.to_string())
-            } else {
-                Ok(StringPattern::exact(pat))
-            }
-        };
-        // TODO: maybe reuse revset parser to handle branch/remote name containing @
-        let (branch, remote) = pat
-            .rsplit_once('@')
-            .ok_or_else(|| "remote branch must be specified in branch@remote form".to_owned())?;
-        Ok(RemoteBranchNamePattern {
-            branch: to_pattern(branch)?,
-            remote: to_pattern(remote)?,
-        })
-    }
-}
-
-impl RemoteBranchNamePattern {
-    pub fn is_exact(&self) -> bool {
-        self.branch.is_exact() && self.remote.is_exact()
-    }
-}
-
-impl fmt::Display for RemoteBranchNamePattern {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let RemoteBranchNamePattern { branch, remote } = self;
-        write!(f, "{branch}@{remote}")
-    }
 }
 
 fn make_branch_term(branch_names: &[impl fmt::Display]) -> String {
