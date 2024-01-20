@@ -17,10 +17,11 @@ various use cases.
 * **The working copy is automatically committed.** That results in a simpler and
   more consistent CLI because the working copy is now treated like any other
   commit. [Details](working-copy.md).
-* **There's no index (staging area).** That also results in a simpler
-  CLI for similar reasons. The index is very similar to an intermediate commit
-  between `HEAD` and the working copy, so workflows that depend on it can be
-  modeled using proper commits instead. [Details](#the-index).
+* **There's no index (staging area).** Because the working copy is automatically
+  committed, an index-like concept doesn't make sense. The index is very similar
+  to an intermediate commit between `HEAD` and the working copy, so workflows
+  that depend on it can be modeled using proper commits instead. Jujutsu has
+  excellent support for moving changes between commits. [Details](#the-index).
 * **No need for branch names (but they are supported).** Git lets you check out
   a commit without attaching a branch. It calls this state "detached HEAD". This
   is the normal state in Jujutsu (there's actually no way -- yet, at least -- to
