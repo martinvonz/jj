@@ -21,11 +21,12 @@ various use cases.
   CLI for similar reasons. The index is very similar to an intermediate commit
   between `HEAD` and the working copy, so workflows that depend on it can be
   modeled using proper commits instead. [Details](#the-index).
-* **No need for branch names.** Git lets you check out a commit without
-  attaching a branch. It calls this state "detached HEAD". This is the normal
-  state in Jujutsu (there's actually no way -- yet, at least -- to have an
-  active branch). However, Jujutsu keeps track of all visible heads (leaves) of
-  the commit graph, so the commits won't get lost or garbage-collected.
+* **No need for branch names (but they are supported).** Git lets you check out
+  a commit without attaching a branch. It calls this state "detached HEAD". This
+  is the normal state in Jujutsu (there's actually no way -- yet, at least -- to
+  have an active branch). However, Jujutsu keeps track of all visible heads
+  (leaves) of the commit graph, so the commits won't get lost or
+  garbage-collected.
 * **No current branch.** Git lets you check out a branch, making it the 'current
   branch', and new commits will automatically update the branch. This is
   necessary in Git because Git might otherwise lose track of the new commits.
