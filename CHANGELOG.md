@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj config list` now accepts `--user` or `--repo` option to specify
   config origin.
 
+* `jj tag list` command prints imported git tags.
+
 ### Fixed bugs
 
 
