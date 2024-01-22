@@ -404,7 +404,7 @@ impl Ui {
             &["y", "n", "yes", "no", "Yes", "No", "YES", "NO"],
             default_choice,
         )?;
-        Ok(choice.to_lowercase().starts_with(['y', 'Y']))
+        Ok(choice.starts_with(['y', 'Y']))
     }
 
     pub fn prompt_password(&mut self, prompt: &str) -> io::Result<String> {
