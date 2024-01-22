@@ -1,6 +1,3 @@
-use std::io::Write;
-use std::{fs, io};
-
 use itertools::Itertools;
 use jj_lib::commit::Commit;
 use jj_lib::matchers::EverythingMatcher;
@@ -8,7 +5,7 @@ use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::settings::UserSettings;
 
-use crate::cli_util::{run_ui_editor, user_error, CommandError, WorkspaceCommandHelper};
+use crate::cli_util::{edit_temp_file, CommandError, WorkspaceCommandHelper};
 use crate::diff_util::{self, DiffFormat};
 use crate::formatter::PlainTextFormatter;
 use crate::text_util;
@@ -19,34 +16,21 @@ pub fn edit_description(
     description: &str,
     settings: &UserSettings,
 ) -> Result<String, CommandError> {
-    let description_file_path = (|| -> Result<_, io::Error> {
-        let mut file = tempfile::Builder::new()
-            .prefix("editor-")
-            .suffix(".jjdescription")
-            .tempfile_in(repo.repo_path())?;
-        file.write_all(description.as_bytes())?;
-        file.write_all(b"\nJJ: Lines starting with \"JJ: \" (like this one) will be removed.\n")?;
-        let (_, path) = file.keep().map_err(|e| e.error)?;
-        Ok(path)
-    })()
-    .map_err(|e| {
-        user_error(format!(
-            r#"Failed to create description file in "{path}": {e}"#,
-            path = repo.repo_path().display()
-        ))
-    })?;
+    let description = format!(
+        r#"{}
+JJ: Lines starting with "JJ: " (like this one) will be removed.
+"#,
+        description
+    );
 
-    run_ui_editor(settings, &description_file_path)?;
+    let description = edit_temp_file(
+        "description",
+        ".jjdescription",
+        repo.repo_path(),
+        &description,
+        settings,
+    )?;
 
-    let description = fs::read_to_string(&description_file_path).map_err(|e| {
-        user_error(format!(
-            r#"Failed to read description file "{path}": {e}"#,
-            path = description_file_path.display()
-        ))
-    })?;
-    // Delete the file only if everything went well.
-    // TODO: Tell the user the name of the file we left behind.
-    std::fs::remove_file(description_file_path).ok();
     // Normalize line ending, remove leading and trailing blank lines.
     let description = description
         .lines()

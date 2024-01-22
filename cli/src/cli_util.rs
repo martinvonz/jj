@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 use std::env::{self, ArgsOs, VarError};
 use std::ffi::{OsStr, OsString};
 use std::fmt::Debug;
-use std::io::Write as _;
+use std::io::{self, Write as _};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -25,7 +25,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::SystemTime;
-use std::{iter, str};
+use std::{fs, iter, str};
 
 use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFactory};
 use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
@@ -2276,6 +2276,49 @@ pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(),
     }
 
     Ok(())
+}
+
+pub fn edit_temp_file(
+    error_name: &str,
+    tempfile_suffix: &str,
+    dir: &Path,
+    content: &str,
+    settings: &UserSettings,
+) -> Result<String, CommandError> {
+    let path = (|| -> Result<_, io::Error> {
+        let mut file = tempfile::Builder::new()
+            .prefix("editor-")
+            .suffix(tempfile_suffix)
+            .tempfile_in(dir)?;
+        file.write_all(content.as_bytes())?;
+        let (_, path) = file.keep().map_err(|e| e.error)?;
+        Ok(path)
+    })()
+    .map_err(|e| {
+        user_error(format!(
+            "Failed to create {} file in \"{}\": {}",
+            error_name,
+            dir.display(),
+            e
+        ))
+    })?;
+
+    run_ui_editor(settings, &path)?;
+
+    let edited = fs::read_to_string(&path).map_err(|e| {
+        user_error(format!(
+            r#"Failed to read {} file "{}": {}"#,
+            error_name,
+            path.display(),
+            e
+        ))
+    })?;
+
+    // Delete the file only if everything went well.
+    // TODO: Tell the user the name of the file we left behind.
+    std::fs::remove_file(path).ok();
+
+    Ok(edited)
 }
 
 pub fn short_commit_hash(commit_id: &CommitId) -> String {
