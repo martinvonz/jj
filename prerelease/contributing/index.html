@@ -1053,6 +1053,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#using-mold-for-faster-tests-on-linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using mold for faster tests on Linux
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1412,6 +1421,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#using-mold-for-faster-tests-on-linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      Using mold for faster tests on Linux
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1645,10 +1663,32 @@ Cargo will happily use up your entire hard drive. If this happens, run
 </li>
 <li>
 <p>To run tests more quickly, use <code>cargo nextest run --workspace</code>. To
-   use <code>nextest</code> with <code>insta</code>,
-   use <code>cargo insta test --workspace --test-runner nextest</code>.</p>
+   use <code>nextest</code> with <code>insta</code>, use <code>cargo insta test --workspace
+   --test-runner nextest</code>.</p>
+<p>On Linux, you may be able to speed up <code>nextest</code> even further by using
+ the <code>mold</code> linker, as explained below.</p>
 </li>
 </ol>
+<h3 id="using-mold-for-faster-tests-on-linux">Using <code>mold</code> for faster tests on Linux<a class="headerlink" href="#using-mold-for-faster-tests-on-linux" title="Permanent link">&para;</a></h3>
+<p>On a machine with a multi-core CPU, one way to speed up
+<code>cargo nextest</code> on Linux is to use the multi-threaded <a href="https://github.com/rui314/mold"><code>mold</code>
+linker</a>. This linker may help
+if, currently, your CPU is underused while Rust is linking test
+binaries. Before proceeding with <code>mold</code>, you can check whether this is
+an issue worth solving using a system monitoring tool such as <code>htop</code>.</p>
+<p><code>mold</code> is packaged for many distributions. On Debian, for example,
+<code>sudo apt install mold</code> should just work.</p>
+<p>A simple way to use <code>mold</code> is via the <code>-run</code> option, e.g.:</p>
+<div class="highlight"><pre><span></span><code>mold<span class="w"> </span>-run<span class="w"> </span>cargo<span class="w"> </span>insta<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--workspace<span class="w"> </span>--test-runner<span class="w"> </span>nextest
+</code></pre></div>
+<p>There will be no indication that a different linker is used, except for
+higher CPU usage while linking and, hopefully, faster completion. You
+can verify that <code>mold</code> was indeed used by running
+<code>readelf -p .comment target/debug/jj</code>.</p>
+<p>There are also ways of having Rust use <code>mold</code> by default, see the <a href="https://github.com/rui314/mold#how-to-use">"How
+to use" instructions</a>.</p>
+<p>On recent versions of MacOS, the default linker Rust uses is already
+multi-threaded. It should use all the CPU cores without any configuration.</p>
 <h2 id="previewing-the-html-documentation">Previewing the HTML documentation<a class="headerlink" href="#previewing-the-html-documentation" title="Permanent link">&para;</a></h2>
 <p>The documentation for <code>jj</code> is automatically published to the website at
 <a href="https://martinvonz.github.io/jj/">https://martinvonz.github.io/jj/</a>.</p>
