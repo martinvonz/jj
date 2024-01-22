@@ -39,7 +39,7 @@ use crate::ui::Ui;
 /// For information about branches, see
 /// https://github.com/martinvonz/jj/blob/main/docs/branches.md.
 #[derive(clap::Subcommand, Clone, Debug)]
-pub enum BranchSubcommand {
+pub enum BranchCommand {
     #[command(visible_alias("c"))]
     Create(BranchCreateArgs),
     #[command(visible_alias("d"))]
@@ -212,17 +212,17 @@ fn make_branch_term(branch_names: &[impl fmt::Display]) -> String {
 pub fn cmd_branch(
     ui: &mut Ui,
     command: &CommandHelper,
-    subcommand: &BranchSubcommand,
+    subcommand: &BranchCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        BranchSubcommand::Create(sub_args) => cmd_branch_create(ui, command, sub_args),
-        BranchSubcommand::Rename(sub_args) => cmd_branch_rename(ui, command, sub_args),
-        BranchSubcommand::Set(sub_args) => cmd_branch_set(ui, command, sub_args),
-        BranchSubcommand::Delete(sub_args) => cmd_branch_delete(ui, command, sub_args),
-        BranchSubcommand::Forget(sub_args) => cmd_branch_forget(ui, command, sub_args),
-        BranchSubcommand::Track(sub_args) => cmd_branch_track(ui, command, sub_args),
-        BranchSubcommand::Untrack(sub_args) => cmd_branch_untrack(ui, command, sub_args),
-        BranchSubcommand::List(sub_args) => cmd_branch_list(ui, command, sub_args),
+        BranchCommand::Create(sub_args) => cmd_branch_create(ui, command, sub_args),
+        BranchCommand::Rename(sub_args) => cmd_branch_rename(ui, command, sub_args),
+        BranchCommand::Set(sub_args) => cmd_branch_set(ui, command, sub_args),
+        BranchCommand::Delete(sub_args) => cmd_branch_delete(ui, command, sub_args),
+        BranchCommand::Forget(sub_args) => cmd_branch_forget(ui, command, sub_args),
+        BranchCommand::Track(sub_args) => cmd_branch_track(ui, command, sub_args),
+        BranchCommand::Untrack(sub_args) => cmd_branch_untrack(ui, command, sub_args),
+        BranchCommand::List(sub_args) => cmd_branch_list(ui, command, sub_args),
     }
 }
 

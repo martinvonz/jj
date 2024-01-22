@@ -58,7 +58,7 @@ impl ConfigArgs {
 /// For file locations, supported config options, and other details about jj
 /// config, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
 #[derive(clap::Subcommand, Clone, Debug)]
-pub(crate) enum ConfigSubcommand {
+pub(crate) enum ConfigCommand {
     #[command(visible_alias("l"))]
     List(ConfigListArgs),
     #[command(visible_alias("g"))]
@@ -142,13 +142,13 @@ pub(crate) struct ConfigEditArgs {
 pub(crate) fn cmd_config(
     ui: &mut Ui,
     command: &CommandHelper,
-    subcommand: &ConfigSubcommand,
+    subcommand: &ConfigCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        ConfigSubcommand::List(sub_args) => cmd_config_list(ui, command, sub_args),
-        ConfigSubcommand::Get(sub_args) => cmd_config_get(ui, command, sub_args),
-        ConfigSubcommand::Set(sub_args) => cmd_config_set(ui, command, sub_args),
-        ConfigSubcommand::Edit(sub_args) => cmd_config_edit(ui, command, sub_args),
+        ConfigCommand::List(sub_args) => cmd_config_list(ui, command, sub_args),
+        ConfigCommand::Get(sub_args) => cmd_config_get(ui, command, sub_args),
+        ConfigCommand::Set(sub_args) => cmd_config_set(ui, command, sub_args),
+        ConfigCommand::Edit(sub_args) => cmd_config_edit(ui, command, sub_args),
     }
 }
 
