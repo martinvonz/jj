@@ -70,7 +70,7 @@ rand = "0.8.5"
 rand_chacha = "0.3.1"
 rayon = "1.8.1"
 ref-cast = "1.0.22"
-regex = "1.10.2"
+regex = "1.10.3"
 rpassword = "7.3.1"
 rustix = { version = "0.38.30", features = ["fs"] }
 scm-record = "0.2.0"
