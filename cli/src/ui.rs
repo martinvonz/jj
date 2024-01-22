@@ -340,6 +340,16 @@ impl Ui {
         self.stdout().flush()?;
         let mut buf = String::new();
         io::stdin().read_line(&mut buf)?;
+
+        if let Some(trimmed) = buf.strip_suffix('\n') {
+            buf = trimmed.to_owned();
+        } else if buf.is_empty() {
+            return Err(io::Error::new(
+                io::ErrorKind::UnexpectedEof,
+                "Prompt cancelled by EOF",
+            ));
+        }
+
         Ok(buf)
     }
 
