@@ -13,7 +13,8 @@
 // limitations under the License.
 
 use std::collections::HashSet;
-use std::io::{self, BufRead, Seek, SeekFrom, Write};
+use std::fmt::Write as _;
+use std::io::{self, Write};
 use std::path::Path;
 
 use clap::Subcommand;
@@ -23,9 +24,7 @@ use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
-use crate::cli_util::{
-    print_checkout_stats, run_ui_editor, user_error, CommandError, CommandHelper,
-};
+use crate::cli_util::{edit_temp_file, print_checkout_stats, CommandError, CommandHelper};
 use crate::ui::Ui;
 
 /// Manage which paths from the working-copy commit are present in the working
@@ -164,58 +163,34 @@ fn edit_sparse(
     sparse: &[RepoPathBuf],
     settings: &UserSettings,
 ) -> Result<Vec<RepoPathBuf>, CommandError> {
-    let file = (|| -> Result<_, io::Error> {
-        let mut file = tempfile::Builder::new()
-            .prefix("editor-")
-            .suffix(".jjsparse")
-            .tempfile_in(repo_path)?;
-        for sparse_path in sparse {
-            let workspace_relative_sparse_path =
-                file_util::relative_path(workspace_root, &sparse_path.to_fs_path(workspace_root));
-            file.write_all(
-                workspace_relative_sparse_path
-                    .to_str()
-                    .ok_or_else(|| {
-                        io::Error::new(
-                            io::ErrorKind::InvalidData,
-                            format!(
-                                "stored sparse path is not valid utf-8: {}",
-                                workspace_relative_sparse_path.display()
-                            ),
-                        )
-                    })?
-                    .as_bytes(),
-            )?;
-            file.write_all(b"\n")?;
-        }
-        file.seek(SeekFrom::Start(0))?;
-        Ok(file)
-    })()
-    .map_err(|e| {
-        user_error(format!(
-            r#"Failed to create sparse patterns file in "{path}": {e}"#,
-            path = repo_path.display()
-        ))
-    })?;
-    let file_path = file.path().to_owned();
+    let mut content = String::new();
+    for sparse_path in sparse {
+        let workspace_relative_sparse_path =
+            file_util::relative_path(workspace_root, &sparse_path.to_fs_path(workspace_root));
+        let path_string = workspace_relative_sparse_path.to_str().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                format!(
+                    "stored sparse path is not valid utf-8: {}",
+                    workspace_relative_sparse_path.display()
+                ),
+            )
+        })?;
+        writeln!(&mut content, "{}", path_string).unwrap();
+    }
 
-    run_ui_editor(settings, &file_path)?;
+    let content = edit_temp_file(
+        "sparse patterns",
+        ".jjsparse",
+        repo_path,
+        &content,
+        settings,
+    )?;
 
-    // Read and parse patterns.
-    io::BufReader::new(file)
+    content
         .lines()
-        .filter(|line| {
-            line.as_ref()
-                .map(|line| !line.starts_with("JJ: ") && !line.trim().is_empty())
-                .unwrap_or(true)
-        })
+        .filter(|line| !line.starts_with("JJ: ") && !line.trim().is_empty())
         .map(|line| {
-            let line = line.map_err(|e| {
-                user_error(format!(
-                    r#"Failed to read sparse patterns file "{path}": {e}"#,
-                    path = file_path.display()
-                ))
-            })?;
             Ok::<_, CommandError>(RepoPathBuf::parse_fs_path(
                 workspace_root,
                 workspace_root,
