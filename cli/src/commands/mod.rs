@@ -72,14 +72,14 @@ enum Command {
     #[command(subcommand)]
     Bench(bench::BenchCommand),
     #[command(subcommand)]
-    Branch(branch::BranchSubcommand),
+    Branch(branch::BranchCommand),
     #[command(alias = "print")]
     Cat(cat::CatArgs),
     Checkout(checkout::CheckoutArgs),
     Chmod(chmod::ChmodArgs),
     Commit(commit::CommitArgs),
     #[command(subcommand)]
-    Config(config::ConfigSubcommand),
+    Config(config::ConfigCommand),
     #[command(subcommand)]
     Debug(debug::DebugCommand),
     Describe(describe::DescribeArgs),
