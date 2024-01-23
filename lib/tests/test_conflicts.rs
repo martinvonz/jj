@@ -421,6 +421,61 @@ line 5
 }
 
 #[test]
+fn test_materialize_conflict_two_forward_diffs() {
+    let test_repo = TestRepo::init();
+    let store = test_repo.repo.store();
+
+    // Create conflict A-B+B-C+D-E+C. This is designed to tempt the algorithm to
+    // produce a negative snapshot at the end like this:
+    // <<<<
+    // ====
+    // A
+    // %%%%
+    //  B
+    // ++++
+    // D
+    // %%%%
+    //  C
+    // ----
+    // E
+    // >>>>
+    // TODO: Maybe we should never have negative snapshots
+    let path = RepoPath::from_internal_string("file");
+    let a_id = testutils::write_file(store, path, "A\n");
+    let b_id = testutils::write_file(store, path, "B\n");
+    let c_id = testutils::write_file(store, path, "C\n");
+    let d_id = testutils::write_file(store, path, "D\n");
+    let e_id = testutils::write_file(store, path, "E\n");
+
+    let conflict = Merge::from_removes_adds(
+        vec![Some(b_id.clone()), Some(c_id.clone()), Some(e_id.clone())],
+        vec![
+            Some(a_id.clone()),
+            Some(b_id.clone()),
+            Some(d_id.clone()),
+            Some(c_id.clone()),
+        ],
+    );
+    insta::assert_snapshot!(
+        &materialize_conflict_string(store, path, &conflict),
+        @r###"
+    <<<<<<<
+    +++++++
+    A
+    %%%%%%%
+     B
+    +++++++
+    D
+    %%%%%%%
+     C
+    -------
+    E
+    >>>>>>>
+    "###
+    );
+}
+
+#[test]
 fn test_parse_conflict_resolved() {
     assert_eq!(
         parse_conflict(
