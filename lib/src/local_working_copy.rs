@@ -1739,14 +1739,15 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
         Ok(stats)
     }
 
-    fn reset(&mut self, new_tree: &MergedTree) -> Result<(), ResetError> {
+    fn reset(&mut self, commit: &Commit) -> Result<(), ResetError> {
+        let new_tree = commit.tree()?;
         self.wc
             .tree_state_mut()
             .map_err(|err| ResetError::Other {
                 message: "Failed to read the working copy state".to_string(),
                 err: err.into(),
             })?
-            .reset(new_tree)
+            .reset(&new_tree)
             .block_on()?;
         self.tree_state_dirty = true;
         Ok(())
