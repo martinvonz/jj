@@ -26,7 +26,6 @@ use crate::backend::{BackendError, MergedTreeId};
 use crate::commit::Commit;
 use crate::fsmonitor::FsmonitorKind;
 use crate::gitignore::GitIgnoreFile;
-use crate::merged_tree::MergedTree;
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{RepoPath, RepoPathBuf};
 use crate::settings::HumanByteSize;
@@ -105,8 +104,8 @@ pub trait LockedWorkingCopy {
     /// Check out the specified commit in the working copy.
     fn check_out(&mut self, commit: &Commit) -> Result<CheckoutStats, CheckoutError>;
 
-    /// Update to another tree without touching the files in the working copy.
-    fn reset(&mut self, new_tree: &MergedTree) -> Result<(), ResetError>;
+    /// Update to another commit without touching the files in the working copy.
+    fn reset(&mut self, commit: &Commit) -> Result<(), ResetError>;
 
     /// See `WorkingCopy::sparse_patterns()`
     fn sparse_patterns(&self) -> Result<&[RepoPathBuf], WorkingCopyStateError>;

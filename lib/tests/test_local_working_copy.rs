@@ -414,10 +414,12 @@ fn test_reset() {
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
 
     let tree_without_file = create_tree(repo, &[(gitignore_path, "ignored\n")]);
+    let commit_without_file = commit_with_tree(repo.store(), tree_without_file.id().clone());
     let tree_with_file = create_tree(
         repo,
         &[(gitignore_path, "ignored\n"), (ignored_path, "code")],
     );
+    let commit_with_file = commit_with_tree(repo.store(), tree_with_file.id().clone());
 
     let ws = &mut test_workspace.workspace;
     let commit = commit_with_tree(repo.store(), tree_with_file.id());
@@ -432,7 +434,7 @@ fn test_reset() {
     // but it should not be in the tree state, and it should not get added when we
     // commit the working copy (because it's ignored).
     let mut locked_ws = ws.start_working_copy_mutation().unwrap();
-    locked_ws.locked_wc().reset(&tree_without_file).unwrap();
+    locked_ws.locked_wc().reset(&commit_without_file).unwrap();
     locked_ws.finish(op_id.clone()).unwrap();
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
@@ -444,7 +446,7 @@ fn test_reset() {
     // tracked. The file should become tracked (even though it's ignored).
     let ws = &mut test_workspace.workspace;
     let mut locked_ws = ws.start_working_copy_mutation().unwrap();
-    locked_ws.locked_wc().reset(&tree_with_file).unwrap();
+    locked_ws.locked_wc().reset(&commit_with_file).unwrap();
     locked_ws.finish(op_id.clone()).unwrap();
     assert!(ignored_path.to_fs_path(&workspace_root).is_file());
     let wc: &LocalWorkingCopy = ws.working_copy().as_any().downcast_ref().unwrap();
@@ -694,11 +696,12 @@ fn test_gitignores_in_ignored_dir() {
             (nested_gitignore_path, "!file\n"),
         ],
     );
+    let commit2 = commit_with_tree(test_workspace.repo.store(), tree2.id().clone());
     let mut locked_ws = test_workspace
         .workspace
         .start_working_copy_mutation()
         .unwrap();
-    locked_ws.locked_wc().reset(&tree2).unwrap();
+    locked_ws.locked_wc().reset(&commit2).unwrap();
     locked_ws.finish(OperationId::from_hex("abc123")).unwrap();
 
     let new_tree = test_workspace.snapshot().unwrap();

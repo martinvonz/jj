@@ -55,9 +55,13 @@ pub(crate) fn cmd_untrack(
         tree_builder.set_or_remove(path, Merge::absent());
     }
     let new_tree_id = tree_builder.write_tree(&store)?;
-    let new_tree = store.get_root_tree(&new_tree_id)?;
-    // Reset the working copy to the new tree
-    locked_ws.locked_wc().reset(&new_tree)?;
+    let new_commit = tx
+        .mut_repo()
+        .rewrite_commit(command.settings(), &wc_commit)
+        .set_tree_id(new_tree_id)
+        .write()?;
+    // Reset the working copy to the new commit
+    locked_ws.locked_wc().reset(&new_commit)?;
     // Commit the working copy again so we can inform the user if paths couldn't be
     // untracked because they're not ignored.
     let wc_tree_id = locked_ws.locked_wc().snapshot(SnapshotOptions {
@@ -66,7 +70,7 @@ pub(crate) fn cmd_untrack(
         progress: None,
         max_new_file_size: command.settings().max_new_file_size()?,
     })?;
-    if wc_tree_id != new_tree_id {
+    if wc_tree_id != *new_commit.tree_id() {
         let wc_tree = store.get_root_tree(&wc_tree_id)?;
         let added_back = wc_tree.entries_matching(matcher.as_ref()).collect_vec();
         if !added_back.is_empty() {
@@ -90,13 +94,9 @@ Make sure they're ignored, then try again.",
         } else {
             // This means there were some concurrent changes made in the working copy. We
             // don't want to mix those in, so reset the working copy again.
-            locked_ws.locked_wc().reset(&new_tree)?;
+            locked_ws.locked_wc().reset(&new_commit)?;
         }
     }
-    tx.mut_repo()
-        .rewrite_commit(command.settings(), &wc_commit)
-        .set_tree_id(new_tree_id)
-        .write()?;
     let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
     if num_rebased > 0 {
         writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;

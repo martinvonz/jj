@@ -23,7 +23,6 @@ use jj_lib::backend::{Backend, MergedTreeId};
 use jj_lib::commit::Commit;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::local_working_copy::LocalWorkingCopy;
-use jj_lib::merged_tree::MergedTree;
 use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::repo_path::RepoPathBuf;
@@ -237,8 +236,8 @@ impl LockedWorkingCopy for LockedConflictsWorkingCopy {
         self.inner.check_out(commit)
     }
 
-    fn reset(&mut self, new_tree: &MergedTree) -> Result<(), ResetError> {
-        self.inner.reset(new_tree)
+    fn reset(&mut self, commit: &Commit) -> Result<(), ResetError> {
+        self.inner.reset(commit)
     }
 
     fn sparse_patterns(&self) -> Result<&[RepoPathBuf], WorkingCopyStateError> {
