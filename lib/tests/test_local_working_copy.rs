@@ -30,7 +30,7 @@ use jj_lib::backend::{MergedTreeId, TreeId, TreeValue};
 use jj_lib::fsmonitor::FsmonitorKind;
 use jj_lib::local_working_copy::LocalWorkingCopy;
 use jj_lib::merge::Merge;
-use jj_lib::merged_tree::MergedTreeBuilder;
+use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
@@ -750,19 +750,58 @@ fn test_gitignores_ignored_directory_already_tracked() {
     let workspace_root = test_workspace.workspace.workspace_root().clone();
     let repo = test_workspace.repo.clone();
 
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    enum Kind {
+        Normal,
+        Executable,
+        Symlink,
+    }
+    let create_tree_with_kind = |path_contents: &[(&RepoPath, Kind, &str)]| {
+        let store = repo.store();
+        let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
+        for (path, kind, contents) in path_contents {
+            match kind {
+                Kind::Normal => {
+                    testutils::write_normal_file(&mut tree_builder, path, contents);
+                }
+                Kind::Executable => {
+                    testutils::write_executable_file(&mut tree_builder, path, contents);
+                }
+                Kind::Symlink => {
+                    if cfg!(unix) {
+                        testutils::write_symlink(&mut tree_builder, path, contents);
+                    } else {
+                        testutils::write_normal_file(&mut tree_builder, path, contents);
+                    }
+                }
+            }
+        }
+        let id = tree_builder.write_tree();
+        MergedTree::legacy(store.get_tree(RepoPath::root(), &id).unwrap())
+    };
+
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
-    let unchanged_path = RepoPath::from_internal_string("ignored/unchanged");
-    let modified_path = RepoPath::from_internal_string("ignored/modified");
-    let deleted_path = RepoPath::from_internal_string("ignored/deleted");
-    let tree = create_tree(
-        &repo,
-        &[
-            (gitignore_path, "/ignored/\n"),
-            (unchanged_path, "contents"),
-            (modified_path, "contents"),
-            (deleted_path, "contents"),
-        ],
-    );
+    let unchanged_normal_path = RepoPath::from_internal_string("ignored/unchanged_normal");
+    let modified_normal_path = RepoPath::from_internal_string("ignored/modified_normal");
+    let deleted_normal_path = RepoPath::from_internal_string("ignored/deleted_normal");
+    let unchanged_executable_path = RepoPath::from_internal_string("ignored/unchanged_executable");
+    let modified_executable_path = RepoPath::from_internal_string("ignored/modified_executable");
+    let deleted_executable_path = RepoPath::from_internal_string("ignored/deleted_executable");
+    let unchanged_symlink_path = RepoPath::from_internal_string("ignored/unchanged_symlink");
+    let modified_symlink_path = RepoPath::from_internal_string("ignored/modified_symlink");
+    let deleted_symlink_path = RepoPath::from_internal_string("ignored/deleted_symlink");
+    let tree = create_tree_with_kind(&[
+        (gitignore_path, Kind::Normal, "/ignored/\n"),
+        (unchanged_normal_path, Kind::Normal, "contents"),
+        (modified_normal_path, Kind::Normal, "contents"),
+        (deleted_normal_path, Kind::Normal, "contents"),
+        (unchanged_executable_path, Kind::Executable, "contents"),
+        (modified_executable_path, Kind::Executable, "contents"),
+        (deleted_executable_path, Kind::Executable, "contents"),
+        (unchanged_symlink_path, Kind::Symlink, "contents"),
+        (modified_symlink_path, Kind::Symlink, "contents"),
+        (deleted_symlink_path, Kind::Symlink, "contents"),
+    ]);
     let commit = commit_with_tree(repo.store(), tree.id());
 
     // Check out the tree with the files in `ignored/`
@@ -772,17 +811,36 @@ fn test_gitignores_ignored_directory_already_tracked() {
     // Make some changes inside the ignored directory and check that they are
     // detected when we snapshot. The files that are still there should not be
     // deleted from the resulting tree.
-    std::fs::write(modified_path.to_fs_path(&workspace_root), "modified").unwrap();
-    std::fs::remove_file(deleted_path.to_fs_path(&workspace_root)).unwrap();
+    std::fs::write(modified_normal_path.to_fs_path(&workspace_root), "modified").unwrap();
+    std::fs::remove_file(deleted_normal_path.to_fs_path(&workspace_root)).unwrap();
+    std::fs::write(
+        modified_executable_path.to_fs_path(&workspace_root),
+        "modified",
+    )
+    .unwrap();
+    std::fs::remove_file(deleted_executable_path.to_fs_path(&workspace_root)).unwrap();
+    if cfg!(unix) {
+        let fs_path = modified_symlink_path.to_fs_path(&workspace_root);
+        std::fs::remove_file(&fs_path).unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink("modified", &fs_path).unwrap();
+    } else {
+        let fs_path = modified_symlink_path.to_fs_path(&workspace_root);
+        std::fs::write(fs_path, "modified").unwrap();
+    }
+    std::fs::remove_file(deleted_symlink_path.to_fs_path(&workspace_root)).unwrap();
     let new_tree = test_workspace.snapshot().unwrap();
-    let expected_tree = create_tree(
-        &repo,
-        &[
-            (gitignore_path, "/ignored/\n"),
-            (unchanged_path, "contents"),
-            (modified_path, "modified"),
-        ],
-    );
+    let expected_tree = create_tree_with_kind(&[
+        (gitignore_path, Kind::Normal, "/ignored/\n"),
+        (unchanged_normal_path, Kind::Normal, "contents"),
+        (modified_normal_path, Kind::Normal, "modified"),
+        (unchanged_executable_path, Kind::Executable, "contents"),
+        (modified_executable_path, Kind::Executable, "modified"),
+        #[cfg(not(unix))] // TODO
+        (unchanged_symlink_path, Kind::Symlink, "contents"),
+        #[cfg(not(unix))] // TODO
+        (modified_symlink_path, Kind::Symlink, "modified"),
+    ]);
     assert_eq!(
         new_tree.entries().collect_vec(),
         expected_tree.entries().collect_vec()
