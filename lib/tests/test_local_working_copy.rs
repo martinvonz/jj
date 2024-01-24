@@ -836,9 +836,7 @@ fn test_gitignores_ignored_directory_already_tracked() {
         (modified_normal_path, Kind::Normal, "modified"),
         (unchanged_executable_path, Kind::Executable, "contents"),
         (modified_executable_path, Kind::Executable, "modified"),
-        #[cfg(not(unix))] // TODO
         (unchanged_symlink_path, Kind::Symlink, "contents"),
-        #[cfg(not(unix))] // TODO
         (modified_symlink_path, Kind::Symlink, "modified"),
     ]);
     assert_eq!(

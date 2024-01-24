@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+* Fixed snapshots of symlinks in `gitignore`-d directory.
+  [#2878](https://github.com/martinvonz/jj/issues/2878)
+
 
 ## [0.13.0] - 2024-01-03
 
