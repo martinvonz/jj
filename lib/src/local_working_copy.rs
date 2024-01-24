@@ -894,7 +894,7 @@ impl TreeState {
                                 continue;
                             }
                             let disk_path = tracked_path.to_fs_path(&self.working_copy_path);
-                            let metadata = match disk_path.metadata() {
+                            let metadata = match disk_path.symlink_metadata() {
                                 Ok(metadata) => metadata,
                                 Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
                                     continue;
