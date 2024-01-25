@@ -302,6 +302,7 @@ fn test_git_colocated_rebase_on_import() {
     ◉  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
+    Reset the working copy parent to the new Git HEAD.
     Abandoned 1 commits that are no longer reachable.
     Done importing changes from the underlying Git repo.
     "###);
@@ -561,7 +562,7 @@ fn test_git_colocated_external_checkout() {
     ◉  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
-    Done importing changes from the underlying Git repo.
+    Reset the working copy parent to the new Git HEAD.
     "###);
 }
 
