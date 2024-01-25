@@ -109,6 +109,7 @@ fn test_init_git_external(bare: bool) {
     insta::allow_duplicates! {
         insta::assert_snapshot!(stdout, @"");
         insta::assert_snapshot!(stderr, @r###"
+        Done importing changes from the underlying Git repo.
         Working copy now at: sqpuoqvx f6950fc1 (empty) (no description set)
         Parent commit      : mwrttmos 8d698d4a my-branch | My commit message
         Added 1 files, modified 0 files, removed 0 files
