@@ -614,6 +614,18 @@ impl CommandHelper {
         self.for_loaded_repo(ui, workspace, repo)
     }
 
+    pub fn get_working_copy_factory(&self) -> Result<&dyn WorkingCopyFactory, CommandError> {
+        let loader = self.workspace_loader()?;
+
+        // We convert StoreLoadError -> WorkspaceLoadError -> CommandError
+        let factory: Result<_, WorkspaceLoadError> = loader
+            .get_working_copy_factory(&self.working_copy_factories)
+            .map_err(|e| e.into());
+        let factory = factory
+            .map_err(|err| map_workspace_load_error(err, self.global_args.repository.as_deref()))?;
+        Ok(factory)
+    }
+
     #[instrument(skip_all)]
     pub fn load_workspace(&self) -> Result<Workspace, CommandError> {
         let loader = self.workspace_loader()?;
