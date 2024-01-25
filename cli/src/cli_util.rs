@@ -824,6 +824,7 @@ impl WorkspaceCommandHelper {
         let git_settings = self.settings.git_settings();
         let mut tx = self.start_transaction();
         // Automated import shouldn't fail because of reserved remote name.
+        git::import_head(tx.mut_repo())?;
         let stats = git::import_some_refs(tx.mut_repo(), &git_settings, |ref_name| {
             !git::is_reserved_git_remote_ref(ref_name)
         })?;
