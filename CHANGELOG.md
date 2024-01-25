@@ -42,6 +42,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed snapshots of symlinks in `gitignore`-d directory.
   [#2878](https://github.com/martinvonz/jj/issues/2878)
 
+* Fixed data loss in dirty working copy when checked-out branch is rebased or
+  abandoned by Git.
+  [#2876](https://github.com/martinvonz/jj/issues/2876)
+
 
 ## [0.13.0] - 2024-01-03
 

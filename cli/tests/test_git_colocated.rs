@@ -521,6 +521,54 @@ fn test_git_colocated_fetch_deleted_or_moved_branch() {
 }
 
 #[test]
+fn test_git_colocated_rebase_dirty_working_copy() {
+    let test_env = TestEnvironment::default();
+    let repo_path = test_env.env_root().join("repo");
+    let git_repo = git2::Repository::init(&repo_path).unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["init", "--git-repo=."]);
+
+    std::fs::write(repo_path.join("file"), "base").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file"), "old").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "feature"]);
+
+    // Make the working-copy dirty, delete the checked out branch.
+    std::fs::write(repo_path.join("file"), "new").unwrap();
+    git_repo
+        .find_reference("refs/heads/feature")
+        .unwrap()
+        .delete()
+        .unwrap();
+
+    // Because the working copy is dirty, the new working-copy commit will be
+    // diverged. Therefore, the feature branch has change-delete conflict.
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["status"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy changes:
+    M file
+    Working copy : rlvkpnrz d6c5e664 feature?? | (no description set)
+    Parent commit: qpvuntsm 5973d373 (no description set)
+    These branches have conflicts:
+      feature
+      Use `jj branch list` to see details. Use `jj branch set <name> -r <rev>` to resolve.
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Failed to export some branches:
+      feature: Modified ref had been deleted in Git
+    Done importing changes from the underlying Git repo.
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  d6c5e66473426f5ed3a24ecce8ce8b44ff23cf81 feature??
+    ◉  5973d3731aba9dd86c00b4a765fbc4cc13f1e14b HEAD@git
+    ◉  0000000000000000000000000000000000000000
+    "###);
+
+    // The working-copy content shouldn't be lost.
+    insta::assert_snapshot!(
+        std::fs::read_to_string(repo_path.join("file")).unwrap(), @"new");
+}
+
+#[test]
 fn test_git_colocated_external_checkout() {
     let test_env = TestEnvironment::default();
     let repo_path = test_env.env_root().join("repo");

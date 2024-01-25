@@ -813,9 +813,16 @@ impl WorkspaceCommandHelper {
         if self.may_update_working_copy {
             if self.working_copy_shared_with_git {
                 self.import_git_head(ui)?;
+            }
+            // Because the Git refs (except HEAD) aren't imported yet, the ref
+            // pointing to the new working-copy commit might not be exported.
+            // In that situation, the ref would be conflicted anyway, so export
+            // failure is okay.
+            self.snapshot_working_copy(ui)?;
+            // import_git_refs() can rebase the working-copy commit.
+            if self.working_copy_shared_with_git {
                 self.import_git_refs(ui)?;
             }
-            self.snapshot_working_copy(ui)?;
         }
         Ok(())
     }
