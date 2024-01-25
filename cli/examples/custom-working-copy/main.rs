@@ -32,11 +32,9 @@ use jj_lib::signing::Signer;
 use jj_lib::store::Store;
 use jj_lib::working_copy::{
     CheckoutError, CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions,
-    WorkingCopy, WorkingCopyStateError,
+    WorkingCopy, WorkingCopyFactory, WorkingCopyStateError,
 };
-use jj_lib::workspace::{
-    default_working_copy_factories, WorkingCopyInitializer, Workspace, WorkspaceInitError,
-};
+use jj_lib::workspace::{default_working_copy_factories, Workspace, WorkspaceInitError};
 
 #[derive(clap::Parser, Clone, Debug)]
 enum CustomCommand {
@@ -67,7 +65,7 @@ fn run_custom_command(
                 &ReadonlyRepo::default_op_heads_store_initializer(),
                 &ReadonlyRepo::default_index_store_initializer(),
                 &ReadonlyRepo::default_submodule_store_initializer(),
-                &ConflictsWorkingCopy::initializer(),
+                &ConflictsWorkingCopyFactory {},
                 WorkspaceId::default(),
             )?;
             Ok(())
@@ -79,13 +77,7 @@ fn main() -> std::process::ExitCode {
     let mut working_copy_factories = default_working_copy_factories();
     working_copy_factories.insert(
         ConflictsWorkingCopy::name().to_owned(),
-        Box::new(|store, working_copy_path, state_path| {
-            Box::new(ConflictsWorkingCopy::load(
-                store.clone(),
-                working_copy_path.to_owned(),
-                state_path.to_owned(),
-            ))
-        }),
+        Box::new(ConflictsWorkingCopyFactory {}),
     );
     CliRunner::init()
         .set_working_copy_factories(working_copy_factories)
@@ -113,8 +105,8 @@ impl ConflictsWorkingCopy {
         store: Arc<Store>,
         working_copy_path: PathBuf,
         state_path: PathBuf,
-        workspace_id: WorkspaceId,
         operation_id: OperationId,
+        workspace_id: WorkspaceId,
     ) -> Result<Self, WorkingCopyStateError> {
         let inner = LocalWorkingCopy::init(
             store,
@@ -126,21 +118,6 @@ impl ConflictsWorkingCopy {
         Ok(ConflictsWorkingCopy {
             inner: Box::new(inner),
         })
-    }
-
-    fn initializer() -> Box<WorkingCopyInitializer<'static>> {
-        Box::new(
-            |store, working_copy_path, state_path, workspace_id, operation_id| {
-                let wc = Self::init(
-                    store,
-                    working_copy_path,
-                    state_path,
-                    workspace_id,
-                    operation_id,
-                )?;
-                Ok(Box::new(wc))
-            },
-        )
     }
 
     fn load(store: Arc<Store>, working_copy_path: PathBuf, state_path: PathBuf) -> Self {
@@ -186,6 +163,40 @@ impl WorkingCopy for ConflictsWorkingCopy {
             wc_path: self.inner.path().to_owned(),
             inner,
         }))
+    }
+}
+
+struct ConflictsWorkingCopyFactory {}
+
+impl WorkingCopyFactory for ConflictsWorkingCopyFactory {
+    fn init_working_copy(
+        &self,
+        store: Arc<Store>,
+        working_copy_path: PathBuf,
+        state_path: PathBuf,
+        operation_id: OperationId,
+        workspace_id: WorkspaceId,
+    ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError> {
+        Ok(Box::new(ConflictsWorkingCopy::init(
+            store,
+            working_copy_path,
+            state_path,
+            operation_id,
+            workspace_id,
+        )?))
+    }
+
+    fn load_working_copy(
+        &self,
+        store: Arc<Store>,
+        working_copy_path: PathBuf,
+        state_path: PathBuf,
+    ) -> Box<dyn WorkingCopy> {
+        Box::new(ConflictsWorkingCopy::load(
+            store,
+            working_copy_path,
+            state_path,
+        ))
     }
 }
 

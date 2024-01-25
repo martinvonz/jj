@@ -64,7 +64,7 @@ use crate::store::Store;
 use crate::tree::Tree;
 use crate::working_copy::{
     CheckoutError, CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions,
-    SnapshotProgress, WorkingCopy, WorkingCopyStateError,
+    SnapshotProgress, WorkingCopy, WorkingCopyFactory, WorkingCopyStateError,
 };
 
 #[cfg(unix)]
@@ -1650,6 +1650,36 @@ impl LocalWorkingCopy {
                 message: "Failed to query watchman".to_string(),
                 err: err.into(),
             })
+    }
+}
+
+pub struct LocalWorkingCopyFactory {}
+
+impl WorkingCopyFactory for LocalWorkingCopyFactory {
+    fn init_working_copy(
+        &self,
+        store: Arc<Store>,
+        working_copy_path: PathBuf,
+        state_path: PathBuf,
+        operation_id: OperationId,
+        workspace_id: WorkspaceId,
+    ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError> {
+        Ok(Box::new(LocalWorkingCopy::init(
+            store,
+            working_copy_path,
+            state_path,
+            operation_id,
+            workspace_id,
+        )?))
+    }
+
+    fn load_working_copy(
+        &self,
+        store: Arc<Store>,
+        working_copy_path: PathBuf,
+        state_path: PathBuf,
+    ) -> Box<dyn WorkingCopy> {
+        Box::new(LocalWorkingCopy::load(store, working_copy_path, state_path))
     }
 }
 

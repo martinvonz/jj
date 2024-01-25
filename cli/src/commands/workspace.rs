@@ -23,7 +23,7 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::Repo;
 use jj_lib::rewrite::merge_commit_trees;
-use jj_lib::workspace::{default_working_copy_initializer, Workspace};
+use jj_lib::workspace::{default_working_copy_factory, Workspace};
 use tracing::instrument;
 
 use crate::cli_util::{
@@ -153,7 +153,7 @@ fn cmd_workspace_add(
         command.settings(),
         &destination_path,
         repo,
-        default_working_copy_initializer(),
+        &*default_working_copy_factory(),
         workspace_id,
     )?;
     writeln!(
