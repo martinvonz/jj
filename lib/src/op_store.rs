@@ -107,10 +107,14 @@ impl RefTarget {
         RefTarget { merge }
     }
 
+    /// Returns the underlying value if this target is non-conflicting.
+    pub fn as_resolved(&self) -> Option<&Option<CommitId>> {
+        self.merge.as_resolved()
+    }
+
     /// Returns id if this target is non-conflicting and points to a commit.
     pub fn as_normal(&self) -> Option<&CommitId> {
-        let maybe_id = self.merge.as_resolved()?;
-        maybe_id.as_ref()
+        self.as_resolved()?.as_ref()
     }
 
     /// Returns true if this target points to no commit.
