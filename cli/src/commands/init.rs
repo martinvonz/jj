@@ -73,6 +73,7 @@ pub(crate) fn cmd_init(
         workspace_command.maybe_snapshot(ui)?;
         if !workspace_command.working_copy_shared_with_git() {
             let mut tx = workspace_command.start_transaction();
+            jj_lib::git::import_head(tx.mut_repo())?;
             let stats = jj_lib::git::import_some_refs(
                 tx.mut_repo(),
                 &command.settings().git_settings(),

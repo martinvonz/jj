@@ -240,35 +240,22 @@ pub fn import_some_refs(
     let git_backend = get_git_backend(store).ok_or(GitImportError::UnexpectedBackend)?;
     let git_repo = git_backend.git_repo();
 
-    // TODO: Should this be a separate function? We may not always want to import
-    // the Git HEAD (and add it to our set of heads).
-    let old_git_head = mut_repo.view().git_head();
-    let changed_git_head = if let Ok(head_git_commit) = git_repo.head_commit() {
-        // The current HEAD is not added to `hidable_git_heads` because HEAD move
-        // doesn't automatically mean the old HEAD branch has been rewritten.
-        let head_commit_id = CommitId::from_bytes(head_git_commit.id().as_bytes());
-        let new_head_target = RefTarget::normal(head_commit_id);
-        (*old_git_head != new_head_target).then_some(new_head_target)
-    } else {
-        old_git_head.is_present().then(RefTarget::absent)
-    };
-
     let RefsToImport {
         changed_git_refs,
         changed_remote_refs,
     } = diff_refs_to_import(mut_repo.view(), &git_repo, git_ref_filter)?;
 
-    // Bulk-import all reachable Git commits to the backend to reduce overhead of
-    // table merging and ref updates.
+    // Bulk-import all reachable Git commits to the backend to reduce overhead
+    // of table merging and ref updates.
+    //
+    // changed_remote_refs might contain new_targets that are not in
+    // changed_git_refs, but such targets should have already been imported to
+    // the backend.
     let index = mut_repo.index();
-    let missing_head_ids = itertools::chain(
-        &changed_git_head,
-        changed_git_refs.iter().map(|(_, new_target)| new_target),
-        // changed_remote_refs might contain new_targets that are not in changed_git_refs,
-        // but such targets should have already been imported to the backend.
-    )
-    .flat_map(|target| target.added_ids())
-    .filter(|&id| !index.has_id(id));
+    let missing_head_ids = changed_git_refs
+        .iter()
+        .flat_map(|(_, new_target)| new_target.added_ids())
+        .filter(|&id| !index.has_id(id));
     let heads_imported = git_backend.import_head_commits(missing_head_ids).is_ok();
 
     // Import new remote heads
@@ -280,15 +267,6 @@ pub fn import_some_refs(
         }
         store.get_commit(id)
     };
-    if let Some(new_head_target) = &changed_git_head {
-        for id in new_head_target.added_ids() {
-            let commit = get_commit(id).map_err(|err| GitImportError::MissingHeadTarget {
-                id: id.clone(),
-                err,
-            })?;
-            head_commits.push(commit);
-        }
-    }
     for (ref_name, (_, new_target)) in &changed_remote_refs {
         for id in new_target.added_ids() {
             let commit = get_commit(id).map_err(|err| GitImportError::MissingRefAncestor {
@@ -305,9 +283,6 @@ pub fn import_some_refs(
         .map_err(GitImportError::InternalBackend)?;
 
     // Apply the change that happened in git since last time we imported refs.
-    if let Some(new_head_target) = changed_git_head {
-        mut_repo.set_git_head_target(new_head_target);
-    }
     for (full_name, new_target) in changed_git_refs {
         mut_repo.set_git_ref_target(&full_name, new_target);
     }
@@ -526,6 +501,67 @@ fn pinned_commit_ids(view: &View) -> impl Iterator<Item = &CommitId> {
         iter::once(view.git_head()),
     )
     .flat_map(|target| target.added_ids())
+}
+
+/// Imports `HEAD@git` from the underlying Git repo.
+///
+/// Unlike `import_refs()`, the old HEAD branch is not abandoned because HEAD
+/// move doesn't always mean the old HEAD branch has been rewritten.
+///
+/// Unlike `reset_head()`, this function doesn't move the working-copy commit to
+/// the child of the new `HEAD@git` revision.
+pub fn import_head(mut_repo: &mut MutableRepo) -> Result<(), GitImportError> {
+    let store = mut_repo.store();
+    let git_backend = get_git_backend(store).ok_or(GitImportError::UnexpectedBackend)?;
+    let git_repo = git_backend.git_repo();
+
+    let old_git_head = mut_repo.view().git_head();
+    let changed_git_head = if let Ok(head_git_commit) = git_repo.head_commit() {
+        let head_commit_id = CommitId::from_bytes(head_git_commit.id().as_bytes());
+        let new_head_target = RefTarget::normal(head_commit_id);
+        (*old_git_head != new_head_target).then_some(new_head_target)
+    } else {
+        old_git_head.is_present().then(RefTarget::absent)
+    };
+
+    // Bulk-import all reachable Git commits to the backend to reduce overhead of
+    // table merging and ref updates.
+    let index = mut_repo.index();
+    let missing_head_ids = changed_git_head
+        .iter()
+        .flat_map(|target| target.added_ids())
+        .filter(|&id| !index.has_id(id));
+    let heads_imported = git_backend.import_head_commits(missing_head_ids).is_ok();
+
+    // Import new remote heads
+    let mut head_commits = Vec::new();
+    let get_commit = |id| {
+        // If bulk-import failed, try again to find bad head or ref.
+        if !heads_imported && !index.has_id(id) {
+            git_backend.import_head_commits([id])?;
+        }
+        store.get_commit(id)
+    };
+    if let Some(new_head_target) = &changed_git_head {
+        for id in new_head_target.added_ids() {
+            let commit = get_commit(id).map_err(|err| GitImportError::MissingHeadTarget {
+                id: id.clone(),
+                err,
+            })?;
+            head_commits.push(commit);
+        }
+    }
+    // It's unlikely the imported commits were missing, but I/O-related error
+    // can still occur.
+    mut_repo
+        .add_heads(&head_commits)
+        .map_err(GitImportError::InternalBackend)?;
+
+    // Apply the change that happened in git since last time we imported refs.
+    if let Some(new_head_target) = changed_git_head {
+        mut_repo.set_git_head_target(new_head_target);
+    }
+    Ok(())
 }
 
 #[derive(Error, Debug)]
