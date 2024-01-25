@@ -52,6 +52,7 @@ pub enum BranchCommand {
     Rename(BranchRenameArgs),
     #[command(visible_alias("s"))]
     Set(BranchSetArgs),
+    #[command(visible_alias("t"))]
     Track(BranchTrackArgs),
     Untrack(BranchUntrackArgs),
 }
