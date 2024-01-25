@@ -748,6 +748,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tracked-branches-and-tracking-branches" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tracked branches and tracking branches
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#visible-commits" class="md-nav__link">
     <span class="md-ellipsis">
       Visible commits
@@ -1580,6 +1589,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#tracked-branches-and-tracking-branches" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tracked branches and tracking branches
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#visible-commits" class="md-nav__link">
     <span class="md-ellipsis">
       Visible commits
@@ -1764,6 +1782,11 @@ commits <code>jj log -r root()+</code> will show.</p>
 <p>A tree object represents a snapshot of a directory in the repository. Tree
 objects are defined recursively; each tree object only has the files and
 directories contained directly in the directory it represents.</p>
+<h2 id="tracked-branches-and-tracking-branches">Tracked branches and tracking branches<a class="headerlink" href="#tracked-branches-and-tracking-branches" title="Permanent link">&para;</a></h2>
+<p>A remote branch can be made "tracked" with the <code>jj branch track</code> command. This
+results in a "tracking" local branch that tracks the remote branch.</p>
+<p>See <a href="../branches/#terminology-summary">the branches documentation</a> for a more
+detailed definition of these terms.</p>
 <h2 id="visible-commits">Visible commits<a class="headerlink" href="#visible-commits" title="Permanent link">&para;</a></h2>
 <p>Visible commits are the commits you see in <code>jj log -r 'all()'</code>. They are the
 commits that are reachable from an anonymous head in the <a href="#view">view</a>.
