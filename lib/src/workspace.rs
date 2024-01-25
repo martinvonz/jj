@@ -484,25 +484,33 @@ impl WorkspaceLoader {
         Ok(workspace)
     }
 
-    fn load_working_copy(
+    pub fn get_working_copy_factory<'a>(
         &self,
-        store: &Arc<Store>,
-        working_copy_factories: &HashMap<String, Box<dyn WorkingCopyFactory>>,
-    ) -> Result<Box<dyn WorkingCopy>, StoreLoadError> {
+        working_copy_factories: &'a HashMap<String, Box<dyn WorkingCopyFactory>>,
+    ) -> Result<&'a dyn WorkingCopyFactory, StoreLoadError> {
         // For compatibility with existing repos. TODO: Delete default in 0.17+
         let working_copy_type = read_store_type_compat(
             "working copy",
             self.working_copy_state_path.join("type"),
             LocalWorkingCopy::name,
         )?;
-        let working_copy_factory =
-            working_copy_factories
-                .get(&working_copy_type)
-                .ok_or_else(|| StoreLoadError::UnsupportedType {
-                    store: "working copy",
-                    store_type: working_copy_type.to_string(),
-                })?;
 
+        if let Some(factory) = working_copy_factories.get(&working_copy_type) {
+            Ok(factory.as_ref())
+        } else {
+            Err(StoreLoadError::UnsupportedType {
+                store: "working copy",
+                store_type: working_copy_type.to_string(),
+            })
+        }
+    }
+
+    fn load_working_copy(
+        &self,
+        store: &Arc<Store>,
+        working_copy_factories: &HashMap<String, Box<dyn WorkingCopyFactory>>,
+    ) -> Result<Box<dyn WorkingCopy>, StoreLoadError> {
+        let working_copy_factory = self.get_working_copy_factory(working_copy_factories)?;
         Ok(working_copy_factory.load_working_copy(
             store.clone(),
             self.workspace_root.to_owned(),
