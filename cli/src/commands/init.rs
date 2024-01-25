@@ -25,7 +25,6 @@ use tracing::instrument;
 
 use super::git;
 use crate::cli_util::{user_error, user_error_with_hint, CommandError, CommandHelper};
-use crate::git_util::print_git_import_stats;
 use crate::ui::Ui;
 
 /// Create a new repo in the given directory
@@ -70,22 +69,19 @@ pub(crate) fn cmd_init(
             Workspace::init_external_git(command.settings(), &wc_path, &git_store_path)?;
         let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
         git::maybe_add_gitignore(&workspace_command)?;
+        // Import refs first so all the reachable commits are indexed in
+        // chronological order.
+        workspace_command.import_git_refs(ui)?;
         workspace_command.maybe_snapshot(ui)?;
         if !workspace_command.working_copy_shared_with_git() {
             let mut tx = workspace_command.start_transaction();
             jj_lib::git::import_head(tx.mut_repo())?;
-            let stats = jj_lib::git::import_some_refs(
-                tx.mut_repo(),
-                &command.settings().git_settings(),
-                |ref_name| !jj_lib::git::is_reserved_git_remote_ref(ref_name),
-            )?;
-            print_git_import_stats(ui, &stats)?;
             if let Some(git_head_id) = tx.mut_repo().view().git_head().as_normal().cloned() {
                 let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
                 tx.check_out(&git_head_commit)?;
             }
             if tx.mut_repo().has_changes() {
-                tx.finish(ui, "import git refs")?;
+                tx.finish(ui, "import git head")?;
             }
         }
         print_trackable_remote_branches(ui, workspace_command.repo().view())?;

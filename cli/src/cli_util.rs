@@ -878,7 +878,7 @@ impl WorkspaceCommandHelper {
     ///
     /// This function does not import the Git HEAD.
     #[instrument(skip_all)]
-    fn import_git_refs(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
+    pub fn import_git_refs(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         let git_settings = self.settings.git_settings();
         let mut tx = self.start_transaction();
         // Automated import shouldn't fail because of reserved remote name.
