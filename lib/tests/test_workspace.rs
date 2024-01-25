@@ -16,7 +16,7 @@ use assert_matches::assert_matches;
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::Repo;
 use jj_lib::workspace::{
-    default_working_copy_factories, default_working_copy_initializer, Workspace, WorkspaceLoadError,
+    default_working_copy_factories, default_working_copy_factory, Workspace, WorkspaceLoadError,
 };
 use testutils::{TestRepo, TestWorkspace};
 
@@ -51,7 +51,7 @@ fn test_init_additional_workspace() {
         &settings,
         &ws2_root,
         &test_workspace.repo,
-        default_working_copy_initializer(),
+        &*default_working_copy_factory(),
         ws2_id.clone(),
     )
     .unwrap();

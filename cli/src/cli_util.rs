@@ -63,11 +63,11 @@ use jj_lib::transaction::Transaction;
 use jj_lib::tree::TreeMergeError;
 use jj_lib::working_copy::{
     CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions, WorkingCopy,
-    WorkingCopyStateError,
+    WorkingCopyFactory, WorkingCopyStateError,
 };
 use jj_lib::workspace::{
-    default_working_copy_factories, LockedWorkspace, WorkingCopyFactory, Workspace,
-    WorkspaceInitError, WorkspaceLoadError, WorkspaceLoader,
+    default_working_copy_factories, LockedWorkspace, Workspace, WorkspaceInitError,
+    WorkspaceLoadError, WorkspaceLoader,
 };
 use jj_lib::{dag_walk, file_util, git, op_walk, revset};
 use once_cell::unsync::OnceCell;
@@ -515,7 +515,7 @@ pub struct CommandHelper {
     layered_configs: LayeredConfigs,
     maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
     store_factories: StoreFactories,
-    working_copy_factories: HashMap<String, WorkingCopyFactory>,
+    working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>>,
 }
 
 impl CommandHelper {
@@ -530,7 +530,7 @@ impl CommandHelper {
         layered_configs: LayeredConfigs,
         maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
         store_factories: StoreFactories,
-        working_copy_factories: HashMap<String, WorkingCopyFactory>,
+        working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>>,
     ) -> Self {
         // `cwd` is canonicalized for consistency with `Workspace::workspace_root()` and
         // to easily compute relative paths between them.
@@ -2775,7 +2775,7 @@ pub struct CliRunner {
     app: Command,
     extra_configs: Option<config::Config>,
     store_factories: Option<StoreFactories>,
-    working_copy_factories: Option<HashMap<String, WorkingCopyFactory>>,
+    working_copy_factories: Option<HashMap<String, Box<dyn WorkingCopyFactory>>>,
     dispatch_fn: CliDispatchFn,
     process_global_args_fns: Vec<ProcessGlobalArgsFn>,
 }
@@ -2822,7 +2822,7 @@ impl CliRunner {
     /// Replaces working copy factories to be used.
     pub fn set_working_copy_factories(
         mut self,
-        working_copy_factories: HashMap<String, WorkingCopyFactory>,
+        working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>>,
     ) -> Self {
         self.working_copy_factories = Some(working_copy_factories);
         self
@@ -2928,7 +2928,7 @@ impl CliRunner {
         let settings = UserSettings::from_config(config);
         let working_copy_factories = self
             .working_copy_factories
-            .unwrap_or_else(|| default_working_copy_factories());
+            .unwrap_or_else(default_working_copy_factories);
         let command_helper = CommandHelper::new(
             self.app,
             cwd,

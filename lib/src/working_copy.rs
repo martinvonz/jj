@@ -30,6 +30,7 @@ use crate::merged_tree::MergedTree;
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{RepoPath, RepoPathBuf};
 use crate::settings::HumanByteSize;
+use crate::store::Store;
 
 /// The trait all working-copy implementations must implement.
 pub trait WorkingCopy {
@@ -61,6 +62,27 @@ pub trait WorkingCopy {
     /// Locks the working copy and returns an instance with methods for updating
     /// the working copy files and state.
     fn start_mutation(&self) -> Result<Box<dyn LockedWorkingCopy>, WorkingCopyStateError>;
+}
+
+/// The factory which creates and loads a specific type of working copy.
+pub trait WorkingCopyFactory {
+    /// Create a new working copy from scratch.
+    fn init_working_copy(
+        &self,
+        store: Arc<Store>,
+        working_copy_path: PathBuf,
+        state_path: PathBuf,
+        operation_id: OperationId,
+        workspace_id: WorkspaceId,
+    ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError>;
+
+    /// Load an existing working copy.
+    fn load_working_copy(
+        &self,
+        store: Arc<Store>,
+        working_copy_path: PathBuf,
+        state_path: PathBuf,
+    ) -> Box<dyn WorkingCopy>;
 }
 
 /// A working copy that's being modified.

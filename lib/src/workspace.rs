@@ -28,7 +28,7 @@ use crate::commit::Commit;
 use crate::file_util::{self, IoResultExt as _, PathError};
 use crate::git_backend::{canonicalize_git_repo_path, GitBackend};
 use crate::local_backend::LocalBackend;
-use crate::local_working_copy::LocalWorkingCopy;
+use crate::local_working_copy::{LocalWorkingCopy, LocalWorkingCopyFactory};
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo::{
     read_store_type_compat, BackendInitializer, CheckOutCommitError, IndexStoreInitializer,
@@ -39,7 +39,8 @@ use crate::settings::UserSettings;
 use crate::signing::{SignInitError, Signer};
 use crate::store::Store;
 use crate::working_copy::{
-    CheckoutError, CheckoutStats, LockedWorkingCopy, WorkingCopy, WorkingCopyStateError,
+    CheckoutError, CheckoutStats, LockedWorkingCopy, WorkingCopy, WorkingCopyFactory,
+    WorkingCopyStateError,
 };
 
 #[derive(Error, Debug)]
@@ -102,7 +103,7 @@ fn init_working_copy(
     repo: &Arc<ReadonlyRepo>,
     workspace_root: &Path,
     jj_dir: &Path,
-    working_copy_initializer: &WorkingCopyInitializer,
+    working_copy_factory: &dyn WorkingCopyFactory,
     workspace_id: WorkspaceId,
 ) -> Result<(Box<dyn WorkingCopy>, Arc<ReadonlyRepo>), WorkspaceInitError> {
     let working_copy_state_path = jj_dir.join("working_copy");
@@ -116,12 +117,12 @@ fn init_working_copy(
     )?;
     let repo = tx.commit(format!("add workspace '{}'", workspace_id.as_str()));
 
-    let working_copy = working_copy_initializer(
+    let working_copy = working_copy_factory.init_working_copy(
         repo.store().clone(),
         workspace_root.to_path_buf(),
         working_copy_state_path.clone(),
-        workspace_id,
         repo.op_id().clone(),
+        workspace_id,
     )?;
     let working_copy_type_path = working_copy_state_path.join("type");
     fs::write(&working_copy_type_path, working_copy.name()).context(&working_copy_type_path)?;
@@ -243,7 +244,7 @@ impl Workspace {
         op_heads_store_initializer: &OpHeadsStoreInitializer,
         index_store_initializer: &IndexStoreInitializer,
         submodule_store_initializer: &SubmoduleStoreInitializer,
-        working_copy_initializer: &WorkingCopyInitializer,
+        working_copy_factory: &dyn WorkingCopyFactory,
         workspace_id: WorkspaceId,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(workspace_root)?;
@@ -269,7 +270,7 @@ impl Workspace {
                 &repo,
                 workspace_root,
                 &jj_dir,
-                working_copy_initializer,
+                working_copy_factory,
                 workspace_id,
             )?;
             let repo_loader = repo.loader();
@@ -297,7 +298,7 @@ impl Workspace {
             ReadonlyRepo::default_op_heads_store_initializer(),
             ReadonlyRepo::default_index_store_initializer(),
             ReadonlyRepo::default_submodule_store_initializer(),
-            default_working_copy_initializer(),
+            &*default_working_copy_factory(),
             WorkspaceId::default(),
         )
     }
@@ -306,7 +307,7 @@ impl Workspace {
         user_settings: &UserSettings,
         workspace_root: &Path,
         repo: &Arc<ReadonlyRepo>,
-        working_copy_initializer: &WorkingCopyInitializer,
+        working_copy_factory: &dyn WorkingCopyFactory,
         workspace_id: WorkspaceId,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let jj_dir = create_jj_dir(workspace_root)?;
@@ -328,7 +329,7 @@ impl Workspace {
             repo,
             workspace_root,
             &jj_dir,
-            working_copy_initializer,
+            working_copy_factory,
             workspace_id,
         )?;
         let workspace = Workspace::new(workspace_root, working_copy, repo.loader())?;
@@ -339,7 +340,7 @@ impl Workspace {
         user_settings: &UserSettings,
         workspace_path: &Path,
         store_factories: &StoreFactories,
-        working_copy_factories: &HashMap<String, WorkingCopyFactory>,
+        working_copy_factories: &HashMap<String, Box<dyn WorkingCopyFactory>>,
     ) -> Result<Self, WorkspaceLoadError> {
         let loader = WorkspaceLoader::init(workspace_path)?;
         let workspace = loader.load(user_settings, store_factories, working_copy_factories)?;
@@ -475,7 +476,7 @@ impl WorkspaceLoader {
         &self,
         user_settings: &UserSettings,
         store_factories: &StoreFactories,
-        working_copy_factories: &HashMap<String, WorkingCopyFactory>,
+        working_copy_factories: &HashMap<String, Box<dyn WorkingCopyFactory>>,
     ) -> Result<Workspace, WorkspaceLoadError> {
         let repo_loader = RepoLoader::init(user_settings, &self.repo_dir, store_factories)?;
         let working_copy = self.load_working_copy(repo_loader.store(), working_copy_factories)?;
@@ -486,7 +487,7 @@ impl WorkspaceLoader {
     fn load_working_copy(
         &self,
         store: &Arc<Store>,
-        working_copy_factories: &HashMap<String, WorkingCopyFactory>,
+        working_copy_factories: &HashMap<String, Box<dyn WorkingCopyFactory>>,
     ) -> Result<Box<dyn WorkingCopy>, StoreLoadError> {
         // For compatibility with existing repos. TODO: Delete default in 0.17+
         let working_copy_type = read_store_type_compat(
@@ -501,46 +502,24 @@ impl WorkspaceLoader {
                     store: "working copy",
                     store_type: working_copy_type.to_string(),
                 })?;
-        let working_copy =
-            working_copy_factory(store, &self.workspace_root, &self.working_copy_state_path);
-        Ok(working_copy)
+
+        Ok(working_copy_factory.load_working_copy(
+            store.clone(),
+            self.workspace_root.to_owned(),
+            self.working_copy_state_path.to_owned(),
+        ))
     }
 }
 
-pub fn default_working_copy_initializer() -> &'static WorkingCopyInitializer<'static> {
-    &|store: Arc<Store>, working_copy_path, state_path, workspace_id, operation_id| {
-        let wc = LocalWorkingCopy::init(
-            store,
-            working_copy_path,
-            state_path,
-            operation_id,
-            workspace_id,
-        )?;
-        Ok(Box::new(wc))
-    }
-}
-
-pub fn default_working_copy_factories() -> HashMap<String, WorkingCopyFactory> {
-    let mut factories: HashMap<String, WorkingCopyFactory> = HashMap::new();
+pub fn default_working_copy_factories() -> HashMap<String, Box<dyn WorkingCopyFactory>> {
+    let mut factories: HashMap<String, Box<dyn WorkingCopyFactory>> = HashMap::new();
     factories.insert(
         LocalWorkingCopy::name().to_owned(),
-        Box::new(|store, working_copy_path, store_path| {
-            Box::new(LocalWorkingCopy::load(
-                store.clone(),
-                working_copy_path.to_owned(),
-                store_path.to_owned(),
-            ))
-        }),
+        Box::new(LocalWorkingCopyFactory {}),
     );
     factories
 }
 
-pub type WorkingCopyInitializer<'a> = dyn Fn(
-        Arc<Store>,
-        PathBuf,
-        PathBuf,
-        WorkspaceId,
-        OperationId,
-    ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError>
-    + 'a;
-pub type WorkingCopyFactory = Box<dyn Fn(&Arc<Store>, &Path, &Path) -> Box<dyn WorkingCopy>>;
+pub fn default_working_copy_factory() -> Box<dyn WorkingCopyFactory> {
+    Box::new(LocalWorkingCopyFactory {})
+}
