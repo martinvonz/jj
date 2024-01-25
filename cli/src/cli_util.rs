@@ -812,19 +812,76 @@ impl WorkspaceCommandHelper {
     pub fn maybe_snapshot(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         if self.may_update_working_copy {
             if self.working_copy_shared_with_git {
-                self.import_git_refs_and_head(ui)?;
+                self.import_git_head(ui)?;
+                self.import_git_refs(ui)?;
             }
             self.snapshot_working_copy(ui)?;
         }
         Ok(())
     }
 
+    /// Imports new HEAD from the colocated Git repo.
+    ///
+    /// If the Git HEAD has changed, this function abandons our old checkout and
+    /// checks out the new Git HEAD. The working-copy state will be reset to
+    /// point to the new Git HEAD. The working-copy contents won't be updated.
     #[instrument(skip_all)]
-    fn import_git_refs_and_head(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
+    fn import_git_head(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
+        assert!(self.may_update_working_copy);
+        let mut tx = self.start_transaction();
+        git::import_head(tx.mut_repo())?;
+        if !tx.mut_repo().has_changes() {
+            return Ok(());
+        }
+
+        let mut tx = tx.into_inner();
+        let old_git_head = self.repo().view().git_head().clone();
+        let new_git_head = tx.mut_repo().view().git_head().clone();
+        if let Some(new_git_head_id) = new_git_head.as_normal() {
+            let workspace_id = self.workspace_id().to_owned();
+            if let Some(old_wc_commit_id) = self.repo().view().get_wc_commit_id(&workspace_id) {
+                tx.mut_repo()
+                    .record_abandoned_commit(old_wc_commit_id.clone());
+            }
+            let new_git_head_commit = tx.mut_repo().store().get_commit(new_git_head_id)?;
+            tx.mut_repo()
+                .check_out(workspace_id, &self.settings, &new_git_head_commit)?;
+            let mut locked_ws = self.workspace.start_working_copy_mutation()?;
+            // The working copy was presumably updated by the git command that updated
+            // HEAD, so we just need to reset our working copy
+            // state to it without updating working copy files.
+            let new_git_head_tree = new_git_head_commit.tree()?;
+            locked_ws.locked_wc().reset(&new_git_head_tree)?;
+            tx.mut_repo().rebase_descendants(&self.settings)?;
+            self.user_repo = ReadonlyUserRepo::new(tx.commit("import git head"));
+            locked_ws.finish(self.user_repo.repo.op_id().clone())?;
+            if old_git_head.is_present() {
+                writeln!(
+                    ui.stderr(),
+                    "Reset the working copy parent to the new Git HEAD."
+                )?;
+            } else {
+                // Don't print verbose message on initial checkout.
+            }
+        } else {
+            // Unlikely, but the HEAD ref got deleted by git?
+            self.finish_transaction(ui, tx, "import git head")?;
+        }
+        Ok(())
+    }
+
+    /// Imports branches and tags from the underlying Git repo, abandons old
+    /// branches.
+    ///
+    /// If the working-copy branch is rebased, and if update is allowed, the new
+    /// working-copy commit will be checked out.
+    ///
+    /// This function does not import the Git HEAD.
+    #[instrument(skip_all)]
+    fn import_git_refs(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         let git_settings = self.settings.git_settings();
         let mut tx = self.start_transaction();
         // Automated import shouldn't fail because of reserved remote name.
-        git::import_head(tx.mut_repo())?;
         let stats = git::import_some_refs(tx.mut_repo(), &git_settings, |ref_name| {
             !git::is_reserved_git_remote_ref(ref_name)
         })?;
@@ -834,42 +891,15 @@ impl WorkspaceCommandHelper {
 
         print_git_import_stats(ui, &stats)?;
         let mut tx = tx.into_inner();
-        let old_git_head = self.repo().view().git_head().clone();
-        let new_git_head = tx.mut_repo().view().git_head().clone();
-        // If the Git HEAD has changed, abandon our old checkout and check out the new
-        // Git HEAD.
-        match new_git_head.as_normal() {
-            Some(new_git_head_id) if new_git_head != old_git_head => {
-                let workspace_id = self.workspace_id().to_owned();
-                if let Some(old_wc_commit_id) = self.repo().view().get_wc_commit_id(&workspace_id) {
-                    tx.mut_repo()
-                        .record_abandoned_commit(old_wc_commit_id.clone());
-                }
-                let new_git_head_commit = tx.mut_repo().store().get_commit(new_git_head_id)?;
-                tx.mut_repo()
-                    .check_out(workspace_id, &self.settings, &new_git_head_commit)?;
-                let mut locked_ws = self.workspace.start_working_copy_mutation()?;
-                // The working copy was presumably updated by the git command that updated
-                // HEAD, so we just need to reset our working copy
-                // state to it without updating working copy files.
-                let new_git_head_tree = new_git_head_commit.tree()?;
-                locked_ws.locked_wc().reset(&new_git_head_tree)?;
-                tx.mut_repo().rebase_descendants(&self.settings)?;
-                self.user_repo = ReadonlyUserRepo::new(tx.commit("import git refs"));
-                locked_ws.finish(self.user_repo.repo.op_id().clone())?;
-            }
-            _ => {
-                let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
-                if num_rebased > 0 {
-                    writeln!(
-                        ui.stderr(),
-                        "Rebased {num_rebased} descendant commits off of commits rewritten from \
-                         git"
-                    )?;
-                }
-                self.finish_transaction(ui, tx, "import git refs")?;
-            }
+        // Rebase here to show slightly different status message.
+        let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
+        if num_rebased > 0 {
+            writeln!(
+                ui.stderr(),
+                "Rebased {num_rebased} descendant commits off of commits rewritten from git"
+            )?;
         }
+        self.finish_transaction(ui, tx, "import git refs")?;
         writeln!(
             ui.stderr(),
             "Done importing changes from the underlying Git repo."
