@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+* (Minor) Diff summaries (e.g. `jj diff -s`) now use `D` for "Deleted" instead
+  of `R` for "Removed". @joyously pointed out that `R` could also mean
+  "Renamed".
+
 ### New features
 
 * New `jj op abandon` command is added to clean up the operation history. If GC

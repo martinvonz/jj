@@ -48,7 +48,7 @@ use crate::ui::Ui;
 #[command(group(clap::ArgGroup::new("short-format").args(&["summary", "stat", "types"])))]
 #[command(group(clap::ArgGroup::new("long-format").args(&["git", "color_words", "tool"])))]
 pub struct DiffFormatArgs {
-    /// For each path, show only whether it was modified, added, or removed
+    /// For each path, show only whether it was modified, added, or deleted
     #[arg(long, short)]
     pub summary: bool,
     /// Show a histogram of the changes
@@ -793,7 +793,7 @@ pub fn show_diff_summary(
                 } else {
                     writeln!(
                         formatter.labeled("removed"),
-                        "R {}",
+                        "D {}", // `R` could be interpreted as "renamed"
                         workspace_command.format_file_path(&repo_path)
                     )?;
                 }
