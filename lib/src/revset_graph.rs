@@ -380,7 +380,7 @@ mod tests {
 
     #[test]
     fn test_topo_grouped_multiple_roots() {
-        let graph = vec![
+        let graph = [
             (id('C'), vec![missing('Y')]),
             (id('B'), vec![missing('X')]),
             (id('A'), vec![]),
@@ -1157,7 +1157,7 @@ mod tests {
 
     #[test]
     fn test_topo_grouped_merge_multiple_roots() {
-        let graph = vec![
+        let graph = [
             (id('D'), vec![direct('C')]),
             (id('C'), vec![direct('B'), direct('A')]),
             (id('B'), vec![missing('X')]),
@@ -1474,7 +1474,7 @@ mod tests {
 
     #[test]
     fn test_topo_grouped_requeue_unpopulated() {
-        let graph = vec![
+        let graph = [
             (id('C'), vec![direct('A'), direct('B')]),
             (id('B'), vec![direct('A')]),
             (id('A'), vec![]),
@@ -1513,7 +1513,7 @@ mod tests {
     fn test_topo_grouped_duplicated_edges() {
         // The graph shouldn't have duplicated parent->child edges, but topo-grouped
         // iterator can handle it anyway.
-        let graph = vec![(id('B'), vec![direct('A'), direct('A')]), (id('A'), vec![])];
+        let graph = [(id('B'), vec![direct('A'), direct('A')]), (id('A'), vec![])];
         insta::assert_snapshot!(format_graph(graph.iter().cloned()), @r###"
         B  direct(A), direct(A)
         │
