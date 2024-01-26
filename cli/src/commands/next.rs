@@ -31,17 +31,20 @@ use crate::ui::Ui;
 /// The command moves you to the next child in a linear fashion.
 ///
 ///
+/// ```
 /// D      D @
 /// |      |/
 /// C @ => C
 /// |/     |
 /// B      B
+/// ```
 ///
 ///
 /// If `--edit` is passed, it will move you directly to the child
 /// revision.
 ///
 ///
+/// ```
 /// D    D
 /// |    |
 /// C    C
@@ -49,6 +52,7 @@ use crate::ui::Ui;
 /// B => @
 /// |    |
 /// @    A
+/// ```
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 pub(crate) struct NextArgs {

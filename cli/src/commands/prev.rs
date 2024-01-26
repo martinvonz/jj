@@ -25,18 +25,18 @@ use crate::ui::Ui;
 ///
 /// The command moves you to the parent in a linear fashion.
 ///
-///
+/// ```
 /// D @  D
 /// |/   |
 /// A => A @
 /// |    | /
 /// B    B
-///
+/// ```
 ///
 /// If `--edit` is passed, it will move the working copy commit
 /// directly to the parent.
 ///
-///
+/// ```
 /// D @  D
 /// |/   |
 /// C => @
@@ -44,6 +44,7 @@ use crate::ui::Ui;
 /// B    B
 /// |    |
 /// A    A
+/// ```
 // TODO(#2126): Handle multiple parents, e.g merges.
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
