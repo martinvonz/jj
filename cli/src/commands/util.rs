@@ -29,6 +29,7 @@ pub(crate) enum UtilCommand {
     Completion(UtilCompletionArgs),
     Gc(UtilGcArgs),
     Mangen(UtilMangenArgs),
+    MarkdownHelp(UtilMarkdownHelp),
     ConfigSchema(UtilConfigSchemaArgs),
 }
 
@@ -79,6 +80,10 @@ pub(crate) struct UtilGcArgs {
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct UtilMangenArgs {}
 
+/// Print the CLI help for all subcommands in Markdown
+#[derive(clap::Args, Clone, Debug)]
+pub(crate) struct UtilMarkdownHelp {}
+
 /// Print the JSON schema for the jj TOML config format.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct UtilConfigSchemaArgs {}
@@ -93,6 +98,7 @@ pub(crate) fn cmd_util(
         UtilCommand::Completion(args) => cmd_util_completion(ui, command, args),
         UtilCommand::Gc(args) => cmd_util_gc(ui, command, args),
         UtilCommand::Mangen(args) => cmd_util_mangen(ui, command, args),
+        UtilCommand::MarkdownHelp(args) => cmd_util_markdownhelp(ui, command, args),
         UtilCommand::ConfigSchema(args) => cmd_util_config_schema(ui, command, args),
     }
 }
@@ -149,6 +155,18 @@ fn cmd_util_mangen(
     let man = clap_mangen::Man::new(command.app().clone());
     man.render(&mut buf)?;
     ui.stdout_formatter().write_all(&buf)?;
+    Ok(())
+}
+
+fn cmd_util_markdownhelp(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &UtilMarkdownHelp,
+) -> Result<(), CommandError> {
+    // If we ever need more flexibility, the code of `clap_markdown` is simple and
+    // readable. We could reimplement the parts we need without trouble.
+    let markdown = clap_markdown::help_markdown_command(command.app()).into_bytes();
+    ui.stdout_formatter().write_all(&markdown)?;
     Ok(())
 }
 

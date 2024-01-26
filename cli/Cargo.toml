@@ -32,6 +32,7 @@ cargo_metadata = { workspace = true }
 [dependencies]
 chrono = { workspace = true }
 clap = { workspace = true }
+clap-markdown = { workspace = true }
 clap_complete = { workspace = true }
 clap_mangen = { workspace = true }
 config = { workspace = true }
