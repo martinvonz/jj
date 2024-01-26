@@ -841,6 +841,16 @@ impl WorkspaceCommandHelper {
             return Ok(());
         }
 
+        // TODO: There are various ways to get duplicated working-copy
+        // commits. Some of them could be mitigated by checking the working-copy
+        // operation id after acquiring the lock, but that isn't enough.
+        //
+        // - moved HEAD was observed by multiple jj processes, and new working-copy
+        //   commits are created concurrently.
+        // - new HEAD was exported by jj, but the operation isn't committed yet.
+        // - new HEAD was exported by jj, but the new working-copy commit isn't checked
+        //   out yet.
+
         let mut tx = tx.into_inner();
         let old_git_head = self.repo().view().git_head().clone();
         let new_git_head = tx.mut_repo().view().git_head().clone();
