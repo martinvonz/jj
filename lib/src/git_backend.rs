@@ -15,6 +15,7 @@
 #![allow(missing_docs)]
 
 use std::any::Any;
+use std::collections::HashSet;
 use std::fmt::{Debug, Error, Formatter};
 use std::io::{Cursor, Read};
 use std::path::{Path, PathBuf};
@@ -341,10 +342,10 @@ impl GitBackend {
         &self,
         head_ids: impl IntoIterator<Item = &'a CommitId>,
     ) -> BackendResult<()> {
-        let head_ids = head_ids
+        let head_ids: HashSet<&CommitId> = head_ids
             .into_iter()
             .filter(|&id| *id != self.root_commit_id)
-            .collect_vec();
+            .collect();
         if head_ids.is_empty() {
             return Ok(());
         }
@@ -651,7 +652,7 @@ fn import_extra_metadata_entries_from_heads(
     git_repo: &gix::Repository,
     mut_table: &mut MutableTable,
     _table_lock: &FileLock,
-    head_ids: &[&CommitId],
+    head_ids: &HashSet<&CommitId>,
     uses_tree_conflict_format: bool,
 ) -> BackendResult<()> {
     let mut work_ids = head_ids
@@ -1698,6 +1699,42 @@ mod tests {
         assert!(git_refs
             .iter()
             .any(|git_ref| git_ref.target().unwrap() == git_id(&commit_id)));
+    }
+
+    #[test]
+    fn import_head_commits_duplicates() {
+        let settings = user_settings();
+        let temp_dir = testutils::new_temp_dir();
+        let backend = GitBackend::init_internal(&settings, temp_dir.path()).unwrap();
+        let git_repo = backend.open_git_repo().unwrap();
+
+        let signature = git2::Signature::now("Someone", "someone@example.com").unwrap();
+        let empty_tree_id = Oid::from_str("4b825dc642cb6eb9a060e54bf8d69288fbee4904").unwrap();
+        let empty_tree = git_repo.find_tree(empty_tree_id).unwrap();
+        let git_commit_id = git_repo
+            .commit(
+                Some("refs/heads/main"),
+                &signature,
+                &signature,
+                "git commit message",
+                &empty_tree,
+                &[],
+            )
+            .unwrap();
+        let commit_id = CommitId::from_bytes(git_commit_id.as_bytes());
+
+        // Ref creation shouldn't fail because of duplicated head ids.
+        backend
+            .import_head_commits([&commit_id, &commit_id])
+            .unwrap();
+        let git_refs: Vec<_> = git_repo
+            .references_glob("refs/jj/keep/*")
+            .unwrap()
+            .try_collect()
+            .unwrap();
+        assert!(git_refs
+            .iter()
+            .any(|git_ref| git_ref.target().unwrap() == git_commit_id));
     }
 
     #[test]
