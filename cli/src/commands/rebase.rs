@@ -46,6 +46,7 @@ use crate::ui::Ui;
 /// your history like this (letters followed by an apostrophe are post-rebase
 /// versions):
 ///
+/// ```
 /// O           N'
 /// |           |
 /// | N         M'
@@ -57,6 +58,7 @@ use crate::ui::Ui;
 /// | K         | K
 /// |/          |/
 /// J           J
+/// ```
 ///
 /// With `-b`, the command rebases the whole "branch" containing the specified
 /// revision. A "branch" is the set of commits that includes:
@@ -71,6 +73,7 @@ use crate::ui::Ui;
 /// -d O` would transform your history like this (because `L` and `M` are on the
 /// same "branch", relative to the destination):
 ///
+/// ```
 /// O           N'
 /// |           |
 /// | N         M'
@@ -82,12 +85,14 @@ use crate::ui::Ui;
 /// | K         O
 /// |/          |
 /// J           J
+/// ```
 ///
 /// With `-r`, the command rebases only the specified revision onto the
 /// destination. Any "hole" left behind will be filled by rebasing descendants
 /// onto the specified revision's parent(s). For example, `jj rebase -r K -d M`
 /// would transform your history like this:
 ///
+/// ```
 /// M          K'
 /// |          |
 /// | L        M
@@ -95,12 +100,14 @@ use crate::ui::Ui;
 /// | K        | L'
 /// |/         |/
 /// J          J
+/// ```
 ///
 /// Note that you can create a merge commit by repeating the `-d` argument.
 /// For example, if you realize that commit L actually depends on commit M in
 /// order to work (in addition to its current parent K), you can run `jj rebase
 /// -s L -d K -d M`:
 ///
+/// ```
 /// M          L'
 /// |          |\
 /// | L        M |
@@ -108,6 +115,7 @@ use crate::ui::Ui;
 /// | K        | K
 /// |/         |/
 /// J          J
+/// ```
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 #[command(group(ArgGroup::new("to_rebase").args(&["branch", "source", "revision"])))]
