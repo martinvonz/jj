@@ -45,7 +45,7 @@ fn test_diffedit() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     M file2
     "###);
 
@@ -56,7 +56,7 @@ fn test_diffedit() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     M file2
     "###);
 
@@ -72,7 +72,7 @@ fn test_diffedit() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     "###);
 
     // Changes to a commit are propagated to descendants
@@ -109,8 +109,8 @@ fn test_diffedit() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
-    R file2
+    D file1
+    D file2
     "###);
 }
 
@@ -140,7 +140,7 @@ fn test_diffedit_new_file() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     A file2
     "###);
 
@@ -175,7 +175,7 @@ fn test_diffedit_new_file() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     A file2
     "###);
 }
@@ -224,7 +224,7 @@ fn test_diffedit_3pane() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     M file2
     "###);
     // Nothing happens if we make no changes, `config_with_right_as_after` version
@@ -238,7 +238,7 @@ fn test_diffedit_3pane() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     M file2
     "###);
 
@@ -257,7 +257,7 @@ fn test_diffedit_3pane() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     "###);
 
     // Can write something new to `file1`
@@ -293,7 +293,7 @@ fn test_diffedit_3pane() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     M file2
     "###);
 
@@ -348,7 +348,7 @@ fn test_diffedit_merge() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     A file3
     "###);
     assert!(!repo_path.join("file1").exists());
@@ -387,7 +387,7 @@ fn test_diffedit_old_restore_interactive_tests() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     M file2
     A file3
     "###);
@@ -399,7 +399,7 @@ fn test_diffedit_old_restore_interactive_tests() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     M file2
     A file3
     "###);
@@ -416,7 +416,7 @@ fn test_diffedit_old_restore_interactive_tests() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     "###);
 
     // Can make unrelated edits

@@ -43,7 +43,7 @@ fn test_diff_basic() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     M file2
     A file3
     "###);
@@ -82,7 +82,7 @@ fn test_diff_basic() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     M file2
     A file3
     diff --git a/file1 b/file1

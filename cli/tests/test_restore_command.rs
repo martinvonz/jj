@@ -89,7 +89,7 @@ fn test_restore() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file2
+    D file2
     "###);
 
     // Can restore into other revision
@@ -106,7 +106,7 @@ fn test_restore() {
     insta::assert_snapshot!(stdout, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     A file2
     A file3
     "###);
@@ -126,7 +126,7 @@ fn test_restore() {
     insta::assert_snapshot!(stdout, @"");
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     A file2
     A file3
     "###);
@@ -143,7 +143,7 @@ fn test_restore() {
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    R file1
+    D file1
     "###);
 }
 
