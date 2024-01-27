@@ -539,8 +539,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         Ok(())
     }
 
-    // TODO: Perhaps change the interface since it's not just about rebasing
-    // commits.
     fn rebase_next(&mut self) -> Result<Option<RebasedDescendant>, TreeMergeError> {
         while let Some(old_commit) = self.to_visit.pop() {
             let old_commit_id = old_commit.id().clone();
@@ -616,7 +614,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
 
     pub fn rebase_all(&mut self) -> Result<(), TreeMergeError> {
         while self.rebase_next()?.is_some() {}
-        // TODO: As the TODO above says, we should probably change the API.
         let mut view = self.mut_repo.view().store_view().clone();
         for commit_id in &self.heads_to_remove {
             view.head_ids.remove(commit_id);
