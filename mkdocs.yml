@@ -78,6 +78,7 @@ nav:
       - 'Installation and Setup': 'install-and-setup.md'
       - 'Tutorial and Birds-Eye View': 'tutorial.md'
       - 'Working with GitHub': 'github.md'
+      - 'Working on Windows': 'windows.md'
 
 - FAQ: 'FAQ.md'
 
