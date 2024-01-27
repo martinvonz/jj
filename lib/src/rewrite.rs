@@ -538,12 +538,10 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
 
     fn rebase_one(&mut self, old_commit: Commit) -> Result<(), TreeMergeError> {
         let old_commit_id = old_commit.id().clone();
-        if let Some(new_parent_ids) = self.mut_repo.parent_mapping.get(&old_commit_id).cloned() {
+        if self.mut_repo.parent_mapping.contains_key(&old_commit_id) {
             // This is a commit that had already been rebased before `self` was created
             // (i.e. it's part of the input for this rebase). We don't need
-            // to rebase it, but we still want to update branches pointing
-            // to the old commit.
-            self.update_references(old_commit_id, new_parent_ids)?;
+            // to rebase it.
             return Ok(());
         }
         let old_parent_ids = old_commit.parent_ids();
@@ -553,9 +551,9 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             self.mut_repo
                 .parent_mapping
                 .insert(old_commit_id.clone(), new_parent_ids.clone());
-            self.update_references(old_commit_id, new_parent_ids)?;
             return Ok(());
-        } else if new_parent_ids == old_parent_ids {
+        }
+        if new_parent_ids == old_parent_ids {
             // The commit is already in place.
             return Ok(());
         }
@@ -591,7 +589,18 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         };
         self.rebased
             .insert(old_commit_id.clone(), new_commit.id().clone());
-        self.update_references(old_commit_id, vec![new_commit.id().clone()])?;
+        Ok(())
+    }
+
+    fn update_all_references(&mut self) -> Result<(), BackendError> {
+        for (old_parent_id, new_parent_ids) in self.mut_repo.parent_mapping.clone() {
+            // Call `new_parents()` here since `parent_mapping` only contains direct
+            // mappings, not transitive ones.
+            // TODO: keep parent_mapping updated with transitive mappings so we don't need
+            // to call `new_parents()` here.
+            let new_parent_ids = self.new_parents(&new_parent_ids);
+            self.update_references(old_parent_id, new_parent_ids)?;
+        }
         Ok(())
     }
 
@@ -599,6 +608,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         while let Some(old_commit) = self.to_visit.pop() {
             self.rebase_one(old_commit)?;
         }
+        self.update_all_references()?;
         let mut view = self.mut_repo.view().store_view().clone();
         for commit_id in &self.heads_to_remove {
             view.head_ids.remove(commit_id);

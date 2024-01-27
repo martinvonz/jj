@@ -707,12 +707,12 @@ fn test_rebase_descendants_multiple_swap() {
         .set_rewritten_commit(commit_b.id().clone(), commit_d.id().clone());
     tx.mut_repo()
         .set_rewritten_commit(commit_d.id().clone(), commit_b.id().clone());
-    let _ = tx.mut_repo().rebase_descendants_return_map(&settings); // Panics because of the cycle
+    let _ = tx.mut_repo().rebase_descendants(&settings); // Panics because of
+                                                         // the cycle
 }
 
-// Unlike `test_rebase_descendants_multiple_swap`, this does not currently
-// panic, but it would probably be OK if it did.
 #[test]
+#[should_panic(expected = "cycle detected")]
 fn test_rebase_descendants_multiple_no_descendants() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
@@ -733,19 +733,8 @@ fn test_rebase_descendants_multiple_no_descendants() {
         .set_rewritten_commit(commit_b.id().clone(), commit_c.id().clone());
     tx.mut_repo()
         .set_rewritten_commit(commit_c.id().clone(), commit_b.id().clone());
-    let rebase_map = tx
-        .mut_repo()
-        .rebase_descendants_return_map(&settings)
-        .unwrap();
-    assert!(rebase_map.is_empty());
-
-    assert_eq!(
-        *tx.mut_repo().view().heads(),
-        hashset! {
-            commit_b.id().clone(),
-            commit_c.id().clone()
-        }
-    );
+    let _ = tx.mut_repo().rebase_descendants(&settings); // Panics because of
+                                                         // the cycle
 }
 
 #[test]
@@ -1028,11 +1017,13 @@ fn test_rebase_descendants_branch_move_two_steps() {
     let commit_b2 = tx
         .mut_repo()
         .rewrite_commit(&settings, &commit_b)
+        .set_description("different")
         .write()
         .unwrap();
     let commit_c2 = tx
         .mut_repo()
         .rewrite_commit(&settings, &commit_c)
+        .set_description("more different")
         .write()
         .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
