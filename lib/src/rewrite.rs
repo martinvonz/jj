@@ -539,81 +539,77 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         Ok(())
     }
 
-    fn rebase_next(&mut self) -> Result<Option<RebasedDescendant>, TreeMergeError> {
-        while let Some(old_commit) = self.to_visit.pop() {
-            let old_commit_id = old_commit.id().clone();
-            if let Some(new_parent_ids) = self.parent_mapping.get(&old_commit_id).cloned() {
-                // This is a commit that had already been rebased before `self` was created
-                // (i.e. it's part of the input for this rebase). We don't need
-                // to rebase it, but we still want to update branches pointing
-                // to the old commit.
-                self.update_references(old_commit_id, new_parent_ids, false)?;
-                continue;
-            }
-            if let Some(divergent_ids) = self.divergent.get(&old_commit_id).cloned() {
-                // Leave divergent commits in place. Don't update `parent_mapping` since we
-                // don't want to rebase descendants either.
-                self.update_references(old_commit_id, divergent_ids, false)?;
-                continue;
-            }
-            let old_parent_ids = old_commit.parent_ids();
-            let new_parent_ids = self.new_parents(old_parent_ids);
-            if self.abandoned.contains(&old_commit_id) {
-                // Update the `new_parents` map so descendants are rebased correctly.
-                self.parent_mapping
-                    .insert(old_commit_id.clone(), new_parent_ids.clone());
-                self.update_references(old_commit_id, new_parent_ids, true)?;
-                continue;
-            } else if new_parent_ids == old_parent_ids {
-                // The commit is already in place.
-                continue;
-            }
-
-            // Don't create commit where one parent is an ancestor of another.
-            let head_set: HashSet<_> = self
-                .mut_repo
-                .index()
-                .heads(&mut new_parent_ids.iter())
-                .into_iter()
-                .collect();
-            let new_parents: Vec<_> = new_parent_ids
-                .iter()
-                .filter(|new_parent| head_set.contains(new_parent))
-                .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id))
-                .try_collect()?;
-            let (new_commit, abandoned_old_commit) = rebase_commit_with_options(
-                self.settings,
-                self.mut_repo,
-                &old_commit,
-                &new_parents,
-                &self.options,
-            )?;
-            let previous_rebased_value = self
-                .rebased
-                .insert(old_commit_id.clone(), new_commit.id().clone());
-            let previous_mapping_value = self
-                .parent_mapping
-                .insert(old_commit_id.clone(), vec![new_commit.id().clone()]);
-            assert_eq!(
-                (previous_rebased_value, previous_mapping_value),
-                (None, None),
-                "Trying to rebase the same commit {old_commit_id:?} in two different ways",
-            );
-            self.update_references(
-                old_commit_id,
-                vec![new_commit.id().clone()],
-                abandoned_old_commit,
-            )?;
-            return Ok(Some(RebasedDescendant {
-                old_commit,
-                new_commit,
-            }));
+    fn rebase_one(&mut self, old_commit: Commit) -> Result<(), TreeMergeError> {
+        let old_commit_id = old_commit.id().clone();
+        if let Some(new_parent_ids) = self.parent_mapping.get(&old_commit_id).cloned() {
+            // This is a commit that had already been rebased before `self` was created
+            // (i.e. it's part of the input for this rebase). We don't need
+            // to rebase it, but we still want to update branches pointing
+            // to the old commit.
+            self.update_references(old_commit_id, new_parent_ids, false)?;
+            return Ok(());
         }
-        Ok(None)
+        if let Some(divergent_ids) = self.divergent.get(&old_commit_id).cloned() {
+            // Leave divergent commits in place. Don't update `parent_mapping` since we
+            // don't want to rebase descendants either.
+            self.update_references(old_commit_id, divergent_ids, false)?;
+            return Ok(());
+        }
+        let old_parent_ids = old_commit.parent_ids();
+        let new_parent_ids = self.new_parents(old_parent_ids);
+        if self.abandoned.contains(&old_commit_id) {
+            // Update the `new_parents` map so descendants are rebased correctly.
+            self.parent_mapping
+                .insert(old_commit_id.clone(), new_parent_ids.clone());
+            self.update_references(old_commit_id, new_parent_ids, true)?;
+            return Ok(());
+        } else if new_parent_ids == old_parent_ids {
+            // The commit is already in place.
+            return Ok(());
+        }
+
+        // Don't create commit where one parent is an ancestor of another.
+        let head_set: HashSet<_> = self
+            .mut_repo
+            .index()
+            .heads(&mut new_parent_ids.iter())
+            .into_iter()
+            .collect();
+        let new_parents: Vec<_> = new_parent_ids
+            .iter()
+            .filter(|new_parent| head_set.contains(new_parent))
+            .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id))
+            .try_collect()?;
+        let (new_commit, abandoned_old_commit) = rebase_commit_with_options(
+            self.settings,
+            self.mut_repo,
+            &old_commit,
+            &new_parents,
+            &self.options,
+        )?;
+        let previous_rebased_value = self
+            .rebased
+            .insert(old_commit_id.clone(), new_commit.id().clone());
+        let previous_mapping_value = self
+            .parent_mapping
+            .insert(old_commit_id.clone(), vec![new_commit.id().clone()]);
+        assert_eq!(
+            (previous_rebased_value, previous_mapping_value),
+            (None, None),
+            "Trying to rebase the same commit {old_commit_id:?} in two different ways",
+        );
+        self.update_references(
+            old_commit_id,
+            vec![new_commit.id().clone()],
+            abandoned_old_commit,
+        )?;
+        Ok(())
     }
 
     pub fn rebase_all(&mut self) -> Result<(), TreeMergeError> {
-        while self.rebase_next()?.is_some() {}
+        while let Some(old_commit) = self.to_visit.pop() {
+            self.rebase_one(old_commit)?;
+        }
         let mut view = self.mut_repo.view().store_view().clone();
         for commit_id in &self.heads_to_remove {
             view.head_ids.remove(commit_id);
@@ -626,10 +622,4 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         self.mut_repo.set_view(view);
         Ok(())
     }
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct RebasedDescendant {
-    pub old_commit: Commit,
-    pub new_commit: Commit,
 }
