@@ -82,6 +82,8 @@ nav:
 
 - FAQ: 'FAQ.md'
 
+- "CLI Reference": 'cli-reference.md'
+
 - Concepts:
       - 'Working Copy': 'working-copy.md'
       - 'Branches': 'branches.md'
