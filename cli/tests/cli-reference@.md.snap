@@ -1,0 +1,1959 @@
+---
+source: cli/tests/test_generate_md_cli_help.rs
+description: "AUTO-GENERATED FILE, DO NOT EDIT. This cli reference is generated as an `insta` snapshot. MkDocs follows they symlink from docs/cli-reference.md to the snap. Unfortunately, `insta` unavoidably creates this header. Luckily, MkDocs ignores the header since it has the same format as Markdown headers. TODO: MkDocs may fail on Windows if symlinks are not enabled in the OS settings"
+---
+# Command-Line Help for `jj`
+
+This document contains the help content for the `jj` command-line program.
+
+**Command Overview:**
+
+* [`jj`↴](#jj)
+* [`jj abandon`↴](#jj-abandon)
+* [`jj backout`↴](#jj-backout)
+* [`jj branch`↴](#jj-branch)
+* [`jj branch create`↴](#jj-branch-create)
+* [`jj branch delete`↴](#jj-branch-delete)
+* [`jj branch forget`↴](#jj-branch-forget)
+* [`jj branch list`↴](#jj-branch-list)
+* [`jj branch rename`↴](#jj-branch-rename)
+* [`jj branch set`↴](#jj-branch-set)
+* [`jj branch track`↴](#jj-branch-track)
+* [`jj branch untrack`↴](#jj-branch-untrack)
+* [`jj cat`↴](#jj-cat)
+* [`jj checkout`↴](#jj-checkout)
+* [`jj chmod`↴](#jj-chmod)
+* [`jj commit`↴](#jj-commit)
+* [`jj config`↴](#jj-config)
+* [`jj config list`↴](#jj-config-list)
+* [`jj config get`↴](#jj-config-get)
+* [`jj config set`↴](#jj-config-set)
+* [`jj config edit`↴](#jj-config-edit)
+* [`jj describe`↴](#jj-describe)
+* [`jj diff`↴](#jj-diff)
+* [`jj diffedit`↴](#jj-diffedit)
+* [`jj duplicate`↴](#jj-duplicate)
+* [`jj edit`↴](#jj-edit)
+* [`jj files`↴](#jj-files)
+* [`jj git`↴](#jj-git)
+* [`jj git remote`↴](#jj-git-remote)
+* [`jj git remote add`↴](#jj-git-remote-add)
+* [`jj git remote remove`↴](#jj-git-remote-remove)
+* [`jj git remote rename`↴](#jj-git-remote-rename)
+* [`jj git remote list`↴](#jj-git-remote-list)
+* [`jj git fetch`↴](#jj-git-fetch)
+* [`jj git clone`↴](#jj-git-clone)
+* [`jj git push`↴](#jj-git-push)
+* [`jj git import`↴](#jj-git-import)
+* [`jj git export`↴](#jj-git-export)
+* [`jj init`↴](#jj-init)
+* [`jj interdiff`↴](#jj-interdiff)
+* [`jj log`↴](#jj-log)
+* [`jj merge`↴](#jj-merge)
+* [`jj move`↴](#jj-move)
+* [`jj new`↴](#jj-new)
+* [`jj next`↴](#jj-next)
+* [`jj obslog`↴](#jj-obslog)
+* [`jj operation`↴](#jj-operation)
+* [`jj operation abandon`↴](#jj-operation-abandon)
+* [`jj operation log`↴](#jj-operation-log)
+* [`jj operation undo`↴](#jj-operation-undo)
+* [`jj operation restore`↴](#jj-operation-restore)
+* [`jj prev`↴](#jj-prev)
+* [`jj rebase`↴](#jj-rebase)
+* [`jj resolve`↴](#jj-resolve)
+* [`jj restore`↴](#jj-restore)
+* [`jj root`↴](#jj-root)
+* [`jj show`↴](#jj-show)
+* [`jj sparse`↴](#jj-sparse)
+* [`jj sparse list`↴](#jj-sparse-list)
+* [`jj sparse set`↴](#jj-sparse-set)
+* [`jj split`↴](#jj-split)
+* [`jj squash`↴](#jj-squash)
+* [`jj status`↴](#jj-status)
+* [`jj tag`↴](#jj-tag)
+* [`jj tag list`↴](#jj-tag-list)
+* [`jj util`↴](#jj-util)
+* [`jj util completion`↴](#jj-util-completion)
+* [`jj util gc`↴](#jj-util-gc)
+* [`jj util mangen`↴](#jj-util-mangen)
+* [`jj util markdown-help`↴](#jj-util-markdown-help)
+* [`jj util config-schema`↴](#jj-util-config-schema)
+* [`jj undo`↴](#jj-undo)
+* [`jj unsquash`↴](#jj-unsquash)
+* [`jj untrack`↴](#jj-untrack)
+* [`jj version`↴](#jj-version)
+* [`jj workspace`↴](#jj-workspace)
+* [`jj workspace add`↴](#jj-workspace-add)
+* [`jj workspace forget`↴](#jj-workspace-forget)
+* [`jj workspace list`↴](#jj-workspace-list)
+* [`jj workspace root`↴](#jj-workspace-root)
+* [`jj workspace update-stale`↴](#jj-workspace-update-stale)
+
+## `jj`
+
+Jujutsu (An experimental VCS)
+
+To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/docs/tutorial.md.
+
+**Usage:** `jj [OPTIONS] [COMMAND]`
+
+###### **Subcommands:**
+
+* `abandon` — Abandon a revision
+* `backout` — Apply the reverse of a revision on top of another revision
+* `branch` — Manage branches
+* `cat` — Print contents of a file in a revision
+* `checkout` — Create a new, empty change and edit it in the working copy
+* `chmod` — Sets or removes the executable bit for paths in the repo
+* `commit` — Update the description and create a new change on top
+* `config` — Manage config options
+* `describe` — Update the change description or other metadata
+* `diff` — Compare file contents between two commits
+* `diffedit` — Touch up the content changes in a revision with a diff editor
+* `duplicate` — Create a new change with the same content as an existing one
+* `edit` — Edit a commit in the working copy
+* `files` — List files in a revision
+* `git` — Commands for working with the underlying Git repo
+* `init` — Create a new repo in the given directory
+* `interdiff` — Compare the changes of two commits
+* `log` — Show commit history
+* `merge` — Merge work from multiple branches
+* `move` — Move changes from one revision into another
+* `new` — Create a new, empty change and (by default) edit it in the working copy
+* `next` — Move the current working copy commit to the next child revision in the
+repository.
+* `obslog` — Show how a change has evolved
+* `operation` — Commands for working with the operation log
+* `prev` — Move the working copy commit to the parent of the current revision.
+* `rebase` — Move revisions to different parent(s)
+* `resolve` — Resolve a conflicted file with an external merge tool
+* `restore` — Restore paths from another revision
+* `root` — Show the current workspace root directory
+* `show` — Show commit description and changes in a revision
+* `sparse` — Manage which paths from the working-copy commit are present in the working copy
+* `split` — Split a revision in two
+* `squash` — Move changes from a revision into its parent
+* `status` — Show high-level repo status
+* `tag` — Manage tags
+* `util` — Infrequently used commands such as for generating shell completions
+* `undo` — Undo an operation (shortcut for `jj op undo`)
+* `unsquash` — Move changes from a revision's parent into the revision
+* `untrack` — Stop tracking specified paths in the working copy
+* `version` — Display version information
+* `workspace` — Commands for working with workspaces
+
+###### **Options:**
+
+* `-R`, `--repository <REPOSITORY>` — Path to repository to operate on
+* `--ignore-working-copy` — Don't snapshot the working copy, and don't update it
+
+  Possible values: `true`, `false`
+
+* `--at-operation <AT_OPERATION>` — Operation to load the repo at
+
+  Default value: `@`
+* `-v`, `--verbose` — Enable verbose logging
+
+  Possible values: `true`, `false`
+
+* `--color <WHEN>` — When to colorize output (always, never, auto)
+* `--no-pager` — Disable the pager
+
+  Possible values: `true`, `false`
+
+* `--config-toml <TOML>` — Additional configuration options (can be repeated)
+
+
+
+## `jj abandon`
+
+Abandon a revision
+
+Abandon a revision, rebasing descendants onto its parent(s). The behavior is similar to `jj restore --changes-in`; the difference is that `jj abandon` gives you a new change, while `jj restore` updates the existing change.
+
+**Usage:** `jj abandon [OPTIONS] [REVISIONS]...`
+
+###### **Arguments:**
+
+* `<REVISIONS>` — The revision(s) to abandon
+
+  Default value: `@`
+
+###### **Options:**
+
+* `-s`, `--summary` — Do not print every abandoned commit on a separate line
+
+  Possible values: `true`, `false`
+
+* `-r` — Ignored (but lets you pass `-r` for consistency with other commands)
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj backout`
+
+Apply the reverse of a revision on top of another revision
+
+**Usage:** `jj backout [OPTIONS]`
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>` — The revision to apply the reverse of
+
+  Default value: `@`
+* `-d`, `--destination <DESTINATION>` — The revision to apply the reverse changes on top of
+
+  Default value: `@`
+
+
+
+## `jj branch`
+
+Manage branches.
+
+For information about branches, see https://github.com/martinvonz/jj/blob/main/docs/branches.md.
+
+**Usage:** `jj branch <COMMAND>`
+
+###### **Subcommands:**
+
+* `create` — Create a new branch
+* `delete` — Delete an existing branch and propagate the deletion to remotes on the next push
+* `forget` — Forget everything about a branch, including its local and remote targets
+* `list` — List branches and their targets
+* `rename` — Rename `old` branch name to `new` branch name
+* `set` — Update an existing branch to point to a certain commit
+* `track` — Start tracking given remote branches
+* `untrack` — Stop tracking given remote branches
+
+
+
+## `jj branch create`
+
+Create a new branch
+
+**Usage:** `jj branch create [OPTIONS] <NAMES>...`
+
+###### **Arguments:**
+
+* `<NAMES>` — The branches to create
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>` — The branch's target revision
+
+
+
+## `jj branch delete`
+
+Delete an existing branch and propagate the deletion to remotes on the next push
+
+**Usage:** `jj branch delete [NAMES]...`
+
+###### **Arguments:**
+
+* `<NAMES>` — The branches to delete
+
+###### **Options:**
+
+* `--glob <GLOB>` — Deprecated. Please prefix the pattern with `glob:` instead
+
+
+
+## `jj branch forget`
+
+Forget everything about a branch, including its local and remote targets.
+
+A forgotten branch will not impact remotes on future pushes. It will be recreated on future pulls if it still exists in the remote.
+
+**Usage:** `jj branch forget [NAMES]...`
+
+###### **Arguments:**
+
+* `<NAMES>` — The branches to forget
+
+###### **Options:**
+
+* `--glob <GLOB>` — Deprecated. Please prefix the pattern with `glob:` instead
+
+
+
+## `jj branch list`
+
+List branches and their targets
+
+By default, a tracking remote branch will be included only if its target is different from the local target. A non-tracking remote branch won't be listed. For a conflicted branch (both local and remote), old target revisions are preceded by a "-" and new target revisions are preceded by a "+".
+
+For information about branches, see https://github.com/martinvonz/jj/blob/main/docs/branches.md.
+
+**Usage:** `jj branch list [OPTIONS] [NAMES]...`
+
+###### **Arguments:**
+
+* `<NAMES>` — Show branches whose local name matches
+
+###### **Options:**
+
+* `-a`, `--all` — Show all tracking and non-tracking remote branches including the ones whose targets are synchronized with the local branches
+
+  Possible values: `true`, `false`
+
+* `-r`, `--revisions <REVISIONS>` — Show branches whose local targets are in the given revisions
+
+
+
+## `jj branch rename`
+
+Rename `old` branch name to `new` branch name.
+
+The new branch name points at the same commit as the old branch name.
+
+**Usage:** `jj branch rename <OLD> <NEW>`
+
+###### **Arguments:**
+
+* `<OLD>` — The old name of the branch
+* `<NEW>` — The new name of the branch
+
+
+
+## `jj branch set`
+
+Update an existing branch to point to a certain commit
+
+**Usage:** `jj branch set [OPTIONS] <NAMES>...`
+
+###### **Arguments:**
+
+* `<NAMES>` — The branches to update
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>` — The branch's target revision
+* `-B`, `--allow-backwards` — Allow moving the branch backwards or sideways
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj branch track`
+
+Start tracking given remote branches
+
+A tracking remote branch will be imported as a local branch of the same name. Changes to it will propagate to the existing local branch on future pulls.
+
+**Usage:** `jj branch track <BRANCH@REMOTE>...`
+
+###### **Arguments:**
+
+* `<BRANCH@REMOTE>` — Remote branches to track
+
+
+
+## `jj branch untrack`
+
+Stop tracking given remote branches
+
+A non-tracking remote branch is just a pointer to the last-fetched remote branch. It won't be imported as a local branch on future pulls.
+
+**Usage:** `jj branch untrack <BRANCH@REMOTE>...`
+
+###### **Arguments:**
+
+* `<BRANCH@REMOTE>` — Remote branches to untrack
+
+
+
+## `jj cat`
+
+Print contents of a file in a revision
+
+**Usage:** `jj cat [OPTIONS] <PATH>`
+
+###### **Arguments:**
+
+* `<PATH>` — The file to print
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>` — The revision to get the file contents from
+
+  Default value: `@`
+
+
+
+## `jj checkout`
+
+Create a new, empty change and edit it in the working copy
+
+For more information, see https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
+
+**Usage:** `jj checkout [OPTIONS] <REVISION>`
+
+###### **Arguments:**
+
+* `<REVISION>` — The revision to update to
+
+###### **Options:**
+
+* `-r` — Ignored (but lets you pass `-r` for consistency with other commands)
+
+  Possible values: `true`, `false`
+
+* `-m`, `--message <MESSAGE>` — The change description to use
+
+
+
+## `jj chmod`
+
+Sets or removes the executable bit for paths in the repo
+
+Unlike the POSIX `chmod`, `jj chmod` also works on Windows, on conflicted files, and on arbitrary revisions.
+
+**Usage:** `jj chmod [OPTIONS] <MODE> <PATHS>...`
+
+###### **Arguments:**
+
+* `<MODE>`
+
+  Possible values:
+  - `n`:
+    Make a path non-executable (alias: normal)
+  - `x`:
+    Make a path executable (alias: executable)
+
+* `<PATHS>` — Paths to change the executable bit for
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>` — The revision to update
+
+  Default value: `@`
+
+
+
+## `jj commit`
+
+Update the description and create a new change on top
+
+**Usage:** `jj commit [OPTIONS] [PATHS]...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Put these paths in the first commit
+
+###### **Options:**
+
+* `-i`, `--interactive` — Interactively choose which changes to include in the first commit
+
+  Possible values: `true`, `false`
+
+* `-m`, `--message <MESSAGE>` — The change description to use (don't open editor)
+
+
+
+## `jj config`
+
+Manage config options
+
+Operates on jj configuration, which comes from the config file and environment variables.
+
+For file locations, supported config options, and other details about jj config, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+
+**Usage:** `jj config <COMMAND>`
+
+###### **Subcommands:**
+
+* `list` — List variables set in config file, along with their values
+* `get` — Get the value of a given config option.
+* `set` — Update config file to set the given option to a given value
+* `edit` — Start an editor on a jj config file
+
+
+
+## `jj config list`
+
+List variables set in config file, along with their values
+
+**Usage:** `jj config list [OPTIONS] [NAME]`
+
+###### **Arguments:**
+
+* `<NAME>` — An optional name of a specific config option to look up
+
+###### **Options:**
+
+* `--include-defaults` — Whether to explicitly include built-in default values in the list
+
+  Possible values: `true`, `false`
+
+* `--include-overridden` — Allow printing overridden values
+
+  Possible values: `true`, `false`
+
+* `--user` — Target the user-level config
+
+  Possible values: `true`, `false`
+
+* `--repo` — Target the repo-level config
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj config get`
+
+Get the value of a given config option.
+
+Unlike `jj config list`, the result of `jj config get` is printed without
+extra formatting and therefore is usable in scripting. For example:
+
+$ jj config list user.name
+user.name="Martin von Zweigbergk"
+$ jj config get user.name
+Martin von Zweigbergk
+
+**Usage:** `jj config get <NAME>`
+
+###### **Arguments:**
+
+* `<NAME>`
+
+
+
+## `jj config set`
+
+Update config file to set the given option to a given value
+
+**Usage:** `jj config set <--user|--repo> <NAME> <VALUE>`
+
+###### **Arguments:**
+
+* `<NAME>`
+* `<VALUE>`
+
+###### **Options:**
+
+* `--user` — Target the user-level config
+
+  Possible values: `true`, `false`
+
+* `--repo` — Target the repo-level config
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj config edit`
+
+Start an editor on a jj config file
+
+**Usage:** `jj config edit <--user|--repo>`
+
+###### **Options:**
+
+* `--user` — Target the user-level config
+
+  Possible values: `true`, `false`
+
+* `--repo` — Target the repo-level config
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj describe`
+
+Update the change description or other metadata
+
+Starts an editor to let you edit the description of a change. The editor will be $EDITOR, or `pico` if that's not defined (`Notepad` on Windows).
+
+**Usage:** `jj describe [OPTIONS] [REVISION]`
+
+###### **Arguments:**
+
+* `<REVISION>` — The revision whose description to edit
+
+  Default value: `@`
+
+###### **Options:**
+
+* `-r` — Ignored (but lets you pass `-r` for consistency with other commands)
+
+  Possible values: `true`, `false`
+
+* `-m`, `--message <MESSAGE>` — The change description to use (don't open editor)
+* `--stdin` — Read the change description from stdin
+
+  Possible values: `true`, `false`
+
+* `--no-edit` — Don't open an editor
+
+  Possible values: `true`, `false`
+
+* `--reset-author` — Reset the author to the configured user
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj diff`
+
+Compare file contents between two commits
+
+**Usage:** `jj diff [OPTIONS] [PATHS]...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Restrict the diff to these paths
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>` — Show changes in this revision, compared to its parent(s)
+* `--from <FROM>` — Show changes from this revision
+* `--to <TO>` — Show changes to this revision
+* `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
+
+  Possible values: `true`, `false`
+
+* `--stat` — Show a histogram of the changes
+
+  Possible values: `true`, `false`
+
+* `--types` — For each path, show only its type before and after
+
+  Possible values: `true`, `false`
+
+* `--git` — Show a Git-format diff
+
+  Possible values: `true`, `false`
+
+* `--color-words` — Show a word-level diff with changes indicated only by color
+
+  Possible values: `true`, `false`
+
+* `--tool <TOOL>` — Generate diff by external command
+
+
+
+## `jj diffedit`
+
+Touch up the content changes in a revision with a diff editor
+
+With the `-r` option, which is the default, starts a diff editor (`meld` by default) on the changes in the revision.
+
+With the `--from` and/or `--to` options, starts a diff editor comparing the "from" revision to the "to" revision.
+
+Edit the right side of the diff until it looks the way you want. Once you close the editor, the revision specified with `-r` or `--to` will be updated. Descendants will be rebased on top as usual, which may result in conflicts.
+
+See `jj restore` if you want to move entire files from one revision to another. See `jj squash -i` or `jj unsquash -i` if you instead want to move changes into or out of the parent revision.
+
+**Usage:** `jj diffedit [OPTIONS]`
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>` — The revision to touch up. Defaults to @ if neither --to nor --from are specified
+* `--from <FROM>` — Show changes from this revision. Defaults to @ if --to is specified
+* `--to <TO>` — Edit changes in this revision. Defaults to @ if --from is specified
+
+
+
+## `jj duplicate`
+
+Create a new change with the same content as an existing one
+
+**Usage:** `jj duplicate [REVISIONS]...`
+
+###### **Arguments:**
+
+* `<REVISIONS>` — The revision(s) to duplicate
+
+  Default value: `@`
+
+###### **Options:**
+
+* `-r` — Ignored (but lets you pass `-r` for consistency with other commands)
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj edit`
+
+Edit a commit in the working copy
+
+Puts the contents of a commit in the working copy for editing. Any changes you make in the working copy will update (amend) the commit.
+
+**Usage:** `jj edit <REVISION>`
+
+###### **Arguments:**
+
+* `<REVISION>` — The commit to edit
+
+###### **Options:**
+
+* `-r` — Ignored (but lets you pass `-r` for consistency with other commands)
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj files`
+
+List files in a revision
+
+**Usage:** `jj files [OPTIONS] [PATHS]...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Only list files matching these prefixes (instead of all files)
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>` — The revision to list files in
+
+  Default value: `@`
+
+
+
+## `jj git`
+
+Commands for working with the underlying Git repo
+
+For a comparison with Git, including a table of commands, see https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.
+
+**Usage:** `jj git <COMMAND>`
+
+###### **Subcommands:**
+
+* `remote` — Manage Git remotes
+* `fetch` — Fetch from a Git remote
+* `clone` — Create a new repo backed by a clone of a Git repo
+* `push` — Push to a Git remote
+* `import` — Update repo with changes made in the underlying Git repo
+* `export` — Update the underlying Git repo with changes made in the repo
+
+
+
+## `jj git remote`
+
+Manage Git remotes
+
+The Git repo will be a bare git repo stored inside the `.jj/` directory.
+
+**Usage:** `jj git remote <COMMAND>`
+
+###### **Subcommands:**
+
+* `add` — Add a Git remote
+* `remove` — Remove a Git remote and forget its branches
+* `rename` — Rename a Git remote
+* `list` — List Git remotes
+
+
+
+## `jj git remote add`
+
+Add a Git remote
+
+**Usage:** `jj git remote add <REMOTE> <URL>`
+
+###### **Arguments:**
+
+* `<REMOTE>` — The remote's name
+* `<URL>` — The remote's URL
+
+
+
+## `jj git remote remove`
+
+Remove a Git remote and forget its branches
+
+**Usage:** `jj git remote remove <REMOTE>`
+
+###### **Arguments:**
+
+* `<REMOTE>` — The remote's name
+
+
+
+## `jj git remote rename`
+
+Rename a Git remote
+
+**Usage:** `jj git remote rename <OLD> <NEW>`
+
+###### **Arguments:**
+
+* `<OLD>` — The name of an existing remote
+* `<NEW>` — The desired name for `old`
+
+
+
+## `jj git remote list`
+
+List Git remotes
+
+**Usage:** `jj git remote list`
+
+
+
+## `jj git fetch`
+
+Fetch from a Git remote
+
+**Usage:** `jj git fetch [OPTIONS]`
+
+###### **Options:**
+
+* `--branch <BRANCH>` — Fetch only some of the branches
+
+  Default value: `glob:*`
+* `--remote <remote>` — The remote to fetch from (only named remotes are supported, can be repeated)
+* `--all-remotes` — Fetch from all remotes
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj git clone`
+
+Create a new repo backed by a clone of a Git repo
+
+The Git repo will be a bare git repo stored inside the `.jj/` directory.
+
+**Usage:** `jj git clone [OPTIONS] <SOURCE> [DESTINATION]`
+
+###### **Arguments:**
+
+* `<SOURCE>` — URL or path of the Git repo to clone
+* `<DESTINATION>` — The directory to write the Jujutsu repo to
+
+###### **Options:**
+
+* `--colocate` — Whether or not to colocate the Jujutsu repo with the git repo
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj git push`
+
+Push to a Git remote
+
+By default, pushes any branches pointing to `remote_branches(remote=<remote>)..@`. Use `--branch` to push specific branches. Use `--all` to push all branches. Use `--change` to generate branch names based on the change IDs of specific commits.
+
+**Usage:** `jj git push [OPTIONS]`
+
+###### **Options:**
+
+* `--remote <REMOTE>` — The remote to push to (only named remotes are supported)
+* `-b`, `--branch <BRANCH>` — Push only this branch (can be repeated)
+* `--all` — Push all branches (including deleted branches)
+
+  Possible values: `true`, `false`
+
+* `--deleted` — Push all deleted branches
+
+  Possible values: `true`, `false`
+
+* `-r`, `--revisions <REVISIONS>` — Push branches pointing to these commits
+* `-c`, `--change <CHANGE>` — Push this commit by creating a branch based on its change ID (can be repeated)
+* `--dry-run` — Only display what will change on the remote
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj git import`
+
+Update repo with changes made in the underlying Git repo
+
+**Usage:** `jj git import`
+
+
+
+## `jj git export`
+
+Update the underlying Git repo with changes made in the repo
+
+**Usage:** `jj git export`
+
+
+
+## `jj init`
+
+Create a new repo in the given directory
+
+If the given directory does not exist, it will be created. If no directory is given, the current directory is used.
+
+**Usage:** `jj init [OPTIONS] [DESTINATION]`
+
+###### **Arguments:**
+
+* `<DESTINATION>` — The destination directory
+
+  Default value: `.`
+
+###### **Options:**
+
+* `--git` — Use the Git backend, creating a jj repo backed by a Git repo
+
+  Possible values: `true`, `false`
+
+* `--git-repo <GIT_REPO>` — Path to a git repo the jj repo will be backed by
+
+
+
+## `jj interdiff`
+
+Compare the changes of two commits
+
+This excludes changes from other commits by temporarily rebasing `--from` onto `--to`'s parents. If you wish to compare the same change across versions, consider `jj obslog -p` instead.
+
+**Usage:** `jj interdiff [OPTIONS] <--from <FROM>|--to <TO>> [PATHS]...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Restrict the diff to these paths
+
+###### **Options:**
+
+* `--from <FROM>` — Show changes from this revision
+* `--to <TO>` — Show changes to this revision
+* `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
+
+  Possible values: `true`, `false`
+
+* `--stat` — Show a histogram of the changes
+
+  Possible values: `true`, `false`
+
+* `--types` — For each path, show only its type before and after
+
+  Possible values: `true`, `false`
+
+* `--git` — Show a Git-format diff
+
+  Possible values: `true`, `false`
+
+* `--color-words` — Show a word-level diff with changes indicated only by color
+
+  Possible values: `true`, `false`
+
+* `--tool <TOOL>` — Generate diff by external command
+
+
+
+## `jj log`
+
+Show commit history
+
+**Usage:** `jj log [OPTIONS] [PATHS]...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Show commits modifying the given paths
+
+###### **Options:**
+
+* `-r`, `--revisions <REVISIONS>` — Which revisions to show. Defaults to the `revsets.log` setting, or `@ | ancestors(immutable_heads().., 2) | heads(immutable_heads())` if it is not set
+* `--reversed` — Show revisions in the opposite order (older revisions first)
+
+  Possible values: `true`, `false`
+
+* `-l`, `--limit <LIMIT>` — Limit number of revisions to show
+* `--no-graph` — Don't show the graph, show a flat list of revisions
+
+  Possible values: `true`, `false`
+
+* `-T`, `--template <TEMPLATE>` — Render each revision using the given template
+* `-p`, `--patch` — Show patch
+
+  Possible values: `true`, `false`
+
+* `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
+
+  Possible values: `true`, `false`
+
+* `--stat` — Show a histogram of the changes
+
+  Possible values: `true`, `false`
+
+* `--types` — For each path, show only its type before and after
+
+  Possible values: `true`, `false`
+
+* `--git` — Show a Git-format diff
+
+  Possible values: `true`, `false`
+
+* `--color-words` — Show a word-level diff with changes indicated only by color
+
+  Possible values: `true`, `false`
+
+* `--tool <TOOL>` — Generate diff by external command
+
+
+
+## `jj merge`
+
+Merge work from multiple branches
+
+Unlike most other VCSs, `jj merge` does not implicitly include the working copy revision's parent as one of the parents of the merge; you need to explicitly list all revisions that should become parents of the merge.
+
+This is the same as `jj new`, except that it requires at least two arguments.
+
+**Usage:** `jj merge [OPTIONS] [REVISIONS]...`
+
+###### **Arguments:**
+
+* `<REVISIONS>` — Parent(s) of the new change
+
+  Default value: `@`
+
+###### **Options:**
+
+* `-r` — Ignored (but lets you pass `-r` for consistency with other commands)
+
+  Possible values: `true`, `false`
+
+* `-m`, `--message <MESSAGE>` — The change description to use
+* `-L`, `--allow-large-revsets` — Deprecated. Please prefix the revset with `all:` instead
+
+  Possible values: `true`, `false`
+
+* `--no-edit` — Do not edit the newly created change
+
+  Possible values: `true`, `false`
+
+* `--edit` — No-op flag to pair with --no-edit
+
+  Possible values: `true`, `false`
+
+* `-A`, `--insert-after` — Insert the new change between the target commit(s) and their children
+
+  Possible values: `true`, `false`
+
+* `-B`, `--insert-before` — Insert the new change between the target commit(s) and their parents
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj move`
+
+Move changes from one revision into another
+
+Use `--interactive` to move only part of the source revision into the destination. The selected changes (or all the changes in the source revision if not using `--interactive`) will be moved into the destination. The changes will be removed from the source. If that means that the source is now empty compared to its parent, it will be abandoned. Without `--interactive`, the source change will always be empty.
+
+If the source became empty and both the source and destination had a non-empty description, you will be asked for the combined description. If either was empty, then the other one will be used.
+
+**Usage:** `jj move [OPTIONS] <--from <FROM>|--to <TO>> [PATHS]...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Move only changes to these paths (instead of all paths)
+
+###### **Options:**
+
+* `--from <FROM>` — Move part of this change into the destination
+* `--to <TO>` — Move part of the source into this change
+* `-i`, `--interactive` — Interactively choose which parts to move
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj new`
+
+Create a new, empty change and (by default) edit it in the working copy
+
+By default, `jj` will edit the new change, making the working copy represent the new commit. This can be avoided with `--no-edit`.
+
+Note that you can create a merge commit by specifying multiple revisions as argument. For example, `jj new main @` will create a new commit with the `main` branch and the working copy as parents.
+
+For more information, see https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
+
+**Usage:** `jj new [OPTIONS] [REVISIONS]...`
+
+###### **Arguments:**
+
+* `<REVISIONS>` — Parent(s) of the new change
+
+  Default value: `@`
+
+###### **Options:**
+
+* `-r` — Ignored (but lets you pass `-r` for consistency with other commands)
+
+  Possible values: `true`, `false`
+
+* `-m`, `--message <MESSAGE>` — The change description to use
+* `-L`, `--allow-large-revsets` — Deprecated. Please prefix the revset with `all:` instead
+
+  Possible values: `true`, `false`
+
+* `--no-edit` — Do not edit the newly created change
+
+  Possible values: `true`, `false`
+
+* `--edit` — No-op flag to pair with --no-edit
+
+  Possible values: `true`, `false`
+
+* `-A`, `--insert-after` — Insert the new change between the target commit(s) and their children
+
+  Possible values: `true`, `false`
+
+* `-B`, `--insert-before` — Insert the new change between the target commit(s) and their parents
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj next`
+
+Move the current working copy commit to the next child revision in the
+repository.
+
+
+The command moves you to the next child in a linear fashion.
+
+
+```
+D      D @
+|      |/
+C @ => C
+|/     |
+B      B
+```
+
+
+If `--edit` is passed, it will move you directly to the child
+revision.
+
+
+```
+D    D
+|    |
+C    C
+|    |
+B => @
+|    |
+@    A
+```
+
+**Usage:** `jj next [OPTIONS] [AMOUNT]`
+
+###### **Arguments:**
+
+* `<AMOUNT>` — How many revisions to move forward. By default advances to the next child
+
+  Default value: `1`
+
+###### **Options:**
+
+* `--edit` — Instead of creating a new working-copy commit on top of the target commit (like `jj new`), edit the target commit directly (like `jj edit`)
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj obslog`
+
+Show how a change has evolved
+
+Show how a change has evolved as it's been updated, rebased, etc.
+
+**Usage:** `jj obslog [OPTIONS]`
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>`
+
+  Default value: `@`
+* `-l`, `--limit <LIMIT>` — Limit number of revisions to show
+* `--no-graph` — Don't show the graph, show a flat list of revisions
+
+  Possible values: `true`, `false`
+
+* `-T`, `--template <TEMPLATE>` — Render each revision using the given template
+* `-p`, `--patch` — Show patch compared to the previous version of this change
+
+  Possible values: `true`, `false`
+
+* `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
+
+  Possible values: `true`, `false`
+
+* `--stat` — Show a histogram of the changes
+
+  Possible values: `true`, `false`
+
+* `--types` — For each path, show only its type before and after
+
+  Possible values: `true`, `false`
+
+* `--git` — Show a Git-format diff
+
+  Possible values: `true`, `false`
+
+* `--color-words` — Show a word-level diff with changes indicated only by color
+
+  Possible values: `true`, `false`
+
+* `--tool <TOOL>` — Generate diff by external command
+
+
+
+## `jj operation`
+
+Commands for working with the operation log
+
+For information about the operation log, see https://github.com/martinvonz/jj/blob/main/docs/operation-log.md.
+
+**Usage:** `jj operation <COMMAND>`
+
+###### **Subcommands:**
+
+* `abandon` — Abandon operation history
+* `log` — Show the operation log
+* `undo` — Create a new operation that undoes an earlier operation
+* `restore` — Create a new operation that restores the repo to an earlier state
+
+
+
+## `jj operation abandon`
+
+Abandon operation history
+
+To discard old operation history, use `jj op abandon ..<operation ID>`. It will abandon the specified operation and all its ancestors. The descendants will be reparented onto the root operation.
+
+To discard recent operations, use `jj op restore <operation ID>` followed by `jj op abandon <operation ID>..@-`.
+
+The abandoned operations, commits, and other unreachable objects can later be garbage collected by using `jj util gc` command.
+
+**Usage:** `jj operation abandon <OPERATION>`
+
+###### **Arguments:**
+
+* `<OPERATION>` — The operation or operation range to abandon
+
+
+
+## `jj operation log`
+
+Show the operation log
+
+**Usage:** `jj operation log [OPTIONS]`
+
+###### **Options:**
+
+* `-l`, `--limit <LIMIT>` — Limit number of operations to show
+* `--no-graph` — Don't show the graph, show a flat list of operations
+
+  Possible values: `true`, `false`
+
+* `-T`, `--template <TEMPLATE>` — Render each operation using the given template
+
+
+
+## `jj operation undo`
+
+Create a new operation that undoes an earlier operation
+
+This undoes an individual operation by applying the inverse of the operation.
+
+**Usage:** `jj operation undo [OPTIONS] [OPERATION]`
+
+###### **Arguments:**
+
+* `<OPERATION>` — The operation to undo
+
+  Default value: `@`
+
+###### **Options:**
+
+* `--what <WHAT>` — What portions of the local state to restore (can be repeated)
+
+  Default values: `repo`, `remote-tracking`
+
+  Possible values:
+  - `repo`:
+    The jj repo state and local branches
+  - `remote-tracking`:
+    The remote-tracking branches. Do not restore these if you'd like to push after the undo
+
+
+
+
+## `jj operation restore`
+
+Create a new operation that restores the repo to an earlier state
+
+This restores the repo to the state at the specified operation, effectively undoing all later operations. It does so by creating a new operation.
+
+**Usage:** `jj operation restore [OPTIONS] <OPERATION>`
+
+###### **Arguments:**
+
+* `<OPERATION>` — The operation to restore to
+
+###### **Options:**
+
+* `--what <WHAT>` — What portions of the local state to restore (can be repeated)
+
+  Default values: `repo`, `remote-tracking`
+
+  Possible values:
+  - `repo`:
+    The jj repo state and local branches
+  - `remote-tracking`:
+    The remote-tracking branches. Do not restore these if you'd like to push after the undo
+
+
+
+
+## `jj prev`
+
+Move the working copy commit to the parent of the current revision.
+
+
+The command moves you to the parent in a linear fashion.
+
+```
+D @  D
+|/   |
+A => A @
+|    | /
+B    B
+```
+
+If `--edit` is passed, it will move the working copy commit
+directly to the parent.
+
+```
+D @  D
+|/   |
+C => @
+|    |
+B    B
+|    |
+A    A
+```
+
+**Usage:** `jj prev [OPTIONS] [AMOUNT]`
+
+###### **Arguments:**
+
+* `<AMOUNT>` — How many revisions to move backward. By default moves to the parent
+
+  Default value: `1`
+
+###### **Options:**
+
+* `--edit` — Edit the parent directly, instead of moving the working-copy commit
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj rebase`
+
+Move revisions to different parent(s)
+
+There are three different ways of specifying which revisions to rebase:
+`-b` to rebase a whole branch, `-s` to rebase a revision and its
+descendants, and `-r` to rebase a single commit. If none of them is
+specified, it defaults to `-b @`.
+
+With `-s`, the command rebases the specified revision and its descendants
+onto the destination. For example, `jj rebase -s M -d O` would transform
+your history like this (letters followed by an apostrophe are post-rebase
+versions):
+
+```
+O           N'
+|           |
+| N         M'
+| |         |
+| M         O
+| |    =>   |
+| | L       | L
+| |/        | |
+| K         | K
+|/          |/
+J           J
+```
+
+With `-b`, the command rebases the whole "branch" containing the specified
+revision. A "branch" is the set of commits that includes:
+
+* the specified revision and ancestors that are not also ancestors of the
+  destination
+* all descendants of those commits
+
+In other words, `jj rebase -b X -d Y` rebases commits in the revset
+`(Y..X)::` (which is equivalent to `jj rebase -s 'roots(Y..X)' -d Y` for a
+single root). For example, either `jj rebase -b L -d O` or `jj rebase -b M
+-d O` would transform your history like this (because `L` and `M` are on the
+same "branch", relative to the destination):
+
+```
+O           N'
+|           |
+| N         M'
+| |         |
+| M         | L'
+| |    =>   |/
+| | L       K'
+| |/        |
+| K         O
+|/          |
+J           J
+```
+
+With `-r`, the command rebases only the specified revision onto the
+destination. Any "hole" left behind will be filled by rebasing descendants
+onto the specified revision's parent(s). For example, `jj rebase -r K -d M`
+would transform your history like this:
+
+```
+M          K'
+|          |
+| L        M
+| |   =>   |
+| K        | L'
+|/         |/
+J          J
+```
+
+Note that you can create a merge commit by repeating the `-d` argument.
+For example, if you realize that commit L actually depends on commit M in
+order to work (in addition to its current parent K), you can run `jj rebase
+-s L -d K -d M`:
+
+```
+M          L'
+|          |\
+| L        M |
+| |   =>   | |
+| K        | K
+|/         |/
+J          J
+```
+
+**Usage:** `jj rebase [OPTIONS] --destination <DESTINATION>`
+
+###### **Options:**
+
+* `-b`, `--branch <BRANCH>` — Rebase the whole branch relative to destination's ancestors (can be repeated)
+* `-s`, `--source <SOURCE>` — Rebase specified revision(s) together their tree of descendants (can be repeated)
+* `-r`, `--revision <REVISION>` — Rebase only this revision, rebasing descendants onto this revision's parent(s)
+* `-d`, `--destination <DESTINATION>` — The revision(s) to rebase onto (can be repeated to create a merge commit)
+* `--skip-empty` — If true, when rebasing would produce an empty commit, the commit is skipped. Will never skip merge commits with multiple non-empty parents. Will never skip the working commit
+
+  Possible values: `true`, `false`
+
+* `-L`, `--allow-large-revsets` — Deprecated. Please prefix the revset with `all:` instead
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj resolve`
+
+Resolve a conflicted file with an external merge tool
+
+Only conflicts that can be resolved with a 3-way merge are supported. See docs for merge tool configuration instructions.
+
+Note that conflicts can also be resolved without using this command. You may edit the conflict markers in the conflicted file directly with a text editor.
+
+**Usage:** `jj resolve [OPTIONS] [PATHS]...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Restrict to these paths when searching for a conflict to resolve. We will attempt to resolve the first conflict we can find. You can use the `--list` argument to find paths to use here
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>`
+
+  Default value: `@`
+* `-l`, `--list` — Instead of resolving one conflict, list all the conflicts
+
+  Possible values: `true`, `false`
+
+* `-q`, `--quiet` — Do not print the list of remaining conflicts (if any) after resolving a conflict
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj restore`
+
+Restore paths from another revision
+
+That means that the paths get the same content in the destination (`--to`) as they had in the source (`--from`). This is typically used for undoing changes to some paths in the working copy (`jj restore <paths>`).
+
+If only one of `--from` or `--to` is specified, the other one defaults to the working copy.
+
+When neither `--from` nor `--to` is specified, the command restores into the working copy from its parent(s). `jj restore` without arguments is similar to `jj abandon`, except that it leaves an empty revision with its description and other metadata preserved.
+
+See `jj diffedit` if you'd like to restore portions of files rather than entire files.
+
+**Usage:** `jj restore [OPTIONS] [PATHS]...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Restore only these paths (instead of all paths)
+
+###### **Options:**
+
+* `--from <FROM>` — Revision to restore from (source)
+* `--to <TO>` — Revision to restore into (destination)
+* `-c`, `--changes-in <REVISION>` — Undo the changes in a revision as compared to the merge of its parents
+* `-r`, `--revision <REVISION>` — Prints an error. DO NOT USE
+
+
+
+## `jj root`
+
+Show the current workspace root directory
+
+**Usage:** `jj root`
+
+
+
+## `jj show`
+
+Show commit description and changes in a revision
+
+**Usage:** `jj show [OPTIONS] [REVISION]`
+
+###### **Arguments:**
+
+* `<REVISION>` — Show changes in this revision, compared to its parent(s)
+
+  Default value: `@`
+
+###### **Options:**
+
+* `-r` — Ignored (but lets you pass `-r` for consistency with other commands)
+
+  Possible values: `true`, `false`
+
+* `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
+
+  Possible values: `true`, `false`
+
+* `--stat` — Show a histogram of the changes
+
+  Possible values: `true`, `false`
+
+* `--types` — For each path, show only its type before and after
+
+  Possible values: `true`, `false`
+
+* `--git` — Show a Git-format diff
+
+  Possible values: `true`, `false`
+
+* `--color-words` — Show a word-level diff with changes indicated only by color
+
+  Possible values: `true`, `false`
+
+* `--tool <TOOL>` — Generate diff by external command
+
+
+
+## `jj sparse`
+
+Manage which paths from the working-copy commit are present in the working copy
+
+**Usage:** `jj sparse <COMMAND>`
+
+###### **Subcommands:**
+
+* `list` — List the patterns that are currently present in the working copy
+* `set` — Update the patterns that are present in the working copy
+
+
+
+## `jj sparse list`
+
+List the patterns that are currently present in the working copy
+
+By default, a newly cloned or initialized repo will have have a pattern matching all files from the repo root. That pattern is rendered as `.` (a single period).
+
+**Usage:** `jj sparse list`
+
+
+
+## `jj sparse set`
+
+Update the patterns that are present in the working copy
+
+For example, if all you need is the `README.md` and the `lib/` directory, use `jj sparse set --clear --add README.md --add lib`. If you no longer need the `lib` directory, use `jj sparse set --remove lib`.
+
+**Usage:** `jj sparse set [OPTIONS]`
+
+###### **Options:**
+
+* `--add <ADD>` — Patterns to add to the working copy
+* `--remove <REMOVE>` — Patterns to remove from the working copy
+* `--clear` — Include no files in the working copy (combine with --add)
+
+  Possible values: `true`, `false`
+
+* `--edit` — Edit patterns with $EDITOR
+
+  Possible values: `true`, `false`
+
+* `--reset` — Include all files in the working copy
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj split`
+
+Split a revision in two
+
+Starts a diff editor (`meld` by default) on the changes in the revision. Edit the right side of the diff until it has the content you want in the first revision. Once you close the editor, your edited content will replace the previous revision. The remaining changes will be put in a new revision on top.
+
+If the change you split had a description, you will be asked to enter a change description for each commit. If the change did not have a description, the second part will not get a description, and you will be asked for a description only for the first part.
+
+**Usage:** `jj split [OPTIONS] [PATHS]...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Put these paths in the first commit
+
+###### **Options:**
+
+* `-i`, `--interactive` — Interactively choose which parts to split. This is the default if no paths are provided
+
+  Possible values: `true`, `false`
+
+* `-r`, `--revision <REVISION>` — The revision to split
+
+  Default value: `@`
+
+
+
+## `jj squash`
+
+Move changes from a revision into its parent
+
+After moving the changes into the parent, the child revision will have the same content state as before. If that means that the change is now empty compared to its parent, it will be abandoned. Without `--interactive`, the child change will always be empty.
+
+If the source became empty and both the source and destination had a non-empty description, you will be asked for the combined description. If either was empty, then the other one will be used.
+
+**Usage:** `jj squash [OPTIONS] [PATHS]...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Move only changes to these paths (instead of all paths)
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>`
+
+  Default value: `@`
+* `-m`, `--message <MESSAGE>` — The description to use for squashed revision (don't open editor)
+* `-i`, `--interactive` — Interactively choose which parts to squash
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj status`
+
+Show high-level repo status
+
+This includes:
+
+* The working copy commit and its (first) parent, and a summary of the changes between them
+
+* Conflicted branches (see https://github.com/martinvonz/jj/blob/main/docs/branches.md)
+
+**Usage:** `jj status`
+
+
+
+## `jj tag`
+
+Manage tags
+
+**Usage:** `jj tag <COMMAND>`
+
+###### **Subcommands:**
+
+* `list` — List tags
+
+
+
+## `jj tag list`
+
+List tags
+
+**Usage:** `jj tag list [NAMES]...`
+
+###### **Arguments:**
+
+* `<NAMES>` — Show tags whose local name matches
+
+
+
+## `jj util`
+
+Infrequently used commands such as for generating shell completions
+
+**Usage:** `jj util <COMMAND>`
+
+###### **Subcommands:**
+
+* `completion` — Print a command-line-completion script
+* `gc` — Run backend-dependent garbage collection
+* `mangen` — Print a ROFF (manpage)
+* `markdown-help` — Print the CLI help for all subcommands in Markdown
+* `config-schema` — Print the JSON schema for the jj TOML config format
+
+
+
+## `jj util completion`
+
+Print a command-line-completion script
+
+**Usage:** `jj util completion [OPTIONS]`
+
+###### **Options:**
+
+* `--bash` — Print a completion script for Bash
+
+  Possible values: `true`, `false`
+
+* `--fish` — Print a completion script for Fish
+
+  Possible values: `true`, `false`
+
+* `--zsh` — Print a completion script for Zsh
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj util gc`
+
+Run backend-dependent garbage collection
+
+**Usage:** `jj util gc [OPTIONS]`
+
+###### **Options:**
+
+* `--expire <EXPIRE>` — Time threshold
+
+
+
+## `jj util mangen`
+
+Print a ROFF (manpage)
+
+**Usage:** `jj util mangen`
+
+
+
+## `jj util markdown-help`
+
+Print the CLI help for all subcommands in Markdown
+
+**Usage:** `jj util markdown-help`
+
+
+
+## `jj util config-schema`
+
+Print the JSON schema for the jj TOML config format
+
+**Usage:** `jj util config-schema`
+
+
+
+## `jj undo`
+
+Undo an operation (shortcut for `jj op undo`)
+
+**Usage:** `jj undo [OPTIONS] [OPERATION]`
+
+###### **Arguments:**
+
+* `<OPERATION>` — The operation to undo
+
+  Default value: `@`
+
+###### **Options:**
+
+* `--what <WHAT>` — What portions of the local state to restore (can be repeated)
+
+  Default values: `repo`, `remote-tracking`
+
+  Possible values:
+  - `repo`:
+    The jj repo state and local branches
+  - `remote-tracking`:
+    The remote-tracking branches. Do not restore these if you'd like to push after the undo
+
+
+
+
+## `jj unsquash`
+
+Move changes from a revision's parent into the revision
+
+After moving the changes out of the parent, the child revision will have the same content state as before. If moving the change out of the parent change made it empty compared to its parent, it will be abandoned. Without `--interactive`, the parent change will always become empty.
+
+If the source became empty and both the source and destination had a non-empty description, you will be asked for the combined description. If either was empty, then the other one will be used.
+
+**Usage:** `jj unsquash [OPTIONS]`
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>`
+
+  Default value: `@`
+* `-i`, `--interactive` — Interactively choose which parts to unsquash
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj untrack`
+
+Stop tracking specified paths in the working copy
+
+**Usage:** `jj untrack <PATHS>...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Paths to untrack. They must already be ignored
+
+
+
+## `jj version`
+
+Display version information
+
+**Usage:** `jj version`
+
+
+
+## `jj workspace`
+
+Commands for working with workspaces
+
+Workspaces let you add additional working copies attached to the same repo. A common use case is so you can run a slow build or test in one workspace while you're continuing to write code in another workspace.
+
+Each workspace has its own working-copy commit. When you have more than one workspace attached to a repo, they are indicated by `@<workspace name>` in `jj log`.
+
+**Usage:** `jj workspace <COMMAND>`
+
+###### **Subcommands:**
+
+* `add` — Add a workspace
+* `forget` — Stop tracking a workspace's working-copy commit in the repo
+* `list` — List workspaces
+* `root` — Show the current workspace root directory
+* `update-stale` — Update a workspace that has become stale
+
+
+
+## `jj workspace add`
+
+Add a workspace
+
+**Usage:** `jj workspace add [OPTIONS] <DESTINATION>`
+
+###### **Arguments:**
+
+* `<DESTINATION>` — Where to create the new workspace
+
+###### **Options:**
+
+* `--name <NAME>` — A name for the workspace
+* `-r`, `--revision <REVISION>` — A list of parent revisions for the working-copy commit of the newly created workspace. You may specify nothing, or any number of parents
+
+
+
+## `jj workspace forget`
+
+Stop tracking a workspace's working-copy commit in the repo
+
+The workspace will not be touched on disk. It can be deleted from disk before or after running this command.
+
+**Usage:** `jj workspace forget [WORKSPACES]...`
+
+###### **Arguments:**
+
+* `<WORKSPACES>` — Names of the workspaces to forget. By default, forgets only the current workspace
+
+
+
+## `jj workspace list`
+
+List workspaces
+
+**Usage:** `jj workspace list`
+
+
+
+## `jj workspace root`
+
+Show the current workspace root directory
+
+**Usage:** `jj workspace root`
+
+
+
+## `jj workspace update-stale`
+
+Update a workspace that has become stale
+
+For information about stale working copies, see https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
+
+**Usage:** `jj workspace update-stale`
+
+
+
+<hr/>
+
+<small><i>
+    This document was generated automatically by
+    <a href="https://crates.io/crates/clap-markdown"><code>clap-markdown</code></a>.
+</i></small>
+

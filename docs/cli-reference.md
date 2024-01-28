@@ -1,0 +1,1 @@
+../cli/tests/cli-reference@.md.snap
