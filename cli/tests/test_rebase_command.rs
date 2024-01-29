@@ -219,15 +219,18 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
-    Working copy now at: znkkpsqq 391c91a7 e | e
+    Working copy now at: znkkpsqq 5f8a3db2 e | e
+    Parent commit      : rlvkpnrz 2443ea76 a | a
     Parent commit      : vruxwmqv 1677f795 d | d
     Added 1 files, modified 0 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  e
-    ◉  d
-    ◉  c
-    ◉  b
+    @    e
+    ├─╮
+    │ ◉  d
+    │ ◉  c
+    │ ◉  b
+    ├─╯
     ◉  a
     ◉
     "###);
@@ -237,15 +240,18 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
-    Working copy now at: znkkpsqq 040ae3a6 e | e
+    Working copy now at: znkkpsqq a331ac11 e | e
+    Parent commit      : rlvkpnrz 2443ea76 a | a
     Parent commit      : vruxwmqv 3d0f3644 d | d
     Added 1 files, modified 0 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  e
-    ◉  d
-    ◉  c
-    ◉  b
+    @    e
+    ├─╮
+    │ ◉  d
+    │ ◉  c
+    │ ◉  b
+    ├─╯
     ◉  a
     ◉
     "###);
@@ -536,13 +542,15 @@ fn test_rebase_with_descendants() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
-    Working copy now at: vruxwmqv 309336ff d | d
-    Parent commit      : royxmykx 244fa794 c | c
+    Working copy now at: vruxwmqv 705832bd d | d
+    Parent commit      : royxmykx 57c7246a c | c
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  d
-    ◉  c
-    ◉  b
+    ◉    c
+    ├─╮
+    │ ◉  b
+    ├─╯
     ◉  a
     ◉
     "###);
@@ -590,8 +598,10 @@ fn test_rebase_with_descendants() {
     Added 0 files, modified 0 files, removed 2 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  c
-    ◉  b
+    ◉    c
+    ├─╮
+    │ ◉  b
+    ├─╯
     │ @  d
     ├─╯
     ◉  a
@@ -617,8 +627,10 @@ fn test_rebase_with_descendants() {
     Added 0 files, modified 0 files, removed 2 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  c
-    ◉  b
+    ◉    c
+    ├─╮
+    │ ◉  b
+    ├─╯
     │ @  d
     ├─╯
     ◉  a
@@ -631,8 +643,6 @@ fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
 }
 
 // This behavior illustrates https://github.com/martinvonz/jj/issues/2600
-// The behavior of `rebase -r A -d descendant_of_A` can also be affected or
-// broken depending on how #2600 is fixed, so we test that as well.
 #[test]
 fn test_rebase_with_child_and_descendant_bug_2600() {
     let test_env = TestEnvironment::default();
@@ -662,14 +672,16 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 4 commits
-    Working copy now at: vruxwmqv bda47523 c | c
-    Parent commit      : royxmykx caeef796 b | b
+    Working copy now at: vruxwmqv 13b23fa1 c | c
+    Parent commit      : royxmykx 15092f8a b | b
     "###);
-    // This should be a no-op, but isn't.
+    // This should be a no-op
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉  b
-    ◉  a
+    ◉    b
+    ├─╮
+    │ ◉  a
+    ├─╯
     ◉  base
     ◉
     "###);
@@ -679,14 +691,16 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
-    Working copy now at: vruxwmqv 2ce41b33 c | c
-    Parent commit      : royxmykx f16045cb b | b
+    Working copy now at: vruxwmqv 2d130d92 c | c
+    Parent commit      : royxmykx f9e26e2a b | b
     "###);
     // This should be a no-op
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉  b
-    ◉  a
+    ◉    b
+    ├─╮
+    │ ◉  a
+    ├─╯
     ◉  base
     ◉
     "###);
@@ -699,7 +713,8 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     Working copy now at: vruxwmqv 2b10f149 c | c
     Parent commit      : royxmykx 3b233bd8 b | b
     "###);
-    // This works as expected
+    // Commit "a" should be rebased onto the root commit. Commit "b" should have
+    // "base" and "a" as parents as before.
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
     ◉    b
@@ -727,14 +742,17 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
-    Working copy now at: vruxwmqv 4c7dc623 c | c
-    Parent commit      : royxmykx 5ea34bfd b | b
+    Working copy now at: vruxwmqv fe9741ac c | c
+    Parent commit      : royxmykx 9da147b4 b | b
     "###);
-    // This should be a no-op
+    // The commits in roots(base..c), i.e. commit "a" should be rebased onto "base",
+    // which is a no-op
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉  b
-    ◉  a
+    ◉    b
+    ├─╮
+    │ ◉  a
+    ├─╯
     ◉  base
     ◉
     "###);
@@ -747,7 +765,8 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     Working copy now at: vruxwmqv 2fc4ef73 c | c
     Parent commit      : royxmykx 9912ef4b b | b
     "###);
-    // I'm unsure what the user would expect here, probably a no-op
+    // The commits in roots(a..c), i.e. commit "b" should be rebased onto "a",
+    // which means "b" loses its "base" parent
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
     ◉  b
@@ -761,14 +780,16 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 4 commits
-    Working copy now at: vruxwmqv 0a026b90 c | c
-    Parent commit      : royxmykx d1b575a5 b | b
+    Working copy now at: vruxwmqv 631fc029 c | c
+    Parent commit      : royxmykx 1cd34b4d b | b
     "###);
-    // I'm unsure what the user would expect here, probably a no-op
+    // This should be a no-op
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉  b
-    ◉  a
+    ◉    b
+    ├─╮
+    │ ◉  a
+    ├─╯
     ◉  base
     ◉
     "###);

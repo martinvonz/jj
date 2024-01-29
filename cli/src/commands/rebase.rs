@@ -184,7 +184,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
             true => EmptyBehaviour::AbandonAllEmpty,
             false => EmptyBehaviour::Keep,
         },
-        simplify_ancestor_merge: true,
+        simplify_ancestor_merge: false,
     };
     let mut workspace_command = command.workspace_helper(ui)?;
     let new_parents = cli_util::resolve_all_revs(&workspace_command, &args.destination)?
