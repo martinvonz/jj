@@ -121,7 +121,7 @@ You'll then need to use `jj new --before` to create new commits
 and `jj move --to`
 to move new changes into the correct commits.
 
-### I accidentally amended the working copy. How do I move the new changes into its own commit?
+### I accidentally changed files in the wrong commit, how do I move the recent changes into another commit?
 
 Use `jj obslog -p` to see how your working-copy commit has evolved. Find the
 commit you want to restore the contents to. Let's say the current commit (with
