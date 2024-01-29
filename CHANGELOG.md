@@ -114,6 +114,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the previous behavior is deprecated, but supported for now. it will be removed
   in the future.
 
+* `jj rebase` now preserves the shape of history even for merge commits where
+  one parent is an ancestor of another. You can follow the `jj rebase` by
+  `jj rebase -s <merge commit> -d <single parent>` if you want to linearize the
+  history.
+
 ### New features
 
 * `jj util completion` now supports powershell and elvish.
