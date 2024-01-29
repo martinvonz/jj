@@ -506,9 +506,8 @@ fn test_rebase_descendants_abandon_and_replace() {
     );
 }
 
-// TODO(#2600): This behavior may need to change
 #[test]
-fn test_rebase_descendants_abandon_degenerate_merge() {
+fn test_rebase_descendants_abandon_degenerate_merge_simplify() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
@@ -531,9 +530,61 @@ fn test_rebase_descendants_abandon_degenerate_merge() {
     tx.mut_repo().record_abandoned_commit(commit_b.id().clone());
     let rebase_map = tx
         .mut_repo()
-        .rebase_descendants_return_map(&settings)
+        .rebase_descendants_with_options_return_map(
+            &settings,
+            RebaseOptions {
+                simplify_ancestor_merge: true,
+                ..Default::default()
+            },
+        )
         .unwrap();
     let new_commit_d = assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[commit_c.id()]);
+    assert_eq!(rebase_map.len(), 1);
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {new_commit_d.id().clone()}
+    );
+}
+
+#[test]
+fn test_rebase_descendants_abandon_degenerate_merge_preserve() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    // Commit B was abandoned. Commit D should get rebased to have A and C as
+    // parents.
+    //
+    // D
+    // |\
+    // B C
+    // |/
+    // A
+    let mut tx = repo.start_transaction(&settings);
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_c = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_d = graph_builder.commit_with_parents(&[&commit_b, &commit_c]);
+
+    tx.mut_repo().record_abandoned_commit(commit_b.id().clone());
+    let rebase_map = tx
+        .mut_repo()
+        .rebase_descendants_with_options_return_map(
+            &settings,
+            RebaseOptions {
+                simplify_ancestor_merge: false,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let new_commit_d = assert_rebased_onto(
+        tx.mut_repo(),
+        &rebase_map,
+        &commit_d,
+        &[&commit_a.id(), &commit_c.id()],
+    );
     assert_eq!(rebase_map.len(), 1);
 
     assert_eq!(
@@ -1532,6 +1583,7 @@ fn test_empty_commit_option(empty_behavior: EmptyBehaviour) {
             &settings,
             RebaseOptions {
                 empty: empty_behavior.clone(),
+                simplify_ancestor_merge: true,
             },
         )
         .unwrap();
@@ -1672,6 +1724,7 @@ fn test_rebase_abandoning_empty() {
 
     let rebase_options = RebaseOptions {
         empty: EmptyBehaviour::AbandonAllEmpty,
+        simplify_ancestor_merge: true,
     };
     rebase_commit_with_options(
         &settings,

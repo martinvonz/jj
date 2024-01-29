@@ -241,9 +241,21 @@ pub enum EmptyBehaviour {
 // change the RebaseOptions construction in the CLI, and changing the
 // rebase_commit function to actually use the flag, and ensure we don't need to
 // plumb it in.
-#[derive(Clone, Default, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct RebaseOptions {
     pub empty: EmptyBehaviour,
+    /// If a merge commit would end up with one parent being an ancestor of the
+    /// other, then filter out the ancestor.
+    pub simplify_ancestor_merge: bool,
+}
+
+impl Default for RebaseOptions {
+    fn default() -> Self {
+        Self {
+            empty: Default::default(),
+            simplify_ancestor_merge: true,
+        }
+    }
 }
 
 /// Rebases descendants of a commit onto a new commit (or several).
@@ -541,7 +553,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             return Ok(());
         }
         let old_parent_ids = old_commit.parent_ids();
-        let new_parent_ids = self.new_parents(old_parent_ids);
+        let mut new_parent_ids = self.new_parents(old_parent_ids);
         if self.abandoned.contains(&old_commit_id) {
             // Update the `new_parents` map so descendants are rebased correctly.
             self.parent_mapping
@@ -553,16 +565,18 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             return Ok(());
         }
 
-        // Don't create commit where one parent is an ancestor of another.
-        let head_set: HashSet<_> = self
-            .mut_repo
-            .index()
-            .heads(&mut new_parent_ids.iter())
-            .into_iter()
-            .collect();
+        // If specified, don't create commit where one parent is an ancestor of another.
+        if self.options.simplify_ancestor_merge {
+            let head_set: HashSet<_> = self
+                .mut_repo
+                .index()
+                .heads(&mut new_parent_ids.iter())
+                .into_iter()
+                .collect();
+            new_parent_ids.retain(|new_parent| head_set.contains(new_parent));
+        }
         let new_parents: Vec<_> = new_parent_ids
             .iter()
-            .filter(|new_parent| head_set.contains(new_parent))
             .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id))
             .try_collect()?;
         let new_commit = rebase_commit_with_options(
