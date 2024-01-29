@@ -66,6 +66,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * On Windows, the pager will now be the built-in instead of disabled.
 
+* Auto-rebase now preserves the shape of history even for merge commits where
+  one parent is an ancestor of another.
+  [#2600](https://github.com/martinvonz/jj/issues/2600)
+
 ## [0.14.0] - 2024-02-07
 
 ### Deprecations

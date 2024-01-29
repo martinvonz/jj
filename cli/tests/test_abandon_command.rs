@@ -152,11 +152,8 @@ fn test_basics() {
     "###);
 }
 
-// TODO(#2600): Make sure the results here become saner as #2600 is fixed. There
-// is an simpler demo of #2600 at https://github.com/martinvonz/jj/pull/2655.
-// However, fixing #2600 will likely change how `abandon` works. This test
-// exists to track how that happens. See also the corresponding test in
-// `test_rebase_command`
+// This behavior illustrates https://github.com/martinvonz/jj/issues/2600.
+// See also the corresponding test in `test_rebase_command`
 #[test]
 fn test_bug_2600() {
     let test_env = TestEnvironment::default();
@@ -191,22 +188,18 @@ fn test_bug_2600() {
     insta::assert_snapshot!(stderr, @r###"
     Abandoned commit zsuskuln 73c929fc base | base
     Rebased 3 descendant commits onto parents of abandoned commits
-    Working copy now at: znkkpsqq 510f8756 c | c
-    Parent commit      : vruxwmqv 7301d9ab b | b
+    Working copy now at: znkkpsqq 86e31bec c | c
+    Parent commit      : vruxwmqv fd6eb121 b | b
     Added 0 files, modified 0 files, removed 1 files
     "###);
-    // BUG. The user would expect
-    // @  c
-    // ├─╮
-    // │ ◉  a
-    // ├─╯
-    // ◉  base nottherootcommit
-    // ◉
-    // This is likely caused by DescendantRebaser
+    // Commits "a" and "b" should both have "nottherootcommit" as parent, and "b"
+    // should keep "a" as second parent.
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  [znk] c
-    ◉  [vru] b
-    ◉  [roy] a
+    ◉    [vru] b
+    ├─╮
+    │ ◉  [roy] a
+    ├─╯
     ◉  [rlv] base nottherootcommit
     ◉  [zzz]
     "###);
@@ -221,7 +214,9 @@ fn test_bug_2600() {
     Parent commit      : vruxwmqv c10cb7b4 b | b
     Added 0 files, modified 0 files, removed 1 files
     "###);
-    // This is likely what the user will expect.
+    // Commit "b" should have "base" as parent. It should not have two parent
+    // pointers to that commit even though it was a merge commit before we abandoned
+    // "a".
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  [znk] c
     ◉  [vru] b
@@ -236,22 +231,17 @@ fn test_bug_2600() {
     insta::assert_snapshot!(stderr, @r###"
     Abandoned commit vruxwmqv 8c0dced0 b | b
     Rebased 1 descendant commits onto parents of abandoned commits
-    Working copy now at: znkkpsqq 924bdd1c c | c
+    Working copy now at: znkkpsqq 33a94991 c | c
+    Parent commit      : zsuskuln 73c929fc b?? base | base
     Parent commit      : royxmykx 98f3b9ba a b?? | a
     Added 0 files, modified 0 files, removed 1 files
     "###);
-    // BUG. The user would expect
-    // @  c
-    // ├─╮
-    // │ ◉  a
-    // ├─╯
-    // ◉  base
-    // ◉  nottherootcommit
-    // ◉
-    // This is likely caused by logic in `cmd_abandon`, not DescendantRebaser
+    // Commit "c" should inherit the parents from the abndoned commit "b".
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  [znk] c
-    ◉  [roy] a b??
+    @    [znk] c
+    ├─╮
+    │ ◉  [roy] a b??
+    ├─╯
     ◉  [zsu] b?? base
     ◉  [rlv] nottherootcommit
     ◉  [zzz]
@@ -280,7 +270,8 @@ fn test_bug_2600() {
     Parent commit      : zsuskuln 73c929fc a b base | base
     Added 0 files, modified 0 files, removed 2 files
     "###);
-    // This is likely what the user would expect
+    // Commit "c" should have "base" as parent. As when we abandoned "a", it should
+    // not have two parent pointers to the same commit.
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  [znk] c
     ◉  [zsu] a b base
@@ -318,24 +309,12 @@ fn test_bug_2600_rootcommit_special_case() {
     "###);
 
     // Now, the test
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "base"]);
-    insta::assert_snapshot!(stdout, @"");
+    let stderr = test_env.jj_cmd_internal_error(&repo_path, &["abandon", "base"]);
     insta::assert_snapshot!(stderr, @r###"
-    Abandoned commit rlvkpnrz 0c61db1b base | base
-    Rebased 3 descendant commits onto parents of abandoned commits
-    Working copy now at: vruxwmqv 73e9185c c | c
-    Parent commit      : royxmykx 80dd9cba b | b
-    Added 0 files, modified 0 files, removed 1 files
-    "###);
-    // The current behavior is either correct or should be replaced with an error
-    // message. Even though the user would expect `b` to still be a descendant of
-    // `base`, it is impossible in the Git backend.
-    // See also https://github.com/martinvonz/jj/issues/2600#issuecomment-1835418824
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  [vru] c
-    ◉  [roy] b
-    ◉  [zsu] a
-    ◉  [zzz] base
+    Internal error: Merge failed
+    Caused by:
+    1: Backend error
+    2: The Git backend does not support creating merge commits with the root commit as one of the parents.
     "###);
 }
 
