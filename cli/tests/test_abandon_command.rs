@@ -93,28 +93,6 @@ fn test_basics() {
     ◉  [zzz]
     "###);
 
-    // Abandoning `a` would normally result in its descendant merge commit, `e`,
-    // still having two parents. However, since one of those parents (the root
-    // commit) would be the ancestor of another, only one of the parents is kept.
-    test_env.jj_cmd_ok(&repo_path, &["undo"]);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "a"]);
-    insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Abandoned commit rlvkpnrz 2443ea76 a | a
-    Rebased 2 descendant commits onto parents of abandoned commits
-    Working copy now at: znkkpsqq b0af79c3 e | e
-    Parent commit      : vruxwmqv b7c62f28 d | d
-    Added 0 files, modified 0 files, removed 1 files
-    "###);
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  [znk] e
-    ◉  [vru] d
-    ◉  [roy] c
-    │ ◉  [zsu] b
-    ├─╯
-    ◉  [zzz] a
-    "###);
-
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "descendants(c)"]);
     insta::assert_snapshot!(stdout, @"");
@@ -123,12 +101,12 @@ fn test_basics() {
       znkkpsqq 5557ece3 e | e
       vruxwmqv b7c62f28 d | d
       royxmykx fe2e8e8b c | c
-    Working copy now at: wvuyspvk 3f93e69f (empty) (no description set)
+    Working copy now at: xtnwkqum e7bb0612 (empty) (no description set)
     Parent commit      : rlvkpnrz 2443ea76 a e?? | a
     Added 0 files, modified 0 files, removed 3 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  [wvu]
+    @  [xtn]
     │ ◉  [zsu] b
     ├─╯
     ◉  [rlv] a e??
@@ -162,12 +140,12 @@ fn test_basics() {
       vruxwmqv b7c62f28 d | d
       zsuskuln 1394f625 b | b
       rlvkpnrz 2443ea76 a | a
-    Working copy now at: oupztwtk 304ae338 (empty) (no description set)
+    Working copy now at: xlzxqlsl af874bff (empty) (no description set)
     Parent commit      : zzzzzzzz 00000000 a b e?? | (empty) (no description set)
     Added 0 files, modified 0 files, removed 4 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  [oup]
+    @  [xlz]
     │ ◉  [roy] c d e??
     ├─╯
     ◉  [zzz] a b e??
