@@ -241,7 +241,7 @@ pub enum EmptyBehaviour {
 // change the RebaseOptions construction in the CLI, and changing the
 // rebase_commit function to actually use the flag, and ensure we don't need to
 // plumb it in.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Default, PartialEq, Eq, Debug)]
 pub struct RebaseOptions {
     pub empty: EmptyBehaviour,
     /// If a merge commit would end up with one parent being an ancestor of the
@@ -249,16 +249,6 @@ pub struct RebaseOptions {
     pub simplify_ancestor_merge: bool,
 }
 
-impl Default for RebaseOptions {
-    fn default() -> Self {
-        Self {
-            empty: Default::default(),
-            simplify_ancestor_merge: true,
-        }
-    }
-}
-
-/// Rebases descendants of a commit onto a new commit (or several).
 pub(crate) struct DescendantRebaser<'settings, 'repo> {
     settings: &'settings UserSettings,
     mut_repo: &'repo mut MutableRepo,
