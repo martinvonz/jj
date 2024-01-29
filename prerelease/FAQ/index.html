@@ -497,9 +497,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#i-accidentally-amended-the-working-copy-how-do-i-move-the-new-changes-into-its-own-commit" class="md-nav__link">
+  <a href="#i-accidentally-changed-files-in-the-wrong-commit-how-do-i-move-the-recent-changes-into-another-commit" class="md-nav__link">
     <span class="md-ellipsis">
-      I accidentally amended the working copy. How do I move the new changes into its own commit?
+      I accidentally changed files in the wrong commit, how do I move the recent changes into another commit?
     </span>
   </a>
   
@@ -1353,9 +1353,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#i-accidentally-amended-the-working-copy-how-do-i-move-the-new-changes-into-its-own-commit" class="md-nav__link">
+  <a href="#i-accidentally-changed-files-in-the-wrong-commit-how-do-i-move-the-recent-changes-into-another-commit" class="md-nav__link">
     <span class="md-ellipsis">
-      I accidentally amended the working copy. How do I move the new changes into its own commit?
+      I accidentally changed files in the wrong commit, how do I move the recent changes into another commit?
     </span>
   </a>
   
@@ -1491,7 +1491,7 @@ top of the PR you're working on and then do <code>jj new commit_with_local_chang
 You'll then need to use <code>jj new --before</code> to create new commits
 and <code>jj move --to</code>
 to move new changes into the correct commits.</p>
-<h3 id="i-accidentally-amended-the-working-copy-how-do-i-move-the-new-changes-into-its-own-commit">I accidentally amended the working copy. How do I move the new changes into its own commit?<a class="headerlink" href="#i-accidentally-amended-the-working-copy-how-do-i-move-the-new-changes-into-its-own-commit" title="Permanent link">&para;</a></h3>
+<h3 id="i-accidentally-changed-files-in-the-wrong-commit-how-do-i-move-the-recent-changes-into-another-commit">I accidentally changed files in the wrong commit, how do I move the recent changes into another commit?<a class="headerlink" href="#i-accidentally-changed-files-in-the-wrong-commit-how-do-i-move-the-recent-changes-into-another-commit" title="Permanent link">&para;</a></h3>
 <p>Use <code>jj obslog -p</code> to see how your working-copy commit has evolved. Find the
 commit you want to restore the contents to. Let's say the current commit (with
 the changes intended for a new commit) are in commit X and the state you wanted
