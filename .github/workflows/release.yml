@@ -17,14 +17,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build: [linux-musl, macos, win-msvc]
+        build: [linux-musl, macos-x86_64, macos-aarch64, win-msvc]
         include:
         - build: linux-musl
           os: ubuntu-20.04
           target: x86_64-unknown-linux-musl
-        - build: macos
+        - build: macos-x86_64
           os: macos-11
           target: x86_64-apple-darwin
+        - build: macos-aarch64
+          os: macos-14
+          target: aarch64-apple-darwin
         - build: win-msvc
           os: windows-2022
           target: x86_64-pc-windows-msvc
