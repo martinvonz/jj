@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* Official binaries for macOS running on Apple Silicon (`aarch64-apple-darwin`)
+  are now available, alongside the existing macOS x86 binaries.
+
 * New `jj op abandon` command is added to clean up the operation history. Git
   refs and commit objects can be further compacted by `jj util gc`.
 
