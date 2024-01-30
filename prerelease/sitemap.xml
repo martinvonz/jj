@@ -16,6 +16,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://martinvonz.github.io/jj/prerelease/cli-reference/</loc>
+         <lastmod>2024-01-30</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://martinvonz.github.io/jj/prerelease/code-of-conduct/</loc>
          <lastmod>2024-01-30</lastmod>
          <changefreq>daily</changefreq>
