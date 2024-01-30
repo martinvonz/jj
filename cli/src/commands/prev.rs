@@ -25,7 +25,7 @@ use crate::ui::Ui;
 ///
 /// The command moves you to the parent in a linear fashion.
 ///
-/// ```
+/// ```text
 /// D @  D
 /// |/   |
 /// A => A @
@@ -36,7 +36,7 @@ use crate::ui::Ui;
 /// If `--edit` is passed, it will move the working copy commit
 /// directly to the parent.
 ///
-/// ```
+/// ```text
 /// D @  D
 /// |/   |
 /// C => @

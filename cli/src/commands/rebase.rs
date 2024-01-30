@@ -46,7 +46,7 @@ use crate::ui::Ui;
 /// your history like this (letters followed by an apostrophe are post-rebase
 /// versions):
 ///
-/// ```
+/// ```text
 /// O           N'
 /// |           |
 /// | N         M'
@@ -73,7 +73,7 @@ use crate::ui::Ui;
 /// -d O` would transform your history like this (because `L` and `M` are on the
 /// same "branch", relative to the destination):
 ///
-/// ```
+/// ```text
 /// O           N'
 /// |           |
 /// | N         M'
@@ -92,7 +92,7 @@ use crate::ui::Ui;
 /// onto the specified revision's parent(s). For example, `jj rebase -r K -d M`
 /// would transform your history like this:
 ///
-/// ```
+/// ```text
 /// M          K'
 /// |          |
 /// | L        M
@@ -107,7 +107,7 @@ use crate::ui::Ui;
 /// order to work (in addition to its current parent K), you can run `jj rebase
 /// -s L -d K -d M`:
 ///
-/// ```
+/// ```text
 /// M          L'
 /// |          |\
 /// | L        M |
