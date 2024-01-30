@@ -1133,11 +1133,9 @@ For more information, see https://github.com/martinvonz/jj/blob/main/docs/workin
 Move the current working copy commit to the next child revision in the
 repository.
 
-
 The command moves you to the next child in a linear fashion.
 
-
-```
+```text
 D      D @
 |      |/
 C @ => C
@@ -1145,12 +1143,10 @@ C @ => C
 B      B
 ```
 
-
 If `--edit` is passed, it will move you directly to the child
 revision.
 
-
-```
+```text
 D    D
 |    |
 C    C
@@ -1339,7 +1335,7 @@ Move the working copy commit to the parent of the current revision.
 
 The command moves you to the parent in a linear fashion.
 
-```
+```text
 D @  D
 |/   |
 A => A @
@@ -1350,7 +1346,7 @@ B    B
 If `--edit` is passed, it will move the working copy commit
 directly to the parent.
 
-```
+```text
 D @  D
 |/   |
 C => @
@@ -1391,7 +1387,7 @@ onto the destination. For example, `jj rebase -s M -d O` would transform
 your history like this (letters followed by an apostrophe are post-rebase
 versions):
 
-```
+```text
 O           N'
 |           |
 | N         M'
@@ -1418,7 +1414,7 @@ single root). For example, either `jj rebase -b L -d O` or `jj rebase -b M
 -d O` would transform your history like this (because `L` and `M` are on the
 same "branch", relative to the destination):
 
-```
+```text
 O           N'
 |           |
 | N         M'
@@ -1437,7 +1433,7 @@ destination. Any "hole" left behind will be filled by rebasing descendants
 onto the specified revision's parent(s). For example, `jj rebase -r K -d M`
 would transform your history like this:
 
-```
+```text
 M          K'
 |          |
 | L        M
@@ -1452,7 +1448,7 @@ For example, if you realize that commit L actually depends on commit M in
 order to work (in addition to its current parent K), you can run `jj rebase
 -s L -d K -d M`:
 
-```
+```text
 M          L'
 |          |\
 | L        M |

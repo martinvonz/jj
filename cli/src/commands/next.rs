@@ -27,11 +27,9 @@ use crate::ui::Ui;
 /// Move the current working copy commit to the next child revision in the
 /// repository.
 ///
-///
 /// The command moves you to the next child in a linear fashion.
 ///
-///
-/// ```
+/// ```text
 /// D      D @
 /// |      |/
 /// C @ => C
@@ -39,12 +37,10 @@ use crate::ui::Ui;
 /// B      B
 /// ```
 ///
-///
 /// If `--edit` is passed, it will move you directly to the child
 /// revision.
 ///
-///
-/// ```
+/// ```text
 /// D    D
 /// |    |
 /// C    C
