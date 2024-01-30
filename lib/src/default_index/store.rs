@@ -39,6 +39,9 @@ use crate::op_store::{OpStoreError, OperationId};
 use crate::operation::Operation;
 use crate::store::Store;
 
+// BLAKE2b-512 hash length in hex string
+const SEGMENT_FILE_NAME_LENGTH: usize = 64 * 2;
+
 /// Error that may occur during `DefaultIndexStore` initialization.
 #[derive(Debug, Error)]
 #[error("Failed to initialize index store: {0}")]
@@ -100,9 +103,21 @@ impl DefaultIndexStore {
     }
 
     pub fn reinit(&self) -> Result<(), DefaultIndexStoreInitError> {
+        // Remove all operation links to trigger rebuilding.
         let op_dir = self.dir.join("operations");
         std::fs::remove_dir_all(&op_dir).context(&op_dir)?;
         std::fs::create_dir(&op_dir).context(&op_dir)?;
+        // Remove index segments to save disk space. If raced, new segment file
+        // will be created by the other process.
+        for entry in self.dir.read_dir().context(&self.dir)? {
+            let entry = entry.context(&self.dir)?;
+            let path = entry.path();
+            if path.file_name().unwrap().len() != SEGMENT_FILE_NAME_LENGTH {
+                // Skip "type" file, "operations" directory, etc.
+                continue;
+            }
+            fs::remove_file(&path).context(&path)?;
+        }
         Ok(())
     }
 
