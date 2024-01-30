@@ -2837,6 +2837,7 @@ pub struct CliRunner {
     store_factories: Option<StoreFactories>,
     working_copy_factories: Option<HashMap<String, Box<dyn WorkingCopyFactory>>>,
     dispatch_fn: CliDispatchFn,
+    start_hook_fns: Vec<CliDispatchFn>,
     process_global_args_fns: Vec<ProcessGlobalArgsFn>,
 }
 
@@ -2857,6 +2858,7 @@ impl CliRunner {
             store_factories: None,
             working_copy_factories: None,
             dispatch_fn: Box::new(crate::commands::run_command),
+            start_hook_fns: vec![],
             process_global_args_fns: vec![],
         }
     }
@@ -2885,6 +2887,11 @@ impl CliRunner {
         working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>>,
     ) -> Self {
         self.working_copy_factories = Some(working_copy_factories);
+        self
+    }
+
+    pub fn add_start_hook(mut self, start_hook_fn: CliDispatchFn) -> Self {
+        self.start_hook_fns.push(start_hook_fn);
         self
     }
 
@@ -3001,6 +3008,9 @@ impl CliRunner {
             self.store_factories.unwrap_or_default(),
             working_copy_factories,
         );
+        for start_hook_fn in self.start_hook_fns {
+            start_hook_fn(ui, &command_helper)?;
+        }
         (self.dispatch_fn)(ui, &command_helper)
     }
 
