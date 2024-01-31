@@ -104,7 +104,11 @@ fn test_edit_current_wc_commit_missing() {
         .assert()
         .code(255);
     insta::assert_snapshot!(get_stderr_string(&assert), @r###"
-    Internal error: Failed to edit a commit: Current working-copy commit not found: Object 69542c1984c1f9d91f7c6c9c9e6941782c944bd9 of type commit not found: An object with id 69542c1984c1f9d91f7c6c9c9e6941782c944bd9 could not be found
+    Internal error: Failed to edit a commit
+    Caused by:
+    1: Current working-copy commit not found
+    2: Object 69542c1984c1f9d91f7c6c9c9e6941782c944bd9 of type commit not found
+    3: An object with id 69542c1984c1f9d91f7c6c9c9e6941782c944bd9 could not be found
     "###);
 }
 
