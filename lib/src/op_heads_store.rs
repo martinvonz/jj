@@ -14,6 +14,7 @@
 
 #![allow(missing_docs)]
 
+use std::any::Any;
 use std::collections::HashSet;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -35,6 +36,8 @@ pub trait OpHeadsStoreLock {}
 
 /// Manages the set of current heads of the operation log.
 pub trait OpHeadsStore: Send + Sync + Debug {
+    fn as_any(&self) -> &dyn Any;
+
     fn name(&self) -> &str;
 
     /// Remove the old op heads and add the new one.
