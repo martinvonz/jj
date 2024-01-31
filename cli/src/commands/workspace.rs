@@ -27,8 +27,8 @@ use jj_lib::workspace::Workspace;
 use tracing::instrument;
 
 use crate::cli_util::{
-    self, check_stale_working_copy, print_checkout_stats, user_error, CommandError, CommandHelper,
-    RevisionArg, WorkspaceCommandHelper,
+    self, check_stale_working_copy, internal_error_with_message, print_checkout_stats, user_error,
+    CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::ui::Ui;
 
@@ -315,11 +315,13 @@ fn cmd_workspace_update_stale(
             .locked_wc()
             .check_out(&desired_wc_commit)
             .map_err(|err| {
-                CommandError::InternalError(format!(
-                    "Failed to check out commit {}: {}",
-                    desired_wc_commit.id().hex(),
-                    err
-                ))
+                internal_error_with_message(
+                    format!(
+                        "Failed to check out commit {}",
+                        desired_wc_commit.id().hex()
+                    ),
+                    err,
+                )
             })?;
         locked_ws.finish(repo.op_id().clone())?;
         write!(ui.stderr(), "Working copy now at: ")?;

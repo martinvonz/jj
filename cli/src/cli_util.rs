@@ -71,6 +71,7 @@ use jj_lib::workspace::{
 };
 use jj_lib::{dag_walk, file_util, git, op_walk, revset};
 use once_cell::unsync::OnceCell;
+use thiserror::Error;
 use toml_edit;
 use tracing::instrument;
 use tracing_chrome::ChromeLayerBuilder;
@@ -99,7 +100,27 @@ pub enum CommandError {
     /// Invalid command line detected by clap
     ClapCliError(Arc<clap::Error>),
     BrokenPipe,
-    InternalError(String),
+    InternalError(Arc<dyn std::error::Error + Send + Sync>),
+}
+
+/// Wraps error with user-visible message.
+#[derive(Debug, Error)]
+#[error("{message}: {source}")]
+struct ErrorWithMessage {
+    message: String,
+    source: Box<dyn std::error::Error + Send + Sync>,
+}
+
+impl ErrorWithMessage {
+    fn new(
+        message: impl Into<String>,
+        source: impl Into<Box<dyn std::error::Error + Send + Sync>>,
+    ) -> Self {
+        ErrorWithMessage {
+            message: message.into(),
+            source: source.into(),
+        }
+    }
 }
 
 pub fn user_error(message: impl Into<String>) -> CommandError {
@@ -113,6 +134,17 @@ pub fn user_error_with_hint(message: impl Into<String>, hint: impl Into<String>)
         message: message.into(),
         hint: Some(hint.into()),
     }
+}
+
+pub fn internal_error(err: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> CommandError {
+    CommandError::InternalError(Arc::from(err.into()))
+}
+
+pub fn internal_error_with_message(
+    message: impl Into<String>,
+    source: impl Into<Box<dyn std::error::Error + Send + Sync>>,
+) -> CommandError {
+    CommandError::InternalError(Arc::new(ErrorWithMessage::new(message, source)))
 }
 
 fn format_similarity_hint<S: AsRef<str>>(candidates: &[S]) -> Option<String> {
@@ -153,19 +185,19 @@ impl From<crate::config::ConfigError> for CommandError {
 
 impl From<RewriteRootCommit> for CommandError {
     fn from(err: RewriteRootCommit) -> Self {
-        CommandError::InternalError(format!("Attempted to rewrite the root commit: {err}"))
+        internal_error_with_message("Attempted to rewrite the root commit", err)
     }
 }
 
 impl From<EditCommitError> for CommandError {
     fn from(err: EditCommitError) -> Self {
-        CommandError::InternalError(format!("Failed to edit a commit: {err}"))
+        internal_error_with_message("Failed to edit a commit", err)
     }
 }
 
 impl From<CheckOutCommitError> for CommandError {
     fn from(err: CheckOutCommitError) -> Self {
-        CommandError::InternalError(format!("Failed to check out a commit: {err}"))
+        internal_error_with_message("Failed to check out a commit", err)
     }
 }
 
@@ -184,11 +216,11 @@ impl From<WorkspaceInitError> for CommandError {
             WorkspaceInitError::NonUnicodePath => {
                 user_error("The target repo path contains non-unicode characters")
             }
-            WorkspaceInitError::CheckOutCommit(err) => CommandError::InternalError(format!(
-                "Failed to check out the initial commit: {err}"
-            )),
+            WorkspaceInitError::CheckOutCommit(err) => {
+                internal_error_with_message("Failed to check out the initial commit", err)
+            }
             WorkspaceInitError::Path(err) => {
-                CommandError::InternalError(format!("Failed to access the repository: {err}"))
+                internal_error_with_message("Failed to access the repository", err)
             }
             WorkspaceInitError::PathNotFound(path) => {
                 user_error(format!("{} doesn't exist", path.display()))
@@ -197,12 +229,12 @@ impl From<WorkspaceInitError> for CommandError {
                 user_error(format!("Failed to access the repository: {err}"))
             }
             WorkspaceInitError::WorkingCopyState(err) => {
-                CommandError::InternalError(format!("Failed to access the repository: {err}"))
+                internal_error_with_message("Failed to access the repository", err)
             }
             WorkspaceInitError::SignInit(err @ SignInitError::UnknownBackend(_)) => {
                 user_error(format!("{err}"))
             }
-            WorkspaceInitError::SignInit(err) => CommandError::InternalError(format!("{err}")),
+            WorkspaceInitError::SignInit(err) => internal_error(err),
         }
     }
 }
@@ -210,9 +242,9 @@ impl From<WorkspaceInitError> for CommandError {
 impl From<OpHeadResolutionError> for CommandError {
     fn from(err: OpHeadResolutionError) -> Self {
         match err {
-            OpHeadResolutionError::NoHeads => CommandError::InternalError(
-                "Corrupt repository: there are no operations".to_string(),
-            ),
+            OpHeadResolutionError::NoHeads => {
+                internal_error_with_message("Corrupt repository", err)
+            }
         }
     }
 }
@@ -235,34 +267,32 @@ impl From<SnapshotError> for CommandError {
                 r#"Increase the value of the `snapshot.max-new-file-size` config option if you
 want this file to be snapshotted. Otherwise add it to your `.gitignore` file."#,
             ),
-            err => {
-                CommandError::InternalError(format!("Failed to snapshot the working copy: {err}"))
-            }
+            err => internal_error_with_message("Failed to snapshot the working copy", err),
         }
     }
 }
 
 impl From<TreeMergeError> for CommandError {
     fn from(err: TreeMergeError) -> Self {
-        CommandError::InternalError(format!("Merge failed: {err}"))
+        internal_error_with_message("Merge failed", err)
     }
 }
 
 impl From<OpStoreError> for CommandError {
     fn from(err: OpStoreError) -> Self {
-        CommandError::InternalError(format!("Failed to load an operation: {err}"))
+        internal_error_with_message("Failed to load an operation", err)
     }
 }
 
 impl From<RepoLoaderError> for CommandError {
     fn from(err: RepoLoaderError) -> Self {
-        CommandError::InternalError(format!("Failed to load the repo: {err}"))
+        internal_error_with_message("Failed to load the repo", err)
     }
 }
 
 impl From<ResetError> for CommandError {
-    fn from(_: ResetError) -> Self {
-        CommandError::InternalError("Failed to reset the working copy".to_string())
+    fn from(err: ResetError) -> Self {
+        internal_error_with_message("Failed to reset the working copy", err)
     }
 }
 
@@ -318,9 +348,7 @@ repository contents."
 
 impl From<GitExportError> for CommandError {
     fn from(err: GitExportError) -> Self {
-        CommandError::InternalError(format!(
-            "Failed to export refs to underlying Git repo: {err}"
-        ))
+        internal_error_with_message("Failed to export refs to underlying Git repo", err)
     }
 }
 
@@ -406,13 +434,13 @@ impl From<clap::Error> for CommandError {
 
 impl From<GitConfigParseError> for CommandError {
     fn from(err: GitConfigParseError) -> Self {
-        CommandError::InternalError(format!("Failed to parse Git config: {err} "))
+        internal_error_with_message("Failed to parse Git config", err)
     }
 }
 
 impl From<WorkingCopyStateError> for CommandError {
     fn from(err: WorkingCopyStateError) -> Self {
-        CommandError::InternalError(format!("Failed to access working copy state: {err}"))
+        internal_error_with_message("Failed to access working copy state", err)
     }
 }
 
@@ -497,9 +525,7 @@ impl TracingSubscription {
                     .with_default_directive(tracing::metadata::LevelFilter::DEBUG.into())
                     .from_env_lossy()
             })
-            .map_err(|err| {
-                CommandError::InternalError(format!("failed to enable verbose logging: {err}"))
-            })?;
+            .map_err(|err| internal_error_with_message("failed to enable verbose logging", err))?;
         tracing::info!("verbose logging enabled");
         Ok(())
     }
@@ -702,7 +728,7 @@ impl CommandHelper {
         let op_id = workspace.working_copy().operation_id();
         let op_data = op_store
             .read_operation(op_id)
-            .map_err(|e| CommandError::InternalError(format!("Failed to read operation: {e}")))?;
+            .map_err(|e| internal_error_with_message("Failed to read operation", e))?;
         let operation = Operation::new(op_store.clone(), op_id.clone(), op_data);
         let repo = workspace.repo_loader().load_at(&operation)?;
         self.for_loaded_repo(ui, workspace, repo)
@@ -1405,7 +1431,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                     ));
                 }
                 WorkingCopyFreshness::SiblingOperation => {
-                    return Err(CommandError::InternalError(format!(
+                    return Err(internal_error(format!(
                         "The repo was loaded at operation {}, which seems to be a sibling of the \
                          working copy's operation {}",
                         short_operation_hash(repo.op_id()),
@@ -1837,19 +1863,18 @@ jj init --git-repo=.",
         WorkspaceLoadError::Path(e) => user_error(format!("{}: {}", e, e.error)),
         WorkspaceLoadError::NonUnicodePath => user_error(err.to_string()),
         WorkspaceLoadError::StoreLoadError(err @ StoreLoadError::UnsupportedType { .. }) => {
-            CommandError::InternalError(format!(
-                "This version of the jj binary doesn't support this type of repo: {err}"
-            ))
+            internal_error_with_message(
+                "This version of the jj binary doesn't support this type of repo",
+                err,
+            )
         }
         WorkspaceLoadError::StoreLoadError(
             err @ (StoreLoadError::ReadError { .. } | StoreLoadError::Backend(_)),
-        ) => CommandError::InternalError(format!(
-            "The repository appears broken or inaccessible: {err}"
-        )),
+        ) => internal_error_with_message("The repository appears broken or inaccessible", err),
         WorkspaceLoadError::StoreLoadError(StoreLoadError::Signing(
             err @ SignInitError::UnknownBackend(_),
         )) => user_error(format!("{err}")),
-        WorkspaceLoadError::StoreLoadError(err) => CommandError::InternalError(format!("{err}")),
+        WorkspaceLoadError::StoreLoadError(err) => internal_error(err),
     }
 }
 
@@ -2104,11 +2129,10 @@ pub fn update_working_copy(
         let stats = workspace
             .check_out(repo.op_id().clone(), old_tree_id.as_ref(), new_commit)
             .map_err(|err| {
-                CommandError::InternalError(format!(
-                    "Failed to check out commit {}: {}",
-                    new_commit.id().hex(),
-                    err
-                ))
+                internal_error_with_message(
+                    format!("Failed to check out commit {}", new_commit.id().hex()),
+                    err,
+                )
             })?;
         Some(stats)
     } else {
@@ -2821,8 +2845,8 @@ pub fn handle_command_result(
             // A broken pipe is not an error, but a signal to exit gracefully.
             Ok(ExitCode::from(BROKEN_PIPE_EXIT_CODE))
         }
-        Err(CommandError::InternalError(message)) => {
-            writeln!(ui.error(), "Internal error: {message}")?;
+        Err(CommandError::InternalError(err)) => {
+            writeln!(ui.error(), "Internal error: {err}")?;
             Ok(ExitCode::from(255))
         }
     }

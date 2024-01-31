@@ -23,7 +23,7 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::working_copy::WorkingCopy;
 use jj_lib::{op_walk, revset};
 
-use crate::cli_util::{user_error, CommandError, CommandHelper, RevisionArg};
+use crate::cli_util::{internal_error, user_error, CommandError, CommandHelper, RevisionArg};
 use crate::template_parser;
 use crate::ui::Ui;
 
@@ -205,7 +205,7 @@ fn cmd_debug_index(
     let index_store = repo_loader.index_store();
     let index = index_store
         .get_index_at_op(&op, repo_loader.store())
-        .map_err(|err| CommandError::InternalError(err.to_string()))?;
+        .map_err(internal_error)?;
     if let Some(default_index) = index.as_any().downcast_ref::<DefaultReadonlyIndex>() {
         let stats = default_index.as_composite().stats();
         writeln!(ui.stdout(), "Number of commits: {}", stats.num_commits)?;
@@ -244,12 +244,10 @@ fn cmd_debug_reindex(
     let op = op_walk::resolve_op_for_load(repo_loader, &command.global_args().at_operation)?;
     let index_store = repo_loader.index_store();
     if let Some(default_index_store) = index_store.as_any().downcast_ref::<DefaultIndexStore>() {
-        default_index_store
-            .reinit()
-            .map_err(|err| CommandError::InternalError(err.to_string()))?;
+        default_index_store.reinit().map_err(internal_error)?;
         let default_index = default_index_store
             .build_index_at_operation(&op, repo_loader.store())
-            .map_err(|err| CommandError::InternalError(err.to_string()))?;
+            .map_err(internal_error)?;
         writeln!(
             ui.stderr(),
             "Finished indexing {:?} commits.",
