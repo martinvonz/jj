@@ -1399,7 +1399,7 @@ pub struct RewriteRootCommit;
 #[derive(Debug, Error)]
 pub enum EditCommitError {
     #[error("Current working-copy commit not found: {0}")]
-    WorkingCopyCommitNotFound(BackendError),
+    WorkingCopyCommitNotFound(#[source] BackendError),
     #[error("Cannot rewrite the root commit")]
     RewriteRootCommit,
 }
