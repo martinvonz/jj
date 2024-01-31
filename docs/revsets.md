@@ -227,6 +227,12 @@ Show the parent(s) of the working-copy commit (like `git log -1 HEAD`):
 jj log -r @-
 ```
 
+Show all ancestors of the working copy (like plain `git log`)
+
+```
+jj log -r ::@
+```
+
 Show commits not on any remote branch:
 
 ```
@@ -237,12 +243,6 @@ Show commits not on `origin` (if you have other remotes like `fork`):
 
 ```
 jj log -r 'remote_branches(remote=origin)..'
-```
-
-Show all ancestors of the working copy (almost like plain `git log`)
-
-```
-jj log -r ::@
 ```
 
 Show the initial commits in the repo (the ones Git calls "root commits"):

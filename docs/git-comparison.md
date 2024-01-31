@@ -181,14 +181,19 @@ parent.
       <td><code>git commit -a</code></td>
     </tr>
     <tr>
-      <td>See log of commits</td>
-      <td><code>jj log</code></td>
+      <td>See log of ancestors of the current commit</td>
+      <td><code>jj log -r ::@</code></td>
       <td><code>git log --oneline --graph --decorate</code></td>
     </tr>
     <tr>
-      <td>Show log of ancestors of the current commit only, including all ancestors, not just stopping at immutable commits</td>
-      <td><code>jj log -r ::@</code></td>
-      <td><code>git log</code></td>
+      <td>See log of all reachable commits</td>
+      <td><code>jj log -r 'all()'</code> or <code>jj log -r ::</code></td>
+      <td><code>git log --oneline --graph --decorate --branches</code></td>
+    </tr>
+    <tr>
+      <td>Show log of commits not on the main branch</td>
+      <td><code>jj log</code></td>
+      <td>(TODO)</td>
     </tr>
     <tr>
       <td>Search among files versioned in the repository</td>
