@@ -1622,8 +1622,11 @@ fn test_rebase_abandoning_empty() {
     // Rebase B onto B2, where B2 and B have the same tree, abandoning all empty
     // commits.
     //
-    // We expect B, D, and G to be skipped because they're empty, but not E because
-    // it's the working commit. F also remains as it's not empty.
+    // We expect B, D, E and G to be skipped because they're empty. F remains
+    // as it's not empty. Since the working copy commit E is skipped, a new working
+    // copy commit should be created in its stead, just as would have happened if we
+    // did a normal rebase and then manually abandoned the working copy with `jj
+    // abandon`.
     //
     // F G (empty)
     // |/
