@@ -24,7 +24,9 @@ use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
-use crate::cli_util::{edit_temp_file, print_checkout_stats, CommandError, CommandHelper};
+use crate::cli_util::{
+    edit_temp_file, internal_error_with_message, print_checkout_stats, CommandError, CommandHelper,
+};
 use crate::ui::Ui;
 
 /// Manage which paths from the working-copy commit are present in the working
@@ -147,9 +149,7 @@ fn cmd_sparse_set(
     let stats = locked_ws
         .locked_wc()
         .set_sparse_patterns(new_patterns)
-        .map_err(|err| {
-            CommandError::InternalError(format!("Failed to update working copy paths: {err}"))
-        })?;
+        .map_err(|err| internal_error_with_message("Failed to update working copy paths", err))?;
     let operation_id = locked_ws.locked_wc().old_operation_id().clone();
     locked_ws.finish(operation_id)?;
     print_checkout_stats(ui, stats, &wc_commit)?;
