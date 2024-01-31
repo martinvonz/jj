@@ -1607,14 +1607,14 @@ always resolves to exactly one commit. For example:</p>
 <p>Show the parent(s) of the working-copy commit (like <code>git log -1 HEAD</code>):</p>
 <div class="highlight"><pre><span></span><code>jj log -r @-
 </code></pre></div>
+<p>Show all ancestors of the working copy (like plain <code>git log</code>)</p>
+<div class="highlight"><pre><span></span><code>jj log -r ::@
+</code></pre></div>
 <p>Show commits not on any remote branch:</p>
 <div class="highlight"><pre><span></span><code>jj log -r &#39;remote_branches()..&#39;
 </code></pre></div>
 <p>Show commits not on <code>origin</code> (if you have other remotes like <code>fork</code>):</p>
 <div class="highlight"><pre><span></span><code>jj log -r &#39;remote_branches(remote=origin)..&#39;
-</code></pre></div>
-<p>Show all ancestors of the working copy (almost like plain <code>git log</code>)</p>
-<div class="highlight"><pre><span></span><code>jj log -r ::@
 </code></pre></div>
 <p>Show the initial commits in the repo (the ones Git calls "root commits"):</p>
 <div class="highlight"><pre><span></span><code>jj log -r root()+
