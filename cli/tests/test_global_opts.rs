@@ -219,15 +219,18 @@ fn test_broken_repo_structure() {
     // Test the error message when the git repository can't be located.
     std::fs::remove_file(store_path.join("git_target")).unwrap();
     let stderr = test_env.jj_cmd_internal_error(&repo_path, &["log"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Internal error: The repository appears broken or inaccessible: Cannot access $TEST_ENV/repo/.jj/repo/store/git_target
+    insta::assert_snapshot!(strip_last_line(&stderr), @r###"
+    Internal error: The repository appears broken or inaccessible
+    Caused by:
+    1: Cannot access $TEST_ENV/repo/.jj/repo/store/git_target
     "###);
 
     // Test the error message when the commit backend is of unknown type.
     std::fs::write(&store_type_path, "unknown").unwrap();
     let stderr = test_env.jj_cmd_internal_error(&repo_path, &["log"]);
     insta::assert_snapshot!(stderr, @r###"
-    Internal error: This version of the jj binary doesn't support this type of repo: Unsupported commit backend type 'unknown'
+    Internal error: This version of the jj binary doesn't support this type of repo
+    Caused by: Unsupported commit backend type 'unknown'
     "###);
 
     // Test the error message when the file indicating the commit backend type
@@ -235,8 +238,11 @@ fn test_broken_repo_structure() {
     std::fs::remove_file(&store_type_path).unwrap();
     std::fs::create_dir(&store_type_path).unwrap();
     let stderr = test_env.jj_cmd_internal_error(&repo_path, &["log"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Internal error: The repository appears broken or inaccessible: Failed to read commit backend type: Cannot access $TEST_ENV/repo/.jj/repo/store/type
+    insta::assert_snapshot!(strip_last_line(&stderr), @r###"
+    Internal error: The repository appears broken or inaccessible
+    Caused by:
+    1: Failed to read commit backend type
+    2: Cannot access $TEST_ENV/repo/.jj/repo/store/type
     "###);
 
     // Test when the .jj directory is empty. The error message is identical to
@@ -244,8 +250,11 @@ fn test_broken_repo_structure() {
     std::fs::remove_dir_all(repo_path.join(".jj")).unwrap();
     std::fs::create_dir(repo_path.join(".jj")).unwrap();
     let stderr = test_env.jj_cmd_internal_error(&repo_path, &["log"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Internal error: The repository appears broken or inaccessible: Failed to read commit backend type: Cannot access $TEST_ENV/repo/.jj/repo/store/type
+    insta::assert_snapshot!(strip_last_line(&stderr), @r###"
+    Internal error: The repository appears broken or inaccessible
+    Caused by:
+    1: Failed to read commit backend type
+    2: Cannot access $TEST_ENV/repo/.jj/repo/store/type
     "###);
 }
 
@@ -455,4 +464,10 @@ fn test_verbose_logging_enabled() {
     // The log format is currently Pretty so we include the terminal markup.
     // Luckily, insta will print this in colour when reviewing.
     insta::assert_snapshot!(log_line, @"[32m INFO[0m [2mjj_cli::cli_util[0m[2m:[0m verbose logging enabled");
+}
+
+fn strip_last_line(s: &str) -> &str {
+    s.trim_end_matches('\n')
+        .rsplit_once('\n')
+        .map_or(s, |(h, _)| &s[..h.len() + 1])
 }

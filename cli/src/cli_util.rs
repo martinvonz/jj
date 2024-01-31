@@ -105,7 +105,7 @@ pub enum CommandError {
 
 /// Wraps error with user-visible message.
 #[derive(Debug, Error)]
-#[error("{message}: {source}")]
+#[error("{message}")]
 struct ErrorWithMessage {
     message: String,
     source: Box<dyn std::error::Error + Send + Sync>,
@@ -158,6 +158,33 @@ fn format_similarity_hint<S: AsRef<str>>(candidates: &[S]) -> Option<String> {
             Some(format!("Did you mean {quoted_names}?"))
         }
     }
+}
+
+fn print_error_sources(ui: &Ui, source: Option<&dyn std::error::Error>) -> io::Result<()> {
+    let Some(err) = source else {
+        return Ok(());
+    };
+    if err.source().is_none() {
+        writeln!(ui.stderr(), "Caused by: {err}")?;
+    } else {
+        writeln!(ui.stderr(), "Caused by:")?;
+        for (i, err) in iter::successors(Some(err), |err| err.source()).enumerate() {
+            let message = strip_error_source(err);
+            writeln!(ui.stderr(), "{n}: {message}", n = i + 1)?;
+        }
+    }
+    Ok(())
+}
+
+// TODO: remove ": {source}" from error types and drop this hack
+fn strip_error_source(err: &dyn std::error::Error) -> String {
+    let mut message = err.to_string();
+    if let Some(source) = err.source() {
+        if let Some(s) = message.strip_suffix(&format!(": {source}")) {
+            message.truncate(s.len());
+        }
+    }
+    message
 }
 
 impl From<std::io::Error> for CommandError {
@@ -2793,7 +2820,7 @@ pub fn handle_command_result(
     ui: &mut Ui,
     result: Result<(), CommandError>,
 ) -> std::io::Result<ExitCode> {
-    match result {
+    match &result {
         Ok(()) => Ok(ExitCode::SUCCESS),
         Err(CommandError::UserError { message, hint }) => {
             writeln!(ui.error(), "Error: {message}")?;
@@ -2846,7 +2873,8 @@ pub fn handle_command_result(
             Ok(ExitCode::from(BROKEN_PIPE_EXIT_CODE))
         }
         Err(CommandError::InternalError(err)) => {
-            writeln!(ui.error(), "Internal error: {err}")?;
+            writeln!(ui.error(), "Internal error: {}", strip_error_source(err))?;
+            print_error_sources(ui, err.source())?;
             Ok(ExitCode::from(255))
         }
     }
