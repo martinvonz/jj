@@ -14,6 +14,7 @@
 
 #![allow(missing_docs)]
 
+use std::any::Any;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::{Debug, Error, Formatter};
 use std::iter;
@@ -434,6 +435,8 @@ pub enum OpStoreError {
 pub type OpStoreResult<T> = Result<T, OpStoreError>;
 
 pub trait OpStore: Send + Sync + Debug {
+    fn as_any(&self) -> &dyn Any;
+
     fn name(&self) -> &str;
 
     fn root_operation_id(&self) -> &OperationId;

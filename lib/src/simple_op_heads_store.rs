@@ -14,6 +14,7 @@
 
 #![allow(missing_docs)]
 
+use std::any::Any;
 use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -71,6 +72,10 @@ struct SimpleOpHeadsStoreLock {
 impl OpHeadsStoreLock for SimpleOpHeadsStoreLock {}
 
 impl OpHeadsStore for SimpleOpHeadsStore {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     fn name(&self) -> &str {
         Self::name()
     }

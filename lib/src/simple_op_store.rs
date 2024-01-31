@@ -14,6 +14,7 @@
 
 #![allow(missing_docs)]
 
+use std::any::Any;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt::Debug;
 use std::io::{ErrorKind, Write};
@@ -94,6 +95,10 @@ impl SimpleOpStore {
 }
 
 impl OpStore for SimpleOpStore {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
     fn name(&self) -> &str {
         Self::name()
     }
