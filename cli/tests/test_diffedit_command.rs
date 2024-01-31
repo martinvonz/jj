@@ -52,7 +52,8 @@ fn test_diffedit() {
     // Nothing happens if the diff-editor exits with an error
     std::fs::write(&edit_script, "rm file2\0fail").unwrap();
     insta::assert_snapshot!(&test_env.jj_cmd_failure(&repo_path, &["diffedit"]), @r###"
-    Error: Failed to edit diff: Tool exited with a non-zero code (run with --verbose to see the exact invocation). Exit code: 1.
+    Error: Failed to edit diff
+    Caused by: Tool exited with a non-zero code (run with --verbose to see the exact invocation). Exit code: 1.
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -395,7 +396,8 @@ fn test_diffedit_old_restore_interactive_tests() {
     // Nothing happens if the diff-editor exits with an error
     std::fs::write(&edit_script, "rm file2\0fail").unwrap();
     insta::assert_snapshot!(&test_env.jj_cmd_failure(&repo_path, &["diffedit", "--from", "@-"]), @r###"
-    Error: Failed to edit diff: Tool exited with a non-zero code (run with --verbose to see the exact invocation). Exit code: 1.
+    Error: Failed to edit diff
+    Caused by: Tool exited with a non-zero code (run with --verbose to see the exact invocation). Exit code: 1.
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"

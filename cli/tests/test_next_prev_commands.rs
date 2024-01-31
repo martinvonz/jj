@@ -149,7 +149,8 @@ fn test_next_fails_on_branching_children_no_stdin() {
     let assert = test_env.jj_cmd(&repo_path, &["next"]).assert().code(1);
     let stderr = test_env.normalize_output(&get_stderr_string(&assert));
     insta::assert_snapshot!(stderr,@r###"
-    Error: I/O error: Cannot prompt for input since the output is not connected to a terminal
+    Error: I/O error
+    Caused by: Cannot prompt for input since the output is not connected to a terminal
     "###);
 }
 

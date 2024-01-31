@@ -40,8 +40,8 @@ use maplit::hashset;
 
 use crate::cli_util::{
     parse_string_pattern, resolve_multiple_nonempty_revsets, short_change_hash, short_commit_hash,
-    user_error, user_error_with_hint, CommandError, CommandHelper, RevisionArg,
-    WorkspaceCommandHelper,
+    user_error, user_error_with_hint, user_error_with_hint_opt, user_error_with_message,
+    CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::git_util::{
     get_git_repo, print_failed_git_export, print_git_import_stats, with_remote_git_callbacks,
@@ -221,7 +221,7 @@ fn map_git_error(err: git2::Error) -> CommandError {
                  /dev/null` to the host work?"
             };
 
-        user_error_with_hint(err.to_string(), hint)
+        user_error_with_hint(err, hint)
     } else {
         user_error(err.to_string())
     }
@@ -236,7 +236,7 @@ pub fn maybe_add_gitignore(workspace_command: &WorkspaceCommandHelper) -> Result
                 .join(".gitignore"),
             "/*\n",
         )
-        .map_err(|e| user_error(format!("Failed to write .jj/.gitignore file: {e}")))
+        .map_err(|e| user_error_with_message("Failed to write .jj/.gitignore file", e))
     } else {
         Ok(())
     }
@@ -346,16 +346,16 @@ fn cmd_git_fetch(
                     .any(|pattern| pattern.as_exact().map_or(false, |s| s.contains('*')))
                 {
                     user_error_with_hint(
-                        err.to_string(),
+                        err,
                         "Prefix the pattern with `glob:` to expand `*` as a glob",
                     )
                 } else {
-                    user_error(err.to_string())
+                    user_error(err)
                 }
             }
             GitFetchError::GitImportError(err) => err.into(),
             GitFetchError::InternalGitError(err) => map_git_error(err),
-            _ => user_error(err.to_string()),
+            _ => user_error(err),
         })?;
         print_git_import_stats(ui, &stats.import_stats)?;
     }
@@ -458,7 +458,12 @@ fn cmd_git_clone(
     let wc_path_existed = match fs::create_dir(&wc_path) {
         Ok(()) => false,
         Err(err) if err.kind() == io::ErrorKind::AlreadyExists => true,
-        Err(err) => return Err(user_error(format!("Failed to create {wc_path_str}: {err}"))),
+        Err(err) => {
+            return Err(user_error_with_message(
+                format!("Failed to create {wc_path_str}"),
+                err,
+            ));
+        }
     };
     if wc_path_existed && !is_empty_dir(&wc_path) {
         return Err(user_error(
@@ -470,7 +475,7 @@ fn cmd_git_clone(
     // `/some/path/.`
     let canonical_wc_path: PathBuf = wc_path
         .canonicalize()
-        .map_err(|err| user_error(format!("Failed to create {wc_path_str}: {err}")))?;
+        .map_err(|err| user_error_with_message(format!("Failed to create {wc_path_str}"), err))?;
     let clone_result = do_git_clone(
         ui,
         command,
@@ -865,7 +870,7 @@ fn cmd_git_push(
             "Try fetching from the remote, then make the branch point to where you want it to be, \
              and push again.",
         ),
-        _ => user_error(err.to_string()),
+        _ => user_error(err),
     })?;
     tx.finish(ui, tx_description)?;
     Ok(())
@@ -908,7 +913,7 @@ impl RejectedBranchUpdateReason {
 impl From<RejectedBranchUpdateReason> for CommandError {
     fn from(reason: RejectedBranchUpdateReason) -> Self {
         let RejectedBranchUpdateReason { message, hint } = reason;
-        CommandError::UserError { message, hint }
+        user_error_with_hint_opt(message, hint)
     }
 }
 

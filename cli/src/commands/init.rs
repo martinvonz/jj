@@ -24,7 +24,7 @@ use jj_lib::workspace::Workspace;
 use tracing::instrument;
 
 use super::git;
-use crate::cli_util::{user_error, user_error_with_hint, CommandError, CommandHelper};
+use crate::cli_util::{user_error_with_hint, user_error_with_message, CommandError, CommandHelper};
 use crate::ui::Ui;
 
 /// Create a new repo in the given directory
@@ -55,11 +55,11 @@ pub(crate) fn cmd_init(
     match fs::create_dir(&wc_path) {
         Ok(()) => {}
         Err(_) if wc_path.is_dir() => {}
-        Err(e) => return Err(user_error(format!("Failed to create workspace: {e}"))),
+        Err(e) => return Err(user_error_with_message("Failed to create workspace", e)),
     }
     let wc_path = wc_path
         .canonicalize()
-        .map_err(|e| user_error(format!("Failed to create workspace: {e}")))?; // raced?
+        .map_err(|e| user_error_with_message("Failed to create workspace", e))?; // raced?
     let cwd = command.cwd().canonicalize().unwrap();
     let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
 
