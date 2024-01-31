@@ -163,11 +163,13 @@ fn test_init_git_external_non_existent_git_directory() {
     let stderr =
         test_env.jj_cmd_failure(test_env.env_root(), &["init", "repo", "--git-repo", "repo"]);
 
-    insta::with_settings!({filters => vec![
-        (r"(Failed to open git repository:)(?s).*", "Failed to open git repository:"),
-    ]}, {
-        insta::assert_snapshot!(&stderr, @"Error: Failed to access the repository: Failed to open git repository:");
-    });
+    insta::assert_snapshot!(&stderr, @r###"
+    Error: Failed to access the repository
+    Caused by:
+    1: Failed to open git repository
+    2: "$TEST_ENV/repo" does not appear to be a git repository
+    3: Missing HEAD at '.git/HEAD'
+    "###);
     let jj_path = workspace_root.join(".jj");
     assert!(!jj_path.exists());
 }

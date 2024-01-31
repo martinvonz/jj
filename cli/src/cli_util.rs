@@ -91,7 +91,7 @@ use crate::{commit_templater, text_util};
 #[derive(Clone, Debug)]
 pub enum CommandError {
     UserError {
-        message: String,
+        err: Arc<dyn std::error::Error + Send + Sync>,
         hint: Option<String>,
     },
     ConfigError(String),
@@ -123,16 +123,39 @@ impl ErrorWithMessage {
     }
 }
 
-pub fn user_error(message: impl Into<String>) -> CommandError {
-    CommandError::UserError {
-        message: message.into(),
-        hint: None,
-    }
+pub fn user_error(err: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> CommandError {
+    user_error_with_hint_opt(err, None)
 }
-pub fn user_error_with_hint(message: impl Into<String>, hint: impl Into<String>) -> CommandError {
+
+pub fn user_error_with_hint(
+    err: impl Into<Box<dyn std::error::Error + Send + Sync>>,
+    hint: impl Into<String>,
+) -> CommandError {
+    user_error_with_hint_opt(err, Some(hint.into()))
+}
+
+pub fn user_error_with_message(
+    message: impl Into<String>,
+    source: impl Into<Box<dyn std::error::Error + Send + Sync>>,
+) -> CommandError {
+    user_error_with_hint_opt(ErrorWithMessage::new(message, source), None)
+}
+
+pub fn user_error_with_message_and_hint(
+    message: impl Into<String>,
+    hint: impl Into<String>,
+    source: impl Into<Box<dyn std::error::Error + Send + Sync>>,
+) -> CommandError {
+    user_error_with_hint_opt(ErrorWithMessage::new(message, source), Some(hint.into()))
+}
+
+pub fn user_error_with_hint_opt(
+    err: impl Into<Box<dyn std::error::Error + Send + Sync>>,
+    hint: Option<String>,
+) -> CommandError {
     CommandError::UserError {
-        message: message.into(),
-        hint: Some(hint.into()),
+        err: Arc::from(err.into()),
+        hint,
     }
 }
 
@@ -192,8 +215,7 @@ impl From<std::io::Error> for CommandError {
         if err.kind() == std::io::ErrorKind::BrokenPipe {
             CommandError::BrokenPipe
         } else {
-            // TODO: Record the error as a chained cause
-            user_error(format!("I/O error: {err}"))
+            user_error_with_message("I/O error", err)
         }
     }
 }
@@ -253,14 +275,12 @@ impl From<WorkspaceInitError> for CommandError {
                 user_error(format!("{} doesn't exist", path.display()))
             }
             WorkspaceInitError::Backend(err) => {
-                user_error(format!("Failed to access the repository: {err}"))
+                user_error_with_message("Failed to access the repository", err)
             }
             WorkspaceInitError::WorkingCopyState(err) => {
                 internal_error_with_message("Failed to access the repository", err)
             }
-            WorkspaceInitError::SignInit(err @ SignInitError::UnknownBackend(_)) => {
-                user_error(format!("{err}"))
-            }
+            WorkspaceInitError::SignInit(err @ SignInitError::UnknownBackend(_)) => user_error(err),
             WorkspaceInitError::SignInit(err) => internal_error(err),
         }
     }
@@ -279,7 +299,7 @@ impl From<OpHeadResolutionError> for CommandError {
 impl From<OpsetEvaluationError> for CommandError {
     fn from(err: OpsetEvaluationError) -> Self {
         match err {
-            OpsetEvaluationError::OpsetResolution(err) => user_error(err.to_string()),
+            OpsetEvaluationError::OpsetResolution(err) => user_error(err),
             OpsetEvaluationError::OpHeadResolution(err) => err.into(),
             OpsetEvaluationError::OpStore(err) => err.into(),
         }
@@ -289,10 +309,11 @@ impl From<OpsetEvaluationError> for CommandError {
 impl From<SnapshotError> for CommandError {
     fn from(err: SnapshotError) -> Self {
         match err {
-            SnapshotError::NewFileTooLarge { .. } => user_error_with_hint(
-                format!("Failed to snapshot the working copy: {err}"),
+            SnapshotError::NewFileTooLarge { .. } => user_error_with_message_and_hint(
+                "Failed to snapshot the working copy",
                 r#"Increase the value of the `snapshot.max-new-file-size` config option if you
 want this file to be snapshotted. Otherwise add it to your `.gitignore` file."#,
+                err,
             ),
             err => internal_error_with_message("Failed to snapshot the working copy", err),
         }
@@ -325,25 +346,25 @@ impl From<ResetError> for CommandError {
 
 impl From<DiffEditError> for CommandError {
     fn from(err: DiffEditError) -> Self {
-        user_error(format!("Failed to edit diff: {err}"))
+        user_error_with_message("Failed to edit diff", err)
     }
 }
 
 impl From<DiffGenerateError> for CommandError {
     fn from(err: DiffGenerateError) -> Self {
-        user_error(format!("Failed to generate diff: {err}"))
+        user_error_with_message("Failed to generate diff", err)
     }
 }
 
 impl From<ConflictResolveError> for CommandError {
     fn from(err: ConflictResolveError) -> Self {
-        user_error(format!("Failed to resolve conflicts: {err}"))
+        user_error_with_message("Failed to resolve conflicts", err)
     }
 }
 
 impl From<git2::Error> for CommandError {
     fn from(err: git2::Error) -> Self {
-        user_error(format!("Git operation failed: {err}"))
+        user_error_with_message("Git operation failed", err)
     }
 }
 
@@ -369,7 +390,7 @@ repository contents."
             GitImportError::InternalGitError(_) => None,
             GitImportError::UnexpectedBackend => None,
         };
-        CommandError::UserError { message, hint }
+        user_error_with_hint_opt(message, hint)
     }
 }
 
@@ -381,13 +402,13 @@ impl From<GitExportError> for CommandError {
 
 impl From<GitRemoteManagementError> for CommandError {
     fn from(err: GitRemoteManagementError) -> Self {
-        user_error(format!("{err}"))
+        user_error(err)
     }
 }
 
 impl From<RevsetEvaluationError> for CommandError {
     fn from(err: RevsetEvaluationError) -> Self {
-        user_error(format!("{err}"))
+        user_error(err)
     }
 }
 
@@ -412,10 +433,7 @@ impl From<RevsetParseError> for CommandError {
             } => format_similarity_hint(candidates),
             _ => None,
         };
-        CommandError::UserError {
-            message: format!("Failed to parse revset: {message}"),
-            hint,
-        }
+        user_error_with_hint_opt(format!("Failed to parse revset: {message}"), hint)
     }
 }
 
@@ -432,11 +450,7 @@ impl From<RevsetResolutionError> for CommandError {
             | RevsetResolutionError::AmbiguousChangeIdPrefix(_)
             | RevsetResolutionError::StoreError(_) => None,
         };
-
-        CommandError::UserError {
-            message: format!("{err}"),
-            hint,
-        }
+        user_error_with_hint_opt(err, hint)
     }
 }
 
@@ -449,7 +463,7 @@ impl From<TemplateParseError> for CommandError {
 
 impl From<FsPathParseError> for CommandError {
     fn from(err: FsPathParseError) -> Self {
-        user_error(format!("{err}"))
+        user_error(err)
     }
 }
 
@@ -1175,15 +1189,15 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         } else {
             self.resolve_single_rev(revision_str, ui)
                 .map_err(|err| match err {
-                    CommandError::UserError { message, hint } => user_error_with_hint(
-                        message,
-                        format!(
+                    CommandError::UserError { err, hint } => CommandError::UserError {
+                        err,
+                        hint: Some(format!(
                             "{old_hint}Prefix the expression with 'all' to allow any number of \
                              revisions (i.e. 'all:{}').",
                             revision_str,
                             old_hint = hint.map(|hint| format!("{hint}\n")).unwrap_or_default()
-                        ),
-                    ),
+                        )),
+                    },
                     err => err,
                 })
                 .map(|commit| vec![commit])
@@ -1887,8 +1901,9 @@ jj init --git-repo=.",
             "The repository directory at {} is missing. Was it moved?",
             repo_dir.display(),
         )),
+        // TODO: Record the error as a chained cause
         WorkspaceLoadError::Path(e) => user_error(format!("{}: {}", e, e.error)),
-        WorkspaceLoadError::NonUnicodePath => user_error(err.to_string()),
+        WorkspaceLoadError::NonUnicodePath => user_error(err),
         WorkspaceLoadError::StoreLoadError(err @ StoreLoadError::UnsupportedType { .. }) => {
             internal_error_with_message(
                 "This version of the jj binary doesn't support this type of repo",
@@ -1900,7 +1915,7 @@ jj init --git-repo=.",
         ) => internal_error_with_message("The repository appears broken or inaccessible", err),
         WorkspaceLoadError::StoreLoadError(StoreLoadError::Signing(
             err @ SignInitError::UnknownBackend(_),
-        )) => user_error(format!("{err}")),
+        )) => user_error(err),
         WorkspaceLoadError::StoreLoadError(err) => internal_error(err),
     }
 }
@@ -2293,17 +2308,17 @@ pub fn write_config_value_to_file(
         match err.kind() {
             // If config doesn't exist yet, read as empty and we'll write one.
             std::io::ErrorKind::NotFound => Ok("".to_string()),
-            _ => Err(user_error(format!(
-                "Failed to read file {path}: {err}",
-                path = path.display()
-            ))),
+            _ => Err(user_error_with_message(
+                format!("Failed to read file {path}", path = path.display()),
+                err,
+            )),
         }
     })?;
     let mut doc = toml_edit::Document::from_str(&config_toml).map_err(|err| {
-        user_error(format!(
-            "Failed to parse file {path}: {err}",
-            path = path.display()
-        ))
+        user_error_with_message(
+            format!("Failed to parse file {path}", path = path.display()),
+            err,
+        )
     })?;
 
     // Apply config value
@@ -2342,10 +2357,10 @@ pub fn write_config_value_to_file(
 
     // Write config back
     std::fs::write(path, doc.to_string()).map_err(|err| {
-        user_error(format!(
-            "Failed to write file {path}: {err}",
-            path = path.display()
-        ))
+        user_error_with_message(
+            format!("Failed to write file {path}", path = path.display()),
+            err,
+        )
     })
 }
 
@@ -2374,11 +2389,14 @@ pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(),
         .get("ui.editor")
         .map_err(|err| CommandError::ConfigError(format!("ui.editor: {err}")))?;
     let exit_status = editor.to_command().arg(edit_path).status().map_err(|err| {
-        user_error(format!(
-            // The executable couldn't be found or run; command-line arguments are not relevant
-            "Failed to run editor '{name}': {err}",
-            name = editor.split_name(),
-        ))
+        user_error_with_message(
+            format!(
+                // The executable couldn't be found or run; command-line arguments are not relevant
+                "Failed to run editor '{name}'",
+                name = editor.split_name(),
+            ),
+            err,
+        )
     })?;
     if !exit_status.success() {
         return Err(user_error(format!(
@@ -2406,23 +2424,23 @@ pub fn edit_temp_file(
         Ok(path)
     })()
     .map_err(|e| {
-        user_error(format!(
-            "Failed to create {} file in \"{}\": {}",
-            error_name,
-            dir.display(),
-            e
-        ))
+        user_error_with_message(
+            format!(
+                r#"Failed to create {} file in "{}""#,
+                error_name,
+                dir.display(),
+            ),
+            e,
+        )
     })?;
 
     run_ui_editor(settings, &path)?;
 
     let edited = fs::read_to_string(&path).map_err(|e| {
-        user_error(format!(
-            r#"Failed to read {} file "{}": {}"#,
-            error_name,
-            path.display(),
-            e
-        ))
+        user_error_with_message(
+            format!(r#"Failed to read {} file "{}""#, error_name, path.display()),
+            e,
+        )
     })?;
 
     // Delete the file only if everything went well.
@@ -2822,8 +2840,9 @@ pub fn handle_command_result(
 ) -> std::io::Result<ExitCode> {
     match &result {
         Ok(()) => Ok(ExitCode::SUCCESS),
-        Err(CommandError::UserError { message, hint }) => {
-            writeln!(ui.error(), "Error: {message}")?;
+        Err(CommandError::UserError { err, hint }) => {
+            writeln!(ui.error(), "Error: {}", strip_error_source(err))?;
+            print_error_sources(ui, err.source())?;
             if let Some(hint) = hint {
                 writeln!(ui.hint(), "Hint: {hint}")?;
             }
