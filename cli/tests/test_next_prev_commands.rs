@@ -146,10 +146,10 @@ fn test_next_fails_on_branching_children_no_stdin() {
     test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
 
     // Try to advance the working copy commit.
-    let assert = test_env.jj_cmd(&repo_path, &["next"]).assert().code(255);
+    let assert = test_env.jj_cmd(&repo_path, &["next"]).assert().code(1);
     let stderr = test_env.normalize_output(&get_stderr_string(&assert));
     insta::assert_snapshot!(stderr,@r###"
-    Internal error: I/O error: Cannot prompt for input since the output is not connected to a terminal
+    Error: I/O error: Cannot prompt for input since the output is not connected to a terminal
     "###);
 }
 

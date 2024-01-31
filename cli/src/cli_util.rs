@@ -134,7 +134,7 @@ impl From<std::io::Error> for CommandError {
             CommandError::BrokenPipe
         } else {
             // TODO: Record the error as a chained cause
-            CommandError::InternalError(format!("I/O error: {err}"))
+            user_error(format!("I/O error: {err}"))
         }
     }
 }
