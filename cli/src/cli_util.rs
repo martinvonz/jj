@@ -230,7 +230,7 @@ impl From<CheckOutCommitError> for CommandError {
 
 impl From<BackendError> for CommandError {
     fn from(err: BackendError) -> Self {
-        user_error(format!("Unexpected error from backend: {err}"))
+        internal_error_with_message("Unexpected error from backend", err)
     }
 }
 
