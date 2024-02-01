@@ -215,7 +215,7 @@ impl From<std::io::Error> for CommandError {
         if err.kind() == std::io::ErrorKind::BrokenPipe {
             CommandError::BrokenPipe
         } else {
-            user_error_with_message("I/O error", err)
+            user_error(err)
         }
     }
 }
