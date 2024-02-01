@@ -29,6 +29,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj config get`↴](#jj-config-get)
 * [`jj config set`↴](#jj-config-set)
 * [`jj config edit`↴](#jj-config-edit)
+* [`jj config path`↴](#jj-config-path)
 * [`jj describe`↴](#jj-describe)
 * [`jj diff`↴](#jj-diff)
 * [`jj diffedit`↴](#jj-diffedit)
@@ -472,6 +473,7 @@ For file locations, supported config options, and other details about jj config,
 * `get` — Get the value of a given config option.
 * `set` — Update config file to set the given option to a given value
 * `edit` — Start an editor on a jj config file
+* `path` — Print the path to the config file
 
 
 
@@ -555,6 +557,29 @@ Update config file to set the given option to a given value
 Start an editor on a jj config file
 
 **Usage:** `jj config edit <--user|--repo>`
+
+###### **Options:**
+
+* `--user` — Target the user-level config
+
+  Possible values: `true`, `false`
+
+* `--repo` — Target the repo-level config
+
+  Possible values: `true`, `false`
+
+
+
+
+## `jj config path`
+
+Print the path to the config file
+
+A config file at that path may or may not exist.
+
+See `jj config edit` if you'd like to immediately edit the file.
+
+**Usage:** `jj config path <--user|--repo>`
 
 ###### **Options:**
 

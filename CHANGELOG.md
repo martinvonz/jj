@@ -35,6 +35,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj config list` now accepts `--user` or `--repo` option to specify
   config origin.
 
+* New `jj config path` command to print the config file path without launching
+  an editor.
+
 * `jj tag list` command prints imported git tags.
 
 * `jj next` and `jj prev` now prompt in the event of the next/previous commit

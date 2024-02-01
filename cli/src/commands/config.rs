@@ -67,6 +67,8 @@ pub(crate) enum ConfigCommand {
     Set(ConfigSetArgs),
     #[command(visible_alias("e"))]
     Edit(ConfigEditArgs),
+    #[command(visible_alias("p"))]
+    Path(ConfigPathArgs),
 }
 
 /// List variables set in config file, along with their values.
@@ -138,6 +140,17 @@ pub(crate) struct ConfigEditArgs {
     pub config_args: ConfigArgs,
 }
 
+/// Print the path to the config file
+///
+/// A config file at that path may or may not exist.
+///
+/// See `jj config edit` if you'd like to immediately edit the file.
+#[derive(clap::Args, Clone, Debug)]
+pub(crate) struct ConfigPathArgs {
+    #[clap(flatten)]
+    pub config_args: ConfigArgs,
+}
+
 #[instrument(skip_all)]
 pub(crate) fn cmd_config(
     ui: &mut Ui,
@@ -149,6 +162,7 @@ pub(crate) fn cmd_config(
         ConfigCommand::Get(sub_args) => cmd_config_get(ui, command, sub_args),
         ConfigCommand::Set(sub_args) => cmd_config_set(ui, command, sub_args),
         ConfigCommand::Edit(sub_args) => cmd_config_edit(ui, command, sub_args),
+        ConfigCommand::Path(sub_args) => cmd_config_path(ui, command, sub_args),
     }
 }
 
@@ -269,4 +283,21 @@ pub(crate) fn cmd_config_edit(
 ) -> Result<(), CommandError> {
     let config_path = get_new_config_file_path(&args.config_args.get_source_kind(), command)?;
     run_ui_editor(command.settings(), &config_path)
+}
+
+#[instrument(skip_all)]
+pub(crate) fn cmd_config_path(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &ConfigPathArgs,
+) -> Result<(), CommandError> {
+    let config_path = get_new_config_file_path(&args.config_args.get_source_kind(), command)?;
+    writeln!(
+        ui.stdout(),
+        "{}",
+        config_path
+            .to_str()
+            .ok_or_else(|| user_error("The config path is not valid UTF-8"))?
+    )?;
+    Ok(())
 }
