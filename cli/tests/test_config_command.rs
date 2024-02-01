@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use insta::assert_snapshot;
 use itertools::Itertools;
 use regex::Regex;
 
@@ -562,6 +563,26 @@ fn test_config_edit_repo() {
     )
     .unwrap();
     test_env.jj_cmd_ok(&repo_path, &["config", "edit", "--repo"]);
+}
+
+#[test]
+fn test_config_path() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    assert_snapshot!(
+      test_env.jj_cmd_success(&repo_path, &["config", "path", "--user"]),
+      @r###"
+      $TEST_ENV/config
+      "###
+    );
+    assert_snapshot!(
+      test_env.jj_cmd_success(&repo_path, &["config", "path", "--repo"]),
+      @r###"
+      $TEST_ENV/repo/.jj/repo/config.toml
+      "###
+    );
 }
 
 #[test]
