@@ -134,6 +134,9 @@ pub(crate) struct ConfigSetArgs {
 }
 
 /// Start an editor on a jj config file.
+///
+/// Creates the file if it doesn't already exist regardless of what the editor
+/// does.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct ConfigEditArgs {
     #[clap(flatten)]
