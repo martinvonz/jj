@@ -5,15 +5,29 @@ These are the config settings available to jj/Jujutsu.
 
 ## Config files and TOML
 
-The config settings are loaded from the following locations. Less common ways to
-specify `jj` config settings are discussed in a later section.
+`jj` loads several types of config settings:
 
-* [The user config file]
-* `.jj/repo/config.toml` (per-repository)
+- The built-in settings. These cannot be edited. They can be viewed in the
+  `cli/src/config/` directory in `jj`'s source repo.
 
-See the [TOML site] and the [syntax guide] for a description of the syntax.
+- The user settings. These can be edited with `jj config edit --user`. User
+settings are located in [the user config file], which can be found with `jj
+config path --user`.
 
-[The user config file]: #user-config-file
+- The repo settings. These can be edited with `jj config edit --repo` and are
+located in `.jj/repo/config.toml`.
+
+- Settings [specified in the command-line](#specifying-config-on-the-command-line).
+
+These are listed in the order they are loaded; the settings from earlier items
+in
+the list are overridden by the settings from later items if they disagree. Every
+type of config except for the built-in settings is optional.
+
+See the [TOML site] and the [syntax guide] for a detailed description of the
+syntax. We cover some of the basics below.
+
+[the user config file]: #user-config-file
 [TOML site]: https://toml.io/en/
 [syntax guide]: https://toml.io/en/v1.0.0
 
@@ -561,7 +575,17 @@ executable on your system](https://facebook.github.io/watchman/docs/install).
 
 Debugging commands are available under `jj debug watchman`.
 
-# User config file
+## Ways to specify `jj` config: details
+
+### User config file
+
+An easy way to find the user config file is:
+
+```bash
+jj config path --user
+```
+
+The rest of this section covers the details of where this file can be located.
 
 On all platforms, the user's global `jj` configuration file is located at either
 `~/.jjconfig.toml` (where `~` represents `$HOME` on Unix-likes, or
@@ -583,6 +607,8 @@ default locations. For example,
 ```shell
 env JJ_CONFIG=/dev/null jj log       # Ignores any settings specified in the config file.
 ```
+
+### Specifying config on the command-line
 
 You can use one or more `--config-toml` options on the command line to specify
 additional configuration settings. This overrides settings defined in config
