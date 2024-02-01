@@ -62,9 +62,9 @@ Guidelines](https://opensource.google/conduct/).
 
 We appreciate [bug
 reports](https://github.com/martinvonz/jj/issues/new?template=bug_report.md)
-about any problems, however small, lurking in [our documentation
+about any problems lurking in [our documentation
 website](https://martinvonz.github.io/jj/prerelease) or in the `jj help
-<command>` docs. If a part of the bug report template does not apply, you can
+<command>` docs, however small the problems are. If a part of the bug report template does not apply, you can
 just delete it.
 
 Before reporting a problem with the documentation website, we'd appreciate it if
@@ -84,8 +84,7 @@ The `jj help` docs are sourced from the "docstring" comments inside the Rust
 sources, currently from the [`cli/src/commands`
 directory](https://github.com/martinvonz/jj/tree/main/cli/src/commands). Working
 on them requires setting up a Rust development environment, as described
-below, and may occasionally require adjusting a test.
-
+below, and then running `cargo insta test` to update the [CLI reference]. Do not edit the generated Markdown file for the CLI reference directly.
 
 ## Learning Rust
 
