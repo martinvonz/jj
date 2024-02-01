@@ -270,8 +270,8 @@ fn cmd_workspace_root(
     command: &CommandHelper,
     _args: &WorkspaceRootArgs,
 ) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
-    let root = workspace_command
+    let root = command
+        .workspace_loader()?
         .workspace_root()
         .to_str()
         .ok_or_else(|| user_error("The workspace root is not valid UTF-8"))?;
