@@ -1901,9 +1901,6 @@ jj init --git-repo=.",
             "The repository directory at {} is missing. Was it moved?",
             repo_dir.display(),
         )),
-        // TODO: Record the error as a chained cause
-        WorkspaceLoadError::Path(e) => user_error(format!("{}: {}", e, e.error)),
-        WorkspaceLoadError::NonUnicodePath => user_error(err),
         WorkspaceLoadError::StoreLoadError(err @ StoreLoadError::UnsupportedType { .. }) => {
             internal_error_with_message(
                 "This version of the jj binary doesn't support this type of repo",
@@ -1917,6 +1914,7 @@ jj init --git-repo=.",
             err @ SignInitError::UnknownBackend(_),
         )) => user_error(err),
         WorkspaceLoadError::StoreLoadError(err) => internal_error(err),
+        WorkspaceLoadError::NonUnicodePath | WorkspaceLoadError::Path(_) => user_error(err),
     }
 }
 
