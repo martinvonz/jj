@@ -941,3 +941,40 @@ fn test_diff_stat_long_name_or_stat() {
     2 files changed, 20 insertions(+), 0 deletions(-)
     "###);
 }
+
+#[test]
+fn test_diff_binary() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1.png"), b"\x89PNG\r\n\x1a\nabcdefg\0").unwrap();
+    std::fs::write(repo_path.join("file2.png"), b"\x89PNG\r\n\x1a\n0123456\0").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::remove_file(repo_path.join("file1.png")).unwrap();
+    std::fs::write(repo_path.join("file2.png"), "foo\nbar\n").unwrap();
+    std::fs::write(repo_path.join("file3.png"), b"\x89PNG\r\n\x1a\nxyz\0").unwrap();
+    // try a file that's valid UTF-8 but contains control characters
+    std::fs::write(repo_path.join("file4.png"), b"\0\0\0").unwrap();
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Removed regular file file1.png:
+        (binary)
+    Modified regular file file2.png:
+        (binary)
+    Added regular file file3.png:
+        (binary)
+    Added regular file file4.png:
+        (binary)
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--stat"]);
+    insta::assert_snapshot!(stdout, @r###"
+    file1.png | 3 ---
+    file2.png | 5 ++---
+    file3.png | 3 +++
+    file4.png | 1 +
+    4 files changed, 6 insertions(+), 6 deletions(-)
+    "###);
+}
