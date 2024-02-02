@@ -15,8 +15,6 @@ use std::path::Path;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test]
 fn test_undo_rewrite_with_child() {
     // Test that if we undo an operation that rewrote some commit, any descendants

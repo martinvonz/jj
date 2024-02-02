@@ -14,9 +14,7 @@
 
 use std::path::PathBuf;
 
-use common::TestEnvironment;
-
-pub mod common;
+use crate::common::TestEnvironment;
 
 fn set_up(trunk_name: &str) -> (TestEnvironment, PathBuf) {
     let test_env = TestEnvironment::default();

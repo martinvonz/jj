@@ -14,8 +14,6 @@
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test]
 fn test_gitsubmodule_print_gitmodules() {
     let test_env = TestEnvironment::default();

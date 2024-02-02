@@ -14,8 +14,6 @@
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test]
 fn test_rewrite_immutable_generic() {
     let test_env = TestEnvironment::default();

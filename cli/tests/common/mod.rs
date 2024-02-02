@@ -19,7 +19,6 @@ use std::path::{Path, PathBuf};
 use itertools::Itertools as _;
 use regex::{Captures, Regex};
 use tempfile::TempDir;
-use testutils;
 
 pub struct TestEnvironment {
     _temp_dir: TempDir,

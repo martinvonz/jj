@@ -16,8 +16,6 @@ use std::path::Path;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 fn create_commit(
     test_env: &TestEnvironment,
     repo_path: &Path,

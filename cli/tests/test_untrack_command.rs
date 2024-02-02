@@ -16,8 +16,6 @@ use std::path::PathBuf;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test]
 fn test_untrack() {
     let test_env = TestEnvironment::default();

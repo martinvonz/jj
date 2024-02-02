@@ -17,8 +17,6 @@ use regex::Regex;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test]
 fn test_debug_revset() {
     let test_env = TestEnvironment::default();

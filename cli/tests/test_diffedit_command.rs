@@ -14,8 +14,6 @@
 
 use crate::common::{escaped_fake_diff_editor_path, TestEnvironment};
 
-pub mod common;
-
 #[test]
 fn test_diffedit() {
     let mut test_env = TestEnvironment::default();

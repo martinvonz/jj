@@ -18,8 +18,6 @@ use itertools::Itertools as _;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test]
 fn test_alias_basic() {
     let test_env = TestEnvironment::default();

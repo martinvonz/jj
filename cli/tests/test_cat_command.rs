@@ -14,8 +14,6 @@
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test]
 fn test_cat() {
     let test_env = TestEnvironment::default();

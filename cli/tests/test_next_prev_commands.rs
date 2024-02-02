@@ -15,8 +15,6 @@
 
 use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
 
-pub mod common;
-
 #[test]
 fn test_next_simple() {
     // Move from first => second.

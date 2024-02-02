@@ -18,8 +18,6 @@ use test_case::test_case;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 fn init_git_repo(git_repo_path: &Path, bare: bool) -> git2::Repository {
     init_git_repo_with_opts(git_repo_path, git2::RepositoryInitOptions::new().bare(bare))
 }

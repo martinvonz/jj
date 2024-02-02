@@ -16,8 +16,6 @@ use std::path::PathBuf;
 
 use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
 
-pub mod common;
-
 fn set_up() -> (TestEnvironment, PathBuf) {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "origin"]);
