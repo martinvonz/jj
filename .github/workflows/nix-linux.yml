@@ -18,5 +18,5 @@ jobs:
         with:
           fetch-depth: 0
       - uses: DeterminateSystems/nix-installer-action@cd46bde16ab981b0a7b2dce0574509104543276e
-      - uses: DeterminateSystems/magic-nix-cache-action@1402a2dd8f56a6a6306c015089c5086f5e1ca3ef
+      - uses: DeterminateSystems/magic-nix-cache-action@eeabdb06718ac63a7021c6132129679a8e22d0c7
       - run: nix build --print-build-logs --show-trace
