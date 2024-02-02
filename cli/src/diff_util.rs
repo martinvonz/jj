@@ -346,19 +346,66 @@ fn show_color_words_diff_line(
     Ok(())
 }
 
-fn diff_content(path: &RepoPath, value: MaterializedTreeValue) -> Result<Vec<u8>, CommandError> {
+struct FileContent {
+    /// false if this file is likely text; true if it is likely binary.
+    is_binary: bool,
+    contents: Vec<u8>,
+}
+
+impl FileContent {
+    fn empty() -> Self {
+        Self {
+            is_binary: false,
+            contents: vec![],
+        }
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.contents.is_empty()
+    }
+}
+
+fn file_content_for_diff(reader: &mut dyn io::Read) -> io::Result<FileContent> {
+    // If this is a binary file, don't show the full contents.
+    // Determine whether it's binary by whether the first 8k bytes contain a null
+    // character; this is the same heuristic used by git as of writing: https://github.com/git/git/blob/eea0e59ffbed6e33d171ace5be13cde9faa41639/xdiff-interface.c#L192-L198
+    const PEEK_SIZE: usize = 8000;
+    // TODO: currently we look at the whole file, even though for binary files we
+    // only need to know the file size. To change that we'd have to extend all
+    // the data backends to support getting the length.
+    let mut contents = vec![];
+    reader.read_to_end(&mut contents)?;
+
+    let start = &contents[..PEEK_SIZE.min(contents.len())];
+    Ok(FileContent {
+        is_binary: start.contains(&b'\0'),
+        contents,
+    })
+}
+
+fn diff_content(
+    path: &RepoPath,
+    value: MaterializedTreeValue,
+) -> Result<FileContent, CommandError> {
     match value {
-        MaterializedTreeValue::Absent => Ok(vec![]),
+        MaterializedTreeValue::Absent => Ok(FileContent::empty()),
         MaterializedTreeValue::File { mut reader, .. } => {
-            let mut contents = vec![];
-            reader.read_to_end(&mut contents)?;
-            Ok(contents)
+            file_content_for_diff(&mut reader).map_err(Into::into)
         }
-        MaterializedTreeValue::Symlink { id: _, target } => Ok(target.into_bytes()),
-        MaterializedTreeValue::GitSubmodule(id) => {
-            Ok(format!("Git submodule checked out at {}", id.hex()).into_bytes())
-        }
-        MaterializedTreeValue::Conflict { id: _, contents } => Ok(contents),
+        MaterializedTreeValue::Symlink { id: _, target } => Ok(FileContent {
+            // Unix file paths can't contain null bytes.
+            is_binary: false,
+            contents: target.into_bytes(),
+        }),
+        MaterializedTreeValue::GitSubmodule(id) => Ok(FileContent {
+            is_binary: false,
+            contents: format!("Git submodule checked out at {}", id.hex()).into_bytes(),
+        }),
+        // TODO: are we sure this is never binary?
+        MaterializedTreeValue::Conflict { id: _, contents } => Ok(FileContent {
+            is_binary: false,
+            contents,
+        }),
         MaterializedTreeValue::Tree(id) => {
             panic!("Unexpected tree with id {id:?} in diff at path {path:?}");
         }
@@ -404,8 +451,10 @@ pub fn show_color_words_diff(
                 let right_content = diff_content(&path, right_value)?;
                 if right_content.is_empty() {
                     writeln!(formatter.labeled("empty"), "    (empty)")?;
+                } else if right_content.is_binary {
+                    writeln!(formatter.labeled("binary"), "    (binary)")?;
                 } else {
-                    show_color_words_diff_hunks(&[], &right_content, formatter)?;
+                    show_color_words_diff_hunks(&[], &right_content.contents, formatter)?;
                 }
             } else if right_value.is_present() {
                 let description = match (&left_value, &right_value) {
@@ -458,7 +507,15 @@ pub fn show_color_words_diff(
                 let left_content = diff_content(&path, left_value)?;
                 let right_content = diff_content(&path, right_value)?;
                 writeln!(formatter.labeled("header"), "{description} {ui_path}:")?;
-                show_color_words_diff_hunks(&left_content, &right_content, formatter)?;
+                if left_content.is_binary || right_content.is_binary {
+                    writeln!(formatter.labeled("binary"), "    (binary)")?;
+                } else {
+                    show_color_words_diff_hunks(
+                        &left_content.contents,
+                        &right_content.contents,
+                        formatter,
+                    )?;
+                }
             } else {
                 let description = basic_diff_file_type(&left_value);
                 writeln!(
@@ -468,8 +525,10 @@ pub fn show_color_words_diff(
                 let left_content = diff_content(&path, left_value)?;
                 if left_content.is_empty() {
                     writeln!(formatter.labeled("empty"), "    (empty)")?;
+                } else if left_content.is_binary {
+                    writeln!(formatter.labeled("binary"), "    (binary)")?;
                 } else {
-                    show_color_words_diff_hunks(&left_content, &[], formatter)?;
+                    show_color_words_diff_hunks(&left_content.contents, &[], formatter)?;
                 }
             }
         }
@@ -508,6 +567,7 @@ fn git_diff_part(
                 "100644".to_string()
             };
             hash = id.hex();
+            // TODO: use `file_content_for_diff` instead of showing binary
             contents = vec![];
             reader.read_to_end(&mut contents)?;
         }
@@ -810,8 +870,15 @@ struct DiffStat {
     removed: usize,
 }
 
-fn get_diff_stat(path: String, left_content: &[u8], right_content: &[u8]) -> DiffStat {
-    let hunks = unified_diff_hunks(left_content, right_content, 0);
+fn get_diff_stat(
+    path: String,
+    left_content: &FileContent,
+    right_content: &FileContent,
+) -> DiffStat {
+    // TODO: this matches git's behavior, which is to count the number of newlines
+    // in the file. but that behavior seems unhelpful; no one really cares how
+    // many `0xa0` characters are in an image.
+    let hunks = unified_diff_hunks(&left_content.contents, &right_content.contents, 0);
     let mut added = 0;
     let mut removed = 0;
     for hunk in hunks {

@@ -181,6 +181,7 @@ impl TestEnvironment {
     }
 
     /// Run a `jj` command, check that it was successful, and return its stdout
+    #[track_caller]
     pub fn jj_cmd_success(&self, current_dir: &Path, args: &[&str]) -> String {
         if self.debug_allow_stderr {
             let (stdout, stderr) = self.jj_cmd_ok(current_dir, args);
@@ -340,10 +341,12 @@ impl TestEnvironment {
     }
 }
 
+#[track_caller]
 pub fn get_stdout_string(assert: &assert_cmd::assert::Assert) -> String {
     String::from_utf8(assert.get_output().stdout.clone()).unwrap()
 }
 
+#[track_caller]
 pub fn get_stderr_string(assert: &assert_cmd::assert::Assert) -> String {
     String::from_utf8(assert.get_output().stderr.clone()).unwrap()
 }

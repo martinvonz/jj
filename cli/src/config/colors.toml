@@ -60,6 +60,7 @@
 "working_copy empty description placeholder" = "bright green"
 "diff header" = "yellow"
 "diff empty" = "cyan"
+"diff binary" = "cyan"
 "diff file_header" = { bold = true }
 "diff hunk_header" = "cyan"
 "diff removed" = "red"
