@@ -14,8 +14,6 @@
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 fn set_up_tagged_git_repo(git_repo: &git2::Repository) {
     let signature =
         git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0)).unwrap();

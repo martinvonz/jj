@@ -16,8 +16,6 @@ use std::path::Path;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test]
 fn test_new() {
     let test_env = TestEnvironment::default();

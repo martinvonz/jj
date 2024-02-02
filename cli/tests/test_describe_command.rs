@@ -14,8 +14,6 @@
 
 use crate::common::{get_stderr_string, TestEnvironment};
 
-pub mod common;
-
 #[test]
 fn test_describe() {
     let mut test_env = TestEnvironment::default();

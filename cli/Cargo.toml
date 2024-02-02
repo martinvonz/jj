@@ -2,6 +2,7 @@
 name = "jj-cli"
 description = "Jujutsu - an experimental version control system"
 default-run = "jj"
+autotests = false
 
 version = { workspace = true }
 edition = { workspace = true }
@@ -25,6 +26,9 @@ required-features = ["test-fakes"]
 name = "fake-diff-editor"
 path = "testing/fake-diff-editor.rs"
 required-features = ["test-fakes"]
+
+[[test]]
+name = "runner"
 
 [build-dependencies]
 cargo_metadata = { workspace = true }

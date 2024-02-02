@@ -18,8 +18,6 @@ use regex::Regex;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test]
 fn test_config_list_single() {
     let test_env = TestEnvironment::default();

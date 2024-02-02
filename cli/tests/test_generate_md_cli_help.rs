@@ -16,8 +16,6 @@ use insta::assert_snapshot;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 const PREAMBLE: &str = r#"
 !!! warning
 

@@ -16,8 +16,6 @@ use std::fs;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test]
 fn test_git_remotes() {
     let test_env = TestEnvironment::default();

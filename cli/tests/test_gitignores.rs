@@ -16,8 +16,6 @@ use std::io::Write;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test]
 fn test_gitignores() {
     let test_env = TestEnvironment::default();

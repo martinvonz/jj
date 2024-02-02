@@ -16,8 +16,6 @@ use insta::assert_snapshot;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test]
 fn test_util_config_schema() {
     let test_env = TestEnvironment::default();

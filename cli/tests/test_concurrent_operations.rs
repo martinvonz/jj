@@ -18,8 +18,6 @@ use itertools::Itertools as _;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test]
 fn test_concurrent_operation_divergence() {
     let test_env = TestEnvironment::default();

@@ -15,8 +15,6 @@ use std::path::Path;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 /// Creates a remote Git repo containing a branch with the same name
 fn init_git_remote(test_env: &TestEnvironment, remote: &str) {
     let git_repo_path = test_env.env_root().join(remote);

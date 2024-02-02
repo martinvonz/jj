@@ -505,3 +505,23 @@ pub fn assert_abandoned_with_parent(
     );
     new_parent_commit
 }
+
+pub fn assert_no_forgotten_test_files(test_dir: &Path) {
+    let runner_path = test_dir.join("runner.rs");
+    let runner = fs::read_to_string(&runner_path).unwrap();
+    let entries = fs::read_dir(test_dir).unwrap();
+    for entry in entries {
+        let path = entry.unwrap().path();
+        if let Some(ext) = path.extension() {
+            let name = path.file_stem().unwrap();
+            if ext == "rs" && name != "runner" {
+                let search = format!("mod {};", name.to_str().unwrap());
+                assert!(
+                    runner.contains(&search),
+                    "missing `{search}` declaration in {}",
+                    runner_path.display()
+                );
+            }
+        }
+    }
+}

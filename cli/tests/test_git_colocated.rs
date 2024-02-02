@@ -18,8 +18,6 @@ use git2::Oid;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test]
 fn test_git_colocated() {
     let test_env = TestEnvironment::default();

@@ -19,8 +19,6 @@ use testutils::{TestRepoBackend, TestWorkspace};
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test_case(TestRepoBackend::Local ; "local backend")]
 #[test_case(TestRepoBackend::Git ; "git backend")]
 fn test_root(backend: TestRepoBackend) {

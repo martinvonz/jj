@@ -14,9 +14,7 @@
 
 use std::path::{self, Path, PathBuf};
 
-use crate::common::TestEnvironment;
-
-pub mod common;
+use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
 
 fn set_up_non_empty_git_repo(git_repo: &git2::Repository) {
     let signature =
@@ -85,8 +83,8 @@ fn test_git_clone() {
         .jj_cmd(test_env.env_root(), &["git", "clone", "bad", "failed"])
         .assert()
         .code(1);
-    let stdout = test_env.normalize_output(&common::get_stdout_string(&assert));
-    let stderr = test_env.normalize_output(&common::get_stderr_string(&assert));
+    let stdout = test_env.normalize_output(&get_stdout_string(&assert));
+    let stderr = test_env.normalize_output(&get_stderr_string(&assert));
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/failed"
@@ -100,8 +98,8 @@ fn test_git_clone() {
         .jj_cmd(test_env.env_root(), &["git", "clone", "bad", "failed"])
         .assert()
         .code(1);
-    let stdout = test_env.normalize_output(&common::get_stdout_string(&assert));
-    let stderr = test_env.normalize_output(&common::get_stderr_string(&assert));
+    let stdout = test_env.normalize_output(&get_stdout_string(&assert));
+    let stderr = test_env.normalize_output(&get_stderr_string(&assert));
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/failed"
@@ -239,8 +237,8 @@ fn test_git_clone_colocate() {
         )
         .assert()
         .code(1);
-    let stdout = test_env.normalize_output(&common::get_stdout_string(&assert));
-    let stderr = test_env.normalize_output(&common::get_stderr_string(&assert));
+    let stdout = test_env.normalize_output(&get_stdout_string(&assert));
+    let stderr = test_env.normalize_output(&get_stderr_string(&assert));
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/failed"
@@ -257,8 +255,8 @@ fn test_git_clone_colocate() {
         )
         .assert()
         .code(1);
-    let stdout = test_env.normalize_output(&common::get_stdout_string(&assert));
-    let stderr = test_env.normalize_output(&common::get_stderr_string(&assert));
+    let stdout = test_env.normalize_output(&get_stdout_string(&assert));
+    let stderr = test_env.normalize_output(&get_stderr_string(&assert));
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/failed"

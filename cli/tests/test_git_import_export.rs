@@ -18,8 +18,6 @@ use jj_lib::backend::CommitId;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test]
 fn test_resolution_of_git_tracking_branches() {
     let test_env = TestEnvironment::default();

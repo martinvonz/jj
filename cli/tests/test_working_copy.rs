@@ -14,8 +14,6 @@
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 #[test]
 fn test_snapshot_large_file() {
     let test_env = TestEnvironment::default();

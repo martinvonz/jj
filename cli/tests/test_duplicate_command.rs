@@ -16,8 +16,6 @@ use std::path::Path;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, parents: &[&str]) {
     if parents.is_empty() {
         test_env.jj_cmd_ok(repo_path, &["new", "root()", "-m", name]);

@@ -19,8 +19,6 @@ use regex::Regex;
 
 use crate::common::{get_stdout_string, TestEnvironment};
 
-pub mod common;
-
 #[test]
 fn test_op_log() {
     let test_env = TestEnvironment::default();

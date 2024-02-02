@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common::TestEnvironment;
 use itertools::Itertools;
 
-pub mod common;
+use crate::common::{escaped_fake_diff_editor_path, TestEnvironment};
 
 #[test]
 fn test_diff_basic() {
@@ -720,7 +719,7 @@ fn test_diff_external_tool() {
     "###);
 
     // Inlined command arguments
-    let command = common::escaped_fake_diff_editor_path();
+    let command = escaped_fake_diff_editor_path();
     let config = format!(r#"--config-toml=ui.diff.tool=["{command}", "$right", "$left"]"#);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", &config]), @r###"
     file2

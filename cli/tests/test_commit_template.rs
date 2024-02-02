@@ -12,10 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use common::TestEnvironment;
 use regex::Regex;
 
-pub mod common;
+use crate::common::TestEnvironment;
 
 #[test]
 fn test_log_parents() {

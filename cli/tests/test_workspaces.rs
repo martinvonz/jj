@@ -16,8 +16,6 @@ use std::path::Path;
 
 use crate::common::TestEnvironment;
 
-pub mod common;
-
 /// Test adding a second workspace
 #[test]
 fn test_workspaces_add_second_workspace() {

@@ -16,8 +16,6 @@ use std::ffi::OsString;
 
 use crate::common::{get_stderr_string, TestEnvironment};
 
-pub mod common;
-
 #[test]
 fn test_non_utf8_arg() {
     let test_env = TestEnvironment::default();
