@@ -8,13 +8,13 @@
       
       
       
-        <link rel="canonical" href="https://martinvonz.github.io/jj/prerelease/technical/architecture/">
+        <link rel="canonical" href="https://martinvonz.github.io/jj/prerelease/design/sparse-v2/">
       
       
-        <link rel="prev" href="../../related-work/">
+        <link rel="prev" href="../run/">
       
       
-        <link rel="next" href="../concurrency/">
+        <link rel="next" href="../tracking-branches/">
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -22,7 +22,7 @@
     
     
       
-        <title>Architecture - Jujutsu docs</title>
+        <title>Sparse Patterns v2 - Jujutsu docs</title>
       
     
     
@@ -74,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#architecture" class="md-skip">
+        <a href="#sparse-patterns-v2-redesign" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Architecture
+              Sparse Patterns v2
             
           </span>
         </div>
@@ -812,21 +812,19 @@
       
   
   
-    
   
   
-  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
         
           
           <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
@@ -840,7 +838,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_8">
             <span class="md-nav__icon md-icon"></span>
             Technical details
@@ -851,30 +849,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  <span class="md-ellipsis">
-    Architecture
-  </span>
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../technical/architecture/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -883,236 +861,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#data-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      Data model
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#separation-of-library-from-ui" class="md-nav__link">
-    <span class="md-ellipsis">
-      Separation of library from UI
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#storage-independent-apis" class="md-nav__link">
-    <span class="md-ellipsis">
-      Storage-independent APIs
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#design-of-the-library-crate" class="md-nav__link">
-    <span class="md-ellipsis">
-      Design of the library crate
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Design of the library crate">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      Overview
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#backend" class="md-nav__link">
-    <span class="md-ellipsis">
-      Backend
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#gitbackend" class="md-nav__link">
-    <span class="md-ellipsis">
-      GitBackend
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#localbackend" class="md-nav__link">
-    <span class="md-ellipsis">
-      LocalBackend
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#store" class="md-nav__link">
-    <span class="md-ellipsis">
-      Store
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#readonlyrepo" class="md-nav__link">
-    <span class="md-ellipsis">
-      ReadonlyRepo
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mutablerepo" class="md-nav__link">
-    <span class="md-ellipsis">
-      MutableRepo
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#transaction" class="md-nav__link">
-    <span class="md-ellipsis">
-      Transaction
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#repoloader" class="md-nav__link">
-    <span class="md-ellipsis">
-      RepoLoader
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#treestate" class="md-nav__link">
-    <span class="md-ellipsis">
-      TreeState
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#workingcopy" class="md-nav__link">
-    <span class="md-ellipsis">
-      WorkingCopy
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#workspace" class="md-nav__link">
-    <span class="md-ellipsis">
-      Workspace
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#git" class="md-nav__link">
-    <span class="md-ellipsis">
-      Git
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#revsets" class="md-nav__link">
-    <span class="md-ellipsis">
-      Revsets
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#stackedtable" class="md-nav__link">
-    <span class="md-ellipsis">
-      StackedTable
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#design-of-the-cli-crate" class="md-nav__link">
-    <span class="md-ellipsis">
-      Design of the CLI crate
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Design of the CLI crate">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#templates" class="md-nav__link">
-    <span class="md-ellipsis">
-      Templates
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#diff-editing" class="md-nav__link">
-    <span class="md-ellipsis">
-      Diff-editing
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1125,7 +873,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../concurrency/" class="md-nav__link">
+      <a href="../../technical/concurrency/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1146,7 +894,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../conflicts/" class="md-nav__link">
+      <a href="../../technical/conflicts/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1257,19 +1005,21 @@
       
   
   
+    
   
   
+  
     
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" checked>
         
           
           <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
@@ -1283,7 +1033,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_10">
             <span class="md-nav__icon md-icon"></span>
             Design docs
@@ -1297,7 +1047,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../design/git-submodules/" class="md-nav__link">
+      <a href="../git-submodules/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1318,7 +1068,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../design/git-submodule-storage/" class="md-nav__link">
+      <a href="../git-submodule-storage/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1339,7 +1089,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../design/run/" class="md-nav__link">
+      <a href="../run/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1357,10 +1107,30 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../design/sparse-v2/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Sparse Patterns v2
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
@@ -1369,6 +1139,164 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#objective" class="md-nav__link">
+    <span class="md-ellipsis">
+      Objective
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-state-as-of-jj-0130" class="md-nav__link">
+    <span class="md-ellipsis">
+      Current State (as of jj 0.13.0)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proposed-state-sparse-patterns-v2" class="md-nav__link">
+    <span class="md-ellipsis">
+      Proposed State (Sparse Patterns v2)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Proposed State (Sparse Patterns v2)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#command-syntax" class="md-nav__link">
+    <span class="md-ellipsis">
+      Command Syntax
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Command Syntax">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#canonicalization" class="md-nav__link">
+    <span class="md-ellipsis">
+      Canonicalization
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#working-copy-map" class="md-nav__link">
+    <span class="md-ellipsis">
+      Working Copy Map
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Working Copy Map">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#command-syntax_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      Command Syntax
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#versioning-and-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Versioning and Storage
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Versioning and Storage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#view-updates" class="md-nav__link">
+    <span class="md-ellipsis">
+      View Updates
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#appendix" class="md-nav__link">
+    <span class="md-ellipsis">
+      Appendix
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#related-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related Work
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#patterns-via-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      Patterns via configuration
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1381,7 +1309,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../design/tracking-branches/" class="md-nav__link">
+      <a href="../tracking-branches/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
@@ -1429,172 +1357,47 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#data-model" class="md-nav__link">
+  <a href="#objective" class="md-nav__link">
     <span class="md-ellipsis">
-      Data model
+      Objective
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#separation-of-library-from-ui" class="md-nav__link">
+  <a href="#current-state-as-of-jj-0130" class="md-nav__link">
     <span class="md-ellipsis">
-      Separation of library from UI
+      Current State (as of jj 0.13.0)
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#storage-independent-apis" class="md-nav__link">
+  <a href="#proposed-state-sparse-patterns-v2" class="md-nav__link">
     <span class="md-ellipsis">
-      Storage-independent APIs
+      Proposed State (Sparse Patterns v2)
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#design-of-the-library-crate" class="md-nav__link">
-    <span class="md-ellipsis">
-      Design of the library crate
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Design of the library crate">
+    <nav class="md-nav" aria-label="Proposed State (Sparse Patterns v2)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
+  <a href="#command-syntax" class="md-nav__link">
     <span class="md-ellipsis">
-      Overview
+      Command Syntax
     </span>
   </a>
   
-</li>
+    <nav class="md-nav" aria-label="Command Syntax">
+      <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#backend" class="md-nav__link">
+  <a href="#canonicalization" class="md-nav__link">
     <span class="md-ellipsis">
-      Backend
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#gitbackend" class="md-nav__link">
-    <span class="md-ellipsis">
-      GitBackend
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#localbackend" class="md-nav__link">
-    <span class="md-ellipsis">
-      LocalBackend
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#store" class="md-nav__link">
-    <span class="md-ellipsis">
-      Store
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#readonlyrepo" class="md-nav__link">
-    <span class="md-ellipsis">
-      ReadonlyRepo
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#mutablerepo" class="md-nav__link">
-    <span class="md-ellipsis">
-      MutableRepo
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#transaction" class="md-nav__link">
-    <span class="md-ellipsis">
-      Transaction
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#repoloader" class="md-nav__link">
-    <span class="md-ellipsis">
-      RepoLoader
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#treestate" class="md-nav__link">
-    <span class="md-ellipsis">
-      TreeState
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#workingcopy" class="md-nav__link">
-    <span class="md-ellipsis">
-      WorkingCopy
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#workspace" class="md-nav__link">
-    <span class="md-ellipsis">
-      Workspace
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#git" class="md-nav__link">
-    <span class="md-ellipsis">
-      Git
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#revsets" class="md-nav__link">
-    <span class="md-ellipsis">
-      Revsets
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#stackedtable" class="md-nav__link">
-    <span class="md-ellipsis">
-      StackedTable
+      Canonicalization
     </span>
   </a>
   
@@ -1604,32 +1407,85 @@
     </nav>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#design-of-the-cli-crate" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#working-copy-map" class="md-nav__link">
     <span class="md-ellipsis">
-      Design of the CLI crate
+      Working Copy Map
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Design of the CLI crate">
+    <nav class="md-nav" aria-label="Working Copy Map">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#templates" class="md-nav__link">
+  <a href="#command-syntax_1" class="md-nav__link">
     <span class="md-ellipsis">
-      Templates
+      Command Syntax
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#versioning-and-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      Versioning and Storage
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Versioning and Storage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#view-updates" class="md-nav__link">
+    <span class="md-ellipsis">
+      View Updates
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#appendix" class="md-nav__link">
+    <span class="md-ellipsis">
+      Appendix
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Appendix">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#related-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      Related Work
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#diff-editing" class="md-nav__link">
+  <a href="#patterns-via-configuration" class="md-nav__link">
     <span class="md-ellipsis">
-      Diff-editing
+      Patterns via configuration
     </span>
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -1653,198 +1509,253 @@
                   
 
 
-<h1 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h1>
-<h2 id="data-model">Data model<a class="headerlink" href="#data-model" title="Permanent link">&para;</a></h2>
-<p>The commit data model is similar
-to <a href="https://git-scm.com/book/en/v2/Git-Internals-Git-Objects">Git's object model</a>
-, but with some differences.</p>
-<h2 id="separation-of-library-from-ui">Separation of library from UI<a class="headerlink" href="#separation-of-library-from-ui" title="Permanent link">&para;</a></h2>
-<p>The <code>jj</code> binary consists of two Rust crates: the library crate (<code>jj-lib</code>) and
-the CLI crate (<code>jj-cli</code>). The library crate is currently only used by the CLI
-crate, but it is meant to also be usable from a GUI or TUI, or in a server
-serving requests from multiple users. As a result, the library should avoid
-interacting directly with the user via the terminal or by other means; all
-input/output is handled by the CLI crate <sup id="fnref:1"><a class="footnote-ref" href="#fn:1">1</a></sup>. Since the library crate is meant
-to usable in a server, it also cannot read configuration from the user's home
-directory, or from user-specific environment variables.</p>
-<p>A lot of thought has gone into making the library crate's API easy to use, but
-not much has gone into "details" such as which collection types are used, or
-which symbols are exposed in the API.</p>
-<h2 id="storage-independent-apis">Storage-independent APIs<a class="headerlink" href="#storage-independent-apis" title="Permanent link">&para;</a></h2>
-<p>One overarching principle in the design is that it should be easy to change
-where data is stored. The goal was to be able to put storage on local-disk by
-default but also be able to move storage to the cloud at Google
-(and for anyone). To that end, commits (and trees, files, etc.) are stored by
-the commit backend, operations (and views) are stored by the operation backend,
-the heads of the operation log are stored by the "op heads" backend, the commit
-index is stored by the index backend, and the working copy is stored by the
-working copy backend. The interfaces are defined in terms of plain Rust data
-types, not tied to a specific format. The working copy doesn't have its own
-trait defined yet, but its interface is small and easy to create traits for when
-needed.</p>
-<p>The commit backend to use when loading a repo is specified in
-the <code>.jj/repo/store/type</code> file. There are similar files for the other backends
-(<code>.jj/repo/index/type</code>, <code>.jj/repo/op_store/type</code>, <code>.jj/repo/op_heads/type</code>).</p>
-<h2 id="design-of-the-library-crate">Design of the library crate<a class="headerlink" href="#design-of-the-library-crate" title="Permanent link">&para;</a></h2>
-<h3 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h3>
-<p>Here's a diagram showing some important types in the library crate. The
-following sections describe each component.</p>
-<pre class="mermaid"><code>graph TD;
-    ReadonlyRepo--&gt;Store;
-    ReadonlyRepo--&gt;OpStore;
-    ReadonlyRepo--&gt;OpHeadsStore;
-    ReadonlyRepo--&gt;ReadonlyIndex
-    MutableIndex--&gt;ReadonlyIndex;
-    Store--&gt;Backend;
-    GitBackend--&gt;Backend;
-    LocalBackend--&gt;Backend;
-    LocalBackend--&gt;StackedTable;
-    MutableRepo--&gt;ReadonlyRepo;
-    MutableRepo--&gt;MutableIndex;
-    Transaction--&gt;MutableRepo;
-    WorkingCopy--&gt;TreeState;
-    Workspace--&gt;WorkingCopy;
-    Workspace--&gt;RepoLoader;
-    RepoLoader--&gt;Store;
-    RepoLoader--&gt;OpStore;
-    RepoLoader--&gt;OpHeadsStore;
-    RepoLoader--&gt;ReadonlyRepo;
-    Git--&gt;GitBackend;
-    GitBackend--&gt;StackedTable;</code></pre>
-<h3 id="backend">Backend<a class="headerlink" href="#backend" title="Permanent link">&para;</a></h3>
-<p>The <code>Backend</code> trait defines the interface each
-commit backend needs to implement. The current in-tree commit backends
-are <code>GitBackend</code>
-and <code>LocalBackend</code>.</p>
-<p>Since there are non-commit backends, the <code>Backend</code> trait should probably be
-renamed to <code>CommitBackend</code>.</p>
-<h3 id="gitbackend">GitBackend<a class="headerlink" href="#gitbackend" title="Permanent link">&para;</a></h3>
-<p>The <code>GitBackend</code> stores commits in a Git repository. It uses <code>libgit2</code> to read
-and write commits and refs.</p>
-<p>To prevent GC from deleting commits that are still reachable from the operation
-log, the <code>GitBackend</code> stores a ref for each commit in the operation log in
-the <code>refs/jj/keep/</code> namespace.</p>
-<p>Commit data that is available in Jujutsu's model but not in Git's model is
-stored in a <code>StackedTable</code> in <code>.jj/repo/store/extra/</code>. That is currently the
-change ID and the list of predecessors. For commits that don't have any data in
-that table, which is any commit created by <code>git</code>, we use an empty list as
-predecessors, and the bit-reversed commit ID as change ID.</p>
-<p>Because we use the Git Object ID as commit ID, two commits that differ only in
-their change ID, for example, will get the same commit ID, so we error out when
-trying to write the second one of them.</p>
-<h3 id="localbackend">LocalBackend<a class="headerlink" href="#localbackend" title="Permanent link">&para;</a></h3>
-<p>The <code>LocalBackend</code> is just a proof of concept. It stores objects addressed by
-their hash, with one file per object.</p>
-<h3 id="store">Store<a class="headerlink" href="#store" title="Permanent link">&para;</a></h3>
-<p>The <code>Store</code> type wraps the <code>Backend</code> and returns wrapped types for commits and
-trees to make them easier to use. The wrapped objects have a reference to
-the <code>Store</code> itself, so you can do e.g. <code>commit.parents()</code> without having to
-provide the <code>Store</code> as an argument.</p>
-<p>The <code>Store</code> type also provides caching of commits and trees.</p>
-<h3 id="readonlyrepo">ReadonlyRepo<a class="headerlink" href="#readonlyrepo" title="Permanent link">&para;</a></h3>
-<p>A <code>ReadonlyRepo</code> represents the state of a repo at a specific operation. It
-keeps the view object associated with that operation.</p>
-<p>The repository doesn't know where on disk any working copies live. It knows, via
-the view object, which commit is supposed to be the current working-copy commit
-in each workspace.</p>
-<h3 id="mutablerepo">MutableRepo<a class="headerlink" href="#mutablerepo" title="Permanent link">&para;</a></h3>
-<p>A <code>MutableRepo</code> is a mutable version of <code>ReadonlyRepo</code>. It has a reference to
-its base <code>ReadonlyRepo</code>, but it has its own copy of the view object and lets the
-caller modify it.</p>
-<h3 id="transaction">Transaction<a class="headerlink" href="#transaction" title="Permanent link">&para;</a></h3>
-<p>The <code>Transaction</code> object has a <code>MutableRepo</code> and metadata that will go into the
-operation log. When the transaction commits, the <code>MutableRepo</code> becomes a view
-object in the operation log on disk, and the <code>Transaction</code> object becomes an
-operation object. In memory, <code>Transaction::commit()</code> returns a
-new <code>ReadonlyRepo</code>.</p>
-<h3 id="repoloader">RepoLoader<a class="headerlink" href="#repoloader" title="Permanent link">&para;</a></h3>
-<p>The <code>RepoLoader</code> represents a repository at an unspecified operation. You can
-think of as a pointer to the <code>.jj/repo/</code> directory. It can create
-a <code>ReadonlyRepo</code> given an operation ID.</p>
-<h3 id="treestate">TreeState<a class="headerlink" href="#treestate" title="Permanent link">&para;</a></h3>
-<p>The <code>TreeState</code> type represents the state of the files in a working copy. It
-keep track of the mtime and size for each tracked file. It knows the <code>TreeId</code>
-that the working copy represents. It has a <code>snapshot()</code> method that will use the
-recorded mtimes and sizes and detect changes in the working copy. If anything
-changed, it will return a new <code>TreeId</code>. It also has <code>checkout()</code> for updating
-the files on disk to match a requested <code>TreeId</code>.</p>
-<p>The <code>TreeState</code> type supports sparse checkouts. In fact, all working copies are
-sparse; they simply track the full repo in most cases.</p>
-<h3 id="workingcopy">WorkingCopy<a class="headerlink" href="#workingcopy" title="Permanent link">&para;</a></h3>
-<p>The <code>WorkingCopy</code> type has a <code>TreeState</code> but also knows which <code>WorkspaceId</code> it
-has and at which operation it was most recently updated.</p>
-<h3 id="workspace">Workspace<a class="headerlink" href="#workspace" title="Permanent link">&para;</a></h3>
-<p>The <code>Workspace</code> type represents the combination of a repo and a working copy (
-like Git's 'worktree' concept).</p>
-<p>The repo view at the current operation determines the desired working-copy
-commit in each workspace. The <code>WorkingCopy</code> determines what is actually in the
-working copy. The working copy can become stale if the working-copy commit was
-changed from another workspace (or if the process updating the working copy
-crashed, for example).</p>
-<h3 id="git">Git<a class="headerlink" href="#git" title="Permanent link">&para;</a></h3>
-<p>The <code>git</code> module contains functionality for interoperating with a Git repo, at a
-higher level than the <code>GitBackend</code>. The <code>GitBackend</code> is restricted by
-the <code>Backend</code> trait; the <code>git</code> module is specifically for Git-backed repos. It
-has functionality for importing refs from the Git repo and for exporting to refs
-in the Git repo. It also has functionality for pushing and pulling to/from Git
-remotes.</p>
-<h3 id="revsets">Revsets<a class="headerlink" href="#revsets" title="Permanent link">&para;</a></h3>
-<p>A user-provided revset expression string goes through a few different stages to
-be evaluated:</p>
+<h1 id="sparse-patterns-v2-redesign">Sparse Patterns v2 redesign<a class="headerlink" href="#sparse-patterns-v2-redesign" title="Permanent link">&para;</a></h1>
+<p>Authors: <a href="mailto:dploch@google.com">Daniel Ploch</a></p>
+<p><strong>Summary:</strong> This Document documents a redesign of the sparse command and
+it's internal storage format in jj, in order to facilitate several desirable
+improvements for large repos. It covers both the migration path and the planned
+end state.</p>
+<h2 id="objective">Objective<a class="headerlink" href="#objective" title="Permanent link">&para;</a></h2>
+<p>Redesign Sparse Patterns to accommodate more advanced features for native
+and custom implementations. This includes three main goals:</p>
 <ol>
-<li>Parse the expression into a <code>RevsetExpression</code>, which is close to an AST</li>
-<li>Resolve symbols and functions like <code>tags()</code> into specific commits. After
-   this stage, the expression is still a <code>RevsetExpression</code>, but it won't have
-   any <code>CommitRef</code> variants in it.</li>
-<li>Resolve visibility. This stage resolves <code>visible_heads()</code> and <code>all()</code> and
-   produces a <code>ResolvedExpression</code>.</li>
-<li>Evaluate the <code>ResolvedExpression</code> into a <code>Revset</code>.</li>
+<li>Sparse Patterns should be versioned with the working copy</li>
+<li>Sparse Patterns should support more <a href="https://github.com/martinvonz/jj/issues/1896">flexible matching rules</a></li>
+<li>Sparse Patterns should support <a href="https://github.com/martinvonz/jj/issues/2288">client path remapping</a></li>
 </ol>
-<p>This evaluation step is performed by <code>Index::evaluate_revset()</code>, allowing
-the <code>Revset</code> implementation to leverage the specifics of a custom index
-implementation. The first three steps are independent of the index
-implementation.</p>
-<h3 id="stackedtable">StackedTable<a class="headerlink" href="#stackedtable" title="Permanent link">&para;</a></h3>
-<p><code>StackedTable</code> (actually <code>ReadonlyTable</code> and <code>MutableTable</code>) is a simple disk
-format for storing key-value pairs sorted by key. The keys have to have the same
-size but the values can have different sizes. We use our own format because we
-want <a href="../concurrency/">lock-free concurrency</a> and there doesn't seem to be an
-existing key-value store we could use.</p>
-<p>The file format contains a lookup table followed by concatenated values. The
-lookup table is a sorted list of keys, where each key is followed by the
-associated value's offset in the concatenated values.</p>
-<p>A table can have a parent table. When looking up a key, if it's not found in the
-current table, the parent table is searched. We never update a table in place.
-If the number of new entries to write is less than half the number of entries in
-the parent table, we create a new table with the new entries and a pointer to
-the parent. Otherwise, we copy the entries from the parent table and the new
-entries into a new table with the grandparent as the parent. We do that
-recursively so parent tables are at least 2 times as large as child tables. This
-results in O(log N) amortized insertion time and lookup time.</p>
-<p>There's no garbage collection of unreachable tables yet.</p>
-<p>The tables are named by their hash. We keep a separate directory of pointers to
-the current leaf tables, in the same way as we
-do <a href="../concurrency/#storage">for the operation log</a>.</p>
-<h2 id="design-of-the-cli-crate">Design of the CLI crate<a class="headerlink" href="#design-of-the-cli-crate" title="Permanent link">&para;</a></h2>
-<h3 id="templates">Templates<a class="headerlink" href="#templates" title="Permanent link">&para;</a></h3>
-<p>The concept is copied from Mercurial, but the syntax is different. The main
-difference is that the top-level expression is a template expression, not a
-string like in Mercurial. There is also no string interpolation (e.g.
-<code>"Commit ID: {node}"</code> in Mercurial).</p>
-<h3 id="diff-editing">Diff-editing<a class="headerlink" href="#diff-editing" title="Permanent link">&para;</a></h3>
-<p>Diff-editing works by creating two very sparse working copies, containing only
-the files we want the user to edit. We then let the user edit the right-hand
-side of the diff. Then we simply snapshot that working copy to create the new
-tree.</p>
-<div class="footnote">
-<hr />
-<ol>
-<li id="fn:1">
-<p>There are a few exceptions, such as for messages printed during automatic
-upgrades of the repo format&#160;<a class="footnote-backref" href="#fnref:1" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+<h2 id="current-state-as-of-jj-0130">Current State (as of jj 0.13.0)<a class="headerlink" href="#current-state-as-of-jj-0130" title="Permanent link">&para;</a></h2>
+<p>Sparse patterns are an effectively unordered list of prefix strings:</p>
+<div class="highlight"><pre><span></span><code>path/one
+path/to/dir/two
+</code></pre></div>
+<p>The <em>set</em> of files identified by the Sparse Patterns is all paths which match
+any provided prefix. This governs what gets materialized in the working copy on
+checkout, and what is updated on snapshot. The set is stored in working copy
+state files which are not versioned in the Op Store.</p>
+<p>Because all paths are bare strings with no escaping or higher-level formatting,
+the current design makes it difficult to add new features like exclusions or
+path remappings.</p>
+<h2 id="proposed-state-sparse-patterns-v2">Proposed State (Sparse Patterns v2)<a class="headerlink" href="#proposed-state-sparse-patterns-v2" title="Permanent link">&para;</a></h2>
+<p>Sparse Patterns v2 will be stored as objects in the Op Store, referenced
+by a <code>WorkingCopyPatternsId</code> from the active <code>View</code>. They will have a new,
+ordered structure which can fully represent previous patterns.</p>
+<div class="highlight"><pre><span></span><code><span class="sd">/// Analogues of RepoPath, specifically describing paths in the working copy.</span>
+<span class="k">struct</span> <span class="nc">WorkingCopyPathBuf</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nb">String</span>
+<span class="p">}</span>
+<span class="k">struct</span> <span class="nc">WorkingCopyPath</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">str</span>
+<span class="p">}</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span> <span class="nc">SparsePatternsPathType</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Dir</span><span class="p">,</span><span class="w">    </span><span class="c1">// Everything under &lt;path&gt;/...</span>
+<span class="w">    </span><span class="n">Files</span><span class="p">,</span><span class="w">  </span><span class="c1">// Files under &lt;path&gt;/*</span>
+<span class="w">    </span><span class="n">Exact</span><span class="p">,</span><span class="w">  </span><span class="c1">// &lt;path&gt; exactly</span>
+<span class="p">}</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">SparsePatternsPath</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">path_type</span>: <span class="nc">SparsePatternsPathType</span><span class="p">,</span>
+<span class="w">    </span><span class="n">include</span>: <span class="kt">bool</span><span class="p">,</span><span class="w">  </span><span class="c1">// True if included, false if excluded.</span>
+<span class="w">    </span><span class="n">path</span>: <span class="nc">RepoPathBuf</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">WorkingCopyMapping</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">src_path</span>: <span class="nc">RepoPathBuf</span><span class="p">,</span>
+<span class="w">    </span><span class="n">dst_path</span>: <span class="nc">WorkingCopyPathBuf</span><span class="p">,</span>
+<span class="w">    </span><span class="n">recursive</span>: <span class="kt">bool</span><span class="p">,</span><span class="w">  </span><span class="c1">// If false, only immediate children of src_path (files) are renamed.</span>
+<span class="p">}</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">WorkingCopyPatterns</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">sparse_paths</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">SparsePatternsPath</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">mappings</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">WorkingCopyMapping</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">OpStore</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">read_working_copy_patterns</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">id</span>: <span class="kp">&amp;</span><span class="nc">WorkingCopyPatternsId</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">OpStoreResult</span><span class="o">&lt;</span><span class="n">WorkingCopyPatterns</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">..</span><span class="p">.</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">write_working_copy_patterns</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">sparse_patterns</span>: <span class="kp">&amp;</span><span class="nc">WorkingCopyPatterns</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">OpStoreResult</span><span class="o">&lt;</span><span class="n">WorkingCopyPatternsId</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>To support these more complex behaviors, a new <code>WorkingCopyPatterns</code> trait will
+be introduced, initially only as a thin wrapper around the existing prefix
+format, but soon to be expanded with richer types and functionality.</p>
+<div class="highlight"><pre><span></span><code><span class="k">impl</span><span class="w"> </span><span class="n">WorkingCopyPatterns</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">to_matcher</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">Matcher</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">..</span><span class="p">.</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="command-syntax">Command Syntax<a class="headerlink" href="#command-syntax" title="Permanent link">&para;</a></h3>
+<p><code>SparsePatternsPath</code> rules can be specified on the CLI and in an editor via a
+compact syntax:</p>
+<div class="highlight"><pre><span></span><code>(include|exclude):(dir|files|exact):&lt;path&gt;
+</code></pre></div>
+<p>If both prefix terms are omitted, then <code>include:dir:</code> is assumed. If any prefix
+is specified, both must be specified. The editor and CLI will both accept path
+rules in either format going forward.</p>
+<ul>
+<li><code>jj sparse set --add foo/bar</code> is equal to <code>jj sparse set --add include:dir:foo/bar</code></li>
+<li><code>jj sparse set --add exclude:dir:foo/bar</code> adds a new <code>Dir</code> type rule with <code>include = false</code></li>
+<li><code>jj sparse set --exclude foo/bar</code> as a possible shorthand for the above</li>
+<li><code>jj sparse list</code> will print the explicit rules</li>
+</ul>
+<p>Paths will be stored in an ordered, canonical form which unambiguously describes
+the set of files to be included. Every <code>--add</code> command will append to the end of
+this list before the patterns are canonicalized. Whether a file is included is
+determined by the first matching rule in reverse order.</p>
+<p>For example:</p>
+<div class="highlight"><pre><span></span><code>include:dir:foo
+exclude:dir:foo/bar
+include:dir:foo/bar/baz
+exclude:dir:foo/bar/baz/qux
+</code></pre></div>
+<p>Produces rule set which includes "foo/file.txt", excludes "foo/bar/file.txt",
+includes "foo/bar/baz/file.txt", and excludes "foo/bar/baz/qux/file.txt".</p>
+<p>If the rules are subtly re-ordered, they become canonicalized to a smaller, but
+functionally equivalent form:</p>
+<div class="highlight"><pre><span></span><code># Before
+include:dir:foo
+exclude:dir:foo/bar/baz/qux
+include:dir:foo/bar/baz
+exclude:dir:foo/bar
+
+# Canonicalized
+include:dir:foo
+exclude:dir:foo/bar
+</code></pre></div>
+<h4 id="canonicalization">Canonicalization<a class="headerlink" href="#canonicalization" title="Permanent link">&para;</a></h4>
+<p>There are many ways to represent functionally equivalent <code>WorkingCopyPatterns</code>.
+For instance, the following 4 rule sets are all functionally equivalent:</p>
+<div class="highlight"><pre><span></span><code># Set 1
+include:dir:bar
+include:dir:foo
+
+# Set 2
+include:dir:foo
+include:dir:bar
+
+# Set 3
+include:dir:bar
+include:dir:bar/baz/qux
+include:dir:foo
+
+# Set 4
+include:dir:foo
+exclude:dir:foo/baz
+include:dir:bar
+include:dir:foo/baz
+</code></pre></div>
+<p>Because these patterns are stored in the Op Store now, it is useful for all of
+these representations to be rewritten into a minimal, canonical form before
+serialization. In this case, <code>Set 1</code> will be the canonical set. The canonical
+form of a <code>WorkingCopyPatterns</code> is defined as the form such that:</p>
+<ul>
+<li>Every rule affects the functionality (there are no redundant rules)</li>
+<li>Rules are sorted lexicographically, but with '/' sorted before all else<ul>
+<li>This special sorting order is useful for constructing path tries</li>
+</ul>
 </li>
-</ol>
-</div>
+</ul>
+<h3 id="working-copy-map">Working Copy Map<a class="headerlink" href="#working-copy-map" title="Permanent link">&para;</a></h3>
+<p>WARNING: This section is intentionally lacking, more research is needed.</p>
+<p>All <code>WorkingCopyPatterns</code> will come equipped with a default no-op mapping.
+These mappings are inspired by and similar to <a href="https://www.perforce.com/manuals/cmdref/Content/CmdRef/views.html">Perforce client views</a>.</p>
+<div class="highlight"><pre><span></span><code><span class="fm">vec!</span><span class="p">[</span><span class="n">WorkingCopyMapping</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">src_path</span>: <span class="nc">RepoPathBuf</span>::<span class="n">root</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">dst_path</span>: <span class="nc">WorkingCopyPathBuf</span>::<span class="n">root</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">recursive</span>: <span class="nc">true</span><span class="p">,</span>
+<span class="p">}]</span>
+</code></pre></div>
+<p><code>WorkingCopyPatterns</code> will provide an interface to map working copy paths into
+repo paths and vice versa. The `WorkingCopy`` trait will apply this mapping to
+all snapshot and checkout operations, and jj commands which accept relative
+paths will need to be updated to perform working copy path -&gt; repo path
+translations as needed. It's not clear at this time <em>which</em> commands will need
+changing, as some are more likely to refer to repo paths rather than working
+copy paths.</p>
+<p>TODO: Expand this section.</p>
+<p>In particular, the path rules for sparse patterns will <em>always</em> be repo paths,
+not working copy paths. Thus, if the working copy wants to track "foo" and
+rename it to "subdir/bar", they must <code>jj sparse set --add foo</code> and
+<code>jj map set --from foo --to bar</code>. In other words, the mapping operation can
+be thought of as always <em>after</em> the sparse operation.</p>
+<h4 id="command-syntax_1">Command Syntax<a class="headerlink" href="#command-syntax_1" title="Permanent link">&para;</a></h4>
+<p>New commands will enable editing of the <code>WorkingCopyMapping</code>s:</p>
+<p>TODO: Maybe this should be <code>jj workspace map ...</code>?</p>
+<ul>
+<li><code>jj map list</code> will print all mapping pairs.</li>
+<li><code>jj map add --from foo --to bar</code> will add a new mapping to the end of the list.</li>
+<li><code>jj map remove --from foo</code> will remove a specific mapping rule.</li>
+<li><code>jj map edit</code> will pull up a text editor for manual editing.</li>
+</ul>
+<p>Like sparse paths, mappings will have a compact text syntax for editing in file
+form, or for adding a rule textually on the CLI:</p>
+<div class="highlight"><pre><span></span><code>&quot;&lt;from&gt;&quot; -&gt; &quot;&lt;to&gt;&quot; [nonrecursive]
+</code></pre></div>
+<p>Like sparse paths, mapping rules are defined to apply in <em>order</em> and on any
+save operation will be modified to a minimal canonical form. Thus,
+<code>jj map set --from "" --to ""</code> will always completely wipe the map.
+The first matching rule in reverse list order determines how a particular
+repo path should be mapped into the working copy, and likewise how a particular
+working copy path should be mapped into the repo. For simplicity, the
+'last rule wins' applies both for repo-&gt;WC conversions, as well as WC-&gt;repo
+conversions, using the same ordering.</p>
+<p>If a working copy mapping places the same repo file at two distinct working
+copy paths, snapshotting will fail unless these files are identical. Some
+specialized filesystems may even treat these as the 'same' file, allowing this
+to work in some cases.</p>
+<p>If a working copy mapping places two distinct repo files at the same working
+copy path, checkout will fail with an error regardless of equivalence.</p>
+<h3 id="versioning-and-storage">Versioning and Storage<a class="headerlink" href="#versioning-and-storage" title="Permanent link">&para;</a></h3>
+<p>Updating the active <code>WorkingCopyPatterns</code> for a particular working copy will now
+take place in two separate steps: one transaction which updates the op store,
+and a separate <code>LockedWorkingCopy</code> operation which actually updates the working
+copy. The working copy proto will no longer store <code>WorkingCopyPatterns</code>
+directly, instead storing only a <code>WorkingCopyPatternsId</code>. On mismatch with the
+current op head, the user will be prompted to run <code>jj workspace update-stale</code>.</p>
+<p>This gives the user the ability to update the active <code>WorkingCopyPatterns</code>
+whilst not interacting with the local working copy, which is useful for custom
+integrations which may not be <em>able</em> to check out particular working copy
+patterns due to problems with the backend (encoding, permission errors, etc.). A
+bad <code>jj sparse set --add oops</code> command can thus be undone, even via <code>jj op undo</code>
+if desired.</p>
+<h4 id="view-updates">View Updates<a class="headerlink" href="#view-updates" title="Permanent link">&para;</a></h4>
+<p>The View object will be migrated to store working copy patterns via id. The
+indirection will save on storage since working copy patterns are not expected to
+change very frequently.</p>
+<div class="highlight"><pre><span></span><code><span class="c1">// Before:</span>
+<span class="k">pub</span><span class="w"> </span><span class="n">wc_commit_ids</span>: <span class="nc">HashMap</span><span class="o">&lt;</span><span class="n">WorkspaceId</span><span class="p">,</span><span class="w"> </span><span class="n">CommitId</span><span class="o">&gt;</span><span class="p">,</span>
+
+<span class="c1">// After:</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">WorkingCopyInfo</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">commit_id</span>: <span class="nc">CommitId</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">wc_patterns_id</span>: <span class="nc">WorkingCopyPatternsId</span><span class="p">,</span>
+<span class="p">}</span>
+<span class="o">..</span><span class="p">.</span>
+<span class="k">pub</span><span class="w"> </span><span class="n">wc_info</span>: <span class="nc">HashMap</span><span class="o">&lt;</span><span class="n">WorkspaceId</span><span class="p">,</span><span class="w"> </span><span class="n">WorkingCopyInfo</span><span class="o">&gt;</span><span class="p">,</span>
+</code></pre></div>
+<p>A View object with no stored working copy patterns will be modified at read
+time to include the current working copy patterns, thus all <code>read_view</code>
+operations will need to pass in the current working copy patterns for a
+migration period of at least 6 months. After that, we may choose to auto-fill
+missing working copy infos with a default <code>WorkingCopyPatterns</code> as needed.</p>
+<h3 id="appendix">Appendix<a class="headerlink" href="#appendix" title="Permanent link">&para;</a></h3>
+<h4 id="related-work">Related Work<a class="headerlink" href="#related-work" title="Permanent link">&para;</a></h4>
+<p><a href="https://www.perforce.com/manuals/cmdref/Content/CmdRef/views.html">Perforce client maps</a>
+ are very similar in concept to the entirety of <code>WorkingCopyPatterns</code>, and this
+ design aims to achieve similar functionality.</p>
+<p>The <a href="https://github.com/josh-project/josh">Josh Project</a> implements partial git
+clones in a way similar to how sparse patterns try to work.</p>
+<h4 id="patterns-via-configuration">Patterns via configuration<a class="headerlink" href="#patterns-via-configuration" title="Permanent link">&para;</a></h4>
+<p>There may be some scenarios where it is valuable to configure working copy
+patterns via a configuration file, rather than through explicit commands.
+Generally this only makes sense for automated repos, with the configuration
+coming from outside the repo - there are too many caveats and edge cases if the
+configuration comes from inside the repo and/or is fought with by a human.</p>
+<p>No configuration syntax is planned at this time but if we add any, we should
+probably reuse the compact line syntaxes as much as possible for consistency.</p>
 
 
 
