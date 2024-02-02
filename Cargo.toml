@@ -89,7 +89,7 @@ test-case = "3.3.1"
 textwrap = "0.16.0"
 thiserror = "1.0.56"
 timeago = { version = "0.4.2", default-features = false }
-tokio = { version = "1.35.1" }
+tokio = { version = "1.36.0" }
 toml_edit = { version = "0.19.15", features = ["serde"] }
 tracing = "0.1.40"
 tracing-chrome = "0.7.1"
