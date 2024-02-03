@@ -1428,9 +1428,7 @@ stayed the same. Each change to the working-copy commit amends the previous
 version. So how do we tell Jujutsu that we are done amending the current change
 and want to start working on a new one? That is what <code>jj new</code> is for. That will
 create a new commit on top of your current working-copy commit. The new commit
-is for the working-copy changes. For familiarity for user coming from other
-VCSs, there is also a <code>jj checkout/co</code> command, which is practically a synonym
-for <code>jj new</code> (you can specify a destination for <code>jj new</code> as well).</p>
+is for the working-copy changes.</p>
 <p>So, let's say we're now done with this change, so we create a new change:</p>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>new
 Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>mpqrykyp<span class="w"> </span>aef4df99<span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span><span class="o">(</span>no<span class="w"> </span>description<span class="w"> </span><span class="nb">set</span><span class="o">)</span>
@@ -1448,10 +1446,10 @@ very similar to <code>git commit --amend</code>, and <code>jj amend</code> is in
 <code>jj squash</code>.</p>
 <p>Alternatively, we can use <code>jj edit &lt;commit&gt;</code> to resume editing a commit in the
 working copy. Any further changes in the working copy will then amend the
-commit. Whether you choose to checkout-and-squash or to edit typically depends
-on how done you are with the change; if the change is almost done, it makes
-sense to use <code>jj checkout</code> so you can easily review your adjustments with
-<code>jj diff</code> before running <code>jj squash</code>. </p>
+commit. Whether you choose to create a new change and squash, or to edit,
+typically depends on how done you are with the change; if the change is almost
+done, it makes sense to use <code>jj new</code> so you can easily review your adjustments
+with <code>jj diff</code> before running <code>jj squash</code>. </p>
 <h2 id="the-log-command-and-revsets">The log command and "revsets"<a class="headerlink" href="#the-log-command-and-revsets" title="Permanent link">&para;</a></h2>
 <p>You're probably familiar with <code>git log</code>. Jujutsu has very similar functionality
 in its <code>jj log</code> command:</p>
