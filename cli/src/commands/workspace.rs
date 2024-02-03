@@ -15,6 +15,7 @@
 use std::fmt::Debug;
 use std::fs;
 use std::io::Write;
+use std::sync::Arc;
 
 use clap::Subcommand;
 use itertools::Itertools;
@@ -22,14 +23,14 @@ use jj_lib::file_util;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::operation::Operation;
-use jj_lib::repo::Repo;
+use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::rewrite::merge_commit_trees;
 use jj_lib::workspace::Workspace;
 use tracing::instrument;
 
 use crate::cli_util::{
-    self, check_stale_working_copy, print_checkout_stats, user_error, CommandError, CommandHelper,
-    RevisionArg, WorkingCopyFreshness, WorkspaceCommandHelper,
+    self, check_stale_working_copy, print_checkout_stats, short_commit_hash, user_error,
+    CommandError, CommandHelper, RevisionArg, WorkingCopyFreshness, WorkspaceCommandHelper,
 };
 use crate::ui::Ui;
 
@@ -280,20 +281,73 @@ fn cmd_workspace_root(
     Ok(())
 }
 
+fn create_and_check_out_recovery_commit(
+    command: &CommandHelper,
+    ui: &mut Ui,
+    workspace: Workspace,
+) -> Result<Arc<ReadonlyRepo>, CommandError> {
+    let operation = command.resolve_operation(ui, workspace.repo_loader())?;
+    let repo = workspace.repo_loader().load_at(&operation)?;
+    let workspace_id = workspace.workspace_id().clone();
+    let tree_id = repo.store().empty_merged_tree_id();
+
+    let mut workspace_command = command.for_loaded_repo(ui, workspace, repo.clone())?;
+    let (mut locked_workspace, commit) =
+        workspace_command.unchecked_start_working_copy_mutation()?;
+    let commit_id = commit.id();
+
+    let mut tx = repo.start_transaction(command.settings());
+    let mut_repo = tx.mut_repo();
+    let new_commit = mut_repo
+        .new_commit(command.settings(), vec![commit_id.clone()], tree_id.clone())
+        .write()?;
+    mut_repo.set_wc_commit(workspace_id, new_commit.id().clone())?;
+    let ret = Ok(tx.commit("recovery commit"));
+
+    locked_workspace.locked_wc().reset_to_empty()?;
+    locked_workspace.finish(operation.id().clone())?;
+
+    writeln!(
+        ui.stderr(),
+        "Created and checked out recovery commit {}",
+        short_commit_hash(new_commit.id())
+    )?;
+
+    ret
+}
+
 /// Loads workspace that will diverge from the last working-copy operation.
 fn for_stale_working_copy(
     command: &CommandHelper,
     ui: &mut Ui,
-) -> Result<WorkspaceCommandHelper, CommandError> {
+) -> Result<(WorkspaceCommandHelper, bool), CommandError> {
     let workspace = command.load_workspace()?;
     let op_store = workspace.repo_loader().op_store();
-    let op_id = workspace.working_copy().operation_id();
-    let op_data = op_store
-        .read_operation(op_id)
-        .map_err(|e| CommandError::InternalError(format!("Failed to read operation: {e}")))?;
-    let operation = Operation::new(op_store.clone(), op_id.clone(), op_data);
-    let repo = workspace.repo_loader().load_at(&operation)?;
-    command.for_loaded_repo(ui, workspace, repo)
+    let (repo, recovered) = {
+        let op_id = workspace.working_copy().operation_id();
+        match op_store.read_operation(op_id) {
+            Ok(op_data) => (
+                workspace.repo_loader().load_at(&Operation::new(
+                    op_store.clone(),
+                    op_id.clone(),
+                    op_data,
+                ))?,
+                false,
+            ),
+            Err(e) => {
+                writeln!(
+                    ui.stderr(),
+                    "Failed to read working copy's current operation; attempting recovery. Error \
+                     message from read attempt: {e}"
+                )?;
+                (
+                    create_and_check_out_recovery_commit(command, ui, command.load_workspace()?)?,
+                    true,
+                )
+            }
+        }
+    };
+    Ok((command.for_loaded_repo(ui, workspace, repo)?, recovered))
 }
 
 #[instrument(skip_all)]
@@ -306,11 +360,15 @@ fn cmd_workspace_update_stale(
     // operation, then merge the concurrent operations. The wc_commit_id of the
     // merged repo wouldn't change because the old one wins, but it's probably
     // fine if we picked the new wc_commit_id.
-    let known_wc_commit = {
-        let mut workspace_command = for_stale_working_copy(command, ui)?;
+    let (known_wc_commit, recovered) = {
+        let (mut workspace_command, recovered) = for_stale_working_copy(command, ui)?;
         workspace_command.maybe_snapshot(ui)?;
+
         let wc_commit_id = workspace_command.get_wc_commit_id().unwrap();
-        workspace_command.repo().store().get_commit(wc_commit_id)?
+        (
+            workspace_command.repo().store().get_commit(wc_commit_id)?,
+            recovered,
+        )
     };
     let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
 
@@ -318,10 +376,20 @@ fn cmd_workspace_update_stale(
     let (mut locked_ws, desired_wc_commit) =
         workspace_command.unchecked_start_working_copy_mutation()?;
     match check_stale_working_copy(locked_ws.locked_wc(), &desired_wc_commit, &repo)? {
-        WorkingCopyFreshness::Fresh | WorkingCopyFreshness::Updated(_) => writeln!(
-            ui.stderr(),
-            "Nothing to do (the working copy is not stale)."
-        )?,
+        WorkingCopyFreshness::Fresh | WorkingCopyFreshness::Updated(_) => {
+            if !recovered {
+                writeln!(
+                    ui.stderr(),
+                    "Nothing to do (the working copy is not stale)."
+                )?;
+            }
+        }
+        WorkingCopyFreshness::MissingOperation =>
+        // We should have already recovered from this situation above, so there must
+        // have been a concurrent operation.
+        {
+            return Err(user_error("Concurrent working copy operation. Try again."))
+        }
         WorkingCopyFreshness::WorkingCopyStale | WorkingCopyFreshness::SiblingOperation => {
             // The same check as start_working_copy_mutation(), but with the stale
             // working-copy commit.

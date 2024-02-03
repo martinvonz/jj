@@ -1396,6 +1396,14 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                         short_operation_hash(&old_op_id)
                     )));
                 }
+                WorkingCopyFreshness::MissingOperation => {
+                    return Err(user_error_with_hint(
+                        "Could not read working copy's operation.",
+                        "Run `jj workspace update-stale` to recover.
+See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy \
+                         for more information.",
+                    ));
+                }
             };
         self.user_repo = ReadonlyUserRepo::new(repo);
         let progress = crate::progress::snapshot_progress(ui);
@@ -1901,6 +1909,8 @@ pub enum WorkingCopyFreshness {
     WorkingCopyStale,
     /// The working copy is a sibling of the latest operation.
     SiblingOperation,
+    /// The working copy's operation could not be loaded.
+    MissingOperation,
 }
 
 #[instrument(skip_all)]
@@ -1915,9 +1925,13 @@ pub fn check_stale_working_copy(
         // The working copy isn't stale, and no need to reload the repo.
         Ok(WorkingCopyFreshness::Fresh)
     } else {
-        let wc_operation_data = repo
-            .op_store()
-            .read_operation(locked_wc.old_operation_id())?;
+        let wc_operation_data = match repo.op_store().read_operation(locked_wc.old_operation_id()) {
+            Ok(o) => o,
+            Err(OpStoreError::ObjectNotFound { .. }) => {
+                return Ok(WorkingCopyFreshness::MissingOperation)
+            }
+            Err(e) => return Err(e),
+        };
         let wc_operation = Operation::new(
             repo.op_store().clone(),
             locked_wc.old_operation_id().clone(),

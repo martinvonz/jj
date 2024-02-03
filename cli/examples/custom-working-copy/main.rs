@@ -241,6 +241,10 @@ impl LockedWorkingCopy for LockedConflictsWorkingCopy {
         self.inner.reset(new_tree)
     }
 
+    fn reset_to_empty(&mut self) -> Result<(), ResetError> {
+        self.inner.reset_to_empty()
+    }
+
     fn sparse_patterns(&self) -> Result<&[RepoPathBuf], WorkingCopyStateError> {
         self.inner.sparse_patterns()
     }
