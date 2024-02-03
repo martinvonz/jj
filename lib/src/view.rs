@@ -147,14 +147,14 @@ impl View {
         }
     }
 
-    /// Iterates remote branch `((name, remote_name), remote_ref)`s in
-    /// lexicographical order.
+    /// Iterates over `((name, remote_name), remote_ref)` for all remote
+    /// branches in lexicographical order.
     pub fn all_remote_branches(&self) -> impl Iterator<Item = ((&str, &str), &RemoteRef)> {
         op_store::flatten_remote_branches(&self.data.remote_views)
     }
 
-    /// Iterates branch `(name, remote_ref)`s of the specified remote in
-    /// lexicographical order.
+    /// Iterates over `(name, remote_ref)`s for all remote branches of the
+    /// specified remote in lexicographical order.
     pub fn remote_branches(&self, remote_name: &str) -> impl Iterator<Item = (&str, &RemoteRef)> {
         let maybe_remote_view = self.data.remote_views.get(remote_name);
         maybe_remote_view
@@ -168,8 +168,10 @@ impl View {
             .flatten()
     }
 
-    /// Iterates remote branch `((name, remote_name), remote_ref)`s matching the
-    /// given patterns. Entries are sorted by `(name, remote_name)`.
+    /// Iterates over `(name, remote_ref)`s for all remote branches of the
+    /// specified remote that match the given pattern.
+    ///
+    /// Entries are sorted by `(name, remote_name)`.
     pub fn remote_branches_matching<'a: 'b, 'b>(
         &'a self,
         branch_pattern: &'b StringPattern,
@@ -212,8 +214,13 @@ impl View {
         }
     }
 
-    /// Iterates local/remote branch `(name, remote_ref)`s of the specified
-    /// remote in lexicographical order.
+    /// Iterates over `(name, {local_ref, remote_ref})`s for every branch
+    /// present locally and/or on the specified remote, in lexicographical
+    /// order.
+    ///
+    /// Note that this does *not* take into account whether the local branch
+    /// tracks the remote branch or not. Missing values are represented as
+    /// RefTarget::absent_ref() or RemoteRef::absent_ref().
     pub fn local_remote_branches<'a>(
         &'a self,
         remote_name: &str,
@@ -228,9 +235,15 @@ impl View {
             })
     }
 
-    /// Iterates local/remote branch `(name, remote_ref)`s of the specified
-    /// remote, matching the given branch name pattern. Entries are sorted by
-    /// `name`.
+    /// Iterates over `(name, TrackingRefPair {local_ref, remote_ref})`s for
+    /// every branch with a name that matches the given pattern, and that is
+    /// present locally and/or on the specified remote.
+    ///
+    /// Entries are sorted by `name`.
+    ///
+    /// Note that this does *not* take into account whether the local branch
+    /// tracks the remote branch or not. Missing values are represented as
+    /// RefTarget::absent_ref() or RemoteRef::absent_ref().
     pub fn local_remote_branches_matching<'a: 'b, 'b>(
         &'a self,
         branch_pattern: &'b StringPattern,
