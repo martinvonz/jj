@@ -780,6 +780,76 @@ fn test_git_push_deleted_untracked() {
 }
 
 #[test]
+fn test_git_push_tracked_vs_all() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_ok(&workspace_root, &["new", "branch1", "-mmoved branch1"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "branch1"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "branch2", "-mmoved branch2"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "delete", "branch2"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "untrack", "branch1@origin"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "branch3"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all"]);
+    insta::assert_snapshot!(stdout, @r###"
+    branch1: vruxwmqv a25f24af (empty) moved branch1
+    branch1@origin: lzmmnrxq 45a3aa29 (empty) description 1
+    branch2 (deleted)
+      @origin: rlzusymt 8476341e (empty) description 2
+      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
+    branch3: znkkpsqq 998d6a78 (empty) moved branch2
+    "###);
+
+    // At this point, only branch2 is still tracked. `jj git push --tracked` would
+    // try to push it and no other branches.
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--tracked", "--dry-run"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Branch changes to push to origin:
+      Delete branch branch2 from 8476341eb395
+    Dry-run requested, not pushing.
+    "###);
+
+    // Untrack the last remaining tracked branch.
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "untrack", "branch2@origin"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all"]);
+    insta::assert_snapshot!(stdout, @r###"
+    branch1: vruxwmqv a25f24af (empty) moved branch1
+    branch1@origin: lzmmnrxq 45a3aa29 (empty) description 1
+    branch2@origin: rlzusymt 8476341e (empty) description 2
+    branch3: znkkpsqq 998d6a78 (empty) moved branch2
+    "###);
+
+    // Now, no branches are tracked. --tracked does not push anything
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--tracked"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Nothing changed.
+    "###);
+
+    // All branches are still untracked.
+    // - --all tries to push branch1, but fails because a branch with the same
+    // name exist on the remote.
+    // - --all succeeds in pushing branch3, since there is no branch of the same
+    // name on the remote.
+    // - It does not try to push branch2.
+    //
+    // TODO: Not trying to push branch2 could be considered correct, or perhaps
+    // we want to consider this as a deletion of the branch that failed because
+    // the branch was untracked. In the latter case, an error message should be
+    // printed. Some considerations:
+    // - Whatever we do should be consistent with what `jj branch list` does; it
+    //   currently does *not* list branches like branch2 as "about to be deleted",
+    //   as can be seen above.
+    // - We could consider showing some hint on `jj branch untrack branch2@origin`
+    //   instead of showing an error here.
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--all"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Non-tracking remote branch branch1@origin exists
+    Hint: Run `jj branch track branch1@origin` to import the remote branch.
+    Branch changes to push to origin:
+      Add branch branch3 to 998d6a7853d9
+    "###);
+}
+
+#[test]
 fn test_git_push_moved_forward_untracked() {
     let (test_env, workspace_root) = set_up();
 
