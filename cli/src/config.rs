@@ -525,6 +525,12 @@ impl TryFrom<Vec<String>> for NonEmptyCommandArgsVec {
     }
 }
 
+impl From<NonEmptyCommandArgsVec> for Vec<String> {
+    fn from(args: NonEmptyCommandArgsVec) -> Self {
+        args.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use maplit::hashmap;
