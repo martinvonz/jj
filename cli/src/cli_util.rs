@@ -192,22 +192,10 @@ fn print_error_sources(ui: &Ui, source: Option<&dyn std::error::Error>) -> io::R
     } else {
         writeln!(ui.stderr(), "Caused by:")?;
         for (i, err) in iter::successors(Some(err), |err| err.source()).enumerate() {
-            let message = strip_error_source(err);
-            writeln!(ui.stderr(), "{n}: {message}", n = i + 1)?;
+            writeln!(ui.stderr(), "{n}: {err}", n = i + 1)?;
         }
     }
     Ok(())
-}
-
-// TODO: remove ": {source}" from error types and drop this hack
-fn strip_error_source(err: &dyn std::error::Error) -> String {
-    let mut message = err.to_string();
-    if let Some(source) = err.source() {
-        if let Some(s) = message.strip_suffix(&format!(": {source}")) {
-            message.truncate(s.len());
-        }
-    }
-    message
 }
 
 impl From<std::io::Error> for CommandError {
@@ -2839,7 +2827,7 @@ pub fn handle_command_result(
     match &result {
         Ok(()) => Ok(ExitCode::SUCCESS),
         Err(CommandError::UserError { err, hint }) => {
-            writeln!(ui.error(), "Error: {}", strip_error_source(err))?;
+            writeln!(ui.error(), "Error: {err}")?;
             print_error_sources(ui, err.source())?;
             if let Some(hint) = hint {
                 writeln!(ui.hint(), "Hint: {hint}")?;
@@ -2890,7 +2878,7 @@ pub fn handle_command_result(
             Ok(ExitCode::from(BROKEN_PIPE_EXIT_CODE))
         }
         Err(CommandError::InternalError(err)) => {
-            writeln!(ui.error(), "Internal error: {}", strip_error_source(err))?;
+            writeln!(ui.error(), "Internal error: {err}")?;
             print_error_sources(ui, err.source())?;
             Ok(ExitCode::from(255))
         }
