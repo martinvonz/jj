@@ -592,10 +592,10 @@ pub enum FailedRefExportReason {
     #[error("Modified ref had been deleted in Git")]
     ModifiedInJjDeletedInGit,
     /// Failed to delete the ref from the Git repo
-    #[error("Failed to delete: {0}")]
+    #[error("Failed to delete")]
     FailedToDelete(#[source] Box<gix::reference::edit::Error>),
     /// Failed to set the ref in the Git repo
-    #[error("Failed to set: {0}")]
+    #[error("Failed to set")]
     FailedToSet(#[source] Box<gix::reference::edit::Error>),
 }
 

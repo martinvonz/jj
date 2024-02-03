@@ -19,6 +19,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Mutex;
 use std::time::Instant;
+use std::{error, iter};
 
 use jj_lib::git::{self, FailedRefExport, FailedRefExportReason, GitImportStats};
 use jj_lib::git_backend::GitBackend;
@@ -172,7 +173,10 @@ pub fn print_failed_git_export(
         for FailedRefExport { name, reason } in failed_branches {
             formatter.write_str("  ")?;
             write!(formatter.labeled("branch"), "{name}")?;
-            writeln!(formatter, ": {reason}")?;
+            for err in iter::successors(Some(reason as &dyn error::Error), |err| err.source()) {
+                write!(formatter, ": {err}")?;
+            }
+            writeln!(formatter)?;
         }
         drop(formatter);
         if failed_branches
