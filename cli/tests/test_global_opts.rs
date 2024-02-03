@@ -43,6 +43,19 @@ fn test_non_utf8_arg() {
 }
 
 #[test]
+fn test_version() {
+    let test_env = TestEnvironment::default();
+
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--version"]);
+    let sanitized = stdout.replace(|c: char| c.is_ascii_hexdigit(), "?");
+    assert!(
+        sanitized == "jj ?.??.?\n"
+            || sanitized == "jj ?.??.?-????????????????????????????????????????\n",
+        "{sanitized}"
+    );
+}
+
+#[test]
 fn test_no_subcommand() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
@@ -64,14 +77,6 @@ fn test_no_subcommand() {
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--help"]);
     insta::assert_snapshot!(stdout.lines().next().unwrap(), @"Jujutsu (An experimental VCS)");
-
-    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["--version"]);
-    let sanitized = stdout.replace(|c: char| c.is_ascii_hexdigit(), "?");
-    assert!(
-        sanitized == "jj ?.??.?\n"
-            || sanitized == "jj ?.??.?-????????????????????????????????????????\n",
-        "{sanitized}"
-    );
 
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["-R", "repo"]);
     assert_eq!(stdout, test_env.jj_cmd_success(&repo_path, &["log"]));
