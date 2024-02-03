@@ -1423,9 +1423,9 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         let mut locked_ws = self.workspace.start_working_copy_mutation()?;
         let old_op_id = locked_ws.locked_wc().old_operation_id().clone();
         let (repo, wc_commit) =
-            match check_stale_working_copy(locked_ws.locked_wc(), &wc_commit, &repo)? {
-                WorkingCopyFreshness::Fresh => (repo, wc_commit),
-                WorkingCopyFreshness::Updated(wc_operation) => {
+            match check_stale_working_copy(locked_ws.locked_wc(), &wc_commit, &repo) {
+                Ok(WorkingCopyFreshness::Fresh) => (repo, wc_commit),
+                Ok(WorkingCopyFreshness::Updated(wc_operation)) => {
                     let repo = repo.reload_at(&wc_operation)?;
                     let wc_commit = if let Some(wc_commit) = get_wc_commit(&repo)? {
                         wc_commit
@@ -1435,7 +1435,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
                     };
                     (repo, wc_commit)
                 }
-                WorkingCopyFreshness::WorkingCopyStale => {
+                Ok(WorkingCopyFreshness::WorkingCopyStale) => {
                     return Err(user_error_with_hint(
                         format!(
                             "The working copy is stale (not updated since operation {}).",
@@ -1446,7 +1446,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                          for more information.",
                     ));
                 }
-                WorkingCopyFreshness::SiblingOperation => {
+                Ok(WorkingCopyFreshness::SiblingOperation) => {
                     return Err(internal_error(format!(
                         "The repo was loaded at operation {}, which seems to be a sibling of the \
                          working copy's operation {}",
@@ -1454,6 +1454,15 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                         short_operation_hash(&old_op_id)
                     )));
                 }
+                Err(OpStoreError::ObjectNotFound { .. }) => {
+                    return Err(user_error_with_hint(
+                        "Could not read working copy's operation.",
+                        "Run `jj workspace update-stale` to recover.
+See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy \
+                         for more information.",
+                    ))
+                }
+                Err(e) => return Err(e.into()),
             };
         self.user_repo = ReadonlyUserRepo::new(repo);
         let progress = crate::progress::snapshot_progress(ui);

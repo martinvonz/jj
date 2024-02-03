@@ -383,6 +383,98 @@ fn test_workspaces_updated_by_other() {
 }
 
 #[test]
+fn test_workspaces_current_op_discarded_by_other() {
+    let test_env = TestEnvironment::default();
+    // Use the local backend because GitBackend::gc() depends on the git CLI.
+    test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &["init", "main", "--config-toml=ui.allow-init-native=true"],
+    );
+    let main_path = test_env.env_root().join("main");
+    let secondary_path = test_env.env_root().join("secondary");
+
+    std::fs::write(main_path.join("file"), "contents\n").unwrap();
+    test_env.jj_cmd_ok(&main_path, &["new"]);
+
+    test_env.jj_cmd_ok(&main_path, &["workspace", "add", "../secondary"]);
+
+    // Create an op by abandoning the parent commit. Importantly, that commit also
+    // changes the target tree in the secondary workspace.
+    test_env.jj_cmd_ok(&main_path, &["abandon", "@-"]);
+
+    let stdout = test_env.jj_cmd_success(
+        &main_path,
+        &[
+            "operation",
+            "log",
+            "--template",
+            r#"id.short(10) ++ " " ++ description"#,
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @  6c22dbc43c abandon commit 479653b3216ad2af6a8ffcbe5885203b7bb3d0d49175ffd2be58a454da95493b0e8e44885ac4f7caacbeb79b407c66d68991f5a01666e976687c6732b3311780
+    ◉  72b8975c75 Create initial working-copy commit in workspace secondary
+    ◉  b816f120a4 add workspace 'secondary'
+    ◉  332e901b2a new empty commit
+    ◉  c07b7d7796 snapshot working copy
+    ◉  c5295044c8 add workspace 'default'
+    ◉  0c73edb541 initialize repo
+    ◉  0000000000
+    "###);
+
+    // Abandon ops, including the one the secondary workspace is currently on.
+    test_env.jj_cmd_ok(&main_path, &["operation", "abandon", "..@-"]);
+    test_env.jj_cmd_ok(&main_path, &["util", "gc", "--expire=now"]);
+
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
+    @  3bebcd0f8335f735c00063290247d6c3332106261d0dd4810105906cdf29878990ee717690750ec203a7c4763a36968a0d9de799f46bc37fcf62dde13a52b73f default@
+    │ ◉  1d558d136f4d90ec2fe9beac8eb638eb509d0e378c4546f7b2634f93d0c86cfdd08b7efe4fd3aeb383f41fb7ebb2311a14754f617e71389c3aa9519c05c17dd8 secondary@
+    ├─╯
+    ◉  00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&secondary_path, &["st"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Could not read working copy's operation.
+    Hint: Run `jj workspace update-stale` to recover.
+    See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Failed to read working copy's current operation; attempting recovery. Error message from read attempt: Object 72b8975c7573303a258c292ad69f93dad1922532a2839000c217102da736ed7c6235872bdfa8c747a723df78547666686722d0d301da2d70d815798634c8eedc of type operation not found
+    Created and checked out recovery commit 84e67dd875e0
+    "###);
+    insta::assert_snapshot!(stdout, @"");
+
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
+    ◉  be7e513bfb77cde552e363f947ecc5757557d0d24caf5c627eb9631f38215334722c31b4266c3627111210b1c5eb00f4cd7af4299510cb8c2fe39b405d31b45b secondary@
+    ◉  1d558d136f4d90ec2fe9beac8eb638eb509d0e378c4546f7b2634f93d0c86cfdd08b7efe4fd3aeb383f41fb7ebb2311a14754f617e71389c3aa9519c05c17dd8
+    │ @  3bebcd0f8335f735c00063290247d6c3332106261d0dd4810105906cdf29878990ee717690750ec203a7c4763a36968a0d9de799f46bc37fcf62dde13a52b73f default@
+    ├─╯
+    ◉  00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["st"]);
+    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy changes:
+    A file
+    Working copy : znkkpsqq be7e513b (no description set)
+    Parent commit: pmmvwywv 1d558d13 (empty) (no description set)
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["obslog"]);
+    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stdout, @r###"
+    @  znkkpsqq test.user@example.com 2001-02-03 04:05:16.000 +07:00 secondary@ be7e513b
+    │  (no description set)
+    ◉  znkkpsqq hidden test.user@example.com 2001-02-03 04:05:16.000 +07:00 84e67dd8
+       (empty) (no description set)
+    "###);
+}
+
+#[test]
 fn test_workspaces_update_stale_noop() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "main"]);

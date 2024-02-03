@@ -107,6 +107,9 @@ pub trait LockedWorkingCopy {
     /// Update to another commit without touching the files in the working copy.
     fn reset(&mut self, commit: &Commit) -> Result<(), ResetError>;
 
+    /// Update to the empty tree without touching the files in the working copy.
+    fn reset_to_empty(&mut self) -> Result<(), ResetError>;
+
     /// See `WorkingCopy::sparse_patterns()`
     fn sparse_patterns(&self) -> Result<&[RepoPathBuf], WorkingCopyStateError>;
 

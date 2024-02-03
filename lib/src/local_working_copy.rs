@@ -197,6 +197,10 @@ impl FileStatesMap {
         .collect();
     }
 
+    fn clear(&mut self) {
+        self.data.clear();
+    }
+
     /// Returns read-only map containing all file states.
     fn all(&self) -> FileStates<'_> {
         FileStates::from_sorted(&self.data)
@@ -1436,6 +1440,11 @@ impl TreeState {
         self.tree_id = new_tree.id();
         Ok(())
     }
+
+    pub fn reset_to_empty(&mut self) {
+        self.file_states.clear();
+        self.tree_id = self.store.empty_merged_tree_id();
+    }
 }
 
 fn checkout_error_for_stat_error(err: std::io::Error, path: &Path) -> CheckoutError {
@@ -1749,6 +1758,18 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
             })?
             .reset(&new_tree)
             .block_on()?;
+        self.tree_state_dirty = true;
+        Ok(())
+    }
+
+    fn reset_to_empty(&mut self) -> Result<(), ResetError> {
+        self.wc
+            .tree_state_mut()
+            .map_err(|err| ResetError::Other {
+                message: "Failed to read the working copy state".to_string(),
+                err: err.into(),
+            })?
+            .reset_to_empty();
         self.tree_state_dirty = true;
         Ok(())
     }
