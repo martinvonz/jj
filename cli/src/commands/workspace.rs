@@ -29,7 +29,7 @@ use tracing::instrument;
 
 use crate::cli_util::{
     self, check_stale_working_copy, print_checkout_stats, user_error, CommandError, CommandHelper,
-    RevisionArg, WorkspaceCommandHelper,
+    RevisionArg, WorkingCopyFreshness, WorkspaceCommandHelper,
 };
 use crate::ui::Ui;
 
@@ -317,34 +317,35 @@ fn cmd_workspace_update_stale(
     let repo = workspace_command.repo().clone();
     let (mut locked_ws, desired_wc_commit) =
         workspace_command.unchecked_start_working_copy_mutation()?;
-    if !check_stale_working_copy(locked_ws.locked_wc(), &desired_wc_commit, &repo)?.is_stale() {
-        writeln!(
+    match check_stale_working_copy(locked_ws.locked_wc(), &desired_wc_commit, &repo)? {
+        WorkingCopyFreshness::Fresh | WorkingCopyFreshness::Updated(_) => writeln!(
             ui.stderr(),
             "Nothing to do (the working copy is not stale)."
-        )?;
-    } else {
-        // The same check as start_working_copy_mutation(), but with the stale
-        // working-copy commit.
-        if known_wc_commit.tree_id() != locked_ws.locked_wc().old_tree_id() {
-            return Err(user_error("Concurrent working copy operation. Try again."));
-        }
-        let stats = locked_ws
-            .locked_wc()
-            .check_out(&desired_wc_commit)
-            .map_err(|err| {
-                CommandError::InternalError(format!(
-                    "Failed to check out commit {}: {}",
-                    desired_wc_commit.id().hex(),
-                    err
-                ))
+        )?,
+        WorkingCopyFreshness::WorkingCopyStale | WorkingCopyFreshness::SiblingOperation => {
+            // The same check as start_working_copy_mutation(), but with the stale
+            // working-copy commit.
+            if known_wc_commit.tree_id() != locked_ws.locked_wc().old_tree_id() {
+                return Err(user_error("Concurrent working copy operation. Try again."));
+            }
+            let stats = locked_ws
+                .locked_wc()
+                .check_out(&desired_wc_commit)
+                .map_err(|err| {
+                    CommandError::InternalError(format!(
+                        "Failed to check out commit {}: {}",
+                        desired_wc_commit.id().hex(),
+                        err
+                    ))
+                })?;
+            locked_ws.finish(repo.op_id().clone())?;
+            write!(ui.stderr(), "Working copy now at: ")?;
+            ui.stderr_formatter().with_label("working_copy", |fmt| {
+                workspace_command.write_commit_summary(fmt, &desired_wc_commit)
             })?;
-        locked_ws.finish(repo.op_id().clone())?;
-        write!(ui.stderr(), "Working copy now at: ")?;
-        ui.stderr_formatter().with_label("working_copy", |fmt| {
-            workspace_command.write_commit_summary(fmt, &desired_wc_commit)
-        })?;
-        writeln!(ui.stderr())?;
-        print_checkout_stats(ui, stats, &desired_wc_commit)?;
+            writeln!(ui.stderr())?;
+            print_checkout_stats(ui, stats, &desired_wc_commit)?;
+        }
     }
     Ok(())
 }

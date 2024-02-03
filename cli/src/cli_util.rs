@@ -1903,17 +1903,6 @@ pub enum WorkingCopyFreshness {
     SiblingOperation,
 }
 
-impl WorkingCopyFreshness {
-    /// Returns true if the working copy is not updated to the current
-    /// operation.
-    pub fn is_stale(&self) -> bool {
-        match self {
-            WorkingCopyFreshness::Fresh | WorkingCopyFreshness::Updated(_) => false,
-            WorkingCopyFreshness::WorkingCopyStale | WorkingCopyFreshness::SiblingOperation => true,
-        }
-    }
-}
-
 #[instrument(skip_all)]
 pub fn check_stale_working_copy(
     locked_wc: &dyn LockedWorkingCopy,
