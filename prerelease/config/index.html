@@ -1012,6 +1012,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#ways-to-specify-jj-config-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ways to specify jj config: details
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Ways to specify jj config: details">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#user-config-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      User config file
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#specifying-config-on-the-command-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      Specifying config on the command-line
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1914,6 +1947,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#ways-to-specify-jj-config-details" class="md-nav__link">
+    <span class="md-ellipsis">
+      Ways to specify jj config: details
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Ways to specify jj config: details">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#user-config-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      User config file
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#specifying-config-on-the-command-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      Specifying config on the command-line
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1932,13 +1998,31 @@
 <h1 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h1>
 <p>These are the config settings available to jj/Jujutsu.</p>
 <h2 id="config-files-and-toml">Config files and TOML<a class="headerlink" href="#config-files-and-toml" title="Permanent link">&para;</a></h2>
-<p>The config settings are loaded from the following locations. Less common ways to
-specify <code>jj</code> config settings are discussed in a later section.</p>
+<p><code>jj</code> loads several types of config settings:</p>
 <ul>
-<li><a href="#user-config-file">The user config file</a></li>
-<li><code>.jj/repo/config.toml</code> (per-repository)</li>
+<li>
+<p>The built-in settings. These cannot be edited. They can be viewed in the
+  <code>cli/src/config/</code> directory in <code>jj</code>'s source repo.</p>
+</li>
+<li>
+<p>The user settings. These can be edited with <code>jj config edit --user</code>. User
+settings are located in <a href="#user-config-file">the user config file</a>, which can be found with <code>jj
+config path --user</code>.</p>
+</li>
+<li>
+<p>The repo settings. These can be edited with <code>jj config edit --repo</code> and are
+located in <code>.jj/repo/config.toml</code>.</p>
+</li>
+<li>
+<p>Settings <a href="#specifying-config-on-the-command-line">specified in the command-line</a>.</p>
+</li>
 </ul>
-<p>See the <a href="https://toml.io/en/">TOML site</a> and the <a href="https://toml.io/en/v1.0.0">syntax guide</a> for a description of the syntax.</p>
+<p>These are listed in the order they are loaded; the settings from earlier items
+in
+the list are overridden by the settings from later items if they disagree. Every
+type of config except for the built-in settings is optional.</p>
+<p>See the <a href="https://toml.io/en/">TOML site</a> and the <a href="https://toml.io/en/v1.0.0">syntax guide</a> for a detailed description of the
+syntax. We cover some of the basics below.</p>
 <p>The first thing to remember is that the value of a setting (the part to the
 right of the <code>=</code> sign) should be surrounded in quotes if it's a string.</p>
 <h3 id="dotted-style-and-headings">Dotted style and headings<a class="headerlink" href="#dotted-style-and-headings" title="Permanent link">&para;</a></h3>
@@ -2316,7 +2400,12 @@ snapshots without having to rescan the entire working copy.</p>
 <code>core.fsmonitor = "watchman"</code>. Ensure that you have <a href="https://facebook.github.io/watchman/docs/install">installed the Watchman
 executable on your system</a>.</p>
 <p>Debugging commands are available under <code>jj debug watchman</code>.</p>
-<h1 id="user-config-file">User config file<a class="headerlink" href="#user-config-file" title="Permanent link">&para;</a></h1>
+<h2 id="ways-to-specify-jj-config-details">Ways to specify <code>jj</code> config: details<a class="headerlink" href="#ways-to-specify-jj-config-details" title="Permanent link">&para;</a></h2>
+<h3 id="user-config-file">User config file<a class="headerlink" href="#user-config-file" title="Permanent link">&para;</a></h3>
+<p>An easy way to find the user config file is:</p>
+<div class="highlight"><pre><span></span><code>jj<span class="w"> </span>config<span class="w"> </span>path<span class="w"> </span>--user
+</code></pre></div>
+<p>The rest of this section covers the details of where this file can be located.</p>
 <p>On all platforms, the user's global <code>jj</code> configuration file is located at either
 <code>~/.jjconfig.toml</code> (where <code>~</code> represents <code>$HOME</code> on Unix-likes, or
 <code>%USERPROFILE%</code> on Windows) or in a platform-specific directory. The
@@ -2354,6 +2443,7 @@ to a TOML file that will be used instead of any configuration file in the
 default locations. For example,</p>
 <div class="highlight"><pre><span></span><code>env<span class="w"> </span><span class="nv">JJ_CONFIG</span><span class="o">=</span>/dev/null<span class="w"> </span>jj<span class="w"> </span>log<span class="w">       </span><span class="c1"># Ignores any settings specified in the config file.</span>
 </code></pre></div>
+<h3 id="specifying-config-on-the-command-line">Specifying config on the command-line<a class="headerlink" href="#specifying-config-on-the-command-line" title="Permanent link">&para;</a></h3>
 <p>You can use one or more <code>--config-toml</code> options on the command line to specify
 additional configuration settings. This overrides settings defined in config
 files or environment variables. For example,</p>
