@@ -67,13 +67,15 @@ fn test_git_export_conflicting_git_refs() {
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main/sub"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Failed to export some branches:
-      main/sub: Failed to set: A lock could not be obtained for reference "refs/heads/main/sub"
-    Hint: Git doesn't allow a branch name that looks like a parent directory of
-    another (e.g. `foo` and `foo/bar`). Try to rename the branches that failed to
-    export or their "parent" branches.
-    "###);
+    insta::with_settings!({filters => vec![(": The lock for resource.*", ": ...")]}, {
+        insta::assert_snapshot!(stderr, @r###"
+        Failed to export some branches:
+          main/sub: Failed to set: A lock could not be obtained for reference "refs/heads/main/sub": ...
+        Hint: Git doesn't allow a branch name that looks like a parent directory of
+        another (e.g. `foo` and `foo/bar`). Try to rename the branches that failed to
+        export or their "parent" branches.
+        "###);
+    });
 }
 
 #[test]
