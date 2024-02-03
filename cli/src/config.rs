@@ -324,7 +324,16 @@ fn env_base() -> config::Config {
         builder = builder.set_override("ui.color", "never").unwrap();
     }
     if let Ok(value) = env::var("PAGER") {
-        builder = builder.set_override("ui.pager", value).unwrap();
+        // If 'less' is the value of PAGER, do not override the pager.
+        // Many systems ship with "R" as the only setting in $LESS, which provides
+        // a less than ideal experience for 'less' with jj, since they won't see the
+        // log history persist on the screen. While slightly inconsistent to ignore
+        // that setting, it should provide a better "out-of-box experience". If a user
+        // truly wants to change the values that are passed to "less", they can set that
+        // in the ui.pager jj config.
+        if value != "less" {
+            builder = builder.set_override("ui.pager", value).unwrap();
+        }
     }
     if let Ok(value) = env::var("VISUAL") {
         builder = builder.set_override("ui.editor", value).unwrap();
