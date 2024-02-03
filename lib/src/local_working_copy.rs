@@ -477,28 +477,28 @@ struct DirectoryToVisit<'a> {
 
 #[derive(Debug, Error)]
 pub enum TreeStateError {
-    #[error("Reading tree state from {path}: {source}")]
+    #[error("Reading tree state from {path}")]
     ReadTreeState {
         path: PathBuf,
         source: std::io::Error,
     },
-    #[error("Decoding tree state from {path}: {source}")]
+    #[error("Decoding tree state from {path}")]
     DecodeTreeState {
         path: PathBuf,
         source: prost::DecodeError,
     },
-    #[error("Writing tree state to temporary file {path}: {source}")]
+    #[error("Writing tree state to temporary file {path}")]
     WriteTreeState {
         path: PathBuf,
         source: std::io::Error,
     },
-    #[error("Persisting tree state to file {path}: {source}")]
+    #[error("Persisting tree state to file {path}")]
     PersistTreeState {
         path: PathBuf,
         source: std::io::Error,
     },
-    #[error("Filesystem monitor error: {0}")]
-    Fsmonitor(Box<dyn Error + Send + Sync>),
+    #[error("Filesystem monitor error")]
+    Fsmonitor(#[source] Box<dyn Error + Send + Sync>),
 }
 
 impl TreeState {

@@ -56,9 +56,9 @@ const CONFLICT_SUFFIX: &str = ".jjconflict";
 
 #[derive(Debug, Error)]
 pub enum GitBackendInitError {
-    #[error("Failed to initialize git repository: {0}")]
+    #[error("Failed to initialize git repository")]
     InitRepository(#[source] gix::init::Error),
-    #[error("Failed to open git repository: {0}")]
+    #[error("Failed to open git repository")]
     OpenRepository(#[source] gix::open::Error),
     #[error(transparent)]
     Path(PathError),
@@ -72,7 +72,7 @@ impl From<Box<GitBackendInitError>> for BackendInitError {
 
 #[derive(Debug, Error)]
 pub enum GitBackendLoadError {
-    #[error("Failed to open git repository: {0}")]
+    #[error("Failed to open git repository")]
     OpenRepository(#[source] gix::open::Error),
     #[error(transparent)]
     Path(PathError),
@@ -87,9 +87,9 @@ impl From<Box<GitBackendLoadError>> for BackendLoadError {
 /// `GitBackend`-specific error that may occur after the backend is loaded.
 #[derive(Debug, Error)]
 pub enum GitBackendError {
-    #[error("Failed to read non-git metadata: {0}")]
+    #[error("Failed to read non-git metadata")]
     ReadMetadata(#[source] TableStoreError),
-    #[error("Failed to write non-git metadata: {0}")]
+    #[error("Failed to write non-git metadata")]
     WriteMetadata(#[source] TableStoreError),
 }
 
@@ -101,7 +101,7 @@ impl From<GitBackendError> for BackendError {
 
 #[derive(Debug, Error)]
 pub enum GitGcError {
-    #[error("Failed to run git gc command: {0}")]
+    #[error("Failed to run git gc command")]
     GcCommand(#[source] std::io::Error),
     #[error("git gc command exited with an error: {0}")]
     GcCommandErrorStatus(ExitStatus),

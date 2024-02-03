@@ -59,14 +59,14 @@ pub enum RevsetResolutionError {
     AmbiguousCommitIdPrefix(String),
     #[error("Change ID prefix \"{0}\" is ambiguous")]
     AmbiguousChangeIdPrefix(String),
-    #[error("Unexpected error from store: {0}")]
+    #[error("Unexpected error from store")]
     StoreError(#[source] BackendError),
 }
 
 /// Error occurred during revset evaluation.
 #[derive(Debug, Error)]
 pub enum RevsetEvaluationError {
-    #[error("Unexpected error from store: {0}")]
+    #[error("Unexpected error from store")]
     StoreError(#[source] BackendError),
     #[error("{0}")]
     Other(String),

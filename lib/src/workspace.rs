@@ -69,7 +69,7 @@ pub enum WorkspaceLoadError {
     RepoDoesNotExist(PathBuf),
     #[error("There is no Jujutsu repo in {0}")]
     NoWorkspaceHere(PathBuf),
-    #[error("Cannot read the repo: {0}")]
+    #[error("Cannot read the repo")]
     StoreLoadError(#[from] StoreLoadError),
     #[error("Repo path could not be interpreted as Unicode text")]
     NonUnicodePath,

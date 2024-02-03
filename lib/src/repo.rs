@@ -405,7 +405,7 @@ pub enum StoreLoadError {
         store: &'static str,
         store_type: String,
     },
-    #[error("Failed to read {store} backend type: {source}")]
+    #[error("Failed to read {store} backend type")]
     ReadError {
         store: &'static str,
         source: PathError,
@@ -1398,7 +1398,7 @@ pub struct RewriteRootCommit;
 /// Error from attempts to edit a commit
 #[derive(Debug, Error)]
 pub enum EditCommitError {
-    #[error("Current working-copy commit not found: {0}")]
+    #[error("Current working-copy commit not found")]
     WorkingCopyCommitNotFound(#[source] BackendError),
     #[error("Cannot rewrite the root commit")]
     RewriteRootCommit,
@@ -1407,9 +1407,9 @@ pub enum EditCommitError {
 /// Error from attempts to check out a commit
 #[derive(Debug, Error)]
 pub enum CheckOutCommitError {
-    #[error("Failed to create new working-copy commit: {0}")]
+    #[error("Failed to create new working-copy commit")]
     CreateCommit(#[from] BackendError),
-    #[error("Failed to edit commit: {0}")]
+    #[error("Failed to edit commit")]
     EditCommit(#[from] EditCommitError),
 }
 

@@ -43,7 +43,7 @@ const OPERATION_ID_LENGTH: usize = 64;
 const VIEW_ID_LENGTH: usize = 64;
 
 #[derive(Debug, Error)]
-#[error("Failed to read {kind} with ID {id}: {err}")]
+#[error("Failed to read {kind} with ID {id}")]
 struct DecodeError {
     kind: &'static str,
     id: String,
