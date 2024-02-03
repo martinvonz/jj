@@ -21,6 +21,7 @@ use itertools::Itertools;
 use jj_lib::file_util;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::WorkspaceId;
+use jj_lib::operation::Operation;
 use jj_lib::repo::Repo;
 use jj_lib::rewrite::merge_commit_trees;
 use jj_lib::workspace::Workspace;
@@ -279,6 +280,22 @@ fn cmd_workspace_root(
     Ok(())
 }
 
+/// Loads workspace that will diverge from the last working-copy operation.
+fn for_stale_working_copy(
+    ui: &mut Ui,
+    command: &CommandHelper,
+) -> Result<WorkspaceCommandHelper, CommandError> {
+    let workspace = command.load_workspace()?;
+    let op_store = workspace.repo_loader().op_store();
+    let op_id = workspace.working_copy().operation_id();
+    let op_data = op_store
+        .read_operation(op_id)
+        .map_err(|e| internal_error_with_message("Failed to read operation", e))?;
+    let operation = Operation::new(op_store.clone(), op_id.clone(), op_data);
+    let repo = workspace.repo_loader().load_at(&operation)?;
+    command.for_loaded_repo(ui, workspace, repo)
+}
+
 #[instrument(skip_all)]
 fn cmd_workspace_update_stale(
     ui: &mut Ui,
@@ -290,7 +307,7 @@ fn cmd_workspace_update_stale(
     // merged repo wouldn't change because the old one wins, but it's probably
     // fine if we picked the new wc_commit_id.
     let known_wc_commit = {
-        let mut workspace_command = command.for_stale_working_copy(ui)?;
+        let mut workspace_command = for_stale_working_copy(ui, command)?;
         workspace_command.maybe_snapshot(ui)?;
         let wc_commit_id = workspace_command.get_wc_commit_id().unwrap();
         workspace_command.repo().store().get_commit(wc_commit_id)?

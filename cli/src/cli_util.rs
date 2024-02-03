@@ -749,22 +749,6 @@ impl CommandHelper {
     ) -> Result<WorkspaceCommandHelper, CommandError> {
         WorkspaceCommandHelper::new(ui, self, workspace, repo)
     }
-
-    /// Loads workspace that will diverge from the last working-copy operation.
-    pub fn for_stale_working_copy(
-        &self,
-        ui: &mut Ui,
-    ) -> Result<WorkspaceCommandHelper, CommandError> {
-        let workspace = self.load_workspace()?;
-        let op_store = workspace.repo_loader().op_store();
-        let op_id = workspace.working_copy().operation_id();
-        let op_data = op_store
-            .read_operation(op_id)
-            .map_err(|e| internal_error_with_message("Failed to read operation", e))?;
-        let operation = Operation::new(op_store.clone(), op_id.clone(), op_data);
-        let repo = workspace.repo_loader().load_at(&operation)?;
-        self.for_loaded_repo(ui, workspace, repo)
-    }
 }
 
 /// A ReadonlyRepo along with user-config-dependent derived data. The derived
