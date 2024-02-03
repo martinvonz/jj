@@ -149,7 +149,7 @@ pub struct GitCloneArgs {
 /// branch names based on the change IDs of specific commits.
 #[derive(clap::Args, Clone, Debug)]
 #[command(group(ArgGroup::new("specific").args(&["branch", "change", "revisions"]).multiple(true)))]
-#[command(group(ArgGroup::new("what").args(&["all", "deleted"]).conflicts_with("specific")))]
+#[command(group(ArgGroup::new("what").args(&["all", "deleted", "tracked"]).conflicts_with("specific")))]
 pub struct GitPushArgs {
     /// The remote to push to (only named remotes are supported)
     #[arg(long)]
@@ -161,6 +161,16 @@ pub struct GitPushArgs {
     /// https://martinvonz.github.io/jj/latest/revsets#string-patterns.
     #[arg(long, short, value_parser = parse_string_pattern)]
     branch: Vec<StringPattern>,
+    /// Push all tracked branches (including deleted branches)
+    ///
+    /// This usually means that the branch was already pushed to or fetched from
+    /// the relevant remote. For details, see
+    /// https://martinvonz.github.io/jj/latest/branches#remotes-and-tracked-branches
+    ///
+    /// Not yet implemented, TODO(#2946): `jj git push --tracked --deleted`
+    /// would make sense, but is not currently allowed.
+    #[arg(long)]
+    tracked: bool,
     /// Push all branches (including deleted branches)
     #[arg(long)]
     all: bool,
@@ -660,6 +670,18 @@ fn cmd_git_push(
             }
         }
         tx_description = format!("push all branches to git remote {remote}");
+    } else if args.tracked {
+        for (branch_name, targets) in repo.view().local_remote_branches(&remote) {
+            if !targets.remote_ref.is_tracking() {
+                continue;
+            }
+            match classify_branch_update(branch_name, &remote, targets) {
+                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
+                Ok(None) => {}
+                Err(reason) => reason.print(ui)?,
+            }
+        }
+        tx_description = format!("push all tracked branches to git remote {remote}");
     } else if args.deleted {
         for (branch_name, targets) in repo.view().local_remote_branches(&remote) {
             if targets.local_target.is_present() {

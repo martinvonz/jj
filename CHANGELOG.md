@@ -52,6 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj branch rename` will now warn if the renamed branch has a remote branch, since
   those will have to be manually renamed outside of `jj`.
 
+* `jj git push` gained a `--tracked` option, to push all the tracked branches.
+
 * There's now a virtual root operation, similar to the [virtual root
   commit](docs/glossary.md#root-commit). It appears at the end of `jj op log`.
 

@@ -862,6 +862,10 @@ By default, pushes any branches pointing to `remote_branches(remote=<remote>)..@
 
 * `--remote <REMOTE>` — The remote to push to (only named remotes are supported)
 * `-b`, `--branch <BRANCH>` — Push only this branch (can be repeated)
+* `--tracked` — Push all tracked branches (including deleted branches)
+
+  Possible values: `true`, `false`
+
 * `--all` — Push all branches (including deleted branches)
 
   Possible values: `true`, `false`
