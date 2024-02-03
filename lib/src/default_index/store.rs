@@ -44,7 +44,7 @@ const SEGMENT_FILE_NAME_LENGTH: usize = 64 * 2;
 
 /// Error that may occur during `DefaultIndexStore` initialization.
 #[derive(Debug, Error)]
-#[error("Failed to initialize index store: {0}")]
+#[error("Failed to initialize index store")]
 pub struct DefaultIndexStoreInitError(#[from] pub PathError);
 
 impl From<DefaultIndexStoreInitError> for BackendInitError {
@@ -56,20 +56,20 @@ impl From<DefaultIndexStoreInitError> for BackendInitError {
 #[derive(Debug, Error)]
 pub enum DefaultIndexStoreError {
     #[error(
-        "Failed to associate commit index file with an operation {op_id}: {source}",
+        "Failed to associate commit index file with an operation {op_id}",
         op_id = op_id.hex()
     )]
     AssociateIndex {
         op_id: OperationId,
         source: io::Error,
     },
-    #[error("Failed to load associated commit index file name: {0}")]
+    #[error("Failed to load associated commit index file name")]
     LoadAssociation(#[source] io::Error),
     #[error(transparent)]
     LoadIndex(ReadonlyIndexLoadError),
-    #[error("Failed to write commit index file: {0}")]
+    #[error("Failed to write commit index file")]
     SaveIndex(#[source] io::Error),
-    #[error("Failed to index commits at operation {op_id}: {source}", op_id = op_id.hex())]
+    #[error("Failed to index commits at operation {op_id}", op_id = op_id.hex())]
     IndexCommits {
         op_id: OperationId,
         source: BackendError,

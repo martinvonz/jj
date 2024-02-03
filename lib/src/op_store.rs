@@ -411,19 +411,19 @@ content_hash! {
 
 #[derive(Debug, Error)]
 pub enum OpStoreError {
-    #[error("Object {hash} of type {object_type} not found: {source}")]
+    #[error("Object {hash} of type {object_type} not found")]
     ObjectNotFound {
         object_type: String,
         hash: String,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
-    #[error("Error when reading object {hash} of type {object_type}: {source}")]
+    #[error("Error when reading object {hash} of type {object_type}")]
     ReadObject {
         object_type: String,
         hash: String,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
-    #[error("Could not write object of type {object_type}: {source}")]
+    #[error("Could not write object of type {object_type}")]
     WriteObject {
         object_type: &'static str,
         source: Box<dyn std::error::Error + Send + Sync>,

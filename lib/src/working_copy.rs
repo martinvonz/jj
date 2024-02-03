@@ -149,7 +149,7 @@ pub enum SnapshotError {
         target: PathBuf,
     },
     /// Reading or writing from the commit backend failed.
-    #[error("Internal backend error: {0}")]
+    #[error("Internal backend error")]
     InternalBackendError(#[from] BackendError),
     /// A file was larger than the specified maximum file size for new
     /// (previously untracked) files.
@@ -163,7 +163,7 @@ pub enum SnapshotError {
         max_size: HumanByteSize,
     },
     /// Some other error happened while snapshotting the working copy.
-    #[error("{message}: {err}")]
+    #[error("{message}")]
     Other {
         /// Error message.
         message: String,
@@ -233,7 +233,7 @@ pub struct CheckoutStats {
 pub enum CheckoutError {
     /// The current working-copy commit was deleted, maybe by an overly
     /// aggressive GC that happened while the current process was running.
-    #[error("Current working-copy commit not found: {source}")]
+    #[error("Current working-copy commit not found")]
     SourceNotFound {
         /// The underlying error.
         source: Box<dyn std::error::Error + Send + Sync>,
@@ -243,10 +243,10 @@ pub enum CheckoutError {
     #[error("Concurrent checkout")]
     ConcurrentCheckout,
     /// Reading or writing from the commit backend failed.
-    #[error("Internal backend error: {0}")]
+    #[error("Internal backend error")]
     InternalBackendError(#[from] BackendError),
     /// Some other error happened while checking out the working copy.
-    #[error("{message}: {err}")]
+    #[error("{message}")]
     Other {
         /// Error message.
         message: String,
@@ -261,31 +261,32 @@ pub enum CheckoutError {
 pub enum ResetError {
     /// The current working-copy commit was deleted, maybe by an overly
     /// aggressive GC that happened while the current process was running.
-    #[error("Current working-copy commit not found: {source}")]
+    #[error("Current working-copy commit not found")]
     SourceNotFound {
         /// The underlying error.
         source: Box<dyn std::error::Error + Send + Sync>,
     },
     /// Reading or writing from the commit backend failed.
-    #[error("Internal error: {0}")]
+    #[error("Internal error")]
     InternalBackendError(#[from] BackendError),
     /// Some other error happened while checking out the working copy.
-    #[error("{message}: {err}")]
+    #[error("{message}")]
     Other {
         /// Error message.
         message: String,
-        #[source]
         /// The underlying error.
+        #[source]
         err: Box<dyn std::error::Error + Send + Sync>,
     },
 }
 
 /// An error while reading the working copy state.
 #[derive(Debug, Error)]
-#[error("{message}: {err}")]
+#[error("{message}")]
 pub struct WorkingCopyStateError {
     /// Error message.
     pub message: String,
     /// The underlying error.
+    #[source]
     pub err: Box<dyn std::error::Error + Send + Sync>,
 }

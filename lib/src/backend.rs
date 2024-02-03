@@ -196,25 +196,25 @@ pub enum BackendError {
         object_type: String,
         hash: String,
     },
-    #[error("Invalid UTF-8 for object {hash} of type {object_type}: {source}")]
+    #[error("Invalid UTF-8 for object {hash} of type {object_type}")]
     InvalidUtf8 {
         object_type: String,
         hash: String,
         source: std::str::Utf8Error,
     },
-    #[error("Object {hash} of type {object_type} not found: {source}")]
+    #[error("Object {hash} of type {object_type} not found")]
     ObjectNotFound {
         object_type: String,
         hash: String,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
-    #[error("Error when reading object {hash} of type {object_type}: {source}")]
+    #[error("Error when reading object {hash} of type {object_type}")]
     ReadObject {
         object_type: String,
         hash: String,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
-    #[error("Could not write object of type {object_type}: {source}")]
+    #[error("Could not write object of type {object_type}")]
     WriteObject {
         object_type: &'static str,
         source: Box<dyn std::error::Error + Send + Sync>,

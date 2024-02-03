@@ -95,8 +95,8 @@ pub enum SignError {
     #[error("Invalid signature")]
     InvalidSignatureFormat,
     /// A generic error from the backend impl.
-    #[error("Signing error: {0}")]
-    Backend(Box<dyn std::error::Error + Send + Sync>),
+    #[error("Signing error")]
+    Backend(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// A result type for the signing/verifying operations
@@ -109,8 +109,8 @@ pub enum SignInitError {
     #[error("Unknown signing backend configured: {0}")]
     UnknownBackend(String),
     /// A generic error from the backend impl.
-    #[error("Failed to initialize signing: {0}")]
-    Backend(Box<dyn std::error::Error + Send + Sync>),
+    #[error("Failed to initialize signing")]
+    Backend(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// A enum that describes if a created/rewritten commit should be signed or not.

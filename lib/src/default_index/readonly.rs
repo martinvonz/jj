@@ -37,7 +37,7 @@ use crate::store::Store;
 
 /// Error while loading index segment file.
 #[derive(Debug, Error)]
-#[error("Failed to load commit index file '{name}': {error}")]
+#[error("Failed to load commit index file '{name}'")]
 pub struct ReadonlyIndexLoadError {
     /// Index file name.
     pub name: String,

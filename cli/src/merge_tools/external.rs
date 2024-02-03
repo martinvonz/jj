@@ -107,21 +107,18 @@ impl ExternalMergeTool {
 
 #[derive(Debug, Error)]
 pub enum ExternalToolError {
-    #[error("Invalid config: {0}")]
+    #[error("Invalid config")]
     Config(#[from] ConfigError),
     #[error(
         "To use `{tool_name}` as a merge tool, the config `merge-tools.{tool_name}.merge-args` \
          must be defined (see docs for details)"
     )]
     MergeArgsNotConfigured { tool_name: String },
-    #[error("Error setting up temporary directory: {0}")]
+    #[error("Error setting up temporary directory")]
     SetUpDir(#[source] std::io::Error),
     // TODO: Remove the "(run with --verbose to see the exact invocation)"
     // from this and other errors. Print it as a hint but only if --verbose is *not* set.
-    #[error(
-        "Error executing '{tool_binary}' (run with --verbose to see the exact invocation). \
-         {source}"
-    )]
+    #[error("Error executing '{tool_binary}' (run with --verbose to see the exact invocation)")]
     FailedToExecute {
         tool_binary: String,
         #[source]
@@ -129,15 +126,15 @@ pub enum ExternalToolError {
     },
     #[error("{}", format_tool_aborted(.exit_status))]
     ToolAborted { exit_status: ExitStatus },
-    #[error("I/O error: {0}")]
+    #[error("I/O error")]
     Io(#[source] std::io::Error),
 }
 
 #[derive(Debug, Error)]
 pub enum DiffCheckoutError {
-    #[error("Failed to write directories to diff: {0}")]
+    #[error("Failed to write directories to diff")]
     Checkout(#[from] CheckoutError),
-    #[error("Error setting up temporary directory: {0}")]
+    #[error("Error setting up temporary directory")]
     SetUpDir(#[source] std::io::Error),
     #[error(transparent)]
     TreeState(#[from] TreeStateError),

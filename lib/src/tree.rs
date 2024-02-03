@@ -41,7 +41,7 @@ pub enum TreeMergeError {
         source: std::io::Error,
         file_id: FileId,
     },
-    #[error("Backend error: {0}")]
+    #[error("Backend error")]
     BackendError(#[from] BackendError),
 }
 

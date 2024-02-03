@@ -169,13 +169,13 @@ fn resolve_git_ref_to_commit_id(
 
 #[derive(Error, Debug)]
 pub enum GitImportError {
-    #[error("Failed to read Git HEAD target commit {id}: {err}", id=id.hex())]
+    #[error("Failed to read Git HEAD target commit {id}", id=id.hex())]
     MissingHeadTarget {
         id: CommitId,
         #[source]
         err: BackendError,
     },
-    #[error("Ancestor of Git ref {ref_name} is missing: {err}")]
+    #[error("Ancestor of Git ref {ref_name} is missing")]
     MissingRefAncestor {
         ref_name: String,
         #[source]
@@ -186,9 +186,9 @@ pub enum GitImportError {
         name = REMOTE_NAME_FOR_LOCAL_GIT_REPO
     )]
     RemoteReservedForLocalGitRepo,
-    #[error("Unexpected backend error when importing refs: {0}")]
+    #[error("Unexpected backend error when importing refs")]
     InternalBackend(#[source] BackendError),
-    #[error("Unexpected git error when importing refs: {0}")]
+    #[error("Unexpected git error when importing refs")]
     InternalGitError(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error("The repo is not backed by a Git repo")]
     UnexpectedBackend,
@@ -550,7 +550,7 @@ pub fn import_head(mut_repo: &mut MutableRepo) -> Result<(), GitImportError> {
 
 #[derive(Error, Debug)]
 pub enum GitExportError {
-    #[error("Git error: {0}")]
+    #[error("Git error")]
     InternalGitError(#[source] Box<dyn std::error::Error + Send + Sync>),
     #[error("The repo is not backed by a Git repo")]
     UnexpectedBackend,
@@ -1081,10 +1081,10 @@ pub enum GitFetchError {
         chars = INVALID_REFSPEC_CHARS.iter().join("`, `")
     )]
     InvalidBranchPattern,
-    #[error("Failed to import Git refs: {0}")]
+    #[error("Failed to import Git refs")]
     GitImportError(#[from] GitImportError),
     // TODO: I'm sure there are other errors possible, such as transport-level errors.
-    #[error("Unexpected git error when fetching: {0}")]
+    #[error("Unexpected git error when fetching")]
     InternalGitError(#[from] git2::Error),
 }
 
@@ -1196,7 +1196,7 @@ pub enum GitPushError {
     RefUpdateRejected(Vec<String>),
     // TODO: I'm sure there are other errors possible, such as transport-level errors,
     // and errors caused by the remote rejecting the push.
-    #[error("Unexpected git error when pushing: {0}")]
+    #[error("Unexpected git error when pushing")]
     InternalGitError(#[from] git2::Error),
 }
 
@@ -1480,9 +1480,9 @@ pub struct SubmoduleConfig {
 
 #[derive(Error, Debug)]
 pub enum GitConfigParseError {
-    #[error("Unexpected io error when parsing config: {0}")]
+    #[error("Unexpected io error when parsing config")]
     IoError(#[from] std::io::Error),
-    #[error("Unexpected git error when parsing config: {0}")]
+    #[error("Unexpected git error when parsing config")]
     InternalGitError(#[from] git2::Error),
 }
 

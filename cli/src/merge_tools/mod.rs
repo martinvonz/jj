@@ -45,7 +45,7 @@ pub enum DiffEditError {
     ExternalTool(#[from] ExternalToolError),
     #[error(transparent)]
     DiffCheckoutError(#[from] DiffCheckoutError),
-    #[error("Failed to snapshot changes: {0}")]
+    #[error("Failed to snapshot changes")]
     Snapshot(#[from] SnapshotError),
     #[error(transparent)]
     Config(#[from] config::ConfigError),
@@ -81,7 +81,7 @@ pub enum ConflictResolveError {
          to see the exact invocation)."
     )]
     EmptyOrUnchanged,
-    #[error("Backend error: {0}")]
+    #[error("Backend error")]
     Backend(#[from] jj_lib::backend::BackendError),
 }
 

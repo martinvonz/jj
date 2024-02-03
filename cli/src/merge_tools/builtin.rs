@@ -18,11 +18,11 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum BuiltinToolError {
-    #[error("Failed to record changes: {0}")]
+    #[error("Failed to record changes")]
     Record(#[from] scm_record::RecordError),
     #[error(transparent)]
     ReadFileBackend(BackendError),
-    #[error("Failed to read file {path:?} with ID {id}: {source}", id = id.hex())]
+    #[error("Failed to read file {path:?} with ID {id}", id = id.hex())]
     ReadFileIo {
         path: RepoPathBuf,
         id: FileId,
@@ -30,14 +30,14 @@ pub enum BuiltinToolError {
     },
     #[error(transparent)]
     ReadSymlink(BackendError),
-    #[error("Failed to decode UTF-8 text for item {item} (this should not happen): {source}")]
+    #[error("Failed to decode UTF-8 text for item {item} (this should not happen)")]
     DecodeUtf8 {
         source: std::str::Utf8Error,
         item: &'static str,
     },
     #[error("Rendering {item} {id} is unimplemented for the builtin difftool/mergetool")]
     Unimplemented { item: &'static str, id: String },
-    #[error("Backend error: {0}")]
+    #[error("Backend error")]
     BackendError(#[from] jj_lib::backend::BackendError),
 }
 
