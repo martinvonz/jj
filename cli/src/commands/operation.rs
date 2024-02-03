@@ -173,7 +173,7 @@ fn cmd_op_log(
     )?;
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
-    ui.request_pager();
+    ui.request_pager(command.subcommands());
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
     let iter = op_walk::walk_ancestors(&head_ops).take(args.limit.unwrap_or(usize::MAX));

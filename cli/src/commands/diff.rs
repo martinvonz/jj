@@ -65,7 +65,7 @@ pub(crate) fn cmd_diff(
     }
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_formats = diff_formats_for(command.settings(), &args.format)?;
-    ui.request_pager();
+    ui.request_pager(command.subcommands());
     show_diff(
         ui,
         ui.stdout_formatter().as_mut(),

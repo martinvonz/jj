@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashMap;
 use std::io::{IsTerminal as _, Stderr, StderrLock, Stdout, StdoutLock, Write};
+use std::ops::ControlFlow;
 use std::process::{Child, ChildStdin, Stdio};
 use std::str::FromStr;
 use std::{env, fmt, io, mem};
@@ -101,7 +103,7 @@ impl Write for UiStderr<'_> {
 pub struct Ui {
     color: bool,
     pager_cmd: CommandNameAndArgs,
-    paginate: PaginationChoice,
+    paginate: Pagination,
     progress_indicator: bool,
     formatter_factory: FormatterFactory,
     output: UiOutput,
@@ -165,11 +167,88 @@ pub enum PaginationChoice {
     Never,
     #[default]
     Auto,
+    Always,
 }
 
-fn pagination_setting(config: &config::Config) -> Result<PaginationChoice, CommandError> {
+impl FromStr for PaginationChoice {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "always" => Ok(PaginationChoice::Always),
+            "never" => Ok(PaginationChoice::Never),
+            "auto" => Ok(PaginationChoice::Auto),
+            _ => Err("must be one of always, never, or auto"),
+        }
+    }
+}
+
+impl fmt::Display for PaginationChoice {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            PaginationChoice::Always => "always",
+            PaginationChoice::Never => "never",
+            PaginationChoice::Auto => "auto",
+        };
+        write!(f, "{s}")
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct Pagination {
+    default: PaginationChoice,
+
+    commands: HashMap<String, Pagination>,
+}
+
+impl<'de> serde::de::Deserialize<'de> for Pagination {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct PaginationVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for PaginationVisitor {
+            type Value = Pagination;
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                write!(
+                    formatter,
+                    r#"always, never, auto, or a mapping of command names to pagination"#
+                )
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(Pagination {
+                    default: PaginationChoice::from_str(v).map_err(E::custom)?,
+                    ..Default::default()
+                })
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::MapAccess<'de>,
+            {
+                let mut cfg = Pagination::default();
+
+                while let Some(k) = map.next_key::<String>()? {
+                    if k == "default" {
+                        cfg.default = map.next_value::<PaginationChoice>()?;
+                    } else {
+                        cfg.commands.insert(k, map.next_value::<Pagination>()?);
+                    }
+                }
+                Ok(cfg)
+            }
+        }
+        deserializer.deserialize_any(PaginationVisitor)
+    }
+}
+fn pagination_setting(config: &config::Config) -> Result<Pagination, CommandError> {
     config
-        .get::<PaginationChoice>("ui.paginate")
+        .get::<Pagination>("ui.paginate")
         .map_err(|err| CommandError::ConfigError(format!("Invalid `ui.paginate`: {err}")))
 }
 
@@ -209,10 +288,29 @@ impl Ui {
 
     /// Switches the output to use the pager, if allowed.
     #[instrument(skip_all)]
-    pub fn request_pager(&mut self) {
-        match self.paginate {
+    pub fn request_pager<'a>(&mut self, subcommands: impl IntoIterator<Item = &'a str>) {
+        let paginate = subcommands.into_iter().try_fold(
+            (self.paginate.default, &self.paginate),
+            |(out, current), v| match current.commands.get(v) {
+                None => ControlFlow::Break((out, current)),
+                Some(
+                    p @ Pagination {
+                        default: PaginationChoice::Auto,
+                        ..
+                    },
+                ) => ControlFlow::Continue((out, p)),
+                Some(p) => ControlFlow::Continue((p.default, p)),
+            },
+        );
+
+        let paginate = match paginate {
+            ControlFlow::Break((out, _)) => out,
+            ControlFlow::Continue((out, _)) => out,
+        };
+
+        match paginate {
             PaginationChoice::Never => return,
-            PaginationChoice::Auto => {}
+            PaginationChoice::Always | PaginationChoice::Auto => {}
         }
 
         match self.output {

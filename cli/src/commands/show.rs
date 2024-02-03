@@ -43,7 +43,7 @@ pub(crate) fn cmd_show(
     let template_string = command.settings().config().get_string("templates.show")?;
     let template = workspace_command.parse_commit_template(&template_string)?;
     let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
-    ui.request_pager();
+    ui.request_pager(command.subcommands());
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
     template.format(&commit, formatter)?;

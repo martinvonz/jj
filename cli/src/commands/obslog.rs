@@ -76,7 +76,7 @@ pub(crate) fn cmd_obslog(
     let template = workspace_command.parse_commit_template(&template_string)?;
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
-    ui.request_pager();
+    ui.request_pager(command.subcommands());
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
     formatter.push_label("log")?;

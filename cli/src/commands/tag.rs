@@ -55,7 +55,7 @@ fn cmd_tag_list(
     let repo = workspace_command.repo();
     let view = repo.view();
 
-    ui.request_pager();
+    ui.request_pager(command.subcommands());
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
 

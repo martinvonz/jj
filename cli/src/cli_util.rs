@@ -85,7 +85,7 @@ use crate::git_util::{print_failed_git_export, print_git_import_stats};
 use crate::merge_tools::{ConflictResolveError, DiffEditError, DiffGenerateError};
 use crate::template_parser::{TemplateAliasesMap, TemplateParseError};
 use crate::templater::Template;
-use crate::ui::{ColorChoice, Ui};
+use crate::ui::{ColorChoice, PaginationChoice, Ui};
 use crate::{commit_templater, text_util};
 
 #[derive(Clone, Debug)]
@@ -631,6 +631,16 @@ impl CommandHelper {
 
     pub fn matches(&self) -> &ArgMatches {
         &self.matches
+    }
+
+    pub fn subcommands(&self) -> impl Iterator<Item = &'_ str> {
+        let mut next = self.matches().subcommand();
+        
+        std::iter::from_fn(move || {
+            let (sub, args) = next.take()?;
+            next = args.subcommand();
+            Some(sub)
+        })
     }
 
     pub fn global_args(&self) -> &GlobalArgs {
@@ -2594,6 +2604,8 @@ pub struct EarlyArgs {
     // Parsing with ignore_errors will crash if this is bool, so use
     // Option<bool>.
     pub no_pager: Option<bool>,
+    #[arg(long, value_name = "WHEN", global = true)]
+    pub paginate: Option<PaginationChoice>,
     /// Additional configuration options (can be repeated)
     //  TODO: Introduce a `--config` option with simpler syntax for simple
     //  cases, designed so that `--config ui.color=auto` works
@@ -2778,9 +2790,17 @@ fn handle_early_args(
     if let Some(choice) = args.color {
         args.config_toml.push(format!(r#"ui.color="{choice}""#));
     }
-    if args.no_pager.unwrap_or_default() {
-        args.config_toml.push(r#"ui.paginate="never""#.to_owned());
+    if let Some(true) = args.no_pager {
+        args.paginate = Some(PaginationChoice::Never)
     }
+
+    // If pagination was explicitly configured on the CLI, blow away any other
+    // pagination config and use the provided value.
+    if let Some(paginate) = args.paginate {
+        args.config_toml
+            .push(format!(r#"ui.paginate="{}""#, paginate));
+    }
+
     if !args.config_toml.is_empty() {
         layered_configs.parse_config_args(&args.config_toml)?;
         ui.reset(&layered_configs.merge())?;
@@ -2868,7 +2888,7 @@ pub fn handle_command_result(
             match inner.kind() {
                 clap::error::ErrorKind::DisplayHelp
                 | clap::error::ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => {
-                    ui.request_pager()
+                    ui.request_pager(["help"])
                 }
                 _ => {}
             };
