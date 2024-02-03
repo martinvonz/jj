@@ -21,7 +21,7 @@ use std::path::Path;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::{error, fmt};
+use std::{error, fmt, iter};
 
 use itertools::Itertools;
 use once_cell::sync::Lazy;
@@ -174,7 +174,7 @@ pub enum RevsetParseErrorKind {
     },
     #[error("Invalid arguments to revset function \"{name}\": {message}")]
     InvalidFunctionArguments { name: String, message: String },
-    #[error("Invalid file pattern: {0}")]
+    #[error("Invalid file pattern")]
     FsPathParseError(#[source] FsPathParseError),
     #[error("Cannot resolve file pattern without workspace")]
     FsPathWithoutWorkspace,
@@ -198,10 +198,9 @@ impl RevsetParseError {
     }
 
     fn with_span(kind: RevsetParseErrorKind, span: pest::Span<'_>) -> Self {
+        let message = iter::successors(Some(&kind as &dyn error::Error), |e| e.source()).join(": ");
         let err = pest::error::Error::new_from_span(
-            pest::error::ErrorVariant::CustomError {
-                message: kind.to_string(),
-            },
+            pest::error::ErrorVariant::CustomError { message },
             span,
         );
         RevsetParseError {
@@ -216,10 +215,9 @@ impl RevsetParseError {
         span: pest::Span<'_>,
         origin: Self,
     ) -> Self {
+        let message = iter::successors(Some(&kind as &dyn error::Error), |e| e.source()).join(": ");
         let err = pest::error::Error::new_from_span(
-            pest::error::ErrorVariant::CustomError {
-                message: kind.to_string(),
-            },
+            pest::error::ErrorVariant::CustomError { message },
             span,
         );
         RevsetParseError {

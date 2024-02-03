@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 use std::num::ParseIntError;
-use std::{error, fmt};
+use std::{error, fmt, iter};
 
 use itertools::Itertools as _;
 use pest::iterators::{Pair, Pairs};
@@ -39,7 +39,7 @@ pub struct TemplateParseError {
 pub enum TemplateParseErrorKind {
     #[error("Syntax error")]
     SyntaxError,
-    #[error("Invalid integer literal: {0}")]
+    #[error("Invalid integer literal")]
     ParseIntError(#[source] ParseIntError),
     #[error(r#"Keyword "{0}" doesn't exist"#)]
     NoSuchKeyword(String),
@@ -61,10 +61,9 @@ pub enum TemplateParseErrorKind {
 
 impl TemplateParseError {
     pub fn with_span(kind: TemplateParseErrorKind, span: pest::Span<'_>) -> Self {
+        let message = iter::successors(Some(&kind as &dyn error::Error), |e| e.source()).join(": ");
         let pest_error = Box::new(pest::error::Error::new_from_span(
-            pest::error::ErrorVariant::CustomError {
-                message: kind.to_string(),
-            },
+            pest::error::ErrorVariant::CustomError { message },
             span,
         ));
         TemplateParseError {
@@ -79,10 +78,9 @@ impl TemplateParseError {
         span: pest::Span<'_>,
         origin: Self,
     ) -> Self {
+        let message = iter::successors(Some(&kind as &dyn error::Error), |e| e.source()).join(": ");
         let pest_error = Box::new(pest::error::Error::new_from_span(
-            pest::error::ErrorVariant::CustomError {
-                message: kind.to_string(),
-            },
+            pest::error::ErrorVariant::CustomError { message },
             span,
         ));
         TemplateParseError {
