@@ -135,7 +135,7 @@ fn test_git_push_no_matching_branch() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    No branches point to the specified revisions.
+    No branches found in the default push revset, `remote_branches(remote=origin)..@`.
     Nothing changed.
     "###);
 }
@@ -147,7 +147,7 @@ fn test_git_push_matching_branch_unchanged() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    No branches point to the specified revisions.
+    No branches found in the default push revset, `remote_branches(remote=origin)..@`.
     Nothing changed.
     "###);
 }
@@ -190,7 +190,7 @@ fn test_git_push_other_remote_has_branch() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    No branches point to the specified revisions.
+    No branches found in the default push revset, `remote_branches(remote=origin)..@`.
     Nothing changed.
     "###);
     // But it will still get pushed to another remote
