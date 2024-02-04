@@ -1708,13 +1708,16 @@ Infrequently used commands such as for generating shell completions
 
 Print a command-line-completion script
 
-Apply it by running this:
-bash: source <(jj util completion)
-fish: jj util completion --fish | source
-zsh:
-autoload -U compinit
-compinit
-source <(jj util completion --zsh)
+Apply it by running one of these:
+
+- **bash**: `source <(jj util completion)`
+- **fish**: `jj util completion --fish | source`
+- **zsh**:
+    ```shell
+    autoload -U compinit
+    compinit
+    source <(jj util completion --zsh)
+    ```
 
 **Usage:** `jj util completion [SHELL]`
 

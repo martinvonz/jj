@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use insta::assert_snapshot;
+
 use crate::common::TestEnvironment;
 
 pub mod common;
@@ -21,10 +23,12 @@ fn test_deprecated_flags() {
     let test_env = TestEnvironment::default();
     let (stdout, stderr) =
         test_env.jj_cmd_ok(test_env.env_root(), &["util", "completion", "--bash"]);
-    assert_eq!(
+    assert_snapshot!(
         stderr,
-        "warning: `jj util completion --bash` will be removed in a future version, and this will \
-         be a hard error\n"
+        @r###"
+    Warning: `jj util completion --bash` will be removed in a future version, and this will be a hard error
+    Hint: Use `jj util completion bash` instead
+    "###
     );
     assert!(stdout.contains("COMPREPLY"));
 }
