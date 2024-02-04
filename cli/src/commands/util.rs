@@ -34,15 +34,21 @@ pub(crate) enum UtilCommand {
     ConfigSchema(UtilConfigSchemaArgs),
 }
 
-/// Print a command-line-completion script
-///
-/// Apply it by running this:
-/// bash: source <(jj util completion)
-/// fish: jj util completion --fish | source
-/// zsh:
-/// autoload -U compinit
-/// compinit
-/// source <(jj util completion --zsh)
+// Using an explicit `doc` attribute prevents rustfmt from mangling the list
+// formatting without disabling rustfmt for the entire struct.
+#[doc = r#"Print a command-line-completion script
+
+Apply it by running one of these:
+
+- **bash**: `source <(jj util completion)`
+- **fish**: `jj util completion --fish | source`
+- **zsh**:
+     ```shell
+     autoload -U compinit
+     compinit
+     source <(jj util completion --zsh)
+     ```
+"#]
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 pub(crate) struct UtilCompletionArgs {
@@ -109,9 +115,10 @@ fn cmd_util_completion(
     let warn = |shell| {
         writeln!(
             ui.warning(),
-            "warning: `jj util completion --{shell}` will be removed in a future version, and \
+            "Warning: `jj util completion --{shell}` will be removed in a future version, and \
              this will be a hard error"
-        )
+        )?;
+        writeln!(ui.hint(), "Hint: Use `jj util completion {shell}` instead")
     };
     let mut buf = vec![];
     let shell = match (args.shell, args.fish, args.zsh, args.bash) {
