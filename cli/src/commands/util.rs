@@ -17,6 +17,7 @@ use std::slice;
 use std::time::{Duration, SystemTime};
 
 use clap::Subcommand;
+use clap_complete::Shell;
 use jj_lib::repo::Repo;
 use tracing::instrument;
 
@@ -34,30 +35,26 @@ pub(crate) enum UtilCommand {
 }
 
 /// Print a command-line-completion script
+///
+/// Apply it by running this:
+/// bash: source <(jj util completion)
+/// fish: jj util completion --fish | source
+/// zsh:
+/// autoload -U compinit
+/// compinit
+/// source <(jj util completion --zsh)
 #[derive(clap::Args, Clone, Debug)]
+#[command(verbatim_doc_comment)]
 pub(crate) struct UtilCompletionArgs {
-    /// Print a completion script for Bash (default)
-    ///
-    /// Apply it by running this:
-    ///
-    /// source <(jj util completion)
-    #[arg(long, verbatim_doc_comment)]
+    shell: Option<Shell>,
+    /// Deprecated. Use the SHELL positional argument instead.
+    #[arg(long, hide = true)]
     bash: bool,
-    /// Print a completion script for Fish
-    ///
-    /// Apply it by running this:
-    ///
-    /// jj util completion --fish | source
-    #[arg(long, verbatim_doc_comment)]
+    /// Deprecated. Use the SHELL positional argument instead.
+    #[arg(long, hide = true)]
     fish: bool,
-    /// Print a completion script for Zsh
-    ///
-    /// Apply it by running this:
-    ///
-    /// autoload -U compinit
-    /// compinit
-    /// source <(jj util completion --zsh)
-    #[arg(long, verbatim_doc_comment)]
+    /// Deprecated. Use the SHELL positional argument instead.
+    #[arg(long, hide = true)]
     zsh: bool,
 }
 
@@ -109,13 +106,35 @@ fn cmd_util_completion(
     args: &UtilCompletionArgs,
 ) -> Result<(), CommandError> {
     let mut app = command.app().clone();
+    let warn = |shell| {
+        writeln!(
+            ui.warning(),
+            "warning: `jj util completion --{shell}` will be removed in a future version, and \
+             this will be a hard error"
+        )
+    };
     let mut buf = vec![];
-    let shell = if args.zsh {
-        clap_complete::Shell::Zsh
-    } else if args.fish {
-        clap_complete::Shell::Fish
-    } else {
-        clap_complete::Shell::Bash
+    let shell = match (args.shell, args.fish, args.zsh, args.bash) {
+        (Some(s), false, false, false) => s,
+        // allow `--fish` and `--zsh` for back-compat, but don't allow them to be combined
+        (None, true, false, false) => {
+            warn("fish")?;
+            Shell::Fish
+        }
+        (None, false, true, false) => {
+            warn("zsh")?;
+            Shell::Zsh
+        }
+        // default to bash for back-compat. TODO: consider making `shell` a required argument
+        (None, false, false, _) => {
+            warn("bash")?;
+            Shell::Bash
+        }
+        _ => {
+            return Err(user_error(
+                "cannot generate completion for multiple shells at once",
+            ))
+        }
     };
     clap_complete::generate(shell, &mut app, "jj", &mut buf);
     ui.stdout_formatter().write_all(&buf)?;

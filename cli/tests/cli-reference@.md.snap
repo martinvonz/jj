@@ -1708,19 +1708,34 @@ Infrequently used commands such as for generating shell completions
 
 Print a command-line-completion script
 
-**Usage:** `jj util completion [OPTIONS]`
+Apply it by running this:
+bash: source <(jj util completion)
+fish: jj util completion --fish | source
+zsh:
+autoload -U compinit
+compinit
+source <(jj util completion --zsh)
+
+**Usage:** `jj util completion [SHELL]`
+
+###### **Arguments:**
+
+* `<SHELL>`
+
+  Possible values: `bash`, `elvish`, `fish`, `powershell`, `zsh`
+
 
 ###### **Options:**
 
-* `--bash` — Print a completion script for Bash (default)
+* `--bash` — Deprecated. Use the SHELL positional argument instead
 
   Possible values: `true`, `false`
 
-* `--fish` — Print a completion script for Fish
+* `--fish` — Deprecated. Use the SHELL positional argument instead
 
   Possible values: `true`, `false`
 
-* `--zsh` — Print a completion script for Zsh
+* `--zsh` — Deprecated. Use the SHELL positional argument instead
 
   Possible values: `true`, `false`
 
