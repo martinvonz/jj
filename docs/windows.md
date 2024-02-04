@@ -83,3 +83,13 @@ Then only use the `~/my-repo` workspace from Linux.
 
 [issue-2040]: https://github.com/martinvonz/jj/issues/2040
 [array-op]: https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_arrays?view=powershell-7.4#the-array-sub-expression-operator
+
+## Symbolic link support
+
+`jj` supports symlinks on Windows only when they are enabled by the operating 
+system. This requires Windows 10 version 14972 or higher, as well as Developer
+Mode. If those conditions are not satisfied, `jj` will materialize symlinks as
+ordinary files.
+
+For colocated repositories, Git support must also be enabled using the
+`git config` option `core.symlinks=true`.

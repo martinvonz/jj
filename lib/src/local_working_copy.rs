@@ -21,8 +21,6 @@ use std::fs::{File, Metadata, OpenOptions};
 use std::io::{Read, Write};
 use std::ops::Range;
 #[cfg(unix)]
-use std::os::unix::fs::symlink;
-#[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Sender};
@@ -46,6 +44,7 @@ use crate::backend::{
 };
 use crate::commit::Commit;
 use crate::conflicts::{self, materialize_tree_value, MaterializedTreeValue};
+use crate::file_util::{check_symlink_support, try_symlink};
 #[cfg(feature = "watchman")]
 use crate::fsmonitor::watchman;
 use crate::fsmonitor::FsmonitorKind;
@@ -118,7 +117,6 @@ impl FileState {
         }
     }
 
-    #[cfg(unix)]
     fn for_symlink(metadata: &Metadata) -> Self {
         // When using fscrypt, the reported size is not the content size. So if
         // we were to record the content size here (like we do for regular files), we
@@ -294,6 +292,7 @@ pub struct TreeState {
     // Currently only path prefixes
     sparse_patterns: Vec<RepoPathBuf>,
     own_mtime: MillisSinceEpoch,
+    symlink_support: bool,
 
     /// The most recent clock value returned by Watchman. Will only be set if
     /// the repo is configured to use the Watchman filesystem monitor and
@@ -549,6 +548,7 @@ impl TreeState {
             file_states: FileStatesMap::new(),
             sparse_patterns: vec![RepoPathBuf::root()],
             own_mtime: MillisSinceEpoch(0),
+            symlink_support: check_symlink_support().unwrap_or(false),
             watchman_clock: None,
         }
     }
@@ -682,8 +682,7 @@ impl TreeState {
         path: &RepoPath,
         disk_path: &Path,
     ) -> Result<SymlinkId, SnapshotError> {
-        #[cfg(unix)]
-        {
+        if self.symlink_support {
             let target = disk_path.read_link().map_err(|err| SnapshotError::Other {
                 message: format!("Failed to read symlink {}", disk_path.display()),
                 err: err.into(),
@@ -695,9 +694,7 @@ impl TreeState {
                         path: disk_path.to_path_buf(),
                     })?;
             Ok(self.store.write_symlink(path, str_target)?)
-        }
-        #[cfg(windows)]
-        {
+        } else {
             let target = fs::read(disk_path).map_err(|err| SnapshotError::Other {
                 message: format!("Failed to read file {}", disk_path.display()),
                 err: err.into(),
@@ -1082,7 +1079,7 @@ impl TreeState {
             Ok(None)
         } else {
             let current_tree_values = current_tree.path_value(repo_path);
-            let new_file_type = if cfg!(windows) {
+            let new_file_type = if !self.symlink_support {
                 let mut new_file_type = new_file_state.file_type.clone();
                 if matches!(new_file_type, FileType::Normal { .. })
                     && matches!(current_tree_values.as_normal(), Some(TreeValue::Symlink(_)))
@@ -1204,28 +1201,20 @@ impl TreeState {
         Ok(FileState::for_file(executable, size, &metadata))
     }
 
-    #[cfg_attr(windows, allow(unused_variables))]
     fn write_symlink(&self, disk_path: &Path, target: String) -> Result<FileState, CheckoutError> {
-        #[cfg(windows)]
-        {
-            self.write_file(disk_path, &mut target.as_bytes(), false)
-        }
-        #[cfg(unix)]
-        {
-            let target = PathBuf::from(&target);
-            symlink(&target, disk_path).map_err(|err| CheckoutError::Other {
-                message: format!(
-                    "Failed to create symlink from {} to {}",
-                    disk_path.display(),
-                    target.display()
-                ),
-                err: err.into(),
-            })?;
-            let metadata = disk_path
-                .symlink_metadata()
-                .map_err(|err| checkout_error_for_stat_error(err, disk_path))?;
-            Ok(FileState::for_symlink(&metadata))
-        }
+        let target = PathBuf::from(&target);
+        try_symlink(&target, disk_path).map_err(|err| CheckoutError::Other {
+            message: format!(
+                "Failed to create symlink from {} to {}",
+                disk_path.display(),
+                target.display()
+            ),
+            err: err.into(),
+        })?;
+        let metadata = disk_path
+            .symlink_metadata()
+            .map_err(|err| checkout_error_for_stat_error(err, disk_path))?;
+        Ok(FileState::for_symlink(&metadata))
     }
 
     fn write_conflict(
@@ -1388,7 +1377,11 @@ impl TreeState {
                     ..
                 } => self.write_file(&disk_path, &mut reader, executable)?,
                 MaterializedTreeValue::Symlink { id: _, target } => {
-                    self.write_symlink(&disk_path, target)?
+                    if self.symlink_support {
+                        self.write_symlink(&disk_path, target)?
+                    } else {
+                        self.write_file(&disk_path, &mut target.as_bytes(), false)?
+                    }
                 }
                 MaterializedTreeValue::GitSubmodule(_) => {
                     println!("ignoring git submodule at {path:?}");

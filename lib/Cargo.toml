@@ -65,6 +65,9 @@ zstd = { workspace = true }
 [target.'cfg(unix)'.dependencies]
 rustix = { workspace = true }
 
+[target.'cfg(windows)'.dependencies]
+winreg = { workspace = true }
+
 [dev-dependencies]
 assert_matches = { workspace = true }
 criterion = { workspace = true }
