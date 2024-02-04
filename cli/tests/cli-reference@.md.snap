@@ -1712,7 +1712,7 @@ Print a command-line-completion script
 
 ###### **Options:**
 
-* `--bash` — Print a completion script for Bash
+* `--bash` — Print a completion script for Bash (default)
 
   Possible values: `true`, `false`
 

@@ -36,7 +36,7 @@ pub(crate) enum UtilCommand {
 /// Print a command-line-completion script
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct UtilCompletionArgs {
-    /// Print a completion script for Bash
+    /// Print a completion script for Bash (default)
     ///
     /// Apply it by running this:
     ///
