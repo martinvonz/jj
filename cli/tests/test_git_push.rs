@@ -51,6 +51,14 @@ fn set_up() -> (TestEnvironment, PathBuf) {
 #[test]
 fn test_git_push_nothing() {
     let (test_env, workspace_root) = set_up();
+    // Show the setup. `insta` has trouble if this is done inside `set_up()`
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all"]);
+    insta::assert_snapshot!(stdout, @r###"
+    branch1: lzmmnrxq 45a3aa29 (empty) description 1
+      @origin: lzmmnrxq 45a3aa29 (empty) description 1
+    branch2: rlzusymt 8476341e (empty) description 2
+      @origin: rlzusymt 8476341e (empty) description 2
+    "###);
     // No branches to push yet
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stdout, @"");
