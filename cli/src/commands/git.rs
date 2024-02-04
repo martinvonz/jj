@@ -202,7 +202,7 @@ pub struct GitPushArgs {
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select branches by wildcard pattern. For details, see
-    /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
+    /// https://martinvonz.github.io/jj/latest/revsets#string-patterns.
     #[arg(long, short, value_parser = parse_string_pattern)]
     branch: Vec<StringPattern>,
     /// Push all branches (including deleted branches)
