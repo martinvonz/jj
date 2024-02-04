@@ -103,7 +103,7 @@ And it adds several innovative, useful features of its own:
   repositories to S3? No? Well, now you can!
 
   The fundamental problem with using filesystems like Dropbox and backup tools
-  like `rsync` on your typical Git/Mercurial repositories is that that they rely
+  like `rsync` on your typical Git/Mercurial repositories is that they rely
   on *local filesystem operations* being atomic, serialized, and non-concurrent
   with respect to other reads and writes—which is _not_ true when operating on
   distributed file systems, or when operations like concurrent file copies (for
