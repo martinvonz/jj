@@ -780,11 +780,20 @@ fn cmd_git_push(
                 Err(reason) => reason.print(ui)?,
             }
         }
-        if (!args.revisions.is_empty() || use_default_revset) && branches_targeted.is_empty() {
-            writeln!(
-                ui.warning(),
-                "No branches point to the specified revisions."
-            )?;
+        if branches_targeted.is_empty() {
+            if use_default_revset {
+                writeln!(
+                    ui.warning(),
+                    "No branches found in the default push revset, \
+                     `remote_branches(remote={remote})..@`."
+                )?;
+            } else if !args.revisions.is_empty() {
+                writeln!(
+                    ui.warning(),
+                    "No branches point to the specified revisions."
+                )?;
+            } else { /* A plain "Nothing changed" message will suffice */
+            }
         }
 
         tx_description = format!(
