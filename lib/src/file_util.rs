@@ -21,6 +21,8 @@ use std::{io, iter};
 use tempfile::{NamedTempFile, PersistError};
 use thiserror::Error;
 
+pub use self::platform::*;
+
 #[derive(Debug, Error)]
 #[error("Cannot access {path}")]
 pub struct PathError {
@@ -143,6 +145,52 @@ pub fn persist_content_addressed_temp_file<P: AsRef<Path>>(
         temp_file
             .persist(new_path)
             .map_err(|PersistError { error, file: _ }| error)
+    }
+}
+
+#[cfg(unix)]
+mod platform {
+    use std::io;
+    use std::os::unix::fs::symlink;
+    use std::path::Path;
+
+    /// Symlinks are always available on UNIX
+    pub fn check_symlink_support() -> io::Result<bool> {
+        Ok(true)
+    }
+
+    pub fn try_symlink<P: AsRef<Path>, Q: AsRef<Path>>(original: P, link: Q) -> io::Result<()> {
+        symlink(original, link)
+    }
+}
+
+#[cfg(windows)]
+mod platform {
+    use std::io;
+    use std::os::windows::fs::symlink_file;
+    use std::path::Path;
+
+    use winreg::enums::HKEY_LOCAL_MACHINE;
+    use winreg::RegKey;
+
+    /// Symlinks may or may not be enabled on Windows. They require the
+    /// Developer Mode setting, which is stored in the registry key below.
+    pub fn check_symlink_support() -> io::Result<bool> {
+        let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+        let sideloading =
+            hklm.open_subkey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock")?;
+        let developer_mode: u32 = sideloading.get_value("AllowDevelopmentWithoutDevLicense")?;
+        Ok(developer_mode == 1)
+    }
+
+    pub fn try_symlink<P: AsRef<Path>, Q: AsRef<Path>>(original: P, link: Q) -> io::Result<()> {
+        // this will create a nonfunctional link for directories, but at the moment
+        // we don't have enough information in the tree to determine whether the
+        // symlink target is a file or a directory
+        // note: if developer mode is not enabled the error code will be 1314,
+        // ERROR_PRIVILEGE_NOT_HELD
+
+        symlink_file(original, link)
     }
 }
 

@@ -90,9 +90,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
-* On Windows, symlinks in the repo are now materialized as regular files in the
+* On Windows, symlinks in the repo are now supported when Developer Mode is enabled.
+  When symlink support is unavailable, they will be materialized as regular files in the
   working copy (instead of resulting in a crash).
-
+  [#2](https://github.com/martinvonz/jj/issues/2)
+  
 * On Windows, the `:builtin` pager is now used by default, rather than being
   disabled entirely.
 

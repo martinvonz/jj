@@ -21,6 +21,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 use jj_lib::backend::{MergedTreeId, TreeId, TreeValue};
+use jj_lib::file_util::{check_symlink_support, try_symlink};
 use jj_lib::fsmonitor::FsmonitorKind;
 use jj_lib::local_working_copy::LocalWorkingCopy;
 use jj_lib::merge::Merge;
@@ -80,7 +81,6 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
         // Executable, but same content as Normal, to test transition where only the bit changed
         ExecutableNormalContent,
         Conflict,
-        #[cfg_attr(windows, allow(dead_code))]
         Symlink,
         Tree,
         GitSubmodule,
@@ -170,7 +170,6 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
         Kind::Conflict,
         Kind::Tree,
     ];
-    #[cfg(unix)]
     kinds.push(Kind::Symlink);
     if backend == TestRepoBackend::Git {
         kinds.push(Kind::GitSubmodule);
@@ -244,10 +243,12 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
             Kind::Symlink => {
                 assert!(maybe_metadata.is_ok(), "{path:?} should exist");
                 let metadata = maybe_metadata.unwrap();
-                assert!(
-                    metadata.file_type().is_symlink(),
-                    "{path:?} should be a symlink"
-                );
+                if check_symlink_support().unwrap_or(false) {
+                    assert!(
+                        metadata.file_type().is_symlink(),
+                        "{path:?} should be a symlink"
+                    );
+                }
             }
             Kind::Tree => {
                 assert!(maybe_metadata.is_ok(), "{path:?} should exist");
@@ -803,13 +804,11 @@ fn test_gitignores_ignored_directory_already_tracked() {
     )
     .unwrap();
     std::fs::remove_file(deleted_executable_path.to_fs_path(&workspace_root)).unwrap();
-    if cfg!(unix) {
-        let fs_path = modified_symlink_path.to_fs_path(&workspace_root);
-        std::fs::remove_file(&fs_path).unwrap();
-        #[cfg(unix)]
-        std::os::unix::fs::symlink("modified", &fs_path).unwrap();
+    let fs_path = modified_symlink_path.to_fs_path(&workspace_root);
+    std::fs::remove_file(&fs_path).unwrap();
+    if check_symlink_support().unwrap_or(false) {
+        try_symlink("modified", &fs_path).unwrap();
     } else {
-        let fs_path = modified_symlink_path.to_fs_path(&workspace_root);
         std::fs::write(fs_path, "modified").unwrap();
     }
     std::fs::remove_file(deleted_symlink_path.to_fs_path(&workspace_root)).unwrap();
@@ -923,7 +922,6 @@ fn test_gitsubmodule() {
     );
 }
 
-#[cfg(unix)]
 #[test]
 fn test_existing_directory_symlink() {
     let settings = testutils::user_settings();
@@ -933,7 +931,12 @@ fn test_existing_directory_symlink() {
 
     // Creates a symlink in working directory, and a tree that will add a file under
     // the symlinked directory.
-    std::os::unix::fs::symlink("..", workspace_root.join("parent")).unwrap();
+    if check_symlink_support().unwrap_or(false) {
+        try_symlink("..", workspace_root.join("parent")).unwrap();
+    } else {
+        return;
+    }
+
     let file_path = RepoPath::from_internal_string("parent/escaped");
     let tree = create_tree(repo, &[(file_path, "contents")]);
     let commit = commit_with_tree(repo.store(), tree.id());
