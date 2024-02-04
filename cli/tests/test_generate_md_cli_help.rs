@@ -18,10 +18,22 @@ use crate::common::TestEnvironment;
 
 pub mod common;
 
+const PREAMBLE: &str = r#"
+!!! warning
+
+    This CLI reference is experimental. It is automatically generated, but
+    does not match the `jj help` output exactly.
+
+    <!-- See also https://github.com/ConnorGray/clap-markdown/issues -->
+
+"#;
+
 #[test]
 fn test_generate_markdown_docs_in_docs_dir() {
     let test_env = TestEnvironment::default();
-    let markdown_help = test_env.jj_cmd_success(test_env.env_root(), &["util", "markdown-help"]);
+    let mut markdown_help = PREAMBLE.to_string();
+    markdown_help
+        .push_str(&test_env.jj_cmd_success(test_env.env_root(), &["util", "markdown-help"]));
     // Validate partial snapshot, redacting any lines nested 2+ indent levels.
     insta::with_settings!({
         snapshot_path => ".",
