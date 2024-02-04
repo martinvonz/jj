@@ -39,7 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of `R` for "Removed". @joyously pointed out that `R` could also mean
   "Renamed".
 
+* `jj util completion` now takes the shell as a positional argument, not a flag.
+  the previous behavior is deprecated, but supported for now. it will be removed
+  in the future.
+
 ### New features
+
+* `jj util completion` now supports powershell and elvish.
 
 * Official binaries for macOS running on Apple Silicon (`aarch64-apple-darwin`)
   are now available, alongside the existing macOS x86 binaries.
