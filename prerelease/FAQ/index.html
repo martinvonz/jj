@@ -464,9 +464,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#jj-is-said-to-record-the-working-after-jj-log-and-every-other-command-where-can-i-see-these-automatic-saves" class="md-nav__link">
+  <a href="#jj-is-said-to-record-the-working-copy-after-jj-log-and-every-other-command-where-can-i-see-these-automatic-saves" class="md-nav__link">
     <span class="md-ellipsis">
-      jj is said to record the working after jj log and every other command. Where can I see these automatic "saves"?
+      jj is said to record the working copy after jj log and every other command. Where can I see these automatic "saves"?
     </span>
   </a>
   
@@ -1361,9 +1361,9 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#jj-is-said-to-record-the-working-after-jj-log-and-every-other-command-where-can-i-see-these-automatic-saves" class="md-nav__link">
+  <a href="#jj-is-said-to-record-the-working-copy-after-jj-log-and-every-other-command-where-can-i-see-these-automatic-saves" class="md-nav__link">
     <span class="md-ellipsis">
-      jj is said to record the working after jj log and every other command. Where can I see these automatic "saves"?
+      jj is said to record the working copy after jj log and every other command. Where can I see these automatic "saves"?
     </span>
   </a>
   
@@ -1490,24 +1490,25 @@ with <code>jj rebase</code>, <code>jj describe</code>, etc). In that case, <code
 should show the revision as "hidden". <code>jj new commit_id</code> should make the
 revision visible again.</p>
 <p>See <a href="../revsets/">revsets</a> and <a href="../templates/">templates</a> for further guidance.</p>
-<h3 id="jj-is-said-to-record-the-working-after-jj-log-and-every-other-command-where-can-i-see-these-automatic-saves"><code>jj</code> is said to record the working after <code>jj log</code> and every other command. Where can I see these automatic "saves"?<a class="headerlink" href="#jj-is-said-to-record-the-working-after-jj-log-and-every-other-command-where-can-i-see-these-automatic-saves" title="Permanent link">&para;</a></h3>
+<h3 id="jj-is-said-to-record-the-working-copy-after-jj-log-and-every-other-command-where-can-i-see-these-automatic-saves"><code>jj</code> is said to record the working copy after <code>jj log</code> and every other command. Where can I see these automatic "saves"?<a class="headerlink" href="#jj-is-said-to-record-the-working-copy-after-jj-log-and-every-other-command-where-can-i-see-these-automatic-saves" title="Permanent link">&para;</a></h3>
 <p>Indeed, every <code>jj</code> command updates the current "working-copy" revision, marked 
 with <code>@</code> in <code>jj log</code>. You can notice this by how the <a href="../glossary/#commit-id">commit ID</a> of the
 working copy revision changes when it's updated. Note that, unless you move to
 another revision (with <code>jj new</code> or <code>jj edit</code>, for example), the <a href="../glossary/#change-id">change ID</a> will 
 not change.</p>
-<p>If you expected to see a historical view of your working-copy changes in 
-<code>jj log</code>, as a chain in a parent-child relationship, this is not the case. 
-Instead, each commit gets amended and the commit ID changes.</p>
-<p>You can see the history of these changes using <code>jj obslog</code>. This will show the 
-history of the commits that were previously the "working-copy commit", since 
-the last time the change id of the working copy commit changed. The obsolete 
-changes will be marked as "hidden". They are still accessible with any <code>jj</code> 
-command (<code>jj diff</code>, for example), but you will need to use the commit id to 
-refer to hidden commits.</p>
-<p>You can also use <code>jj obslog -r</code> on revisions that were previously the 
-working-copy revisions. Use <code>jj obslog -p</code> as an easy way to see a commit's 
-evolution.</p>
+<p>If you expected to see a historical view of your working copy changes in the
+parent-child relationships between commits you can see in <code>jj log</code>, this is
+simply not what they mean. What you can see in <code>jj log</code> is that after the
+working copy commit gets amended (after any edit), the commit ID changes.</p>
+<p>You can see the actual history of working copy changes using <code>jj obslog</code>. This
+will show the history of the commits that were previously the "working-copy
+commit", since the last time the change id of the working copy commit changed.
+The obsolete changes will be marked as "hidden". They are still accessible with
+any <code>jj</code> command (<code>jj diff</code>, for example), but you will need to use the commit
+id to refer to hidden commits.</p>
+<p>You can also use <code>jj obslog -r</code> on revisions that were previously the
+working-copy revisions (or on any other revisions). Use <code>jj obslog -p</code> as an
+easy way to see the evolution of the commit's contents.</p>
 <h3 id="can-i-prevent-jujutsu-from-recording-my-unfinished-work-im-not-ready-to-commit-it">Can I prevent Jujutsu from recording my unfinished work? I'm not ready to commit it.<a class="headerlink" href="#can-i-prevent-jujutsu-from-recording-my-unfinished-work-im-not-ready-to-commit-it" title="Permanent link">&para;</a></h3>
 <p>Jujutsu automatically records new files in the current working-copy commit and
 doesn't provide a way to prevent that.</p>
