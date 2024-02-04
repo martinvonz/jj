@@ -33,7 +33,7 @@ revision visible again.
 
 See [revsets] and [templates] for further guidance.
 
-### `jj` is said to record the working after `jj log` and every other command. Where can I see these automatic "saves"?  
+### `jj` is said to record the working copy after `jj log` and every other command. Where can I see these automatic "saves"?  
 
 Indeed, every `jj` command updates the current "working-copy" revision, marked 
 with `@` in `jj log`. You can notice this by how the [commit ID] of the
@@ -41,20 +41,21 @@ working copy revision changes when it's updated. Note that, unless you move to
 another revision (with `jj new` or `jj edit`, for example), the [change ID] will 
 not change.
 
-If you expected to see a historical view of your working-copy changes in 
-`jj log`, as a chain in a parent-child relationship, this is not the case. 
-Instead, each commit gets amended and the commit ID changes.
+If you expected to see a historical view of your working copy changes in the
+parent-child relationships between commits you can see in `jj log`, this is
+simply not what they mean. What you can see in `jj log` is that after the
+working copy commit gets amended (after any edit), the commit ID changes.
 
-You can see the history of these changes using `jj obslog`. This will show the 
-history of the commits that were previously the "working-copy commit", since 
-the last time the change id of the working copy commit changed. The obsolete 
-changes will be marked as "hidden". They are still accessible with any `jj` 
-command (`jj diff`, for example), but you will need to use the commit id to 
-refer to hidden commits.
+You can see the actual history of working copy changes using `jj obslog`. This
+will show the history of the commits that were previously the "working-copy
+commit", since the last time the change id of the working copy commit changed.
+The obsolete changes will be marked as "hidden". They are still accessible with
+any `jj` command (`jj diff`, for example), but you will need to use the commit
+id to refer to hidden commits.
 
-You can also use `jj obslog -r` on revisions that were previously the 
-working-copy revisions. Use `jj obslog -p` as an easy way to see a commit's 
-evolution.
+You can also use `jj obslog -r` on revisions that were previously the
+working-copy revisions (or on any other revisions). Use `jj obslog -p` as an
+easy way to see the evolution of the commit's contents.
 
 ### Can I prevent Jujutsu from recording my unfinished work? I'm not ready to commit it.
 
