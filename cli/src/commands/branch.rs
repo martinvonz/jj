@@ -289,19 +289,6 @@ fn cmd_branch_rename(
         return Err(user_error(format!("Branch already exists: {new_branch}")));
     }
 
-    if view
-        .remote_branches_matching(
-            &StringPattern::exact(old_branch),
-            &StringPattern::everything(),
-        )
-        .any(|(_, remote_ref)| remote_ref.is_tracking())
-    {
-        writeln!(
-            ui.warning(),
-            "warning: Branch {old_branch} has remote branches which will not be renamed"
-        )?;
-    }
-
     let mut tx = workspace_command.start_transaction();
     tx.mut_repo()
         .set_local_branch_target(new_branch, ref_target);
@@ -315,6 +302,26 @@ fn cmd_branch_rename(
             make_branch_term(&[new_branch]),
         ),
     )?;
+
+    let view = workspace_command.repo().view();
+    if view
+        .remote_branches_matching(
+            &StringPattern::exact(old_branch),
+            &StringPattern::everything(),
+        )
+        .any(|(_, remote_ref)| remote_ref.is_tracking())
+    {
+        writeln!(
+            ui.warning(),
+            "Warning: Branch {old_branch} has tracking remote branches which were not renamed."
+        )?;
+        writeln!(
+            ui.hint(),
+            "Hint: to rename the branch on the remote, you can `jj git push --branch \
+             {old_branch}` first (to delete it on the remote), and then `jj git push --branch \
+             {new_branch}`. `jj git push --all` would also be sufficient."
+        )?;
+    }
 
     Ok(())
 }
