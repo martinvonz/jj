@@ -785,38 +785,28 @@ fn cmd_git_push(
     let mut tx = workspace_command.start_transaction();
     let tx_description;
     let mut branch_updates = vec![];
-    if args.all {
-        for (branch_name, targets) in repo.view().local_remote_branches(&remote) {
+    let populate_branch_updates_skip_missing =
+        |(branch_name, targets)| -> Result<(), CommandError> {
             match classify_branch_update(branch_name, &remote, targets) {
                 Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
-            }
-        }
+            };
+            Ok(())
+        };
+    let mut local_remote_branches = repo.view().local_remote_branches(&remote);
+    if args.all {
+        local_remote_branches.try_for_each(populate_branch_updates_skip_missing)?;
         tx_description = format!("push all branches to git remote {remote}");
     } else if args.tracked {
-        for (branch_name, targets) in repo.view().local_remote_branches(&remote) {
-            if !targets.remote_ref.is_tracking() {
-                continue;
-            }
-            match classify_branch_update(branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
-                Ok(None) => {}
-                Err(reason) => reason.print(ui)?,
-            }
-        }
+        local_remote_branches
+            .filter(|(_name, targets)| targets.remote_ref.is_tracking())
+            .try_for_each(populate_branch_updates_skip_missing)?;
         tx_description = format!("push all tracked branches to git remote {remote}");
     } else if args.deleted {
-        for (branch_name, targets) in repo.view().local_remote_branches(&remote) {
-            if targets.local_target.is_present() {
-                continue;
-            }
-            match classify_branch_update(branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
-                Ok(None) => {}
-                Err(reason) => reason.print(ui)?,
-            }
-        }
+        local_remote_branches
+            .filter(|(_name, targets)| !targets.local_target.is_present())
+            .try_for_each(populate_branch_updates_skip_missing)?;
         tx_description = format!("push all deleted branches to git remote {remote}");
     } else {
         let mut seen_branches = hashset! {};
@@ -908,9 +898,7 @@ fn cmd_git_push(
                 .map(|commit| commit.id().clone())
                 .collect()
         };
-        let branches_targeted = repo
-            .view()
-            .local_remote_branches(&remote)
+        let branches_targeted = local_remote_branches
             .filter(|(_, targets)| {
                 let mut local_ids = targets.local_target.added_ids();
                 local_ids.any(|id| revision_commit_ids.contains(id))
