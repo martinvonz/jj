@@ -2227,6 +2227,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#arguments_40" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments:
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#options_42" class="md-nav__link">
     <span class="md-ellipsis">
       Options:
@@ -2302,7 +2311,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arguments_40" class="md-nav__link">
+  <a href="#arguments_41" class="md-nav__link">
     <span class="md-ellipsis">
       Arguments:
     </span>
@@ -2359,7 +2368,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arguments_41" class="md-nav__link">
+  <a href="#arguments_42" class="md-nav__link">
     <span class="md-ellipsis">
       Arguments:
     </span>
@@ -2416,7 +2425,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arguments_42" class="md-nav__link">
+  <a href="#arguments_43" class="md-nav__link">
     <span class="md-ellipsis">
       Arguments:
     </span>
@@ -2449,7 +2458,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arguments_43" class="md-nav__link">
+  <a href="#arguments_44" class="md-nav__link">
     <span class="md-ellipsis">
       Arguments:
     </span>
@@ -5018,6 +5027,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#arguments_40" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arguments:
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#options_42" class="md-nav__link">
     <span class="md-ellipsis">
       Options:
@@ -5093,7 +5111,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arguments_40" class="md-nav__link">
+  <a href="#arguments_41" class="md-nav__link">
     <span class="md-ellipsis">
       Arguments:
     </span>
@@ -5150,7 +5168,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arguments_41" class="md-nav__link">
+  <a href="#arguments_42" class="md-nav__link">
     <span class="md-ellipsis">
       Arguments:
     </span>
@@ -5207,7 +5225,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arguments_42" class="md-nav__link">
+  <a href="#arguments_43" class="md-nav__link">
     <span class="md-ellipsis">
       Arguments:
     </span>
@@ -5240,7 +5258,7 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arguments_43" class="md-nav__link">
+  <a href="#arguments_44" class="md-nav__link">
     <span class="md-ellipsis">
       Arguments:
     </span>
@@ -6660,19 +6678,33 @@ J          J
 </ul>
 <h2 id="jj-util-completion"><code>jj util completion</code><a class="headerlink" href="#jj-util-completion" title="Permanent link">&para;</a></h2>
 <p>Print a command-line-completion script</p>
-<p><strong>Usage:</strong> <code>jj util completion [OPTIONS]</code></p>
+<p>Apply it by running this:
+bash: source &lt;(jj util completion)
+fish: jj util completion --fish | source
+zsh:
+autoload -U compinit
+compinit
+source &lt;(jj util completion --zsh)</p>
+<p><strong>Usage:</strong> <code>jj util completion [SHELL]</code></p>
+<h6 id="arguments_40"><strong>Arguments:</strong><a class="headerlink" href="#arguments_40" title="Permanent link">&para;</a></h6>
+<ul>
+<li>
+<p><code>&lt;SHELL&gt;</code></p>
+<p>Possible values: <code>bash</code>, <code>elvish</code>, <code>fish</code>, <code>powershell</code>, <code>zsh</code></p>
+</li>
+</ul>
 <h6 id="options_42"><strong>Options:</strong><a class="headerlink" href="#options_42" title="Permanent link">&para;</a></h6>
 <ul>
 <li>
-<p><code>--bash</code> — Print a completion script for Bash (default)</p>
+<p><code>--bash</code> — Deprecated. Use the SHELL positional argument instead</p>
 <p>Possible values: <code>true</code>, <code>false</code></p>
 </li>
 <li>
-<p><code>--fish</code> — Print a completion script for Fish</p>
+<p><code>--fish</code> — Deprecated. Use the SHELL positional argument instead</p>
 <p>Possible values: <code>true</code>, <code>false</code></p>
 </li>
 <li>
-<p><code>--zsh</code> — Print a completion script for Zsh</p>
+<p><code>--zsh</code> — Deprecated. Use the SHELL positional argument instead</p>
 <p>Possible values: <code>true</code>, <code>false</code></p>
 </li>
 </ul>
@@ -6695,7 +6727,7 @@ J          J
 <h2 id="jj-undo"><code>jj undo</code><a class="headerlink" href="#jj-undo" title="Permanent link">&para;</a></h2>
 <p>Undo an operation (shortcut for <code>jj op undo</code>)</p>
 <p><strong>Usage:</strong> <code>jj undo [OPTIONS] [OPERATION]</code></p>
-<h6 id="arguments_40"><strong>Arguments:</strong><a class="headerlink" href="#arguments_40" title="Permanent link">&para;</a></h6>
+<h6 id="arguments_41"><strong>Arguments:</strong><a class="headerlink" href="#arguments_41" title="Permanent link">&para;</a></h6>
 <ul>
 <li>
 <p><code>&lt;OPERATION&gt;</code> — The operation to undo</p>
@@ -6735,7 +6767,7 @@ J          J
 <h2 id="jj-untrack"><code>jj untrack</code><a class="headerlink" href="#jj-untrack" title="Permanent link">&para;</a></h2>
 <p>Stop tracking specified paths in the working copy</p>
 <p><strong>Usage:</strong> <code>jj untrack &lt;PATHS&gt;...</code></p>
-<h6 id="arguments_41"><strong>Arguments:</strong><a class="headerlink" href="#arguments_41" title="Permanent link">&para;</a></h6>
+<h6 id="arguments_42"><strong>Arguments:</strong><a class="headerlink" href="#arguments_42" title="Permanent link">&para;</a></h6>
 <ul>
 <li><code>&lt;PATHS&gt;</code> — Paths to untrack. They must already be ignored</li>
 </ul>
@@ -6758,7 +6790,7 @@ J          J
 <h2 id="jj-workspace-add"><code>jj workspace add</code><a class="headerlink" href="#jj-workspace-add" title="Permanent link">&para;</a></h2>
 <p>Add a workspace</p>
 <p><strong>Usage:</strong> <code>jj workspace add [OPTIONS] &lt;DESTINATION&gt;</code></p>
-<h6 id="arguments_42"><strong>Arguments:</strong><a class="headerlink" href="#arguments_42" title="Permanent link">&para;</a></h6>
+<h6 id="arguments_43"><strong>Arguments:</strong><a class="headerlink" href="#arguments_43" title="Permanent link">&para;</a></h6>
 <ul>
 <li><code>&lt;DESTINATION&gt;</code> — Where to create the new workspace</li>
 </ul>
@@ -6771,7 +6803,7 @@ J          J
 <p>Stop tracking a workspace's working-copy commit in the repo</p>
 <p>The workspace will not be touched on disk. It can be deleted from disk before or after running this command.</p>
 <p><strong>Usage:</strong> <code>jj workspace forget [WORKSPACES]...</code></p>
-<h6 id="arguments_43"><strong>Arguments:</strong><a class="headerlink" href="#arguments_43" title="Permanent link">&para;</a></h6>
+<h6 id="arguments_44"><strong>Arguments:</strong><a class="headerlink" href="#arguments_44" title="Permanent link">&para;</a></h6>
 <ul>
 <li><code>&lt;WORKSPACES&gt;</code> — Names of the workspaces to forget. By default, forgets only the current workspace</li>
 </ul>
