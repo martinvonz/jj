@@ -380,7 +380,10 @@ Obviously, you would only set one line, don't copy them all in!
 
 The `ui.diff-editor` setting affects the tool used for editing diffs (e.g.  `jj
 split`, `jj amend -i`). The default is the special value `:builtin`, which
-launches a TUI tool to edit the diff in your terminal.
+launches a built-in TUI tool (known as [scm-diff-editor]) to edit the diff in
+your terminal.
+
+[scm-diff-editor]: https://github.com/arxanas/scm-record?tab=readme-ov-file#scm-diff-editor
 
 `jj` makes the following substitutions:
 
