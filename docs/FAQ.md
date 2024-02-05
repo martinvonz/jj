@@ -158,27 +158,31 @@ Usually, the different commits associated with the conflicted branch should all
 appear in the log, but if they don't you can use `jj branch list`to show all the
 commits associated with it.
 
-### How do I integrate Jujutsu with Gerrit? 
+### How do I integrate Jujutsu with Gerrit?
 
 At the moment you'll need a script, which adds the required fields for Gerrit
 like the `Change-Id` footer. Then `jj` can invoke it via an `$EDITOR` override
-in an aliased command. Here's an [example][gerrit-integration] from an 
+in an aliased command. Here's an [example][gerrit-integration] from an
 contributor (look for the `jj signoff` alias).
 
-After you have attached the `Change-Id:` footer to the commit series, you'll 
-have to manually push `git push` your `HEAD` into the remote Gerrit branch
-`refs/for/$BRANCH`, where `$BRANCH` is the base branch you want your changes to
-go to.
+After you have attached the `Change-Id:` footer to the commit series, you'll
+have to manually invoke `git push` of `HEAD` on the underlying git repository
+into the remote Gerrit branch `refs/for/$BRANCH`, where `$BRANCH` is the base
+branch you want your changes to go to (e.g., `git push origin
+HEAD:refs/for/main`). Using a [co-located][co-located] repo
+will make the underlying git repo directly accessible from the working
+directory.
 
 We hope to integrate with Gerrit natively in the future.
 
 [branches_conflicts]: branches.md#conflicts
 
 [change ID]: glossary.md#change-id
+[co-located]: glossary.md#change-id
 [commit ID]: glossary.md#commit-id
 [config]: config.md
 
-[gerrit-integration]: https://gist.github.com/thoughtpolice/8f2fd36ae17cd11b8e7bd93a70e31ad6 
+[gerrit-integration]: https://gist.github.com/thoughtpolice/8f2fd36ae17cd11b8e7bd93a70e31ad6
 [gitignore]: https://git-scm.com/docs/gitignore
 
 [glossary_divergent_change]: glossary.md#divergent-change
