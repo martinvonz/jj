@@ -17,7 +17,9 @@ use std::num::ParseIntError;
 use std::{error, fmt, iter};
 
 use itertools::Itertools as _;
+use once_cell::sync::Lazy;
 use pest::iterators::{Pair, Pairs};
+use pest::pratt_parser::{Assoc, Op, PrattParser};
 use pest::Parser;
 use pest_derive::Parser;
 use thiserror::Error;
@@ -196,12 +198,28 @@ pub enum ExpressionKind<'i> {
     Boolean(bool),
     Integer(i64),
     String(String),
+    Unary(UnaryOp, Box<ExpressionNode<'i>>),
+    Binary(BinaryOp, Box<ExpressionNode<'i>>, Box<ExpressionNode<'i>>),
     Concat(Vec<ExpressionNode<'i>>),
     FunctionCall(FunctionCallNode<'i>),
     MethodCall(MethodCallNode<'i>),
     Lambda(LambdaNode<'i>),
     /// Identity node to preserve the span in the source template text.
     AliasExpanded(TemplateAliasId<'i>, Box<ExpressionNode<'i>>),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum UnaryOp {
+    /// `!`
+    LogicalNot,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum BinaryOp {
+    /// `||`
+    LogicalOr,
+    /// `&&`
+    LogicalAnd,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -364,11 +382,52 @@ fn parse_term_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
     })
 }
 
+fn parse_expression_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
+    assert_eq!(pair.as_rule(), Rule::expression);
+    static PRATT: Lazy<PrattParser<Rule>> = Lazy::new(|| {
+        PrattParser::new()
+            .op(Op::infix(Rule::logical_or_op, Assoc::Left))
+            .op(Op::infix(Rule::logical_and_op, Assoc::Left))
+            .op(Op::prefix(Rule::logical_not_op))
+    });
+    PRATT
+        .map_primary(parse_term_node)
+        .map_prefix(|op, rhs| {
+            let op_kind = match op.as_rule() {
+                Rule::logical_not_op => UnaryOp::LogicalNot,
+                r => panic!("unexpected prefix operator rule {r:?}"),
+            };
+            let rhs = Box::new(rhs?);
+            let span = op.as_span().start_pos().span(&rhs.span.end_pos());
+            let expr = ExpressionKind::Unary(op_kind, rhs);
+            Ok(ExpressionNode::new(expr, span))
+        })
+        .map_infix(|lhs, op, rhs| {
+            let op_kind = match op.as_rule() {
+                Rule::logical_or_op => BinaryOp::LogicalOr,
+                Rule::logical_and_op => BinaryOp::LogicalAnd,
+                r => panic!("unexpected infix operator rule {r:?}"),
+            };
+            let lhs = Box::new(lhs?);
+            let rhs = Box::new(rhs?);
+            let span = lhs.span.start_pos().span(&rhs.span.end_pos());
+            let expr = ExpressionKind::Binary(op_kind, lhs, rhs);
+            Ok(ExpressionNode::new(expr, span))
+        })
+        .parse(pair.into_inner())
+}
+
 fn parse_template_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
     assert_eq!(pair.as_rule(), Rule::template);
     let span = pair.as_span();
     let inner = pair.into_inner();
-    let mut nodes: Vec<_> = inner.map(parse_term_node).try_collect()?;
+    let mut nodes: Vec<_> = inner
+        .map(|pair| match pair.as_rule() {
+            Rule::term => parse_term_node(pair),
+            Rule::expression => parse_expression_node(pair),
+            r => panic!("unexpected template item rule {r:?}"),
+        })
+        .try_collect()?;
     if nodes.len() == 1 {
         Ok(nodes.pop().unwrap())
     } else {
@@ -568,6 +627,17 @@ pub fn expand_aliases<'i>(
             ExpressionKind::Boolean(_) | ExpressionKind::Integer(_) | ExpressionKind::String(_) => {
                 Ok(node)
             }
+            ExpressionKind::Unary(op, arg) => {
+                let arg = Box::new(expand_node(*arg, state)?);
+                node.kind = ExpressionKind::Unary(op, arg);
+                Ok(node)
+            }
+            ExpressionKind::Binary(op, lhs, rhs) => {
+                let lhs = Box::new(expand_node(*lhs, state)?);
+                let rhs = Box::new(expand_node(*rhs, state)?);
+                node.kind = ExpressionKind::Binary(op, lhs, rhs);
+                Ok(node)
+            }
             ExpressionKind::Concat(nodes) => {
                 node.kind = ExpressionKind::Concat(expand_list(nodes, state)?);
                 Ok(node)
@@ -700,6 +770,8 @@ pub fn expect_string_literal_with<'a, 'i, T>(
         ExpressionKind::Identifier(_)
         | ExpressionKind::Boolean(_)
         | ExpressionKind::Integer(_)
+        | ExpressionKind::Unary(..)
+        | ExpressionKind::Binary(..)
         | ExpressionKind::Concat(_)
         | ExpressionKind::FunctionCall(_)
         | ExpressionKind::MethodCall(_)
@@ -723,6 +795,8 @@ pub fn expect_lambda_with<'a, 'i, T>(
         | ExpressionKind::Boolean(_)
         | ExpressionKind::Integer(_)
         | ExpressionKind::String(_)
+        | ExpressionKind::Unary(..)
+        | ExpressionKind::Binary(..)
         | ExpressionKind::Concat(_)
         | ExpressionKind::FunctionCall(_)
         | ExpressionKind::MethodCall(_) => Err(TemplateParseError::unexpected_expression(
@@ -801,6 +875,15 @@ mod tests {
             | ExpressionKind::Boolean(_)
             | ExpressionKind::Integer(_)
             | ExpressionKind::String(_) => node.kind,
+            ExpressionKind::Unary(op, arg) => {
+                let arg = Box::new(normalize_tree(*arg));
+                ExpressionKind::Unary(op, arg)
+            }
+            ExpressionKind::Binary(op, lhs, rhs) => {
+                let lhs = Box::new(normalize_tree(*lhs));
+                let rhs = Box::new(normalize_tree(*rhs));
+                ExpressionKind::Binary(op, lhs, rhs)
+            }
             ExpressionKind::Concat(nodes) => ExpressionKind::Concat(normalize_list(nodes)),
             ExpressionKind::FunctionCall(function) => {
                 ExpressionKind::FunctionCall(normalize_function_call(function))
@@ -851,6 +934,37 @@ mod tests {
             parse_normalized(&format!("{ascii_whitespaces}f()")).unwrap(),
             parse_normalized("f()").unwrap(),
         );
+    }
+
+    #[test]
+    fn test_parse_operator_syntax() {
+        // Operator precedence
+        assert_eq!(
+            parse_normalized("!!x").unwrap(),
+            parse_normalized("!(!x)").unwrap(),
+        );
+        assert_eq!(
+            parse_normalized("!x.f() || !g()").unwrap(),
+            parse_normalized("(!(x.f())) || (!(g()))").unwrap(),
+        );
+        assert_eq!(
+            parse_normalized("x.f() || y || z").unwrap(),
+            parse_normalized("((x.f()) || y) || z").unwrap(),
+        );
+        assert_eq!(
+            parse_normalized("x || y && z.h()").unwrap(),
+            parse_normalized("x || (y && (z.h()))").unwrap(),
+        );
+
+        // Top-level expression is allowed, but not in concatenation
+        assert!(parse_template(r"x && y").is_ok());
+        assert!(parse_template(r"f(x && y)").is_ok());
+        assert!(parse_template(r"x && y ++ z").is_err());
+        assert!(parse_template(r"(x && y) ++ z").is_ok());
+
+        // Expression span
+        assert_eq!(parse_template(" ! x ").unwrap().span.as_str(), "! x");
+        assert_eq!(parse_template(" x ||y ").unwrap().span.as_str(), "x ||y");
     }
 
     #[test]
@@ -923,6 +1037,16 @@ mod tests {
         assert_eq!(
             parse_normalized("||  x ++  || y").unwrap(),
             parse_normalized("|| (x ++ (|| y))").unwrap(),
+        );
+
+        // Lambda vs logical operator: weird, but this is type error anyway
+        assert_eq!(
+            parse_normalized("x||||y").unwrap(),
+            parse_normalized("x || (|| y)").unwrap(),
+        );
+        assert_eq!(
+            parse_normalized("||||x").unwrap(),
+            parse_normalized("|| (|| x)").unwrap(),
         );
 
         // Trailing comma
@@ -1051,6 +1175,22 @@ mod tests {
                 .parse_normalized("A")
                 .unwrap(),
             parse_normalized("b ++ c").unwrap(),
+        );
+
+        // Operator expression can be expanded in concatenation.
+        assert_eq!(
+            with_aliases([("AB", "a || b")])
+                .parse_normalized("AB ++ c")
+                .unwrap(),
+            parse_normalized("(a || b) ++ c").unwrap(),
+        );
+
+        // Operands should be expanded.
+        assert_eq!(
+            with_aliases([("A", "a"), ("B", "b")])
+                .parse_normalized("A || !B")
+                .unwrap(),
+            parse_normalized("a || !b").unwrap(),
         );
 
         // Method receiver and arguments should be expanded.
