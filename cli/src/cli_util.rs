@@ -951,9 +951,10 @@ impl WorkspaceCommandHelper {
     /// If the working-copy branch is rebased, and if update is allowed, the new
     /// working-copy commit will be checked out.
     ///
-    /// This function does not import the Git HEAD.
+    /// This function does not import the Git HEAD, but the HEAD may be reset to
+    /// the working copy parent if the repository is colocated.
     #[instrument(skip_all)]
-    pub fn import_git_refs(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
+    fn import_git_refs(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         let git_settings = self.settings.git_settings();
         let mut tx = self.start_transaction();
         // Automated import shouldn't fail because of reserved remote name.
