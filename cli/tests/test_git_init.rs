@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 use test_case::test_case;
@@ -438,6 +439,70 @@ fn test_git_init_colocated_via_git_repo_path_imported_refs() {
       @git: vvkvtnvv 230dd059 (empty) (no description set)
     local-remote@origin: vvkvtnvv 230dd059 (empty) (no description set)
     remote-only@origin: vvkvtnvv 230dd059 (empty) (no description set)
+    "###);
+}
+
+#[test]
+fn test_git_init_colocated_dirty_working_copy() {
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    let git_repo = init_git_repo(&workspace_root, false);
+
+    let add_file_to_index = |name: &str, data: &str| {
+        std::fs::write(workspace_root.join(name), data).unwrap();
+        let mut index = git_repo.index().unwrap();
+        index.add_path(Path::new(name)).unwrap();
+        index.write().unwrap();
+    };
+    let get_git_statuses = || {
+        let mut buf = String::new();
+        for entry in git_repo.statuses(None).unwrap().iter() {
+            writeln!(buf, "{:?} {}", entry.status(), entry.path().unwrap()).unwrap();
+        }
+        buf
+    };
+
+    add_file_to_index("some-file", "new content");
+    add_file_to_index("new-staged-file", "new content");
+    std::fs::write(workspace_root.join("unstaged-file"), "new content").unwrap();
+    insta::assert_snapshot!(get_git_statuses(), @r###"
+    Status(INDEX_NEW) new-staged-file
+    Status(INDEX_MODIFIED) some-file
+    Status(WT_NEW) unstaged-file
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--git-repo", "."]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Done importing changes from the underlying Git repo.
+    Initialized repo in "."
+    "###);
+
+    // Working-copy changes should have been snapshotted.
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-s", "--ignore-working-copy"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  sqpuoqvx test.user@example.com 2001-02-03 04:05:07.000 +07:00 cd1e144d
+    │  (no description set)
+    │  A new-staged-file
+    │  M some-file
+    │  A unstaged-file
+    ◉  mwrttmos git.user@example.com 1970-01-01 01:02:03.000 +01:00 my-branch HEAD@git 8d698d4a
+    │  My commit message
+    │  A some-file
+    ◉  zzzzzzzz root() 00000000
+    "###);
+
+    // Git index should be consistent with the working copy parent. With the
+    // current implementation, the index is unchanged. Since jj created new
+    // working copy commit, it's also okay to update the index reflecting the
+    // working copy commit or the working copy parent.
+    insta::assert_snapshot!(get_git_statuses(), @r###"
+    Status(IGNORED) .jj/.gitignore
+    Status(IGNORED) .jj/repo/
+    Status(IGNORED) .jj/working_copy/
+    Status(INDEX_NEW) new-staged-file
+    Status(INDEX_MODIFIED) some-file
+    Status(WT_NEW) unstaged-file
     "###);
 }
 

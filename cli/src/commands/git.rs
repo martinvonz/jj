@@ -16,6 +16,7 @@ use std::collections::HashSet;
 use std::io::Write;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::{fmt, fs, io};
 
 use clap::{ArgGroup, Subcommand};
@@ -30,7 +31,7 @@ use jj_lib::op_store::RefTarget;
 use jj_lib::refs::{
     classify_branch_push_action, BranchPushAction, BranchPushUpdate, TrackingRefPair,
 };
-use jj_lib::repo::Repo;
+use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
 use jj_lib::revset::{self, RevsetExpression, RevsetIteratorExt as _};
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
@@ -41,12 +42,13 @@ use maplit::hashset;
 
 use crate::cli_util::{
     parse_string_pattern, print_trackable_remote_branches, resolve_multiple_nonempty_revsets,
-    short_change_hash, short_commit_hash, user_error, user_error_with_hint,
+    short_change_hash, short_commit_hash, start_repo_transaction, user_error, user_error_with_hint,
     user_error_with_hint_opt, user_error_with_message, CommandError, CommandHelper, RevisionArg,
     WorkspaceCommandHelper,
 };
 use crate::git_util::{
-    get_git_repo, print_failed_git_export, print_git_import_stats, with_remote_git_callbacks,
+    get_git_repo, is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
+    with_remote_git_callbacks,
 };
 use crate::ui::Ui;
 
@@ -378,11 +380,12 @@ pub fn git_init(
         let git_store_path = cwd.join(git_store_str);
         let (workspace, repo) =
             Workspace::init_external_git(command.settings(), workspace_root, &git_store_path)?;
-        let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
-        maybe_add_gitignore(&workspace_command)?;
         // Import refs first so all the reachable commits are indexed in
         // chronological order.
-        workspace_command.import_git_refs(ui)?;
+        let colocated = is_colocated_git_workspace(&workspace, &repo);
+        let repo = init_git_refs(ui, command, repo, colocated)?;
+        let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
+        maybe_add_gitignore(&workspace_command)?;
         workspace_command.maybe_snapshot(ui)?;
         if !workspace_command.working_copy_shared_with_git() {
             let mut tx = workspace_command.start_transaction();
@@ -411,6 +414,45 @@ pub fn git_init(
     }
 
     Ok(())
+}
+
+/// Imports branches and tags from the underlying Git repo, exports changes if
+/// the repo is colocated.
+///
+/// This is similar to `WorkspaceCommandHelper::import_git_refs()`, but never
+/// moves the Git HEAD to the working copy parent.
+fn init_git_refs(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    repo: Arc<ReadonlyRepo>,
+    colocated: bool,
+) -> Result<Arc<ReadonlyRepo>, CommandError> {
+    let mut tx = start_repo_transaction(&repo, command.settings(), command.string_args());
+    // There should be no old refs to abandon, but enforce it.
+    let mut git_settings = command.settings().git_settings();
+    git_settings.abandon_unreachable_commits = false;
+    let stats = git::import_some_refs(
+        tx.mut_repo(),
+        &git_settings,
+        // Initial import shouldn't fail because of reserved remote name.
+        |ref_name| !git::is_reserved_git_remote_ref(ref_name),
+    )?;
+    if !tx.mut_repo().has_changes() {
+        return Ok(repo);
+    }
+    print_git_import_stats(ui, &stats)?;
+    if colocated {
+        // If git.auto-local-branch = true, local branches could be created for
+        // the imported remote branches.
+        let failed_branches = git::export_refs(tx.mut_repo())?;
+        print_failed_git_export(ui, &failed_branches)?;
+    }
+    let repo = tx.commit("import git refs");
+    writeln!(
+        ui.stderr(),
+        "Done importing changes from the underlying Git repo."
+    )?;
+    Ok(repo)
 }
 
 fn cmd_git_init(
