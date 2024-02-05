@@ -634,13 +634,9 @@ impl CommandHelper {
     }
 
     pub fn subcommands(&self) -> impl Iterator<Item = &'_ str> {
-        let mut next = self.matches().subcommand();
-        
-        std::iter::from_fn(move || {
-            let (sub, args) = next.take()?;
-            next = args.subcommand();
-            Some(sub)
-        })
+        let first = self.matches().subcommand();
+
+        std::iter::successors(first, |(_, prev)| prev.subcommand()).map(|(sub, _)| sub)
     }
 
     pub fn global_args(&self) -> &GlobalArgs {
