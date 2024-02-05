@@ -82,7 +82,9 @@ use crate::config::{
     new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigSource, LayeredConfigs,
 };
 use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
-use crate::git_util::{print_failed_git_export, print_git_import_stats};
+use crate::git_util::{
+    is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
+};
 use crate::merge_tools::{ConflictResolveError, DiffEditError, DiffGenerateError};
 use crate::template_parser::{TemplateAliasesMap, TemplateParseError};
 use crate::templater::Template;
@@ -1905,24 +1907,6 @@ jj init --git-repo=.",
         WorkspaceLoadError::StoreLoadError(err) => internal_error(err),
         WorkspaceLoadError::NonUnicodePath | WorkspaceLoadError::Path(_) => user_error(err),
     }
-}
-
-fn is_colocated_git_workspace(workspace: &Workspace, repo: &ReadonlyRepo) -> bool {
-    let Some(git_backend) = repo.store().backend_impl().downcast_ref::<GitBackend>() else {
-        return false;
-    };
-    let Some(git_workdir) = git_backend.git_workdir() else {
-        return false; // Bare repository
-    };
-    if git_workdir == workspace.workspace_root() {
-        return true;
-    }
-    // Colocated workspace should have ".git" directory, file, or symlink. Compare
-    // its parent as the git_workdir might be resolved from the real ".git" path.
-    let Ok(dot_git_path) = workspace.workspace_root().join(".git").canonicalize() else {
-        return false;
-    };
-    git_workdir.canonicalize().ok().as_deref() == dot_git_path.parent()
 }
 
 pub fn start_repo_transaction(
