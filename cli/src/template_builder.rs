@@ -18,8 +18,8 @@ use itertools::Itertools as _;
 use jj_lib::backend::{Signature, Timestamp};
 
 use crate::template_parser::{
-    self, ExpressionKind, ExpressionNode, FunctionCallNode, MethodCallNode, TemplateParseError,
-    TemplateParseResult,
+    self, BinaryOp, ExpressionKind, ExpressionNode, FunctionCallNode, MethodCallNode,
+    TemplateParseError, TemplateParseResult, UnaryOp,
 };
 use crate::templater::{
     ConcatTemplate, ConditionalTemplate, IntoTemplate, LabelTemplate, ListPropertyTemplate,
@@ -270,6 +270,45 @@ impl<P> Expression<P> {
 pub struct BuildContext<'i, P> {
     /// Map of functions to create `L::Property`.
     local_variables: HashMap<&'i str, &'i (dyn Fn() -> P)>,
+}
+
+fn build_unary_operation<'a, L: TemplateLanguage<'a>>(
+    language: &L,
+    build_ctx: &BuildContext<L::Property>,
+    op: UnaryOp,
+    arg_node: &ExpressionNode,
+) -> TemplateParseResult<Expression<L::Property>> {
+    let property = match op {
+        UnaryOp::LogicalNot => {
+            let arg = expect_boolean_expression(language, build_ctx, arg_node)?;
+            language.wrap_boolean(TemplateFunction::new(arg, |v| !v))
+        }
+    };
+    Ok(Expression::unlabeled(property))
+}
+
+fn build_binary_operation<'a, L: TemplateLanguage<'a>>(
+    language: &L,
+    build_ctx: &BuildContext<L::Property>,
+    op: BinaryOp,
+    lhs_node: &ExpressionNode,
+    rhs_node: &ExpressionNode,
+) -> TemplateParseResult<Expression<L::Property>> {
+    let property = match op {
+        BinaryOp::LogicalOr => {
+            // No short-circuiting supported
+            let lhs = expect_boolean_expression(language, build_ctx, lhs_node)?;
+            let rhs = expect_boolean_expression(language, build_ctx, rhs_node)?;
+            language.wrap_boolean(TemplateFunction::new((lhs, rhs), |(l, r)| l | r))
+        }
+        BinaryOp::LogicalAnd => {
+            // No short-circuiting supported
+            let lhs = expect_boolean_expression(language, build_ctx, lhs_node)?;
+            let rhs = expect_boolean_expression(language, build_ctx, rhs_node)?;
+            language.wrap_boolean(TemplateFunction::new((lhs, rhs), |(l, r)| l & r))
+        }
+    };
+    Ok(Expression::unlabeled(property))
 }
 
 fn build_method_call<'a, L: TemplateLanguage<'a>>(
@@ -803,8 +842,12 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
             let property = language.wrap_string(Literal(value.clone()));
             Ok(Expression::unlabeled(property))
         }
-        ExpressionKind::Unary(..) => todo!(),
-        ExpressionKind::Binary(..) => todo!(),
+        ExpressionKind::Unary(op, arg_node) => {
+            build_unary_operation(language, build_ctx, *op, arg_node)
+        }
+        ExpressionKind::Binary(op, lhs_node, rhs_node) => {
+            build_binary_operation(language, build_ctx, *op, lhs_node, rhs_node)
+        }
         ExpressionKind::Concat(nodes) => {
             let templates = nodes
                 .iter()
@@ -1061,6 +1104,23 @@ mod tests {
           = Expected identifier
         "###);
 
+        insta::assert_snapshot!(env.parse_err(r#"!foo"#), @r###"
+         --> 1:2
+          |
+        1 | !foo
+          |  ^-^
+          |
+          = Keyword "foo" doesn't exist
+        "###);
+        insta::assert_snapshot!(env.parse_err(r#"true && 123"#), @r###"
+         --> 1:9
+          |
+        1 | true && 123
+          |         ^-^
+          |
+          = Expected expression of type "Boolean"
+        "###);
+
         insta::assert_snapshot!(env.parse_err(r#"description.first_line().foo()"#), @r###"
          --> 1:26
           |
@@ -1217,6 +1277,18 @@ mod tests {
           |
           = Expected expression of type "Boolean"
         "###);
+    }
+
+    #[test]
+    fn test_logical_operation() {
+        let env = TestTemplateEnv::default();
+
+        insta::assert_snapshot!(env.render_ok(r#"!false"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#"false || !false"#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#"false && true"#), @"false");
+
+        insta::assert_snapshot!(env.render_ok(r#" !"" "#), @"true");
+        insta::assert_snapshot!(env.render_ok(r#" "" || "a".lines() "#), @"true");
     }
 
     #[test]
