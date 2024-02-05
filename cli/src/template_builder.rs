@@ -803,6 +803,8 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
             let property = language.wrap_string(Literal(value.clone()));
             Ok(Expression::unlabeled(property))
         }
+        ExpressionKind::Unary(..) => todo!(),
+        ExpressionKind::Binary(..) => todo!(),
         ExpressionKind::Concat(nodes) => {
             let templates = nodes
                 .iter()
@@ -1030,7 +1032,7 @@ mod tests {
         1 | description ()
           |             ^---
           |
-          = expected EOI
+          = expected EOI, logical_or_op, or logical_and_op
         "###);
 
         insta::assert_snapshot!(env.parse_err(r#"foo"#), @r###"

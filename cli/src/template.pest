@@ -31,6 +31,12 @@ integer_literal = {
 
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
+logical_or_op = { "||" }
+logical_and_op = { "&&" }
+logical_not_op = { "!" }
+prefix_ops = _{ logical_not_op }
+infix_ops = _{ logical_or_op | logical_and_op }
+
 function = { identifier ~ "(" ~ whitespace* ~ function_arguments ~ whitespace* ~ ")" }
 function_arguments = {
   template ~ (whitespace* ~ "," ~ whitespace* ~ template)* ~ (whitespace* ~ ",")?
@@ -58,11 +64,18 @@ term = {
   primary ~ ("." ~ function)*
 }
 
+expression = {
+  (prefix_ops ~ whitespace*)* ~ term
+  ~ (whitespace* ~ infix_ops ~ whitespace* ~ (prefix_ops ~ whitespace*)* ~ term)*
+}
+
+// Use 'term' instead of 'expression' to disallow 'x || y ++ z'. It can be
+// parsed, but the precedence isn't obvious.
 concat = _{
   term ~ (whitespace* ~ "++" ~ whitespace* ~ term)+
 }
 
-template = { concat | term }
+template = { concat | expression }
 
 program = _{ SOI ~ whitespace* ~ template? ~ whitespace* ~ EOI }
 
