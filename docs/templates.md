@@ -57,6 +57,9 @@ The following keywords can be used in `jj op log` templates.
 The following operators are supported.
 
 * `x.f()`: Method call.
+* `!x`: Logical not.
+* `x && y`: Logical and.
+* `x || y`: Logical or.
 * `x ++ y`: Concatenate `x` and `y` templates.
 
 ## Global functions
