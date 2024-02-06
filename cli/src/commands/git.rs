@@ -198,13 +198,16 @@ pub struct GitPushArgs {
     /// The remote to push to (only named remotes are supported)
     #[arg(long)]
     remote: Option<String>,
-    /// Push only this branch (can be repeated)
+    /// Push only this branch, or branches matching a pattern (can be repeated)
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select branches by wildcard pattern. For details, see
     /// https://martinvonz.github.io/jj/latest/revsets#string-patterns.
     #[arg(long, short, value_parser = parse_string_pattern)]
     branch: Vec<StringPattern>,
+    /// Push all branches (including deleted branches)
+    #[arg(long)]
+    all: bool,
     /// Push all tracked branches (including deleted branches)
     ///
     /// This usually means that the branch was already pushed to or fetched from
@@ -212,9 +215,6 @@ pub struct GitPushArgs {
     /// https://martinvonz.github.io/jj/latest/branches#remotes-and-tracked-branches
     #[arg(long)]
     tracked: bool,
-    /// Push all branches (including deleted branches)
-    #[arg(long)]
-    all: bool,
     /// Push all deleted branches
     ///
     /// Only tracked branches can be successfully deleted on the remote. A
@@ -222,7 +222,7 @@ pub struct GitPushArgs {
     /// correspond to missing local branches.
     #[arg(long)]
     deleted: bool,
-    /// Push branches pointing to these commits
+    /// Push branches pointing to these commits (can be repeated)
     #[arg(long, short)]
     revisions: Vec<RevisionArg>,
     /// Push this commit by creating a branch based on its change ID (can be
