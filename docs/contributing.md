@@ -51,6 +51,12 @@ so you can address any remaining minor comments and then merge the PR yourself
 when you're ready. If you realize that some comments require non-trivial
 changes, please ask your reviewer to take another look.
 
+To avoid conflicts of interest, please don't merge a PR that has only been
+approved by someone from the same organization. Similarly, as a reviewer,
+there is no need to approve your coworkers' PRs, since the author should await
+an approval from someone else anyway. It is of course still appreciated if you
+review and comment on their PRs. Also, if the PR seems completely unrelated to
+your company's interests, do feel free to approve it.
 
 ### Community Guidelines
 
