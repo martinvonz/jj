@@ -33,6 +33,10 @@ revision visible again.
 
 See [revsets] and [templates] for further guidance.
 
+### How can I get `jj log` to show me what `git log` would show me?
+
+Use `jj log -r ..`. The `..` [operator] lists all visible commits in the repo, excluding the root (which is never interesting and is shared by all repos).
+
 ### `jj` is said to record the working copy after `jj log` and every other command. Where can I see these automatic "saves"?  
 
 Indeed, every `jj` command updates the current "working-copy" revision, marked 
@@ -186,6 +190,8 @@ We hope to integrate with Gerrit natively in the future.
 [gitignore]: https://git-scm.com/docs/gitignore
 
 [glossary_divergent_change]: glossary.md#divergent-change
+
+[operator]: revsets.md#operators
 
 [revsets]: revsets.md
 
