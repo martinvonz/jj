@@ -809,73 +809,10 @@ fn cmd_git_push(
             .try_for_each(populate_branch_updates_skip_missing)?;
         tx_description = format!("push all deleted branches to git remote {remote}");
     } else {
-        let mut seen_branches = hashset! {};
-        let branches_by_name =
-            find_branches_to_push(repo.view(), &args.branch, &remote, &mut seen_branches)?;
-        for (branch_name, targets) in branches_by_name {
-            match classify_branch_update(branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
-                Ok(None) => writeln!(
-                    ui.stderr(),
-                    "Branch {branch_name}@{remote} already matches {branch_name}",
-                )?,
-                Err(reason) => return Err(reason.into()),
-            }
-        }
-
-        for (change_str, commit) in std::iter::zip(args.change.iter(), change_commits) {
-            let mut branch_name = format!(
-                "{}{}",
-                command.settings().push_branch_prefix(),
-                commit.change_id().hex()
-            );
-            if !seen_branches.insert(branch_name.clone()) {
-                continue;
-            }
-            let view = tx.base_repo().view();
-            if view.get_local_branch(&branch_name).is_absent() {
-                // A local branch with the full change ID doesn't exist already, so use the
-                // short ID if it's not ambiguous (which it shouldn't be most of the time).
-                let short_change_id = short_change_hash(commit.change_id());
-                if tx
-                    .base_workspace_helper()
-                    .resolve_single_rev(&short_change_id, ui)
-                    .is_ok()
-                {
-                    // Short change ID is not ambiguous, so update the branch name to use it.
-                    branch_name = format!(
-                        "{}{}",
-                        command.settings().push_branch_prefix(),
-                        short_change_id
-                    );
-                };
-            }
-            if view.get_local_branch(&branch_name).is_absent() {
-                writeln!(
-                    ui.stderr(),
-                    "Creating branch {} for revision {}",
-                    branch_name,
-                    change_str.deref()
-                )?;
-            }
-            tx.mut_repo()
-                .set_local_branch_target(&branch_name, RefTarget::normal(commit.id().clone()));
-            let targets = TrackingRefPair {
-                local_target: tx.repo().view().get_local_branch(&branch_name),
-                remote_ref: tx.repo().view().get_remote_branch(&branch_name, &remote),
-            };
-            match classify_branch_update(&branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
-                Ok(None) => writeln!(
-                    ui.stderr(),
-                    "Branch {branch_name}@{remote} already matches {branch_name}",
-                )?,
-                Err(reason) => return Err(reason.into()),
-            }
-        }
-
         let use_default_revset =
             args.branch.is_empty() && args.change.is_empty() && args.revisions.is_empty();
+        let mut seen_branches = hashset! {};
+
         let revision_commit_ids: HashSet<_> = if use_default_revset {
             let Some(wc_commit_id) = wc_commit_id else {
                 return Err(user_error("Nothing checked out in this workspace"));
@@ -891,6 +828,70 @@ fn cmd_git_push(
                 .evaluate_revset(current_branches_expression)?;
             current_branches_revset.iter().collect()
         } else {
+            let branches_by_name =
+                find_branches_to_push(repo.view(), &args.branch, &remote, &mut seen_branches)?;
+            for (branch_name, targets) in branches_by_name {
+                match classify_branch_update(branch_name, &remote, targets) {
+                    Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
+                    Ok(None) => writeln!(
+                        ui.stderr(),
+                        "Branch {branch_name}@{remote} already matches {branch_name}",
+                    )?,
+                    Err(reason) => return Err(reason.into()),
+                }
+            }
+
+            for (change_str, commit) in std::iter::zip(args.change.iter(), change_commits) {
+                let mut branch_name = format!(
+                    "{}{}",
+                    command.settings().push_branch_prefix(),
+                    commit.change_id().hex()
+                );
+                if !seen_branches.insert(branch_name.clone()) {
+                    continue;
+                }
+                let view = tx.base_repo().view();
+                if view.get_local_branch(&branch_name).is_absent() {
+                    // A local branch with the full change ID doesn't exist already, so use the
+                    // short ID if it's not ambiguous (which it shouldn't be most of the time).
+                    let short_change_id = short_change_hash(commit.change_id());
+                    if tx
+                        .base_workspace_helper()
+                        .resolve_single_rev(&short_change_id, ui)
+                        .is_ok()
+                    {
+                        // Short change ID is not ambiguous, so update the branch name to use it.
+                        branch_name = format!(
+                            "{}{}",
+                            command.settings().push_branch_prefix(),
+                            short_change_id
+                        );
+                    };
+                }
+                if view.get_local_branch(&branch_name).is_absent() {
+                    writeln!(
+                        ui.stderr(),
+                        "Creating branch {} for revision {}",
+                        branch_name,
+                        change_str.deref()
+                    )?;
+                }
+                tx.mut_repo()
+                    .set_local_branch_target(&branch_name, RefTarget::normal(commit.id().clone()));
+                let targets = TrackingRefPair {
+                    local_target: tx.repo().view().get_local_branch(&branch_name),
+                    remote_ref: tx.repo().view().get_remote_branch(&branch_name, &remote),
+                };
+                match classify_branch_update(&branch_name, &remote, targets) {
+                    Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
+                    Ok(None) => writeln!(
+                        ui.stderr(),
+                        "Branch {branch_name}@{remote} already matches {branch_name}",
+                    )?,
+                    Err(reason) => return Err(reason.into()),
+                }
+            }
+
             // TODO: Narrow search space to local target commits.
             // TODO: Remove redundant CommitId -> Commit -> CommitId round trip.
             resolve_multiple_nonempty_revsets(&args.revisions, tx.base_workspace_helper(), ui)?
@@ -898,6 +899,7 @@ fn cmd_git_push(
                 .map(|commit| commit.id().clone())
                 .collect()
         };
+
         let branches_targeted = local_remote_branches
             .filter(|(_, targets)| {
                 let mut local_ids = targets.local_target.added_ids();
@@ -926,10 +928,10 @@ fn cmd_git_push(
                     ui.warning(),
                     "No branches point to the specified revisions."
                 )?;
-            } else { /* A plain "Nothing changed" message will suffice */
+            } else {
+                // A plain "Nothing changed" message will suffice
             }
         }
-
         tx_description = format!(
             "push {} to git remote {}",
             make_branch_term(
