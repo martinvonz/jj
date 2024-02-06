@@ -25,8 +25,8 @@ raw_literal = @{ literal_char+ }
 literal = { "\"" ~ (raw_literal | escape)* ~ "\"" }
 
 integer_literal = {
-  "-"? ~ ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*
-  | "-"? ~ "0"
+  ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*
+  | "0"
 }
 
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
@@ -35,7 +35,8 @@ concat_op = { "++" }
 logical_or_op = { "||" }
 logical_and_op = { "&&" }
 logical_not_op = { "!" }
-prefix_ops = _{ logical_not_op }
+negate_op = { "-" }
+prefix_ops = _{ logical_not_op | negate_op }
 infix_ops = _{ logical_or_op | logical_and_op }
 
 function = { identifier ~ "(" ~ whitespace* ~ function_arguments ~ whitespace* ~ ")" }
