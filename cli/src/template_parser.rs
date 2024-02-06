@@ -719,10 +719,10 @@ pub fn expect_lambda_with<'a, 'i, T>(
 ) -> TemplateParseResult<T> {
     match &node.kind {
         ExpressionKind::Lambda(lambda) => f(lambda, node.span),
-        ExpressionKind::String(_)
-        | ExpressionKind::Identifier(_)
+        ExpressionKind::Identifier(_)
         | ExpressionKind::Boolean(_)
         | ExpressionKind::Integer(_)
+        | ExpressionKind::String(_)
         | ExpressionKind::Concat(_)
         | ExpressionKind::FunctionCall(_)
         | ExpressionKind::MethodCall(_) => Err(TemplateParseError::unexpected_expression(
