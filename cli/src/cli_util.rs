@@ -2688,7 +2688,7 @@ fn resolve_default_command(
                 )?;
                 writeln!(
                     ui.hint(),
-                    "Set the config `ui.default-command = \"log\"` to disable this message."
+                    "Run `jj config set --user ui.default-command log` to disable this message."
                 )?;
             }
             let default_command = config

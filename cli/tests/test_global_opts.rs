@@ -68,7 +68,7 @@ fn test_no_subcommand() {
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &[]);
     insta::assert_snapshot!(stderr, @r###"
     Hint: Use `jj -h` for a list of available commands.
-    Set the config `ui.default-command = "log"` to disable this message.
+    Run `jj config set --user ui.default-command log` to disable this message.
     Error: There is no jj repo in "."
     "###);
 
