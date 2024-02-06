@@ -210,15 +210,16 @@ pub struct GitPushArgs {
     /// This usually means that the branch was already pushed to or fetched from
     /// the relevant remote. For details, see
     /// https://martinvonz.github.io/jj/latest/branches#remotes-and-tracked-branches
-    ///
-    /// Not yet implemented, TODO(#2946): `jj git push --tracked --deleted`
-    /// would make sense, but is not currently allowed.
     #[arg(long)]
     tracked: bool,
     /// Push all branches (including deleted branches)
     #[arg(long)]
     all: bool,
     /// Push all deleted branches
+    ///
+    /// Only tracked branches can be successfully deleted on the remote. A
+    /// warning will be printed if any untracked branches on the remote
+    /// correspond to missing local branches.
     #[arg(long)]
     deleted: bool,
     /// Push branches pointing to these commits
