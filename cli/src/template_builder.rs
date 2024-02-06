@@ -283,6 +283,11 @@ fn build_unary_operation<'a, L: TemplateLanguage<'a>>(
             let arg = expect_boolean_expression(language, build_ctx, arg_node)?;
             language.wrap_boolean(TemplateFunction::new(arg, |v| !v))
         }
+        UnaryOp::Negate => {
+            let arg = expect_integer_expression(language, build_ctx, arg_node)?;
+            // TODO: propagate error on overflow?
+            language.wrap_integer(TemplateFunction::new(arg, |v| v.saturating_neg()))
+        }
     };
     Ok(Expression::unlabeled(property))
 }
@@ -1147,12 +1152,12 @@ mod tests {
           = Method "foo" doesn't exist for type "Integer"
         "###);
         insta::assert_snapshot!(env.parse_err(r#"(-empty)"#), @r###"
-         --> 1:2
+         --> 1:3
           |
         1 | (-empty)
-          |  ^---
+          |   ^---^
           |
-          = expected <template>
+          = Expected expression of type "Integer"
         "###);
 
         insta::assert_snapshot!(env.parse_err(r#"("foo" ++ "bar").baz()"#), @r###"
@@ -1277,6 +1282,21 @@ mod tests {
           |
           = Expected expression of type "Boolean"
         "###);
+    }
+
+    #[test]
+    fn test_arithmetic_operation() {
+        let mut env = TestTemplateEnv::default();
+        env.add_keyword("i64_min", |language| {
+            language.wrap_integer(Literal(i64::MIN))
+        });
+
+        insta::assert_snapshot!(env.render_ok(r#"-1"#), @"-1");
+        insta::assert_snapshot!(env.render_ok(r#"--2"#), @"2");
+        insta::assert_snapshot!(env.render_ok(r#"-(3)"#), @"-3");
+
+        // No panic on integer overflow. Runtime error might be better.
+        insta::assert_snapshot!(env.render_ok(r#"-i64_min"#), @"9223372036854775807");
     }
 
     #[test]

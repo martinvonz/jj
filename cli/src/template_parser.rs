@@ -43,6 +43,7 @@ impl Rule {
             Rule::logical_or_op => Some("||"),
             Rule::logical_and_op => Some("&&"),
             Rule::logical_not_op => Some("!"),
+            Rule::negate_op => Some("-"),
             Rule::prefix_ops => None,
             Rule::infix_ops => None,
             Rule::function => None,
@@ -253,6 +254,8 @@ pub enum ExpressionKind<'i> {
 pub enum UnaryOp {
     /// `!`
     LogicalNot,
+    /// `-`
+    Negate,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -429,13 +432,14 @@ fn parse_expression_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode
         PrattParser::new()
             .op(Op::infix(Rule::logical_or_op, Assoc::Left))
             .op(Op::infix(Rule::logical_and_op, Assoc::Left))
-            .op(Op::prefix(Rule::logical_not_op))
+            .op(Op::prefix(Rule::logical_not_op) | Op::prefix(Rule::negate_op))
     });
     PRATT
         .map_primary(parse_term_node)
         .map_prefix(|op, rhs| {
             let op_kind = match op.as_rule() {
                 Rule::logical_not_op => UnaryOp::LogicalNot,
+                Rule::negate_op => UnaryOp::Negate,
                 r => panic!("unexpected prefix operator rule {r:?}"),
             };
             let rhs = Box::new(rhs?);
