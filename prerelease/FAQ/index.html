@@ -464,6 +464,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#how-can-i-get-jj-log-to-show-me-what-git-log-would-show-me" class="md-nav__link">
+    <span class="md-ellipsis">
+      How can I get jj log to show me what git log would show me?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#jj-is-said-to-record-the-working-copy-after-jj-log-and-every-other-command-where-can-i-see-these-automatic-saves" class="md-nav__link">
     <span class="md-ellipsis">
       jj is said to record the working copy after jj log and every other command. Where can I see these automatic "saves"?
@@ -1361,6 +1370,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#how-can-i-get-jj-log-to-show-me-what-git-log-would-show-me" class="md-nav__link">
+    <span class="md-ellipsis">
+      How can I get jj log to show me what git log would show me?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#jj-is-said-to-record-the-working-copy-after-jj-log-and-every-other-command-where-can-i-see-these-automatic-saves" class="md-nav__link">
     <span class="md-ellipsis">
       jj is said to record the working copy after jj log and every other command. Where can I see these automatic "saves"?
@@ -1490,6 +1508,8 @@ with <code>jj rebase</code>, <code>jj describe</code>, etc). In that case, <code
 should show the revision as "hidden". <code>jj new commit_id</code> should make the
 revision visible again.</p>
 <p>See <a href="../revsets/">revsets</a> and <a href="../templates/">templates</a> for further guidance.</p>
+<h3 id="how-can-i-get-jj-log-to-show-me-what-git-log-would-show-me">How can I get <code>jj log</code> to show me what <code>git log</code> would show me?<a class="headerlink" href="#how-can-i-get-jj-log-to-show-me-what-git-log-would-show-me" title="Permanent link">&para;</a></h3>
+<p>Use <code>jj log -r ..</code>. The <code>..</code> <a href="../revsets/#operators">operator</a> lists all visible commits in the repo, excluding the root (which is never interesting and is shared by all repos).</p>
 <h3 id="jj-is-said-to-record-the-working-copy-after-jj-log-and-every-other-command-where-can-i-see-these-automatic-saves"><code>jj</code> is said to record the working copy after <code>jj log</code> and every other command. Where can I see these automatic "saves"?<a class="headerlink" href="#jj-is-said-to-record-the-working-copy-after-jj-log-and-every-other-command-where-can-i-see-these-automatic-saves" title="Permanent link">&para;</a></h3>
 <p>Indeed, every <code>jj</code> command updates the current "working-copy" revision, marked 
 with <code>@</code> in <code>jj log</code>. You can notice this by how the <a href="../glossary/#commit-id">commit ID</a> of the
