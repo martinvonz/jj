@@ -753,6 +753,23 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
                 .try_collect()?;
             language.wrap_template(Box::new(SeparateTemplate::new(separator, contents)))
         }
+        "surround" => {
+            let [prefix_node, suffix_node, content_node] =
+                template_parser::expect_exact_arguments(function)?;
+            let prefix = expect_template_expression(language, build_ctx, prefix_node)?;
+            let suffix = expect_template_expression(language, build_ctx, suffix_node)?;
+            let content = expect_template_expression(language, build_ctx, content_node)?;
+            let template = ReformatTemplate::new(content, move |context, formatter, recorded| {
+                if recorded.data().is_empty() {
+                    return Ok(());
+                }
+                prefix.format(context, formatter)?;
+                recorded.replay(formatter)?;
+                suffix.format(context, formatter)?;
+                Ok(())
+            });
+            language.wrap_template(Box::new(template))
+        }
         _ => return Err(TemplateParseError::no_such_function(function)),
     };
     Ok(Expression::unlabeled(property))
@@ -1744,5 +1761,49 @@ mod tests {
         insta::assert_snapshot!(
             env.render_ok(r#"separate(hidden, "X", "Y", "Z")"#),
             @"XfalseYfalseZ");
+    }
+
+    #[test]
+    fn test_surround_function() {
+        let mut env = TestTemplateEnv::default();
+        env.add_keyword("lt", |language| {
+            language.wrap_string(Literal("<".to_owned()))
+        });
+        env.add_keyword("gt", |language| {
+            language.wrap_string(Literal(">".to_owned()))
+        });
+        env.add_keyword("content", |language| {
+            language.wrap_string(Literal("content".to_owned()))
+        });
+        env.add_keyword("empty_content", |language| {
+            language.wrap_string(Literal("".to_owned()))
+        });
+        env.add_color("error", crossterm::style::Color::DarkRed);
+        env.add_color("paren", crossterm::style::Color::Cyan);
+
+        insta::assert_snapshot!(env.render_ok(r#"surround("{", "}", "")"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"surround("{", "}", "a")"#), @"{a}");
+
+        // Labeled
+        insta::assert_snapshot!(
+            env.render_ok(
+                r#"surround(label("paren", "("), label("paren", ")"), label("error", "a"))"#),
+            @"[38;5;14m([39m[38;5;1ma[39m[38;5;14m)[39m");
+
+        // Keyword
+        insta::assert_snapshot!(
+            env.render_ok(r#"surround(lt, gt, content)"#),
+            @"<content>");
+        insta::assert_snapshot!(
+            env.render_ok(r#"surround(lt, gt, empty_content)"#),
+            @"");
+
+        // Conditional template as content
+        insta::assert_snapshot!(
+            env.render_ok(r#"surround(lt, gt, if(empty_content, "", "empty"))"#),
+            @"<empty>");
+        insta::assert_snapshot!(
+            env.render_ok(r#"surround(lt, gt, if(empty_content, "not empty", ""))"#),
+            @"");
     }
 }
