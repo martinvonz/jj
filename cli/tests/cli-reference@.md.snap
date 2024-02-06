@@ -893,12 +893,12 @@ By default, pushes any branches pointing to `remote_branches(remote=<remote>)..@
 ###### **Options:**
 
 * `--remote <REMOTE>` — The remote to push to (only named remotes are supported)
-* `-b`, `--branch <BRANCH>` — Push only this branch (can be repeated)
-* `--tracked` — Push all tracked branches (including deleted branches)
+* `-b`, `--branch <BRANCH>` — Push only this branch, or branches matching a pattern (can be repeated)
+* `--all` — Push all branches (including deleted branches)
 
   Possible values: `true`, `false`
 
-* `--all` — Push all branches (including deleted branches)
+* `--tracked` — Push all tracked branches (including deleted branches)
 
   Possible values: `true`, `false`
 
@@ -906,7 +906,7 @@ By default, pushes any branches pointing to `remote_branches(remote=<remote>)..@
 
   Possible values: `true`, `false`
 
-* `-r`, `--revisions <REVISIONS>` — Push branches pointing to these commits
+* `-r`, `--revisions <REVISIONS>` — Push branches pointing to these commits (can be repeated)
 * `-c`, `--change <CHANGE>` — Push this commit by creating a branch based on its change ID (can be repeated)
 * `--dry-run` — Only display what will change on the remote
 
