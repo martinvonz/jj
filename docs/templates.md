@@ -75,6 +75,8 @@ The following functions are defined.
   Same as `content_1 ++ ... ++ content_n`.
 * `separate(separator: Template, content: Template...) -> Template`:
   Insert separator between **non-empty** contents.
+* `surround(prefix: Template, suffix: Template, content: Template) -> Template`:
+  Surround **non-empty** content with texts such as parentheses.
 
 ## Types
 

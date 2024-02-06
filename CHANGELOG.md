@@ -90,7 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj diff` no longer shows the contents of binary files.
 
 * `jj git` now has an `init` command that initializes a git backed repo.
- 
+
+* New template function `surround(prefix, suffix, content)` is added.
 
 ### Fixed bugs
 
