@@ -2255,7 +2255,8 @@ setting, but you could set it explicitly too.</p>
 <h2 id="editing-diffs">Editing diffs<a class="headerlink" href="#editing-diffs" title="Permanent link">&para;</a></h2>
 <p>The <code>ui.diff-editor</code> setting affects the tool used for editing diffs (e.g.  <code>jj
 split</code>, <code>jj amend -i</code>). The default is the special value <code>:builtin</code>, which
-launches a TUI tool to edit the diff in your terminal.</p>
+launches a built-in TUI tool (known as <a href="https://github.com/arxanas/scm-record?tab=readme-ov-file#scm-diff-editor">scm-diff-editor</a>) to edit the diff in
+your terminal.</p>
 <p><code>jj</code> makes the following substitutions:</p>
 <ul>
 <li><code>$left</code> and <code>$right</code> are replaced with the paths to the left and right
