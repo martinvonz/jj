@@ -130,13 +130,29 @@ developers monitor both channels.
 
 ### News and Updates 📣
 
+- **Feb 2024**: Version 0.14 is released, which deprecates ["jj checkout" and "jj merge"](CHANGELOG.md#deprecations-1),
+  as well as `jj init --git`, which is now just called `jj git init`. 
 - **Oct 2023**: Version 0.10.0 is released! Now includes a bundled merge and
   diff editor for all platforms, "immutable revsets" to avoid accidentally
   `edit`-ing the wrong revisions, and lots of polish.
 - **Jan 2023**: Martin gave a presentation about Google's plans for Jujutsu at
-  Git Merge 2022! See the
-  [slides](https://docs.google.com/presentation/d/1F8j9_UOOSGUN9MvHxPZX_L4bQ9NMcYOp1isn17kTC_M/view)
-  or the [recording](https://www.youtube.com/watch?v=bx_LGilOuE4).
+  Git Merge 2022! 
+  See the [slides][merge-slides] or the [recording][merge-talk].
+
+### Related Media
+
+- **Feb 2024**: Chris Krycho published an article about Jujutsu called [jj init][krycho]
+  and Steve Klabnik followed up with the [Jujutsu Tutorial][klabnik]. 
+- **Jan 2024**: Jujutsu was featured in an LWN.net article called 
+  [Jujutsu: a new, Git-compatible version control system][lwn].
+- **Jan 2023**: Martin's Talk about Jujutsu at Git Merge 2022, [video][merge-talk] 
+  and the associated [slides][merge-slides].
+
+[krycho]: https://v5.chriskrycho.com/essays/jj-init/
+[klabnik]: https://steveklabnik.github.io/jujutsu-tutorial/introduction.html
+[lwn]: https://lwn.net/Articles/958468/ 
+[merge-talk]: https://www.youtube.com/watch?v=bx_LGilOuE4
+[merge-slides]: https://docs.google.com/presentation/d/1F8j9_UOOSGUN9MvHxPZX_L4bQ9NMcYOp1isn17kTC_M/view 
 
 ## Getting started
 
