@@ -1,0 +1,1828 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://martinvonz.github.io/jj/v0.14.0/tutorial/">
+      
+      
+        <link rel="prev" href="../install-and-setup/">
+      
+      
+        <link rel="next" href="../github/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.3">
+    
+    
+      
+        <title>Tutorial and Birds-Eye View - Jujutsu docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.50c56a3b.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#tutorial" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Jujutsu docs" class="md-header__button md-logo" aria-label="Jujutsu docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Jujutsu docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Tutorial and Birds-Eye View
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9h-1.9M20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69m-9.15 3.96h2.3L12 9l-1.15 3.65Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Jujutsu docs" class="md-nav__button md-logo" aria-label="Jujutsu docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    Jujutsu docs
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Getting started
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install-and-setup/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation and Setup
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Tutorial and Birds-Eye View
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Tutorial and Birds-Eye View
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#preparation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preparation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cloning-a-git-repo" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cloning a Git repo
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#creating-our-first-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      Creating our first change
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-log-command-and-revsets" class="md-nav__link">
+    <span class="md-ellipsis">
+      The log command and "revsets"
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conflicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conflicts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-operation-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      The operation log
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moving-content-changes-between-commits" class="md-nav__link">
+    <span class="md-ellipsis">
+      Moving content changes between commits
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../github/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working with GitHub
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../windows/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working on Windows
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../FAQ/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FAQ
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli-reference/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CLI Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Concepts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../working-copy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working Copy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../branches/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Branches
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conflicts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conflicts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operation-log/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Operation Log
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Glossary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Configuration
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Configuration
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Settings
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../revsets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Revset language
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../templates/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Templating language
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Comparisons
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Comparisons
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../git-comparison/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Git comparison
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../git-compatibility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Git compatibility
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sapling-comparison/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sapling
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../related-work/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Other related work
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Technical details
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Technical details
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/concurrency/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Concurrency
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/conflicts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conflicts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Contributing
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            Contributing
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Guidelines and "How to...?"
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../code-of-conduct/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Code of conduct
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Design docs
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            Design docs
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/git-submodules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    git-submodules
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/git-submodule-storage/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    git-submodule-storage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/run/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JJ run
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/sparse-v2/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sparse Patterns v2
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/tracking-branches/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tracking branches
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#preparation" class="md-nav__link">
+    <span class="md-ellipsis">
+      Preparation
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cloning-a-git-repo" class="md-nav__link">
+    <span class="md-ellipsis">
+      Cloning a Git repo
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#creating-our-first-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      Creating our first change
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-log-command-and-revsets" class="md-nav__link">
+    <span class="md-ellipsis">
+      The log command and "revsets"
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#conflicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conflicts
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-operation-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      The operation log
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#moving-content-changes-between-commits" class="md-nav__link">
+    <span class="md-ellipsis">
+      Moving content changes between commits
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+<h1 id="tutorial">Tutorial<a class="headerlink" href="#tutorial" title="Permanent link">&para;</a></h1>
+<p>This text assumes that the reader is familiar with Git.</p>
+<h2 id="preparation">Preparation<a class="headerlink" href="#preparation" title="Permanent link">&para;</a></h2>
+<p>If you haven't already, make sure you
+<a href="../install-and-setup/">install and configure Jujutsu</a>.</p>
+<h2 id="cloning-a-git-repo">Cloning a Git repo<a class="headerlink" href="#cloning-a-git-repo" title="Permanent link">&para;</a></h2>
+<p>Let's start by cloning GitHub's Hello-World repo using <code>jj</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Note the &quot;git&quot; before &quot;clone&quot; (there is no support for cloning native jj</span>
+<span class="c1"># repos yet)</span>
+$<span class="w"> </span>jj<span class="w"> </span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/octocat/Hello-World
+Fetching<span class="w"> </span>into<span class="w"> </span>new<span class="w"> </span>repo<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="s2">&quot;/tmp/tmp.O1DWMiaKd4/Hello-World&quot;</span>
+Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>kntqzsqt<span class="w"> </span>d7439b06<span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span><span class="o">(</span>no<span class="w"> </span>description<span class="w"> </span><span class="nb">set</span><span class="o">)</span>
+Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>orrkosyo<span class="w"> </span>7fd1a60b<span class="w"> </span>master<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>Merge<span class="w"> </span>pull<span class="w"> </span>request<span class="w"> </span><span class="c1">#6 from Spaceghost/patch-1</span>
+Added<span class="w"> </span><span class="m">1</span><span class="w"> </span>files,<span class="w"> </span>modified<span class="w"> </span><span class="m">0</span><span class="w"> </span>files,<span class="w"> </span>removed<span class="w"> </span><span class="m">0</span><span class="w"> </span>files
+$<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>Hello-World
+</code></pre></div>
+<p>Running <code>jj st</code> (short for <code>jj status</code>) now yields something like this:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>st
+The<span class="w"> </span>working<span class="w"> </span>copy<span class="w"> </span>is<span class="w"> </span>clean
+Working<span class="w"> </span>copy<span class="w"> </span>:<span class="w"> </span>kntqzsqt<span class="w"> </span>d7439b06<span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span><span class="o">(</span>no<span class="w"> </span>description<span class="w"> </span><span class="nb">set</span><span class="o">)</span>
+Parent<span class="w"> </span>commit:<span class="w"> </span>orrkosyo<span class="w"> </span>7fd1a60b<span class="w"> </span>master<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>Merge<span class="w"> </span>pull<span class="w"> </span>request<span class="w"> </span><span class="c1">#6 from Spaceghost/patch-1</span>
+</code></pre></div>
+<p>We can see from the output above that our working copy is a real commit with a
+commit ID (<code>d7439b06</code> in the example). When you make a change in the working
+copy, the working-copy commit gets automatically amended by the next <code>jj</code>
+command.</p>
+<h2 id="creating-our-first-change">Creating our first change<a class="headerlink" href="#creating-our-first-change" title="Permanent link">&para;</a></h2>
+<p>Now let's say we want to edit the <code>README</code> file in the repo to say "Goodbye"
+instead of "Hello". Let's start by describing the change (adding a
+commit message) so we don't forget what we're working on:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># This will bring up $EDITOR (or `pico` or `Notepad` by default). Enter</span>
+<span class="c1"># something like &quot;Say goodbye&quot; in the editor and then save the file and close</span>
+<span class="c1"># the editor.</span>
+$<span class="w"> </span>jj<span class="w"> </span>describe
+Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>kntqzsqt<span class="w"> </span>e427edcf<span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>Say<span class="w"> </span>goodbye
+Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>orrkosyo<span class="w"> </span>7fd1a60b<span class="w"> </span>master<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>Merge<span class="w"> </span>pull<span class="w"> </span>request<span class="w"> </span><span class="c1">#6 from Spaceghost/patch-1</span>
+</code></pre></div>
+<p>Now make the change in the README:</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Adjust as necessary for compatibility with your flavor of `sed`</span>
+$<span class="w"> </span>sed<span class="w"> </span>-i<span class="w"> </span><span class="s1">&#39;s/Hello/Goodbye/&#39;</span><span class="w"> </span>README
+$<span class="w"> </span>jj<span class="w"> </span>st
+Working<span class="w"> </span>copy<span class="w"> </span>changes:
+M<span class="w"> </span>README
+Working<span class="w"> </span>copy<span class="w"> </span>:<span class="w"> </span>kntqzsqt<span class="w"> </span>5d39e19d<span class="w"> </span>Say<span class="w"> </span>goodbye
+Parent<span class="w"> </span>commit:<span class="w"> </span>orrkosyo<span class="w"> </span>7fd1a60b<span class="w"> </span>master<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>Merge<span class="w"> </span>pull<span class="w"> </span>request<span class="w"> </span><span class="c1">#6 from Spaceghost/patch-1</span>
+</code></pre></div>
+<p>Note that you didn't have to tell Jujutsu to add the change like you would with
+<code>git add</code>. You actually don't even need to tell it when you add new files or
+remove existing files. To untrack a path, add it to your <code>.gitignore</code> and run
+<code>jj untrack &lt;path&gt;</code>.</p>
+<p>To see the diff, run <code>jj diff</code>:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>diff<span class="w"> </span>--git<span class="w">  </span><span class="c1"># Feel free to skip the `--git` flag</span>
+diff<span class="w"> </span>--git<span class="w"> </span>a/README<span class="w"> </span>b/README
+index<span class="w"> </span>980a0d5f19...1ce3f81130<span class="w"> </span><span class="m">100644</span>
+---<span class="w"> </span>a/README
++++<span class="w"> </span>b/README
+@@<span class="w"> </span>-1,1<span class="w"> </span>+1,1<span class="w"> </span>@@
+-Hello<span class="w"> </span>World!
++Goodbye<span class="w"> </span>World!
+</code></pre></div>
+<p>Jujutsu's diff format currently defaults to inline coloring of the diff (like
+<code>git diff --color-words</code>), so we used <code>--git</code> above to make the diff readable in
+this tutorial.</p>
+<p>As you may have noticed, the working-copy commit's ID changed both when we
+edited the description and when we edited the README. However, the parent commit
+stayed the same. Each change to the working-copy commit amends the previous
+version. So how do we tell Jujutsu that we are done amending the current change
+and want to start working on a new one? That is what <code>jj new</code> is for. That will
+create a new commit on top of your current working-copy commit. The new commit
+is for the working-copy changes.</p>
+<p>So, let's say we're now done with this change, so we create a new change:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>new
+Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>mpqrykyp<span class="w"> </span>aef4df99<span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span><span class="o">(</span>no<span class="w"> </span>description<span class="w"> </span><span class="nb">set</span><span class="o">)</span>
+Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>kntqzsqt<span class="w"> </span>5d39e19d<span class="w"> </span>Say<span class="w"> </span>goodbye
+$<span class="w"> </span>jj<span class="w"> </span>st
+The<span class="w"> </span>working<span class="w"> </span>copy<span class="w"> </span>is<span class="w"> </span>clean
+Working<span class="w"> </span>copy<span class="w"> </span>:<span class="w"> </span>mpqrykyp<span class="w"> </span>aef4df99<span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span><span class="o">(</span>no<span class="w"> </span>description<span class="w"> </span><span class="nb">set</span><span class="o">)</span>
+Parent<span class="w"> </span>commit:<span class="w"> </span>kntqzsqt<span class="w"> </span>5d39e19d<span class="w"> </span>Say<span class="w"> </span>goodbye
+</code></pre></div>
+<p>If we later realize that we want to make further changes, we can make them
+in the working copy and then run <code>jj squash</code>. That command squashes the changes
+from a given commit into its parent commit. Like most commands, it acts on the
+working-copy commit by default. When run on the working-copy commit, it behaves
+very similar to <code>git commit --amend</code>, and <code>jj amend</code> is in fact an alias for
+<code>jj squash</code>.</p>
+<p>Alternatively, we can use <code>jj edit &lt;commit&gt;</code> to resume editing a commit in the
+working copy. Any further changes in the working copy will then amend the
+commit. Whether you choose to create a new change and squash, or to edit,
+typically depends on how done you are with the change; if the change is almost
+done, it makes sense to use <code>jj new</code> so you can easily review your adjustments
+with <code>jj diff</code> before running <code>jj squash</code>. </p>
+<h2 id="the-log-command-and-revsets">The log command and "revsets"<a class="headerlink" href="#the-log-command-and-revsets" title="Permanent link">&para;</a></h2>
+<p>You're probably familiar with <code>git log</code>. Jujutsu has very similar functionality
+in its <code>jj log</code> command:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log
+@<span class="w">  </span>mpqrykyp<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:00:22.000<span class="w"> </span>-08:00<span class="w"> </span>aef4df99
+│<span class="w">  </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span><span class="o">(</span>no<span class="w"> </span>description<span class="w"> </span><span class="nb">set</span><span class="o">)</span>
+◉<span class="w">  </span>kntqzsqt<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">14</span>:56:59.000<span class="w"> </span>-08:00<span class="w"> </span>5d39e19d
+│<span class="w">  </span>Say<span class="w"> </span>goodbye
+│<span class="w"> </span>◉<span class="w">  </span>tpstlust<span class="w"> </span>support+octocat@github.com<span class="w"> </span><span class="m">2018</span>-05-10<span class="w"> </span><span class="m">12</span>:55:19.000<span class="w"> </span>-05:00<span class="w"> </span>octocat-patch-1@origin<span class="w"> </span>b1b3f972
+├─╯<span class="w">  </span>sentence<span class="w"> </span><span class="k">case</span>
+│<span class="w"> </span>◉<span class="w">  </span>kowxouwz<span class="w"> </span>octocat@nowhere.com<span class="w"> </span><span class="m">2014</span>-06-10<span class="w"> </span><span class="m">15</span>:22:26.000<span class="w"> </span>-07:00<span class="w"> </span>test@origin<span class="w"> </span>b3cbd5bb
+├─╯<span class="w">  </span>Create<span class="w"> </span>CONTRIBUTING.md
+◉<span class="w">  </span>orrkosyo<span class="w"> </span>octocat@nowhere.com<span class="w"> </span><span class="m">2012</span>-03-06<span class="w"> </span><span class="m">15</span>:06:50.000<span class="w"> </span>-08:00<span class="w"> </span>master<span class="w"> </span>7fd1a60b
+│<span class="w">  </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>Merge<span class="w"> </span>pull<span class="w"> </span>request<span class="w"> </span><span class="c1">#6 from Spaceghost/patch-1</span>
+~
+</code></pre></div>
+<p>The <code>@</code> indicates the working-copy commit. The first ID on a line
+(e.g. "mpqrykyp" above) is the "change ID", which is an ID that follows the
+commit as it's rewritten (similar to Gerrit's Change-Id). The second ID is the
+commit ID, which changes when you rewrite the commit. You can give either ID
+to commands that take revisions as arguments. We will generally prefer change
+IDs because they stay the same when the commit is rewritten.</p>
+<p>By default, <code>jj log</code> lists your local commits, with some remote commits added
+for context.  The <code>~</code> indicates that the commit has parents that are not
+included in the graph. We can use the <code>--revisions</code>/<code>-r</code> flag to select a
+different set of revisions to list. The flag accepts a <a href="../revsets/">"revset"</a>,
+which is an expression in a simple language for specifying revisions. For
+example, <code>@</code> refers to the working-copy commit, <code>root()</code> refers to the root
+commit, <code>branches()</code> refers to all commits pointed to by branches. We can
+combine expressions with <code>|</code> for union, <code>&amp;</code> for intersection and <code>~</code> for
+difference. For example:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;@ | root() | branches()&#39;</span>
+@<span class="w">  </span>mpqrykyp<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:00:22.000<span class="w"> </span>-08:00<span class="w"> </span>aef4df99
+╷<span class="w">  </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span><span class="o">(</span>no<span class="w"> </span>description<span class="w"> </span><span class="nb">set</span><span class="o">)</span>
+◉<span class="w">  </span>orrkosyo<span class="w"> </span>octocat@nowhere.com<span class="w"> </span><span class="m">2012</span>-03-06<span class="w"> </span><span class="m">15</span>:06:50.000<span class="w"> </span>-08:00<span class="w"> </span>master<span class="w"> </span>7fd1a60b
+╷<span class="w">  </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>Merge<span class="w"> </span>pull<span class="w"> </span>request<span class="w"> </span><span class="c1">#6 from Spaceghost/patch-1</span>
+◉<span class="w">  </span>zzzzzzzz<span class="w"> </span>root<span class="o">()</span><span class="w"> </span><span class="m">00000000</span>
+</code></pre></div>
+<p>The <code>00000000</code> commit (change ID <code>zzzzzzzz</code>) is a virtual commit that's
+called the "root commit". It's the root commit of every repo. The <code>root()</code>
+function in the revset matches it.</p>
+<p>There are also operators for getting the parents (<code>foo-</code>), children (<code>foo+</code>),
+ancestors (<code>::foo</code>), descendants (<code>foo::</code>), DAG range (<code>foo::bar</code>, like
+<code>git log --ancestry-path</code>), range (<code>foo..bar</code>, same as Git's). See
+<a href="../revsets/">the revset documentation</a> for all revset operators and functions.</p>
+<h2 id="conflicts">Conflicts<a class="headerlink" href="#conflicts" title="Permanent link">&para;</a></h2>
+<p>Now let's see how Jujutsu deals with merge conflicts. We'll start by making some
+commits. We use <code>jj new</code> with the <code>--message</code>/<code>-m</code> option to set change
+descriptions (commit messages) right away.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Start creating a chain of commits off of the `master` branch</span>
+$<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>master<span class="w"> </span>-m<span class="w"> </span>A<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span>a<span class="w"> </span>&gt;<span class="w"> </span>file1
+Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>nuvyytnq<span class="w"> </span>00a2aeed<span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>A
+Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>orrkosyo<span class="w"> </span>7fd1a60b<span class="w"> </span>master<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>Merge<span class="w"> </span>pull<span class="w"> </span>request<span class="w"> </span><span class="c1">#6 from Spaceghost/patch-1</span>
+Added<span class="w"> </span><span class="m">0</span><span class="w"> </span>files,<span class="w"> </span>modified<span class="w"> </span><span class="m">1</span><span class="w"> </span>files,<span class="w"> </span>removed<span class="w"> </span><span class="m">0</span><span class="w"> </span>files
+$<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>-m<span class="w"> </span>B1<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span>b1<span class="w"> </span>&gt;<span class="w"> </span>file1
+Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>ovknlmro<span class="w"> </span>967d9f9f<span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>B1
+Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>nuvyytnq<span class="w"> </span>5dda2f09<span class="w"> </span>A
+$<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>-m<span class="w"> </span>B2<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span>b2<span class="w"> </span>&gt;<span class="w"> </span>file1
+Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>puqltutt<span class="w"> </span>8ebeaffa<span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>B2
+Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>ovknlmro<span class="w"> </span>7d7c6e6b<span class="w"> </span>B1
+$<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>-m<span class="w"> </span>C<span class="p">;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span>c<span class="w"> </span>&gt;<span class="w"> </span>file2
+Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>qzvqqupx<span class="w"> </span>62a3c6d3<span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>C
+Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>puqltutt<span class="w"> </span>daa6ffd5<span class="w"> </span>B2
+$<span class="w"> </span>jj<span class="w"> </span>log
+@<span class="w">  </span>qzvqqupx<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:07:41.946<span class="w"> </span>-08:00<span class="w"> </span>2370ddf3
+│<span class="w">  </span>C
+◉<span class="w">  </span>puqltutt<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:07:33.000<span class="w"> </span>-08:00<span class="w"> </span>daa6ffd5
+│<span class="w">  </span>B2
+◉<span class="w">  </span>ovknlmro<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:07:24.000<span class="w"> </span>-08:00<span class="w"> </span>7d7c6e6b
+│<span class="w">  </span>B1
+◉<span class="w">  </span>nuvyytnq<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:07:05.000<span class="w"> </span>-08:00<span class="w"> </span>5dda2f09
+│<span class="w">  </span>A
+│<span class="w"> </span>◉<span class="w">  </span>kntqzsqt<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">14</span>:56:59.000<span class="w"> </span>-08:00<span class="w"> </span>5d39e19d
+├─╯<span class="w">  </span>Say<span class="w"> </span>goodbye
+│<span class="w"> </span>◉<span class="w">  </span>tpstlust<span class="w"> </span>support+octocat@github.com<span class="w"> </span><span class="m">2018</span>-05-10<span class="w"> </span><span class="m">12</span>:55:19.000<span class="w"> </span>-05:00<span class="w"> </span>octocat-patch-1@origin<span class="w"> </span>b1b3f972
+├─╯<span class="w">  </span>sentence<span class="w"> </span><span class="k">case</span>
+│<span class="w"> </span>◉<span class="w">  </span>kowxouwz<span class="w"> </span>octocat@nowhere.com<span class="w"> </span><span class="m">2014</span>-06-10<span class="w"> </span><span class="m">15</span>:22:26.000<span class="w"> </span>-07:00<span class="w"> </span>test@origin<span class="w"> </span>b3cbd5bb
+├─╯<span class="w">  </span>Create<span class="w"> </span>CONTRIBUTING.md
+◉<span class="w">  </span>orrkosyo<span class="w"> </span>octocat@nowhere.com<span class="w"> </span><span class="m">2012</span>-03-06<span class="w"> </span><span class="m">15</span>:06:50.000<span class="w"> </span>-08:00<span class="w"> </span>master<span class="w"> </span>7fd1a60b
+│<span class="w">  </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>Merge<span class="w"> </span>pull<span class="w"> </span>request<span class="w"> </span><span class="c1">#6 from Spaceghost/patch-1</span>
+~
+</code></pre></div>
+<p>We now have a few commits, where A, B1, and B2 modify the same file, while C
+modifies a different file. Let's now rebase B2 directly onto A. We use the
+<code>--source</code>/<code>-s</code> option on the change ID of B2, and <code>--destination</code>/<code>-d</code> option
+on A.</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>rebase<span class="w"> </span>-s<span class="w"> </span>puqltutt<span class="w"> </span>-d<span class="w"> </span>nuvyytnq<span class="w">  </span><span class="c1"># Replace the IDs by what you have for B2 and A</span>
+Rebased<span class="w"> </span><span class="m">2</span><span class="w"> </span>commits
+New<span class="w"> </span>conflicts<span class="w"> </span>appeared<span class="w"> </span><span class="k">in</span><span class="w"> </span>these<span class="w"> </span>commits:
+<span class="w">  </span>qzvqqupx<span class="w"> </span>1978b534<span class="w"> </span><span class="o">(</span>conflict<span class="o">)</span><span class="w"> </span>C
+<span class="w">  </span>puqltutt<span class="w"> </span>f7fb5943<span class="w"> </span><span class="o">(</span>conflict<span class="o">)</span><span class="w"> </span>B2
+To<span class="w"> </span>resolve<span class="w"> </span>the<span class="w"> </span>conflicts,<span class="w"> </span>start<span class="w"> </span>by<span class="w"> </span>updating<span class="w"> </span>to<span class="w"> </span>the<span class="w"> </span>first<span class="w"> </span>one:
+<span class="w">  </span>jj<span class="w"> </span>new<span class="w"> </span>puqltuttzvly
+Then<span class="w"> </span>use<span class="w"> </span><span class="sb">`</span>jj<span class="w"> </span>resolve<span class="sb">`</span>,<span class="w"> </span>or<span class="w"> </span>edit<span class="w"> </span>the<span class="w"> </span>conflict<span class="w"> </span>markers<span class="w"> </span><span class="k">in</span><span class="w"> </span>the<span class="w"> </span>file<span class="w"> </span>directly.
+Once<span class="w"> </span>the<span class="w"> </span>conflicts<span class="w"> </span>are<span class="w"> </span>resolved,<span class="w"> </span>you<span class="w"> </span>may<span class="w"> </span>want<span class="w"> </span>inspect<span class="w"> </span>the<span class="w"> </span>result<span class="w"> </span>with<span class="w"> </span><span class="sb">`</span>jj<span class="w"> </span>diff<span class="sb">`</span>.
+Then<span class="w"> </span>run<span class="w"> </span><span class="sb">`</span>jj<span class="w"> </span>squash<span class="sb">`</span><span class="w"> </span>to<span class="w"> </span>move<span class="w"> </span>the<span class="w"> </span>resolution<span class="w"> </span>into<span class="w"> </span>the<span class="w"> </span>conflicted<span class="w"> </span>commit.
+Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>qzvqqupx<span class="w"> </span>1978b534<span class="w"> </span><span class="o">(</span>conflict<span class="o">)</span><span class="w"> </span>C
+Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>puqltutt<span class="w"> </span>f7fb5943<span class="w"> </span><span class="o">(</span>conflict<span class="o">)</span><span class="w"> </span>B2
+Added<span class="w"> </span><span class="m">0</span><span class="w"> </span>files,<span class="w"> </span>modified<span class="w"> </span><span class="m">1</span><span class="w"> </span>files,<span class="w"> </span>removed<span class="w"> </span><span class="m">0</span><span class="w"> </span>files
+$<span class="w"> </span>jj<span class="w"> </span>log
+@<span class="w">  </span>qzvqqupx<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:08:33.000<span class="w"> </span>-08:00<span class="w"> </span>1978b534<span class="w"> </span>conflict
+│<span class="w">  </span>C
+◉<span class="w">  </span>puqltutt<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:08:33.000<span class="w"> </span>-08:00<span class="w"> </span>f7fb5943<span class="w"> </span>conflict
+│<span class="w">  </span>B2
+│<span class="w"> </span>◉<span class="w">  </span>ovknlmro<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:07:24.000<span class="w"> </span>-08:00<span class="w"> </span>7d7c6e6b
+├─╯<span class="w">  </span>B1
+◉<span class="w">  </span>nuvyytnq<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:07:05.000<span class="w"> </span>-08:00<span class="w"> </span>5dda2f09
+│<span class="w">  </span>A
+│<span class="w"> </span>◉<span class="w">  </span>kntqzsqt<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">14</span>:56:59.000<span class="w"> </span>-08:00<span class="w"> </span>5d39e19d
+├─╯<span class="w">  </span>Say<span class="w"> </span>goodbye
+│<span class="w"> </span>◉<span class="w">  </span>tpstlust<span class="w"> </span>support+octocat@github.com<span class="w"> </span><span class="m">2018</span>-05-10<span class="w"> </span><span class="m">12</span>:55:19.000<span class="w"> </span>-05:00<span class="w"> </span>octocat-patch-1@origin<span class="w"> </span>b1b3f972
+├─╯<span class="w">  </span>sentence<span class="w"> </span><span class="k">case</span>
+│<span class="w"> </span>◉<span class="w">  </span>kowxouwz<span class="w"> </span>octocat@nowhere.com<span class="w"> </span><span class="m">2014</span>-06-10<span class="w"> </span><span class="m">15</span>:22:26.000<span class="w"> </span>-07:00<span class="w"> </span>test@origin<span class="w"> </span>b3cbd5bb
+├─╯<span class="w">  </span>Create<span class="w"> </span>CONTRIBUTING.md
+◉<span class="w">  </span>orrkosyo<span class="w"> </span>octocat@nowhere.com<span class="w"> </span><span class="m">2012</span>-03-06<span class="w"> </span><span class="m">15</span>:06:50.000<span class="w"> </span>-08:00<span class="w"> </span>master<span class="w"> </span>7fd1a60b
+│<span class="w">  </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>Merge<span class="w"> </span>pull<span class="w"> </span>request<span class="w"> </span><span class="c1">#6 from Spaceghost/patch-1</span>
+~
+</code></pre></div>
+<p>There are several things worth noting here. First, the <code>jj rebase</code> command said
+"Rebased 2 commits". That's because we asked it to rebase commit B2 with the
+<code>-s</code> option, which also rebases descendants (commit C in this case). Second,
+because B2 modified the same file (and word) as B1, rebasing
+it resulted in conflicts, as the output indicates. Third, the conflicts
+did not prevent the rebase from completing successfully, nor did it prevent C
+from getting rebased on top.</p>
+<p>Now let's resolve the conflict in B2. We'll do that by creating a new commit on
+top of B2. Once we've resolved the conflict, we'll squash the conflict
+resolution into the conflicted B2. That might look like this:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>puqltutt<span class="w">  </span><span class="c1"># Replace the ID by what you have for B2</span>
+Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>zxoosnnp<span class="w"> </span>c7068d1c<span class="w"> </span><span class="o">(</span>conflict<span class="o">)</span><span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span><span class="o">(</span>no<span class="w"> </span>description<span class="w"> </span><span class="nb">set</span><span class="o">)</span>
+Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>puqltutt<span class="w"> </span>f7fb5943<span class="w"> </span><span class="o">(</span>conflict<span class="o">)</span><span class="w"> </span>B2
+Added<span class="w"> </span><span class="m">0</span><span class="w"> </span>files,<span class="w"> </span>modified<span class="w"> </span><span class="m">0</span><span class="w"> </span>files,<span class="w"> </span>removed<span class="w"> </span><span class="m">1</span><span class="w"> </span>files
+$<span class="w"> </span>jj<span class="w"> </span>st
+The<span class="w"> </span>working<span class="w"> </span>copy<span class="w"> </span>is<span class="w"> </span>clean
+There<span class="w"> </span>are<span class="w"> </span>unresolved<span class="w"> </span>conflicts<span class="w"> </span>at<span class="w"> </span>these<span class="w"> </span>paths:
+file1<span class="w">    </span><span class="m">2</span>-sided<span class="w"> </span>conflict
+Working<span class="w"> </span>copy<span class="w"> </span>:<span class="w"> </span>zxoosnnp<span class="w"> </span>c7068d1c<span class="w"> </span><span class="o">(</span>conflict<span class="o">)</span><span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span><span class="o">(</span>no<span class="w"> </span>description<span class="w"> </span><span class="nb">set</span><span class="o">)</span>
+Parent<span class="w"> </span>commit:<span class="w"> </span>puqltutt<span class="w"> </span>f7fb5943<span class="w"> </span><span class="o">(</span>conflict<span class="o">)</span><span class="w"> </span>B2
+$<span class="w"> </span>cat<span class="w"> </span>file1
+<span class="o">&lt;&lt;&lt;&lt;&lt;&lt;</span>&lt;
+%%%%%%%
+-b1
++a
++++++++
+b2
+&gt;&gt;&gt;&gt;&gt;&gt;&gt;
+$<span class="w"> </span><span class="nb">echo</span><span class="w"> </span>resolved<span class="w"> </span>&gt;<span class="w"> </span>file1
+$<span class="w"> </span>jj<span class="w"> </span>squash
+Rebased<span class="w"> </span><span class="m">1</span><span class="w"> </span>descendant<span class="w"> </span>commits
+Existing<span class="w"> </span>conflicts<span class="w"> </span>were<span class="w"> </span>resolved<span class="w"> </span>or<span class="w"> </span>abandoned<span class="w"> </span>from<span class="w"> </span>these<span class="w"> </span>commits:
+<span class="w">  </span>qzvqqupx<span class="w"> </span>hidden<span class="w"> </span>1978b534<span class="w"> </span><span class="o">(</span>conflict<span class="o">)</span><span class="w"> </span>C
+<span class="w">  </span>puqltutt<span class="w"> </span>hidden<span class="w"> </span>f7fb5943<span class="w"> </span><span class="o">(</span>conflict<span class="o">)</span><span class="w"> </span>B2
+Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>ntxxqymr<span class="w"> </span>e3c279cc<span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span><span class="o">(</span>no<span class="w"> </span>description<span class="w"> </span><span class="nb">set</span><span class="o">)</span>
+Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>puqltutt<span class="w"> </span>2c7a658e<span class="w"> </span>B2
+$<span class="w"> </span>jj<span class="w"> </span>log
+@<span class="w">  </span>ntxxqymr<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">19</span>:34:09.000<span class="w"> </span>-08:00<span class="w"> </span>e3c279cc
+│<span class="w">  </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span><span class="o">(</span>no<span class="w"> </span>description<span class="w"> </span><span class="nb">set</span><span class="o">)</span>
+│<span class="w"> </span>◉<span class="w">  </span>qzvqqupx<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">19</span>:34:09.000<span class="w"> </span>-08:00<span class="w"> </span>b9da9d28
+├─╯<span class="w">  </span>C
+◉<span class="w">  </span>puqltutt<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">19</span>:34:09.000<span class="w"> </span>-08:00<span class="w"> </span>2c7a658e
+│<span class="w">  </span>B2
+│<span class="w"> </span>◉<span class="w">  </span>ovknlmro<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:07:24.000<span class="w"> </span>-08:00<span class="w"> </span>7d7c6e6b
+├─╯<span class="w">  </span>B1
+◉<span class="w">  </span>nuvyytnq<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:07:05.000<span class="w"> </span>-08:00<span class="w"> </span>5dda2f09
+│<span class="w">  </span>A
+│<span class="w"> </span>◉<span class="w">  </span>kntqzsqt<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">14</span>:56:59.000<span class="w"> </span>-08:00<span class="w"> </span>5d39e19d
+├─╯<span class="w">  </span>Say<span class="w"> </span>goodbye
+│<span class="w"> </span>◉<span class="w">  </span>tpstlust<span class="w"> </span>support+octocat@github.com<span class="w"> </span><span class="m">2018</span>-05-10<span class="w"> </span><span class="m">12</span>:55:19.000<span class="w"> </span>-05:00<span class="w"> </span>octocat-patch-1@origin<span class="w"> </span>b1b3f972
+├─╯<span class="w">  </span>sentence<span class="w"> </span><span class="k">case</span>
+│<span class="w"> </span>◉<span class="w">  </span>kowxouwz<span class="w"> </span>octocat@nowhere.com<span class="w"> </span><span class="m">2014</span>-06-10<span class="w"> </span><span class="m">15</span>:22:26.000<span class="w"> </span>-07:00<span class="w"> </span>test@origin<span class="w"> </span>b3cbd5bb
+├─╯<span class="w">  </span>Create<span class="w"> </span>CONTRIBUTING.md
+◉<span class="w">  </span>orrkosyo<span class="w"> </span>octocat@nowhere.com<span class="w"> </span><span class="m">2012</span>-03-06<span class="w"> </span><span class="m">15</span>:06:50.000<span class="w"> </span>-08:00<span class="w"> </span>master<span class="w"> </span>7fd1a60b
+│<span class="w">  </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>Merge<span class="w"> </span>pull<span class="w"> </span>request<span class="w"> </span><span class="c1">#6 from Spaceghost/patch-1</span>
+~
+</code></pre></div>
+<p>Note that commit C automatically got rebased on top of the resolved B2, and that
+C is also resolved (since it modified only a different file).</p>
+<p>By the way, if we want to get rid of B1 now, we can run <code>jj abandon
+ovknlmro</code>. That will hide the commit from the log output and will rebase any
+descendants to its parent.</p>
+<h2 id="the-operation-log">The operation log<a class="headerlink" href="#the-operation-log" title="Permanent link">&para;</a></h2>
+<p>Jujutsu keeps a record of all changes you've made to the repo in what's called
+the "operation log". Use the <code>jj op</code> (short for <code>jj operation</code>) family of
+commands to interact with it. To list the operations, use <code>jj op log</code>:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>op<span class="w"> </span>log
+@<span class="w">  </span>d3b77addea49<span class="w"> </span>martinvonz@vonz.svl.corp.google.com<span class="w"> </span><span class="m">3</span><span class="w"> </span>minutes<span class="w"> </span>ago,<span class="w"> </span>lasted<span class="w"> </span><span class="m">3</span><span class="w"> </span>milliseconds
+│<span class="w">  </span>squash<span class="w"> </span>commit<span class="w"> </span>63874fe6c4fba405ffc38b0dd926f03b715cf7ef
+│<span class="w">  </span>args:<span class="w"> </span>jj<span class="w"> </span>squash
+◉<span class="w">  </span>6fc1873c1180<span class="w"> </span>martinvonz@vonz.svl.corp.google.com<span class="w"> </span><span class="m">3</span><span class="w"> </span>minutes<span class="w"> </span>ago,<span class="w"> </span>lasted<span class="w"> </span><span class="m">1</span><span class="w"> </span>milliseconds
+│<span class="w">  </span>snapshot<span class="w"> </span>working<span class="w"> </span>copy
+│<span class="w">  </span>args:<span class="w"> </span>jj<span class="w"> </span>squash
+◉<span class="w">  </span>ed91f7bcc1fb<span class="w"> </span>martinvonz@vonz.svl.corp.google.com<span class="w"> </span><span class="m">6</span><span class="w"> </span>minutes<span class="w"> </span>ago,<span class="w"> </span>lasted<span class="w"> </span><span class="m">1</span><span class="w"> </span>milliseconds
+│<span class="w">  </span>new<span class="w"> </span>empty<span class="w"> </span>commit
+│<span class="w">  </span>args:<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>puqltutt
+◉<span class="w">  </span>367400773f87<span class="w"> </span>martinvonz@vonz.svl.corp.google.com<span class="w"> </span><span class="m">12</span><span class="w"> </span>minutes<span class="w"> </span>ago,<span class="w"> </span>lasted<span class="w"> </span><span class="m">3</span><span class="w"> </span>milliseconds
+│<span class="w">  </span>rebase<span class="w"> </span>commit<span class="w"> </span>daa6ffd5a09a8a7d09a65796194e69b7ed0a566d<span class="w"> </span>and<span class="w"> </span>descendants
+│<span class="w">  </span>args:<span class="w"> </span>jj<span class="w"> </span>rebase<span class="w"> </span>-s<span class="w"> </span>puqltutt<span class="w"> </span>-d<span class="w"> </span>nuvyytnq
+<span class="o">[</span>many<span class="w"> </span>more<span class="w"> </span>lines<span class="o">]</span>
+</code></pre></div>
+<p>The most useful command is <code>jj undo</code> (alias for <code>jj op undo</code>), which will undo
+an operation. By default, it will undo the most recent operation. Let's try it:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>undo
+New<span class="w"> </span>conflicts<span class="w"> </span>appeared<span class="w"> </span><span class="k">in</span><span class="w"> </span>these<span class="w"> </span>commits:
+<span class="w">  </span>qzvqqupx<span class="w"> </span>1978b534<span class="w"> </span><span class="o">(</span>conflict<span class="o">)</span><span class="w"> </span>C
+<span class="w">  </span>puqltutt<span class="w"> </span>f7fb5943<span class="w"> </span><span class="o">(</span>conflict<span class="o">)</span><span class="w"> </span>B2
+To<span class="w"> </span>resolve<span class="w"> </span>the<span class="w"> </span>conflicts,<span class="w"> </span>start<span class="w"> </span>by<span class="w"> </span>updating<span class="w"> </span>to<span class="w"> </span>the<span class="w"> </span>first<span class="w"> </span>one:
+<span class="w">  </span>jj<span class="w"> </span>new<span class="w"> </span>puqltuttzvly
+Then<span class="w"> </span>use<span class="w"> </span><span class="sb">`</span>jj<span class="w"> </span>resolve<span class="sb">`</span>,<span class="w"> </span>or<span class="w"> </span>edit<span class="w"> </span>the<span class="w"> </span>conflict<span class="w"> </span>markers<span class="w"> </span><span class="k">in</span><span class="w"> </span>the<span class="w"> </span>file<span class="w"> </span>directly.
+Once<span class="w"> </span>the<span class="w"> </span>conflicts<span class="w"> </span>are<span class="w"> </span>resolved,<span class="w"> </span>you<span class="w"> </span>may<span class="w"> </span>want<span class="w"> </span>inspect<span class="w"> </span>the<span class="w"> </span>result<span class="w"> </span>with<span class="w"> </span><span class="sb">`</span>jj<span class="w"> </span>diff<span class="sb">`</span>.
+Then<span class="w"> </span>run<span class="w"> </span><span class="sb">`</span>jj<span class="w"> </span>squash<span class="sb">`</span><span class="w"> </span>to<span class="w"> </span>move<span class="w"> </span>the<span class="w"> </span>resolution<span class="w"> </span>into<span class="w"> </span>the<span class="w"> </span>conflicted<span class="w"> </span>commit.
+Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>zxoosnnp<span class="w"> </span>63874fe6<span class="w"> </span><span class="o">(</span>no<span class="w"> </span>description<span class="w"> </span><span class="nb">set</span><span class="o">)</span>
+Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>puqltutt<span class="w"> </span>f7fb5943<span class="w"> </span><span class="o">(</span>conflict<span class="o">)</span><span class="w"> </span>B2
+$<span class="w"> </span>jj<span class="w"> </span>log
+@<span class="w">  </span>zxoosnnp<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">19</span>:34:09.000<span class="w"> </span>-08:00<span class="w"> </span>63874fe6
+│<span class="w">  </span><span class="o">(</span>no<span class="w"> </span>description<span class="w"> </span><span class="nb">set</span><span class="o">)</span>
+│<span class="w"> </span>◉<span class="w">  </span>qzvqqupx<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:08:33.000<span class="w"> </span>-08:00<span class="w"> </span>1978b534<span class="w"> </span>conflict
+├─╯<span class="w">  </span>C
+◉<span class="w">  </span>puqltutt<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:08:33.000<span class="w"> </span>-08:00<span class="w"> </span>f7fb5943<span class="w"> </span>conflict
+│<span class="w">  </span>B2
+│<span class="w"> </span>◉<span class="w">  </span>ovknlmro<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:07:24.000<span class="w"> </span>-08:00<span class="w"> </span>7d7c6e6b
+├─╯<span class="w">  </span>B1
+◉<span class="w">  </span>nuvyytnq<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">15</span>:07:05.000<span class="w"> </span>-08:00<span class="w"> </span>5dda2f09
+│<span class="w">  </span>A
+│<span class="w"> </span>◉<span class="w">  </span>kntqzsqt<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">14</span>:56:59.000<span class="w"> </span>-08:00<span class="w"> </span>5d39e19d
+├─╯<span class="w">  </span>Say<span class="w"> </span>goodbye
+│<span class="w"> </span>◉<span class="w">  </span>tpstlust<span class="w"> </span>support+octocat@github.com<span class="w"> </span><span class="m">2018</span>-05-10<span class="w"> </span><span class="m">12</span>:55:19.000<span class="w"> </span>-05:00<span class="w"> </span>octocat-patch-1@origin<span class="w"> </span>b1b3f972
+├─╯<span class="w">  </span>sentence<span class="w"> </span><span class="k">case</span>
+│<span class="w"> </span>◉<span class="w">  </span>kowxouwz<span class="w"> </span>octocat@nowhere.com<span class="w"> </span><span class="m">2014</span>-06-10<span class="w"> </span><span class="m">15</span>:22:26.000<span class="w"> </span>-07:00<span class="w"> </span>test@origin<span class="w"> </span>b3cbd5bb
+├─╯<span class="w">  </span>Create<span class="w"> </span>CONTRIBUTING.md
+◉<span class="w">  </span>orrkosyo<span class="w"> </span>octocat@nowhere.com<span class="w"> </span><span class="m">2012</span>-03-06<span class="w"> </span><span class="m">15</span>:06:50.000<span class="w"> </span>-08:00<span class="w"> </span>master<span class="w"> </span>7fd1a60b
+│<span class="w">  </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>Merge<span class="w"> </span>pull<span class="w"> </span>request<span class="w"> </span><span class="c1">#6 from Spaceghost/patch-1</span>
+~
+</code></pre></div>
+<p>As you can perhaps see, that undid the <code>jj squash</code> invocation we used for
+squashing the conflict resolution into commit B2 earlier. Notice that it also
+updated the working copy.</p>
+<p>You can also view the repo the way it looked after some earlier operation. For
+example, if you want to see <code>jj log</code> output right after the <code>jj rebase</code> operation,
+try <code>jj log --at-op=367400773f87</code> but use the hash from your own <code>jj op log</code>.</p>
+<h2 id="moving-content-changes-between-commits">Moving content changes between commits<a class="headerlink" href="#moving-content-changes-between-commits" title="Permanent link">&para;</a></h2>
+<p>You have already seen how <code>jj squash</code> can combine the changes from two commits
+into one. There are several other commands for changing the contents of existing
+commits.</p>
+<p>We'll need some more complex content to test these commands, so let's create a
+few more commits:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>master<span class="w"> </span>-m<span class="w"> </span>abc<span class="p">;</span><span class="w"> </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;a\nb\nc\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>file
+Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>ztqrpvnw<span class="w"> </span>f94e49cf<span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>abc
+Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>orrkosyo<span class="w"> </span>7fd1a60b<span class="w"> </span>master<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>Merge<span class="w"> </span>pull<span class="w"> </span>request<span class="w"> </span><span class="c1">#6 from Spaceghost/patch-1</span>
+Added<span class="w"> </span><span class="m">0</span><span class="w"> </span>files,<span class="w"> </span>modified<span class="w"> </span><span class="m">0</span><span class="w"> </span>files,<span class="w"> </span>removed<span class="w"> </span><span class="m">1</span><span class="w"> </span>files
+$<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>-m<span class="w"> </span>ABC<span class="p">;</span><span class="w"> </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;A\nB\nc\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>file
+Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>kwtuwqnm<span class="w"> </span>6f30cd1f<span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>ABC
+Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>ztqrpvnw<span class="w"> </span><span class="m">51002261</span><span class="w"> </span>ab
+$<span class="w"> </span>jj<span class="w"> </span>new<span class="w"> </span>-m<span class="w"> </span>ABCD<span class="p">;</span><span class="w"> </span><span class="nb">printf</span><span class="w"> </span><span class="s1">&#39;A\nB\nC\nD\n&#39;</span><span class="w"> </span>&gt;<span class="w"> </span>file
+Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>mrxqplyk<span class="w"> </span>a6749154<span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>ABCD
+Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>kwtuwqnm<span class="w"> </span>30aecc08<span class="w"> </span>ABC
+$<span class="w"> </span>jj<span class="w"> </span>log<span class="w"> </span>-r<span class="w"> </span>master::@
+@<span class="w">  </span>mrxqplyk<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">19</span>:38:21.000<span class="w"> </span>-08:00<span class="w"> </span>b98c607b
+│<span class="w">  </span>ABCD
+◉<span class="w">  </span>kwtuwqnm<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">19</span>:38:12.000<span class="w"> </span>-08:00<span class="w"> </span>30aecc08
+│<span class="w">  </span>ABC
+◉<span class="w">  </span>ztqrpvnw<span class="w"> </span>martinvonz@google.com<span class="w"> </span><span class="m">2023</span>-02-12<span class="w"> </span><span class="m">19</span>:38:03.000<span class="w"> </span>-08:00<span class="w"> </span><span class="m">51002261</span>
+│<span class="w">  </span>abc
+◉<span class="w">  </span>orrkosyo<span class="w"> </span>octocat@nowhere.com<span class="w"> </span><span class="m">2012</span>-03-06<span class="w"> </span><span class="m">15</span>:06:50.000<span class="w"> </span>-08:00<span class="w"> </span>master<span class="w"> </span>7fd1a60b
+│<span class="w">  </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>Merge<span class="w"> </span>pull<span class="w"> </span>request<span class="w"> </span><span class="c1">#6 from Spaceghost/patch-1</span>
+~
+</code></pre></div>
+<p>We "forgot" to capitalize "c" in the second commit when we capitalized the other
+letters. We then fixed that in the third commit when we also added "D". It would
+be cleaner to move the capitalization of "c" into the second commit. We can do
+that by running <code>jj squash</code> with the <code>--interactive</code>/<code>-i</code> option on the
+third commit. Remember that <code>jj squash</code> moves all the changes from one commit
+into its parent. <code>jj squash -i</code> moves only part of the changes into its parent.
+Now try that:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>squash<span class="w"> </span>-i
+Using<span class="w"> </span>default<span class="w"> </span>editor<span class="w"> </span><span class="s1">&#39;:builtin&#39;</span><span class="p">;</span><span class="w"> </span>you<span class="w"> </span>can<span class="w"> </span>change<span class="w"> </span>this<span class="w"> </span>by<span class="w"> </span>setting<span class="w"> </span>ui.diff-editor
+Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>mrxqplyk<span class="w"> </span>52a6c7fd<span class="w"> </span>ABCD
+Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>kwtuwqnm<span class="w"> </span>643061ac<span class="w"> </span>ABC
+</code></pre></div>
+<p>That will bring up the built-in diff editor with a diff of the changes in
+the "ABCD" commit. If you prefer another diff editor, you can configure
+<a href="../config/#editing-diffs"><code>ui.diff-editor</code></a> instead. Modify the right side of
+the diff to have the desired end state in "ABC" by removing the "D" line. Then
+save the changes and close Meld. If we look at the diff of the second commit, we
+now see that all three lines got capitalized:</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>diff<span class="w"> </span>-r<span class="w"> </span>@-
+Modified<span class="w"> </span>regular<span class="w"> </span>file<span class="w"> </span>file:
+<span class="w">   </span><span class="m">1</span><span class="w">    </span><span class="m">1</span>:<span class="w"> </span>aA
+<span class="w">   </span><span class="m">2</span><span class="w">    </span><span class="m">2</span>:<span class="w"> </span>bB
+<span class="w">   </span><span class="m">3</span><span class="w">    </span><span class="m">3</span>:<span class="w"> </span>cC
+</code></pre></div>
+<p>The child change ("ABCD" in our case) will have the same content <em>state</em> after
+the <code>jj squash</code> command. That means that you can move any changes you want into
+the parent change, even if they touch the same word, and it won't cause any
+conflicts.</p>
+<p>Let's try one final command for changing the contents of an exiting commit. That
+command is <code>jj diffedit</code>, which lets you edit the contents of a commit without
+checking it out.</p>
+<div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>diffedit<span class="w"> </span>-r<span class="w"> </span>@-
+Using<span class="w"> </span>default<span class="w"> </span>editor<span class="w"> </span><span class="s1">&#39;:builtin&#39;</span><span class="p">;</span><span class="w"> </span>you<span class="w"> </span>can<span class="w"> </span>change<span class="w"> </span>this<span class="w"> </span>by<span class="w"> </span>setting<span class="w"> </span>ui.diff-editor
+Created<span class="w"> </span>kwtuwqnm<span class="w"> </span>70985eaa<span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>ABC
+Rebased<span class="w"> </span><span class="m">1</span><span class="w"> </span>descendant<span class="w"> </span>commits
+New<span class="w"> </span>conflicts<span class="w"> </span>appeared<span class="w"> </span><span class="k">in</span><span class="w"> </span>these<span class="w"> </span>commits:
+<span class="w">  </span>mrxqplyk<span class="w"> </span>1c72cd50<span class="w"> </span><span class="o">(</span>conflict<span class="o">)</span><span class="w"> </span>ABCD
+To<span class="w"> </span>resolve<span class="w"> </span>the<span class="w"> </span>conflicts,<span class="w"> </span>start<span class="w"> </span>by<span class="w"> </span>updating<span class="w"> </span>to<span class="w"> </span>it:
+<span class="w">  </span>jj<span class="w"> </span>new<span class="w"> </span>mrxqplykmyqv
+Then<span class="w"> </span>use<span class="w"> </span><span class="sb">`</span>jj<span class="w"> </span>resolve<span class="sb">`</span>,<span class="w"> </span>or<span class="w"> </span>edit<span class="w"> </span>the<span class="w"> </span>conflict<span class="w"> </span>markers<span class="w"> </span><span class="k">in</span><span class="w"> </span>the<span class="w"> </span>file<span class="w"> </span>directly.
+Once<span class="w"> </span>the<span class="w"> </span>conflicts<span class="w"> </span>are<span class="w"> </span>resolved,<span class="w"> </span>you<span class="w"> </span>may<span class="w"> </span>want<span class="w"> </span>inspect<span class="w"> </span>the<span class="w"> </span>result<span class="w"> </span>with<span class="w"> </span><span class="sb">`</span>jj<span class="w"> </span>diff<span class="sb">`</span>.
+Then<span class="w"> </span>run<span class="w"> </span><span class="sb">`</span>jj<span class="w"> </span>squash<span class="sb">`</span><span class="w"> </span>to<span class="w"> </span>move<span class="w"> </span>the<span class="w"> </span>resolution<span class="w"> </span>into<span class="w"> </span>the<span class="w"> </span>conflicted<span class="w"> </span>commit.
+Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>mrxqplyk<span class="w"> </span>1c72cd50<span class="w"> </span><span class="o">(</span>conflict<span class="o">)</span><span class="w"> </span>ABCD
+Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>kwtuwqnm<span class="w"> </span>70985eaa<span class="w"> </span><span class="o">(</span>empty<span class="o">)</span><span class="w"> </span>ABC
+Added<span class="w"> </span><span class="m">0</span><span class="w"> </span>files,<span class="w"> </span>modified<span class="w"> </span><span class="m">1</span><span class="w"> </span>files,<span class="w"> </span>removed<span class="w"> </span><span class="m">0</span><span class="w"> </span>files
+</code></pre></div>
+<p>In the diff editor, edit the right side by e.g. adding something to the first
+line. Press 'c' to save the changes and close it. You can now inspect the rewritten
+commit with <code>jj diff -r @-</code> again and you should see your addition to the first
+line. Unlike <code>jj squash -i</code>, which left the content state of the commit
+unchanged, <code>jj diffedit</code> (typically) results in a different state, which means
+that descendant commits may have conflicts.</p>
+<p>Other commands for rewriting contents of existing commits are <code>jj split</code>, <code>jj
+unsquash -i</code> and <code>jj move -i</code>. Now that you've seen how <code>jj squash -i</code> and <code>jj
+diffedit</code> work, you can hopefully figure out how those work (with the help of
+the instructions in the diff).</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.f886a092.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.d7c377c4.min.js"></script>
+      
+    
+  </body>
+</html>
