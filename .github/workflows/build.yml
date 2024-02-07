@@ -44,6 +44,15 @@ jobs:
         choco install --yes gpg4win
         echo "C:\Program Files (x86)\Gpg4win\..\GnuPG\bin" >> $env:GITHUB_PATH
 
+    # The default version of openssh on windows server is quite old (8.1) and doesn't have
+    # all the necessary signing/verification commands available (such as -Y find-principals)
+    - name: Setup ssh-agent [windows]
+      if: ${{ matrix.os == 'windows-latest' }}
+      run: |
+        Remove-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+        Remove-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+        choco install openssh --pre
+
     - name: Install Rust
       uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
       with:
