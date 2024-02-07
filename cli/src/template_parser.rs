@@ -39,6 +39,7 @@ impl Rule {
             Rule::literal => None,
             Rule::integer_literal => None,
             Rule::identifier => None,
+            Rule::concat_op => Some("++"),
             Rule::logical_or_op => Some("||"),
             Rule::logical_and_op => Some("&&"),
             Rule::logical_not_op => Some("!"),
@@ -462,9 +463,10 @@ fn parse_template_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> 
     let span = pair.as_span();
     let inner = pair.into_inner();
     let mut nodes: Vec<_> = inner
-        .map(|pair| match pair.as_rule() {
-            Rule::term => parse_term_node(pair),
-            Rule::expression => parse_expression_node(pair),
+        .filter_map(|pair| match pair.as_rule() {
+            Rule::concat_op => None,
+            Rule::term => Some(parse_term_node(pair)),
+            Rule::expression => Some(parse_expression_node(pair)),
             r => panic!("unexpected template item rule {r:?}"),
         })
         .try_collect()?;

@@ -29,7 +29,7 @@ fn test_templater_parse_error() {
     1 | description ()
       |             ^---
       |
-      = expected <EOI>, `||`, or `&&`
+      = expected <EOI>, `++`, `||`, or `&&`
     "###);
 }
 
