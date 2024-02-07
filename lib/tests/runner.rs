@@ -30,5 +30,6 @@ mod test_refs;
 mod test_revset;
 mod test_rewrite;
 mod test_signing;
+mod test_ssh_signing;
 mod test_view;
 mod test_workspace;
