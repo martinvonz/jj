@@ -31,6 +31,9 @@ theme:
 extra:
   version:
     provider: mike
+
+# IMPORTANT: any changes to plugins have to be duplicated in
+# `mkdocs-offline.yml`. See that file for more details.
 plugins:
     - include-markdown # For the CLI reference
     - search
