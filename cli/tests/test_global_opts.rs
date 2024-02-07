@@ -210,7 +210,7 @@ fn test_no_workspace_directory() {
     insta::assert_snapshot!(stderr, @r###"
     Error: There is no jj repo in "."
     Hint: It looks like this is a git repo. You can create a jj repo backed by it by running this:
-    jj init --git-repo=.
+    jj git init --git-repo=.
     "###);
 }
 

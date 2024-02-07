@@ -1882,7 +1882,7 @@ fn map_workspace_load_error(err: WorkspaceLoadError, workspace_path: Option<&str
                     message,
                     "It looks like this is a git repo. You can create a jj repo backed by it by \
                      running this:
-jj init --git-repo=.",
+jj git init --git-repo=.",
                 )
             } else {
                 user_error(message)
