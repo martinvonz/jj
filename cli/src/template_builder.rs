@@ -1075,7 +1075,7 @@ mod tests {
         1 | description ()
           |             ^---
           |
-          = expected EOI, logical_or_op, or logical_and_op
+          = expected <EOI>, `||`, or `&&`
         "###);
 
         insta::assert_snapshot!(env.parse_err(r#"foo"#), @r###"
@@ -1152,7 +1152,7 @@ mod tests {
         1 | (-empty)
           |  ^---
           |
-          = expected template
+          = expected <template>
         "###);
 
         insta::assert_snapshot!(env.parse_err(r#"("foo" ++ "bar").baz()"#), @r###"

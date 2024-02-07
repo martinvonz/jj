@@ -28,6 +28,38 @@ use thiserror::Error;
 #[grammar = "template.pest"]
 struct TemplateParser;
 
+impl Rule {
+    fn to_symbol(self) -> Option<&'static str> {
+        match self {
+            Rule::EOI => None,
+            Rule::whitespace => None,
+            Rule::escape => None,
+            Rule::literal_char => None,
+            Rule::raw_literal => None,
+            Rule::literal => None,
+            Rule::integer_literal => None,
+            Rule::identifier => None,
+            Rule::logical_or_op => Some("||"),
+            Rule::logical_and_op => Some("&&"),
+            Rule::logical_not_op => Some("!"),
+            Rule::prefix_ops => None,
+            Rule::infix_ops => None,
+            Rule::function => None,
+            Rule::function_arguments => None,
+            Rule::lambda => None,
+            Rule::formal_parameters => None,
+            Rule::primary => None,
+            Rule::term => None,
+            Rule::expression => None,
+            Rule::concat => None,
+            Rule::template => None,
+            Rule::program => None,
+            Rule::function_alias_declaration => None,
+            Rule::alias_declaration => None,
+        }
+    }
+}
+
 pub type TemplateParseResult<T> = Result<T, TemplateParseError>;
 
 #[derive(Clone, Debug)]
@@ -153,7 +185,7 @@ impl From<pest::error::Error<Rule>> for TemplateParseError {
     fn from(err: pest::error::Error<Rule>) -> Self {
         TemplateParseError {
             kind: TemplateParseErrorKind::SyntaxError,
-            pest_error: Box::new(err),
+            pest_error: Box::new(rename_rules_in_pest_error(err)),
             origin: None,
         }
     }
@@ -177,6 +209,14 @@ impl error::Error for TemplateParseError {
             e => e.source(),
         }
     }
+}
+
+fn rename_rules_in_pest_error(err: pest::error::Error<Rule>) -> pest::error::Error<Rule> {
+    err.renamed_rules(|rule| {
+        rule.to_symbol()
+            .map(|sym| format!("`{sym}`"))
+            .unwrap_or_else(|| format!("<{rule:?}>"))
+    })
 }
 
 /// AST node without type or name checking.

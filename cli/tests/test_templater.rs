@@ -29,7 +29,7 @@ fn test_templater_parse_error() {
     1 | description ()
       |             ^---
       |
-      = expected EOI, logical_or_op, or logical_and_op
+      = expected <EOI>, `||`, or `&&`
     "###);
 }
 
@@ -84,7 +84,7 @@ fn test_templater_alias() {
     1 | foo.
       |     ^---
       |
-      = expected identifier
+      = expected <identifier>
     "###);
 
     insta::assert_snapshot!(render_err("commit_id ++ name_error"), @r###"
