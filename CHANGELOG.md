@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecations
 
+### Breaking changes
+
+### New features
+
+### Fixed bugs
+
+## [0.14.0] - 2024-02-07
+
+### Deprecations
+
 * `jj checkout` and `jj merge` are both deprecated; use `jj new` instead to
   replace both of these commands in all instances.
 
@@ -101,6 +111,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed data loss in dirty working copy when checked-out branch is rebased or
   abandoned by Git.
   [#2876](https://github.com/martinvonz/jj/issues/2876)
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+* Austin Seipp (@thoughtpolice)
+* Benjamin Brittain (@benbrittain)
+* Chris Krycho (@chriskrycho)
+* Daehyeok Mun (@daehyeok)
+* Daniel Ploch (@torquestomp)
+* Essien Ita Essien (@essiene)
+* Ikko Eltociear Ashimine (@eltociear)
+* Ilya Grigoriev (@ilyagr)
+* Jonathan Tan (@jonathantanmy)
+* jyn (@jyn514)
+* Martin von Zweigbergk (@martinvonz)
+* Matt Stark (@matts1)
+* Michael Pratt (prattmic)
+* Philip Metzger (@PhilipMetzger)
+* Stephen Jennings (@jennings)
+* Valentin Gatien-Baron (@v-gb)
+* vwkd (@vwkd)
+* Yuya Nishihara (@yuja)
 
 
 ## [0.13.0] - 2024-01-03
