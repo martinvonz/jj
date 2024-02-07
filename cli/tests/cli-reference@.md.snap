@@ -3,12 +3,7 @@ source: cli/tests/test_generate_md_cli_help.rs
 description: "AUTO-GENERATED FILE, DO NOT EDIT. This cli reference is generated as an `insta` snapshot. MkDocs follows they symlink from docs/cli-reference.md to the snap. Unfortunately, `insta` unavoidably creates this header. Luckily, MkDocs ignores the header since it has the same format as Markdown headers. TODO: MkDocs may fail on Windows if symlinks are not enabled in the OS settings"
 ---
 
-!!! warning
-
-    This CLI reference is experimental. It is automatically generated, but
-    does not match the `jj help` output exactly.
-
-    <!-- See also https://github.com/ConnorGray/clap-markdown/issues -->
+<!-- BEGIN MARKDOWN-->
 
 # Command-Line Help for `jj`
 
