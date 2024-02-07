@@ -212,6 +212,11 @@ parent.
           has no concept of a "change")</td>
     </tr>
     <tr>
+      <td>Abandon the parent of the working copy, but keep its diff in the working copy</td>
+      <td><code>jj move --from @-</code></td>
+      <td><code>git reset --soft HEAD~</code></td>
+    </tr>
+    <tr>
       <td>Discard working copy changes in some files</td>
       <td><code>jj restore &lt;paths&gt;...</code></td>
       <td><code>git restore &lt;paths&gt;...</code> or <code>git checkout HEAD -- &lt;paths&gt;...</code></td>
