@@ -21,6 +21,7 @@ mdx-breakless-lists = "^1.0.1"
 mkdocs-redirects = "^1.2.1"
 # Versioning of documentation
 mike = "^2.0.0"
+mkdocs-include-markdown-plugin = "^6.0.4"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
