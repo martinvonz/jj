@@ -1075,7 +1075,7 @@ mod tests {
         1 | description ()
           |             ^---
           |
-          = expected <EOI>, `||`, or `&&`
+          = expected <EOI>, `++`, `||`, or `&&`
         "###);
 
         insta::assert_snapshot!(env.parse_err(r#"foo"#), @r###"

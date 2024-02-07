@@ -31,6 +31,7 @@ integer_literal = {
 
 identifier = @{ (ASCII_ALPHA | "_") ~ (ASCII_ALPHANUMERIC | "_")* }
 
+concat_op = { "++" }
 logical_or_op = { "||" }
 logical_and_op = { "&&" }
 logical_not_op = { "!" }
@@ -72,7 +73,7 @@ expression = {
 // Use 'term' instead of 'expression' to disallow 'x || y ++ z'. It can be
 // parsed, but the precedence isn't obvious.
 concat = _{
-  term ~ (whitespace* ~ "++" ~ whitespace* ~ term)+
+  term ~ (whitespace* ~ concat_op ~ whitespace* ~ term)+
 }
 
 template = { concat | expression }
