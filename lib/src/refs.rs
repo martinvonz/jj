@@ -159,9 +159,9 @@ fn find_pair_to_remove(
     None
 }
 
-/// Pair of local and remote targets which usually represents a tracking branch.
+/// Pair of local and remote targets.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct TrackingRefPair<'a> {
+pub struct LocalAndRemoteRef<'a> {
     pub local_target: &'a RefTarget,
     pub remote_ref: &'a RemoteRef,
 }
@@ -183,7 +183,7 @@ pub enum BranchPushAction {
 
 /// Figure out what changes (if any) need to be made to the remote when pushing
 /// this branch.
-pub fn classify_branch_push_action(targets: TrackingRefPair) -> BranchPushAction {
+pub fn classify_branch_push_action(targets: LocalAndRemoteRef) -> BranchPushAction {
     let local_target = targets.local_target;
     let remote_target = targets.remote_ref.tracking_target();
     if local_target == remote_target {
@@ -224,7 +224,7 @@ mod tests {
     #[test]
     fn test_classify_branch_push_action_unchanged() {
         let commit_id1 = CommitId::from_hex("11");
-        let targets = TrackingRefPair {
+        let targets = LocalAndRemoteRef {
             local_target: &RefTarget::normal(commit_id1.clone()),
             remote_ref: &tracking_remote_ref(RefTarget::normal(commit_id1)),
         };
@@ -237,7 +237,7 @@ mod tests {
     #[test]
     fn test_classify_branch_push_action_added() {
         let commit_id1 = CommitId::from_hex("11");
-        let targets = TrackingRefPair {
+        let targets = LocalAndRemoteRef {
             local_target: &RefTarget::normal(commit_id1.clone()),
             remote_ref: RemoteRef::absent_ref(),
         };
@@ -253,7 +253,7 @@ mod tests {
     #[test]
     fn test_classify_branch_push_action_removed() {
         let commit_id1 = CommitId::from_hex("11");
-        let targets = TrackingRefPair {
+        let targets = LocalAndRemoteRef {
             local_target: RefTarget::absent_ref(),
             remote_ref: &tracking_remote_ref(RefTarget::normal(commit_id1.clone())),
         };
@@ -270,7 +270,7 @@ mod tests {
     fn test_classify_branch_push_action_updated() {
         let commit_id1 = CommitId::from_hex("11");
         let commit_id2 = CommitId::from_hex("22");
-        let targets = TrackingRefPair {
+        let targets = LocalAndRemoteRef {
             local_target: &RefTarget::normal(commit_id2.clone()),
             remote_ref: &tracking_remote_ref(RefTarget::normal(commit_id1.clone())),
         };
@@ -288,7 +288,7 @@ mod tests {
         // This is not RemoteUntracked error since non-tracking remote branches
         // have no relation to local branches, and there's nothing to push.
         let commit_id1 = CommitId::from_hex("11");
-        let targets = TrackingRefPair {
+        let targets = LocalAndRemoteRef {
             local_target: RefTarget::absent_ref(),
             remote_ref: &new_remote_ref(RefTarget::normal(commit_id1.clone())),
         };
@@ -302,7 +302,7 @@ mod tests {
     fn test_classify_branch_push_action_updated_untracked() {
         let commit_id1 = CommitId::from_hex("11");
         let commit_id2 = CommitId::from_hex("22");
-        let targets = TrackingRefPair {
+        let targets = LocalAndRemoteRef {
             local_target: &RefTarget::normal(commit_id2.clone()),
             remote_ref: &new_remote_ref(RefTarget::normal(commit_id1.clone())),
         };
@@ -316,7 +316,7 @@ mod tests {
     fn test_classify_branch_push_action_local_conflicted() {
         let commit_id1 = CommitId::from_hex("11");
         let commit_id2 = CommitId::from_hex("22");
-        let targets = TrackingRefPair {
+        let targets = LocalAndRemoteRef {
             local_target: &RefTarget::from_legacy_form([], [commit_id1.clone(), commit_id2]),
             remote_ref: &tracking_remote_ref(RefTarget::normal(commit_id1)),
         };
@@ -330,7 +330,7 @@ mod tests {
     fn test_classify_branch_push_action_remote_conflicted() {
         let commit_id1 = CommitId::from_hex("11");
         let commit_id2 = CommitId::from_hex("22");
-        let targets = TrackingRefPair {
+        let targets = LocalAndRemoteRef {
             local_target: &RefTarget::normal(commit_id1.clone()),
             remote_ref: &tracking_remote_ref(RefTarget::from_legacy_form(
                 [],

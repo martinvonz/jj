@@ -20,7 +20,7 @@ use itertools::Itertools;
 
 use crate::backend::CommitId;
 use crate::op_store::{BranchTarget, RefTarget, RefTargetOptionExt as _, RemoteRef, WorkspaceId};
-use crate::refs::TrackingRefPair;
+use crate::refs::LocalAndRemoteRef;
 use crate::str_util::StringPattern;
 use crate::{op_store, refs};
 
@@ -224,10 +224,10 @@ impl View {
     pub fn local_remote_branches<'a>(
         &'a self,
         remote_name: &str,
-    ) -> impl Iterator<Item = (&'a str, TrackingRefPair<'a>)> + 'a {
+    ) -> impl Iterator<Item = (&'a str, LocalAndRemoteRef<'a>)> + 'a {
         refs::iter_named_local_remote_refs(self.local_branches(), self.remote_branches(remote_name))
             .map(|(name, (local_target, remote_ref))| {
-                let targets = TrackingRefPair {
+                let targets = LocalAndRemoteRef {
                     local_target,
                     remote_ref,
                 };
@@ -248,7 +248,7 @@ impl View {
         &'a self,
         branch_pattern: &'b StringPattern,
         remote_name: &str,
-    ) -> impl Iterator<Item = (&'a str, TrackingRefPair<'a>)> + 'b {
+    ) -> impl Iterator<Item = (&'a str, LocalAndRemoteRef<'a>)> + 'b {
         // Change remote_name to StringPattern if needed, but merge-join adapter won't
         // be usable.
         let maybe_remote_view = self.data.remote_views.get(remote_name);
@@ -260,7 +260,7 @@ impl View {
                 .flatten(),
         )
         .map(|(name, (local_target, remote_ref))| {
-            let targets = TrackingRefPair {
+            let targets = LocalAndRemoteRef {
                 local_target,
                 remote_ref,
             };

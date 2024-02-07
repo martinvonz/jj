@@ -29,7 +29,7 @@ use jj_lib::git::{
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::RefTarget;
 use jj_lib::refs::{
-    classify_branch_push_action, BranchPushAction, BranchPushUpdate, TrackingRefPair,
+    classify_branch_push_action, BranchPushAction, BranchPushUpdate, LocalAndRemoteRef,
 };
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::RepoPath;
@@ -870,7 +870,7 @@ fn cmd_git_push(
             }
             tx.mut_repo()
                 .set_local_branch_target(&branch_name, RefTarget::normal(commit.id().clone()));
-            let targets = TrackingRefPair {
+            let targets = LocalAndRemoteRef {
                 local_target: tx.repo().view().get_local_branch(&branch_name),
                 remote_ref: tx.repo().view().get_remote_branch(&branch_name, &remote),
             };
@@ -1125,7 +1125,7 @@ impl From<RejectedBranchUpdateReason> for CommandError {
 fn classify_branch_update(
     branch_name: &str,
     remote_name: &str,
-    targets: TrackingRefPair,
+    targets: LocalAndRemoteRef,
 ) -> Result<Option<BranchPushUpdate>, RejectedBranchUpdateReason> {
     let push_action = classify_branch_push_action(targets);
     match push_action {
@@ -1155,7 +1155,7 @@ fn find_branches_to_push<'a>(
     branch_patterns: &[StringPattern],
     remote_name: &str,
     seen_branches: &mut HashSet<String>,
-) -> Result<Vec<(&'a str, TrackingRefPair<'a>)>, CommandError> {
+) -> Result<Vec<(&'a str, LocalAndRemoteRef<'a>)>, CommandError> {
     let mut matching_branches = vec![];
     let mut unmatched_patterns = vec![];
     for pattern in branch_patterns {
