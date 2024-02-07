@@ -57,9 +57,9 @@ pub(crate) fn cmd_init(
 
     // Preserve existing behaviour where `jj init` is not able to create
     // a colocated repo.
-    let colocated = false;
+    let colocate = false;
     if args.git || args.git_repo.is_some() {
-        git::git_init(ui, command, &wc_path, colocated, args.git_repo.as_deref())?;
+        git::git_init(ui, command, &wc_path, colocate, args.git_repo.as_deref())?;
         writeln!(
             ui.warning(),
             "warning: `--git` and `--git-repo` are deprecated.

@@ -833,7 +833,7 @@ Create a new Git backed repo
 
 ###### **Options:**
 
-* `--colocated` — Specifies that the `jj` repo should also be a valid `git` repo, allowing the use of both `jj` and `git` commands in the same directory
+* `--colocate` — Specifies that the `jj` repo should also be a valid `git` repo, allowing the use of both `jj` and `git` commands in the same directory
 
   Possible values: `true`, `false`
 

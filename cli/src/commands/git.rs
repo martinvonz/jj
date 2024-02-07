@@ -134,7 +134,7 @@ pub struct GitInitArgs {
     ///
     /// This option is mutually exclusive with `--git-repo`.
     #[arg(long, conflicts_with = "git_repo")]
-    colocated: bool,
+    colocate: bool,
 
     /// Specifies a path to an **existing** git repository to be
     /// used as the backing git repo for the newly created `jj` repo.
@@ -146,10 +146,10 @@ pub struct GitInitArgs {
     /// will not be auto-exported to the git repo.
     ///
     /// Auto-exporting from `jj` to `git` is only enabled for new repos.
-    /// See `--colocated` above.
+    /// See `--colocate` above.
     ///
-    /// This option is mutually exclusive with `--colocated`.
-    #[arg(long, conflicts_with = "colocated", value_hint = clap::ValueHint::DirPath)]
+    /// This option is mutually exclusive with `--colocate`.
+    #[arg(long, conflicts_with = "colocate", value_hint = clap::ValueHint::DirPath)]
     git_repo: Option<String>,
 }
 
@@ -374,13 +374,13 @@ pub fn git_init(
     ui: &mut Ui,
     command: &CommandHelper,
     workspace_root: &Path,
-    colocated: bool,
+    colocate: bool,
     git_repo: Option<&str>,
 ) -> Result<(), CommandError> {
     let cwd = command.cwd().canonicalize().unwrap();
     let relative_wc_path = file_util::relative_path(&cwd, workspace_root);
 
-    if colocated {
+    if colocate {
         let (workspace, repo) = Workspace::init_colocated_git(command.settings(), workspace_root)?;
         let workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
         maybe_add_gitignore(&workspace_command)?;
@@ -481,7 +481,7 @@ fn cmd_git_init(
         ui,
         command,
         &wc_path,
-        args.colocated,
+        args.colocate,
         args.git_repo.as_deref(),
     )?;
 

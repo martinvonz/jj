@@ -542,7 +542,7 @@ fn test_git_init_colocated_via_flag_git_dir_exists() {
     let workspace_root = test_env.env_root().join("repo");
     init_git_repo(&workspace_root, false);
 
-    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "init", "--colocated"]);
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "init", "--colocate"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to access the repository
     Caused by:
@@ -555,7 +555,7 @@ fn test_git_init_colocated_via_flag_git_dir_exists() {
 fn test_git_init_colocated_via_flag_git_dir_not_exists() {
     let test_env = TestEnvironment::default();
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocated", "repo"]);
+        test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Initialized repo in "repo"
