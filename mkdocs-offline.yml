@@ -4,6 +4,14 @@
 INHERIT: 'mkdocs.yml'
 plugins:
     - offline
+
+    # For now, *every plugin config* from `mkdocs.yml` has to be repeated here.
+    # https://github.com/mondeja/mkdocs-include-markdown-plugin/issues/195#issuecomment-1933085478
+    # https://github.com/mkdocs/mkdocs/issues/3216
+    - include-markdown # For the CLI reference
+    - search
+    - redirects:
+        redirect_maps:
 # Turns out the `offline` plugin forces the following
 # option no matter what, and therefore shouldn't be
 # used in the main config file.
