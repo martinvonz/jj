@@ -74,7 +74,9 @@ don't make any changes, then the operation will be aborted.
 ",
         tx.format_commit_summary(&commit)
     );
-    let tree_id = tx.select_diff(
+
+    // Prompt the user to select the changes they want for the first commit.
+    let selected_tree_id = tx.select_diff(
         ui,
         &base_tree,
         &end_tree,
@@ -82,12 +84,13 @@ don't make any changes, then the operation will be aborted.
         &instructions,
         interactive,
     )?;
-    if &tree_id == commit.tree_id() && interactive {
+    if &selected_tree_id == commit.tree_id() && interactive {
+        // The user selected everything from the original commit.
         writeln!(ui.stderr(), "Nothing changed.")?;
         return Ok(());
     }
-    let middle_tree = tx.repo().store().get_root_tree(&tree_id)?;
-    if middle_tree.id() == base_tree.id() {
+    if selected_tree_id == base_tree.id() {
+        // The user selected nothing, so the first commit will be empty.
         writeln!(
             ui.warning(),
             "The given paths do not match any file: {}",
@@ -95,6 +98,8 @@ don't make any changes, then the operation will be aborted.
         )?;
     }
 
+    // Create the first commit, which includes the changes selected by the user.
+    let selected_tree = tx.repo().store().get_root_tree(&selected_tree_id)?;
     let first_template = description_template_for_commit(
         ui,
         command.settings(),
@@ -102,15 +107,17 @@ don't make any changes, then the operation will be aborted.
         "Enter commit description for the first part (parent).",
         commit.description(),
         &base_tree,
-        &middle_tree,
+        &selected_tree,
     )?;
     let first_description = edit_description(tx.base_repo(), &first_template, command.settings())?;
     let first_commit = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)
-        .set_tree_id(tree_id)
+        .set_tree_id(selected_tree_id)
         .set_description(first_description)
         .write()?;
+
+    // Create the second commit, which includes everything the user didn't select.
     let second_description = if commit.description().is_empty() {
         // If there was no description before, don't ask for one for the second commit.
         "".to_string()
@@ -121,7 +128,7 @@ don't make any changes, then the operation will be aborted.
             tx.base_workspace_helper(),
             "Enter commit description for the second part (child).",
             commit.description(),
-            &middle_tree,
+            &selected_tree,
             &end_tree,
         )?;
         edit_description(tx.base_repo(), &second_template, command.settings())?
