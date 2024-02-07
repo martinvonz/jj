@@ -80,8 +80,8 @@ builtin_log_comfortable = 'builtin_log_compact ++ "\n"'
 concat(
   "Commit ID: " ++ commit_id ++ "\n",
   "Change ID: " ++ change_id ++ "\n",
-  if(branches, "Branches: " ++ separate(" ", local_branches, remote_branches) ++ "\n"),
-  if(tags, "Tags: " ++ tags ++ "\n"),
+  surround("Branches: ", "\n", separate(" ", local_branches, remote_branches)),
+  surround("Tags: ", "\n", tags),
   "Author: " ++ format_detailed_signature(author) ++ "\n",
   "Committer: " ++ format_detailed_signature(committer)  ++ "\n",
   "\n",
