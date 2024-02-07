@@ -17,12 +17,7 @@ use insta::assert_snapshot;
 use crate::common::TestEnvironment;
 
 const PREAMBLE: &str = r#"
-!!! warning
-
-    This CLI reference is experimental. It is automatically generated, but
-    does not match the `jj help` output exactly.
-
-    <!-- See also https://github.com/ConnorGray/clap-markdown/issues -->
+<!-- BEGIN MARKDOWN-->
 
 "#;
 
