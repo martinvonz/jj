@@ -771,11 +771,7 @@ fn test_gitignores_ignored_directory_already_tracked() {
                     testutils::write_executable_file(&mut tree_builder, path, contents);
                 }
                 Kind::Symlink => {
-                    if cfg!(unix) {
-                        testutils::write_symlink(&mut tree_builder, path, contents);
-                    } else {
-                        testutils::write_normal_file(&mut tree_builder, path, contents);
-                    }
+                    testutils::write_symlink(&mut tree_builder, path, contents);
                 }
             }
         }

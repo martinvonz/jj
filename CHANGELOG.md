@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+* On Windows, symlinks in the repo are now materialized as regular files in the
+  working copy (instead of resulting in a crash).
+
 ## [0.14.0] - 2024-02-07
 
 ### Deprecations

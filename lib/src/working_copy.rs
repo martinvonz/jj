@@ -147,8 +147,6 @@ pub enum SnapshotError {
         /// The path of the symlink that has a target that's not valid UTF-8.
         /// This path itself is valid UTF-8.
         path: PathBuf,
-        /// The symlink target with invalid UTF-8.
-        target: PathBuf,
     },
     /// Reading or writing from the commit backend failed.
     #[error("Internal backend error")]

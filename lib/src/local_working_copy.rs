@@ -118,6 +118,7 @@ impl FileState {
         }
     }
 
+    #[cfg(unix)]
     fn for_symlink(metadata: &Metadata) -> Self {
         // When using fscrypt, the reported size is not the content size. So if
         // we were to record the content size here (like we do for regular files), we
@@ -681,18 +682,32 @@ impl TreeState {
         path: &RepoPath,
         disk_path: &Path,
     ) -> Result<SymlinkId, SnapshotError> {
-        let target = disk_path.read_link().map_err(|err| SnapshotError::Other {
-            message: format!("Failed to read symlink {}", disk_path.display()),
-            err: err.into(),
-        })?;
-        let str_target =
-            target
-                .to_str()
-                .ok_or_else(|| SnapshotError::InvalidUtf8SymlinkTarget {
+        #[cfg(unix)]
+        {
+            let target = disk_path.read_link().map_err(|err| SnapshotError::Other {
+                message: format!("Failed to read symlink {}", disk_path.display()),
+                err: err.into(),
+            })?;
+            let str_target =
+                target
+                    .to_str()
+                    .ok_or_else(|| SnapshotError::InvalidUtf8SymlinkTarget {
+                        path: disk_path.to_path_buf(),
+                    })?;
+            Ok(self.store.write_symlink(path, str_target)?)
+        }
+        #[cfg(windows)]
+        {
+            let target = fs::read(disk_path).map_err(|err| SnapshotError::Other {
+                message: format!("Failed to read file {}", disk_path.display()),
+                err: err.into(),
+            })?;
+            let string_target =
+                String::from_utf8(target).map_err(|_| SnapshotError::InvalidUtf8SymlinkTarget {
                     path: disk_path.to_path_buf(),
-                    target: target.clone(),
                 })?;
-        Ok(self.store.write_symlink(path, str_target)?)
+            Ok(self.store.write_symlink(path, &string_target)?)
+        }
     }
 
     fn reset_watchman(&mut self) {
@@ -1066,8 +1081,18 @@ impl TreeState {
         if clean {
             Ok(None)
         } else {
-            let new_file_type = new_file_state.file_type.clone();
             let current_tree_values = current_tree.path_value(repo_path);
+            let new_file_type = if cfg!(windows) {
+                let mut new_file_type = new_file_state.file_type.clone();
+                if matches!(new_file_type, FileType::Normal { .. })
+                    && matches!(current_tree_values.as_normal(), Some(TreeValue::Symlink(_)))
+                {
+                    new_file_type = FileType::Symlink;
+                }
+                new_file_type
+            } else {
+                new_file_state.file_type.clone()
+            };
             let new_tree_values = match new_file_type {
                 FileType::Normal { executable } => self.write_path_to_store(
                     repo_path,
@@ -1081,7 +1106,6 @@ impl TreeState {
                 }
                 FileType::GitSubmodule => panic!("git submodule cannot be written to store"),
             };
-
             if new_tree_values != current_tree_values {
                 Ok(Some(new_tree_values))
             } else {
@@ -1184,7 +1208,7 @@ impl TreeState {
     fn write_symlink(&self, disk_path: &Path, target: String) -> Result<FileState, CheckoutError> {
         #[cfg(windows)]
         {
-            println!("ignoring symlink at {}", disk_path.display());
+            self.write_file(disk_path, &mut target.as_bytes(), false)
         }
         #[cfg(unix)]
         {
@@ -1197,11 +1221,11 @@ impl TreeState {
                 ),
                 err: err.into(),
             })?;
+            let metadata = disk_path
+                .symlink_metadata()
+                .map_err(|err| checkout_error_for_stat_error(err, disk_path))?;
+            Ok(FileState::for_symlink(&metadata))
         }
-        let metadata = disk_path
-            .symlink_metadata()
-            .map_err(|err| checkout_error_for_stat_error(err, disk_path))?;
-        Ok(FileState::for_symlink(&metadata))
     }
 
     fn write_conflict(
