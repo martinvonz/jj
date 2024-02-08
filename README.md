@@ -93,10 +93,9 @@ And it adds several innovative, useful features of its own:
   well. In effect, this is a completely transparent version of `git rebase
   --update-refs` combined with `git rerere`, supported by design.
 
-  > [!WARNING]
-  > The following features are available for use, but experimental; they may
-  > have bugs, backwards incompatible storage changes, and user-interface
-  > changes!
+> [!WARNING]
+> The following features are available for use, but experimental; they may have
+> bugs, backwards incompatible storage changes, and user-interface changes!
 
 - **Safe, concurrent replication**: Have you ever wanted to store your version
   controlled repositories inside a Dropbox folder? Or continuously backup
