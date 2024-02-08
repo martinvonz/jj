@@ -1690,6 +1690,10 @@ If the change you split had a description, you will be asked to enter a change d
 * `-r`, `--revision <REVISION>` — The revision to split
 
   Default value: `@`
+* `-s`, `--siblings` — Split the revision into two siblings instead of a parent and child
+
+  Possible values: `true`, `false`
+
 
 
 
