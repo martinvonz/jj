@@ -60,6 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * There is a new global `--quiet` flag to silence commands' non-primary output.
 
+* `jj split` now supports a `--siblings/-s` option that splits the target
+  revision into siblings with the same parents and children.
+
 ### Fixed bugs
 
 ## [0.15.1] - 2024-03-06

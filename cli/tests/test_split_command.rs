@@ -16,6 +16,16 @@ use std::path::Path;
 
 use crate::common::TestEnvironment;
 
+fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
+    let template = r#"separate(" ", change_id.short(), empty, description)"#;
+    test_env.jj_cmd_success(cwd, &["log", "-T", template])
+}
+
+fn get_recorded_dates(test_env: &TestEnvironment, cwd: &Path, revset: &str) -> String {
+    let template = r#"separate("\n", "Author date:  " ++ author.timestamp(), "Committer date: " ++ committer.timestamp())"#;
+    test_env.jj_cmd_success(cwd, &["log", "--no-graph", "-T", template, "-r", revset])
+}
+
 #[test]
 fn test_split_by_paths() {
     let mut test_env = TestEnvironment::default();
@@ -51,7 +61,7 @@ fn test_split_by_paths() {
     "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
-    JJ: Enter commit description for the first part (parent).
+    JJ: Enter a description for the first commit.
 
     JJ: This commit contains the following changes:
     JJ:     A file2
@@ -167,7 +177,7 @@ fn test_split_with_non_empty_description() {
 
     assert_eq!(
         std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(),
-        r#"JJ: Enter commit description for the first part (parent).
+        r#"JJ: Enter a description for the first commit.
 test
 
 JJ: This commit contains the following changes:
@@ -178,7 +188,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     );
     assert_eq!(
         std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(),
-        r#"JJ: Enter commit description for the second part (child).
+        r#"JJ: Enter a description for the second commit.
 test
 
 JJ: This commit contains the following changes:
@@ -211,9 +221,13 @@ fn test_split_with_default_description() {
     .unwrap();
     test_env.jj_cmd_ok(&workspace_path, &["split", "file1"]);
 
+    // Since the commit being split has no description, the user will only be
+    // prompted to add a description to the first commit, which will use the
+    // default value we set. The second commit will inherit the empty
+    // description from the commit being split.
     assert_eq!(
         std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(),
-        r#"JJ: Enter commit description for the first part (parent).
+        r#"JJ: Enter a description for the first commit.
 
 
 TESTED=TODO
@@ -231,12 +245,121 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     "###);
 }
 
-fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
-    let template = r#"separate(" ", change_id.short(), empty, description)"#;
-    test_env.jj_cmd_success(cwd, &["log", "-T", template])
+#[test]
+// Split a commit with no descendants into siblings. Also tests that the default
+// description is set correctly on the first commit.
+fn test_split_siblings_no_descendants() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.add_config(r#"ui.default-description = "\n\nTESTED=TODO""#);
+    let workspace_path = test_env.env_root().join("repo");
+
+    std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
+    let edit_script = test_env.set_up_fake_editor();
+    std::fs::write(
+        edit_script,
+        ["dump editor1", "next invocation\n", "dump editor2"].join("\0"),
+    )
+    .unwrap();
+    test_env.jj_cmd_ok(&workspace_path, &["split", "--siblings", "file1"]);
+
+    // Since the commit being split has no description, the user will only be
+    // prompted to add a description to the first commit, which will use the
+    // default value we set. The second commit will inherit the empty
+    // description from the commit being split.
+    assert_eq!(
+        std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(),
+        r#"JJ: Enter a description for the first commit.
+
+
+TESTED=TODO
+JJ: This commit contains the following changes:
+JJ:     A file1
+
+JJ: Lines starting with "JJ: " (like this one) will be removed.
+"#
+    );
+    assert!(!test_env.env_root().join("editor2").exists());
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    @  rlvkpnrzqnoo false
+    │ ◉  qpvuntsmwlqt false TESTED=TODO
+    ├─╯
+    ◉  zzzzzzzzzzzz true
+    "###);
 }
 
-fn get_recorded_dates(test_env: &TestEnvironment, cwd: &Path, revset: &str) -> String {
-    let template = r#"separate("\n", "Author date:  " ++ author.timestamp(), "Committer date: " ++ committer.timestamp())"#;
-    test_env.jj_cmd_success(cwd, &["log", "--no-graph", "-T", template, "-r", revset])
+#[test]
+fn test_split_siblings_with_descendants() {
+    // Configure the environment and make the initial commits.
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    // test_env.add_config(r#"ui.default-description = "\n\nTESTED=TODO""#);
+    let workspace_path = test_env.env_root().join("repo");
+
+    // First commit. This is the one we will split later.
+    std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
+    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m", "Add file1 & file2"]);
+    // Second commit. This will be the child of the sibling commits after the split.
+    std::fs::write(workspace_path.join("file3"), "baz\n").unwrap();
+    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m", "Add file3"]);
+    // Third commit.
+    std::fs::write(workspace_path.join("file4"), "foobarbaz\n").unwrap();
+    test_env.jj_cmd_ok(&workspace_path, &["describe", "-m", "Add file4"]);
+    // Move back to the previous commit so that we don't have to pass a revision
+    // to the split command.
+    test_env.jj_cmd_ok(&workspace_path, &["prev", "--edit"]);
+    test_env.jj_cmd_ok(&workspace_path, &["prev", "--edit"]);
+
+    // Set up the editor and do the split.
+    let edit_script = test_env.set_up_fake_editor();
+    std::fs::write(
+        edit_script,
+        [
+            "dump editor1",
+            "write\nAdd file1",
+            "next invocation\n",
+            "dump editor2",
+            "write\nAdd file2",
+        ]
+        .join("\0"),
+    )
+    .unwrap();
+    test_env.jj_cmd_ok(&workspace_path, &["split", "--siblings", "file1"]);
+
+    // The commit we're splitting has a description, so the user will be
+    // prompted to enter a description for each of the sibling commits.
+    assert_eq!(
+        std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(),
+        r#"JJ: Enter a description for the first commit.
+Add file1 & file2
+
+JJ: This commit contains the following changes:
+JJ:     A file1
+
+JJ: Lines starting with "JJ: " (like this one) will be removed.
+"#
+    );
+    assert_eq!(
+        std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(),
+        r#"JJ: Enter a description for the second commit.
+Add file1 & file2
+
+JJ: This commit contains the following changes:
+JJ:     A file2
+
+JJ: Lines starting with "JJ: " (like this one) will be removed.
+"#
+    );
+
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    ◉  kkmpptxzrspx false Add file4
+    ◉    rlvkpnrzqnoo false Add file3
+    ├─╮
+    │ @  yqosqzytrlsw false Add file2
+    ◉ │  qpvuntsmwlqt false Add file1
+    ├─╯
+    ◉  zzzzzzzzzzzz true
+    "###);
 }
