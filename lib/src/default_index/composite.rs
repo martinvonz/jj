@@ -157,6 +157,14 @@ impl<'a> CompositeIndex<'a> {
             .unwrap()
     }
 
+    pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'a>> {
+        self.ancestor_index_segments().find_map(|segment| {
+            let local_pos = segment.commit_id_to_pos(commit_id)?;
+            let pos = IndexPosition(local_pos.0 + segment.num_parent_commits());
+            Some(IndexEntry::new(segment, pos, local_pos))
+        })
+    }
+
     pub fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<IndexPosition> {
         self.ancestor_index_segments().find_map(|segment| {
             let LocalPosition(local_pos) = segment.commit_id_to_pos(commit_id)?;
@@ -179,11 +187,6 @@ impl<'a> CompositeIndex<'a> {
                 )
             })
             .unwrap()
-    }
-
-    pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'a>> {
-        self.commit_id_to_pos(commit_id)
-            .map(|pos| self.entry_by_pos(pos))
     }
 
     pub(super) fn is_ancestor_pos(
