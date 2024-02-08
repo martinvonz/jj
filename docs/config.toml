@@ -1,7 +1,7 @@
 # Basic template of config settings
 
 # Don't forget to change these to your own details!
-user.name = "YOUR NAME" 
+user.name = "YOUR NAME"
 user.email = "YOUR_EMAIL@example.com"
 
 ui.color = "auto" # the default
@@ -27,3 +27,7 @@ template-aliases.'format_timestamp(timestamp)' = 'timestamp.ago()'
 # see documentation in config.md. An example:
 
 # merge-tools.meld.program = "C:\\Program Files\\Meld\\meld.exe" # If not in PATH
+
+# Change the default push/fetch remote for `jj git push` and `jj git fetch`
+# git.fetch = "upstream"
+# git.push = "myfork"
