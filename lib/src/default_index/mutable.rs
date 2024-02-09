@@ -31,7 +31,9 @@ use tempfile::NamedTempFile;
 
 use super::composite::{AsCompositeIndex, ChangeIdIndexImpl, CompositeIndex, IndexSegment};
 use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec};
-use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexSegment};
+use super::readonly::{
+    DefaultReadonlyIndex, ReadonlyIndexSegment, INDEX_SEGMENT_FILE_FORMAT_VERSION,
+};
 use crate::backend::{ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::file_util::persist_content_addressed_temp_file;
@@ -275,6 +277,7 @@ impl MutableIndexSegment {
         }
 
         let mut buf = Vec::new();
+        buf.extend(INDEX_SEGMENT_FILE_FORMAT_VERSION.to_le_bytes());
         self.serialize_parent_filename(&mut buf);
         let local_entries_offset = buf.len();
         self.serialize_local_entries(&mut buf);

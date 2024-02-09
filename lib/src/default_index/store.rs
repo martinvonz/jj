@@ -109,6 +109,8 @@ impl DefaultIndexStore {
         file_util::remove_dir_contents(&self.operations_dir())?;
         // Remove index segments to save disk space. If raced, new segment file
         // will be created by the other process.
+        file_util::remove_dir_contents(&self.segments_dir())?;
+        // jj <= 0.14 created segment files in the top directory
         for entry in self.dir.read_dir().context(&self.dir)? {
             let entry = entry.context(&self.dir)?;
             let path = entry.path();
@@ -122,12 +124,18 @@ impl DefaultIndexStore {
     }
 
     fn ensure_base_dirs(&self) -> Result<(), PathError> {
-        let op_dir = self.operations_dir();
-        file_util::create_or_reuse_dir(&op_dir).context(&op_dir)
+        for dir in [self.operations_dir(), self.segments_dir()] {
+            file_util::create_or_reuse_dir(&dir).context(&dir)?;
+        }
+        Ok(())
     }
 
     fn operations_dir(&self) -> PathBuf {
         self.dir.join("operations")
+    }
+
+    fn segments_dir(&self) -> PathBuf {
+        self.dir.join("segments")
     }
 
     fn load_index_segments_at_operation(
@@ -140,7 +148,7 @@ impl DefaultIndexStore {
         let index_file_id_hex =
             fs::read_to_string(op_id_file).map_err(DefaultIndexStoreError::LoadAssociation)?;
         ReadonlyIndexSegment::load(
-            &self.dir,
+            &self.segments_dir(),
             index_file_id_hex,
             commit_id_length,
             change_id_length,
@@ -271,7 +279,7 @@ impl DefaultIndexStore {
         op_id: &OperationId,
     ) -> Result<Arc<ReadonlyIndexSegment>, DefaultIndexStoreError> {
         let index_segment = mutable_index
-            .squash_and_save_in(&self.dir)
+            .squash_and_save_in(&self.segments_dir())
             .map_err(DefaultIndexStoreError::SaveIndex)?;
         self.associate_file_with_operation(&index_segment, op_id)
             .map_err(|source| DefaultIndexStoreError::AssociateIndex {

@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The minimum supported Rust version (MSRV) is now 1.76.0.
 
+* The on-disk index format changed. New index files will be created
+  automatically, but it can fail if the repository is co-located and predates
+  Git GC issues [#815](https://github.com/martinvonz/jj/issues/815). If
+  reindexing failed, you'll need to clean up corrupted operation history by
+  `jj op abandon ..<bad operation ID>`.
+
 ### New features
 
 * Templates now support logical operators: `||`, `&&`, `!`

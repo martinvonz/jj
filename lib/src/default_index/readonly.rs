@@ -72,6 +72,9 @@ impl ReadonlyIndexLoadError {
     }
 }
 
+/// Current format version of the index segment file.
+pub(crate) const INDEX_SEGMENT_FILE_FORMAT_VERSION: u32 = 1;
+
 struct CommitGraphEntry<'a> {
     data: &'a [u8],
     commit_id_length: usize,
@@ -145,6 +148,7 @@ impl CommitLookupEntry<'_> {
 ///
 /// File format:
 /// ```text
+/// u32: file format version
 /// u32: parent segment file name length (0 means root)
 /// <length number of bytes>: parent segment file name
 ///
@@ -167,7 +171,6 @@ impl CommitLookupEntry<'_> {
 ///
 /// Note that u32 fields are 4-byte aligned so long as the parent file name
 /// (which is hexadecimal hash) and commit/change ids aren't of exotic length.
-// TODO: add a version number
 // TODO: replace the table by a trie so we don't have to repeat the full commit
 //       ids
 // TODO: add a fanout table like git's commit graph has?
@@ -220,6 +223,13 @@ impl ReadonlyIndexSegment {
             file.read_exact(&mut buf).map_err(from_io_err)?;
             Ok(u32::from_le_bytes(buf))
         };
+        let format_version = read_u32(file)?;
+        if format_version != INDEX_SEGMENT_FILE_FORMAT_VERSION {
+            return Err(ReadonlyIndexLoadError::invalid_data(
+                &name,
+                format!("unsupported file format version: {format_version}"),
+            ));
+        }
         let parent_filename_len = read_u32(file)?;
         let maybe_parent_file = if parent_filename_len > 0 {
             let mut parent_filename_bytes = vec![0; parent_filename_len as usize];
