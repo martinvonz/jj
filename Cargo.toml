@@ -25,13 +25,13 @@ backoff = "0.4.0"
 blake2 = "0.10.6"
 bytes = "1.5.0"
 cargo_metadata = "0.17.0"
-clap = { version = "4.4.18", features = [
+clap = { version = "4.5.0", features = [
     "derive",
     "deprecated",
     "wrap_help",
     "string",
 ] }
-clap_complete = "4.4.10"
+clap_complete = "4.5.0"
 clap-markdown = "0.1.3"
 clap_mangen = "0.2.10"
 chrono = { version = "0.4.33", default-features = false, features = [
@@ -83,7 +83,7 @@ smallvec = { version = "1.13.0", features = [
     "const_new",
     "union",
 ] }
-strsim = "0.10.0"
+strsim = "0.11.0"
 tempfile = "3.10.0"
 test-case = "3.3.1"
 textwrap = "0.16.0"
