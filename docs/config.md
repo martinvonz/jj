@@ -525,7 +525,7 @@ To change this behavior, you can modify the [repository
 configuration](#config-files-and-toml) variable `git.fetch`, which can be a
 single remote, or a list of remotes to fetch from multiple places:
 
-```
+```sh
 jj config set --repo git.fetch "upstream"
 jj config set --repo git.fetch '["origin", "upstream"]'
 ```
@@ -533,9 +533,13 @@ jj config set --repo git.fetch '["origin", "upstream"]'
 Similarly, you can also set the variable `git.push` to cause `jj git push` to
 push to a different remote:
 
-```
+```sh
 jj config set --repo git.push "github"
 ```
+
+Note that unlike `git.fetch`, `git.push` can currently only be a single remote.
+This is not a hard limitation, and could be changed in the future if there is
+demand.
 
 ### Automatic local branch creation
 
