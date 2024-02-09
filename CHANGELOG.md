@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecations
 
+- Attempting to alias a built-in command now gives a warning, rather than being silently ignored.
+
 ### New features
 
 * `jj branch list`/`tag list` now accept `-T`/`--template` option. The tag list

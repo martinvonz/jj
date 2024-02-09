@@ -2600,6 +2600,7 @@ fn resolve_default_command(
 }
 
 fn resolve_aliases(
+    ui: &Ui,
     config: &config::Config,
     app: &Command,
     mut string_args: Vec<String>,
@@ -2616,6 +2617,7 @@ fn resolve_aliases(
             }
         }
     }
+
     let mut resolved_aliases = HashSet::new();
     let mut real_commands = HashSet::new();
     for command in app.get_subcommands() {
@@ -2624,6 +2626,15 @@ fn resolve_aliases(
             real_commands.insert(alias.to_string());
         }
     }
+    for alias in aliases_map.keys() {
+        if real_commands.contains(alias) {
+            writeln!(
+                ui.warning_default(),
+                "Cannot define an alias that overrides the built-in command '{alias}'"
+            )?;
+        }
+    }
+
     loop {
         let app_clone = app.clone().allow_external_subcommands(true);
         let matches = app_clone.try_get_matches_from(&string_args).ok();
@@ -2713,7 +2724,7 @@ pub fn expand_args(
     }
 
     let string_args = resolve_default_command(ui, config, app, string_args)?;
-    resolve_aliases(config, app, string_args)
+    resolve_aliases(ui, config, app, string_args)
 }
 
 pub fn parse_args(
