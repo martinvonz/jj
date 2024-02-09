@@ -584,8 +584,8 @@ mod tests {
             command_args,
             CommandNameAndArgs::Structured {
                 env: hashmap! {
-                    "KEY1".to_string() => "value1".to_string(),
-                    "KEY2".to_string() => "value2".to_string(),
+                    "key1".to_string() => "value1".to_string(),
+                    "key2".to_string() => "value2".to_string(),
                 },
                 command: NonEmptyCommandArgsVec(["emacs", "-nw",].map(|s| s.to_owned()).to_vec())
             }

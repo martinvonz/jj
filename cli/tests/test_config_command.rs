@@ -628,14 +628,16 @@ fn test_config_get() {
     "###);
 
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "table.list"]);
-    insta::assert_snapshot!(stdout, @r###"
-    Config error: invalid type: sequence, expected a value convertible to a string
+    insta::with_settings!({filters => vec![(r"config\config0002.toml", "config/config0002.toml")]}, {
+        insta::assert_snapshot!(stdout, @r###"
+    Config error: invalid type: sequence, expected a value convertible to a string for key `table.list` in config/config0002.toml
     For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
-    "###);
+    "###)
+    });
 
     let stdout = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "table"]);
     insta::assert_snapshot!(stdout, @r###"
-    Config error: invalid type: map, expected a value convertible to a string
+    Config error: invalid type: map, expected a value convertible to a string for key `table`
     For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
     "###);
 
