@@ -88,6 +88,8 @@ nav:
 
 - "CLI Reference": 'cli-reference.md'
 
+- Testimonials: 'testimonials.md'
+
 - Concepts:
       - 'Working Copy': 'working-copy.md'
       - 'Branches': 'branches.md'
