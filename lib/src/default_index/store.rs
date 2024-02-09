@@ -89,11 +89,12 @@ impl DefaultIndexStore {
     }
 
     pub fn init(dir: &Path) -> Result<Self, DefaultIndexStoreInitError> {
-        let op_dir = dir.join("operations");
-        std::fs::create_dir(&op_dir).context(&op_dir)?;
-        Ok(DefaultIndexStore {
+        let store = DefaultIndexStore {
             dir: dir.to_owned(),
-        })
+        };
+        let op_dir = store.operations_dir();
+        std::fs::create_dir(&op_dir).context(&op_dir)?;
+        Ok(store)
     }
 
     pub fn load(dir: &Path) -> DefaultIndexStore {
@@ -104,7 +105,7 @@ impl DefaultIndexStore {
 
     pub fn reinit(&self) -> Result<(), DefaultIndexStoreInitError> {
         // Remove all operation links to trigger rebuilding.
-        let op_dir = self.dir.join("operations");
+        let op_dir = self.operations_dir();
         std::fs::remove_dir_all(&op_dir).context(&op_dir)?;
         std::fs::create_dir(&op_dir).context(&op_dir)?;
         // Remove index segments to save disk space. If raced, new segment file
@@ -121,13 +122,17 @@ impl DefaultIndexStore {
         Ok(())
     }
 
+    fn operations_dir(&self) -> PathBuf {
+        self.dir.join("operations")
+    }
+
     fn load_index_segments_at_operation(
         &self,
         op_id: &OperationId,
         commit_id_length: usize,
         change_id_length: usize,
     ) -> Result<Arc<ReadonlyIndexSegment>, DefaultIndexStoreError> {
-        let op_id_file = self.dir.join("operations").join(op_id.hex());
+        let op_id_file = self.operations_dir().join(op_id.hex());
         let index_file_id_hex =
             fs::read_to_string(op_id_file).map_err(DefaultIndexStoreError::LoadAssociation)?;
         ReadonlyIndexSegment::load(
@@ -159,7 +164,7 @@ impl DefaultIndexStore {
         store: &Arc<Store>,
     ) -> Result<Arc<ReadonlyIndexSegment>, DefaultIndexStoreError> {
         let view = operation.view()?;
-        let operations_dir = self.dir.join("operations");
+        let operations_dir = self.operations_dir();
         let commit_id_length = store.commit_id_length();
         let change_id_length = store.change_id_length();
         let mut visited_heads: HashSet<CommitId> =
@@ -281,10 +286,7 @@ impl DefaultIndexStore {
         let mut temp_file = NamedTempFile::new_in(&self.dir)?;
         let file = temp_file.as_file_mut();
         file.write_all(index.name().as_bytes())?;
-        persist_content_addressed_temp_file(
-            temp_file,
-            self.dir.join("operations").join(op_id.hex()),
-        )?;
+        persist_content_addressed_temp_file(temp_file, self.operations_dir().join(op_id.hex()))?;
         Ok(())
     }
 }
