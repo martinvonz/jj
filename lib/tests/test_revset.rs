@@ -452,6 +452,7 @@ fn test_resolve_symbol_branches() {
         candidates: [
             "local",
             "local-remote@git",
+            "local-remote@mirror",
             "local-remote@origin",
             "remote@origin",
         ],
@@ -464,8 +465,6 @@ fn test_resolve_symbol_branches() {
     NoSuchRevision {
         name: "remote",
         candidates: [
-            "local-remote@origin",
-            "local-remote@untracked",
             "remote-conflicted@origin",
             "remote@origin",
         ],
