@@ -1068,12 +1068,20 @@ impl TreeState {
         } else {
             let new_file_type = new_file_state.file_type.clone();
             let current_tree_values = current_tree.path_value(repo_path);
-            let new_tree_values = self.write_path_to_store(
-                repo_path,
-                &disk_path,
-                &current_tree_values,
-                new_file_type,
-            )?;
+            let new_tree_values = match new_file_type {
+                FileType::Normal { executable } => self.write_path_to_store(
+                    repo_path,
+                    &disk_path,
+                    &current_tree_values,
+                    executable,
+                )?,
+                FileType::Symlink => {
+                    let id = self.write_symlink_to_store(repo_path, &disk_path)?;
+                    Merge::normal(TreeValue::Symlink(id))
+                }
+                FileType::GitSubmodule => panic!("git submodule cannot be written to store"),
+            };
+
             if new_tree_values != current_tree_values {
                 Ok(Some(new_tree_values))
             } else {
@@ -1087,17 +1095,8 @@ impl TreeState {
         repo_path: &RepoPath,
         disk_path: &Path,
         current_tree_values: &MergedTreeValue,
-        file_type: FileType,
+        executable: FileExecutableFlag,
     ) -> Result<MergedTreeValue, SnapshotError> {
-        let executable = match file_type {
-            FileType::Normal { executable } => executable,
-            FileType::Symlink => {
-                let id = self.write_symlink_to_store(repo_path, disk_path)?;
-                return Ok(Merge::normal(TreeValue::Symlink(id)));
-            }
-            FileType::GitSubmodule => panic!("git submodule cannot be written to store"),
-        };
-
         // If the file contained a conflict before and is now a normal file on disk, we
         // try to parse any conflict markers in the file into a conflict.
         if let Some(current_tree_value) = current_tree_values.as_resolved() {
