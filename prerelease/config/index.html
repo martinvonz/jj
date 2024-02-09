@@ -957,6 +957,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#default-remotes-for-jj-git-fetch-and-jj-git-push" class="md-nav__link">
+    <span class="md-ellipsis">
+      Default remotes for jj git fetch and jj git push
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#automatic-local-branch-creation" class="md-nav__link">
     <span class="md-ellipsis">
       Automatic local branch creation
@@ -1892,6 +1901,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#default-remotes-for-jj-git-fetch-and-jj-git-push" class="md-nav__link">
+    <span class="md-ellipsis">
+      Default remotes for jj git fetch and jj git push
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#automatic-local-branch-creation" class="md-nav__link">
     <span class="md-ellipsis">
       Automatic local branch creation
@@ -2356,6 +2374,21 @@ the conflict is done, <code>jj</code> assumes that the conflict was only partial
 and parses the conflict markers to get the new state of the conflict. The
 conflict is considered fully resolved when there are no conflict markers left.</p>
 <h2 id="git-settings">Git settings<a class="headerlink" href="#git-settings" title="Permanent link">&para;</a></h2>
+<h3 id="default-remotes-for-jj-git-fetch-and-jj-git-push">Default remotes for <code>jj git fetch</code> and <code>jj git push</code><a class="headerlink" href="#default-remotes-for-jj-git-fetch-and-jj-git-push" title="Permanent link">&para;</a></h3>
+<p>By default, if a single remote exists it is used for <code>jj git fetch</code> and <code>jj git
+push</code>; however if multiple remotes exist, the default remote is assumed to be
+named <code>"origin"</code>, just like in Git. Sometimes this is undesirable, e.g. when you
+want to fetch from a different remote than you push to, such as a GitHub fork.</p>
+<p>To change this behavior, you can modify the <a href="#config-files-and-toml">repository
+configuration</a> variable <code>git.fetch</code>, which can be a
+single remote, or a list of remotes to fetch from multiple places:</p>
+<div class="highlight"><pre><span></span><code>jj config set --repo git.fetch &quot;upstream&quot;
+jj config set --repo git.fetch &#39;[&quot;origin&quot;, &quot;upstream&quot;]&#39;
+</code></pre></div>
+<p>Similarly, you can also set the variable <code>git.push</code> to cause <code>jj git push</code> to
+push to a different remote:</p>
+<div class="highlight"><pre><span></span><code>jj config set --repo git.push &quot;github&quot;
+</code></pre></div>
 <h3 id="automatic-local-branch-creation">Automatic local branch creation<a class="headerlink" href="#automatic-local-branch-creation" title="Permanent link">&para;</a></h3>
 <p>When <code>jj</code> imports a new remote-tracking branch from Git, it can also create a
 local branch with the same name. This feature is disabled by default because it
