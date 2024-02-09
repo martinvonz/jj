@@ -164,10 +164,10 @@ fn test_alias_cannot_override_builtin() {
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(r#"aliases.log = ["rebase"]"#);
-    // Alias should be ignored
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "root()"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  zzzzzzzz root() 00000000
+    // Alias should give a hard error
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root()"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot define an alias that overrides the built-in command 'log'
     "###);
 }
 

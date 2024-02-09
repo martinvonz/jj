@@ -2699,6 +2699,7 @@ fn resolve_aliases(
             }
         }
     }
+
     let mut resolved_aliases = HashSet::new();
     let mut real_commands = HashSet::new();
     for command in app.get_subcommands() {
@@ -2707,6 +2708,14 @@ fn resolve_aliases(
             real_commands.insert(alias.to_string());
         }
     }
+    for alias in aliases_map.keys() {
+        if real_commands.contains(alias) {
+            return Err(user_error(format!(
+                "Cannot define an alias that overrides the built-in command '{alias}'"
+            )));
+        }
+    }
+
     loop {
         let app_clone = app.clone().allow_external_subcommands(true);
         let matches = app_clone.try_get_matches_from(&string_args).ok();

@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The minimum supported Rust version (MSRV) is now 1.76.0.
 
+* Attempting to alias a built-in command now gives a hard error, rather than being silently ignored.
+
 ### New features
 
 * Templates now support logical operators: `||`, `&&`, `!`
