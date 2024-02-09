@@ -288,13 +288,13 @@ fn create_and_check_out_recovery_commit(
 ) -> Result<Arc<ReadonlyRepo>, CommandError> {
     let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
     let workspace_id = workspace_command.workspace_id().clone();
-    let repo = workspace_command.repo().clone();
-    let tree_id = repo.store().empty_merged_tree_id();
+    let mut tx = workspace_command.start_transaction().into_inner();
+
+    let tree_id = workspace_command.repo().store().empty_merged_tree_id();
     let (mut locked_workspace, commit) =
         workspace_command.unchecked_start_working_copy_mutation()?;
     let commit_id = commit.id();
 
-    let mut tx = repo.start_transaction(command.settings());
     let mut_repo = tx.mut_repo();
     let new_commit = mut_repo
         .new_commit(command.settings(), vec![commit_id.clone()], tree_id.clone())
