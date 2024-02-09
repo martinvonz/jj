@@ -1678,7 +1678,7 @@ hidden from the default <code>jj log</code> output) by running the following in 
 <h3 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h3>
 <p>One-time setup:</p>
 <div class="codehilite"><pre><span></span><code>rustup toolchain add nightly  # wanted for &#39;rustfmt&#39;
-rustup toolchain add 1.71     # also specified in Cargo.toml
+rustup toolchain add 1.76     # also specified in Cargo.toml
 cargo install cargo-insta
 cargo install cargo-watch
 cargo install cargo-nextest
@@ -1687,7 +1687,7 @@ cargo install cargo-nextest
 <p>During development (adapt according to your preference):</p>
 <div class="codehilite"><pre><span></span><code>cargo watch --ignore &#39;.jj/**&#39; -s \
   &#39;cargo clippy --workspace --all-targets \
-   &amp;&amp; cargo +1.71 check --workspace --all-targets&#39;
+   &amp;&amp; cargo +1.76 check --workspace --all-targets&#39;
 cargo +nightly fmt # Occasionally
 cargo nextest run --workspace # Occasionally
 cargo insta test --workspace --test-runner nextest # Occasionally
@@ -1718,7 +1718,7 @@ Cargo will happily use up your entire hard drive. If this happens, run
 <p>Your code will be rejected if it cannot be compiled with the minimal
    supported version of Rust ("MSRV"). Currently, <code>jj</code> follows a rather
    casual MSRV policy: "The current <code>rustc</code> stable version, minus one."
-   As of this writing, that version is <strong>1.71.0</strong>.</p>
+   As of this writing, that version is <strong>1.76.0</strong>.</p>
 </li>
 <li>
 <p>Your code needs to pass <code>cargo clippy</code>. You can also
