@@ -402,6 +402,11 @@ impl<T> Merge<Option<T>> {
         !self.is_absent()
     }
 
+    /// Returns the value if this is present and non-conflicting.
+    pub fn as_normal(&self) -> Option<&T> {
+        self.as_resolved()?.as_ref()
+    }
+
     /// Creates lists of `removes` and `adds` from a `Merge` by dropping
     /// `None` values. Note that the conversion is lossy: the order of `None`
     /// values is not preserved when converting back to a `Merge`.

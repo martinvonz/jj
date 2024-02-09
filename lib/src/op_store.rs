@@ -115,7 +115,7 @@ impl RefTarget {
 
     /// Returns id if this target is non-conflicting and points to a commit.
     pub fn as_normal(&self) -> Option<&CommitId> {
-        self.as_resolved()?.as_ref()
+        self.merge.as_normal()
     }
 
     /// Returns true if this target points to no commit.
