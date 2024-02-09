@@ -55,6 +55,18 @@ pub fn create_or_reuse_dir(dirname: &Path) -> io::Result<()> {
     }
 }
 
+/// Removes all files in the directory, but not the directory itself.
+///
+/// The directory must exist, and there should be no sub directories.
+pub fn remove_dir_contents(dirname: &Path) -> Result<(), PathError> {
+    for entry in dirname.read_dir().context(dirname)? {
+        let entry = entry.context(dirname)?;
+        let path = entry.path();
+        fs::remove_file(&path).context(&path)?;
+    }
+    Ok(())
+}
+
 /// Turns the given `to` path into relative path starting from the `from` path.
 ///
 /// Both `from` and `to` paths are supposed to be absolute and normalized in the

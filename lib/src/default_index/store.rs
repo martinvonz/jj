@@ -30,7 +30,7 @@ use super::readonly::{DefaultReadonlyIndex, ReadonlyIndexLoadError, ReadonlyInde
 use crate::backend::{BackendError, BackendInitError, CommitId};
 use crate::commit::CommitByCommitterTimestamp;
 use crate::dag_walk;
-use crate::file_util::{persist_content_addressed_temp_file, IoResultExt as _, PathError};
+use crate::file_util::{self, persist_content_addressed_temp_file, IoResultExt as _, PathError};
 use crate::index::{
     Index, IndexReadError, IndexStore, IndexWriteError, MutableIndex, ReadonlyIndex,
 };
@@ -92,8 +92,7 @@ impl DefaultIndexStore {
         let store = DefaultIndexStore {
             dir: dir.to_owned(),
         };
-        let op_dir = store.operations_dir();
-        std::fs::create_dir(&op_dir).context(&op_dir)?;
+        store.ensure_base_dirs()?;
         Ok(store)
     }
 
@@ -104,10 +103,10 @@ impl DefaultIndexStore {
     }
 
     pub fn reinit(&self) -> Result<(), DefaultIndexStoreInitError> {
+        // Create base directories in case the store was initialized by old jj.
+        self.ensure_base_dirs()?;
         // Remove all operation links to trigger rebuilding.
-        let op_dir = self.operations_dir();
-        std::fs::remove_dir_all(&op_dir).context(&op_dir)?;
-        std::fs::create_dir(&op_dir).context(&op_dir)?;
+        file_util::remove_dir_contents(&self.operations_dir())?;
         // Remove index segments to save disk space. If raced, new segment file
         // will be created by the other process.
         for entry in self.dir.read_dir().context(&self.dir)? {
@@ -120,6 +119,11 @@ impl DefaultIndexStore {
             fs::remove_file(&path).context(&path)?;
         }
         Ok(())
+    }
+
+    fn ensure_base_dirs(&self) -> Result<(), PathError> {
+        let op_dir = self.operations_dir();
+        file_util::create_or_reuse_dir(&op_dir).context(&op_dir)
     }
 
     fn operations_dir(&self) -> PathBuf {
