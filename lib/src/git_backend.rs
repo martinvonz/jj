@@ -713,7 +713,7 @@ fn validate_git_object_id(id: &impl ObjectId) -> Result<gix::ObjectId, BackendEr
             hash: id.hex(),
         });
     }
-    Ok(id.as_bytes().into())
+    Ok(id.as_bytes().try_into().unwrap())
 }
 
 fn map_not_found_err(err: gix::object::find::existing::Error, id: &impl ObjectId) -> BackendError {
@@ -941,7 +941,7 @@ impl Backend for GitBackend {
                     } => gix::objs::tree::Entry {
                         mode: gix::object::tree::EntryKind::Blob.into(),
                         filename: name.into(),
-                        oid: id.as_bytes().into(),
+                        oid: id.as_bytes().try_into().unwrap(),
                     },
                     TreeValue::File {
                         id,
@@ -949,27 +949,27 @@ impl Backend for GitBackend {
                     } => gix::objs::tree::Entry {
                         mode: gix::object::tree::EntryKind::BlobExecutable.into(),
                         filename: name.into(),
-                        oid: id.as_bytes().into(),
+                        oid: id.as_bytes().try_into().unwrap(),
                     },
                     TreeValue::Symlink(id) => gix::objs::tree::Entry {
                         mode: gix::object::tree::EntryKind::Link.into(),
                         filename: name.into(),
-                        oid: id.as_bytes().into(),
+                        oid: id.as_bytes().try_into().unwrap(),
                     },
                     TreeValue::Tree(id) => gix::objs::tree::Entry {
                         mode: gix::object::tree::EntryKind::Tree.into(),
                         filename: name.into(),
-                        oid: id.as_bytes().into(),
+                        oid: id.as_bytes().try_into().unwrap(),
                     },
                     TreeValue::GitSubmodule(id) => gix::objs::tree::Entry {
                         mode: gix::object::tree::EntryKind::Commit.into(),
                         filename: name.into(),
-                        oid: id.as_bytes().into(),
+                        oid: id.as_bytes().try_into().unwrap(),
                     },
                     TreeValue::Conflict(id) => gix::objs::tree::Entry {
                         mode: gix::object::tree::EntryKind::Blob.into(),
                         filename: (name.to_owned() + CONFLICT_SUFFIX).into(),
-                        oid: id.as_bytes().into(),
+                        oid: id.as_bytes().try_into().unwrap(),
                     },
                 }
             })
@@ -1202,7 +1202,7 @@ fn write_tree_conflict(
     .map(|(name, tree_id)| gix::objs::tree::Entry {
         mode: gix::object::tree::EntryKind::Tree.into(),
         filename: name.into(),
-        oid: tree_id.as_bytes().into(),
+        oid: tree_id.as_bytes().try_into().unwrap(),
     })
     .sorted_unstable()
     .collect();
@@ -1908,7 +1908,9 @@ mod tests {
             .unwrap();
 
         let git_repo = backend.git_repo();
-        let obj = git_repo.find_object(id.as_bytes()).unwrap();
+        let obj = git_repo
+            .find_object(gix::ObjectId::try_from(id.as_bytes()).unwrap())
+            .unwrap();
         insta::assert_snapshot!(std::str::from_utf8(&obj.data).unwrap(), @r###"
         tree 4b825dc642cb6eb9a060e54bf8d69288fbee4904
         author Someone <someone@example.com> 0 +0000
