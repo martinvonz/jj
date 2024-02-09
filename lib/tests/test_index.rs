@@ -294,10 +294,9 @@ fn test_index_commits_previous_operations() {
     let repo = tx.commit("test");
 
     // Delete index from disk
-    let index_operations_dir = repo.repo_path().join("index").join("operations");
-    assert!(index_operations_dir.is_dir());
-    std::fs::remove_dir_all(&index_operations_dir).unwrap();
-    std::fs::create_dir(&index_operations_dir).unwrap();
+    let default_index_store: &DefaultIndexStore =
+        repo.index_store().as_any().downcast_ref().unwrap();
+    default_index_store.reinit().unwrap();
 
     let repo = load_repo_at_head(&settings, repo.repo_path());
     let index = as_readonly_composite(&repo);
@@ -584,6 +583,52 @@ fn test_index_commits_incremental_squashed() {
     let repo = create_n_commits(&settings, &repo, 10);
     let repo = create_n_commits(&settings, &repo, 10);
     assert_eq!(commits_by_level(&repo), vec![71, 20]);
+}
+
+#[test]
+fn test_reindex_no_segments_dir() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let commit_a = write_random_commit(tx.mut_repo(), &settings);
+    let repo = tx.commit("test");
+    assert!(repo.index().has_id(commit_a.id()));
+
+    // jj <= 0.14 doesn't have "segments" directory
+    let segments_dir = repo.repo_path().join("index").join("segments");
+    assert!(segments_dir.is_dir());
+    fs::remove_dir_all(&segments_dir).unwrap();
+
+    let repo = load_repo_at_head(&settings, repo.repo_path());
+    assert!(repo.index().has_id(commit_a.id()));
+}
+
+#[test]
+fn test_reindex_corrupt_segment_files() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let commit_a = write_random_commit(tx.mut_repo(), &settings);
+    let repo = tx.commit("test");
+    assert!(repo.index().has_id(commit_a.id()));
+
+    // Corrupt the index files
+    let segments_dir = repo.repo_path().join("index").join("segments");
+    for entry in segments_dir.read_dir().unwrap() {
+        let entry = entry.unwrap();
+        // u32: file format version
+        // u32: parent segment file name length (0 means root)
+        // u32: number of local entries
+        // u32: number of overflow parent entries
+        fs::write(entry.path(), b"\0".repeat(16)).unwrap()
+    }
+
+    let repo = load_repo_at_head(&settings, repo.repo_path());
+    assert!(repo.index().has_id(commit_a.id()));
 }
 
 #[test]
