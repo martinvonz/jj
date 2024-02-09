@@ -2382,13 +2382,16 @@ want to fetch from a different remote than you push to, such as a GitHub fork.</
 <p>To change this behavior, you can modify the <a href="#config-files-and-toml">repository
 configuration</a> variable <code>git.fetch</code>, which can be a
 single remote, or a list of remotes to fetch from multiple places:</p>
-<div class="highlight"><pre><span></span><code>jj config set --repo git.fetch &quot;upstream&quot;
-jj config set --repo git.fetch &#39;[&quot;origin&quot;, &quot;upstream&quot;]&#39;
+<div class="highlight"><pre><span></span><code>jj<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>--repo<span class="w"> </span>git.fetch<span class="w"> </span><span class="s2">&quot;upstream&quot;</span>
+jj<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>--repo<span class="w"> </span>git.fetch<span class="w"> </span><span class="s1">&#39;[&quot;origin&quot;, &quot;upstream&quot;]&#39;</span>
 </code></pre></div>
 <p>Similarly, you can also set the variable <code>git.push</code> to cause <code>jj git push</code> to
 push to a different remote:</p>
-<div class="highlight"><pre><span></span><code>jj config set --repo git.push &quot;github&quot;
+<div class="highlight"><pre><span></span><code>jj<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>--repo<span class="w"> </span>git.push<span class="w"> </span><span class="s2">&quot;github&quot;</span>
 </code></pre></div>
+<p>Note that unlike <code>git.fetch</code>, <code>git.push</code> can currently only be a single remote.
+This is not a hard limitation, and could be changed in the future if there is
+demand.</p>
 <h3 id="automatic-local-branch-creation">Automatic local branch creation<a class="headerlink" href="#automatic-local-branch-creation" title="Permanent link">&para;</a></h3>
 <p>When <code>jj</code> imports a new remote-tracking branch from Git, it can also create a
 local branch with the same name. This feature is disabled by default because it
