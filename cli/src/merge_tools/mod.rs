@@ -175,7 +175,8 @@ fn editor_args_from_settings(
         let default_editor = BUILTIN_EDITOR_NAME;
         writeln!(
             ui.hint(),
-            "Using default editor '{default_editor}'; you can change this by setting {key}"
+            "Using default editor '{default_editor}'; run `jj config set --user {key} :builtin` \
+             to disable this message."
         )
         .map_err(ExternalToolError::Io)?;
         Ok(default_editor.into())
