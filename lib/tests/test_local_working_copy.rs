@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::fs::OpenOptions;
-use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 #[cfg(unix)]
@@ -515,16 +513,7 @@ fn test_snapshot_racy_timestamps() {
     let file_path = workspace_root.join("file");
     let mut previous_tree_id = repo.store().empty_merged_tree_id();
     for i in 0..100 {
-        {
-            // Short-term TODO: Switch to fs::write?
-            let mut file = OpenOptions::new()
-                .create(true)
-                .write(true)
-                .truncate(true)
-                .open(&file_path)
-                .unwrap();
-            file.write_all(format!("contents {i}").as_bytes()).unwrap();
-        }
+        std::fs::write(&file_path, format!("contents {i}").as_bytes()).unwrap();
         let mut locked_ws = test_workspace
             .workspace
             .start_working_copy_mutation()
