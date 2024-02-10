@@ -849,7 +849,7 @@ Fetch from a Git remote
 
 ###### **Options:**
 
-* `--branch <BRANCH>` — Fetch only some of the branches
+* `-b`, `--branch <BRANCH>` — Fetch only some of the branches
 
   Default value: `glob:*`
 * `--remote <remote>` — The remote to fetch from (only named remotes are supported, can be repeated)

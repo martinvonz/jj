@@ -156,7 +156,7 @@ pub struct GitFetchArgs {
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// expand `*` as a glob. The other wildcard characters aren't supported.
-    #[arg(long, default_value = "glob:*", value_parser = parse_string_pattern)]
+    #[arg(long, short, default_value = "glob:*", value_parser = parse_string_pattern)]
     branch: Vec<StringPattern>,
     /// The remote to fetch from (only named remotes are supported, can be
     /// repeated)
