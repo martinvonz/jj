@@ -167,26 +167,12 @@ impl ReadonlyRepo {
         fs::write(&op_store_type_path, op_store.name()).context(&op_store_type_path)?;
         let op_store: Arc<dyn OpStore> = Arc::from(op_store);
 
-        let mut root_view = op_store::View::default();
-        root_view.head_ids.insert(store.root_commit_id().clone());
-
         let op_heads_path = repo_path.join("op_heads");
         fs::create_dir(&op_heads_path).context(&op_heads_path)?;
-        let operation_metadata =
-            crate::transaction::create_op_metadata(user_settings, "initialize repo".to_string());
-        let root_view_id = op_store.write_view(&root_view).unwrap();
-        let init_operation = op_store::Operation {
-            view_id: root_view_id,
-            parents: vec![op_store.root_operation_id().clone()],
-            metadata: operation_metadata,
-        };
-        let init_operation_id = op_store.write_operation(&init_operation).unwrap();
-        let init_operation = Operation::new(op_store.clone(), init_operation_id, init_operation);
         let op_heads_store = op_heads_store_initializer(user_settings, &op_heads_path);
-        op_heads_store.update_op_heads(&[], init_operation.id());
         let op_heads_type_path = op_heads_path.join("type");
         fs::write(&op_heads_type_path, op_heads_store.name()).context(&op_heads_type_path)?;
-        let op_heads_store = Arc::from(op_heads_store);
+        let op_heads_store: Arc<dyn OpHeadsStore> = Arc::from(op_heads_store);
 
         let index_path = repo_path.join("index");
         fs::create_dir(&index_path).context(&index_path)?;
@@ -203,6 +189,19 @@ impl ReadonlyRepo {
             .context(&submodule_store_type_path)?;
         let submodule_store = Arc::from(submodule_store);
 
+        let operation_metadata =
+            crate::transaction::create_op_metadata(user_settings, "initialize repo".to_string());
+        let mut root_view = op_store::View::default();
+        root_view.head_ids.insert(store.root_commit_id().clone());
+        let root_view_id = op_store.write_view(&root_view).unwrap();
+        let init_operation = op_store::Operation {
+            view_id: root_view_id,
+            parents: vec![op_store.root_operation_id().clone()],
+            metadata: operation_metadata,
+        };
+        let init_operation_id = op_store.write_operation(&init_operation).unwrap();
+        let init_operation = Operation::new(op_store.clone(), init_operation_id, init_operation);
+        op_heads_store.update_op_heads(&[], init_operation.id());
         let view = View::new(root_view);
         Ok(Arc::new(ReadonlyRepo {
             repo_path,
