@@ -454,7 +454,7 @@ fn test_resolve_root_becomes_empty() {
 
     let path1 = RepoPath::from_internal_string("dir1/file");
     let path2 = RepoPath::from_internal_string("dir2/file");
-    let base1 = create_single_tree(repo, &[(path1, "base1"), (&path2, "base1")]);
+    let base1 = create_single_tree(repo, &[(path1, "base1"), (path2, "base1")]);
     let side1 = create_single_tree(repo, &[(path2, "base1")]);
     let side2 = create_single_tree(repo, &[(path1, "base1")]);
 

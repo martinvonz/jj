@@ -135,7 +135,7 @@ impl<'a> Iterator for RepoPathComponentsIter<'a> {
         let (name, remainder) = self
             .value
             .split_once('/')
-            .unwrap_or_else(|| (&self.value, &self.value[self.value.len()..]));
+            .unwrap_or_else(|| (self.value, &self.value[self.value.len()..]));
         self.value = remainder;
         Some(RepoPathComponent::new_unchecked(name))
     }
@@ -149,7 +149,7 @@ impl DoubleEndedIterator for RepoPathComponentsIter<'_> {
         let (remainder, name) = self
             .value
             .rsplit_once('/')
-            .unwrap_or_else(|| (&self.value[..0], &self.value));
+            .unwrap_or_else(|| (&self.value[..0], self.value));
         self.value = remainder;
         Some(RepoPathComponent::new_unchecked(name))
     }

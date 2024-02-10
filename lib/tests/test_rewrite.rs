@@ -146,15 +146,15 @@ fn test_rebase_descendants_forward() {
         .rebase_descendants_return_map(&settings)
         .unwrap();
     let new_commit_d =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[&commit_f.id()]);
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[(commit_f.id())]);
     let new_commit_f =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_f, &[&new_commit_d.id()]);
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_f, &[new_commit_d.id()]);
     let new_commit_c =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[&new_commit_f.id()]);
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[new_commit_f.id()]);
     let new_commit_e =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_e, &[&new_commit_d.id()]);
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_e, &[new_commit_d.id()]);
     let new_commit_g =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_g, &[&new_commit_f.id()]);
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_g, &[new_commit_f.id()]);
     assert_eq!(rebase_map.len(), 5);
 
     assert_eq!(
@@ -206,8 +206,7 @@ fn test_rebase_descendants_reorder() {
         .mut_repo()
         .rebase_descendants_return_map(&settings)
         .unwrap();
-    let new_commit_i =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_i, &[&commit_h.id()]);
+    let new_commit_i = assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_i, &[commit_h.id()]);
     assert_eq!(rebase_map.len(), 1);
 
     assert_eq!(
@@ -243,8 +242,7 @@ fn test_rebase_descendants_backward() {
         .mut_repo()
         .rebase_descendants_return_map(&settings)
         .unwrap();
-    let new_commit_d =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[&commit_b.id()]);
+    let new_commit_d = assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[commit_b.id()]);
     assert_eq!(rebase_map.len(), 1);
 
     assert_eq!(
@@ -286,10 +284,9 @@ fn test_rebase_descendants_chain_becomes_branchy() {
         .mut_repo()
         .rebase_descendants_return_map(&settings)
         .unwrap();
-    let new_commit_f =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_f, &[&commit_e.id()]);
+    let new_commit_f = assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_f, &[commit_e.id()]);
     let new_commit_d =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[&new_commit_f.id()]);
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[new_commit_f.id()]);
     assert_eq!(rebase_map.len(), 2);
 
     assert_eq!(
@@ -331,15 +328,13 @@ fn test_rebase_descendants_internal_merge() {
         .mut_repo()
         .rebase_descendants_return_map(&settings)
         .unwrap();
-    let new_commit_c =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[&commit_f.id()]);
-    let new_commit_d =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[&commit_f.id()]);
+    let new_commit_c = assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[commit_f.id()]);
+    let new_commit_d = assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[commit_f.id()]);
     let new_commit_e = assert_rebased_onto(
         tx.mut_repo(),
         &rebase_map,
         &commit_e,
-        &[&new_commit_c.id(), &new_commit_d.id()],
+        &[new_commit_c.id(), new_commit_d.id()],
     );
     assert_eq!(rebase_map.len(), 3);
 
@@ -385,7 +380,7 @@ fn test_rebase_descendants_external_merge() {
         tx.mut_repo(),
         &rebase_map,
         &commit_e,
-        &[&commit_f.id(), &commit_d.id()],
+        &[commit_f.id(), commit_d.id()],
     );
     assert_eq!(rebase_map.len(), 1);
 
@@ -425,12 +420,10 @@ fn test_rebase_descendants_abandon() {
         .mut_repo()
         .rebase_descendants_return_map(&settings)
         .unwrap();
-    let new_commit_c =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[&commit_a.id()]);
-    let new_commit_d =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[&commit_a.id()]);
+    let new_commit_c = assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[commit_a.id()]);
+    let new_commit_d = assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[commit_a.id()]);
     let new_commit_f =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_f, &[&new_commit_d.id()]);
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_f, &[new_commit_d.id()]);
     assert_eq!(rebase_map.len(), 3);
 
     assert_eq!(
@@ -504,8 +497,7 @@ fn test_rebase_descendants_abandon_and_replace() {
         .mut_repo()
         .rebase_descendants_return_map(&settings)
         .unwrap();
-    let new_commit_d =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[&commit_e.id()]);
+    let new_commit_d = assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[commit_e.id()]);
     assert_eq!(rebase_map.len(), 1);
 
     assert_eq!(
@@ -541,8 +533,7 @@ fn test_rebase_descendants_abandon_degenerate_merge() {
         .mut_repo()
         .rebase_descendants_return_map(&settings)
         .unwrap();
-    let new_commit_d =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[&commit_c.id()]);
+    let new_commit_d = assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_d, &[commit_c.id()]);
     assert_eq!(rebase_map.len(), 1);
 
     assert_eq!(
@@ -585,7 +576,7 @@ fn test_rebase_descendants_abandon_widen_merge() {
         tx.mut_repo(),
         &rebase_map,
         &commit_f,
-        &[&commit_b.id(), &commit_c.id(), &commit_d.id()],
+        &[commit_b.id(), commit_c.id(), commit_d.id()],
     );
     assert_eq!(rebase_map.len(), 1);
 
@@ -626,10 +617,8 @@ fn test_rebase_descendants_multiple_sideways() {
         .mut_repo()
         .rebase_descendants_return_map(&settings)
         .unwrap();
-    let new_commit_c =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[&commit_f.id()]);
-    let new_commit_e =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_e, &[&commit_f.id()]);
+    let new_commit_c = assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[commit_f.id()]);
+    let new_commit_e = assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_e, &[commit_f.id()]);
     assert_eq!(rebase_map.len(), 2);
 
     assert_eq!(
@@ -764,7 +753,7 @@ fn test_rebase_descendants_divergent_rewrite() {
     let new_commit_c =
         assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[commit_b2.id()]);
     let new_commit_g =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_g, &[&commit_f2.id()]);
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_g, &[commit_f2.id()]);
     assert_eq!(rebase_map.len(), 2); // Commit E is not rebased
 
     assert_eq!(
@@ -1560,7 +1549,7 @@ fn test_empty_commit_option(empty_behavior: EmptyBehaviour) {
                 tx.mut_repo(),
                 &rebase_map,
                 &commit_f,
-                &[&new_commit_c.id(), &new_commit_d.id(), &new_commit_e.id()],
+                &[new_commit_c.id(), new_commit_d.id(), new_commit_e.id()],
             );
             let new_commit_g =
                 assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_g, &[new_commit_f.id()]);
@@ -1595,11 +1584,11 @@ fn test_empty_commit_option(empty_behavior: EmptyBehaviour) {
                 tx.mut_repo(),
                 &rebase_map,
                 &commit_f,
-                &[&new_commit_c.id(), &new_commit_e.id()],
+                &[new_commit_c.id(), new_commit_e.id()],
             );
             let new_commit_g =
-                assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_g, &[&new_commit_f.id()]);
-            assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_h, &[&new_commit_g.id()])
+                assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_g, &[new_commit_f.id()]);
+            assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_h, &[new_commit_g.id()])
         }
     };
 
@@ -1698,12 +1687,12 @@ fn test_rebase_abandoning_empty() {
         .unwrap();
     assert_eq!(rebase_map.len(), 5);
     let new_commit_c =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[&commit_b2.id()]);
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[commit_b2.id()]);
     assert_abandoned_with_parent(tx.mut_repo(), &rebase_map, &commit_d, new_commit_c.id());
     let new_commit_e =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_e, &[&new_commit_c.id()]);
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_e, &[new_commit_c.id()]);
     let new_commit_f =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_f, &[&new_commit_e.id()]);
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_f, &[new_commit_e.id()]);
     assert_abandoned_with_parent(tx.mut_repo(), &rebase_map, &commit_g, new_commit_e.id());
 
     assert_eq!(
