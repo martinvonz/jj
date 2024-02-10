@@ -164,10 +164,10 @@ fn test_alias_cannot_override_builtin() {
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(r#"aliases.log = ["rebase"]"#);
-    // Alias should be ignored
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "root()"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  zzzzzzzz root() 00000000
+    // Alias should give a hard error
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root()"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot define an alias that overrides the built-in command 'log'
     "###);
 }
 
@@ -250,17 +250,22 @@ fn test_alias_global_args_in_definition() {
 #[test]
 fn test_alias_invalid_definition() {
     let test_env = TestEnvironment::default();
-
     test_env.add_config(
         r#"[aliases]
     non-list = 5
-    non-string-list = [[]]
     "#,
     );
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["non-list"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Alias definition for "non-list" must be a string list
     "###);
+
+    let test_env = TestEnvironment::default();
+    test_env.add_config(
+        r#"[aliases]
+    non-string-list = [[]]
+    "#,
+    );
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["non-string-list"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Alias definition for "non-string-list" must be a string list
@@ -337,4 +342,42 @@ fn test_alias_in_repo_config() {
     insta::assert_snapshot!(stdout, @r###"
     aliases.l=["log", "-r@", "--no-graph", "-T\"user alias\\n\""]
     "###);
+}
+
+#[test]
+fn test_alias_help() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(r#"aliases.b = ["log", "-r", "@", "-T", "branches"]"#);
+    test_env.add_config(r#"aliases.s = ["status"]"#);
+    test_env.add_config(r#"aliases.f = ["git", "fetch"]"#); // test nested subcommand
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["help", "b"]);
+    insta::assert_snapshot!(stdout.lines().take(3).join("\n"), @r###"
+    Alias for ["log", "-r", "@", "-T", "branches"]
+
+    Show commit history
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["b", "-h"]);
+    insta::assert_snapshot!(stdout.lines().next().unwrap(), @"Show commit history");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["help", "s"]);
+    insta::assert_snapshot!(stdout.lines().take(3).join("\n"), @r###"
+    Alias for ["status"]
+
+    Show high-level repo status
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["s", "-h"]);
+    insta::assert_snapshot!(stdout.lines().next().unwrap(), @"Show high-level repo status");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["help", "f"]);
+    insta::assert_snapshot!(stdout.lines().take(3).join("\n"), @r###"
+    Alias for ["git", "fetch"]
+
+    Fetch from a Git remote
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["f", "-h"]);
+    insta::assert_snapshot!(stdout.lines().next().unwrap(), @"Fetch from a Git remote");
 }

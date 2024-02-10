@@ -13,9 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The minimum supported Rust version (MSRV) is now 1.76.0.
 
+* Attempting to alias a built-in command now gives a hard error, rather than being silently ignored.
+
+* Errors in alias definitions are now reported eagerly. Previously, they would not error unless you used the alias in a jj command.
+
 ### New features
 
 * Templates now support logical operators: `||`, `&&`, `!`
+
+* `jj help` and `jj util completion` now support aliases.
 
 ### Fixed bugs
 
