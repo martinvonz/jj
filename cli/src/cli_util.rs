@@ -2684,7 +2684,7 @@ fn resolve_default_command(
 
 fn resolve_aliases(
     config: &config::Config,
-    app: &Command,
+    app: &mut Command,
     mut string_args: Vec<String>,
 ) -> Result<Vec<String>, CommandError> {
     let mut aliases_map = config.get_table("aliases")?;
@@ -2716,6 +2716,16 @@ fn resolve_aliases(
         }
     }
 
+    let mut resolved_alias_map = HashMap::new();
+    for (alias_name, value) in aliases_map {
+        let Ok(alias_definition) = value.try_deserialize::<Vec<String>>() else {
+            return Err(user_error(format!(
+                r#"Alias definition for "{alias_name}" must be a string list"#
+            )));
+        };
+        resolved_alias_map.insert(alias_name, alias_definition);
+    }
+
     loop {
         let app_clone = app.clone().allow_external_subcommands(true);
         let matches = app_clone.try_get_matches_from(&string_args).ok();
@@ -2732,19 +2742,13 @@ fn resolve_aliases(
                         r#"Recursive alias definition involving "{alias_name}""#
                     )));
                 }
-                if let Some(value) = aliases_map.remove(&alias_name) {
-                    if let Ok(alias_definition) = value.try_deserialize::<Vec<String>>() {
-                        assert!(string_args.ends_with(&alias_args));
-                        string_args.truncate(string_args.len() - 1 - alias_args.len());
-                        string_args.extend(alias_definition);
-                        string_args.extend_from_slice(&alias_args);
-                        resolved_aliases.insert(alias_name.clone());
-                        continue;
-                    } else {
-                        return Err(user_error(format!(
-                            r#"Alias definition for "{alias_name}" must be a string list"#
-                        )));
-                    }
+                if let Some(alias_definition) = resolved_alias_map.get(&alias_name) {
+                    assert!(string_args.ends_with(&alias_args));
+                    string_args.truncate(string_args.len() - 1 - alias_args.len());
+                    string_args.extend(alias_definition.clone());
+                    string_args.extend_from_slice(&alias_args);
+                    resolved_aliases.insert(alias_name.clone());
+                    continue;
                 } else {
                     // Not a real command and not an alias, so return what we've resolved so far
                     return Ok(string_args);
@@ -2752,8 +2756,33 @@ fn resolve_aliases(
             }
         }
         // No more alias commands, or hit unknown option
-        return Ok(string_args);
+        break;
     }
+
+    // Add each alias to `Command` so it shows up in help
+    for (alias_name, alias_definition) in resolved_alias_map {
+        // Find the innermost subcommand so we can use its help.
+        let mut subcmd = &*app;
+        for arg in &alias_definition {
+            if let Some(cmd) = subcmd.find_subcommand(arg) {
+                subcmd = cmd;
+            } else {
+                break;
+            }
+        }
+        let help = format!("Alias for {alias_definition:?}");
+        let subcmd_alias = subcmd
+            .clone()
+            .name(&alias_name)
+            // if we leave the built-in aliases, clap doesn't know whether to call the user alias or
+            // the built-in command
+            .alias(None)
+            .before_help(&help)
+            .before_long_help(help);
+        *app = std::mem::take(app).subcommand(subcmd_alias);
+    }
+
+    Ok(string_args)
 }
 
 /// Parse args that must be interpreted early, e.g. before printing help.
@@ -2788,7 +2817,7 @@ fn handle_early_args(
 
 pub fn expand_args(
     ui: &Ui,
-    app: &Command,
+    app: &mut Command,
     args_os: ArgsOs,
     config: &config::Config,
 ) -> Result<Vec<String>, CommandError> {
@@ -2999,7 +3028,7 @@ impl CliRunner {
 
     #[instrument(skip_all)]
     fn run_internal(
-        self,
+        mut self,
         ui: &mut Ui,
         mut layered_configs: LayeredConfigs,
     ) -> Result<(), CommandError> {
@@ -3021,7 +3050,10 @@ impl CliRunner {
         let config = layered_configs.merge();
         ui.reset(&config)?;
 
-        let string_args = expand_args(ui, &self.app, env::args_os(), &config)?;
+        // save this - since `expand_args` modifies app, it won't parse the same when we
+        // process -R
+        let mut original_app = self.app.clone();
+        let string_args = expand_args(ui, &mut self.app, env::args_os(), &config)?;
         let (matches, args) = parse_args(
             ui,
             &self.app,
@@ -3050,7 +3082,7 @@ impl CliRunner {
         // If -R is specified, check if the expanded arguments differ. Aliases
         // can also be injected by --config-toml, but that's obviously wrong.
         if args.global_args.repository.is_some() {
-            let new_string_args = expand_args(ui, &self.app, env::args_os(), &config).ok();
+            let new_string_args = expand_args(ui, &mut original_app, env::args_os(), &config).ok();
             if new_string_args.as_ref() != Some(&string_args) {
                 writeln!(
                     ui.warning(),
