@@ -126,6 +126,72 @@ fn test_config_list_all() {
 }
 
 #[test]
+fn test_config_list_show_origin() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Create multiple user configs.
+    test_env.add_config(
+        r#"
+        user-key-1 = "user-val-1"
+        "#,
+    );
+
+    test_env.add_config(
+        r#"
+        user-key-2 = "user-val-2"
+        "#,
+    );
+
+    // Env
+    test_env.add_env_var("env-key", "env-value");
+
+    // Repo
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["config", "set", "--repo", "repo-key", "repo-val"],
+    );
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "config",
+            "list",
+            "--config-toml",
+            "cmd-key='cmd-val'",
+            "--show-origin",
+        ],
+    );
+
+    // Paths starting with `$TEST_ENV` confirm that the relative path returned by
+    // `Value.origin()` has been converted to an absolute path.
+    insta::assert_snapshot!(stdout, @r###"
+    usercfg $TEST_ENV/config/config0001.toml: template-aliases.format_time_range(time_range)="time_range.start() ++ \" - \" ++ time_range.end()"
+    usercfg $TEST_ENV/config/config0002.toml: user-key-1="user-val-1"
+    usercfg $TEST_ENV/config/config0003.toml: user-key-2="user-val-2"
+    repocfg $TEST_ENV/repo/.jj/repo/config.toml: repo-key="repo-val"
+    env: debug.commit-timestamp="2001-02-03T04:05:09+07:00"
+    env: debug.operation-timestamp="2001-02-03T04:05:09+07:00"
+    env: debug.randomness-seed="3"
+    env: operation.hostname="host.example.com"
+    env: operation.username="test-username"
+    env: user.email="test.user@example.com"
+    env: user.name="Test User"
+    cmdline: cmd-key="cmd-val"
+    "###);
+
+    // Run again with defaults shown. Rather than assert the full output which
+    // will change when any default config value is added or updated, check only
+    // one value to validate the formatting is correct.
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["config", "list", "--include-defaults", "--show-origin"],
+    );
+    assert!(stdout.contains(r#"default: colors.diff header="yellow""#));
+}
+
+#[test]
 fn test_config_list_layer() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);

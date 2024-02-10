@@ -38,10 +38,21 @@ pub enum ConfigError {
 pub enum ConfigSource {
     Default,
     Env,
-    // TODO: Track explicit file paths, especially for when user config is a dir.
     User,
     Repo,
     CommandArg,
+}
+
+impl ConfigSource {
+    pub fn description(&self) -> &str {
+        match self {
+            ConfigSource::Default => "default",
+            ConfigSource::Env => "env",
+            ConfigSource::User => "usercfg",
+            ConfigSource::Repo => "repocfg",
+            ConfigSource::CommandArg => "cmdline",
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

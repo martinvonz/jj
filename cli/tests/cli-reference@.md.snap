@@ -475,6 +475,10 @@ List variables set in config file, along with their values
 
   Possible values: `true`, `false`
 
+* `--show-origin` — Display the source of all listed config values with type (default, env, usercfg, repocfg, command line) and the source file path for usercfg and repocfg
+
+  Possible values: `true`, `false`
+
 * `--user` — Target the user-level config
 
   Possible values: `true`, `false`

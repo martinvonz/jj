@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::io::Write;
+use std::path::Path;
 
 use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
@@ -84,6 +85,11 @@ pub(crate) struct ConfigListArgs {
     /// Allow printing overridden values.
     #[arg(long)]
     pub include_overridden: bool,
+    /// Display the source of all listed config values with type (default, env,
+    /// usercfg, repocfg, command line) and the source file path for usercfg
+    /// and repocfg.
+    #[arg(long)]
+    pub show_origin: bool,
     /// Target the user-level config
     #[arg(long)]
     user: bool,
@@ -204,9 +210,16 @@ pub(crate) fn cmd_config_list(
         if !args.include_defaults && *source == ConfigSource::Default {
             continue;
         }
+
+        let origin = if args.show_origin {
+            format_origin(value.origin(), source)
+        } else {
+            String::from("")
+        };
+
         writeln!(
             ui.stdout(),
-            "{}{}={}",
+            "{origin}{}{}={}",
             if *is_overridden { "# " } else { "" },
             path.join("."),
             serialize_config_value(value)
@@ -303,4 +316,18 @@ pub(crate) fn cmd_config_path(
             .ok_or_else(|| user_error("The config path is not valid UTF-8"))?
     )?;
     Ok(())
+}
+
+fn format_origin(origin: Option<&str>, source: &ConfigSource) -> String {
+    let Some(origin) = origin else {
+        return format!("{}: ", source.description());
+    };
+
+    // `config::FileSourceFile::resolve()` returns a relative path. Try to
+    // convert them to absolute paths for easier recognition, falling back
+    // to the original value on failure.
+    let canon = Path::new(origin).canonicalize();
+    let path = canon.as_deref().unwrap_or_else(|_| Path::new(origin));
+
+    format!("{} {}: ", source.description(), path.display())
 }
