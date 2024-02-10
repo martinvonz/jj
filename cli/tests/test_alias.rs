@@ -249,17 +249,22 @@ fn test_alias_global_args_in_definition() {
 #[test]
 fn test_alias_invalid_definition() {
     let test_env = TestEnvironment::default();
-
     test_env.add_config(
         r#"[aliases]
     non-list = 5
-    non-string-list = [[]]
     "#,
     );
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["non-list"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Alias definition for "non-list" must be a string list
     "###);
+
+    let test_env = TestEnvironment::default();
+    test_env.add_config(
+        r#"[aliases]
+    non-string-list = [[]]
+    "#,
+    );
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["non-string-list"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Alias definition for "non-string-list" must be a string list
@@ -336,4 +341,95 @@ fn test_alias_in_repo_config() {
     insta::assert_snapshot!(stdout, @r###"
     aliases.l=["log", "-r@", "--no-graph", "-T\"user alias\\n\""]
     "###);
+}
+
+#[test]
+fn test_alias_help() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(r#"aliases.b = ["log", "-r", "@", "-T", "branches"]"#);
+    test_env.add_config(r#"aliases.s = ["status"]"#);
+    test_env.add_config(r#"aliases.f = ["git", "fetch"]"#); // test nested subcommand
+    test_env.add_config(r#"aliases.b2 = ["b", "--no-graph"]"#); // test recursive subcommand
+    test_env.add_config(r#"aliases.empty = []"#);
+    test_env.add_config(r#"aliases.option-only = ["--no-pager"]"#);
+    test_env.add_config(r#"aliases.bad = ["this-command-does-not-exist"]"#);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["help", "b"]);
+    insta::assert_snapshot!(stdout.lines().take(3).join("\n"), @r###"
+    Alias for "log -r @ -T branches"
+
+    Show revision history
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["b", "-h"]);
+    insta::assert_snapshot!(stdout.lines().next().unwrap(), @"Show revision history");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["help", "s"]);
+    // NOTE: this uses `visible_alias`, so it doesn't include the "Alias for" text,
+    // for consistency with `st`.
+    insta::assert_snapshot!(stdout.lines().take(3).join("\n"), @r###"
+    Show high-level repo status
+
+    This includes:
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["s", "-h"]);
+    insta::assert_snapshot!(stdout.lines().next().unwrap(), @"Show high-level repo status");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["help", "f"]);
+    insta::assert_snapshot!(stdout.lines().take(3).join("\n"), @r###"
+    Alias for "git fetch"
+
+    Fetch from a Git remote
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["f", "-h"]);
+    insta::assert_snapshot!(stdout.lines().next().unwrap(), @"Fetch from a Git remote");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["help", "b2"]);
+    insta::assert_snapshot!(stdout.lines().take(3).join("\n"), @r###"
+    Alias for "b --no-graph"
+
+    Show revision history
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["b2", "-h"]);
+    insta::assert_snapshot!(stdout.lines().next().unwrap(), @"Show revision history");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["help", "empty"]);
+    insta::assert_snapshot!(stdout.lines().take(3).join("\n"), @r###"
+    Alias for ""
+
+    Usage: jj empty [OPTIONS]
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["empty", "-h"]);
+    insta::assert_snapshot!(stdout.lines().next().unwrap(), @"Jujutsu (An experimental VCS)");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["help", "option-only"]);
+    insta::assert_snapshot!(stdout.lines().take(3).join("\n"), @r###"
+    Alias for "--no-pager"
+
+    Usage: jj option-only [OPTIONS]
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["option-only", "-h"]);
+    insta::assert_snapshot!(stdout.lines().next().unwrap(), @"Jujutsu (An experimental VCS)");
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["help", "bad"]);
+    // TODO: this isn't ideal, see the comment in `resolve_aliases`
+    insta::assert_snapshot!(stdout.lines().take(3).join("\n"), @r###"
+    Alias for "this-command-does-not-exist"
+
+    Usage: jj bad [OPTIONS]
+    "###);
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["bad", "-h"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: unrecognized subcommand 'this-command-does-not-exist'
+
+    Usage: jj [OPTIONS] <COMMAND>
+
+    For more information, try '--help'.
+    "###);
+
+    // make sure `st` and `s` are displayed the same
+    let stdout = test_env.jj_cmd_success(&repo_path, &["help"]);
+    assert!(stdout.contains("status       Show high-level repo status [aliases: st, s]"));
 }
