@@ -172,6 +172,7 @@ impl ReadonlyRepo {
         let op_heads_store = op_heads_store_initializer(user_settings, &op_heads_path);
         let op_heads_type_path = op_heads_path.join("type");
         fs::write(&op_heads_type_path, op_heads_store.name()).context(&op_heads_type_path)?;
+        op_heads_store.update_op_heads(&[], op_store.root_operation_id());
         let op_heads_store: Arc<dyn OpHeadsStore> = Arc::from(op_heads_store);
 
         let index_path = repo_path.join("index");
@@ -189,33 +190,33 @@ impl ReadonlyRepo {
             .context(&submodule_store_type_path)?;
         let submodule_store = Arc::from(submodule_store);
 
-        let operation_metadata =
-            crate::transaction::create_op_metadata(user_settings, "initialize repo".to_string());
-        let mut root_view = op_store::View::default();
-        root_view.head_ids.insert(store.root_commit_id().clone());
-        let root_view_id = op_store.write_view(&root_view).unwrap();
-        let init_operation = op_store::Operation {
-            view_id: root_view_id,
-            parents: vec![op_store.root_operation_id().clone()],
-            metadata: operation_metadata,
-        };
-        let init_operation_id = op_store.write_operation(&init_operation).unwrap();
-        let init_operation = Operation::new(op_store.clone(), init_operation_id, init_operation);
-        op_heads_store.update_op_heads(&[], init_operation.id());
-        let view = View::new(root_view);
-        Ok(Arc::new(ReadonlyRepo {
+        let root_operation_data = op_store
+            .read_operation(op_store.root_operation_id())
+            .expect("failed to read root operation");
+        let root_operation = Operation::new(
+            op_store.clone(),
+            op_store.root_operation_id().clone(),
+            root_operation_data,
+        );
+        let root_view = root_operation.view().expect("failed to read root view");
+        let repo = Arc::new(ReadonlyRepo {
             repo_path,
             store,
             op_store,
             op_heads_store,
-            operation: init_operation,
+            operation: root_operation,
             settings: repo_settings,
             index_store,
             index: OnceCell::new(),
             change_id_index: OnceCell::new(),
-            view,
+            view: root_view,
             submodule_store,
-        }))
+        });
+        let mut tx = repo.start_transaction(user_settings);
+        tx.mut_repo()
+            .add_head(&repo.store().root_commit())
+            .expect("failed to add root commit as head");
+        Ok(tx.commit("initialize repo"))
     }
 
     pub fn loader(&self) -> RepoLoader {
