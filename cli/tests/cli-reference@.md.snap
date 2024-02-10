@@ -1551,6 +1551,7 @@ Show commit description and changes in a revision
 
   Possible values: `true`, `false`
 
+* `-T`, `--template <TEMPLATE>` — Render a revision using the given template
 * `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
 
   Possible values: `true`, `false`

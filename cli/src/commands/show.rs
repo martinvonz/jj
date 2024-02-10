@@ -28,6 +28,11 @@ pub(crate) struct ShowArgs {
     /// Ignored (but lets you pass `-r` for consistency with other commands)
     #[arg(short = 'r', hide = true)]
     unused_revision: bool,
+    /// Render a revision using the given template
+    ///
+    /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+    #[arg(long, short = 'T')]
+    template: Option<String>,
     #[command(flatten)]
     format: DiffFormatArgs,
 }
@@ -40,7 +45,10 @@ pub(crate) fn cmd_show(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
-    let template_string = command.settings().config().get_string("templates.show")?;
+    let template_string = match &args.template {
+        Some(value) => value.to_string(),
+        None => command.settings().config().get_string("templates.show")?,
+    };
     let template = workspace_command.parse_commit_template(&template_string)?;
     let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
     ui.request_pager();
