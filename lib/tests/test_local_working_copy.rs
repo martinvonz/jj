@@ -516,11 +516,11 @@ fn test_snapshot_racy_timestamps() {
     let mut previous_tree_id = repo.store().empty_merged_tree_id();
     for i in 0..100 {
         {
-            // https://github.com/rust-lang/rust-clippy/issues/9778
-            #[allow(clippy::needless_borrow)]
+            // Short-term TODO: Switch to fs::write?
             let mut file = OpenOptions::new()
                 .create(true)
                 .write(true)
+                .truncate(true)
                 .open(&file_path)
                 .unwrap();
             file.write_all(format!("contents {i}").as_bytes()).unwrap();
