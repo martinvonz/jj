@@ -35,6 +35,20 @@ fn test_show() {
 }
 
 #[test]
+fn test_show_with_template() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "a new commit"]);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["show", "-T", "description"]);
+
+    insta::assert_snapshot!(stdout, @r###"
+    a new commit
+    "###);
+}
+
+#[test]
 fn test_show_relative_timestamps() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);

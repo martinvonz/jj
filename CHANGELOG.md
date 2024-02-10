@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Templates now support logical operators: `||`, `&&`, `!`
 
+* `jj show` now accepts `-T`/`--template` option to render its output using
+  template
+
 ### Fixed bugs
 
 * On Windows, symlinks in the repo are now materialized as regular files in the
