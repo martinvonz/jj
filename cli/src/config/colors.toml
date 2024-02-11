@@ -10,10 +10,10 @@
 "change_id" = "magenta"
 
 # Unique prefixes and the rest for change & commit ids
-"prefix" = { bold = true}
+"prefix" = { bold = true }
 "rest" = "bright black"
 "divergent rest" = "red"
-"divergent prefix" = {fg = "red", underline=true}
+"divergent prefix" = { fg = "red", underline = true }
 "hidden prefix" = "default"
 
 "email" = "yellow"
@@ -28,13 +28,14 @@
 "git_refs" = "green"
 "git_head" = "green"
 "divergent" = "red"
-"divergent change_id"="red"
+"divergent change_id" = "red"
 "conflict" = "red"
 "empty" = "green"
 "placeholder" = "red"
 "description placeholder" = "yellow"
 "empty description placeholder" = "green"
 "separator" = "bright black"
+"elided" = "bright black"
 "root" = "green"
 
 "working_copy" = { bold = true }
@@ -45,13 +46,13 @@
 "working_copy email" = "yellow"
 "working_copy timestamp" = "bright cyan"
 "working_copy working_copies" = "bright magenta"
-"working_copy branch"  = "bright magenta"
+"working_copy branch" = "bright magenta"
 "working_copy branches" = "bright magenta"
 "working_copy local_branches" = "bright magenta"
 "working_copy remote_branches" = "bright magenta"
 "working_copy tags" = "bright magenta"
 "working_copy git_refs" = "bright green"
-"working_copy divergent" =  "bright red"
+"working_copy divergent" = "bright red"
 "working_copy divergent change_id" = "bright red"
 "working_copy conflict" = "bright red"
 "working_copy empty" = "bright green"
@@ -71,5 +72,5 @@
 "op_log time" = "cyan"
 "op_log current_operation" = { bold = true }
 "op_log current_operation id" = "bright blue"
-"op_log current_operation user" = "yellow"  # No bright yellow, see comment above
+"op_log current_operation user" = "yellow"                    # No bright yellow, see comment above
 "op_log current_operation time" = "bright cyan"

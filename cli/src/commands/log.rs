@@ -104,6 +104,10 @@ pub(crate) fn cmd_log(
         Some(value) => value.to_string(),
         None => command.settings().config().get_string("templates.log")?,
     };
+    let use_elided_nodes = command
+        .settings()
+        .config()
+        .get_bool("ui.log-synthetic-elided-nodes")?;
     let template = workspace_command.parse_commit_template(&template_string)?;
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
@@ -115,6 +119,7 @@ pub(crate) fn cmd_log(
         if !args.no_graph {
             let mut graph = get_graphlog(command.settings(), formatter.raw());
             let default_node_symbol = graph.default_node_symbol().to_owned();
+            let elided_node_symbol = graph.elided_node_symbol().to_owned();
             let forward_iter = TopoGroupedRevsetGraphIterator::new(revset.iter_graph());
             let iter: Box<dyn Iterator<Item = _>> = if args.reversed {
                 Box::new(ReverseRevsetGraphIterator::new(forward_iter))
@@ -122,35 +127,50 @@ pub(crate) fn cmd_log(
                 Box::new(forward_iter)
             };
             for (commit_id, edges) in iter.take(args.limit.unwrap_or(usize::MAX)) {
+                // The graph is keyed by (CommitId, is_synthetic)
                 let mut graphlog_edges = vec![];
                 // TODO: Should we update RevsetGraphIterator to yield this flag instead of all
                 // the missing edges since we don't care about where they point here
                 // anyway?
                 let mut has_missing = false;
+                let mut elided_targets = vec![];
                 for edge in edges {
                     match edge.edge_type {
                         RevsetGraphEdgeType::Missing => {
                             has_missing = true;
                         }
-                        RevsetGraphEdgeType::Direct => graphlog_edges.push(Edge::Present {
-                            direct: true,
-                            target: edge.target,
-                        }),
-                        RevsetGraphEdgeType::Indirect => graphlog_edges.push(Edge::Present {
-                            direct: false,
-                            target: edge.target,
-                        }),
+                        RevsetGraphEdgeType::Direct => {
+                            graphlog_edges.push(Edge::Present {
+                                direct: true,
+                                target: (edge.target, false),
+                            });
+                        }
+                        RevsetGraphEdgeType::Indirect => {
+                            if use_elided_nodes {
+                                elided_targets.push(edge.target.clone());
+                                graphlog_edges.push(Edge::Present {
+                                    direct: true,
+                                    target: (edge.target, true),
+                                });
+                            } else {
+                                graphlog_edges.push(Edge::Present {
+                                    direct: false,
+                                    target: (edge.target, false),
+                                });
+                            }
+                        }
                     }
                 }
                 if has_missing {
                     graphlog_edges.push(Edge::Missing);
                 }
                 let mut buffer = vec![];
-                let commit = store.get_commit(&commit_id)?;
+                let key = (commit_id, false);
+                let commit = store.get_commit(&key.0)?;
                 with_content_format.write_graph_text(
                     ui.new_formatter(&mut buffer).as_mut(),
                     |formatter| template.format(&commit, formatter),
-                    || graph.width(&commit_id, &graphlog_edges),
+                    || graph.width(&key, &graphlog_edges),
                 )?;
                 if !buffer.ends_with(b"\n") {
                     buffer.push(b'\n');
@@ -166,18 +186,38 @@ pub(crate) fn cmd_log(
                         &diff_formats,
                     )?;
                 }
-                let node_symbol = if Some(&commit_id) == wc_commit_id {
+                let node_symbol = if Some(&key.0) == wc_commit_id {
                     "@"
                 } else {
                     &default_node_symbol
                 };
 
                 graph.add_node(
-                    &commit_id,
+                    &key,
                     &graphlog_edges,
                     node_symbol,
                     &String::from_utf8_lossy(&buffer),
                 )?;
+                for elided_target in elided_targets {
+                    let elided_key = (elided_target, true);
+                    let real_key = (elided_key.0.clone(), false);
+                    let edges = [Edge::Present {
+                        direct: true,
+                        target: real_key,
+                    }];
+                    let mut buffer = vec![];
+                    with_content_format.write_graph_text(
+                        ui.new_formatter(&mut buffer).as_mut(),
+                        |formatter| writeln!(formatter.labeled("elided"), "(elided revisions)"),
+                        || graph.width(&elided_key, &edges),
+                    )?;
+                    graph.add_node(
+                        &elided_key,
+                        &edges,
+                        &elided_node_symbol,
+                        &String::from_utf8_lossy(&buffer),
+                    )?;
+                }
             }
         } else {
             let iter: Box<dyn Iterator<Item = CommitId>> = if args.reversed {

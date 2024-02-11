@@ -1333,3 +1333,101 @@ fn test_log_word_wrap() {
        merge
     "###);
 }
+
+#[test]
+fn test_elided() {
+    // Test that elided commits are shown as synthetic nodes.
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "initial"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "main branch 1"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "main branch 2"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@--", "-m", "side branch 1"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "side branch 2"]);
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["new", "-m", "merge", r#"description("main branch 2")"#, "@"],
+    );
+
+    let get_log = |revs: &str| -> String {
+        test_env.jj_cmd_success(
+            &repo_path,
+            &["log", "-T", r#"description ++ "\n""#, "-r", revs],
+        )
+    };
+
+    // Test the setup
+    insta::assert_snapshot!(get_log("::"), @r###"
+    @    merge
+    ├─╮
+    │ ◉  side branch 2
+    │ │
+    │ ◉  side branch 1
+    │ │
+    ◉ │  main branch 2
+    │ │
+    ◉ │  main branch 1
+    ├─╯
+    ◉  initial
+    │
+    ◉
+    "###);
+
+    // Elide some commits from each side of the merge. It's unclear that a revision
+    // was skipped on the left side.
+    insta::assert_snapshot!(get_log("@ | @- | description(initial)"), @r###"
+    @    merge
+    ├─╮
+    │ ◉  side branch 2
+    │ ╷
+    ◉ ╷  main branch 2
+    ├─╯
+    ◉  initial
+    │
+    ~
+    "###);
+
+    // Elide shared commits. It's unclear that a revision was skipped on the right
+    // side (#1252).
+    insta::assert_snapshot!(get_log("@-- | root()"), @r###"
+    ◉  side branch 1
+    ╷
+    ╷ ◉  main branch 1
+    ╭─╯
+    ◉
+    "###);
+
+    // Now test the same thing with synthetic nodes for elided commits
+
+    // Elide some commits from each side of the merge
+    test_env.add_config("ui.log-synthetic-elided-nodes = true");
+    insta::assert_snapshot!(get_log("@ | @- | description(initial)"), @r###"
+    @    merge
+    ├─╮
+    │ ◉  side branch 2
+    │ │
+    │ ◌  (elided revisions)
+    ◉ │  main branch 2
+    │ │
+    ◌ │  (elided revisions)
+    ├─╯
+    ◉  initial
+    │
+    ~
+    "###);
+
+    // Elide shared commits. To keep the implementation simple, it still gets
+    // rendered as two synthetic nodes.
+    insta::assert_snapshot!(get_log("@-- | root()"), @r###"
+    ◉  side branch 1
+    │
+    ◌  (elided revisions)
+    │ ◉  main branch 1
+    │ │
+    │ ◌  (elided revisions)
+    ├─╯
+    ◉
+    "###);
+}
