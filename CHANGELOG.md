@@ -35,10 +35,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj next/prev` now infer `--edit` when you're already editing a non-head
   commit (a commit with children).
 
+* Built-in pager based on [minus](https://github.com/arijit79/minus/)
+
 ### Fixed bugs
 
 * On Windows, symlinks in the repo are now materialized as regular files in the
   working copy (instead of resulting in a crash).
+
+* On Windows, the pager will now be the built-in instead of disabled.
 
 ## [0.14.0] - 2024-02-07
 
