@@ -367,12 +367,8 @@ impl ReadonlyIndexSegment {
             .collect()
     }
 
-    /// Binary searches commit id by `prefix`.
-    ///
-    /// If the `prefix` matches exactly, returns `Ok` with the lookup position.
-    /// Otherwise, returns `Err` containing the position where the id could be
-    /// inserted.
-    fn commit_id_byte_prefix_to_lookup_pos(&self, prefix: &[u8]) -> Result<u32, u32> {
+    /// Binary searches commit id by `prefix`. Returns the lookup position.
+    fn commit_id_byte_prefix_to_lookup_pos(&self, prefix: &[u8]) -> PositionLookupResult {
         binary_search_pos_by(self.num_local_commits, |pos| {
             let entry = self.commit_lookup_entry(pos);
             entry.commit_id_bytes().cmp(prefix)
@@ -409,29 +405,13 @@ impl IndexSegment for ReadonlyIndexSegment {
         &self,
         commit_id: &CommitId,
     ) -> (Option<CommitId>, Option<CommitId>) {
-        let (prev_lookup_pos, next_lookup_pos) =
-            match self.commit_id_byte_prefix_to_lookup_pos(commit_id.as_bytes()) {
-                Ok(pos) => (pos.checked_sub(1), (pos + 1..self.num_local_commits).next()),
-                Err(pos) => (pos.checked_sub(1), (pos..self.num_local_commits).next()),
-            };
-        let prev_id = prev_lookup_pos.map(|p| self.commit_lookup_entry(p).commit_id());
-        let next_id = next_lookup_pos.map(|p| self.commit_lookup_entry(p).commit_id());
-        (prev_id, next_id)
+        self.commit_id_byte_prefix_to_lookup_pos(commit_id.as_bytes())
+            .map_neighbors(|pos| self.commit_lookup_entry(pos).commit_id())
     }
 
     fn resolve_commit_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
-        let lookup_pos = self
-            .commit_id_byte_prefix_to_lookup_pos(prefix.min_prefix_bytes())
-            .unwrap_or_else(|pos| pos);
-        let mut matches = (lookup_pos..self.num_local_commits)
-            .map(|pos| self.commit_lookup_entry(pos).commit_id())
-            .take_while(|id| prefix.matches(id))
-            .fuse();
-        match (matches.next(), matches.next()) {
-            (Some(id), None) => PrefixResolution::SingleMatch(id),
-            (Some(_), Some(_)) => PrefixResolution::AmbiguousMatch,
-            (None, _) => PrefixResolution::NoMatch,
-        }
+        self.commit_id_byte_prefix_to_lookup_pos(prefix.min_prefix_bytes())
+            .prefix_matches(prefix, |pos| self.commit_lookup_entry(pos).commit_id())
     }
 
     fn generation_number(&self, local_pos: LocalPosition) -> u32 {
@@ -561,11 +541,58 @@ impl ReadonlyIndex for DefaultReadonlyIndex {
     }
 }
 
+/// Binary search result in a sorted lookup table.
+#[derive(Clone, Copy, Debug)]
+struct PositionLookupResult {
+    /// `Ok` means the element is found at the position. `Err` contains the
+    /// position where the element could be inserted.
+    result: Result<u32, u32>,
+    size: u32,
+}
+
+impl PositionLookupResult {
+    /// Returns position of the element if exactly matched.
+    fn ok(self) -> Option<u32> {
+        self.result.ok()
+    }
+
+    /// Returns `(previous, next)` positions of the matching element or
+    /// boundary.
+    fn neighbors(self) -> (Option<u32>, Option<u32>) {
+        match self.result {
+            Ok(pos) => (pos.checked_sub(1), (pos + 1..self.size).next()),
+            Err(pos) => (pos.checked_sub(1), (pos..self.size).next()),
+        }
+    }
+
+    /// Looks up `(previous, next)` elements by the given function.
+    fn map_neighbors<T>(self, mut lookup: impl FnMut(u32) -> T) -> (Option<T>, Option<T>) {
+        let (prev_pos, next_pos) = self.neighbors();
+        (prev_pos.map(&mut lookup), next_pos.map(&mut lookup))
+    }
+
+    /// Looks up matching elements from the current position, returns one if
+    /// the given `prefix` unambiguously matches.
+    fn prefix_matches<T: ObjectId>(
+        self,
+        prefix: &HexPrefix,
+        lookup: impl FnMut(u32) -> T,
+    ) -> PrefixResolution<T> {
+        let lookup_pos = self.result.unwrap_or_else(|pos| pos);
+        let mut matches = (lookup_pos..self.size)
+            .map(lookup)
+            .take_while(|id| prefix.matches(id))
+            .fuse();
+        match (matches.next(), matches.next()) {
+            (Some(id), None) => PrefixResolution::SingleMatch(id),
+            (Some(_), Some(_)) => PrefixResolution::AmbiguousMatch,
+            (None, _) => PrefixResolution::NoMatch,
+        }
+    }
+}
+
 /// Binary searches u32 position with the given comparison function.
-///
-/// If matched exactly, returns `Ok` with the position. Otherwise, returns `Err`
-/// containing the position where the element could be inserted.
-fn binary_search_pos_by(size: u32, mut f: impl FnMut(u32) -> Ordering) -> Result<u32, u32> {
+fn binary_search_pos_by(size: u32, mut f: impl FnMut(u32) -> Ordering) -> PositionLookupResult {
     let mut low = 0;
     let mut high = size;
     while low < high {
@@ -576,8 +603,10 @@ fn binary_search_pos_by(size: u32, mut f: impl FnMut(u32) -> Ordering) -> Result
         low = if cmp == Ordering::Less { mid + 1 } else { low };
         high = if cmp == Ordering::Greater { mid } else { high };
         if cmp == Ordering::Equal {
-            return Ok(mid);
+            let result = Ok(mid);
+            return PositionLookupResult { result, size };
         }
     }
-    Err(low)
+    let result = Err(low);
+    PositionLookupResult { result, size }
 }
