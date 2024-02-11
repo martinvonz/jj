@@ -1147,7 +1147,7 @@ fn test_graph_styles() {
         &["new", "-m", "merge", r#"description("main branch 1")"#, "@"],
     );
 
-    // Default (legacy) style
+    // Default (curved) style
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T=description"]);
     insta::assert_snapshot!(stdout, @r###"
     @    merge
