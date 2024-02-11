@@ -1310,28 +1310,6 @@ fn test_log_word_wrap() {
        4 5 6 7
        8 9
     "###);
-    insta::assert_snapshot!(
-        render(&["log", "-T", template, "--config-toml=ui.graph.style='legacy'"], 9, true),
-        @r###"
-    @   0 1 2
-    |\  3 4 5
-    | | 6 7 8
-    | | 9
-    | o 0 1 2
-    | | 3 4 5
-    | | 6 7 8
-    | | 9
-    | o 0 1 2
-    |/  3 4 5
-    |   6 7 8
-    |   9
-    o 0 1 2 3
-    | 4 5 6 7
-    | 8 9
-    o 0 1 2 3
-      4 5 6 7
-      8 9
-    "###);
 
     // Shouldn't panic with $COLUMNS < graph_width
     insta::assert_snapshot!(render(&["log", "-r@"], 0, true), @r###"

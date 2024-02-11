@@ -105,7 +105,6 @@
                         "style": {
                             "description": "Style of connectors/markings used to render the graph. See https://github.com/martinvonz/jj/blob/main/docs/config.md#graph-style",
                             "enum": [
-                                "legacy",
                                 "curved",
                                 "square",
                                 "ascii",
