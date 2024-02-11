@@ -87,6 +87,8 @@
             openssl zstd libgit2 libssh2
           ] ++ darwinDeps;
 
+          enableParallelBuilding = true;
+
           ZSTD_SYS_USE_PKG_CONFIG = "1";
           LIBSSH2_SYS_USE_PKG_CONFIG = "1";
           RUSTFLAGS = pkgs.lib.optionalString useMoldLinker "-C link-arg=-fuse-ld=mold";
