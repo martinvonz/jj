@@ -111,7 +111,7 @@
                                 "ascii",
                                 "ascii-large"
                             ],
-                            "default": "legacy"
+                            "default": "curved"
                         }
                     }
                 },
