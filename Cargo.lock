@@ -1620,6 +1620,7 @@ dependencies = [
  "jj-lib",
  "libc",
  "maplit",
+ "minus",
  "once_cell",
  "pest",
  "pest_derive",
@@ -1859,6 +1860,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "minus"
+version = "5.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14b5f31d6666667f707078608f25e7615c48c2243a06b66ca0fa6c4ecb96362d"
+dependencies = [
+ "crossbeam-channel",
+ "crossterm",
+ "once_cell",
+ "parking_lot",
+ "regex",
+ "textwrap",
+ "thiserror",
+]
+
+[[package]]
 name = "mio"
 version = "0.8.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1938,6 +1954,9 @@ name = "once_cell"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
+dependencies = [
+ "parking_lot_core",
+]
 
 [[package]]
 name = "oorandom"

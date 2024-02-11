@@ -15,13 +15,17 @@
 use std::io::{IsTerminal as _, Stderr, StderrLock, Stdout, StdoutLock, Write};
 use std::process::{Child, ChildStdin, Stdio};
 use std::str::FromStr;
+use std::thread::JoinHandle;
 use std::{env, fmt, io, mem};
 
+use minus::Pager as MinusPager;
 use tracing::instrument;
 
 use crate::cli_util::CommandError;
 use crate::config::CommandNameAndArgs;
 use crate::formatter::{Formatter, FormatterFactory, LabeledWriter};
+
+const BUILTIN_PAGER_NAME: &str = ":builtin";
 
 enum UiOutput {
     Terminal {
@@ -32,9 +36,67 @@ enum UiOutput {
         child: Child,
         child_stdin: ChildStdin,
     },
+    BuiltinPaged {
+        pager: BuiltinPager,
+    },
+}
+
+/// A builtin pager
+pub struct BuiltinPager {
+    pager: MinusPager,
+    dynamic_pager_thread: JoinHandle<()>,
+}
+
+impl std::io::Write for &BuiltinPager {
+    fn flush(&mut self) -> io::Result<()> {
+        // no-op since this is being run in a dynamic pager mode.
+        Ok(())
+    }
+
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let string = std::str::from_utf8(buf).map_err(std::io::Error::other)?;
+        self.pager.push_str(string).map_err(std::io::Error::other)?;
+        Ok(buf.len())
+    }
+}
+
+impl Default for BuiltinPager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl BuiltinPager {
+    pub fn finalize(self) {
+        let dynamic_pager_thread = self.dynamic_pager_thread;
+        dynamic_pager_thread.join().unwrap();
+    }
+
+    pub fn new() -> Self {
+        let pager = MinusPager::new();
+        // Prefer to be cautious and only kill the pager instead of the whole process
+        // like minus does by default.
+        pager
+            .set_exit_strategy(minus::ExitStrategy::PagerQuit)
+            .expect("Able to set the exit strategy");
+        let pager_handle = pager.clone();
+
+        BuiltinPager {
+            pager,
+            dynamic_pager_thread: std::thread::spawn(move || {
+                // This thread handles the actual paging.
+                minus::dynamic_paging(pager_handle).unwrap();
+            }),
+        }
+    }
 }
 
 impl UiOutput {
+    fn new_builtin() -> UiOutput {
+        UiOutput::BuiltinPaged {
+            pager: BuiltinPager::new(),
+        }
+    }
     fn new_terminal() -> UiOutput {
         UiOutput::Terminal {
             stdout: io::stdout(),
@@ -49,16 +111,16 @@ impl UiOutput {
     }
 }
 
-#[derive(Debug)]
 pub enum UiStdout<'a> {
     Terminal(StdoutLock<'static>),
     Paged(&'a ChildStdin),
+    Builtin(&'a BuiltinPager),
 }
 
-#[derive(Debug)]
 pub enum UiStderr<'a> {
     Terminal(StderrLock<'static>),
     Paged(&'a ChildStdin),
+    Builtin(&'a BuiltinPager),
 }
 
 macro_rules! for_outputs {
@@ -66,6 +128,7 @@ macro_rules! for_outputs {
         match $output {
             $ty::Terminal($pat) => $expr,
             $ty::Paged($pat) => $expr,
+            $ty::Builtin($pat) => $expr,
         }
     };
 }
@@ -217,6 +280,11 @@ impl Ui {
 
         match self.output {
             UiOutput::Terminal { .. } if io::stdout().is_terminal() => {
+                if self.pager_cmd == CommandNameAndArgs::String(BUILTIN_PAGER_NAME.into()) {
+                    self.output = UiOutput::new_builtin();
+                    return;
+                }
+
                 match UiOutput::new_paged(&self.pager_cmd) {
                     Ok(pager_output) => {
                         self.output = pager_output;
@@ -225,14 +293,15 @@ impl Ui {
                         // The pager executable couldn't be found or couldn't be run
                         writeln!(
                             self.warning(),
-                            "Failed to spawn pager '{name}': {e}",
+                            "Failed to spawn pager '{name}': {e}. Consider using the `:builtin` \
+                             pager.",
                             name = self.pager_cmd.split_name(),
                         )
                         .ok();
                     }
                 }
             }
-            UiOutput::Terminal { .. } | UiOutput::Paged { .. } => {}
+            UiOutput::Terminal { .. } | UiOutput::BuiltinPaged { .. } | UiOutput::Paged { .. } => {}
         }
     }
 
@@ -252,6 +321,7 @@ impl Ui {
         match &self.output {
             UiOutput::Terminal { stdout, .. } => UiStdout::Terminal(stdout.lock()),
             UiOutput::Paged { child_stdin, .. } => UiStdout::Paged(child_stdin),
+            UiOutput::BuiltinPaged { pager } => UiStdout::Builtin(pager),
         }
     }
 
@@ -268,6 +338,7 @@ impl Ui {
         match &self.output {
             UiOutput::Terminal { stderr, .. } => UiStderr::Terminal(stderr.lock()),
             UiOutput::Paged { child_stdin, .. } => UiStderr::Paged(child_stdin),
+            UiOutput::BuiltinPaged { pager } => UiStderr::Builtin(pager),
         }
     }
 
@@ -281,6 +352,8 @@ impl Ui {
         match &self.output {
             UiOutput::Terminal { .. } => Ok(Stdio::inherit()),
             UiOutput::Paged { child_stdin, .. } => Ok(duplicate_child_stdin(child_stdin)?.into()),
+            // Stderr does not get redirected through the built-in pager.
+            UiOutput::BuiltinPaged { .. } => Ok(Stdio::inherit()),
         }
     }
 
@@ -290,6 +363,7 @@ impl Ui {
         match &self.output {
             UiOutput::Terminal { stderr, .. } => self.progress_indicator && stderr.is_terminal(),
             UiOutput::Paged { .. } => false,
+            UiOutput::BuiltinPaged { .. } => false,
         }
     }
 
@@ -314,18 +388,23 @@ impl Ui {
     /// Waits for the pager exits.
     #[instrument(skip_all)]
     pub fn finalize_pager(&mut self) {
-        if let UiOutput::Paged {
-            mut child,
-            child_stdin,
-        } = mem::replace(&mut self.output, UiOutput::new_terminal())
-        {
-            drop(child_stdin);
-            if let Err(e) = child.wait() {
-                // It's possible (though unlikely) that this write fails, but
-                // this function gets called so late that there's not much we
-                // can do about it.
-                writeln!(self.error(), "Failed to wait on pager: {e}").ok();
+        match mem::replace(&mut self.output, UiOutput::new_terminal()) {
+            UiOutput::Paged {
+                mut child,
+                child_stdin,
+            } => {
+                drop(child_stdin);
+                if let Err(e) = child.wait() {
+                    // It's possible (though unlikely) that this write fails, but
+                    // this function gets called so late that there's not much we
+                    // can do about it.
+                    writeln!(self.error(), "Failed to wait on pager: {e}").ok();
+                }
             }
+            UiOutput::BuiltinPaged { pager } => {
+                pager.finalize();
+            }
+            _ => { /* no-op */ }
         }
     }
 

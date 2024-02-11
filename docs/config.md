@@ -300,16 +300,26 @@ Can be customized by the `format_short_signature()` template alias.
 
 ## Pager
 
-Windows users: Note that pagination is disabled by default on Windows for now
-([#2040](https://github.com/martinvonz/jj/issues/2040)).
-
 The default pager is can be set via `ui.pager` or the `PAGER` environment
 variable. The priority is as follows (environment variables are marked with
 a `$`):
 
 `ui.pager` > `$PAGER`
 
-`less -FRX` is the default pager in the absence of any other setting.
+`less -FRX` is the default pager in the absence of any other setting, except
+on Windows where it is `:builtin`.
+
+The special value `:builtin` enables usage of the
+[integrated pager](https://github.com/arijit79/minus/). It is likely if you
+are using a standard Linux distro, your system has `$PAGER` set already
+and that will be preferred over the built-in. To use the built-in:
+
+```
+jj config set --user ui.pager :builtin
+```
+
+It is possible the default will change to `:builtin` for all platforms in the
+future.
 
 Additionally, paging behavior can be toggled via `ui.paginate` like so:
 
