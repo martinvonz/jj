@@ -218,8 +218,7 @@ revsets.log = "main@origin.."
 ### Graph style
 
 ```toml
-# Possible values: "curved" (default), "square", "ascii", "ascii-large",
-# "legacy"
+# Possible values: "curved" (default), "square", "ascii", "ascii-large"
 ui.graph.style = "square"
 ```
 

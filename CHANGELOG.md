@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reindexing failed, you'll need to clean up corrupted operation history by
   `jj op abandon ..<bad operation ID>`.
 
+* Dropped support for the "legacy" graph-drawing style. Use "ascii" for a very
+  similar result.
+
 ### New features
 
 * Templates now support logical operators: `||`, `&&`, `!`
