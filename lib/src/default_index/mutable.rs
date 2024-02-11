@@ -203,16 +203,16 @@ impl MutableIndexSegment {
                     buf.extend((!0_u32).to_le_bytes());
                     buf.extend((!0_u32).to_le_bytes());
                 }
-                [pos1] => {
-                    assert!(pos1.0 < OVERFLOW_FLAG);
-                    buf.extend(pos1.0.to_le_bytes());
+                [IndexPosition(pos1)] => {
+                    assert!(*pos1 < OVERFLOW_FLAG);
+                    buf.extend(pos1.to_le_bytes());
                     buf.extend((!0_u32).to_le_bytes());
                 }
-                [pos1, pos2] => {
-                    assert!(pos1.0 < OVERFLOW_FLAG);
-                    assert!(pos2.0 < OVERFLOW_FLAG);
-                    buf.extend(pos1.0.to_le_bytes());
-                    buf.extend(pos2.0.to_le_bytes());
+                [IndexPosition(pos1), IndexPosition(pos2)] => {
+                    assert!(*pos1 < OVERFLOW_FLAG);
+                    assert!(*pos2 < OVERFLOW_FLAG);
+                    buf.extend(pos1.to_le_bytes());
+                    buf.extend(pos2.to_le_bytes());
                 }
                 positions => {
                     let overflow_pos = u32::try_from(parent_overflow.len()).unwrap();
@@ -237,10 +237,10 @@ impl MutableIndexSegment {
             buf.extend(pos.to_le_bytes());
         }
 
-        buf[parent_overflow_offset..][..4]
-            .copy_from_slice(&u32::try_from(parent_overflow.len()).unwrap().to_le_bytes());
-        for parent_pos in parent_overflow {
-            buf.extend(parent_pos.0.to_le_bytes());
+        let num_parent_overflow = u32::try_from(parent_overflow.len()).unwrap();
+        buf[parent_overflow_offset..][..4].copy_from_slice(&num_parent_overflow.to_le_bytes());
+        for IndexPosition(pos) in parent_overflow {
+            buf.extend(pos.to_le_bytes());
         }
     }
 
