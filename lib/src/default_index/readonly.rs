@@ -372,13 +372,13 @@ impl ReadonlyIndexSegment {
     /// If the `prefix` matches exactly, returns `Ok` with the lookup position.
     /// Otherwise, returns `Err` containing the position where the id could be
     /// inserted.
-    fn commit_id_byte_prefix_to_lookup_pos(&self, prefix: &CommitId) -> Result<u32, u32> {
+    fn commit_id_byte_prefix_to_lookup_pos(&self, prefix: &[u8]) -> Result<u32, u32> {
         let mut low = 0;
         let mut high = self.num_local_commits;
         while low < high {
             let mid = (low + high) / 2;
             let entry = self.commit_lookup_entry(mid);
-            let cmp = entry.commit_id_bytes().cmp(prefix.as_bytes());
+            let cmp = entry.commit_id_bytes().cmp(prefix);
             // According to Rust std lib, this produces cmov instructions.
             // https://github.com/rust-lang/rust/blob/1.76.0/library/core/src/slice/mod.rs#L2845-L2855
             low = if cmp == Ordering::Less { mid + 1 } else { low };
@@ -409,7 +409,9 @@ impl IndexSegment for ReadonlyIndexSegment {
     }
 
     fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<LocalPosition> {
-        let lookup_pos = self.commit_id_byte_prefix_to_lookup_pos(commit_id).ok()?;
+        let lookup_pos = self
+            .commit_id_byte_prefix_to_lookup_pos(commit_id.as_bytes())
+            .ok()?;
         let entry = self.commit_lookup_entry(lookup_pos);
         Some(entry.local_pos())
     }
@@ -419,7 +421,7 @@ impl IndexSegment for ReadonlyIndexSegment {
         commit_id: &CommitId,
     ) -> (Option<CommitId>, Option<CommitId>) {
         let (prev_lookup_pos, next_lookup_pos) =
-            match self.commit_id_byte_prefix_to_lookup_pos(commit_id) {
+            match self.commit_id_byte_prefix_to_lookup_pos(commit_id.as_bytes()) {
                 Ok(pos) => (pos.checked_sub(1), (pos + 1..self.num_local_commits).next()),
                 Err(pos) => (pos.checked_sub(1), (pos..self.num_local_commits).next()),
             };
@@ -429,9 +431,8 @@ impl IndexSegment for ReadonlyIndexSegment {
     }
 
     fn resolve_commit_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
-        let min_bytes_prefix = CommitId::from_bytes(prefix.min_prefix_bytes());
         let lookup_pos = self
-            .commit_id_byte_prefix_to_lookup_pos(&min_bytes_prefix)
+            .commit_id_byte_prefix_to_lookup_pos(prefix.min_prefix_bytes())
             .unwrap_or_else(|pos| pos);
         let mut matches = (lookup_pos..self.num_local_commits)
             .map(|pos| self.commit_lookup_entry(pos).commit_id())
