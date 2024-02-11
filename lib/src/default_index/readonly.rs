@@ -373,21 +373,10 @@ impl ReadonlyIndexSegment {
     /// Otherwise, returns `Err` containing the position where the id could be
     /// inserted.
     fn commit_id_byte_prefix_to_lookup_pos(&self, prefix: &[u8]) -> Result<u32, u32> {
-        let mut low = 0;
-        let mut high = self.num_local_commits;
-        while low < high {
-            let mid = (low + high) / 2;
-            let entry = self.commit_lookup_entry(mid);
-            let cmp = entry.commit_id_bytes().cmp(prefix);
-            // According to Rust std lib, this produces cmov instructions.
-            // https://github.com/rust-lang/rust/blob/1.76.0/library/core/src/slice/mod.rs#L2845-L2855
-            low = if cmp == Ordering::Less { mid + 1 } else { low };
-            high = if cmp == Ordering::Greater { mid } else { high };
-            if cmp == Ordering::Equal {
-                return Ok(mid);
-            }
-        }
-        Err(low)
+        binary_search_pos_by(self.num_local_commits, |pos| {
+            let entry = self.commit_lookup_entry(pos);
+            entry.commit_id_bytes().cmp(prefix)
+        })
     }
 }
 
@@ -570,4 +559,25 @@ impl ReadonlyIndex for DefaultReadonlyIndex {
     fn start_modification(&self) -> Box<dyn MutableIndex> {
         Box::new(DefaultMutableIndex::incremental(self.0.clone()))
     }
+}
+
+/// Binary searches u32 position with the given comparison function.
+///
+/// If matched exactly, returns `Ok` with the position. Otherwise, returns `Err`
+/// containing the position where the element could be inserted.
+fn binary_search_pos_by(size: u32, mut f: impl FnMut(u32) -> Ordering) -> Result<u32, u32> {
+    let mut low = 0;
+    let mut high = size;
+    while low < high {
+        let mid = (low + high) / 2;
+        let cmp = f(mid);
+        // According to Rust std lib, this produces cmov instructions.
+        // https://github.com/rust-lang/rust/blob/1.76.0/library/core/src/slice/mod.rs#L2845-L2855
+        low = if cmp == Ordering::Less { mid + 1 } else { low };
+        high = if cmp == Ordering::Greater { mid } else { high };
+        if cmp == Ordering::Equal {
+            return Ok(mid);
+        }
+    }
+    Err(low)
 }
