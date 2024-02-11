@@ -367,27 +367,27 @@ impl ReadonlyIndexSegment {
             .collect()
     }
 
-    fn commit_id_byte_prefix_to_lookup_pos(&self, prefix: &CommitId) -> Option<u32> {
-        if self.num_local_commits == 0 {
-            // Avoid overflow when subtracting 1 below
-            return None;
-        }
+    /// Binary searches commit id by `prefix`.
+    ///
+    /// If the `prefix` matches exactly, returns `Ok` with the lookup position.
+    /// Otherwise, returns `Err` containing the position where the id could be
+    /// inserted.
+    fn commit_id_byte_prefix_to_lookup_pos(&self, prefix: &CommitId) -> Result<u32, u32> {
         let mut low = 0;
-        let mut high = self.num_local_commits - 1;
-
-        // binary search for the commit id
-        loop {
+        let mut high = self.num_local_commits;
+        while low < high {
             let mid = (low + high) / 2;
-            if high == low {
-                return Some(mid);
-            }
             let entry = self.commit_lookup_entry(mid);
-            if entry.commit_id_bytes() < prefix.as_bytes() {
-                low = mid + 1;
-            } else {
-                high = mid;
+            let cmp = entry.commit_id_bytes().cmp(prefix.as_bytes());
+            // According to Rust std lib, this produces cmov instructions.
+            // https://github.com/rust-lang/rust/blob/1.76.0/library/core/src/slice/mod.rs#L2845-L2855
+            low = if cmp == Ordering::Less { mid + 1 } else { low };
+            high = if cmp == Ordering::Greater { mid } else { high };
+            if cmp == Ordering::Equal {
+                return Ok(mid);
             }
         }
+        Err(low)
     }
 }
 
@@ -409,41 +409,30 @@ impl IndexSegment for ReadonlyIndexSegment {
     }
 
     fn commit_id_to_pos(&self, commit_id: &CommitId) -> Option<LocalPosition> {
-        let lookup_pos = self.commit_id_byte_prefix_to_lookup_pos(commit_id)?;
+        let lookup_pos = self.commit_id_byte_prefix_to_lookup_pos(commit_id).ok()?;
         let entry = self.commit_lookup_entry(lookup_pos);
-        (&entry.commit_id() == commit_id).then(|| entry.local_pos())
+        Some(entry.local_pos())
     }
 
     fn resolve_neighbor_commit_ids(
         &self,
         commit_id: &CommitId,
     ) -> (Option<CommitId>, Option<CommitId>) {
-        if let Some(lookup_pos) = self.commit_id_byte_prefix_to_lookup_pos(commit_id) {
-            let entry_commit_id = self.commit_lookup_entry(lookup_pos).commit_id();
-            let (prev_lookup_pos, next_lookup_pos) = match entry_commit_id.cmp(commit_id) {
-                Ordering::Less => {
-                    assert_eq!(lookup_pos + 1, self.num_local_commits);
-                    (Some(lookup_pos), None)
-                }
-                Ordering::Equal => {
-                    let succ = ((lookup_pos + 1)..self.num_local_commits).next();
-                    (lookup_pos.checked_sub(1), succ)
-                }
-                Ordering::Greater => (lookup_pos.checked_sub(1), Some(lookup_pos)),
+        let (prev_lookup_pos, next_lookup_pos) =
+            match self.commit_id_byte_prefix_to_lookup_pos(commit_id) {
+                Ok(pos) => (pos.checked_sub(1), (pos + 1..self.num_local_commits).next()),
+                Err(pos) => (pos.checked_sub(1), (pos..self.num_local_commits).next()),
             };
-            let prev_id = prev_lookup_pos.map(|p| self.commit_lookup_entry(p).commit_id());
-            let next_id = next_lookup_pos.map(|p| self.commit_lookup_entry(p).commit_id());
-            (prev_id, next_id)
-        } else {
-            (None, None)
-        }
+        let prev_id = prev_lookup_pos.map(|p| self.commit_lookup_entry(p).commit_id());
+        let next_id = next_lookup_pos.map(|p| self.commit_lookup_entry(p).commit_id());
+        (prev_id, next_id)
     }
 
     fn resolve_commit_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         let min_bytes_prefix = CommitId::from_bytes(prefix.min_prefix_bytes());
         let lookup_pos = self
             .commit_id_byte_prefix_to_lookup_pos(&min_bytes_prefix)
-            .unwrap_or(self.num_local_commits);
+            .unwrap_or_else(|pos| pos);
         let mut matches = (lookup_pos..self.num_local_commits)
             .map(|pos| self.commit_lookup_entry(pos).commit_id())
             .take_while(|id| prefix.matches(id))
