@@ -40,6 +40,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Built-in pager based on [minus](https://github.com/arijit79/minus/)
 
+* Set config `ui.log-synthetic-elided-nodes = true` to make `jj log` include
+  synthetic nodes in the graph where some revisions were elided
+  ([#1252](https://github.com/martinvonz/jj/issues/1252),
+  [#2971](https://github.com/martinvonz/jj/issues/2971)). This may become the
+  default depending on feedback.
+
 ### Fixed bugs
 
 * On Windows, symlinks in the repo are now materialized as regular files in the
