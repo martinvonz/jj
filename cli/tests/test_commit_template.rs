@@ -122,6 +122,27 @@ fn test_log_author_timestamp_utc() {
     "###);
 }
 
+#[cfg(unix)]
+#[test]
+fn test_log_author_timestamp_local() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_env_var("TZ", "UTC-05:30");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "author.timestamp().local()"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  2001-02-03 02:35:07.000 +05:30
+    ◉  1970-01-01 05:30:00.000 +05:30
+    "###);
+    test_env.add_env_var("TZ", "UTC+10:00");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "author.timestamp().local()"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  2001-02-02 11:05:07.000 -10:00
+    ◉  1969-12-31 14:00:00.000 -10:00
+    "###);
+}
+
 #[test]
 fn test_log_default() {
     let test_env = TestEnvironment::default();

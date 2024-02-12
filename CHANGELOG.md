@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj git fetch` now accepts `-b` as a shorthand for `--branch`, making it more
   consistent with other commands that accept a branch
 
+* In the templating language, Timestamps now have a `.local()` method for
+  converting to the local timezone.
+
 ### Fixed bugs
 
 * On Windows, symlinks in the repo are now materialized as regular files in the
