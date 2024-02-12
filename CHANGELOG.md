@@ -32,6 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * In the templating language, Timestamps now have a `.local()` method for
   converting to the local timezone.
 
+* `jj next/prev` now infer `--edit` when you're already editing a non-head
+  commit (a commit with children).
+
 ### Fixed bugs
 
 * On Windows, symlinks in the repo are now materialized as regular files in the

@@ -29,7 +29,7 @@ use crate::ui::Ui;
 /// D @  D
 /// |/   |
 /// A => A @
-/// |    | /
+/// |    |/
 /// B    B
 /// ```
 ///
@@ -44,6 +44,9 @@ use crate::ui::Ui;
 /// B    B
 /// |    |
 /// A    A
+///
+/// If your working-copy commit already has visible children, then `--edit` is
+/// implied.
 /// ```
 // TODO(#2126): Handle multiple parents, e.g merges.
 #[derive(clap::Args, Clone, Debug)]
@@ -63,11 +66,16 @@ pub(crate) fn cmd_prev(
     args: &PrevArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let edit = args.edit;
     let amount = args.amount;
     let current_wc_id = workspace_command
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
+    let edit = args.edit
+        || !workspace_command
+            .repo()
+            .view()
+            .heads()
+            .contains(current_wc_id);
     let current_wc = workspace_command.repo().store().get_commit(current_wc_id)?;
     let start_id = if edit {
         current_wc_id
