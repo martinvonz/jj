@@ -21,8 +21,25 @@ pub trait ObjectId {
     fn hex(&self) -> String;
 }
 
+// Defines a new struct type with visibility `vis` and name `ident` containing
+// a single Vec<u8> used to store an identifier (typically the output of a hash
+// function) as bytes. Types defined using this macro automatically implement
+// the `ObjectId` and `ContentHash` traits.
+// Documentation comments written inside the macro definition and will be
+// captured and associated with the type defined by the macro.
+//
+// Example:
+// ```no_run
+// id_type!(
+//     /// My favorite id type.
+//     pub MyId
+// );
+// ```
 macro_rules! id_type {
-    ($vis:vis $name:ident) => {
+    (   $(#[$attr:meta])*
+        $vis:vis $name:ident
+    ) => {
+        $(#[$attr])*
         #[derive(ContentHash, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
         $vis struct $name(Vec<u8>);
         $crate::object_id::impl_id_type!($name);
