@@ -6309,6 +6309,9 @@ C    C
 B =&gt; @
 |    |
 @    A
+
+If your working-copy commit already has visible children, then `--edit` is
+implied.
 </code></pre></div>
 <p><strong>Usage:</strong> <code>jj next [OPTIONS] [AMOUNT]</code></p>
 <h6 id="arguments_30"><strong>Arguments:</strong><a class="headerlink" href="#arguments_30" title="Permanent link">&para;</a></h6>
@@ -6461,7 +6464,7 @@ B =&gt; @
 <div class="highlight"><pre><span></span><code>D @  D
 |/   |
 A =&gt; A @
-|    | /
+|    |/
 B    B
 </code></pre></div>
 <p>If <code>--edit</code> is passed, it will move the working copy commit
@@ -6473,6 +6476,9 @@ C =&gt; @
 B    B
 |    |
 A    A
+
+If your working-copy commit already has visible children, then `--edit` is
+implied.
 </code></pre></div>
 <p><strong>Usage:</strong> <code>jj prev [OPTIONS] [AMOUNT]</code></p>
 <h6 id="arguments_34"><strong>Arguments:</strong><a class="headerlink" href="#arguments_34" title="Permanent link">&para;</a></h6>
