@@ -72,6 +72,7 @@ impl Timestamp {
     }
 }
 
+/// Represents a [`Commit`] signature.
 #[derive(ContentHash, Debug, PartialEq, Eq, Clone)]
 pub struct Signature {
     pub name: String,
@@ -79,6 +80,7 @@ pub struct Signature {
     pub timestamp: Timestamp,
 }
 
+/// Represents a cryptographically signed [`Commit`] signature.
 #[derive(ContentHash, Debug, PartialEq, Eq, Clone)]
 pub struct SecureSig {
     pub data: Vec<u8>,
@@ -331,6 +333,7 @@ pub fn make_root_commit(root_change_id: ChangeId, empty_tree_id: TreeId) -> Comm
     }
 }
 
+/// Defines the interface for commit backends.
 #[async_trait]
 pub trait Backend: Send + Sync + Debug {
     fn as_any(&self) -> &dyn Any;

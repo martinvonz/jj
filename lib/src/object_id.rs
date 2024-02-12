@@ -103,14 +103,19 @@ macro_rules! impl_id_type {
 
 pub(crate) use {id_type, impl_id_type};
 
+/// An identifier prefix (typically from a type implementing the [`ObjectId`]
+/// trait) with facilities for converting between bytes and a hex string.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HexPrefix {
-    // For odd-length prefix, lower 4 bits of the last byte is padded with 0
+    // For odd-length prefixes, the lower 4 bits of the last byte are
+    // zero-filled (e.g. the prefix "abc" is stored in two bytes as "abc0").
     min_prefix_bytes: Vec<u8>,
     has_odd_byte: bool,
 }
 
 impl HexPrefix {
+    /// Returns a new `HexPrefix` or `None` if `prefix` cannot be decoded from
+    /// hex to bytes.
     pub fn new(prefix: &str) -> Option<HexPrefix> {
         let has_odd_byte = prefix.len() & 1 != 0;
         let min_prefix_bytes = if has_odd_byte {
@@ -160,6 +165,7 @@ impl HexPrefix {
         }
     }
 
+    /// Returns whether the stored prefix matches the prefix of `id`.
     pub fn matches<Q: ObjectId>(&self, id: &Q) -> bool {
         let id_bytes = id.as_bytes();
         let (maybe_odd, prefix) = self.split_odd_byte();
@@ -175,6 +181,7 @@ impl HexPrefix {
     }
 }
 
+/// The result of a prefix search.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PrefixResolution<T> {
     NoMatch,
