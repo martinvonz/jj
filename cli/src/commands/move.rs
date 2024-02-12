@@ -38,10 +38,10 @@ use crate::ui::Ui;
 #[command(group(ArgGroup::new("to_move").args(&["from", "to"]).multiple(true).required(true)))]
 pub(crate) struct MoveArgs {
     /// Move part of this change into the destination
-    #[arg(long)]
+    #[arg(long, short)]
     from: Option<RevisionArg>,
     /// Move part of the source into this change
-    #[arg(long)]
+    #[arg(long, short)]
     to: Option<RevisionArg>,
     /// Interactively choose which parts to move
     #[arg(long, short)]
