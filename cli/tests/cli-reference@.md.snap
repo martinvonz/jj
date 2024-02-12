@@ -1057,8 +1057,8 @@ If the source became empty and both the source and destination had a non-empty d
 
 ###### **Options:**
 
-* `--from <FROM>` — Move part of this change into the destination
-* `--to <TO>` — Move part of the source into this change
+* `-f`, `--from <FROM>` — Move part of this change into the destination
+* `-t`, `--to <TO>` — Move part of the source into this change
 * `-i`, `--interactive` — Interactively choose which parts to move
 
   Possible values: `true`, `false`
