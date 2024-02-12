@@ -224,6 +224,12 @@ mod tests {
 
         let prefix = HexPrefix::new("123").unwrap();
         assert_eq!(prefix.min_prefix_bytes(), b"\x12\x30");
+
+        let bad_prefix = HexPrefix::new("0x123");
+        assert_eq!(bad_prefix, None);
+
+        let bad_prefix = HexPrefix::new("foobar");
+        assert_eq!(bad_prefix, None);
     }
 
     #[test]
