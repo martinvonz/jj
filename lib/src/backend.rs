@@ -32,8 +32,16 @@ use crate::object_id::{id_type, ObjectId};
 use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathComponentBuf};
 use crate::signing::SignResult;
 
-id_type!(pub CommitId);
-id_type!(pub ChangeId);
+id_type!(
+    /// Identifier for a [`Commit`] based on its content. When a commit is
+    /// rewritten, its `CommitId` changes.
+    pub CommitId
+);
+id_type!(
+    /// Stable identifier for a [`Commit`]. Unlike the `CommitId`, the `ChangeId`
+    /// follows the commit and is not updated when the commit is rewritten.
+    pub ChangeId
+);
 id_type!(pub TreeId);
 id_type!(pub FileId);
 id_type!(pub SymlinkId);
