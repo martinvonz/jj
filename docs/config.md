@@ -276,7 +276,7 @@ Can be customized by the `format_timestamp()` template alias.
 
 ```toml
 [template-aliases]
-# Full timestamp in ISO 8601 format (default)
+# Full timestamp in ISO 8601 format
 'format_timestamp(timestamp)' = 'timestamp'
 # Relative timestamp rendered as "x days/hours/seconds ago"
 'format_timestamp(timestamp)' = 'timestamp.ago()'

@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Commit templates now support `immutable` keyword.
 
+* Timestamps are now shown in local timezone and without milliseconds and
+  timezone offset by default.
+
 ### Fixed bugs
 
 ## [0.15.1] - 2024-03-06

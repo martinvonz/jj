@@ -378,11 +378,11 @@ fn test_git_push_multiple() {
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-rall()"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  yqosqzyt test.user@example.com 2001-02-03 04:05:17.000 +07:00 branch2 my-branch 15dcdaa4
+    @  yqosqzyt test.user@example.com 2001-02-03 08:05:17 branch2 my-branch 15dcdaa4
     │  (empty) foo
-    │ ◉  rlzusymt test.user@example.com 2001-02-03 04:05:10.000 +07:00 8476341e
+    │ ◉  rlzusymt test.user@example.com 2001-02-03 08:05:10 8476341e
     ├─╯  (empty) description 2
-    │ ◉  lzmmnrxq test.user@example.com 2001-02-03 04:05:08.000 +07:00 45a3aa29
+    │ ◉  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 45a3aa29
     ├─╯  (empty) description 1
     ◉  zzzzzzzz root() 00000000
     "###);
@@ -672,11 +672,11 @@ fn test_git_push_deleted() {
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-rall()"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  rlzusymt test.user@example.com 2001-02-03 04:05:10.000 +07:00 branch2 8476341e
+    ◉  rlzusymt test.user@example.com 2001-02-03 08:05:10 branch2 8476341e
     │  (empty) description 2
-    │ ◉  lzmmnrxq test.user@example.com 2001-02-03 04:05:08.000 +07:00 45a3aa29
+    │ ◉  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 45a3aa29
     ├─╯  (empty) description 1
-    │ @  yqosqzyt test.user@example.com 2001-02-03 04:05:13.000 +07:00 5b36783c
+    │ @  yqosqzyt test.user@example.com 2001-02-03 08:05:13 5b36783c
     ├─╯  (empty) (no description set)
     ◉  zzzzzzzz root() 00000000
     "###);

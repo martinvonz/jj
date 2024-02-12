@@ -133,14 +133,14 @@ fn test_log_author_timestamp_local() {
     test_env.add_env_var("TZ", "UTC-05:30");
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "author.timestamp().local()"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  2001-02-03 02:35:07.000 +05:30
-    ◉  1970-01-01 05:30:00.000 +05:30
+    @  2001-02-03 08:05:07.000 +11:00
+    ◉  1970-01-01 11:00:00.000 +11:00
     "###);
     test_env.add_env_var("TZ", "UTC+10:00");
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "author.timestamp().local()"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  2001-02-02 11:05:07.000 -10:00
-    ◉  1969-12-31 14:00:00.000 -10:00
+    @  2001-02-03 08:05:07.000 +11:00
+    ◉  1970-01-01 11:00:00.000 +11:00
     "###);
 }
 
@@ -158,9 +158,9 @@ fn test_log_default() {
     // Test default log output format
     let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  kkmpptxz test.user@example.com 2001-02-03 04:05:09.000 +07:00 my-branch 9de54178
+    @  kkmpptxz test.user@example.com 2001-02-03 08:05:09 my-branch 9de54178
     │  (empty) description 1
-    ◉  qpvuntsm test.user@example.com 2001-02-03 04:05:08.000 +07:00 4291e264
+    ◉  qpvuntsm test.user@example.com 2001-02-03 08:05:08 4291e264
     │  add a file
     ◉  zzzzzzzz root() 00000000
     "###);
@@ -168,9 +168,9 @@ fn test_log_default() {
     // Color
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  [1m[38;5;13mk[38;5;8mkmpptxz[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:09.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12m9[38;5;8mde54178[39m[0m
+    @  [1m[38;5;13mk[38;5;8mkmpptxz[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 08:05:09[39m [38;5;13mmy-branch[39m [38;5;12m9[38;5;8mde54178[39m[0m
     │  [1m[38;5;10m(empty)[39m description 1[0m
-    ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [1m[38;5;4m4[0m[38;5;8m291e264[39m
+    ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:08[39m [1m[38;5;4m4[0m[38;5;8m291e264[39m
     │  add a file
     ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot()[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
     "###);
@@ -178,9 +178,9 @@ fn test_log_default() {
     // Color without graph
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"
-    [1m[38;5;13mk[38;5;8mkmpptxz[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:09.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12m9[38;5;8mde54178[39m[0m
+    [1m[38;5;13mk[38;5;8mkmpptxz[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 08:05:09[39m [38;5;13mmy-branch[39m [38;5;12m9[38;5;8mde54178[39m[0m
     [1m[38;5;10m(empty)[39m description 1[0m
-    [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [1m[38;5;4m4[0m[38;5;8m291e264[39m
+    [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:08[39m [1m[38;5;4m4[0m[38;5;8m291e264[39m
     add a file
     [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot()[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
     "###);
@@ -207,26 +207,26 @@ fn test_log_builtin_templates() {
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "my-branch"]);
 
     insta::assert_snapshot!(render(r#"builtin_log_oneline"#), @r###"
-    rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 my-branch dc315397 (empty) (no description set)
-    qpvuntsm test.user 2001-02-03 04:05:07.000 +07:00 230dd059 (empty) (no description set)
+    rlvkpnrz (no email set) 2001-02-03 08:05:08 my-branch dc315397 (empty) (no description set)
+    qpvuntsm test.user 2001-02-03 08:05:07 230dd059 (empty) (no description set)
     zzzzzzzz root() 00000000
     [EOF]
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_log_compact"#), @r###"
-    rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 my-branch dc315397
+    rlvkpnrz (no email set) 2001-02-03 08:05:08 my-branch dc315397
     (empty) (no description set)
-    qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
+    qpvuntsm test.user@example.com 2001-02-03 08:05:07 230dd059
     (empty) (no description set)
     zzzzzzzz root() 00000000
     [EOF]
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_log_comfortable"#), @r###"
-    rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 my-branch dc315397
+    rlvkpnrz (no email set) 2001-02-03 08:05:08 my-branch dc315397
     (empty) (no description set)
 
-    qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
+    qpvuntsm test.user@example.com 2001-02-03 08:05:07 230dd059
     (empty) (no description set)
 
     zzzzzzzz root() 00000000
@@ -238,22 +238,22 @@ fn test_log_builtin_templates() {
     Commit ID: dc31539712c7294d1d712cec63cef4504b94ca74
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
     Branches: my-branch
-    Author: (no name set) <(no email set)> (2001-02-03 04:05:08.000 +07:00)
-    Committer: (no name set) <(no email set)> (2001-02-03 04:05:08.000 +07:00)
+    Author: (no name set) <(no email set)> (2001-02-03 08:05:08)
+    Committer: (no name set) <(no email set)> (2001-02-03 08:05:08)
 
         (no description set)
 
     Commit ID: 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     Change ID: qpvuntsmwlqtpsluzzsnyyzlmlwvmlnu
-    Author: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
-    Committer: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:07)
+    Committer: Test User <test.user@example.com> (2001-02-03 08:05:07)
 
         (no description set)
 
     Commit ID: 0000000000000000000000000000000000000000
     Change ID: zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
-    Author: (no name set) <(no email set)> (1970-01-01 00:00:00.000 +00:00)
-    Committer: (no name set) <(no email set)> (1970-01-01 00:00:00.000 +00:00)
+    Author: (no name set) <(no email set)> (1970-01-01 11:00:00)
+    Committer: (no name set) <(no email set)> (1970-01-01 11:00:00)
 
         (no description set)
 
@@ -280,24 +280,24 @@ fn test_log_builtin_templates_colored() {
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "my-branch"]);
 
     insta::assert_snapshot!(render(r#"builtin_log_oneline"#), @r###"
-    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;9m(no email set)[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12md[38;5;8mc315397[39m [38;5;10m(empty)[39m [38;5;10m(no description set)[39m[0m
-    ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m [38;5;2m(empty)[39m [38;5;2m(no description set)[39m
+    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;9m(no email set)[39m [38;5;14m2001-02-03 08:05:08[39m [38;5;13mmy-branch[39m [38;5;12md[38;5;8mc315397[39m [38;5;10m(empty)[39m [38;5;10m(no description set)[39m[0m
+    ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user[39m [38;5;6m2001-02-03 08:05:07[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m [38;5;2m(empty)[39m [38;5;2m(no description set)[39m
     ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot()[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_log_compact"#), @r###"
-    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;9m(no email set)[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12md[38;5;8mc315397[39m[0m
+    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;9m(no email set)[39m [38;5;14m2001-02-03 08:05:08[39m [38;5;13mmy-branch[39m [38;5;12md[38;5;8mc315397[39m[0m
     │  [1m[38;5;10m(empty)[39m [38;5;10m(no description set)[39m[0m
-    ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m
+    ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:07[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m
     │  [38;5;2m(empty)[39m [38;5;2m(no description set)[39m
     ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot()[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_log_comfortable"#), @r###"
-    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;9m(no email set)[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;13mmy-branch[39m [38;5;12md[38;5;8mc315397[39m[0m
+    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;9m(no email set)[39m [38;5;14m2001-02-03 08:05:08[39m [38;5;13mmy-branch[39m [38;5;12md[38;5;8mc315397[39m[0m
     │  [1m[38;5;10m(empty)[39m [38;5;10m(no description set)[39m[0m
     │
-    ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m
+    ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:07[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m
     │  [38;5;2m(empty)[39m [38;5;2m(no description set)[39m
     │
     ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot()[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
@@ -307,22 +307,22 @@ fn test_log_builtin_templates_colored() {
     @  Commit ID: [38;5;4mdc31539712c7294d1d712cec63cef4504b94ca74[39m
     │  Change ID: [38;5;5mrlvkpnrzqnoowoytxnquwvuryrwnrmlp[39m
     │  Branches: [38;5;5mmy-branch[39m
-    │  Author: [38;5;1m(no name set)[39m <[38;5;1m(no email set)[39m> ([38;5;6m2001-02-03 04:05:08.000 +07:00[39m)
-    │  Committer: [38;5;1m(no name set)[39m <[38;5;1m(no email set)[39m> ([38;5;6m2001-02-03 04:05:08.000 +07:00[39m)
+    │  Author: [38;5;1m(no name set)[39m <[38;5;1m(no email set)[39m> ([38;5;6m2001-02-03 08:05:08[39m)
+    │  Committer: [38;5;1m(no name set)[39m <[38;5;1m(no email set)[39m> ([38;5;6m2001-02-03 08:05:08[39m)
     │
     │  [38;5;2m    (no description set)[39m
     │
     ◉  Commit ID: [38;5;4m230dd059e1b059aefc0da06a2e5a7dbf22362f22[39m
     │  Change ID: [38;5;5mqpvuntsmwlqtpsluzzsnyyzlmlwvmlnu[39m
-    │  Author: Test User <[38;5;3mtest.user@example.com[39m> ([38;5;6m2001-02-03 04:05:07.000 +07:00[39m)
-    │  Committer: Test User <[38;5;3mtest.user@example.com[39m> ([38;5;6m2001-02-03 04:05:07.000 +07:00[39m)
+    │  Author: Test User <[38;5;3mtest.user@example.com[39m> ([38;5;6m2001-02-03 08:05:07[39m)
+    │  Committer: Test User <[38;5;3mtest.user@example.com[39m> ([38;5;6m2001-02-03 08:05:07[39m)
     │
     │  [38;5;2m    (no description set)[39m
     │
     ◉  Commit ID: [38;5;4m0000000000000000000000000000000000000000[39m
        Change ID: [38;5;5mzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz[39m
-       Author: [38;5;1m(no name set)[39m <[38;5;1m(no email set)[39m> ([38;5;6m1970-01-01 00:00:00.000 +00:00[39m)
-       Committer: [38;5;1m(no name set)[39m <[38;5;1m(no email set)[39m> ([38;5;6m1970-01-01 00:00:00.000 +00:00[39m)
+       Author: [38;5;1m(no name set)[39m <[38;5;1m(no email set)[39m> ([38;5;6m1970-01-01 11:00:00[39m)
+       Committer: [38;5;1m(no name set)[39m <[38;5;1m(no email set)[39m> ([38;5;6m1970-01-01 11:00:00[39m)
 
        [38;5;2m    (no description set)[39m
 
@@ -340,7 +340,7 @@ fn test_log_obslog_divergence() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
     // No divergence
     insta::assert_snapshot!(stdout, @r###"
-    @  qpvuntsm test.user@example.com 2001-02-03 04:05:08.000 +07:00 7a17d52e
+    @  qpvuntsm test.user@example.com 2001-02-03 08:05:08 7a17d52e
     │  description 1
     ◉  zzzzzzzz root() 00000000
     "###);
@@ -352,9 +352,9 @@ fn test_log_obslog_divergence() {
     );
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  qpvuntsm?? test.user@example.com 2001-02-03 04:05:10.000 +07:00 8979953d
+    ◉  qpvuntsm?? test.user@example.com 2001-02-03 08:05:10 8979953d
     │  description 2
-    │ @  qpvuntsm?? test.user@example.com 2001-02-03 04:05:08.000 +07:00 7a17d52e
+    │ @  qpvuntsm?? test.user@example.com 2001-02-03 08:05:08 7a17d52e
     ├─╯  description 1
     ◉  zzzzzzzz root() 00000000
     "###);
@@ -365,9 +365,9 @@ fn test_log_obslog_divergence() {
     // Color
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  [1m[4m[38;5;1mq[0m[38;5;1mpvuntsm??[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:10.000 +07:00[39m [1m[38;5;4m8[0m[38;5;8m979953d[39m
+    ◉  [1m[4m[38;5;1mq[0m[38;5;1mpvuntsm??[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:10[39m [1m[38;5;4m8[0m[38;5;8m979953d[39m
     │  description 2
-    │ @  [1m[4m[38;5;1mq[24mpvuntsm[38;5;9m??[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;12m7[38;5;8ma17d52e[39m[0m
+    │ @  [1m[4m[38;5;1mq[24mpvuntsm[38;5;9m??[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 08:05:08[39m [38;5;12m7[38;5;8ma17d52e[39m[0m
     ├─╯  [1mdescription 1[0m
     ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot()[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
     "###);
@@ -375,22 +375,22 @@ fn test_log_obslog_divergence() {
     // Obslog and hidden divergent
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  qpvuntsm?? test.user@example.com 2001-02-03 04:05:08.000 +07:00 7a17d52e
+    @  qpvuntsm?? test.user@example.com 2001-02-03 08:05:08 7a17d52e
     │  description 1
-    ◉  qpvuntsm hidden test.user@example.com 2001-02-03 04:05:08.000 +07:00 3b68ce25
+    ◉  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:08 3b68ce25
     │  (no description set)
-    ◉  qpvuntsm hidden test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
+    ◉  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:07 230dd059
        (empty) (no description set)
     "###);
 
     // Colored obslog
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--color=always"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  [1m[4m[38;5;1mq[24mpvuntsm[38;5;9m??[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:08.000 +07:00[39m [38;5;12m7[38;5;8ma17d52e[39m[0m
+    @  [1m[4m[38;5;1mq[24mpvuntsm[38;5;9m??[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 08:05:08[39m [38;5;12m7[38;5;8ma17d52e[39m[0m
     │  [1mdescription 1[0m
-    ◉  [1m[39mq[0m[38;5;8mpvuntsm[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:08.000 +07:00[39m [1m[38;5;4m3[0m[38;5;8mb68ce25[39m
+    ◉  [1m[39mq[0m[38;5;8mpvuntsm[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:08[39m [1m[38;5;4m3[0m[38;5;8mb68ce25[39m
     │  [38;5;3m(no description set)[39m
-    ◉  [1m[39mq[0m[38;5;8mpvuntsm[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m
+    ◉  [1m[39mq[0m[38;5;8mpvuntsm[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:07[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m
        [38;5;2m(empty)[39m [38;5;2m(no description set)[39m
     "###);
 }
@@ -496,9 +496,9 @@ fn test_log_git_head() {
     std::fs::write(repo_path.join("file"), "foo\n").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--color=always"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 04:05:09.000 +07:00[39m [38;5;12m5[38;5;8m0aaf475[39m[0m
+    @  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 08:05:09[39m [38;5;12m5[38;5;8m0aaf475[39m[0m
     │  [1minitial[0m
-    ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m [38;5;2mHEAD@git[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m
+    ◉  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:07[39m [38;5;2mHEAD@git[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m
     │  [38;5;2m(empty)[39m [38;5;2m(no description set)[39m
     ◉  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot()[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
     "###);
@@ -523,7 +523,7 @@ fn test_log_customize_short_id() {
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
-    @  Q_pvun test.user@example.com 2001-02-03 04:05:08.000 +07:00 6_9542
+    @  Q_pvun test.user@example.com 2001-02-03 08:05:08 6_9542
     │  (empty) first
     ◉  Z_zzzz root() 0_0000
     "###);
@@ -541,7 +541,7 @@ fn test_log_customize_short_id() {
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
-    @  QPVUNTSM test.user@example.com 2001-02-03 04:05:08.000 +07:00 69542c19
+    @  QPVUNTSM test.user@example.com 2001-02-03 08:05:08 69542c19
     │  (empty) first
     ◉  ZZZZZZZZ root() 00000000
     "###);

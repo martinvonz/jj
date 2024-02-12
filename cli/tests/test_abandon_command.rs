@@ -334,7 +334,7 @@ fn test_double_abandon() {
     insta::assert_snapshot!(
     test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-r", "a"])
         , @r###"
-    rlvkpnrz test.user@example.com 2001-02-03 04:05:09.000 +07:00 a 2443ea76
+    rlvkpnrz test.user@example.com 2001-02-03 08:05:09 a 2443ea76
     a
     "###);
 
