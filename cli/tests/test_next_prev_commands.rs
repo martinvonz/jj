@@ -284,6 +284,13 @@ fn test_prev_editing() {
     Working copy now at: zsuskuln 009f88bf (empty) fourth
     Parent commit      : kkmpptxz 3fa8931e (empty) third
     "###);
+    // --edit is implied when already editing a non-head commit
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: yqosqzyt d2edc95b (empty) (no description set)
+    Parent commit      : rlvkpnrz 5c52832c (empty) second
+    "###);
 }
 
 #[test]
@@ -296,8 +303,15 @@ fn test_next_editing() {
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "fourth"]);
-    test_env.jj_cmd_ok(&repo_path, &["edit", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["edit", "@---"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next", "--edit"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: kkmpptxz 3fa8931e (empty) third
+    Parent commit      : rlvkpnrz 5c52832c (empty) second
+    "###);
+    // --edit is implied when already editing a non-head commit
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Working copy now at: zsuskuln 009f88bf (empty) fourth

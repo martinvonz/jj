@@ -1145,6 +1145,9 @@ C    C
 B => @
 |    |
 @    A
+
+If your working-copy commit already has visible children, then `--edit` is
+implied.
 ```
 
 **Usage:** `jj next [OPTIONS] [AMOUNT]`
@@ -1330,7 +1333,7 @@ The command moves you to the parent in a linear fashion.
 D @  D
 |/   |
 A => A @
-|    | /
+|    |/
 B    B
 ```
 
@@ -1345,6 +1348,9 @@ C => @
 B    B
 |    |
 A    A
+
+If your working-copy commit already has visible children, then `--edit` is
+implied.
 ```
 
 **Usage:** `jj prev [OPTIONS] [AMOUNT]`
