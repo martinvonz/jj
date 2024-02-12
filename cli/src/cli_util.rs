@@ -359,8 +359,8 @@ impl ReadonlyUserRepo {
     }
 }
 
-// Provides utilities for writing a command that works on a workspace (like most
-// commands do).
+/// Provides utilities for writing a command that works on a [`Workspace`]
+/// (which most commands do).
 pub struct WorkspaceCommandHelper {
     cwd: PathBuf,
     string_args: Vec<String>,
@@ -1286,6 +1286,12 @@ Then run `jj squash` to move the resolution into the conflicted commit."#,
     }
 }
 
+/// A [`Transaction`] tied to a particular workspace.
+/// `WorkspaceCommandTransaction`s are created with
+/// [`WorkspaceCommandHelper::start_transaction`] and committed with
+/// [`WorkspaceCommandTransaction::finish`]. The inner `Transaction` can also be
+/// extracted using [`WorkspaceCommandTransaction::into_inner`] in situations
+/// where finer-grained control over the `Transaction` is necessary.
 #[must_use]
 pub struct WorkspaceCommandTransaction<'a> {
     helper: &'a mut WorkspaceCommandHelper,
@@ -1351,6 +1357,10 @@ impl WorkspaceCommandTransaction<'_> {
         self.helper.finish_transaction(ui, self.tx, description)
     }
 
+    /// Returns the wrapped [`Transaction`] for circumstances where
+    /// finer-grained control is needed. The caller becomes responsible for
+    /// finishing the `Transaction`, including rebasing descendants and updating
+    /// the working copy, if applicable.
     pub fn into_inner(self) -> Transaction {
         self.tx
     }

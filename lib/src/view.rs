@@ -24,6 +24,7 @@ use crate::refs::LocalAndRemoteRef;
 use crate::str_util::StringPattern;
 use crate::{op_store, refs};
 
+/// A wrapper around [`op_store::View`] that defines additional methods.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub struct View {
     data: op_store::View,
