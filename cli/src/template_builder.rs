@@ -571,6 +571,17 @@ fn build_timestamp_method<'a, L: TemplateLanguage<'a>>(
                 timestamp
             }))
         }
+        "local" => {
+            template_parser::expect_no_arguments(function)?;
+            let tz_offset = chrono::Local::now().offset().local_minus_utc() / 60;
+            language.wrap_timestamp(TemplateFunction::new(
+                self_property,
+                move |mut timestamp| {
+                    timestamp.tz_offset = tz_offset;
+                    timestamp
+                },
+            ))
+        }
         _ => return Err(TemplateParseError::no_such_method("Timestamp", function)),
     };
     Ok(property)

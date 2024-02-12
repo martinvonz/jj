@@ -187,6 +187,7 @@ The following methods are defined.
 * `.format(format: String) -> String`: Format with [the specified strftime-like
   format string](https://docs.rs/chrono/latest/chrono/format/strftime/).
 * `.utc() -> Timestamp`: Convert timestamp into UTC timezone.
+* `.local() -> Timestamp`: Convert timestamp into local timezone.
 
 ### TimestampRange type
 
