@@ -334,32 +334,13 @@ impl IndexSegment for MutableIndexSegment {
         &self,
         commit_id: &CommitId,
     ) -> (Option<CommitId>, Option<CommitId>) {
-        let prev_id = self
-            .commit_lookup
-            .range((Bound::Unbounded, Bound::Excluded(commit_id)))
-            .next_back()
-            .map(|(id, _)| id.clone());
-        let next_id = self
-            .commit_lookup
-            .range((Bound::Excluded(commit_id), Bound::Unbounded))
-            .next()
-            .map(|(id, _)| id.clone());
-        (prev_id, next_id)
+        let (prev_id, next_id) = resolve_neighbor_ids(&self.commit_lookup, commit_id);
+        (prev_id.cloned(), next_id.cloned())
     }
 
     fn resolve_commit_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<CommitId> {
         let min_bytes_prefix = CommitId::from_bytes(prefix.min_prefix_bytes());
-        let mut matches = self
-            .commit_lookup
-            .range((Bound::Included(&min_bytes_prefix), Bound::Unbounded))
-            .map(|(id, _pos)| id)
-            .take_while(|&id| prefix.matches(id))
-            .fuse();
-        match (matches.next(), matches.next()) {
-            (Some(id), None) => PrefixResolution::SingleMatch(id.clone()),
-            (Some(_), Some(_)) => PrefixResolution::AmbiguousMatch,
-            (None, _) => PrefixResolution::NoMatch,
-        }
+        resolve_id_prefix(&self.commit_lookup, prefix, &min_bytes_prefix).map(|id| id.clone())
     }
 
     fn generation_number(&self, local_pos: LocalPosition) -> u32 {
@@ -497,5 +478,37 @@ impl MutableIndex for DefaultMutableIndex {
             .downcast_ref::<DefaultReadonlyIndex>()
             .expect("index to merge in must be a DefaultReadonlyIndex");
         self.0.merge_in(other.as_segment().clone());
+    }
+}
+
+fn resolve_neighbor_ids<'a, K: Ord, V>(
+    lookup_table: &'a BTreeMap<K, V>,
+    id: &K,
+) -> (Option<&'a K>, Option<&'a K>) {
+    let prev_id = lookup_table
+        .range((Bound::Unbounded, Bound::Excluded(id)))
+        .next_back()
+        .map(|(id, _)| id);
+    let next_id = lookup_table
+        .range((Bound::Excluded(id), Bound::Unbounded))
+        .next()
+        .map(|(id, _)| id);
+    (prev_id, next_id)
+}
+
+fn resolve_id_prefix<'a, K: ObjectId + Ord, V>(
+    lookup_table: &'a BTreeMap<K, V>,
+    prefix: &HexPrefix,
+    min_bytes_prefix: &K,
+) -> PrefixResolution<&'a K> {
+    let mut matches = lookup_table
+        .range((Bound::Included(min_bytes_prefix), Bound::Unbounded))
+        .map(|(id, _pos)| id)
+        .take_while(|&id| prefix.matches(id))
+        .fuse();
+    match (matches.next(), matches.next()) {
+        (Some(id), None) => PrefixResolution::SingleMatch(id),
+        (Some(_), Some(_)) => PrefixResolution::AmbiguousMatch,
+        (None, _) => PrefixResolution::NoMatch,
     }
 }
