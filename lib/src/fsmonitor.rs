@@ -26,7 +26,7 @@ use std::str::FromStr;
 /// The recognized kinds of filesystem monitors.
 #[derive(Eq, PartialEq)]
 pub enum FsmonitorKind {
-    /// The Watchman filesystem monitor (https://facebook.github.io/watchman/).
+    /// The Watchman filesystem monitor (<https://facebook.github.io/watchman/>).
     Watchman,
 
     /// Only used in tests.
