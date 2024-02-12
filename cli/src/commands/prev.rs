@@ -69,7 +69,6 @@ pub(crate) fn cmd_prev(
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let current_wc = workspace_command.repo().store().get_commit(current_wc_id)?;
-    let current_short = short_commit_hash(current_wc.id());
     let start_id = if edit {
         current_wc_id
     } else {
@@ -106,6 +105,7 @@ pub(crate) fn cmd_prev(
         commits => choose_commit(ui, &workspace_command, "prev", commits)?,
     };
     // Generate a short commit hash, to make it readable in the op log.
+    let current_short = short_commit_hash(current_wc.id());
     let target_short = short_commit_hash(target.id());
     // If we're editing, just move to the revision directly.
     if edit {
