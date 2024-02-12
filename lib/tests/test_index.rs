@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashSet;
 use std::fs;
 use std::sync::Arc;
 
@@ -28,6 +29,7 @@ use jj_lib::object_id::{HexPrefix, ObjectId as _, PrefixResolution};
 use jj_lib::op_store::{RefTarget, RemoteRef};
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jj_lib::settings::UserSettings;
+use maplit::hashset;
 use testutils::test_backend::TestBackend;
 use testutils::{
     commit_transactions, create_random_commit, load_repo_at_head, write_random_commit,
@@ -780,36 +782,39 @@ fn test_change_id_index() {
     assert_eq!(prefix_len(&commit_3), 6);
     assert_eq!(prefix_len(&commit_4), 1);
     assert_eq!(prefix_len(&commit_5), 1);
-    let resolve_prefix =
-        |prefix: &str| change_id_index.resolve_prefix(&HexPrefix::new(prefix).unwrap());
+    let resolve_prefix = |prefix: &str| {
+        change_id_index
+            .resolve_prefix(&HexPrefix::new(prefix).unwrap())
+            .map(HashSet::from_iter)
+    };
     // Ambiguous matches
     assert_eq!(resolve_prefix("a"), PrefixResolution::AmbiguousMatch);
     assert_eq!(resolve_prefix("aaaaa"), PrefixResolution::AmbiguousMatch);
     // Exactly the necessary length
     assert_eq!(
         resolve_prefix("0"),
-        PrefixResolution::SingleMatch(vec![root_commit.id().clone()])
+        PrefixResolution::SingleMatch(hashset! {root_commit.id().clone()})
     );
     assert_eq!(
         resolve_prefix("aaaaaa"),
-        PrefixResolution::SingleMatch(vec![commit_3.id().clone()])
+        PrefixResolution::SingleMatch(hashset! {commit_3.id().clone()})
     );
     assert_eq!(
         resolve_prefix("aaaaab"),
-        PrefixResolution::SingleMatch(vec![commit_2.id().clone()])
+        PrefixResolution::SingleMatch(hashset! {commit_2.id().clone()})
     );
     assert_eq!(
         resolve_prefix("ab"),
-        PrefixResolution::SingleMatch(vec![commit_1.id().clone()])
+        PrefixResolution::SingleMatch(hashset! {commit_1.id().clone()})
     );
     assert_eq!(
         resolve_prefix("b"),
-        PrefixResolution::SingleMatch(vec![commit_5.id().clone(), commit_4.id().clone()])
+        PrefixResolution::SingleMatch(hashset! {commit_4.id().clone(), commit_5.id().clone()})
     );
     // Longer than necessary
     assert_eq!(
         resolve_prefix("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
-        PrefixResolution::SingleMatch(vec![commit_3.id().clone()])
+        PrefixResolution::SingleMatch(hashset! {commit_3.id().clone()})
     );
     // No match
     assert_eq!(resolve_prefix("ba"), PrefixResolution::NoMatch);
@@ -822,19 +827,22 @@ fn test_change_id_index() {
     assert_eq!(prefix_len(&commit_1), 2);
     assert_eq!(prefix_len(&commit_2), 2);
     assert_eq!(prefix_len(&commit_3), 6);
-    let resolve_prefix =
-        |prefix: &str| change_id_index.resolve_prefix(&HexPrefix::new(prefix).unwrap());
+    let resolve_prefix = |prefix: &str| {
+        change_id_index
+            .resolve_prefix(&HexPrefix::new(prefix).unwrap())
+            .map(HashSet::from_iter)
+    };
     assert_eq!(
         resolve_prefix("0"),
-        PrefixResolution::SingleMatch(vec![root_commit.id().clone()])
+        PrefixResolution::SingleMatch(hashset! {root_commit.id().clone()})
     );
     assert_eq!(
         resolve_prefix("aa"),
-        PrefixResolution::SingleMatch(vec![commit_2.id().clone()])
+        PrefixResolution::SingleMatch(hashset! {commit_2.id().clone()})
     );
     assert_eq!(
         resolve_prefix("ab"),
-        PrefixResolution::SingleMatch(vec![commit_1.id().clone()])
+        PrefixResolution::SingleMatch(hashset! {commit_1.id().clone()})
     );
     assert_eq!(resolve_prefix("a"), PrefixResolution::AmbiguousMatch);
     assert_eq!(resolve_prefix("b"), PrefixResolution::NoMatch);
