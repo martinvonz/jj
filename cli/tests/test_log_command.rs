@@ -692,7 +692,7 @@ fn test_log_author_format() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "--revisions=@"]),
         @r###"
-    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
+    @  qpvuntsm test.user@example.com 2001-02-03 08:05:07 230dd059
     │  (empty) (no description set)
     ~
     "###
@@ -710,7 +710,7 @@ fn test_log_author_format() {
             ],
         ),
         @r###"
-    @  qpvuntsm test.user 2001-02-03 04:05:07.000 +07:00 230dd059
+    @  qpvuntsm test.user 2001-02-03 08:05:07 230dd059
     │  (empty) (no description set)
     ~
     "###
@@ -1239,32 +1239,30 @@ fn test_log_word_wrap() {
 
     // ui.log-word-wrap option applies to both graph/no-graph outputs
     insta::assert_snapshot!(render(&["log", "-r@"], 40, false), @r###"
-    @  mzvwutvl test.user@example.com 2001-02-03 04:05:11.000 +07:00 68518a7e
+    @  mzvwutvl test.user@example.com 2001-02-03 08:05:11 68518a7e
     │  (empty) merge
     ~
     "###);
     insta::assert_snapshot!(render(&["log", "-r@"], 40, true), @r###"
     @  mzvwutvl test.user@example.com
-    │  2001-02-03 04:05:11.000 +07:00
-    ~  68518a7e
-       (empty) merge
+    │  2001-02-03 08:05:11 68518a7e
+    ~  (empty) merge
     "###);
     insta::assert_snapshot!(render(&["log", "--no-graph", "-r@"], 40, false), @r###"
-    mzvwutvl test.user@example.com 2001-02-03 04:05:11.000 +07:00 68518a7e
+    mzvwutvl test.user@example.com 2001-02-03 08:05:11 68518a7e
     (empty) merge
     "###);
     insta::assert_snapshot!(render(&["log", "--no-graph", "-r@"], 40, true), @r###"
     mzvwutvl test.user@example.com
-    2001-02-03 04:05:11.000 +07:00 68518a7e
+    2001-02-03 08:05:11 68518a7e
     (empty) merge
     "###);
 
     // Color labels should be preserved
     insta::assert_snapshot!(render(&["log", "-r@", "--color=always"], 40, true), @r###"
     @  [1m[38;5;13mm[38;5;8mzvwutvl[39m [38;5;3mtest.user@example.com[39m[0m
-    │  [1m[38;5;14m2001-02-03 04:05:11.000 +07:00[39m[0m
-    ~  [1m[38;5;12m6[38;5;8m8518a7e[39m[0m
-       [1m[38;5;10m(empty)[39m merge[0m
+    │  [1m[38;5;14m2001-02-03 08:05:11[39m [38;5;12m6[38;5;8m8518a7e[39m[0m
+    ~  [1m[38;5;10m(empty)[39m merge[0m
     "###);
 
     // Graph width should be subtracted from the term width
@@ -1295,8 +1293,7 @@ fn test_log_word_wrap() {
     @  mzvwutvl
     │  test.user@example.com
     ~  2001-02-03
-       04:05:11.000
-       +07:00
+       08:05:11
        68518a7e
        (empty)
        merge
@@ -1305,8 +1302,7 @@ fn test_log_word_wrap() {
     @  mzvwutvl
     │  test.user@example.com
     ~  2001-02-03
-       04:05:11.000
-       +07:00
+       08:05:11
        68518a7e
        (empty)
        merge

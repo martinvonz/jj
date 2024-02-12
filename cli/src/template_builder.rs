@@ -761,7 +761,10 @@ fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
     });
     map.insert("local", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let tz_offset = chrono::Local::now().offset().local_minus_utc() / 60;
+        let tz_offset = std::env::var("JJ_TZ_OFFSET_MINS")
+            .ok()
+            .and_then(|tz_string| tz_string.parse::<i32>().ok())
+            .unwrap_or_else(|| chrono::Local::now().offset().local_minus_utc() / 60);
         let out_property = TemplateFunction::new(self_property, move |mut timestamp| {
             timestamp.tz_offset = tz_offset;
             Ok(timestamp)

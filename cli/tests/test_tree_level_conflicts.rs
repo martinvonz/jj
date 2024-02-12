@@ -39,13 +39,13 @@ fn test_enable_tree_level_conflicts() {
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  mzvwutvl test.user@example.com 2001-02-03 04:05:11.000 +07:00 f2101bed conflict
+    @  mzvwutvl test.user@example.com 2001-02-03 08:05:11 f2101bed conflict
     │  (empty) (no description set)
-    ◉    zsuskuln test.user@example.com 2001-02-03 04:05:10.000 +07:00 5100e4e1 conflict
+    ◉    zsuskuln test.user@example.com 2001-02-03 08:05:10 5100e4e1 conflict
     ├─╮  (empty) merge
-    │ ◉  kkmpptxz test.user@example.com 2001-02-03 04:05:10.000 +07:00 0b65c8fb
+    │ ◉  kkmpptxz test.user@example.com 2001-02-03 08:05:10 0b65c8fb
     │ │  right
-    ◉ │  rlvkpnrz test.user@example.com 2001-02-03 04:05:09.000 +07:00 32003b88
+    ◉ │  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 32003b88
     ├─╯  left
     ◉  zzzzzzzz root() 00000000
     "###);
@@ -56,13 +56,13 @@ fn test_enable_tree_level_conflicts() {
     // non-empty
     let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  mzvwutvl test.user@example.com 2001-02-03 04:05:13.000 +07:00 51f1748d conflict
+    @  mzvwutvl test.user@example.com 2001-02-03 08:05:13 51f1748d conflict
     │  (no description set)
-    ◉    zsuskuln test.user@example.com 2001-02-03 04:05:10.000 +07:00 5100e4e1 conflict
+    ◉    zsuskuln test.user@example.com 2001-02-03 08:05:10 5100e4e1 conflict
     ├─╮  (empty) merge
-    │ ◉  kkmpptxz test.user@example.com 2001-02-03 04:05:10.000 +07:00 0b65c8fb
+    │ ◉  kkmpptxz test.user@example.com 2001-02-03 08:05:10 0b65c8fb
     │ │  right
-    ◉ │  rlvkpnrz test.user@example.com 2001-02-03 04:05:09.000 +07:00 32003b88
+    ◉ │  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 32003b88
     ├─╯  left
     ◉  zzzzzzzz root() 00000000
     "###);
@@ -75,7 +75,7 @@ fn test_enable_tree_level_conflicts() {
     test_env.jj_cmd_ok(&repo_path, &["new", "k"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r=@"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  yostqsxw test.user@example.com 2001-02-03 04:05:15.000 +07:00 112f0ac2
+    @  yostqsxw test.user@example.com 2001-02-03 08:05:15 112f0ac2
     │  (empty) (no description set)
     ~
     "###);

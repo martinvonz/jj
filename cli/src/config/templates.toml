@@ -154,7 +154,7 @@ commit_summary_separator = 'label("separator", " | ")'
   ++ " (" ++ format_timestamp(signature.timestamp()) ++ ")"'''
 'format_time_range(time_range)' = '''
   time_range.start().ago() ++ label("time", ", lasted ") ++ time_range.duration()'''
-'format_timestamp(timestamp)' = 'timestamp'
+'format_timestamp(timestamp)' = 'timestamp.local().format("%Y-%m-%d %H:%M:%S")'
 
 # We have "hidden" override "divergent", since a hidden revision does not cause
 # change id conflicts and is not affected by such conflicts; you have to use the

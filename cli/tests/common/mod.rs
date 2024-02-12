@@ -97,6 +97,7 @@ impl TestEnvironment {
         cmd.env("JJ_EMAIL", "test.user@example.com");
         cmd.env("JJ_OP_HOSTNAME", "host.example.com");
         cmd.env("JJ_OP_USERNAME", "test-username");
+        cmd.env("JJ_TZ_OFFSET_MINS", "660");
 
         let mut command_number = self.command_number.borrow_mut();
         *command_number += 1;

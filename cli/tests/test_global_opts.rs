@@ -92,12 +92,12 @@ fn test_no_subcommand() {
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "show"]);
     // TODO: test_env.jj_cmd_ok(&repo_path, &["-r", "help"])
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["-r", "log"]), @r###"
-    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 help log show 230dd059
+    @  qpvuntsm test.user@example.com 2001-02-03 08:05:07 help log show 230dd059
     │  (empty) (no description set)
     ~
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["-r", "show"]), @r###"
-    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 help log show 230dd059
+    @  qpvuntsm test.user@example.com 2001-02-03 08:05:07 help log show 230dd059
     │  (empty) (no description set)
     ~
     "###);

@@ -27,8 +27,8 @@ fn test_show() {
     let stdout = stdout.lines().skip(2).join("\n");
 
     insta::assert_snapshot!(stdout, @r###"
-    Author: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
-    Committer: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:07)
+    Committer: Test User <test.user@example.com> (2001-02-03 08:05:07)
 
         (no description set)
     "###);
