@@ -106,7 +106,6 @@ pub(crate) fn cmd_next(
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let current_wc = workspace_command.repo().store().get_commit(current_wc_id)?;
-    let current_short = short_commit_hash(current_wc.id());
     // If we're editing, start at the working-copy commit.
     // Otherwise start from our direct parent.
     let start_id = if edit {
@@ -140,6 +139,7 @@ pub(crate) fn cmd_next(
         }
         commits => choose_commit(ui, &workspace_command, "next", commits)?,
     };
+    let current_short = short_commit_hash(current_wc.id());
     let target_short = short_commit_hash(target.id());
     // We're editing, just move to the target commit.
     if edit {
