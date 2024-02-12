@@ -2222,13 +2222,20 @@ will need to modify the <code>format_time_range()</code> template alias.</p>
 <span class="s1">&#39;format_short_signature(signature)&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;signature.username()&#39;</span>
 </code></pre></div>
 <h2 id="pager">Pager<a class="headerlink" href="#pager" title="Permanent link">&para;</a></h2>
-<p>Windows users: Note that pagination is disabled by default on Windows for now
-(<a href="https://github.com/martinvonz/jj/issues/2040">#2040</a>).</p>
 <p>The default pager is can be set via <code>ui.pager</code> or the <code>PAGER</code> environment
 variable. The priority is as follows (environment variables are marked with
 a <code>$</code>):</p>
 <p><code>ui.pager</code> &gt; <code>$PAGER</code></p>
-<p><code>less -FRX</code> is the default pager in the absence of any other setting.</p>
+<p><code>less -FRX</code> is the default pager in the absence of any other setting, except
+on Windows where it is <code>:builtin</code>.</p>
+<p>The special value <code>:builtin</code> enables usage of the
+<a href="https://github.com/arijit79/minus/">integrated pager</a>. It is likely if you
+are using a standard Linux distro, your system has <code>$PAGER</code> set already
+and that will be preferred over the built-in. To use the built-in:</p>
+<div class="highlight"><pre><span></span><code>jj config set --user ui.pager :builtin
+</code></pre></div>
+<p>It is possible the default will change to <code>:builtin</code> for all platforms in the
+future.</p>
 <p>Additionally, paging behavior can be toggled via <code>ui.paginate</code> like so:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Enable pagination for commands that support it (default)</span>
 <span class="n">ui</span><span class="p">.</span><span class="n">paginate</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;auto&quot;</span>
