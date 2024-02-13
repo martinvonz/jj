@@ -26,6 +26,24 @@ jobs:
 
     steps:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
+
+    # The default version of gpg installed on the runners is a version baked in with git
+    # which only contains the components needed by git and doesn't work for our test cases. 
+    #
+    # This installs the latest gpg4win version, which is a variation of GnuPG built for
+    # Windows.
+    #
+    # There is some issue with windows PATH max length which is what all the PATH wrangling
+    # below is for. Please see the below link for where this fix was derived from:
+    # https://github.com/orgs/community/discussions/24933
+    - name: Setup GnuPG [windows]
+      if: ${{ matrix.os == 'windows-latest' }}
+      run: |
+        $env:PATH = "C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\ProgramData\chocolatey\bin"
+        [Environment]::SetEnvironmentVariable("Path", $env:PATH, "Machine")
+        choco install --yes gpg4win
+        echo "C:\Program Files (x86)\Gpg4win\..\GnuPG\bin" >> $env:GITHUB_PATH
+
     - name: Install Rust
       uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
       with:
