@@ -25,7 +25,7 @@ use std::vec::Vec;
 use async_trait::async_trait;
 use thiserror::Error;
 
-use crate::content_hash::ContentHash;
+use crate::content_hash::{ContentHash, DigestUpdate};
 use crate::index::Index;
 use crate::merge::Merge;
 use crate::object_id::{id_type, ObjectId};
@@ -111,7 +111,7 @@ impl PartialEq for MergedTreeId {
 impl Eq for MergedTreeId {}
 
 impl ContentHash for MergedTreeId {
-    fn hash(&self, state: &mut impl digest::Update) {
+    fn hash(&self, state: &mut impl DigestUpdate) {
         match self {
             MergedTreeId::Legacy(tree_id) => {
                 state.update(&0u32.to_le_bytes());
@@ -247,7 +247,7 @@ impl TreeValue {
 }
 
 impl ContentHash for TreeValue {
-    fn hash(&self, state: &mut impl digest::Update) {
+    fn hash(&self, state: &mut impl DigestUpdate) {
         use TreeValue::*;
         match self {
             File { id, executable } => {

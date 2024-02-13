@@ -2,7 +2,7 @@ cargo-features = []
 
 [workspace]
 resolver = "2"
-members = ["cli", "lib", "lib/testutils", "lib/gen-protos"]
+members = ["cli", "lib", "lib/gen-protos", "lib/proc-macros", "lib/testutils"]
 
 [workspace.package]
 version = "0.14.0"
@@ -67,8 +67,10 @@ pest = "2.7.7"
 pest_derive = "2.7.7"
 pollster = "0.3.0"
 pretty_assertions = "1.4.0"
+proc-macro2 = "1.0.78"
 prost = "0.12.3"
 prost-build = "0.12.3"
+quote = "1.0.35"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 rayon = "1.8.1"
@@ -86,6 +88,7 @@ smallvec = { version = "1.13.0", features = [
     "union",
 ] }
 strsim = "0.11.0"
+syn = "2.0.48"
 tempfile = "3.10.0"
 test-case = "3.3.1"
 textwrap = "0.16.1"
@@ -111,6 +114,7 @@ zstd = "0.12.4"
 # their own (alphabetically sorted) block
 
 jj-lib = { path = "lib", version = "0.14.0" }
+jj-lib-proc-macros = { path = "lib/proc-macros", version = "0.14.0" }
 testutils = { path = "lib/testutils" }
 
 # Insta suggests compiling these packages in opt mode for faster testing.
