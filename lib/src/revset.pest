@@ -25,6 +25,7 @@ literal_string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
 whitespace = _{ " " | "\t" | "\r" | "\n" | "\x0c" }
 
 at_op = { "@" }
+pattern_kind_op = { ":" }
 
 parents_op = { "-" }
 children_op = { "+" }
@@ -66,9 +67,13 @@ formal_parameters = {
   | ""
 }
 
+// TODO: change rhs to literal_string to require quoting? #2101
+string_pattern = { identifier ~ pattern_kind_op ~ symbol }
+
 primary = {
   function_name ~ "(" ~ whitespace* ~ function_arguments ~ whitespace* ~ ")"
   | "(" ~ whitespace* ~ expression ~ whitespace* ~ ")"
+  | string_pattern
   // "@" operator cannot be nested
   | symbol ~ at_op ~ symbol
   | symbol ~ at_op
