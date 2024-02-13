@@ -148,7 +148,9 @@ fn test_git_import_undo() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: a [new] tracked
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
       @git: qpvuntsm 230dd059 (empty) (no description set)
@@ -162,7 +164,9 @@ fn test_git_import_undo() {
     // Try "git import" again, which should re-import the branch "a".
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: a [new] tracked
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
       @git: qpvuntsm 230dd059 (empty) (no description set)
@@ -191,7 +195,9 @@ fn test_git_import_move_export_with_default_undo() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: a [new] tracked
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: qpvuntsm 230dd059 (empty) (no description set)
       @git: qpvuntsm 230dd059 (empty) (no description set)
@@ -237,7 +243,9 @@ fn test_git_import_move_export_with_default_undo() {
     // intuitive result here.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: a [new] tracked
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     a: yqosqzyt 096dc80d (empty) (no description set)
       @git: yqosqzyt 096dc80d (empty) (no description set)

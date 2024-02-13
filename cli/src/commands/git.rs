@@ -447,7 +447,7 @@ fn init_git_refs(
     if !tx.mut_repo().has_changes() {
         return Ok(repo);
     }
-    print_git_import_stats(ui, &stats)?;
+    print_git_import_stats(ui, tx.repo(), &stats, false)?;
     if colocated {
         // If git.auto-local-branch = true, local branches could be created for
         // the imported remote branches.
@@ -537,7 +537,7 @@ fn cmd_git_fetch(
             GitFetchError::InternalGitError(err) => map_git_error(err),
             _ => user_error(err),
         })?;
-        print_git_import_stats(ui, &stats.import_stats)?;
+        print_git_import_stats(ui, tx.repo(), &stats.import_stats, true)?;
     }
     tx.finish(
         ui,
@@ -751,7 +751,7 @@ fn do_git_clone(
             unreachable!("we didn't provide any globs")
         }
     })?;
-    print_git_import_stats(ui, &stats.import_stats)?;
+    print_git_import_stats(ui, fetch_tx.repo(), &stats.import_stats, true)?;
     fetch_tx.finish(ui, "fetch from git remote into empty repo")?;
     Ok((workspace_command, stats))
 }
@@ -1190,7 +1190,7 @@ fn cmd_git_import(
     // That's why cmd_git_export() doesn't export the HEAD ref.
     git::import_head(tx.mut_repo())?;
     let stats = git::import_refs(tx.mut_repo(), &command.settings().git_settings())?;
-    print_git_import_stats(ui, &stats)?;
+    print_git_import_stats(ui, tx.repo(), &stats, true)?;
     tx.finish(ui, "import git refs")?;
     Ok(())
 }

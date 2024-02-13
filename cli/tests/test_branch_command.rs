@@ -536,7 +536,9 @@ fn test_branch_forget_fetched_branch() {
     // We can fetch feature1 again.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: feature1@origin [new] tracked
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: mzyxwzks 9f01a0e0 message
       @origin: mzyxwzks 9f01a0e0 message
@@ -548,7 +550,9 @@ fn test_branch_forget_fetched_branch() {
     // Fetch works even without the export-import
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: feature1@origin [new] tracked
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: mzyxwzks 9f01a0e0 message
       @origin: mzyxwzks 9f01a0e0 message
@@ -574,7 +578,9 @@ fn test_branch_forget_fetched_branch() {
     // Fetching a moved branch does not create a conflict
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote=origin"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: feature1@origin [new] tracked
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: ooosovrs 38aefb17 (empty) another message
       @origin: ooosovrs 38aefb17 (empty) another message
@@ -687,7 +693,12 @@ fn test_branch_track_untrack() {
     );
     test_env.add_config("git.auto-local-branch = false");
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: feature1@origin [new] untracked
+    branch: feature2@origin [new] untracked
+    branch: main@origin     [new] untracked
+
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1@origin: sptzoqmo 7b33f629 commit 1
     feature2@origin: sptzoqmo 7b33f629 commit 1
@@ -759,7 +770,12 @@ fn test_branch_track_untrack() {
         ],
     );
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: feature1@origin [updated] untracked
+    branch: feature2@origin [updated] untracked
+    branch: main@origin     [updated] tracked
+
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: sptzoqmo 7b33f629 commit 1
     feature1@origin: mmqqkyyt 40dabdaf commit 2
@@ -791,6 +807,10 @@ fn test_branch_track_untrack() {
     test_env.add_config("git.auto-local-branch = true");
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stderr, @r###"
+    branch: feature1@origin [updated] untracked
+    branch: feature2@origin [updated] untracked
+    branch: feature3@origin [new] tracked
+    branch: main@origin     [updated] tracked
     Abandoned 1 commits that are no longer reachable.
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
@@ -847,7 +867,11 @@ fn test_branch_track_untrack_patterns() {
     // Fetch new commit without auto tracking
     test_env.add_config("git.auto-local-branch = false");
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: feature1@origin [new] untracked
+    branch: feature2@origin [new] untracked
+
+    "###);
 
     // Track local branch
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
