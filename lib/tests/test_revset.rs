@@ -1160,14 +1160,14 @@ fn test_evaluate_expression_ancestors() {
 
     // The ancestors of the root commit is just the root commit itself
     assert_eq!(
-        resolve_commit_ids(mut_repo, ":root()"),
+        resolve_commit_ids(mut_repo, "::root()"),
         vec![root_commit.id().clone()]
     );
 
     // Can find ancestors of a specific commit. Commits reachable via multiple paths
     // are not repeated.
     assert_eq!(
-        resolve_commit_ids(mut_repo, &format!(":{}", commit4.id().hex())),
+        resolve_commit_ids(mut_repo, &format!("::{}", commit4.id().hex())),
         vec![
             commit4.id().clone(),
             commit3.id().clone(),
@@ -1180,7 +1180,7 @@ fn test_evaluate_expression_ancestors() {
     // Can find ancestors of parents or parents of ancestors, which may be optimized
     // to single query
     assert_eq!(
-        resolve_commit_ids(mut_repo, &format!(":({}-)", commit4.id().hex()),),
+        resolve_commit_ids(mut_repo, &format!("::({}-)", commit4.id().hex()),),
         vec![
             commit3.id().clone(),
             commit2.id().clone(),
@@ -1191,7 +1191,7 @@ fn test_evaluate_expression_ancestors() {
     assert_eq!(
         resolve_commit_ids(
             mut_repo,
-            &format!("(:({}|{}))-", commit3.id().hex(), commit2.id().hex()),
+            &format!("(::({}|{}))-", commit3.id().hex(), commit2.id().hex()),
         ),
         vec![
             commit2.id().clone(),
@@ -1202,7 +1202,7 @@ fn test_evaluate_expression_ancestors() {
     assert_eq!(
         resolve_commit_ids(
             mut_repo,
-            &format!(":(({}|{})-)", commit3.id().hex(), commit2.id().hex()),
+            &format!("::(({}|{})-)", commit3.id().hex(), commit2.id().hex()),
         ),
         vec![
             commit2.id().clone(),
@@ -1329,7 +1329,7 @@ fn test_evaluate_expression_dag_range() {
 
     // Can get DAG range of just the root commit
     assert_eq!(
-        resolve_commit_ids(mut_repo, "root():root()"),
+        resolve_commit_ids(mut_repo, "root()::root()"),
         vec![root_commit_id.clone()]
     );
 
@@ -1337,7 +1337,7 @@ fn test_evaluate_expression_dag_range() {
     assert_eq!(
         resolve_commit_ids(
             mut_repo,
-            &format!("{}:{}", root_commit_id.hex(), commit2.id().hex())
+            &format!("{}::{}", root_commit_id.hex(), commit2.id().hex())
         ),
         vec![
             commit2.id().clone(),
@@ -1350,14 +1350,14 @@ fn test_evaluate_expression_dag_range() {
     assert_eq!(
         resolve_commit_ids(
             mut_repo,
-            &format!("{}:{}", commit2.id().hex(), commit4.id().hex())
+            &format!("{}::{}", commit2.id().hex(), commit4.id().hex())
         ),
         vec![]
     );
 
     // Empty root
     assert_eq!(
-        resolve_commit_ids(mut_repo, &format!("none():{}", commit5.id().hex())),
+        resolve_commit_ids(mut_repo, &format!("none()::{}", commit5.id().hex())),
         vec![],
     );
 
@@ -1366,7 +1366,7 @@ fn test_evaluate_expression_dag_range() {
         resolve_commit_ids(
             mut_repo,
             &format!(
-                "({}|{}):{}",
+                "({}|{})::{}",
                 commit1.id().hex(),
                 commit2.id().hex(),
                 commit3.id().hex()
@@ -1383,7 +1383,7 @@ fn test_evaluate_expression_dag_range() {
     assert_eq!(
         resolve_commit_ids(
             mut_repo,
-            &format!("{}:{}", commit1.id().hex(), commit5.id().hex())
+            &format!("{}::{}", commit1.id().hex(), commit5.id().hex())
         ),
         vec![
             commit5.id().clone(),
@@ -1398,7 +1398,7 @@ fn test_evaluate_expression_dag_range() {
     assert_eq!(
         resolve_commit_ids(
             mut_repo,
-            &format!("{}:{}", commit2.id().hex(), commit5.id().hex())
+            &format!("{}::{}", commit2.id().hex(), commit5.id().hex())
         ),
         vec![
             commit5.id().clone(),
@@ -1531,7 +1531,7 @@ fn test_evaluate_expression_descendants() {
 
     // The descendants of the root commit are all the commits in the repo
     assert_eq!(
-        resolve_commit_ids(mut_repo, "root():"),
+        resolve_commit_ids(mut_repo, "root()::"),
         vec![
             commit6.id().clone(),
             commit5.id().clone(),
@@ -1545,7 +1545,7 @@ fn test_evaluate_expression_descendants() {
 
     // Can find descendants of a specific commit
     assert_eq!(
-        resolve_commit_ids(mut_repo, &format!("{}:", commit2.id().hex())),
+        resolve_commit_ids(mut_repo, &format!("{}::", commit2.id().hex())),
         vec![
             commit6.id().clone(),
             commit5.id().clone(),
@@ -1557,7 +1557,7 @@ fn test_evaluate_expression_descendants() {
     // Can find descendants of children or children of descendants, which may be
     // optimized to single query
     assert_eq!(
-        resolve_commit_ids(mut_repo, &format!("({}+):", commit1.id().hex())),
+        resolve_commit_ids(mut_repo, &format!("({}+)::", commit1.id().hex())),
         vec![
             commit6.id().clone(),
             commit5.id().clone(),
@@ -1567,7 +1567,7 @@ fn test_evaluate_expression_descendants() {
         ]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, &format!("({}++):", commit1.id().hex())),
+        resolve_commit_ids(mut_repo, &format!("({}++)::", commit1.id().hex())),
         vec![
             commit6.id().clone(),
             commit5.id().clone(),
@@ -1577,7 +1577,7 @@ fn test_evaluate_expression_descendants() {
     assert_eq!(
         resolve_commit_ids(
             mut_repo,
-            &format!("(({}|{}):)+", commit4.id().hex(), commit2.id().hex()),
+            &format!("(({}|{})::)+", commit4.id().hex(), commit2.id().hex()),
         ),
         vec![
             commit6.id().clone(),
@@ -1588,7 +1588,7 @@ fn test_evaluate_expression_descendants() {
     assert_eq!(
         resolve_commit_ids(
             mut_repo,
-            &format!("(({}|{})+):", commit4.id().hex(), commit2.id().hex()),
+            &format!("(({}|{})+)::", commit4.id().hex(), commit2.id().hex()),
         ),
         vec![
             commit6.id().clone(),
@@ -2052,7 +2052,7 @@ fn test_evaluate_expression_merges() {
     );
     // Searches only among candidates if specified
     assert_eq!(
-        resolve_commit_ids(mut_repo, &format!(":{} & merges()", commit5.id().hex())),
+        resolve_commit_ids(mut_repo, &format!("::{} & merges()", commit5.id().hex())),
         vec![commit5.id().clone()]
     );
 }
@@ -2328,7 +2328,7 @@ fn test_evaluate_expression_union() {
     assert_eq!(
         resolve_commit_ids(
             mut_repo,
-            &format!(":{} | :{}", commit4.id().hex(), commit5.id().hex())
+            &format!("::{} | ::{}", commit4.id().hex(), commit5.id().hex())
         ),
         vec![
             commit5.id().clone(),
@@ -2345,7 +2345,7 @@ fn test_evaluate_expression_union() {
         resolve_commit_ids(
             mut_repo,
             &format!(
-                "(:{} ~ :{}) | :{}",
+                "(::{} ~ ::{}) | ::{}",
                 commit4.id().hex(),
                 commit2.id().hex(),
                 commit5.id().hex()
@@ -2366,7 +2366,7 @@ fn test_evaluate_expression_union() {
         resolve_commit_ids(
             mut_repo,
             &format!(
-                "(:{} ~ :{}) | {}",
+                "(::{} ~ ::{}) | {}",
                 commit4.id().hex(),
                 commit2.id().hex(),
                 commit5.id().hex(),
@@ -2400,7 +2400,7 @@ fn test_evaluate_expression_intersection() {
     assert_eq!(
         resolve_commit_ids(
             mut_repo,
-            &format!(":{} & :{}", commit4.id().hex(), commit5.id().hex())
+            &format!("::{} & ::{}", commit4.id().hex(), commit5.id().hex())
         ),
         vec![
             commit2.id().clone(),
@@ -2437,7 +2437,7 @@ fn test_evaluate_expression_difference() {
 
     // Difference from all
     assert_eq!(
-        resolve_commit_ids(mut_repo, &format!("~:{}", commit5.id().hex())),
+        resolve_commit_ids(mut_repo, &format!("~::{}", commit5.id().hex())),
         vec![commit4.id().clone(), commit3.id().clone()]
     );
 
@@ -2445,28 +2445,28 @@ fn test_evaluate_expression_difference() {
     assert_eq!(
         resolve_commit_ids(
             mut_repo,
-            &format!(":{} ~ :{}", commit4.id().hex(), commit5.id().hex())
+            &format!("::{} ~ ::{}", commit4.id().hex(), commit5.id().hex())
         ),
         vec![commit4.id().clone(), commit3.id().clone()]
     );
     assert_eq!(
         resolve_commit_ids(
             mut_repo,
-            &format!(":{} ~ :{}", commit5.id().hex(), commit4.id().hex())
+            &format!("::{} ~ ::{}", commit5.id().hex(), commit4.id().hex())
         ),
         vec![commit5.id().clone()]
     );
     assert_eq!(
         resolve_commit_ids(
             mut_repo,
-            &format!("~:{} & :{}", commit4.id().hex(), commit5.id().hex())
+            &format!("~::{} & ::{}", commit4.id().hex(), commit5.id().hex())
         ),
         vec![commit5.id().clone()]
     );
     assert_eq!(
         resolve_commit_ids(
             mut_repo,
-            &format!(":{} ~ :{}", commit4.id().hex(), commit2.id().hex())
+            &format!("::{} ~ ::{}", commit4.id().hex(), commit2.id().hex())
         ),
         vec![commit4.id().clone(), commit3.id().clone()]
     );
@@ -2476,7 +2476,7 @@ fn test_evaluate_expression_difference() {
         resolve_commit_ids(
             mut_repo,
             &format!(
-                ":{} ~ {} ~ {}",
+                "::{} ~ {} ~ {}",
                 commit4.id().hex(),
                 commit2.id().hex(),
                 commit3.id().hex()
@@ -2494,7 +2494,7 @@ fn test_evaluate_expression_difference() {
         resolve_commit_ids(
             mut_repo,
             &format!(
-                "(:{} ~ :{}) ~ (:{} ~ :{})",
+                "(::{} ~ ::{}) ~ (::{} ~ ::{})",
                 commit4.id().hex(),
                 commit1.id().hex(),
                 commit3.id().hex(),
@@ -2662,7 +2662,7 @@ fn test_evaluate_expression_file() {
     assert_eq!(
         resolve_commit_ids_in_workspace(
             mut_repo,
-            &format!(r#"{}: & file("added_modified_clean")"#, commit2.id().hex()),
+            &format!(r#"{}:: & file("added_modified_clean")"#, commit2.id().hex()),
             &test_workspace.workspace,
             Some(test_workspace.workspace.workspace_root()),
         ),
@@ -2671,7 +2671,7 @@ fn test_evaluate_expression_file() {
 
     // empty() revset, which is identical to ~file(".")
     assert_eq!(
-        resolve_commit_ids(mut_repo, &format!("{}: & empty()", commit1.id().hex())),
+        resolve_commit_ids(mut_repo, &format!("{}:: & empty()", commit1.id().hex())),
         vec![commit4.id().clone()]
     );
 }

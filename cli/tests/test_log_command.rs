@@ -420,7 +420,7 @@ fn test_log_shortest_accessors() {
     "###);
 
     // Can get shorter prefixes in configured revset
-    test_env.add_config(r#"revsets.short-prefixes = "(@----):""#);
+    test_env.add_config(r#"revsets.short-prefixes = "(@----)::""#);
     insta::assert_snapshot!(
         render("::@", r#"format_id(change_id) ++ " " ++ format_id(commit_id) ++ "\n""#),
         @r###"
