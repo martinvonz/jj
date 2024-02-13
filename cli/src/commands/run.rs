@@ -49,8 +49,7 @@ pub struct RunArgs {
 
 pub fn cmd_run(ui: &mut Ui, command: &CommandHelper, args: &RunArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let _resolved_commits =
-        resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command, ui)?;
+    let _resolved_commits = resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command)?;
     // Jobs are resolved in this order:
     // 1. Commandline argument iff > 0.
     // 2. the amount of cores available.

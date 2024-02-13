@@ -234,7 +234,7 @@ fn cmd_branch_create(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let target_commit =
-        workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
+        workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
     let view = workspace_command.repo().view();
     let branch_names = &args.names;
     if let Some(branch_name) = branch_names
@@ -333,7 +333,7 @@ fn cmd_branch_set(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let target_commit =
-        workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
+        workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
     let repo = workspace_command.repo().as_ref();
     let is_fast_forward = |old_target: &RefTarget| {
         // Strictly speaking, "all" old targets should be ancestors, but we allow
@@ -614,7 +614,7 @@ fn cmd_branch_list(
             let filter_expressions: Vec<_> = args
                 .revisions
                 .iter()
-                .map(|revision_str| workspace_command.parse_revset(revision_str, Some(ui)))
+                .map(|revision_str| workspace_command.parse_revset(revision_str))
                 .try_collect()?;
             let filter_expression = RevsetExpression::union_all(&filter_expressions);
             // Intersects with the set of local branch targets to minimize the lookup space.

@@ -63,7 +63,7 @@ pub(crate) fn cmd_obslog(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
 
-    let start_commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
+    let start_commit = workspace_command.resolve_single_rev(&args.revision)?;
     let wc_commit_id = workspace_command.get_wc_commit_id();
 
     let diff_formats =

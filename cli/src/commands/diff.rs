@@ -52,13 +52,13 @@ pub(crate) fn cmd_diff(
     let from_tree;
     let to_tree;
     if args.from.is_some() || args.to.is_some() {
-        let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?;
+        let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
         from_tree = from.tree()?;
-        let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
+        let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
         to_tree = to.tree()?;
     } else {
         let commit =
-            workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"), ui)?;
+            workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
         let parents = commit.parents();
         from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &parents)?;
         to_tree = commit.tree()?

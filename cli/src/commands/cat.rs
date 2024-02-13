@@ -40,7 +40,7 @@ pub(crate) fn cmd_cat(
     args: &CatArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
     let tree = commit.tree()?;
     let path = workspace_command.parse_file_path(&args.path)?;
     let repo = workspace_command.repo();

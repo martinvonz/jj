@@ -70,7 +70,7 @@ pub(crate) fn cmd_resolve(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
     let tree = commit.tree()?;
     let conflicts = tree
         .conflicts()

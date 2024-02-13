@@ -185,7 +185,7 @@ fn cmd_workspace_add(
             vec![tx.repo().store().root_commit()]
         }
     } else {
-        cli_util::resolve_all_revs(&old_workspace_command, ui, &args.revision)?
+        cli_util::resolve_all_revs(&old_workspace_command, &args.revision)?
             .into_iter()
             .collect_vec()
     };

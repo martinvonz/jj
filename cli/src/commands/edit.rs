@@ -40,7 +40,7 @@ pub(crate) fn cmd_edit(
     args: &EditArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let new_commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
+    let new_commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewritable([&new_commit])?;
     if workspace_command.get_wc_commit_id() == Some(new_commit.id()) {
         writeln!(ui.stderr(), "Already editing that commit")?;
