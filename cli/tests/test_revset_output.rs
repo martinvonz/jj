@@ -20,6 +20,17 @@ fn test_syntax_error() {
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", ":x"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset:  --> 1:1
+      |
+    1 | :x
+      | ^
+      |
+      = ':' is not a prefix operator
+    Hint: Did you mean '::' for ancestors?
+    "###);
+
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "x &"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to parse revset:  --> 1:4

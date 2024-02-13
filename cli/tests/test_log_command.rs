@@ -29,53 +29,6 @@ fn test_log_with_empty_revision() {
 }
 
 #[test]
-fn test_log_legacy_range_operator() {
-    let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
-    let repo_path = test_env.env_root().join("repo");
-
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r=@:"]);
-    insta::assert_snapshot!(stdout, @r###"
-    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
-    │  (empty) (no description set)
-    ~
-    "###);
-    insta::assert_snapshot!(stderr, @r###"
-    The `:` revset operator is deprecated. Please switch to `::`.
-    "###);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r=:@"]);
-    insta::assert_snapshot!(stdout, @r###"
-    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
-    │  (empty) (no description set)
-    ◉  zzzzzzzz root() 00000000
-    "###);
-    insta::assert_snapshot!(stderr, @r###"
-    The `:` revset operator is deprecated. Please switch to `::`.
-    "###);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r=root():@"]);
-    insta::assert_snapshot!(stdout, @r###"
-    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
-    │  (empty) (no description set)
-    ◉  zzzzzzzz root() 00000000
-    "###);
-    insta::assert_snapshot!(stderr, @r###"
-    The `:` revset operator is deprecated. Please switch to `::`.
-    "###);
-    let (stdout, stderr) = test_env.jj_cmd_ok(
-        &repo_path,
-        &["log", "-r=x", "--config-toml", "revset-aliases.x = '@:'"],
-    );
-    insta::assert_snapshot!(stdout, @r###"
-    @  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
-    │  (empty) (no description set)
-    ~
-    "###);
-    insta::assert_snapshot!(stderr, @r###"
-    The `:` revset operator is deprecated. Please switch to `::`.
-    "###);
-}
-
-#[test]
 fn test_log_with_or_without_diff() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
