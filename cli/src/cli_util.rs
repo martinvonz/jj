@@ -408,7 +408,12 @@ impl From<RevsetParseError> for CommandError {
         let message = iter::successors(Some(&err), |e| e.origin()).join("\n");
         // Only for the top-level error as we can't attach hint to inner errors
         let hint = match err.kind() {
-            RevsetParseErrorKind::NotPostfixOperator {
+            RevsetParseErrorKind::NotPrefixOperator {
+                op: _,
+                similar_op,
+                description,
+            }
+            | RevsetParseErrorKind::NotPostfixOperator {
                 op: _,
                 similar_op,
                 description,

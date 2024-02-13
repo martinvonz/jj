@@ -82,17 +82,12 @@ impl Rule {
     fn is_compat(&self) -> bool {
         matches!(
             self,
-            Rule::compat_parents_op | Rule::compat_add_op | Rule::compat_sub_op
-        )
-    }
-
-    /// Whether this is a deprecated rule to be removed in later version.
-    fn is_legacy(&self) -> bool {
-        matches!(
-            self,
-            Rule::legacy_dag_range_op
-                | Rule::legacy_dag_range_pre_op
-                | Rule::legacy_dag_range_post_op
+            Rule::compat_parents_op
+                | Rule::compat_dag_range_op
+                | Rule::compat_dag_range_pre_op
+                | Rule::compat_dag_range_post_op
+                | Rule::compat_add_op
+                | Rule::compat_sub_op
         )
     }
 
@@ -112,9 +107,9 @@ impl Rule {
             | Rule::dag_range_pre_op
             | Rule::dag_range_post_op
             | Rule::dag_range_all_op => Some("::"),
-            Rule::legacy_dag_range_op
-            | Rule::legacy_dag_range_pre_op
-            | Rule::legacy_dag_range_post_op => Some(":"),
+            Rule::compat_dag_range_op
+            | Rule::compat_dag_range_pre_op
+            | Rule::compat_dag_range_post_op => Some(":"),
             Rule::range_op => Some(".."),
             Rule::range_pre_op | Rule::range_post_op | Rule::range_all_op => Some(".."),
             Rule::range_ops => None,
@@ -155,6 +150,12 @@ pub struct RevsetParseError {
 pub enum RevsetParseErrorKind {
     #[error("Syntax error")]
     SyntaxError,
+    #[error("'{op}' is not a prefix operator")]
+    NotPrefixOperator {
+        op: String,
+        similar_op: String,
+        description: String,
+    },
     #[error("'{op}' is not a postfix operator")]
     NotPostfixOperator {
         op: String,
@@ -282,13 +283,11 @@ fn rename_rules_in_pest_error(mut err: pest::error::Error<Rule>) -> pest::error:
         return err;
     };
 
-    // Remove duplicated symbols. Legacy or compat symbols are also removed from the
+    // Remove duplicated symbols. Compat symbols are also removed from the
     // (positive) suggestion.
     let mut known_syms = HashSet::new();
     positives.retain(|rule| {
-        !rule.is_compat()
-            && !rule.is_legacy()
-            && rule.to_symbol().map_or(true, |sym| known_syms.insert(sym))
+        !rule.is_compat() && rule.to_symbol().map_or(true, |sym| known_syms.insert(sym))
     });
     let mut known_syms = HashSet::new();
     negatives.retain(|rule| rule.to_symbol().map_or(true, |sym| known_syms.insert(sym)));
@@ -489,13 +488,6 @@ impl RevsetExpression {
     pub fn ancestors(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
         self.ancestors_range(GENERATION_RANGE_FULL)
     }
-    fn legacy_ancestors(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Ancestors {
-            heads: self.clone(),
-            generation: GENERATION_RANGE_FULL,
-            is_legacy: true,
-        })
-    }
 
     /// Ancestors of `self`, including `self` until `generation` back.
     pub fn ancestors_at(self: &Rc<RevsetExpression>, generation: u64) -> Rc<RevsetExpression> {
@@ -529,13 +521,6 @@ impl RevsetExpression {
             roots: self.clone(),
             generation: GENERATION_RANGE_FULL,
             is_legacy: false,
-        })
-    }
-    fn legacy_descendants(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Descendants {
-            roots: self.clone(),
-            generation: GENERATION_RANGE_FULL,
-            is_legacy: true,
         })
     }
 
@@ -834,6 +819,8 @@ struct ParseState<'a> {
     locals: &'a HashMap<&'a str, Rc<RevsetExpression>>,
     user_email: &'a str,
     workspace_ctx: &'a Option<RevsetWorkspaceContext<'a>>,
+    /// Whether or not `kind:"pattern"` syntax is allowed.
+    allow_string_pattern: bool,
 }
 
 impl ParseState<'_> {
@@ -859,6 +846,7 @@ impl ParseState<'_> {
             locals,
             user_email: self.user_email,
             workspace_ctx: self.workspace_ctx,
+            allow_string_pattern: self.allow_string_pattern,
         };
         f(expanding_state).map_err(|e| {
             RevsetParseError::with_span_and_origin(
@@ -883,6 +871,21 @@ fn parse_expression_rule(
     pairs: Pairs<Rule>,
     state: ParseState,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    fn not_prefix_op(
+        op: &Pair<Rule>,
+        similar_op: impl Into<String>,
+        description: impl Into<String>,
+    ) -> RevsetParseError {
+        RevsetParseError::with_span(
+            RevsetParseErrorKind::NotPrefixOperator {
+                op: op.as_str().to_owned(),
+                similar_op: similar_op.into(),
+                description: description.into(),
+            },
+            op.as_span(),
+        )
+    }
+
     fn not_postfix_op(
         op: &Pair<Rule>,
         similar_op: impl Into<String>,
@@ -923,13 +926,13 @@ fn parse_expression_rule(
             .op(Op::prefix(Rule::negate_op))
             // Ranges can't be nested without parentheses. Associativity doesn't matter.
             .op(Op::infix(Rule::dag_range_op, Assoc::Left)
-                | Op::infix(Rule::legacy_dag_range_op, Assoc::Left)
+                | Op::infix(Rule::compat_dag_range_op, Assoc::Left)
                 | Op::infix(Rule::range_op, Assoc::Left))
             .op(Op::prefix(Rule::dag_range_pre_op)
-                | Op::prefix(Rule::legacy_dag_range_pre_op)
+                | Op::prefix(Rule::compat_dag_range_pre_op)
                 | Op::prefix(Rule::range_pre_op))
             .op(Op::postfix(Rule::dag_range_post_op)
-                | Op::postfix(Rule::legacy_dag_range_post_op)
+                | Op::postfix(Rule::compat_dag_range_post_op)
                 | Op::postfix(Rule::range_post_op))
             // Neighbors
             .op(Op::postfix(Rule::parents_op)
@@ -948,13 +951,13 @@ fn parse_expression_rule(
         .map_prefix(|op, rhs| match op.as_rule() {
             Rule::negate_op => Ok(rhs?.negated()),
             Rule::dag_range_pre_op => Ok(rhs?.ancestors()),
-            Rule::legacy_dag_range_pre_op => Ok(rhs?.legacy_ancestors()),
+            Rule::compat_dag_range_pre_op => Err(not_prefix_op(&op, "::", "ancestors")),
             Rule::range_pre_op => Ok(RevsetExpression::root().range(&rhs?)),
             r => panic!("unexpected prefix operator rule {r:?}"),
         })
         .map_postfix(|lhs, op| match op.as_rule() {
             Rule::dag_range_post_op => Ok(lhs?.descendants()),
-            Rule::legacy_dag_range_post_op => Ok(lhs?.legacy_descendants()),
+            Rule::compat_dag_range_post_op => Err(not_postfix_op(&op, "::", "descendants")),
             Rule::range_post_op => Ok(lhs?.range(&RevsetExpression::visible_heads())),
             Rule::parents_op => Ok(lhs?.parents()),
             Rule::children_op => Ok(lhs?.children()),
@@ -968,7 +971,13 @@ fn parse_expression_rule(
             Rule::difference_op => Ok(lhs?.minus(&rhs?)),
             Rule::compat_sub_op => Err(not_infix_op(&op, "~", "difference")),
             Rule::dag_range_op => Ok(lhs?.dag_range_to(&rhs?)),
-            Rule::legacy_dag_range_op => Ok(lhs?.legacy_dag_range_to(&rhs?)),
+            Rule::compat_dag_range_op => {
+                if state.allow_string_pattern {
+                    Ok(lhs?.legacy_dag_range_to(&rhs?))
+                } else {
+                    Err(not_infix_op(&op, "::", "DAG range"))
+                }
+            }
             Rule::range_op => Ok(lhs?.range(&rhs?)),
             r => panic!("unexpected infix operator rule {r:?}"),
         })
@@ -1471,7 +1480,11 @@ fn parse_function_argument_to_string_pattern(
         )
     };
     let make_type_error = || make_error("Expected function argument of string pattern".to_owned());
-    let expression = parse_expression_rule(pair.into_inner(), state)?;
+    let expression = {
+        let mut inner_state = state;
+        inner_state.allow_string_pattern = true;
+        parse_expression_rule(pair.into_inner(), inner_state)?
+    };
     let pattern = match expression.as_ref() {
         RevsetExpression::CommitRef(RevsetCommitRef::Symbol(symbol)) => {
             let needle = symbol.to_owned();
@@ -1515,7 +1528,12 @@ fn parse_function_argument_as_literal<T: FromStr>(
             span,
         )
     };
-    let expression = parse_expression_rule(pair.into_inner(), state)?;
+    let expression = {
+        // Don't suggest :: operator for :, which is invalid in this context.
+        let mut inner_state = state;
+        inner_state.allow_string_pattern = true;
+        parse_expression_rule(pair.into_inner(), inner_state)?
+    };
     match expression.as_ref() {
         RevsetExpression::CommitRef(RevsetCommitRef::Symbol(symbol)) => {
             symbol.parse().map_err(|_| make_error())
@@ -1534,6 +1552,7 @@ pub fn parse(
         locals: &HashMap::new(),
         user_email: &context.user_email,
         workspace_ctx: &context.workspace,
+        allow_string_pattern: false,
     };
     parse_program(revset_str, state)
 }
@@ -2960,6 +2979,14 @@ mod tests {
 
     #[test]
     fn test_parse_revset_compat_operator() {
+        assert_eq!(
+            parse(":foo"),
+            Err(RevsetParseErrorKind::NotPrefixOperator {
+                op: ":".to_owned(),
+                similar_op: "::".to_owned(),
+                description: "ancestors".to_owned(),
+            })
+        );
         assert_eq!(
             parse("foo^"),
             Err(RevsetParseErrorKind::NotPostfixOperator {

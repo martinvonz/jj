@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Dropped support for the "legacy" graph-drawing style. Use "ascii" for a very
   similar result.
 
+* Dropped support for the deprecated `:` revset operator. Use `::` instead.
+
 ### New features
 
 * Templates now support logical operators: `||`, `&&`, `!`

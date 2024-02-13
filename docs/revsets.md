@@ -59,8 +59,6 @@ only symbols.
 * `x::y`: Descendants of `x` that are also ancestors of `y`. Equivalent
    to `x:: & ::y`. This is what `git log` calls `--ancestry-path x..y`.
 * `::`: All visible commits in the repo. Equivalent to `all()`.
-* `:x`, `x:`, and `x:y`: Deprecated versions of `::x`, `x::`, and `x::y` We
-  plan to delete them in jj 0.15+.
 * `x..y`: Ancestors of `y` that are not also ancestors of `x`. Equivalent to
   `::y ~ ::x`. This is what `git log` calls `x..y` (i.e. the same as we call it).
 * `..x`: Ancestors of `x`, including the commits in `x` itself, but excluding
