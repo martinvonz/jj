@@ -100,6 +100,7 @@ impl Rule {
             Rule::literal_string => None,
             Rule::whitespace => None,
             Rule::at_op => Some("@"),
+            Rule::pattern_kind_op => Some(":"),
             Rule::parents_op => Some("-"),
             Rule::children_op => Some("+"),
             Rule::compat_parents_op => Some("^"),
@@ -128,6 +129,7 @@ impl Rule {
             Rule::argument => None,
             Rule::function_arguments => None,
             Rule::formal_parameters => None,
+            Rule::string_pattern => None,
             Rule::primary => None,
             Rule::neighbors_expression => None,
             Rule::range_expression => None,
@@ -345,6 +347,12 @@ pub enum RevsetExpression {
     All,
     Commits(Vec<CommitId>),
     CommitRef(RevsetCommitRef),
+    // TODO: This shouldn't be of RevsetExpression type. Maybe better to
+    // introduce an intermediate AST tree where aliases will be substituted.
+    StringPattern {
+        kind: String,
+        value: String,
+    },
     Ancestors {
         heads: Rc<RevsetExpression>,
         generation: Range<u64>,
@@ -543,16 +551,6 @@ impl RevsetExpression {
             roots: self.clone(),
             heads: heads.clone(),
             is_legacy: false,
-        })
-    }
-    pub fn legacy_dag_range_to(
-        self: &Rc<RevsetExpression>,
-        heads: &Rc<RevsetExpression>,
-    ) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::DagRange {
-            roots: self.clone(),
-            heads: heads.clone(),
-            is_legacy: true,
         })
     }
 
@@ -971,13 +969,7 @@ fn parse_expression_rule(
             Rule::difference_op => Ok(lhs?.minus(&rhs?)),
             Rule::compat_sub_op => Err(not_infix_op(&op, "~", "difference")),
             Rule::dag_range_op => Ok(lhs?.dag_range_to(&rhs?)),
-            Rule::compat_dag_range_op => {
-                if state.allow_string_pattern {
-                    Ok(lhs?.legacy_dag_range_to(&rhs?))
-                } else {
-                    Err(not_infix_op(&op, "::", "DAG range"))
-                }
-            }
+            Rule::compat_dag_range_op => Err(not_infix_op(&op, "::", "DAG range")),
             Rule::range_op => Ok(lhs?.range(&rhs?)),
             r => panic!("unexpected infix operator rule {r:?}"),
         })
@@ -997,6 +989,7 @@ fn parse_primary_rule(
             let arguments_pair = pairs.next().unwrap();
             parse_function_expression(first, arguments_pair, state, span)
         }
+        Rule::string_pattern => parse_string_pattern_rule(first, state),
         // Symbol without "@" may be substituted by aliases. Primary expression including "@"
         // is considered an indecomposable unit, and no alias substitution would be made.
         Rule::symbol if pairs.peek().is_none() => parse_symbol_rule(first.into_inner(), state),
@@ -1023,6 +1016,31 @@ fn parse_primary_rule(
         _ => {
             panic!("unexpected revset parse rule: {:?}", first.as_str());
         }
+    }
+}
+
+fn parse_string_pattern_rule(
+    pair: Pair<Rule>,
+    state: ParseState,
+) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    assert_eq!(pair.as_rule(), Rule::string_pattern);
+    let (lhs, op, rhs) = pair.into_inner().collect_tuple().unwrap();
+    assert_eq!(lhs.as_rule(), Rule::identifier);
+    assert_eq!(op.as_rule(), Rule::pattern_kind_op);
+    assert_eq!(rhs.as_rule(), Rule::symbol);
+    if state.allow_string_pattern {
+        let kind = lhs.as_str().to_owned();
+        let value = parse_symbol_rule_as_literal(rhs.into_inner())?;
+        Ok(Rc::new(RevsetExpression::StringPattern { kind, value }))
+    } else {
+        Err(RevsetParseError::with_span(
+            RevsetParseErrorKind::NotInfixOperator {
+                op: op.as_str().to_owned(),
+                similar_op: "::".to_owned(),
+                description: "DAG range".to_owned(),
+            },
+            op.as_span(),
+        ))
     }
 }
 
@@ -1490,22 +1508,9 @@ fn parse_function_argument_to_string_pattern(
             let needle = symbol.to_owned();
             StringPattern::Substring(needle)
         }
-        // TODO: Add proper parsed node if we drop support for legacy x:y range
-        RevsetExpression::DagRange {
-            roots,
-            heads,
-            is_legacy: true,
-        } => {
-            // TODO: quoted string shouldn't be allowed as a pattern kind
-            let RevsetExpression::CommitRef(RevsetCommitRef::Symbol(kind)) = roots.as_ref() else {
-                return Err(make_type_error());
-            };
-            let RevsetExpression::CommitRef(RevsetCommitRef::Symbol(needle)) = heads.as_ref()
-            else {
-                return Err(make_type_error());
-            };
+        RevsetExpression::StringPattern { kind, value } => {
             // TODO: error span can be narrowed to the lhs node
-            StringPattern::from_str_kind(needle, kind).map_err(|err| make_error(err.to_string()))?
+            StringPattern::from_str_kind(value, kind).map_err(|err| make_error(err.to_string()))?
         }
         _ => return Err(make_type_error()),
     };
@@ -1596,6 +1601,7 @@ fn try_transform_expression<E>(
             RevsetExpression::All => None,
             RevsetExpression::Commits(_) => None,
             RevsetExpression::CommitRef(_) => None,
+            RevsetExpression::StringPattern { .. } => None,
             RevsetExpression::Ancestors {
                 heads, generation, ..
             } => transform_rec(heads, pre, post)?.map(|heads| RevsetExpression::Ancestors {
@@ -2278,6 +2284,9 @@ impl VisibilityResolutionContext<'_> {
             RevsetExpression::Commits(commit_ids) => {
                 ResolvedExpression::Commits(commit_ids.clone())
             }
+            RevsetExpression::StringPattern { .. } => {
+                panic!("Expression '{expression:?}' should be rejected by parser");
+            }
             RevsetExpression::CommitRef(_) => {
                 panic!("Expression '{expression:?}' should have been resolved by caller");
             }
@@ -2388,6 +2397,7 @@ impl VisibilityResolutionContext<'_> {
             | RevsetExpression::All
             | RevsetExpression::Commits(_)
             | RevsetExpression::CommitRef(_)
+            | RevsetExpression::StringPattern { .. }
             | RevsetExpression::Ancestors { .. }
             | RevsetExpression::Descendants { .. }
             | RevsetExpression::Range { .. }
@@ -2504,6 +2514,8 @@ pub struct RevsetWorkspaceContext<'a> {
 
 #[cfg(test)]
 mod tests {
+    use assert_matches::assert_matches;
+
     use super::*;
 
     fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseErrorKind> {
@@ -2934,6 +2946,12 @@ mod tests {
             )))
         );
         assert_eq!(
+            parse(r#"branches((exact:"foo"))"#),
+            Ok(RevsetExpression::branches(StringPattern::Exact(
+                "foo".to_owned()
+            )))
+        );
+        assert_eq!(
             parse(r#"branches(bad:"foo")"#),
             Err(RevsetParseErrorKind::InvalidFunctionArguments {
                 name: "branches".to_owned(),
@@ -2946,6 +2964,27 @@ mod tests {
                 name: "branches".to_owned(),
                 message: "Expected function argument of string pattern".to_owned()
             })
+        );
+        assert_eq!(
+            parse(r#"branches(exact:"foo"+)"#),
+            Err(RevsetParseErrorKind::InvalidFunctionArguments {
+                name: "branches".to_owned(),
+                message: "Expected function argument of string pattern".to_owned()
+            })
+        );
+        assert_matches!(
+            parse(r#"branches(exact:("foo"))"#),
+            Err(RevsetParseErrorKind::NotInfixOperator { .. })
+        );
+
+        // String pattern isn't allowed at top level.
+        assert_matches!(
+            parse(r#"exact:"foo""#),
+            Err(RevsetParseErrorKind::NotInfixOperator { .. })
+        );
+        assert_matches!(
+            parse(r#"(exact:"foo")"#),
+            Err(RevsetParseErrorKind::NotInfixOperator { .. })
         );
     }
 
@@ -3232,10 +3271,11 @@ mod tests {
             parse_with_aliases("author(A)", [("A", "exact:a")]).unwrap(),
             parse("author(exact:a)").unwrap()
         );
-        // TODO: Substitution of part of a string pattern seems confusing. Disable it.
+
+        // Part of string pattern cannot be substituted.
         assert_eq!(
             parse_with_aliases("author(exact:A)", [("A", "a")]).unwrap(),
-            parse("author(exact:a)").unwrap()
+            parse("author(exact:A)").unwrap()
         );
 
         // Part of @ symbol cannot be substituted.
