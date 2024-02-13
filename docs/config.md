@@ -521,6 +521,63 @@ the conflict is done, `jj` assumes that the conflict was only partially resolved
 and parses the conflict markers to get the new state of the conflict. The
 conflict is considered fully resolved when there are no conflict markers left.
 
+## Commit Signing
+
+`jj` can be configured to sign and verify the commits it creates using either 
+GnuPG or SSH signing keys.
+
+To do this you need to configure a signing backend.
+
+### GnuPG Signing
+
+```toml
+[signing]
+sign-all = true
+backend = "gpg"
+key = "4ED556E9729E000F"
+```
+
+By default the gpg backend will look for a `gpg` binary on your path. If you want
+to change the program used or specify a path to `gpg` explicitly you can set:
+
+```toml
+signing.backends.gpg.program = "gpg2"
+```
+
+Also by default the gpg backend will ignore key expiry when verifying commit signatures.
+To consider expired keys as invalid you can set:
+
+```toml
+signing.backends.gpg.allow-expired-keys = false
+```
+
+### SSH Signing
+
+```toml
+[signing]
+sign-all = true
+backend = "ssh"
+key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGj+J6N6SO+4P8dOZqfR1oiay2yxhhHnagH52avUqw5h"
+```
+
+By default the ssh backend will look for a `ssh-keygen` binary on your path. If you want
+to change the program used or specify a path to `ssh-keygen` explicitly you can set:
+
+```toml
+signing.backends.ssh.program = "/path/to/ssh-keygen"
+```
+
+When verifying commit signatures the ssh backend needs to be provided with an allowed-signers
+file containing the public keys of authors whose signatures you want to be able to verify.
+
+You can find the format for this file in the 
+[ssh-keygen man page](https://man.openbsd.org/ssh-keygen#ALLOWED_SIGNERS). This can be provided 
+as follows:
+
+```toml
+signing.backends.ssh.allowed-signers = "/path/to/allowed-signers"
+```
+
 ## Git settings
 
 ### Default remotes for `jj git fetch` and `jj git push`
