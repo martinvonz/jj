@@ -1801,7 +1801,7 @@ fn fold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression {
         complement: &Rc<RevsetExpression>,
     ) -> Rc<RevsetExpression> {
         match (expression.as_ref(), complement.as_ref()) {
-            // :heads & ~(:roots) -> roots..heads
+            // ::heads & ~(::roots) -> roots..heads
             (
                 RevsetExpression::Ancestors {
                     heads, generation, ..
@@ -1844,7 +1844,7 @@ fn fold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression {
 /// further by `fold_redundant_expression()`.
 fn unfold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression {
     transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
-        // roots..heads -> :heads & ~(:roots)
+        // roots..heads -> ::heads & ~(::roots)
         RevsetExpression::Range {
             roots,
             heads,
@@ -1886,8 +1886,8 @@ fn fold_generation(expression: &Rc<RevsetExpression>) -> TransformedExpression {
         } => {
             match heads.as_ref() {
                 // (h-)- -> ancestors(ancestors(h, 1), 1) -> ancestors(h, 2)
-                // :(h-) -> ancestors(ancestors(h, 1), ..) -> ancestors(h, 1..)
-                // (:h)- -> ancestors(ancestors(h, ..), 1) -> ancestors(h, 1..)
+                // ::(h-) -> ancestors(ancestors(h, 1), ..) -> ancestors(h, 1..)
+                // (::h)- -> ancestors(ancestors(h, ..), 1) -> ancestors(h, 1..)
                 RevsetExpression::Ancestors {
                     heads,
                     generation: generation2,
@@ -1907,8 +1907,8 @@ fn fold_generation(expression: &Rc<RevsetExpression>) -> TransformedExpression {
         } => {
             match roots.as_ref() {
                 // (r+)+ -> descendants(descendants(r, 1), 1) -> descendants(r, 2)
-                // (r+): -> descendants(descendants(r, 1), ..) -> descendants(r, 1..)
-                // (r:)+ -> descendants(descendants(r, ..), 1) -> descendants(r, 1..)
+                // (r+):: -> descendants(descendants(r, 1), ..) -> descendants(r, 1..)
+                // (r::)+ -> descendants(descendants(r, ..), 1) -> descendants(r, 1..)
                 RevsetExpression::Descendants {
                     roots,
                     generation: generation2,
@@ -3004,7 +3004,7 @@ mod tests {
         assert_eq!(parse("x&~y").unwrap(), parse("x&(~y)").unwrap());
         assert_eq!(parse("x~~y").unwrap(), parse("x~(~y)").unwrap());
         assert_eq!(parse("x~~~y").unwrap(), parse("x~(~(~y))").unwrap());
-        assert_eq!(parse("~x:y").unwrap(), parse("~(x:y)").unwrap());
+        assert_eq!(parse("~x::y").unwrap(), parse("~(x::y)").unwrap());
         assert_eq!(parse("x|y|z").unwrap(), parse("(x|y)|z").unwrap());
         assert_eq!(parse("x&y|z").unwrap(), parse("(x&y)|z").unwrap());
         assert_eq!(parse("x|y&z").unwrap(), parse("x|(y&z)").unwrap());
@@ -3173,8 +3173,8 @@ mod tests {
             parse("(a|b)|c").unwrap()
         );
         assert_eq!(
-            parse_with_aliases("AB:heads(AB)", [("AB", "a|b")]).unwrap(),
-            parse("(a|b):heads(a|b)").unwrap()
+            parse_with_aliases("AB::heads(AB)", [("AB", "a|b")]).unwrap(),
+            parse("(a|b)::heads(a|b)").unwrap()
         );
 
         // Not string substitution 'a&b|c', but tree substitution.
@@ -3265,8 +3265,8 @@ mod tests {
 
         // Arguments should be resolved in the current scope.
         assert_eq!(
-            parse_with_aliases("F(a:y,b:x)", [("F(x,y)", "x|y")]).unwrap(),
-            parse("(a:y)|(b:x)").unwrap()
+            parse_with_aliases("F(a::y,b::x)", [("F(x,y)", "x|y")]).unwrap(),
+            parse("(a::y)|(b::x)").unwrap()
         );
         // F(a) -> G(a)&y -> (x|a)&y
         assert_eq!(
@@ -3379,7 +3379,7 @@ mod tests {
                 .range(&RevsetExpression::tags())
         );
         assert_eq!(
-            optimize(parse("(branches() & all()):(all() & tags())").unwrap()),
+            optimize(parse("(branches() & all())::(all() & tags())").unwrap()),
             RevsetExpression::branches(StringPattern::everything())
                 .dag_range_to(&RevsetExpression::tags())
         );
@@ -3588,7 +3588,7 @@ mod tests {
         "###);
 
         // Range expression.
-        insta::assert_debug_snapshot!(optimize(parse(":foo & ~:bar").unwrap()), @r###"
+        insta::assert_debug_snapshot!(optimize(parse("::foo & ~::bar").unwrap()), @r###"
         Range {
             roots: CommitRef(
                 Symbol(
@@ -3603,7 +3603,7 @@ mod tests {
             generation: 0..18446744073709551615,
         }
         "###);
-        insta::assert_debug_snapshot!(optimize(parse("~:foo & :bar").unwrap()), @r###"
+        insta::assert_debug_snapshot!(optimize(parse("~::foo & ::bar").unwrap()), @r###"
         Range {
             roots: CommitRef(
                 Symbol(
@@ -4466,7 +4466,7 @@ mod tests {
             is_legacy: false,
         }
         "###);
-        insta::assert_debug_snapshot!(optimize(parse(":(foo---)").unwrap()), @r###"
+        insta::assert_debug_snapshot!(optimize(parse("::(foo---)").unwrap()), @r###"
         Ancestors {
             heads: CommitRef(
                 Symbol(
@@ -4477,7 +4477,7 @@ mod tests {
             is_legacy: false,
         }
         "###);
-        insta::assert_debug_snapshot!(optimize(parse("(:foo)---").unwrap()), @r###"
+        insta::assert_debug_snapshot!(optimize(parse("(::foo)---").unwrap()), @r###"
         Ancestors {
             heads: CommitRef(
                 Symbol(
@@ -4635,7 +4635,7 @@ mod tests {
             is_legacy: false,
         }
         "###);
-        insta::assert_debug_snapshot!(optimize(parse("(foo+++):").unwrap()), @r###"
+        insta::assert_debug_snapshot!(optimize(parse("(foo+++)::").unwrap()), @r###"
         Descendants {
             roots: CommitRef(
                 Symbol(
@@ -4646,7 +4646,7 @@ mod tests {
             is_legacy: false,
         }
         "###);
-        insta::assert_debug_snapshot!(optimize(parse("(foo:)+++").unwrap()), @r###"
+        insta::assert_debug_snapshot!(optimize(parse("(foo::)+++").unwrap()), @r###"
         Descendants {
             roots: CommitRef(
                 Symbol(
@@ -4676,9 +4676,9 @@ mod tests {
         "###);
 
         // TODO: Inner Descendants can be folded into DagRange. Perhaps, we can rewrite
-        // 'x:y' to 'x: & :y' first, so the common substitution rule can handle both
-        // 'x+:y' and 'x+ & :y'.
-        insta::assert_debug_snapshot!(optimize(parse("(foo++):bar").unwrap()), @r###"
+        // 'x::y' to 'x:: & ::y' first, so the common substitution rule can handle both
+        // 'x+::y' and 'x+ & ::y'.
+        insta::assert_debug_snapshot!(optimize(parse("(foo++)::bar").unwrap()), @r###"
         DagRange {
             roots: Descendants {
                 roots: CommitRef(
