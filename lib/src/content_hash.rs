@@ -1,7 +1,11 @@
 //! Portable, stable hashing suitable for identifying values
 
 use blake2::Blake2b512;
+// Re-export DigestUpdate so that the ContentHash proc macro can be used in
+// external crates without directly depending on the digest crate.
+pub use digest::Update as DigestUpdate;
 use itertools::Itertools as _;
+pub use jj_lib_proc_macros::ContentHash;
 
 /// Portable, stable hashing suitable for identifying values
 ///
@@ -10,9 +14,11 @@ use itertools::Itertools as _;
 /// order their elements according to their `Ord` implementation. Enums should
 /// hash a 32-bit little-endian encoding of the ordinal number of the enum
 /// variant, then the variant's fields in lexical order.
+///
+/// Structs can implement `ContentHash` by using `#[derive(ContentHash)]`.
 pub trait ContentHash {
     /// Update the hasher state with this object's content
-    fn hash(&self, state: &mut impl digest::Update);
+    fn hash(&self, state: &mut impl DigestUpdate);
 }
 
 /// The 512-bit BLAKE2b content hash
@@ -24,48 +30,48 @@ pub fn blake2b_hash(x: &(impl ContentHash + ?Sized)) -> digest::Output<Blake2b51
 }
 
 impl ContentHash for () {
-    fn hash(&self, _: &mut impl digest::Update) {}
+    fn hash(&self, _: &mut impl DigestUpdate) {}
 }
 
 impl ContentHash for bool {
-    fn hash(&self, state: &mut impl digest::Update) {
+    fn hash(&self, state: &mut impl DigestUpdate) {
         u8::from(*self).hash(state);
     }
 }
 
 impl ContentHash for u8 {
-    fn hash(&self, state: &mut impl digest::Update) {
+    fn hash(&self, state: &mut impl DigestUpdate) {
         state.update(&[*self]);
     }
 }
 
 impl ContentHash for u32 {
-    fn hash(&self, state: &mut impl digest::Update) {
+    fn hash(&self, state: &mut impl DigestUpdate) {
         state.update(&self.to_le_bytes());
     }
 }
 
 impl ContentHash for i32 {
-    fn hash(&self, state: &mut impl digest::Update) {
+    fn hash(&self, state: &mut impl DigestUpdate) {
         state.update(&self.to_le_bytes());
     }
 }
 
 impl ContentHash for u64 {
-    fn hash(&self, state: &mut impl digest::Update) {
+    fn hash(&self, state: &mut impl DigestUpdate) {
         state.update(&self.to_le_bytes());
     }
 }
 
 impl ContentHash for i64 {
-    fn hash(&self, state: &mut impl digest::Update) {
+    fn hash(&self, state: &mut impl DigestUpdate) {
         state.update(&self.to_le_bytes());
     }
 }
 
 // TODO: Specialize for [u8] once specialization exists
 impl<T: ContentHash> ContentHash for [T] {
-    fn hash(&self, state: &mut impl digest::Update) {
+    fn hash(&self, state: &mut impl DigestUpdate) {
         state.update(&(self.len() as u64).to_le_bytes());
         for x in self {
             x.hash(state);
@@ -74,19 +80,19 @@ impl<T: ContentHash> ContentHash for [T] {
 }
 
 impl<T: ContentHash> ContentHash for Vec<T> {
-    fn hash(&self, state: &mut impl digest::Update) {
+    fn hash(&self, state: &mut impl DigestUpdate) {
         self.as_slice().hash(state)
     }
 }
 
 impl ContentHash for String {
-    fn hash(&self, state: &mut impl digest::Update) {
+    fn hash(&self, state: &mut impl DigestUpdate) {
         self.as_bytes().hash(state);
     }
 }
 
 impl<T: ContentHash> ContentHash for Option<T> {
-    fn hash(&self, state: &mut impl digest::Update) {
+    fn hash(&self, state: &mut impl DigestUpdate) {
         match self {
             None => state.update(&0u32.to_le_bytes()),
             Some(x) => {
@@ -102,7 +108,7 @@ where
     K: ContentHash + Ord,
     V: ContentHash,
 {
-    fn hash(&self, state: &mut impl digest::Update) {
+    fn hash(&self, state: &mut impl DigestUpdate) {
         state.update(&(self.len() as u64).to_le_bytes());
         let mut kv = self.iter().collect_vec();
         kv.sort_unstable_by_key(|&(k, _)| k);
@@ -117,7 +123,7 @@ impl<K> ContentHash for std::collections::HashSet<K>
 where
     K: ContentHash + Ord,
 {
-    fn hash(&self, state: &mut impl digest::Update) {
+    fn hash(&self, state: &mut impl DigestUpdate) {
         state.update(&(self.len() as u64).to_le_bytes());
         for k in self.iter().sorted() {
             k.hash(state);
@@ -130,7 +136,7 @@ where
     K: ContentHash,
     V: ContentHash,
 {
-    fn hash(&self, state: &mut impl digest::Update) {
+    fn hash(&self, state: &mut impl DigestUpdate) {
         state.update(&(self.len() as u64).to_le_bytes());
         for (k, v) in self.iter() {
             k.hash(state);
@@ -241,6 +247,31 @@ mod tests {
             })),
             @"e33c423b4b774b1353c414e0f9ef108822fde2fd5113fcd53bf7bd9e74e3206690b96af96373f268ed95dd020c7cbe171c7b7a6947fcaf5703ff6c8e208cefd4"
         );
+    }
+
+    // This will be removed once all uses of content_hash! are replaced by the
+    // derive version.
+    #[test]
+    fn derive_is_equivalent_to_macro() {
+        content_hash! {
+            struct FooMacro { x: Vec<Option<i32>>, y: i64}
+        }
+
+        #[derive(ContentHash)]
+        struct FooDerive {
+            x: Vec<Option<i32>>,
+            y: i64,
+        }
+
+        let foo_macro = FooMacro {
+            x: vec![None, Some(42)],
+            y: 17,
+        };
+        let foo_derive = FooDerive {
+            x: vec![None, Some(42)],
+            y: 17,
+        };
+        assert_eq!(hash(&foo_macro), hash(&foo_derive));
     }
 
     fn hash(x: &(impl ContentHash + ?Sized)) -> digest::Output<Blake2b512> {

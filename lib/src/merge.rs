@@ -29,7 +29,7 @@ use smallvec::{smallvec_inline, SmallVec};
 
 use crate::backend;
 use crate::backend::{BackendError, FileId, TreeId, TreeValue};
-use crate::content_hash::ContentHash;
+use crate::content_hash::{ContentHash, DigestUpdate};
 use crate::object_id::ObjectId;
 use crate::repo_path::RepoPath;
 use crate::store::Store;
@@ -457,7 +457,7 @@ impl<T> Merge<Merge<T>> {
 }
 
 impl<T: ContentHash> ContentHash for Merge<T> {
-    fn hash(&self, state: &mut impl digest::Update) {
+    fn hash(&self, state: &mut impl DigestUpdate) {
         self.values.hash(state)
     }
 }
