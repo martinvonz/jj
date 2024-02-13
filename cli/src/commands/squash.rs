@@ -54,7 +54,7 @@ pub(crate) fn cmd_squash(
     args: &SquashArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewritable([&commit])?;
     let parents = commit.parents();
     if parents.len() != 1 {

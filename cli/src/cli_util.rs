@@ -1091,12 +1091,8 @@ impl WorkspaceCommandHelper {
 
     /// Resolve a revset to a single revision. Return an error if the revset is
     /// empty or has multiple revisions.
-    pub fn resolve_single_rev(
-        &self,
-        revision_str: &str,
-        ui: &mut Ui,
-    ) -> Result<Commit, CommandError> {
-        let revset_expression = self.parse_revset(revision_str, Some(ui))?;
+    pub fn resolve_single_rev(&self, revision_str: &str) -> Result<Commit, CommandError> {
+        let revset_expression = self.parse_revset(revision_str)?;
         let revset = self.evaluate_revset(revset_expression.clone())?;
         let mut iter = revset.iter().commits(self.repo().store()).fuse();
         match (iter.next(), iter.next()) {
@@ -1145,12 +1141,8 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
     }
 
     /// Resolve a revset any number of revisions (including 0).
-    pub fn resolve_revset(
-        &self,
-        revision_str: &str,
-        ui: &mut Ui,
-    ) -> Result<Vec<Commit>, CommandError> {
-        let revset_expression = self.parse_revset(revision_str, Some(ui))?;
+    pub fn resolve_revset(&self, revision_str: &str) -> Result<Vec<Commit>, CommandError> {
+        let revset_expression = self.parse_revset(revision_str)?;
         let revset = self.evaluate_revset(revset_expression)?;
         Ok(revset.iter().commits(self.repo().store()).try_collect()?)
     }
@@ -1161,13 +1153,12 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
     pub fn resolve_revset_default_single(
         &self,
         revision_str: &str,
-        ui: &mut Ui,
     ) -> Result<Vec<Commit>, CommandError> {
         // TODO: Let pest parse the prefix too once we've dropped support for `:`
         if let Some(revision_str) = revision_str.strip_prefix("all:") {
-            self.resolve_revset(revision_str, ui)
+            self.resolve_revset(revision_str)
         } else {
-            self.resolve_single_rev(revision_str, ui)
+            self.resolve_single_rev(revision_str)
                 .map_err(|err| match err {
                     CommandError::UserError { err, hint } => CommandError::UserError {
                         err,
@@ -1187,65 +1178,8 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
     pub fn parse_revset(
         &self,
         revision_str: &str,
-        ui: Option<&mut Ui>,
     ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
         let expression = revset::parse(revision_str, &self.revset_parse_context())?;
-        if let Some(ui) = ui {
-            fn has_legacy_rule(expression: &Rc<RevsetExpression>) -> bool {
-                match expression.as_ref() {
-                    RevsetExpression::None => false,
-                    RevsetExpression::All => false,
-                    RevsetExpression::Commits(_) => false,
-                    RevsetExpression::CommitRef(_) => false,
-                    RevsetExpression::Ancestors {
-                        heads,
-                        generation: _,
-                        is_legacy,
-                    } => *is_legacy || has_legacy_rule(heads),
-                    RevsetExpression::Descendants {
-                        roots,
-                        generation: _,
-                        is_legacy,
-                    } => *is_legacy || has_legacy_rule(roots),
-                    RevsetExpression::Range {
-                        roots,
-                        heads,
-                        generation: _,
-                    } => has_legacy_rule(roots) || has_legacy_rule(heads),
-                    RevsetExpression::DagRange {
-                        roots,
-                        heads,
-                        is_legacy,
-                    } => *is_legacy || has_legacy_rule(roots) || has_legacy_rule(heads),
-                    RevsetExpression::Heads(expression) => has_legacy_rule(expression),
-                    RevsetExpression::Roots(expression) => has_legacy_rule(expression),
-                    RevsetExpression::Latest {
-                        candidates,
-                        count: _,
-                    } => has_legacy_rule(candidates),
-                    RevsetExpression::Filter(_) => false,
-                    RevsetExpression::AsFilter(expression) => has_legacy_rule(expression),
-                    RevsetExpression::Present(expression) => has_legacy_rule(expression),
-                    RevsetExpression::NotIn(expression) => has_legacy_rule(expression),
-                    RevsetExpression::Union(expression1, expression2) => {
-                        has_legacy_rule(expression1) || has_legacy_rule(expression2)
-                    }
-                    RevsetExpression::Intersection(expression1, expression2) => {
-                        has_legacy_rule(expression1) || has_legacy_rule(expression2)
-                    }
-                    RevsetExpression::Difference(expression1, expression2) => {
-                        has_legacy_rule(expression1) || has_legacy_rule(expression2)
-                    }
-                }
-            }
-            if has_legacy_rule(&expression) {
-                writeln!(
-                    ui.warning(),
-                    "The `:` revset operator is deprecated. Please switch to `::`."
-                )
-                .ok();
-            }
-        }
         Ok(revset::optimize(expression))
     }
 
@@ -1293,12 +1227,9 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
                 .get_string("revsets.short-prefixes")
                 .unwrap_or_else(|_| self.settings.default_revset());
             if !revset_string.is_empty() {
-                let disambiguation_revset =
-                    self.parse_revset(&revset_string, None).map_err(|err| {
-                        CommandError::ConfigError(format!(
-                            "Invalid `revsets.short-prefixes`: {err}"
-                        ))
-                    })?;
+                let disambiguation_revset = self.parse_revset(&revset_string).map_err(|err| {
+                    CommandError::ConfigError(format!("Invalid `revsets.short-prefixes`: {err}"))
+                })?;
                 context = context.disambiguate_within(disambiguation_revset);
             }
             Ok(context)
@@ -1373,7 +1304,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
                 r#"The `revset-aliases.immutable_heads()` function must be declared without arguments."#,
             ));
         }
-        let immutable_heads_revset = self.parse_revset(immutable_heads_str, None)?;
+        let immutable_heads_revset = self.parse_revset(immutable_heads_str)?;
         let immutable_revset = immutable_heads_revset
             .ancestors()
             .union(&RevsetExpression::commit(
@@ -2075,11 +2006,9 @@ pub fn parse_string_pattern(src: &str) -> Result<StringPattern, StringPatternPar
 /// that take multiple parents.
 pub fn resolve_all_revs(
     workspace_command: &WorkspaceCommandHelper,
-    ui: &mut Ui,
     revisions: &[RevisionArg],
 ) -> Result<IndexSet<Commit>, CommandError> {
-    let commits =
-        resolve_multiple_nonempty_revsets_default_single(workspace_command, ui, revisions)?;
+    let commits = resolve_multiple_nonempty_revsets_default_single(workspace_command, revisions)?;
     let root_commit_id = workspace_command.repo().store().root_commit_id();
     if commits.len() >= 2 && commits.iter().any(|c| c.id() == root_commit_id) {
         Err(user_error("Cannot merge with root revision"))
@@ -2118,11 +2047,10 @@ fn load_revset_aliases(
 pub fn resolve_multiple_nonempty_revsets(
     revision_args: &[RevisionArg],
     workspace_command: &WorkspaceCommandHelper,
-    ui: &mut Ui,
 ) -> Result<IndexSet<Commit>, CommandError> {
     let mut acc = IndexSet::new();
     for revset in revision_args {
-        let revisions = workspace_command.resolve_revset(revset, ui)?;
+        let revisions = workspace_command.resolve_revset(revset)?;
         workspace_command.check_non_empty(&revisions)?;
         acc.extend(revisions);
     }
@@ -2131,12 +2059,11 @@ pub fn resolve_multiple_nonempty_revsets(
 
 pub fn resolve_multiple_nonempty_revsets_default_single(
     workspace_command: &WorkspaceCommandHelper,
-    ui: &mut Ui,
     revisions: &[RevisionArg],
 ) -> Result<IndexSet<Commit>, CommandError> {
     let mut all_commits = IndexSet::new();
     for revision_str in revisions {
-        let commits = workspace_command.resolve_revset_default_single(revision_str, ui)?;
+        let commits = workspace_command.resolve_revset_default_single(revision_str)?;
         workspace_command.check_non_empty(&commits)?;
         for commit in commits {
             let commit_hash = short_commit_hash(commit.id());

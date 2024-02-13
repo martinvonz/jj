@@ -48,8 +48,8 @@ pub(crate) fn cmd_interdiff(
     args: &InterdiffArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?;
-    let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
+    let from = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
+    let to = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
 
     let from_tree = rebase_to_dest_parent(workspace_command.repo().as_ref(), &from, &to)?;
     let to_tree = to.tree()?;

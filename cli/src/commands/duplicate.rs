@@ -44,7 +44,7 @@ pub(crate) fn cmd_duplicate(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let to_duplicate: IndexSet<Commit> =
-        resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command, ui)?;
+        resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command)?;
     if to_duplicate
         .iter()
         .any(|commit| commit.id() == workspace_command.repo().store().root_commit_id())

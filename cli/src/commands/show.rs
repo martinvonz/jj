@@ -44,7 +44,7 @@ pub(crate) fn cmd_show(
     args: &ShowArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
     let template_string = match &args.template {
         Some(value) => value.to_string(),
         None => command.settings().config().get_string("templates.show")?,

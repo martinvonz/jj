@@ -70,12 +70,12 @@ pub(crate) fn cmd_log(
 
     let revset_expression = {
         let mut expression = if args.revisions.is_empty() {
-            workspace_command.parse_revset(&command.settings().default_revset(), Some(ui))?
+            workspace_command.parse_revset(&command.settings().default_revset())?
         } else {
             let expressions: Vec<_> = args
                 .revisions
                 .iter()
-                .map(|revision_str| workspace_command.parse_revset(revision_str, Some(ui)))
+                .map(|revision_str| workspace_command.parse_revset(revision_str))
                 .try_collect()?;
             RevsetExpression::union_all(&expressions)
         };

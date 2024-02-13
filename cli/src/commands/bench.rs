@@ -132,8 +132,8 @@ pub(crate) fn cmd_bench(
     match subcommand {
         BenchCommand::CommonAncestors(args) => {
             let workspace_command = command.workspace_helper(ui)?;
-            let commit1 = workspace_command.resolve_single_rev(&args.revision1, ui)?;
-            let commit2 = workspace_command.resolve_single_rev(&args.revision2, ui)?;
+            let commit1 = workspace_command.resolve_single_rev(&args.revision1)?;
+            let commit2 = workspace_command.resolve_single_rev(&args.revision2)?;
             let index = workspace_command.repo().index();
             let routine =
                 || index.common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()]);
@@ -146,8 +146,8 @@ pub(crate) fn cmd_bench(
         }
         BenchCommand::IsAncestor(args) => {
             let workspace_command = command.workspace_helper(ui)?;
-            let ancestor_commit = workspace_command.resolve_single_rev(&args.ancestor, ui)?;
-            let descendant_commit = workspace_command.resolve_single_rev(&args.descendant, ui)?;
+            let ancestor_commit = workspace_command.resolve_single_rev(&args.ancestor)?;
+            let descendant_commit = workspace_command.resolve_single_rev(&args.descendant)?;
             let index = workspace_command.repo().index();
             let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
             run_bench(
@@ -201,7 +201,7 @@ fn bench_revset<M: Measurement>(
     revset: &str,
 ) -> Result<(), CommandError> {
     writeln!(ui.stderr(), "----------Testing revset: {revset}----------")?;
-    let expression = workspace_command.parse_revset(revset, Some(ui))?;
+    let expression = workspace_command.parse_revset(revset)?;
     // Time both evaluation and iteration.
     let routine = |workspace_command: &WorkspaceCommandHelper, expression| {
         workspace_command

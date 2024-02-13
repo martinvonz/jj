@@ -47,7 +47,7 @@ pub(crate) fn cmd_abandon(
     args: &AbandonArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let to_abandon = resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command, ui)?;
+    let to_abandon = resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command)?;
     workspace_command.check_rewritable(to_abandon.iter())?;
     let mut tx = workspace_command.start_transaction();
     for commit in &to_abandon {

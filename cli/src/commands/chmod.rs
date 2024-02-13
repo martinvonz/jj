@@ -64,7 +64,7 @@ pub(crate) fn cmd_chmod(
         .iter()
         .map(|path| workspace_command.parse_file_path(path))
         .try_collect()?;
-    let commit = workspace_command.resolve_single_rev(&args.revision, ui)?;
+    let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewritable([&commit])?;
 
     let mut tx = workspace_command.start_transaction();

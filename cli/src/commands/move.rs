@@ -58,9 +58,9 @@ pub(crate) fn cmd_move(
     args: &MoveArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let source = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"), ui)?;
+    let source = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
     let mut destination =
-        workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"), ui)?;
+        workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
     if source.id() == destination.id() {
         return Err(user_error("Source and destination cannot be the same."));
     }
