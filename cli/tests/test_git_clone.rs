@@ -63,6 +63,7 @@ fn test_git_clone() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/clone"
+    branch: main@origin [new] tracked
     Working copy now at: uuqppmxq 1f0b881a (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 main | message
     Added 1 files, modified 0 files, removed 0 files
@@ -173,6 +174,7 @@ fn test_git_clone_colocate() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/clone"
+    branch: main@origin [new] tracked
     Working copy now at: uuqppmxq 1f0b881a (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 main | message
     Added 1 files, modified 0 files, removed 0 files
@@ -328,6 +330,8 @@ fn test_git_clone_remote_default_branch() {
         test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "clone1"]);
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/clone1"
+    branch: feature1@origin [new] tracked
+    branch: main@origin     [new] tracked
     Working copy now at: sqpuoqvx cad212e1 (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 feature1 main | message
     Added 1 files, modified 0 files, removed 0 files
@@ -346,6 +350,8 @@ fn test_git_clone_remote_default_branch() {
         test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "clone2"]);
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/clone2"
+    branch: feature1@origin [new] untracked
+    branch: main@origin     [new] untracked
     Working copy now at: pmmvwywv fa729b1e (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 feature1@origin main | message
     Added 1 files, modified 0 files, removed 0 files

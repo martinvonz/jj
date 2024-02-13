@@ -111,7 +111,7 @@ fn test_git_fetch_single_remote() {
         .jj_cmd(&repo_path, &["git", "fetch"])
         .assert()
         .success()
-        .stderr("Fetching from the only existing remote: rem1\n");
+        .stderr("Fetching from the only existing remote: rem1\nbranch: rem1@rem1 [new] tracked\n");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     rem1: qxosxrvv 6a211027 message
       @rem1: qxosxrvv 6a211027 message
@@ -237,6 +237,7 @@ fn test_git_fetch_nonexistent_remote() {
         &["git", "fetch", "--remote", "rem1", "--remote", "rem2"],
     );
     insta::assert_snapshot!(stderr, @r###"
+    branch: rem1@rem1 [new] untracked
     Error: No git remote named 'rem2'
     "###);
     // No remote should have been fetched as part of the failing transaction
@@ -253,6 +254,7 @@ fn test_git_fetch_nonexistent_remote_from_config() {
 
     let stderr = &test_env.jj_cmd_failure(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stderr, @r###"
+    branch: rem1@rem1 [new] untracked
     Error: No git remote named 'rem2'
     "###);
     // No remote should have been fetched as part of the failing transaction
@@ -461,7 +463,12 @@ fn test_git_fetch_all() {
     insta::assert_snapshot!(get_branch_output(&test_env, &target_jj_repo_path), @"");
     let (stdout, stderr) = test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: a1@origin     [new] tracked
+    branch: a2@origin     [new] tracked
+    branch: b@origin      [new] tracked
+    branch: trunk1@origin [new] tracked
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &target_jj_repo_path), @r###"
     a1: nknoxmzm 359a9a02 descr_for_a1
       @origin: nknoxmzm 359a9a02 descr_for_a1
@@ -529,6 +536,10 @@ fn test_git_fetch_all() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    branch: a1@origin     [updated] tracked
+    branch: a2@origin     [updated] tracked
+    branch: b@origin      [updated] tracked
+    branch: trunk2@origin [new] tracked
     Abandoned 2 commits that are no longer reachable.
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &target_jj_repo_path), @r###"
@@ -616,7 +627,9 @@ fn test_git_fetch_some_of_many_branches() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch", "--branch", "b"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: b@origin [new] tracked
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     ◉  ff36dc55760e descr_for_trunk1
@@ -635,7 +648,10 @@ fn test_git_fetch_some_of_many_branches() {
         &["git", "fetch", "--branch", "glob:a*"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: a1@origin [new] tracked
+    branch: a2@origin [new] tracked
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  decaa3966c83 descr_for_a2 a2
     │ ◉  359a9a02457d descr_for_a1 a1
@@ -704,6 +720,8 @@ fn test_git_fetch_some_of_many_branches() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    branch: a1@origin [updated] tracked
+    branch: b@origin  [updated] tracked
     Abandoned 1 commits that are no longer reachable.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
@@ -741,6 +759,7 @@ fn test_git_fetch_some_of_many_branches() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    branch: a2@origin [updated] tracked
     Abandoned 1 commits that are no longer reachable.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
@@ -808,7 +827,10 @@ fn test_git_fetch_undo() {
         &["git", "fetch", "--branch", "b", "--branch", "a1"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: a1@origin [new] tracked
+    branch: b@origin  [new] tracked
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     │ ◉  359a9a02457d descr_for_a1 a1
@@ -830,7 +852,9 @@ fn test_git_fetch_undo() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch", "--branch", "b"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: b@origin [new] tracked
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     ◉  ff36dc55760e descr_for_trunk1
@@ -880,7 +904,9 @@ fn test_fetch_undo_what() {
     // Fetch a branch
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--branch", "b"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: b@origin [new] tracked
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     ◉  ff36dc55760e descr_for_trunk1
@@ -967,7 +993,9 @@ fn test_git_fetch_remove_fetch() {
     // Check that origin@origin is properly recreated
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: origin@origin [new] tracked
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     origin (conflicted):
       + qpvuntsm 230dd059 (empty) (no description set)
@@ -1050,7 +1078,12 @@ fn test_git_fetch_removed_branch() {
     // Fetch all branches
     let (stdout, stderr) = test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: a1@origin     [new] tracked
+    branch: a2@origin     [new] tracked
+    branch: b@origin      [new] tracked
+    branch: trunk1@origin [new] tracked
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     │ ◉  decaa3966c83 descr_for_a2 a2
@@ -1090,6 +1123,7 @@ fn test_git_fetch_removed_branch() {
         test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch", "--branch", "a2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    branch: a2@origin [deleted] untracked
     Abandoned 1 commits that are no longer reachable.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
@@ -1136,7 +1170,12 @@ fn test_git_fetch_removed_parent_branch() {
     // Fetch all branches
     let (stdout, stderr) = test_env.jj_cmd_ok(&target_jj_repo_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    branch: a1@origin     [new] tracked
+    branch: a2@origin     [new] tracked
+    branch: b@origin      [new] tracked
+    branch: trunk1@origin [new] tracked
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"
     ◉  c7d4bdcbc215 descr_for_b b
     │ ◉  decaa3966c83 descr_for_a2 a2
@@ -1163,6 +1202,8 @@ fn test_git_fetch_removed_parent_branch() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    branch: a1@origin     [deleted] untracked
+    branch: trunk1@origin [deleted] untracked
     Abandoned 1 commits that are no longer reachable.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &target_jj_repo_path), @r###"

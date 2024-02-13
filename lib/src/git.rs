@@ -201,10 +201,13 @@ impl GitImportError {
 }
 
 /// Describes changes made by `import_refs()` or `fetch()`.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct GitImportStats {
     /// Commits superseded by newly imported commits.
     pub abandoned_commits: Vec<CommitId>,
+    /// Remote `(ref_name, (old_remote_ref, new_target))`s to be merged in to
+    /// the local refs.
+    pub changed_remote_refs: BTreeMap<RefName, (RemoteRef, RefTarget)>,
 }
 
 #[derive(Debug)]
@@ -326,7 +329,10 @@ pub fn import_some_refs(
     } else {
         vec![]
     };
-    let stats = GitImportStats { abandoned_commits };
+    let stats = GitImportStats {
+        abandoned_commits,
+        changed_remote_refs,
+    };
     Ok(stats)
 }
 
@@ -1089,7 +1095,7 @@ pub enum GitFetchError {
 }
 
 /// Describes successful `fetch()` result.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct GitFetchStats {
     /// Remote's default branch.
     pub default_branch: Option<String>,
@@ -1135,12 +1141,7 @@ pub fn fetch(
         .ok_or(GitFetchError::InvalidBranchPattern)?;
     if refspecs.is_empty() {
         // Don't fall back to the base refspecs.
-        let stats = GitFetchStats {
-            default_branch: None,
-            import_stats: GitImportStats {
-                abandoned_commits: vec![],
-            },
-        };
+        let stats = GitFetchStats::default();
         return Ok(stats);
     }
     tracing::debug!("remote.download");

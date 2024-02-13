@@ -21,13 +21,17 @@ use std::sync::Mutex;
 use std::time::Instant;
 use std::{error, iter};
 
-use jj_lib::git::{self, FailedRefExport, FailedRefExportReason, GitImportStats};
+use itertools::Itertools;
+use jj_lib::git::{self, FailedRefExport, FailedRefExportReason, GitImportStats, RefName};
 use jj_lib::git_backend::GitBackend;
-use jj_lib::repo::{ReadonlyRepo, Repo as _};
+use jj_lib::op_store::{RefTarget, RemoteRef};
+use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::store::Store;
 use jj_lib::workspace::Workspace;
+use unicode_width::UnicodeWidthStr;
 
 use crate::cli_util::{user_error, CommandError};
+use crate::formatter::Formatter;
 use crate::progress::Progress;
 use crate::ui::Ui;
 
@@ -172,7 +176,37 @@ pub fn with_remote_git_callbacks<T>(
     f(callbacks)
 }
 
-pub fn print_git_import_stats(ui: &mut Ui, stats: &GitImportStats) -> Result<(), CommandError> {
+pub fn print_git_import_stats(
+    ui: &mut Ui,
+    repo: &dyn Repo,
+    stats: &GitImportStats,
+    show_ref_stats: bool,
+) -> Result<(), CommandError> {
+    if show_ref_stats {
+        let refs_stats = stats
+            .changed_remote_refs
+            .iter()
+            .map(|(ref_name, (remote_ref, ref_target))| {
+                RefStatus::new(ref_name, remote_ref, ref_target, repo)
+            })
+            .collect_vec();
+
+        let has_both_ref_kinds = refs_stats
+            .iter()
+            .any(|x| matches!(x.ref_kind, RefKind::Branch))
+            && refs_stats
+                .iter()
+                .any(|x| matches!(x.ref_kind, RefKind::Tag));
+
+        let max_width = refs_stats.iter().map(|x| x.ref_name.width()).max();
+        if let Some(max_width) = max_width {
+            let mut stderr = ui.stderr_formatter();
+            for status in refs_stats {
+                status.output(max_width, has_both_ref_kinds, &mut *stderr)?;
+            }
+        }
+    }
+
     if !stats.abandoned_commits.is_empty() {
         writeln!(
             ui.stderr(),
@@ -180,7 +214,103 @@ pub fn print_git_import_stats(ui: &mut Ui, stats: &GitImportStats) -> Result<(),
             stats.abandoned_commits.len()
         )?;
     }
+
     Ok(())
+}
+
+struct RefStatus {
+    ref_kind: RefKind,
+    ref_name: String,
+    tracking_status: TrackingStatus,
+    import_status: ImportStatus,
+}
+
+impl RefStatus {
+    fn new(
+        ref_name: &RefName,
+        remote_ref: &RemoteRef,
+        ref_target: &RefTarget,
+        repo: &dyn Repo,
+    ) -> Self {
+        let (ref_name, ref_kind, tracking_status) = match ref_name {
+            RefName::RemoteBranch { branch, remote } => (
+                format!("{branch}@{remote}"),
+                RefKind::Branch,
+                if repo.view().get_remote_branch(branch, remote).is_tracking() {
+                    TrackingStatus::Tracked
+                } else {
+                    TrackingStatus::Untracked
+                },
+            ),
+            RefName::Tag(tag) => (tag.clone(), RefKind::Tag, TrackingStatus::NotApplicable),
+            RefName::LocalBranch(branch) => {
+                (branch.clone(), RefKind::Branch, TrackingStatus::Tracked)
+            }
+        };
+
+        let import_status = match (remote_ref.target.is_absent(), ref_target.is_absent()) {
+            (true, false) => ImportStatus::New,
+            (false, true) => ImportStatus::Deleted,
+            _ => ImportStatus::Updated,
+        };
+
+        Self {
+            ref_name,
+            tracking_status,
+            import_status,
+            ref_kind,
+        }
+    }
+
+    fn output(
+        &self,
+        max_ref_name_width: usize,
+        has_both_ref_kinds: bool,
+        out: &mut dyn Formatter,
+    ) -> std::io::Result<()> {
+        let tracking_status = match self.tracking_status {
+            TrackingStatus::Tracked => "tracked",
+            TrackingStatus::Untracked => "untracked",
+            TrackingStatus::NotApplicable => "",
+        };
+
+        let import_status = match self.import_status {
+            ImportStatus::New => "new",
+            ImportStatus::Deleted => "deleted",
+            ImportStatus::Updated => "updated",
+        };
+
+        let ref_name_display_width = self.ref_name.width();
+        let pad_width = max_ref_name_width.saturating_sub(ref_name_display_width);
+        let padded_ref_name = format!("{}{:>pad_width$}", self.ref_name, "", pad_width = pad_width);
+
+        let ref_kind = match self.ref_kind {
+            RefKind::Branch => "branch: ",
+            RefKind::Tag if !has_both_ref_kinds => "tag: ",
+            RefKind::Tag => "tag:    ",
+        };
+
+        write!(out, "{ref_kind}")?;
+        write!(out.labeled("branch"), "{padded_ref_name}")?;
+        writeln!(out, " [{import_status}] {tracking_status}")
+    }
+}
+
+enum RefKind {
+    Branch,
+    Tag,
+}
+
+enum TrackingStatus {
+    Tracked,
+    Untracked,
+    NotApplicable, // for tags
+}
+
+enum ImportStatus {
+    New,
+    Deleted,
+    Updated,
 }
 
 pub fn print_failed_git_export(

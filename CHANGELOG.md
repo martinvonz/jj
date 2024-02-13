@@ -51,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * When creating a new workspace, the sparse patterns are now copied over from
   the current workspace.
 
+* `jj git fetch` now automatically prints new remote branches and tags by default.
+
 ### Fixed bugs
 
 * On Windows, symlinks in the repo are now materialized as regular files in the

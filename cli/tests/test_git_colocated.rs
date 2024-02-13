@@ -507,6 +507,8 @@ fn test_git_colocated_fetch_deleted_or_moved_branch() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&clone_path, &["git", "fetch"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    branch: B_to_delete@origin [deleted] untracked
+    branch: C_to_move@origin   [updated] tracked
     Abandoned 2 commits that are no longer reachable.
     "###);
     // "original C" and "B_to_delete" are abandoned, as the corresponding branches

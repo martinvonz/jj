@@ -953,7 +953,7 @@ impl WorkspaceCommandHelper {
             return Ok(());
         }
 
-        print_git_import_stats(ui, &stats)?;
+        print_git_import_stats(ui, tx.repo(), &stats, false)?;
         let mut tx = tx.into_inner();
         // Rebase here to show slightly different status message.
         let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
