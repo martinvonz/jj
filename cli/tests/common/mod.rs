@@ -114,26 +114,28 @@ impl TestEnvironment {
             cmd.env("SSL_CERT_FILE", "/dev/null");
         }
 
-        if cfg!(all(windows, target_env = "gnu")) {
-            // MinGW executables cannot run without `mingw\bin` in the PATH (which we're
-            // clearing above), so we add it again here.
-            if let Ok(path_var) = std::env::var("PATH").or_else(|_| std::env::var("Path")) {
-                // There can be slight variations of this path (e.g. `mingw64\bin`) so we're
-                // intentionally being lenient here.
-                let mingw_directories = path_var
-                    .split(';')
-                    .filter(|dir| dir.contains("mingw"))
-                    .join(";");
-
-                if !mingw_directories.is_empty() {
-                    cmd.env("PATH", mingw_directories);
-                }
-            }
-
-            // MinGW uses `TEMP` to create temporary directories, which we need for some
+        if cfg!(windows) {
+            // Windows uses `TEMP` to create temporary directories, which we need for some
             // tests.
             if let Ok(tmp_var) = std::env::var("TEMP") {
                 cmd.env("TEMP", tmp_var);
+            }
+
+            if cfg!(target_env = "gnu") {
+                // MinGW executables cannot run without `mingw\bin` in the PATH (which we're
+                // clearing above), so we add it again here.
+                if let Ok(path_var) = std::env::var("PATH").or_else(|_| std::env::var("Path")) {
+                    // There can be slight variations of this path (e.g. `mingw64\bin`) so we're
+                    // intentionally being lenient here.
+                    let mingw_directories = path_var
+                        .split(';')
+                        .filter(|dir| dir.contains("mingw"))
+                        .join(";");
+
+                    if !mingw_directories.is_empty() {
+                        cmd.env("PATH", mingw_directories);
+                    }
+                }
             }
         }
 
