@@ -264,6 +264,18 @@ mod tests {
         );
     }
 
+    // Test that the derived version of `ContentHash` matches the that's
+    // manually implemented for `std::Option`.
+    #[test]
+    fn derive_for_enum() {
+        #[derive(ContentHash)]
+        enum MyOption<T> {
+            None,
+            Some(T),
+        }
+        assert_eq!(hash(&Option::<i32>::None), hash(&MyOption::<i32>::None));
+        assert_eq!(hash(&Some(1)), hash(&MyOption::Some(1)));
+    }
     // This will be removed once all uses of content_hash! are replaced by the
     // derive version.
     #[test]
