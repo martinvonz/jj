@@ -1,7 +1,18 @@
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
 use syn::spanned::Spanned;
-use syn::{Data, Fields, Index};
+use syn::{parse_quote, Data, Fields, GenericParam, Generics, Index};
+
+pub fn add_trait_bounds(mut generics: Generics) -> Generics {
+    for param in &mut generics.params {
+        if let GenericParam::Type(ref mut type_param) = *param {
+            type_param
+                .bounds
+                .push(parse_quote!(::jj_lib::content_hash::ContentHash));
+        }
+    }
+    generics
+}
 
 pub fn generate_hash_impl(data: &Data) -> TokenStream {
     match *data {

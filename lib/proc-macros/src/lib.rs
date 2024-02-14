@@ -18,10 +18,15 @@ pub fn derive_content_hash(input: proc_macro::TokenStream) -> proc_macro::TokenS
     // Generate an expression to hash each of the fields in the struct.
     let hash_impl = content_hash::generate_hash_impl(&input.data);
 
+    // Handle structs and enums with generics.
+    let generics = content_hash::add_trait_bounds(input.generics);
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
+
     let expanded = quote! {
         #[automatically_derived]
-        impl ::jj_lib::content_hash::ContentHash for #name {
-            fn hash(&self, state: &mut impl ::jj_lib::content_hash::DigestUpdate) {
+        impl #impl_generics ::jj_lib::content_hash::ContentHash for #name #ty_generics
+        #where_clause {
+            fn hash(&self, state: &mut impl digest::Update) {
                 #hash_impl
             }
         }
