@@ -17,7 +17,7 @@
 use std::cmp::{max, min, Ordering};
 use std::collections::{BTreeSet, BinaryHeap, HashSet};
 use std::iter;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use itertools::Itertools;
 
@@ -26,7 +26,7 @@ use super::entry::{
     SmallLocalPositionsVec,
 };
 use super::readonly::ReadonlyIndexSegment;
-use super::rev_walk::RevWalk;
+use super::rev_walk::{AncestorsBitSet, RevWalk};
 use super::revset_engine;
 use crate::backend::{ChangeId, CommitId};
 use crate::hex_util;
@@ -496,28 +496,19 @@ impl Index for CompositeIndex<'_> {
 
 pub(super) struct ChangeIdIndexImpl<I> {
     index: I,
-    reachable_bitset: Vec<u64>,
+    reachable_set: Mutex<AncestorsBitSet>,
 }
 
 impl<I: AsCompositeIndex> ChangeIdIndexImpl<I> {
     pub fn new(index: I, heads: &mut dyn Iterator<Item = &CommitId>) -> ChangeIdIndexImpl<I> {
-        // TODO: Calculate reachable bitset lazily.
         let composite = index.as_composite();
-        let bitset_len =
-            usize::try_from(u32::div_ceil(composite.num_commits(), u64::BITS)).unwrap();
-        let mut reachable_bitset = vec![0; bitset_len]; // request zeroed page
-        let head_positions = heads
-            .map(|id| composite.commit_id_to_pos(id).unwrap())
-            .collect_vec();
-        for entry in composite.walk_revs(&head_positions, &[]) {
-            let IndexPosition(pos) = entry.position();
-            let bitset_pos = pos / u64::BITS;
-            let bit = 1_u64 << (pos % u64::BITS);
-            reachable_bitset[usize::try_from(bitset_pos).unwrap()] |= bit;
+        let mut reachable_set = AncestorsBitSet::with_capacity(composite.num_commits());
+        for id in heads {
+            reachable_set.add_head(composite.commit_id_to_pos(id).unwrap());
         }
         ChangeIdIndexImpl {
             index,
-            reachable_bitset,
+            reachable_set: Mutex::new(reachable_set),
         }
     }
 }
@@ -534,14 +525,12 @@ impl<I: AsCompositeIndex + Send + Sync> ChangeIdIndex for ChangeIdIndexImpl<I> {
         match index.resolve_change_id_prefix(prefix) {
             PrefixResolution::NoMatch => PrefixResolution::NoMatch,
             PrefixResolution::SingleMatch((_change_id, positions)) => {
+                debug_assert!(positions.iter().tuple_windows().all(|(a, b)| a < b));
+                let mut reachable_set = self.reachable_set.lock().unwrap();
+                reachable_set.visit_until(index, *positions.first().unwrap());
                 let reachable_commit_ids = positions
                     .iter()
-                    .filter(|IndexPosition(pos)| {
-                        let bitset_pos = pos / u64::BITS;
-                        let bit = 1_u64 << (pos % u64::BITS);
-                        let bits = self.reachable_bitset[usize::try_from(bitset_pos).unwrap()];
-                        bits & bit != 0
-                    })
+                    .filter(|&&pos| reachable_set.contains(pos))
                     .map(|&pos| index.entry_by_pos(pos).commit_id())
                     .collect_vec();
                 if reachable_commit_ids.is_empty() {
