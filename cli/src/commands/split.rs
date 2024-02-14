@@ -88,7 +88,7 @@ don't make any changes, then the operation will be aborted.
         diff_selector.select(&base_tree, &end_tree, matcher.as_ref(), Some(&instructions))?;
     if &selected_tree_id == commit.tree_id() && diff_selector.is_interactive() {
         // The user selected everything from the original commit.
-        writeln!(ui.stderr(), "Nothing changed.")?;
+        writeln!(ui.status(), "Nothing changed.")?;
         return Ok(());
     }
     if selected_tree_id == base_tree.id() {
@@ -150,13 +150,13 @@ don't make any changes, then the operation will be aborted.
         .set_rewritten_commit(commit.id().clone(), second_commit.id().clone());
     let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
     if num_rebased > 0 {
-        writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
+        writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
     }
-    write!(ui.stderr(), "First part: ")?;
-    tx.write_commit_summary(ui.stderr_formatter().as_mut(), &first_commit)?;
-    write!(ui.stderr(), "\nSecond part: ")?;
-    tx.write_commit_summary(ui.stderr_formatter().as_mut(), &second_commit)?;
-    writeln!(ui.stderr())?;
+    write!(ui.status(), "First part: ")?;
+    tx.write_commit_summary(ui.status().as_mut(), &first_commit)?;
+    write!(ui.status(), "\nSecond part: ")?;
+    tx.write_commit_summary(ui.status().as_mut(), &second_commit)?;
+    writeln!(ui.status())?;
     tx.finish(ui, format!("split commit {}", commit.id().hex()))?;
     Ok(())
 }

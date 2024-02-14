@@ -100,7 +100,7 @@ Make sure they're ignored, then try again.",
     }
     let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
     if num_rebased > 0 {
-        writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
+        writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
     }
     let repo = tx.commit("untrack paths");
     locked_ws.finish(repo.op_id().clone())?;

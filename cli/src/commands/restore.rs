@@ -101,7 +101,7 @@ pub(crate) fn cmd_restore(
     let to_tree = to_commit.tree()?;
     let new_tree_id = restore_tree(&from_tree, &to_tree, matcher.as_ref())?;
     if &new_tree_id == to_commit.tree_id() {
-        writeln!(ui.stderr(), "Nothing changed.")?;
+        writeln!(ui.status(), "Nothing changed.")?;
     } else {
         let mut tx = workspace_command.start_transaction();
         let mut_repo = tx.mut_repo();
@@ -112,11 +112,11 @@ pub(crate) fn cmd_restore(
         // rebase_descendants early; otherwise `new_commit` would always have
         // a conflicted change id at this point.
         let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
-        write!(ui.stderr(), "Created ")?;
-        tx.write_commit_summary(ui.stderr_formatter().as_mut(), &new_commit)?;
-        writeln!(ui.stderr())?;
+        write!(ui.status(), "Created ")?;
+        tx.write_commit_summary(ui.status().as_mut(), &new_commit)?;
+        writeln!(ui.status())?;
         if num_rebased > 0 {
-            writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
+            writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
         }
         tx.finish(ui, format!("restore into commit {}", to_commit.id().hex()))?;
     }

@@ -97,7 +97,7 @@ don't make any changes, then the operation will be aborted.",
     let tree = target_commit.tree()?;
     let tree_id = diff_editor.edit(&base_tree, &tree, &EverythingMatcher, Some(&instructions))?;
     if tree_id == *target_commit.tree_id() {
-        writeln!(ui.stderr(), "Nothing changed.")?;
+        writeln!(ui.status(), "Nothing changed.")?;
     } else {
         let mut_repo = tx.mut_repo();
         let new_commit = mut_repo
@@ -107,11 +107,11 @@ don't make any changes, then the operation will be aborted.",
         // rebase_descendants early; otherwise `new_commit` would always have
         // a conflicted change id at this point.
         let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
-        write!(ui.stderr(), "Created ")?;
-        tx.write_commit_summary(ui.stderr_formatter().as_mut(), &new_commit)?;
-        writeln!(ui.stderr())?;
+        write!(ui.status(), "Created ")?;
+        tx.write_commit_summary(ui.status().as_mut(), &new_commit)?;
+        writeln!(ui.status())?;
         if num_rebased > 0 {
-            writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
+            writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
         }
         tx.finish(ui, format!("edit commit {}", target_commit.id().hex()))?;
     }

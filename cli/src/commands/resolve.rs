@@ -99,7 +99,7 @@ pub(crate) fn cmd_resolve(
     workspace_command.check_rewritable([&commit])?;
     let merge_editor = workspace_command.merge_editor(ui, args.tool.as_deref())?;
     writeln!(
-        ui.stderr(),
+        ui.status(),
         "Resolving conflicts in: {}",
         workspace_command.format_file_path(repo_path)
     )?;
@@ -120,14 +120,10 @@ pub(crate) fn cmd_resolve(
         let new_conflicts = new_tree.conflicts().collect_vec();
         if !new_conflicts.is_empty() {
             writeln!(
-                ui.stderr(),
+                ui.status(),
                 "After this operation, some files at this revision still have conflicts:"
             )?;
-            print_conflicted_paths(
-                &new_conflicts,
-                ui.stderr_formatter().as_mut(),
-                &workspace_command,
-            )?;
+            print_conflicted_paths(&new_conflicts, ui.status().as_mut(), &workspace_command)?;
         }
     };
     Ok(())

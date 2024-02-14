@@ -327,7 +327,7 @@ impl CommandHelper {
                 repo_loader.op_store(),
                 |op_heads| {
                     writeln!(
-                        ui.stderr(),
+                        ui.status(),
                         "Concurrent modification detected, resolving automatically.",
                     )?;
                     let base_repo = repo_loader.load_at(&op_heads[0])?;
@@ -339,7 +339,7 @@ impl CommandHelper {
                         let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
                         if num_rebased > 0 {
                             writeln!(
-                                ui.stderr(),
+                                ui.status(),
                                 "Rebased {num_rebased} descendant commits onto commits rewritten \
                                  by other operation"
                             )?;
@@ -531,7 +531,7 @@ impl WorkspaceCommandHelper {
             locked_ws.finish(self.user_repo.repo.op_id().clone())?;
             if old_git_head.is_present() {
                 writeln!(
-                    ui.stderr(),
+                    ui.status(),
                     "Reset the working copy parent to the new Git HEAD."
                 )?;
             } else {
@@ -570,13 +570,13 @@ impl WorkspaceCommandHelper {
         let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
         if num_rebased > 0 {
             writeln!(
-                ui.stderr(),
+                ui.status(),
                 "Rebased {num_rebased} descendant commits off of commits rewritten from git"
             )?;
         }
         self.finish_transaction(ui, tx, "import git refs")?;
         writeln!(
-            ui.stderr(),
+            ui.status(),
             "Done importing changes from the underlying Git repo."
         )?;
         Ok(())
@@ -1117,7 +1117,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             let num_rebased = mut_repo.rebase_descendants(&self.settings)?;
             if num_rebased > 0 {
                 writeln!(
-                    ui.stderr(),
+                    ui.status(),
                     "Rebased {num_rebased} descendant commits onto updated working copy"
                 )?;
             }
@@ -1147,7 +1147,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             new_commit,
         )?;
         if Some(new_commit) != maybe_old_commit {
-            let mut formatter = ui.stderr_formatter();
+            let mut formatter = ui.status();
             let template = self.commit_summary_template();
             write!(formatter, "Working copy now at: ")?;
             formatter.with_label("working_copy", |fmt| template.format(new_commit, fmt))?;
@@ -1177,12 +1177,12 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         description: impl Into<String>,
     ) -> Result<(), CommandError> {
         if !tx.mut_repo().has_changes() {
-            writeln!(ui.stderr(), "Nothing changed.")?;
+            writeln!(ui.status(), "Nothing changed.")?;
             return Ok(());
         }
         let num_rebased = tx.mut_repo().rebase_descendants(&self.settings)?;
         if num_rebased > 0 {
-            writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
+            writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
         }
 
         let old_repo = tx.base_repo().clone();
@@ -1279,7 +1279,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             .retain(|change_id, _commits| !removed_conflicts_by_change_id.contains_key(change_id));
 
         // TODO: Also report new divergence and maybe resolved divergence
-        let mut fmt = ui.stderr_formatter();
+        let mut fmt = ui.status();
         let template = self.commit_summary_template();
         if !resolved_conflicts_by_change_id.is_empty() {
             writeln!(
@@ -1597,7 +1597,7 @@ pub fn print_checkout_stats(
 ) -> Result<(), std::io::Error> {
     if stats.added_files > 0 || stats.updated_files > 0 || stats.removed_files > 0 {
         writeln!(
-            ui.stderr(),
+            ui.status(),
             "Added {} files, modified {} files, removed {} files",
             stats.added_files,
             stats.updated_files,
@@ -1642,7 +1642,7 @@ pub fn print_trackable_remote_branches(ui: &Ui, view: &View) -> io::Result<()> {
         ui.hint_default(),
         "The following remote branches aren't associated with the existing local branches:"
     )?;
-    let mut formatter = ui.stderr_formatter();
+    let mut formatter = ui.status();
     for full_name in &remote_branch_names {
         write!(formatter, "  ")?;
         writeln!(formatter.labeled("branch"), "{full_name}")?;

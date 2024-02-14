@@ -373,6 +373,12 @@ impl Ui {
         })
     }
 
+    /// Writes a message that's a status update not part of the command's main
+    /// output.
+    pub fn status(&self) -> Box<dyn Formatter + '_> {
+        self.stderr_formatter()
+    }
+
     /// Writer to print hint with the default "Hint: " heading.
     pub fn hint_default(
         &self,
@@ -382,7 +388,7 @@ impl Ui {
 
     /// Writer to print hint without the "Hint: " heading.
     pub fn hint_no_heading(&self) -> LabeledWriter<Box<dyn Formatter + '_>, &'static str> {
-        LabeledWriter::new(self.stderr_formatter(), "hint")
+        LabeledWriter::new(self.status(), "hint")
     }
 
     /// Writer to print hint with the given heading.
@@ -390,7 +396,7 @@ impl Ui {
         &self,
         heading: H,
     ) -> HeadingLabeledWriter<Box<dyn Formatter + '_>, &'static str, H> {
-        HeadingLabeledWriter::new(self.stderr_formatter(), "hint", heading)
+        HeadingLabeledWriter::new(self.status(), "hint", heading)
     }
 
     /// Writer to print warning with the default "Warning: " heading.

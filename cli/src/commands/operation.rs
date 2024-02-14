@@ -364,11 +364,11 @@ fn cmd_op_abandon(
     )?;
     let [new_head_id]: [OperationId; 1] = stats.new_head_ids.try_into().unwrap();
     if current_head_op.id() == &new_head_id {
-        writeln!(ui.stderr(), "Nothing changed.")?;
+        writeln!(ui.status(), "Nothing changed.")?;
         return Ok(());
     }
     writeln!(
-        ui.stderr(),
+        ui.status(),
         "Abandoned {} operations and reparented {} descendant operations.",
         stats.unreachable_count,
         stats.rewritten_count,

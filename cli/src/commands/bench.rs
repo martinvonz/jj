@@ -116,7 +116,7 @@ where
     let result = routine();
     let after = Instant::now();
     writeln!(
-        ui.stderr(),
+        ui.status(),
         "First run took {:?} and produced: {:?}",
         after.duration_since(before),
         result
@@ -203,7 +203,7 @@ fn bench_revset<M: Measurement>(
     group: &mut BenchmarkGroup<M>,
     revset: &str,
 ) -> Result<(), CommandError> {
-    writeln!(ui.stderr(), "----------Testing revset: {revset}----------")?;
+    writeln!(ui.status(), "----------Testing revset: {revset}----------")?;
     let expression = revset::optimize(workspace_command.parse_revset(revset)?.expression().clone());
     // Time both evaluation and iteration.
     let routine = |workspace_command: &WorkspaceCommandHelper, expression: Rc<RevsetExpression>| {
@@ -220,7 +220,7 @@ fn bench_revset<M: Measurement>(
     let result = routine(workspace_command, expression.clone());
     let after = Instant::now();
     writeln!(
-        ui.stderr(),
+        ui.status(),
         "First run took {:?} and produced {result} commits",
         after.duration_since(before),
     )?;

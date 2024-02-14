@@ -189,15 +189,15 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
     }
     num_rebased += tx.mut_repo().rebase_descendants(command.settings())?;
     if args.no_edit {
-        write!(ui.stderr(), "Created new commit ")?;
-        tx.write_commit_summary(ui.stderr_formatter().as_mut(), &new_commit)?;
-        writeln!(ui.stderr())?;
+        write!(ui.status(), "Created new commit ")?;
+        tx.write_commit_summary(ui.status().as_mut(), &new_commit)?;
+        writeln!(ui.status())?;
     } else {
         tx.edit(&new_commit).unwrap();
         // The description of the new commit will be printed by tx.finish()
     }
     if num_rebased > 0 {
-        writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
+        writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
     }
     tx.finish(ui, "new empty commit")?;
     Ok(())

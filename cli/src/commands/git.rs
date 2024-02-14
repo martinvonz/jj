@@ -482,7 +482,7 @@ fn init_git_refs(
     }
     let repo = tx.commit("import git refs");
     writeln!(
-        ui.stderr(),
+        ui.status(),
         "Done importing changes from the underlying Git repo."
     )?;
     Ok(repo)
@@ -509,7 +509,7 @@ fn cmd_git_init(
 
     let relative_wc_path = file_util::relative_path(cwd, &wc_path);
     writeln!(
-        ui.stderr(),
+        ui.status(),
         r#"Initialized repo in "{}""#,
         relative_wc_path.display()
     )?;
@@ -747,7 +747,7 @@ fn do_git_clone(
     };
     let git_repo = get_git_repo(repo.store())?;
     writeln!(
-        ui.stderr(),
+        ui.status(),
         r#"Fetching into new repo in "{}""#,
         wc_path.display()
     )?;
@@ -857,7 +857,7 @@ fn cmd_git_push(
             match classify_branch_update(branch_name, &remote, targets) {
                 Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => writeln!(
-                    ui.stderr(),
+                    ui.status(),
                     "Branch {branch_name}@{remote} already matches {branch_name}",
                 )?,
                 Err(reason) => return Err(reason.into()),
@@ -896,7 +896,7 @@ fn cmd_git_push(
         );
     }
     if branch_updates.is_empty() {
-        writeln!(ui.stderr(), "Nothing changed.")?;
+        writeln!(ui.status(), "Nothing changed.")?;
         return Ok(());
     }
 
@@ -958,20 +958,20 @@ fn cmd_git_push(
         }
     }
 
-    writeln!(ui.stderr(), "Branch changes to push to {}:", &remote)?;
+    writeln!(ui.status(), "Branch changes to push to {}:", &remote)?;
     for (branch_name, update) in &branch_updates {
         match (&update.old_target, &update.new_target) {
             (Some(old_target), Some(new_target)) => {
                 if force_pushed_branches.contains(branch_name) {
                     writeln!(
-                        ui.stderr(),
+                        ui.status(),
                         "  Force branch {branch_name} from {} to {}",
                         short_commit_hash(old_target),
                         short_commit_hash(new_target)
                     )?;
                 } else {
                     writeln!(
-                        ui.stderr(),
+                        ui.status(),
                         "  Move branch {branch_name} from {} to {}",
                         short_commit_hash(old_target),
                         short_commit_hash(new_target)
@@ -980,14 +980,14 @@ fn cmd_git_push(
             }
             (Some(old_target), None) => {
                 writeln!(
-                    ui.stderr(),
+                    ui.status(),
                     "  Delete branch {branch_name} from {}",
                     short_commit_hash(old_target)
                 )?;
             }
             (None, Some(new_target)) => {
                 writeln!(
-                    ui.stderr(),
+                    ui.status(),
                     "  Add branch {branch_name} to {}",
                     short_commit_hash(new_target)
                 )?;
@@ -999,7 +999,7 @@ fn cmd_git_push(
     }
 
     if args.dry_run {
-        writeln!(ui.stderr(), "Dry-run requested, not pushing.")?;
+        writeln!(ui.status(), "Dry-run requested, not pushing.")?;
         return Ok(());
     }
 
@@ -1129,7 +1129,7 @@ fn update_change_branches(
         }
         if view.get_local_branch(&branch_name).is_absent() {
             writeln!(
-                ui.stderr(),
+                ui.status(),
                 "Creating branch {} for revision {}",
                 branch_name,
                 change_str.deref()
@@ -1268,7 +1268,7 @@ fn cmd_git_submodule_print_gitmodules(
     let gitmodules_path = RepoPath::from_internal_string(".gitmodules");
     let mut gitmodules_file = match tree.path_value(gitmodules_path).into_resolved() {
         Ok(None) => {
-            writeln!(ui.stderr(), "No submodules!")?;
+            writeln!(ui.status(), "No submodules!")?;
             return Ok(());
         }
         Ok(Some(TreeValue::File { id, .. })) => repo.store().read_file(gitmodules_path, &id)?,

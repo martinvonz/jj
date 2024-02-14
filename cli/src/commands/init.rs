@@ -79,7 +79,7 @@ Set `ui.allow-init-native` to allow initializing a repo with the native backend.
 
     let relative_wc_path = file_util::relative_path(cwd, &wc_path);
     writeln!(
-        ui.stderr(),
+        ui.status(),
         "Initialized repo in \"{}\"",
         relative_wc_path.display()
     )?;
