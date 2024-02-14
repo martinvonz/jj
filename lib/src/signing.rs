@@ -23,6 +23,7 @@ use thiserror::Error;
 
 use crate::backend::CommitId;
 use crate::gpg_signing::GpgBackend;
+use crate::mock_signing::MockSigningBackend;
 use crate::settings::UserSettings;
 use crate::ssh_signing::SshBackend;
 
@@ -167,16 +168,23 @@ impl Signer {
             // Box::new(X509Backend::from_settings(settings)?) as Box<dyn SigningBackend>,
         ];
 
-        let main_backend = settings
-            .signing_backend()
-            .map(|backend| {
-                backends
-                    .iter()
-                    .position(|b| b.name() == backend)
-                    .map(|i| backends.remove(i))
-                    .ok_or(SignInitError::UnknownBackend(backend))
-            })
-            .transpose()?;
+        let signing_backend = settings.signing_backend();
+
+        // This mock signing backend is only really intended to be used for testing
+        let main_backend = if Some("mock".into()) == signing_backend {
+            let mock_backend = Box::new(MockSigningBackend {}) as Box<dyn SigningBackend>;
+            Some(mock_backend)
+        } else {
+            signing_backend
+                .map(|backend| {
+                    backends
+                        .iter()
+                        .position(|b| b.name() == backend)
+                        .map(|i| backends.remove(i))
+                        .ok_or(SignInitError::UnknownBackend(backend))
+                })
+                .transpose()?
+        };
 
         Ok(Self::new(main_backend, backends))
     }
