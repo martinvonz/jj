@@ -25,7 +25,7 @@ use std::vec::Vec;
 use async_trait::async_trait;
 use thiserror::Error;
 
-use crate::content_hash::{ContentHash, DigestUpdate};
+use crate::content_hash::ContentHash;
 use crate::index::Index;
 use crate::merge::Merge;
 use crate::object_id::{id_type, ObjectId};
@@ -39,18 +39,14 @@ id_type!(pub FileId);
 id_type!(pub SymlinkId);
 id_type!(pub ConflictId);
 
-content_hash! {
-    #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
-    pub struct MillisSinceEpoch(pub i64);
-}
+#[derive(ContentHash, Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+pub struct MillisSinceEpoch(pub i64);
 
-content_hash! {
-    #[derive(Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
-    pub struct Timestamp {
-        pub timestamp: MillisSinceEpoch,
-        // time zone offset in minutes
-        pub tz_offset: i32,
-    }
+#[derive(ContentHash, Debug, PartialEq, Eq, Clone, PartialOrd, Ord)]
+pub struct Timestamp {
+    pub timestamp: MillisSinceEpoch,
+    // time zone offset in minutes
+    pub tz_offset: i32,
 }
 
 impl Timestamp {
@@ -68,21 +64,17 @@ impl Timestamp {
     }
 }
 
-content_hash! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    pub struct Signature {
-        pub name: String,
-        pub email: String,
-        pub timestamp: Timestamp,
-    }
+#[derive(ContentHash, Debug, PartialEq, Eq, Clone)]
+pub struct Signature {
+    pub name: String,
+    pub email: String,
+    pub timestamp: Timestamp,
 }
 
-content_hash! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    pub struct SecureSig {
-        pub data: Vec<u8>,
-        pub sig: Vec<u8>,
-    }
+#[derive(ContentHash, Debug, PartialEq, Eq, Clone)]
+pub struct SecureSig {
+    pub data: Vec<u8>,
+    pub sig: Vec<u8>,
 }
 
 pub type SigningFn<'a> = dyn FnMut(&[u8]) -> SignResult<Vec<u8>> + 'a;
@@ -92,7 +84,7 @@ pub type SigningFn<'a> = dyn FnMut(&[u8]) -> SignResult<Vec<u8>> + 'a;
 // TODO(#1624): Delete this type at some point in the future, when we decide to drop
 // support for conflicts in older repos, or maybe after we have provided an upgrade
 // mechanism.
-#[derive(Debug, Clone)]
+#[derive(ContentHash, Debug, Clone)]
 pub enum MergedTreeId {
     /// The tree id of a legacy tree
     Legacy(TreeId),
@@ -110,21 +102,6 @@ impl PartialEq for MergedTreeId {
 
 impl Eq for MergedTreeId {}
 
-impl ContentHash for MergedTreeId {
-    fn hash(&self, state: &mut impl DigestUpdate) {
-        match self {
-            MergedTreeId::Legacy(tree_id) => {
-                state.update(&0u32.to_le_bytes());
-                ContentHash::hash(tree_id, state);
-            }
-            MergedTreeId::Merge(tree_ids) => {
-                state.update(&1u32.to_le_bytes());
-                ContentHash::hash(tree_ids, state);
-            }
-        }
-    }
-}
-
 impl MergedTreeId {
     /// Create a resolved `MergedTreeId` from a single regular tree.
     pub fn resolved(tree_id: TreeId) -> Self {
@@ -140,37 +117,31 @@ impl MergedTreeId {
     }
 }
 
-content_hash! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    pub struct Commit {
-        pub parents: Vec<CommitId>,
-        pub predecessors: Vec<CommitId>,
-        pub root_tree: MergedTreeId,
-        pub change_id: ChangeId,
-        pub description: String,
-        pub author: Signature,
-        pub committer: Signature,
-        pub secure_sig: Option<SecureSig>,
-    }
+#[derive(ContentHash, Debug, PartialEq, Eq, Clone)]
+pub struct Commit {
+    pub parents: Vec<CommitId>,
+    pub predecessors: Vec<CommitId>,
+    pub root_tree: MergedTreeId,
+    pub change_id: ChangeId,
+    pub description: String,
+    pub author: Signature,
+    pub committer: Signature,
+    pub secure_sig: Option<SecureSig>,
 }
 
-content_hash! {
-    #[derive(Debug, PartialEq, Eq, Clone)]
-    pub struct ConflictTerm {
-        pub value: TreeValue,
-    }
+#[derive(ContentHash, Debug, PartialEq, Eq, Clone)]
+pub struct ConflictTerm {
+    pub value: TreeValue,
 }
 
-content_hash! {
-    #[derive(Default, Debug, PartialEq, Eq, Clone)]
-    pub struct Conflict {
-        // A conflict is represented by a list of positive and negative states that need to be applied.
-        // In a simple 3-way merge of B and C with merge base A, the conflict will be { add: [B, C],
-        // remove: [A] }. Also note that a conflict of the form { add: [A], remove: [] } is the
-        // same as non-conflict A.
-        pub removes: Vec<ConflictTerm>,
-        pub adds: Vec<ConflictTerm>,
-    }
+#[derive(ContentHash, Default, Debug, PartialEq, Eq, Clone)]
+pub struct Conflict {
+    // A conflict is represented by a list of positive and negative states that need to be applied.
+    // In a simple 3-way merge of B and C with merge base A, the conflict will be { add: [B, C],
+    // remove: [A] }. Also note that a conflict of the form { add: [A], remove: [] } is the
+    // same as non-conflict A.
+    pub removes: Vec<ConflictTerm>,
+    pub adds: Vec<ConflictTerm>,
 }
 
 /// Error that may occur during backend initialization.
@@ -225,7 +196,7 @@ pub enum BackendError {
 
 pub type BackendResult<T> = Result<T, BackendError>;
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(ContentHash, Debug, PartialEq, Eq, Clone, Hash)]
 pub enum TreeValue {
     File { id: FileId, executable: bool },
     Symlink(SymlinkId),
@@ -242,35 +213,6 @@ impl TreeValue {
             TreeValue::Tree(id) => id.hex(),
             TreeValue::GitSubmodule(id) => id.hex(),
             TreeValue::Conflict(id) => id.hex(),
-        }
-    }
-}
-
-impl ContentHash for TreeValue {
-    fn hash(&self, state: &mut impl DigestUpdate) {
-        use TreeValue::*;
-        match self {
-            File { id, executable } => {
-                state.update(&0u32.to_le_bytes());
-                id.hash(state);
-                executable.hash(state);
-            }
-            Symlink(id) => {
-                state.update(&1u32.to_le_bytes());
-                id.hash(state);
-            }
-            Tree(id) => {
-                state.update(&2u32.to_le_bytes());
-                id.hash(state);
-            }
-            GitSubmodule(id) => {
-                state.update(&3u32.to_le_bytes());
-                id.hash(state);
-            }
-            Conflict(id) => {
-                state.update(&4u32.to_le_bytes());
-                id.hash(state);
-            }
         }
     }
 }
@@ -309,11 +251,9 @@ impl<'a> Iterator for TreeEntriesNonRecursiveIterator<'a> {
     }
 }
 
-content_hash! {
-    #[derive(Default, PartialEq, Eq, Debug, Clone)]
-    pub struct Tree {
-        entries: BTreeMap<RepoPathComponentBuf, TreeValue>,
-    }
+#[derive(ContentHash, Default, PartialEq, Eq, Debug, Clone)]
+pub struct Tree {
+    entries: BTreeMap<RepoPathComponentBuf, TreeValue>,
 }
 
 impl Tree {

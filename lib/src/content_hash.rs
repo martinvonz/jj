@@ -145,33 +145,6 @@ where
     }
 }
 
-macro_rules! content_hash {
-    ($(#[$meta:meta])* $vis:vis struct $name:ident {
-        $($(#[$field_meta:meta])* $field_vis:vis $field:ident : $ty:ty),* $(,)?
-    }) => {
-        $(#[$meta])*
-        $vis struct $name {
-            $($(#[$field_meta])* $field_vis $field : $ty),*
-        }
-
-        impl crate::content_hash::ContentHash for $name {
-            fn hash(&self, state: &mut impl digest::Update) {
-                $(<$ty as crate::content_hash::ContentHash>::hash(&self.$field, state);)*
-            }
-        }
-    };
-    ($(#[$meta:meta])* $vis:vis struct $name:ident($field_vis:vis $ty:ty);) => {
-        $(#[$meta])*
-        $vis struct $name($field_vis $ty);
-
-        impl crate::content_hash::ContentHash for $name {
-            fn hash(&self, state: &mut impl digest::Update) {
-                <$ty as crate::content_hash::ContentHash>::hash(&self.0, state);
-            }
-        }
-    };
-}
-
 #[cfg(test)]
 mod tests {
     use std::collections::{BTreeMap, HashMap};
@@ -215,8 +188,9 @@ mod tests {
 
     #[test]
     fn test_struct_sanity() {
-        content_hash! {
-            struct Foo { x: i32 }
+        #[derive(ContentHash)]
+        struct Foo {
+            x: i32,
         }
         assert_ne!(hash(&Foo { x: 42 }), hash(&Foo { x: 12 }));
     }
@@ -237,8 +211,10 @@ mod tests {
 
     #[test]
     fn test_consistent_hashing() {
-        content_hash! {
-            struct Foo { x: Vec<Option<i32>>, y: i64 }
+        #[derive(ContentHash)]
+        struct Foo {
+            x: Vec<Option<i32>>,
+            y: i64,
         }
         let foo_hash = hex::encode(hash(&Foo {
             x: vec![None, Some(42)],
@@ -275,30 +251,6 @@ mod tests {
         }
         assert_eq!(hash(&Option::<i32>::None), hash(&MyOption::<i32>::None));
         assert_eq!(hash(&Some(1)), hash(&MyOption::Some(1)));
-    }
-    // This will be removed once all uses of content_hash! are replaced by the
-    // derive version.
-    #[test]
-    fn derive_is_equivalent_to_macro() {
-        content_hash! {
-            struct FooMacro { x: Vec<Option<i32>>, y: i64}
-        }
-
-        #[derive(ContentHash)]
-        struct FooDerive {
-            x: Vec<Option<i32>>,
-            y: i64,
-        }
-
-        let foo_macro = FooMacro {
-            x: vec![None, Some(42)],
-            y: 17,
-        };
-        let foo_derive = FooDerive {
-            x: vec![None, Some(42)],
-            y: 17,
-        };
-        assert_eq!(hash(&foo_macro), hash(&foo_derive));
     }
 
     fn hash(x: &(impl ContentHash + ?Sized)) -> digest::Output<Blake2b512> {

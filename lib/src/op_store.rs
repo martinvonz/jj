@@ -25,14 +25,12 @@ use once_cell::sync::Lazy;
 use thiserror::Error;
 
 use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
-use crate::content_hash::{ContentHash, DigestUpdate};
+use crate::content_hash::ContentHash;
 use crate::merge::Merge;
 use crate::object_id::{id_type, HexPrefix, ObjectId, PrefixResolution};
 
-content_hash! {
-    #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-    pub struct WorkspaceId(String);
-}
+#[derive(ContentHash, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+pub struct WorkspaceId(String);
 
 impl Debug for WorkspaceId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -59,11 +57,9 @@ impl WorkspaceId {
 id_type!(pub ViewId);
 id_type!(pub OperationId);
 
-content_hash! {
-    #[derive(PartialEq, Eq, Hash, Clone, Debug)]
-    pub struct RefTarget {
-        merge: Merge<Option<CommitId>>,
-    }
+#[derive(ContentHash, PartialEq, Eq, Hash, Clone, Debug)]
+pub struct RefTarget {
+    merge: Merge<Option<CommitId>>,
 }
 
 impl Default for RefTarget {
@@ -147,13 +143,11 @@ impl RefTarget {
     }
 }
 
-content_hash! {
-    /// Remote branch or tag.
-    #[derive(Clone, Debug, Eq, Hash, PartialEq)]
-    pub struct RemoteRef {
-        pub target: RefTarget,
-        pub state: RemoteRefState,
-    }
+/// Remote branch or tag.
+#[derive(ContentHash, Clone, Debug, Eq, Hash, PartialEq)]
+pub struct RemoteRef {
+    pub target: RefTarget,
+    pub state: RemoteRefState,
 }
 
 impl RemoteRef {
@@ -202,22 +196,13 @@ impl RemoteRef {
 }
 
 /// Whether the ref is tracked or not.
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(ContentHash, Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum RemoteRefState {
     /// Remote ref is not merged in to the local ref.
     New,
     /// Remote ref has been merged in to the local ref. Incoming ref will be
     /// merged, too.
     Tracking,
-}
-
-impl ContentHash for RemoteRefState {
-    fn hash(&self, state: &mut impl DigestUpdate) {
-        match self {
-            RemoteRefState::New => state.update(&0u32.to_le_bytes()),
-            RemoteRefState::Tracking => state.update(&1u32.to_le_bytes()),
-        }
-    }
 }
 
 /// Helper to strip redundant `Option<T>` from `RefTarget` lookup result.
@@ -268,39 +253,35 @@ pub struct BranchTarget<'a> {
     pub remote_refs: Vec<(&'a str, &'a RemoteRef)>,
 }
 
-content_hash! {
-    /// Represents the way the repo looks at a given time, just like how a Tree
-    /// object represents how the file system looks at a given time.
-    #[derive(PartialEq, Eq, Clone, Debug, Default)]
-    pub struct View {
-        /// All head commits
-        pub head_ids: HashSet<CommitId>,
-        pub local_branches: BTreeMap<String, RefTarget>,
-        pub tags: BTreeMap<String, RefTarget>,
-        pub remote_views: BTreeMap<String, RemoteView>,
-        pub git_refs: BTreeMap<String, RefTarget>,
-        /// The commit the Git HEAD points to.
-        // TODO: Support multiple Git worktrees?
-        // TODO: Do we want to store the current branch name too?
-        pub git_head: RefTarget,
-        // The commit that *should be* checked out in the workspace. Note that the working copy
-        // (.jj/working_copy/) has the source of truth about which commit *is* checked out (to be
-        // precise: the commit to which we most recently completed an update to).
-        pub wc_commit_ids: HashMap<WorkspaceId, CommitId>,
-    }
+/// Represents the way the repo looks at a given time, just like how a Tree
+/// object represents how the file system looks at a given time.
+#[derive(ContentHash, PartialEq, Eq, Clone, Debug, Default)]
+pub struct View {
+    /// All head commits
+    pub head_ids: HashSet<CommitId>,
+    pub local_branches: BTreeMap<String, RefTarget>,
+    pub tags: BTreeMap<String, RefTarget>,
+    pub remote_views: BTreeMap<String, RemoteView>,
+    pub git_refs: BTreeMap<String, RefTarget>,
+    /// The commit the Git HEAD points to.
+    // TODO: Support multiple Git worktrees?
+    // TODO: Do we want to store the current branch name too?
+    pub git_head: RefTarget,
+    // The commit that *should be* checked out in the workspace. Note that the working copy
+    // (.jj/working_copy/) has the source of truth about which commit *is* checked out (to be
+    // precise: the commit to which we most recently completed an update to).
+    pub wc_commit_ids: HashMap<WorkspaceId, CommitId>,
 }
 
-content_hash! {
-    /// Represents the state of the remote repo.
-    #[derive(Clone, Debug, Default, Eq, PartialEq)]
-    pub struct RemoteView {
-        // TODO: Do we need to support tombstones for remote branches? For example, if the branch
-        // has been deleted locally and you pull from a remote, maybe it should make a difference
-        // whether the branch is known to have existed on the remote. We may not want to resurrect
-        // the branch if the branch's state on the remote was just not known.
-        pub branches: BTreeMap<String, RemoteRef>,
-        // TODO: pub tags: BTreeMap<String, RemoteRef>,
-    }
+/// Represents the state of the remote repo.
+#[derive(ContentHash, Clone, Debug, Default, Eq, PartialEq)]
+pub struct RemoteView {
+    // TODO: Do we need to support tombstones for remote branches? For example, if the branch
+    // has been deleted locally and you pull from a remote, maybe it should make a difference
+    // whether the branch is known to have existed on the remote. We may not want to resurrect
+    // the branch if the branch's state on the remote was just not known.
+    pub branches: BTreeMap<String, RemoteRef>,
+    // TODO: pub tags: BTreeMap<String, RemoteRef>,
 }
 
 /// Iterates pair of local and remote branches by branch name.
@@ -355,25 +336,23 @@ pub(crate) fn flatten_remote_branches(
         .kmerge_by(|(full_name1, _), (full_name2, _)| full_name1 < full_name2)
 }
 
-content_hash! {
-    /// Represents an operation (transaction) on the repo view, just like how a
-    /// Commit object represents an operation on the tree.
-    ///
-    /// Operations and views are not meant to be exchanged between repos or users;
-    /// they represent local state and history.
-    ///
-    /// The operation history will almost always be linear. It will only have
-    /// forks when parallel operations occurred. The parent is determined when
-    /// the transaction starts. When the transaction commits, a lock will be
-    /// taken and it will be checked that the current head of the operation
-    /// graph is unchanged. If the current head has changed, there has been
-    /// concurrent operation.
-    #[derive(PartialEq, Eq, Clone, Debug)]
-    pub struct Operation {
-        pub view_id: ViewId,
-        pub parents: Vec<OperationId>,
-        pub metadata: OperationMetadata,
-    }
+/// Represents an operation (transaction) on the repo view, just like how a
+/// Commit object represents an operation on the tree.
+///
+/// Operations and views are not meant to be exchanged between repos or users;
+/// they represent local state and history.
+///
+/// The operation history will almost always be linear. It will only have
+/// forks when parallel operations occurred. The parent is determined when
+/// the transaction starts. When the transaction commits, a lock will be
+/// taken and it will be checked that the current head of the operation
+/// graph is unchanged. If the current head has changed, there has been
+/// concurrent operation.
+#[derive(ContentHash, PartialEq, Eq, Clone, Debug)]
+pub struct Operation {
+    pub view_id: ViewId,
+    pub parents: Vec<OperationId>,
+    pub metadata: OperationMetadata,
 }
 
 impl Operation {
@@ -399,19 +378,18 @@ impl Operation {
     }
 }
 
-content_hash! {
-    #[derive(PartialEq, Eq, Clone, Debug)]
-    pub struct OperationMetadata {
-        pub start_time: Timestamp,
-        pub end_time: Timestamp,
-        // Whatever is useful to the user, such as exact command line call
-        pub description: String,
-        pub hostname: String,
-        pub username: String,
-        /// Whether this operation represents a pure snapshotting of the working copy.
-        pub is_snapshot: bool,
-        pub tags: HashMap<String, String>,
-    }
+#[derive(ContentHash, PartialEq, Eq, Clone, Debug)]
+pub struct OperationMetadata {
+    pub start_time: Timestamp,
+    pub end_time: Timestamp,
+    // Whatever is useful to the user, such as exact command line call
+    pub description: String,
+    pub hostname: String,
+    pub username: String,
+    /// Whether this operation represents a pure snapshotting of the working
+    /// copy.
+    pub is_snapshot: bool,
+    pub tags: HashMap<String, String>,
 }
 
 #[derive(Debug, Error)]
