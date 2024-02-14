@@ -192,7 +192,7 @@ impl GitSidebandProgressMessageWriter {
             }
             self.scratch.extend_from_slice(&progress_message[i..i + 1]);
 
-            ui.stderr().write_all(&self.scratch)?;
+            ui.status().write_all(&self.scratch)?;
             self.scratch.clear();
 
             index = i + 1;
@@ -212,7 +212,7 @@ impl GitSidebandProgressMessageWriter {
     pub fn flush(&mut self, ui: &Ui) -> std::io::Result<()> {
         if !self.scratch.is_empty() {
             self.scratch.push(b'\n');
-            ui.stderr().write_all(&self.scratch)?;
+            ui.status().write_all(&self.scratch)?;
             self.scratch.clear();
         }
 
@@ -274,16 +274,16 @@ pub fn print_git_import_stats(
 
         let max_width = refs_stats.iter().map(|x| x.ref_name.width()).max();
         if let Some(max_width) = max_width {
-            let mut stderr = ui.stderr_formatter();
+            let mut formatter = ui.status();
             for status in refs_stats {
-                status.output(max_width, has_both_ref_kinds, &mut *stderr)?;
+                status.output(max_width, has_both_ref_kinds, &mut *formatter)?;
             }
         }
     }
 
     if !stats.abandoned_commits.is_empty() {
         writeln!(
-            ui.stderr(),
+            ui.status(),
             "Abandoned {} commits that are no longer reachable.",
             stats.abandoned_commits.len()
         )?;

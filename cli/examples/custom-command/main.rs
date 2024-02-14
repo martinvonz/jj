@@ -48,7 +48,7 @@ fn run_custom_command(
                 .write()?;
             tx.finish(ui, "Frobnicate")?;
             writeln!(
-                ui.stderr(),
+                ui.status(),
                 "Frobnicated revision: {}",
                 workspace_command.format_commit_summary(&new_commit)
             )?;

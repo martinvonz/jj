@@ -497,7 +497,7 @@ fn cmd_branch_delete(
     }
     tx.finish(ui, format!("delete {}", make_branch_term(&names)))?;
     if names.len() > 1 {
-        writeln!(ui.stderr(), "Deleted {} branches.", names.len())?;
+        writeln!(ui.status(), "Deleted {} branches.", names.len())?;
     }
     Ok(())
 }
@@ -523,7 +523,7 @@ fn cmd_branch_forget(
     }
     tx.finish(ui, format!("forget {}", make_branch_term(&names)))?;
     if names.len() > 1 {
-        writeln!(ui.stderr(), "Forgot {} branches.", names.len())?;
+        writeln!(ui.status(), "Forgot {} branches.", names.len())?;
     }
     Ok(())
 }
@@ -554,7 +554,7 @@ fn cmd_branch_track(
     tx.finish(ui, format!("track remote {}", make_branch_term(&names)))?;
     if names.len() > 1 {
         writeln!(
-            ui.stderr(),
+            ui.status(),
             "Started tracking {} remote branches.",
             names.len()
         )?;
@@ -594,7 +594,7 @@ fn cmd_branch_untrack(
     tx.finish(ui, format!("untrack remote {}", make_branch_term(&names)))?;
     if names.len() > 1 {
         writeln!(
-            ui.stderr(),
+            ui.status(),
             "Stopped tracking {} remote branches.",
             names.len()
         )?;

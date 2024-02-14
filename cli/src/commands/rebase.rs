@@ -318,7 +318,7 @@ fn rebase_descendants(
     let num_rebased = old_commits.len()
         + tx.mut_repo()
             .rebase_descendants_with_options(settings, rebase_options)?;
-    writeln!(ui.stderr(), "Rebased {num_rebased} commits")?;
+    writeln!(ui.status(), "Rebased {num_rebased} commits")?;
     let tx_message = if old_commits.len() == 1 {
         format!(
             "rebase commit {} and descendants",
@@ -447,9 +447,9 @@ fn rebase_revision(
     // longer have any children; they have all been rebased and the originals
     // have been abandoned.
     let skipped_commit_rebase = if old_commit.parents() == new_parents {
-        write!(ui.stderr(), "Skipping rebase of commit ")?;
-        tx.write_commit_summary(ui.stderr_formatter().as_mut(), &old_commit)?;
-        writeln!(ui.stderr())?;
+        write!(ui.status(), "Skipping rebase of commit ")?;
+        tx.write_commit_summary(ui.status().as_mut(), &old_commit)?;
+        writeln!(ui.status())?;
         true
     } else {
         rebase_commit(settings, tx.mut_repo(), &old_commit, &new_parents)?;
@@ -460,12 +460,12 @@ fn rebase_revision(
     if num_rebased_descendants > 0 {
         if skipped_commit_rebase {
             writeln!(
-                ui.stderr(),
+                ui.status(),
                 "Rebased {num_rebased_descendants} descendant commits onto parent of commit"
             )?;
         } else {
             writeln!(
-                ui.stderr(),
+                ui.status(),
                 "Also rebased {num_rebased_descendants} descendant commits onto parent of rebased \
                  commit"
             )?;
@@ -500,7 +500,7 @@ fn log_skipped_rebase_commits_message(
     workspace_command: &WorkspaceCommandHelper,
     commits: &[&Commit],
 ) -> Result<(), CommandError> {
-    let mut fmt = ui.stderr_formatter();
+    let mut fmt = ui.status();
     let template = workspace_command.commit_summary_template();
     if commits.len() == 1 {
         write!(fmt, "Skipping rebase of commit ")?;

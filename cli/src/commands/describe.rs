@@ -83,7 +83,7 @@ pub(crate) fn cmd_describe(
         edit_description(workspace_command.repo(), &template, command.settings())?
     };
     if description == *commit.description() && !args.reset_author {
-        writeln!(ui.stderr(), "Nothing changed.")?;
+        writeln!(ui.status(), "Nothing changed.")?;
     } else {
         let mut tx = workspace_command.start_transaction();
         let mut commit_builder = tx

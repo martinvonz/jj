@@ -47,7 +47,7 @@ pub(crate) fn cmd_duplicate(
         .evaluate_to_commit_ids()?
         .collect(); // in reverse topological order
     if to_duplicate.is_empty() {
-        writeln!(ui.stderr(), "No revisions to duplicate.")?;
+        writeln!(ui.status(), "No revisions to duplicate.")?;
         return Ok(());
     }
     if to_duplicate.last() == Some(workspace_command.repo().store().root_commit_id()) {
@@ -78,9 +78,9 @@ pub(crate) fn cmd_duplicate(
     }
 
     for (old_id, new_commit) in &duplicated_old_to_new {
-        write!(ui.stderr(), "Duplicated {} as ", short_commit_hash(old_id))?;
-        tx.write_commit_summary(ui.stderr_formatter().as_mut(), new_commit)?;
-        writeln!(ui.stderr())?;
+        write!(ui.status(), "Duplicated {} as ", short_commit_hash(old_id))?;
+        tx.write_commit_summary(ui.status().as_mut(), new_commit)?;
+        writeln!(ui.status())?;
     }
     tx.finish(ui, format!("duplicate {} commit(s)", to_duplicate.len()))?;
     Ok(())

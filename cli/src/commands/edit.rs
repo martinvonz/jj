@@ -46,7 +46,7 @@ pub(crate) fn cmd_edit(
     let new_commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewritable([&new_commit])?;
     if workspace_command.get_wc_commit_id() == Some(new_commit.id()) {
-        writeln!(ui.stderr(), "Already editing that commit")?;
+        writeln!(ui.status(), "Already editing that commit")?;
     } else {
         let mut tx = workspace_command.start_transaction();
         tx.edit(&new_commit)?;

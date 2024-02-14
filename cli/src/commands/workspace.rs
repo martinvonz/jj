@@ -166,7 +166,7 @@ fn cmd_workspace_add(
         workspace_id,
     )?;
     writeln!(
-        ui.stderr(),
+        ui.status(),
         "Created workspace in \"{}\"",
         file_util::relative_path(old_workspace_command.workspace_root(), &destination_path)
             .display()
@@ -329,7 +329,7 @@ fn create_and_check_out_recovery_commit(
     locked_workspace.finish(repo.op_id().clone())?;
 
     writeln!(
-        ui.stderr(),
+        ui.status(),
         "Created and checked out recovery commit {}",
         short_commit_hash(new_commit.id())
     )?;
@@ -357,7 +357,7 @@ fn for_stale_working_copy(
             ),
             Err(e @ OpStoreError::ObjectNotFound { .. }) => {
                 writeln!(
-                    ui.stderr(),
+                    ui.status(),
                     "Failed to read working copy's current operation; attempting recovery. Error \
                      message from read attempt: {e}"
                 )?;
@@ -401,7 +401,7 @@ fn cmd_workspace_update_stale(
     match check_stale_working_copy(locked_ws.locked_wc(), &desired_wc_commit, &repo)? {
         WorkingCopyFreshness::Fresh | WorkingCopyFreshness::Updated(_) => {
             writeln!(
-                ui.stderr(),
+                ui.status(),
                 "Nothing to do (the working copy is not stale)."
             )?;
         }
@@ -424,11 +424,11 @@ fn cmd_workspace_update_stale(
                     )
                 })?;
             locked_ws.finish(repo.op_id().clone())?;
-            write!(ui.stderr(), "Working copy now at: ")?;
-            ui.stderr_formatter().with_label("working_copy", |fmt| {
+            write!(ui.status(), "Working copy now at: ")?;
+            ui.status().with_label("working_copy", |fmt| {
                 workspace_command.write_commit_summary(fmt, &desired_wc_commit)
             })?;
-            writeln!(ui.stderr())?;
+            writeln!(ui.status())?;
             print_checkout_stats(ui, stats, &desired_wc_commit)?;
         }
     }

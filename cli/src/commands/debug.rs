@@ -259,7 +259,7 @@ fn cmd_debug_reindex(
             .build_index_at_operation(&op, repo_loader.store())
             .map_err(internal_error)?;
         writeln!(
-            ui.stderr(),
+            ui.status(),
             "Finished indexing {:?} commits.",
             default_index.as_composite().stats().num_commits
         )?;
@@ -358,7 +358,7 @@ fn cmd_debug_watchman(
             };
             locked_local_wc.reset_watchman()?;
             locked_ws.finish(repo.op_id().clone())?;
-            writeln!(ui.stderr(), "Reset Watchman clock")?;
+            writeln!(ui.status(), "Reset Watchman clock")?;
         }
     }
     Ok(())

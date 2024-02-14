@@ -55,7 +55,7 @@ pub(crate) fn cmd_abandon(
         .evaluate_to_commits()?
         .try_collect()?;
     if to_abandon.is_empty() {
-        writeln!(ui.stderr(), "No revisions to abandon.")?;
+        writeln!(ui.status(), "No revisions to abandon.")?;
         return Ok(());
     }
     workspace_command.check_rewritable(&to_abandon)?;
@@ -67,12 +67,12 @@ pub(crate) fn cmd_abandon(
     let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
 
     if to_abandon.len() == 1 {
-        write!(ui.stderr(), "Abandoned commit ")?;
+        write!(ui.status(), "Abandoned commit ")?;
         tx.base_workspace_helper()
-            .write_commit_summary(ui.stderr_formatter().as_mut(), &to_abandon[0])?;
-        writeln!(ui.stderr())?;
+            .write_commit_summary(ui.status().as_mut(), &to_abandon[0])?;
+        writeln!(ui.status())?;
     } else if !args.summary {
-        let mut formatter = ui.stderr_formatter();
+        let mut formatter = ui.status();
         let template = tx.base_workspace_helper().commit_summary_template();
         writeln!(formatter, "Abandoned the following commits:")?;
         for commit in &to_abandon {
@@ -81,11 +81,11 @@ pub(crate) fn cmd_abandon(
             writeln!(formatter)?;
         }
     } else {
-        writeln!(ui.stderr(), "Abandoned {} commits.", &to_abandon.len())?;
+        writeln!(ui.status(), "Abandoned {} commits.", &to_abandon.len())?;
     }
     if num_rebased > 0 {
         writeln!(
-            ui.stderr(),
+            ui.status(),
             "Rebased {num_rebased} descendant commits onto parents of abandoned commits"
         )?;
     }
