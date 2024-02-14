@@ -23,10 +23,8 @@ pub trait ObjectId {
 
 macro_rules! id_type {
     ($vis:vis $name:ident) => {
-        content_hash! {
-            #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
-            $vis struct $name(Vec<u8>);
-        }
+        #[derive(ContentHash, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
+        $vis struct $name(Vec<u8>);
         $crate::object_id::impl_id_type!($name);
     };
 }

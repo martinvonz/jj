@@ -24,16 +24,15 @@ use std::path::{Component, Path, PathBuf};
 use ref_cast::{ref_cast_custom, RefCastCustom};
 use thiserror::Error;
 
+use crate::content_hash::ContentHash;
 use crate::file_util;
 
-content_hash! {
-    /// Owned `RepoPath` component.
-    #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-    pub struct RepoPathComponentBuf {
-        // Don't add more fields. Eq, Hash, and Ord must be compatible with the
-        // borrowed RepoPathComponent type.
-        value: String,
-    }
+/// Owned `RepoPath` component.
+#[derive(ContentHash, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+pub struct RepoPathComponentBuf {
+    // Don't add more fields. Eq, Hash, and Ord must be compatible with the
+    // borrowed RepoPathComponent type.
+    value: String,
 }
 
 /// Borrowed `RepoPath` component.
