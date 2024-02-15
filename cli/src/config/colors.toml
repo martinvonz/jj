@@ -19,7 +19,7 @@
 "email" = "yellow"
 "username" = "yellow"
 "timestamp" = "cyan"
-"working_copies" = "magenta"
+"working_copies" = "green"
 "branch" = "magenta"
 "branches" = "magenta"
 "local_branches" = "magenta"
@@ -45,7 +45,7 @@
 # https://github.com/martinvonz/jj/issues/528
 "working_copy email" = "yellow"
 "working_copy timestamp" = "bright cyan"
-"working_copy working_copies" = "bright magenta"
+"working_copy working_copies" = "bright green"
 "working_copy branch" = "bright magenta"
 "working_copy branches" = "bright magenta"
 "working_copy local_branches" = "bright magenta"
