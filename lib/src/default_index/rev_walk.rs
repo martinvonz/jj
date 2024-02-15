@@ -502,3 +502,366 @@ impl<'a> Iterator for RevWalkDescendants<'a> {
 }
 
 impl FusedIterator for RevWalkDescendants<'_> {}
+
+#[cfg(test)]
+mod tests {
+    use itertools::Itertools as _;
+
+    use super::super::composite::AsCompositeIndex as _;
+    use super::super::mutable::DefaultMutableIndex;
+    use super::*;
+    use crate::backend::{ChangeId, CommitId};
+
+    /// Generator of unique 16-byte ChangeId excluding root id
+    fn change_id_generator() -> impl FnMut() -> ChangeId {
+        let mut iter = (1_u128..).map(|n| ChangeId::new(n.to_le_bytes().into()));
+        move || iter.next().unwrap()
+    }
+
+    fn to_positions_vec(index: CompositeIndex<'_>, commit_ids: &[CommitId]) -> Vec<IndexPosition> {
+        commit_ids
+            .iter()
+            .map(|id| index.commit_id_to_pos(id).unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn test_walk_revs() {
+        let mut new_change_id = change_id_generator();
+        let mut index = DefaultMutableIndex::full(3, 16);
+        // 5
+        // |\
+        // 4 | 3
+        // | |/
+        // 1 2
+        // |/
+        // 0
+        let id_0 = CommitId::from_hex("000000");
+        let id_1 = CommitId::from_hex("111111");
+        let id_2 = CommitId::from_hex("222222");
+        let id_3 = CommitId::from_hex("333333");
+        let id_4 = CommitId::from_hex("444444");
+        let id_5 = CommitId::from_hex("555555");
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), &[id_2.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_5.clone(), new_change_id(), &[id_4.clone(), id_2.clone()]);
+
+        let walk_commit_ids = |wanted: &[CommitId], unwanted: &[CommitId]| {
+            let index = index.as_composite();
+            let wanted_positions = to_positions_vec(index, wanted);
+            let unwanted_positions = to_positions_vec(index, unwanted);
+            index
+                .walk_revs(&wanted_positions, &unwanted_positions)
+                .map(|entry| entry.commit_id())
+                .collect_vec()
+        };
+
+        // No wanted commits
+        assert!(walk_commit_ids(&[], &[]).is_empty());
+        // Simple linear walk to roo
+        assert_eq!(
+            walk_commit_ids(&[id_4.clone()], &[]),
+            vec![id_4.clone(), id_1.clone(), id_0.clone()]
+        );
+        // Commits that are both wanted and unwanted are not walked
+        assert_eq!(walk_commit_ids(&[id_0.clone()], &[id_0.clone()]), vec![]);
+        // Commits that are listed twice are only walked once
+        assert_eq!(
+            walk_commit_ids(&[id_0.clone(), id_0.clone()], &[]),
+            vec![id_0.clone()]
+        );
+        // If a commit and its ancestor are both wanted, the ancestor still gets walked
+        // only once
+        assert_eq!(
+            walk_commit_ids(&[id_0.clone(), id_1.clone()], &[]),
+            vec![id_1.clone(), id_0.clone()]
+        );
+        // Ancestors of both wanted and unwanted commits are not walked
+        assert_eq!(
+            walk_commit_ids(&[id_2.clone()], &[id_1.clone()]),
+            vec![id_2.clone()]
+        );
+        // Same as above, but the opposite order, to make sure that order in index
+        // doesn't matter
+        assert_eq!(
+            walk_commit_ids(&[id_1.clone()], &[id_2.clone()]),
+            vec![id_1.clone()]
+        );
+        // Two wanted nodes
+        assert_eq!(
+            walk_commit_ids(&[id_1.clone(), id_2.clone()], &[]),
+            vec![id_2.clone(), id_1.clone(), id_0.clone()]
+        );
+        // Order of output doesn't depend on order of input
+        assert_eq!(
+            walk_commit_ids(&[id_2.clone(), id_1.clone()], &[]),
+            vec![id_2.clone(), id_1.clone(), id_0]
+        );
+        // Two wanted nodes that share an unwanted ancestor
+        assert_eq!(
+            walk_commit_ids(&[id_5.clone(), id_3.clone()], &[id_2]),
+            vec![id_5, id_4, id_3, id_1]
+        );
+    }
+
+    #[test]
+    fn test_walk_revs_filter_by_generation() {
+        let mut new_change_id = change_id_generator();
+        let mut index = DefaultMutableIndex::full(3, 16);
+        // 8 6
+        // | |
+        // 7 5
+        // |/|
+        // 4 |
+        // | 3
+        // 2 |
+        // |/
+        // 1
+        // |
+        // 0
+        let id_0 = CommitId::from_hex("000000");
+        let id_1 = CommitId::from_hex("111111");
+        let id_2 = CommitId::from_hex("222222");
+        let id_3 = CommitId::from_hex("333333");
+        let id_4 = CommitId::from_hex("444444");
+        let id_5 = CommitId::from_hex("555555");
+        let id_6 = CommitId::from_hex("666666");
+        let id_7 = CommitId::from_hex("777777");
+        let id_8 = CommitId::from_hex("888888");
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), &[id_2.clone()]);
+        index.add_commit_data(id_5.clone(), new_change_id(), &[id_4.clone(), id_3.clone()]);
+        index.add_commit_data(id_6.clone(), new_change_id(), &[id_5.clone()]);
+        index.add_commit_data(id_7.clone(), new_change_id(), &[id_4.clone()]);
+        index.add_commit_data(id_8.clone(), new_change_id(), &[id_7.clone()]);
+
+        let walk_commit_ids = |wanted: &[CommitId], unwanted: &[CommitId], range: Range<u32>| {
+            let index = index.as_composite();
+            let wanted_positions = to_positions_vec(index, wanted);
+            let unwanted_positions = to_positions_vec(index, unwanted);
+            index
+                .walk_revs(&wanted_positions, &unwanted_positions)
+                .filter_by_generation(range)
+                .map(|entry| entry.commit_id())
+                .collect_vec()
+        };
+
+        // Empty generation bounds
+        assert_eq!(walk_commit_ids(&[&id_8].map(Clone::clone), &[], 0..0), []);
+        assert_eq!(
+            walk_commit_ids(&[&id_8].map(Clone::clone), &[], Range { start: 2, end: 1 }),
+            []
+        );
+
+        // Simple generation bounds
+        assert_eq!(
+            walk_commit_ids(&[&id_2].map(Clone::clone), &[], 0..3),
+            [&id_2, &id_1, &id_0].map(Clone::clone)
+        );
+
+        // Ancestors may be walked with different generations
+        assert_eq!(
+            walk_commit_ids(&[&id_6].map(Clone::clone), &[], 2..4),
+            [&id_4, &id_3, &id_2, &id_1].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_5].map(Clone::clone), &[], 2..3),
+            [&id_2, &id_1].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_5, &id_7].map(Clone::clone), &[], 2..3),
+            [&id_2, &id_1].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_7, &id_8].map(Clone::clone), &[], 0..2),
+            [&id_8, &id_7, &id_4].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_6, &id_7].map(Clone::clone), &[], 0..3),
+            [&id_7, &id_6, &id_5, &id_4, &id_3, &id_2].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_6, &id_7].map(Clone::clone), &[], 2..3),
+            [&id_4, &id_3, &id_2].map(Clone::clone)
+        );
+
+        // Ancestors of both wanted and unwanted commits are not walked
+        assert_eq!(
+            walk_commit_ids(&[&id_5].map(Clone::clone), &[&id_2].map(Clone::clone), 1..5),
+            [&id_4, &id_3].map(Clone::clone)
+        );
+    }
+
+    #[test]
+    #[allow(clippy::redundant_clone)] // allow id_n.clone()
+    fn test_walk_revs_filter_by_generation_range_merging() {
+        let mut new_change_id = change_id_generator();
+        let mut index = DefaultMutableIndex::full(3, 16);
+        // Long linear history with some short branches
+        let ids = (0..11)
+            .map(|n| CommitId::try_from_hex(&format!("{n:06x}")).unwrap())
+            .collect_vec();
+        index.add_commit_data(ids[0].clone(), new_change_id(), &[]);
+        for i in 1..ids.len() {
+            index.add_commit_data(ids[i].clone(), new_change_id(), &[ids[i - 1].clone()]);
+        }
+        let id_branch5_0 = CommitId::from_hex("050000");
+        let id_branch5_1 = CommitId::from_hex("050001");
+        index.add_commit_data(id_branch5_0.clone(), new_change_id(), &[ids[5].clone()]);
+        index.add_commit_data(
+            id_branch5_1.clone(),
+            new_change_id(),
+            &[id_branch5_0.clone()],
+        );
+
+        let walk_commit_ids = |wanted: &[CommitId], range: Range<u32>| {
+            let index = index.as_composite();
+            let wanted_positions = to_positions_vec(index, wanted);
+            index
+                .walk_revs(&wanted_positions, &[])
+                .filter_by_generation(range)
+                .map(|entry| entry.commit_id())
+                .collect_vec()
+        };
+
+        // Multiple non-overlapping generation ranges to track:
+        // 9->6: 3..5, 6: 0..2
+        assert_eq!(
+            walk_commit_ids(&[&ids[9], &ids[6]].map(Clone::clone), 4..6),
+            [&ids[5], &ids[4], &ids[2], &ids[1]].map(Clone::clone)
+        );
+
+        // Multiple non-overlapping generation ranges to track, and merged later:
+        // 10->7: 3..5, 7: 0..2
+        // 10->6: 4..6, 7->6, 1..3, 6: 0..2
+        assert_eq!(
+            walk_commit_ids(&[&ids[10], &ids[7], &ids[6]].map(Clone::clone), 5..7),
+            [&ids[5], &ids[4], &ids[2], &ids[1], &ids[0]].map(Clone::clone)
+        );
+
+        // Merge range with sub-range (1..4 + 2..3 should be 1..4, not 1..3):
+        // 8,7,6->5::1..4, B5_1->5::2..3
+        assert_eq!(
+            walk_commit_ids(
+                &[&ids[8], &ids[7], &ids[6], &id_branch5_1].map(Clone::clone),
+                5..6
+            ),
+            [&ids[3], &ids[2], &ids[1]].map(Clone::clone)
+        );
+    }
+
+    #[test]
+    fn test_walk_revs_descendants_filtered_by_generation() {
+        let mut new_change_id = change_id_generator();
+        let mut index = DefaultMutableIndex::full(3, 16);
+        // 8 6
+        // | |
+        // 7 5
+        // |/|
+        // 4 |
+        // | 3
+        // 2 |
+        // |/
+        // 1
+        // |
+        // 0
+        let id_0 = CommitId::from_hex("000000");
+        let id_1 = CommitId::from_hex("111111");
+        let id_2 = CommitId::from_hex("222222");
+        let id_3 = CommitId::from_hex("333333");
+        let id_4 = CommitId::from_hex("444444");
+        let id_5 = CommitId::from_hex("555555");
+        let id_6 = CommitId::from_hex("666666");
+        let id_7 = CommitId::from_hex("777777");
+        let id_8 = CommitId::from_hex("888888");
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), &[id_2.clone()]);
+        index.add_commit_data(id_5.clone(), new_change_id(), &[id_4.clone(), id_3.clone()]);
+        index.add_commit_data(id_6.clone(), new_change_id(), &[id_5.clone()]);
+        index.add_commit_data(id_7.clone(), new_change_id(), &[id_4.clone()]);
+        index.add_commit_data(id_8.clone(), new_change_id(), &[id_7.clone()]);
+
+        let visible_heads = [&id_6, &id_8].map(Clone::clone);
+        let walk_commit_ids = |roots: &[CommitId], heads: &[CommitId], range: Range<u32>| {
+            let index = index.as_composite();
+            let root_positions = to_positions_vec(index, roots);
+            let head_positions = to_positions_vec(index, heads);
+            index
+                .walk_revs(&head_positions, &[])
+                .descendants_filtered_by_generation(&root_positions, range)
+                .map(|entry| entry.commit_id())
+                .collect_vec()
+        };
+
+        // Empty generation bounds
+        assert_eq!(
+            walk_commit_ids(&[&id_0].map(Clone::clone), &visible_heads, 0..0),
+            []
+        );
+        assert_eq!(
+            walk_commit_ids(
+                &[&id_8].map(Clone::clone),
+                &visible_heads,
+                Range { start: 2, end: 1 }
+            ),
+            []
+        );
+
+        // Full generation bounds
+        assert_eq!(
+            walk_commit_ids(&[&id_0].map(Clone::clone), &visible_heads, 0..u32::MAX),
+            [&id_0, &id_1, &id_2, &id_3, &id_4, &id_5, &id_6, &id_7, &id_8].map(Clone::clone)
+        );
+
+        // Simple generation bounds
+        assert_eq!(
+            walk_commit_ids(&[&id_3].map(Clone::clone), &visible_heads, 0..3),
+            [&id_3, &id_5, &id_6].map(Clone::clone)
+        );
+
+        // Descendants may be walked with different generations
+        assert_eq!(
+            walk_commit_ids(&[&id_0].map(Clone::clone), &visible_heads, 2..4),
+            [&id_2, &id_3, &id_4, &id_5].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_1].map(Clone::clone), &visible_heads, 2..3),
+            [&id_4, &id_5].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_2, &id_3].map(Clone::clone), &visible_heads, 2..3),
+            [&id_5, &id_6, &id_7].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_2, &id_4].map(Clone::clone), &visible_heads, 0..2),
+            [&id_2, &id_4, &id_5, &id_7].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_2, &id_3].map(Clone::clone), &visible_heads, 0..3),
+            [&id_2, &id_3, &id_4, &id_5, &id_6, &id_7].map(Clone::clone)
+        );
+        assert_eq!(
+            walk_commit_ids(&[&id_2, &id_3].map(Clone::clone), &visible_heads, 2..3),
+            [&id_5, &id_6, &id_7].map(Clone::clone)
+        );
+
+        // Roots set contains entries unreachable from heads
+        assert_eq!(
+            walk_commit_ids(
+                &[&id_2, &id_3].map(Clone::clone),
+                &[&id_8].map(Clone::clone),
+                0..3
+            ),
+            [&id_2, &id_4, &id_7].map(Clone::clone)
+        );
+    }
+}
