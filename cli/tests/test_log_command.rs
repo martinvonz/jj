@@ -1387,10 +1387,10 @@ fn test_elided() {
     ├─╮
     │ ◉  side branch 2
     │ │
-    │ ◌  (elided revisions)
+    │ ⇋  (elided revisions)
     ◉ │  main branch 2
     │ │
-    ◌ │  (elided revisions)
+    ⇋ │  (elided revisions)
     ├─╯
     ◉  initial
     │
@@ -1402,10 +1402,10 @@ fn test_elided() {
     insta::assert_snapshot!(get_log("@-- | root()"), @r###"
     ◉  side branch 1
     │
-    ◌  (elided revisions)
+    ⇋  (elided revisions)
     │ ◉  main branch 1
     │ │
-    │ ◌  (elided revisions)
+    │ ⇋  (elided revisions)
     ├─╯
     ◉
     "###);

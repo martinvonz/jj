@@ -129,11 +129,11 @@ pub fn get_graphlog<'a, K: Clone + Eq + Hash + 'a>(
             builder.build_box_drawing().with_square_glyphs(),
             formatter,
             "◉",
-            "◌",
+            "⇋",
         ),
-        "ascii" => SaplingGraphLog::create(builder.build_ascii(), formatter, "o", "."),
-        "ascii-large" => SaplingGraphLog::create(builder.build_ascii_large(), formatter, "o", "."),
+        "ascii" => SaplingGraphLog::create(builder.build_ascii(), formatter, "o", "="),
+        "ascii-large" => SaplingGraphLog::create(builder.build_ascii_large(), formatter, "o", "="),
         // "curved"
-        _ => SaplingGraphLog::create(builder.build_box_drawing(), formatter, "◉", "◌"),
+        _ => SaplingGraphLog::create(builder.build_box_drawing(), formatter, "◉", "⇋"),
     }
 }
