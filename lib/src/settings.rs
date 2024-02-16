@@ -280,6 +280,28 @@ impl UserSettings {
             _ => symbol.unwrap_or_else(|_| fallback.to_owned()),
         }
     }
+
+    pub fn advance_branches(&self) -> bool {
+        self.config
+            .get_bool("experimental-advance-branches.enabled")
+            .unwrap_or(false)
+    }
+
+    // We could use a set here, but for the small number of user overrides we
+    // expect, `Vec` is probably as fast or faster and we don't care about
+    // removing duplicates.
+    pub fn advance_branches_overrides(&self) -> Vec<String> {
+        match self
+            .config
+            .get_array("experimental-advance-branches.overrides")
+        {
+            Ok(overrides) => overrides
+                .into_iter()
+                .filter_map(|x| x.into_string().ok())
+                .collect(),
+            Err(_) => vec![],
+        }
+    }
 }
 
 /// This Rng uses interior mutability to allow generating random values using an
