@@ -868,8 +868,8 @@ impl TreeState {
             return Ok(());
         }
 
-        let git_ignore =
-            git_ignore.chain_with_file(&dir.to_internal_dir_string(), disk_dir.join(".gitignore"));
+        let git_ignore = git_ignore
+            .chain_with_file(&dir.to_internal_dir_string(), disk_dir.join(".gitignore"))?;
         let dir_entries = disk_dir
             .read_dir()
             .unwrap()
