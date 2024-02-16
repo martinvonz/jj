@@ -196,7 +196,9 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
     ) -> Vec<IndexGraphEdge> {
         let mut edges = Vec::new();
         let mut known_ancestors = HashSet::new();
-        for parent in index_entry.parents() {
+        let mut parents: Vec<_> = index_entry.parents().collect();
+        parents.sort_by(|a, b| a.position().cmp(&b.position()));
+        for parent in parents {
             let parent_position = parent.position();
             self.consume_to(parent_position);
             if self.look_ahead.contains_key(&parent_position) {

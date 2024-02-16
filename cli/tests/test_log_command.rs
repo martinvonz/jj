@@ -835,8 +835,8 @@ fn test_log_limit() {
     insta::assert_snapshot!(stdout, @r###"
     @    d
     ├─╮
-    │ ◉  b
-    ◉ │  c
+    │ ◉  c
+    ◉ │  b
     ├─╯
     "###);
 
@@ -845,7 +845,7 @@ fn test_log_limit() {
     insta::assert_snapshot!(stdout, @r###"
     @    d
     ├─╮
-    │ ◉  b
+    │ ◉  c
     "###);
 
     let stdout = test_env.jj_cmd_success(
@@ -866,7 +866,7 @@ fn test_log_limit() {
     ◉
     ◉    a
     ├─╮
-    │ ◉  c
+    │ ◉  b
     "###);
     let stdout = test_env.jj_cmd_success(
         &repo_path,
@@ -1284,6 +1284,62 @@ fn test_log_word_wrap() {
        68518a7e
        (empty)
        merge
+    "###);
+}
+
+#[test]
+fn test_merge_fix_and_initial() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "initial"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "fix"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "merge", "@", "@-"]);
+
+    let get_log = |revs: &str| -> String {
+        test_env.jj_cmd_success(
+            &repo_path,
+            &["log", "-T", r#"description ++ "\n""#, "-r", revs],
+        )
+    };
+
+    insta::assert_snapshot!(get_log("::"), @r###"
+    @    merge
+    ├─╮
+    │ ◉  fix
+    ├─╯
+    ◉  initial
+    │
+    ◉
+    "###);
+}
+
+#[test]
+fn test_merge_initial_and_fix() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "initial"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "fix"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "merge", "@-", "@"]);
+
+    let get_log = |revs: &str| -> String {
+        test_env.jj_cmd_success(
+            &repo_path,
+            &["log", "-T", r#"description ++ "\n""#, "-r", revs],
+        )
+    };
+
+    insta::assert_snapshot!(get_log("::"), @r###"
+    @    merge
+    ├─╮
+    │ ◉  fix
+    ├─╯
+    ◉  initial
+    │
+    ◉
     "###);
 }
 

@@ -57,8 +57,8 @@ fn test_chmod_regular_conflict() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    conflict
     ├─╮
-    │ ◉  n
-    ◉ │  x
+    │ ◉  x
+    ◉ │  n
     ├─╯
     ◉  base
     ◉

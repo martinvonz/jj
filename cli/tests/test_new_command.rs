@@ -318,11 +318,11 @@ fn test_new_insert_before() {
     ├─╯
     @      G
     ├─┬─╮
-    │ │ ◉  B
-    │ │ ◉  A
+    │ │ ◉  E
     │ ◉ │  D
     │ ├─╯
-    ◉ │  E
+    ◉ │  B
+    ◉ │  A
     ├─╯
     ◉  root
     "###);
@@ -358,13 +358,13 @@ fn test_new_insert_before_root_successors() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     ◉    F
     ├─╮
-    │ ◉  E
-    ◉ │  D
+    │ ◉  D
+    ◉ │  E
     │ │ ◉  C
     │ │ ◉  B
     │ │ ◉  A
-    ├───╯
-    @ │  G
+    │ ├─╯
+    │ @  G
     ├─╯
     ◉  root
     "###);
@@ -428,13 +428,13 @@ fn test_new_insert_before_no_root_merge() {
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     ◉    F
     ├─╮
-    │ ◉  E
-    ◉ │  D
+    │ ◉  D
+    ◉ │  E
     │ │ ◉  C
     │ │ ◉  B
-    ├───╯
-    @ │  G
-    ◉ │  A
+    │ ├─╯
+    │ @  G
+    │ ◉  A
     ├─╯
     ◉  root
     "###);

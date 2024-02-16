@@ -120,11 +120,11 @@ fn test_duplicate_many() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉    8348ddcec733   e
     ├─╮
-    ◉ │  3b74d9691015   b
+    │ ◉  3b74d9691015   b
     │ │ @  921dde6e55c0   e
-    │ ╭─┤
-    │ ◉ │  ebd06dba20ec   d
-    │ ◉ │  c0cb3a0b73e7   c
+    ╭───┤
+    ◉ │ │  ebd06dba20ec   d
+    ◉ │ │  c0cb3a0b73e7   c
     ├─╯ │
     │   ◉  1394f625cbbd   b
     ├───╯

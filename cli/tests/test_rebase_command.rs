@@ -311,9 +311,9 @@ fn test_rebase_single_revision() {
     ◉  c
     │ @    d
     │ ├─╮
-    │ │ ◉  a
+    │ │ ◉  b
     ├───╯
-    │ ◉  b
+    │ ◉  a
     ├─╯
     ◉
     "###);
@@ -355,8 +355,8 @@ fn test_rebase_single_revision_merge_parent() {
     ◉  c
     │ @  d
     ╭─┤
-    ◉ │  a
     │ ◉  b
+    ◉ │  a
     ├─╯
     ◉
     "###);
@@ -376,8 +376,8 @@ fn test_rebase_revision_onto_descendant() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    merge
     ├─╮
-    │ ◉  a
-    ◉ │  b
+    │ ◉  b
+    ◉ │  a
     ├─╯
     ◉  base
     ◉
@@ -482,8 +482,8 @@ fn test_rebase_multiple_destinations() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉    a
     ├─╮
-    │ ◉  b
-    @ │  c
+    │ @  c
+    ◉ │  b
     ├─╯
     ◉
     "###);

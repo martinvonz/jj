@@ -97,8 +97,8 @@ fn test_workspaces_add_second_workspace_on_merge() {
     ├─╮
     │ │ @  21a0ea6d1c86c413cb30d7f7d216a74754b148c4 default@
     ╭─┬─╯
-    │ ◉  09ba8d9dfa21b8572c2361e6947ca024d8f0a198
-    ◉ │  1694f2ddf8ecf9e55ca3cd9554bc0654186b07e0
+    │ ◉  1694f2ddf8ecf9e55ca3cd9554bc0654186b07e0
+    ◉ │  09ba8d9dfa21b8572c2361e6947ca024d8f0a198
     ├─╯
     ◉  0000000000000000000000000000000000000000
     "###);
@@ -217,10 +217,10 @@ fn test_workspaces_add_workspace_multiple_revisions() {
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
     ◉      fa8fdc28af12d3c96b1e0ed062f5a8f9a99818f0 merge@
     ├─┬─╮
-    │ │ ◉  e7d7dbb91c5a543ea680711093e689916d5f31df
+    │ │ ◉  23881f07b53ce1ea936ca8842e344dea9c3356e5
     │ ◉ │  1f6a15f0af2a985703864347f5fdf27a82fc3d73
     │ ├─╯
-    ◉ │  23881f07b53ce1ea936ca8842e344dea9c3356e5
+    ◉ │  e7d7dbb91c5a543ea680711093e689916d5f31df
     ├─╯
     │ @  5b36783cd11c4607a329c5e8c2fd9097c9ce2add default@
     ├─╯
