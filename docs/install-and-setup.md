@@ -179,6 +179,13 @@ source <(jj util completion zsh)
 jj util completion fish | source
 ```
 
+### Nushell
+
+```nu
+jj util completion nushell | save completions-jj.nu
+use completions-jj.nu *  # Or `source completions-jj.nu`
+```
+
 ### Xonsh
 
 ```shell

@@ -16,8 +16,7 @@ use std::io::Write;
 use std::slice;
 use std::time::{Duration, SystemTime};
 
-use clap::Subcommand;
-use clap_complete::Shell;
+use clap::{Command, Subcommand};
 use jj_lib::repo::Repo;
 use tracing::instrument;
 
@@ -42,6 +41,11 @@ Apply it by running one of these:
 
 - **bash**: `source <(jj util completion bash)`
 - **fish**: `jj util completion fish | source`
+- **nushell**:
+     ```nu
+     jj util completion nushell | save "completions-jj.nu"
+     use "completions-jj.nu" *  # Or `source "completions-jj.nu"`
+     ```
 - **zsh**:
      ```shell
      autoload -U compinit
@@ -52,7 +56,7 @@ Apply it by running one of these:
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 pub(crate) struct UtilCompletionArgs {
-    shell: Option<Shell>,
+    shell: Option<ShellCompletion>,
     /// Deprecated. Use the SHELL positional argument instead.
     #[arg(long, hide = true)]
     bash: bool,
@@ -91,6 +95,17 @@ pub(crate) struct UtilMarkdownHelp {}
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct UtilConfigSchemaArgs {}
 
+/// Available shell completions
+#[derive(clap::ValueEnum, Clone, Copy, Debug, Eq, Hash, PartialEq)]
+enum ShellCompletion {
+    Bash,
+    Elvish,
+    Fish,
+    Nushell,
+    PowerShell,
+    Zsh,
+}
+
 #[instrument(skip_all)]
 pub(crate) fn cmd_util(
     ui: &mut Ui,
@@ -120,22 +135,21 @@ fn cmd_util_completion(
         )?;
         writeln!(ui.hint(), "Hint: Use `jj util completion {shell}` instead")
     };
-    let mut buf = vec![];
     let shell = match (args.shell, args.fish, args.zsh, args.bash) {
         (Some(s), false, false, false) => s,
         // allow `--fish` and `--zsh` for back-compat, but don't allow them to be combined
         (None, true, false, false) => {
             warn("fish")?;
-            Shell::Fish
+            ShellCompletion::Fish
         }
         (None, false, true, false) => {
             warn("zsh")?;
-            Shell::Zsh
+            ShellCompletion::Zsh
         }
         // default to bash for back-compat. TODO: consider making `shell` a required argument
         (None, false, false, _) => {
             warn("bash")?;
-            Shell::Bash
+            ShellCompletion::Bash
         }
         _ => {
             return Err(user_error(
@@ -143,7 +157,8 @@ fn cmd_util_completion(
             ))
         }
     };
-    clap_complete::generate(shell, &mut app, "jj", &mut buf);
+
+    let buf = shell.generate(&mut app);
     ui.stdout_formatter().write_all(&buf)?;
     Ok(())
 }
@@ -205,4 +220,26 @@ fn cmd_util_config_schema(
     let buf = include_bytes!("../config-schema.json");
     ui.stdout_formatter().write_all(buf)?;
     Ok(())
+}
+
+impl ShellCompletion {
+    fn generate(&self, cmd: &mut Command) -> Vec<u8> {
+        use clap_complete::{generate, Shell};
+        use clap_complete_nushell::Nushell;
+
+        let mut buf = Vec::new();
+
+        let bin_name = "jj";
+
+        match self {
+            Self::Bash => generate(Shell::Bash, cmd, bin_name, &mut buf),
+            Self::Elvish => generate(Shell::Elvish, cmd, bin_name, &mut buf),
+            Self::Fish => generate(Shell::Fish, cmd, bin_name, &mut buf),
+            Self::Nushell => generate(Nushell, cmd, bin_name, &mut buf),
+            Self::PowerShell => generate(Shell::PowerShell, cmd, bin_name, &mut buf),
+            Self::Zsh => generate(Shell::Zsh, cmd, bin_name, &mut buf),
+        }
+
+        buf
+    }
 }
