@@ -99,9 +99,9 @@
             installManPage ./jj.1
 
             installShellCompletion --cmd jj \
-              --bash <($out/bin/jj util completion --bash) \
-              --fish <($out/bin/jj util completion --fish) \
-              --zsh <($out/bin/jj util completion --zsh)
+              --bash <($out/bin/jj util completion bash) \
+              --fish <($out/bin/jj util completion fish) \
+              --zsh <($out/bin/jj util completion zsh)
           '';
         };
         default = self.packages.${system}.jujutsu;
