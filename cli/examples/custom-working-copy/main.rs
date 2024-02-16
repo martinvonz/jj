@@ -222,7 +222,7 @@ impl LockedWorkingCopy for LockedConflictsWorkingCopy {
     }
 
     fn snapshot(&mut self, mut options: SnapshotOptions) -> Result<MergedTreeId, SnapshotError> {
-        options.base_ignores = options.base_ignores.chain("", "/.conflicts".as_bytes());
+        options.base_ignores = options.base_ignores.chain("", "/.conflicts".as_bytes())?;
         self.inner.snapshot(options)
     }
 
