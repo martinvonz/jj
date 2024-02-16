@@ -57,6 +57,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj move --from/--to` can now be abbreviated to `jj move -f/-t`
 
+* Added completions for [Nushell](https://nushell.sh) to `jj util completion`
+
 ### Fixed bugs
 
 * On Windows, symlinks in the repo are now materialized as regular files in the
