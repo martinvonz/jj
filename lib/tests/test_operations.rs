@@ -437,21 +437,23 @@ fn test_resolve_op_id() {
     let op_store = repo.op_store();
 
     let mut operations = Vec::new();
-    for i in (0..6).chain([16]) {
+    // The actual value of `i` doesn't matter, we just need to make sure we end
+    // up with hashes with ambiguous prefixes.
+    for i in (1..7).chain([16]) {
         let tx = repo.start_transaction(&settings);
         let repo = tx.commit(format!("transaction {i}"));
         operations.push(repo.operation().clone());
     }
-    // "c" and "0" are ambiguous
+    // "6" and "0" are ambiguous
     insta::assert_debug_snapshot!(operations.iter().map(|op| op.id().hex()).collect_vec(), @r###"
     [
-        "4ff2007de55a2f649f7ab0c98618e4126ef49f0d40a086c8e0a4612a0d5ab4992e1baf4b4fa0a2a224fab39fc5e5b200ac4cddf964db29c6be1379ab2b6d4572",
-        "c9fb43476d60aad9f44d13e7789377e0cf585e62f905e78eab815361ed96a0c5905508e868cea79e0c3df2ef3778bf1f812d8379a4e5ae91d7ba39d875594bb1",
-        "7556549ffe31d303a9cb99974a11fb56aca05726c608564368648503e5edcc95d505e55323b086cb7a731972efc9094256548f745bfd9d886407c42a5f894d26",
-        "cdb35f2826be9a561ae452f06a86e020feec43419d38406f731190732fe143bd69b0e8496ee23817ce13ff6abf9202ec3279b9cb21222be89d5592faa779ff6c",
-        "19971a76da2927c916c079813a0e1e8d91fab52065f926018973b6b5e9d0a22cfdefe3d937ed3ec8e323074a50f6e747a2d6cee0e95185980594ffda8c438a84",
-        "689a23c147a58d70a6f30005d64e49e68fe96a2e9143d78b5957bf26fd9cf06d218279430d7c87b6c5ba163f1557fe2f3b951f0ad126bbe1b804e992c590616a",
-        "09baae9e4e6aeaa9a6107ec4b2a6e86350dbefc227d962983a32631e8f9c65a5cdd73a7420f79eb139ee10f01cf9fcab579abc4596f1844499fdeed75a382db6",
+        "661239681c88dd0e8037ac010df3917e4fb1b36fdad0586fea09718741552c8d26684821043d5f9423fc618220f7826b2b8d77c13566733e7d591605d0850d0e",
+        "22d5aeb8f2fdda8a782fc589c891b1eea0a73c6685db45d1c7eda5d5c02b99a8679743deb2508a643bb074884363e54cc3ea41a06ec380de3b2c536a5c1ae98f",
+        "3580c377da0dfea738a735777fe3d00569fcf484b0ec4080a337e38d1e008098ed87d50f7c2dad476b828871259d055cec05116cd0a02e323477aeb7df5473e4",
+        "b09c135f3d36357a29246ee3dc86e008ef227186104a2e99524abe601a7bfa8b898a585e9d2b3cbf5131e72043edf0a219ee192bd4a3bff8d6cfc44239a4c206",
+        "820bb7cdbdda7206902391e6b8b08df719156ca9b3eb008a723da6e15cf4056987ac36f42e075a9491ed95dde158925f65c42027700b6bce52ce6f67d69980ee",
+        "08f1e27b776f7709f4a288129758d0104cb0230dc68f3edb8a1227c7b715f36c4079ba19bccb819d4f45e840e19e321e807a89900eeca77da0cad6b5549e3691",
+        "695435d5ab08eaf979d262c01365d9b9c06097a8ba5a9cea530042528d50000d99627633262467d3099ed73617a0bc21f7796376432989174635365798d73a3d",
     ]
     "###);
 
@@ -472,7 +474,7 @@ fn test_resolve_op_id() {
     );
     // Ambiguous id
     assert_matches!(
-        resolve("c"),
+        resolve("6"),
         Err(OpsetEvaluationError::OpsetResolution(
             OpsetResolutionError::AmbiguousIdPrefix(_)
         ))
@@ -499,7 +501,7 @@ fn test_resolve_op_id() {
     };
     assert_eq!(resolve(&root_operation.id().hex()).unwrap(), root_operation);
     assert_eq!(resolve("00").unwrap(), root_operation);
-    assert_eq!(resolve("09").unwrap(), operations[6]);
+    assert_eq!(resolve("69").unwrap(), operations[6]);
     assert_matches!(
         resolve("0"),
         Err(OpsetEvaluationError::OpsetResolution(
