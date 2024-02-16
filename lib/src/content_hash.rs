@@ -39,7 +39,19 @@ impl ContentHash for u8 {
     }
 }
 
+impl ContentHash for u32 {
+    fn hash(&self, state: &mut impl digest::Update) {
+        state.update(&self.to_le_bytes());
+    }
+}
+
 impl ContentHash for i32 {
+    fn hash(&self, state: &mut impl digest::Update) {
+        state.update(&self.to_le_bytes());
+    }
+}
+
+impl ContentHash for u64 {
     fn hash(&self, state: &mut impl digest::Update) {
         state.update(&self.to_le_bytes());
     }
