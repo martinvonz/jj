@@ -331,7 +331,10 @@ impl IndexStore for DefaultIndexStore {
                 // If the index was corrupt (maybe it was written in a different format),
                 // we just reindex.
                 // TODO: Move this message to a callback or something.
-                eprintln!("{err}: {source}. Reindexing...", source = err.error);
+                eprintln!(
+                    "{err} (maybe the format has changed): {source}. Reindexing...",
+                    source = err.error
+                );
                 self.reinit().map_err(|err| IndexReadError(err.into()))?;
                 self.build_index_segments_at_operation(op, store)
             }
