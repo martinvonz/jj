@@ -45,7 +45,7 @@ use jj_lib::matchers::Matcher;
 use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
-use jj_lib::op_store::{OpStoreError, OperationId, WorkspaceId};
+use jj_lib::op_store::{OpStoreError, OperationId, RefTarget, WorkspaceId};
 use jj_lib::op_walk::OpsetEvaluationError;
 use jj_lib::operation::Operation;
 use jj_lib::repo::{
@@ -390,6 +390,77 @@ impl ReadonlyUserRepo {
 
     pub fn git_backend(&self) -> Option<&GitBackend> {
         self.repo.store().backend_impl().downcast_ref()
+    }
+}
+
+/// A branch that should be advanced to satisfy the "advance-branches" feature.
+/// This is a helper for `WorkspaceCommandTransaction`. It provides a type-safe
+/// way to separate the work of checking whether a branch can be advanced and
+/// actually advancing it. Advancing the branch never fails, but can't be done
+/// until the new `CommitId` is available. Splitting the work in this way also
+/// allows us to identify eligible branches without actually moving them and
+/// return config errors to the user early.
+pub struct AdvanceableBranch {
+    name: String,
+    old_commit_id: CommitId,
+}
+
+/// Helper for parsing and evaluating settings for the advance-branches feature.
+/// Settings are configured in the jj config.toml as lists of [`StringPattern`]s
+/// for enabled and disabled branches. Example:
+/// ```toml
+/// [experimental-advance-branches]
+/// # Enable the feature for all branches except "main".
+/// enabled-branches = ["glob:*"]
+/// disabled-branches = ["main"]
+/// ```
+struct AdvanceBranchesSettings {
+    enabled_branches: Vec<StringPattern>,
+    disabled_branches: Vec<StringPattern>,
+}
+
+impl AdvanceBranchesSettings {
+    fn from_config(config: &config::Config) -> Result<Self, CommandError> {
+        let get_setting = |setting_key| {
+            let setting = format!("experimental-advance-branches.{setting_key}");
+            match config.get::<Vec<String>>(&setting).optional()? {
+                Some(patterns) => patterns
+                    .into_iter()
+                    .map(|s| {
+                        StringPattern::parse(&s).map_err(|e| {
+                            config_error_with_message(
+                                format!("Error parsing '{s}' for {setting}"),
+                                e,
+                            )
+                        })
+                    })
+                    .collect(),
+                None => Ok(Vec::new()),
+            }
+        };
+        Ok(Self {
+            enabled_branches: get_setting("enabled-branches")?,
+            disabled_branches: get_setting("disabled-branches")?,
+        })
+    }
+
+    /// Returns true if the advance-branches feature is enabled for
+    /// `branch_name`.
+    fn branch_is_eligible(&self, branch_name: &str) -> bool {
+        if self
+            .disabled_branches
+            .iter()
+            .any(|d| d.matches(branch_name))
+        {
+            return false;
+        }
+        self.enabled_branches.iter().any(|e| e.matches(branch_name))
+    }
+
+    /// Returns true if the config includes at least one "enabled-branches"
+    /// pattern.
+    fn feature_enabled(&self) -> bool {
+        !self.enabled_branches.is_empty()
     }
 }
 
@@ -1375,6 +1446,44 @@ Then run `jj squash` to move the resolution into the conflicted commit."#,
 
         Ok(())
     }
+
+    /// Identifies branches which are eligible to be moved automatically during
+    /// `jj commit` and `jj new`. Whether a branch is eligible is determined by
+    /// its target and the user and repo config for "advance-branches".
+    ///
+    /// Returns a Vec of branches in `repo` that point to any of the `from`
+    /// commits and that are eligible to advance. The `from` commits are
+    /// typically the parents of the target commit of `jj commit` or `jj new`.
+    ///
+    /// Branches are not moved until
+    /// `WorkspaceCommandTransaction::advance_branches()` is called with the
+    /// `AdvanceableBranch`s returned by this function.
+    ///
+    /// Returns an empty `std::Vec` if no branches are eligible to advance.
+    pub fn get_advanceable_branches<'a>(
+        &self,
+        from: impl IntoIterator<Item = &'a CommitId>,
+    ) -> Result<Vec<AdvanceableBranch>, CommandError> {
+        let ab_settings = AdvanceBranchesSettings::from_config(self.settings.config())?;
+        if !ab_settings.feature_enabled() {
+            // Return early if we know that there's no work to do.
+            return Ok(Vec::new());
+        }
+
+        let mut advanceable_branches = Vec::new();
+        for from_commit in from {
+            for (name, _) in self.repo().view().local_branches_for_commit(from_commit) {
+                if ab_settings.branch_is_eligible(name) {
+                    advanceable_branches.push(AdvanceableBranch {
+                        name: name.to_owned(),
+                        old_commit_id: from_commit.clone(),
+                    });
+                }
+            }
+        }
+
+        Ok(advanceable_branches)
+    }
 }
 
 /// A [`Transaction`] tied to a particular workspace.
@@ -1460,6 +1569,23 @@ impl WorkspaceCommandTransaction<'_> {
     /// the working copy, if applicable.
     pub fn into_inner(self) -> Transaction {
         self.tx
+    }
+
+    /// Moves each branch in `branches` from an old commit it's associated with
+    /// (configured by `get_advanceable_branches`) to the `move_to` commit. If
+    /// the branch is conflicted before the update, it will remain conflicted
+    /// after the update, but the conflict will involve the `move_to` commit
+    /// instead of the old commit.
+    pub fn advance_branches(&mut self, branches: Vec<AdvanceableBranch>, move_to: &CommitId) {
+        for branch in branches {
+            // This removes the old commit ID from the branch's RefTarget and
+            // replaces it with the `move_to` ID.
+            self.mut_repo().merge_local_branch(
+                &branch.name,
+                &RefTarget::normal(branch.old_commit_id),
+                &RefTarget::normal(move_to.clone()),
+            );
+        }
     }
 }
 
