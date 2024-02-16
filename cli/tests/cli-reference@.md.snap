@@ -1742,6 +1742,11 @@ Apply it by running one of these:
 
 - **bash**: `source <(jj util completion bash)`
 - **fish**: `jj util completion fish | source`
+- **nushell**:
+    ```nu
+    jj util completion nushell | save "completions-jj.nu"
+    use "completions-jj.nu" *  # Or `source "completions-jj.nu"`
+    ```
 - **zsh**:
     ```shell
     autoload -U compinit
@@ -1755,7 +1760,7 @@ Apply it by running one of these:
 
 * `<SHELL>`
 
-  Possible values: `bash`, `elvish`, `fish`, `powershell`, `zsh`
+  Possible values: `bash`, `elvish`, `fish`, `nushell`, `power-shell`, `zsh`
 
 
 ###### **Options:**

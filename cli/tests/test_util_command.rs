@@ -92,3 +92,21 @@ fn test_gc_operation_log() {
     Error: No operation ID matching "f9400b5274c6f1cfa23afbc1956349897a6975116135a59ab19d941119cc9fad93d9668b8c7d913fbd68c543dcba40a8d44135a53996a9e8ea92d4b78ef52cb6"
     "###);
 }
+
+#[test]
+fn test_shell_completions() {
+    #[track_caller]
+    fn test(shell: &str) {
+        let test_env = TestEnvironment::default();
+        // Use the local backend because GitBackend::gc() depends on the git CLI.
+        let (out, err) = test_env.jj_cmd_ok(test_env.env_root(), &["util", "completion", shell]);
+        // Ensures only stdout contains text
+        assert!(!out.is_empty());
+        assert!(err.is_empty());
+    }
+
+    test("bash");
+    test("fish");
+    test("nushell");
+    test("zsh");
+}
