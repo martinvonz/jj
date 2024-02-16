@@ -114,11 +114,11 @@ impl ContentHash for MergedTreeId {
     fn hash(&self, state: &mut impl digest::Update) {
         match self {
             MergedTreeId::Legacy(tree_id) => {
-                state.update(b"0");
+                state.update(&0u32.to_le_bytes());
                 ContentHash::hash(tree_id, state);
             }
             MergedTreeId::Merge(tree_ids) => {
-                state.update(b"1");
+                state.update(&1u32.to_le_bytes());
                 ContentHash::hash(tree_ids, state);
             }
         }

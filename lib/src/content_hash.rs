@@ -76,9 +76,9 @@ impl ContentHash for String {
 impl<T: ContentHash> ContentHash for Option<T> {
     fn hash(&self, state: &mut impl digest::Update) {
         match self {
-            None => state.update(&[0]),
+            None => state.update(&0u32.to_le_bytes()),
             Some(x) => {
-                state.update(&[1]);
+                state.update(&1u32.to_le_bytes());
                 x.hash(state)
             }
         }
@@ -227,7 +227,7 @@ mod tests {
                 x: vec![None, Some(42)],
                 y: 17
             })),
-            @"14e42ea3d680bc815d0cea8ac20d3e872120014fb7bba8d82c3ffa7a8e6d63c41ef9631c60b73b150e3dd72efe50e8b0248321fe2b7eea09d879f3757b879372"
+            @"e33c423b4b774b1353c414e0f9ef108822fde2fd5113fcd53bf7bd9e74e3206690b96af96373f268ed95dd020c7cbe171c7b7a6947fcaf5703ff6c8e208cefd4"
         );
     }
 

@@ -36,12 +36,12 @@ fn test_op_log() {
         ],
     );
     insta::assert_snapshot!(&stdout, @r###"
-    @  826c45dd2457 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    @  c12bcc2a82e7 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj describe -m 'description 0'
-    ◉  27143b59c690 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  6ac4339ad699 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  0e8aee02e242 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  1b0049c19762 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
     ◉  000000000000 root()
     "###);
@@ -114,9 +114,9 @@ fn test_op_log_no_graph() {
     let stdout =
         test_env.jj_cmd_success(&repo_path, &["op", "log", "--no-graph", "--color=always"]);
     insta::assert_snapshot!(stdout, @r###"
-    [1m[38;5;12m27143b59c690[39m [38;5;3mtest-username@host.example.com[39m [38;5;14m2001-02-03 04:05:07.000 +07:00[39m - [38;5;14m2001-02-03 04:05:07.000 +07:00[39m[0m
+    [1m[38;5;12m6ac4339ad699[39m [38;5;3mtest-username@host.example.com[39m [38;5;14m2001-02-03 04:05:07.000 +07:00[39m - [38;5;14m2001-02-03 04:05:07.000 +07:00[39m[0m
     [1madd workspace 'default'[0m
-    [38;5;4m0e8aee02e242[39m [38;5;3mtest-username@host.example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m - [38;5;6m2001-02-03 04:05:07.000 +07:00[39m
+    [38;5;4m1b0049c19762[39m [38;5;3mtest-username@host.example.com[39m [38;5;6m2001-02-03 04:05:07.000 +07:00[39m - [38;5;6m2001-02-03 04:05:07.000 +07:00[39m
     initialize repo
     [38;5;4m000000000000[39m [38;5;2mroot()[39m
     "###);
@@ -140,7 +140,7 @@ fn test_op_log_no_graph_null_terminated() {
             r#"id.short(4) ++ "\0""#,
         ],
     );
-    insta::assert_debug_snapshot!(stdout, @r###""f5e4\05ff2\02714\00e8a\00000\0""###);
+    insta::assert_debug_snapshot!(stdout, @r###""050b\0c02e\06ac4\01b00\00000\0""###);
 }
 
 #[test]
@@ -151,15 +151,15 @@ fn test_op_log_template() {
     let render = |template| test_env.jj_cmd_success(&repo_path, &["op", "log", "-T", template]);
 
     insta::assert_snapshot!(render(r#"id ++ "\n""#), @r###"
-    @  27143b59c6904046f6be83ad6fe145d819944f9abbd7247ea9c57848d1d2c678ea8265598a156fe8aeef31d24d958bf6cfa0c2eb3afef40bdae2c5e98d73d0ee
-    ◉  0e8aee02e24230c99d6d90d469c582a60fdb2ae8329341bbdb09f4a0beceba1ce7c84fc9ba6c7657d6d275b392b89b825502475ad2501be1ddebd4a09b07668c
+    @  6ac4339ad6999058dd1806653ec37fc0091c1cc17419c750fddc5e8c1a6a77829e6dd70b3408403fb2c0b9839cf6bfd1c270f980674f7f89d4d78dc54082a8ef
+    ◉  1b0049c19762e43499f2499a45afc9f72b3004d75a2863d41d8867cfafb9bbc8e16aa447107e460d58a5c1462429f032d806f7487836c66c6f351df45746c218
     ◉  00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(
         render(r#"separate(" ", id.short(5), current_operation, user,
                                 time.start(), time.end(), time.duration()) ++ "\n""#), @r###"
-    @  27143 true test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
-    ◉  0e8ae false test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
+    @  6ac43 true test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
+    ◉  1b004 false test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
     ◉  00000 false @ 1970-01-01 00:00:00.000 +00:00 1970-01-01 00:00:00.000 +00:00 less than a microsecond
     "###);
 
@@ -183,9 +183,9 @@ fn test_op_log_template() {
     let regex = Regex::new(r"\d\d years").unwrap();
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(regex.replace_all(&stdout, "NN years"), @r###"
-    @  27143b59c690 test-username@host.example.com NN years ago, lasted less than a microsecond
+    @  6ac4339ad699 test-username@host.example.com NN years ago, lasted less than a microsecond
     │  add workspace 'default'
-    ◉  0e8aee02e242 test-username@host.example.com NN years ago, lasted less than a microsecond
+    ◉  1b0049c19762 test-username@host.example.com NN years ago, lasted less than a microsecond
     │  initialize repo
     ◉  000000000000 root()
     "###);
@@ -200,25 +200,25 @@ fn test_op_log_builtin_templates() {
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 0"]);
 
     insta::assert_snapshot!(render(r#"builtin_op_log_compact"#), @r###"
-    @  826c45dd2457 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    @  c12bcc2a82e7 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj describe -m 'description 0'
-    ◉  27143b59c690 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  6ac4339ad699 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  0e8aee02e242 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  1b0049c19762 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
     ◉  000000000000 root()
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_op_log_comfortable"#), @r###"
-    @  826c45dd2457 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    @  c12bcc2a82e7 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj describe -m 'description 0'
     │
-    ◉  27143b59c690 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  6ac4339ad699 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
     │
-    ◉  0e8aee02e242 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  1b0049c19762 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
     │
     ◉  000000000000 root()
@@ -246,19 +246,19 @@ fn test_op_log_word_wrap() {
 
     // ui.log-word-wrap option works
     insta::assert_snapshot!(render(&["op", "log"], 40, false), @r###"
-    @  27143b59c690 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    @  6ac4339ad699 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  0e8aee02e242 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  1b0049c19762 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
     ◉  000000000000 root()
     "###);
     insta::assert_snapshot!(render(&["op", "log"], 40, true), @r###"
-    @  27143b59c690
+    @  6ac4339ad699
     │  test-username@host.example.com
     │  2001-02-03 04:05:07.000 +07:00 -
     │  2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  0e8aee02e242
+    ◉  1b0049c19762
     │  test-username@host.example.com
     │  2001-02-03 04:05:07.000 +07:00 -
     │  2001-02-03 04:05:07.000 +07:00
@@ -296,15 +296,15 @@ fn test_op_abandon_ancestors() {
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 1"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 2"]);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
-    @  85137561ef60 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    @  d4553a89325a test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
     │  commit a8ac27b29a157ae7dabc0deb524df68823505730
     │  args: jj commit -m 'commit 2'
-    ◉  db27d55e457f test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    ◉  de5974401ad4 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj commit -m 'commit 1'
-    ◉  27143b59c690 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  6ac4339ad699 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  0e8aee02e242 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ◉  1b0049c19762 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
     ◉  000000000000 root()
     "###);
@@ -316,11 +316,11 @@ fn test_op_abandon_ancestors() {
     "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["debug", "workingcopy", "--ignore-working-copy"]), @r###"
-    Current operation: OperationId("1c88fada5b95d13ca136baa13c4b4aae1b79f3d453fe2f56539dbcd5d779642439314a15f685d6737eb414fffb3e53519f65f1d5cc5947a7821331137f4a91e2")
+    Current operation: OperationId("8d45b00ca36ad7cf1e50ed595eb1ddf744765ada1e1b11c44544666b1fa11eedb41bb925886894bc6a49332c86299b70cf4c486143935965ef1958d7fc17257b")
     Current tree: Legacy(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904"))
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
-    @  1c88fada5b95 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    @  8d45b00ca36a test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
     │  commit a8ac27b29a157ae7dabc0deb524df68823505730
     │  args: jj commit -m 'commit 2'
     ◉  000000000000 root()
@@ -335,10 +335,10 @@ fn test_op_abandon_ancestors() {
     Abandoned 2 operations and reparented 1 descendant operations.
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
-    @  459e01910446 test-username@host.example.com 2001-02-03 04:05:16.000 +07:00 - 2001-02-03 04:05:16.000 +07:00
+    @  49a67606c2ea test-username@host.example.com 2001-02-03 04:05:16.000 +07:00 - 2001-02-03 04:05:16.000 +07:00
     │  commit e184d62c9ab118b0f62de91959b857550a9273a5
     │  args: jj commit -m 'commit 5'
-    ◉  1c88fada5b95 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    ◉  8d45b00ca36a test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
     │  commit a8ac27b29a157ae7dabc0deb524df68823505730
     │  args: jj commit -m 'commit 2'
     ◉  000000000000 root()
@@ -365,14 +365,14 @@ fn test_op_abandon_ancestors() {
     "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["debug", "workingcopy", "--ignore-working-copy"]), @r###"
-    Current operation: OperationId("dbe91445f72184c82b2ad4c13063a20a764dd5a3bab42fc22652a0ca5d9f5a811d2b051560ca8b45c31f29e9d17ea408b224f761165b30f6df5f68ca74c90435")
+    Current operation: OperationId("3579f60625d3fc2768dd156488df7ccae6c0076de6ce66cfd02a951de182ac0652bad67c4c5e1f30a3369da8910f3c7cbaef1b5c2781d7c43da2a4404ab470fc")
     Current tree: Legacy(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904"))
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
-    @  dbe91445f721 test-username@host.example.com 2001-02-03 04:05:21.000 +07:00 - 2001-02-03 04:05:21.000 +07:00
-    │  undo operation 459e01910446fb8f6f6447112abc2227cb3b054b7831eca45bd527145719152931b1707d299f5e4e8484352e67d3622265a0baa58bfa01c459fd753f58791e0d
+    @  3579f60625d3 test-username@host.example.com 2001-02-03 04:05:21.000 +07:00 - 2001-02-03 04:05:21.000 +07:00
+    │  undo operation 49a67606c2eacaa4af83229c46652c7d5b5c36abdc5f6480baeb7331a19f418f267911410491f558c3f88345f83540ee5a04eb4e8b818dd662a9f419b5eb8f66
     │  args: jj undo
-    ◉  1c88fada5b95 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    ◉  8d45b00ca36a test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
     │  commit a8ac27b29a157ae7dabc0deb524df68823505730
     │  args: jj commit -m 'commit 2'
     ◉  000000000000 root()
@@ -384,8 +384,8 @@ fn test_op_abandon_ancestors() {
     Nothing changed.
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log", "-l1"]), @r###"
-    @  dbe91445f721 test-username@host.example.com 2001-02-03 04:05:21.000 +07:00 - 2001-02-03 04:05:21.000 +07:00
-    │  undo operation 459e01910446fb8f6f6447112abc2227cb3b054b7831eca45bd527145719152931b1707d299f5e4e8484352e67d3622265a0baa58bfa01c459fd753f58791e0d
+    @  3579f60625d3 test-username@host.example.com 2001-02-03 04:05:21.000 +07:00 - 2001-02-03 04:05:21.000 +07:00
+    │  undo operation 49a67606c2eacaa4af83229c46652c7d5b5c36abdc5f6480baeb7331a19f418f267911410491f558c3f88345f83540ee5a04eb4e8b818dd662a9f419b5eb8f66
     │  args: jj undo
     "###);
 }
@@ -410,12 +410,12 @@ fn test_op_abandon_without_updating_working_copy() {
     "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["debug", "workingcopy", "--ignore-working-copy"]), @r###"
-    Current operation: OperationId("0229bff5a5244b0804cc677c77e318887b6d00422257de108158ef41fa5edcff38aa1683a3c00364835e0565b841eb41c5092300ec23a1aa5e393914d18fef32")
+    Current operation: OperationId("880aaeffd50eb8682cd132b6d4a449a79c988ce8ff53fa50dd5b22849c8569ca345e313cd7f52b350d4b08e1567d39a556dbc437c24edbfccc9af23764e9b766")
     Current tree: Legacy(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904"))
     "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["op", "log", "-l1", "--ignore-working-copy"]), @r###"
-    @  0173d6fbe6a2 test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
+    @  d4f54739fcd7 test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
     │  commit 268f5f16139313ff25bef31280b2ec2e675200f3
     │  args: jj commit -m 'commit 3'
     "###);
@@ -426,16 +426,16 @@ fn test_op_abandon_without_updating_working_copy() {
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "abandon", "@-"]);
     insta::assert_snapshot!(stderr, @r###"
     Abandoned 1 operations and reparented 1 descendant operations.
-    The working copy operation 0229bff5a524 is not updated because it differs from the repo 0173d6fbe6a2.
+    The working copy operation 880aaeffd50e is not updated because it differs from the repo d4f54739fcd7.
     "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["debug", "workingcopy", "--ignore-working-copy"]), @r###"
-    Current operation: OperationId("0229bff5a5244b0804cc677c77e318887b6d00422257de108158ef41fa5edcff38aa1683a3c00364835e0565b841eb41c5092300ec23a1aa5e393914d18fef32")
+    Current operation: OperationId("880aaeffd50eb8682cd132b6d4a449a79c988ce8ff53fa50dd5b22849c8569ca345e313cd7f52b350d4b08e1567d39a556dbc437c24edbfccc9af23764e9b766")
     Current tree: Legacy(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904"))
     "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["op", "log", "-l1", "--ignore-working-copy"]), @r###"
-    @  b66dc21d579b test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
+    @  1b403259869c test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
     │  commit 268f5f16139313ff25bef31280b2ec2e675200f3
     │  args: jj commit -m 'commit 3'
     "###);

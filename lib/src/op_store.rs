@@ -214,7 +214,10 @@ pub enum RemoteRefState {
 
 impl ContentHash for RemoteRefState {
     fn hash(&self, state: &mut impl digest::Update) {
-        (*self as u8).hash(state);
+        match self {
+            RemoteRefState::New => state.update(&0u32.to_le_bytes()),
+            RemoteRefState::Tracking => state.update(&1u32.to_le_bytes()),
+        }
     }
 }
 
