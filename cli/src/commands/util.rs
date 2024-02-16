@@ -40,13 +40,13 @@ pub(crate) enum UtilCommand {
 
 Apply it by running one of these:
 
-- **bash**: `source <(jj util completion)`
-- **fish**: `jj util completion --fish | source`
+- **bash**: `source <(jj util completion bash)`
+- **fish**: `jj util completion fish | source`
 - **zsh**:
      ```shell
      autoload -U compinit
      compinit
-     source <(jj util completion --zsh)
+     source <(jj util completion zsh)
      ```
 "#]
 #[derive(clap::Args, Clone, Debug)]

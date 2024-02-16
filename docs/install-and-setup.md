@@ -156,7 +156,7 @@ $ jj config set --user user.email "martinvonz@google.com"
 ## Command-line completion
 
 To set up command-line completion, source the output of
-`jj util completion --bash/--zsh/--fish`. Exactly how to source it
+`jj util completion bash/zsh/fish`. Exactly how to source it
 depends on your shell.
 
 ### Bash
@@ -170,13 +170,13 @@ source <(jj util completion)  # --bash is the default
 ```shell
 autoload -U compinit
 compinit
-source <(jj util completion --zsh)
+source <(jj util completion zsh)
 ```
 
 ### Fish
 
 ```shell
-jj util completion --fish | source
+jj util completion fish | source
 ```
 
 ### Xonsh
