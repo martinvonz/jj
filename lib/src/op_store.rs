@@ -203,7 +203,6 @@ impl RemoteRef {
 
 /// Whether the ref is tracked or not.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-#[repr(u8)]
 pub enum RemoteRefState {
     /// Remote ref is not merged in to the local ref.
     New,
