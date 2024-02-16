@@ -405,6 +405,26 @@
                 }
             }
         },
+        "experimental-advance-branches": {
+            "type": "object",
+            "description": "Settings controlling the 'advance-branches' feature which moves branches forward when new commits are created.",
+            "properties": {
+                "enabled-branches": {
+                    "type": "array",
+                    "description": "Patterns used to identify branches which may be advanced.",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "disabled-branches": {
+                    "type": "array",
+                    "description": "Patterns used to identify branches which are not advanced. Takes precedence over 'enabled-branches'.",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "signing": {
             "type": "object",
             "description": "Settings for verifying and creating cryptographic commit signatures",
