@@ -123,6 +123,16 @@ impl View {
             .map(|(name, target)| (name.as_ref(), target))
     }
 
+    /// Iterates local branches `(name, target)` in lexicographical order where
+    /// the target adds `commit_id`.
+    pub fn local_branches_for_commit<'a: 'b, 'b>(
+        &'a self,
+        commit_id: &'b CommitId,
+    ) -> impl Iterator<Item = (&'a str, &'a RefTarget)> + 'b {
+        self.local_branches()
+            .filter(|(_, target)| target.added_ids().contains(commit_id))
+    }
+
     /// Iterates local branch `(name, target)`s matching the given pattern.
     /// Entries are sorted by `name`.
     pub fn local_branches_matching<'a: 'b, 'b>(

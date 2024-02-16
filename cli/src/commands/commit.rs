@@ -54,6 +54,7 @@ pub(crate) fn cmd_commit(
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
+    let advanceable_branches = workspace_command.get_advanceable_branches(commit.parent_ids())?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_selector =
         workspace_command.diff_selector(ui, args.tool.as_deref(), args.interactive)?;
@@ -119,6 +120,10 @@ new working-copy commit.
                 commit.tree_id().clone(),
             )
             .write()?;
+
+        // Does nothing if there's no branches to advance.
+        tx.advance_branches(advanceable_branches, new_commit.id());
+
         for workspace_id in workspace_ids {
             tx.mut_repo().edit(workspace_id, &new_wc_commit).unwrap();
         }
