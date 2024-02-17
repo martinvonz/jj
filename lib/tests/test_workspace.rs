@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::thread;
+
 use assert_matches::assert_matches;
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::Repo;
@@ -83,4 +85,19 @@ fn test_init_additional_workspace() {
         workspace.repo_path().canonicalize().unwrap()
     );
     assert_eq!(same_workspace.workspace_root(), ws2.workspace_root());
+}
+
+/// Test cross-thread access to a workspace, which requires it to be Send
+#[test]
+fn test_sendable() {
+    let settings = testutils::user_settings();
+    let test_workspace = TestWorkspace::init(&settings);
+    let root = test_workspace.workspace.workspace_root().clone();
+
+    thread::spawn(move || {
+        let shared_workspace = test_workspace.workspace;
+        assert_eq!(shared_workspace.workspace_root(), &root);
+    })
+    .join()
+    .unwrap();
 }
