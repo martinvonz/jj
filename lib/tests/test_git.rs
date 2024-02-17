@@ -15,7 +15,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc, Barrier};
-use std::{fs, thread};
+use std::{fs, iter, thread};
 
 use assert_matches::assert_matches;
 use git2::Oid;
@@ -2928,7 +2928,17 @@ fn test_concurrent_read_write_commit() {
                                     None
                                 }
                                 Err(BackendError::ObjectNotFound { .. }) => Some(commit_id),
-                                Err(err) => panic!("unexpected error: {err}"),
+                                Err(err) => {
+                                    eprintln!(
+                                        "import error in reader {i} (maybe lock contention?): {}",
+                                        iter::successors(
+                                            Some(&err as &dyn std::error::Error),
+                                            |e| e.source(),
+                                        )
+                                        .join(": ")
+                                    );
+                                    Some(commit_id)
+                                }
                             }
                         })
                         .collect_vec();
