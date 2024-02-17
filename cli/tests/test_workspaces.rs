@@ -69,6 +69,31 @@ fn test_workspaces_add_second_workspace() {
     "###);
 }
 
+/// Test how sparse patterns are inherited
+#[test]
+fn test_workspaces_sparse_patterns() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "ws1"]);
+    let ws1_path = test_env.env_root().join("ws1");
+    let ws2_path = test_env.env_root().join("ws2");
+    let ws3_path = test_env.env_root().join("ws3");
+
+    test_env.jj_cmd_ok(&ws1_path, &["sparse", "set", "--clear", "--add=foo"]);
+    test_env.jj_cmd_ok(&ws1_path, &["workspace", "add", "../ws2"]);
+    let stdout = test_env.jj_cmd_success(&ws2_path, &["sparse", "list"]);
+    // TODO: Should inherit the sparse patterns from ws1
+    insta::assert_snapshot!(stdout, @r###"
+    .
+    "###);
+    test_env.jj_cmd_ok(&ws2_path, &["sparse", "set", "--add=bar"]);
+    test_env.jj_cmd_ok(&ws2_path, &["workspace", "add", "../ws3"]);
+    let stdout = test_env.jj_cmd_success(&ws3_path, &["sparse", "list"]);
+    // TODO: Should inherit the sparse patterns from ws2
+    insta::assert_snapshot!(stdout, @r###"
+    .
+    "###);
+}
+
 /// Test adding a second workspace while the current workspace is editing a
 /// merge
 #[test]
