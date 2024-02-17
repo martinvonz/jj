@@ -184,7 +184,7 @@ fn cmd_op_log(
             let op = op?;
             let mut edges = vec![];
             for id in op.parent_ids() {
-                edges.push(Edge::direct(id.clone()));
+                edges.push(Edge::Direct(id.clone()));
             }
             let is_current_op = Some(op.id()) == current_op_id;
             let mut buffer = vec![];

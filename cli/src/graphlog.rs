@@ -23,28 +23,9 @@ use renderdag::{Ancestor, GraphRowRenderer, Renderer};
 #[derive(Debug, Clone, PartialEq, Eq)]
 // An edge to another node in the graph
 pub enum Edge<T> {
-    Present { target: T, direct: bool },
+    Direct(T),
+    Indirect(T),
     Missing,
-}
-
-impl<T> Edge<T> {
-    pub fn missing() -> Self {
-        Edge::Missing
-    }
-
-    pub fn direct(id: T) -> Self {
-        Edge::Present {
-            target: id,
-            direct: true,
-        }
-    }
-
-    pub fn indirect(id: T) -> Self {
-        Edge::Present {
-            target: id,
-            direct: false,
-        }
-    }
 }
 
 pub trait GraphLog<K: Clone + Eq + Hash> {
@@ -73,11 +54,8 @@ pub struct SaplingGraphLog<'writer, R> {
 impl<K: Clone> From<&Edge<K>> for Ancestor<K> {
     fn from(e: &Edge<K>) -> Self {
         match e {
-            Edge::Present {
-                target,
-                direct: true,
-            } => Ancestor::Parent(target.clone()),
-            Edge::Present { target, .. } => Ancestor::Ancestor(target.clone()),
+            Edge::Direct(target) => Ancestor::Parent(target.clone()),
+            Edge::Indirect(target) => Ancestor::Ancestor(target.clone()),
             Edge::Missing => Ancestor::Anonymous,
         }
     }
