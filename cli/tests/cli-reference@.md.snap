@@ -1888,6 +1888,8 @@ Workspaces let you add additional working copies attached to the same repo. A co
 
 Each workspace has its own working-copy commit. When you have more than one workspace attached to a repo, they are indicated by `@<workspace name>` in `jj log`.
 
+Each workspace also has own sparse patterns.
+
 **Usage:** `jj workspace <COMMAND>`
 
 ###### **Subcommands:**
@@ -1903,6 +1905,8 @@ Each workspace has its own working-copy commit. When you have more than one work
 ## `jj workspace add`
 
 Add a workspace
+
+Sparse patterns will be copied over from the current workspace.
 
 **Usage:** `jj workspace add [OPTIONS] <DESTINATION>`
 

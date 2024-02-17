@@ -44,6 +44,8 @@ use crate::ui::Ui;
 /// Each workspace has its own working-copy commit. When you have more than one
 /// workspace attached to a repo, they are indicated by `@<workspace name>` in
 /// `jj log`.
+///
+/// Each workspace also has own sparse patterns.
 #[derive(Subcommand, Clone, Debug)]
 pub(crate) enum WorkspaceCommand {
     Add(WorkspaceAddArgs),
@@ -54,6 +56,8 @@ pub(crate) enum WorkspaceCommand {
 }
 
 /// Add a workspace
+///
+/// Sparse patterns will be copied over from the current workspace.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct WorkspaceAddArgs {
     /// Where to create the new workspace
@@ -167,7 +171,20 @@ fn cmd_workspace_add(
             .display()
     )?;
 
+    // Copy sparse patterns from workspace where the command was run
     let mut new_workspace_command = WorkspaceCommandHelper::new(ui, command, new_workspace, repo)?;
+    let (mut locked_ws, _wc_commit) = new_workspace_command.start_working_copy_mutation()?;
+    let sparse_patterns = old_workspace_command
+        .working_copy()
+        .sparse_patterns()?
+        .to_vec();
+    locked_ws
+        .locked_wc()
+        .set_sparse_patterns(sparse_patterns)
+        .map_err(|err| internal_error_with_message("Failed to set sparse patterns", err))?;
+    let operation_id = locked_ws.locked_wc().old_operation_id().clone();
+    locked_ws.finish(operation_id)?;
+
     let mut tx = new_workspace_command.start_transaction();
 
     // If no parent revisions are specified, create a working-copy commit based
