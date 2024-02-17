@@ -32,7 +32,7 @@ use crate::settings::HumanByteSize;
 use crate::store::Store;
 
 /// The trait all working-copy implementations must implement.
-pub trait WorkingCopy {
+pub trait WorkingCopy: Send {
     /// Should return `self`. For down-casting purposes.
     fn as_any(&self) -> &dyn Any;
 
