@@ -1707,7 +1707,7 @@ $<span class="w"> </span>jj<span class="w"> </span>config<span class="w"> </span
 </code></pre></div>
 <h2 id="command-line-completion">Command-line completion<a class="headerlink" href="#command-line-completion" title="Permanent link">&para;</a></h2>
 <p>To set up command-line completion, source the output of
-<code>jj util completion --bash/--zsh/--fish</code>. Exactly how to source it
+<code>jj util completion bash/zsh/fish</code>. Exactly how to source it
 depends on your shell.</p>
 <h3 id="bash">Bash<a class="headerlink" href="#bash" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="nb">source</span><span class="w"> </span>&lt;<span class="o">(</span>jj<span class="w"> </span>util<span class="w"> </span>completion<span class="o">)</span><span class="w">  </span><span class="c1"># --bash is the default</span>
@@ -1715,10 +1715,10 @@ depends on your shell.</p>
 <h3 id="zsh">Zsh<a class="headerlink" href="#zsh" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>autoload<span class="w"> </span>-U<span class="w"> </span>compinit
 compinit
-<span class="nb">source</span><span class="w"> </span>&lt;<span class="o">(</span>jj<span class="w"> </span>util<span class="w"> </span>completion<span class="w"> </span>--zsh<span class="o">)</span>
+<span class="nb">source</span><span class="w"> </span>&lt;<span class="o">(</span>jj<span class="w"> </span>util<span class="w"> </span>completion<span class="w"> </span>zsh<span class="o">)</span>
 </code></pre></div>
 <h3 id="fish">Fish<a class="headerlink" href="#fish" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code>jj<span class="w"> </span>util<span class="w"> </span>completion<span class="w"> </span>--fish<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="nb">source</span>
+<div class="highlight"><pre><span></span><code>jj<span class="w"> </span>util<span class="w"> </span>completion<span class="w"> </span>fish<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="nb">source</span>
 </code></pre></div>
 <h3 id="xonsh">Xonsh<a class="headerlink" href="#xonsh" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>source-bash<span class="w"> </span><span class="k">$(</span>jj<span class="w"> </span>util<span class="w"> </span>completion<span class="k">)</span>
