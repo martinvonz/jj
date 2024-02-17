@@ -48,6 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [#2971](https://github.com/martinvonz/jj/issues/2971)). This may become the
   default depending on feedback.
 
+* When creating a new workspace, the sparse patterns are now copied over from
+  the current workspace.
+
 ### Fixed bugs
 
 * On Windows, symlinks in the repo are now materialized as regular files in the

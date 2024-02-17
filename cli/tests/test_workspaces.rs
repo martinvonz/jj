@@ -81,16 +81,15 @@ fn test_workspaces_sparse_patterns() {
     test_env.jj_cmd_ok(&ws1_path, &["sparse", "set", "--clear", "--add=foo"]);
     test_env.jj_cmd_ok(&ws1_path, &["workspace", "add", "../ws2"]);
     let stdout = test_env.jj_cmd_success(&ws2_path, &["sparse", "list"]);
-    // TODO: Should inherit the sparse patterns from ws1
     insta::assert_snapshot!(stdout, @r###"
-    .
+    foo
     "###);
     test_env.jj_cmd_ok(&ws2_path, &["sparse", "set", "--add=bar"]);
     test_env.jj_cmd_ok(&ws2_path, &["workspace", "add", "../ws3"]);
     let stdout = test_env.jj_cmd_success(&ws3_path, &["sparse", "list"]);
-    // TODO: Should inherit the sparse patterns from ws2
     insta::assert_snapshot!(stdout, @r###"
-    .
+    bar
+    foo
     "###);
 }
 
