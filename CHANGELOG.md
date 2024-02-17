@@ -59,6 +59,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added completions for [Nushell](https://nushell.sh) to `jj util completion`
 
+* Set config `snapshot.squash-consecutive-snapshots = true` to make consecutive
+  snapshots result in a single operation being recorded, effectively
+  automatically abandoning the intermediate snapshot operations, which helps
+  GC, especially if you run `jj log` in a loop for example.
+
 ### Fixed bugs
 
 * On Windows, symlinks in the repo are now materialized as regular files in the
@@ -78,7 +83,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   copy commit on top of a single specified revision, i.e. with one parent.
   `merge` creates a new working copy commit on top of *at least* two specified
   revisions, i.e. with two or more parents.
-  
+
   The only difference between these commands and `jj new`, which *also* creates
   a new working copy commit, is that `new` can create a working copy commit on
   top of any arbitrary number of revisions, so it can handle both the previous
@@ -230,7 +235,7 @@ Thanks to the people who made this release happen!
 
 * `jj branch set` no longer creates a new branch. Use `jj branch create`
   instead.
-  
+
 * `jj init --git` in an existing Git repository now errors and exits rather than
   creating a second Git store.
 
@@ -394,8 +399,8 @@ Thanks to the people who made this release happen!
 
 ### New features
 
-* The `ancestors()` revset function now takes an optional `depth` argument 
-  to limit the depth of the ancestor set. For example, use `jj log -r 
+* The `ancestors()` revset function now takes an optional `depth` argument
+  to limit the depth of the ancestor set. For example, use `jj log -r
   'ancestors(@, 5)` to view the last 5 commits.
 
 * Support for the Watchman filesystem monitor is now bundled by default. Set
@@ -560,13 +565,13 @@ Thanks to the people who made this release happen!
   respectively.
 
 * `jj log` timestamp format now accepts `.utc()` to convert a timestamp to UTC.
- 
+
 * templates now support additional string methods `.starts_with(x)`, `.ends_with(x)`
   `.remove_prefix(x)`, `.remove_suffix(x)`, and `.substr(start, end)`.
 
 * `jj next` and `jj prev` are added, these allow you to traverse the history
   in a linear style. For people coming from Sapling and `git-branchles`
-  see [#2126](https://github.com/martinvonz/jj/issues/2126) for 
+  see [#2126](https://github.com/martinvonz/jj/issues/2126) for
   further pending improvements.
 
 * `jj diff --stat` has been implemented. It shows a histogram of the changes,

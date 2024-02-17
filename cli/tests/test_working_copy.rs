@@ -30,3 +30,45 @@ fn test_snapshot_large_file() {
     want this file to be snapshotted. Otherwise add it to your `.gitignore` file.
     "###);
 }
+
+#[test]
+fn test_consecutive_snapshots() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(r#"snapshot.squash-consecutive-snapshots = true"#);
+
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "sample text"]);
+    // initial WC is a predecessor of a described WC now
+
+    std::fs::write(repo_path.join("a"), "").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["files"]);
+
+    std::fs::write(repo_path.join("b"), "").unwrap();
+    test_env.jj_cmd_success(&repo_path, &["files"]);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["operation", "log"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  70756af40ab9 test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
+    │  snapshot working copy
+    │  args: jj files
+    │  snapshots: 2
+    ◉  4f5b67be313f test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    │  args: jj describe -m 'sample text'
+    ◉  6ac4339ad699 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    ◉  1b0049c19762 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  initialize repo
+    ◉  000000000000 root()
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  qpvuntsm test.user@example.com 2001-02-03 04:05:10.000 +07:00 bf6e46e6
+    │  sample text
+    ◉  qpvuntsm hidden test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
+       (empty) (no description set)
+    "###);
+}

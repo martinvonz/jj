@@ -357,6 +357,11 @@
                     ],
                     "description": "New files with a size in bytes above this threshold are not snapshotted, unless the threshold is 0",
                     "default": "1MiB"
+                },
+                "squash-consecutive-snapshots": {
+                    "type": "boolean",
+                    "description": "Should snapshot operation happening after another snapshot operation replace it, effectively abandoning the first snapshot and releasing it's view for garbage collection",
+                    "default": false
                 }
             }
         },

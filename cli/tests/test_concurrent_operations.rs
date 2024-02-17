@@ -69,10 +69,10 @@ fn test_concurrent_operations_auto_rebase() {
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "initial"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  d5b4f16ef469 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    @  faefa12d4ced test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  describe commit 123ed18e4c4c0d77428df41112bc02ffc83fb935
     │  args: jj describe -m initial
-    ◉  e632e64d7fa1 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    ◉  75021f3fc19d test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  snapshot working copy
     │  args: jj describe -m initial
     ◉  6ac4339ad699 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
@@ -184,16 +184,16 @@ fn test_concurrent_snapshot_wc_reloadable() {
     let template = r#"id ++ "\n" ++ description ++ "\n" ++ tags"#;
     let op_log_stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "-T", template]);
     insta::assert_snapshot!(op_log_stdout, @r###"
-    @  1578600dd63556a22abef7cf6e7054a7e07468187ba31f79d0aa6a197b17004b7cd3e19d2fab1e6a00f2520b48d41969dbbb562c60d4c4af9436224f7f14ab83
+    @  bc38b5d20b2843d546bf5d40d8e1897be131b2ede73b4de031d3b2c6ac394e454a24f52196687accc8d27eb99aaadd8e1d63a8d30a2cb22efae0e3232492bc86
     │  commit 323b414dd255b51375d7f4392b7b2641ffe4289f
     │  args: jj commit -m 'new child1'
-    ◉  90bb10893e980b606939a1f45f2aadf7de1eef65589ac5cd70e20dc20dfd0073c989b5ba0de70ce79a52d27aab5f5699eba66649b531530be5d13bc12c6bd926
+    ◉  af69a63bdc3c88f12e0b1fbc673bce01eb46087b8c6629efd57cb9e68d72973d928f738f2e51504959dc5f531f68a15321f6c9560bca9862f5e850a872ce0c30
     │  snapshot working copy
     │  args: jj commit -m 'new child1'
-    ◉  6104865e95226d46d8c6f5bf43ab025e67f88da6e27f8d8cc598c6d058e333126380c4cb25ea49c841480efee82ce2c602d87b4d3f53b85b4e704af5e83cbdc9
+    ◉  2af019579b0b19d9a147df4779e587b92061fb5cd18fe9ba6d8a33cbeac205ced27c7f411df78278626993725ace7738da9352addb6699898e252c75f57f6f93
     │  commit 3d918700494a9895696e955b85fa05eb0d314cc6
     │  args: jj commit -m initial
-    ◉  76137fc212ef44c53db04be2010ba0419db1fe30e31289bed7d1d0410bee7c3c93d8fd5f6d1b03d93801a2517c436cc1bc4cc512c740e2d88979e771a6fb3730
+    ◉  c07152a7412fac7a7b5570176a1f8799e878c9ec75c7f69633943e6d59a555b7b778804c5b930ce3528e787c5e221c3874b470abb1ff97a2663a4df21f9e09d2
     │  snapshot working copy
     │  args: jj commit -m initial
     ◉  6ac4339ad6999058dd1806653ec37fc0091c1cc17419c750fddc5e8c1a6a77829e6dd70b3408403fb2c0b9839cf6bfd1c270f980674f7f89d4d78dc54082a8ef

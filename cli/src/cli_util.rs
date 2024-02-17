@@ -1413,10 +1413,18 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             let mut tx =
                 start_repo_transaction(&self.user_repo.repo, &self.settings, &self.string_args);
             let mut_repo = tx.mut_repo();
-            let commit = mut_repo
+
+            let mut commit_builder = mut_repo
                 .rewrite_commit(&self.settings, &wc_commit)
-                .set_tree_id(new_tree_id)
-                .write()?;
+                .set_tree_id(new_tree_id);
+
+            let squash_snapshots = self.settings.squash_consecutive_snapshots();
+            if squash_snapshots {
+                commit_builder =
+                    commit_builder.set_predecessors(wc_commit.predecessor_ids().to_owned())
+            }
+
+            let commit = commit_builder.write()?;
             mut_repo.set_wc_commit(workspace_id, commit.id().clone())?;
 
             // Rebase descendants
@@ -1432,6 +1440,21 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                 let failed_branches = git::export_refs(mut_repo)?;
                 print_failed_git_export(ui, &failed_branches)?;
             }
+
+            const TAG: &str = "snapshots";
+
+            let mut snapshots = 1;
+
+            if squash_snapshots {
+                if let [parent_op] = tx.parent_ops() {
+                    if let Some(tag) = parent_op.store_operation().metadata.tags.get(TAG) {
+                        snapshots = tag.parse().unwrap_or(1) + 1;
+                        tx.replace_parent()?;
+                    }
+                }
+            }
+
+            tx.set_tag(TAG.into(), snapshots.to_string());
 
             self.user_repo = ReadonlyUserRepo::new(tx.commit("snapshot working copy"));
         }

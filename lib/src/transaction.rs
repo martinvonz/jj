@@ -20,7 +20,7 @@ use itertools::Itertools as _;
 
 use crate::backend::Timestamp;
 use crate::index::ReadonlyIndex;
-use crate::op_store::OperationMetadata;
+use crate::op_store::{OperationId, OperationMetadata};
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader, RepoLoaderError};
 use crate::settings::UserSettings;
@@ -32,6 +32,7 @@ pub struct Transaction {
     parent_ops: Vec<Operation>,
     op_metadata: OperationMetadata,
     end_time: Option<Timestamp>,
+    old_ops: Vec<OperationId>,
 }
 
 impl Transaction {
@@ -39,16 +40,22 @@ impl Transaction {
         let parent_ops = vec![mut_repo.base_repo().operation().clone()];
         let op_metadata = create_op_metadata(user_settings, "".to_string());
         let end_time = user_settings.operation_timestamp();
+        let old_ops = parent_ops.iter().map(|op| op.id().clone()).collect();
         Transaction {
             mut_repo,
             parent_ops,
             op_metadata,
             end_time,
+            old_ops,
         }
     }
 
     pub fn base_repo(&self) -> &Arc<ReadonlyRepo> {
         self.mut_repo.base_repo()
+    }
+
+    pub fn parent_ops(&self) -> &[Operation] {
+        &self.parent_ops
     }
 
     pub fn set_tag(&mut self, key: String, value: String) {
@@ -74,9 +81,22 @@ impl Transaction {
         let repo_loader = self.base_repo().loader();
         let base_repo = repo_loader.load_at(&ancestor_op)?;
         let other_repo = repo_loader.load_at(&other_op)?;
+        self.old_ops.push(other_op.id().clone());
         self.parent_ops.push(other_op);
         let merged_repo = self.mut_repo();
         merged_repo.merge(&base_repo, &other_repo);
+        Ok(())
+    }
+
+    /// Replaces the parent ops with grandparent ops, effectively rewriting the
+    /// parent with self.
+    ///
+    /// Panics if self does not have exactly one parent.
+    pub fn replace_parent(&mut self) -> Result<(), RepoLoaderError> {
+        let [parent]: [Operation; 1] = std::mem::take(&mut self.parent_ops)
+            .try_into()
+            .expect("Merge or root operations cannot replace their parent");
+        self.parent_ops = parent.parents().collect::<Result<_, _>>()?;
         Ok(())
     }
 
@@ -117,7 +137,7 @@ impl Transaction {
             .index_store()
             .write_index(mut_index, operation.id())
             .unwrap();
-        UnpublishedOperation::new(base_repo.loader(), operation, view, index)
+        UnpublishedOperation::new(base_repo.loader(), operation, view, index, self.old_ops)
     }
 }
 
@@ -148,6 +168,7 @@ pub struct UnpublishedOperation {
     repo_loader: RepoLoader,
     data: Option<NewRepoData>,
     closed: bool,
+    old_ops: Vec<OperationId>,
 }
 
 impl UnpublishedOperation {
@@ -156,6 +177,7 @@ impl UnpublishedOperation {
         operation: Operation,
         view: View,
         index: Box<dyn ReadonlyIndex>,
+        old_ops: Vec<OperationId>,
     ) -> Self {
         let data = Some(NewRepoData {
             operation,
@@ -166,6 +188,7 @@ impl UnpublishedOperation {
             repo_loader,
             data,
             closed: false,
+            old_ops,
         }
     }
 
@@ -179,7 +202,7 @@ impl UnpublishedOperation {
             let _lock = self.repo_loader.op_heads_store().lock();
             self.repo_loader
                 .op_heads_store()
-                .update_op_heads(data.operation.parent_ids(), data.operation.id());
+                .update_op_heads(&self.old_ops, data.operation.id());
         }
         let repo = self
             .repo_loader

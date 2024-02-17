@@ -138,6 +138,8 @@ fn build_operation_keyword(
             metadata
                 .tags
                 .iter()
+                .filter(|(k, v)| *k != "snapshots" || *v != "1")
+                .sorted_unstable_by_key(|(k, _)| k.to_owned())
                 .map(|(key, value)| format!("{key}: {value}"))
                 .join("\n")
         })),

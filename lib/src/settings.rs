@@ -261,6 +261,12 @@ impl UserSettings {
         }
     }
 
+    pub fn squash_consecutive_snapshots(&self) -> bool {
+        self.config
+            .get_bool("snapshot.squash-consecutive-snapshots")
+            .unwrap_or(false)
+    }
+
     // separate from sign_settings as those two are needed in pretty different
     // places
     pub fn signing_backend(&self) -> Option<String> {
