@@ -140,23 +140,14 @@ pub(crate) fn cmd_log(
                             has_missing = true;
                         }
                         RevsetGraphEdgeType::Direct => {
-                            graphlog_edges.push(Edge::Present {
-                                direct: true,
-                                target: (edge.target, false),
-                            });
+                            graphlog_edges.push(Edge::Direct((edge.target, false)));
                         }
                         RevsetGraphEdgeType::Indirect => {
                             if use_elided_nodes {
                                 elided_targets.push(edge.target.clone());
-                                graphlog_edges.push(Edge::Present {
-                                    direct: true,
-                                    target: (edge.target, true),
-                                });
+                                graphlog_edges.push(Edge::Direct((edge.target, true)));
                             } else {
-                                graphlog_edges.push(Edge::Present {
-                                    direct: false,
-                                    target: (edge.target, false),
-                                });
+                                graphlog_edges.push(Edge::Indirect((edge.target, false)));
                             }
                         }
                     }
@@ -201,10 +192,7 @@ pub(crate) fn cmd_log(
                 for elided_target in elided_targets {
                     let elided_key = (elided_target, true);
                     let real_key = (elided_key.0.clone(), false);
-                    let edges = [Edge::Present {
-                        direct: true,
-                        target: real_key,
-                    }];
+                    let edges = [Edge::Direct(real_key)];
                     let mut buffer = vec![];
                     with_content_format.write_graph_text(
                         ui.new_formatter(&mut buffer).as_mut(),

@@ -95,7 +95,7 @@ pub(crate) fn cmd_obslog(
         for commit in commits {
             let mut edges = vec![];
             for predecessor in &commit.predecessors() {
-                edges.push(Edge::direct(predecessor.id().clone()));
+                edges.push(Edge::Direct(predecessor.id().clone()));
             }
             let mut buffer = vec![];
             with_content_format.write_graph_text(
