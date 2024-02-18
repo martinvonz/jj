@@ -17,7 +17,7 @@ use std::io::Write;
 use itertools::Itertools;
 use jj_lib::commit::Commit;
 use jj_lib::repo::Repo;
-use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
+use jj_lib::revset::{RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt};
 
 use crate::cli_util::{short_commit_hash, CommandHelper, WorkspaceCommandHelper};
 use crate::command_error::{user_error, CommandError};
@@ -65,6 +65,9 @@ pub(crate) struct NextArgs {
     /// edit`).
     #[arg(long, short)]
     edit: bool,
+    /// Jump to the next conflicted descendant.
+    #[arg(long, conflicts_with = "offset")]
+    conflict: bool,
 }
 
 pub fn choose_commit<'a>(
@@ -117,21 +120,27 @@ pub(crate) fn cmd_next(
     let wc_revset = RevsetExpression::commit(current_wc_id.clone());
     // If we're editing, start at the working-copy commit. Otherwise, start from
     // its direct parent(s).
-    let target_revset = if edit {
-        wc_revset.descendants_at(args.offset)
+    let start_revset = if edit {
+        wc_revset.clone()
     } else {
-        wc_revset
-            .parents()
-            .descendants_at(args.offset)
-            // In previous versions we subtracted `wc_revset.descendants()`. That's
-            // unnecessary now that --edit is implied if `@` has descendants.
-            .minus(&wc_revset)
+        wc_revset.parents()
     };
+
+    let target_revset = if args.conflict {
+        start_revset
+            .descendants()
+            .filtered(RevsetFilterPredicate::HasConflict)
+            .roots()
+    } else {
+        start_revset.descendants_at(args.offset).minus(&wc_revset)
+    };
+
     let targets: Vec<Commit> = target_revset
         .evaluate_programmatic(workspace_command.repo().as_ref())?
         .iter()
         .commits(workspace_command.repo().store())
         .try_collect()?;
+
     let target = match targets.as_slice() {
         [target] => target,
         [] => {

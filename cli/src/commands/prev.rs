@@ -14,7 +14,7 @@
 
 use itertools::Itertools;
 use jj_lib::repo::Repo;
-use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
+use jj_lib::revset::{RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt};
 
 use crate::cli_util::{short_commit_hash, CommandHelper};
 use crate::command_error::{user_error, CommandError};
@@ -59,6 +59,9 @@ pub(crate) struct PrevArgs {
     /// Edit the parent directly, instead of moving the working-copy commit.
     #[arg(long, short)]
     edit: bool,
+    /// Jump to the previous conflicted ancestor.
+    #[arg(long, conflicts_with = "offset")]
+    conflict: bool,
 }
 
 pub(crate) fn cmd_prev(
@@ -79,11 +82,21 @@ pub(crate) fn cmd_prev(
     // If we're editing, start at the working-copy commit. Otherwise, start from
     // its direct parent(s).
     let target_revset = if edit {
-        RevsetExpression::commit(current_wc_id.clone()).ancestors_at(args.offset)
-    } else {
         RevsetExpression::commit(current_wc_id.clone())
-            .parents()
-            .ancestors_at(args.offset)
+    } else {
+        RevsetExpression::commit(current_wc_id.clone()).parents()
+    };
+    let target_revset = if args.conflict {
+        // If people desire to move to the root conflict, replace the `heads()` below
+        // with `roots(). But let's wait for feedback.
+        target_revset
+            .ancestors()
+            .filtered(RevsetFilterPredicate::HasConflict)
+            // We need to filter out empty commits to not land on empty working-copies lying around.
+            .minus(&RevsetExpression::is_empty())
+            .heads()
+    } else {
+        target_revset.ancestors_at(args.offset)
     };
     let targets: Vec<_> = target_revset
         .evaluate_programmatic(workspace_command.repo().as_ref())?
