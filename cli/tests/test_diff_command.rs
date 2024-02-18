@@ -751,7 +751,7 @@ fn test_diff_external_tool() {
     diff
     "###);
     insta::assert_snapshot!(stderr, @r###"
-    Tool exited with a non-zero code (run with --verbose to see the exact invocation). Exit code: 1.
+    Tool exited with a non-zero code (run with --debug to see the exact invocation). Exit code: 1.
     "###);
 }
 

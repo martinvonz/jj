@@ -77,8 +77,8 @@ pub enum ConflictResolveError {
     #[error("The conflict at {path:?} has {sides} sides. At most 2 sides are supported.")]
     ConflictTooComplicated { path: RepoPathBuf, sides: usize },
     #[error(
-        "The output file is either unchanged or empty after the editor quit (run with --verbose \
-         to see the exact invocation)."
+        "The output file is either unchanged or empty after the editor quit (run with --debug to \
+         see the exact invocation)."
     )]
     EmptyOrUnchanged,
     #[error("Backend error")]

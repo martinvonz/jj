@@ -116,9 +116,9 @@ pub enum ExternalToolError {
     MergeArgsNotConfigured { tool_name: String },
     #[error("Error setting up temporary directory")]
     SetUpDir(#[source] std::io::Error),
-    // TODO: Remove the "(run with --verbose to see the exact invocation)"
-    // from this and other errors. Print it as a hint but only if --verbose is *not* set.
-    #[error("Error executing '{tool_binary}' (run with --verbose to see the exact invocation)")]
+    // TODO: Remove the "(run with --debug to see the exact invocation)"
+    // from this and other errors. Print it as a hint but only if --debug is *not* set.
+    #[error("Error executing '{tool_binary}' (run with --debug to see the exact invocation)")]
     FailedToExecute {
         tool_binary: String,
         #[source]
@@ -575,7 +575,7 @@ fn format_tool_aborted(exit_status: &ExitStatus) -> String {
         .map(|c| c.to_string())
         .unwrap_or_else(|| "<unknown>".to_string());
     format!(
-        "Tool exited with a non-zero code (run with --verbose to see the exact invocation). Exit \
+        "Tool exited with a non-zero code (run with --debug to see the exact invocation). Exit \
          code: {code}."
     )
 }

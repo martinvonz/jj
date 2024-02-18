@@ -154,7 +154,7 @@ repository.
 * `--at-operation <AT_OPERATION>` — Operation to load the repo at
 
   Default value: `@`
-* `-v`, `--verbose` — Enable verbose logging
+* `--debug` — Enable debug logging
 
   Possible values: `true`, `false`
 

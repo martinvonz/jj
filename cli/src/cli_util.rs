@@ -555,15 +555,15 @@ impl TracingSubscription {
         }
     }
 
-    pub fn enable_verbose_logging(&self) -> Result<(), CommandError> {
+    pub fn enable_debug_logging(&self) -> Result<(), CommandError> {
         self.reload_log_filter
             .modify(|filter| {
                 *filter = tracing_subscriber::EnvFilter::builder()
                     .with_default_directive(tracing::metadata::LevelFilter::DEBUG.into())
                     .from_env_lossy()
             })
-            .map_err(|err| internal_error_with_message("failed to enable verbose logging", err))?;
-        tracing::info!("verbose logging enabled");
+            .map_err(|err| internal_error_with_message("failed to enable debug logging", err))?;
+        tracing::info!("debug logging enabled");
         Ok(())
     }
 }
@@ -2497,9 +2497,9 @@ pub struct GlobalArgs {
     /// do that, but it is possible.
     #[arg(long, visible_alias = "at-op", global = true, default_value = "@")]
     pub at_operation: String,
-    /// Enable verbose logging
-    #[arg(long, short = 'v', global = true)]
-    pub verbose: bool,
+    /// Enable debug logging
+    #[arg(long, global = true)]
+    pub debug: bool,
 
     #[command(flatten)]
     pub early_args: EarlyArgs,
@@ -2743,9 +2743,9 @@ pub fn parse_args(
         .try_get_matches_from(string_args)?;
 
     let args: Args = Args::from_arg_matches(&matches).unwrap();
-    if args.global_args.verbose {
-        // TODO: set up verbose logging as early as possible
-        tracing_subscription.enable_verbose_logging()?;
+    if args.global_args.debug {
+        // TODO: set up debug logging as early as possible
+        tracing_subscription.enable_debug_logging()?;
     }
 
     Ok((matches, args))
