@@ -61,6 +61,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   revisions. This means that `jj git push -c xyz -c abc` is now equivalent to
   `jj git push -c 'all:(xyz | abc)'`.
 
+* `jj prev` and `jj next` have gained a `--conflict` flag which moves you
+  to the next conflict in a child commit.
+
 ### Fixed bugs
 
 ## [0.18.0] - 2024-06-05
@@ -93,6 +96,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   commit the new commit will be inserted before/after. Previously, those options
   were global flags and specifying them once would insert the new commit before/
   after all the specified commits.
+
 
 ### Deprecations
 

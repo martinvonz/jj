@@ -567,6 +567,114 @@ fn test_next_editing() {
     "###);
 }
 
+#[test]
+fn test_prev_conflict() {
+    // Make the first commit our new parent.
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let file_path = repo_path.join("content.txt");
+    std::fs::write(&file_path, "first").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    std::fs::write(&file_path, "second").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+    // Create a conflict in the first commit, where we'll jump to.
+    test_env.jj_cmd_ok(&repo_path, &["edit", "description(first)"]);
+    std::fs::write(&file_path, "first+1").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "description(third)"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "fourth"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev", "--conflict"]);
+    // We now should be a child of `fourth`.
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: vruxwmqv b1ea981a (conflict) (empty) (no description set)
+    Parent commit      : rlvkpnrz c26675ba (conflict) second
+    There are unresolved conflicts at these paths:
+    content.txt    2-sided conflict
+    "###);
+}
+
+#[test]
+fn test_prev_conflict_editing() {
+    // Edit the third commit.
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let file_path = repo_path.join("content.txt");
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    std::fs::write(&file_path, "second").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+    // Create a conflict in the third commit, where we'll jump to.
+    test_env.jj_cmd_ok(&repo_path, &["edit", "description(first)"]);
+    std::fs::write(&file_path, "first text").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "description(third)"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev", "--conflict", "--edit"]);
+    // We now should be editing the third commit.
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: kkmpptxz 26b1439f (conflict) third
+    Parent commit      : rlvkpnrz 55b5d11a (empty) second
+    There are unresolved conflicts at these paths:
+    content.txt    2-sided conflict
+    "###);
+}
+
+#[test]
+fn test_next_conflict() {
+    // There is a conflict in the second commit, so after next it should be the new
+    // parent.
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let file_path = repo_path.join("content.txt");
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    std::fs::write(&file_path, "second").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    // Create a conflict in the second commit.
+    test_env.jj_cmd_ok(&repo_path, &["edit", "description(first)"]);
+    std::fs::write(&file_path, "first").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "description(second)"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "description(second)"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next", "--conflict"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: vruxwmqv b69eca51 (conflict) (empty) (no description set)
+    Parent commit      : rlvkpnrz fa43d820 (conflict) second
+    There are unresolved conflicts at these paths:
+    content.txt    2-sided conflict
+    "###);
+}
+
+#[test]
+fn test_next_conflict_editing() {
+    // There is a conflict in the third commit, so after next it should be our
+    // working copy.
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let file_path = repo_path.join("content.txt");
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    std::fs::write(&file_path, "second").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    // Create a conflict in the third commit.
+    std::fs::write(&file_path, "third").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["edit", "description(second)"]);
+    std::fs::write(&file_path, "modified second").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "@+"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next", "--conflict", "--edit"]);
+    // We now should be editing the third commit.
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: royxmykx 08fda952 (conflict) (empty) (no description set)
+    Parent commit      : kkmpptxz 69ff337c (conflict) (no description set)
+    There are unresolved conflicts at these paths:
+    content.txt    2-sided conflict
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"separate(" ", change_id.short(), local_branches, description)"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])

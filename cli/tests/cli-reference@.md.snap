@@ -1163,6 +1163,7 @@ implied.
 ###### **Options:**
 
 * `-e`, `--edit` — Instead of creating a new working-copy commit on top of the target commit (like `jj new`), edit the target commit directly (like `jj edit`)
+* `--conflict` — Jump to the next conflicted descendant
 
 
 
@@ -1399,6 +1400,7 @@ implied.
 ###### **Options:**
 
 * `-e`, `--edit` — Edit the parent directly, instead of moving the working-copy commit
+* `--conflict` — Jump to the previous conflicted ancestor
 
 
 
