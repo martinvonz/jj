@@ -356,6 +356,7 @@ fn operation_metadata_to_proto(
         description: metadata.description.clone(),
         hostname: metadata.hostname.clone(),
         username: metadata.username.clone(),
+        is_snapshot: metadata.is_snapshot,
         tags: metadata.tags.clone(),
     }
 }
@@ -371,6 +372,7 @@ fn operation_metadata_from_proto(
         description: proto.description,
         hostname: proto.hostname,
         username: proto.username,
+        is_snapshot: proto.is_snapshot,
         tags: proto.tags,
     }
 }
@@ -757,6 +759,7 @@ mod tests {
                 description: "check out foo".to_string(),
                 hostname: "some.host.example.com".to_string(),
                 username: "someone".to_string(),
+                is_snapshot: false,
                 tags: hashmap! {
                     "key1".to_string() => "value1".to_string(),
                     "key2".to_string() => "value2".to_string(),
@@ -779,7 +782,7 @@ mod tests {
         // Test exact output so we detect regressions in compatibility
         assert_snapshot!(
             OperationId::new(blake2b_hash(&create_operation()).to_vec()).hex(),
-            @"3ec986c29ff8eb808ea8f6325d6307cea75ef02987536c8e4645406aba51afc8e229957a6e855170d77a66098c58912309323f5e0b32760caa2b59dc84d45fcf"
+            @"20b495d54aa3be3a672a2ed6dbbf7a711dabce4cc0161d657e5177070491c1e780eec3fd35c2aa9dcc22371462aeb412a502a847f29419e65718f56a0ad1b2d0"
         );
     }
 

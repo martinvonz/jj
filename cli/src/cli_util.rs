@@ -1412,6 +1412,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         if new_tree_id != *wc_commit.tree_id() {
             let mut tx =
                 start_repo_transaction(&self.user_repo.repo, &self.settings, &self.string_args);
+            tx.set_is_snapshot(true);
             let mut_repo = tx.mut_repo();
             let commit = mut_repo
                 .rewrite_commit(&self.settings, &wc_commit)
