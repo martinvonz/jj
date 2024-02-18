@@ -214,8 +214,6 @@ pub(super) struct ReadonlyIndexSegment {
     name: String,
     commit_id_length: usize,
     change_id_length: usize,
-    commit_graph_entry_size: usize,
-    commit_lookup_entry_size: usize,
     // Number of commits not counting the parent file
     num_local_commits: u32,
     num_local_change_ids: u32,
@@ -354,8 +352,6 @@ impl ReadonlyIndexSegment {
             name,
             commit_id_length,
             change_id_length,
-            commit_graph_entry_size,
-            commit_lookup_entry_size,
             num_local_commits,
             num_local_change_ids,
             num_change_overflow_entries,
@@ -386,17 +382,19 @@ impl ReadonlyIndexSegment {
 
     fn graph_entry(&self, local_pos: LocalPosition) -> CommitGraphEntry {
         let table = &self.data[..self.commit_lookup_base];
-        let offset = (local_pos.0 as usize) * self.commit_graph_entry_size;
+        let entry_size = CommitGraphEntry::size(self.commit_id_length);
+        let offset = (local_pos.0 as usize) * entry_size;
         CommitGraphEntry {
-            data: &table[offset..][..self.commit_graph_entry_size],
+            data: &table[offset..][..entry_size],
         }
     }
 
     fn commit_lookup_entry(&self, lookup_pos: u32) -> CommitLookupEntry {
         let table = &self.data[self.commit_lookup_base..self.change_id_table_base];
-        let offset = (lookup_pos as usize) * self.commit_lookup_entry_size;
+        let entry_size = CommitLookupEntry::size(self.commit_id_length);
+        let offset = (lookup_pos as usize) * entry_size;
         CommitLookupEntry {
-            data: &table[offset..][..self.commit_lookup_entry_size],
+            data: &table[offset..][..entry_size],
             commit_id_length: self.commit_id_length,
         }
     }
