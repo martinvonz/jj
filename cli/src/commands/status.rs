@@ -95,8 +95,10 @@ pub(crate) fn cmd_status(
         // Ancestors with conflicts, excluding the current working copy commit.
         let ancestors_conflicts = workspace_command
             .attach_revset_evaluator(
-                RevsetExpression::filter(RevsetFilterPredicate::HasConflict)
-                    .intersection(&wc_revset.parents().ancestors())
+                wc_revset
+                    .parents()
+                    .ancestors()
+                    .filtered(RevsetFilterPredicate::HasConflict)
                     .minus(&revset_util::parse_immutable_expression(
                         &workspace_command.revset_parse_context(),
                     )?),
