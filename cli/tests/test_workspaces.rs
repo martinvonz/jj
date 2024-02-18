@@ -297,14 +297,14 @@ fn test_workspaces_conflicting_edits() {
     "###);
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["st"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: The working copy is stale (not updated since operation d93fe4c5a6d1).
+    Error: The working copy is stale (not updated since operation 58b580b12eee).
     Hint: Run `jj workspace update-stale` to update it.
     See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
     "###);
     // Same error on second run, and from another command
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["log"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: The working copy is stale (not updated since operation d93fe4c5a6d1).
+    Error: The working copy is stale (not updated since operation 58b580b12eee).
     Hint: Run `jj workspace update-stale` to update it.
     See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
     "###);
@@ -384,7 +384,7 @@ fn test_workspaces_updated_by_other() {
     "###);
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["st"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: The working copy is stale (not updated since operation d93fe4c5a6d1).
+    Error: The working copy is stale (not updated since operation 58b580b12eee).
     Hint: Run `jj workspace update-stale` to update it.
     See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
     "###);
@@ -436,13 +436,13 @@ fn test_workspaces_current_op_discarded_by_other() {
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
-    @  09350a8134 abandon commit acb4b92517b20aa4ee2f3dc58d7c2373754d0b29a3df310dbabda5813f13c3730d28d6a1b6dd37f3b0c8c5c9adaead5dab242ffe7ecc2e5a6a534fe4c6639f89
-    ◉  d8304661a2 Create initial working-copy commit in workspace secondary
-    ◉  4ae0e83b98 add workspace 'secondary'
-    ◉  00cc5ecf50 new empty commit
-    ◉  e0be7087ba snapshot working copy
-    ◉  d0bd64e0b3 add workspace 'default'
-    ◉  06a74719e6 initialize repo
+    @  f1dc1bf396 abandon commit acb4b92517b20aa4ee2f3dc58d7c2373754d0b29a3df310dbabda5813f13c3730d28d6a1b6dd37f3b0c8c5c9adaead5dab242ffe7ecc2e5a6a534fe4c6639f89
+    ◉  47f1ad5e1a Create initial working-copy commit in workspace secondary
+    ◉  fd918ce207 add workspace 'secondary'
+    ◉  5927500c4b new empty commit
+    ◉  c86cb4fdf4 snapshot working copy
+    ◉  17dbb2fe40 add workspace 'default'
+    ◉  cecfee9647 initialize repo
     ◉  0000000000
     "###);
 
@@ -466,7 +466,7 @@ fn test_workspaces_current_op_discarded_by_other() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
     insta::assert_snapshot!(stderr, @r###"
-    Failed to read working copy's current operation; attempting recovery. Error message from read attempt: Object d8304661a23b0d8b9ecc517a465869d7c8b6563b460f029541fbe5246cc02718145c5ad8f7fed26863b46a68e79d609b878a7ea5a239baf530858e86e81e72d1 of type operation not found
+    Failed to read working copy's current operation; attempting recovery. Error message from read attempt: Object 47f1ad5e1adfaa1e9863181e6e45ae12b9db553e82bde82e278c0c6288053c833b4039a5baf2415871964bcdcd4b7875692979e66f2ec18bfc3896355091cf53 of type operation not found
     Created and checked out recovery commit 9d040f9a433c
     "###);
     insta::assert_snapshot!(stdout, @"");
@@ -658,7 +658,7 @@ fn test_workspaces_forget_multi_transaction() {
     // the op log should have multiple workspaces forgotten in a single tx
     let stdout = test_env.jj_cmd_success(&main_path, &["op", "log", "--limit", "1"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  ea093f0a1a06 test-username@host.example.com 2001-02-03 04:05:12.000 +07:00 - 2001-02-03 04:05:12.000 +07:00
+    @  c28e1481737d test-username@host.example.com 2001-02-03 04:05:12.000 +07:00 - 2001-02-03 04:05:12.000 +07:00
     │  forget workspaces second, third
     │  args: jj workspace forget second third
     "###);

@@ -37,7 +37,7 @@ pub struct Transaction {
 impl Transaction {
     pub fn new(mut_repo: MutableRepo, user_settings: &UserSettings) -> Transaction {
         let parent_ops = vec![mut_repo.base_repo().operation().clone()];
-        let op_metadata = create_op_metadata(user_settings, "".to_string());
+        let op_metadata = create_op_metadata(user_settings, "".to_string(), false);
         let end_time = user_settings.operation_timestamp();
         Transaction {
             mut_repo,
@@ -78,6 +78,10 @@ impl Transaction {
         let merged_repo = self.mut_repo();
         merged_repo.merge(&base_repo, &other_repo);
         Ok(())
+    }
+
+    pub fn set_is_snapshot(&mut self, is_snapshot: bool) {
+        self.op_metadata.is_snapshot = is_snapshot;
     }
 
     /// Writes the transaction to the operation store and publishes it.
@@ -121,7 +125,11 @@ impl Transaction {
     }
 }
 
-pub fn create_op_metadata(user_settings: &UserSettings, description: String) -> OperationMetadata {
+pub fn create_op_metadata(
+    user_settings: &UserSettings,
+    description: String,
+    is_snapshot: bool,
+) -> OperationMetadata {
     let start_time = user_settings
         .operation_timestamp()
         .unwrap_or_else(Timestamp::now);
@@ -134,6 +142,7 @@ pub fn create_op_metadata(user_settings: &UserSettings, description: String) -> 
         description,
         hostname,
         username,
+        is_snapshot,
         tags: Default::default(),
     }
 }

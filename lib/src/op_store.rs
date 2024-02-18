@@ -388,6 +388,7 @@ impl Operation {
             description: "".to_string(),
             hostname: "".to_string(),
             username: "".to_string(),
+            is_snapshot: false,
             tags: HashMap::new(),
         };
         Operation {
@@ -407,6 +408,8 @@ content_hash! {
         pub description: String,
         pub hostname: String,
         pub username: String,
+        /// Whether this operation represents a pure snapshotting of the working copy.
+        pub is_snapshot: bool,
         pub tags: HashMap<String, String>,
     }
 }
