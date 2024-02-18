@@ -219,8 +219,13 @@ pub(super) struct ReadonlyIndexSegment {
     // Number of commits not counting the parent file
     num_local_commits: u32,
     num_local_change_ids: u32,
-    num_parent_overflow_entries: u32,
     num_change_overflow_entries: u32,
+    // Base data offsets in bytes:
+    commit_lookup_base: usize,
+    change_id_table_base: usize,
+    change_pos_table_base: usize,
+    parent_overflow_base: usize,
+    change_overflow_base: usize,
     data: Vec<u8>,
 }
 
@@ -318,6 +323,7 @@ impl ReadonlyIndexSegment {
         let num_change_overflow_entries = read_u32(file)?;
         let mut data = vec![];
         file.read_to_end(&mut data).map_err(from_io_err)?;
+
         let commit_graph_entry_size = CommitGraphEntry::size(commit_id_length);
         let graph_size = (num_local_commits as usize) * commit_graph_entry_size;
         let commit_lookup_entry_size = CommitLookupEntry::size(commit_id_length);
@@ -326,18 +332,22 @@ impl ReadonlyIndexSegment {
         let change_pos_table_size = (num_local_change_ids as usize) * 4;
         let parent_overflow_size = (num_parent_overflow_entries as usize) * 4;
         let change_overflow_size = (num_change_overflow_entries as usize) * 4;
-        let expected_size = graph_size
-            + commit_lookup_size
-            + change_id_table_size
-            + change_pos_table_size
-            + parent_overflow_size
-            + change_overflow_size;
+
+        let graph_base = 0;
+        let commit_lookup_base = graph_base + graph_size;
+        let change_id_table_base = commit_lookup_base + commit_lookup_size;
+        let change_pos_table_base = change_id_table_base + change_id_table_size;
+        let parent_overflow_base = change_pos_table_base + change_pos_table_size;
+        let change_overflow_base = parent_overflow_base + parent_overflow_size;
+        let expected_size = change_overflow_base + change_overflow_size;
+
         if data.len() != expected_size {
             return Err(ReadonlyIndexLoadError::invalid_data(
                 name,
                 "unexpected data length",
             ));
         }
+
         Ok(Arc::new(ReadonlyIndexSegment {
             parent_file,
             num_parent_commits,
@@ -348,8 +358,12 @@ impl ReadonlyIndexSegment {
             commit_lookup_entry_size,
             num_local_commits,
             num_local_change_ids,
-            num_parent_overflow_entries,
             num_change_overflow_entries,
+            commit_lookup_base,
+            change_id_table_base,
+            change_pos_table_base,
+            parent_overflow_base,
+            change_overflow_base,
             data,
         }))
     }
@@ -371,19 +385,18 @@ impl ReadonlyIndexSegment {
     }
 
     fn graph_entry(&self, local_pos: LocalPosition) -> CommitGraphEntry {
-        assert!(local_pos.0 < self.num_local_commits);
+        let table = &self.data[..self.commit_lookup_base];
         let offset = (local_pos.0 as usize) * self.commit_graph_entry_size;
         CommitGraphEntry {
-            data: &self.data[offset..][..self.commit_graph_entry_size],
+            data: &table[offset..][..self.commit_graph_entry_size],
         }
     }
 
     fn commit_lookup_entry(&self, lookup_pos: u32) -> CommitLookupEntry {
-        assert!(lookup_pos < self.num_local_commits);
-        let offset = (lookup_pos as usize) * self.commit_lookup_entry_size
-            + (self.num_local_commits as usize) * self.commit_graph_entry_size;
+        let table = &self.data[self.commit_lookup_base..self.change_id_table_base];
+        let offset = (lookup_pos as usize) * self.commit_lookup_entry_size;
         CommitLookupEntry {
-            data: &self.data[offset..][..self.commit_lookup_entry_size],
+            data: &table[offset..][..self.commit_lookup_entry_size],
             commit_id_length: self.commit_id_length,
         }
     }
@@ -394,32 +407,22 @@ impl ReadonlyIndexSegment {
 
     // might be better to add borrowed version of ChangeId
     fn change_lookup_id_bytes(&self, lookup_pos: u32) -> &[u8] {
-        assert!(lookup_pos < self.num_local_change_ids);
-        let offset = (lookup_pos as usize) * self.change_id_length
-            + (self.num_local_commits as usize) * self.commit_graph_entry_size
-            + (self.num_local_commits as usize) * self.commit_lookup_entry_size;
-        &self.data[offset..][..self.change_id_length]
+        let table = &self.data[self.change_id_table_base..self.change_pos_table_base];
+        let offset = (lookup_pos as usize) * self.change_id_length;
+        &table[offset..][..self.change_id_length]
     }
 
     fn change_lookup_pos(&self, lookup_pos: u32) -> ChangeLocalPosition {
-        assert!(lookup_pos < self.num_local_change_ids);
-        let offset = (lookup_pos as usize) * 4
-            + (self.num_local_commits as usize) * self.commit_graph_entry_size
-            + (self.num_local_commits as usize) * self.commit_lookup_entry_size
-            + (self.num_local_change_ids as usize) * self.change_id_length;
-        ChangeLocalPosition(u32::from_le_bytes(
-            self.data[offset..][..4].try_into().unwrap(),
-        ))
+        let table = &self.data[self.change_pos_table_base..self.parent_overflow_base];
+        let offset = (lookup_pos as usize) * 4;
+        ChangeLocalPosition(u32::from_le_bytes(table[offset..][..4].try_into().unwrap()))
     }
 
     fn overflow_parents(&self, overflow_pos: u32, num_parents: u32) -> SmallIndexPositionsVec {
-        assert!(overflow_pos + num_parents <= self.num_parent_overflow_entries);
-        let offset = (overflow_pos as usize) * 4
-            + (self.num_local_commits as usize) * self.commit_graph_entry_size
-            + (self.num_local_commits as usize) * self.commit_lookup_entry_size
-            + (self.num_local_change_ids as usize) * self.change_id_length
-            + (self.num_local_change_ids as usize) * 4;
-        self.data[offset..][..(num_parents as usize) * 4]
+        let table = &self.data[self.parent_overflow_base..self.change_overflow_base];
+        let offset = (overflow_pos as usize) * 4;
+        let size = (num_parents as usize) * 4;
+        table[offset..][..size]
             .chunks_exact(4)
             .map(|chunk| IndexPosition(u32::from_le_bytes(chunk.try_into().unwrap())))
             .collect()
@@ -427,14 +430,9 @@ impl ReadonlyIndexSegment {
 
     /// Scans graph entry positions stored in the overflow change ids table.
     fn overflow_changes_from(&self, overflow_pos: u32) -> impl Iterator<Item = LocalPosition> + '_ {
-        let base = (self.num_local_commits as usize) * self.commit_graph_entry_size
-            + (self.num_local_commits as usize) * self.commit_lookup_entry_size
-            + (self.num_local_change_ids as usize) * self.change_id_length
-            + (self.num_local_change_ids as usize) * 4
-            + (self.num_parent_overflow_entries as usize) * 4;
-        let size = (self.num_change_overflow_entries as usize) * 4;
+        let table = &self.data[self.change_overflow_base..];
         let offset = (overflow_pos as usize) * 4;
-        self.data[base..][..size][offset..]
+        table[offset..]
             .chunks_exact(4)
             .map(|chunk| LocalPosition(u32::from_le_bytes(chunk.try_into().unwrap())))
     }
