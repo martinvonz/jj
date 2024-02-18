@@ -6788,6 +6788,10 @@ J          J
 <ul>
 <li><strong>bash</strong>: <code>source &lt;(jj util completion bash)</code></li>
 <li><strong>fish</strong>: <code>jj util completion fish | source</code></li>
+<li><strong>nushell</strong>:
+    <div class="highlight"><pre><span></span><code>jj util completion nushell | save &quot;completions-jj.nu&quot;
+use &quot;completions-jj.nu&quot; *  # Or `source &quot;completions-jj.nu&quot;`
+</code></pre></div></li>
 <li><strong>zsh</strong>:
     <div class="highlight"><pre><span></span><code>autoload<span class="w"> </span>-U<span class="w"> </span>compinit
 compinit
@@ -6799,7 +6803,7 @@ compinit
 <ul>
 <li>
 <p><code>&lt;SHELL&gt;</code></p>
-<p>Possible values: <code>bash</code>, <code>elvish</code>, <code>fish</code>, <code>powershell</code>, <code>zsh</code></p>
+<p>Possible values: <code>bash</code>, <code>elvish</code>, <code>fish</code>, <code>nushell</code>, <code>power-shell</code>, <code>zsh</code></p>
 </li>
 </ul>
 <h6 id="options_43"><strong>Options:</strong><a class="headerlink" href="#options_43" title="Permanent link">&para;</a></h6>

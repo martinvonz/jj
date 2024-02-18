@@ -526,6 +526,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#nushell" class="md-nav__link">
+    <span class="md-ellipsis">
+      Nushell
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#xonsh" class="md-nav__link">
     <span class="md-ellipsis">
       Xonsh
@@ -1589,6 +1598,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#nushell" class="md-nav__link">
+    <span class="md-ellipsis">
+      Nushell
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#xonsh" class="md-nav__link">
     <span class="md-ellipsis">
       Xonsh
@@ -1719,6 +1737,10 @@ compinit
 </code></pre></div>
 <h3 id="fish">Fish<a class="headerlink" href="#fish" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>jj<span class="w"> </span>util<span class="w"> </span>completion<span class="w"> </span>fish<span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="nb">source</span>
+</code></pre></div>
+<h3 id="nushell">Nushell<a class="headerlink" href="#nushell" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>jj util completion nushell | save completions-jj.nu
+use completions-jj.nu *  # Or `source completions-jj.nu`
 </code></pre></div>
 <h3 id="xonsh">Xonsh<a class="headerlink" href="#xonsh" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>source-bash<span class="w"> </span><span class="k">$(</span>jj<span class="w"> </span>util<span class="w"> </span>completion<span class="k">)</span>
