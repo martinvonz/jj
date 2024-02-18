@@ -446,7 +446,7 @@ fn test_help() {
       -R, --repository <REPOSITORY>      Path to repository to operate on
           --ignore-working-copy          Don't snapshot the working copy, and don't update it
           --at-operation <AT_OPERATION>  Operation to load the repo at [default: @] [aliases: at-op]
-      -v, --verbose                      Enable verbose logging
+          --debug                        Enable debug logging
           --color <WHEN>                 When to colorize output (always, never, auto)
           --no-pager                     Disable the pager
           --config-toml <TOML>           Additional configuration options (can be repeated)
@@ -454,22 +454,22 @@ fn test_help() {
 }
 
 #[test]
-fn test_verbose_logging_enabled() {
-    // Test that the verbose flag enabled verbose logging
+fn test_debug_logging_enabled() {
+    // Test that the debug flag enabled debug logging
     let test_env = TestEnvironment::default();
 
-    let (_stdout, stderr) = test_env.jj_cmd_ok(test_env.env_root(), &["version", "-v"]);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(test_env.env_root(), &["version", "--debug"]);
     // Split the first log line into a timestamp and the rest.
     // The timestamp is constant sized so this is a robust operation.
     // Example timestamp: 2022-11-20T06:24:05.477703Z
     let (_timestamp, log_line) = stderr
         .lines()
         .next()
-        .expect("verbose logging on first line")
+        .expect("debug logging on first line")
         .split_at(36);
     // The log format is currently Pretty so we include the terminal markup.
     // Luckily, insta will print this in colour when reviewing.
-    insta::assert_snapshot!(log_line, @"[32m INFO[0m [2mjj_cli::cli_util[0m[2m:[0m verbose logging enabled");
+    insta::assert_snapshot!(log_line, @"[32m INFO[0m [2mjj_cli::cli_util[0m[2m:[0m debug logging enabled");
 }
 
 fn strip_last_line(s: &str) -> &str {

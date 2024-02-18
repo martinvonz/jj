@@ -299,7 +299,7 @@ fn check_resolve_produces_input_file(
     assert_eq!(
         &test_env.jj_cmd_failure(repo_path, &["resolve", "--config-toml", &merge_arg_config]),
         "Resolving conflicts in: file\nError: Failed to resolve conflicts\nCaused by: The output \
-         file is either unchanged or empty after the editor quit (run with --verbose to see the \
+         file is either unchanged or empty after the editor quit (run with --debug to see the \
          exact invocation).\n"
     );
 }

@@ -53,6 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj git fetch` now automatically prints new remote branches and tags by default.
 
+* `--verbose/-v` is now `--debug` (no short option since it's not intended to be used often)
+
 ### Fixed bugs
 
 * On Windows, symlinks in the repo are now materialized as regular files in the
