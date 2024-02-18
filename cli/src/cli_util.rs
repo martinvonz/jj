@@ -1408,9 +1408,8 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         // are millions of commits added to the repo, assuming the revset engine can
         // efficiently skip non-conflicting commits. Filter out empty commits mostly so
         // `jj new <conflicted commit>` doesn't result in a message about new conflicts.
-        let conflicts = RevsetExpression::filter(RevsetFilterPredicate::HasConflict).intersection(
-            &RevsetExpression::filter(RevsetFilterPredicate::File(FilesetExpression::all())),
-        );
+        let conflicts = RevsetExpression::filter(RevsetFilterPredicate::HasConflict)
+            .filtered(RevsetFilterPredicate::File(FilesetExpression::all()));
         let removed_conflicts_expr = new_heads.range(&old_heads).intersection(&conflicts);
         let added_conflicts_expr = old_heads.range(&new_heads).intersection(&conflicts);
 

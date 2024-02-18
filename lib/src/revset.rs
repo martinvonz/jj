@@ -353,6 +353,13 @@ impl RevsetExpression {
         })
     }
 
+    /// Filter all commits by `predicate` in `self`.
+    pub fn filtered(
+        self: &Rc<RevsetExpression>,
+        predicate: RevsetFilterPredicate,
+    ) -> Rc<RevsetExpression> {
+        self.intersection(&RevsetExpression::filter(predicate))
+    }
     /// Commits that are descendants of `self` and ancestors of `heads`, both
     /// inclusive.
     pub fn dag_range_to(
