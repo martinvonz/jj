@@ -17,7 +17,7 @@ categories = ["version-control", "development-tools"]
 keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 
 [workspace.dependencies]
-anyhow = "1.0.79"
+anyhow = "1.0.80"
 assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
 async-trait = "0.1.77"
@@ -88,7 +88,7 @@ smallvec = { version = "1.13.0", features = [
 strsim = "0.11.0"
 tempfile = "3.10.0"
 test-case = "3.3.1"
-textwrap = "0.16.0"
+textwrap = "0.16.1"
 thiserror = "1.0.57"
 timeago = { version = "0.4.2", default-features = false }
 tokio = { version = "1.36.0" }
