@@ -16,6 +16,8 @@ v2.39.0::v2.40.0
 # Tags and branches
 tags()
 branches()
+# Local changes
+(tags() | remote_branches())..
 # Intersection of range with a small subset
 tags() & ::v2.40.0
 v2.39.0 & ::v2.40.0
