@@ -1002,7 +1002,7 @@ Show commit history
 
 ###### **Options:**
 
-* `-r`, `--revisions <REVISIONS>` — Which revisions to show. Defaults to the `revsets.log` setting, or `@ | ancestors(immutable_heads().., 2) | heads(immutable_heads())` if it is not set
+* `-r`, `--revisions <REVISIONS>` — Which revisions to show. Defaults to the `revsets.log` setting, or `@ | ancestors(immutable_heads().., 2) | trunk()` if it is not set
 * `--reversed` — Show revisions in the opposite order (older revisions first)
 
   Possible values: `true`, `false`

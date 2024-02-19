@@ -64,7 +64,7 @@ fn test_rewrite_immutable_generic() {
     insta::assert_snapshot!(stderr, @r###"
     Config error: Invalid `revsets.short-prefixes`:  --> 1:31
       |
-    1 | @ | ancestors(immutable_heads().., 2) | heads(immutable_heads())
+    1 | @ | ancestors(immutable_heads().., 2) | trunk()
       |                               ^
       |
       = Invalid arguments to revset function "immutable_heads": Expected 1 arguments
@@ -93,8 +93,9 @@ fn test_rewrite_immutable_commands() {
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "description(b)"]);
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "main""#);
+    test_env.add_config(r#"revset-aliases."trunk()" = "main""#);
 
-    // Log shows mutable commits and immutable heads by default
+    // Log shows mutable commits, their parents, and trunk() by default
     let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
     insta::assert_snapshot!(stdout, @r###"
     @  yqosqzyt test.user@example.com 2001-02-03 04:05:13.000 +07:00 3f89addf
