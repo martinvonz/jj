@@ -24,6 +24,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 /// The recognized kinds of filesystem monitors.
+#[derive(Eq, PartialEq)]
 pub enum FsmonitorKind {
     /// The Watchman filesystem monitor (https://facebook.github.io/watchman/).
     Watchman,
@@ -34,6 +35,13 @@ pub enum FsmonitorKind {
         /// reporting.
         changed_files: Vec<PathBuf>,
     },
+
+    /// No filesystem monitor. This is the default if nothing is configured, but
+    /// also makes it possible to turn off the monitor on a case-by-case basis
+    /// when the user gives an option like
+    /// `--config-toml='core.fsmonitor="none"'`; useful when e.g. when doing
+    /// analysis of snapshot performance.
+    None,
 }
 
 impl FromStr for FsmonitorKind {
@@ -45,6 +53,7 @@ impl FromStr for FsmonitorKind {
             "test" => Err(config::ConfigError::Message(
                 "cannot use test fsmonitor in real repository".to_string(),
             )),
+            "none" => Ok(Self::None),
             other => Err(config::ConfigError::Message(format!(
                 "unknown fsmonitor kind: {}",
                 other

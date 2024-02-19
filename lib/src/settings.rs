@@ -164,10 +164,10 @@ impl UserSettings {
         self.config.get_string("user.email").unwrap_or_default()
     }
 
-    pub fn fsmonitor_kind(&self) -> Result<Option<FsmonitorKind>, config::ConfigError> {
+    pub fn fsmonitor_kind(&self) -> Result<FsmonitorKind, config::ConfigError> {
         match self.config.get_string("core.fsmonitor") {
-            Ok(fsmonitor_kind) => Ok(Some(fsmonitor_kind.parse()?)),
-            Err(config::ConfigError::NotFound(_)) => Ok(None),
+            Ok(fsmonitor_kind) => Ok(fsmonitor_kind.parse()?),
+            Err(config::ConfigError::NotFound(_)) => Ok(FsmonitorKind::None),
             Err(err) => Err(err),
         }
     }
