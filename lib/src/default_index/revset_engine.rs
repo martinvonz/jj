@@ -764,8 +764,16 @@ impl<'index> EvaluationContext<'index> {
             } => {
                 let root_set = self.evaluate(roots)?;
                 let root_positions = root_set.positions(index).collect_vec();
+                // Pre-filter heads so queries like 'immutable_heads()..' can
+                // terminate early. immutable_heads() usually includes some
+                // visible heads, which can be trivially rejected.
                 let head_set = self.evaluate(heads)?;
-                let head_positions = head_set.positions(index).collect_vec();
+                let head_positions = difference_by(
+                    head_set.positions(index),
+                    root_positions.iter().copied(),
+                    |pos1, pos2| pos1.cmp(pos2).reverse(),
+                )
+                .collect_vec();
                 if generation == &GENERATION_RANGE_FULL {
                     Ok(Box::new(RevWalkRevset::new(move |index| {
                         Box::new(index.walk_revs(&head_positions, &root_positions))
