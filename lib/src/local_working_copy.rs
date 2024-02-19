@@ -744,7 +744,7 @@ impl TreeState {
 
         let sparse_matcher = self.sparse_matcher();
 
-        let fsmonitor_clock_needs_save = fsmonitor_kind.is_some();
+        let fsmonitor_clock_needs_save = fsmonitor_kind != FsmonitorKind::None;
         let mut is_dirty = fsmonitor_clock_needs_save;
         let FsmonitorMatcher {
             matcher: fsmonitor_matcher,
@@ -1017,13 +1017,13 @@ impl TreeState {
     #[instrument(skip_all)]
     fn make_fsmonitor_matcher(
         &self,
-        fsmonitor_kind: Option<FsmonitorKind>,
+        fsmonitor_kind: FsmonitorKind,
     ) -> Result<FsmonitorMatcher, SnapshotError> {
         let (watchman_clock, changed_files) = match fsmonitor_kind {
-            None => (None, None),
-            Some(FsmonitorKind::Test { changed_files }) => (None, Some(changed_files)),
+            FsmonitorKind::None => (None, None),
+            FsmonitorKind::Test { changed_files } => (None, Some(changed_files)),
             #[cfg(feature = "watchman")]
-            Some(FsmonitorKind::Watchman) => match self.query_watchman() {
+            FsmonitorKind::Watchman => match self.query_watchman() {
                 Ok((watchman_clock, changed_files)) => (Some(watchman_clock.into()), changed_files),
                 Err(err) => {
                     tracing::warn!(?err, "Failed to query filesystem monitor");
@@ -1031,7 +1031,7 @@ impl TreeState {
                 }
             },
             #[cfg(not(feature = "watchman"))]
-            Some(FsmonitorKind::Watchman) => {
+            FsmonitorKind::Watchman => {
                 return Err(SnapshotError::Other {
                     message: "Failed to query the filesystem monitor".to_string(),
                     err: "Cannot query Watchman because jj was not compiled with the `watchman` \

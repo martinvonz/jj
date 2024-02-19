@@ -976,9 +976,9 @@ fn test_fsmonitor() {
         locked_ws
             .locked_wc()
             .snapshot(SnapshotOptions {
-                fsmonitor_kind: Some(FsmonitorKind::Test {
+                fsmonitor_kind: FsmonitorKind::Test {
                     changed_files: fs_paths,
-                }),
+                },
                 ..SnapshotOptions::empty_for_test()
             })
             .unwrap()
