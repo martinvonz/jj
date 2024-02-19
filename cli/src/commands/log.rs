@@ -30,8 +30,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct LogArgs {
     /// Which revisions to show. Defaults to the `revsets.log` setting, or
-    /// `@ | ancestors(immutable_heads().., 2) | heads(immutable_heads())` if
-    /// it is not set.
+    /// `@ | ancestors(immutable_heads().., 2) | trunk()` if it is not set.
     #[arg(long, short)]
     revisions: Vec<RevisionArg>,
     /// Show commits modifying the given paths

@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Dropped support for the "legacy" graph-drawing style. Use "ascii" for a very
   similar result.
 
+* The default log output no longer lists all tagged heads. Set `revsets.log =
+  "@ | ancestors(immutable_heads().., 2) | heads(immutable_heads())"` to restore
+  the old behavior.
+
 * Dropped support for the deprecated `:` revset operator. Use `::` instead.
 
 ### New features
