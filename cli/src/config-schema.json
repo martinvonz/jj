@@ -366,12 +366,11 @@
             "properties": {
                 "backend": {
                     "type": "string",
-                    "enum": ["gpg", "ssh"],
-                    "description": "The backend to use for signing commits"
+                    "description": "Which backend to use to create commit signatures"
                 },
                 "key": {
                     "type": "string",
-                    "description": "The key the configured signing backend will use to to sign commits. Overridden by `jj sign` parameter or by the global `--sign-with` option"
+                    "description": "The key parameter to pass to the signing backend. Overridden by `jj sign` parameter or by the global `--sign-with` option"
                 },
                 "sign-all": {
                     "type": "boolean",
@@ -381,38 +380,7 @@
                 "backends": {
                     "type": "object",
                     "description": "Tables of options to pass to specific signing backends",
-                    "properties": {
-                        "gpg": {
-                            "type": "object",
-                            "properties": {
-                                "program": {
-                                    "type": "string",
-                                    "description": "Path to the gpg program to be called",
-                                    "default": "gpg"
-                                },
-                                "allow-expired-keys": {
-                                    "type": "boolean",
-                                    "description": "Whether to consider signatures generated with an expired key as invalid",
-                                    "default": true
-                                }
-                            }
-                        },
-                        "ssh": {
-                            "type": "object",
-                            "properties": {
-                                "program": {
-                                    "type": "string",
-                                    "description": "Path to the ssh-keygen program to be called",
-                                    "default": "ssh-keygen"
-                                },
-                                "allowed-signers": {
-                                    "type": "boolean",
-                                    "description": "Path to an allowed signers file used for signature verification",
-                                    "default": true
-                                }
-                            }
-                        }
-                    },
+                    "properties": {},
                     "additionalProperties": true
                 }
             }
