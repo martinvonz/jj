@@ -947,6 +947,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#commit-signing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Commit Signing
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Commit Signing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gnupg-signing" class="md-nav__link">
+    <span class="md-ellipsis">
+      GnuPG Signing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ssh-signing" class="md-nav__link">
+    <span class="md-ellipsis">
+      SSH Signing
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#git-settings" class="md-nav__link">
     <span class="md-ellipsis">
       Git settings
@@ -1891,6 +1924,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#commit-signing" class="md-nav__link">
+    <span class="md-ellipsis">
+      Commit Signing
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Commit Signing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#gnupg-signing" class="md-nav__link">
+    <span class="md-ellipsis">
+      GnuPG Signing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ssh-signing" class="md-nav__link">
+    <span class="md-ellipsis">
+      SSH Signing
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#git-settings" class="md-nav__link">
     <span class="md-ellipsis">
       Git settings
@@ -2379,6 +2445,41 @@ tool fill it in). To do that, set the
 the conflict is done, <code>jj</code> assumes that the conflict was only partially resolved
 and parses the conflict markers to get the new state of the conflict. The
 conflict is considered fully resolved when there are no conflict markers left.</p>
+<h2 id="commit-signing">Commit Signing<a class="headerlink" href="#commit-signing" title="Permanent link">&para;</a></h2>
+<p><code>jj</code> can be configured to sign and verify the commits it creates using either 
+GnuPG or SSH signing keys.</p>
+<p>To do this you need to configure a signing backend.</p>
+<h3 id="gnupg-signing">GnuPG Signing<a class="headerlink" href="#gnupg-signing" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">[signing]</span>
+<span class="n">sign-all</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">backend</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gpg&quot;</span>
+<span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;4ED556E9729E000F&quot;</span>
+</code></pre></div>
+<p>By default the gpg backend will look for a <code>gpg</code> binary on your path. If you want
+to change the program used or specify a path to <code>gpg</code> explicitly you can set:</p>
+<div class="highlight"><pre><span></span><code><span class="n">signing</span><span class="p">.</span><span class="n">backends</span><span class="p">.</span><span class="n">gpg</span><span class="p">.</span><span class="n">program</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gpg2&quot;</span>
+</code></pre></div>
+<p>Also by default the gpg backend will ignore key expiry when verifying commit signatures.
+To consider expired keys as invalid you can set:</p>
+<div class="highlight"><pre><span></span><code><span class="n">signing</span><span class="p">.</span><span class="n">backends</span><span class="p">.</span><span class="n">gpg</span><span class="p">.</span><span class="n">allow-expired-keys</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span>
+</code></pre></div>
+<h3 id="ssh-signing">SSH Signing<a class="headerlink" href="#ssh-signing" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">[signing]</span>
+<span class="n">sign-all</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<span class="n">backend</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ssh&quot;</span>
+<span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGj+J6N6SO+4P8dOZqfR1oiay2yxhhHnagH52avUqw5h&quot;</span>
+</code></pre></div>
+<p>By default the ssh backend will look for a <code>ssh-keygen</code> binary on your path. If you want
+to change the program used or specify a path to <code>ssh-keygen</code> explicitly you can set:</p>
+<div class="highlight"><pre><span></span><code><span class="n">signing</span><span class="p">.</span><span class="n">backends</span><span class="p">.</span><span class="n">ssh</span><span class="p">.</span><span class="n">program</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/path/to/ssh-keygen&quot;</span>
+</code></pre></div>
+<p>When verifying commit signatures the ssh backend needs to be provided with an allowed-signers
+file containing the public keys of authors whose signatures you want to be able to verify.</p>
+<p>You can find the format for this file in the 
+<a href="https://man.openbsd.org/ssh-keygen#ALLOWED_SIGNERS">ssh-keygen man page</a>. This can be provided 
+as follows:</p>
+<div class="highlight"><pre><span></span><code><span class="n">signing</span><span class="p">.</span><span class="n">backends</span><span class="p">.</span><span class="n">ssh</span><span class="p">.</span><span class="n">allowed-signers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/path/to/allowed-signers&quot;</span>
+</code></pre></div>
 <h2 id="git-settings">Git settings<a class="headerlink" href="#git-settings" title="Permanent link">&para;</a></h2>
 <h3 id="default-remotes-for-jj-git-fetch-and-jj-git-push">Default remotes for <code>jj git fetch</code> and <code>jj git push</code><a class="headerlink" href="#default-remotes-for-jj-git-fetch-and-jj-git-push" title="Permanent link">&para;</a></h3>
 <p>By default, if a single remote exists it is used for <code>jj git fetch</code> and <code>jj git
