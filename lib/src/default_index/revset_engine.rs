@@ -341,7 +341,7 @@ where
         Box::new(union_by(
             self.set1.iter(index),
             self.set2.iter(index),
-            |entry1, entry2| entry1.position().cmp(&entry2.position()),
+            |entry1, entry2| entry1.position().cmp(&entry2.position()).reverse(),
         ))
     }
 
@@ -370,7 +370,7 @@ where
 
 /// Iterator that merges two sorted iterators.
 ///
-/// The input items should be sorted in descending order by the `cmp` function.
+/// The input items should be sorted in ascending order by the `cmp` function.
 struct UnionByIterator<I1: Iterator, I2: Iterator, C> {
     iter1: Peekable<I1>,
     iter2: Peekable<I2>,
@@ -390,12 +390,12 @@ where
             (None, _) => self.iter2.next(),
             (_, None) => self.iter1.next(),
             (Some(item1), Some(item2)) => match (self.cmp)(item1, item2) {
-                Ordering::Less => self.iter2.next(),
+                Ordering::Less => self.iter1.next(),
                 Ordering::Equal => {
                     self.iter2.next();
                     self.iter1.next()
                 }
-                Ordering::Greater => self.iter1.next(),
+                Ordering::Greater => self.iter2.next(),
             },
         }
     }
@@ -436,7 +436,7 @@ where
         Box::new(intersection_by(
             self.set1.iter(index),
             self.set2.iter(index),
-            |entry1, entry2| entry1.position().cmp(&entry2.position()),
+            |entry1, entry2| entry1.position().cmp(&entry2.position()).reverse(),
         ))
     }
 
@@ -465,7 +465,7 @@ where
 
 /// Iterator that intersects two sorted iterators.
 ///
-/// The input items should be sorted in descending order by the `cmp` function.
+/// The input items should be sorted in ascending order by the `cmp` function.
 struct IntersectionByIterator<I1: Iterator, I2: Iterator, C> {
     iter1: Peekable<I1>,
     iter2: Peekable<I2>,
@@ -491,14 +491,14 @@ where
                 }
                 (Some(item1), Some(item2)) => match (self.cmp)(item1, item2) {
                     Ordering::Less => {
-                        self.iter2.next();
+                        self.iter1.next();
                     }
                     Ordering::Equal => {
                         self.iter2.next();
                         return self.iter1.next();
                     }
                     Ordering::Greater => {
-                        self.iter1.next();
+                        self.iter2.next();
                     }
                 },
             }
@@ -543,7 +543,7 @@ where
         Box::new(difference_by(
             self.set1.iter(index),
             self.set2.iter(index),
-            |entry1, entry2| entry1.position().cmp(&entry2.position()),
+            |entry1, entry2| entry1.position().cmp(&entry2.position()).reverse(),
         ))
     }
 
@@ -572,7 +572,7 @@ where
 
 /// Iterator that subtracts `iter2` items from `iter1`.
 ///
-/// The input items should be sorted in descending order by the `cmp` function.
+/// The input items should be sorted in ascending order by the `cmp` function.
 struct DifferenceByIterator<I1: Iterator, I2: Iterator, C> {
     iter1: Peekable<I1>,
     iter2: Peekable<I2>,
@@ -598,14 +598,14 @@ where
                 }
                 (Some(item1), Some(item2)) => match (self.cmp)(item1, item2) {
                     Ordering::Less => {
-                        self.iter2.next();
+                        return self.iter1.next();
                     }
                     Ordering::Equal => {
                         self.iter2.next();
                         self.iter1.next();
                     }
                     Ordering::Greater => {
-                        return self.iter1.next();
+                        self.iter2.next();
                     }
                 },
             }
