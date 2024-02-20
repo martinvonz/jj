@@ -26,11 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
-* Added support for commit signing and verification. This comes with 
-  out-of-the-box support for the following backends:
-  * GnuPG
-  * SSH
-
 * Templates now support logical operators: `||`, `&&`, `!`
 
 * `jj show` now accepts `-T`/`--template` option to render its output using
