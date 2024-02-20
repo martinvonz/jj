@@ -1,7 +1,7 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::{format_ident, quote, quote_spanned};
 use syn::spanned::Spanned;
-use syn::{parse_quote, Data, Field, Fields, GenericParam, Generics, Index};
+use syn::{parse_quote, Data, Field, Fields, GenericParam, Generics, Index, Type};
 
 pub fn add_trait_bounds(mut generics: Generics) -> Generics {
     for param in &mut generics.params {
@@ -54,21 +54,21 @@ pub fn generate_hash_impl(data: &Data) -> TokenStream {
                 match &v.fields {
                     Fields::Named(fields) => {
                         let bindings = enum_bindings(fields.named.iter());
-                        let ix = index_to_ordinal(i);
+                        let hash_statements =
+                            hash_statements_for_enum_fields(i, fields.named.iter());
                         quote_spanned! {v.span() =>
                             Self::#variant_id{ #(#bindings),* } => {
-                                ::jj_lib::content_hash::ContentHash::hash(&#ix, state);
-                                #( ::jj_lib::content_hash::ContentHash::hash(#bindings, state); )*
+                                #(#hash_statements)*
                             }
                         }
                     }
                     Fields::Unnamed(fields) => {
                         let bindings = enum_bindings(fields.unnamed.iter());
-                        let ix = index_to_ordinal(i);
+                        let hash_statements =
+                            hash_statements_for_enum_fields(i, fields.unnamed.iter());
                         quote_spanned! {v.span() =>
                             Self::#variant_id( #(#bindings),* ) => {
-                                ::jj_lib::content_hash::ContentHash::hash(&#ix, state);
-                                #( ::jj_lib::content_hash::ContentHash::hash(#bindings, state); )*
+                                #(#hash_statements)*
                             }
                         }
                     }
@@ -99,13 +99,40 @@ fn index_to_ordinal(ix: usize) -> u32 {
     u32::try_from(ix).expect("The number of enum variants overflows a u32.")
 }
 
-fn enum_bindings<'a>(fields: impl IntoIterator<Item = &'a Field>) -> Vec<Ident> {
+fn enum_bindings_with_type<'a>(fields: impl IntoIterator<Item = &'a Field>) -> Vec<(Type, Ident)> {
     fields
         .into_iter()
         .enumerate()
         .map(|(i, f)| {
             // If the field is named, use the name, otherwise generate a placeholder name.
-            f.ident.clone().unwrap_or(format_ident!("field_{}", i))
+            (
+                f.ty.clone(),
+                f.ident.clone().unwrap_or(format_ident!("field_{}", i)),
+            )
         })
         .collect::<Vec<_>>()
+}
+
+fn enum_bindings<'a>(fields: impl IntoIterator<Item = &'a Field>) -> Vec<Ident> {
+    enum_bindings_with_type(fields)
+        .into_iter()
+        .map(|(_, b)| b)
+        .collect()
+}
+
+fn hash_statements_for_enum_fields<'a>(
+    index: usize,
+    fields: impl IntoIterator<Item = &'a Field>,
+) -> Vec<TokenStream> {
+    let ix = index_to_ordinal(index);
+    let typed_bindings = enum_bindings_with_type(fields);
+    let mut hash_statements = Vec::with_capacity(typed_bindings.len() + 1);
+    hash_statements.push(quote! {::jj_lib::content_hash::ContentHash::hash(&#ix, state);});
+    for (ty, b) in typed_bindings.iter() {
+        hash_statements.push(quote_spanned! {b.span() =>
+            <#ty as ::jj_lib::content_hash::ContentHash>::hash(#b, state);
+        });
+    }
+
+    hash_statements
 }
