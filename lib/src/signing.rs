@@ -24,7 +24,6 @@ use thiserror::Error;
 use crate::backend::CommitId;
 use crate::gpg_signing::GpgBackend;
 use crate::settings::UserSettings;
-use crate::ssh_signing::SshBackend;
 
 /// A status of the signature, part of the [Verification] type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -163,7 +162,7 @@ impl Signer {
     pub fn from_settings(settings: &UserSettings) -> Result<Self, SignInitError> {
         let mut backends = vec![
             Box::new(GpgBackend::from_config(settings.config())) as Box<dyn SigningBackend>,
-            Box::new(SshBackend::from_config(settings.config())) as Box<dyn SigningBackend>,
+            // Box::new(SshBackend::from_settings(settings)?) as Box<dyn SigningBackend>,
             // Box::new(X509Backend::from_settings(settings)?) as Box<dyn SigningBackend>,
         ];
 

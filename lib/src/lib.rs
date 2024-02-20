@@ -70,7 +70,6 @@ pub mod settings;
 pub mod signing;
 pub mod simple_op_heads_store;
 pub mod simple_op_store;
-pub mod ssh_signing;
 pub mod stacked_table;
 pub mod store;
 pub mod str_util;
