@@ -82,10 +82,7 @@
             installShellFiles
             makeWrapper
             pkg-config
-
-            # for signing tests
-            gnupg 
-            openssh
+            gnupg # for signing tests
           ] ++ linuxNativeDeps;
           buildInputs = with pkgs; [
             openssl zstd libgit2 libssh2
@@ -150,7 +147,6 @@
 
           # To run the signing tests
           gnupg
-          openssh
 
           # For building the documentation website
           poetry
