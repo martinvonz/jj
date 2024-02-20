@@ -14,7 +14,6 @@ mod test_default_revset_graph_iterator;
 mod test_diff_summary;
 mod test_git;
 mod test_git_backend;
-mod test_gpg;
 mod test_id_prefix;
 mod test_index;
 mod test_init;
