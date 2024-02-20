@@ -58,6 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj git fetch` now automatically prints new remote branches and tags by default.
 
+* New `jj tag forget` command.
+
 * `--verbose/-v` is now `--debug` (no short option since it's not intended to be used often)
 
 * `jj move --from/--to` can now be abbreviated to `jj move -f/-t`

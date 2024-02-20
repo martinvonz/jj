@@ -76,6 +76,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj status`↴](#jj-status)
 * [`jj tag`↴](#jj-tag)
 * [`jj tag list`↴](#jj-tag-list)
+* [`jj tag forget`↴](#jj-tag-forget)
 * [`jj util`↴](#jj-util)
 * [`jj util completion`↴](#jj-util-completion)
 * [`jj util gc`↴](#jj-util-gc)
@@ -1703,6 +1704,7 @@ Manage tags
 ###### **Subcommands:**
 
 * `list` — List tags
+* `forget` — Forget tags. They may be recreated on `fetch`
 
 
 
@@ -1715,6 +1717,18 @@ List tags
 ###### **Arguments:**
 
 * `<NAMES>` — Show tags whose local name matches
+
+
+
+## `jj tag forget`
+
+Forget tags. They may be recreated on `fetch`
+
+**Usage:** `jj tag forget <NAMES>...`
+
+###### **Arguments:**
+
+* `<NAMES>` — Forget tags whose local name matches
 
 
 

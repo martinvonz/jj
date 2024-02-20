@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools;
+
 use crate::common::TestEnvironment;
 
 fn set_up_tagged_git_repo(git_repo: &git2::Repository) {
@@ -76,4 +78,71 @@ fn test_tag_list() {
         @r###"
         test_tag2
          "###);
+}
+
+#[test]
+fn test_tag_forget() {
+    let test_env = TestEnvironment::default();
+    test_env.add_config("git.auto-local-branch = true");
+    let git_repo_path = test_env.env_root().join("source");
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+
+    set_up_tagged_git_repo(&git_repo);
+
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "tagged"]);
+
+    let local_path = test_env.env_root().join("tagged");
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&local_path, &["tag", "list"]),
+        @r###"
+        test_tag
+        test_tag2
+         "###);
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&local_path, &["tag", "forget", "test_tag2"]),
+        @"");
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&local_path, &["tag", "list"]),
+        @r###"
+    test_tag
+    "###);
+
+    // Pushing does not delete the tag on the remote
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["git", "push", "--all"]);
+    insta::assert_snapshot!(stderr,
+        @r###"
+    Nothing changed.
+    "###);
+    insta::assert_debug_snapshot!(
+        git_repo.tag_names(None).unwrap().into_iter().collect_vec(),
+        @r###"
+    [
+        Some(
+            "test_tag",
+        ),
+        Some(
+            "test_tag2",
+        ),
+    ]
+    "###);
+
+    // Fetching recreates the tag
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["git", "fetch"]);
+    insta::assert_snapshot!(stderr,
+        @r###"
+    tag: test_tag2 [new] 
+    "###);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&local_path, &["tag", "list"]),
+        @r###"
+        test_tag
+        test_tag2
+         "###);
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_failure(&local_path, &["tag", "forget", "test_tag2", "thistagdoesnotexist"]),
+        @r###"
+    Error: No matching tags for patterns: thistagdoesnotexist
+    "###);
 }
