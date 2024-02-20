@@ -62,6 +62,11 @@ trait InternalRevset: fmt::Debug + ToPredicateFn {
         index: CompositeIndex<'index>,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>;
 
+    fn positions<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a>;
+
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
     where
         Self: 'a;
@@ -73,6 +78,13 @@ impl<T: InternalRevset + ?Sized> InternalRevset for Box<T> {
         index: CompositeIndex<'index>,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
         <T as InternalRevset>::iter(self, index)
+    }
+
+    fn positions<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
+        <T as InternalRevset>::positions(self, index)
     }
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
@@ -95,6 +107,10 @@ impl<I: AsCompositeIndex> RevsetImpl<I> {
 
     fn entries(&self) -> Box<dyn Iterator<Item = IndexEntry<'_>> + '_> {
         self.inner.iter(self.index.as_composite())
+    }
+
+    fn positions(&self) -> Box<dyn Iterator<Item = IndexPosition> + '_> {
+        self.inner.positions(self.index.as_composite())
     }
 
     pub fn iter_graph_impl(&self) -> RevsetGraphIterator<'_, '_> {
@@ -127,7 +143,7 @@ impl<I: AsCompositeIndex> Revset for RevsetImpl<I> {
     }
 
     fn is_empty(&self) -> bool {
-        self.entries().next().is_none()
+        self.positions().next().is_none()
     }
 
     fn count_estimate(&self) -> (usize, Option<usize>) {
@@ -135,14 +151,14 @@ impl<I: AsCompositeIndex> Revset for RevsetImpl<I> {
             // Exercise the estimation feature in tests. (If we ever have a Revset
             // implementation in production code that returns estimates, we can probably
             // remove this and rewrite the associated tests.)
-            let count = self.entries().take(10).count();
+            let count = self.positions().take(10).count();
             if count < 10 {
                 (count, Some(count))
             } else {
                 (10, None)
             }
         } else {
-            let count = self.iter().count();
+            let count = self.positions().count();
             (count, Some(count))
         }
     }
@@ -171,6 +187,13 @@ impl InternalRevset for EagerRevset {
             .iter()
             .map(move |&pos| index.entry_by_pos(pos));
         Box::new(entries)
+    }
+
+    fn positions<'a, 'index: 'a>(
+        &'a self,
+        _index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
+        Box::new(self.positions.iter().copied())
     }
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
@@ -230,6 +253,13 @@ where
         (self.walk)(index)
     }
 
+    fn positions<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
+        Box::new(self.iter(index).map(|entry| entry.position()))
+    }
+
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
     where
         Self: 'a,
@@ -287,6 +317,13 @@ where
         Box::new(self.candidates.iter(index).filter(p))
     }
 
+    fn positions<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
+        Box::new(self.iter(index).map(|entry| entry.position()))
+    }
+
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
     where
         Self: 'a,
@@ -342,6 +379,17 @@ where
             self.set1.iter(index),
             self.set2.iter(index),
             |entry1, entry2| entry1.position().cmp(&entry2.position()).reverse(),
+        ))
+    }
+
+    fn positions<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
+        Box::new(union_by(
+            self.set1.positions(index),
+            self.set2.positions(index),
+            |pos1, pos2| pos1.cmp(pos2).reverse(),
         ))
     }
 
@@ -435,8 +483,19 @@ where
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
         Box::new(intersection_by(
             self.set1.iter(index),
-            self.set2.iter(index),
-            |entry1, entry2| entry1.position().cmp(&entry2.position()).reverse(),
+            self.set2.positions(index),
+            |entry1, pos2| entry1.position().cmp(pos2).reverse(),
+        ))
+    }
+
+    fn positions<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
+        Box::new(intersection_by(
+            self.set1.positions(index),
+            self.set2.positions(index),
+            |pos1, pos2| pos1.cmp(pos2).reverse(),
         ))
     }
 
@@ -542,8 +601,19 @@ where
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
         Box::new(difference_by(
             self.set1.iter(index),
-            self.set2.iter(index),
-            |entry1, entry2| entry1.position().cmp(&entry2.position()).reverse(),
+            self.set2.positions(index),
+            |entry1, pos2| entry1.position().cmp(pos2).reverse(),
+        ))
+    }
+
+    fn positions<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
+        Box::new(difference_by(
+            self.set1.positions(index),
+            self.set2.positions(index),
+            |pos1, pos2| pos1.cmp(pos2).reverse(),
         ))
     }
 
@@ -671,10 +741,7 @@ impl<'index> EvaluationContext<'index> {
             }
             ResolvedExpression::Ancestors { heads, generation } => {
                 let head_set = self.evaluate(heads)?;
-                let head_positions = head_set
-                    .iter(index)
-                    .map(|entry| entry.position())
-                    .collect_vec();
+                let head_positions = head_set.positions(index).collect_vec();
                 if generation == &GENERATION_RANGE_FULL {
                     Ok(Box::new(RevWalkRevset::new(move |index| {
                         Box::new(index.walk_revs(&head_positions, &[]))
@@ -696,15 +763,9 @@ impl<'index> EvaluationContext<'index> {
                 generation,
             } => {
                 let root_set = self.evaluate(roots)?;
-                let root_positions = root_set
-                    .iter(index)
-                    .map(|entry| entry.position())
-                    .collect_vec();
+                let root_positions = root_set.positions(index).collect_vec();
                 let head_set = self.evaluate(heads)?;
-                let head_positions = head_set
-                    .iter(index)
-                    .map(|entry| entry.position())
-                    .collect_vec();
+                let head_positions = head_set.positions(index).collect_vec();
                 if generation == &GENERATION_RANGE_FULL {
                     Ok(Box::new(RevWalkRevset::new(move |index| {
                         Box::new(index.walk_revs(&head_positions, &root_positions))
@@ -726,15 +787,9 @@ impl<'index> EvaluationContext<'index> {
                 generation_from_roots,
             } => {
                 let root_set = self.evaluate(roots)?;
-                let root_positions = root_set
-                    .iter(index)
-                    .map(|entry| entry.position())
-                    .collect_vec();
+                let root_positions = root_set.positions(index).collect_vec();
                 let head_set = self.evaluate(heads)?;
-                let head_positions = head_set
-                    .iter(index)
-                    .map(|entry| entry.position())
-                    .collect_vec();
+                let head_positions = head_set.positions(index).collect_vec();
                 if generation_from_roots == &(1..2) {
                     let root_positions_set: HashSet<_> = root_positions.iter().copied().collect();
                     let candidates = RevWalkRevset::new(move |index| {
@@ -782,12 +837,8 @@ impl<'index> EvaluationContext<'index> {
             }
             ResolvedExpression::Heads(candidates) => {
                 let candidate_set = self.evaluate(candidates)?;
-                let head_positions: BTreeSet<_> = index.heads_pos(
-                    candidate_set
-                        .iter(index)
-                        .map(|entry| entry.position())
-                        .collect(),
-                );
+                let head_positions: BTreeSet<_> =
+                    index.heads_pos(candidate_set.positions(index).collect());
                 let positions = head_positions.into_iter().rev().collect();
                 Ok(Box::new(EagerRevset { positions }))
             }
@@ -1057,9 +1108,10 @@ mod tests {
 
         let get_pos = |id: &CommitId| index.as_composite().commit_id_to_pos(id).unwrap();
         let get_entry = |id: &CommitId| index.as_composite().entry_by_id(id).unwrap();
-        let make_entries = |ids: &[&CommitId]| ids.iter().map(|id| get_entry(id)).collect_vec();
+        let make_positions = |ids: &[&CommitId]| ids.iter().copied().map(get_pos).collect_vec();
+        let make_entries = |ids: &[&CommitId]| ids.iter().copied().map(get_entry).collect_vec();
         let make_set = |ids: &[&CommitId]| -> Box<dyn InternalRevset> {
-            let positions = ids.iter().copied().map(get_pos).collect();
+            let positions = make_positions(ids);
             Box::new(EagerRevset { positions })
         };
 
@@ -1084,6 +1136,10 @@ mod tests {
             set.iter(index.as_composite()).collect_vec(),
             make_entries(&[&id_2, &id_0])
         );
+        assert_eq!(
+            set.positions(index.as_composite()).collect_vec(),
+            make_positions(&[&id_2, &id_0])
+        );
         let mut p = set.to_predicate_fn(index.as_composite());
         assert!(!p(&get_entry(&id_4)));
         assert!(!p(&get_entry(&id_3)));
@@ -1100,6 +1156,10 @@ mod tests {
             set.iter(index.as_composite()).collect_vec(),
             make_entries(&[&id_2])
         );
+        assert_eq!(
+            set.positions(index.as_composite()).collect_vec(),
+            make_positions(&[&id_2])
+        );
         let mut p = set.to_predicate_fn(index.as_composite());
         assert!(!p(&get_entry(&id_4)));
         assert!(!p(&get_entry(&id_3)));
@@ -1114,6 +1174,10 @@ mod tests {
         assert_eq!(
             set.iter(index.as_composite()).collect_vec(),
             make_entries(&[&id_4, &id_3, &id_2, &id_1])
+        );
+        assert_eq!(
+            set.positions(index.as_composite()).collect_vec(),
+            make_positions(&[&id_4, &id_3, &id_2, &id_1])
         );
         let mut p = set.to_predicate_fn(index.as_composite());
         assert!(p(&get_entry(&id_4)));
@@ -1130,6 +1194,10 @@ mod tests {
             set.iter(index.as_composite()).collect_vec(),
             make_entries(&[&id_2])
         );
+        assert_eq!(
+            set.positions(index.as_composite()).collect_vec(),
+            make_positions(&[&id_2])
+        );
         let mut p = set.to_predicate_fn(index.as_composite());
         assert!(!p(&get_entry(&id_4)));
         assert!(!p(&get_entry(&id_3)));
@@ -1144,6 +1212,10 @@ mod tests {
         assert_eq!(
             set.iter(index.as_composite()).collect_vec(),
             make_entries(&[&id_4, &id_0])
+        );
+        assert_eq!(
+            set.positions(index.as_composite()).collect_vec(),
+            make_positions(&[&id_4, &id_0])
         );
         let mut p = set.to_predicate_fn(index.as_composite());
         assert!(p(&get_entry(&id_4)));
