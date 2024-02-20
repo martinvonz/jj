@@ -338,10 +338,11 @@ where
         &'a self,
         index: CompositeIndex<'index>,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
-        Box::new(UnionRevsetIterator {
-            iter1: self.set1.iter(index).peekable(),
-            iter2: self.set2.iter(index).peekable(),
-        })
+        Box::new(union_by(
+            self.set1.iter(index),
+            self.set2.iter(index),
+            |entry1, entry2| entry1.position().cmp(&entry2.position()),
+        ))
     }
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
@@ -367,31 +368,53 @@ where
     }
 }
 
-struct UnionRevsetIterator<I1: Iterator, I2: Iterator> {
+/// Iterator that merges two sorted iterators.
+///
+/// The input items should be sorted in descending order by the `cmp` function.
+struct UnionByIterator<I1: Iterator, I2: Iterator, C> {
     iter1: Peekable<I1>,
     iter2: Peekable<I2>,
+    cmp: C,
 }
 
-impl<'index, I1, I2> Iterator for UnionRevsetIterator<I1, I2>
+impl<I1, I2, C> Iterator for UnionByIterator<I1, I2, C>
 where
-    I1: Iterator<Item = IndexEntry<'index>>,
-    I2: Iterator<Item = IndexEntry<'index>>,
+    I1: Iterator,
+    I2: Iterator<Item = I1::Item>,
+    C: FnMut(&I1::Item, &I2::Item) -> Ordering,
 {
-    type Item = IndexEntry<'index>;
+    type Item = I1::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
         match (self.iter1.peek(), self.iter2.peek()) {
             (None, _) => self.iter2.next(),
             (_, None) => self.iter1.next(),
-            (Some(entry1), Some(entry2)) => match entry1.position().cmp(&entry2.position()) {
+            (Some(item1), Some(item2)) => match (self.cmp)(item1, item2) {
                 Ordering::Less => self.iter2.next(),
                 Ordering::Equal => {
-                    self.iter1.next();
-                    self.iter2.next()
+                    self.iter2.next();
+                    self.iter1.next()
                 }
                 Ordering::Greater => self.iter1.next(),
             },
         }
+    }
+}
+
+fn union_by<I1, I2, C>(
+    iter1: I1,
+    iter2: I2,
+    cmp: C,
+) -> UnionByIterator<I1::IntoIter, I2::IntoIter, C>
+where
+    I1: IntoIterator,
+    I2: IntoIterator<Item = I1::Item>,
+    C: FnMut(&I1::Item, &I2::Item) -> Ordering,
+{
+    UnionByIterator {
+        iter1: iter1.into_iter().peekable(),
+        iter2: iter2.into_iter().peekable(),
+        cmp,
     }
 }
 
@@ -410,10 +433,11 @@ where
         &'a self,
         index: CompositeIndex<'index>,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
-        Box::new(IntersectionRevsetIterator {
-            iter1: self.set1.iter(index).peekable(),
-            iter2: self.set2.iter(index).peekable(),
-        })
+        Box::new(intersection_by(
+            self.set1.iter(index),
+            self.set2.iter(index),
+            |entry1, entry2| entry1.position().cmp(&entry2.position()),
+        ))
     }
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
@@ -439,17 +463,22 @@ where
     }
 }
 
-struct IntersectionRevsetIterator<I1: Iterator, I2: Iterator> {
+/// Iterator that intersects two sorted iterators.
+///
+/// The input items should be sorted in descending order by the `cmp` function.
+struct IntersectionByIterator<I1: Iterator, I2: Iterator, C> {
     iter1: Peekable<I1>,
     iter2: Peekable<I2>,
+    cmp: C,
 }
 
-impl<'index, I1, I2> Iterator for IntersectionRevsetIterator<I1, I2>
+impl<I1, I2, C> Iterator for IntersectionByIterator<I1, I2, C>
 where
-    I1: Iterator<Item = IndexEntry<'index>>,
-    I2: Iterator<Item = IndexEntry<'index>>,
+    I1: Iterator,
+    I2: Iterator,
+    C: FnMut(&I1::Item, &I2::Item) -> Ordering,
 {
-    type Item = IndexEntry<'index>;
+    type Item = I1::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -460,13 +489,13 @@ where
                 (_, None) => {
                     return None;
                 }
-                (Some(entry1), Some(entry2)) => match entry1.position().cmp(&entry2.position()) {
+                (Some(item1), Some(item2)) => match (self.cmp)(item1, item2) {
                     Ordering::Less => {
                         self.iter2.next();
                     }
                     Ordering::Equal => {
-                        self.iter1.next();
-                        return self.iter2.next();
+                        self.iter2.next();
+                        return self.iter1.next();
                     }
                     Ordering::Greater => {
                         self.iter1.next();
@@ -474,6 +503,23 @@ where
                 },
             }
         }
+    }
+}
+
+fn intersection_by<I1, I2, C>(
+    iter1: I1,
+    iter2: I2,
+    cmp: C,
+) -> IntersectionByIterator<I1::IntoIter, I2::IntoIter, C>
+where
+    I1: IntoIterator,
+    I2: IntoIterator,
+    C: FnMut(&I1::Item, &I2::Item) -> Ordering,
+{
+    IntersectionByIterator {
+        iter1: iter1.into_iter().peekable(),
+        iter2: iter2.into_iter().peekable(),
+        cmp,
     }
 }
 
@@ -494,10 +540,11 @@ where
         &'a self,
         index: CompositeIndex<'index>,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
-        Box::new(DifferenceRevsetIterator {
-            iter1: self.set1.iter(index).peekable(),
-            iter2: self.set2.iter(index).peekable(),
-        })
+        Box::new(difference_by(
+            self.set1.iter(index),
+            self.set2.iter(index),
+            |entry1, entry2| entry1.position().cmp(&entry2.position()),
+        ))
     }
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
@@ -523,17 +570,22 @@ where
     }
 }
 
-struct DifferenceRevsetIterator<I1: Iterator, I2: Iterator> {
+/// Iterator that subtracts `iter2` items from `iter1`.
+///
+/// The input items should be sorted in descending order by the `cmp` function.
+struct DifferenceByIterator<I1: Iterator, I2: Iterator, C> {
     iter1: Peekable<I1>,
     iter2: Peekable<I2>,
+    cmp: C,
 }
 
-impl<'index, I1, I2> Iterator for DifferenceRevsetIterator<I1, I2>
+impl<I1, I2, C> Iterator for DifferenceByIterator<I1, I2, C>
 where
-    I1: Iterator<Item = IndexEntry<'index>>,
-    I2: Iterator<Item = IndexEntry<'index>>,
+    I1: Iterator,
+    I2: Iterator,
+    C: FnMut(&I1::Item, &I2::Item) -> Ordering,
 {
-    type Item = IndexEntry<'index>;
+    type Item = I1::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -544,7 +596,7 @@ where
                 (_, None) => {
                     return self.iter1.next();
                 }
-                (Some(entry1), Some(entry2)) => match entry1.position().cmp(&entry2.position()) {
+                (Some(item1), Some(item2)) => match (self.cmp)(item1, item2) {
                     Ordering::Less => {
                         self.iter2.next();
                     }
@@ -558,6 +610,23 @@ where
                 },
             }
         }
+    }
+}
+
+fn difference_by<I1, I2, C>(
+    iter1: I1,
+    iter2: I2,
+    cmp: C,
+) -> DifferenceByIterator<I1::IntoIter, I2::IntoIter, C>
+where
+    I1: IntoIterator,
+    I2: IntoIterator,
+    C: FnMut(&I1::Item, &I2::Item) -> Ordering,
+{
+    DifferenceByIterator {
+        iter1: iter1.into_iter().peekable(),
+        iter2: iter2.into_iter().peekable(),
+        cmp,
     }
 }
 
