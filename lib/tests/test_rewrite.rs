@@ -583,7 +583,7 @@ fn test_rebase_descendants_abandon_degenerate_merge_preserve() {
         tx.mut_repo(),
         &rebase_map,
         &commit_d,
-        &[&commit_a.id(), &commit_c.id()],
+        &[commit_a.id(), commit_c.id()],
     );
     assert_eq!(rebase_map.len(), 1);
 
