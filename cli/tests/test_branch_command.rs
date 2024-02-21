@@ -1206,6 +1206,148 @@ fn test_branch_list_much_remote_divergence() {
     "###);
 }
 
+#[test]
+fn test_branch_list_tracked() {
+    let test_env = TestEnvironment::default();
+    test_env.add_config("git.auto-local-branch = true");
+
+    // Initialize remote refs
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "remote", "--git"]);
+    let remote_path = test_env.env_root().join("remote");
+    for branch in [
+        "remote-sync",
+        "remote-unsync",
+        "remote-untrack",
+        "remote-delete",
+    ] {
+        test_env.jj_cmd_ok(&remote_path, &["new", "root()", "-m", branch]);
+        test_env.jj_cmd_ok(&remote_path, &["branch", "create", branch]);
+    }
+    test_env.jj_cmd_ok(&remote_path, &["new"]);
+    test_env.jj_cmd_ok(&remote_path, &["git", "export"]);
+
+    // Initialize local refs
+    let mut remote_git_path = test_env.env_root().join("remote");
+    remote_git_path.extend([".jj", "repo", "store", "git"]);
+    test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &[
+            "git",
+            "clone",
+            "--colocate",
+            remote_git_path.to_str().unwrap(),
+            "local",
+        ],
+    );
+
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "upstream", "--git"]);
+
+    // Initialize a second remote
+    let mut upstream_git_path = test_env.env_root().join("upstream");
+    test_env.jj_cmd_ok(
+        &upstream_git_path,
+        &["new", "root()", "-m", "upstream-sync"],
+    );
+    test_env.jj_cmd_ok(&upstream_git_path, &["branch", "create", "upstream-sync"]);
+    test_env.jj_cmd_ok(&upstream_git_path, &["new"]);
+    test_env.jj_cmd_ok(&upstream_git_path, &["git", "export"]);
+
+    upstream_git_path.extend([".jj", "repo", "store", "git"]);
+
+    let local_path = test_env.env_root().join("local");
+
+    test_env.jj_cmd_ok(
+        &local_path,
+        &[
+            "git",
+            "remote",
+            "add",
+            "upstream",
+            upstream_git_path.to_str().unwrap(),
+        ],
+    );
+    test_env.jj_cmd_ok(&local_path, &["git", "fetch", "--all-remotes"]);
+
+    test_env.jj_cmd_ok(&local_path, &["new", "root()", "-m", "local-only"]);
+    test_env.jj_cmd_ok(&local_path, &["branch", "create", "local-only"]);
+
+    // Mutate refs in local repository
+    test_env.jj_cmd_ok(&local_path, &["branch", "delete", "remote-delete"]);
+    test_env.jj_cmd_ok(&local_path, &["branch", "delete", "remote-untrack"]);
+    test_env.jj_cmd_ok(&local_path, &["branch", "untrack", "remote-untrack@origin"]);
+    test_env.jj_cmd_ok(
+        &local_path,
+        &[
+            "git",
+            "push",
+            "--remote",
+            "upstream",
+            "--branch",
+            "remote-unsync",
+        ],
+    );
+    test_env.jj_cmd_ok(
+        &local_path,
+        &["branch", "set", "--allow-backwards", "remote-unsync"],
+    );
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&local_path, &["branch", "list", "--all"]), @r###"
+    local-only: nmzmmopx e1da745b (empty) local-only
+      @git: nmzmmopx e1da745b (empty) local-only
+    remote-delete (deleted)
+      @origin: mnmymoky 203e60eb (empty) remote-delete
+      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
+    remote-sync: zwtyzrop c761c7ea (empty) remote-sync
+      @git: zwtyzrop c761c7ea (empty) remote-sync
+      @origin: zwtyzrop c761c7ea (empty) remote-sync
+    remote-unsync: nmzmmopx e1da745b (empty) local-only
+      @git: nmzmmopx e1da745b (empty) local-only
+      @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
+      @upstream (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
+    remote-untrack@origin: vmortlor 71a16b05 (empty) remote-untrack
+    upstream-sync: lolpmnqw 32fa6da0 (empty) upstream-sync
+      @git: lolpmnqw 32fa6da0 (empty) upstream-sync
+      @upstream: lolpmnqw 32fa6da0 (empty) upstream-sync
+    "###);
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&local_path, &["branch", "list", "--tracked"]), @r###"
+    remote-delete (deleted)
+      @origin: mnmymoky 203e60eb (empty) remote-delete
+      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
+    remote-sync: zwtyzrop c761c7ea (empty) remote-sync
+      @origin: zwtyzrop c761c7ea (empty) remote-sync
+    remote-unsync: nmzmmopx e1da745b (empty) local-only
+      @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
+      @upstream (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
+    upstream-sync: lolpmnqw 32fa6da0 (empty) upstream-sync
+      @upstream: lolpmnqw 32fa6da0 (empty) upstream-sync
+    "###
+    );
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&local_path, &["branch", "list", "--tracked", "remote-unsync"]), @r###"
+    remote-unsync: nmzmmopx e1da745b (empty) local-only
+      @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
+      @upstream (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
+    "###);
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&local_path, &["branch", "list", "--tracked", "remote-untrack"]), @"");
+
+    test_env.jj_cmd_ok(
+        &local_path,
+        &["branch", "untrack", "remote-unsync@upstream"],
+    );
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&local_path, &["branch", "list", "--tracked", "remote-unsync"]), @r###"
+    remote-unsync: nmzmmopx e1da745b (empty) local-only
+      @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"branches ++ " " ++ commit_id.short()"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])

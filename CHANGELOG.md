@@ -74,6 +74,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added completions for [Nushell](https://nushell.sh) to `jj util completion`
 
+* `jj branch list` now supports a `--tracked/-t` option which can be used to
+  show tracked branches only. Omits local Git-tracking branches by default.
+
 ### Fixed bugs
 
 * On Windows, symlinks in the repo are now materialized as regular files in the

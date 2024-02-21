@@ -113,6 +113,14 @@ $ # The local branch (e.g. stuff) is unaffected. It may or may not still
 $ # be tracking branches on other remotes (e.g. stuff@upstream).
 ```
 
+### Listing tracked branches
+
+To list tracked branches, you can `jj branch list --tracked` or `jj branch list -t`.
+This command omits local Git-tracking branches by default.
+
+You can see if a specific branch is tracked with `jj branch list --tracked <branch name>`.
+
+
 ### Automatic tracking of branches & `git.auto-local-branch` option
 
 There are two situations where `jj` tracks branches automatically. `jj git
