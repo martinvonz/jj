@@ -100,8 +100,13 @@ pub struct BranchDeleteArgs {
 pub struct BranchListArgs {
     /// Show all tracking and non-tracking remote branches including the ones
     /// whose targets are synchronized with the local branches.
-    #[arg(long, short, conflicts_with_all = ["names", "revisions"])]
+    #[arg(long, short, conflicts_with_all = ["names", "revisions", "tracked"])]
     all: bool,
+
+    /// Show remote tracked branches only. Omits local Git-tracking branches by
+    /// default.
+    #[arg(long, short, conflicts_with_all = ["all"])]
+    tracked: bool,
 
     /// Show branches whose local name matches
     ///
@@ -679,13 +684,19 @@ fn cmd_branch_list(
             .map_or(true, |branch_names| branch_names.contains(name))
     });
     for (name, branch_target) in branches_to_list {
-        let (tracking_remote_refs, untracked_remote_refs) =
-            branch_target
-                .remote_refs
-                .into_iter()
-                .partition::<Vec<_>, _>(|&(_, remote_ref)| remote_ref.is_tracking());
+        let (mut tracking_remote_refs, untracked_remote_refs) = branch_target
+            .remote_refs
+            .into_iter()
+            .partition::<Vec<_>, _>(|&(_, remote_ref)| remote_ref.is_tracking());
 
-        if branch_target.local_target.is_present() || !tracking_remote_refs.is_empty() {
+        if args.tracked {
+            tracking_remote_refs
+                .retain(|&(remote, _)| remote != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
+        }
+
+        if !args.tracked && branch_target.local_target.is_present()
+            || !tracking_remote_refs.is_empty()
+        {
             write!(formatter.labeled("branch"), "{name}")?;
             if branch_target.local_target.is_present() {
                 print_branch_target(formatter, branch_target.local_target)?;
@@ -696,7 +707,8 @@ fn cmd_branch_list(
 
         for &(remote, remote_ref) in &tracking_remote_refs {
             let synced = remote_ref.target == *branch_target.local_target;
-            if !args.all && synced {
+
+            if !args.all && !args.tracked && synced {
                 continue;
             }
             write!(formatter, "  ")?;

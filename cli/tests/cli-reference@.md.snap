@@ -2,7 +2,6 @@
 source: cli/tests/test_generate_md_cli_help.rs
 description: "AUTO-GENERATED FILE, DO NOT EDIT. This cli reference is generated as an `insta` snapshot. MkDocs follows they symlink from docs/cli-reference.md to the snap. Unfortunately, `insta` unavoidably creates this header. Luckily, MkDocs ignores the header since it has the same format as Markdown headers. TODO: MkDocs may fail on Windows if symlinks are not enabled in the OS settings"
 ---
-
 <!-- BEGIN MARKDOWN-->
 
 # Command-Line Help for `jj`
@@ -299,6 +298,10 @@ For information about branches, see https://github.com/martinvonz/jj/blob/main/d
 ###### **Options:**
 
 * `-a`, `--all` — Show all tracking and non-tracking remote branches including the ones whose targets are synchronized with the local branches
+
+  Possible values: `true`, `false`
+
+* `-t`, `--tracked` — Show remote tracked branches only. Omits local Git-tracking branches by default
 
   Possible values: `true`, `false`
 
@@ -1972,4 +1975,3 @@ For information about stale working copies, see https://github.com/martinvonz/jj
     This document was generated automatically by
     <a href="https://crates.io/crates/clap-markdown"><code>clap-markdown</code></a>.
 </i></small>
-
