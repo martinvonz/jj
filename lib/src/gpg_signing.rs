@@ -109,7 +109,7 @@ impl GpgBackend {
         Self::new(
             config
                 .get_string("signing.backends.gpg.program")
-                .unwrap_or_else(|_| "gpg2".into())
+                .unwrap_or_else(|_| "gpg".into())
                 .into(),
             config
                 .get_bool("signing.backends.gpg.allow-expired-keys")
@@ -167,6 +167,7 @@ impl SigningBackend for GpgBackend {
         let output = self.run(
             data,
             &[
+                "--keyid-format=long".as_ref(),
                 "--status-fd=1".as_ref(),
                 "--verify".as_ref(),
                 // the only reason we have those .as_refs transmuting to &OsStr everywhere
