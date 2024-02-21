@@ -3,7 +3,7 @@ use std::fs::Permissions;
 use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::prelude::PermissionsExt;
-use std::process::Stdio;
+use std::process::{Command, Stdio};
 
 use assert_matches::assert_matches;
 use insta::assert_debug_snapshot;
@@ -75,6 +75,15 @@ impl GpgEnvironment {
     }
 }
 
+macro_rules! gpg_guard {
+    () => {
+        if Command::new("gpg").arg("--version").status().is_err() {
+            eprintln!("Skipping test because gpg is not installed on the system");
+            return;
+        }
+    };
+}
+
 fn backend(env: &GpgEnvironment) -> GpgBackend {
     // don't really need faked time for current tests,
     // but probably will need it for end-to-end cli tests
@@ -87,6 +96,8 @@ fn backend(env: &GpgEnvironment) -> GpgBackend {
 
 #[test]
 fn gpg_signing_roundtrip() {
+    gpg_guard!();
+
     let env = GpgEnvironment::new().unwrap();
     let backend = backend(&env);
     let data = b"hello world";
@@ -111,6 +122,8 @@ fn gpg_signing_roundtrip() {
 
 #[test]
 fn gpg_signing_roundtrip_explicit_key() {
+    gpg_guard!();
+
     let env = GpgEnvironment::new().unwrap();
     let backend = backend(&env);
     let data = b"hello world";
@@ -142,6 +155,8 @@ fn gpg_signing_roundtrip_explicit_key() {
 
 #[test]
 fn unknown_key() {
+    gpg_guard!();
+
     let env = GpgEnvironment::new().unwrap();
     let backend = backend(&env);
     let signature = br"-----BEGIN PGP SIGNATURE-----
@@ -173,6 +188,8 @@ fn unknown_key() {
 
 #[test]
 fn invalid_signature() {
+    gpg_guard!();
+
     let env = GpgEnvironment::new().unwrap();
     let backend = backend(&env);
     let signature = br"-----BEGIN PGP SIGNATURE-----
