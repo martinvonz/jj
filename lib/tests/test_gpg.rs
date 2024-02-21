@@ -86,7 +86,7 @@ fn backend(env: &GpgEnvironment) -> GpgBackend {
 }
 
 #[test]
-fn gpg_singing_roundtrip() {
+fn gpg_signing_roundtrip() {
     let env = GpgEnvironment::new().unwrap();
     let backend = backend(&env);
     let data = b"hello world";
