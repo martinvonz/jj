@@ -161,7 +161,7 @@
           export ZSTD_SYS_USE_PKG_CONFIG=1
           export LIBSSH2_SYS_USE_PKG_CONFIG=1
         '' + pkgs.lib.optionalString useMoldLinker ''
-          export RUSTFLAGS="-C link-arg=-fuse-ld=mold $RUSTFLAGS"
+          export RUSTFLAGS="-C link-arg=-fuse-ld=mold"
         '';
       };
     }));
