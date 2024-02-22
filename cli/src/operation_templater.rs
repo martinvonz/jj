@@ -56,6 +56,9 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage<'_> {
             OperationTemplatePropertyKind::Core(property) => {
                 template_builder::build_core_method(self, build_ctx, property, function)
             }
+            OperationTemplatePropertyKind::Operation(property) => {
+                build_operation_method(self, build_ctx, property, function)
+            }
             OperationTemplatePropertyKind::OperationId(property) => {
                 build_operation_id_method(self, build_ctx, property, function)
             }
@@ -64,6 +67,14 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage<'_> {
 }
 
 impl OperationTemplateLanguage<'_> {
+    #[allow(unused)] // TODO
+    fn wrap_operation(
+        &self,
+        property: impl TemplateProperty<Operation, Output = Operation> + 'static,
+    ) -> OperationTemplatePropertyKind {
+        OperationTemplatePropertyKind::Operation(Box::new(property))
+    }
+
     fn wrap_operation_id(
         &self,
         property: impl TemplateProperty<Operation, Output = OperationId> + 'static,
@@ -74,6 +85,7 @@ impl OperationTemplateLanguage<'_> {
 
 enum OperationTemplatePropertyKind {
     Core(CoreTemplatePropertyKind<'static, Operation>),
+    Operation(Box<dyn TemplateProperty<Operation, Output = Operation>>),
     OperationId(Box<dyn TemplateProperty<Operation, Output = OperationId>>),
 }
 
@@ -81,6 +93,7 @@ impl IntoTemplateProperty<'static, Operation> for OperationTemplatePropertyKind 
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Operation, Output = bool>>> {
         match self {
             OperationTemplatePropertyKind::Core(property) => property.try_into_boolean(),
+            OperationTemplatePropertyKind::Operation(_) => None,
             OperationTemplatePropertyKind::OperationId(_) => None,
         }
     }
@@ -105,6 +118,7 @@ impl IntoTemplateProperty<'static, Operation> for OperationTemplatePropertyKind 
     fn try_into_template(self) -> Option<Box<dyn Template<Operation>>> {
         match self {
             OperationTemplatePropertyKind::Core(property) => property.try_into_template(),
+            OperationTemplatePropertyKind::Operation(_) => None,
             OperationTemplatePropertyKind::OperationId(property) => Some(property.into_template()),
         }
     }
@@ -120,6 +134,20 @@ fn build_operation_keyword(
     let property = TemplatePropertyFn(|op: &Operation| op.clone());
     build_operation_keyword_opt(language, property, name)
         .ok_or_else(|| TemplateParseError::no_such_keyword(name, span))
+}
+
+fn build_operation_method(
+    language: &OperationTemplateLanguage,
+    _build_ctx: &BuildContext<OperationTemplatePropertyKind>,
+    self_property: impl TemplateProperty<Operation, Output = Operation> + 'static,
+    function: &FunctionCallNode,
+) -> TemplateParseResult<OperationTemplatePropertyKind> {
+    if let Some(property) = build_operation_keyword_opt(language, self_property, function.name) {
+        template_parser::expect_no_arguments(function)?;
+        Ok(property)
+    } else {
+        Err(TemplateParseError::no_such_method("Operation", function))
+    }
 }
 
 fn build_operation_keyword_opt(
