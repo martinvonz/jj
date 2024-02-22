@@ -67,7 +67,7 @@
           version = "unstable-${self.shortRev or "dirty"}";
 
           buildFeatures = [ "packaging" ];
-          cargoBuildFlags = ["--bin" "jj"]; # don't build and install the fake editors
+          cargoBuildFlags = [ "--bin" "jj" ]; # don't build and install the fake editors
           useNextest = true;
           src = filterSrc ./. [
             ".*\\.nix$"
@@ -110,11 +110,30 @@
         };
         default = self.packages.${system}.jujutsu;
       };
+
       apps.default = {
         type = "app";
         program = "${self.packages.${system}.jujutsu}/bin/jj";
       };
+
       formatter = pkgs.nixpkgs-fmt;
+
+      checks.jujutsu = self.packages.${system}.jujutsu.overrideAttrs ({ ... }: {
+        # FIXME (aseipp): when running `nix flake check`, this will override the
+        # main package, and nerf the build and installation phases. this is
+        # because for some inexplicable reason, the cargo cache gets invalidated
+        # in between buildPhase and checkPhase, causing every nix CI build to be
+        # 2x as long.
+        #
+        # upstream issue: https://github.com/NixOS/nixpkgs/issues/291222
+        buildPhase = "true";
+        installPhase = "touch $out";
+        # NOTE (aseipp): buildRustPackage also, by default, runs `cargo check`
+        # in `--release` mode, which is far slower; the existing CI builds all
+        # use the default `test` profile, so we should too.
+        cargoCheckType = "test";
+      });
+
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [
           # The CI checks against the latest nightly rustfmt, so we should too.
