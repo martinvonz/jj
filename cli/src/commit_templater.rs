@@ -54,8 +54,9 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
 
     template_builder::impl_core_wrap_property_fns!('repo, CommitTemplatePropertyKind::Core);
 
-    fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property> {
-        build_commit_keyword(self, name, span)
+    fn build_self(&self) -> Self::Property {
+        // Commit object is lightweight (a few Arc + CommitId)
+        self.wrap_commit(TemplatePropertyFn(|commit: &Commit| commit.clone()))
     }
 
     fn build_method(
@@ -236,21 +237,6 @@ impl CommitKeywordCache {
     }
 }
 
-fn build_commit_keyword<'repo>(
-    language: &CommitTemplateLanguage<'repo, '_>,
-    name: &str,
-    span: pest::Span,
-) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
-    // Commit object is lightweight (a few Arc + CommitId), so just clone it
-    // to turn into a property type. Abstraction over "for<'a> (&'a T) -> &'a T"
-    // and "(&T) -> T" wouldn't be simple. If we want to remove Clone/Rc/Arc,
-    // maybe we can add an abstraction that takes "Fn(&Commit) -> O" and returns
-    // "TemplateProperty<Commit, Output = O>".
-    let property = TemplatePropertyFn(|commit: &Commit| commit.clone());
-    build_commit_keyword_opt(language, property, name)
-        .ok_or_else(|| TemplateParseError::no_such_keyword(name, span))
-}
-
 fn build_commit_method<'repo>(
     language: &CommitTemplateLanguage<'repo, '_>,
     _build_ctx: &BuildContext<CommitTemplatePropertyKind<'repo>>,
@@ -265,6 +251,7 @@ fn build_commit_method<'repo>(
     }
 }
 
+// TODO: merge into build_commit_method()
 fn build_commit_keyword_opt<'repo>(
     language: &CommitTemplateLanguage<'repo, '_>,
     property: impl TemplateProperty<Commit, Output = Commit> + 'repo,

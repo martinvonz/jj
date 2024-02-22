@@ -68,7 +68,10 @@ pub trait TemplateLanguage<'a> {
         template: Box<dyn ListTemplate<Self::Context> + 'a>,
     ) -> Self::Property;
 
-    fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property>;
+    /// Creates the `self` template property, which is usually a function that
+    /// clones the `Context` object.
+    fn build_self(&self) -> Self::Property;
+
     fn build_method(
         &self,
         build_ctx: &BuildContext<Self::Property>,
@@ -270,6 +273,28 @@ impl<P> Expression<P> {
 pub struct BuildContext<'i, P> {
     /// Map of functions to create `L::Property`.
     local_variables: HashMap<&'i str, &'i (dyn Fn() -> P)>,
+}
+
+fn build_keyword<'a, L: TemplateLanguage<'a>>(
+    language: &L,
+    build_ctx: &BuildContext<L::Property>,
+    name: &str,
+    name_span: pest::Span<'_>,
+) -> TemplateParseResult<Expression<L::Property>> {
+    // Keyword is a 0-ary method on the "self" property
+    let self_property = language.build_self();
+    let function = FunctionCallNode {
+        name,
+        name_span,
+        args: vec![],
+        args_span: name_span.end_pos().span(&name_span.end_pos()),
+    };
+    let property = language
+        .build_method(build_ctx, self_property, &function)
+        // Since keyword is a 0-ary method, any argument-related errors mean
+        // there's no such keyword.
+        .map_err(|_| TemplateParseError::no_such_keyword(name, name_span))?;
+    Ok(Expression::with_label(property, name))
 }
 
 fn build_unary_operation<'a, L: TemplateLanguage<'a>>(
@@ -842,8 +867,7 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
                 // Don't label a local variable with its name
                 Ok(Expression::unlabeled(make()))
             } else {
-                let property = language.build_keyword(name, node.span)?;
-                Ok(Expression::with_label(property, *name))
+                build_keyword(language, build_ctx, name, node.span)
             }
         }
         ExpressionKind::Boolean(value) => {
@@ -960,15 +984,8 @@ mod tests {
 
         impl_core_wrap_property_fns!('static, TestTemplatePropertyKind::Core);
 
-        fn build_keyword(
-            &self,
-            name: &str,
-            span: pest::Span,
-        ) -> TemplateParseResult<Self::Property> {
-            self.keywords
-                .get(name)
-                .map(|f| f(self))
-                .ok_or_else(|| TemplateParseError::no_such_keyword(name, span))
+        fn build_self(&self) -> Self::Property {
+            TestTemplatePropertyKind::Unit
         }
 
         fn build_method(
@@ -995,7 +1012,6 @@ mod tests {
 
     enum TestTemplatePropertyKind {
         Core(CoreTemplatePropertyKind<'static, ()>),
-        #[allow(unused)] // TODO
         Unit,
     }
 
