@@ -115,25 +115,43 @@ fn build_operation_keyword(
     name: &str,
     span: pest::Span,
 ) -> TemplateParseResult<OperationTemplatePropertyKind> {
-    fn wrap_fn<O, F: Fn(&Operation) -> O>(f: F) -> TemplatePropertyFn<F> {
-        TemplatePropertyFn(f)
+    // Operation object is lightweight (a few Arc + OperationId), so just clone
+    // it to turn into a property type.
+    let property = TemplatePropertyFn(|op: &Operation| op.clone());
+    build_operation_keyword_opt(language, property, name)
+        .ok_or_else(|| TemplateParseError::no_such_keyword(name, span))
+}
+
+fn build_operation_keyword_opt(
+    language: &OperationTemplateLanguage,
+    property: impl TemplateProperty<Operation, Output = Operation> + 'static,
+    name: &str,
+) -> Option<OperationTemplatePropertyKind> {
+    fn wrap_fn<O>(
+        property: impl TemplateProperty<Operation, Output = Operation>,
+        f: impl Fn(&Operation) -> O,
+    ) -> impl TemplateProperty<Operation, Output = O> {
+        TemplateFunction::new(property, move |op| f(&op))
     }
     fn wrap_metadata_fn<O>(
-        f: impl Fn(&OperationMetadata) -> O + 'static,
+        property: impl TemplateProperty<Operation, Output = Operation>,
+        f: impl Fn(&OperationMetadata) -> O,
     ) -> impl TemplateProperty<Operation, Output = O> {
-        wrap_fn(move |op| f(&op.store_operation().metadata))
+        TemplateFunction::new(property, move |op| f(&op.store_operation().metadata))
     }
 
     let property = match name {
         "current_operation" => {
             let current_op_id = language.current_op_id.cloned();
-            language.wrap_boolean(wrap_fn(move |op| Some(op.id()) == current_op_id.as_ref()))
+            language.wrap_boolean(wrap_fn(property, move |op| {
+                Some(op.id()) == current_op_id.as_ref()
+            }))
         }
-        "description" => {
-            language.wrap_string(wrap_metadata_fn(|metadata| metadata.description.clone()))
-        }
-        "id" => language.wrap_operation_id(wrap_fn(|op| op.id().clone())),
-        "tags" => language.wrap_string(wrap_metadata_fn(|metadata| {
+        "description" => language.wrap_string(wrap_metadata_fn(property, |metadata| {
+            metadata.description.clone()
+        })),
+        "id" => language.wrap_operation_id(wrap_fn(property, |op| op.id().clone())),
+        "tags" => language.wrap_string(wrap_metadata_fn(property, |metadata| {
             // TODO: introduce map type
             metadata
                 .tags
@@ -141,21 +159,23 @@ fn build_operation_keyword(
                 .map(|(key, value)| format!("{key}: {value}"))
                 .join("\n")
         })),
-        "time" => language.wrap_timestamp_range(wrap_metadata_fn(|metadata| TimestampRange {
-            start: metadata.start_time.clone(),
-            end: metadata.end_time.clone(),
-        })),
-        "user" => language.wrap_string(wrap_metadata_fn(|metadata| {
+        "time" => {
+            language.wrap_timestamp_range(wrap_metadata_fn(property, |metadata| TimestampRange {
+                start: metadata.start_time.clone(),
+                end: metadata.end_time.clone(),
+            }))
+        }
+        "user" => language.wrap_string(wrap_metadata_fn(property, |metadata| {
             // TODO: introduce dedicated type and provide accessors?
             format!("{}@{}", metadata.username, metadata.hostname)
         })),
         "root" => {
             let root_op_id = language.root_op_id.clone();
-            language.wrap_boolean(wrap_fn(move |op| op.id() == &root_op_id))
+            language.wrap_boolean(wrap_fn(property, move |op| op.id() == &root_op_id))
         }
-        _ => return Err(TemplateParseError::no_such_keyword(name, span)),
+        _ => return None,
     };
-    Ok(property)
+    Some(property)
 }
 
 impl Template<()> for OperationId {
