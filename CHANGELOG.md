@@ -37,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Templates now support logical operators: `||`, `&&`, `!`
 
+* Templates now support the `self` keyword, which is the current commit in `jj
+  log`/`obslog` templates.
+
 * `jj show` now accepts `-T`/`--template` option to render its output using
   template
 

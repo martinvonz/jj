@@ -9,17 +9,20 @@ A couple of `jj` commands accept a template via `-T`/`--template` option.
 ## Keywords
 
 Keywords represent objects of different types; the types are described in
-a follow-up section.
+a follow-up section. In addition to context-specific keywords, the top-level
+object can be referenced as `self`.
 
 ### Commit keywords
 
 In `jj log`/`jj obslog` templates, all 0-argument methods of [the `Commit`
-type](#commit-type) are available as keywords.
+type](#commit-type) are available as keywords. For example, `commit_id` is
+equivalent to `self.commit_id()`.
 
 ### Operation keywords
 
 In `jj op log` templates, all 0-argument methods of [the `Operation`
-type](#operation-type) are available as keywords.
+type](#operation-type) are available as keywords. For example,
+`current_operation` is equivalent to `self.current_operation()`.
 
 ## Operators
 

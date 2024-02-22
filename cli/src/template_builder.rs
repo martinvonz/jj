@@ -866,6 +866,9 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
             if let Some(make) = build_ctx.local_variables.get(name) {
                 // Don't label a local variable with its name
                 Ok(Expression::unlabeled(make()))
+            } else if *name == "self" {
+                // "self" is a special variable, so don't label it
+                Ok(Expression::unlabeled(language.build_self()))
             } else {
                 build_keyword(language, build_ctx, name, node.span)
             }
@@ -1312,6 +1315,24 @@ mod tests {
           | ^-------------^
           |
           = Lambda cannot be defined here
+        "###);
+    }
+
+    #[test]
+    fn test_self_keyword() {
+        let mut env = TestTemplateEnv::default();
+        env.add_keyword("say_hello", |language| {
+            language.wrap_string(Literal("Hello".to_owned()))
+        });
+
+        insta::assert_snapshot!(env.render_ok(r#"self.say_hello()"#), @"Hello");
+        insta::assert_snapshot!(env.parse_err(r#"self"#), @r###"
+         --> 1:1
+          |
+        1 | self
+          | ^--^
+          |
+          = Expected expression of type "Template"
         "###);
     }
 
