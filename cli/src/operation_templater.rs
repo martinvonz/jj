@@ -42,8 +42,9 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage<'_> {
 
     template_builder::impl_core_wrap_property_fns!('static, OperationTemplatePropertyKind::Core);
 
-    fn build_keyword(&self, name: &str, span: pest::Span) -> TemplateParseResult<Self::Property> {
-        build_operation_keyword(self, name, span)
+    fn build_self(&self) -> Self::Property {
+        // Operation object is lightweight (a few Arc + OperationId)
+        self.wrap_operation(TemplatePropertyFn(|op: &Operation| op.clone()))
     }
 
     fn build_method(
@@ -67,7 +68,6 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage<'_> {
 }
 
 impl OperationTemplateLanguage<'_> {
-    #[allow(unused)] // TODO
     fn wrap_operation(
         &self,
         property: impl TemplateProperty<Operation, Output = Operation> + 'static,
@@ -124,18 +124,6 @@ impl IntoTemplateProperty<'static, Operation> for OperationTemplatePropertyKind 
     }
 }
 
-fn build_operation_keyword(
-    language: &OperationTemplateLanguage,
-    name: &str,
-    span: pest::Span,
-) -> TemplateParseResult<OperationTemplatePropertyKind> {
-    // Operation object is lightweight (a few Arc + OperationId), so just clone
-    // it to turn into a property type.
-    let property = TemplatePropertyFn(|op: &Operation| op.clone());
-    build_operation_keyword_opt(language, property, name)
-        .ok_or_else(|| TemplateParseError::no_such_keyword(name, span))
-}
-
 fn build_operation_method(
     language: &OperationTemplateLanguage,
     _build_ctx: &BuildContext<OperationTemplatePropertyKind>,
@@ -150,6 +138,7 @@ fn build_operation_method(
     }
 }
 
+// TODO: merge into build_operation_method()
 fn build_operation_keyword_opt(
     language: &OperationTemplateLanguage,
     property: impl TemplateProperty<Operation, Output = Operation> + 'static,
