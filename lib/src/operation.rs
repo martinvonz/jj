@@ -27,7 +27,7 @@ use crate::view::View;
 pub struct Operation {
     op_store: Arc<dyn OpStore>,
     id: OperationId,
-    data: op_store::Operation,
+    data: Arc<op_store::Operation>, // allow cheap clone
 }
 
 impl Debug for Operation {
@@ -63,8 +63,16 @@ impl Hash for Operation {
 }
 
 impl Operation {
-    pub fn new(op_store: Arc<dyn OpStore>, id: OperationId, data: op_store::Operation) -> Self {
-        Operation { op_store, id, data }
+    pub fn new(
+        op_store: Arc<dyn OpStore>,
+        id: OperationId,
+        data: impl Into<Arc<op_store::Operation>>,
+    ) -> Self {
+        Operation {
+            op_store,
+            id,
+            data: data.into(),
+        }
     }
 
     pub fn op_store(&self) -> Arc<dyn OpStore> {
