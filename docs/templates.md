@@ -13,44 +13,13 @@ a follow-up section.
 
 ### Commit keywords
 
-The following keywords can be used in `jj log`/`jj obslog` templates.
-
-* `description: String`
-* `change_id: ChangeId`
-* `commit_id: CommitId`
-* `parents: List<Commit>`
-* `author: Signature`
-* `committer: Signature`
-* `working_copies: String`: For multi-workspace repository, indicate
-  working-copy commit as `<workspace name>@`.
-* `current_working_copy: Boolean`: True for the working-copy commit of the
-  current workspace.
-* `branches: List<RefName>`: Local and remote branches pointing to the commit.
-  A tracking remote branch will be included only if its target is different
-  from the local one.
-* `local_branches: List<RefName>`: All local branches pointing to the commit.
-* `remote_branches: List<RefName>`: All remote branches pointing to the commit.
-* `tags: List<RefName>`
-* `git_refs: List<RefName>`
-* `git_head: List<RefName>`
-* `divergent: Boolean`: True if the commit's change id corresponds to multiple
-  visible commits.
-* `hidden: Boolean`: True if the commit is not visible (a.k.a. abandoned).
-* `conflict: Boolean`: True if the commit contains merge conflicts.
-* `empty: Boolean`: True if the commit modifies no files.
-* `root: Boolean`: True if the commit is the root commit.
+In `jj log`/`jj obslog` templates, all 0-argument methods of [the `Commit`
+type](#commit-type) are available as keywords.
 
 ### Operation keywords
 
-The following keywords can be used in `jj op log` templates.
-
-* `current_operation: Boolean`
-* `description: String`
-* `id: OperationId`
-* `tags: String`
-* `time: TimestampRange`
-* `user: String`
-* `root: Boolean`: True if the commit is the root commit.
+In `jj op log` templates, all 0-argument methods of [the `Operation`
+type](#operation-type) are available as keywords.
 
 ## Operators
 
@@ -90,8 +59,32 @@ No methods are defined. Can be constructed with `false` or `true` literal.
 
 ### Commit type
 
-This type cannot be printed. All commit keywords are accessible as 0-argument
-methods.
+This type cannot be printed. The following methods are defined.
+
+* `description() -> String`
+* `change_id() -> ChangeId`
+* `commit_id() -> CommitId`
+* `parents() -> List<Commit>`
+* `author() -> Signature`
+* `committer() -> Signature`
+* `working_copies() -> String`: For multi-workspace repository, indicate
+  working-copy commit as `<workspace name>@`.
+* `current_working_copy() -> Boolean`: True for the working-copy commit of the
+  current workspace.
+* `branches() -> List<RefName>`: Local and remote branches pointing to the commit.
+  A tracking remote branch will be included only if its target is different
+  from the local one.
+* `local_branches() -> List<RefName>`: All local branches pointing to the commit.
+* `remote_branches() -> List<RefName>`: All remote branches pointing to the commit.
+* `tags() -> List<RefName>`
+* `git_refs() -> List<RefName>`
+* `git_head() -> List<RefName>`
+* `divergent() -> Boolean`: True if the commit's change id corresponds to multiple
+  visible commits.
+* `hidden() -> Boolean`: True if the commit is not visible (a.k.a. abandoned).
+* `conflict() -> Boolean`: True if the commit contains merge conflicts.
+* `empty() -> Boolean`: True if the commit modifies no files.
+* `root() -> Boolean`: True if the commit is the root commit.
 
 ### CommitId / ChangeId type
 
@@ -122,8 +115,15 @@ The following methods are defined. See also the `List` type.
 
 ### Operation type
 
-This type cannot be printed. All operation keywords are accessible as 0-argument
-methods.
+This type cannot be printed. The following methods are defined.
+
+* `current_operation() -> Boolean`
+* `description() -> String`
+* `id() -> OperationId`
+* `tags() -> String`
+* `time() -> TimestampRange`
+* `user() -> String`
+* `root() -> Boolean`: True if the commit is the root commit.
 
 ### OperationId type
 
