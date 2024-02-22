@@ -120,6 +120,11 @@ The following methods are defined. See also the `List` type.
 
 * `.join(separator: Template) -> Template`
 
+### Operation type
+
+This type cannot be printed. All operation keywords are accessible as 0-argument
+methods.
+
 ### OperationId type
 
 The following methods are defined.
