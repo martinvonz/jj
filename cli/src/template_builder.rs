@@ -956,9 +956,9 @@ mod tests {
 
     impl TemplateLanguage<'static> for TestTemplateLanguage {
         type Context = ();
-        type Property = CoreTemplatePropertyKind<'static, ()>;
+        type Property = TestTemplatePropertyKind;
 
-        impl_core_wrap_property_fns!('static);
+        impl_core_wrap_property_fns!('static, TestTemplatePropertyKind::Core);
 
         fn build_keyword(
             &self,
@@ -977,11 +977,59 @@ mod tests {
             property: Self::Property,
             function: &FunctionCallNode,
         ) -> TemplateParseResult<Self::Property> {
-            build_core_method(self, build_ctx, property, function)
+            match property {
+                TestTemplatePropertyKind::Core(property) => {
+                    build_core_method(self, build_ctx, property, function)
+                }
+                TestTemplatePropertyKind::Unit => {
+                    let build = self
+                        .keywords
+                        .get(function.name)
+                        .ok_or_else(|| TemplateParseError::no_such_method("()", function))?;
+                    template_parser::expect_no_arguments(function)?;
+                    Ok(build(self))
+                }
+            }
         }
     }
 
-    type TestTemplateKeywordFn = fn(&TestTemplateLanguage) -> CoreTemplatePropertyKind<'static, ()>;
+    enum TestTemplatePropertyKind {
+        Core(CoreTemplatePropertyKind<'static, ()>),
+        #[allow(unused)] // TODO
+        Unit,
+    }
+
+    impl IntoTemplateProperty<'static, ()> for TestTemplatePropertyKind {
+        fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<(), Output = bool>>> {
+            match self {
+                TestTemplatePropertyKind::Core(property) => property.try_into_boolean(),
+                TestTemplatePropertyKind::Unit => None,
+            }
+        }
+
+        fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<(), Output = i64>>> {
+            match self {
+                TestTemplatePropertyKind::Core(property) => property.try_into_integer(),
+                TestTemplatePropertyKind::Unit => None,
+            }
+        }
+
+        fn try_into_plain_text(self) -> Option<Box<dyn TemplateProperty<(), Output = String>>> {
+            match self {
+                TestTemplatePropertyKind::Core(property) => property.try_into_plain_text(),
+                TestTemplatePropertyKind::Unit => None,
+            }
+        }
+
+        fn try_into_template(self) -> Option<Box<dyn Template<()>>> {
+            match self {
+                TestTemplatePropertyKind::Core(property) => property.try_into_template(),
+                TestTemplatePropertyKind::Unit => None,
+            }
+        }
+    }
+
+    type TestTemplateKeywordFn = fn(&TestTemplateLanguage) -> TestTemplatePropertyKind;
 
     /// Helper to set up template evaluation environment.
     #[derive(Clone, Default)]
