@@ -191,8 +191,8 @@ struct OperationByEndTime(Operation);
 
 impl Ord for OperationByEndTime {
     fn cmp(&self, other: &Self) -> Ordering {
-        let self_end_time = &self.0.store_operation().metadata.end_time;
-        let other_end_time = &other.0.store_operation().metadata.end_time;
+        let self_end_time = &self.0.metadata().end_time;
+        let other_end_time = &other.0.metadata().end_time;
         self_end_time
             .cmp(other_end_time)
             .then_with(|| self.0.cmp(&other.0)) // to comply with Eq
