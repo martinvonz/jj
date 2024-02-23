@@ -243,20 +243,6 @@ fn build_commit_method<'repo>(
     self_property: impl TemplateProperty<Commit, Output = Commit> + 'repo,
     function: &FunctionCallNode,
 ) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
-    if let Some(property) = build_commit_keyword_opt(language, self_property, function.name) {
-        template_parser::expect_no_arguments(function)?;
-        Ok(property)
-    } else {
-        Err(TemplateParseError::no_such_method("Commit", function))
-    }
-}
-
-// TODO: merge into build_commit_method()
-fn build_commit_keyword_opt<'repo>(
-    language: &CommitTemplateLanguage<'repo, '_>,
-    property: impl TemplateProperty<Commit, Output = Commit> + 'repo,
-    name: &str,
-) -> Option<CommitTemplatePropertyKind<'repo>> {
     fn wrap_fn<'repo, O>(
         property: impl TemplateProperty<Commit, Output = Commit> + 'repo,
         f: impl Fn(&Commit) -> O + 'repo,
@@ -273,33 +259,52 @@ fn build_commit_keyword_opt<'repo>(
 
     let repo = language.repo;
     let cache = &language.keyword_cache;
-    let property = match name {
-        "description" => language.wrap_string(wrap_fn(property, |commit| {
-            text_util::complete_newline(commit.description())
-        })),
-        "change_id" => language.wrap_commit_or_change_id(wrap_fn(property, |commit| {
-            CommitOrChangeId::Change(commit.change_id().to_owned())
-        })),
-        "commit_id" => language.wrap_commit_or_change_id(wrap_fn(property, |commit| {
-            CommitOrChangeId::Commit(commit.id().to_owned())
-        })),
-        "parents" => language.wrap_commit_list(wrap_fn(property, |commit| commit.parents())),
-        "author" => language.wrap_signature(wrap_fn(property, |commit| commit.author().clone())),
+    let property = match function.name {
+        "description" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_string(wrap_fn(self_property, |commit| {
+                text_util::complete_newline(commit.description())
+            }))
+        }
+        "change_id" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_commit_or_change_id(wrap_fn(self_property, |commit| {
+                CommitOrChangeId::Change(commit.change_id().to_owned())
+            }))
+        }
+        "commit_id" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_commit_or_change_id(wrap_fn(self_property, |commit| {
+                CommitOrChangeId::Commit(commit.id().to_owned())
+            }))
+        }
+        "parents" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_commit_list(wrap_fn(self_property, |commit| commit.parents()))
+        }
+        "author" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_signature(wrap_fn(self_property, |commit| commit.author().clone()))
+        }
         "committer" => {
-            language.wrap_signature(wrap_fn(property, |commit| commit.committer().clone()))
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_signature(wrap_fn(self_property, |commit| commit.committer().clone()))
         }
         "working_copies" => {
-            language.wrap_string(wrap_repo_fn(repo, property, extract_working_copies))
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_string(wrap_repo_fn(repo, self_property, extract_working_copies))
         }
         "current_working_copy" => {
+            template_parser::expect_no_arguments(function)?;
             let workspace_id = language.workspace_id.clone();
-            language.wrap_boolean(wrap_fn(property, move |commit| {
+            language.wrap_boolean(wrap_fn(self_property, move |commit| {
                 Some(commit.id()) == repo.view().get_wc_commit_id(&workspace_id)
             }))
         }
         "branches" => {
+            template_parser::expect_no_arguments(function)?;
             let index = cache.branches_index(repo).clone();
-            language.wrap_ref_name_list(wrap_fn(property, move |commit| {
+            language.wrap_ref_name_list(wrap_fn(self_property, move |commit| {
                 index
                     .get(commit.id())
                     .iter()
@@ -309,8 +314,9 @@ fn build_commit_keyword_opt<'repo>(
             }))
         }
         "local_branches" => {
+            template_parser::expect_no_arguments(function)?;
             let index = cache.branches_index(repo).clone();
-            language.wrap_ref_name_list(wrap_fn(property, move |commit| {
+            language.wrap_ref_name_list(wrap_fn(self_property, move |commit| {
                 index
                     .get(commit.id())
                     .iter()
@@ -320,8 +326,9 @@ fn build_commit_keyword_opt<'repo>(
             }))
         }
         "remote_branches" => {
+            template_parser::expect_no_arguments(function)?;
             let index = cache.branches_index(repo).clone();
-            language.wrap_ref_name_list(wrap_fn(property, move |commit| {
+            language.wrap_ref_name_list(wrap_fn(self_property, move |commit| {
                 index
                     .get(commit.id())
                     .iter()
@@ -331,43 +338,61 @@ fn build_commit_keyword_opt<'repo>(
             }))
         }
         "tags" => {
+            template_parser::expect_no_arguments(function)?;
             let index = cache.tags_index(repo).clone();
-            language.wrap_ref_name_list(wrap_fn(property, move |commit| {
+            language.wrap_ref_name_list(wrap_fn(self_property, move |commit| {
                 index.get(commit.id()).to_vec()
             }))
         }
         "git_refs" => {
+            template_parser::expect_no_arguments(function)?;
             let index = cache.git_refs_index(repo).clone();
-            language.wrap_ref_name_list(wrap_fn(property, move |commit| {
+            language.wrap_ref_name_list(wrap_fn(self_property, move |commit| {
                 index.get(commit.id()).to_vec()
             }))
         }
-        "git_head" => language.wrap_ref_name_list(wrap_repo_fn(repo, property, extract_git_head)),
-        "divergent" => language.wrap_boolean(wrap_fn(property, |commit| {
-            // The given commit could be hidden in e.g. obslog.
-            let maybe_entries = repo.resolve_change_id(commit.change_id());
-            maybe_entries.map_or(0, |entries| entries.len()) > 1
-        })),
-        "hidden" => language.wrap_boolean(wrap_fn(property, |commit| {
-            let maybe_entries = repo.resolve_change_id(commit.change_id());
-            maybe_entries.map_or(true, |entries| !entries.contains(commit.id()))
-        })),
-        "conflict" => {
-            language.wrap_boolean(wrap_fn(property, |commit| commit.has_conflict().unwrap()))
+        "git_head" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_ref_name_list(wrap_repo_fn(repo, self_property, extract_git_head))
         }
-        "empty" => language.wrap_boolean(wrap_fn(property, |commit| {
-            if let [parent] = &commit.parents()[..] {
-                return parent.tree_id() == commit.tree_id();
-            }
-            let parent_tree = rewrite::merge_commit_trees(repo, &commit.parents()).unwrap();
-            *commit.tree_id() == parent_tree.id()
-        })),
-        "root" => language.wrap_boolean(wrap_fn(property, move |commit| {
-            commit.id() == repo.store().root_commit_id()
-        })),
-        _ => return None,
+        "divergent" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_boolean(wrap_fn(self_property, |commit| {
+                // The given commit could be hidden in e.g. obslog.
+                let maybe_entries = repo.resolve_change_id(commit.change_id());
+                maybe_entries.map_or(0, |entries| entries.len()) > 1
+            }))
+        }
+        "hidden" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_boolean(wrap_fn(self_property, |commit| {
+                let maybe_entries = repo.resolve_change_id(commit.change_id());
+                maybe_entries.map_or(true, |entries| !entries.contains(commit.id()))
+            }))
+        }
+        "conflict" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_boolean(wrap_fn(self_property, |commit| commit.has_conflict().unwrap()))
+        }
+        "empty" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_boolean(wrap_fn(self_property, |commit| {
+                if let [parent] = &commit.parents()[..] {
+                    return parent.tree_id() == commit.tree_id();
+                }
+                let parent_tree = rewrite::merge_commit_trees(repo, &commit.parents()).unwrap();
+                *commit.tree_id() == parent_tree.id()
+            }))
+        }
+        "root" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_boolean(wrap_fn(self_property, move |commit| {
+                commit.id() == repo.store().root_commit_id()
+            }))
+        }
+        _ => return Err(TemplateParseError::no_such_method("Commit", function)),
     };
-    Some(property)
+    Ok(property)
 }
 
 // TODO: return Vec<String>

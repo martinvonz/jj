@@ -130,20 +130,6 @@ fn build_operation_method(
     self_property: impl TemplateProperty<Operation, Output = Operation> + 'static,
     function: &FunctionCallNode,
 ) -> TemplateParseResult<OperationTemplatePropertyKind> {
-    if let Some(property) = build_operation_keyword_opt(language, self_property, function.name) {
-        template_parser::expect_no_arguments(function)?;
-        Ok(property)
-    } else {
-        Err(TemplateParseError::no_such_method("Operation", function))
-    }
-}
-
-// TODO: merge into build_operation_method()
-fn build_operation_keyword_opt(
-    language: &OperationTemplateLanguage,
-    property: impl TemplateProperty<Operation, Output = Operation> + 'static,
-    name: &str,
-) -> Option<OperationTemplatePropertyKind> {
     fn wrap_fn<O>(
         property: impl TemplateProperty<Operation, Output = Operation>,
         f: impl Fn(&Operation) -> O,
@@ -157,42 +143,59 @@ fn build_operation_keyword_opt(
         TemplateFunction::new(property, move |op| f(op.metadata()))
     }
 
-    let property = match name {
+    let property = match function.name {
         "current_operation" => {
+            template_parser::expect_no_arguments(function)?;
             let current_op_id = language.current_op_id.cloned();
-            language.wrap_boolean(wrap_fn(property, move |op| {
+            language.wrap_boolean(wrap_fn(self_property, move |op| {
                 Some(op.id()) == current_op_id.as_ref()
             }))
         }
-        "description" => language.wrap_string(wrap_metadata_fn(property, |metadata| {
-            metadata.description.clone()
-        })),
-        "id" => language.wrap_operation_id(wrap_fn(property, |op| op.id().clone())),
-        "tags" => language.wrap_string(wrap_metadata_fn(property, |metadata| {
-            // TODO: introduce map type
-            metadata
-                .tags
-                .iter()
-                .map(|(key, value)| format!("{key}: {value}"))
-                .join("\n")
-        })),
-        "time" => {
-            language.wrap_timestamp_range(wrap_metadata_fn(property, |metadata| TimestampRange {
-                start: metadata.start_time.clone(),
-                end: metadata.end_time.clone(),
+        "description" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_string(wrap_metadata_fn(self_property, |metadata| {
+                metadata.description.clone()
             }))
         }
-        "user" => language.wrap_string(wrap_metadata_fn(property, |metadata| {
-            // TODO: introduce dedicated type and provide accessors?
-            format!("{}@{}", metadata.username, metadata.hostname)
-        })),
-        "root" => {
-            let root_op_id = language.root_op_id.clone();
-            language.wrap_boolean(wrap_fn(property, move |op| op.id() == &root_op_id))
+        "id" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_operation_id(wrap_fn(self_property, |op| op.id().clone()))
         }
-        _ => return None,
+        "tags" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_string(wrap_metadata_fn(self_property, |metadata| {
+                // TODO: introduce map type
+                metadata
+                    .tags
+                    .iter()
+                    .map(|(key, value)| format!("{key}: {value}"))
+                    .join("\n")
+            }))
+        }
+        "time" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_timestamp_range(wrap_metadata_fn(self_property, |metadata| {
+                TimestampRange {
+                    start: metadata.start_time.clone(),
+                    end: metadata.end_time.clone(),
+                }
+            }))
+        }
+        "user" => {
+            template_parser::expect_no_arguments(function)?;
+            language.wrap_string(wrap_metadata_fn(self_property, |metadata| {
+                // TODO: introduce dedicated type and provide accessors?
+                format!("{}@{}", metadata.username, metadata.hostname)
+            }))
+        }
+        "root" => {
+            template_parser::expect_no_arguments(function)?;
+            let root_op_id = language.root_op_id.clone();
+            language.wrap_boolean(wrap_fn(self_property, move |op| op.id() == &root_op_id))
+        }
+        _ => return Err(TemplateParseError::no_such_method("Operation", function)),
     };
-    Some(property)
+    Ok(property)
 }
 
 impl Template<()> for OperationId {
