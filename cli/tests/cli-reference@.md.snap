@@ -2,7 +2,6 @@
 source: cli/tests/test_generate_md_cli_help.rs
 description: "AUTO-GENERATED FILE, DO NOT EDIT. This cli reference is generated as an `insta` snapshot. MkDocs follows they symlink from docs/cli-reference.md to the snap. Unfortunately, `insta` unavoidably creates this header. Luckily, MkDocs ignores the header since it has the same format as Markdown headers. TODO: MkDocs may fail on Windows if symlinks are not enabled in the OS settings"
 ---
-
 <!-- BEGIN MARKDOWN-->
 
 # Command-Line Help for `jj`
@@ -111,7 +110,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `commit` — Update the description and create a new change on top
 * `config` — Manage config options
 * `describe` — Update the change description or other metadata
-* `diff` — Compare file contents between two commits
+* `diff` — Compare file contents between two revisions
 * `diffedit` — Touch up the content changes in a revision with a diff editor
 * `duplicate` — Create a new change with the same content as an existing one
 * `edit` — Edit a commit in the working copy
@@ -612,7 +611,11 @@ Starts an editor to let you edit the description of a change. The editor will be
 
 ## `jj diff`
 
-Compare file contents between two commits
+Compare file contents between two revisions
+
+With the `-r` option, which is the default, shows the changes compared to the parent revision. If there are several parent revisions (i.e., the given revision is a merge), then they will be merged and the changes from the result to the given revision will be shown.
+
+With the `--from` and/or `--to` options, shows the difference from/to the given revisions. If either is left out, it defaults to the working-copy commit. For example, `jj diff --from main` shows the changes from "main" (perhaps a branch name) to the working-copy commit.
 
 **Usage:** `jj diff [OPTIONS] [PATHS]...`
 
@@ -1972,4 +1975,3 @@ For information about stale working copies, see https://github.com/martinvonz/jj
     This document was generated automatically by
     <a href="https://crates.io/crates/clap-markdown"><code>clap-markdown</code></a>.
 </i></small>
-
