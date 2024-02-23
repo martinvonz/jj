@@ -5490,7 +5490,7 @@ does not match the <code>jj help</code> output exactly.</p>
 <li><code>commit</code> — Update the description and create a new change on top</li>
 <li><code>config</code> — Manage config options</li>
 <li><code>describe</code> — Update the change description or other metadata</li>
-<li><code>diff</code> — Compare file contents between two commits</li>
+<li><code>diff</code> — Compare file contents between two revisions</li>
 <li><code>diffedit</code> — Touch up the content changes in a revision with a diff editor</li>
 <li><code>duplicate</code> — Create a new change with the same content as an existing one</li>
 <li><code>edit</code> — Edit a commit in the working copy</li>
@@ -5887,7 +5887,9 @@ Martin von Zweigbergk</p>
 </li>
 </ul>
 <h2 id="jj-diff"><code>jj diff</code><a class="headerlink" href="#jj-diff" title="Permanent link">&para;</a></h2>
-<p>Compare file contents between two commits</p>
+<p>Compare file contents between two revisions</p>
+<p>With the <code>-r</code> option, which is the default, shows the changes compared to the parent revision. If there are several parent revisions (i.e., the given revision is a merge), then they will be merged and the changes from the result to the given revision will be shown.</p>
+<p>With the <code>--from</code> and/or <code>--to</code> options, shows the difference from/to the given revisions. If either is left out, it defaults to the working-copy commit. For example, <code>jj diff --from main</code> shows the changes from "main" (perhaps a branch name) to the working-copy commit.</p>
 <p><strong>Usage:</strong> <code>jj diff [OPTIONS] [PATHS]...</code></p>
 <h6 id="arguments_16"><strong>Arguments:</strong><a class="headerlink" href="#arguments_16" title="Permanent link">&para;</a></h6>
 <ul>
