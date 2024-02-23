@@ -243,8 +243,6 @@ fn build_commit_method<'repo>(
     self_property: impl TemplateProperty<Commit, Output = Commit> + 'repo,
     function: &FunctionCallNode,
 ) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
-    let repo = language.repo;
-    let cache = &language.keyword_cache;
     let property = match function.name {
         "description" => {
             template_parser::expect_no_arguments(function)?;
@@ -284,12 +282,14 @@ fn build_commit_method<'repo>(
         }
         "working_copies" => {
             template_parser::expect_no_arguments(function)?;
+            let repo = language.repo;
             language.wrap_string(TemplateFunction::new(self_property, |commit| {
                 extract_working_copies(repo, &commit)
             }))
         }
         "current_working_copy" => {
             template_parser::expect_no_arguments(function)?;
+            let repo = language.repo;
             let workspace_id = language.workspace_id.clone();
             language.wrap_boolean(TemplateFunction::new(self_property, move |commit| {
                 Some(commit.id()) == repo.view().get_wc_commit_id(&workspace_id)
@@ -297,7 +297,7 @@ fn build_commit_method<'repo>(
         }
         "branches" => {
             template_parser::expect_no_arguments(function)?;
-            let index = cache.branches_index(repo).clone();
+            let index = language.keyword_cache.branches_index(language.repo).clone();
             language.wrap_ref_name_list(TemplateFunction::new(self_property, move |commit| {
                 index
                     .get(commit.id())
@@ -309,7 +309,7 @@ fn build_commit_method<'repo>(
         }
         "local_branches" => {
             template_parser::expect_no_arguments(function)?;
-            let index = cache.branches_index(repo).clone();
+            let index = language.keyword_cache.branches_index(language.repo).clone();
             language.wrap_ref_name_list(TemplateFunction::new(self_property, move |commit| {
                 index
                     .get(commit.id())
@@ -321,7 +321,7 @@ fn build_commit_method<'repo>(
         }
         "remote_branches" => {
             template_parser::expect_no_arguments(function)?;
-            let index = cache.branches_index(repo).clone();
+            let index = language.keyword_cache.branches_index(language.repo).clone();
             language.wrap_ref_name_list(TemplateFunction::new(self_property, move |commit| {
                 index
                     .get(commit.id())
@@ -333,26 +333,28 @@ fn build_commit_method<'repo>(
         }
         "tags" => {
             template_parser::expect_no_arguments(function)?;
-            let index = cache.tags_index(repo).clone();
+            let index = language.keyword_cache.tags_index(language.repo).clone();
             language.wrap_ref_name_list(TemplateFunction::new(self_property, move |commit| {
                 index.get(commit.id()).to_vec()
             }))
         }
         "git_refs" => {
             template_parser::expect_no_arguments(function)?;
-            let index = cache.git_refs_index(repo).clone();
+            let index = language.keyword_cache.git_refs_index(language.repo).clone();
             language.wrap_ref_name_list(TemplateFunction::new(self_property, move |commit| {
                 index.get(commit.id()).to_vec()
             }))
         }
         "git_head" => {
             template_parser::expect_no_arguments(function)?;
+            let repo = language.repo;
             language.wrap_ref_name_list(TemplateFunction::new(self_property, |commit| {
                 extract_git_head(repo, &commit)
             }))
         }
         "divergent" => {
             template_parser::expect_no_arguments(function)?;
+            let repo = language.repo;
             language.wrap_boolean(TemplateFunction::new(self_property, |commit| {
                 // The given commit could be hidden in e.g. obslog.
                 let maybe_entries = repo.resolve_change_id(commit.change_id());
@@ -361,6 +363,7 @@ fn build_commit_method<'repo>(
         }
         "hidden" => {
             template_parser::expect_no_arguments(function)?;
+            let repo = language.repo;
             language.wrap_boolean(TemplateFunction::new(self_property, |commit| {
                 let maybe_entries = repo.resolve_change_id(commit.change_id());
                 maybe_entries.map_or(true, |entries| !entries.contains(commit.id()))
@@ -374,6 +377,7 @@ fn build_commit_method<'repo>(
         }
         "empty" => {
             template_parser::expect_no_arguments(function)?;
+            let repo = language.repo;
             language.wrap_boolean(TemplateFunction::new(self_property, |commit| {
                 if let [parent] = &commit.parents()[..] {
                     return parent.tree_id() == commit.tree_id();
@@ -384,6 +388,7 @@ fn build_commit_method<'repo>(
         }
         "root" => {
             template_parser::expect_no_arguments(function)?;
+            let repo = language.repo;
             language.wrap_boolean(TemplateFunction::new(self_property, |commit| {
                 commit.id() == repo.store().root_commit_id()
             }))
