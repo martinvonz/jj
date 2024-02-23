@@ -243,68 +243,62 @@ fn build_commit_method<'repo>(
     self_property: impl TemplateProperty<Commit, Output = Commit> + 'repo,
     function: &FunctionCallNode,
 ) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
-    fn wrap_fn<'repo, O>(
-        property: impl TemplateProperty<Commit, Output = Commit> + 'repo,
-        f: impl Fn(&Commit) -> O + 'repo,
-    ) -> impl TemplateProperty<Commit, Output = O> + 'repo {
-        TemplateFunction::new(property, move |commit| f(&commit))
-    }
-    fn wrap_repo_fn<'repo, O>(
-        repo: &'repo dyn Repo,
-        property: impl TemplateProperty<Commit, Output = Commit> + 'repo,
-        f: impl Fn(&dyn Repo, &Commit) -> O + 'repo,
-    ) -> impl TemplateProperty<Commit, Output = O> + 'repo {
-        TemplateFunction::new(property, move |commit| f(repo, &commit))
-    }
-
     let repo = language.repo;
     let cache = &language.keyword_cache;
     let property = match function.name {
         "description" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_string(wrap_fn(self_property, |commit| {
+            language.wrap_string(TemplateFunction::new(self_property, |commit| {
                 text_util::complete_newline(commit.description())
             }))
         }
         "change_id" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_commit_or_change_id(wrap_fn(self_property, |commit| {
+            language.wrap_commit_or_change_id(TemplateFunction::new(self_property, |commit| {
                 CommitOrChangeId::Change(commit.change_id().to_owned())
             }))
         }
         "commit_id" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_commit_or_change_id(wrap_fn(self_property, |commit| {
+            language.wrap_commit_or_change_id(TemplateFunction::new(self_property, |commit| {
                 CommitOrChangeId::Commit(commit.id().to_owned())
             }))
         }
         "parents" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_commit_list(wrap_fn(self_property, |commit| commit.parents()))
+            language.wrap_commit_list(TemplateFunction::new(self_property, |commit| {
+                commit.parents()
+            }))
         }
         "author" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_signature(wrap_fn(self_property, |commit| commit.author().clone()))
+            language.wrap_signature(TemplateFunction::new(self_property, |commit| {
+                commit.author().clone()
+            }))
         }
         "committer" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_signature(wrap_fn(self_property, |commit| commit.committer().clone()))
+            language.wrap_signature(TemplateFunction::new(self_property, |commit| {
+                commit.committer().clone()
+            }))
         }
         "working_copies" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_string(wrap_repo_fn(repo, self_property, extract_working_copies))
+            language.wrap_string(TemplateFunction::new(self_property, |commit| {
+                extract_working_copies(repo, &commit)
+            }))
         }
         "current_working_copy" => {
             template_parser::expect_no_arguments(function)?;
             let workspace_id = language.workspace_id.clone();
-            language.wrap_boolean(wrap_fn(self_property, move |commit| {
+            language.wrap_boolean(TemplateFunction::new(self_property, move |commit| {
                 Some(commit.id()) == repo.view().get_wc_commit_id(&workspace_id)
             }))
         }
         "branches" => {
             template_parser::expect_no_arguments(function)?;
             let index = cache.branches_index(repo).clone();
-            language.wrap_ref_name_list(wrap_fn(self_property, move |commit| {
+            language.wrap_ref_name_list(TemplateFunction::new(self_property, move |commit| {
                 index
                     .get(commit.id())
                     .iter()
@@ -316,7 +310,7 @@ fn build_commit_method<'repo>(
         "local_branches" => {
             template_parser::expect_no_arguments(function)?;
             let index = cache.branches_index(repo).clone();
-            language.wrap_ref_name_list(wrap_fn(self_property, move |commit| {
+            language.wrap_ref_name_list(TemplateFunction::new(self_property, move |commit| {
                 index
                     .get(commit.id())
                     .iter()
@@ -328,7 +322,7 @@ fn build_commit_method<'repo>(
         "remote_branches" => {
             template_parser::expect_no_arguments(function)?;
             let index = cache.branches_index(repo).clone();
-            language.wrap_ref_name_list(wrap_fn(self_property, move |commit| {
+            language.wrap_ref_name_list(TemplateFunction::new(self_property, move |commit| {
                 index
                     .get(commit.id())
                     .iter()
@@ -340,24 +334,26 @@ fn build_commit_method<'repo>(
         "tags" => {
             template_parser::expect_no_arguments(function)?;
             let index = cache.tags_index(repo).clone();
-            language.wrap_ref_name_list(wrap_fn(self_property, move |commit| {
+            language.wrap_ref_name_list(TemplateFunction::new(self_property, move |commit| {
                 index.get(commit.id()).to_vec()
             }))
         }
         "git_refs" => {
             template_parser::expect_no_arguments(function)?;
             let index = cache.git_refs_index(repo).clone();
-            language.wrap_ref_name_list(wrap_fn(self_property, move |commit| {
+            language.wrap_ref_name_list(TemplateFunction::new(self_property, move |commit| {
                 index.get(commit.id()).to_vec()
             }))
         }
         "git_head" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_ref_name_list(wrap_repo_fn(repo, self_property, extract_git_head))
+            language.wrap_ref_name_list(TemplateFunction::new(self_property, |commit| {
+                extract_git_head(repo, &commit)
+            }))
         }
         "divergent" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_boolean(wrap_fn(self_property, |commit| {
+            language.wrap_boolean(TemplateFunction::new(self_property, |commit| {
                 // The given commit could be hidden in e.g. obslog.
                 let maybe_entries = repo.resolve_change_id(commit.change_id());
                 maybe_entries.map_or(0, |entries| entries.len()) > 1
@@ -365,18 +361,20 @@ fn build_commit_method<'repo>(
         }
         "hidden" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_boolean(wrap_fn(self_property, |commit| {
+            language.wrap_boolean(TemplateFunction::new(self_property, |commit| {
                 let maybe_entries = repo.resolve_change_id(commit.change_id());
                 maybe_entries.map_or(true, |entries| !entries.contains(commit.id()))
             }))
         }
         "conflict" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_boolean(wrap_fn(self_property, |commit| commit.has_conflict().unwrap()))
+            language.wrap_boolean(TemplateFunction::new(self_property, |commit| {
+                commit.has_conflict().unwrap()
+            }))
         }
         "empty" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_boolean(wrap_fn(self_property, |commit| {
+            language.wrap_boolean(TemplateFunction::new(self_property, |commit| {
                 if let [parent] = &commit.parents()[..] {
                     return parent.tree_id() == commit.tree_id();
                 }
@@ -386,7 +384,7 @@ fn build_commit_method<'repo>(
         }
         "root" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_boolean(wrap_fn(self_property, move |commit| {
+            language.wrap_boolean(TemplateFunction::new(self_property, |commit| {
                 commit.id() == repo.store().root_commit_id()
             }))
         }

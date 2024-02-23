@@ -16,7 +16,7 @@ use std::io;
 
 use itertools::Itertools as _;
 use jj_lib::object_id::ObjectId;
-use jj_lib::op_store::{OperationId, OperationMetadata};
+use jj_lib::op_store::OperationId;
 use jj_lib::operation::Operation;
 
 use crate::formatter::Formatter;
@@ -130,42 +130,29 @@ fn build_operation_method(
     self_property: impl TemplateProperty<Operation, Output = Operation> + 'static,
     function: &FunctionCallNode,
 ) -> TemplateParseResult<OperationTemplatePropertyKind> {
-    fn wrap_fn<O>(
-        property: impl TemplateProperty<Operation, Output = Operation>,
-        f: impl Fn(&Operation) -> O,
-    ) -> impl TemplateProperty<Operation, Output = O> {
-        TemplateFunction::new(property, move |op| f(&op))
-    }
-    fn wrap_metadata_fn<O>(
-        property: impl TemplateProperty<Operation, Output = Operation>,
-        f: impl Fn(&OperationMetadata) -> O,
-    ) -> impl TemplateProperty<Operation, Output = O> {
-        TemplateFunction::new(property, move |op| f(op.metadata()))
-    }
-
     let property = match function.name {
         "current_operation" => {
             template_parser::expect_no_arguments(function)?;
             let current_op_id = language.current_op_id.cloned();
-            language.wrap_boolean(wrap_fn(self_property, move |op| {
+            language.wrap_boolean(TemplateFunction::new(self_property, move |op| {
                 Some(op.id()) == current_op_id.as_ref()
             }))
         }
         "description" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_string(wrap_metadata_fn(self_property, |metadata| {
-                metadata.description.clone()
+            language.wrap_string(TemplateFunction::new(self_property, |op| {
+                op.metadata().description.clone()
             }))
         }
         "id" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_operation_id(wrap_fn(self_property, |op| op.id().clone()))
+            language.wrap_operation_id(TemplateFunction::new(self_property, |op| op.id().clone()))
         }
         "tags" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_string(wrap_metadata_fn(self_property, |metadata| {
+            language.wrap_string(TemplateFunction::new(self_property, |op| {
                 // TODO: introduce map type
-                metadata
+                op.metadata()
                     .tags
                     .iter()
                     .map(|(key, value)| format!("{key}: {value}"))
@@ -174,24 +161,26 @@ fn build_operation_method(
         }
         "time" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_timestamp_range(wrap_metadata_fn(self_property, |metadata| {
+            language.wrap_timestamp_range(TemplateFunction::new(self_property, |op| {
                 TimestampRange {
-                    start: metadata.start_time.clone(),
-                    end: metadata.end_time.clone(),
+                    start: op.metadata().start_time.clone(),
+                    end: op.metadata().end_time.clone(),
                 }
             }))
         }
         "user" => {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_string(wrap_metadata_fn(self_property, |metadata| {
+            language.wrap_string(TemplateFunction::new(self_property, |op| {
                 // TODO: introduce dedicated type and provide accessors?
-                format!("{}@{}", metadata.username, metadata.hostname)
+                format!("{}@{}", op.metadata().username, op.metadata().hostname)
             }))
         }
         "root" => {
             template_parser::expect_no_arguments(function)?;
             let root_op_id = language.root_op_id.clone();
-            language.wrap_boolean(wrap_fn(self_property, move |op| op.id() == &root_op_id))
+            language.wrap_boolean(TemplateFunction::new(self_property, move |op| {
+                op.id() == &root_op_id
+            }))
         }
         _ => return Err(TemplateParseError::no_such_method("Operation", function)),
     };
