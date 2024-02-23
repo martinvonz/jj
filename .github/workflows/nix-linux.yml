@@ -12,7 +12,7 @@ jobs:
   nix:
     runs-on: ubuntu-latest
     name: nix-build
-    timeout-minutes: 20
+    timeout-minutes: 15 # NOTE (aseipp): keep in-sync with the build.yml timeout limit
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
         with:
