@@ -19,7 +19,17 @@ use crate::cli_util::{CommandError, CommandHelper, RevisionArg};
 use crate::diff_util::{diff_formats_for, show_diff, DiffFormatArgs};
 use crate::ui::Ui;
 
-/// Compare file contents between two commits
+/// Compare file contents between two revisions
+///
+/// With the `-r` option, which is the default, shows the changes compared to
+/// the parent revision. If there are several parent revisions (i.e., the given
+/// revision is a merge), then they will be merged and the changes from the
+/// result to the given revision will be shown.
+///
+/// With the `--from` and/or `--to` options, shows the difference from/to the
+/// given revisions. If either is left out, it defaults to the working-copy
+/// commit. For example, `jj diff --from main` shows the changes from "main"
+/// (perhaps a branch name) to the working-copy commit.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct DiffArgs {
     /// Show changes in this revision, compared to its parent(s)
