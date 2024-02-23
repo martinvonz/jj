@@ -154,7 +154,7 @@ fn build_operation_keyword_opt(
         property: impl TemplateProperty<Operation, Output = Operation>,
         f: impl Fn(&OperationMetadata) -> O,
     ) -> impl TemplateProperty<Operation, Output = O> {
-        TemplateFunction::new(property, move |op| f(&op.store_operation().metadata))
+        TemplateFunction::new(property, move |op| f(op.metadata()))
     }
 
     let property = match name {

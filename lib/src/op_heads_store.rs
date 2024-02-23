@@ -129,7 +129,7 @@ where
         return Ok(op_head.clone());
     }
 
-    op_heads.sort_by_key(|op| op.store_operation().metadata.end_time.timestamp.clone());
+    op_heads.sort_by_key(|op| op.metadata().end_time.timestamp.clone());
     let new_op = resolver(op_heads)?;
     let mut old_op_heads = ancestor_op_heads;
     old_op_heads.extend_from_slice(new_op.parent_ids());

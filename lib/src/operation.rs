@@ -20,7 +20,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use crate::op_store;
-use crate::op_store::{OpStore, OpStoreResult, OperationId, ViewId};
+use crate::op_store::{OpStore, OpStoreResult, OperationId, OperationMetadata, ViewId};
 use crate::view::View;
 
 #[derive(Clone)]
@@ -102,6 +102,10 @@ impl Operation {
     pub fn view(&self) -> OpStoreResult<View> {
         let data = self.op_store.read_view(&self.data.view_id)?;
         Ok(View::new(data))
+    }
+
+    pub fn metadata(&self) -> &OperationMetadata {
+        &self.data.metadata
     }
 
     pub fn store_operation(&self) -> &op_store::Operation {
