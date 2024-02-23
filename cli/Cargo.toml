@@ -52,6 +52,7 @@ hex = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }
 jj-lib = { workspace = true }
+jj-docs = { workspace = true }
 maplit = { workspace = true }
 minus = { workspace = true }
 once_cell = { workspace = true }
@@ -65,6 +66,7 @@ serde = { workspace = true }
 slab = { workspace = true }
 strsim = { workspace = true }
 tempfile = { workspace = true }
+termimad = { workspace = true }
 textwrap = { workspace = true }
 thiserror = { workspace = true }
 timeago = { workspace = true }
