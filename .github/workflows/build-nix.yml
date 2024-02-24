@@ -1,4 +1,4 @@
-name: Nix on Linux
+name: nix
 
 on:
   push:
@@ -10,9 +10,14 @@ permissions: read-all
 
 jobs:
   nix:
-    runs-on: ubuntu-latest
-    name: nix-build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15 # NOTE (aseipp): keep in-sync with the build.yml timeout limit
+
+    name: flake check
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11
         with:
