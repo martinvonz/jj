@@ -35,11 +35,11 @@
             pkgs.lib.all (re: builtins.match re relPath == null) regexes;
         };
 
-      rust-version = pkgs.rust-bin.stable."1.76.0".default;
+      ourRustVersion = pkgs.rust-bin.stable."1.76.0".default;
 
       ourRustPlatform = pkgs.makeRustPlatform {
-        rustc = rust-version;
-        cargo = rust-version;
+        rustc = ourRustVersion;
+        cargo = ourRustVersion;
       };
 
       # these are needed in both devShell and buildInputs
@@ -137,14 +137,14 @@
       devShells.default = pkgs.mkShell {
         buildInputs = with pkgs; [
           # The CI checks against the latest nightly rustfmt, so we should too.
-          # NOTE (aseipp): include this FIRST before the rust-version override
-          # below; otherwise, it will be overridden by the rust-version and
+          # NOTE (aseipp): include this FIRST before the ourRustVersion override
+          # below; otherwise, it will be overridden by the ourRustVersion and
           # we'll get stable rustfmt instead.
           (rust-bin.selectLatestNightlyWith (toolchain: toolchain.rustfmt))
 
           # Using the minimal profile with explicit "clippy" extension to avoid
           # two versions of rustfmt
-          (rust-version.override {
+          (ourRustVersion.override {
             extensions = [
               "rust-src" # for rust-analyzer
               "clippy"
