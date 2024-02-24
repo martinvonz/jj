@@ -49,6 +49,12 @@
         libiconv
       ];
 
+      # work around https://github.com/nextest-rs/nextest/issues/267
+      # this needs to exist in both the devShell and preCheck phase!
+      darwinNextestHack = pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+        export DYLD_FALLBACK_LIBRARY_PATH=$(${ourRustVersion}/bin/rustc --print sysroot)/lib
+      '';
+      
       # NOTE (aseipp): on Linux, go ahead and use mold by default to improve
       # link times a bit; mostly useful for debug build speed, but will help
       # over time if we ever get more dependencies, too
@@ -97,7 +103,10 @@
           NIX_JJ_GIT_HASH = self.rev or "";
           CARGO_INCREMENTAL = "0";
 
-          preCheck = "export RUST_BACKTRACE=1";
+          preCheck = ''
+            export RUST_BACKTRACE=1
+          '' + darwinNextestHack;
+
           postInstall = ''
             $out/bin/jj util mangen > ./jj.1
             installManPage ./jj.1
@@ -181,7 +190,7 @@
           export LIBSSH2_SYS_USE_PKG_CONFIG=1
         '' + pkgs.lib.optionalString useMoldLinker ''
           export RUSTFLAGS="-C link-arg=-fuse-ld=mold"
-        '';
+        '' + darwinNextestHack;
       };
     }));
 }
