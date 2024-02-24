@@ -39,29 +39,30 @@ pub enum GitIgnoreError {
 /// Models the effective contents of multiple .gitignore files.
 #[derive(Debug)]
 pub struct GitIgnoreFile {
-    path: String,
     matchers: Vec<gitignore::Gitignore>,
 }
 
 impl GitIgnoreFile {
     pub fn empty() -> Arc<GitIgnoreFile> {
         Arc::new(GitIgnoreFile {
-            path: Default::default(),
             matchers: Default::default(),
         })
     }
 
+    /// Concatenates new `.gitignore` content at the `prefix` directory.
+    ///
+    /// The `prefix` should be a slash-separated path relative to the workspace
+    /// root.
     pub fn chain(
         self: &Arc<GitIgnoreFile>,
         prefix: &str,
         input: &[u8],
     ) -> Result<Arc<GitIgnoreFile>, GitIgnoreError> {
-        let path = self.path.clone() + prefix;
-        let mut builder = gitignore::GitignoreBuilder::new(&path);
+        let mut builder = gitignore::GitignoreBuilder::new(prefix);
         for (i, input_line) in input.split(|b| *b == b'\n').enumerate() {
             let line =
                 std::str::from_utf8(input_line).map_err(|err| GitIgnoreError::InvalidUtf8 {
-                    path: PathBuf::from(&path),
+                    path: PathBuf::from(prefix),
                     line_num_for_display: i + 1,
                     line: String::from_utf8_lossy(input_line).to_string(),
                     source: err,
@@ -74,9 +75,13 @@ impl GitIgnoreFile {
         let mut matchers = self.matchers.clone();
         matchers.push(matcher);
 
-        Ok(Arc::new(GitIgnoreFile { path, matchers }))
+        Ok(Arc::new(GitIgnoreFile { matchers }))
     }
 
+    /// Concatenates new `.gitignore` file at the `prefix` directory.
+    ///
+    /// The `prefix` should be a slash-separated path relative to the workspace
+    /// root.
     pub fn chain_with_file(
         self: &Arc<GitIgnoreFile>,
         prefix: &str,
@@ -191,6 +196,23 @@ mod tests {
     fn test_gitignore_deep_dir() {
         let file = GitIgnoreFile::empty()
             .chain("", b"/dir1/dir2/dir3\n")
+            .unwrap();
+        assert!(!file.matches("foo"));
+        assert!(!file.matches("dir1/foo"));
+        assert!(!file.matches("dir1/dir2/foo"));
+        assert!(file.matches("dir1/dir2/dir3/foo"));
+        assert!(file.matches("dir1/dir2/dir3/dir4/foo"));
+    }
+
+    #[test]
+    fn test_gitignore_deep_dir_chained() {
+        // Prefix is relative to root, not to parent file
+        let file = GitIgnoreFile::empty()
+            .chain("", b"/dummy\n")
+            .unwrap()
+            .chain("dir1/", b"/dummy\n")
+            .unwrap()
+            .chain("dir1/dir2/", b"/dir3\n")
             .unwrap();
         assert!(!file.matches("foo"));
         assert!(!file.matches("dir1/foo"));
@@ -362,7 +384,7 @@ mod tests {
         assert!(!file2.matches("foo/bar"));
         assert!(!file2.matches("foo/bar/baz"));
         assert!(file2.matches("foo/baz"));
-        // FIXME: assert!(file3.matches("foo/bar/baz"));
+        assert!(file3.matches("foo/bar/baz"));
         assert!(!file3.matches("foo/bar/qux"));
     }
 
