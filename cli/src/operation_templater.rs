@@ -31,12 +31,12 @@ use crate::templater::{
     TemplatePropertyFn, TimestampRange,
 };
 
-struct OperationTemplateLanguage<'b> {
-    root_op_id: &'b OperationId,
-    current_op_id: Option<&'b OperationId>,
+struct OperationTemplateLanguage {
+    root_op_id: OperationId,
+    current_op_id: Option<OperationId>,
 }
 
-impl TemplateLanguage<'static> for OperationTemplateLanguage<'_> {
+impl TemplateLanguage<'static> for OperationTemplateLanguage {
     type Context = Operation;
     type Property = OperationTemplatePropertyKind;
 
@@ -67,7 +67,7 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage<'_> {
     }
 }
 
-impl OperationTemplateLanguage<'_> {
+impl OperationTemplateLanguage {
     fn wrap_operation(
         &self,
         property: impl TemplateProperty<Operation, Output = Operation> + 'static,
@@ -133,7 +133,7 @@ fn build_operation_method(
     let property = match function.name {
         "current_operation" => {
             template_parser::expect_no_arguments(function)?;
-            let current_op_id = language.current_op_id.cloned();
+            let current_op_id = language.current_op_id.clone();
             language.wrap_boolean(TemplateFunction::new(self_property, move |op| {
                 Some(op.id()) == current_op_id.as_ref()
             }))
@@ -226,8 +226,8 @@ pub fn parse(
     aliases_map: &TemplateAliasesMap,
 ) -> TemplateParseResult<Box<dyn Template<Operation>>> {
     let language = OperationTemplateLanguage {
-        root_op_id,
-        current_op_id,
+        root_op_id: root_op_id.clone(),
+        current_op_id: current_op_id.cloned(),
     };
     let node = template_parser::parse(template_text, aliases_map)?;
     template_builder::build(&language, &node)

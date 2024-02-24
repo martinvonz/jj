@@ -41,15 +41,15 @@ use crate::templater::{
 };
 use crate::text_util;
 
-struct CommitTemplateLanguage<'repo, 'b> {
+struct CommitTemplateLanguage<'repo> {
     repo: &'repo dyn Repo,
-    workspace_id: &'b WorkspaceId,
+    workspace_id: WorkspaceId,
     id_prefix_context: &'repo IdPrefixContext,
     build_fn_table: CommitTemplateBuildFnTable<'repo>,
     keyword_cache: CommitKeywordCache,
 }
 
-impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
+impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
     type Context = Commit;
     type Property = CommitTemplatePropertyKind<'repo>;
 
@@ -111,7 +111,7 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo, '_> {
 
 // If we need to add multiple languages that support Commit types, this can be
 // turned into a trait which extends TemplateLanguage.
-impl<'repo> CommitTemplateLanguage<'repo, '_> {
+impl<'repo> CommitTemplateLanguage<'repo> {
     fn wrap_commit(
         &self,
         property: impl TemplateProperty<Commit, Output = Commit> + 'repo,
@@ -226,7 +226,7 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
 // table is bound to a named lifetime, and therefore can't be cached statically.
 type CommitTemplateBuildMethodFn<'repo, T> =
     fn(
-        &CommitTemplateLanguage<'repo, '_>,
+        &CommitTemplateLanguage<'repo>,
         &BuildContext<CommitTemplatePropertyKind<'repo>>,
         Box<dyn TemplateProperty<Commit, Output = T> + 'repo>,
         &FunctionCallNode,
@@ -546,7 +546,7 @@ impl Template<()> for Vec<RefName> {
 }
 
 fn build_ref_name_method<'repo>(
-    language: &CommitTemplateLanguage<'repo, '_>,
+    language: &CommitTemplateLanguage<'repo>,
     _build_ctx: &BuildContext<CommitTemplatePropertyKind<'repo>>,
     self_property: impl TemplateProperty<Commit, Output = RefName> + 'repo,
     function: &FunctionCallNode,
@@ -704,7 +704,7 @@ impl Template<()> for CommitOrChangeId {
 }
 
 fn build_commit_or_change_id_method<'repo>(
-    language: &CommitTemplateLanguage<'repo, '_>,
+    language: &CommitTemplateLanguage<'repo>,
     build_ctx: &BuildContext<CommitTemplatePropertyKind<'repo>>,
     self_property: impl TemplateProperty<Commit, Output = CommitOrChangeId> + 'repo,
     function: &FunctionCallNode,
@@ -775,7 +775,7 @@ impl ShortestIdPrefix {
 }
 
 fn build_shortest_id_prefix_method<'repo>(
-    language: &CommitTemplateLanguage<'repo, '_>,
+    language: &CommitTemplateLanguage<'repo>,
     _build_ctx: &BuildContext<CommitTemplatePropertyKind<'repo>>,
     self_property: impl TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo,
     function: &FunctionCallNode,
@@ -818,7 +818,7 @@ pub fn parse<'repo>(
 ) -> TemplateParseResult<Box<dyn Template<Commit> + 'repo>> {
     let language = CommitTemplateLanguage {
         repo,
-        workspace_id,
+        workspace_id: workspace_id.clone(),
         id_prefix_context,
         build_fn_table: CommitTemplateBuildFnTable::builtin(),
         keyword_cache: CommitKeywordCache::default(),
