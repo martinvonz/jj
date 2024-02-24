@@ -95,6 +95,7 @@ fn backend(env: &GpgEnvironment) -> GpgBackend {
 }
 
 #[test]
+#[cfg_attr(windows, ignore = "stuck randomly on Windows CI #3140")] // FIXME
 fn gpg_signing_roundtrip() {
     gpg_guard!();
 
@@ -121,6 +122,7 @@ fn gpg_signing_roundtrip() {
 }
 
 #[test]
+#[cfg_attr(windows, ignore = "stuck randomly on Windows CI #3140")] // FIXME
 fn gpg_signing_roundtrip_explicit_key() {
     gpg_guard!();
 
@@ -187,6 +189,7 @@ fn unknown_key() {
 }
 
 #[test]
+#[cfg_attr(windows, ignore = "stuck randomly on Windows CI #3140")] // FIXME
 fn invalid_signature() {
     gpg_guard!();
 
