@@ -16,7 +16,7 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::{fs, io};
+use std::{fs, io, iter};
 
 use ignore::gitignore;
 use thiserror::Error;
@@ -39,13 +39,15 @@ pub enum GitIgnoreError {
 /// Models the effective contents of multiple .gitignore files.
 #[derive(Debug)]
 pub struct GitIgnoreFile {
-    matchers: Vec<gitignore::Gitignore>,
+    parent: Option<Arc<GitIgnoreFile>>,
+    matcher: gitignore::Gitignore,
 }
 
 impl GitIgnoreFile {
     pub fn empty() -> Arc<GitIgnoreFile> {
         Arc::new(GitIgnoreFile {
-            matchers: Default::default(),
+            parent: None,
+            matcher: gitignore::Gitignore::empty(),
         })
     }
 
@@ -72,10 +74,12 @@ impl GitIgnoreFile {
             builder.add_line(None, line)?;
         }
         let matcher = builder.build()?;
-        let mut matchers = self.matchers.clone();
-        matchers.push(matcher);
-
-        Ok(Arc::new(GitIgnoreFile { matchers }))
+        let parent = if self.matcher.is_empty() {
+            self.parent.clone() // omit the empty root
+        } else {
+            Some(self.clone())
+        };
+        Ok(Arc::new(GitIgnoreFile { parent, matcher }))
     }
 
     /// Concatenates new `.gitignore` file at the `prefix` directory.
@@ -99,18 +103,17 @@ impl GitIgnoreFile {
     }
 
     fn matches_helper(&self, path: &str, is_dir: bool) -> bool {
-        self.matchers
-            .iter()
-            .rev()
-            .find_map(|matcher|
-                      // TODO: the documentation warns that
-                      // `matched_path_or_any_parents` is slower than `matched`;
-                      // ideally, we would switch to that.
-                      match matcher.matched_path_or_any_parents(path, is_dir) {
-                          ignore::Match::None => None,
-                          ignore::Match::Ignore(_) => Some(true),
-                          ignore::Match::Whitelist(_) => Some(false),
-                      })
+        iter::successors(Some(self), |file| file.parent.as_deref())
+            .find_map(|file| {
+                // TODO: the documentation warns that
+                // `matched_path_or_any_parents` is slower than `matched`;
+                // ideally, we would switch to that.
+                match file.matcher.matched_path_or_any_parents(path, is_dir) {
+                    ignore::Match::None => None,
+                    ignore::Match::Ignore(_) => Some(true),
+                    ignore::Match::Whitelist(_) => Some(false),
+                }
+            })
             .unwrap_or_default()
     }
 
