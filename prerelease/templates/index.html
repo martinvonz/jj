@@ -1690,46 +1690,16 @@ methods.</p>
 <p>A couple of <code>jj</code> commands accept a template via <code>-T</code>/<code>--template</code> option.</p>
 <h2 id="keywords">Keywords<a class="headerlink" href="#keywords" title="Permanent link">&para;</a></h2>
 <p>Keywords represent objects of different types; the types are described in
-a follow-up section.</p>
+a follow-up section. In addition to context-specific keywords, the top-level
+object can be referenced as <code>self</code>.</p>
 <h3 id="commit-keywords">Commit keywords<a class="headerlink" href="#commit-keywords" title="Permanent link">&para;</a></h3>
-<p>The following keywords can be used in <code>jj log</code>/<code>jj obslog</code> templates.</p>
-<ul>
-<li><code>description: String</code></li>
-<li><code>change_id: ChangeId</code></li>
-<li><code>commit_id: CommitId</code></li>
-<li><code>parents: List&lt;Commit&gt;</code></li>
-<li><code>author: Signature</code></li>
-<li><code>committer: Signature</code></li>
-<li><code>working_copies: String</code>: For multi-workspace repository, indicate
-  working-copy commit as <code>&lt;workspace name&gt;@</code>.</li>
-<li><code>current_working_copy: Boolean</code>: True for the working-copy commit of the
-  current workspace.</li>
-<li><code>branches: List&lt;RefName&gt;</code>: Local and remote branches pointing to the commit.
-  A tracking remote branch will be included only if its target is different
-  from the local one.</li>
-<li><code>local_branches: List&lt;RefName&gt;</code>: All local branches pointing to the commit.</li>
-<li><code>remote_branches: List&lt;RefName&gt;</code>: All remote branches pointing to the commit.</li>
-<li><code>tags: List&lt;RefName&gt;</code></li>
-<li><code>git_refs: List&lt;RefName&gt;</code></li>
-<li><code>git_head: List&lt;RefName&gt;</code></li>
-<li><code>divergent: Boolean</code>: True if the commit's change id corresponds to multiple
-  visible commits.</li>
-<li><code>hidden: Boolean</code>: True if the commit is not visible (a.k.a. abandoned).</li>
-<li><code>conflict: Boolean</code>: True if the commit contains merge conflicts.</li>
-<li><code>empty: Boolean</code>: True if the commit modifies no files.</li>
-<li><code>root: Boolean</code>: True if the commit is the root commit.</li>
-</ul>
+<p>In <code>jj log</code>/<code>jj obslog</code> templates, all 0-argument methods of <a href="#commit-type">the <code>Commit</code>
+type</a> are available as keywords. For example, <code>commit_id</code> is
+equivalent to <code>self.commit_id()</code>.</p>
 <h3 id="operation-keywords">Operation keywords<a class="headerlink" href="#operation-keywords" title="Permanent link">&para;</a></h3>
-<p>The following keywords can be used in <code>jj op log</code> templates.</p>
-<ul>
-<li><code>current_operation: Boolean</code></li>
-<li><code>description: String</code></li>
-<li><code>id: OperationId</code></li>
-<li><code>tags: String</code></li>
-<li><code>time: TimestampRange</code></li>
-<li><code>user: String</code></li>
-<li><code>root: Boolean</code>: True if the commit is the root commit.</li>
-</ul>
+<p>In <code>jj op log</code> templates, all 0-argument methods of <a href="#operation-type">the <code>Operation</code>
+type</a> are available as keywords. For example,
+<code>current_operation</code> is equivalent to <code>self.current_operation()</code>.</p>
 <h2 id="operators">Operators<a class="headerlink" href="#operators" title="Permanent link">&para;</a></h2>
 <p>The following operators are supported.</p>
 <ul>
@@ -1762,8 +1732,33 @@ a follow-up section.</p>
 <h3 id="boolean-type">Boolean type<a class="headerlink" href="#boolean-type" title="Permanent link">&para;</a></h3>
 <p>No methods are defined. Can be constructed with <code>false</code> or <code>true</code> literal.</p>
 <h3 id="commit-type">Commit type<a class="headerlink" href="#commit-type" title="Permanent link">&para;</a></h3>
-<p>This type cannot be printed. All commit keywords are accessible as 0-argument
-methods.</p>
+<p>This type cannot be printed. The following methods are defined.</p>
+<ul>
+<li><code>description() -&gt; String</code></li>
+<li><code>change_id() -&gt; ChangeId</code></li>
+<li><code>commit_id() -&gt; CommitId</code></li>
+<li><code>parents() -&gt; List&lt;Commit&gt;</code></li>
+<li><code>author() -&gt; Signature</code></li>
+<li><code>committer() -&gt; Signature</code></li>
+<li><code>working_copies() -&gt; String</code>: For multi-workspace repository, indicate
+  working-copy commit as <code>&lt;workspace name&gt;@</code>.</li>
+<li><code>current_working_copy() -&gt; Boolean</code>: True for the working-copy commit of the
+  current workspace.</li>
+<li><code>branches() -&gt; List&lt;RefName&gt;</code>: Local and remote branches pointing to the commit.
+  A tracking remote branch will be included only if its target is different
+  from the local one.</li>
+<li><code>local_branches() -&gt; List&lt;RefName&gt;</code>: All local branches pointing to the commit.</li>
+<li><code>remote_branches() -&gt; List&lt;RefName&gt;</code>: All remote branches pointing to the commit.</li>
+<li><code>tags() -&gt; List&lt;RefName&gt;</code></li>
+<li><code>git_refs() -&gt; List&lt;RefName&gt;</code></li>
+<li><code>git_head() -&gt; List&lt;RefName&gt;</code></li>
+<li><code>divergent() -&gt; Boolean</code>: True if the commit's change id corresponds to multiple
+  visible commits.</li>
+<li><code>hidden() -&gt; Boolean</code>: True if the commit is not visible (a.k.a. abandoned).</li>
+<li><code>conflict() -&gt; Boolean</code>: True if the commit contains merge conflicts.</li>
+<li><code>empty() -&gt; Boolean</code>: True if the commit modifies no files.</li>
+<li><code>root() -&gt; Boolean</code>: True if the commit is the root commit.</li>
+</ul>
 <h3 id="commitid-changeid-type">CommitId / ChangeId type<a class="headerlink" href="#commitid-changeid-type" title="Permanent link">&para;</a></h3>
 <p>The following methods are defined.</p>
 <ul>
@@ -1787,8 +1782,16 @@ defined.</p>
 <li><code>.join(separator: Template) -&gt; Template</code></li>
 </ul>
 <h3 id="operation-type">Operation type<a class="headerlink" href="#operation-type" title="Permanent link">&para;</a></h3>
-<p>This type cannot be printed. All operation keywords are accessible as 0-argument
-methods.</p>
+<p>This type cannot be printed. The following methods are defined.</p>
+<ul>
+<li><code>current_operation() -&gt; Boolean</code></li>
+<li><code>description() -&gt; String</code></li>
+<li><code>id() -&gt; OperationId</code></li>
+<li><code>tags() -&gt; String</code></li>
+<li><code>time() -&gt; TimestampRange</code></li>
+<li><code>user() -&gt; String</code></li>
+<li><code>root() -&gt; Boolean</code>: True if the commit is the root commit.</li>
+</ul>
 <h3 id="operationid-type">OperationId type<a class="headerlink" href="#operationid-type" title="Permanent link">&para;</a></h3>
 <p>The following methods are defined.</p>
 <ul>
