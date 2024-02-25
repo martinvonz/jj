@@ -11,6 +11,14 @@ merge-args = ["$left", "$base", "$right", "-o", "$output", "--auto-merge"]
 program="meld"
 # If using this as a template, note that `$output` is repeated twice below
 edit-args = ["$left", "$output", "$right", "-o", "$output"]
+# With the normal Meld merge conflict resolution setup, changes from `$base` to
+# either side are not highlighted. Here we offer an alternative that opens the
+# original two sides compared to the base in two more tabs.
+merge-args = ["--diff", "$left", "$output", "$right", "--diff", "$base", "$left", "--diff", "$base", "$right"]
+# The output pane in the first tab must be prepopulated with _something_. The
+# conflict markers were chosen here, rather than simply the base, because they
+# contain enough information to let you skip the other tabs for simple cases.
+merge-tool-edits-conflict-markers = true
 
 [merge-tools.vimdiff]
 program = "vim"

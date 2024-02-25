@@ -521,6 +521,16 @@ the conflict is done, `jj` assumes that the conflict was only partially resolved
 and parses the conflict markers to get the new state of the conflict. The
 conflict is considered fully resolved when there are no conflict markers left.
 
+### Experimental 3-tab conflict resolution
+
+The `"meld-3"` merge editor opens 3 tabs in Meld. The first tab is a 3-pane
+view of the left and right sides with an editing pane in the middle. The
+editing pane in the middle of the first tab contains [enough
+information](conflicts.md#conflict-markers) on its own to resolve conflicts.
+The next two tabs are 2-pane views for reference, each showing a diff from the
+base to one of the sides. Of the two reference tabs, the last tab (the right
+side compared to base) is generally the more useful one.
+
 ## Commit Signing
 
 `jj` can be configured to sign and verify the commits it creates using either 

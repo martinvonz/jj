@@ -71,6 +71,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added completions for [Nushell](https://nushell.sh) to `jj util completion`
 
+* Another way to resolve conflicts with Meld, in 3 tabs, adding to the
+  experimental `meld-3` tool.
+
 ### Fixed bugs
 
 * On Windows, symlinks in the repo are now materialized as regular files in the
