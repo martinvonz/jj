@@ -231,6 +231,31 @@ pub type TemplateBuildMethodFn<'a, L, T> =
 pub type TemplateBuildMethodFnMap<'a, L, T> =
     HashMap<&'static str, TemplateBuildMethodFn<'a, L, T>>;
 
+/// Symbol table of methods available in the core template.
+pub struct CoreTemplateBuildFnTable<'a, L: TemplateLanguage<'a>> {
+    string_methods: TemplateBuildMethodFnMap<'a, L, String>,
+    boolean_methods: TemplateBuildMethodFnMap<'a, L, bool>,
+    integer_methods: TemplateBuildMethodFnMap<'a, L, i64>,
+    signature_methods: TemplateBuildMethodFnMap<'a, L, Signature>,
+    timestamp_methods: TemplateBuildMethodFnMap<'a, L, Timestamp>,
+    timestamp_range_methods: TemplateBuildMethodFnMap<'a, L, TimestampRange>,
+    // TODO: add global functions table?
+}
+
+impl<'a, L: TemplateLanguage<'a>> CoreTemplateBuildFnTable<'a, L> {
+    /// Creates new symbol table containing the builtin methods.
+    pub fn builtin() -> Self {
+        CoreTemplateBuildFnTable {
+            string_methods: builtin_string_methods(),
+            boolean_methods: HashMap::new(),
+            integer_methods: HashMap::new(),
+            signature_methods: builtin_signature_methods(),
+            timestamp_methods: builtin_timestamp_methods(),
+            timestamp_range_methods: builtin_timestamp_range_methods(),
+        }
+    }
+}
+
 /// Opaque struct that represents a template value.
 pub struct Expression<P> {
     property: P,
@@ -373,133 +398,168 @@ fn build_method_call<'a, L: TemplateLanguage<'a>>(
 
 pub fn build_core_method<'a, L: TemplateLanguage<'a>>(
     language: &L,
+    build_fn_table: &CoreTemplateBuildFnTable<'a, L>,
     build_ctx: &BuildContext<L::Property>,
     property: CoreTemplatePropertyKind<'a, L::Context>,
     function: &FunctionCallNode,
 ) -> TemplateParseResult<L::Property> {
     match property {
         CoreTemplatePropertyKind::String(property) => {
-            build_string_method(language, build_ctx, property, function)
+            let table = &build_fn_table.string_methods;
+            let build = template_parser::lookup_method("String", table, function)?;
+            build(language, build_ctx, property, function)
         }
         CoreTemplatePropertyKind::StringList(property) => {
+            // TODO: migrate to table?
             build_formattable_list_method(language, build_ctx, property, function, |item| {
                 language.wrap_string(item)
             })
         }
         CoreTemplatePropertyKind::Boolean(property) => {
-            build_boolean_method(language, build_ctx, property, function)
+            let table = &build_fn_table.boolean_methods;
+            let build = template_parser::lookup_method("Boolean", table, function)?;
+            build(language, build_ctx, property, function)
         }
         CoreTemplatePropertyKind::Integer(property) => {
-            build_integer_method(language, build_ctx, property, function)
+            let table = &build_fn_table.integer_methods;
+            let build = template_parser::lookup_method("Integer", table, function)?;
+            build(language, build_ctx, property, function)
         }
         CoreTemplatePropertyKind::Signature(property) => {
-            build_signature_method(language, build_ctx, property, function)
+            let table = &build_fn_table.signature_methods;
+            let build = template_parser::lookup_method("Signature", table, function)?;
+            build(language, build_ctx, property, function)
         }
         CoreTemplatePropertyKind::Timestamp(property) => {
-            build_timestamp_method(language, build_ctx, property, function)
+            let table = &build_fn_table.timestamp_methods;
+            let build = template_parser::lookup_method("Timestamp", table, function)?;
+            build(language, build_ctx, property, function)
         }
         CoreTemplatePropertyKind::TimestampRange(property) => {
-            build_timestamp_range_method(language, build_ctx, property, function)
+            let table = &build_fn_table.timestamp_range_methods;
+            let build = template_parser::lookup_method("TimestampRange", table, function)?;
+            build(language, build_ctx, property, function)
         }
         CoreTemplatePropertyKind::Template(_) => {
+            // TODO: migrate to table?
             Err(TemplateParseError::no_such_method("Template", function))
         }
         CoreTemplatePropertyKind::ListTemplate(template) => {
+            // TODO: migrate to table?
             build_list_template_method(language, build_ctx, template, function)
         }
     }
 }
 
-fn build_string_method<'a, L: TemplateLanguage<'a>>(
-    language: &L,
-    build_ctx: &BuildContext<L::Property>,
-    self_property: impl TemplateProperty<L::Context, Output = String> + 'a,
-    function: &FunctionCallNode,
-) -> TemplateParseResult<L::Property> {
-    let property = match function.name {
-        "contains" => {
+fn builtin_string_methods<'a, L: TemplateLanguage<'a>>() -> TemplateBuildMethodFnMap<'a, L, String>
+{
+    // Not using maplit::hashmap!{} or custom declarative macro here because
+    // code completion inside macro is quite restricted.
+    let mut map = TemplateBuildMethodFnMap::<L, String>::new();
+    map.insert(
+        "contains",
+        |language, build_ctx, self_property, function| {
             let [needle_node] = template_parser::expect_exact_arguments(function)?;
             // TODO: or .try_into_string() to disable implicit type cast?
             let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
-            language.wrap_boolean(TemplateFunction::new(
-                (self_property, needle_property),
-                |(haystack, needle)| haystack.contains(&needle),
-            ))
-        }
-        "starts_with" => {
+            let out_property =
+                TemplateFunction::new((self_property, needle_property), |(haystack, needle)| {
+                    haystack.contains(&needle)
+                });
+            Ok(language.wrap_boolean(out_property))
+        },
+    );
+    map.insert(
+        "starts_with",
+        |language, build_ctx, self_property, function| {
             let [needle_node] = template_parser::expect_exact_arguments(function)?;
             let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
-            language.wrap_boolean(TemplateFunction::new(
-                (self_property, needle_property),
-                move |(haystack, needle)| haystack.starts_with(&needle),
-            ))
-        }
-        "ends_with" => {
+            let out_property =
+                TemplateFunction::new((self_property, needle_property), |(haystack, needle)| {
+                    haystack.starts_with(&needle)
+                });
+            Ok(language.wrap_boolean(out_property))
+        },
+    );
+    map.insert(
+        "ends_with",
+        |language, build_ctx, self_property, function| {
             let [needle_node] = template_parser::expect_exact_arguments(function)?;
             let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
-            language.wrap_boolean(TemplateFunction::new(
-                (self_property, needle_property),
-                move |(haystack, needle)| haystack.ends_with(&needle),
-            ))
-        }
-        "remove_prefix" => {
+            let out_property =
+                TemplateFunction::new((self_property, needle_property), |(haystack, needle)| {
+                    haystack.ends_with(&needle)
+                });
+            Ok(language.wrap_boolean(out_property))
+        },
+    );
+    map.insert(
+        "remove_prefix",
+        |language, build_ctx, self_property, function| {
             let [needle_node] = template_parser::expect_exact_arguments(function)?;
             let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
-            language.wrap_string(TemplateFunction::new(
-                (self_property, needle_property),
-                move |(haystack, needle)| {
+            let out_property =
+                TemplateFunction::new((self_property, needle_property), |(haystack, needle)| {
                     haystack
                         .strip_prefix(&needle)
                         .map(ToOwned::to_owned)
                         .unwrap_or(haystack)
-                },
-            ))
-        }
-        "remove_suffix" => {
+                });
+            Ok(language.wrap_string(out_property))
+        },
+    );
+    map.insert(
+        "remove_suffix",
+        |language, build_ctx, self_property, function| {
             let [needle_node] = template_parser::expect_exact_arguments(function)?;
             let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
-            language.wrap_string(TemplateFunction::new(
-                (self_property, needle_property),
-                move |(haystack, needle)| {
+            let out_property =
+                TemplateFunction::new((self_property, needle_property), |(haystack, needle)| {
                     haystack
                         .strip_suffix(&needle)
                         .map(ToOwned::to_owned)
                         .unwrap_or(haystack)
-                },
-            ))
-        }
-        "substr" => {
-            let [start_idx, end_idx] = template_parser::expect_exact_arguments(function)?;
-            let start_idx_property = expect_integer_expression(language, build_ctx, start_idx)?;
-            let end_idx_property = expect_integer_expression(language, build_ctx, end_idx)?;
-            language.wrap_string(TemplateFunction::new(
-                (self_property, start_idx_property, end_idx_property),
-                |(s, start_idx, end_idx)| string_substr(&s, start_idx, end_idx),
-            ))
-        }
-        "first_line" => {
+                });
+            Ok(language.wrap_string(out_property))
+        },
+    );
+    map.insert("substr", |language, build_ctx, self_property, function| {
+        let [start_idx, end_idx] = template_parser::expect_exact_arguments(function)?;
+        let start_idx_property = expect_integer_expression(language, build_ctx, start_idx)?;
+        let end_idx_property = expect_integer_expression(language, build_ctx, end_idx)?;
+        let out_property = TemplateFunction::new(
+            (self_property, start_idx_property, end_idx_property),
+            |(s, start_idx, end_idx)| string_substr(&s, start_idx, end_idx),
+        );
+        Ok(language.wrap_string(out_property))
+    });
+    map.insert(
+        "first_line",
+        |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |s| {
+            let out_property = TemplateFunction::new(self_property, |s| {
                 s.lines().next().unwrap_or_default().to_string()
-            }))
-        }
-        "lines" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string_list(TemplateFunction::new(self_property, |s| {
-                s.lines().map(|l| l.to_owned()).collect()
-            }))
-        }
-        "upper" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |s| s.to_uppercase()))
-        }
-        "lower" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |s| s.to_lowercase()))
-        }
-        _ => return Err(TemplateParseError::no_such_method("String", function)),
-    };
-    Ok(property)
+            });
+            Ok(language.wrap_string(out_property))
+        },
+    );
+    map.insert("lines", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property =
+            TemplateFunction::new(self_property, |s| s.lines().map(|l| l.to_owned()).collect());
+        Ok(language.wrap_string_list(out_property))
+    });
+    map.insert("upper", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |s| s.to_uppercase());
+        Ok(language.wrap_string(out_property))
+    });
+    map.insert("lower", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |s| s.to_lowercase());
+        Ok(language.wrap_string(out_property))
+    });
+    map
 }
 
 fn string_substr(s: &str, start_idx: i64, end_idx: i64) -> String {
@@ -527,144 +587,115 @@ fn string_substr(s: &str, start_idx: i64, end_idx: i64) -> String {
     }
 }
 
-fn build_boolean_method<'a, L: TemplateLanguage<'a>>(
-    _language: &L,
-    _build_ctx: &BuildContext<L::Property>,
-    _self_property: impl TemplateProperty<L::Context, Output = bool> + 'a,
-    function: &FunctionCallNode,
-) -> TemplateParseResult<L::Property> {
-    Err(TemplateParseError::no_such_method("Boolean", function))
-}
-
-fn build_integer_method<'a, L: TemplateLanguage<'a>>(
-    _language: &L,
-    _build_ctx: &BuildContext<L::Property>,
-    _self_property: impl TemplateProperty<L::Context, Output = i64> + 'a,
-    function: &FunctionCallNode,
-) -> TemplateParseResult<L::Property> {
-    Err(TemplateParseError::no_such_method("Integer", function))
-}
-
-fn build_signature_method<'a, L: TemplateLanguage<'a>>(
-    language: &L,
-    _build_ctx: &BuildContext<L::Property>,
-    self_property: impl TemplateProperty<L::Context, Output = Signature> + 'a,
-    function: &FunctionCallNode,
-) -> TemplateParseResult<L::Property> {
-    let property = match function.name {
-        "name" => {
+fn builtin_signature_methods<'a, L: TemplateLanguage<'a>>(
+) -> TemplateBuildMethodFnMap<'a, L, Signature> {
+    // Not using maplit::hashmap!{} or custom declarative macro here because
+    // code completion inside macro is quite restricted.
+    let mut map = TemplateBuildMethodFnMap::<L, Signature>::new();
+    map.insert("name", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |signature| signature.name);
+        Ok(language.wrap_string(out_property))
+    });
+    map.insert("email", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |signature| signature.email);
+        Ok(language.wrap_string(out_property))
+    });
+    map.insert(
+        "username",
+        |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |signature| {
-                signature.name
-            }))
-        }
-        "email" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |signature| {
-                signature.email
-            }))
-        }
-        "username" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |signature| {
+            let out_property = TemplateFunction::new(self_property, |signature| {
                 let (username, _) = text_util::split_email(&signature.email);
                 username.to_owned()
-            }))
-        }
-        "timestamp" => {
+            });
+            Ok(language.wrap_string(out_property))
+        },
+    );
+    map.insert(
+        "timestamp",
+        |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_timestamp(TemplateFunction::new(self_property, |signature| {
-                signature.timestamp
-            }))
-        }
-        _ => return Err(TemplateParseError::no_such_method("Signature", function)),
-    };
-    Ok(property)
+            let out_property =
+                TemplateFunction::new(self_property, |signature| signature.timestamp);
+            Ok(language.wrap_timestamp(out_property))
+        },
+    );
+    map
 }
 
-fn build_timestamp_method<'a, L: TemplateLanguage<'a>>(
-    language: &L,
-    _build_ctx: &BuildContext<L::Property>,
-    self_property: impl TemplateProperty<L::Context, Output = Timestamp> + 'a,
-    function: &FunctionCallNode,
-) -> TemplateParseResult<L::Property> {
-    let property = match function.name {
-        "ago" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |timestamp| {
-                time_util::format_timestamp_relative_to_now(&timestamp)
-            }))
-        }
-        "format" => {
-            // No dynamic string is allowed as the templater has no runtime error type.
-            let [format_node] = template_parser::expect_exact_arguments(function)?;
-            let format =
-                template_parser::expect_string_literal_with(format_node, |format, span| {
-                    time_util::FormattingItems::parse(format).ok_or_else(|| {
-                        TemplateParseError::unexpected_expression("Invalid time format", span)
-                    })
-                })?
-                .into_owned();
-            language.wrap_string(TemplateFunction::new(self_property, move |timestamp| {
-                time_util::format_absolute_timestamp_with(&timestamp, &format)
-            }))
-        }
-        "utc" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_timestamp(TemplateFunction::new(self_property, |mut timestamp| {
-                timestamp.tz_offset = 0;
-                timestamp
-            }))
-        }
-        "local" => {
-            template_parser::expect_no_arguments(function)?;
-            let tz_offset = chrono::Local::now().offset().local_minus_utc() / 60;
-            language.wrap_timestamp(TemplateFunction::new(
-                self_property,
-                move |mut timestamp| {
-                    timestamp.tz_offset = tz_offset;
-                    timestamp
-                },
-            ))
-        }
-        _ => return Err(TemplateParseError::no_such_method("Timestamp", function)),
-    };
-    Ok(property)
+fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a>>(
+) -> TemplateBuildMethodFnMap<'a, L, Timestamp> {
+    // Not using maplit::hashmap!{} or custom declarative macro here because
+    // code completion inside macro is quite restricted.
+    let mut map = TemplateBuildMethodFnMap::<L, Timestamp>::new();
+    map.insert("ago", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |timestamp| {
+            time_util::format_timestamp_relative_to_now(&timestamp)
+        });
+        Ok(language.wrap_string(out_property))
+    });
+    map.insert("format", |language, _build_ctx, self_property, function| {
+        // No dynamic string is allowed as the templater has no runtime error type.
+        let [format_node] = template_parser::expect_exact_arguments(function)?;
+        let format = template_parser::expect_string_literal_with(format_node, |format, span| {
+            time_util::FormattingItems::parse(format).ok_or_else(|| {
+                TemplateParseError::unexpected_expression("Invalid time format", span)
+            })
+        })?
+        .into_owned();
+        let out_property = TemplateFunction::new(self_property, move |timestamp| {
+            time_util::format_absolute_timestamp_with(&timestamp, &format)
+        });
+        Ok(language.wrap_string(out_property))
+    });
+    map.insert("utc", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |mut timestamp| {
+            timestamp.tz_offset = 0;
+            timestamp
+        });
+        Ok(language.wrap_timestamp(out_property))
+    });
+    map.insert("local", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let tz_offset = chrono::Local::now().offset().local_minus_utc() / 60;
+        let out_property = TemplateFunction::new(self_property, move |mut timestamp| {
+            timestamp.tz_offset = tz_offset;
+            timestamp
+        });
+        Ok(language.wrap_timestamp(out_property))
+    });
+    map
 }
 
-fn build_timestamp_range_method<'a, L: TemplateLanguage<'a>>(
-    language: &L,
-    _build_ctx: &BuildContext<L::Property>,
-    self_property: impl TemplateProperty<L::Context, Output = TimestampRange> + 'a,
-    function: &FunctionCallNode,
-) -> TemplateParseResult<L::Property> {
-    let property = match function.name {
-        "start" => {
+fn builtin_timestamp_range_methods<'a, L: TemplateLanguage<'a>>(
+) -> TemplateBuildMethodFnMap<'a, L, TimestampRange> {
+    // Not using maplit::hashmap!{} or custom declarative macro here because
+    // code completion inside macro is quite restricted.
+    let mut map = TemplateBuildMethodFnMap::<L, TimestampRange>::new();
+    map.insert("start", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |time_range| time_range.start);
+        Ok(language.wrap_timestamp(out_property))
+    });
+    map.insert("end", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |time_range| time_range.end);
+        Ok(language.wrap_timestamp(out_property))
+    });
+    map.insert(
+        "duration",
+        |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_timestamp(TemplateFunction::new(self_property, |time_range| {
-                time_range.start
-            }))
-        }
-        "end" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_timestamp(TemplateFunction::new(self_property, |time_range| {
-                time_range.end
-            }))
-        }
-        "duration" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |time_range| {
-                time_range.duration()
-            }))
-        }
-        _ => {
-            return Err(TemplateParseError::no_such_method(
-                "TimestampRange",
-                function,
-            ))
-        }
-    };
-    Ok(property)
+            let out_property =
+                TemplateFunction::new(self_property, |time_range| time_range.duration());
+            Ok(language.wrap_string(out_property))
+        },
+    );
+    map
 }
 
 fn build_list_template_method<'a, L: TemplateLanguage<'a>>(
@@ -996,8 +1027,8 @@ mod tests {
     use crate::template_parser::TemplateAliasesMap;
 
     /// Minimal template language for testing.
-    #[derive(Clone, Default)]
     struct TestTemplateLanguage {
+        build_fn_table: CoreTemplateBuildFnTable<'static, TestTemplateLanguage>,
         keywords: HashMap<&'static str, TestTemplateKeywordFn>,
     }
 
@@ -1019,7 +1050,8 @@ mod tests {
         ) -> TemplateParseResult<Self::Property> {
             match property {
                 TestTemplatePropertyKind::Core(property) => {
-                    build_core_method(self, build_ctx, property, function)
+                    let table = &self.build_fn_table;
+                    build_core_method(self, table, build_ctx, property, function)
                 }
                 TestTemplatePropertyKind::Unit => {
                     let build = self
@@ -1071,11 +1103,23 @@ mod tests {
     type TestTemplateKeywordFn = fn(&TestTemplateLanguage) -> TestTemplatePropertyKind;
 
     /// Helper to set up template evaluation environment.
-    #[derive(Clone, Default)]
     struct TestTemplateEnv {
         language: TestTemplateLanguage,
         aliases_map: TemplateAliasesMap,
         color_rules: Vec<(Vec<String>, formatter::Style)>,
+    }
+
+    impl Default for TestTemplateEnv {
+        fn default() -> Self {
+            TestTemplateEnv {
+                language: TestTemplateLanguage {
+                    build_fn_table: CoreTemplateBuildFnTable::builtin(),
+                    keywords: HashMap::new(),
+                },
+                aliases_map: TemplateAliasesMap::new(),
+                color_rules: Vec::new(),
+            }
+        }
     }
 
     impl TestTemplateEnv {
