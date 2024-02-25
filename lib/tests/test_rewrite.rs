@@ -1663,24 +1663,17 @@ fn test_rebase_abandoning_empty() {
     // Rebase B onto B2, where B2 and B have the same tree, abandoning all empty
     // commits.
     //
-    // We expect B, D, and G to be skipped because they're empty, but not E because
-    // it's the working commit. F also remains as it's not empty.
-    //
-    // F G (empty)                    F'
-    // |/                             |
-    // E (WC, empty)  D (empty)       E' (WC, empty)
-    // |             /                |
+    // We expect B, D, E, and G to be skipped because they're empty. F remains
+    // as it's not empty.
+    // F G (empty)
+    // |/
+    // E (WC, empty)  D (empty)       F' E' (WC, empty)
+    // |             /                |/
     // C-------------                 C'
     // |                           => |
     // B B2                           B2
     // |/                             |
     // A                              A
-    //
-    // TODO(#2869): There is a minor bug here. We'd like the result to be
-    // equivalent to rebasing and then `jj abandon`-ing all the empty commits.
-    // In case of the working copy, this would mean that F' would be a direct
-    // child of C', and the working copy would be a new commit that's also a
-    // direct child of C'.
 
     let mut tx = repo.start_transaction(&settings);
     let commit_a = write_random_commit(tx.mut_repo(), &settings);
@@ -1742,19 +1735,22 @@ fn test_rebase_abandoning_empty() {
     let new_commit_c =
         assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_c, &[commit_b2.id()]);
     assert_abandoned_with_parent(tx.mut_repo(), &rebase_map, &commit_d, new_commit_c.id());
-    let new_commit_e =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_e, &[new_commit_c.id()]);
+    assert_abandoned_with_parent(tx.mut_repo(), &rebase_map, &commit_e, new_commit_c.id());
     let new_commit_f =
-        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_f, &[new_commit_e.id()]);
-    assert_abandoned_with_parent(tx.mut_repo(), &rebase_map, &commit_g, new_commit_e.id());
+        assert_rebased_onto(tx.mut_repo(), &rebase_map, &commit_f, &[new_commit_c.id()]);
+    assert_abandoned_with_parent(tx.mut_repo(), &rebase_map, &commit_g, new_commit_c.id());
+
+    let new_wc_commit_id = tx
+        .mut_repo()
+        .view()
+        .get_wc_commit_id(&workspace)
+        .unwrap()
+        .clone();
+    let new_wc_commit = tx.mut_repo().store().get_commit(&new_wc_commit_id).unwrap();
+    assert_eq!(new_wc_commit.parent_ids(), &[new_commit_c.id().clone()]);
 
     assert_eq!(
         *tx.mut_repo().view().heads(),
-        hashset! {new_commit_f.id().clone()}
-    );
-
-    assert_eq!(
-        tx.mut_repo().view().get_wc_commit_id(&workspace),
-        Some(new_commit_e.id())
+        hashset! {new_commit_f.id().clone(), new_wc_commit_id.clone()}
     );
 }
