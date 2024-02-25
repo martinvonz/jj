@@ -32,9 +32,7 @@ use crate::formatter::Formatter;
 use crate::template_builder::{
     self, BuildContext, CoreTemplatePropertyKind, IntoTemplateProperty, TemplateLanguage,
 };
-use crate::template_parser::{
-    self, FunctionCallNode, TemplateAliasesMap, TemplateParseError, TemplateParseResult,
-};
+use crate::template_parser::{self, FunctionCallNode, TemplateAliasesMap, TemplateParseResult};
 use crate::templater::{
     self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
     TemplatePropertyFn,
@@ -76,6 +74,7 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
                 build(self, build_ctx, property, function)
             }
             CommitTemplatePropertyKind::CommitList(property) => {
+                // TODO: migrate to table?
                 template_builder::build_unformattable_list_method(
                     self,
                     build_ctx,
@@ -85,9 +84,12 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
                 )
             }
             CommitTemplatePropertyKind::RefName(property) => {
-                build_ref_name_method(self, build_ctx, property, function)
+                let table = &self.build_fn_table.ref_name_methods;
+                let build = template_parser::lookup_method("RefName", table, function)?;
+                build(self, build_ctx, property, function)
             }
             CommitTemplatePropertyKind::RefNameList(property) => {
+                // TODO: migrate to table?
                 template_builder::build_formattable_list_method(
                     self,
                     build_ctx,
@@ -97,10 +99,14 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
                 )
             }
             CommitTemplatePropertyKind::CommitOrChangeId(property) => {
-                build_commit_or_change_id_method(self, build_ctx, property, function)
+                let table = &self.build_fn_table.commit_or_change_id_methods;
+                let build = template_parser::lookup_method("CommitOrChangeId", table, function)?;
+                build(self, build_ctx, property, function)
             }
             CommitTemplatePropertyKind::ShortestIdPrefix(property) => {
-                build_shortest_id_prefix_method(self, build_ctx, property, function)
+                let table = &self.build_fn_table.shortest_id_prefix_methods;
+                let build = template_parser::lookup_method("ShortestIdPrefix", table, function)?;
+                build(self, build_ctx, property, function)
             }
         }
     }
@@ -233,7 +239,11 @@ type CommitTemplateBuildMethodFn<'repo, T> =
 struct CommitTemplateBuildFnTable<'repo> {
     // TODO: add core methods/functions table
     commit_methods: HashMap<&'static str, CommitTemplateBuildMethodFn<'repo, Commit>>,
-    // TODO: migrate other build_*_method()
+    ref_name_methods: HashMap<&'static str, CommitTemplateBuildMethodFn<'repo, RefName>>,
+    commit_or_change_id_methods:
+        HashMap<&'static str, CommitTemplateBuildMethodFn<'repo, CommitOrChangeId>>,
+    shortest_id_prefix_methods:
+        HashMap<&'static str, CommitTemplateBuildMethodFn<'repo, ShortestIdPrefix>>,
 }
 
 impl CommitTemplateBuildFnTable<'_> {
@@ -241,6 +251,9 @@ impl CommitTemplateBuildFnTable<'_> {
     fn builtin() -> Self {
         CommitTemplateBuildFnTable {
             commit_methods: builtin_commit_methods(),
+            ref_name_methods: builtin_ref_name_methods(),
+            commit_or_change_id_methods: builtin_commit_or_change_id_methods(),
+            shortest_id_prefix_methods: builtin_shortest_id_prefix_methods(),
         }
     }
 }
@@ -542,29 +555,24 @@ impl Template<()> for Vec<RefName> {
     }
 }
 
-fn build_ref_name_method<'repo>(
-    language: &CommitTemplateLanguage<'repo>,
-    _build_ctx: &BuildContext<CommitTemplatePropertyKind<'repo>>,
-    self_property: impl TemplateProperty<Commit, Output = RefName> + 'repo,
-    function: &FunctionCallNode,
-) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
-    let property = match function.name {
-        "name" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |ref_name| {
-                ref_name.name
-            }))
-        }
-        "remote" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |ref_name| {
-                ref_name.remote.unwrap_or_default()
-            }))
-        }
-        // TODO: expose conflict, synced, remote.is_some()
-        _ => return Err(TemplateParseError::no_such_method("RefName", function)),
-    };
-    Ok(property)
+fn builtin_ref_name_methods<'repo>(
+) -> HashMap<&'static str, CommitTemplateBuildMethodFn<'repo, RefName>> {
+    // Not using maplit::hashmap!{} or custom declarative macro here because
+    // code completion inside macro is quite restricted.
+    let mut map: HashMap<&'static str, CommitTemplateBuildMethodFn<RefName>> = HashMap::new();
+    map.insert("name", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |ref_name| ref_name.name);
+        Ok(language.wrap_string(out_property))
+    });
+    map.insert("remote", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |ref_name| {
+            ref_name.remote.unwrap_or_default()
+        });
+        Ok(language.wrap_string(out_property))
+    });
+    map
 }
 
 /// Cache for reverse lookup refs.
@@ -700,48 +708,41 @@ impl Template<()> for CommitOrChangeId {
     }
 }
 
-fn build_commit_or_change_id_method<'repo>(
-    language: &CommitTemplateLanguage<'repo>,
-    build_ctx: &BuildContext<CommitTemplatePropertyKind<'repo>>,
-    self_property: impl TemplateProperty<Commit, Output = CommitOrChangeId> + 'repo,
-    function: &FunctionCallNode,
-) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
-    let property = match function.name {
-        "short" => {
-            let ([], [len_node]) = template_parser::expect_arguments(function)?;
-            let len_property = len_node
-                .map(|node| template_builder::expect_integer_expression(language, build_ctx, node))
-                .transpose()?;
-            language.wrap_string(TemplateFunction::new(
-                (self_property, len_property),
-                |(id, len)| id.short(len.map_or(12, |l| l.try_into().unwrap_or(0))),
-            ))
-        }
-        "shortest" => {
+fn builtin_commit_or_change_id_methods<'repo>(
+) -> HashMap<&'static str, CommitTemplateBuildMethodFn<'repo, CommitOrChangeId>> {
+    // Not using maplit::hashmap!{} or custom declarative macro here because
+    // code completion inside macro is quite restricted.
+    let mut map: HashMap<&'static str, CommitTemplateBuildMethodFn<CommitOrChangeId>> =
+        HashMap::new();
+    map.insert("short", |language, build_ctx, self_property, function| {
+        let ([], [len_node]) = template_parser::expect_arguments(function)?;
+        let len_property = len_node
+            .map(|node| template_builder::expect_integer_expression(language, build_ctx, node))
+            .transpose()?;
+        let out_property = TemplateFunction::new((self_property, len_property), |(id, len)| {
+            id.short(len.map_or(12, |l| l.try_into().unwrap_or(0)))
+        });
+        Ok(language.wrap_string(out_property))
+    });
+    map.insert(
+        "shortest",
+        |language, build_ctx, self_property, function| {
             let id_prefix_context = &language.id_prefix_context;
             let ([], [len_node]) = template_parser::expect_arguments(function)?;
             let len_property = len_node
                 .map(|node| template_builder::expect_integer_expression(language, build_ctx, node))
                 .transpose()?;
-            language.wrap_shortest_id_prefix(TemplateFunction::new(
-                (self_property, len_property),
-                |(id, len)| {
-                    id.shortest(
-                        language.repo,
-                        id_prefix_context,
-                        len.and_then(|l| l.try_into().ok()).unwrap_or(0),
-                    )
-                },
-            ))
-        }
-        _ => {
-            return Err(TemplateParseError::no_such_method(
-                "CommitOrChangeId",
-                function,
-            ))
-        }
-    };
-    Ok(property)
+            let out_property = TemplateFunction::new((self_property, len_property), |(id, len)| {
+                id.shortest(
+                    language.repo,
+                    id_prefix_context,
+                    len.and_then(|l| l.try_into().ok()).unwrap_or(0),
+                )
+            });
+            Ok(language.wrap_shortest_id_prefix(out_property))
+        },
+    );
+    map
 }
 
 struct ShortestIdPrefix {
@@ -771,39 +772,33 @@ impl ShortestIdPrefix {
     }
 }
 
-fn build_shortest_id_prefix_method<'repo>(
-    language: &CommitTemplateLanguage<'repo>,
-    _build_ctx: &BuildContext<CommitTemplatePropertyKind<'repo>>,
-    self_property: impl TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo,
-    function: &FunctionCallNode,
-) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
-    let property = match function.name {
-        "prefix" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |id| id.prefix))
-        }
-        "rest" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |id| id.rest))
-        }
-        "upper" => {
-            template_parser::expect_no_arguments(function)?;
-            language
-                .wrap_shortest_id_prefix(TemplateFunction::new(self_property, |id| id.to_upper()))
-        }
-        "lower" => {
-            template_parser::expect_no_arguments(function)?;
-            language
-                .wrap_shortest_id_prefix(TemplateFunction::new(self_property, |id| id.to_lower()))
-        }
-        _ => {
-            return Err(TemplateParseError::no_such_method(
-                "ShortestIdPrefix",
-                function,
-            ))
-        }
-    };
-    Ok(property)
+fn builtin_shortest_id_prefix_methods<'repo>(
+) -> HashMap<&'static str, CommitTemplateBuildMethodFn<'repo, ShortestIdPrefix>> {
+    // Not using maplit::hashmap!{} or custom declarative macro here because
+    // code completion inside macro is quite restricted.
+    let mut map: HashMap<&'static str, CommitTemplateBuildMethodFn<ShortestIdPrefix>> =
+        HashMap::new();
+    map.insert("prefix", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |id| id.prefix);
+        Ok(language.wrap_string(out_property))
+    });
+    map.insert("rest", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |id| id.rest);
+        Ok(language.wrap_string(out_property))
+    });
+    map.insert("upper", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |id| id.to_upper());
+        Ok(language.wrap_shortest_id_prefix(out_property))
+    });
+    map.insert("lower", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |id| id.to_lower());
+        Ok(language.wrap_shortest_id_prefix(out_property))
+    });
+    map
 }
 
 pub fn parse<'repo>(
