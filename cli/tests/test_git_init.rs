@@ -542,12 +542,29 @@ fn test_git_init_colocated_via_flag_git_dir_exists() {
     let workspace_root = test_env.env_root().join("repo");
     init_git_repo(&workspace_root, false);
 
-    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "init", "--colocate"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+    insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to access the repository
-    Caused by:
-    1: Failed to initialize git repository
-    2: Refusing to initialize the existing '$TEST_ENV/repo/.git' directory
+    Done importing changes from the underlying Git repo.
+    Initialized repo in "repo"
+    "###);
+
+    // Check that the Git repo's HEAD got checked out
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    ◉  mwrttmos git.user@example.com 1970-01-01 01:02:03.000 +01:00 my-branch HEAD@git 8d698d4a
+    │  My commit message
+    ~
+    "###);
+
+    // Check that the Git repo's HEAD moves
+    test_env.jj_cmd_ok(&workspace_root, &["new"]);
+    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    ◉  sqpuoqvx test.user@example.com 2001-02-03 04:05:07.000 +07:00 HEAD@git f61b77cd
+    │  (no description set)
+    ~
     "###);
 }
 

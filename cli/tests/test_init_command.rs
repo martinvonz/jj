@@ -497,7 +497,7 @@ fn test_init_git_internal_must_be_colocated() {
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["init", "--git"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Did not create a jj repo because there is an existing Git repo in this directory.
-    Hint: To create a repo backed by the existing Git repo, run `jj git init --git-repo=.` instead.
+    Hint: To create a repo backed by the existing Git repo, run `jj git init --colocate` instead.
     "###);
 }
 

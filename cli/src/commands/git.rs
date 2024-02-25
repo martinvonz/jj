@@ -125,12 +125,9 @@ pub struct GitInitArgs {
     /// `git` repo, allowing the use of both `jj` and `git` commands
     /// in the same directory.
     ///
-    /// This is done by placing the backing git repo into a `.git` directory
-    /// in the root of the `jj` repo along with the `.jj` directory.
-    ///
-    /// This option is only valid when creating new repos. To
-    /// reuse an existing `.git` directory in an existing git
-    /// repo, see the `--git-repo` param below.
+    /// This is done by placing the backing git repo into a `.git` directory in
+    /// the root of the `jj` repo along with the `.jj` directory. If the `.git`
+    /// directory already exists, all the existing commits will be imported.
     ///
     /// This option is mutually exclusive with `--git-repo`.
     #[arg(long, conflicts_with = "git_repo")]
@@ -379,52 +376,67 @@ pub fn git_init(
     colocate: bool,
     git_repo: Option<&str>,
 ) -> Result<(), CommandError> {
-    if colocate {
-        let (workspace, repo) = Workspace::init_colocated_git(command.settings(), workspace_root)?;
-        let workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
-        maybe_add_gitignore(&workspace_command)?;
-        return Ok(());
+    #[derive(Clone, Debug)]
+    enum GitInitMode {
+        Colocate,
+        External(PathBuf),
+        Internal,
     }
 
-    if let Some(git_store_str) = git_repo {
-        let git_store_path = command.cwd().join(git_store_str);
-        let (workspace, repo) =
-            Workspace::init_external_git(command.settings(), workspace_root, &git_store_path)?;
-        // Import refs first so all the reachable commits are indexed in
-        // chronological order.
-        let colocated = is_colocated_git_workspace(&workspace, &repo);
-        let repo = init_git_refs(ui, command, repo, colocated)?;
-        let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
-        maybe_add_gitignore(&workspace_command)?;
-        workspace_command.maybe_snapshot(ui)?;
-        if !workspace_command.working_copy_shared_with_git() {
-            let mut tx = workspace_command.start_transaction();
-            jj_lib::git::import_head(tx.mut_repo())?;
-            if let Some(git_head_id) = tx.mut_repo().view().git_head().as_normal().cloned() {
-                let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
-                tx.check_out(&git_head_commit)?;
-            }
-            if tx.mut_repo().has_changes() {
-                tx.finish(ui, "import git head")?;
-            }
+    let colocated_git_repo_path = workspace_root.join(".git");
+    let init_mode = if colocate {
+        if colocated_git_repo_path.exists() {
+            GitInitMode::External(colocated_git_repo_path)
+        } else {
+            GitInitMode::Colocate
         }
-        print_trackable_remote_branches(ui, workspace_command.repo().view())?;
+    } else if let Some(path_str) = git_repo {
+        GitInitMode::External(command.cwd().join(path_str))
     } else {
-        if workspace_root.join(".git").exists() {
-            let cwd = command.cwd().canonicalize().unwrap();
-            let relative_wc_path = file_util::relative_path(&cwd, workspace_root);
+        if colocated_git_repo_path.exists() {
             return Err(user_error_with_hint(
                 "Did not create a jj repo because there is an existing Git repo in this directory.",
-                format!(
-                    r#"To create a repo backed by the existing Git repo, run `jj git init --git-repo={}` instead."#,
-                    relative_wc_path.display()
-                ),
+                "To create a repo backed by the existing Git repo, run `jj git init --colocate` \
+                 instead.",
             ));
         }
+        GitInitMode::Internal
+    };
 
-        Workspace::init_internal_git(command.settings(), workspace_root)?;
+    match &init_mode {
+        GitInitMode::Colocate => {
+            let (workspace, repo) =
+                Workspace::init_colocated_git(command.settings(), workspace_root)?;
+            let workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
+            maybe_add_gitignore(&workspace_command)?;
+        }
+        GitInitMode::External(git_repo_path) => {
+            let (workspace, repo) =
+                Workspace::init_external_git(command.settings(), workspace_root, git_repo_path)?;
+            // Import refs first so all the reachable commits are indexed in
+            // chronological order.
+            let colocated = is_colocated_git_workspace(&workspace, &repo);
+            let repo = init_git_refs(ui, command, repo, colocated)?;
+            let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
+            maybe_add_gitignore(&workspace_command)?;
+            workspace_command.maybe_snapshot(ui)?;
+            if !workspace_command.working_copy_shared_with_git() {
+                let mut tx = workspace_command.start_transaction();
+                jj_lib::git::import_head(tx.mut_repo())?;
+                if let Some(git_head_id) = tx.mut_repo().view().git_head().as_normal().cloned() {
+                    let git_head_commit = tx.mut_repo().store().get_commit(&git_head_id)?;
+                    tx.check_out(&git_head_commit)?;
+                }
+                if tx.mut_repo().has_changes() {
+                    tx.finish(ui, "import git head")?;
+                }
+            }
+            print_trackable_remote_branches(ui, workspace_command.repo().view())?;
+        }
+        GitInitMode::Internal => {
+            Workspace::init_internal_git(command.settings(), workspace_root)?;
+        }
     }
-
     Ok(())
 }
 
