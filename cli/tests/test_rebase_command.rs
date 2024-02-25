@@ -1038,3 +1038,46 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     ◉
     "###);
 }
+
+#[test]
+fn test_rebase_skip_empty() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "a", &[]);
+    create_commit(&test_env, &repo_path, "b", &["a"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "a", "-m", "will become empty"]);
+    test_env.jj_cmd_ok(&repo_path, &["restore", "--from=b"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "already empty"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "also already empty"]);
+
+    // Test the setup
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]), @r###"
+    @  also already empty
+    ◉  already empty
+    ◉  will become empty
+    │ ◉  b
+    ├─╯
+    ◉  a
+    ◉
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d=b", "--skip-empty"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 3 commits
+    Working copy now at: yostqsxw 6b74c840 (empty) also already empty
+    Parent commit      : vruxwmqv 48a31526 (empty) already empty
+    "###);
+
+    // The parent commit became empty and was dropped, but the already empty commits
+    // were kept
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]), @r###"
+    @  also already empty
+    ◉  already empty
+    ◉  b
+    ◉  a
+    ◉
+    "###);
+}

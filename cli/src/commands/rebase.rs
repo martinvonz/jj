@@ -155,9 +155,9 @@ pub(crate) struct RebaseArgs {
     destination: Vec<RevisionArg>,
 
     /// If true, when rebasing would produce an empty commit, the commit is
-    /// skipped.
-    /// Will never skip merge commits with multiple non-empty parents.
-    /// Will never skip the working commit.
+    /// abandoned. It will not be abandoned if it was already empty before the
+    /// rebase. Will never skip merge commits with multiple non-empty
+    /// parents.
     #[arg(long, conflicts_with = "revision")]
     skip_empty: bool,
 
@@ -181,7 +181,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
 
     let rebase_options = RebaseOptions {
         empty: match args.skip_empty {
-            true => EmptyBehaviour::AbandonAllEmpty,
+            true => EmptyBehaviour::AbandonNewlyEmpty,
             false => EmptyBehaviour::Keep,
         },
         simplify_ancestor_merge: false,

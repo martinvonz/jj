@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Dropped support for the deprecated `:` revset operator. Use `::` instead.
 
+* `jj rebase --skip-empty` no longer abandons commits that were already empty
+  before the rebase.
+
 ### New features
 
 * Added support for commit signing and verification. This comes with 
