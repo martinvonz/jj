@@ -105,13 +105,22 @@ pub fn rebase_commit(
     old_commit: &Commit,
     new_parents: &[Commit],
 ) -> Result<Commit, TreeMergeError> {
-    rebase_commit_with_options(
+    let rebased_commit = rebase_commit_with_options(
         settings,
         mut_repo,
         old_commit,
         new_parents,
         &Default::default(),
-    )
+    )?;
+    match rebased_commit {
+        RebasedCommit::Rewritten(new_commit) => Ok(new_commit),
+        RebasedCommit::Abandoned { parent: _ } => panic!("Commit was unexpectedly abandoned"),
+    }
+}
+
+pub enum RebasedCommit {
+    Rewritten(Commit),
+    Abandoned { parent: Commit },
 }
 
 pub fn rebase_commit_with_options(
@@ -120,7 +129,7 @@ pub fn rebase_commit_with_options(
     old_commit: &Commit,
     new_parents: &[Commit],
     options: &RebaseOptions,
-) -> Result<Commit, TreeMergeError> {
+) -> Result<RebasedCommit, TreeMergeError> {
     let old_parents = old_commit.parents();
     let old_parent_trees = old_parents
         .iter()
@@ -159,28 +168,26 @@ pub fn rebase_commit_with_options(
             }
             EmptyBehaviour::AbandonAllEmpty => *parent.tree_id() == new_tree_id,
         };
-        // If the user runs `jj checkout foo`, then `jj rebase -s foo -d bar`, and we
-        // drop the checked out empty commit, then the user will unknowingly
-        // have done the equivalent of `jj edit foo` instead of `jj checkout
-        // foo`. Thus, we never allow dropping the working commit. See #2766 and
-        // #2760 for discussions.
-        if should_abandon && !mut_repo.view().is_wc_commit_id(old_commit.id()) {
+        if should_abandon {
             // Record old_commit as being succeeded by the parent.
             // This ensures that when we stack commits, the second commit knows to
             // rebase on top of the parent commit, rather than the abandoned commit.
             mut_repo.record_rewritten_commit(old_commit.id().clone(), parent.id().clone());
-            return Ok(parent.clone());
+            return Ok(RebasedCommit::Abandoned {
+                parent: parent.clone(),
+            });
         }
     }
     let new_parent_ids = new_parents
         .iter()
         .map(|commit| commit.id().clone())
         .collect();
-    Ok(mut_repo
+    let new_commit = mut_repo
         .rewrite_commit(settings, old_commit)
         .set_parents(new_parent_ids)
         .set_tree_id(new_tree_id)
-        .write()?)
+        .write()?;
+    Ok(RebasedCommit::Rewritten(new_commit))
 }
 
 pub fn rebase_to_dest_parent(
@@ -569,13 +576,20 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             .iter()
             .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id))
             .try_collect()?;
-        let new_commit = rebase_commit_with_options(
+        let rebased_commit: RebasedCommit = rebase_commit_with_options(
             self.settings,
             self.mut_repo,
             &old_commit,
             &new_parents,
             &self.options,
         )?;
+        let new_commit = match rebased_commit {
+            RebasedCommit::Rewritten(new_commit) => new_commit,
+            RebasedCommit::Abandoned { parent } => {
+                self.abandoned.insert(old_commit.id().clone());
+                parent
+            }
+        };
         let previous_rebased_value = self
             .rebased
             .insert(old_commit_id.clone(), new_commit.id().clone());
