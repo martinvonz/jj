@@ -49,7 +49,10 @@ pub(crate) fn cmd_init(
     command: &CommandHelper,
     args: &InitArgs,
 ) -> Result<(), CommandError> {
-    let cwd = command.cwd().canonicalize().unwrap();
+    let cwd = command
+        .cwd()
+        .canonicalize()
+        .map_err(|e| user_error_with_message("Could not determine current directory", e))?;
     let wc_path = cwd.join(&args.destination);
     let wc_path = file_util::create_or_reuse_dir(&wc_path)
         .and_then(|_| wc_path.canonicalize())
