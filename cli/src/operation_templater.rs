@@ -21,8 +21,8 @@ use jj_lib::operation::Operation;
 
 use crate::formatter::Formatter;
 use crate::template_builder::{
-    self, BuildContext, CoreTemplatePropertyKind, IntoTemplateProperty, TemplateBuildMethodFnMap,
-    TemplateLanguage,
+    self, BuildContext, CoreTemplateBuildFnTable, CoreTemplatePropertyKind, IntoTemplateProperty,
+    TemplateBuildMethodFnMap, TemplateLanguage,
 };
 use crate::template_parser::{self, FunctionCallNode, TemplateAliasesMap, TemplateParseResult};
 use crate::templater::{
@@ -55,7 +55,8 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage {
     ) -> TemplateParseResult<Self::Property> {
         match property {
             OperationTemplatePropertyKind::Core(property) => {
-                template_builder::build_core_method(self, build_ctx, property, function)
+                let table = &self.build_fn_table.core;
+                template_builder::build_core_method(self, table, build_ctx, property, function)
             }
             OperationTemplatePropertyKind::Operation(property) => {
                 let table = &self.build_fn_table.operation_methods;
@@ -134,7 +135,7 @@ type OperationTemplateBuildMethodFnMap<T> =
 
 /// Symbol table of methods available in the operation template.
 struct OperationTemplateBuildFnTable {
-    // TODO: add core methods/functions table
+    core: CoreTemplateBuildFnTable<'static, OperationTemplateLanguage>,
     operation_methods: OperationTemplateBuildMethodFnMap<Operation>,
     operation_id_methods: OperationTemplateBuildMethodFnMap<OperationId>,
 }
@@ -143,6 +144,7 @@ impl OperationTemplateBuildFnTable {
     /// Creates new symbol table containing the builtin methods.
     fn builtin() -> Self {
         OperationTemplateBuildFnTable {
+            core: CoreTemplateBuildFnTable::builtin(),
             operation_methods: builtin_operation_methods(),
             operation_id_methods: builtin_operation_id_methods(),
         }

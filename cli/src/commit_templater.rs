@@ -30,8 +30,8 @@ use once_cell::unsync::OnceCell;
 
 use crate::formatter::Formatter;
 use crate::template_builder::{
-    self, BuildContext, CoreTemplatePropertyKind, IntoTemplateProperty, TemplateBuildMethodFnMap,
-    TemplateLanguage,
+    self, BuildContext, CoreTemplateBuildFnTable, CoreTemplatePropertyKind, IntoTemplateProperty,
+    TemplateBuildMethodFnMap, TemplateLanguage,
 };
 use crate::template_parser::{self, FunctionCallNode, TemplateAliasesMap, TemplateParseResult};
 use crate::templater::{
@@ -67,7 +67,8 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
     ) -> TemplateParseResult<Self::Property> {
         match property {
             CommitTemplatePropertyKind::Core(property) => {
-                template_builder::build_core_method(self, build_ctx, property, function)
+                let table = &self.build_fn_table.core;
+                template_builder::build_core_method(self, table, build_ctx, property, function)
             }
             CommitTemplatePropertyKind::Commit(property) => {
                 let table = &self.build_fn_table.commit_methods;
@@ -228,7 +229,7 @@ type CommitTemplateBuildMethodFnMap<'repo, T> =
 
 /// Symbol table of methods available in the commit template.
 struct CommitTemplateBuildFnTable<'repo> {
-    // TODO: add core methods/functions table
+    core: CoreTemplateBuildFnTable<'repo, CommitTemplateLanguage<'repo>>,
     commit_methods: CommitTemplateBuildMethodFnMap<'repo, Commit>,
     ref_name_methods: CommitTemplateBuildMethodFnMap<'repo, RefName>,
     commit_or_change_id_methods: CommitTemplateBuildMethodFnMap<'repo, CommitOrChangeId>,
@@ -239,6 +240,7 @@ impl CommitTemplateBuildFnTable<'_> {
     /// Creates new symbol table containing the builtin methods.
     fn builtin() -> Self {
         CommitTemplateBuildFnTable {
+            core: CoreTemplateBuildFnTable::builtin(),
             commit_methods: builtin_commit_methods(),
             ref_name_methods: builtin_ref_name_methods(),
             commit_or_change_id_methods: builtin_commit_or_change_id_methods(),
