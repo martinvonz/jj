@@ -213,6 +213,24 @@ impl<'a, I: 'a> IntoTemplateProperty<'a, I> for CoreTemplatePropertyKind<'a, I> 
     }
 }
 
+/// Function that translates method call node of self type `T`.
+// The lifetime parameter 'a could be replaced with for<'a> to keep the method
+// table away from a certain lifetime. That's technically more correct, but I
+// couldn't find an easy way to expand that to the core template methods, which
+// are defined for L: TemplateLanguage<'a>. That's why the build fn table is
+// bound to a named lifetime, and therefore can't be cached statically.
+pub type TemplateBuildMethodFn<'a, L, T> =
+    fn(
+        &L,
+        &BuildContext<<L as TemplateLanguage<'a>>::Property>,
+        Box<dyn TemplateProperty<<L as TemplateLanguage<'a>>::Context, Output = T> + 'a>,
+        &FunctionCallNode,
+    ) -> TemplateParseResult<<L as TemplateLanguage<'a>>::Property>;
+
+/// Table of functions that translate method call node of self type `T`.
+pub type TemplateBuildMethodFnMap<'a, L, T> =
+    HashMap<&'static str, TemplateBuildMethodFn<'a, L, T>>;
+
 /// Opaque struct that represents a template value.
 pub struct Expression<P> {
     property: P,
