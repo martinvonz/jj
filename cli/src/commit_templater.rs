@@ -30,7 +30,8 @@ use once_cell::unsync::OnceCell;
 
 use crate::formatter::Formatter;
 use crate::template_builder::{
-    self, BuildContext, CoreTemplatePropertyKind, IntoTemplateProperty, TemplateLanguage,
+    self, BuildContext, CoreTemplatePropertyKind, IntoTemplateProperty, TemplateBuildMethodFnMap,
+    TemplateLanguage,
 };
 use crate::template_parser::{self, FunctionCallNode, TemplateAliasesMap, TemplateParseResult};
 use crate::templater::{
@@ -221,29 +222,17 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
     }
 }
 
-/// Function that translates method call node of self type `T`.
-// The lifetime parameter 'repo could be replaced with for<'repo> to keep the
-// method table away from a certain lifetime. That's technically more correct,
-// but I couldn't find an easy way to expand that to the core template methods,
-// which are defined for L: TemplateLanguage<'repo>. That's why the build fn
-// table is bound to a named lifetime, and therefore can't be cached statically.
-type CommitTemplateBuildMethodFn<'repo, T> =
-    fn(
-        &CommitTemplateLanguage<'repo>,
-        &BuildContext<CommitTemplatePropertyKind<'repo>>,
-        Box<dyn TemplateProperty<Commit, Output = T> + 'repo>,
-        &FunctionCallNode,
-    ) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>>;
+/// Table of functions that translate method call node of self type `T`.
+type CommitTemplateBuildMethodFnMap<'repo, T> =
+    TemplateBuildMethodFnMap<'repo, CommitTemplateLanguage<'repo>, T>;
 
 /// Symbol table of methods available in the commit template.
 struct CommitTemplateBuildFnTable<'repo> {
     // TODO: add core methods/functions table
-    commit_methods: HashMap<&'static str, CommitTemplateBuildMethodFn<'repo, Commit>>,
-    ref_name_methods: HashMap<&'static str, CommitTemplateBuildMethodFn<'repo, RefName>>,
-    commit_or_change_id_methods:
-        HashMap<&'static str, CommitTemplateBuildMethodFn<'repo, CommitOrChangeId>>,
-    shortest_id_prefix_methods:
-        HashMap<&'static str, CommitTemplateBuildMethodFn<'repo, ShortestIdPrefix>>,
+    commit_methods: CommitTemplateBuildMethodFnMap<'repo, Commit>,
+    ref_name_methods: CommitTemplateBuildMethodFnMap<'repo, RefName>,
+    commit_or_change_id_methods: CommitTemplateBuildMethodFnMap<'repo, CommitOrChangeId>,
+    shortest_id_prefix_methods: CommitTemplateBuildMethodFnMap<'repo, ShortestIdPrefix>,
 }
 
 impl CommitTemplateBuildFnTable<'_> {
@@ -283,11 +272,10 @@ impl CommitKeywordCache {
     }
 }
 
-fn builtin_commit_methods<'repo>(
-) -> HashMap<&'static str, CommitTemplateBuildMethodFn<'repo, Commit>> {
+fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Commit> {
     // Not using maplit::hashmap!{} or custom declarative macro here because
     // code completion inside macro is quite restricted.
-    let mut map: HashMap<&'static str, CommitTemplateBuildMethodFn<Commit>> = HashMap::new();
+    let mut map = CommitTemplateBuildMethodFnMap::<Commit>::new();
     map.insert(
         "description",
         |language, _build_ctx, self_property, function| {
@@ -555,11 +543,10 @@ impl Template<()> for Vec<RefName> {
     }
 }
 
-fn builtin_ref_name_methods<'repo>(
-) -> HashMap<&'static str, CommitTemplateBuildMethodFn<'repo, RefName>> {
+fn builtin_ref_name_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, RefName> {
     // Not using maplit::hashmap!{} or custom declarative macro here because
     // code completion inside macro is quite restricted.
-    let mut map: HashMap<&'static str, CommitTemplateBuildMethodFn<RefName>> = HashMap::new();
+    let mut map = CommitTemplateBuildMethodFnMap::<RefName>::new();
     map.insert("name", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
         let out_property = TemplateFunction::new(self_property, |ref_name| ref_name.name);
@@ -709,11 +696,10 @@ impl Template<()> for CommitOrChangeId {
 }
 
 fn builtin_commit_or_change_id_methods<'repo>(
-) -> HashMap<&'static str, CommitTemplateBuildMethodFn<'repo, CommitOrChangeId>> {
+) -> CommitTemplateBuildMethodFnMap<'repo, CommitOrChangeId> {
     // Not using maplit::hashmap!{} or custom declarative macro here because
     // code completion inside macro is quite restricted.
-    let mut map: HashMap<&'static str, CommitTemplateBuildMethodFn<CommitOrChangeId>> =
-        HashMap::new();
+    let mut map = CommitTemplateBuildMethodFnMap::<CommitOrChangeId>::new();
     map.insert("short", |language, build_ctx, self_property, function| {
         let ([], [len_node]) = template_parser::expect_arguments(function)?;
         let len_property = len_node
@@ -773,11 +759,10 @@ impl ShortestIdPrefix {
 }
 
 fn builtin_shortest_id_prefix_methods<'repo>(
-) -> HashMap<&'static str, CommitTemplateBuildMethodFn<'repo, ShortestIdPrefix>> {
+) -> CommitTemplateBuildMethodFnMap<'repo, ShortestIdPrefix> {
     // Not using maplit::hashmap!{} or custom declarative macro here because
     // code completion inside macro is quite restricted.
-    let mut map: HashMap<&'static str, CommitTemplateBuildMethodFn<ShortestIdPrefix>> =
-        HashMap::new();
+    let mut map = CommitTemplateBuildMethodFnMap::<ShortestIdPrefix>::new();
     map.insert("prefix", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
         let out_property = TemplateFunction::new(self_property, |id| id.prefix);
