@@ -379,9 +379,6 @@ pub fn git_init(
     colocate: bool,
     git_repo: Option<&str>,
 ) -> Result<(), CommandError> {
-    let cwd = command.cwd().canonicalize().unwrap();
-    let relative_wc_path = file_util::relative_path(&cwd, workspace_root);
-
     if colocate {
         let (workspace, repo) = Workspace::init_colocated_git(command.settings(), workspace_root)?;
         let workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
@@ -390,7 +387,7 @@ pub fn git_init(
     }
 
     if let Some(git_store_str) = git_repo {
-        let git_store_path = cwd.join(git_store_str);
+        let git_store_path = command.cwd().join(git_store_str);
         let (workspace, repo) =
             Workspace::init_external_git(command.settings(), workspace_root, &git_store_path)?;
         // Import refs first so all the reachable commits are indexed in
@@ -414,6 +411,8 @@ pub fn git_init(
         print_trackable_remote_branches(ui, workspace_command.repo().view())?;
     } else {
         if workspace_root.join(".git").exists() {
+            let cwd = command.cwd().canonicalize().unwrap();
+            let relative_wc_path = file_util::relative_path(&cwd, workspace_root);
             return Err(user_error_with_hint(
                 "Did not create a jj repo because there is an existing Git repo in this directory.",
                 format!(
