@@ -21,11 +21,10 @@ use jj_lib::operation::Operation;
 
 use crate::formatter::Formatter;
 use crate::template_builder::{
-    self, BuildContext, CoreTemplatePropertyKind, IntoTemplateProperty, TemplateLanguage,
+    self, BuildContext, CoreTemplatePropertyKind, IntoTemplateProperty, TemplateBuildMethodFnMap,
+    TemplateLanguage,
 };
-use crate::template_parser::{
-    self, FunctionCallNode, TemplateAliasesMap, TemplateParseError, TemplateParseResult,
-};
+use crate::template_parser::{self, FunctionCallNode, TemplateAliasesMap, TemplateParseResult};
 use crate::templater::{
     IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
     TemplatePropertyFn, TimestampRange,
@@ -34,6 +33,7 @@ use crate::templater::{
 struct OperationTemplateLanguage {
     root_op_id: OperationId,
     current_op_id: Option<OperationId>,
+    build_fn_table: OperationTemplateBuildFnTable,
 }
 
 impl TemplateLanguage<'static> for OperationTemplateLanguage {
@@ -58,10 +58,14 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage {
                 template_builder::build_core_method(self, build_ctx, property, function)
             }
             OperationTemplatePropertyKind::Operation(property) => {
-                build_operation_method(self, build_ctx, property, function)
+                let table = &self.build_fn_table.operation_methods;
+                let build = template_parser::lookup_method("Operation", table, function)?;
+                build(self, build_ctx, property, function)
             }
             OperationTemplatePropertyKind::OperationId(property) => {
-                build_operation_id_method(self, build_ctx, property, function)
+                let table = &self.build_fn_table.operation_id_methods;
+                let build = template_parser::lookup_method("OperationId", table, function)?;
+                build(self, build_ctx, property, function)
             }
         }
     }
@@ -124,67 +128,91 @@ impl IntoTemplateProperty<'static, Operation> for OperationTemplatePropertyKind 
     }
 }
 
-fn build_operation_method(
-    language: &OperationTemplateLanguage,
-    _build_ctx: &BuildContext<OperationTemplatePropertyKind>,
-    self_property: impl TemplateProperty<Operation, Output = Operation> + 'static,
-    function: &FunctionCallNode,
-) -> TemplateParseResult<OperationTemplatePropertyKind> {
-    let property = match function.name {
-        "current_operation" => {
+/// Table of functions that translate method call node of self type `T`.
+type OperationTemplateBuildMethodFnMap<T> =
+    TemplateBuildMethodFnMap<'static, OperationTemplateLanguage, T>;
+
+/// Symbol table of methods available in the operation template.
+struct OperationTemplateBuildFnTable {
+    // TODO: add core methods/functions table
+    operation_methods: OperationTemplateBuildMethodFnMap<Operation>,
+    operation_id_methods: OperationTemplateBuildMethodFnMap<OperationId>,
+}
+
+impl OperationTemplateBuildFnTable {
+    /// Creates new symbol table containing the builtin methods.
+    fn builtin() -> Self {
+        OperationTemplateBuildFnTable {
+            operation_methods: builtin_operation_methods(),
+            operation_id_methods: builtin_operation_id_methods(),
+        }
+    }
+}
+
+fn builtin_operation_methods() -> OperationTemplateBuildMethodFnMap<Operation> {
+    // Not using maplit::hashmap!{} or custom declarative macro here because
+    // code completion inside macro is quite restricted.
+    let mut map = OperationTemplateBuildMethodFnMap::<Operation>::new();
+    map.insert(
+        "current_operation",
+        |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
             let current_op_id = language.current_op_id.clone();
-            language.wrap_boolean(TemplateFunction::new(self_property, move |op| {
+            let out_property = TemplateFunction::new(self_property, move |op| {
                 Some(op.id()) == current_op_id.as_ref()
-            }))
-        }
-        "description" => {
+            });
+            Ok(language.wrap_boolean(out_property))
+        },
+    );
+    map.insert(
+        "description",
+        |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |op| {
-                op.metadata().description.clone()
-            }))
-        }
-        "id" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_operation_id(TemplateFunction::new(self_property, |op| op.id().clone()))
-        }
-        "tags" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |op| {
-                // TODO: introduce map type
-                op.metadata()
-                    .tags
-                    .iter()
-                    .map(|(key, value)| format!("{key}: {value}"))
-                    .join("\n")
-            }))
-        }
-        "time" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_timestamp_range(TemplateFunction::new(self_property, |op| {
-                TimestampRange {
-                    start: op.metadata().start_time.clone(),
-                    end: op.metadata().end_time.clone(),
-                }
-            }))
-        }
-        "user" => {
-            template_parser::expect_no_arguments(function)?;
-            language.wrap_string(TemplateFunction::new(self_property, |op| {
-                // TODO: introduce dedicated type and provide accessors?
-                format!("{}@{}", op.metadata().username, op.metadata().hostname)
-            }))
-        }
-        "root" => {
-            template_parser::expect_no_arguments(function)?;
-            let root_op_id = language.root_op_id.clone();
-            language.wrap_boolean(TemplateFunction::new(self_property, move |op| {
-                op.id() == &root_op_id
-            }))
-        }
-        _ => return Err(TemplateParseError::no_such_method("Operation", function)),
-    };
-    Ok(property)
+            let out_property =
+                TemplateFunction::new(self_property, |op| op.metadata().description.clone());
+            Ok(language.wrap_string(out_property))
+        },
+    );
+    map.insert("id", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |op| op.id().clone());
+        Ok(language.wrap_operation_id(out_property))
+    });
+    map.insert("tags", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |op| {
+            // TODO: introduce map type
+            op.metadata()
+                .tags
+                .iter()
+                .map(|(key, value)| format!("{key}: {value}"))
+                .join("\n")
+        });
+        Ok(language.wrap_string(out_property))
+    });
+    map.insert("time", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |op| TimestampRange {
+            start: op.metadata().start_time.clone(),
+            end: op.metadata().end_time.clone(),
+        });
+        Ok(language.wrap_timestamp_range(out_property))
+    });
+    map.insert("user", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |op| {
+            // TODO: introduce dedicated type and provide accessors?
+            format!("{}@{}", op.metadata().username, op.metadata().hostname)
+        });
+        Ok(language.wrap_string(out_property))
+    });
+    map.insert("root", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let root_op_id = language.root_op_id.clone();
+        let out_property = TemplateFunction::new(self_property, move |op| op.id() == &root_op_id);
+        Ok(language.wrap_boolean(out_property))
+    });
+    map
 }
 
 impl Template<()> for OperationId {
@@ -193,30 +221,23 @@ impl Template<()> for OperationId {
     }
 }
 
-fn build_operation_id_method(
-    language: &OperationTemplateLanguage,
-    build_ctx: &BuildContext<OperationTemplatePropertyKind>,
-    self_property: impl TemplateProperty<Operation, Output = OperationId> + 'static,
-    function: &FunctionCallNode,
-) -> TemplateParseResult<OperationTemplatePropertyKind> {
-    let property = match function.name {
-        "short" => {
-            let ([], [len_node]) = template_parser::expect_arguments(function)?;
-            let len_property = len_node
-                .map(|node| template_builder::expect_integer_expression(language, build_ctx, node))
-                .transpose()?;
-            language.wrap_string(TemplateFunction::new(
-                (self_property, len_property),
-                |(id, len)| {
-                    let mut hex = id.hex();
-                    hex.truncate(len.map_or(12, |l| l.try_into().unwrap_or(0)));
-                    hex
-                },
-            ))
-        }
-        _ => return Err(TemplateParseError::no_such_method("OperationId", function)),
-    };
-    Ok(property)
+fn builtin_operation_id_methods() -> OperationTemplateBuildMethodFnMap<OperationId> {
+    // Not using maplit::hashmap!{} or custom declarative macro here because
+    // code completion inside macro is quite restricted.
+    let mut map = OperationTemplateBuildMethodFnMap::<OperationId>::new();
+    map.insert("short", |language, build_ctx, self_property, function| {
+        let ([], [len_node]) = template_parser::expect_arguments(function)?;
+        let len_property = len_node
+            .map(|node| template_builder::expect_integer_expression(language, build_ctx, node))
+            .transpose()?;
+        let out_property = TemplateFunction::new((self_property, len_property), |(id, len)| {
+            let mut hex = id.hex();
+            hex.truncate(len.map_or(12, |l| l.try_into().unwrap_or(0)));
+            hex
+        });
+        Ok(language.wrap_string(out_property))
+    });
+    map
 }
 
 pub fn parse(
@@ -228,6 +249,7 @@ pub fn parse(
     let language = OperationTemplateLanguage {
         root_op_id: root_op_id.clone(),
         current_op_id: current_op_id.cloned(),
+        build_fn_table: OperationTemplateBuildFnTable::builtin(),
     };
     let node = template_parser::parse(template_text, aliases_map)?;
     template_builder::build(&language, &node)
