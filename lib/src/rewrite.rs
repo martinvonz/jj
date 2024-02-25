@@ -458,9 +458,9 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         &mut self,
         old_commit_id: CommitId,
         new_commit_ids: Vec<CommitId>,
-        abandoned_old_commit: bool,
     ) -> Result<(), BackendError> {
         // We arbitrarily pick a new working-copy commit among the candidates.
+        let abandoned_old_commit = self.abandoned.contains(&old_commit_id);
         self.update_wc_commits(&old_commit_id, &new_commit_ids[0], abandoned_old_commit)?;
 
         if let Some(branch_names) = self.branches.get(&old_commit_id).cloned() {
@@ -533,13 +533,13 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             // (i.e. it's part of the input for this rebase). We don't need
             // to rebase it, but we still want to update branches pointing
             // to the old commit.
-            self.update_references(old_commit_id, new_parent_ids, false)?;
+            self.update_references(old_commit_id, new_parent_ids)?;
             return Ok(());
         }
         if let Some(divergent_ids) = self.divergent.get(&old_commit_id).cloned() {
             // Leave divergent commits in place. Don't update `parent_mapping` since we
             // don't want to rebase descendants either.
-            self.update_references(old_commit_id, divergent_ids, false)?;
+            self.update_references(old_commit_id, divergent_ids)?;
             return Ok(());
         }
         let old_parent_ids = old_commit.parent_ids();
@@ -548,7 +548,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             // Update the `new_parents` map so descendants are rebased correctly.
             self.parent_mapping
                 .insert(old_commit_id.clone(), new_parent_ids.clone());
-            self.update_references(old_commit_id, new_parent_ids, true)?;
+            self.update_references(old_commit_id, new_parent_ids)?;
             return Ok(());
         } else if new_parent_ids == old_parent_ids {
             // The commit is already in place.
@@ -587,7 +587,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             (None, None),
             "Trying to rebase the same commit {old_commit_id:?} in two different ways",
         );
-        self.update_references(old_commit_id, vec![new_commit.id().clone()], false)?;
+        self.update_references(old_commit_id, vec![new_commit.id().clone()])?;
         Ok(())
     }
 
