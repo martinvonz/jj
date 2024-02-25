@@ -706,15 +706,12 @@ fn build_commit_or_change_id_method<'repo>(
     self_property: impl TemplateProperty<Commit, Output = CommitOrChangeId> + 'repo,
     function: &FunctionCallNode,
 ) -> TemplateParseResult<CommitTemplatePropertyKind<'repo>> {
-    let parse_optional_integer = |function| -> Result<Option<_>, TemplateParseError> {
-        let ([], [len_node]) = template_parser::expect_arguments(function)?;
-        len_node
-            .map(|node| template_builder::expect_integer_expression(language, build_ctx, node))
-            .transpose()
-    };
     let property = match function.name {
         "short" => {
-            let len_property = parse_optional_integer(function)?;
+            let ([], [len_node]) = template_parser::expect_arguments(function)?;
+            let len_property = len_node
+                .map(|node| template_builder::expect_integer_expression(language, build_ctx, node))
+                .transpose()?;
             language.wrap_string(TemplateFunction::new(
                 (self_property, len_property),
                 |(id, len)| id.short(len.map_or(12, |l| l.try_into().unwrap_or(0))),
@@ -722,7 +719,10 @@ fn build_commit_or_change_id_method<'repo>(
         }
         "shortest" => {
             let id_prefix_context = &language.id_prefix_context;
-            let len_property = parse_optional_integer(function)?;
+            let ([], [len_node]) = template_parser::expect_arguments(function)?;
+            let len_property = len_node
+                .map(|node| template_builder::expect_integer_expression(language, build_ctx, node))
+                .transpose()?;
             language.wrap_shortest_id_prefix(TemplateFunction::new(
                 (self_property, len_property),
                 |(id, len)| {
