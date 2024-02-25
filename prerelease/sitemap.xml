@@ -91,6 +91,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://martinvonz.github.io/jj/prerelease/testimonials/</loc>
+         <lastmod>2024-02-25</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://martinvonz.github.io/jj/prerelease/tutorial/</loc>
          <lastmod>2024-02-25</lastmod>
          <changefreq>daily</changefreq>
