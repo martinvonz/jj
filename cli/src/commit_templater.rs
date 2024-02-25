@@ -71,12 +71,9 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
                 template_builder::build_core_method(self, build_ctx, property, function)
             }
             CommitTemplatePropertyKind::Commit(property) => {
-                // TODO: add name resolution helper that provides typo hint
-                if let Some(build) = self.build_fn_table.commit_methods.get(function.name) {
-                    build(self, build_ctx, property, function)
-                } else {
-                    Err(TemplateParseError::no_such_method("Commit", function))
-                }
+                let table = &self.build_fn_table.commit_methods;
+                let build = template_parser::lookup_method("Commit", table, function)?;
+                build(self, build_ctx, property, function)
             }
             CommitTemplatePropertyKind::CommitList(property) => {
                 template_builder::build_unformattable_list_method(

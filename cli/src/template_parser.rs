@@ -855,6 +855,20 @@ pub fn expect_lambda_with<'a, 'i, T>(
     }
 }
 
+/// Looks up `table` by the given method name.
+pub fn lookup_method<'a, V>(
+    type_name: impl Into<String>,
+    table: &'a HashMap<&str, V>,
+    function: &FunctionCallNode,
+) -> TemplateParseResult<&'a V> {
+    if let Some(value) = table.get(function.name) {
+        Ok(value)
+    } else {
+        // TODO: provide typo hint
+        Err(TemplateParseError::no_such_method(type_name, function))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use assert_matches::assert_matches;
