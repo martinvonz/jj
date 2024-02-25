@@ -66,6 +66,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * When creating a new workspace, the sparse patterns are now copied over from
   the current workspace.
 
+* `jj git init --colocate` can now import an existing Git repository. This is
+  equivalent to `jj git init --git-repo=.`.
+
 * `jj git fetch` now automatically prints new remote branches and tags by default.
 
 * `--verbose/-v` is now `--debug` (no short option since it's not intended to be used often)

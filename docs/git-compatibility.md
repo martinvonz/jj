@@ -96,8 +96,8 @@ into a directory by the same name.
 ## Co-located Jujutsu/Git repos
 
 A "co-located" Jujutsu repo is a hybrid Jujutsu/Git repo. These can be created
-if you initialize the Jujutsu repo in an existing Git repo by running `jj init
---git-repo=.` or with `jj git clone --colocate`. The Git repo and the Jujutsu
+if you initialize the Jujutsu repo in an existing Git repo by running `jj git
+init --colocate` or with `jj git clone --colocate`. The Git repo and the Jujutsu
 repo then share the same working copy. Jujutsu will import and export from and
 to the Git repo on every `jj` command automatically.
 
