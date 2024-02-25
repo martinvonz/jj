@@ -1461,7 +1461,7 @@ J          J
 * `-s`, `--source <SOURCE>` — Rebase specified revision(s) together their tree of descendants (can be repeated)
 * `-r`, `--revision <REVISION>` — Rebase only this revision, rebasing descendants onto this revision's parent(s)
 * `-d`, `--destination <DESTINATION>` — The revision(s) to rebase onto (can be repeated to create a merge commit)
-* `--skip-empty` — If true, when rebasing would produce an empty commit, the commit is skipped. Will never skip merge commits with multiple non-empty parents. Will never skip the working commit
+* `--skip-empty` — If true, when rebasing would produce an empty commit, the commit is abandoned. It will not be abandoned if it was already empty before the rebase. Will never skip merge commits with multiple non-empty parents
 
   Possible values: `true`, `false`
 
