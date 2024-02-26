@@ -228,6 +228,7 @@ fn test_function_name_hint() {
     'branches(x)' = 'x' # override builtin function
     'my_author(x)' = 'author(x)' # similar name to builtin function
     'author_sym' = 'x' # not a function alias
+    'my_branches' = 'branch()' # typo in alias
     "###,
     );
 
@@ -251,6 +252,22 @@ fn test_function_name_hint() {
       |
       = Revset function "author_" doesn't exist
     Hint: Did you mean "author", "my_author"?
+    "###);
+
+    insta::assert_snapshot!(evaluate_err("my_branches"), @r###"
+    Error: Failed to parse revset:  --> 1:1
+      |
+    1 | my_branches
+      | ^---------^
+      |
+      = Alias "my_branches" cannot be expanded
+     --> 1:1
+      |
+    1 | branch()
+      | ^----^
+      |
+      = Revset function "branch" doesn't exist
+    Hint: Did you mean "branches"?
     "###);
 }
 

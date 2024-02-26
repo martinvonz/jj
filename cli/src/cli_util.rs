@@ -405,9 +405,10 @@ impl From<RevsetEvaluationError> for CommandError {
 
 impl From<RevsetParseError> for CommandError {
     fn from(err: RevsetParseError) -> Self {
-        let message = iter::successors(Some(&err), |e| e.origin()).join("\n");
-        // Only for the top-level error as we can't attach hint to inner errors
-        let hint = match err.kind() {
+        let err_chain = iter::successors(Some(&err), |e| e.origin());
+        let message = err_chain.clone().join("\n");
+        // Only for the bottom error, which is usually the root cause
+        let hint = match err_chain.last().unwrap().kind() {
             RevsetParseErrorKind::NotPrefixOperator {
                 op: _,
                 similar_op,
