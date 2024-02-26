@@ -1670,6 +1670,7 @@ dependencies = [
  "scm-record",
  "serde",
  "slab",
+ "strsim",
  "tempfile",
  "test-case",
  "testutils",

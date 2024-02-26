@@ -86,7 +86,7 @@ use crate::git_util::{
     is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
 };
 use crate::merge_tools::{ConflictResolveError, DiffEditError, DiffGenerateError};
-use crate::template_parser::{TemplateAliasesMap, TemplateParseError};
+use crate::template_parser::{TemplateAliasesMap, TemplateParseError, TemplateParseErrorKind};
 use crate::templater::Template;
 use crate::ui::{ColorChoice, Ui};
 use crate::{commit_templater, text_util};
@@ -453,8 +453,18 @@ impl From<RevsetResolutionError> for CommandError {
 
 impl From<TemplateParseError> for CommandError {
     fn from(err: TemplateParseError) -> Self {
-        let message = iter::successors(Some(&err), |e| e.origin()).join("\n");
-        user_error(format!("Failed to parse template: {message}"))
+        let err_chain = iter::successors(Some(&err), |e| e.origin());
+        let message = err_chain.clone().join("\n");
+        // Only for the bottom error, which is usually the root cause
+        let hint = match err_chain.last().unwrap().kind() {
+            TemplateParseErrorKind::NoSuchKeyword { candidates, .. }
+            | TemplateParseErrorKind::NoSuchFunction { candidates, .. }
+            | TemplateParseErrorKind::NoSuchMethod { candidates, .. } => {
+                format_similarity_hint(candidates)
+            }
+            _ => None,
+        };
+        user_error_with_hint_opt(format!("Failed to parse template: {message}"), hint)
     }
 }
 

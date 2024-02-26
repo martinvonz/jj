@@ -31,6 +31,64 @@ fn test_templater_parse_error() {
       |
       = expected <EOI>, `++`, `||`, or `&&`
     "###);
+
+    // Typo
+    test_env.add_config(
+        r###"
+    [template-aliases]
+    'format_id(id)' = 'id.sort()'
+    "###,
+    );
+    insta::assert_snapshot!(render_err(r#"conflicts"#), @r###"
+    Error: Failed to parse template:  --> 1:1
+      |
+    1 | conflicts
+      | ^-------^
+      |
+      = Keyword "conflicts" doesn't exist
+    Hint: Did you mean "conflict"?
+    "###);
+    insta::assert_snapshot!(render_err(r#"commit_id.shorter()"#), @r###"
+    Error: Failed to parse template:  --> 1:11
+      |
+    1 | commit_id.shorter()
+      |           ^-----^
+      |
+      = Method "shorter" doesn't exist for type "CommitOrChangeId"
+    Hint: Did you mean "short", "shortest"?
+    "###);
+    insta::assert_snapshot!(render_err(r#"cat()"#), @r###"
+    Error: Failed to parse template:  --> 1:1
+      |
+    1 | cat()
+      | ^-^
+      |
+      = Function "cat" doesn't exist
+    "###);
+    insta::assert_snapshot!(render_err(r#""".lines().map(|s| se)"#), @r###"
+    Error: Failed to parse template:  --> 1:20
+      |
+    1 | "".lines().map(|s| se)
+      |                    ^^
+      |
+      = Keyword "se" doesn't exist
+    Hint: Did you mean "s", "self"?
+    "###);
+    insta::assert_snapshot!(render_err(r#"format_id(commit_id)"#), @r###"
+    Error: Failed to parse template:  --> 1:1
+      |
+    1 | format_id(commit_id)
+      | ^------------------^
+      |
+      = Alias "format_id()" cannot be expanded
+     --> 1:4
+      |
+    1 | id.sort()
+      |    ^--^
+      |
+      = Method "sort" doesn't exist for type "CommitOrChangeId"
+    Hint: Did you mean "short", "shortest"?
+    "###);
 }
 
 #[test]
