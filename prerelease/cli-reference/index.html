@@ -6595,7 +6595,7 @@ J          J
 <li><code>-r</code>, <code>--revision &lt;REVISION&gt;</code> — Rebase only this revision, rebasing descendants onto this revision's parent(s)</li>
 <li><code>-d</code>, <code>--destination &lt;DESTINATION&gt;</code> — The revision(s) to rebase onto (can be repeated to create a merge commit)</li>
 <li>
-<p><code>--skip-empty</code> — If true, when rebasing would produce an empty commit, the commit is skipped. Will never skip merge commits with multiple non-empty parents. Will never skip the working commit</p>
+<p><code>--skip-empty</code> — If true, when rebasing would produce an empty commit, the commit is abandoned. It will not be abandoned if it was already empty before the rebase. Will never skip merge commits with multiple non-empty parents</p>
 <p>Possible values: <code>true</code>, <code>false</code></p>
 </li>
 <li>
