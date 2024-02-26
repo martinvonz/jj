@@ -1329,10 +1329,26 @@
 <p>Jujutsu works the same on all platforms, but there are some caveats that Windows
 users should be aware of.</p>
 <h2 id="line-endings-are-not-converted">Line endings are not converted<a class="headerlink" href="#line-endings-are-not-converted" title="Permanent link">&para;</a></h2>
-<p>Jujutsu does not honor <code>.gitattributes</code> and does not have a setting like Git's
-<code>core.autocrlf</code>. This means that line endings will be checked out exactly as
-they are committed and committed exactly as authored. This is true on all
-platforms, but Windows users are most likely to miss CRLF conversion.</p>
+<p>Jujutsu does not currently honor <code>.gitattributes</code> and does not have a setting
+like Git's <code>core.autocrlf</code>. This means that line endings will be checked out
+exactly as they are committed and committed exactly as authored. This is true on
+all platforms, but Windows users are most likely to miss CRLF conversion.</p>
+<p>If your Git repository expects Windows users to have <code>core.autocrlf</code> set to
+<code>true</code>, then the files are committed with LF line endings but are checked out
+with CRLF line endings. Jujutsu doesn't understand this and will convert the
+committed line endings to CRLF.</p>
+<p>After creating a colocated repository on Windows, you most likely want to set
+<code>core.autocrlf</code> to <code>input</code>, then <code>jj abandon</code> to convert all files on disk to LF
+line endings:</p>
+<div class="highlight"><pre><span></span><code><span class="n">PS</span><span class="p">&gt;</span> <span class="n">git</span> <span class="n">config</span> <span class="n">core</span><span class="p">.</span><span class="n">autocrlf</span> <span class="n">input</span>
+
+<span class="c"># Abandoning the working copy will cause Jujutsu to overwrite all files with</span>
+<span class="c"># CRLF line endings with the line endings they are committed with, probably LF</span>
+<span class="n">PS</span><span class="p">&gt;</span> <span class="n">jj</span> <span class="n">abandon</span>
+</code></pre></div>
+<p>This setting ensures Git will check out files with LF line endings without
+converting them to CRLF. You'll want to make sure any tooling you use,
+especially IDEs, preserve LF line endings.</p>
 <h2 id="pagination">Pagination<a class="headerlink" href="#pagination" title="Permanent link">&para;</a></h2>
 <p><a href="https://github.com/martinvonz/jj/issues/2040">Pagination is disabled by default on Windows</a> because Windows
 doesn't ship with a usable pager.</p>
