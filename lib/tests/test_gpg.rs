@@ -156,6 +156,7 @@ fn gpg_signing_roundtrip_explicit_key() {
 }
 
 #[test]
+#[cfg_attr(windows, ignore = "stuck randomly on Windows CI #3140")] // FIXME
 fn unknown_key() {
     gpg_guard!();
 
