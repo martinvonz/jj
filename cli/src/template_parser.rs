@@ -208,6 +208,28 @@ impl TemplateParseError {
         self
     }
 
+    /// If this is a `NoSuchFunction` error, expands the candidates list with
+    /// the given `other_functions`.
+    pub fn extend_function_candidates<I>(mut self, other_functions: I) -> Self
+    where
+        I: IntoIterator,
+        I::Item: AsRef<str>,
+    {
+        if let TemplateParseErrorKind::NoSuchFunction { name, candidates } = &mut self.kind {
+            let other_candidates = collect_similar(name, other_functions);
+            *candidates = itertools::merge(mem::take(candidates), other_candidates)
+                .dedup()
+                .collect();
+        }
+        self
+    }
+
+    /// Expands keyword/function candidates with the given aliases.
+    pub fn extend_alias_candidates(self, aliases_map: &TemplateAliasesMap) -> Self {
+        self.extend_keyword_candidates(aliases_map.symbol_aliases.keys())
+            .extend_function_candidates(aliases_map.function_aliases.keys())
+    }
+
     pub fn kind(&self) -> &TemplateParseErrorKind {
         &self.kind
     }

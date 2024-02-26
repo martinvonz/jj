@@ -36,6 +36,9 @@ fn test_templater_parse_error() {
     test_env.add_config(
         r###"
     [template-aliases]
+    'conflicting' = ''
+    'shorted()' = ''
+    'cap(x)' = 'x'
     'format_id(id)' = 'id.sort()'
     "###,
     );
@@ -46,7 +49,7 @@ fn test_templater_parse_error() {
       | ^-------^
       |
       = Keyword "conflicts" doesn't exist
-    Hint: Did you mean "conflict"?
+    Hint: Did you mean "conflict", "conflicting"?
     "###);
     insta::assert_snapshot!(render_err(r#"commit_id.shorter()"#), @r###"
     Error: Failed to parse template:  --> 1:11
@@ -64,6 +67,7 @@ fn test_templater_parse_error() {
       | ^-^
       |
       = Function "cat" doesn't exist
+    Hint: Did you mean "cap"?
     "###);
     insta::assert_snapshot!(render_err(r#""".lines().map(|s| se)"#), @r###"
     Error: Failed to parse template:  --> 1:20
@@ -88,6 +92,18 @@ fn test_templater_parse_error() {
       |
       = Method "sort" doesn't exist for type "CommitOrChangeId"
     Hint: Did you mean "short", "shortest"?
+    "###);
+
+    // -Tbuiltin shows the predefined builtin_* aliases. This isn't 100%
+    // guaranteed, but is nice.
+    insta::assert_snapshot!(render_err(r#"builtin"#), @r###"
+    Error: Failed to parse template:  --> 1:1
+      |
+    1 | builtin
+      | ^-----^
+      |
+      = Keyword "builtin" doesn't exist
+    Hint: Did you mean "builtin_change_id_with_hidden_and_divergent_info", "builtin_log_comfortable", "builtin_log_compact", "builtin_log_detailed", "builtin_log_oneline", "builtin_op_log_comfortable", "builtin_op_log_compact"?
     "###);
 }
 
