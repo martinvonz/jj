@@ -63,6 +63,7 @@ rpassword = { workspace = true }
 scm-record = { workspace = true }
 serde = { workspace = true }
 slab = { workspace = true }
+strsim = { workspace = true }
 tempfile = { workspace = true }
 textwrap = { workspace = true }
 thiserror = { workspace = true }

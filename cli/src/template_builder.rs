@@ -19,7 +19,7 @@ use jj_lib::backend::{Signature, Timestamp};
 
 use crate::template_parser::{
     self, BinaryOp, ExpressionKind, ExpressionNode, FunctionCallNode, MethodCallNode,
-    TemplateParseError, TemplateParseResult, UnaryOp,
+    TemplateParseError, TemplateParseErrorKind, TemplateParseResult, UnaryOp,
 };
 use crate::templater::{
     ConcatTemplate, ConditionalTemplate, IntoTemplate, LabelTemplate, ListPropertyTemplate,
@@ -389,12 +389,27 @@ fn build_keyword<'a, L: TemplateLanguage<'a>>(
         args: vec![],
         args_span: name_span.end_pos().span(&name_span.end_pos()),
     };
-    let property = language
-        .build_method(build_ctx, self_property, &function)
-        // Since keyword is a 0-ary method, any argument-related errors mean
-        // there's no such keyword.
-        .map_err(|_| TemplateParseError::no_such_keyword(name, name_span))?;
-    Ok(Expression::with_label(property, name))
+    match language.build_method(build_ctx, self_property, &function) {
+        Ok(property) => Ok(Expression::with_label(property, name)),
+        Err(err) => {
+            let kind = if let TemplateParseErrorKind::NoSuchMethod { candidates, .. } = err.kind() {
+                TemplateParseErrorKind::NoSuchKeyword {
+                    name: name.to_owned(),
+                    // TODO: filter methods by arity?
+                    candidates: candidates.clone(),
+                }
+            } else {
+                // Since keyword is a 0-ary method, any argument-related errors
+                // mean there's no such keyword.
+                TemplateParseErrorKind::NoSuchKeyword {
+                    name: name.to_owned(),
+                    // TODO: might be better to phrase the error differently
+                    candidates: vec![format!("self.{name}(..)")],
+                }
+            };
+            Err(TemplateParseError::with_span(kind, name_span))
+        }
+    }
 }
 
 fn build_unary_operation<'a, L: TemplateLanguage<'a>>(
@@ -923,7 +938,12 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
                 // "self" is a special variable, so don't label it
                 Ok(Expression::unlabeled(language.build_self()))
             } else {
-                build_keyword(language, build_ctx, name, node.span)
+                build_keyword(language, build_ctx, name, node.span).map_err(|err| {
+                    err.extend_keyword_candidates(itertools::chain(
+                        build_ctx.local_variables.keys().copied(),
+                        ["self"],
+                    ))
+                })
             }
         }
         ExpressionKind::Boolean(value) => {

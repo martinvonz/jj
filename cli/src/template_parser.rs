@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 use std::num::ParseIntError;
-use std::{error, fmt, iter};
+use std::{error, fmt, iter, mem};
 
 use itertools::Itertools as _;
 use once_cell::sync::Lazy;
@@ -77,12 +77,22 @@ pub enum TemplateParseErrorKind {
     SyntaxError,
     #[error("Invalid integer literal")]
     ParseIntError(#[source] ParseIntError),
-    #[error(r#"Keyword "{0}" doesn't exist"#)]
-    NoSuchKeyword(String),
-    #[error(r#"Function "{0}" doesn't exist"#)]
-    NoSuchFunction(String),
+    #[error(r#"Keyword "{name}" doesn't exist"#)]
+    NoSuchKeyword {
+        name: String,
+        candidates: Vec<String>,
+    },
+    #[error(r#"Function "{name}" doesn't exist"#)]
+    NoSuchFunction {
+        name: String,
+        candidates: Vec<String>,
+    },
     #[error(r#"Method "{name}" doesn't exist for type "{type_name}""#)]
-    NoSuchMethod { type_name: String, name: String },
+    NoSuchMethod {
+        type_name: String,
+        name: String,
+        candidates: Vec<String>,
+    },
     #[error(r#"Function "{name}": {message}"#)]
     InvalidArguments { name: String, message: String },
     #[error("Redefinition of function parameter")]
@@ -126,22 +136,27 @@ impl TemplateParseError {
         }
     }
 
-    pub fn no_such_keyword(name: impl Into<String>, span: pest::Span<'_>) -> Self {
-        TemplateParseError::with_span(TemplateParseErrorKind::NoSuchKeyword(name.into()), span)
-    }
-
-    pub fn no_such_function(function: &FunctionCallNode) -> Self {
+    // TODO: migrate callers to something like lookup_method()
+    pub(crate) fn no_such_function(function: &FunctionCallNode) -> Self {
         TemplateParseError::with_span(
-            TemplateParseErrorKind::NoSuchFunction(function.name.to_owned()),
+            TemplateParseErrorKind::NoSuchFunction {
+                name: function.name.to_owned(),
+                candidates: vec![],
+            },
             function.name_span,
         )
     }
 
-    pub fn no_such_method(type_name: impl Into<String>, function: &FunctionCallNode) -> Self {
+    // TODO: migrate all callers to table-based lookup_method()
+    pub(crate) fn no_such_method(
+        type_name: impl Into<String>,
+        function: &FunctionCallNode,
+    ) -> Self {
         TemplateParseError::with_span(
             TemplateParseErrorKind::NoSuchMethod {
                 type_name: type_name.into(),
                 name: function.name.to_owned(),
+                candidates: vec![],
             },
             function.name_span,
         )
@@ -175,6 +190,26 @@ impl TemplateParseError {
             span,
             self,
         )
+    }
+
+    /// If this is a `NoSuchKeyword` error, expands the candidates list with the
+    /// given `other_keywords`.
+    pub fn extend_keyword_candidates<I>(mut self, other_keywords: I) -> Self
+    where
+        I: IntoIterator,
+        I::Item: AsRef<str>,
+    {
+        if let TemplateParseErrorKind::NoSuchKeyword { name, candidates } = &mut self.kind {
+            let other_candidates = collect_similar(name, other_keywords);
+            *candidates = itertools::merge(mem::take(candidates), other_candidates)
+                .dedup()
+                .collect();
+        }
+        self
+    }
+
+    pub fn kind(&self) -> &TemplateParseErrorKind {
+        &self.kind
     }
 
     /// Original parsing error which typically occurred in an alias expression.
@@ -864,9 +899,33 @@ pub fn lookup_method<'a, V>(
     if let Some(value) = table.get(function.name) {
         Ok(value)
     } else {
-        // TODO: provide typo hint
-        Err(TemplateParseError::no_such_method(type_name, function))
+        let candidates = collect_similar(function.name, table.keys());
+        Err(TemplateParseError::with_span(
+            TemplateParseErrorKind::NoSuchMethod {
+                type_name: type_name.into(),
+                name: function.name.to_owned(),
+                candidates,
+            },
+            function.name_span,
+        ))
     }
+}
+
+// TODO: merge with revset::collect_similar()?
+fn collect_similar<I>(name: &str, candidates: I) -> Vec<String>
+where
+    I: IntoIterator,
+    I::Item: AsRef<str>,
+{
+    candidates
+        .into_iter()
+        .filter(|cand| {
+            // The parameter is borrowed from clap f5540d26
+            strsim::jaro(name, cand.as_ref()) > 0.7
+        })
+        .map(|s| s.as_ref().to_owned())
+        .sorted_unstable()
+        .collect()
 }
 
 #[cfg(test)]
