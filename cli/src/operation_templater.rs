@@ -255,4 +255,5 @@ pub fn parse(
     };
     let node = template_parser::parse(template_text, aliases_map)?;
     template_builder::build(&language, &node)
+        .map_err(|err| err.extend_alias_candidates(aliases_map))
 }
