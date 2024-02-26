@@ -5572,6 +5572,7 @@ repository.</li>
 <h2 id="jj-abandon"><code>jj abandon</code><a class="headerlink" href="#jj-abandon" title="Permanent link">&para;</a></h2>
 <p>Abandon a revision</p>
 <p>Abandon a revision, rebasing descendants onto its parent(s). The behavior is similar to <code>jj restore --changes-in</code>; the difference is that <code>jj abandon</code> gives you a new change, while <code>jj restore</code> updates the existing change.</p>
+<p>If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.</p>
 <p><strong>Usage:</strong> <code>jj abandon [OPTIONS] [REVISIONS]...</code></p>
 <h6 id="arguments"><strong>Arguments:</strong><a class="headerlink" href="#arguments" title="Permanent link">&para;</a></h6>
 <ul>
@@ -6080,6 +6081,7 @@ Martin von Zweigbergk</p>
 </ul>
 <h2 id="jj-git-fetch"><code>jj git fetch</code><a class="headerlink" href="#jj-git-fetch" title="Permanent link">&para;</a></h2>
 <p>Fetch from a Git remote</p>
+<p>If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.</p>
 <p><strong>Usage:</strong> <code>jj git fetch [OPTIONS]</code></p>
 <h6 id="options_22"><strong>Options:</strong><a class="headerlink" href="#options_22" title="Permanent link">&para;</a></h6>
 <ul>
@@ -6142,6 +6144,7 @@ Martin von Zweigbergk</p>
 </ul>
 <h2 id="jj-git-import"><code>jj git import</code><a class="headerlink" href="#jj-git-import" title="Permanent link">&para;</a></h2>
 <p>Update repo with changes made in the underlying Git repo</p>
+<p>If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.</p>
 <p><strong>Usage:</strong> <code>jj git import</code></p>
 <h2 id="jj-git-export"><code>jj git export</code><a class="headerlink" href="#jj-git-export" title="Permanent link">&para;</a></h2>
 <p>Update the underlying Git repo with changes made in the repo</p>
@@ -6259,6 +6262,7 @@ Martin von Zweigbergk</p>
 <p>Move changes from one revision into another</p>
 <p>Use <code>--interactive</code> to move only part of the source revision into the destination. The selected changes (or all the changes in the source revision if not using <code>--interactive</code>) will be moved into the destination. The changes will be removed from the source. If that means that the source is now empty compared to its parent, it will be abandoned. Without <code>--interactive</code>, the source change will always be empty.</p>
 <p>If the source became empty and both the source and destination had a non-empty description, you will be asked for the combined description. If either was empty, then the other one will be used.</p>
+<p>If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.</p>
 <p><strong>Usage:</strong> <code>jj move [OPTIONS] &lt;--from &lt;FROM&gt;|--to &lt;TO&gt;&gt; [PATHS]...</code></p>
 <h6 id="arguments_28"><strong>Arguments:</strong><a class="headerlink" href="#arguments_28" title="Permanent link">&para;</a></h6>
 <ul>
@@ -6591,6 +6595,8 @@ order to work (in addition to its current parent K), you can run <code>jj rebase
 |/         |/
 J          J
 </code></pre></div>
+<p>If a working-copy commit gets abandoned, it will be given a new, empty
+commit. This is true in general; it is not specific to this command.</p>
 <p><strong>Usage:</strong> <code>jj rebase [OPTIONS] --destination &lt;DESTINATION&gt;</code></p>
 <h6 id="options_36"><strong>Options:</strong><a class="headerlink" href="#options_36" title="Permanent link">&para;</a></h6>
 <ul>
@@ -6752,6 +6758,7 @@ J          J
 <p>Move changes from a revision into its parent</p>
 <p>After moving the changes into the parent, the child revision will have the same content state as before. If that means that the change is now empty compared to its parent, it will be abandoned. Without <code>--interactive</code>, the child change will always be empty.</p>
 <p>If the source became empty and both the source and destination had a non-empty description, you will be asked for the combined description. If either was empty, then the other one will be used.</p>
+<p>If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.</p>
 <p><strong>Usage:</strong> <code>jj squash [OPTIONS] [PATHS]...</code></p>
 <h6 id="arguments_39"><strong>Arguments:</strong><a class="headerlink" href="#arguments_39" title="Permanent link">&para;</a></h6>
 <ul>
@@ -6891,6 +6898,7 @@ compinit
 <p>Move changes from a revision's parent into the revision</p>
 <p>After moving the changes out of the parent, the child revision will have the same content state as before. If moving the change out of the parent change made it empty compared to its parent, it will be abandoned. Without <code>--interactive</code>, the parent change will always become empty.</p>
 <p>If the source became empty and both the source and destination had a non-empty description, you will be asked for the combined description. If either was empty, then the other one will be used.</p>
+<p>If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.</p>
 <p><strong>Usage:</strong> <code>jj unsquash [OPTIONS]</code></p>
 <h6 id="options_46"><strong>Options:</strong><a class="headerlink" href="#options_46" title="Permanent link">&para;</a></h6>
 <ul>
