@@ -150,6 +150,9 @@ pub struct GitInitArgs {
 }
 
 /// Fetch from a Git remote
+///
+/// If a working-copy commit gets abandoned, it will be given a new, empty
+/// commit. This is true in general; it is not specific to this command.
 #[derive(clap::Args, Clone, Debug)]
 pub struct GitFetchArgs {
     /// Fetch only some of the branches
@@ -233,6 +236,9 @@ pub struct GitPushArgs {
 }
 
 /// Update repo with changes made in the underlying Git repo
+///
+/// If a working-copy commit gets abandoned, it will be given a new, empty
+/// commit. This is true in general; it is not specific to this command.
 #[derive(clap::Args, Clone, Debug)]
 pub struct GitImportArgs {}
 

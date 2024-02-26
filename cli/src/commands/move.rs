@@ -34,6 +34,9 @@ use crate::ui::Ui;
 /// If the source became empty and both the source and destination had a
 /// non-empty description, you will be asked for the combined description. If
 /// either was empty, then the other one will be used.
+///
+/// If a working-copy commit gets abandoned, it will be given a new, empty
+/// commit. This is true in general; it is not specific to this command.
 #[derive(clap::Args, Clone, Debug)]
 #[command(group(ArgGroup::new("to_move").args(&["from", "to"]).multiple(true).required(true)))]
 pub(crate) struct MoveArgs {

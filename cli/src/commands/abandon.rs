@@ -27,6 +27,9 @@ use crate::ui::Ui;
 /// Abandon a revision, rebasing descendants onto its parent(s). The behavior is
 /// similar to `jj restore --changes-in`; the difference is that `jj abandon`
 /// gives you a new change, while `jj restore` updates the existing change.
+///
+/// If a working-copy commit gets abandoned, it will be given a new, empty
+/// commit. This is true in general; it is not specific to this command.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct AbandonArgs {
     /// The revision(s) to abandon

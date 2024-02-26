@@ -172,6 +172,8 @@ Abandon a revision
 
 Abandon a revision, rebasing descendants onto its parent(s). The behavior is similar to `jj restore --changes-in`; the difference is that `jj abandon` gives you a new change, while `jj restore` updates the existing change.
 
+If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.
+
 **Usage:** `jj abandon [OPTIONS] [REVISIONS]...`
 
 ###### **Arguments:**
@@ -843,6 +845,8 @@ Create a new Git backed repo
 
 Fetch from a Git remote
 
+If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.
+
 **Usage:** `jj git fetch [OPTIONS]`
 
 ###### **Options:**
@@ -916,6 +920,8 @@ By default, pushes any branches pointing to `remote_branches(remote=<remote>)..@
 ## `jj git import`
 
 Update repo with changes made in the underlying Git repo
+
+If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.
 
 **Usage:** `jj git import`
 
@@ -1051,6 +1057,8 @@ Move changes from one revision into another
 Use `--interactive` to move only part of the source revision into the destination. The selected changes (or all the changes in the source revision if not using `--interactive`) will be moved into the destination. The changes will be removed from the source. If that means that the source is now empty compared to its parent, it will be abandoned. Without `--interactive`, the source change will always be empty.
 
 If the source became empty and both the source and destination had a non-empty description, you will be asked for the combined description. If either was empty, then the other one will be used.
+
+If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.
 
 **Usage:** `jj move [OPTIONS] <--from <FROM>|--to <TO>> [PATHS]...`
 
@@ -1453,6 +1461,9 @@ M          L'
 J          J
 ```
 
+If a working-copy commit gets abandoned, it will be given a new, empty
+commit. This is true in general; it is not specific to this command.
+
 **Usage:** `jj rebase [OPTIONS] --destination <DESTINATION>`
 
 ###### **Options:**
@@ -1664,6 +1675,8 @@ After moving the changes into the parent, the child revision will have the same 
 
 If the source became empty and both the source and destination had a non-empty description, you will be asked for the combined description. If either was empty, then the other one will be used.
 
+If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.
+
 **Usage:** `jj squash [OPTIONS] [PATHS]...`
 
 ###### **Arguments:**
@@ -1853,6 +1866,8 @@ Move changes from a revision's parent into the revision
 After moving the changes out of the parent, the child revision will have the same content state as before. If moving the change out of the parent change made it empty compared to its parent, it will be abandoned. Without `--interactive`, the parent change will always become empty.
 
 If the source became empty and both the source and destination had a non-empty description, you will be asked for the combined description. If either was empty, then the other one will be used.
+
+If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.
 
 **Usage:** `jj unsquash [OPTIONS]`
 
