@@ -603,6 +603,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#listing-tracked-branches" class="md-nav__link">
+    <span class="md-ellipsis">
+      Listing tracked branches
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#automatic-tracking-of-branches-gitauto-local-branch-option" class="md-nav__link">
     <span class="md-ellipsis">
       Automatic tracking of branches &amp; git.auto-local-branch option
@@ -1354,6 +1363,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#listing-tracked-branches" class="md-nav__link">
+    <span class="md-ellipsis">
+      Listing tracked branches
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#automatic-tracking-of-branches-gitauto-local-branch-option" class="md-nav__link">
     <span class="md-ellipsis">
       Automatic tracking of branches &amp; git.auto-local-branch option
@@ -1485,6 +1503,10 @@ $<span class="w"> </span><span class="c1"># From this point on, this remote bran
 $<span class="w"> </span><span class="c1"># The local branch (e.g. stuff) is unaffected. It may or may not still</span>
 $<span class="w"> </span><span class="c1"># be tracking branches on other remotes (e.g. stuff@upstream).</span>
 </code></pre></div>
+<h3 id="listing-tracked-branches">Listing tracked branches<a class="headerlink" href="#listing-tracked-branches" title="Permanent link">&para;</a></h3>
+<p>To list tracked branches, you can <code>jj branch list --tracked</code> or <code>jj branch list -t</code>.
+This command omits local Git-tracking branches by default.</p>
+<p>You can see if a specific branch is tracked with <code>jj branch list --tracked &lt;branch name&gt;</code>.</p>
 <h3 id="automatic-tracking-of-branches-gitauto-local-branch-option">Automatic tracking of branches &amp; <code>git.auto-local-branch</code> option<a class="headerlink" href="#automatic-tracking-of-branches-gitauto-local-branch-option" title="Permanent link">&para;</a></h3>
 <p>There are two situations where <code>jj</code> tracks branches automatically. <code>jj git
 clone</code> automatically sets up the default remote branch (e.g. <code>main@origin</code>) as
