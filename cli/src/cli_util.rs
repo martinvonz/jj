@@ -262,9 +262,6 @@ impl From<WorkspaceInitError> for CommandError {
             WorkspaceInitError::Path(err) => {
                 internal_error_with_message("Failed to access the repository", err)
             }
-            WorkspaceInitError::PathNotFound(path) => {
-                user_error(format!("{} doesn't exist", path.display()))
-            }
             WorkspaceInitError::Backend(err) => {
                 user_error_with_message("Failed to access the repository", err)
             }
