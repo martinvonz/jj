@@ -392,9 +392,6 @@ pub fn git_init(
         }
     } else if let Some(path_str) = git_repo {
         let mut git_repo_path = command.cwd().join(path_str);
-        git_repo_path = git_repo_path
-            .canonicalize()
-            .map_err(|_| user_error(format!("{} doesn't exist", git_repo_path.display())))?;
         if !git_repo_path.ends_with(".git") {
             git_repo_path.push(".git");
             // Undo if .git doesn't exist - likely a bare repo.
