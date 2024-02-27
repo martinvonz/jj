@@ -66,6 +66,12 @@ fn read_git_target(workspace_root: &Path) -> String {
     std::fs::read_to_string(path).unwrap()
 }
 
+fn strip_last_line(s: &str) -> &str {
+    s.trim_end_matches('\n')
+        .rsplit_once('\n')
+        .map_or(s, |(h, _)| &s[..h.len() + 1])
+}
+
 #[test]
 fn test_init_git_internal() {
     let test_env = TestEnvironment::default();
@@ -153,8 +159,10 @@ fn test_init_git_external_non_existent_directory() {
         test_env.env_root(),
         &["init", "repo", "--git-repo", "non-existent"],
     );
-    insta::assert_snapshot!(stderr, @r###"
-    Error: $TEST_ENV/non-existent doesn't exist
+    insta::assert_snapshot!(strip_last_line(&stderr), @r###"
+    Error: Failed to access the repository
+    Caused by:
+    1: Cannot access $TEST_ENV/non-existent
     "###);
 }
 
