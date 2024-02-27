@@ -192,6 +192,14 @@ impl<'a, I: 'a> IntoTemplateProperty<'a, I> for CoreTemplatePropertyKind<'a, I> 
         match self {
             CoreTemplatePropertyKind::String(property) => Some(property),
             _ => {
+                // TODO: Runtime property evaluation error will be materialized
+                // as string here. Ideally, the error should propagate because
+                // the caller expects a value, not a template to render. Some
+                // ideas to work around the problem:
+                // 1. stringify property without using Template type (works only for
+                //    non-template expressions)
+                // 2. add flag to propagate property error as io::Error::other() (e.g.
+                //    Template::format(context, formatter, propagate_err))
                 let template = self.try_into_template()?;
                 Some(Box::new(PlainTextFormattedProperty::new(template)))
             }
@@ -841,8 +849,12 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
             let width = expect_integer_expression(language, build_ctx, width_node)?;
             let content = expect_template_expression(language, build_ctx, content_node)?;
             let template = ReformatTemplate::new(content, move |context, formatter, recorded| {
-                let width = width.extract(context).try_into().unwrap_or(0);
-                text_util::write_wrapped(formatter, recorded, width)
+                match width.extract(context) {
+                    Ok(width) => {
+                        text_util::write_wrapped(formatter, recorded, width.try_into().unwrap_or(0))
+                    }
+                    Err(err) => err.format(&(), formatter),
+                }
             });
             language.wrap_template(Box::new(template))
         }
@@ -852,12 +864,6 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
             let content = expect_template_expression(language, build_ctx, content_node)?;
             let template = ReformatTemplate::new(content, move |context, formatter, recorded| {
                 text_util::write_indented(formatter, recorded, |formatter| {
-                    // If Template::format() returned a custom error type, we would need to
-                    // handle template evaluation error out of this closure:
-                    //   prefix.format(context, &mut prefix_recorder)?;
-                    //   write_indented(formatter, recorded, |formatter| {
-                    //       prefix_recorder.replay(formatter)
-                    //   })
                     prefix.format(context, formatter)
                 })
             });
