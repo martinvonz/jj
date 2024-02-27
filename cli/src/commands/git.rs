@@ -391,7 +391,18 @@ pub fn git_init(
             GitInitMode::Colocate
         }
     } else if let Some(path_str) = git_repo {
-        GitInitMode::External(command.cwd().join(path_str))
+        let mut git_repo_path = command.cwd().join(path_str);
+        git_repo_path = git_repo_path
+            .canonicalize()
+            .map_err(|_| user_error(format!("{} doesn't exist", git_repo_path.display())))?;
+        if !git_repo_path.ends_with(".git") {
+            git_repo_path.push(".git");
+            // Undo if .git doesn't exist - likely a bare repo.
+            if !git_repo_path.exists() {
+                git_repo_path.pop();
+            }
+        }
+        GitInitMode::External(git_repo_path)
     } else {
         if colocated_git_repo_path.exists() {
             return Err(user_error_with_hint(
