@@ -24,7 +24,8 @@ use crate::template_parser::{
 use crate::templater::{
     ConcatTemplate, ConditionalTemplate, IntoTemplate, LabelTemplate, ListPropertyTemplate,
     ListTemplate, Literal, PlainTextFormattedProperty, PropertyPlaceholder, ReformatTemplate,
-    SeparateTemplate, Template, TemplateFunction, TemplateProperty, TimestampRange,
+    SeparateTemplate, Template, TemplateFunction, TemplateProperty, TemplatePropertyError,
+    TimestampRange,
 };
 use crate::{text_util, time_util};
 
@@ -437,8 +438,10 @@ fn build_unary_operation<'a, L: TemplateLanguage<'a>>(
         }
         UnaryOp::Negate => {
             let arg = expect_integer_expression(language, build_ctx, arg_node)?;
-            // TODO: propagate error on overflow?
-            language.wrap_integer(TemplateFunction::new(arg, |v| Ok(v.saturating_neg())))
+            language.wrap_integer(TemplateFunction::new(arg, |v| {
+                v.checked_neg()
+                    .ok_or_else(|| TemplatePropertyError("Attempt to negate with overflow".into()))
+            }))
         }
     };
     Ok(Expression::unlabeled(property))
@@ -853,13 +856,11 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
     let property = match function.name {
         "fill" => {
             let [width_node, content_node] = template_parser::expect_exact_arguments(function)?;
-            let width = expect_integer_expression(language, build_ctx, width_node)?;
+            let width = expect_usize_expression(language, build_ctx, width_node)?;
             let content = expect_template_expression(language, build_ctx, content_node)?;
             let template = ReformatTemplate::new(content, move |context, formatter, recorded| {
                 match width.extract(context) {
-                    Ok(width) => {
-                        text_util::write_wrapped(formatter, recorded, width.try_into().unwrap_or(0))
-                    }
+                    Ok(width) => text_util::write_wrapped(formatter, recorded, width),
                     Err(err) => err.format(&(), formatter),
                 }
             });
@@ -1027,6 +1028,17 @@ pub fn expect_integer_expression<'a, L: TemplateLanguage<'a>>(
     build_expression(language, build_ctx, node)?
         .try_into_integer()
         .ok_or_else(|| TemplateParseError::expected_type("Integer", node.span))
+}
+
+/// If the given expression `node` is of `Integer` type, converts it to `usize`.
+pub fn expect_usize_expression<'a, L: TemplateLanguage<'a>>(
+    language: &L,
+    build_ctx: &BuildContext<L::Property>,
+    node: &ExpressionNode,
+) -> TemplateParseResult<Box<dyn TemplateProperty<L::Context, Output = usize> + 'a>> {
+    let i64_property = expect_integer_expression(language, build_ctx, node)?;
+    let usize_property = TemplateFunction::new(i64_property, |v| Ok(usize::try_from(v)?));
+    Ok(Box::new(usize_property))
 }
 
 pub fn expect_plain_text_expression<'a, L: TemplateLanguage<'a>>(
@@ -1490,8 +1502,10 @@ mod tests {
         insta::assert_snapshot!(env.render_ok(r#"--2"#), @"2");
         insta::assert_snapshot!(env.render_ok(r#"-(3)"#), @"-3");
 
-        // No panic on integer overflow. Runtime error might be better.
-        insta::assert_snapshot!(env.render_ok(r#"-i64_min"#), @"9223372036854775807");
+        // No panic on integer overflow.
+        insta::assert_snapshot!(
+            env.render_ok(r#"-i64_min"#),
+            @"<Error: Attempt to negate with overflow>");
     }
 
     #[test]
@@ -1866,20 +1880,11 @@ mod tests {
         dog
         "###);
 
-        // Filling to negatives are clamped to the same as zero
+        // Filling to negative width is an error
         insta::assert_snapshot!(
             env.render_ok(r#"fill(-10, "The quick fox jumps over the " ++
                                   label("error", "lazy") ++ " dog\n")"#),
-            @r###"
-        The
-        quick
-        fox
-        jumps
-        over
-        the
-        [38;5;1mlazy[39m
-        dog
-        "###);
+            @"[38;5;1m<Error: out of range integral type conversion attempted>[39m");
 
         // Word-wrap, then indent
         insta::assert_snapshot!(
