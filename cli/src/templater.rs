@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use std::cell::RefCell;
-use std::io;
 use std::rc::Rc;
+use std::{error, io, iter};
 
 use jj_lib::backend::{Signature, Timestamp};
 
@@ -157,7 +157,10 @@ where
     L: TemplateProperty<C, Output = Vec<String>>,
 {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        let labels = self.labels.extract(context);
+        let labels = match self.labels.extract(context) {
+            Ok(labels) => labels,
+            Err(err) => return err.format(&(), formatter),
+        };
         for label in &labels {
             formatter.push_label(label)?;
         }
@@ -256,16 +259,39 @@ where
     }
 }
 
+/// Wrapper around an error occurred during template evaluation.
+#[derive(Debug)]
+pub struct TemplatePropertyError(pub Box<dyn error::Error + Send + Sync>);
+
+// Implements conversion from any error type to support `expr?` in function
+// binding. This type doesn't implement `std::error::Error` instead.
+// https://github.com/dtolnay/anyhow/issues/25#issuecomment-544140480
+impl<E> From<E> for TemplatePropertyError
+where
+    E: error::Error + Send + Sync + 'static,
+{
+    fn from(err: E) -> Self {
+        TemplatePropertyError(err.into())
+    }
+}
+
+/// Prints the evaluation error as inline template output.
+impl Template<()> for TemplatePropertyError {
+    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+        format_error_inline(formatter, &*self.0)
+    }
+}
+
 pub trait TemplateProperty<C> {
     type Output;
 
-    fn extract(&self, context: &C) -> Self::Output;
+    fn extract(&self, context: &C) -> Result<Self::Output, TemplatePropertyError>;
 }
 
 impl<C, P: TemplateProperty<C> + ?Sized> TemplateProperty<C> for Box<P> {
     type Output = <P as TemplateProperty<C>>::Output;
 
-    fn extract(&self, context: &C) -> Self::Output {
+    fn extract(&self, context: &C) -> Result<Self::Output, TemplatePropertyError> {
         <P as TemplateProperty<C>>::extract(self, context)
     }
 }
@@ -273,8 +299,10 @@ impl<C, P: TemplateProperty<C> + ?Sized> TemplateProperty<C> for Box<P> {
 impl<C, P: TemplateProperty<C>> TemplateProperty<C> for Option<P> {
     type Output = Option<P::Output>;
 
-    fn extract(&self, context: &C) -> Self::Output {
-        self.as_ref().map(|property| property.extract(context))
+    fn extract(&self, context: &C) -> Result<Self::Output, TemplatePropertyError> {
+        self.as_ref()
+            .map(|property| property.extract(context))
+            .transpose()
     }
 }
 
@@ -285,8 +313,8 @@ macro_rules! tuple_impls {
             impl<C, $($T: TemplateProperty<C>,)+> TemplateProperty<C> for ($($T,)+) {
                 type Output = ($($T::Output,)+);
 
-                fn extract(&self, context: &C) -> Self::Output {
-                    ($(self.$n.extract(context),)+)
+                fn extract(&self, context: &C) -> Result<Self::Output, TemplatePropertyError> {
+                    Ok(($(self.$n.extract(context)?,)+))
                 }
             }
         )+
@@ -312,8 +340,8 @@ impl<C, O: Template<()>> Template<C> for Literal<O> {
 impl<C, O: Clone> TemplateProperty<C> for Literal<O> {
     type Output = O;
 
-    fn extract(&self, _context: &C) -> O {
-        self.0.clone()
+    fn extract(&self, _context: &C) -> Result<Self::Output, TemplatePropertyError> {
+        Ok(self.0.clone())
     }
 }
 
@@ -323,8 +351,8 @@ pub struct TemplatePropertyFn<F>(pub F);
 impl<C, O, F: Fn(&C) -> O> TemplateProperty<C> for TemplatePropertyFn<F> {
     type Output = O;
 
-    fn extract(&self, context: &C) -> Self::Output {
-        (self.0)(context)
+    fn extract(&self, context: &C) -> Result<Self::Output, TemplatePropertyError> {
+        Ok((self.0)(context))
     }
 }
 
@@ -349,8 +377,10 @@ where
     P::Output: Template<()>,
 {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        let template = self.property.extract(context);
-        template.format(&(), formatter)
+        match self.property.extract(context) {
+            Ok(template) => template.format(&(), formatter),
+            Err(err) => err.format(&(), formatter),
+        }
     }
 }
 
@@ -377,13 +407,13 @@ impl<T> PlainTextFormattedProperty<T> {
 impl<C, T: Template<C>> TemplateProperty<C> for PlainTextFormattedProperty<T> {
     type Output = String;
 
-    fn extract(&self, context: &C) -> Self::Output {
+    fn extract(&self, context: &C) -> Result<Self::Output, TemplatePropertyError> {
         let mut output = vec![];
         self.template
             .format(context, &mut PlainTextFormatter::new(&mut output))
             .expect("write() to PlainTextFormatter should never fail");
         // TODO: Use from_utf8_lossy() if we added template that embeds file content
-        String::from_utf8(output).expect("template output should be utf-8 bytes")
+        Ok(String::from_utf8(output).expect("template output should be utf-8 bytes"))
     }
 }
 
@@ -421,7 +451,10 @@ where
     F: Fn(&C, &mut dyn Formatter, O) -> io::Result<()>,
 {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        let contents = self.property.extract(context);
+        let contents = match self.property.extract(context) {
+            Ok(contents) => contents,
+            Err(err) => return err.format(&(), formatter),
+        };
         format_joined_with(
             context,
             formatter,
@@ -489,7 +522,11 @@ where
     U: Template<C>,
 {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        if self.condition.extract(context) {
+        let condition = match self.condition.extract(context) {
+            Ok(condition) => condition,
+            Err(err) => return err.format(&(), formatter),
+        };
+        if condition {
             self.true_template.format(context, formatter)?;
         } else if let Some(false_template) = &self.false_template {
             false_template.format(context, formatter)?;
@@ -522,8 +559,8 @@ where
 {
     type Output = O;
 
-    fn extract(&self, context: &C) -> Self::Output {
-        (self.function)(self.property.extract(context))
+    fn extract(&self, context: &C) -> Result<Self::Output, TemplatePropertyError> {
+        Ok((self.function)(self.property.extract(context)?))
     }
 }
 
@@ -565,12 +602,13 @@ impl<O> Default for PropertyPlaceholder<O> {
 impl<C, O: Clone> TemplateProperty<C> for PropertyPlaceholder<O> {
     type Output = O;
 
-    fn extract(&self, _: &C) -> Self::Output {
-        self.value
+    fn extract(&self, _: &C) -> Result<Self::Output, TemplatePropertyError> {
+        Ok(self
+            .value
             .borrow()
             .as_ref()
             .expect("placeholder value must be set before evaluating template")
-            .clone()
+            .clone())
     }
 }
 
@@ -615,4 +653,15 @@ where
         format_item(context, formatter, item)?;
     }
     Ok(())
+}
+
+fn format_error_inline(formatter: &mut dyn Formatter, err: &dyn error::Error) -> io::Result<()> {
+    formatter.with_label("error", |formatter| {
+        write!(formatter, "<Error")?;
+        for err in iter::successors(Some(err), |err| err.source()) {
+            write!(formatter, ": {err}")?;
+        }
+        write!(formatter, ">")?;
+        Ok(())
+    })
 }
