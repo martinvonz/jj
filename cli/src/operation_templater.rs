@@ -238,11 +238,11 @@ fn builtin_operation_id_methods() -> OperationTemplateBuildMethodFnMap<Operation
     map.insert("short", |language, build_ctx, self_property, function| {
         let ([], [len_node]) = template_parser::expect_arguments(function)?;
         let len_property = len_node
-            .map(|node| template_builder::expect_integer_expression(language, build_ctx, node))
+            .map(|node| template_builder::expect_usize_expression(language, build_ctx, node))
             .transpose()?;
         let out_property = TemplateFunction::new((self_property, len_property), |(id, len)| {
             let mut hex = id.hex();
-            hex.truncate(len.map_or(12, |l| l.try_into().unwrap_or(0)));
+            hex.truncate(len.unwrap_or(12));
             Ok(hex)
         });
         Ok(language.wrap_string(out_property))

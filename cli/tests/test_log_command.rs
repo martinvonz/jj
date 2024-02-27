@@ -647,8 +647,8 @@ fn test_log_short_shortest_length_parameter() {
     "###);
     insta::assert_snapshot!(
         render(r#"commit_id.short(-100) ++ "|" ++ commit_id.shortest(-100)"#), @r###"
-    @  |2
-    ◉  |0
+    @  <Error: out of range integral type conversion attempted>|<Error: out of range integral type conversion attempted>
+    ◉  <Error: out of range integral type conversion attempted>|<Error: out of range integral type conversion attempted>
     "###);
     insta::assert_snapshot!(
         render(r#"commit_id.short(100) ++ "|" ++ commit_id.shortest(100)"#), @r###"

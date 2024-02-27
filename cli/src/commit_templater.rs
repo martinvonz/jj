@@ -712,10 +712,10 @@ fn builtin_commit_or_change_id_methods<'repo>(
     map.insert("short", |language, build_ctx, self_property, function| {
         let ([], [len_node]) = template_parser::expect_arguments(function)?;
         let len_property = len_node
-            .map(|node| template_builder::expect_integer_expression(language, build_ctx, node))
+            .map(|node| template_builder::expect_usize_expression(language, build_ctx, node))
             .transpose()?;
         let out_property = TemplateFunction::new((self_property, len_property), |(id, len)| {
-            Ok(id.short(len.map_or(12, |l| l.try_into().unwrap_or(0))))
+            Ok(id.short(len.unwrap_or(12)))
         });
         Ok(language.wrap_string(out_property))
     });
@@ -725,14 +725,10 @@ fn builtin_commit_or_change_id_methods<'repo>(
             let id_prefix_context = &language.id_prefix_context;
             let ([], [len_node]) = template_parser::expect_arguments(function)?;
             let len_property = len_node
-                .map(|node| template_builder::expect_integer_expression(language, build_ctx, node))
+                .map(|node| template_builder::expect_usize_expression(language, build_ctx, node))
                 .transpose()?;
             let out_property = TemplateFunction::new((self_property, len_property), |(id, len)| {
-                Ok(id.shortest(
-                    language.repo,
-                    id_prefix_context,
-                    len.and_then(|l| l.try_into().ok()).unwrap_or(0),
-                ))
+                Ok(id.shortest(language.repo, id_prefix_context, len.unwrap_or(0)))
             });
             Ok(language.wrap_shortest_id_prefix(out_property))
         },

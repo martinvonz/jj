@@ -163,12 +163,11 @@ fn test_op_log_template() {
     ◉  00000 false @ 1970-01-01 00:00:00.000 +00:00 1970-01-01 00:00:00.000 +00:00 less than a microsecond
     "###);
 
-    // Negative length shouldn't cause panic (and is clamped.)
-    // TODO: If we add runtime error, this will probably error out.
+    // Negative length shouldn't cause panic.
     insta::assert_snapshot!(render(r#"id.short(-1) ++ "|""#), @r###"
-    @  |
-    ◉  |
-    ◉  |
+    @  <Error: out of range integral type conversion attempted>|
+    ◉  <Error: out of range integral type conversion attempted>|
+    ◉  <Error: out of range integral type conversion attempted>|
     "###);
 
     // Test the default template, i.e. with relative start time and duration. We
