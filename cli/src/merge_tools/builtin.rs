@@ -2,9 +2,10 @@ use std::borrow::Cow;
 use std::path::Path;
 use std::sync::Arc;
 
-use futures::{StreamExt, TryStreamExt};
+use futures::{StreamExt, TryFutureExt, TryStreamExt};
 use itertools::Itertools;
 use jj_lib::backend::{BackendError, FileId, MergedTreeId, TreeValue};
+use jj_lib::conflicts::{materialize_tree_value, MaterializedTreeValue};
 use jj_lib::diff::{find_line_ranges, Diff, DiffHunk};
 use jj_lib::files::{self, ContentHunk, MergeResult};
 use jj_lib::matchers::Matcher;
@@ -106,16 +107,21 @@ fn read_file_contents(
     tree: &MergedTree,
     path: &RepoPath,
 ) -> Result<FileInfo, BuiltinToolError> {
-    match tree.path_value(path).into_resolved() {
-        Ok(None) => Ok(FileInfo {
+    let value = tree.path_value(path);
+    let materialized_value = materialize_tree_value(store, path, value)
+        .map_err(BuiltinToolError::BackendError)
+        .block_on()?;
+    match materialized_value {
+        MaterializedTreeValue::Absent => Ok(FileInfo {
             file_mode: scm_record::FileMode::absent(),
             contents: FileContents::Absent,
         }),
 
-        Ok(Some(TreeValue::File { id, executable })) => {
-            let mut reader = store
-                .read_file(path, &id)
-                .map_err(BuiltinToolError::ReadFileBackend)?;
+        MaterializedTreeValue::File {
+            id,
+            executable,
+            mut reader,
+        } => {
             let mut buf = Vec::new();
             reader
                 .read_to_end(&mut buf)
@@ -137,34 +143,33 @@ fn read_file_contents(
             })
         }
 
-        Ok(Some(TreeValue::Symlink(id))) => {
-            let value = store
-                .read_symlink(path, &id)
-                .map_err(BuiltinToolError::ReadSymlink)?;
+        MaterializedTreeValue::Symlink { id, target } => {
             let file_mode = scm_record::FileMode(mode::SYMLINK);
-            let num_bytes = value.len().try_into().unwrap();
+            let num_bytes = target.len().try_into().unwrap();
             Ok(FileInfo {
                 file_mode,
                 contents: FileContents::Text {
-                    contents: value,
+                    contents: target,
                     hash: Some(id.hex()),
                     num_bytes,
                 },
             })
         }
 
-        Ok(Some(TreeValue::Tree(tree_id))) => {
+        MaterializedTreeValue::Tree(tree_id) => {
             unreachable!("list of changed files included a tree: {tree_id:?}");
         }
-        Ok(Some(TreeValue::GitSubmodule(id))) => Err(BuiltinToolError::Unimplemented {
+        MaterializedTreeValue::GitSubmodule(id) => Err(BuiltinToolError::Unimplemented {
             item: "git submodule",
             id: id.hex(),
         }),
-        Ok(Some(TreeValue::Conflict(id))) => {
-            unreachable!("list of changed files included a conflict: {id:?}");
-        }
-        Err(merge) => {
-            unreachable!("list of changed files included a merge: {merge:?}");
+        MaterializedTreeValue::Conflict { id: _, contents } => {
+            // TODO: Render the ID somehow?
+            let contents = buf_to_file_contents(None, contents);
+            Ok(FileInfo {
+                file_mode: scm_record::FileMode(mode::NORMAL),
+                contents,
+            })
         }
     }
 }
