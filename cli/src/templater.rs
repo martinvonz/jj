@@ -415,8 +415,7 @@ impl<C, T: Template<C>> TemplateProperty<C> for PlainTextFormattedProperty<T> {
         self.template
             .format(context, &mut PlainTextFormatter::new(&mut output))
             .expect("write() to PlainTextFormatter should never fail");
-        // TODO: Use from_utf8_lossy() if we added template that embeds file content
-        Ok(String::from_utf8(output).expect("template output should be utf-8 bytes"))
+        Ok(String::from_utf8(output).map_err(|err| err.utf8_error())?)
     }
 }
 
