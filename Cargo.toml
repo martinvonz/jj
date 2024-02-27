@@ -90,7 +90,7 @@ smallvec = { version = "1.13.0", features = [
 ] }
 strsim = "0.11.0"
 syn = "2.0.51"
-tempfile = "3.10.0"
+tempfile = "3.10.1"
 test-case = "3.3.1"
 textwrap = "0.16.1"
 thiserror = "1.0.57"
