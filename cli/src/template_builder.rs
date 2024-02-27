@@ -254,6 +254,63 @@ impl<'a, L: TemplateLanguage<'a>> CoreTemplateBuildFnTable<'a, L> {
             timestamp_range_methods: builtin_timestamp_range_methods(),
         }
     }
+
+    /// Applies the method call node `function` to the given `property` by using
+    /// this symbol table.
+    pub fn build_method(
+        &self,
+        language: &L,
+        build_ctx: &BuildContext<L::Property>,
+        property: CoreTemplatePropertyKind<'a, L::Context>,
+        function: &FunctionCallNode,
+    ) -> TemplateParseResult<L::Property> {
+        match property {
+            CoreTemplatePropertyKind::String(property) => {
+                let table = &self.string_methods;
+                let build = template_parser::lookup_method("String", table, function)?;
+                build(language, build_ctx, property, function)
+            }
+            CoreTemplatePropertyKind::StringList(property) => {
+                // TODO: migrate to table?
+                build_formattable_list_method(language, build_ctx, property, function, |item| {
+                    language.wrap_string(item)
+                })
+            }
+            CoreTemplatePropertyKind::Boolean(property) => {
+                let table = &self.boolean_methods;
+                let build = template_parser::lookup_method("Boolean", table, function)?;
+                build(language, build_ctx, property, function)
+            }
+            CoreTemplatePropertyKind::Integer(property) => {
+                let table = &self.integer_methods;
+                let build = template_parser::lookup_method("Integer", table, function)?;
+                build(language, build_ctx, property, function)
+            }
+            CoreTemplatePropertyKind::Signature(property) => {
+                let table = &self.signature_methods;
+                let build = template_parser::lookup_method("Signature", table, function)?;
+                build(language, build_ctx, property, function)
+            }
+            CoreTemplatePropertyKind::Timestamp(property) => {
+                let table = &self.timestamp_methods;
+                let build = template_parser::lookup_method("Timestamp", table, function)?;
+                build(language, build_ctx, property, function)
+            }
+            CoreTemplatePropertyKind::TimestampRange(property) => {
+                let table = &self.timestamp_range_methods;
+                let build = template_parser::lookup_method("TimestampRange", table, function)?;
+                build(language, build_ctx, property, function)
+            }
+            CoreTemplatePropertyKind::Template(_) => {
+                // TODO: migrate to table?
+                Err(TemplateParseError::no_such_method("Template", function))
+            }
+            CoreTemplatePropertyKind::ListTemplate(template) => {
+                // TODO: migrate to table?
+                build_list_template_method(language, build_ctx, template, function)
+            }
+        }
+    }
 }
 
 /// Opaque struct that represents a template value.
@@ -394,61 +451,6 @@ fn build_method_call<'a, L: TemplateLanguage<'a>>(
         language.build_method(build_ctx, expression.property, &method.function)?;
     expression.labels.push(method.function.name.to_owned());
     Ok(expression)
-}
-
-pub fn build_core_method<'a, L: TemplateLanguage<'a>>(
-    language: &L,
-    build_fn_table: &CoreTemplateBuildFnTable<'a, L>,
-    build_ctx: &BuildContext<L::Property>,
-    property: CoreTemplatePropertyKind<'a, L::Context>,
-    function: &FunctionCallNode,
-) -> TemplateParseResult<L::Property> {
-    match property {
-        CoreTemplatePropertyKind::String(property) => {
-            let table = &build_fn_table.string_methods;
-            let build = template_parser::lookup_method("String", table, function)?;
-            build(language, build_ctx, property, function)
-        }
-        CoreTemplatePropertyKind::StringList(property) => {
-            // TODO: migrate to table?
-            build_formattable_list_method(language, build_ctx, property, function, |item| {
-                language.wrap_string(item)
-            })
-        }
-        CoreTemplatePropertyKind::Boolean(property) => {
-            let table = &build_fn_table.boolean_methods;
-            let build = template_parser::lookup_method("Boolean", table, function)?;
-            build(language, build_ctx, property, function)
-        }
-        CoreTemplatePropertyKind::Integer(property) => {
-            let table = &build_fn_table.integer_methods;
-            let build = template_parser::lookup_method("Integer", table, function)?;
-            build(language, build_ctx, property, function)
-        }
-        CoreTemplatePropertyKind::Signature(property) => {
-            let table = &build_fn_table.signature_methods;
-            let build = template_parser::lookup_method("Signature", table, function)?;
-            build(language, build_ctx, property, function)
-        }
-        CoreTemplatePropertyKind::Timestamp(property) => {
-            let table = &build_fn_table.timestamp_methods;
-            let build = template_parser::lookup_method("Timestamp", table, function)?;
-            build(language, build_ctx, property, function)
-        }
-        CoreTemplatePropertyKind::TimestampRange(property) => {
-            let table = &build_fn_table.timestamp_range_methods;
-            let build = template_parser::lookup_method("TimestampRange", table, function)?;
-            build(language, build_ctx, property, function)
-        }
-        CoreTemplatePropertyKind::Template(_) => {
-            // TODO: migrate to table?
-            Err(TemplateParseError::no_such_method("Template", function))
-        }
-        CoreTemplatePropertyKind::ListTemplate(template) => {
-            // TODO: migrate to table?
-            build_list_template_method(language, build_ctx, template, function)
-        }
-    }
 }
 
 fn builtin_string_methods<'a, L: TemplateLanguage<'a>>() -> TemplateBuildMethodFnMap<'a, L, String>
@@ -1051,7 +1053,7 @@ mod tests {
             match property {
                 TestTemplatePropertyKind::Core(property) => {
                     let table = &self.build_fn_table;
-                    build_core_method(self, table, build_ctx, property, function)
+                    table.build_method(self, build_ctx, property, function)
                 }
                 TestTemplatePropertyKind::Unit => {
                     let build = self

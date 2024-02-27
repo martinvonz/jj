@@ -56,7 +56,7 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage {
         match property {
             OperationTemplatePropertyKind::Core(property) => {
                 let table = &self.build_fn_table.core;
-                template_builder::build_core_method(self, table, build_ctx, property, function)
+                table.build_method(self, build_ctx, property, function)
             }
             OperationTemplatePropertyKind::Operation(property) => {
                 let table = &self.build_fn_table.operation_methods;
