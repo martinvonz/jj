@@ -348,11 +348,14 @@ impl<C, O: Clone> TemplateProperty<C> for Literal<O> {
 /// Adapter to turn closure into property.
 pub struct TemplatePropertyFn<F>(pub F);
 
-impl<C, O, F: Fn(&C) -> O> TemplateProperty<C> for TemplatePropertyFn<F> {
+impl<C, O, F> TemplateProperty<C> for TemplatePropertyFn<F>
+where
+    F: Fn(&C) -> Result<O, TemplatePropertyError>,
+{
     type Output = O;
 
     fn extract(&self, context: &C) -> Result<Self::Output, TemplatePropertyError> {
-        Ok((self.0)(context))
+        (self.0)(context)
     }
 }
 
@@ -546,7 +549,7 @@ impl<P, F> TemplateFunction<P, F> {
     pub fn new<C, O>(property: P, function: F) -> Self
     where
         P: TemplateProperty<C>,
-        F: Fn(P::Output) -> O,
+        F: Fn(P::Output) -> Result<O, TemplatePropertyError>,
     {
         TemplateFunction { property, function }
     }
@@ -555,12 +558,12 @@ impl<P, F> TemplateFunction<P, F> {
 impl<C, O, P, F> TemplateProperty<C> for TemplateFunction<P, F>
 where
     P: TemplateProperty<C>,
-    F: Fn(P::Output) -> O,
+    F: Fn(P::Output) -> Result<O, TemplatePropertyError>,
 {
     type Output = O;
 
     fn extract(&self, context: &C) -> Result<Self::Output, TemplatePropertyError> {
-        Ok((self.function)(self.property.extract(context)?))
+        (self.function)(self.property.extract(context)?)
     }
 }
 
