@@ -474,30 +474,7 @@ fn build_string_method<'a, L: TemplateLanguage<'a>>(
             let end_idx_property = expect_integer_expression(language, build_ctx, end_idx)?;
             language.wrap_string(TemplateFunction::new(
                 (self_property, start_idx_property, end_idx_property),
-                |(s, start_idx, end_idx)| {
-                    // TODO: If we add .len() method, we'll expose bytes-based and char-based APIs.
-                    // Having different index units would be confusing, so we might want to change
-                    // .substr() to bytes-based and round up/down towards char or grapheme-cluster
-                    // boundary.
-                    let to_idx = |i: i64| -> usize {
-                        let magnitude = usize::try_from(i.unsigned_abs()).unwrap_or(usize::MAX);
-                        if i < 0 {
-                            s.chars().count().saturating_sub(magnitude)
-                        } else {
-                            magnitude
-                        }
-                    };
-                    let start_idx = to_idx(start_idx);
-                    let end_idx = to_idx(end_idx);
-                    if start_idx >= end_idx {
-                        String::new()
-                    } else {
-                        s.chars()
-                            .skip(start_idx)
-                            .take(end_idx - start_idx)
-                            .collect()
-                    }
-                },
+                |(s, start_idx, end_idx)| string_substr(&s, start_idx, end_idx),
             ))
         }
         "first_line" => {
@@ -523,6 +500,31 @@ fn build_string_method<'a, L: TemplateLanguage<'a>>(
         _ => return Err(TemplateParseError::no_such_method("String", function)),
     };
     Ok(property)
+}
+
+fn string_substr(s: &str, start_idx: i64, end_idx: i64) -> String {
+    // TODO: If we add .len() method, we'll expose bytes-based and char-based APIs.
+    // Having different index units would be confusing, so we might want to change
+    // .substr() to bytes-based and round up/down towards char or grapheme-cluster
+    // boundary.
+    let to_idx = |i: i64| -> usize {
+        let magnitude = usize::try_from(i.unsigned_abs()).unwrap_or(usize::MAX);
+        if i < 0 {
+            s.chars().count().saturating_sub(magnitude)
+        } else {
+            magnitude
+        }
+    };
+    let start_idx = to_idx(start_idx);
+    let end_idx = to_idx(end_idx);
+    if start_idx >= end_idx {
+        String::new()
+    } else {
+        s.chars()
+            .skip(start_idx)
+            .take(end_idx - start_idx)
+            .collect()
+    }
 }
 
 fn build_boolean_method<'a, L: TemplateLanguage<'a>>(
