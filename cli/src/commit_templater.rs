@@ -68,7 +68,7 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
         match property {
             CommitTemplatePropertyKind::Core(property) => {
                 let table = &self.build_fn_table.core;
-                template_builder::build_core_method(self, table, build_ctx, property, function)
+                table.build_method(self, build_ctx, property, function)
             }
             CommitTemplatePropertyKind::Commit(property) => {
                 let table = &self.build_fn_table.commit_methods;
