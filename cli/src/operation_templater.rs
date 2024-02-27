@@ -44,7 +44,7 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage {
 
     fn build_self(&self) -> Self::Property {
         // Operation object is lightweight (a few Arc + OperationId)
-        self.wrap_operation(TemplatePropertyFn(|op: &Operation| op.clone()))
+        self.wrap_operation(TemplatePropertyFn(|op: &Operation| Ok(op.clone())))
     }
 
     fn build_method(
@@ -161,7 +161,7 @@ fn builtin_operation_methods() -> OperationTemplateBuildMethodFnMap<Operation> {
             template_parser::expect_no_arguments(function)?;
             let current_op_id = language.current_op_id.clone();
             let out_property = TemplateFunction::new(self_property, move |op| {
-                Some(op.id()) == current_op_id.as_ref()
+                Ok(Some(op.id()) == current_op_id.as_ref())
             });
             Ok(language.wrap_boolean(out_property))
         },
@@ -171,32 +171,35 @@ fn builtin_operation_methods() -> OperationTemplateBuildMethodFnMap<Operation> {
         |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
             let out_property =
-                TemplateFunction::new(self_property, |op| op.metadata().description.clone());
+                TemplateFunction::new(self_property, |op| Ok(op.metadata().description.clone()));
             Ok(language.wrap_string(out_property))
         },
     );
     map.insert("id", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |op| op.id().clone());
+        let out_property = TemplateFunction::new(self_property, |op| Ok(op.id().clone()));
         Ok(language.wrap_operation_id(out_property))
     });
     map.insert("tags", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
         let out_property = TemplateFunction::new(self_property, |op| {
             // TODO: introduce map type
-            op.metadata()
+            Ok(op
+                .metadata()
                 .tags
                 .iter()
                 .map(|(key, value)| format!("{key}: {value}"))
-                .join("\n")
+                .join("\n"))
         });
         Ok(language.wrap_string(out_property))
     });
     map.insert("time", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |op| TimestampRange {
-            start: op.metadata().start_time.clone(),
-            end: op.metadata().end_time.clone(),
+        let out_property = TemplateFunction::new(self_property, |op| {
+            Ok(TimestampRange {
+                start: op.metadata().start_time.clone(),
+                end: op.metadata().end_time.clone(),
+            })
         });
         Ok(language.wrap_timestamp_range(out_property))
     });
@@ -204,14 +207,19 @@ fn builtin_operation_methods() -> OperationTemplateBuildMethodFnMap<Operation> {
         template_parser::expect_no_arguments(function)?;
         let out_property = TemplateFunction::new(self_property, |op| {
             // TODO: introduce dedicated type and provide accessors?
-            format!("{}@{}", op.metadata().username, op.metadata().hostname)
+            Ok(format!(
+                "{}@{}",
+                op.metadata().username,
+                op.metadata().hostname
+            ))
         });
         Ok(language.wrap_string(out_property))
     });
     map.insert("root", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
         let root_op_id = language.root_op_id.clone();
-        let out_property = TemplateFunction::new(self_property, move |op| op.id() == &root_op_id);
+        let out_property =
+            TemplateFunction::new(self_property, move |op| Ok(op.id() == &root_op_id));
         Ok(language.wrap_boolean(out_property))
     });
     map
@@ -235,7 +243,7 @@ fn builtin_operation_id_methods() -> OperationTemplateBuildMethodFnMap<Operation
         let out_property = TemplateFunction::new((self_property, len_property), |(id, len)| {
             let mut hex = id.hex();
             hex.truncate(len.map_or(12, |l| l.try_into().unwrap_or(0)));
-            hex
+            Ok(hex)
         });
         Ok(language.wrap_string(out_property))
     });
