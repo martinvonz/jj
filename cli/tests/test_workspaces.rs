@@ -467,12 +467,12 @@ fn test_workspaces_current_op_discarded_by_other() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
     insta::assert_snapshot!(stderr, @r###"
     Failed to read working copy's current operation; attempting recovery. Error message from read attempt: Object 47f1ad5e1adfaa1e9863181e6e45ae12b9db553e82bde82e278c0c6288053c833b4039a5baf2415871964bcdcd4b7875692979e66f2ec18bfc3896355091cf53 of type operation not found
-    Created and checked out recovery commit 9d040f9a433c
+    Created and checked out recovery commit df3e46148439
     "###);
     insta::assert_snapshot!(stdout, @"");
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ◉  e5b7d155229f587a96678aaa23b771c694f5bb8ad690e1312b90dd3c73b01ab26ea0a2946aa2760f3c672f1587f2742718a6596c46c3a3b881122906164c081a secondary@
+    ◉  54400d0c58b790c53de57a1c28090d23739010b300ac17cb47c26d1e48d41bb6583c94a5e4e71b32bbe1e50190c67141525e92aba9ae7b7a413ed1c989629874 secondary@
     ◉  4278b78fb503846224c4328785f8557558aab32b1e3d6ad6b343e94575dd5c67492acea9aa1c417817b4943e78547877e031208a51f8eadcd1ac55d6ebe77983
     │ @  6dc8f254cd3cbe5c086fb99adc66724303d7ceb12790e585e5946940dffca60dbb928b852e3c309b20dee351df5897f49b83c89d583a756fd736772b3e5f206a default@
     ├─╯
@@ -484,16 +484,16 @@ fn test_workspaces_current_op_discarded_by_other() {
     insta::assert_snapshot!(stdout, @r###"
     Working copy changes:
     A file
-    Working copy : znkkpsqq e5b7d155 (no description set)
+    Working copy : znkkpsqq 54400d0c (no description set)
     Parent commit: pmmvwywv 4278b78f (empty) (no description set)
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["obslog"]);
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(stdout, @r###"
-    @  znkkpsqq test.user@example.com 2001-02-03 04:05:16.000 +07:00 secondary@ e5b7d155
+    @  znkkpsqq test.user@example.com 2001-02-03 04:05:16.000 +07:00 secondary@ 54400d0c
     │  (no description set)
-    ◉  znkkpsqq hidden test.user@example.com 2001-02-03 04:05:16.000 +07:00 9d040f9a
+    ◉  znkkpsqq hidden test.user@example.com 2001-02-03 04:05:16.000 +07:00 df3e4614
        (empty) (no description set)
     "###);
 }
