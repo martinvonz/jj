@@ -38,6 +38,7 @@ use tracing::instrument;
 use unicode_width::UnicodeWidthStr as _;
 
 use crate::cli_util::{CommandError, WorkspaceCommandHelper};
+use crate::config::CommandNameAndArgs;
 use crate::formatter::Formatter;
 use crate::merge_tools::{self, ExternalMergeTool, MergeTool};
 use crate::text_util;
@@ -144,8 +145,12 @@ fn default_diff_format(settings: &UserSettings) -> Result<DiffFormat, config::Co
     let config = settings.config();
     if let Some(args) = config.get("ui.diff.tool").optional()? {
         // External "tool" overrides the internal "format" option.
-        let tool = merge_tools::get_tool_config_from_args(settings, &args)?
-            .unwrap_or_else(|| MergeTool::External(ExternalMergeTool::with_diff_args(&args)));
+        let tool = if let CommandNameAndArgs::String(name) = &args {
+            merge_tools::get_tool_config(settings, name)?
+        } else {
+            None
+        }
+        .unwrap_or_else(|| MergeTool::External(ExternalMergeTool::with_diff_args(&args)));
         match tool {
             MergeTool::Builtin => {}
             MergeTool::External(tool) => {
