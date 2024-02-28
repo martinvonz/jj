@@ -185,10 +185,7 @@ fn editor_args_from_settings(
 
 /// Resolves builtin merge tool name or loads external tool options from
 /// `[merge-tools.<name>]`.
-pub fn get_tool_config(
-    settings: &UserSettings,
-    name: &str,
-) -> Result<Option<MergeTool>, ConfigError> {
+fn get_tool_config(settings: &UserSettings, name: &str) -> Result<Option<MergeTool>, ConfigError> {
     if name == BUILTIN_EDITOR_NAME {
         Ok(Some(MergeTool::Builtin))
     } else {

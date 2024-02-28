@@ -14,7 +14,7 @@
 
 use itertools::Itertools;
 
-use crate::common::{escaped_fake_diff_editor_path, TestEnvironment};
+use crate::common::{escaped_fake_diff_editor_path, strip_last_line, TestEnvironment};
 
 #[test]
 fn test_diff_basic() {
@@ -752,6 +752,14 @@ fn test_diff_external_tool() {
     "###);
     insta::assert_snapshot!(stderr, @r###"
     Tool exited with a non-zero code (run with --debug to see the exact invocation). Exit code: 1.
+    "###);
+
+    // --tool=:builtin shouldn't be ignored
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["diff", "--tool=:builtin"]);
+    insta::assert_snapshot!(strip_last_line(&stderr), @r###"
+    Error: Failed to generate diff
+    Caused by:
+    1: Error executing ':builtin' (run with --debug to see the exact invocation)
     "###);
 }
 
