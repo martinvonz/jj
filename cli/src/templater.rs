@@ -84,7 +84,10 @@ impl Template<()> for &str {
 
 impl Template<()> for Timestamp {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
-        formatter.write_str(&time_util::format_absolute_timestamp(self))
+        match time_util::format_absolute_timestamp(self) {
+            Ok(formatted) => formatter.write_str(&formatted),
+            Err(err) => format_error_inline(formatter, &err),
+        }
     }
 }
 
@@ -97,14 +100,14 @@ pub struct TimestampRange {
 
 impl TimestampRange {
     // TODO: Introduce duration type, and move formatting to it.
-    pub fn duration(&self) -> String {
+    pub fn duration(&self) -> Result<String, time_util::TimestampOutOfRange> {
         let mut f = timeago::Formatter::new();
         f.min_unit(timeago::TimeUnit::Microseconds).ago("");
-        let duration = time_util::format_duration(&self.start, &self.end, &f);
+        let duration = time_util::format_duration(&self.start, &self.end, &f)?;
         if duration == "now" {
-            "less than a microsecond".to_owned()
+            Ok("less than a microsecond".to_owned())
         } else {
-            duration
+            Ok(duration)
         }
     }
 }
