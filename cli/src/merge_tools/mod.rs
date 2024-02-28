@@ -183,15 +183,24 @@ fn editor_args_from_settings(
     }
 }
 
-/// Loads merge tool options from `[merge-tools.<name>]`.
+/// Resolves builtin merge tool name or loads external tool options from
+/// `[merge-tools.<name>]`.
 pub fn get_tool_config(
     settings: &UserSettings,
     name: &str,
 ) -> Result<Option<MergeTool>, ConfigError> {
     if name == BUILTIN_EDITOR_NAME {
-        return Ok(Some(MergeTool::Builtin));
+        Ok(Some(MergeTool::Builtin))
+    } else {
+        Ok(get_external_tool_config(settings, name)?.map(MergeTool::External))
     }
+}
 
+/// Loads external diff/merge tool options from `[merge-tools.<name>]`.
+pub fn get_external_tool_config(
+    settings: &UserSettings,
+    name: &str,
+) -> Result<Option<ExternalMergeTool>, ConfigError> {
     const TABLE_KEY: &str = "merge-tools";
     let tools_table = settings.config().get_table(TABLE_KEY)?;
     if let Some(v) = tools_table.get(name) {
@@ -204,7 +213,7 @@ pub fn get_tool_config(
         if result.program.is_empty() {
             result.program.clone_from(&name.to_string());
         };
-        Ok(Some(MergeTool::External(result)))
+        Ok(Some(result))
     } else {
         Ok(None)
     }
