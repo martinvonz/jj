@@ -1595,12 +1595,11 @@ a new commits. Unlike Git, Jujutsu will not do it automatically.</p>
 <code>jj git fetch</code> followed by a <code>jj rebase -d $main_branch</code> to update your
 changes.</p>
 <h2 id="working-in-a-git-co-located-repository">Working in a Git co-located repository<a class="headerlink" href="#working-in-a-git-co-located-repository" title="Permanent link">&para;</a></h2>
-<p>After doing <code>jj init --git-repo=.</code>, Git will be in
-a <a href="https://git-scm.com/docs/git-checkout#_detached_head">detached HEAD state</a>, which is unusual, as Git mainly works with
-branches. In a co-located repository, every <code>jj</code> command will automatically
-synchronize Jujutsu's view of the repo with Git's view. For example,
-<code>jj commit</code> updates the HEAD of the Git repository, enabling an incremental
-migration.</p>
+<p>After doing <code>jj git init --colocate</code>, Git will be in a <a href="https://git-scm.com/docs/git-checkout#_detached_head">detached HEAD
+state</a>, which is unusual, as Git mainly works with branches. In a
+co-located repository, every <code>jj</code> command will automatically synchronize
+Jujutsu's view of the repo with Git's view. For example, <code>jj commit</code> updates the
+HEAD of the Git repository, enabling an incremental migration.</p>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span>nvim<span class="w"> </span>docs/tutorial.md
 $<span class="w"> </span><span class="c1"># Do some more work.</span>
 $<span class="w"> </span>jj<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Update tutorial&quot;</span>

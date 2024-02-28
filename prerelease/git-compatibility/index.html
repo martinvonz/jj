@@ -1459,8 +1459,8 @@ a comparison with Git, including how workflows are different, see the
   the whole workspace first. There's <a href="https://github.com/martinvonz/jj/issues/12">no garbage collection and repacking of
   Jujutsu's own data structures yet</a>,
   however.</li>
-<li><strong>Bare repositories: Yes.</strong> You can use <code>jj init --git-repo=&lt;path&gt;</code> to create
-  a repo backed by a bare Git repo.</li>
+<li><strong>Bare repositories: Yes.</strong> You can use <code>jj git init --git-repo=&lt;path&gt;</code> to
+  create a repo backed by a bare Git repo.</li>
 <li><strong>Submodules: No.</strong> They will not show up in the working copy, but they will
   not be lost either.</li>
 <li><strong>Partial clones: No.</strong> We use the <a href="https://libgit2.org/">libgit2</a> library,
@@ -1481,12 +1481,12 @@ underlying Git repo will be inside of that directory (currently in
 <code>.jj/repo/store/git/</code>).</p>
 <h2 id="creating-a-repo-backed-by-an-existing-git-repo">Creating a repo backed by an existing Git repo<a class="headerlink" href="#creating-a-repo-backed-by-an-existing-git-repo" title="Permanent link">&para;</a></h2>
 <p>To create a Jujutsu repo backed by a Git repo you already have on disk, use
-<code>jj init --git-repo=&lt;path to Git repo&gt; &lt;name&gt;</code>. The repo will work similar to a
-<a href="https://git-scm.com/docs/git-worktree">Git worktree</a>, meaning that the working
-copies files and the record of the working-copy commit will be separate, but the
-commits will be accessible in both repos. Use <code>jj git import</code> to update the
-Jujutsu repo with changes made in the Git repo. Use <code>jj git export</code> to update
-the Git repo with changes made in the Jujutsu repo.</p>
+<code>jj git init --git-repo=&lt;path to Git repo&gt; &lt;name&gt;</code>. The repo will work similar
+to a <a href="https://git-scm.com/docs/git-worktree">Git worktree</a>, meaning that the
+working copies files and the record of the working-copy commit will be separate,
+but the commits will be accessible in both repos. Use <code>jj git import</code> to update
+the Jujutsu repo with changes made in the Git repo. Use <code>jj git export</code> to
+update the Git repo with changes made in the Jujutsu repo.</p>
 <h2 id="creating-a-repo-by-cloning-a-git-repo">Creating a repo by cloning a Git repo<a class="headerlink" href="#creating-a-repo-by-cloning-a-git-repo" title="Permanent link">&para;</a></h2>
 <p>To create a Jujutsu repo from a remote Git URL, use <code>jj git clone &lt;URL&gt;
 [&lt;destination&gt;]</code>. For example, <code>jj git clone
@@ -1494,8 +1494,8 @@ https://github.com/octocat/Hello-World</code> will clone GitHub's "Hello-World" 
 into a directory by the same name.</p>
 <h2 id="co-located-jujutsugit-repos">Co-located Jujutsu/Git repos<a class="headerlink" href="#co-located-jujutsugit-repos" title="Permanent link">&para;</a></h2>
 <p>A "co-located" Jujutsu repo is a hybrid Jujutsu/Git repo. These can be created
-if you initialize the Jujutsu repo in an existing Git repo by running <code>jj init
---git-repo=.</code> or with <code>jj git clone --colocate</code>. The Git repo and the Jujutsu
+if you initialize the Jujutsu repo in an existing Git repo by running <code>jj git
+init --colocate</code> or with <code>jj git clone --colocate</code>. The Git repo and the Jujutsu
 repo then share the same working copy. Jujutsu will import and export from and
 to the Git repo on every <code>jj</code> command automatically.</p>
 <p>This mode is very convenient when tools (e.g. build tools) expect a Git repo to
