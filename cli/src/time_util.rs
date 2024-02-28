@@ -2,6 +2,7 @@ use chrono::format::StrftimeItems;
 use chrono::{DateTime, FixedOffset, LocalResult, TimeZone, Utc};
 use jj_lib::backend::Timestamp;
 use once_cell::sync::Lazy;
+use thiserror::Error;
 
 /// Parsed formatting items which should never contain an error.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -41,43 +42,52 @@ impl<'a> FormattingItems<'a> {
     }
 }
 
-fn datetime_from_timestamp(context: &Timestamp) -> Option<DateTime<FixedOffset>> {
+#[derive(Debug, Error)]
+#[error("Out-of-range date")]
+pub struct TimestampOutOfRange;
+
+fn datetime_from_timestamp(
+    context: &Timestamp,
+) -> Result<DateTime<FixedOffset>, TimestampOutOfRange> {
     let utc = match Utc.timestamp_opt(
         context.timestamp.0.div_euclid(1000),
         (context.timestamp.0.rem_euclid(1000)) as u32 * 1000000,
     ) {
         LocalResult::None => {
-            return None;
+            return Err(TimestampOutOfRange);
         }
         LocalResult::Single(x) => x,
         LocalResult::Ambiguous(y, _z) => y,
     };
 
-    Some(
-        utc.with_timezone(
-            &FixedOffset::east_opt(context.tz_offset * 60)
-                .unwrap_or_else(|| FixedOffset::east_opt(0).unwrap()),
-        ),
-    )
+    Ok(utc.with_timezone(
+        &FixedOffset::east_opt(context.tz_offset * 60)
+            .unwrap_or_else(|| FixedOffset::east_opt(0).unwrap()),
+    ))
 }
 
-pub fn format_absolute_timestamp(timestamp: &Timestamp) -> String {
+pub fn format_absolute_timestamp(timestamp: &Timestamp) -> Result<String, TimestampOutOfRange> {
     static DEFAULT_FORMAT: Lazy<FormattingItems> =
         Lazy::new(|| FormattingItems::parse("%Y-%m-%d %H:%M:%S.%3f %:z").unwrap());
     format_absolute_timestamp_with(timestamp, &DEFAULT_FORMAT)
 }
 
-pub fn format_absolute_timestamp_with(timestamp: &Timestamp, format: &FormattingItems) -> String {
-    match datetime_from_timestamp(timestamp) {
-        Some(datetime) => datetime.format_with_items(format.items.iter()).to_string(),
-        None => "<out-of-range date>".to_string(),
-    }
+pub fn format_absolute_timestamp_with(
+    timestamp: &Timestamp,
+    format: &FormattingItems,
+) -> Result<String, TimestampOutOfRange> {
+    let datetime = datetime_from_timestamp(timestamp)?;
+    Ok(datetime.format_with_items(format.items.iter()).to_string())
 }
 
-pub fn format_duration(from: &Timestamp, to: &Timestamp, format: &timeago::Formatter) -> String {
-    datetime_from_timestamp(from)
-        .zip(datetime_from_timestamp(to))
-        .and_then(|(from, to)| to.signed_duration_since(from).to_std().ok())
-        .map(|duration| format.convert(duration))
-        .unwrap_or_else(|| "<out-of-range date>".to_string())
+pub fn format_duration(
+    from: &Timestamp,
+    to: &Timestamp,
+    format: &timeago::Formatter,
+) -> Result<String, TimestampOutOfRange> {
+    let duration = datetime_from_timestamp(to)?
+        .signed_duration_since(datetime_from_timestamp(from)?)
+        .to_std()
+        .map_err(|_: chrono::OutOfRangeError| TimestampOutOfRange)?;
+    Ok(format.convert(duration))
 }

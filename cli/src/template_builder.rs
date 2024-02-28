@@ -668,7 +668,7 @@ fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a>>(
         let now = Timestamp::now();
         let format = timeago::Formatter::new();
         let out_property = TemplateFunction::new(self_property, move |timestamp| {
-            Ok(time_util::format_duration(&timestamp, &now, &format))
+            Ok(time_util::format_duration(&timestamp, &now, &format)?)
         });
         Ok(language.wrap_string(out_property))
     });
@@ -684,7 +684,7 @@ fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a>>(
         let out_property = TemplateFunction::new(self_property, move |timestamp| {
             Ok(time_util::format_absolute_timestamp_with(
                 &timestamp, &format,
-            ))
+            )?)
         });
         Ok(language.wrap_string(out_property))
     });
@@ -728,7 +728,7 @@ fn builtin_timestamp_range_methods<'a, L: TemplateLanguage<'a>>(
         |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
             let out_property =
-                TemplateFunction::new(self_property, |time_range| Ok(time_range.duration()));
+                TemplateFunction::new(self_property, |time_range| Ok(time_range.duration()?));
             Ok(language.wrap_string(out_property))
         },
     );
