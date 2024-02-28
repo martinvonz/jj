@@ -138,6 +138,19 @@ Branches that already existed before the `jj git fetch` are not affected. This
 is similar to Mercurial, which fetches all its bookmarks (equivalent to Git
 branches) by default.
 
+## Branch movement
+
+Currently Jujutsu automatically moves local branches when these conditions are
+met:
+
+ * When a commit has been rewritten (e.g, when you rebase) branches and the  
+   working-copy will move along with it.
+ * When a commit has been abandoned, all associated branches will be moved 
+   to its parent(s). If a working copy was pointing to the abandoned commit,
+   then a new working-copy commit will be created on top of the parent(s).
+
+You could describe the movement as following along the change-id of the 
+current branch commit, even if it isn't entirely accurate.
 
 ## Conflicts
 
