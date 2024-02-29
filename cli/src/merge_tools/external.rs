@@ -5,7 +5,6 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::Arc;
 
-use config::ConfigError;
 use futures::StreamExt;
 use itertools::Itertools;
 use jj_lib::backend::{FileId, MergedTreeId, TreeValue};
@@ -107,13 +106,6 @@ impl ExternalMergeTool {
 
 #[derive(Debug, Error)]
 pub enum ExternalToolError {
-    #[error("Invalid config")]
-    Config(#[from] ConfigError),
-    #[error(
-        "To use `{tool_name}` as a merge tool, the config `merge-tools.{tool_name}.merge-args` \
-         must be defined (see docs for details)"
-    )]
-    MergeArgsNotConfigured { tool_name: String },
     #[error("Error setting up temporary directory")]
     SetUpDir(#[source] std::io::Error),
     // TODO: Remove the "(run with --debug to see the exact invocation)"
