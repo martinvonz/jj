@@ -96,13 +96,14 @@ pub(crate) fn cmd_resolve(
 
     let (repo_path, _) = conflicts.first().unwrap();
     workspace_command.check_rewritable([&commit])?;
+    let merge_editor = workspace_command.merge_editor(ui)?;
     writeln!(
         ui.stderr(),
         "Resolving conflicts in: {}",
         workspace_command.format_file_path(repo_path)
     )?;
     let mut tx = workspace_command.start_transaction();
-    let new_tree_id = tx.run_mergetool(ui, &tree, repo_path)?;
+    let new_tree_id = tx.run_mergetool(&merge_editor, &tree, repo_path)?;
     let new_commit = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)

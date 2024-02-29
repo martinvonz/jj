@@ -61,10 +61,15 @@ pub(crate) fn cmd_unsquash(
     }
     let parent = &parents[0];
     workspace_command.check_rewritable(&parents[..1])?;
+    let interactive_editor = if args.interactive {
+        Some(workspace_command.diff_editor(ui)?)
+    } else {
+        None
+    };
     let mut tx = workspace_command.start_transaction();
     let parent_base_tree = merge_commit_trees(tx.repo(), &parent.parents())?;
     let new_parent_tree_id;
-    if args.interactive {
+    if let Some(diff_editor) = &interactive_editor {
         let instructions = format!(
             "\
 You are moving changes from: {}
@@ -82,7 +87,7 @@ aborted.
         );
         let parent_tree = parent.tree()?;
         new_parent_tree_id = tx.edit_diff(
-            ui,
+            diff_editor,
             &parent_base_tree,
             &parent_tree,
             &EverythingMatcher,

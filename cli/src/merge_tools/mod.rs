@@ -86,10 +86,9 @@ pub enum ConflictResolveError {
 }
 
 pub fn run_mergetool(
-    ui: &Ui,
+    editor: &MergeEditor,
     tree: &MergedTree,
     repo_path: &RepoPath,
-    settings: &UserSettings,
 ) -> Result<MergedTreeId, ConflictResolveError> {
     let conflict = match tree.path_value(repo_path).into_resolved() {
         Err(conflict) => conflict,
@@ -115,30 +114,27 @@ pub fn run_mergetool(
     };
     let content = extract_as_single_hunk(&file_merge, tree.store(), repo_path).block_on();
 
-    let editor = MergeEditor::from_settings(ui, settings)?.tool;
-    match editor {
+    match &editor.tool {
         MergeTool::Builtin => {
             let tree_id = edit_merge_builtin(tree, repo_path, content).map_err(Box::new)?;
             Ok(tree_id)
         }
-        MergeTool::External(editor) => external::run_mergetool_external(
-            &editor, file_merge, content, repo_path, conflict, tree,
-        ),
+        MergeTool::External(editor) => {
+            external::run_mergetool_external(editor, file_merge, content, repo_path, conflict, tree)
+        }
     }
 }
 
 pub fn edit_diff(
-    ui: &Ui,
+    editor: &DiffEditor,
     left_tree: &MergedTree,
     right_tree: &MergedTree,
     matcher: &dyn Matcher,
     instructions: Option<&str>,
     base_ignores: Arc<GitIgnoreFile>,
-    settings: &UserSettings,
 ) -> Result<MergedTreeId, DiffEditError> {
     // Start a diff editor on the two directories.
-    let editor = DiffEditor::from_settings(ui, settings)?.tool;
-    match editor {
+    match &editor.tool {
         MergeTool::Builtin => {
             let tree_id = edit_diff_builtin(left_tree, right_tree, matcher).map_err(Box::new)?;
             Ok(tree_id)

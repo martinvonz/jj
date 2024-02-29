@@ -408,6 +408,7 @@ fn test_too_many_parents() {
 
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
+    Using default editor ':builtin'; run `jj config set --user ui.merge-editor :builtin` to disable this message.
     Resolving conflicts in: file
     Error: Failed to resolve conflicts
     Caused by: The conflict at "file" has 3 sides. At most 2 sides are supported.
@@ -485,6 +486,7 @@ fn test_file_vs_dir() {
     "###);
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
+    Using default editor ':builtin'; run `jj config set --user ui.merge-editor :builtin` to disable this message.
     Resolving conflicts in: file
     Error: Failed to resolve conflicts
     Caused by: Only conflicts that involve normal files (not symlinks, not executable, etc.) are supported. Conflict summary for "file":
@@ -541,6 +543,7 @@ fn test_description_with_dir_and_deletion() {
     "###);
     let error = test_env.jj_cmd_failure(&repo_path, &["resolve"]);
     insta::assert_snapshot!(error, @r###"
+    Using default editor ':builtin'; run `jj config set --user ui.merge-editor :builtin` to disable this message.
     Resolving conflicts in: file
     Error: Failed to resolve conflicts
     Caused by: Only conflicts that involve normal files (not symlinks, not executable, etc.) are supported. Conflict summary for "file":

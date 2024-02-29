@@ -77,6 +77,7 @@ pub(crate) fn cmd_diffedit(
     };
     workspace_command.check_rewritable([&target_commit])?;
 
+    let diff_editor = workspace_command.diff_editor(ui)?;
     let mut tx = workspace_command.start_transaction();
     let instructions = format!(
         "\
@@ -91,7 +92,7 @@ don't make any changes, then the operation will be aborted.",
     let base_tree = merge_commit_trees(tx.repo(), base_commits.as_slice())?;
     let tree = target_commit.tree()?;
     let tree_id = tx.edit_diff(
-        ui,
+        &diff_editor,
         &base_tree,
         &tree,
         &EverythingMatcher,

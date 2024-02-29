@@ -69,6 +69,11 @@ pub(crate) fn cmd_move(
     }
     workspace_command.check_rewritable([&source, &destination])?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    let interactive_editor = if args.interactive {
+        Some(workspace_command.diff_editor(ui)?)
+    } else {
+        None
+    };
     let mut tx = workspace_command.start_transaction();
     let parent_tree = merge_commit_trees(tx.repo(), &source.parents())?;
     let source_tree = source.tree()?;
@@ -89,14 +94,13 @@ from the source will be moved into the destination.
         tx.format_commit_summary(&destination)
     );
     let new_parent_tree_id = tx.select_diff(
-        ui,
+        interactive_editor.as_ref(),
         &parent_tree,
         &source_tree,
         matcher.as_ref(),
         Some(&instructions),
-        args.interactive,
     )?;
-    if args.interactive && new_parent_tree_id == parent_tree.id() {
+    if interactive_editor.is_some() && new_parent_tree_id == parent_tree.id() {
         return Err(user_error("No changes to move"));
     }
     let new_parent_tree = tx.repo().store().get_root_tree(&new_parent_tree_id)?;
