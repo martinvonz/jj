@@ -66,7 +66,7 @@ new working-copy commit.
         &base_tree,
         &commit.tree()?,
         matcher.as_ref(),
-        &instructions,
+        Some(&instructions),
         args.interactive,
     )?;
     let middle_tree = tx.repo().store().get_root_tree(&tree_id)?;

@@ -427,7 +427,7 @@ pub fn edit_diff_external(
     left_tree: &MergedTree,
     right_tree: &MergedTree,
     matcher: &dyn Matcher,
-    instructions: &str,
+    instructions: Option<&str>,
     base_ignores: Arc<GitIgnoreFile>,
     settings: &UserSettings,
 ) -> Result<MergedTreeId, DiffEditError> {
@@ -452,10 +452,13 @@ pub fn edit_diff_external(
     let instructions_path_to_cleanup = output_wc_path.join("JJ-INSTRUCTIONS");
     // In the unlikely event that the file already exists, then the user will simply
     // not get any instructions.
-    let add_instructions = settings.diff_instructions()
-        && !instructions.is_empty()
-        && !instructions_path_to_cleanup.exists();
-    if add_instructions {
+    let add_instructions = if settings.diff_instructions() && !instructions_path_to_cleanup.exists()
+    {
+        instructions
+    } else {
+        None
+    };
+    if let Some(instructions) = add_instructions {
         let mut output_instructions_file =
             File::create(&instructions_path_to_cleanup).map_err(ExternalToolError::SetUpDir)?;
         if diff_wc.right_working_copy_path() != output_wc_path {
@@ -513,7 +516,7 @@ diff editing in mind and be a little inaccurate.
             exit_status,
         }));
     }
-    if add_instructions {
+    if add_instructions.is_some() {
         std::fs::remove_file(instructions_path_to_cleanup).ok();
     }
 

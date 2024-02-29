@@ -93,7 +93,7 @@ from the source will be moved into the destination.
         &parent_tree,
         &source_tree,
         matcher.as_ref(),
-        &instructions,
+        Some(&instructions),
         args.interactive,
     )?;
     if args.interactive && new_parent_tree_id == parent_tree.id() {

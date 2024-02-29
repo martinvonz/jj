@@ -1751,7 +1751,7 @@ impl WorkspaceCommandTransaction<'_> {
         left_tree: &MergedTree,
         right_tree: &MergedTree,
         matcher: &dyn Matcher,
-        instructions: &str,
+        instructions: Option<&str>,
     ) -> Result<MergedTreeId, CommandError> {
         let base_ignores = self.helper.base_ignores()?;
         let settings = &self.helper.settings;
@@ -1772,7 +1772,7 @@ impl WorkspaceCommandTransaction<'_> {
         left_tree: &MergedTree,
         right_tree: &MergedTree,
         matcher: &dyn Matcher,
-        instructions: &str,
+        instructions: Option<&str>,
         interactive: bool,
     ) -> Result<MergedTreeId, CommandError> {
         if interactive {
