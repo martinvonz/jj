@@ -40,7 +40,7 @@ use crate::templater::{
 };
 use crate::text_util;
 
-struct CommitTemplateLanguage<'repo> {
+pub struct CommitTemplateLanguage<'repo> {
     repo: &'repo dyn Repo,
     workspace_id: WorkspaceId,
     id_prefix_context: &'repo IdPrefixContext,
@@ -160,7 +160,7 @@ impl<'repo> CommitTemplateLanguage<'repo> {
     }
 }
 
-enum CommitTemplatePropertyKind<'repo> {
+pub enum CommitTemplatePropertyKind<'repo> {
     Core(CoreTemplatePropertyKind<'repo, Commit>),
     Commit(Box<dyn TemplateProperty<Commit, Output = Commit> + 'repo>),
     CommitList(Box<dyn TemplateProperty<Commit, Output = Vec<Commit>> + 'repo>),
@@ -232,15 +232,15 @@ type CommitTemplateBuildMethodFnMap<'repo, T> =
     TemplateBuildMethodFnMap<'repo, CommitTemplateLanguage<'repo>, T>;
 
 /// Symbol table of methods available in the commit template.
-struct CommitTemplateBuildFnTable<'repo> {
-    core: CoreTemplateBuildFnTable<'repo, CommitTemplateLanguage<'repo>>,
-    commit_methods: CommitTemplateBuildMethodFnMap<'repo, Commit>,
-    ref_name_methods: CommitTemplateBuildMethodFnMap<'repo, RefName>,
-    commit_or_change_id_methods: CommitTemplateBuildMethodFnMap<'repo, CommitOrChangeId>,
-    shortest_id_prefix_methods: CommitTemplateBuildMethodFnMap<'repo, ShortestIdPrefix>,
+pub struct CommitTemplateBuildFnTable<'repo> {
+    pub core: CoreTemplateBuildFnTable<'repo, CommitTemplateLanguage<'repo>>,
+    pub commit_methods: CommitTemplateBuildMethodFnMap<'repo, Commit>,
+    pub ref_name_methods: CommitTemplateBuildMethodFnMap<'repo, RefName>,
+    pub commit_or_change_id_methods: CommitTemplateBuildMethodFnMap<'repo, CommitOrChangeId>,
+    pub shortest_id_prefix_methods: CommitTemplateBuildMethodFnMap<'repo, ShortestIdPrefix>,
 }
 
-impl CommitTemplateBuildFnTable<'_> {
+impl<'repo> CommitTemplateBuildFnTable<'repo> {
     /// Creates new symbol table containing the builtin methods.
     fn builtin() -> Self {
         CommitTemplateBuildFnTable {
@@ -249,6 +249,16 @@ impl CommitTemplateBuildFnTable<'_> {
             ref_name_methods: builtin_ref_name_methods(),
             commit_or_change_id_methods: builtin_commit_or_change_id_methods(),
             shortest_id_prefix_methods: builtin_shortest_id_prefix_methods(),
+        }
+    }
+
+    pub fn empty() -> Self {
+        CommitTemplateBuildFnTable {
+            core: CoreTemplateBuildFnTable::empty(),
+            commit_methods: HashMap::new(),
+            ref_name_methods: HashMap::new(),
+            commit_or_change_id_methods: HashMap::new(),
+            shortest_id_prefix_methods: HashMap::new(),
         }
     }
 }
@@ -506,7 +516,7 @@ fn extract_working_copies(repo: &dyn Repo, commit: &Commit) -> String {
 
 /// Branch or tag name with metadata.
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct RefName {
+pub struct RefName {
     /// Local name.
     name: String,
     /// Remote name if this is a remote or Git-tracking ref.
@@ -656,7 +666,7 @@ fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> Vec<RefName> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-enum CommitOrChangeId {
+pub enum CommitOrChangeId {
     Commit(CommitId),
     Change(ChangeId),
 }
@@ -736,7 +746,7 @@ fn builtin_commit_or_change_id_methods<'repo>(
     map
 }
 
-struct ShortestIdPrefix {
+pub struct ShortestIdPrefix {
     pub prefix: String,
     pub rest: String,
 }
