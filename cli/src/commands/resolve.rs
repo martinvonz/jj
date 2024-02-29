@@ -103,7 +103,7 @@ pub(crate) fn cmd_resolve(
         workspace_command.format_file_path(repo_path)
     )?;
     let mut tx = workspace_command.start_transaction();
-    let new_tree_id = tx.run_mergetool(&merge_editor, &tree, repo_path)?;
+    let new_tree_id = merge_editor.edit_file(&tree, repo_path)?;
     let new_commit = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)
