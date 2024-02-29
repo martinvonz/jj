@@ -557,8 +557,8 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a>>() -> TemplateBuildMethodF
     );
     map.insert("substr", |language, build_ctx, self_property, function| {
         let [start_idx, end_idx] = template_parser::expect_exact_arguments(function)?;
-        let start_idx_property = expect_integer_expression(language, build_ctx, start_idx)?;
-        let end_idx_property = expect_integer_expression(language, build_ctx, end_idx)?;
+        let start_idx_property = expect_isize_expression(language, build_ctx, start_idx)?;
+        let end_idx_property = expect_isize_expression(language, build_ctx, end_idx)?;
         let out_property = TemplateFunction::new(
             (self_property, start_idx_property, end_idx_property),
             |(s, start_idx, end_idx)| Ok(string_substr(&s, start_idx, end_idx)),
@@ -595,13 +595,13 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a>>() -> TemplateBuildMethodF
     map
 }
 
-fn string_substr(s: &str, start_idx: i64, end_idx: i64) -> String {
+fn string_substr(s: &str, start_idx: isize, end_idx: isize) -> String {
     // TODO: If we add .len() method, we'll expose bytes-based and char-based APIs.
     // Having different index units would be confusing, so we might want to change
     // .substr() to bytes-based and round up/down towards char or grapheme-cluster
     // boundary.
-    let to_idx = |i: i64| -> usize {
-        let magnitude = usize::try_from(i.unsigned_abs()).unwrap_or(usize::MAX);
+    let to_idx = |i: isize| -> usize {
+        let magnitude = i.unsigned_abs();
         if i < 0 {
             s.chars().count().saturating_sub(magnitude)
         } else {
@@ -1030,6 +1030,17 @@ pub fn expect_integer_expression<'a, L: TemplateLanguage<'a>>(
     build_expression(language, build_ctx, node)?
         .try_into_integer()
         .ok_or_else(|| TemplateParseError::expected_type("Integer", node.span))
+}
+
+/// If the given expression `node` is of `Integer` type, converts it to `isize`.
+pub fn expect_isize_expression<'a, L: TemplateLanguage<'a>>(
+    language: &L,
+    build_ctx: &BuildContext<L::Property>,
+    node: &ExpressionNode,
+) -> TemplateParseResult<Box<dyn TemplateProperty<L::Context, Output = isize> + 'a>> {
+    let i64_property = expect_integer_expression(language, build_ctx, node)?;
+    let isize_property = TemplateFunction::new(i64_property, |v| Ok(isize::try_from(v)?));
+    Ok(Box::new(isize_property))
 }
 
 /// If the given expression `node` is of `Integer` type, converts it to `usize`.
