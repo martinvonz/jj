@@ -86,8 +86,7 @@ aborted.
             tx.format_commit_summary(&commit)
         );
         let parent_tree = parent.tree()?;
-        new_parent_tree_id = tx.edit_diff(
-            diff_editor,
+        new_parent_tree_id = diff_editor.edit(
             &parent_base_tree,
             &parent_tree,
             &EverythingMatcher,

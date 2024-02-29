@@ -91,13 +91,7 @@ don't make any changes, then the operation will be aborted.",
     );
     let base_tree = merge_commit_trees(tx.repo(), base_commits.as_slice())?;
     let tree = target_commit.tree()?;
-    let tree_id = tx.edit_diff(
-        &diff_editor,
-        &base_tree,
-        &tree,
-        &EverythingMatcher,
-        Some(&instructions),
-    )?;
+    let tree_id = diff_editor.edit(&base_tree, &tree, &EverythingMatcher, Some(&instructions))?;
     if tree_id == *target_commit.tree_id() {
         writeln!(ui.stderr(), "Nothing changed.")?;
     } else {
