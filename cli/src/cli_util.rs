@@ -1725,16 +1725,6 @@ impl WorkspaceCommandTransaction<'_> {
         self.tx.mut_repo().edit(workspace_id, commit)
     }
 
-    // TODO: inline this
-    pub fn run_mergetool(
-        &self,
-        editor: &MergeEditor,
-        tree: &MergedTree,
-        repo_path: &RepoPath,
-    ) -> Result<MergedTreeId, CommandError> {
-        Ok(merge_tools::run_mergetool(editor, tree, repo_path)?)
-    }
-
     // TODO: maybe capture parameters by diff_editor(), and inline this?
     pub fn edit_diff(
         &self,

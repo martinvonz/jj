@@ -85,46 +85,6 @@ pub enum ConflictResolveError {
     Backend(#[from] jj_lib::backend::BackendError),
 }
 
-pub fn run_mergetool(
-    editor: &MergeEditor,
-    tree: &MergedTree,
-    repo_path: &RepoPath,
-) -> Result<MergedTreeId, ConflictResolveError> {
-    let conflict = match tree.path_value(repo_path).into_resolved() {
-        Err(conflict) => conflict,
-        Ok(Some(_)) => return Err(ConflictResolveError::NotAConflict(repo_path.to_owned())),
-        Ok(None) => return Err(ConflictResolveError::PathNotFound(repo_path.to_owned())),
-    };
-    let file_merge = conflict.to_file_merge().ok_or_else(|| {
-        let mut summary_bytes: Vec<u8> = vec![];
-        conflict
-            .describe(&mut summary_bytes)
-            .expect("Writing to an in-memory buffer should never fail");
-        ConflictResolveError::NotNormalFiles(
-            repo_path.to_owned(),
-            String::from_utf8_lossy(summary_bytes.as_slice()).to_string(),
-        )
-    })?;
-    // We only support conflicts with 2 sides (3-way conflicts)
-    if file_merge.num_sides() > 2 {
-        return Err(ConflictResolveError::ConflictTooComplicated {
-            path: repo_path.to_owned(),
-            sides: file_merge.num_sides(),
-        });
-    };
-    let content = extract_as_single_hunk(&file_merge, tree.store(), repo_path).block_on();
-
-    match &editor.tool {
-        MergeTool::Builtin => {
-            let tree_id = edit_merge_builtin(tree, repo_path, content).map_err(Box::new)?;
-            Ok(tree_id)
-        }
-        MergeTool::External(editor) => {
-            external::run_mergetool_external(editor, file_merge, content, repo_path, conflict, tree)
-        }
-    }
-}
-
 pub fn edit_diff(
     editor: &DiffEditor,
     left_tree: &MergedTree,
@@ -264,6 +224,47 @@ impl MergeEditor {
             });
         }
         Ok(MergeEditor { tool })
+    }
+
+    /// Starts a merge editor for the specified file.
+    pub fn edit_file(
+        &self,
+        tree: &MergedTree,
+        repo_path: &RepoPath,
+    ) -> Result<MergedTreeId, ConflictResolveError> {
+        let conflict = match tree.path_value(repo_path).into_resolved() {
+            Err(conflict) => conflict,
+            Ok(Some(_)) => return Err(ConflictResolveError::NotAConflict(repo_path.to_owned())),
+            Ok(None) => return Err(ConflictResolveError::PathNotFound(repo_path.to_owned())),
+        };
+        let file_merge = conflict.to_file_merge().ok_or_else(|| {
+            let mut summary_bytes: Vec<u8> = vec![];
+            conflict
+                .describe(&mut summary_bytes)
+                .expect("Writing to an in-memory buffer should never fail");
+            ConflictResolveError::NotNormalFiles(
+                repo_path.to_owned(),
+                String::from_utf8_lossy(summary_bytes.as_slice()).to_string(),
+            )
+        })?;
+        // We only support conflicts with 2 sides (3-way conflicts)
+        if file_merge.num_sides() > 2 {
+            return Err(ConflictResolveError::ConflictTooComplicated {
+                path: repo_path.to_owned(),
+                sides: file_merge.num_sides(),
+            });
+        };
+        let content = extract_as_single_hunk(&file_merge, tree.store(), repo_path).block_on();
+
+        match &self.tool {
+            MergeTool::Builtin => {
+                let tree_id = edit_merge_builtin(tree, repo_path, content).map_err(Box::new)?;
+                Ok(tree_id)
+            }
+            MergeTool::External(editor) => external::run_mergetool_external(
+                editor, file_merge, content, repo_path, conflict, tree,
+            ),
+        }
     }
 }
 
