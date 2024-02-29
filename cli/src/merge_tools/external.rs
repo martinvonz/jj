@@ -10,6 +10,7 @@ use futures::StreamExt;
 use itertools::Itertools;
 use jj_lib::backend::{FileId, MergedTreeId, TreeValue};
 use jj_lib::conflicts::{self, materialize_merge_result};
+use jj_lib::fsmonitor::FsmonitorKind;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::local_working_copy::{TreeState, TreeStateError};
 use jj_lib::matchers::Matcher;
@@ -516,14 +517,15 @@ diff editing in mind and be a little inaccurate.
         std::fs::remove_file(instructions_path_to_cleanup).ok();
     }
 
+    // Snapshot changes in the temporary output directory.
     let mut output_tree_state = diff_wc
         .output_tree_state
         .unwrap_or(diff_wc.right_tree_state);
     output_tree_state.snapshot(SnapshotOptions {
         base_ignores,
-        fsmonitor_kind: settings.fsmonitor_kind()?,
+        fsmonitor_kind: FsmonitorKind::None,
         progress: None,
-        max_new_file_size: settings.max_new_file_size()?,
+        max_new_file_size: u64::MAX,
     })?;
     Ok(output_tree_state.current_tree_id().clone())
 }
