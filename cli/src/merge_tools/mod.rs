@@ -115,7 +115,7 @@ pub fn run_mergetool(
     };
     let content = extract_as_single_hunk(&file_merge, tree.store(), repo_path).block_on();
 
-    let editor = get_merge_tool_from_settings(ui, settings)?;
+    let editor = MergeEditor::from_settings(ui, settings)?.tool;
     match editor {
         MergeTool::Builtin => {
             let tree_id = edit_merge_builtin(tree, repo_path, content).map_err(Box::new)?;
@@ -137,7 +137,7 @@ pub fn edit_diff(
     settings: &UserSettings,
 ) -> Result<MergedTreeId, DiffEditError> {
     // Start a diff editor on the two directories.
-    let editor = get_diff_editor_from_settings(ui, settings)?;
+    let editor = DiffEditor::from_settings(ui, settings)?.tool;
     match editor {
         MergeTool::Builtin => {
             let tree_id = edit_diff_builtin(left_tree, right_tree, matcher).map_err(Box::new)?;
@@ -215,38 +215,51 @@ pub fn get_external_tool_config(
     }
 }
 
-fn get_diff_editor_from_settings(
-    ui: &Ui,
-    settings: &UserSettings,
-) -> Result<MergeTool, ExternalToolError> {
-    let args = editor_args_from_settings(ui, settings, "ui.diff-editor")?;
-    let editor = if let CommandNameAndArgs::String(name) = &args {
-        get_tool_config(settings, name)?
-    } else {
-        None
-    }
-    .unwrap_or_else(|| MergeTool::External(ExternalMergeTool::with_edit_args(&args)));
-    Ok(editor)
+/// Configured diff editor.
+#[derive(Clone, Debug)]
+pub struct DiffEditor {
+    tool: MergeTool,
 }
 
-fn get_merge_tool_from_settings(
-    ui: &Ui,
-    settings: &UserSettings,
-) -> Result<MergeTool, ExternalToolError> {
-    let args = editor_args_from_settings(ui, settings, "ui.merge-editor")?;
-    let mergetool = if let CommandNameAndArgs::String(name) = &args {
-        get_tool_config(settings, name)?
-    } else {
-        None
-    }
-    .unwrap_or_else(|| MergeTool::External(ExternalMergeTool::with_merge_args(&args)));
-    match mergetool {
-        MergeTool::External(mergetool) if mergetool.merge_args.is_empty() => {
-            Err(ExternalToolError::MergeArgsNotConfigured {
-                tool_name: args.to_string(),
-            })
+impl DiffEditor {
+    /// Loads the default diff editor from the settings.
+    // TODO: extract tool configuration error from DiffEditError
+    pub fn from_settings(ui: &Ui, settings: &UserSettings) -> Result<Self, DiffEditError> {
+        let args = editor_args_from_settings(ui, settings, "ui.diff-editor")?;
+        let tool = if let CommandNameAndArgs::String(name) = &args {
+            get_tool_config(settings, name).map_err(ExternalToolError::Config)?
+        } else {
+            None
         }
-        mergetool => Ok(mergetool),
+        .unwrap_or_else(|| MergeTool::External(ExternalMergeTool::with_edit_args(&args)));
+        Ok(DiffEditor { tool })
+    }
+}
+
+/// Configured 3-way merge editor.
+#[derive(Clone, Debug)]
+pub struct MergeEditor {
+    tool: MergeTool,
+}
+
+impl MergeEditor {
+    /// Loads the default 3-way merge editor from the settings.
+    // TODO: extract tool configuration error from ConflictResolveError
+    pub fn from_settings(ui: &Ui, settings: &UserSettings) -> Result<Self, ConflictResolveError> {
+        let args = editor_args_from_settings(ui, settings, "ui.merge-editor")?;
+        let tool = if let CommandNameAndArgs::String(name) = &args {
+            get_tool_config(settings, name).map_err(ExternalToolError::Config)?
+        } else {
+            None
+        }
+        .unwrap_or_else(|| MergeTool::External(ExternalMergeTool::with_merge_args(&args)));
+        if matches!(&tool, MergeTool::External(mergetool) if mergetool.merge_args.is_empty()) {
+            return Err(ExternalToolError::MergeArgsNotConfigured {
+                tool_name: args.to_string(),
+            }
+            .into());
+        }
+        Ok(MergeEditor { tool })
     }
 }
 
@@ -269,7 +282,7 @@ mod tests {
             let config = config_from_string(text);
             let ui = Ui::with_config(&config).unwrap();
             let settings = UserSettings::from_config(config);
-            get_diff_editor_from_settings(&ui, &settings)
+            DiffEditor::from_settings(&ui, &settings).map(|editor| editor.tool)
         };
 
         // Default
@@ -418,7 +431,7 @@ mod tests {
             let config = config_from_string(text);
             let ui = Ui::with_config(&config).unwrap();
             let settings = UserSettings::from_config(config);
-            get_merge_tool_from_settings(&ui, &settings)
+            MergeEditor::from_settings(&ui, &settings).map(|editor| editor.tool)
         };
 
         // Default
@@ -426,9 +439,11 @@ mod tests {
 
         // Just program name
         insta::assert_debug_snapshot!(get(r#"ui.merge-editor = "my-merge""#).unwrap_err(), @r###"
-        MergeArgsNotConfigured {
-            tool_name: "my-merge",
-        }
+        ExternalTool(
+            MergeArgsNotConfigured {
+                tool_name: "my-merge",
+            },
+        )
         "###);
 
         // String args
@@ -516,9 +531,11 @@ mod tests {
         // List args should never be a merge-tools key
         insta::assert_debug_snapshot!(
             get(r#"ui.merge-editor = ["meld"]"#).unwrap_err(), @r###"
-        MergeArgsNotConfigured {
-            tool_name: "meld",
-        }
+        ExternalTool(
+            MergeArgsNotConfigured {
+                tool_name: "meld",
+            },
+        )
         "###);
 
         // Invalid type
