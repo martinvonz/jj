@@ -246,13 +246,24 @@ pub type TemplateBuildMethodFnMap<'a, L, T> =
 
 /// Symbol table of methods available in the core template.
 pub struct CoreTemplateBuildFnTable<'a, L: TemplateLanguage<'a>> {
-    string_methods: TemplateBuildMethodFnMap<'a, L, String>,
-    boolean_methods: TemplateBuildMethodFnMap<'a, L, bool>,
-    integer_methods: TemplateBuildMethodFnMap<'a, L, i64>,
-    signature_methods: TemplateBuildMethodFnMap<'a, L, Signature>,
-    timestamp_methods: TemplateBuildMethodFnMap<'a, L, Timestamp>,
-    timestamp_range_methods: TemplateBuildMethodFnMap<'a, L, TimestampRange>,
+    pub string_methods: TemplateBuildMethodFnMap<'a, L, String>,
+    pub boolean_methods: TemplateBuildMethodFnMap<'a, L, bool>,
+    pub integer_methods: TemplateBuildMethodFnMap<'a, L, i64>,
+    pub signature_methods: TemplateBuildMethodFnMap<'a, L, Signature>,
+    pub timestamp_methods: TemplateBuildMethodFnMap<'a, L, Timestamp>,
+    pub timestamp_range_methods: TemplateBuildMethodFnMap<'a, L, TimestampRange>,
     // TODO: add global functions table?
+}
+
+pub fn merge_fn_map<'a, L: TemplateLanguage<'a>, T>(
+    base: &mut TemplateBuildMethodFnMap<'a, L, T>,
+    extension: TemplateBuildMethodFnMap<'a, L, T>,
+) {
+    for (name, function) in extension {
+        if base.insert(name, function).is_some() {
+            panic!("Conflicting template definitions for '{name}' function");
+        }
+    }
 }
 
 impl<'a, L: TemplateLanguage<'a>> CoreTemplateBuildFnTable<'a, L> {
@@ -266,6 +277,35 @@ impl<'a, L: TemplateLanguage<'a>> CoreTemplateBuildFnTable<'a, L> {
             timestamp_methods: builtin_timestamp_methods(),
             timestamp_range_methods: builtin_timestamp_range_methods(),
         }
+    }
+
+    pub fn empty() -> Self {
+        CoreTemplateBuildFnTable {
+            string_methods: HashMap::new(),
+            boolean_methods: HashMap::new(),
+            integer_methods: HashMap::new(),
+            signature_methods: HashMap::new(),
+            timestamp_methods: HashMap::new(),
+            timestamp_range_methods: HashMap::new(),
+        }
+    }
+
+    pub fn merge(&mut self, extension: CoreTemplateBuildFnTable<'a, L>) {
+        let CoreTemplateBuildFnTable {
+            string_methods,
+            boolean_methods,
+            integer_methods,
+            signature_methods,
+            timestamp_methods,
+            timestamp_range_methods,
+        } = extension;
+
+        merge_fn_map(&mut self.string_methods, string_methods);
+        merge_fn_map(&mut self.boolean_methods, boolean_methods);
+        merge_fn_map(&mut self.integer_methods, integer_methods);
+        merge_fn_map(&mut self.signature_methods, signature_methods);
+        merge_fn_map(&mut self.timestamp_methods, timestamp_methods);
+        merge_fn_map(&mut self.timestamp_range_methods, timestamp_range_methods);
     }
 
     /// Applies the method call node `function` to the given `property` by using
