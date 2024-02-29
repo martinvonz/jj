@@ -150,7 +150,6 @@ pub fn edit_diff(
             matcher,
             instructions,
             base_ignores,
-            settings,
         ),
     }
 }

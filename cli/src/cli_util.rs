@@ -1755,6 +1755,11 @@ impl WorkspaceCommandTransaction<'_> {
     ) -> Result<MergedTreeId, CommandError> {
         let base_ignores = self.helper.base_ignores()?;
         let settings = &self.helper.settings;
+        let instructions = if settings.diff_instructions() {
+            instructions
+        } else {
+            None
+        };
         Ok(crate::merge_tools::edit_diff(
             ui,
             left_tree,

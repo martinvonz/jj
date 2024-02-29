@@ -17,7 +17,6 @@ use jj_lib::matchers::Matcher;
 use jj_lib::merge::{Merge, MergedTreeValue};
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
-use jj_lib::settings::UserSettings;
 use jj_lib::store::Store;
 use jj_lib::working_copy::{CheckoutError, SnapshotOptions};
 use pollster::FutureExt;
@@ -429,7 +428,6 @@ pub fn edit_diff_external(
     matcher: &dyn Matcher,
     instructions: Option<&str>,
     base_ignores: Arc<GitIgnoreFile>,
-    settings: &UserSettings,
 ) -> Result<MergedTreeId, DiffEditError> {
     let got_output_field = find_all_variables(&editor.edit_args).contains(&"output");
     let store = left_tree.store();
@@ -452,8 +450,7 @@ pub fn edit_diff_external(
     let instructions_path_to_cleanup = output_wc_path.join("JJ-INSTRUCTIONS");
     // In the unlikely event that the file already exists, then the user will simply
     // not get any instructions.
-    let add_instructions = if settings.diff_instructions() && !instructions_path_to_cleanup.exists()
-    {
+    let add_instructions = if !instructions_path_to_cleanup.exists() {
         instructions
     } else {
         None
