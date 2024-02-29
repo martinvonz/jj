@@ -78,6 +78,7 @@ use tracing::instrument;
 use tracing_chrome::ChromeLayerBuilder;
 use tracing_subscriber::prelude::*;
 
+use crate::commit_templater::CommitTemplateLanguageExtension;
 use crate::config::{
     new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigSource, LayeredConfigs,
 };
@@ -590,6 +591,7 @@ pub struct CommandHelper {
     global_args: GlobalArgs,
     settings: UserSettings,
     layered_configs: LayeredConfigs,
+    commit_template_extension: Option<Arc<dyn CommitTemplateLanguageExtension>>,
     maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
     store_factories: StoreFactories,
     working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>>,
@@ -605,6 +607,7 @@ impl CommandHelper {
         global_args: GlobalArgs,
         settings: UserSettings,
         layered_configs: LayeredConfigs,
+        commit_template_extension: Option<Arc<dyn CommitTemplateLanguageExtension>>,
         maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
         store_factories: StoreFactories,
         working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>>,
@@ -621,6 +624,7 @@ impl CommandHelper {
             global_args,
             settings,
             layered_configs,
+            commit_template_extension,
             maybe_workspace_loader,
             store_factories,
             working_copy_factories,
@@ -799,6 +803,7 @@ pub struct WorkspaceCommandHelper {
     settings: UserSettings,
     workspace: Workspace,
     user_repo: ReadonlyUserRepo,
+    commit_template_extension: Option<Arc<dyn CommitTemplateLanguageExtension>>,
     revset_aliases_map: RevsetAliasesMap,
     template_aliases_map: TemplateAliasesMap,
     may_update_working_copy: bool,
@@ -823,6 +828,7 @@ impl WorkspaceCommandHelper {
             repo.as_ref(),
             workspace.workspace_id(),
             &id_prefix_context,
+            command.commit_template_extension.as_deref(),
             &template_aliases_map,
             &command.settings,
         )?;
@@ -836,6 +842,7 @@ impl WorkspaceCommandHelper {
             settings: command.settings.clone(),
             workspace,
             user_repo: ReadonlyUserRepo::new(repo),
+            commit_template_extension: command.commit_template_extension.clone(),
             revset_aliases_map,
             template_aliases_map,
             may_update_working_copy,
@@ -1263,6 +1270,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
             self.repo().as_ref(),
             self.workspace_id(),
             id_prefix_context,
+            self.commit_template_extension.as_deref(),
             template_text,
             &self.template_aliases_map,
         )?;
@@ -1291,6 +1299,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
             self.repo().as_ref(),
             self.workspace_id(),
             id_prefix_context,
+            self.commit_template_extension.as_deref(),
             &self.template_aliases_map,
             &self.settings,
         )
@@ -1792,6 +1801,7 @@ impl WorkspaceCommandTransaction<'_> {
             self.tx.repo(),
             self.helper.workspace_id(),
             &id_prefix_context,
+            self.helper.commit_template_extension.as_deref(),
             &self.helper.template_aliases_map,
             &self.helper.settings,
         )
@@ -2152,6 +2162,7 @@ fn parse_commit_summary_template<'a>(
     repo: &'a dyn Repo,
     workspace_id: &WorkspaceId,
     id_prefix_context: &'a IdPrefixContext,
+    extension: Option<&dyn CommitTemplateLanguageExtension>,
     aliases_map: &TemplateAliasesMap,
     settings: &UserSettings,
 ) -> Result<Box<dyn Template<Commit> + 'a>, CommandError> {
@@ -2160,6 +2171,7 @@ fn parse_commit_summary_template<'a>(
         repo,
         workspace_id,
         id_prefix_context,
+        extension,
         &template_text,
         aliases_map,
     )?)
@@ -2841,6 +2853,7 @@ pub struct CliRunner {
     extra_configs: Option<config::Config>,
     store_factories: Option<StoreFactories>,
     working_copy_factories: Option<HashMap<String, Box<dyn WorkingCopyFactory>>>,
+    commit_template_extension: Option<Arc<dyn CommitTemplateLanguageExtension>>,
     dispatch_fn: CliDispatchFn,
     start_hook_fns: Vec<CliDispatchFn>,
     process_global_args_fns: Vec<ProcessGlobalArgsFn>,
@@ -2862,6 +2875,7 @@ impl CliRunner {
             extra_configs: None,
             store_factories: None,
             working_copy_factories: None,
+            commit_template_extension: None,
             dispatch_fn: Box::new(crate::commands::run_command),
             start_hook_fns: vec![],
             process_global_args_fns: vec![],
@@ -2892,6 +2906,14 @@ impl CliRunner {
         working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>>,
     ) -> Self {
         self.working_copy_factories = Some(working_copy_factories);
+        self
+    }
+
+    pub fn set_commit_template_extension(
+        mut self,
+        commit_template_extension: Box<dyn CommitTemplateLanguageExtension>,
+    ) -> Self {
+        self.commit_template_extension = Some(commit_template_extension.into());
         self
     }
 
@@ -3009,6 +3031,7 @@ impl CliRunner {
             args.global_args,
             settings,
             layered_configs,
+            self.commit_template_extension,
             maybe_workspace_loader,
             self.store_factories.unwrap_or_default(),
             working_copy_factories,

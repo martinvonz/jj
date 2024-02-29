@@ -30,8 +30,8 @@ use once_cell::unsync::OnceCell;
 
 use crate::formatter::Formatter;
 use crate::template_builder::{
-    self, BuildContext, CoreTemplateBuildFnTable, CoreTemplatePropertyKind, IntoTemplateProperty,
-    TemplateBuildMethodFnMap, TemplateLanguage,
+    self, merge_fn_map, BuildContext, CoreTemplateBuildFnTable, CoreTemplatePropertyKind,
+    IntoTemplateProperty, TemplateBuildMethodFnMap, TemplateLanguage,
 };
 use crate::template_parser::{self, FunctionCallNode, TemplateAliasesMap, TemplateParseResult};
 use crate::templater::{
@@ -46,6 +46,10 @@ pub struct CommitTemplateLanguage<'repo> {
     id_prefix_context: &'repo IdPrefixContext,
     build_fn_table: CommitTemplateBuildFnTable<'repo>,
     keyword_cache: CommitKeywordCache,
+}
+
+pub trait CommitTemplateLanguageExtension {
+    fn build_fn_table<'repo>(&self) -> CommitTemplateBuildFnTable<'repo>;
 }
 
 impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
@@ -228,7 +232,7 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
 }
 
 /// Table of functions that translate method call node of self type `T`.
-type CommitTemplateBuildMethodFnMap<'repo, T> =
+pub type CommitTemplateBuildMethodFnMap<'repo, T> =
     TemplateBuildMethodFnMap<'repo, CommitTemplateLanguage<'repo>, T>;
 
 /// Symbol table of methods available in the commit template.
@@ -260,6 +264,28 @@ impl<'repo> CommitTemplateBuildFnTable<'repo> {
             commit_or_change_id_methods: HashMap::new(),
             shortest_id_prefix_methods: HashMap::new(),
         }
+    }
+
+    fn merge(&mut self, extension: CommitTemplateBuildFnTable<'repo>) {
+        let CommitTemplateBuildFnTable {
+            core,
+            commit_methods,
+            ref_name_methods,
+            commit_or_change_id_methods,
+            shortest_id_prefix_methods,
+        } = extension;
+
+        self.core.merge(core);
+        merge_fn_map(&mut self.commit_methods, commit_methods);
+        merge_fn_map(&mut self.ref_name_methods, ref_name_methods);
+        merge_fn_map(
+            &mut self.commit_or_change_id_methods,
+            commit_or_change_id_methods,
+        );
+        merge_fn_map(
+            &mut self.shortest_id_prefix_methods,
+            shortest_id_prefix_methods,
+        );
     }
 }
 
@@ -805,14 +831,20 @@ pub fn parse<'repo>(
     repo: &'repo dyn Repo,
     workspace_id: &WorkspaceId,
     id_prefix_context: &'repo IdPrefixContext,
+    extension: Option<&dyn CommitTemplateLanguageExtension>,
     template_text: &str,
     aliases_map: &TemplateAliasesMap,
 ) -> TemplateParseResult<Box<dyn Template<Commit> + 'repo>> {
+    let mut build_fn_table = CommitTemplateBuildFnTable::builtin();
+    if let Some(extension) = extension {
+        build_fn_table.merge(extension.build_fn_table());
+    }
+
     let language = CommitTemplateLanguage {
         repo,
         workspace_id: workspace_id.clone(),
         id_prefix_context,
-        build_fn_table: CommitTemplateBuildFnTable::builtin(),
+        build_fn_table,
         keyword_cache: CommitKeywordCache::default(),
     };
     let node = template_parser::parse(template_text, aliases_map)?;
