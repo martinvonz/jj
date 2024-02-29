@@ -488,6 +488,11 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a>>() -> TemplateBuildMethodF
     // Not using maplit::hashmap!{} or custom declarative macro here because
     // code completion inside macro is quite restricted.
     let mut map = TemplateBuildMethodFnMap::<L, String>::new();
+    map.insert("len", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = TemplateFunction::new(self_property, |s| Ok(s.len().try_into()?));
+        Ok(language.wrap_integer(out_property))
+    });
     map.insert(
         "contains",
         |language, build_ctx, self_property, function| {
@@ -762,6 +767,12 @@ where
     O: Template<()> + Clone + 'a,
 {
     let property = match function.name {
+        "len" => {
+            template_parser::expect_no_arguments(function)?;
+            let out_property =
+                TemplateFunction::new(self_property, |items| Ok(items.len().try_into()?));
+            language.wrap_integer(out_property)
+        }
         "join" => {
             let [separator_node] = template_parser::expect_exact_arguments(function)?;
             let separator = expect_template_expression(language, build_ctx, separator_node)?;
@@ -789,6 +800,12 @@ where
     O: Clone + 'a,
 {
     let property = match function.name {
+        "len" => {
+            template_parser::expect_no_arguments(function)?;
+            let out_property =
+                TemplateFunction::new(self_property, |items| Ok(items.len().try_into()?));
+            language.wrap_integer(out_property)
+        }
         // No "join"
         "map" => build_map_operation(language, build_ctx, self_property, function, wrap_item)?,
         _ => return Err(TemplateParseError::no_such_method("List", function)),
@@ -1536,6 +1553,9 @@ mod tests {
             language.wrap_string(Literal("sep".to_owned()))
         });
 
+        insta::assert_snapshot!(env.render_ok(r#""".lines().len()"#), @"0");
+        insta::assert_snapshot!(env.render_ok(r#""a\nb\nc".lines().len()"#), @"3");
+
         insta::assert_snapshot!(env.render_ok(r#""".lines().join("|")"#), @"");
         insta::assert_snapshot!(env.render_ok(r#""a\nb\nc".lines().join("|")"#), @"a|b|c");
         // Null separator
@@ -1632,6 +1652,10 @@ mod tests {
         env.add_keyword("description", |language| {
             language.wrap_string(Literal("description 1".to_owned()))
         });
+
+        insta::assert_snapshot!(env.render_ok(r#""".len()"#), @"0");
+        insta::assert_snapshot!(env.render_ok(r#""foo".len()"#), @"3");
+        insta::assert_snapshot!(env.render_ok(r#""💩".len()"#), @"4");
 
         insta::assert_snapshot!(env.render_ok(r#""fooo".contains("foo")"#), @"true");
         insta::assert_snapshot!(env.render_ok(r#""foo".contains("fooo")"#), @"false");
