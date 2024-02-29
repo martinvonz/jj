@@ -90,7 +90,7 @@ from the source will be moved into the parent.
         &parent_tree,
         &tree,
         matcher.as_ref(),
-        &instructions,
+        Some(&instructions),
         args.interactive,
     )?;
     if &new_parent_tree_id == parent.tree_id() {

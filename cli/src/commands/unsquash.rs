@@ -86,7 +86,7 @@ aborted.
             &parent_base_tree,
             &parent_tree,
             &EverythingMatcher,
-            &instructions,
+            Some(&instructions),
         )?;
         if new_parent_tree_id == parent_base_tree.id() {
             return Err(user_error("No changes selected"));

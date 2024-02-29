@@ -132,7 +132,7 @@ pub fn edit_diff(
     left_tree: &MergedTree,
     right_tree: &MergedTree,
     matcher: &dyn Matcher,
-    instructions: &str,
+    instructions: Option<&str>,
     base_ignores: Arc<GitIgnoreFile>,
     settings: &UserSettings,
 ) -> Result<MergedTreeId, DiffEditError> {

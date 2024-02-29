@@ -81,7 +81,7 @@ don't make any changes, then the operation will be aborted.
         &base_tree,
         &end_tree,
         matcher.as_ref(),
-        &instructions,
+        Some(&instructions),
         interactive,
     )?;
     if &selected_tree_id == commit.tree_id() && interactive {
