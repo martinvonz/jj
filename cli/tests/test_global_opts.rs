@@ -14,7 +14,7 @@
 
 use std::ffi::OsString;
 
-use crate::common::{get_stderr_string, TestEnvironment};
+use crate::common::{get_stderr_string, strip_last_line, TestEnvironment};
 
 #[test]
 fn test_non_utf8_arg() {
@@ -470,10 +470,4 @@ fn test_debug_logging_enabled() {
     // The log format is currently Pretty so we include the terminal markup.
     // Luckily, insta will print this in colour when reviewing.
     insta::assert_snapshot!(log_line, @"[32m INFO[0m [2mjj_cli::cli_util[0m[2m:[0m debug logging enabled");
-}
-
-fn strip_last_line(s: &str) -> &str {
-    s.trim_end_matches('\n')
-        .rsplit_once('\n')
-        .map_or(s, |(h, _)| &s[..h.len() + 1])
 }
