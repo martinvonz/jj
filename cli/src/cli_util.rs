@@ -93,7 +93,7 @@ use crate::merge_tools::{
 use crate::template_parser::{TemplateAliasesMap, TemplateParseError, TemplateParseErrorKind};
 use crate::templater::Template;
 use crate::ui::{ColorChoice, Ui};
-use crate::{commit_templater, merge_tools, text_util};
+use crate::{commit_templater, text_util};
 
 #[derive(Clone, Debug)]
 pub enum CommandError {
@@ -1088,8 +1088,9 @@ impl WorkspaceCommandHelper {
 
     /// Loads diff editor from the settings.
     // TODO: override settings by --tool= option (#2575)
-    pub fn diff_editor(&self, ui: &Ui) -> Result<DiffEditor, MergeToolConfigError> {
-        DiffEditor::from_settings(ui, &self.settings)
+    pub fn diff_editor(&self, ui: &Ui) -> Result<DiffEditor, CommandError> {
+        let base_ignores = self.base_ignores()?;
+        Ok(DiffEditor::from_settings(ui, &self.settings, base_ignores)?)
     }
 
     /// Loads 3-way merge editor from the settings.
@@ -1725,32 +1726,6 @@ impl WorkspaceCommandTransaction<'_> {
         self.tx.mut_repo().edit(workspace_id, commit)
     }
 
-    // TODO: maybe capture parameters by diff_editor(), and inline this?
-    pub fn edit_diff(
-        &self,
-        editor: &DiffEditor,
-        left_tree: &MergedTree,
-        right_tree: &MergedTree,
-        matcher: &dyn Matcher,
-        instructions: Option<&str>,
-    ) -> Result<MergedTreeId, CommandError> {
-        let base_ignores = self.helper.base_ignores()?;
-        let settings = &self.helper.settings;
-        let instructions = if settings.diff_instructions() {
-            instructions
-        } else {
-            None
-        };
-        Ok(merge_tools::edit_diff(
-            editor,
-            left_tree,
-            right_tree,
-            matcher,
-            instructions,
-            base_ignores,
-        )?)
-    }
-
     // TODO: maybe inline or extract to free function (no dependency on self)
     pub fn select_diff(
         &self,
@@ -1761,7 +1736,7 @@ impl WorkspaceCommandTransaction<'_> {
         instructions: Option<&str>,
     ) -> Result<MergedTreeId, CommandError> {
         if let Some(editor) = interactive_editor {
-            self.edit_diff(editor, left_tree, right_tree, matcher, instructions)
+            Ok(editor.edit(left_tree, right_tree, matcher, instructions)?)
         } else {
             let new_tree_id = restore_tree(right_tree, left_tree, matcher)?;
             Ok(new_tree_id)

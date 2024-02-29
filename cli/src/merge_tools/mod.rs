@@ -85,6 +85,7 @@ pub enum ConflictResolveError {
     Backend(#[from] jj_lib::backend::BackendError),
 }
 
+// TODO: inline
 pub fn edit_diff(
     editor: &DiffEditor,
     left_tree: &MergedTree,
@@ -186,11 +187,17 @@ pub fn get_external_tool_config(
 #[derive(Clone, Debug)]
 pub struct DiffEditor {
     tool: MergeTool,
+    base_ignores: Arc<GitIgnoreFile>,
+    use_instructions: bool,
 }
 
 impl DiffEditor {
     /// Loads the default diff editor from the settings.
-    pub fn from_settings(ui: &Ui, settings: &UserSettings) -> Result<Self, MergeToolConfigError> {
+    pub fn from_settings(
+        ui: &Ui,
+        settings: &UserSettings,
+        base_ignores: Arc<GitIgnoreFile>,
+    ) -> Result<Self, MergeToolConfigError> {
         let args = editor_args_from_settings(ui, settings, "ui.diff-editor")?;
         let tool = if let CommandNameAndArgs::String(name) = &args {
             get_tool_config(settings, name)?
@@ -198,7 +205,30 @@ impl DiffEditor {
             None
         }
         .unwrap_or_else(|| MergeTool::External(ExternalMergeTool::with_edit_args(&args)));
-        Ok(DiffEditor { tool })
+        Ok(DiffEditor {
+            tool,
+            base_ignores,
+            use_instructions: settings.diff_instructions(),
+        })
+    }
+
+    /// Starts a diff editor on the two directories.
+    pub fn edit(
+        &self,
+        left_tree: &MergedTree,
+        right_tree: &MergedTree,
+        matcher: &dyn Matcher,
+        instructions: Option<&str>,
+    ) -> Result<MergedTreeId, DiffEditError> {
+        let instructions = self.use_instructions.then_some(instructions).flatten();
+        edit_diff(
+            self,
+            left_tree,
+            right_tree,
+            matcher,
+            instructions,
+            self.base_ignores.clone(),
+        )
     }
 }
 
@@ -287,7 +317,8 @@ mod tests {
             let config = config_from_string(text);
             let ui = Ui::with_config(&config).unwrap();
             let settings = UserSettings::from_config(config);
-            DiffEditor::from_settings(&ui, &settings).map(|editor| editor.tool)
+            DiffEditor::from_settings(&ui, &settings, GitIgnoreFile::empty())
+                .map(|editor| editor.tool)
         };
 
         // Default
