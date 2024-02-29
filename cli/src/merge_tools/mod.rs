@@ -85,32 +85,6 @@ pub enum ConflictResolveError {
     Backend(#[from] jj_lib::backend::BackendError),
 }
 
-// TODO: inline
-pub fn edit_diff(
-    editor: &DiffEditor,
-    left_tree: &MergedTree,
-    right_tree: &MergedTree,
-    matcher: &dyn Matcher,
-    instructions: Option<&str>,
-    base_ignores: Arc<GitIgnoreFile>,
-) -> Result<MergedTreeId, DiffEditError> {
-    // Start a diff editor on the two directories.
-    match &editor.tool {
-        MergeTool::Builtin => {
-            let tree_id = edit_diff_builtin(left_tree, right_tree, matcher).map_err(Box::new)?;
-            Ok(tree_id)
-        }
-        MergeTool::External(editor) => edit_diff_external(
-            editor,
-            left_tree,
-            right_tree,
-            matcher,
-            instructions,
-            base_ignores,
-        ),
-    }
-}
-
 #[derive(Debug, Error)]
 pub enum MergeToolConfigError {
     #[error(transparent)]
@@ -220,15 +194,22 @@ impl DiffEditor {
         matcher: &dyn Matcher,
         instructions: Option<&str>,
     ) -> Result<MergedTreeId, DiffEditError> {
-        let instructions = self.use_instructions.then_some(instructions).flatten();
-        edit_diff(
-            self,
-            left_tree,
-            right_tree,
-            matcher,
-            instructions,
-            self.base_ignores.clone(),
-        )
+        match &self.tool {
+            MergeTool::Builtin => {
+                Ok(edit_diff_builtin(left_tree, right_tree, matcher).map_err(Box::new)?)
+            }
+            MergeTool::External(editor) => {
+                let instructions = self.use_instructions.then_some(instructions).flatten();
+                edit_diff_external(
+                    editor,
+                    left_tree,
+                    right_tree,
+                    matcher,
+                    instructions,
+                    self.base_ignores.clone(),
+                )
+            }
+        }
     }
 }
 
