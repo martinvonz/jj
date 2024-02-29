@@ -49,6 +49,11 @@ pub(crate) fn cmd_commit(
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    let interactive_editor = if args.interactive {
+        Some(workspace_command.diff_editor(ui)?)
+    } else {
+        None
+    };
     let mut tx = workspace_command.start_transaction();
     let base_tree = merge_commit_trees(tx.repo(), &commit.parents())?;
     let instructions = format!(
@@ -62,12 +67,11 @@ new working-copy commit.
         tx.format_commit_summary(&commit)
     );
     let tree_id = tx.select_diff(
-        ui,
+        interactive_editor.as_ref(),
         &base_tree,
         &commit.tree()?,
         matcher.as_ref(),
         Some(&instructions),
-        args.interactive,
     )?;
     let middle_tree = tx.repo().store().get_root_tree(&tree_id)?;
     if !args.paths.is_empty() && middle_tree.id() == base_tree.id() {

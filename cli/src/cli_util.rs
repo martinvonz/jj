@@ -86,11 +86,13 @@ use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
 use crate::git_util::{
     is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
 };
-use crate::merge_tools::{ConflictResolveError, DiffEditError, DiffGenerateError};
+use crate::merge_tools::{
+    ConflictResolveError, DiffEditError, DiffEditor, DiffGenerateError, MergeEditor,
+};
 use crate::template_parser::{TemplateAliasesMap, TemplateParseError, TemplateParseErrorKind};
 use crate::templater::Template;
 use crate::ui::{ColorChoice, Ui};
-use crate::{commit_templater, text_util};
+use crate::{commit_templater, merge_tools, text_util};
 
 #[derive(Clone, Debug)]
 pub enum CommandError {
@@ -1106,6 +1108,18 @@ impl WorkspaceCommandHelper {
         Ok(git_ignores)
     }
 
+    /// Loads diff editor from the settings.
+    // TODO: override settings by --tool= option (#2575)
+    pub fn diff_editor(&self, ui: &Ui) -> Result<DiffEditor, DiffEditError> {
+        DiffEditor::from_settings(ui, &self.settings)
+    }
+
+    /// Loads 3-way merge editor from the settings.
+    // TODO: override settings by --tool= option (#2575)
+    pub fn merge_editor(&self, ui: &Ui) -> Result<MergeEditor, ConflictResolveError> {
+        MergeEditor::from_settings(ui, &self.settings)
+    }
+
     pub fn resolve_single_op(&self, op_str: &str) -> Result<Operation, OpsetEvaluationError> {
         op_walk::resolve_op_with_repo(self.repo(), op_str)
     }
@@ -1733,21 +1747,20 @@ impl WorkspaceCommandTransaction<'_> {
         self.tx.mut_repo().edit(workspace_id, commit)
     }
 
+    // TODO: inline this
     pub fn run_mergetool(
         &self,
-        ui: &Ui,
+        editor: &MergeEditor,
         tree: &MergedTree,
         repo_path: &RepoPath,
     ) -> Result<MergedTreeId, CommandError> {
-        let settings = &self.helper.settings;
-        Ok(crate::merge_tools::run_mergetool(
-            ui, tree, repo_path, settings,
-        )?)
+        Ok(merge_tools::run_mergetool(editor, tree, repo_path)?)
     }
 
+    // TODO: maybe capture parameters by diff_editor(), and inline this?
     pub fn edit_diff(
         &self,
-        ui: &Ui,
+        editor: &DiffEditor,
         left_tree: &MergedTree,
         right_tree: &MergedTree,
         matcher: &dyn Matcher,
@@ -1760,28 +1773,27 @@ impl WorkspaceCommandTransaction<'_> {
         } else {
             None
         };
-        Ok(crate::merge_tools::edit_diff(
-            ui,
+        Ok(merge_tools::edit_diff(
+            editor,
             left_tree,
             right_tree,
             matcher,
             instructions,
             base_ignores,
-            settings,
         )?)
     }
 
+    // TODO: maybe inline or extract to free function (no dependency on self)
     pub fn select_diff(
         &self,
-        ui: &Ui,
+        interactive_editor: Option<&DiffEditor>,
         left_tree: &MergedTree,
         right_tree: &MergedTree,
         matcher: &dyn Matcher,
         instructions: Option<&str>,
-        interactive: bool,
     ) -> Result<MergedTreeId, CommandError> {
-        if interactive {
-            self.edit_diff(ui, left_tree, right_tree, matcher, instructions)
+        if let Some(editor) = interactive_editor {
+            self.edit_diff(editor, left_tree, right_tree, matcher, instructions)
         } else {
             let new_tree_id = restore_tree(right_tree, left_tree, matcher)?;
             Ok(new_tree_id)

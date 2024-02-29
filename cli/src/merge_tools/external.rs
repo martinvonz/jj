@@ -422,7 +422,7 @@ fn find_all_variables(args: &[String]) -> impl Iterator<Item = &str> {
 }
 
 pub fn edit_diff_external(
-    editor: ExternalMergeTool,
+    editor: &ExternalMergeTool,
     left_tree: &MergedTree,
     right_tree: &MergedTree,
     matcher: &dyn Matcher,
