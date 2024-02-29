@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 
 use test_case::test_case;
 
-use crate::common::TestEnvironment;
+use crate::common::{strip_last_line, TestEnvironment};
 
 fn init_git_repo(git_repo_path: &Path, bare: bool) -> git2::Repository {
     init_git_repo_with_opts(git_repo_path, git2::RepositoryInitOptions::new().bare(bare))
@@ -65,12 +65,6 @@ fn read_git_target(workspace_root: &Path) -> String {
     let mut path = workspace_root.to_path_buf();
     path.extend([".jj", "repo", "store", "git_target"]);
     std::fs::read_to_string(path).unwrap()
-}
-
-fn strip_last_line(s: &str) -> &str {
-    s.trim_end_matches('\n')
-        .rsplit_once('\n')
-        .map_or(s, |(h, _)| &s[..h.len() + 1])
 }
 
 #[test]

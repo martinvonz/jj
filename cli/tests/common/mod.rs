@@ -357,3 +357,13 @@ pub fn escaped_fake_diff_editor_path() -> String {
     // in it
     diff_editor_path.to_str().unwrap().replace('\\', r"\\")
 }
+
+/// Returns a string with the last line removed.
+///
+/// Use this to remove the root error message containing platform-specific
+/// content for example.
+pub fn strip_last_line(s: &str) -> &str {
+    s.trim_end_matches('\n')
+        .rsplit_once('\n')
+        .map_or(s, |(h, _)| &s[..h.len() + 1])
+}
