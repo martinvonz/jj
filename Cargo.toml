@@ -55,7 +55,7 @@ gix = { version = "0.58.0", default-features = false, features = [
 glob = "0.3.1"
 hex = "0.4.3"
 ignore = "0.4.20"
-indexmap = "2.2.3"
+indexmap = "2.2.4"
 insta = { version = "1.35.1", features = ["filters"] }
 itertools = "0.12.1"
 libc = { version = "0.2.153" }
@@ -89,7 +89,7 @@ smallvec = { version = "1.13.0", features = [
     "union",
 ] }
 strsim = "0.11.0"
-syn = "2.0.51"
+syn = "2.0.52"
 tempfile = "3.10.1"
 test-case = "3.3.1"
 textwrap = "0.16.1"
