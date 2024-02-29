@@ -26,17 +26,18 @@ fn test_log_parents() {
     test_env.jj_cmd_ok(&repo_path, &["new", "@-"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "@", "@-"]);
 
-    let template = r#"commit_id ++ "\nP: " ++ parents.map(|c| c.commit_id()) ++ "\n""#;
+    let template =
+        r#"commit_id ++ "\nP: " ++ parents.len() ++ " " ++ parents.map(|c| c.commit_id()) ++ "\n""#;
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
     insta::assert_snapshot!(stdout, @r###"
     @    c067170d4ca1bc6162b64f7550617ec809647f84
-    ├─╮  P: 4db490c88528133d579540b6900b8098f0c17701 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    ├─╮  P: 2 4db490c88528133d579540b6900b8098f0c17701 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     ◉ │  4db490c88528133d579540b6900b8098f0c17701
-    ├─╯  P: 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    ├─╯  P: 1 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    │  P: 0000000000000000000000000000000000000000
+    │  P: 1 0000000000000000000000000000000000000000
     ◉  0000000000000000000000000000000000000000
-       P:
+       P: 0
     "###);
 
     let template = r#"parents.map(|c| c.commit_id().shortest(4))"#;

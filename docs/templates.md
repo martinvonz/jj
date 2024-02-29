@@ -105,6 +105,7 @@ No methods are defined.
 A list can be implicitly converted to `Boolean`. The following methods are
 defined.
 
+* `.len() -> Integer`: Number of elements in the list.
 * `.join(separator: Template) -> Template`: Concatenate elements with
   the given `separator`.
 * `.map(|item| expression) -> ListTemplate`: Apply template `expression`
@@ -164,6 +165,7 @@ The following methods are defined.
 A string can be implicitly converted to `Boolean`. The following methods are
 defined.
 
+* `.len() -> Integer`: Length in UTF-8 bytes.
 * `.contains(needle: Template) -> Boolean`
 * `.first_line() -> String`
 * `.lines() -> List<String>`: Split into lines excluding newline characters.
