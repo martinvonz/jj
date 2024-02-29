@@ -173,7 +173,9 @@ defined.
 * `.ends_with(needle: Template) -> Boolean`
 * `.remove_prefix(needle: Template) -> String`: Removes the passed prefix, if present
 * `.remove_suffix(needle: Template) -> String`: Removes the passed suffix, if present
-* `.substr(start: Integer, end: Integer) -> String`: Extract substring. Negative values count from the end.
+* `.substr(start: Integer, end: Integer) -> String`: Extract substring. The
+  `start`/`end` indices should be specified in UTF-8 bytes. Negative values
+  count from the end of the string.
 
 #### String literals
 
