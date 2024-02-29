@@ -561,7 +561,11 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a>>() -> TemplateBuildMethodF
         let end_idx_property = expect_isize_expression(language, build_ctx, end_idx)?;
         let out_property = TemplateFunction::new(
             (self_property, start_idx_property, end_idx_property),
-            |(s, start_idx, end_idx)| Ok(string_substr(&s, start_idx, end_idx)),
+            |(s, start_idx, end_idx)| {
+                let start_idx = string_index_to_char_boundary(&s, start_idx);
+                let end_idx = string_index_to_char_boundary(&s, end_idx);
+                Ok(s.get(start_idx..end_idx).unwrap_or_default().to_owned())
+            },
         );
         Ok(language.wrap_string(out_property))
     });
@@ -595,28 +599,19 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a>>() -> TemplateBuildMethodF
     map
 }
 
-fn string_substr(s: &str, start_idx: isize, end_idx: isize) -> String {
-    // TODO: If we add .len() method, we'll expose bytes-based and char-based APIs.
-    // Having different index units would be confusing, so we might want to change
-    // .substr() to bytes-based and round up/down towards char or grapheme-cluster
-    // boundary.
-    let to_idx = |i: isize| -> usize {
-        let magnitude = i.unsigned_abs();
-        if i < 0 {
-            s.chars().count().saturating_sub(magnitude)
-        } else {
-            magnitude
-        }
-    };
-    let start_idx = to_idx(start_idx);
-    let end_idx = to_idx(end_idx);
-    if start_idx >= end_idx {
-        String::new()
+/// Clamps and aligns the given index `i` to char boundary.
+///
+/// Negative index counts from the end. If the index isn't at a char boundary,
+/// it will be rounded towards 0 (left or right depending on the sign.)
+fn string_index_to_char_boundary(s: &str, i: isize) -> usize {
+    // TODO: use floor/ceil_char_boundary() if get stabilized
+    let magnitude = i.unsigned_abs();
+    if i < 0 {
+        let p = s.len().saturating_sub(magnitude);
+        (p..=s.len()).find(|&p| s.is_char_boundary(p)).unwrap()
     } else {
-        s.chars()
-            .skip(start_idx)
-            .take(end_idx - start_idx)
-            .collect()
+        let p = magnitude.min(s.len());
+        (0..=p).rev().find(|&p| s.is_char_boundary(p)).unwrap()
     }
 }
 
@@ -1679,11 +1674,25 @@ mod tests {
 
         insta::assert_snapshot!(env.render_ok(r#""foo".substr(0, 0)"#), @"");
         insta::assert_snapshot!(env.render_ok(r#""foo".substr(0, 1)"#), @"f");
-        insta::assert_snapshot!(env.render_ok(r#""foo".substr(0, 99)"#), @"foo");
+        insta::assert_snapshot!(env.render_ok(r#""foo".substr(0, 3)"#), @"foo");
+        insta::assert_snapshot!(env.render_ok(r#""foo".substr(0, 4)"#), @"foo");
         insta::assert_snapshot!(env.render_ok(r#""abcdef".substr(2, -1)"#), @"cde");
         insta::assert_snapshot!(env.render_ok(r#""abcdef".substr(-3, 99)"#), @"def");
-        insta::assert_snapshot!(env.render_ok(r#""abc💩".substr(2, -1)"#), @"c");
-        insta::assert_snapshot!(env.render_ok(r#""abc💩".substr(-1, 99)"#), @"💩");
+        insta::assert_snapshot!(env.render_ok(r#""abcdef".substr(-6, 99)"#), @"abcdef");
+        insta::assert_snapshot!(env.render_ok(r#""abcdef".substr(-7, 1)"#), @"a");
+
+        // non-ascii characters
+        insta::assert_snapshot!(env.render_ok(r#""abc💩".substr(2, -1)"#), @"c💩");
+        insta::assert_snapshot!(env.render_ok(r#""abc💩".substr(3, -3)"#), @"💩");
+        insta::assert_snapshot!(env.render_ok(r#""abc💩".substr(3, -4)"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#""abc💩".substr(6, -3)"#), @"💩");
+        insta::assert_snapshot!(env.render_ok(r#""abc💩".substr(7, -3)"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#""abc💩".substr(3, 4)"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#""abc💩".substr(3, 6)"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#""abc💩".substr(3, 7)"#), @"💩");
+        insta::assert_snapshot!(env.render_ok(r#""abc💩".substr(-1, 7)"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#""abc💩".substr(-3, 7)"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#""abc💩".substr(-4, 7)"#), @"💩");
 
         // ranges with end > start are empty
         insta::assert_snapshot!(env.render_ok(r#""abcdef".substr(4, 2)"#), @"");
