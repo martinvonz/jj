@@ -88,6 +88,7 @@ use crate::git_util::{
 };
 use crate::merge_tools::{
     ConflictResolveError, DiffEditError, DiffEditor, DiffGenerateError, MergeEditor,
+    MergeToolConfigError,
 };
 use crate::template_parser::{TemplateAliasesMap, TemplateParseError, TemplateParseErrorKind};
 use crate::templater::Template;
@@ -350,6 +351,12 @@ impl From<DiffGenerateError> for CommandError {
 impl From<ConflictResolveError> for CommandError {
     fn from(err: ConflictResolveError) -> Self {
         user_error_with_message("Failed to resolve conflicts", err)
+    }
+}
+
+impl From<MergeToolConfigError> for CommandError {
+    fn from(err: MergeToolConfigError) -> Self {
+        user_error_with_message("Failed to load tool configuration", err)
     }
 }
 
@@ -1110,13 +1117,13 @@ impl WorkspaceCommandHelper {
 
     /// Loads diff editor from the settings.
     // TODO: override settings by --tool= option (#2575)
-    pub fn diff_editor(&self, ui: &Ui) -> Result<DiffEditor, DiffEditError> {
+    pub fn diff_editor(&self, ui: &Ui) -> Result<DiffEditor, MergeToolConfigError> {
         DiffEditor::from_settings(ui, &self.settings)
     }
 
     /// Loads 3-way merge editor from the settings.
     // TODO: override settings by --tool= option (#2575)
-    pub fn merge_editor(&self, ui: &Ui) -> Result<MergeEditor, ConflictResolveError> {
+    pub fn merge_editor(&self, ui: &Ui) -> Result<MergeEditor, MergeToolConfigError> {
         MergeEditor::from_settings(ui, &self.settings)
     }
 
