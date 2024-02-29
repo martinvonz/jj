@@ -3,6 +3,7 @@
 This text assumes that the reader is familiar with Git.
 
 ## Jujutsu GPT
+
 You can get AI support for working with Jujutsu by using the [Jujutsu GPT](https://chat.openai.com/g/g-grkGVR26D-jujutsu-guide).
 It has access to this documentation and the [excellent Jujutsu blog article by Chris Krycho](https://v5.chriskrycho.com/essays/jj-init/),
 and can help you with questions regarding Jujutsu usage and differences to Git.
