@@ -49,10 +49,7 @@ pub(crate) fn cmd_init(
     command: &CommandHelper,
     args: &InitArgs,
 ) -> Result<(), CommandError> {
-    let cwd = command
-        .cwd()
-        .canonicalize()
-        .map_err(|e| user_error_with_message("Could not determine current directory", e))?;
+    let cwd = command.cwd();
     let wc_path = cwd.join(&args.destination);
     let wc_path = file_util::create_or_reuse_dir(&wc_path)
         .and_then(|_| wc_path.canonicalize())
@@ -79,7 +76,7 @@ Set `ui.allow-init-native` to allow initializing a repo with the native backend.
         Workspace::init_local(command.settings(), &wc_path)?;
     }
 
-    let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
+    let relative_wc_path = file_util::relative_path(cwd, &wc_path);
     writeln!(
         ui.stderr(),
         "Initialized repo in \"{}\"",

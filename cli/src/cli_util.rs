@@ -611,6 +611,10 @@ impl CommandHelper {
         &self.app
     }
 
+    /// Canonical form of the current working directory path.
+    ///
+    /// A loaded `Workspace::workspace_root()` also returns a canonical path, so
+    /// relative paths can be easily computed from these paths.
     pub fn cwd(&self) -> &Path {
         &self.cwd
     }
@@ -2954,12 +2958,16 @@ impl CliRunner {
         ui: &mut Ui,
         mut layered_configs: LayeredConfigs,
     ) -> Result<(), CommandError> {
-        let cwd = env::current_dir().map_err(|_| {
-            user_error_with_hint(
-                "Could not determine current directory",
-                "Did you check-out a commit where the directory doesn't exist?",
-            )
-        })?;
+        // `cwd` is canonicalized for consistency with `Workspace::workspace_root()` and
+        // to easily compute relative paths between them.
+        let cwd = env::current_dir()
+            .and_then(|cwd| cwd.canonicalize())
+            .map_err(|_| {
+                user_error_with_hint(
+                    "Could not determine current directory",
+                    "Did you check-out a commit where the directory doesn't exist?",
+                )
+            })?;
         // Use cwd-relative workspace configs to resolve default command and
         // aliases. WorkspaceLoader::init() won't do any heavy lifting other
         // than the path resolution.
@@ -3010,9 +3018,6 @@ impl CliRunner {
             }
         }
 
-        // `cwd` is canonicalized for consistency with `Workspace::workspace_root()` and
-        // to easily compute relative paths between them.
-        let cwd = cwd.canonicalize().unwrap_or(cwd);
         let settings = UserSettings::from_config(config);
         let working_copy_factories = self
             .working_copy_factories
