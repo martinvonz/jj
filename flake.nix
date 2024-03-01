@@ -99,11 +99,10 @@
             openssh
           ] ++ linuxNativeDeps;
           buildInputs = with pkgs; [
-            openssl zstd libgit2 libssh2
+            openssl zstd libgit2 openssh
           ] ++ darwinDeps;
 
           ZSTD_SYS_USE_PKG_CONFIG = "1";
-          LIBSSH2_SYS_USE_PKG_CONFIG = "1";
           RUSTFLAGS = pkgs.lib.optionalString pkgs.stdenv.isLinux "-C link-arg=-fuse-ld=mold";
           NIX_JJ_GIT_HASH = self.rev or "";
           CARGO_INCREMENTAL = "0";
@@ -153,7 +152,7 @@
           ourRustVersion
 
           # Foreign dependencies
-          openssl zstd libgit2 libssh2
+          openssl zstd libgit2
           pkg-config
 
           # Additional tools recommended by contributing.md
@@ -179,7 +178,6 @@
         shellHook = ''
           export RUST_BACKTRACE=1
           export ZSTD_SYS_USE_PKG_CONFIG=1
-          export LIBSSH2_SYS_USE_PKG_CONFIG=1
 
           export RUSTFLAGS="-Zthreads=0 ${rustLinkFlagsString}"
         '';
