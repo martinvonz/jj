@@ -14,6 +14,7 @@
 
 #![allow(missing_docs)]
 
+use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::ops::Range;
 use std::path::Path;
@@ -340,6 +341,30 @@ pub enum RevsetFilterPredicate {
     HasConflict,
 }
 
+pub trait RevsetExpressionExtension: std::fmt::Debug {
+    fn as_any(&self) -> &dyn Any;
+
+    fn transform(
+        &self,
+        transform_fn: &mut dyn FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+    ) -> TransformedExpressionResult;
+
+    fn resolve(
+        &self,
+        resolve_fn: &dyn Fn(&RevsetExpression) -> ResolvedExpression,
+    ) -> ResolvedExpression;
+
+    fn eq(&self, other: &dyn RevsetExpressionExtension) -> bool;
+}
+
+impl std::cmp::PartialEq for dyn RevsetExpressionExtension {
+    fn eq(&self, other: &Self) -> bool {
+        <Self as RevsetExpressionExtension>::eq(self, other)
+    }
+}
+
+impl std::cmp::Eq for dyn RevsetExpressionExtension {}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum RevsetExpression {
     None,
@@ -386,6 +411,7 @@ pub enum RevsetExpression {
     Union(Rc<RevsetExpression>, Rc<RevsetExpression>),
     Intersection(Rc<RevsetExpression>, Rc<RevsetExpression>),
     Difference(Rc<RevsetExpression>, Rc<RevsetExpression>),
+    Extension(Rc<Box<dyn RevsetExpressionExtension>>),
 }
 
 impl RevsetExpression {
@@ -653,6 +679,35 @@ pub enum ResolvedPredicateExpression {
     ),
 }
 
+pub trait ResolvedExpressionExtension: std::fmt::Debug {
+    fn as_any(&self) -> &dyn Any;
+
+    // TODO: Rust is dumb. Rust complains that the type for `evaluate_fn` is too
+    // complex and should be extracted to a type alias, but doing so somehow alters
+    // the lifetime semantics of this function causing a compiler error in
+    // revset_engine.rs. Specifically, the following type alias does NOT work:
+    //
+    // pub type EvaluateFn<'index> = dyn Fn(&ResolvedExpression) -> Result<Box<dyn
+    // Revset + 'index>, RevsetEvaluationError>;
+    #[allow(clippy::type_complexity)]
+    fn evaluate<'index>(
+        &self,
+        evaluate_fn: &dyn Fn(
+            &ResolvedExpression,
+        ) -> Result<Box<dyn Revset + 'index>, RevsetEvaluationError>,
+    ) -> Result<Box<dyn Revset + 'index>, RevsetEvaluationError>;
+
+    fn eq(&self, other: &dyn ResolvedExpressionExtension) -> bool;
+}
+
+impl std::cmp::PartialEq for dyn ResolvedExpressionExtension {
+    fn eq(&self, other: &Self) -> bool {
+        <Self as ResolvedExpressionExtension>::eq(self, other)
+    }
+}
+
+impl std::cmp::Eq for dyn ResolvedExpressionExtension {}
+
 /// Describes evaluation plan of revset expression.
 ///
 /// Unlike `RevsetExpression`, this doesn't contain unresolved symbols or `View`
@@ -693,6 +748,7 @@ pub enum ResolvedExpression {
     /// Intersects expressions by merging.
     Intersection(Box<ResolvedExpression>, Box<ResolvedExpression>),
     Difference(Box<ResolvedExpression>, Box<ResolvedExpression>),
+    Extension(Rc<Box<dyn ResolvedExpressionExtension>>),
 }
 
 impl ResolvedExpression {
@@ -1553,8 +1609,8 @@ pub fn parse(
 }
 
 /// `Some` for rewritten expression, or `None` to reuse the original expression.
-type TransformedExpression = Option<Rc<RevsetExpression>>;
-type TransformedExpressionResult = Result<TransformedExpression, RevsetResolutionError>;
+pub type TransformedExpression = Option<Rc<RevsetExpression>>;
+pub type TransformedExpressionResult = Result<TransformedExpression, RevsetResolutionError>;
 
 /// Walks `expression` tree and applies `f` recursively from leaf nodes.
 fn transform_expression_bottom_up(
@@ -1656,6 +1712,10 @@ fn try_transform_expression(
                         RevsetExpression::Difference(expression1, expression2)
                     },
                 )
+            }
+            RevsetExpression::Extension(extension) => {
+                let mut transform_fn = |expr: &_| transform_rec(expr, pre, post);
+                return extension.transform(&mut transform_fn);
             }
         }
         .map(Rc::new))
@@ -2333,6 +2393,9 @@ impl VisibilityResolutionContext<'_> {
                     self.resolve(expression2).into(),
                 )
             }
+            RevsetExpression::Extension(extension) => {
+                extension.as_ref().resolve(&|expr| self.resolve(expr))
+            }
         }
     }
 
@@ -2394,6 +2457,9 @@ impl VisibilityResolutionContext<'_> {
             RevsetExpression::Intersection(..) | RevsetExpression::Difference(..) => {
                 ResolvedPredicateExpression::Set(self.resolve(expression).into())
             }
+            RevsetExpression::Extension(extension) => ResolvedPredicateExpression::Set(
+                extension.resolve(&|expr| self.resolve(expr)).into(),
+            ),
         }
     }
 }

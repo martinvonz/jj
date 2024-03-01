@@ -96,12 +96,12 @@ impl<T: InternalRevset + ?Sized> InternalRevset for Box<T> {
 }
 
 pub struct RevsetImpl<'a> {
-    inner: Box<dyn InternalRevset>,
+    inner: Box<dyn InternalRevset + 'a>,
     index: CompositeIndex<'a>,
 }
 
 impl<'a> RevsetImpl<'a> {
-    fn new(inner: Box<dyn InternalRevset>, index: CompositeIndex<'a>) -> Self {
+    fn new(inner: Box<dyn InternalRevset + 'a>, index: CompositeIndex<'a>) -> Self {
         Self { inner, index }
     }
 
@@ -700,6 +700,79 @@ where
     }
 }
 
+#[derive(Debug)]
+struct ExternalRevset<'r> {
+    revset: Box<dyn Revset + 'r>,
+}
+
+struct ExternalRevsetEntriesIterator<'a, 'index> {
+    iter: Box<dyn Iterator<Item = CommitId> + 'a>,
+    index: CompositeIndex<'index>,
+}
+
+impl<'a, 'index> Iterator for ExternalRevsetEntriesIterator<'a, 'index> {
+    type Item = IndexEntry<'index>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter
+            .next()
+            .map(|id| self.index.entry_by_id(&id).unwrap())
+    }
+}
+
+struct ExternalRevsetPositionsIterator<'a, 'index> {
+    iter: Box<dyn Iterator<Item = CommitId> + 'a>,
+    index: CompositeIndex<'index>,
+}
+
+impl<'a, 'index> Iterator for ExternalRevsetPositionsIterator<'a, 'index> {
+    type Item = IndexPosition;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter
+            .next()
+            .map(|id| self.index.commit_id_to_pos(&id).unwrap())
+    }
+}
+
+impl<'r> InternalRevset for ExternalRevset<'r> {
+    fn entries<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
+        Box::new(ExternalRevsetEntriesIterator {
+            iter: self.revset.iter(),
+            index,
+        })
+    }
+
+    fn positions<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
+        Box::new(ExternalRevsetPositionsIterator {
+            iter: self.revset.iter(),
+            index,
+        })
+    }
+
+    fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
+    where
+        Self: 'a,
+    {
+        self
+    }
+}
+
+impl<'r> ToPredicateFn for ExternalRevset<'r> {
+    fn to_predicate_fn<'a, 'index: 'a>(
+        &'a self,
+        index: CompositeIndex<'index>,
+    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
+        predicate_fn_from_positions(self.positions(index))
+    }
+}
+
 pub fn evaluate<'a>(
     expression: &ResolvedExpression,
     store: &Arc<Store>,
@@ -733,7 +806,7 @@ impl<'index> EvaluationContext<'index> {
     fn evaluate(
         &self,
         expression: &ResolvedExpression,
-    ) -> Result<Box<dyn InternalRevset>, RevsetEvaluationError> {
+    ) -> Result<Box<dyn InternalRevset + 'index>, RevsetEvaluationError> {
         let index = self.index;
         match expression {
             ResolvedExpression::Commits(commit_ids) => {
@@ -900,13 +973,19 @@ impl<'index> EvaluationContext<'index> {
                 let set2 = self.evaluate(expression2)?;
                 Ok(Box::new(DifferenceRevset { set1, set2 }))
             }
+            ResolvedExpression::Extension(extension) => Ok(Box::new(ExternalRevset {
+                revset: extension.evaluate(&|expr| {
+                    let inner = self.evaluate(expr)?;
+                    Ok(Box::new(RevsetImpl::new(inner, self.index)))
+                })?,
+            })),
         }
     }
 
     fn evaluate_predicate(
         &self,
         expression: &ResolvedPredicateExpression,
-    ) -> Result<Box<dyn ToPredicateFn>, RevsetEvaluationError> {
+    ) -> Result<Box<dyn ToPredicateFn + 'index>, RevsetEvaluationError> {
         match expression {
             ResolvedPredicateExpression::Filter(predicate) => {
                 Ok(build_predicate_fn(self.store.clone(), predicate))
