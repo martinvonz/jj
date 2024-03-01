@@ -83,6 +83,9 @@
           ];
 
           cargoLock.lockFile = ./Cargo.lock;
+          cargoLock.outputHashes = {
+            "git2-0.18.3" = "sha256-Kfg3xWIAarAxeIo2wL30OFni7X4Thf9EzaXbFTWsehE=";
+          };
           nativeBuildInputs = with pkgs; [
             gzip
             installShellFiles
