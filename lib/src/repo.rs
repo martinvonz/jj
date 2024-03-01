@@ -771,11 +771,12 @@ impl MutableRepo {
             && self.view() == &self.base_repo.view)
     }
 
-    pub fn consume(self) -> (Box<dyn MutableIndex>, View) {
+    pub(crate) fn consume(self) -> (Box<dyn MutableIndex>, View) {
         self.view.ensure_clean(|v| self.enforce_view_invariants(v));
         (self.index, self.view.into_inner())
     }
 
+    /// Returns a [`CommitBuilder`] to write new commit to the repo.
     pub fn new_commit(
         &mut self,
         settings: &UserSettings,
@@ -785,6 +786,7 @@ impl MutableRepo {
         CommitBuilder::for_new_commit(self, settings, parents, tree_id)
     }
 
+    /// Returns a [`CommitBuilder`] to rewrite an existing commit in the repo.
     pub fn rewrite_commit(
         &mut self,
         settings: &UserSettings,
@@ -795,7 +797,8 @@ impl MutableRepo {
         // `self.rewritten_commits`
     }
 
-    pub fn write_commit(
+    /// Only called from [`CommitBuilder::write`]. Use that function instead.
+    pub(crate) fn write_commit(
         &mut self,
         commit: backend::Commit,
         sign_with: Option<&mut SigningFn>,
