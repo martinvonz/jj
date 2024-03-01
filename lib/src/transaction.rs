@@ -153,10 +153,16 @@ struct NewRepoData {
     index: Box<dyn ReadonlyIndex>,
 }
 
+/// An Operation which has been written to the operation store but not
+/// published. The repo can be loaded at an unpublished Operation, but the
+/// Operation will not be visible in the op log if the repo is loaded at head.
+///
+/// Either [`Self::publish`] or [`Self::leave_unpublished`] must be called to
+/// finish the operation.
+#[must_use = "Either publish() or leave_unpublished() must be called to finish the operation."]
 pub struct UnpublishedOperation {
     repo_loader: RepoLoader,
     data: Option<NewRepoData>,
-    closed: bool,
 }
 
 impl UnpublishedOperation {
@@ -171,11 +177,7 @@ impl UnpublishedOperation {
             view,
             index,
         });
-        UnpublishedOperation {
-            repo_loader,
-            data,
-            closed: false,
-        }
+        UnpublishedOperation { repo_loader, data }
     }
 
     pub fn operation(&self) -> &Operation {
@@ -190,27 +192,13 @@ impl UnpublishedOperation {
                 .op_heads_store()
                 .update_op_heads(data.operation.parent_ids(), data.operation.id());
         }
-        let repo = self
-            .repo_loader
-            .create_from(data.operation, data.view, data.index);
-        self.closed = true;
-        repo
+        self.repo_loader
+            .create_from(data.operation, data.view, data.index)
     }
 
     pub fn leave_unpublished(mut self) -> Arc<ReadonlyRepo> {
         let data = self.data.take().unwrap();
-        let repo = self
-            .repo_loader
-            .create_from(data.operation, data.view, data.index);
-        self.closed = true;
-        repo
-    }
-}
-
-impl Drop for UnpublishedOperation {
-    fn drop(&mut self) {
-        if !self.closed && !std::thread::panicking() {
-            eprintln!("BUG: UnpublishedOperation was dropped without being closed.");
-        }
+        self.repo_loader
+            .create_from(data.operation, data.view, data.index)
     }
 }
