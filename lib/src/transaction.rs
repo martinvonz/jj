@@ -162,7 +162,7 @@ struct NewRepoData {
 #[must_use = "Either publish() or leave_unpublished() must be called to finish the operation."]
 pub struct UnpublishedOperation {
     repo_loader: RepoLoader,
-    data: Option<NewRepoData>,
+    data: NewRepoData,
 }
 
 impl UnpublishedOperation {
@@ -172,20 +172,22 @@ impl UnpublishedOperation {
         view: View,
         index: Box<dyn ReadonlyIndex>,
     ) -> Self {
-        let data = Some(NewRepoData {
-            operation,
-            view,
-            index,
-        });
-        UnpublishedOperation { repo_loader, data }
+        UnpublishedOperation {
+            repo_loader,
+            data: NewRepoData {
+                operation,
+                view,
+                index,
+            },
+        }
     }
 
     pub fn operation(&self) -> &Operation {
-        &self.data.as_ref().unwrap().operation
+        &self.data.operation
     }
 
-    pub fn publish(mut self) -> Arc<ReadonlyRepo> {
-        let data = self.data.take().unwrap();
+    pub fn publish(self) -> Arc<ReadonlyRepo> {
+        let data = self.data;
         {
             let _lock = self.repo_loader.op_heads_store().lock();
             self.repo_loader
@@ -196,9 +198,8 @@ impl UnpublishedOperation {
             .create_from(data.operation, data.view, data.index)
     }
 
-    pub fn leave_unpublished(mut self) -> Arc<ReadonlyRepo> {
-        let data = self.data.take().unwrap();
+    pub fn leave_unpublished(self) -> Arc<ReadonlyRepo> {
         self.repo_loader
-            .create_from(data.operation, data.view, data.index)
+            .create_from(self.data.operation, self.data.view, self.data.index)
     }
 }
