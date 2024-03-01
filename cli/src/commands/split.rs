@@ -58,11 +58,8 @@ pub(crate) fn cmd_split(
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewritable([&commit])?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let interactive_editor = if args.interactive || args.paths.is_empty() {
-        Some(workspace_command.diff_editor(ui)?)
-    } else {
-        None
-    };
+    let diff_selector =
+        workspace_command.diff_selector(ui, args.interactive || args.paths.is_empty())?;
     let mut tx = workspace_command.start_transaction();
     let end_tree = commit.tree()?;
     let base_tree = merge_commit_trees(tx.repo(), &commit.parents())?;
@@ -80,14 +77,9 @@ don't make any changes, then the operation will be aborted.
     );
 
     // Prompt the user to select the changes they want for the first commit.
-    let selected_tree_id = tx.select_diff(
-        interactive_editor.as_ref(),
-        &base_tree,
-        &end_tree,
-        matcher.as_ref(),
-        Some(&instructions),
-    )?;
-    if &selected_tree_id == commit.tree_id() && interactive_editor.is_some() {
+    let selected_tree_id =
+        diff_selector.select(&base_tree, &end_tree, matcher.as_ref(), Some(&instructions))?;
+    if &selected_tree_id == commit.tree_id() && diff_selector.is_interactive() {
         // The user selected everything from the original commit.
         writeln!(ui.stderr(), "Nothing changed.")?;
         return Ok(());

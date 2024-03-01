@@ -66,11 +66,7 @@ pub(crate) fn cmd_squash(
     let parent = &parents[0];
     workspace_command.check_rewritable(&parents[..1])?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let interactive_editor = if args.interactive {
-        Some(workspace_command.diff_editor(ui)?)
-    } else {
-        None
-    };
+    let diff_selector = workspace_command.diff_selector(ui, args.interactive)?;
     let mut tx = workspace_command.start_transaction();
     let instructions = format!(
         "\
@@ -90,15 +86,10 @@ from the source will be moved into the parent.
     );
     let parent_tree = parent.tree()?;
     let tree = commit.tree()?;
-    let new_parent_tree_id = tx.select_diff(
-        interactive_editor.as_ref(),
-        &parent_tree,
-        &tree,
-        matcher.as_ref(),
-        Some(&instructions),
-    )?;
+    let new_parent_tree_id =
+        diff_selector.select(&parent_tree, &tree, matcher.as_ref(), Some(&instructions))?;
     if &new_parent_tree_id == parent.tree_id() {
-        if interactive_editor.is_some() {
+        if diff_selector.is_interactive() {
             return Err(user_error("No changes selected"));
         }
 

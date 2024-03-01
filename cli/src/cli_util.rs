@@ -1093,6 +1093,16 @@ impl WorkspaceCommandHelper {
         Ok(DiffEditor::from_settings(ui, &self.settings, base_ignores)?)
     }
 
+    /// Conditionally loads diff editor from the settings.
+    // TODO: override settings by --tool= option (#2575)
+    pub fn diff_selector(&self, ui: &Ui, interactive: bool) -> Result<DiffSelector, CommandError> {
+        if interactive {
+            Ok(DiffSelector::Interactive(self.diff_editor(ui)?))
+        } else {
+            Ok(DiffSelector::NonInteractive)
+        }
+    }
+
     /// Loads 3-way merge editor from the settings.
     // TODO: override settings by --tool= option (#2575)
     pub fn merge_editor(&self, ui: &Ui) -> Result<MergeEditor, MergeToolConfigError> {
@@ -1726,23 +1736,6 @@ impl WorkspaceCommandTransaction<'_> {
         self.tx.mut_repo().edit(workspace_id, commit)
     }
 
-    // TODO: maybe inline or extract to free function (no dependency on self)
-    pub fn select_diff(
-        &self,
-        interactive_editor: Option<&DiffEditor>,
-        left_tree: &MergedTree,
-        right_tree: &MergedTree,
-        matcher: &dyn Matcher,
-        instructions: Option<&str>,
-    ) -> Result<MergedTreeId, CommandError> {
-        if let Some(editor) = interactive_editor {
-            Ok(editor.edit(left_tree, right_tree, matcher, instructions)?)
-        } else {
-            let new_tree_id = restore_tree(right_tree, left_tree, matcher)?;
-            Ok(new_tree_id)
-        }
-    }
-
     pub fn format_commit_summary(&self, commit: &Commit) -> String {
         let mut output = Vec::new();
         self.write_commit_summary(&mut PlainTextFormatter::new(&mut output), commit)
@@ -2368,6 +2361,36 @@ pub fn short_change_hash(change_id: &ChangeId) -> String {
 
 pub fn short_operation_hash(operation_id: &OperationId) -> String {
     operation_id.hex()[0..12].to_string()
+}
+
+/// Wrapper around a `DiffEditor` to conditionally start interactive session.
+#[derive(Clone, Debug)]
+pub enum DiffSelector {
+    NonInteractive,
+    Interactive(DiffEditor),
+}
+
+impl DiffSelector {
+    pub fn is_interactive(&self) -> bool {
+        matches!(self, DiffSelector::Interactive(_))
+    }
+
+    /// Restores diffs from the `right_tree` to the `left_tree` by using an
+    /// interactive editor if enabled.
+    pub fn select(
+        &self,
+        left_tree: &MergedTree,
+        right_tree: &MergedTree,
+        matcher: &dyn Matcher,
+        instructions: Option<&str>,
+    ) -> Result<MergedTreeId, CommandError> {
+        match self {
+            DiffSelector::NonInteractive => Ok(restore_tree(right_tree, left_tree, matcher)?),
+            DiffSelector::Interactive(editor) => {
+                Ok(editor.edit(left_tree, right_tree, matcher, instructions)?)
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
