@@ -47,7 +47,7 @@ dirs = "5.0.1"
 either = "1.10.0"
 esl01-renderdag = "0.3.0"
 futures = "0.3.30"
-git2 = "0.18.3"
+git2 = { git = "https://github.com/bnjmnt4n/git2-rs.git", rev = "6ad326a9", default-features = false, features = ["https", "ssh-openssh", "vendored-libgit2"] }
 gix = { version = "0.61.1", default-features = false, features = [
     "index",
     "max-performance-safe",
