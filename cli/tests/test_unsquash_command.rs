@@ -205,6 +205,38 @@ fn test_unsquash_partial() {
     insta::assert_snapshot!(stdout, @r###"
     c
     "###);
+
+    // Try again with --tool=<name>, which implies --interactive
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "unsquash",
+            "--config-toml=ui.diff-editor='false'",
+            "--tool=fake-diff-editor",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: mzvwutvl 1c82d27c c | (no description set)
+    Parent commit      : kkmpptxz b9d23fd8 b | (no description set)
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "b"]);
+    insta::assert_snapshot!(stdout, @r###"
+    a
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "b"]);
+    insta::assert_snapshot!(stdout, @r###"
+    b
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "c"]);
+    insta::assert_snapshot!(stdout, @r###"
+    c
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "c"]);
+    insta::assert_snapshot!(stdout, @r###"
+    c
+    "###);
 }
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {

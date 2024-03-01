@@ -50,8 +50,11 @@ pub(crate) struct MoveArgs {
     /// Interactively choose which parts to move
     #[arg(long, short)]
     interactive: bool,
+    /// Specify diff editor to be used (implies --interactive)
+    #[arg(long, value_name = "NAME")]
+    pub tool: Option<String>,
     /// Move only changes to these paths (instead of all paths)
-    #[arg(conflicts_with = "interactive", value_hint = clap::ValueHint::AnyPath)]
+    #[arg(conflicts_with_all = ["interactive", "tool"], value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
@@ -70,7 +73,8 @@ pub(crate) fn cmd_move(
     }
     workspace_command.check_rewritable([&source, &destination])?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let diff_selector = workspace_command.diff_selector(ui, args.interactive)?;
+    let diff_selector =
+        workspace_command.diff_selector(ui, args.tool.as_deref(), args.interactive)?;
     let mut tx = workspace_command.start_transaction();
     let parent_tree = merge_commit_trees(tx.repo(), &source.parents())?;
     let source_tree = source.tree()?;

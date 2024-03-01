@@ -45,6 +45,9 @@ pub(crate) struct UnsquashArgs {
     // the default.
     #[arg(long, short)]
     interactive: bool,
+    /// Specify diff editor to be used (implies --interactive)
+    #[arg(long, value_name = "NAME")]
+    pub tool: Option<String>,
 }
 
 #[instrument(skip_all)]
@@ -62,8 +65,8 @@ pub(crate) fn cmd_unsquash(
     }
     let parent = &parents[0];
     workspace_command.check_rewritable(&parents[..1])?;
-    let interactive_editor = if args.interactive {
-        Some(workspace_command.diff_editor(ui)?)
+    let interactive_editor = if args.tool.is_some() || args.interactive {
+        Some(workspace_command.diff_editor(ui, args.tool.as_deref())?)
     } else {
         None
     };

@@ -671,26 +671,50 @@ impl WorkspaceCommandHelper {
     }
 
     /// Loads diff editor from the settings.
-    // TODO: override settings by --tool= option (#2575)
-    pub fn diff_editor(&self, ui: &Ui) -> Result<DiffEditor, CommandError> {
+    ///
+    /// If the `tool_name` isn't specified, the default editor will be returned.
+    pub fn diff_editor(
+        &self,
+        ui: &Ui,
+        tool_name: Option<&str>,
+    ) -> Result<DiffEditor, CommandError> {
         let base_ignores = self.base_ignores()?;
-        Ok(DiffEditor::from_settings(ui, &self.settings, base_ignores)?)
+        if let Some(name) = tool_name {
+            Ok(DiffEditor::with_name(name, &self.settings, base_ignores)?)
+        } else {
+            Ok(DiffEditor::from_settings(ui, &self.settings, base_ignores)?)
+        }
     }
 
     /// Conditionally loads diff editor from the settings.
-    // TODO: override settings by --tool= option (#2575)
-    pub fn diff_selector(&self, ui: &Ui, interactive: bool) -> Result<DiffSelector, CommandError> {
-        if interactive {
-            Ok(DiffSelector::Interactive(self.diff_editor(ui)?))
+    ///
+    /// If the `tool_name` is specified, interactive session is implied.
+    pub fn diff_selector(
+        &self,
+        ui: &Ui,
+        tool_name: Option<&str>,
+        force_interactive: bool,
+    ) -> Result<DiffSelector, CommandError> {
+        if tool_name.is_some() || force_interactive {
+            Ok(DiffSelector::Interactive(self.diff_editor(ui, tool_name)?))
         } else {
             Ok(DiffSelector::NonInteractive)
         }
     }
 
     /// Loads 3-way merge editor from the settings.
-    // TODO: override settings by --tool= option (#2575)
-    pub fn merge_editor(&self, ui: &Ui) -> Result<MergeEditor, MergeToolConfigError> {
-        MergeEditor::from_settings(ui, &self.settings)
+    ///
+    /// If the `tool_name` isn't specified, the default editor will be returned.
+    pub fn merge_editor(
+        &self,
+        ui: &Ui,
+        tool_name: Option<&str>,
+    ) -> Result<MergeEditor, MergeToolConfigError> {
+        if let Some(name) = tool_name {
+            MergeEditor::with_name(name, &self.settings)
+        } else {
+            MergeEditor::from_settings(ui, &self.settings)
+        }
     }
 
     pub fn resolve_single_op(&self, op_str: &str) -> Result<Operation, OpsetEvaluationError> {

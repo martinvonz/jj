@@ -29,6 +29,9 @@ pub(crate) struct CommitArgs {
     /// Interactively choose which changes to include in the first commit
     #[arg(short, long)]
     interactive: bool,
+    /// Specify diff editor to be used (implies --interactive)
+    #[arg(long, value_name = "NAME")]
+    pub tool: Option<String>,
     /// The change description to use (don't open editor)
     #[arg(long = "message", short, value_name = "MESSAGE")]
     message_paragraphs: Vec<String>,
@@ -50,7 +53,8 @@ pub(crate) fn cmd_commit(
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let diff_selector = workspace_command.diff_selector(ui, args.interactive)?;
+    let diff_selector =
+        workspace_command.diff_selector(ui, args.tool.as_deref(), args.interactive)?;
     let mut tx = workspace_command.start_transaction();
     let base_tree = merge_commit_trees(tx.repo(), &commit.parents())?;
     let instructions = format!(

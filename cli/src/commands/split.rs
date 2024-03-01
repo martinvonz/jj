@@ -41,6 +41,9 @@ pub(crate) struct SplitArgs {
     /// paths are provided.
     #[arg(long, short)]
     interactive: bool,
+    /// Specify diff editor to be used (implies --interactive)
+    #[arg(long, value_name = "NAME")]
+    pub tool: Option<String>,
     /// The revision to split
     #[arg(long, short, default_value = "@")]
     revision: RevisionArg,
@@ -59,8 +62,11 @@ pub(crate) fn cmd_split(
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewritable([&commit])?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let diff_selector =
-        workspace_command.diff_selector(ui, args.interactive || args.paths.is_empty())?;
+    let diff_selector = workspace_command.diff_selector(
+        ui,
+        args.tool.as_deref(),
+        args.interactive || args.paths.is_empty(),
+    )?;
     let mut tx = workspace_command.start_transaction();
     let end_tree = commit.tree()?;
     let base_tree = merge_commit_trees(tx.repo(), &commit.parents())?;
