@@ -99,7 +99,14 @@ pub enum MergeToolConfigError {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MergeTool {
     Builtin,
-    External(ExternalMergeTool),
+    // Boxed because ExternalMergeTool is big compared to the Builtin variant.
+    External(Box<ExternalMergeTool>),
+}
+
+impl MergeTool {
+    fn external(tool: ExternalMergeTool) -> Self {
+        MergeTool::External(Box::new(tool))
+    }
 }
 
 /// Finds the appropriate tool for diff editing or merges
@@ -130,7 +137,7 @@ fn get_tool_config(settings: &UserSettings, name: &str) -> Result<Option<MergeTo
     if name == BUILTIN_EDITOR_NAME {
         Ok(Some(MergeTool::Builtin))
     } else {
-        Ok(get_external_tool_config(settings, name)?.map(MergeTool::External))
+        Ok(get_external_tool_config(settings, name)?.map(MergeTool::external))
     }
 }
 
@@ -178,7 +185,7 @@ impl DiffEditor {
         } else {
             None
         }
-        .unwrap_or_else(|| MergeTool::External(ExternalMergeTool::with_edit_args(&args)));
+        .unwrap_or_else(|| MergeTool::external(ExternalMergeTool::with_edit_args(&args)));
         Ok(DiffEditor {
             tool,
             base_ignores,
@@ -228,7 +235,7 @@ impl MergeEditor {
         } else {
             None
         }
-        .unwrap_or_else(|| MergeTool::External(ExternalMergeTool::with_merge_args(&args)));
+        .unwrap_or_else(|| MergeTool::external(ExternalMergeTool::with_merge_args(&args)));
         if matches!(&tool, MergeTool::External(mergetool) if mergetool.merge_args.is_empty()) {
             return Err(MergeToolConfigError::MergeArgsNotConfigured {
                 tool_name: args.to_string(),
