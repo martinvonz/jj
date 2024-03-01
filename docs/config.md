@@ -172,10 +172,11 @@ If `ui.diff.tool` is set, the specified diff command will be called instead of
 the internal diff function.
 
 ```toml
+[ui]
 # Use Difftastic by default
-ui.diff.tool = ["difft", "--color=always", "$left", "$right"]
+diff.tool = ["difft", "--color=always", "$left", "$right"]
 # Use tool named "<name>" (see below)
-ui.diff.tool = "<name>"
+diff.tool = "<name>"
 ```
 
 The external diff tool can also be enabled by `diff --tool <name>` argument.
