@@ -607,39 +607,6 @@ pub struct CommandHelper {
 }
 
 impl CommandHelper {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        app: Command,
-        cwd: PathBuf,
-        string_args: Vec<String>,
-        matches: ArgMatches,
-        global_args: GlobalArgs,
-        settings: UserSettings,
-        layered_configs: LayeredConfigs,
-        commit_template_extension: Option<Arc<dyn CommitTemplateLanguageExtension>>,
-        maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
-        store_factories: StoreFactories,
-        working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>>,
-    ) -> Self {
-        // `cwd` is canonicalized for consistency with `Workspace::workspace_root()` and
-        // to easily compute relative paths between them.
-        let cwd = cwd.canonicalize().unwrap_or(cwd);
-
-        Self {
-            app,
-            cwd,
-            string_args,
-            matches,
-            global_args,
-            settings,
-            layered_configs,
-            commit_template_extension,
-            maybe_workspace_loader,
-            store_factories,
-            working_copy_factories,
-        }
-    }
-
     pub fn app(&self) -> &Command {
         &self.app
     }
@@ -3043,23 +3010,26 @@ impl CliRunner {
             }
         }
 
+        // `cwd` is canonicalized for consistency with `Workspace::workspace_root()` and
+        // to easily compute relative paths between them.
+        let cwd = cwd.canonicalize().unwrap_or(cwd);
         let settings = UserSettings::from_config(config);
         let working_copy_factories = self
             .working_copy_factories
             .unwrap_or_else(default_working_copy_factories);
-        let command_helper = CommandHelper::new(
-            self.app,
+        let command_helper = CommandHelper {
+            app: self.app,
             cwd,
             string_args,
             matches,
-            args.global_args,
+            global_args: args.global_args,
             settings,
             layered_configs,
-            self.commit_template_extension,
+            commit_template_extension: self.commit_template_extension,
             maybe_workspace_loader,
-            self.store_factories.unwrap_or_default(),
+            store_factories: self.store_factories.unwrap_or_default(),
             working_copy_factories,
-        );
+        };
         for start_hook_fn in self.start_hook_fns {
             start_hook_fn(ui, &command_helper)?;
         }
