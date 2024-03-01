@@ -5,6 +5,7 @@
 tree-level-conflicts = true
 
 [ui]
+diff-instructions = true
 paginate = "auto"
 pager = { command = ["less", "-FRX"], env = { LESSCHARSET = "utf-8" } }
 log-word-wrap = false
