@@ -173,6 +173,18 @@ pub struct DiffEditor {
 }
 
 impl DiffEditor {
+    /// Creates diff editor of the given name, and loads parameters from the
+    /// settings.
+    pub fn with_name(
+        name: &str,
+        settings: &UserSettings,
+        base_ignores: Arc<GitIgnoreFile>,
+    ) -> Result<Self, MergeToolConfigError> {
+        let tool = get_tool_config(settings, name)?
+            .unwrap_or_else(|| MergeTool::external(ExternalMergeTool::with_program(name)));
+        Self::new_inner(tool, settings, base_ignores)
+    }
+
     /// Loads the default diff editor from the settings.
     pub fn from_settings(
         ui: &Ui,
@@ -186,6 +198,14 @@ impl DiffEditor {
             None
         }
         .unwrap_or_else(|| MergeTool::external(ExternalMergeTool::with_edit_args(&args)));
+        Self::new_inner(tool, settings, base_ignores)
+    }
+
+    fn new_inner(
+        tool: MergeTool,
+        settings: &UserSettings,
+        base_ignores: Arc<GitIgnoreFile>,
+    ) -> Result<Self, MergeToolConfigError> {
         Ok(DiffEditor {
             tool,
             base_ignores,
@@ -227,6 +247,14 @@ pub struct MergeEditor {
 }
 
 impl MergeEditor {
+    /// Creates 3-way merge editor of the given name, and loads parameters from
+    /// the settings.
+    pub fn with_name(name: &str, settings: &UserSettings) -> Result<Self, MergeToolConfigError> {
+        let tool = get_tool_config(settings, name)?
+            .unwrap_or_else(|| MergeTool::external(ExternalMergeTool::with_program(name)));
+        Self::new_inner(name, tool)
+    }
+
     /// Loads the default 3-way merge editor from the settings.
     pub fn from_settings(ui: &Ui, settings: &UserSettings) -> Result<Self, MergeToolConfigError> {
         let args = editor_args_from_settings(ui, settings, "ui.merge-editor")?;
@@ -236,9 +264,13 @@ impl MergeEditor {
             None
         }
         .unwrap_or_else(|| MergeTool::external(ExternalMergeTool::with_merge_args(&args)));
+        Self::new_inner(&args, tool)
+    }
+
+    fn new_inner(name: impl ToString, tool: MergeTool) -> Result<Self, MergeToolConfigError> {
         if matches!(&tool, MergeTool::External(mergetool) if mergetool.merge_args.is_empty()) {
             return Err(MergeToolConfigError::MergeArgsNotConfigured {
-                tool_name: args.to_string(),
+                tool_name: name.to_string(),
             });
         }
         Ok(MergeEditor { tool })
@@ -300,7 +332,63 @@ mod tests {
     }
 
     #[test]
-    fn test_get_diff_editor() {
+    fn test_get_diff_editor_with_name() {
+        let get = |name, config_text| {
+            let config = config_from_string(config_text);
+            let settings = UserSettings::from_config(config);
+            DiffEditor::with_name(name, &settings, GitIgnoreFile::empty()).map(|editor| editor.tool)
+        };
+
+        insta::assert_debug_snapshot!(get(":builtin", "").unwrap(), @"Builtin");
+
+        // Just program name, edit_args are filled by default
+        insta::assert_debug_snapshot!(get("my diff", "").unwrap(), @r###"
+        External(
+            ExternalMergeTool {
+                program: "my diff",
+                diff_args: [
+                    "$left",
+                    "$right",
+                ],
+                edit_args: [
+                    "$left",
+                    "$right",
+                ],
+                merge_args: [],
+                merge_tool_edits_conflict_markers: false,
+            },
+        )
+        "###);
+
+        // Pick from merge-tools
+        insta::assert_debug_snapshot!(get(
+            "foo bar", r#"
+        [merge-tools."foo bar"]
+        edit-args = ["--edit", "args", "$left", "$right"]
+        "#,
+        ).unwrap(), @r###"
+        External(
+            ExternalMergeTool {
+                program: "foo bar",
+                diff_args: [
+                    "$left",
+                    "$right",
+                ],
+                edit_args: [
+                    "--edit",
+                    "args",
+                    "$left",
+                    "$right",
+                ],
+                merge_args: [],
+                merge_tool_edits_conflict_markers: false,
+            },
+        )
+        "###);
+    }
+
+    #[test]
+    fn test_get_diff_editor_from_settings() {
         let get = |text| {
             let config = config_from_string(text);
             let ui = Ui::with_config(&config).unwrap();
@@ -450,7 +538,54 @@ mod tests {
     }
 
     #[test]
-    fn test_get_merge_tool() {
+    fn test_get_merge_editor_with_name() {
+        let get = |name, config_text| {
+            let config = config_from_string(config_text);
+            let settings = UserSettings::from_config(config);
+            MergeEditor::with_name(name, &settings).map(|editor| editor.tool)
+        };
+
+        insta::assert_debug_snapshot!(get(":builtin", "").unwrap(), @"Builtin");
+
+        // Just program name
+        insta::assert_debug_snapshot!(get("my diff", "").unwrap_err(), @r###"
+        MergeArgsNotConfigured {
+            tool_name: "my diff",
+        }
+        "###);
+
+        // Pick from merge-tools
+        insta::assert_debug_snapshot!(get(
+            "foo bar", r#"
+        [merge-tools."foo bar"]
+        merge-args = ["$base", "$left", "$right", "$output"]
+        "#,
+        ).unwrap(), @r###"
+        External(
+            ExternalMergeTool {
+                program: "foo bar",
+                diff_args: [
+                    "$left",
+                    "$right",
+                ],
+                edit_args: [
+                    "$left",
+                    "$right",
+                ],
+                merge_args: [
+                    "$base",
+                    "$left",
+                    "$right",
+                    "$output",
+                ],
+                merge_tool_edits_conflict_markers: false,
+            },
+        )
+        "###);
+    }
+
+    #[test]
+    fn test_get_merge_editor_from_settings() {
         let get = |text| {
             let config = config_from_string(text);
             let ui = Ui::with_config(&config).unwrap();
