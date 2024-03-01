@@ -1791,6 +1791,7 @@ type</a> are available as keywords. For example,
 <p>A list can be implicitly converted to <code>Boolean</code>. The following methods are
 defined.</p>
 <ul>
+<li><code>.len() -&gt; Integer</code>: Number of elements in the list.</li>
 <li><code>.join(separator: Template) -&gt; Template</code>: Concatenate elements with
   the given <code>separator</code>.</li>
 <li><code>.map(|item| expression) -&gt; ListTemplate</code>: Apply template <code>expression</code>
@@ -1843,6 +1844,7 @@ defined.</p>
 <p>A string can be implicitly converted to <code>Boolean</code>. The following methods are
 defined.</p>
 <ul>
+<li><code>.len() -&gt; Integer</code>: Length in UTF-8 bytes.</li>
 <li><code>.contains(needle: Template) -&gt; Boolean</code></li>
 <li><code>.first_line() -&gt; String</code></li>
 <li><code>.lines() -&gt; List&lt;String&gt;</code>: Split into lines excluding newline characters.</li>
@@ -1852,7 +1854,9 @@ defined.</p>
 <li><code>.ends_with(needle: Template) -&gt; Boolean</code></li>
 <li><code>.remove_prefix(needle: Template) -&gt; String</code>: Removes the passed prefix, if present</li>
 <li><code>.remove_suffix(needle: Template) -&gt; String</code>: Removes the passed suffix, if present</li>
-<li><code>.substr(start: Integer, end: Integer) -&gt; String</code>: Extract substring. Negative values count from the end.</li>
+<li><code>.substr(start: Integer, end: Integer) -&gt; String</code>: Extract substring. The
+  <code>start</code>/<code>end</code> indices should be specified in UTF-8 bytes. Negative values
+  count from the end of the string.</li>
 </ul>
 <h4 id="string-literals">String literals<a class="headerlink" href="#string-literals" title="Permanent link">&para;</a></h4>
 <p>String literals must be surrounded by double quotes (<code>"</code>). The following escape
