@@ -182,7 +182,7 @@ impl DiffEditor {
         Ok(DiffEditor {
             tool,
             base_ignores,
-            use_instructions: settings.diff_instructions(),
+            use_instructions: settings.config().get_bool("ui.diff-instructions")?,
         })
     }
 
