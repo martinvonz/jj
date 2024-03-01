@@ -1370,13 +1370,13 @@ impl Repo for MutableRepo {
         self.index.as_index()
     }
 
-    fn submodule_store(&self) -> &Arc<dyn SubmoduleStore> {
-        self.base_repo.submodule_store()
-    }
-
     fn view(&self) -> &View {
         self.view
             .get_or_ensure_clean(|v| self.enforce_view_invariants(v))
+    }
+
+    fn submodule_store(&self) -> &Arc<dyn SubmoduleStore> {
+        self.base_repo.submodule_store()
     }
 
     fn resolve_change_id_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
