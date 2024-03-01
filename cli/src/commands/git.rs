@@ -492,10 +492,7 @@ fn cmd_git_init(
     command: &CommandHelper,
     args: &GitInitArgs,
 ) -> Result<(), CommandError> {
-    let cwd = command
-        .cwd()
-        .canonicalize()
-        .map_err(|e| user_error_with_message("Could not determine current directory", e))?;
+    let cwd = command.cwd();
     let wc_path = cwd.join(&args.destination);
     let wc_path = file_util::create_or_reuse_dir(&wc_path)
         .and_then(|_| wc_path.canonicalize())
@@ -509,7 +506,7 @@ fn cmd_git_init(
         args.git_repo.as_deref(),
     )?;
 
-    let relative_wc_path = file_util::relative_path(&cwd, &wc_path);
+    let relative_wc_path = file_util::relative_path(cwd, &wc_path);
     writeln!(
         ui.stderr(),
         r#"Initialized repo in "{}""#,
