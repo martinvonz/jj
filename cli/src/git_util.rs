@@ -56,8 +56,8 @@ pub fn map_git_error(err: git2::Error) -> CommandError {
                  successfully load certificates. Try setting it to the path of a directory that \
                  contains a `.ssh` directory."
             } else {
-                "Jujutsu uses libssh2, which doesn't respect ~/.ssh/config. Does `ssh -F \
-                 /dev/null` to the host work?"
+                "There was an error creating an SSH connection. Does `ssh -F /dev/null` to the \
+                 host work?"
             };
 
         user_error_with_hint(err, hint)
