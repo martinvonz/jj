@@ -178,13 +178,6 @@ impl CommitBuilder<'_> {
     }
 
     pub fn write(mut self) -> BackendResult<Commit> {
-        let mut rewrite_source_id = None;
-        if let Some(rewrite_source) = self.rewrite_source {
-            if *rewrite_source.change_id() == self.commit.change_id {
-                rewrite_source_id.replace(rewrite_source.id().clone());
-            }
-        }
-
         let sign_settings = &self.sign_settings;
         let store = self.mut_repo.store();
 
@@ -202,9 +195,11 @@ impl CommitBuilder<'_> {
         let commit = self
             .mut_repo
             .write_commit(self.commit, signing_fn.as_deref_mut())?;
-        if let Some(rewrite_source_id) = rewrite_source_id {
-            self.mut_repo
-                .record_rewritten_commit(rewrite_source_id, commit.id().clone())
+        if let Some(rewrite_source) = self.rewrite_source {
+            if rewrite_source.change_id() == commit.change_id() {
+                self.mut_repo
+                    .record_rewritten_commit(rewrite_source.id().clone(), commit.id().clone());
+            }
         }
         Ok(commit)
     }
