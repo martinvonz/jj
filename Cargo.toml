@@ -49,7 +49,7 @@ dunce = "1.0.5"
 either = "1.13.0"
 esl01-renderdag = "0.3.0"
 futures = "0.3.31"
-git2 = { version = "0.19.0", features = [
+git2 = { git = "https://github.com/bnjmnt4n/git2-rs.git", rev = "60e29ff0d", features = [
     # Do *not* disable this feature even if you'd like dynamic linking. Instead,
     # set the environment variable `LIBGIT2_NO_VENDOR=1` if dynamic linking must
     # be used (this will override the Cargo feature), and allow static linking
@@ -140,7 +140,7 @@ implicit_clone = "warn"
 needless_for_each = "warn"
 semicolon_if_nothing_returned = "warn"
 uninlined_format_args = "warn"
- 
+
 # Insta suggests compiling these packages in opt mode for faster testing.
 # See https://docs.rs/insta/latest/insta/#optional-faster-runs.
 [profile.dev.package]
