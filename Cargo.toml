@@ -46,7 +46,7 @@ dirs = "5.0.1"
 dunce = "1.0.5"
 either = "1.13.0"
 futures = "0.3.31"
-git2 = { version = "0.19.0", features = [
+git2 = { git = "https://github.com/bnjmnt4n/git2-rs.git", rev = "60e29ff0d", features = [
     # Do *not* disable this feature even if you'd like dynamic linking. Instead,
     # set the environment variable `LIBGIT2_NO_VENDOR=1` if dynamic linking must
     # be used (this will override the Cargo feature), and allow static linking
