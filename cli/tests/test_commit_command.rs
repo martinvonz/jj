@@ -100,6 +100,27 @@ fn test_commit_interactive() {
 
     JJ: Lines starting with "JJ: " (like this one) will be removed.
     "###);
+
+    // Try again with --tool=<name>, which implies --interactive
+    test_env.jj_cmd_ok(&workspace_path, &["undo"]);
+    test_env.jj_cmd_ok(
+        &workspace_path,
+        &[
+            "commit",
+            "--config-toml=ui.diff-editor='false'",
+            "--tool=fake-diff-editor",
+        ],
+    );
+
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r###"
+    add files
+
+    JJ: This commit contains the following changes:
+    JJ:     A file1
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
 }
 
 #[test]

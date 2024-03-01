@@ -111,10 +111,45 @@ fn test_resolution() {
     Error: No conflicts found at this revision
     "###);
 
+    // Try again with --tool=<name>
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    std::fs::write(&editor_script, "write\nresolution\n").unwrap();
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "resolve",
+            "--config-toml=ui.merge-editor='false'",
+            "--tool=fake-editor",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Resolving conflicts in: file
+    Working copy now at: vruxwmqv 1a70c7c6 conflict | conflict
+    Parent commit      : zsuskuln aa493daf a | a
+    Parent commit      : royxmykx db6a4daf b | b
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]),
+    @r###"
+    Resolved conflict in file:
+       1    1: <<<<<<<resolution
+       2     : %%%%%%%
+       3     : -base
+       4     : +a
+       5     : +++++++
+       6     : b
+       7     : >>>>>>>
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_cli_error(&repo_path, &["resolve", "--list"]),
+    @r###"
+    Error: No conflicts found at this revision
+    "###);
+
     // Check that the output file starts with conflict markers if
     // `merge-tool-edits-conflict-markers=true`
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]),
     @"");
     std::fs::write(
         &editor_script,
@@ -185,13 +220,13 @@ conflict
     insta::assert_snapshot!(stderr, @r###"
     Resolving conflicts in: file
     New conflicts appeared in these commits:
-      vruxwmqv ff4e8c6b conflict | (conflict) conflict
+      vruxwmqv 23991847 conflict | (conflict) conflict
     To resolve the conflicts, start by updating to it:
       jj new vruxwmqvtpmx
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    Working copy now at: vruxwmqv ff4e8c6b conflict | (conflict) conflict
+    Working copy now at: vruxwmqv 23991847 conflict | (conflict) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
@@ -252,7 +287,7 @@ conflict
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Resolving conflicts in: file
-    Working copy now at: vruxwmqv 95418cb8 conflict | conflict
+    Working copy now at: vruxwmqv 3166dfd2 conflict | conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files

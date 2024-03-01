@@ -75,6 +75,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj move --from/--to` can now be abbreviated to `jj move -f/-t`
 
+* `jj commit`/`diffedit`/`move`/`resolve`/`split`/`squash`/`unsquash` now accept
+  `--tool=<NAME>` option to override the default.
+   [#2575](https://github.com/martinvonz/jj/issues/2575)
+
 * Added completions for [Nushell](https://nushell.sh) to `jj util completion`
 
 * `jj branch list` now supports a `--tracked/-t` option which can be used to

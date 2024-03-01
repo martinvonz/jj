@@ -440,6 +440,7 @@ fn test_help() {
                                  specified
           --from <FROM>          Show changes from this revision. Defaults to @ if --to is specified
           --to <TO>              Edit changes in this revision. Defaults to @ if --from is specified
+          --tool <NAME>          Specify diff editor to be used
       -h, --help                 Print help (see more with '--help')
 
     Global Options:

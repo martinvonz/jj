@@ -51,6 +51,9 @@ pub(crate) struct DiffeditArgs {
     /// Edit changes in this revision. Defaults to @ if --from is specified.
     #[arg(long, conflicts_with = "revision")]
     to: Option<RevisionArg>,
+    /// Specify diff editor to be used
+    #[arg(long, value_name = "NAME")]
+    pub tool: Option<String>,
 }
 
 #[instrument(skip_all)]
@@ -78,7 +81,7 @@ pub(crate) fn cmd_diffedit(
     };
     workspace_command.check_rewritable([&target_commit])?;
 
-    let diff_editor = workspace_command.diff_editor(ui)?;
+    let diff_editor = workspace_command.diff_editor(ui, args.tool.as_deref())?;
     let mut tx = workspace_command.start_transaction();
     let instructions = format!(
         "\

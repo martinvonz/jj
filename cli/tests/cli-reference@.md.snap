@@ -436,6 +436,7 @@ Update the description and create a new change on top
 
   Possible values: `true`, `false`
 
+* `--tool <NAME>` — Specify diff editor to be used (implies --interactive)
 * `-m`, `--message <MESSAGE>` — The change description to use (don't open editor)
 
 
@@ -677,6 +678,7 @@ See `jj restore` if you want to move entire files from one revision to another. 
 * `-r`, `--revision <REVISION>` — The revision to touch up. Defaults to @ if neither --to nor --from are specified
 * `--from <FROM>` — Show changes from this revision. Defaults to @ if --to is specified
 * `--to <TO>` — Edit changes in this revision. Defaults to @ if --from is specified
+* `--tool <NAME>` — Specify diff editor to be used
 
 
 
@@ -1078,6 +1080,7 @@ If a working-copy commit gets abandoned, it will be given a new, empty commit. T
 
   Possible values: `true`, `false`
 
+* `--tool <NAME>` — Specify diff editor to be used (implies --interactive)
 
 
 
@@ -1514,6 +1517,7 @@ Note that conflicts can also be resolved without using this command. You may edi
 
   Possible values: `true`, `false`
 
+* `--tool <NAME>` — Specify 3-way merge tool to be used
 
 
 
@@ -1665,6 +1669,7 @@ If the change you split had a description, you will be asked to enter a change d
 
   Possible values: `true`, `false`
 
+* `--tool <NAME>` — Specify diff editor to be used (implies --interactive)
 * `-r`, `--revision <REVISION>` — The revision to split
 
   Default value: `@`
@@ -1697,6 +1702,7 @@ If a working-copy commit gets abandoned, it will be given a new, empty commit. T
 
   Possible values: `true`, `false`
 
+* `--tool <NAME>` — Specify diff editor to be used (implies --interactive)
 
 
 
@@ -1884,6 +1890,7 @@ If a working-copy commit gets abandoned, it will be given a new, empty commit. T
 
   Possible values: `true`, `false`
 
+* `--tool <NAME>` — Specify diff editor to be used (implies --interactive)
 
 
 
