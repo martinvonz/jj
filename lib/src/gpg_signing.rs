@@ -67,9 +67,11 @@ fn parse_gpg_verify_output(
 }
 
 fn run_sign_command(command: &mut Command, input: &[u8]) -> Result<Vec<u8>, GpgError> {
+    tracing::info!(?command, "running GPG signing command");
     let process = command.stderr(Stdio::piped()).spawn()?;
     let write_result = process.stdin.as_ref().unwrap().write_all(input);
     let output = process.wait_with_output()?;
+    tracing::info!(?command, ?output.status, "GPG signing command exited");
     if output.status.success() {
         write_result?;
         Ok(output.stdout)
@@ -82,9 +84,11 @@ fn run_sign_command(command: &mut Command, input: &[u8]) -> Result<Vec<u8>, GpgE
 }
 
 fn run_verify_command(command: &mut Command, input: &[u8]) -> Result<Vec<u8>, GpgError> {
+    tracing::info!(?command, "running GPG signing command");
     let process = command.stderr(Stdio::null()).spawn()?;
     let write_result = process.stdin.as_ref().unwrap().write_all(input);
     let output = process.wait_with_output()?;
+    tracing::info!(?command, ?output.status, "GPG signing command exited");
     match write_result {
         Ok(()) => Ok(output.stdout),
         // If the signature format is invalid, gpg will terminate early. Writing
