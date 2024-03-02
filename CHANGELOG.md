@@ -80,6 +80,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj branch list` now supports a `--tracked/-t` option which can be used to
   show tracked branches only. Omits local Git-tracking branches by default.
 
+* Commands producing diffs now accept a `--context` flag for the number of
+  lines of context to show.
+
 ### Fixed bugs
 
 * On Windows, symlinks in the repo are now materialized as regular files in the

@@ -655,6 +655,7 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
   Possible values: `true`, `false`
 
 * `--tool <TOOL>` — Generate diff by external command
+* `--context <CONTEXT>` — Number of lines of context to show
 
 
 
@@ -1000,6 +1001,7 @@ This excludes changes from other commits by temporarily rebasing `--from` onto `
   Possible values: `true`, `false`
 
 * `--tool <TOOL>` — Generate diff by external command
+* `--context <CONTEXT>` — Number of lines of context to show
 
 
 
@@ -1051,6 +1053,7 @@ Show commit history
   Possible values: `true`, `false`
 
 * `--tool <TOOL>` — Generate diff by external command
+* `--context <CONTEXT>` — Number of lines of context to show
 
 
 
@@ -1221,6 +1224,7 @@ Show how a change has evolved as it's been updated, rebased, etc.
   Possible values: `true`, `false`
 
 * `--tool <TOOL>` — Generate diff by external command
+* `--context <CONTEXT>` — Number of lines of context to show
 
 
 
@@ -1592,6 +1596,7 @@ Show commit description and changes in a revision
   Possible values: `true`, `false`
 
 * `--tool <TOOL>` — Generate diff by external command
+* `--context <CONTEXT>` — Number of lines of context to show
 
 
 

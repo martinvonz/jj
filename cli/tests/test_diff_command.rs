@@ -40,6 +40,17 @@ fn test_diff_basic() {
             1: foo
     "###);
 
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--context=0"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Removed regular file file1:
+       1     : foo
+    Modified regular file file2:
+       1    1: foo
+            2: bar
+    Added regular file file3:
+            1: foo
+    "###);
+
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
     D file1
@@ -69,6 +80,30 @@ fn test_diff_basic() {
     +++ b/file2
     @@ -1,1 +1,2 @@
      foo
+    +bar
+    diff --git a/file3 b/file3
+    new file mode 100644
+    index 0000000000..257cc5642c
+    --- /dev/null
+    +++ b/file3
+    @@ -1,0 +1,1 @@
+    +foo
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--context=0"]);
+    insta::assert_snapshot!(stdout, @r###"
+    diff --git a/file1 b/file1
+    deleted file mode 100644
+    index 257cc5642c..0000000000
+    --- a/file1
+    +++ /dev/null
+    @@ -1,1 +1,0 @@
+    -foo
+    diff --git a/file2 b/file2
+    index 257cc5642c...3bd1f0e297 100644
+    --- a/file2
+    +++ b/file2
+    @@ -2,0 +2,1 @@
     +bar
     diff --git a/file3 b/file3
     new file mode 100644
@@ -634,6 +669,74 @@ fn test_diff_skipped_context() {
        8    8: h
        9    9: i
       10   10: j
+    "###);
+}
+
+#[test]
+fn test_diff_skipped_context_nondefault() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "a\nb\nc\nd").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "=== Left side of diffs"]);
+
+    test_env.jj_cmd_ok(&repo_path, &["new", "@", "-m", "=== Must skip 2 lines"]);
+    std::fs::write(repo_path.join("file1"), "A\nb\nc\nD").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-", "-m", "=== Don't skip 1 line"]);
+    std::fs::write(repo_path.join("file1"), "A\nb\nC\nd").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-", "-m", "=== No gap to skip"]);
+    std::fs::write(repo_path.join("file1"), "a\nB\nC\nd").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-", "-m", "=== 1 line at start"]);
+    std::fs::write(repo_path.join("file1"), "a\nB\nc\nd").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-", "-m", "=== 1 line at end"]);
+    std::fs::write(repo_path.join("file1"), "a\nb\nC\nd").unwrap();
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-Tdescription",
+            "-p",
+            "--no-graph",
+            "--reversed",
+            "--context=0",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    === Left side of diffs
+    Added regular file file1:
+            1: a
+            2: b
+            3: c
+            4: d
+    === Must skip 2 lines
+    Modified regular file file1:
+       1    1: aA
+        ...
+       4    4: dD
+    === Don't skip 1 line
+    Modified regular file file1:
+       1    1: aA
+       2    2: b
+       3    3: cC
+       4    4: d
+    === No gap to skip
+    Modified regular file file1:
+       1    1: a
+       2    2: bB
+       3    3: cC
+       4    4: d
+    === 1 line at start
+    Modified regular file file1:
+       1    1: a
+       2    2: bB
+        ...
+    === 1 line at end
+    Modified regular file file1:
+        ...
+       3    3: cC
+       4    4: d
     "###);
 }
 
