@@ -74,7 +74,7 @@ use tracing_subscriber::prelude::*;
 
 use crate::command_error::{
     handle_command_result, internal_error, internal_error_with_message, user_error,
-    user_error_with_hint, user_error_with_message, CommandError, BROKEN_PIPE_EXIT_CODE,
+    user_error_with_hint, user_error_with_message, CommandError,
 };
 use crate::commit_templater::CommitTemplateLanguageExtension;
 use crate::config::{
@@ -2562,8 +2562,7 @@ impl CliRunner {
         let mut ui = Ui::with_config(&layered_configs.merge())
             .expect("default config should be valid, env vars are stringly typed");
         let result = self.run_internal(&mut ui, layered_configs);
-        let exit_code = handle_command_result(&mut ui, result)
-            .unwrap_or_else(|_| ExitCode::from(BROKEN_PIPE_EXIT_CODE));
+        let exit_code = handle_command_result(&mut ui, result);
         ui.finalize_pager();
         exit_code
     }
