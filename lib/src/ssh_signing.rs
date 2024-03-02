@@ -59,9 +59,11 @@ fn parse_utf8_string(data: Vec<u8>) -> SshResult<String> {
 }
 
 fn run_command(command: &mut Command, stdin: &[u8]) -> SshResult<Vec<u8>> {
+    tracing::info!(?command, "running SSH signing command");
     let process = command.spawn()?;
     let write_result = process.stdin.as_ref().unwrap().write_all(stdin);
     let output = process.wait_with_output()?;
+    tracing::info!(?command, ?output.status, "SSH signing command exited");
     if output.status.success() {
         write_result?;
         Ok(output.stdout)
@@ -150,8 +152,10 @@ impl SshBackend {
         // will return a non-0 exit code if no principals are found.
         //
         // In this case we don't want to error out, just return None.
+        tracing::info!(?command, "running SSH signing command");
         let process = command.spawn()?;
         let output = process.wait_with_output()?;
+        tracing::info!(?command, ?output.status, "SSH signing command exited");
 
         let principal = parse_utf8_string(output.stdout)?
             .split('\n')
