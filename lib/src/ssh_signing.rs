@@ -60,18 +60,17 @@ fn parse_utf8_string(data: Vec<u8>) -> SshResult<String> {
 
 fn run_command(command: &mut Command, stdin: &[u8]) -> SshResult<Vec<u8>> {
     let process = command.spawn()?;
-    process.stdin.as_ref().unwrap().write_all(stdin)?;
-
+    let write_result = process.stdin.as_ref().unwrap().write_all(stdin);
     let output = process.wait_with_output()?;
-
-    if !output.status.success() {
-        return Err(SshError::Command {
+    if output.status.success() {
+        write_result?;
+        Ok(output.stdout)
+    } else {
+        Err(SshError::Command {
             exit_status: output.status,
             stderr: String::from_utf8_lossy(&output.stderr).trim_end().into(),
-        });
+        })
     }
-
-    Ok(output.stdout)
 }
 
 // This attempts to convert given key data into a file and return the filepath.

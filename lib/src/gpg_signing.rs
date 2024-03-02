@@ -68,9 +68,10 @@ fn parse_gpg_verify_output(
 
 fn run_sign_command(command: &mut Command, input: &[u8]) -> Result<Vec<u8>, GpgError> {
     let process = command.stderr(Stdio::piped()).spawn()?;
-    process.stdin.as_ref().unwrap().write_all(input)?;
+    let write_result = process.stdin.as_ref().unwrap().write_all(input);
     let output = process.wait_with_output()?;
     if output.status.success() {
+        write_result?;
         Ok(output.stdout)
     } else {
         Err(GpgError::Command {
