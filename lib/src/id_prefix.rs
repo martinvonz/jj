@@ -445,7 +445,6 @@ fn unwrap_as_short_key<const N: usize>(key_bytes: &[u8]) -> &[u8; N] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::ChangeId;
 
     #[derive(Clone, Copy, Eq, PartialEq)]
     struct Position(usize);

@@ -496,7 +496,6 @@ mod tests {
     use pollster::FutureExt;
 
     use super::*;
-    use crate::backend::MillisSinceEpoch;
 
     /// Test that parents get written correctly
     #[test]

@@ -149,8 +149,6 @@ where
 mod tests {
     use std::collections::{BTreeMap, HashMap};
 
-    use blake2::Blake2b512;
-
     use super::*;
 
     #[test]

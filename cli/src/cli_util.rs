@@ -67,7 +67,6 @@ use jj_lib::workspace::{
 };
 use jj_lib::{dag_walk, file_util, git, op_heads_store, op_walk, revset};
 use once_cell::unsync::OnceCell;
-use toml_edit;
 use tracing::instrument;
 use tracing_chrome::ChromeLayerBuilder;
 use tracing_subscriber::prelude::*;
