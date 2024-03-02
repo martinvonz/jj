@@ -15,25 +15,23 @@
 use itertools::Itertools;
 use jj_lib::commit::Commit;
 use jj_lib::default_index::revset_engine::{evaluate, RevsetImpl};
-use jj_lib::default_index::DefaultReadonlyIndex;
+use jj_lib::default_index::{AsCompositeIndex, DefaultReadonlyIndex};
 use jj_lib::repo::{ReadonlyRepo, Repo as _};
 use jj_lib::revset::ResolvedExpression;
 use jj_lib::revset_graph::RevsetGraphEdge;
 use test_case::test_case;
 use testutils::{CommitGraphBuilder, TestRepo};
 
-fn revset_for_commits(
-    repo: &ReadonlyRepo,
-    commits: &[&Commit],
-) -> RevsetImpl<DefaultReadonlyIndex> {
+fn revset_for_commits<'a>(repo: &'a ReadonlyRepo, commits: &[&Commit]) -> RevsetImpl<'a> {
     let index = repo
         .readonly_index()
         .as_any()
         .downcast_ref::<DefaultReadonlyIndex>()
-        .unwrap();
+        .unwrap()
+        .as_composite();
     let expression =
         ResolvedExpression::Commits(commits.iter().map(|commit| commit.id().clone()).collect());
-    evaluate(&expression, repo.store(), index.clone()).unwrap()
+    evaluate(&expression, repo.store(), index).unwrap()
 }
 
 fn direct(commit: &Commit) -> RevsetGraphEdge {

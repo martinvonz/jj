@@ -95,13 +95,13 @@ impl<T: InternalRevset + ?Sized> InternalRevset for Box<T> {
     }
 }
 
-pub struct RevsetImpl<I> {
+pub struct RevsetImpl<'a> {
     inner: Box<dyn InternalRevset>,
-    index: I,
+    index: CompositeIndex<'a>,
 }
 
-impl<I: AsCompositeIndex> RevsetImpl<I> {
-    fn new(inner: Box<dyn InternalRevset>, index: I) -> Self {
+impl<'a> RevsetImpl<'a> {
+    fn new(inner: Box<dyn InternalRevset>, index: CompositeIndex<'a>) -> Self {
         Self { inner, index }
     }
 
@@ -118,7 +118,7 @@ impl<I: AsCompositeIndex> RevsetImpl<I> {
     }
 }
 
-impl<I> fmt::Debug for RevsetImpl<I> {
+impl<'a> fmt::Debug for RevsetImpl<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("RevsetImpl")
             .field("inner", &self.inner)
@@ -126,7 +126,7 @@ impl<I> fmt::Debug for RevsetImpl<I> {
     }
 }
 
-impl<I: AsCompositeIndex> Revset for RevsetImpl<I> {
+impl<'a> Revset for RevsetImpl<'a> {
     fn iter(&self) -> Box<dyn Iterator<Item = CommitId> + '_> {
         Box::new(self.entries().map(|index_entry| index_entry.commit_id()))
     }
@@ -700,14 +700,14 @@ where
     }
 }
 
-pub fn evaluate<I: AsCompositeIndex>(
+pub fn evaluate<'a>(
     expression: &ResolvedExpression,
     store: &Arc<Store>,
-    index: I,
-) -> Result<RevsetImpl<I>, RevsetEvaluationError> {
+    index: CompositeIndex<'a>,
+) -> Result<RevsetImpl<'a>, RevsetEvaluationError> {
     let context = EvaluationContext {
         store: store.clone(),
-        index: index.as_composite(),
+        index,
     };
     let internal_revset = context.evaluate(expression)?;
     Ok(RevsetImpl::new(internal_revset, index))
