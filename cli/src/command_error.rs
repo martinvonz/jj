@@ -436,9 +436,13 @@ impl From<GitIgnoreError> for CommandError {
     }
 }
 
-pub(crate) const BROKEN_PIPE_EXIT_CODE: u8 = 3;
+const BROKEN_PIPE_EXIT_CODE: u8 = 3;
 
-pub(crate) fn handle_command_result(
+pub(crate) fn handle_command_result(ui: &mut Ui, result: Result<(), CommandError>) -> ExitCode {
+    try_handle_command_result(ui, result).unwrap_or_else(|_| ExitCode::from(BROKEN_PIPE_EXIT_CODE))
+}
+
+fn try_handle_command_result(
     ui: &mut Ui,
     result: Result<(), CommandError>,
 ) -> io::Result<ExitCode> {
