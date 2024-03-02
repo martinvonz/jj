@@ -2965,7 +2965,7 @@ impl CliRunner {
             .map_err(|_| {
                 user_error_with_hint(
                     "Could not determine current directory",
-                    "Did you check-out a commit where the directory doesn't exist?",
+                    "Did you update to a commit where the directory doesn't exist?",
                 )
             })?;
         // Use cwd-relative workspace configs to resolve default command and
