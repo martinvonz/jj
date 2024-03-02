@@ -552,7 +552,7 @@ pub fn generate_diff(
             tool_binary: tool.program.clone(),
             source,
         })?;
-    io::copy(&mut child.stdout.take().unwrap(), writer).map_err(ExternalToolError::Io)?;
+    let copy_result = io::copy(&mut child.stdout.take().unwrap(), writer);
     // Non-zero exit code isn't an error. For example, the traditional diff command
     // will exit with 1 if inputs are different.
     let exit_status = child.wait().map_err(ExternalToolError::Io)?;
@@ -560,6 +560,7 @@ pub fn generate_diff(
     if !exit_status.success() {
         writeln!(ui.warning(), "{}", format_tool_aborted(&exit_status)).ok();
     }
+    copy_result.map_err(ExternalToolError::Io)?;
     Ok(())
 }
 
