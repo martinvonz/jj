@@ -66,20 +66,25 @@ fn parse_gpg_verify_output(
         .ok_or(SignError::InvalidSignatureFormat)
 }
 
-fn run_command(command: &mut Command, input: &[u8], check: bool) -> Result<Vec<u8>, GpgError> {
-    let process = command
-        .stderr(if check { Stdio::piped() } else { Stdio::null() })
-        .spawn()?;
+fn run_sign_command(command: &mut Command, input: &[u8]) -> Result<Vec<u8>, GpgError> {
+    let process = command.stderr(Stdio::piped()).spawn()?;
     process.stdin.as_ref().unwrap().write_all(input)?;
     let output = process.wait_with_output()?;
-    if check && !output.status.success() {
+    if output.status.success() {
+        Ok(output.stdout)
+    } else {
         Err(GpgError::Command {
             exit_status: output.status,
             stderr: String::from_utf8_lossy(&output.stderr).trim_end().into(),
         })
-    } else {
-        Ok(output.stdout)
     }
+}
+
+fn run_verify_command(command: &mut Command, input: &[u8]) -> Result<Vec<u8>, GpgError> {
+    let process = command.stderr(Stdio::null()).spawn()?;
+    process.stdin.as_ref().unwrap().write_all(input)?;
+    let output = process.wait_with_output()?;
+    Ok(output.stdout)
 }
 
 #[derive(Debug)]
@@ -154,8 +159,8 @@ impl SigningBackend for GpgBackend {
 
     fn sign(&self, data: &[u8], key: Option<&str>) -> Result<Vec<u8>, SignError> {
         Ok(match key {
-            Some(key) => run_command(self.create_command().args(["-abu", key]), data, true)?,
-            None => run_command(self.create_command().arg("-ab"), data, true)?,
+            Some(key) => run_sign_command(self.create_command().args(["-abu", key]), data)?,
+            None => run_sign_command(self.create_command().arg("-ab"), data)?,
         })
     }
 
@@ -169,13 +174,12 @@ impl SigningBackend for GpgBackend {
 
         let sig_path = signature_file.into_temp_path();
 
-        let output = run_command(
+        let output = run_verify_command(
             self.create_command()
                 .args(["--keyid-format=long", "--status-fd=1", "--verify"])
                 .arg(&sig_path)
                 .arg("-"),
             data,
-            false,
         )?;
 
         parse_gpg_verify_output(&output, self.allow_expired_keys)
