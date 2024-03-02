@@ -20,7 +20,8 @@ use clap::{Command, Subcommand};
 use jj_lib::repo::Repo;
 use tracing::instrument;
 
-use crate::cli_util::{user_error, CommandError, CommandHelper};
+use crate::cli_util::CommandHelper;
+use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
 /// Infrequently used commands such as for generating shell completions

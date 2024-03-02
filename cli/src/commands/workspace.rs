@@ -29,10 +29,10 @@ use jj_lib::workspace::Workspace;
 use tracing::instrument;
 
 use crate::cli_util::{
-    self, check_stale_working_copy, internal_error_with_message, print_checkout_stats,
-    short_commit_hash, user_error, CommandError, CommandHelper, RevisionArg, WorkingCopyFreshness,
-    WorkspaceCommandHelper,
+    self, check_stale_working_copy, print_checkout_stats, short_commit_hash, CommandHelper,
+    RevisionArg, WorkingCopyFreshness, WorkspaceCommandHelper,
 };
+use crate::command_error::{internal_error_with_message, user_error, CommandError};
 use crate::ui::Ui;
 
 /// Commands for working with workspaces

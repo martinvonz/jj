@@ -16,7 +16,8 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::rewrite::back_out_commit;
 use tracing::instrument;
 
-use crate::cli_util::{CommandError, CommandHelper, RevisionArg};
+use crate::cli_util::{CommandHelper, RevisionArg};
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Apply the reverse of a revision on top of another revision

@@ -14,7 +14,8 @@
 
 use jj_lib::str_util::StringPattern;
 
-use crate::cli_util::{parse_string_pattern, CommandError, CommandHelper};
+use crate::cli_util::{parse_string_pattern, CommandHelper};
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Manage tags.

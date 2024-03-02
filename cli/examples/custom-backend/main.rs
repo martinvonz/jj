@@ -18,7 +18,8 @@ use std::path::Path;
 use std::time::SystemTime;
 
 use async_trait::async_trait;
-use jj_cli::cli_util::{CliRunner, CommandError, CommandHelper};
+use jj_cli::cli_util::{CliRunner, CommandHelper};
+use jj_cli::command_error::CommandError;
 use jj_cli::ui::Ui;
 use jj_lib::backend::{
     Backend, BackendInitError, BackendLoadError, BackendResult, ChangeId, Commit, CommitId,

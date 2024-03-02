@@ -15,7 +15,8 @@
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
-use crate::cli_util::{join_message_paragraphs, CommandError, CommandHelper, RevisionArg};
+use crate::cli_util::{join_message_paragraphs, CommandHelper, RevisionArg};
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Create a new, empty change and edit it in the working copy

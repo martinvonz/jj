@@ -16,7 +16,8 @@ use itertools::Itertools;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 
-use crate::cli_util::{short_commit_hash, user_error, CommandError, CommandHelper};
+use crate::cli_util::{short_commit_hash, CommandHelper};
+use crate::command_error::{user_error, CommandError};
 use crate::commands::next::choose_commit;
 use crate::ui::Ui;
 

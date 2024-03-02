@@ -23,7 +23,8 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::working_copy::WorkingCopy;
 use jj_lib::{op_walk, revset};
 
-use crate::cli_util::{internal_error, user_error, CommandError, CommandHelper, RevisionArg};
+use crate::cli_util::{CommandHelper, RevisionArg};
+use crate::command_error::{internal_error, user_error, CommandError};
 use crate::template_parser;
 use crate::ui::Ui;
 

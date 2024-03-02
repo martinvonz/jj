@@ -18,7 +18,8 @@ use jj_lib::repo::Repo;
 use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
-use crate::cli_util::{CommandError, CommandHelper, RevisionArg};
+use crate::cli_util::{CommandHelper, RevisionArg};
+use crate::command_error::CommandError;
 use crate::description_util::{description_template_for_commit, edit_description};
 use crate::ui::Ui;
 

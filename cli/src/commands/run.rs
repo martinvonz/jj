@@ -14,9 +14,8 @@
 
 //! This file contains the internal implementation of `run`.
 
-use crate::cli_util::{
-    resolve_multiple_nonempty_revsets, user_error, CommandError, CommandHelper, RevisionArg,
-};
+use crate::cli_util::{resolve_multiple_nonempty_revsets, CommandHelper, RevisionArg};
+use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
 /// Run a command across a set of revisions.

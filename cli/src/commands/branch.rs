@@ -28,9 +28,9 @@ use jj_lib::str_util::StringPattern;
 use jj_lib::view::View;
 
 use crate::cli_util::{
-    parse_string_pattern, user_error, user_error_with_hint, CommandError, CommandHelper,
-    RemoteBranchName, RemoteBranchNamePattern, RevisionArg,
+    parse_string_pattern, CommandHelper, RemoteBranchName, RemoteBranchNamePattern, RevisionArg,
 };
+use crate::command_error::{user_error, user_error_with_hint, CommandError};
 use crate::formatter::Formatter;
 use crate::ui::Ui;
 

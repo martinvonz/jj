@@ -19,7 +19,8 @@ use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
 use super::resolve;
-use crate::cli_util::{CommandError, CommandHelper};
+use crate::cli_util::CommandHelper;
+use crate::command_error::CommandError;
 use crate::diff_util;
 use crate::ui::Ui;
 

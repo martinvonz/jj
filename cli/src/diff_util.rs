@@ -37,7 +37,8 @@ use pollster::FutureExt;
 use tracing::instrument;
 use unicode_width::UnicodeWidthStr as _;
 
-use crate::cli_util::{CommandError, WorkspaceCommandHelper};
+use crate::cli_util::WorkspaceCommandHelper;
+use crate::command_error::CommandError;
 use crate::config::CommandNameAndArgs;
 use crate::formatter::Formatter;
 use crate::merge_tools::{self, ExternalMergeTool};

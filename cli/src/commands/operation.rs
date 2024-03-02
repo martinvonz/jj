@@ -23,10 +23,8 @@ use jj_lib::op_walk;
 use jj_lib::operation::Operation;
 use jj_lib::repo::Repo;
 
-use crate::cli_util::{
-    short_operation_hash, user_error, user_error_with_hint, CommandError, CommandHelper,
-    LogContentFormat,
-};
+use crate::cli_util::{short_operation_hash, CommandHelper, LogContentFormat};
+use crate::command_error::{user_error, user_error_with_hint, CommandError};
 use crate::graphlog::{get_graphlog, Edge};
 use crate::operation_templater;
 use crate::templater::Template as _;

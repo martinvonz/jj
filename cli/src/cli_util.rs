@@ -31,9 +31,8 @@ use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFact
 use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
-use jj_lib::backend::{BackendError, ChangeId, CommitId, MergedTreeId};
+use jj_lib::backend::{ChangeId, CommitId, MergedTreeId};
 use jj_lib::commit::Commit;
-use jj_lib::git::{GitConfigParseError, GitExportError, GitImportError, GitRemoteManagementError};
 use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::{GitIgnoreError, GitIgnoreFile};
 use jj_lib::hex_util::to_reverse_hex;
@@ -41,43 +40,42 @@ use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
-use jj_lib::op_heads_store::{self, OpHeadResolutionError};
 use jj_lib::op_store::{OpStoreError, OperationId, WorkspaceId};
 use jj_lib::op_walk::OpsetEvaluationError;
 use jj_lib::operation::Operation;
 use jj_lib::repo::{
     CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, Repo, RepoLoader,
-    RepoLoaderError, RewriteRootCommit, StoreFactories, StoreLoadError,
+    StoreFactories, StoreLoadError,
 };
 use jj_lib::repo_path::{FsPathParseError, RepoPath, RepoPathBuf};
 use jj_lib::revset::{
-    DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetCommitRef, RevsetEvaluationError,
-    RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt, RevsetParseContext,
-    RevsetParseError, RevsetParseErrorKind, RevsetResolutionError, RevsetWorkspaceContext,
+    DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetCommitRef, RevsetExpression,
+    RevsetFilterPredicate, RevsetIteratorExt, RevsetParseContext, RevsetParseError,
+    RevsetWorkspaceContext,
 };
 use jj_lib::rewrite::restore_tree;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::signing::SignInitError;
 use jj_lib::str_util::{StringPattern, StringPatternParseError};
 use jj_lib::transaction::Transaction;
-use jj_lib::tree::TreeMergeError;
 use jj_lib::view::View;
 use jj_lib::working_copy::{
-    CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions, WorkingCopy,
-    WorkingCopyFactory, WorkingCopyStateError,
+    CheckoutStats, LockedWorkingCopy, SnapshotOptions, WorkingCopy, WorkingCopyFactory,
 };
 use jj_lib::workspace::{
-    default_working_copy_factories, LockedWorkspace, Workspace, WorkspaceInitError,
-    WorkspaceLoadError, WorkspaceLoader,
+    default_working_copy_factories, LockedWorkspace, Workspace, WorkspaceLoadError, WorkspaceLoader,
 };
-use jj_lib::{dag_walk, file_util, git, op_walk, revset};
+use jj_lib::{dag_walk, file_util, git, op_heads_store, op_walk, revset};
 use once_cell::unsync::OnceCell;
-use thiserror::Error;
 use toml_edit;
 use tracing::instrument;
 use tracing_chrome::ChromeLayerBuilder;
 use tracing_subscriber::prelude::*;
 
+use crate::command_error::{
+    internal_error, internal_error_with_message, user_error, user_error_with_hint,
+    user_error_with_message, CommandError,
+};
 use crate::commit_templater::CommitTemplateLanguageExtension;
 use crate::config::{
     new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigSource, LayeredConfigs,
@@ -86,109 +84,11 @@ use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
 use crate::git_util::{
     is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
 };
-use crate::merge_tools::{
-    ConflictResolveError, DiffEditError, DiffEditor, DiffGenerateError, MergeEditor,
-    MergeToolConfigError,
-};
-use crate::template_parser::{TemplateAliasesMap, TemplateParseError, TemplateParseErrorKind};
+use crate::merge_tools::{DiffEditor, MergeEditor, MergeToolConfigError};
+use crate::template_parser::TemplateAliasesMap;
 use crate::templater::Template;
 use crate::ui::{ColorChoice, Ui};
 use crate::{commit_templater, text_util};
-
-#[derive(Clone, Debug)]
-pub enum CommandError {
-    UserError {
-        err: Arc<dyn std::error::Error + Send + Sync>,
-        hint: Option<String>,
-    },
-    ConfigError(String),
-    /// Invalid command line
-    CliError(String),
-    /// Invalid command line detected by clap
-    ClapCliError(Arc<clap::Error>),
-    BrokenPipe,
-    InternalError(Arc<dyn std::error::Error + Send + Sync>),
-}
-
-/// Wraps error with user-visible message.
-#[derive(Debug, Error)]
-#[error("{message}")]
-struct ErrorWithMessage {
-    message: String,
-    source: Box<dyn std::error::Error + Send + Sync>,
-}
-
-impl ErrorWithMessage {
-    fn new(
-        message: impl Into<String>,
-        source: impl Into<Box<dyn std::error::Error + Send + Sync>>,
-    ) -> Self {
-        ErrorWithMessage {
-            message: message.into(),
-            source: source.into(),
-        }
-    }
-}
-
-pub fn user_error(err: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> CommandError {
-    user_error_with_hint_opt(err, None)
-}
-
-pub fn user_error_with_hint(
-    err: impl Into<Box<dyn std::error::Error + Send + Sync>>,
-    hint: impl Into<String>,
-) -> CommandError {
-    user_error_with_hint_opt(err, Some(hint.into()))
-}
-
-pub fn user_error_with_message(
-    message: impl Into<String>,
-    source: impl Into<Box<dyn std::error::Error + Send + Sync>>,
-) -> CommandError {
-    user_error_with_hint_opt(ErrorWithMessage::new(message, source), None)
-}
-
-pub fn user_error_with_message_and_hint(
-    message: impl Into<String>,
-    hint: impl Into<String>,
-    source: impl Into<Box<dyn std::error::Error + Send + Sync>>,
-) -> CommandError {
-    user_error_with_hint_opt(ErrorWithMessage::new(message, source), Some(hint.into()))
-}
-
-pub fn user_error_with_hint_opt(
-    err: impl Into<Box<dyn std::error::Error + Send + Sync>>,
-    hint: Option<String>,
-) -> CommandError {
-    CommandError::UserError {
-        err: Arc::from(err.into()),
-        hint,
-    }
-}
-
-pub fn internal_error(err: impl Into<Box<dyn std::error::Error + Send + Sync>>) -> CommandError {
-    CommandError::InternalError(Arc::from(err.into()))
-}
-
-pub fn internal_error_with_message(
-    message: impl Into<String>,
-    source: impl Into<Box<dyn std::error::Error + Send + Sync>>,
-) -> CommandError {
-    CommandError::InternalError(Arc::new(ErrorWithMessage::new(message, source)))
-}
-
-fn format_similarity_hint<S: AsRef<str>>(candidates: &[S]) -> Option<String> {
-    match candidates {
-        [] => None,
-        names => {
-            let quoted_names = names
-                .iter()
-                .map(|s| format!(r#""{}""#, s.as_ref()))
-                .join(", ");
-            Some(format!("Did you mean {quoted_names}?"))
-        }
-    }
-}
 
 fn print_error_sources(ui: &Ui, source: Option<&dyn std::error::Error>) -> io::Result<()> {
     let Some(err) = source else {
@@ -203,306 +103,6 @@ fn print_error_sources(ui: &Ui, source: Option<&dyn std::error::Error>) -> io::R
         }
     }
     Ok(())
-}
-
-impl From<std::io::Error> for CommandError {
-    fn from(err: std::io::Error) -> Self {
-        if err.kind() == std::io::ErrorKind::BrokenPipe {
-            CommandError::BrokenPipe
-        } else {
-            user_error(err)
-        }
-    }
-}
-
-impl From<config::ConfigError> for CommandError {
-    fn from(err: config::ConfigError) -> Self {
-        CommandError::ConfigError(err.to_string())
-    }
-}
-
-impl From<crate::config::ConfigError> for CommandError {
-    fn from(err: crate::config::ConfigError) -> Self {
-        CommandError::ConfigError(err.to_string())
-    }
-}
-
-impl From<RewriteRootCommit> for CommandError {
-    fn from(err: RewriteRootCommit) -> Self {
-        internal_error_with_message("Attempted to rewrite the root commit", err)
-    }
-}
-
-impl From<EditCommitError> for CommandError {
-    fn from(err: EditCommitError) -> Self {
-        internal_error_with_message("Failed to edit a commit", err)
-    }
-}
-
-impl From<CheckOutCommitError> for CommandError {
-    fn from(err: CheckOutCommitError) -> Self {
-        internal_error_with_message("Failed to check out a commit", err)
-    }
-}
-
-impl From<BackendError> for CommandError {
-    fn from(err: BackendError) -> Self {
-        internal_error_with_message("Unexpected error from backend", err)
-    }
-}
-
-impl From<WorkspaceInitError> for CommandError {
-    fn from(err: WorkspaceInitError) -> Self {
-        match err {
-            WorkspaceInitError::DestinationExists(_) => {
-                user_error("The target repo already exists")
-            }
-            WorkspaceInitError::NonUnicodePath => {
-                user_error("The target repo path contains non-unicode characters")
-            }
-            WorkspaceInitError::CheckOutCommit(err) => {
-                internal_error_with_message("Failed to check out the initial commit", err)
-            }
-            WorkspaceInitError::Path(err) => {
-                internal_error_with_message("Failed to access the repository", err)
-            }
-            WorkspaceInitError::Backend(err) => {
-                user_error_with_message("Failed to access the repository", err)
-            }
-            WorkspaceInitError::WorkingCopyState(err) => {
-                internal_error_with_message("Failed to access the repository", err)
-            }
-            WorkspaceInitError::SignInit(err @ SignInitError::UnknownBackend(_)) => user_error(err),
-            WorkspaceInitError::SignInit(err) => internal_error(err),
-        }
-    }
-}
-
-impl From<OpHeadResolutionError> for CommandError {
-    fn from(err: OpHeadResolutionError) -> Self {
-        match err {
-            OpHeadResolutionError::NoHeads => {
-                internal_error_with_message("Corrupt repository", err)
-            }
-        }
-    }
-}
-
-impl From<OpsetEvaluationError> for CommandError {
-    fn from(err: OpsetEvaluationError) -> Self {
-        match err {
-            OpsetEvaluationError::OpsetResolution(err) => user_error(err),
-            OpsetEvaluationError::OpHeadResolution(err) => err.into(),
-            OpsetEvaluationError::OpStore(err) => err.into(),
-        }
-    }
-}
-
-impl From<SnapshotError> for CommandError {
-    fn from(err: SnapshotError) -> Self {
-        match err {
-            SnapshotError::NewFileTooLarge { .. } => user_error_with_message_and_hint(
-                "Failed to snapshot the working copy",
-                r#"Increase the value of the `snapshot.max-new-file-size` config option if you
-want this file to be snapshotted. Otherwise add it to your `.gitignore` file."#,
-                err,
-            ),
-            err => internal_error_with_message("Failed to snapshot the working copy", err),
-        }
-    }
-}
-
-impl From<TreeMergeError> for CommandError {
-    fn from(err: TreeMergeError) -> Self {
-        internal_error_with_message("Merge failed", err)
-    }
-}
-
-impl From<OpStoreError> for CommandError {
-    fn from(err: OpStoreError) -> Self {
-        internal_error_with_message("Failed to load an operation", err)
-    }
-}
-
-impl From<RepoLoaderError> for CommandError {
-    fn from(err: RepoLoaderError) -> Self {
-        internal_error_with_message("Failed to load the repo", err)
-    }
-}
-
-impl From<ResetError> for CommandError {
-    fn from(err: ResetError) -> Self {
-        internal_error_with_message("Failed to reset the working copy", err)
-    }
-}
-
-impl From<DiffEditError> for CommandError {
-    fn from(err: DiffEditError) -> Self {
-        user_error_with_message("Failed to edit diff", err)
-    }
-}
-
-impl From<DiffGenerateError> for CommandError {
-    fn from(err: DiffGenerateError) -> Self {
-        user_error_with_message("Failed to generate diff", err)
-    }
-}
-
-impl From<ConflictResolveError> for CommandError {
-    fn from(err: ConflictResolveError) -> Self {
-        user_error_with_message("Failed to resolve conflicts", err)
-    }
-}
-
-impl From<MergeToolConfigError> for CommandError {
-    fn from(err: MergeToolConfigError) -> Self {
-        user_error_with_message("Failed to load tool configuration", err)
-    }
-}
-
-impl From<git2::Error> for CommandError {
-    fn from(err: git2::Error) -> Self {
-        user_error_with_message("Git operation failed", err)
-    }
-}
-
-impl From<GitImportError> for CommandError {
-    fn from(err: GitImportError) -> Self {
-        let message = format!("Failed to import refs from underlying Git repo: {err}");
-        let hint = match &err {
-            GitImportError::MissingHeadTarget { .. }
-            | GitImportError::MissingRefAncestor { .. } => Some(
-                "\
-Is this Git repository a shallow or partial clone (cloned with the --depth or --filter \
-                 argument)?
-jj currently does not support shallow/partial clones. To use jj with this \
-                 repository, try
-unshallowing the repository (https://stackoverflow.com/q/6802145) or re-cloning with the full
-repository contents."
-                    .to_string(),
-            ),
-            GitImportError::RemoteReservedForLocalGitRepo => {
-                Some("Run `jj git remote rename` to give different name.".to_string())
-            }
-            GitImportError::InternalBackend(_) => None,
-            GitImportError::InternalGitError(_) => None,
-            GitImportError::UnexpectedBackend => None,
-        };
-        user_error_with_hint_opt(message, hint)
-    }
-}
-
-impl From<GitExportError> for CommandError {
-    fn from(err: GitExportError) -> Self {
-        internal_error_with_message("Failed to export refs to underlying Git repo", err)
-    }
-}
-
-impl From<GitRemoteManagementError> for CommandError {
-    fn from(err: GitRemoteManagementError) -> Self {
-        user_error(err)
-    }
-}
-
-impl From<RevsetEvaluationError> for CommandError {
-    fn from(err: RevsetEvaluationError) -> Self {
-        user_error(err)
-    }
-}
-
-impl From<RevsetParseError> for CommandError {
-    fn from(err: RevsetParseError) -> Self {
-        let err_chain = iter::successors(Some(&err), |e| e.origin());
-        let message = err_chain.clone().join("\n");
-        // Only for the bottom error, which is usually the root cause
-        let hint = match err_chain.last().unwrap().kind() {
-            RevsetParseErrorKind::NotPrefixOperator {
-                op: _,
-                similar_op,
-                description,
-            }
-            | RevsetParseErrorKind::NotPostfixOperator {
-                op: _,
-                similar_op,
-                description,
-            }
-            | RevsetParseErrorKind::NotInfixOperator {
-                op: _,
-                similar_op,
-                description,
-            } => Some(format!("Did you mean '{similar_op}' for {description}?")),
-            RevsetParseErrorKind::NoSuchFunction {
-                name: _,
-                candidates,
-            } => format_similarity_hint(candidates),
-            _ => None,
-        };
-        user_error_with_hint_opt(format!("Failed to parse revset: {message}"), hint)
-    }
-}
-
-impl From<RevsetResolutionError> for CommandError {
-    fn from(err: RevsetResolutionError) -> Self {
-        let hint = match &err {
-            RevsetResolutionError::NoSuchRevision {
-                name: _,
-                candidates,
-            } => format_similarity_hint(candidates),
-            RevsetResolutionError::EmptyString
-            | RevsetResolutionError::WorkspaceMissingWorkingCopy { .. }
-            | RevsetResolutionError::AmbiguousCommitIdPrefix(_)
-            | RevsetResolutionError::AmbiguousChangeIdPrefix(_)
-            | RevsetResolutionError::StoreError(_) => None,
-        };
-        user_error_with_hint_opt(err, hint)
-    }
-}
-
-impl From<TemplateParseError> for CommandError {
-    fn from(err: TemplateParseError) -> Self {
-        let err_chain = iter::successors(Some(&err), |e| e.origin());
-        let message = err_chain.clone().join("\n");
-        // Only for the bottom error, which is usually the root cause
-        let hint = match err_chain.last().unwrap().kind() {
-            TemplateParseErrorKind::NoSuchKeyword { candidates, .. }
-            | TemplateParseErrorKind::NoSuchFunction { candidates, .. }
-            | TemplateParseErrorKind::NoSuchMethod { candidates, .. } => {
-                format_similarity_hint(candidates)
-            }
-            _ => None,
-        };
-        user_error_with_hint_opt(format!("Failed to parse template: {message}"), hint)
-    }
-}
-
-impl From<FsPathParseError> for CommandError {
-    fn from(err: FsPathParseError) -> Self {
-        user_error(err)
-    }
-}
-
-impl From<clap::Error> for CommandError {
-    fn from(err: clap::Error) -> Self {
-        CommandError::ClapCliError(Arc::new(err))
-    }
-}
-
-impl From<GitConfigParseError> for CommandError {
-    fn from(err: GitConfigParseError) -> Self {
-        internal_error_with_message("Failed to parse Git config", err)
-    }
-}
-
-impl From<WorkingCopyStateError> for CommandError {
-    fn from(err: WorkingCopyStateError) -> Self {
-        internal_error_with_message("Failed to access working copy state", err)
-    }
-}
-
-impl From<GitIgnoreError> for CommandError {
-    fn from(err: GitIgnoreError) -> Self {
-        user_error_with_message("Failed to process .gitignore.", err)
-    }
 }
 
 #[derive(Clone)]

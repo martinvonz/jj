@@ -16,7 +16,8 @@ use clap::ArgGroup;
 use jj_lib::rewrite::rebase_to_dest_parent;
 use tracing::instrument;
 
-use crate::cli_util::{CommandError, CommandHelper, RevisionArg};
+use crate::cli_util::{CommandHelper, RevisionArg};
+use crate::command_error::CommandError;
 use crate::diff_util::{self, DiffFormatArgs};
 use crate::ui::Ui;
 

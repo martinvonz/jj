@@ -19,7 +19,8 @@ use jj_lib::repo::Repo;
 use pollster::FutureExt;
 use tracing::instrument;
 
-use crate::cli_util::{user_error, CommandError, CommandHelper, RevisionArg};
+use crate::cli_util::{CommandHelper, RevisionArg};
+use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
 /// Print contents of a file in a revision

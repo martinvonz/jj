@@ -29,9 +29,10 @@ use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
 use crate::cli_util::{
-    self, resolve_multiple_nonempty_revsets_default_single, short_commit_hash, user_error,
-    CommandError, CommandHelper, RevisionArg, WorkspaceCommandHelper,
+    self, resolve_multiple_nonempty_revsets_default_single, short_commit_hash, CommandHelper,
+    RevisionArg, WorkspaceCommandHelper,
 };
+use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
 /// Move revisions to different parent(s)

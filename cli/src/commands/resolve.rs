@@ -22,7 +22,8 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::repo_path::RepoPathBuf;
 use tracing::instrument;
 
-use crate::cli_util::{CommandError, CommandHelper, WorkspaceCommandHelper};
+use crate::cli_util::{CommandHelper, WorkspaceCommandHelper};
+use crate::command_error::CommandError;
 use crate::formatter::Formatter;
 use crate::ui::Ui;
 
