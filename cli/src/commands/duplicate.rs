@@ -20,9 +20,9 @@ use jj_lib::repo::Repo;
 use tracing::instrument;
 
 use crate::cli_util::{
-    resolve_multiple_nonempty_revsets, short_commit_hash, user_error, CommandError, CommandHelper,
-    RevisionArg,
+    resolve_multiple_nonempty_revsets, short_commit_hash, CommandHelper, RevisionArg,
 };
+use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
 /// Create a new change with the same content as an existing one

@@ -19,9 +19,10 @@ use itertools::Itertools;
 use tracing::instrument;
 
 use crate::cli_util::{
-    get_new_config_file_path, run_ui_editor, serialize_config_value, user_error,
-    write_config_value_to_file, CommandError, CommandHelper,
+    get_new_config_file_path, run_ui_editor, serialize_config_value, write_config_value_to_file,
+    CommandHelper,
 };
+use crate::command_error::{user_error, CommandError};
 use crate::config::{AnnotatedValue, ConfigSource};
 use crate::ui::Ui;
 

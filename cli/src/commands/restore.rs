@@ -18,7 +18,8 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::rewrite::{merge_commit_trees, restore_tree};
 use tracing::instrument;
 
-use crate::cli_util::{user_error, CommandError, CommandHelper, RevisionArg};
+use crate::cli_util::{CommandHelper, RevisionArg};
+use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
 /// Restore paths from another revision

@@ -62,7 +62,8 @@ use std::fmt::Debug;
 use clap::{CommandFactory, FromArgMatches, Subcommand};
 use tracing::instrument;
 
-use crate::cli_util::{user_error_with_hint, Args, CommandError, CommandHelper};
+use crate::cli_util::{Args, CommandHelper};
+use crate::command_error::{user_error_with_hint, CommandError};
 use crate::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]

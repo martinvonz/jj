@@ -17,9 +17,8 @@ use std::io::Write;
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
-use crate::cli_util::{
-    resolve_multiple_nonempty_revsets, CommandError, CommandHelper, RevisionArg,
-};
+use crate::cli_util::{resolve_multiple_nonempty_revsets, CommandHelper, RevisionArg};
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Abandon a revision

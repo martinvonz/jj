@@ -22,9 +22,8 @@ use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 use jj_lib::rewrite::{merge_commit_trees, rebase_commit};
 use tracing::instrument;
 
-use crate::cli_util::{
-    self, short_commit_hash, user_error, CommandError, CommandHelper, RevisionArg,
-};
+use crate::cli_util::{self, short_commit_hash, CommandHelper, RevisionArg};
+use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
 /// Create a new, empty change and (by default) edit it in the working copy

@@ -24,9 +24,8 @@ use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
-use crate::cli_util::{
-    edit_temp_file, internal_error_with_message, print_checkout_stats, CommandError, CommandHelper,
-};
+use crate::cli_util::{edit_temp_file, print_checkout_stats, CommandHelper};
+use crate::command_error::{internal_error_with_message, CommandError};
 use crate::ui::Ui;
 
 /// Manage which paths from the working-copy commit are present in the working

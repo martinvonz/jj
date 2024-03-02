@@ -19,9 +19,8 @@ use jj_lib::commit::Commit;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 
-use crate::cli_util::{
-    short_commit_hash, user_error, CommandError, CommandHelper, WorkspaceCommandHelper,
-};
+use crate::cli_util::{short_commit_hash, CommandHelper, WorkspaceCommandHelper};
+use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
 /// Move the current working copy commit to the next child revision in the

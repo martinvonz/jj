@@ -21,7 +21,7 @@ use std::{env, fmt, io, mem};
 use minus::Pager as MinusPager;
 use tracing::instrument;
 
-use crate::cli_util::CommandError;
+use crate::command_error::CommandError;
 use crate::config::CommandNameAndArgs;
 use crate::formatter::{Formatter, FormatterFactory, LabeledWriter};
 

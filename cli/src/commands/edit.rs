@@ -17,7 +17,8 @@ use std::io::Write;
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
-use crate::cli_util::{CommandError, CommandHelper, RevisionArg};
+use crate::cli_util::{CommandHelper, RevisionArg};
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Edit a commit in the working copy

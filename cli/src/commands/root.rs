@@ -14,7 +14,8 @@
 
 use tracing::instrument;
 
-use crate::cli_util::{CommandError, CommandHelper};
+use crate::cli_util::CommandHelper;
+use crate::command_error::CommandError;
 use crate::commands::workspace;
 use crate::ui::Ui;
 

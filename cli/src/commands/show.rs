@@ -15,7 +15,8 @@
 use jj_lib::matchers::EverythingMatcher;
 use tracing::instrument;
 
-use crate::cli_util::{CommandError, CommandHelper, RevisionArg};
+use crate::cli_util::{CommandHelper, RevisionArg};
+use crate::command_error::CommandError;
 use crate::diff_util::{self, DiffFormatArgs};
 use crate::ui::Ui;
 

@@ -30,7 +30,7 @@ use jj_lib::store::Store;
 use jj_lib::workspace::Workspace;
 use unicode_width::UnicodeWidthStr;
 
-use crate::cli_util::{user_error, CommandError};
+use crate::command_error::{user_error, CommandError};
 use crate::formatter::Formatter;
 use crate::progress::Progress;
 use crate::ui::Ui;

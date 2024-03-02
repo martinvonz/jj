@@ -18,9 +18,8 @@ use jj_lib::matchers::EverythingMatcher;
 use jj_lib::rewrite::rebase_to_dest_parent;
 use tracing::instrument;
 
-use crate::cli_util::{
-    CommandError, CommandHelper, LogContentFormat, RevisionArg, WorkspaceCommandHelper,
-};
+use crate::cli_util::{CommandHelper, LogContentFormat, RevisionArg, WorkspaceCommandHelper};
+use crate::command_error::CommandError;
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
 use crate::formatter::Formatter;
 use crate::graphlog::{get_graphlog, Edge};

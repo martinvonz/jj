@@ -42,9 +42,12 @@ use maplit::hashset;
 
 use crate::cli_util::{
     parse_string_pattern, print_trackable_remote_branches, resolve_multiple_nonempty_revsets,
-    short_change_hash, short_commit_hash, start_repo_transaction, user_error, user_error_with_hint,
-    user_error_with_hint_opt, user_error_with_message, CommandError, CommandHelper, RevisionArg,
+    short_change_hash, short_commit_hash, start_repo_transaction, CommandHelper, RevisionArg,
     WorkspaceCommandHelper,
+};
+use crate::command_error::{
+    user_error, user_error_with_hint, user_error_with_hint_opt, user_error_with_message,
+    CommandError,
 };
 use crate::git_util::{
     get_git_repo, is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,

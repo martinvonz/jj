@@ -23,7 +23,8 @@ use criterion::{BatchSize, BenchmarkGroup, BenchmarkId, Criterion};
 use jj_lib::object_id::HexPrefix;
 use jj_lib::repo::Repo;
 
-use crate::cli_util::{CommandError, CommandHelper, WorkspaceCommandHelper};
+use crate::cli_util::{CommandHelper, WorkspaceCommandHelper};
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Commands for benchmarking internal operations

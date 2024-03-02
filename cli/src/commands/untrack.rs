@@ -21,7 +21,8 @@ use jj_lib::repo::Repo;
 use jj_lib::working_copy::SnapshotOptions;
 use tracing::instrument;
 
-use crate::cli_util::{user_error_with_hint, CommandError, CommandHelper};
+use crate::cli_util::CommandHelper;
+use crate::command_error::{user_error_with_hint, CommandError};
 use crate::ui::Ui;
 
 /// Stop tracking specified paths in the working copy

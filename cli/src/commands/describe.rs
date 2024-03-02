@@ -17,7 +17,8 @@ use std::io::{self, Read, Write};
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
-use crate::cli_util::{join_message_paragraphs, CommandError, CommandHelper, RevisionArg};
+use crate::cli_util::{join_message_paragraphs, CommandHelper, RevisionArg};
+use crate::command_error::CommandError;
 use crate::description_util::{description_template_for_describe, edit_description};
 use crate::ui::Ui;
 

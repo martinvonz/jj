@@ -14,7 +14,8 @@
 
 use std::io::Write as _;
 
-use jj_cli::cli_util::{CliRunner, CommandError};
+use jj_cli::cli_util::CliRunner;
+use jj_cli::command_error::CommandError;
 use jj_cli::ui::Ui;
 
 #[derive(clap::Args, Clone, Debug)]

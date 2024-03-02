@@ -17,7 +17,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use itertools::Itertools;
-use jj_cli::cli_util::{CliRunner, CommandError, CommandHelper};
+use jj_cli::cli_util::{CliRunner, CommandHelper};
+use jj_cli::command_error::CommandError;
 use jj_cli::ui::Ui;
 use jj_lib::backend::{Backend, MergedTreeId};
 use jj_lib::commit::Commit;

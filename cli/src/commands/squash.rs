@@ -17,7 +17,8 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::revset;
 use tracing::instrument;
 
-use crate::cli_util::{self, user_error, CommandError, CommandHelper, RevisionArg};
+use crate::cli_util::{self, CommandHelper, RevisionArg};
+use crate::command_error::{user_error, CommandError};
 use crate::description_util::combine_messages;
 use crate::ui::Ui;
 

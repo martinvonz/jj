@@ -21,7 +21,8 @@ use jj_lib::revset_graph::{
 };
 use tracing::instrument;
 
-use crate::cli_util::{CommandError, CommandHelper, LogContentFormat, RevisionArg};
+use crate::cli_util::{CommandHelper, LogContentFormat, RevisionArg};
+use crate::command_error::CommandError;
 use crate::diff_util::{self, DiffFormatArgs};
 use crate::graphlog::{get_graphlog, Edge};
 use crate::ui::Ui;

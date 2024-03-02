@@ -5,7 +5,8 @@ use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::settings::UserSettings;
 
-use crate::cli_util::{edit_temp_file, CommandError, WorkspaceCommandHelper};
+use crate::cli_util::{edit_temp_file, WorkspaceCommandHelper};
+use crate::command_error::CommandError;
 use crate::diff_util::{self, DiffFormat};
 use crate::formatter::PlainTextFormatter;
 use crate::text_util;
