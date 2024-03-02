@@ -626,6 +626,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#branch-movement" class="md-nav__link">
+    <span class="md-ellipsis">
+      Branch movement
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#conflicts" class="md-nav__link">
     <span class="md-ellipsis">
       Conflicts
@@ -1386,6 +1395,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#branch-movement" class="md-nav__link">
+    <span class="md-ellipsis">
+      Branch movement
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#conflicts" class="md-nav__link">
     <span class="md-ellipsis">
       Conflicts
@@ -1520,6 +1538,18 @@ Then, <code>jj git fetch</code> tracks every <em>newly fetched</em> branch with 
 Branches that already existed before the <code>jj git fetch</code> are not affected. This
 is similar to Mercurial, which fetches all its bookmarks (equivalent to Git
 branches) by default.</p>
+<h2 id="branch-movement">Branch movement<a class="headerlink" href="#branch-movement" title="Permanent link">&para;</a></h2>
+<p>Currently Jujutsu automatically moves local branches when these conditions are
+met:</p>
+<ul>
+<li>When a commit has been rewritten (e.g, when you rebase) branches and the<br />
+   working-copy will move along with it.</li>
+<li>When a commit has been abandoned, all associated branches will be moved 
+   to its parent(s). If a working copy was pointing to the abandoned commit,
+   then a new working-copy commit will be created on top of the parent(s).</li>
+</ul>
+<p>You could describe the movement as following along the change-id of the 
+current branch commit, even if it isn't entirely accurate.</p>
 <h2 id="conflicts">Conflicts<a class="headerlink" href="#conflicts" title="Permanent link">&para;</a></h2>
 <p>Branches can end up in a conflicted state. When that happens, <code>jj status</code> will
 include information about the conflicted branches (and instructions for how to
