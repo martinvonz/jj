@@ -14,7 +14,7 @@
 
 #![allow(missing_docs)]
 
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::fmt::Debug;
 use std::io::Write;
 use std::process::{Command, ExitStatus, Stdio};
@@ -133,14 +133,13 @@ impl GpgBackend {
         )
     }
 
-    fn run(&self, input: &[u8], args: &[&OsStr], check: bool) -> Result<Vec<u8>, GpgError> {
+    fn create_command(&self) -> Command {
         let mut command = Command::new(&self.program);
         command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .args(&self.extra_args)
-            .args(args);
-        run_command(&mut command, input, check)
+            .args(&self.extra_args);
+        command
     }
 }
 
@@ -155,8 +154,8 @@ impl SigningBackend for GpgBackend {
 
     fn sign(&self, data: &[u8], key: Option<&str>) -> Result<Vec<u8>, SignError> {
         Ok(match key {
-            Some(key) => self.run(data, &["-abu".as_ref(), key.as_ref()], true)?,
-            None => self.run(data, &["-ab".as_ref()], true)?,
+            Some(key) => run_command(self.create_command().args(["-abu", key]), data, true)?,
+            None => run_command(self.create_command().arg("-ab"), data, true)?,
         })
     }
 
@@ -170,16 +169,12 @@ impl SigningBackend for GpgBackend {
 
         let sig_path = signature_file.into_temp_path();
 
-        let output = self.run(
+        let output = run_command(
+            self.create_command()
+                .args(["--keyid-format=long", "--status-fd=1", "--verify"])
+                .arg(&sig_path)
+                .arg("-"),
             data,
-            &[
-                "--keyid-format=long".as_ref(),
-                "--status-fd=1".as_ref(),
-                "--verify".as_ref(),
-                // the only reason we have those .as_refs transmuting to &OsStr everywhere
-                sig_path.as_os_str(),
-                "-".as_ref(),
-            ],
             false,
         )?;
 
