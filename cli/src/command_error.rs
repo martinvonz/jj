@@ -35,6 +35,7 @@ use jj_lib::working_copy::{ResetError, SnapshotError, WorkingCopyStateError};
 use jj_lib::workspace::WorkspaceInitError;
 use thiserror::Error;
 
+use crate::cli_util::WorkspaceCommandHelper;
 use crate::merge_tools::{
     ConflictResolveError, DiffEditError, DiffGenerateError, MergeToolConfigError,
 };
@@ -74,6 +75,24 @@ impl ErrorWithMessage {
             source: source.into(),
         }
     }
+}
+
+pub fn user_error_missing_template(workspace_command: &WorkspaceCommandHelper) -> CommandError {
+    let mut template_names = workspace_command
+        .template_aliases_map()
+        .symbol_aliases_keys();
+    template_names.sort_unstable();
+    let mut hint = String::new();
+    let padding = "   ";
+    for name in template_names {
+        hint.push('\n');
+        hint.push_str(padding);
+        hint.push_str(name);
+    }
+    user_error_with_hint(
+        String::from("Template is required"),
+        format!("The following template-aliases are defined:{}", hint),
+    )
 }
 
 pub fn user_error(err: impl Into<Box<dyn error::Error + Send + Sync>>) -> CommandError {

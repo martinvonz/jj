@@ -179,7 +179,7 @@ fn test_log_with_or_without_diff() {
     insta::assert_snapshot!(stderr, @r###"
     error: the argument '--git' cannot be used with '--color-words'
 
-    Usage: jj log --template <TEMPLATE> --no-graph --patch --git [PATHS]...
+    Usage: jj log --template [<TEMPLATE>] --no-graph --patch --git [PATHS]...
 
     For more information, try '--help'.
     "###);

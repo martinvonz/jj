@@ -22,7 +22,7 @@ use jj_lib::revset_graph::{
 use tracing::instrument;
 
 use crate::cli_util::{CommandHelper, LogContentFormat, RevisionArg};
-use crate::command_error::CommandError;
+use crate::command_error::{user_error_missing_template, CommandError};
 use crate::diff_util::{self, DiffFormatArgs};
 use crate::graphlog::{get_graphlog, Edge};
 use crate::ui::Ui;
@@ -52,7 +52,7 @@ pub(crate) struct LogArgs {
     ///
     /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
     #[arg(long, short = 'T')]
-    template: Option<String>,
+    template: Option<Option<String>>,
     /// Show patch
     #[arg(long, short = 'p')]
     patch: bool,
@@ -101,7 +101,8 @@ pub(crate) fn cmd_log(
         diff_util::diff_formats_for_log(command.settings(), &args.diff_format, args.patch)?;
 
     let template_string = match &args.template {
-        Some(value) => value.to_string(),
+        Some(Some(value)) => value.to_string(),
+        Some(None) => return Err(user_error_missing_template(&workspace_command)),
         None => command.settings().config().get_string("templates.log")?,
     };
     let use_elided_nodes = command
