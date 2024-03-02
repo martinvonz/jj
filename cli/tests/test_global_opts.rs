@@ -101,6 +101,17 @@ fn test_no_subcommand() {
     │  (empty) (no description set)
     ~
     "###);
+
+    // Multiple default command strings work.
+    test_env.add_config(r#"ui.default-command=["commit", "-m", "foo"]"#);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file.txt"), "file").unwrap();
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &[]);
+    assert_eq!(stdout, "");
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: kxryzmor 70ac3df3 (empty) (no description set)
+    Parent commit      : lylxulpl 9dbbb452 foo
+    "###);
 }
 
 #[test]

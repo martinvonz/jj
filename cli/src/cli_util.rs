@@ -2171,6 +2171,16 @@ impl ValueParserFactory for RevisionArg {
     }
 }
 
+fn get_string_or_array(
+    config: &config::Config,
+    key: &str,
+) -> Result<Vec<String>, config::ConfigError> {
+    config
+        .get(key)
+        .map(|string| vec![string])
+        .or_else(|_| config.get::<Vec<String>>(key))
+}
+
 fn resolve_default_command(
     ui: &Ui,
     config: &config::Config,
@@ -2194,7 +2204,8 @@ fn resolve_default_command(
 
     if let Some(matches) = matches {
         if matches.subcommand_name().is_none() {
-            if config.get_string("ui.default-command").is_err() {
+            let args = get_string_or_array(config, "ui.default-command");
+            if args.is_err() {
                 writeln!(
                     ui.hint(),
                     "Hint: Use `jj -h` for a list of available commands."
@@ -2204,11 +2215,10 @@ fn resolve_default_command(
                     "Run `jj config set --user ui.default-command log` to disable this message."
                 )?;
             }
-            let default_command = config
-                .get_string("ui.default-command")
-                .unwrap_or_else(|_| "log".to_string());
+            let default_command = args.unwrap_or_else(|_| vec!["log".to_string()]);
+
             // Insert the default command directly after the path to the binary.
-            string_args.insert(1, default_command);
+            string_args.splice(1..1, default_command);
         }
     }
     Ok(string_args)
