@@ -760,6 +760,10 @@ impl ResolvedExpression {
     }
 }
 
+pub type RevsetFunctionMap = HashMap<&'static str, Box<RevsetFunction>>;
+
+type RevsetFunctionMapRef<'a> = HashMap<&'static str, &'a RevsetFunction>;
+
 #[derive(Clone, Debug, Default)]
 pub struct RevsetAliasesMap {
     symbol_aliases: HashMap<String, String>,
@@ -857,7 +861,8 @@ impl fmt::Display for RevsetAliasId<'_> {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct ParseState<'a> {
+pub struct ParseState<'a> {
+    function_map: &'a RevsetFunctionMapRef<'a>,
     aliases_map: &'a RevsetAliasesMap,
     aliases_expanding: &'a [RevsetAliasId<'a>],
     locals: &'a HashMap<&'a str, Rc<RevsetExpression>>,
@@ -885,6 +890,7 @@ impl ParseState<'_> {
         let mut aliases_expanding = self.aliases_expanding.to_vec();
         aliases_expanding.push(id);
         let expanding_state = ParseState {
+            function_map: self.function_map,
             aliases_map: self.aliases_map,
             aliases_expanding: &aliases_expanding,
             locals,
@@ -911,7 +917,7 @@ fn parse_program(
     parse_expression_rule(first.into_inner(), state)
 }
 
-fn parse_expression_rule(
+pub fn parse_expression_rule(
     pairs: Pairs<Rule>,
     state: ParseState,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
@@ -1164,24 +1170,27 @@ fn parse_function_expression(
         state.with_alias_expanding(id, &locals, primary_span, |state| {
             parse_program(defn, state)
         })
-    } else if let Some(func) = BUILTIN_FUNCTION_MAP.get(name) {
+    } else if let Some(func) = state.function_map.get(name) {
         func(name, arguments_pair, state)
     } else {
         Err(RevsetParseError::with_span(
             RevsetParseErrorKind::NoSuchFunction {
                 name: name.to_owned(),
-                candidates: collect_similar(name, &collect_function_names(state.aliases_map)),
+                candidates: collect_similar(
+                    name,
+                    &collect_function_names(state.function_map, state.aliases_map),
+                ),
             },
             name_pair.as_span(),
         ))
     }
 }
 
-fn collect_function_names(aliases_map: &RevsetAliasesMap) -> Vec<String> {
-    let mut names = BUILTIN_FUNCTION_MAP
-        .keys()
-        .map(|&n| n.to_owned())
-        .collect_vec();
+fn collect_function_names(
+    function_map: &RevsetFunctionMapRef,
+    aliases_map: &RevsetAliasesMap,
+) -> Vec<String> {
+    let mut names = function_map.keys().map(|&n| n.to_owned()).collect_vec();
     names.extend(aliases_map.function_aliases.keys().map(|n| n.to_owned()));
     names.sort_unstable();
     names.dedup();
@@ -1400,7 +1409,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
 
 type OptionalArg<'i> = Option<Pair<'i, Rule>>;
 
-fn expect_no_arguments(
+pub fn expect_no_arguments(
     function_name: &str,
     arguments_pair: Pair<Rule>,
 ) -> Result<(), RevsetParseError> {
@@ -1408,7 +1417,7 @@ fn expect_no_arguments(
     Ok(())
 }
 
-fn expect_one_argument<'i>(
+pub fn expect_one_argument<'i>(
     function_name: &str,
     arguments_pair: Pair<'i, Rule>,
 ) -> Result<Pair<'i, Rule>, RevsetParseError> {
@@ -1416,7 +1425,7 @@ fn expect_one_argument<'i>(
     Ok(arg)
 }
 
-fn expect_arguments<'i, const N: usize, const M: usize>(
+pub fn expect_arguments<'i, const N: usize, const M: usize>(
     function_name: &str,
     arguments_pair: Pair<'i, Rule>,
 ) -> Result<([Pair<'i, Rule>; N], [OptionalArg<'i>; M]), RevsetParseError> {
@@ -1427,7 +1436,7 @@ fn expect_arguments<'i, const N: usize, const M: usize>(
 ///
 /// `argument_names` is a list of argument names. Unnamed positional arguments
 /// should be padded with `""`.
-fn expect_named_arguments<'i, const N: usize, const M: usize>(
+pub fn expect_named_arguments<'i, const N: usize, const M: usize>(
     function_name: &str,
     argument_names: &[&str],
     arguments_pair: Pair<'i, Rule>,
@@ -1437,7 +1446,7 @@ fn expect_named_arguments<'i, const N: usize, const M: usize>(
     Ok((required.try_into().unwrap(), optional.try_into().unwrap()))
 }
 
-fn expect_named_arguments_vec<'i>(
+pub fn expect_named_arguments_vec<'i>(
     function_name: &str,
     argument_names: &[&str],
     arguments_pair: Pair<'i, Rule>,
@@ -1520,7 +1529,7 @@ fn expect_named_arguments_vec<'i>(
     Ok((required, optional))
 }
 
-fn parse_function_argument_to_string(
+pub fn parse_function_argument_to_string(
     name: &str,
     pair: Pair<Rule>,
     state: ParseState,
@@ -1528,7 +1537,7 @@ fn parse_function_argument_to_string(
     parse_function_argument_as_literal("string", name, pair, state)
 }
 
-fn parse_function_argument_to_string_pattern(
+pub fn parse_function_argument_to_string_pattern(
     name: &str,
     pair: Pair<Rule>,
     state: ParseState,
@@ -1563,7 +1572,7 @@ fn parse_function_argument_to_string_pattern(
     Ok(pattern)
 }
 
-fn parse_function_argument_as_literal<T: FromStr>(
+pub fn parse_function_argument_as_literal<T: FromStr>(
     type_name: &str,
     name: &str,
     pair: Pair<Rule>,
@@ -1597,7 +1606,20 @@ pub fn parse(
     revset_str: &str,
     context: &RevsetParseContext,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    let mut function_map = RevsetFunctionMapRef::new();
+    for (name, function) in &*BUILTIN_FUNCTION_MAP {
+        function_map.insert(name, function);
+    }
+    if let Some(ext) = context.function_map_extension {
+        for (name, function) in ext {
+            if function_map.insert(name, function).is_some() {
+                panic!("Extension overrides builtin function '{name}'");
+            }
+        }
+    }
+
     let state = ParseState {
+        function_map: &function_map,
         aliases_map: context.aliases_map,
         aliases_expanding: &[],
         locals: &HashMap::new(),
@@ -2532,6 +2554,7 @@ impl Iterator for ReverseRevsetIterator {
 /// Information needed to parse revset expression.
 #[derive(Clone, Debug)]
 pub struct RevsetParseContext<'a> {
+    pub function_map_extension: Option<&'a RevsetFunctionMap>,
     pub aliases_map: &'a RevsetAliasesMap,
     pub user_email: String,
     pub workspace: Option<RevsetWorkspaceContext<'a>>,
@@ -2571,6 +2594,7 @@ mod tests {
             aliases_map.insert(decl, defn).unwrap();
         }
         let context = RevsetParseContext {
+            function_map_extension: None,
             aliases_map: &aliases_map,
             user_email: "test.user@example.com".to_string(),
             workspace: None,
@@ -2595,6 +2619,7 @@ mod tests {
             aliases_map.insert(decl, defn).unwrap();
         }
         let context = RevsetParseContext {
+            function_map_extension: None,
             aliases_map: &aliases_map,
             user_email: "test.user@example.com".to_string(),
             workspace: Some(workspace_ctx),

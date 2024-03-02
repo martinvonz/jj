@@ -40,6 +40,7 @@ use testutils::{
 
 fn resolve_symbol(repo: &dyn Repo, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError> {
     let context = RevsetParseContext {
+        function_map_extension: None,
         aliases_map: &RevsetAliasesMap::new(),
         user_email: String::new(),
         workspace: None,
@@ -168,6 +169,7 @@ fn test_resolve_symbol_commit_id() {
     assert_eq!(resolve_commit_ids(repo.as_ref(), "present(foo)"), []);
     let symbol_resolver = DefaultSymbolResolver::new(repo.as_ref());
     let context = RevsetParseContext {
+        function_map_extension: None,
         aliases_map: &RevsetAliasesMap::new(),
         user_email: settings.user_email(),
         workspace: None,
@@ -790,6 +792,7 @@ fn test_resolve_symbol_git_refs() {
 fn resolve_commit_ids(repo: &dyn Repo, revset_str: &str) -> Vec<CommitId> {
     let settings = testutils::user_settings();
     let context = RevsetParseContext {
+        function_map_extension: None,
         aliases_map: &RevsetAliasesMap::new(),
         user_email: settings.user_email(),
         workspace: None,
@@ -815,6 +818,7 @@ fn resolve_commit_ids_in_workspace(
         workspace_root: workspace.workspace_root(),
     };
     let context = RevsetParseContext {
+        function_map_extension: None,
         aliases_map: &RevsetAliasesMap::new(),
         user_email: settings.user_email(),
         workspace: Some(workspace_ctx),

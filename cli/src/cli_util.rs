@@ -50,8 +50,8 @@ use jj_lib::repo::{
 use jj_lib::repo_path::{FsPathParseError, RepoPath, RepoPathBuf};
 use jj_lib::revset::{
     DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetCommitRef, RevsetExpression,
-    RevsetFilterPredicate, RevsetIteratorExt, RevsetParseContext, RevsetParseError,
-    RevsetWorkspaceContext,
+    RevsetFilterPredicate, RevsetFunctionMap, RevsetIteratorExt, RevsetParseContext,
+    RevsetParseError, RevsetWorkspaceContext,
 };
 use jj_lib::rewrite::restore_tree;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
@@ -186,6 +186,7 @@ pub struct CommandHelper {
     settings: UserSettings,
     layered_configs: LayeredConfigs,
     commit_template_extension: Option<Arc<dyn CommitTemplateLanguageExtension>>,
+    revset_function_map_extension: Option<RevsetFunctionMap>,
     maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
     store_factories: StoreFactories,
     working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>>,
@@ -369,6 +370,7 @@ pub struct WorkspaceCommandHelper {
     workspace: Workspace,
     user_repo: ReadonlyUserRepo,
     commit_template_extension: Option<Arc<dyn CommitTemplateLanguageExtension>>,
+    revset_function_map_extension: Option<RevsetFunctionMap>,
     revset_aliases_map: RevsetAliasesMap,
     template_aliases_map: TemplateAliasesMap,
     may_update_working_copy: bool,
@@ -408,6 +410,7 @@ impl WorkspaceCommandHelper {
             workspace,
             user_repo: ReadonlyUserRepo::new(repo),
             commit_template_extension: command.commit_template_extension.clone(),
+            revset_function_map_extension: command.revset_function_map_extension.clone(),
             revset_aliases_map,
             template_aliases_map,
             may_update_working_copy,
@@ -809,6 +812,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
             workspace_root: self.workspace.workspace_root(),
         };
         RevsetParseContext {
+            function_map_extension: self.revset_function_map_extension.as_ref(),
             aliases_map: &self.revset_aliases_map,
             user_email: self.settings.user_email(),
             workspace: Some(workspace_context),
@@ -2365,6 +2369,7 @@ pub struct CliRunner {
     store_factories: Option<StoreFactories>,
     working_copy_factories: Option<HashMap<String, Box<dyn WorkingCopyFactory>>>,
     commit_template_extension: Option<Arc<dyn CommitTemplateLanguageExtension>>,
+    revset_function_map_extension: Option<RevsetFunctionMap>,
     dispatch_fn: CliDispatchFn,
     start_hook_fns: Vec<CliDispatchFn>,
     process_global_args_fns: Vec<ProcessGlobalArgsFn>,
@@ -2387,6 +2392,7 @@ impl CliRunner {
             store_factories: None,
             working_copy_factories: None,
             commit_template_extension: None,
+            revset_function_map_extension: None,
             dispatch_fn: Box::new(crate::commands::run_command),
             start_hook_fns: vec![],
             process_global_args_fns: vec![],
@@ -2425,6 +2431,14 @@ impl CliRunner {
         commit_template_extension: Box<dyn CommitTemplateLanguageExtension>,
     ) -> Self {
         self.commit_template_extension = Some(commit_template_extension.into());
+        self
+    }
+
+    pub fn set_revset_function_map_extension(
+        mut self,
+        revset_function_map_extension: RevsetFunctionMap,
+    ) -> Self {
+        self.revset_function_map_extension = Some(revset_function_map_extension);
         self
     }
 
@@ -2547,6 +2561,7 @@ impl CliRunner {
             settings,
             layered_configs,
             commit_template_extension: self.commit_template_extension,
+            revset_function_map_extension: self.revset_function_map_extension,
             maybe_workspace_loader,
             store_factories: self.store_factories.unwrap_or_default(),
             working_copy_factories,
