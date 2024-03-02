@@ -94,30 +94,22 @@ fn pinentry_get_pw(url: &str) -> Option<String> {
         .stdout(Stdio::piped())
         .spawn()
         .ok()?;
-    #[rustfmt::skip]
-    pinentry
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(
-            format!(
-                "SETTITLE jj passphrase\n\
-                 SETDESC Enter passphrase for {url}\n\
-                 SETPROMPT Passphrase:\n\
-                 GETPIN\n"
-            )
-            .as_bytes(),
-        )
-        .ok()?;
-    let mut out = String::new();
-    pinentry
-        .stdout
-        .take()
-        .unwrap()
-        .read_to_string(&mut out)
-        .ok()?;
+    let mut interact = || -> std::io::Result<_> {
+        #[rustfmt::skip]
+        let req = format!(
+            "SETTITLE jj passphrase\n\
+             SETDESC Enter passphrase for {url}\n\
+             SETPROMPT Passphrase:\n\
+             GETPIN\n"
+        );
+        pinentry.stdin.take().unwrap().write_all(req.as_bytes())?;
+        let mut out = String::new();
+        pinentry.stdout.take().unwrap().read_to_string(&mut out)?;
+        Ok(out)
+    };
+    let maybe_out = interact();
     _ = pinentry.wait();
-    for line in out.split('\n') {
+    for line in maybe_out.ok()?.split('\n') {
         if !line.starts_with("D ") {
             continue;
         }
