@@ -18,7 +18,7 @@ use std::ffi::OsString;
 use std::fmt::Debug;
 use std::io::Write;
 use std::process::{Command, ExitStatus, Stdio};
-use std::str;
+use std::{io, str};
 
 use thiserror::Error;
 
@@ -82,9 +82,15 @@ fn run_sign_command(command: &mut Command, input: &[u8]) -> Result<Vec<u8>, GpgE
 
 fn run_verify_command(command: &mut Command, input: &[u8]) -> Result<Vec<u8>, GpgError> {
     let process = command.stderr(Stdio::null()).spawn()?;
-    process.stdin.as_ref().unwrap().write_all(input)?;
+    let write_result = process.stdin.as_ref().unwrap().write_all(input);
     let output = process.wait_with_output()?;
-    Ok(output.stdout)
+    match write_result {
+        Ok(()) => Ok(output.stdout),
+        // If the signature format is invalid, gpg will terminate early. Writing
+        // more input data will fail in that case.
+        Err(err) if err.kind() == io::ErrorKind::BrokenPipe => Ok(vec![]),
+        Err(err) => Err(err.into()),
+    }
 }
 
 #[derive(Debug)]

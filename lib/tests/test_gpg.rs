@@ -200,8 +200,16 @@ fn invalid_signature() {
 
     super duper invalid
     -----END PGP SIGNATURE-----";
+
+    // Small data: gpg command will exit late.
     assert_matches!(
-        backend.verify(b"hello world", signature),
+        backend.verify(b"a", signature),
+        Err(SignError::InvalidSignatureFormat)
+    );
+
+    // Large data: gpg command will exit early because the signature is invalid.
+    assert_matches!(
+        backend.verify(&b"a".repeat(100 * 1024), signature),
         Err(SignError::InvalidSignatureFormat)
     );
 }
