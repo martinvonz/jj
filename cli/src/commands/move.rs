@@ -51,7 +51,7 @@ pub(crate) struct MoveArgs {
     #[arg(long, short)]
     interactive: bool,
     /// Move only changes to these paths (instead of all paths)
-    #[arg(conflicts_with = "interactive", value_hint = clap::ValueHint::AnyPath)]
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
 }
 
