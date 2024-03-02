@@ -674,7 +674,7 @@ fn cmd_branch_list(
             Ok(())
         };
 
-    ui.request_pager();
+    ui.request_pager(command.subcommands());
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
 

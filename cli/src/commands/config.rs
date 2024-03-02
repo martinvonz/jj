@@ -175,7 +175,7 @@ pub(crate) fn cmd_config_list(
     command: &CommandHelper,
     args: &ConfigListArgs,
 ) -> Result<(), CommandError> {
-    ui.request_pager();
+    ui.request_pager(command.subcommands());
     let name_path = args
         .name
         .as_ref()

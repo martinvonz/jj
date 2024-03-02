@@ -51,11 +51,11 @@ pub(crate) fn cmd_cat(
             return Err(user_error("No such path"));
         }
         MaterializedTreeValue::File { mut reader, .. } => {
-            ui.request_pager();
+            ui.request_pager(command.subcommands());
             std::io::copy(&mut reader, &mut ui.stdout_formatter().as_mut())?;
         }
         MaterializedTreeValue::Conflict { contents, .. } => {
-            ui.request_pager();
+            ui.request_pager(command.subcommands());
             ui.stdout_formatter().write_all(&contents)?;
         }
         MaterializedTreeValue::Symlink { .. }
