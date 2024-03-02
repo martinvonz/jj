@@ -811,7 +811,7 @@ fn test_branch_track_untrack() {
     branch: feature2@origin [updated] untracked
     branch: feature3@origin [new] tracked
     branch: main@origin     [updated] tracked
-    Abandoned 1 commits that are no longer reachable.
+    Abandoned 1 commit that is no longer reachable.
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: sptzoqmo 7b33f629 commit 1

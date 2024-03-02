@@ -301,7 +301,7 @@ fn test_git_colocated_rebase_on_import() {
     "###);
     insta::assert_snapshot!(stderr, @r###"
     Reset the working copy parent to the new Git HEAD.
-    Abandoned 1 commits that are no longer reachable.
+    Abandoned 1 commit that is no longer reachable.
     Done importing changes from the underlying Git repo.
     "###);
 }
@@ -356,7 +356,7 @@ fn test_git_colocated_branches() {
     ◉  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
-    Abandoned 1 commits that are no longer reachable.
+    Abandoned 1 commit that is no longer reachable.
     Working copy now at: yqosqzyt 096dc80d (empty) (no description set)
     Parent commit      : qpvuntsm 230dd059 (empty) (no description set)
     Done importing changes from the underlying Git repo.

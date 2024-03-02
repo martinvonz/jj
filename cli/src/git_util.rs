@@ -207,7 +207,12 @@ pub fn print_git_import_stats(
         }
     }
 
-    if !stats.abandoned_commits.is_empty() {
+    if stats.abandoned_commits.len() == 1 {
+        writeln!(
+            ui.stderr(),
+            "Abandoned 1 commit that is no longer reachable."
+        )?;
+    } else if !stats.abandoned_commits.is_empty() {
         writeln!(
             ui.stderr(),
             "Abandoned {} commits that are no longer reachable.",
