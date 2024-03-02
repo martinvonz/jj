@@ -45,6 +45,8 @@ use crate::merge_tools::{self, ExternalMergeTool};
 use crate::text_util;
 use crate::ui::Ui;
 
+const DEFAULT_CONTEXT_LINES: usize = 3;
+
 #[derive(clap::Args, Clone, Debug)]
 #[command(next_help_heading = "Diff Formatting Options")]
 #[command(group(clap::ArgGroup::new("short-format").args(&["summary", "stat", "types"])))]
@@ -74,6 +76,9 @@ pub struct DiffFormatArgs {
     /// Generate diff by external command
     #[arg(long)]
     pub tool: Option<String>,
+    /// Number of lines of context to show
+    #[arg(long)]
+    context: Option<usize>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -81,8 +86,8 @@ pub enum DiffFormat {
     Summary,
     Stat,
     Types,
-    Git,
-    ColorWords,
+    Git { context: usize },
+    ColorWords { context: usize },
     Tool(Box<ExternalMergeTool>),
 }
 
@@ -93,7 +98,7 @@ pub fn diff_formats_for(
 ) -> Result<Vec<DiffFormat>, config::ConfigError> {
     let formats = diff_formats_from_args(settings, args)?;
     if formats.is_empty() {
-        Ok(vec![default_diff_format(settings)?])
+        Ok(vec![default_diff_format(settings, args.context)?])
     } else {
         Ok(formats)
     }
@@ -109,7 +114,7 @@ pub fn diff_formats_for_log(
     let mut formats = diff_formats_from_args(settings, args)?;
     // --patch implies default if no format other than --summary is specified
     if patch && matches!(formats.as_slice(), [] | [DiffFormat::Summary]) {
-        formats.push(default_diff_format(settings)?);
+        formats.push(default_diff_format(settings, args.context)?);
         formats.dedup();
     }
     Ok(formats)
@@ -122,8 +127,18 @@ fn diff_formats_from_args(
     let mut formats = [
         (args.summary, DiffFormat::Summary),
         (args.types, DiffFormat::Types),
-        (args.git, DiffFormat::Git),
-        (args.color_words, DiffFormat::ColorWords),
+        (
+            args.git,
+            DiffFormat::Git {
+                context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
+            },
+        ),
+        (
+            args.color_words,
+            DiffFormat::ColorWords {
+                context: args.context.unwrap_or(DEFAULT_CONTEXT_LINES),
+            },
+        ),
         (args.stat, DiffFormat::Stat),
     ]
     .into_iter()
@@ -137,7 +152,10 @@ fn diff_formats_from_args(
     Ok(formats)
 }
 
-fn default_diff_format(settings: &UserSettings) -> Result<DiffFormat, config::ConfigError> {
+fn default_diff_format(
+    settings: &UserSettings,
+    num_context_lines: Option<usize>,
+) -> Result<DiffFormat, config::ConfigError> {
     let config = settings.config();
     if let Some(args) = config.get("ui.diff.tool").optional()? {
         // External "tool" overrides the internal "format" option.
@@ -159,8 +177,12 @@ fn default_diff_format(settings: &UserSettings) -> Result<DiffFormat, config::Co
     match name.as_ref() {
         "summary" => Ok(DiffFormat::Summary),
         "types" => Ok(DiffFormat::Types),
-        "git" => Ok(DiffFormat::Git),
-        "color-words" => Ok(DiffFormat::ColorWords),
+        "git" => Ok(DiffFormat::Git {
+            context: num_context_lines.unwrap_or(DEFAULT_CONTEXT_LINES),
+        }),
+        "color-words" => Ok(DiffFormat::ColorWords {
+            context: num_context_lines.unwrap_or(DEFAULT_CONTEXT_LINES),
+        }),
         "stat" => Ok(DiffFormat::Stat),
         _ => Err(config::ConfigError::Message(format!(
             "invalid diff format: {name}"
@@ -191,13 +213,13 @@ pub fn show_diff(
                 let tree_diff = from_tree.diff_stream(to_tree, matcher);
                 show_types(formatter, workspace_command, tree_diff)?;
             }
-            DiffFormat::Git => {
+            DiffFormat::Git { context } => {
                 let tree_diff = from_tree.diff_stream(to_tree, matcher);
-                show_git_diff(formatter, workspace_command, tree_diff)?;
+                show_git_diff(formatter, workspace_command, *context, tree_diff)?;
             }
-            DiffFormat::ColorWords => {
+            DiffFormat::ColorWords { context } => {
                 let tree_diff = from_tree.diff_stream(to_tree, matcher);
-                show_color_words_diff(formatter, workspace_command, tree_diff)?;
+                show_color_words_diff(formatter, workspace_command, *context, tree_diff)?;
             }
             DiffFormat::Tool(tool) => {
                 merge_tools::generate_diff(ui, formatter.raw(), from_tree, to_tree, matcher, tool)?;
@@ -232,10 +254,10 @@ pub fn show_patch(
 fn show_color_words_diff_hunks(
     left: &[u8],
     right: &[u8],
+    num_context_lines: usize,
     formatter: &mut dyn Formatter,
 ) -> io::Result<()> {
     const SKIPPED_CONTEXT_LINE: &str = "    ...\n";
-    let num_context_lines = 3;
     let mut context = VecDeque::new();
     // Have we printed "..." for any skipped context?
     let mut skipped_context = false;
@@ -430,6 +452,7 @@ fn basic_diff_file_type(value: &MaterializedTreeValue) -> &'static str {
 pub fn show_color_words_diff(
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
+    num_context_lines: usize,
     tree_diff: TreeDiffStream,
 ) -> Result<(), CommandError> {
     formatter.push_label("diff")?;
@@ -450,7 +473,12 @@ pub fn show_color_words_diff(
                 } else if right_content.is_binary {
                     writeln!(formatter.labeled("binary"), "    (binary)")?;
                 } else {
-                    show_color_words_diff_hunks(&[], &right_content.contents, formatter)?;
+                    show_color_words_diff_hunks(
+                        &[],
+                        &right_content.contents,
+                        num_context_lines,
+                        formatter,
+                    )?;
                 }
             } else if right_value.is_present() {
                 let description = match (&left_value, &right_value) {
@@ -509,6 +537,7 @@ pub fn show_color_words_diff(
                     show_color_words_diff_hunks(
                         &left_content.contents,
                         &right_content.contents,
+                        num_context_lines,
                         formatter,
                     )?;
                 }
@@ -524,7 +553,12 @@ pub fn show_color_words_diff(
                 } else if left_content.is_binary {
                     writeln!(formatter.labeled("binary"), "    (binary)")?;
                 } else {
-                    show_color_words_diff_hunks(&left_content.contents, &[], formatter)?;
+                    show_color_words_diff_hunks(
+                        &left_content.contents,
+                        &[],
+                        num_context_lines,
+                        formatter,
+                    )?;
                 }
             }
         }
@@ -695,8 +729,9 @@ fn show_unified_diff_hunks(
     formatter: &mut dyn Formatter,
     left_content: &[u8],
     right_content: &[u8],
+    num_context_lines: usize,
 ) -> Result<(), CommandError> {
-    for hunk in unified_diff_hunks(left_content, right_content, 3) {
+    for hunk in unified_diff_hunks(left_content, right_content, num_context_lines) {
         writeln!(
             formatter.labeled("hunk_header"),
             "@@ -{},{} +{},{} @@",
@@ -761,6 +796,7 @@ fn materialized_diff_stream<'a>(
 pub fn show_git_diff(
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
+    num_context_lines: usize,
     tree_diff: TreeDiffStream,
 ) -> Result<(), CommandError> {
     formatter.push_label("diff")?;
@@ -779,7 +815,7 @@ pub fn show_git_diff(
                     writeln!(formatter, "--- /dev/null")?;
                     writeln!(formatter, "+++ b/{path_string}")
                 })?;
-                show_unified_diff_hunks(formatter, &[], &right_part.content)?;
+                show_unified_diff_hunks(formatter, &[], &right_part.content, num_context_lines)?;
             } else if right_value.is_present() {
                 let left_part = git_diff_part(&path, left_value)?;
                 let right_part = git_diff_part(&path, right_value)?;
@@ -804,7 +840,12 @@ pub fn show_git_diff(
                     }
                     Ok(())
                 })?;
-                show_unified_diff_hunks(formatter, &left_part.content, &right_part.content)?;
+                show_unified_diff_hunks(
+                    formatter,
+                    &left_part.content,
+                    &right_part.content,
+                    num_context_lines,
+                )?;
             } else {
                 let left_part = git_diff_part(&path, left_value)?;
                 formatter.with_label("file_header", |formatter| {
@@ -814,7 +855,7 @@ pub fn show_git_diff(
                     writeln!(formatter, "--- a/{path_string}")?;
                     writeln!(formatter, "+++ /dev/null")
                 })?;
-                show_unified_diff_hunks(formatter, &left_part.content, &[])?;
+                show_unified_diff_hunks(formatter, &left_part.content, &[], num_context_lines)?;
             }
         }
         Ok::<(), CommandError>(())
