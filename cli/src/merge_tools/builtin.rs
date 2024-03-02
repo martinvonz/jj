@@ -558,7 +558,6 @@ mod tests {
     use jj_lib::conflicts::extract_as_single_hunk;
     use jj_lib::merge::MergedTreeValue;
     use jj_lib::repo::Repo;
-    use pollster::FutureExt;
     use testutils::TestRepo;
 
     use super::*;

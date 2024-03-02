@@ -1090,7 +1090,6 @@ fn has_diff_from_parent(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::backend::{ChangeId, CommitId};
     use crate::default_index::DefaultMutableIndex;
 
     /// Generator of unique 16-byte ChangeId excluding root id

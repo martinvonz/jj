@@ -685,10 +685,6 @@ mod tests {
     use maplit::{btreemap, hashmap, hashset};
 
     use super::*;
-    use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
-    use crate::content_hash::blake2b_hash;
-    use crate::object_id::ObjectId;
-    use crate::op_store::{OperationMetadata, RefTarget, WorkspaceId};
 
     fn create_view() -> View {
         let new_remote_ref = |target: &RefTarget| RemoteRef {

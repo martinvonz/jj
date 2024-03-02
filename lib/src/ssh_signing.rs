@@ -269,7 +269,7 @@ impl SigningBackend for SshBackend {
 #[cfg(test)]
 mod tests {
     use std::fs::File;
-    use std::io::{Read, Write};
+    use std::io::Read;
 
     use super::*;
 

@@ -1295,7 +1295,6 @@ mod tests {
     use test_case::test_case;
 
     use super::*;
-    use crate::backend::{FileId, MillisSinceEpoch};
     use crate::content_hash::blake2b_hash;
 
     #[test_case(false; "legacy tree format")]
