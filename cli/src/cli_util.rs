@@ -25,7 +25,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::SystemTime;
-use std::{fs, iter, str};
+use std::{fs, str};
 
 use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFactory};
 use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
@@ -73,8 +73,8 @@ use tracing_chrome::ChromeLayerBuilder;
 use tracing_subscriber::prelude::*;
 
 use crate::command_error::{
-    internal_error, internal_error_with_message, user_error, user_error_with_hint,
-    user_error_with_message, CommandError,
+    handle_command_result, internal_error, internal_error_with_message, user_error,
+    user_error_with_hint, user_error_with_message, CommandError, BROKEN_PIPE_EXIT_CODE,
 };
 use crate::commit_templater::CommitTemplateLanguageExtension;
 use crate::config::{
@@ -89,21 +89,6 @@ use crate::template_parser::TemplateAliasesMap;
 use crate::templater::Template;
 use crate::ui::{ColorChoice, Ui};
 use crate::{commit_templater, text_util};
-
-fn print_error_sources(ui: &Ui, source: Option<&dyn std::error::Error>) -> io::Result<()> {
-    let Some(err) = source else {
-        return Ok(());
-    };
-    if err.source().is_none() {
-        writeln!(ui.stderr(), "Caused by: {err}")?;
-    } else {
-        writeln!(ui.stderr(), "Caused by:")?;
-        for (i, err) in iter::successors(Some(err), |err| err.source()).enumerate() {
-            writeln!(ui.stderr(), "{n}: {err}", n = i + 1)?;
-        }
-    }
-    Ok(())
-}
 
 #[derive(Clone)]
 struct ChromeTracingFlushGuard {
@@ -2359,73 +2344,6 @@ pub fn parse_args(
     }
 
     Ok((matches, args))
-}
-
-const BROKEN_PIPE_EXIT_CODE: u8 = 3;
-
-pub fn handle_command_result(
-    ui: &mut Ui,
-    result: Result<(), CommandError>,
-) -> std::io::Result<ExitCode> {
-    match &result {
-        Ok(()) => Ok(ExitCode::SUCCESS),
-        Err(CommandError::UserError { err, hint }) => {
-            writeln!(ui.error(), "Error: {err}")?;
-            print_error_sources(ui, err.source())?;
-            if let Some(hint) = hint {
-                writeln!(ui.hint(), "Hint: {hint}")?;
-            }
-            Ok(ExitCode::from(1))
-        }
-        Err(CommandError::ConfigError(message)) => {
-            writeln!(ui.error(), "Config error: {message}")?;
-            writeln!(
-                ui.hint(),
-                "For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md."
-            )?;
-            Ok(ExitCode::from(1))
-        }
-        Err(CommandError::CliError(message)) => {
-            writeln!(ui.error(), "Error: {message}")?;
-            Ok(ExitCode::from(2))
-        }
-        Err(CommandError::ClapCliError(inner)) => {
-            let clap_str = if ui.color() {
-                inner.render().ansi().to_string()
-            } else {
-                inner.render().to_string()
-            };
-
-            match inner.kind() {
-                clap::error::ErrorKind::DisplayHelp
-                | clap::error::ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => {
-                    ui.request_pager()
-                }
-                _ => {}
-            };
-            // Definitions for exit codes and streams come from
-            // https://github.com/clap-rs/clap/blob/master/src/error/mod.rs
-            match inner.kind() {
-                clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion => {
-                    write!(ui.stdout(), "{clap_str}")?;
-                    Ok(ExitCode::SUCCESS)
-                }
-                _ => {
-                    write!(ui.stderr(), "{clap_str}")?;
-                    Ok(ExitCode::from(2))
-                }
-            }
-        }
-        Err(CommandError::BrokenPipe) => {
-            // A broken pipe is not an error, but a signal to exit gracefully.
-            Ok(ExitCode::from(BROKEN_PIPE_EXIT_CODE))
-        }
-        Err(CommandError::InternalError(err)) => {
-            writeln!(ui.error(), "Internal error: {err}")?;
-            print_error_sources(ui, err.source())?;
-            Ok(ExitCode::from(255))
-        }
-    }
 }
 
 /// CLI command builder and runner.
