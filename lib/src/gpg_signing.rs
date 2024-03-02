@@ -66,6 +66,22 @@ fn parse_gpg_verify_output(
         .ok_or(SignError::InvalidSignatureFormat)
 }
 
+fn run_command(command: &mut Command, input: &[u8], check: bool) -> Result<Vec<u8>, GpgError> {
+    let process = command
+        .stderr(if check { Stdio::piped() } else { Stdio::null() })
+        .spawn()?;
+    process.stdin.as_ref().unwrap().write_all(input)?;
+    let output = process.wait_with_output()?;
+    if check && !output.status.success() {
+        Err(GpgError::Command {
+            exit_status: output.status,
+            stderr: String::from_utf8_lossy(&output.stderr).trim_end().into(),
+        })
+    } else {
+        Ok(output.stdout)
+    }
+}
+
 #[derive(Debug)]
 pub struct GpgBackend {
     program: OsString,
@@ -118,23 +134,13 @@ impl GpgBackend {
     }
 
     fn run(&self, input: &[u8], args: &[&OsStr], check: bool) -> Result<Vec<u8>, GpgError> {
-        let process = Command::new(&self.program)
+        let mut command = Command::new(&self.program);
+        command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(if check { Stdio::piped() } else { Stdio::null() })
             .args(&self.extra_args)
-            .args(args)
-            .spawn()?;
-        process.stdin.as_ref().unwrap().write_all(input)?;
-        let output = process.wait_with_output()?;
-        if check && !output.status.success() {
-            Err(GpgError::Command {
-                exit_status: output.status,
-                stderr: String::from_utf8_lossy(&output.stderr).trim_end().into(),
-            })
-        } else {
-            Ok(output.stdout)
-        }
+            .args(args);
+        run_command(&mut command, input, check)
     }
 }
 
