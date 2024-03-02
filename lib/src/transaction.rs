@@ -20,6 +20,7 @@ use itertools::Itertools as _;
 
 use crate::backend::Timestamp;
 use crate::index::ReadonlyIndex;
+use crate::op_heads_store::OpHeadsStore;
 use crate::op_store::OperationMetadata;
 use crate::operation::Operation;
 use crate::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader, RepoLoaderError};
@@ -121,7 +122,7 @@ impl Transaction {
             .index_store()
             .write_index(mut_index, operation.id())
             .unwrap();
-        UnpublishedOperation::new(base_repo.loader(), operation, view, index)
+        UnpublishedOperation::new(&base_repo.loader(), operation, view, index)
     }
 }
 
@@ -155,19 +156,21 @@ pub fn create_op_metadata(
 /// finish the operation.
 #[must_use = "Either publish() or leave_unpublished() must be called to finish the operation."]
 pub struct UnpublishedOperation {
-    repo_loader: RepoLoader,
+    op_heads_store: Arc<dyn OpHeadsStore>,
     repo: Arc<ReadonlyRepo>,
 }
 
 impl UnpublishedOperation {
     fn new(
-        repo_loader: RepoLoader,
+        repo_loader: &RepoLoader,
         operation: Operation,
         view: View,
         index: Box<dyn ReadonlyIndex>,
     ) -> Self {
-        let repo = repo_loader.create_from(operation, view, index);
-        UnpublishedOperation { repo_loader, repo }
+        UnpublishedOperation {
+            op_heads_store: repo_loader.op_heads_store().clone(),
+            repo: repo_loader.create_from(operation, view, index),
+        }
     }
 
     pub fn operation(&self) -> &Operation {
@@ -175,9 +178,8 @@ impl UnpublishedOperation {
     }
 
     pub fn publish(self) -> Arc<ReadonlyRepo> {
-        let _lock = self.repo_loader.op_heads_store().lock();
-        self.repo_loader
-            .op_heads_store()
+        let _lock = self.op_heads_store.lock();
+        self.op_heads_store
             .update_op_heads(self.operation().parent_ids(), self.operation().id());
         self.repo
     }
