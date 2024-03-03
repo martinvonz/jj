@@ -245,7 +245,7 @@ pub type TemplateBuildMethodFnMap<'a, L, T> =
     HashMap<&'static str, TemplateBuildMethodFn<'a, L, T>>;
 
 /// Symbol table of methods available in the core template.
-pub struct CoreTemplateBuildFnTable<'a, L: TemplateLanguage<'a>> {
+pub struct CoreTemplateBuildFnTable<'a, L: TemplateLanguage<'a> + ?Sized> {
     pub string_methods: TemplateBuildMethodFnMap<'a, L, String>,
     pub boolean_methods: TemplateBuildMethodFnMap<'a, L, bool>,
     pub integer_methods: TemplateBuildMethodFnMap<'a, L, i64>,
@@ -255,7 +255,7 @@ pub struct CoreTemplateBuildFnTable<'a, L: TemplateLanguage<'a>> {
     // TODO: add global functions table?
 }
 
-pub fn merge_fn_map<'a, L: TemplateLanguage<'a>, T>(
+pub fn merge_fn_map<'a, L: TemplateLanguage<'a> + ?Sized, T>(
     base: &mut TemplateBuildMethodFnMap<'a, L, T>,
     extension: TemplateBuildMethodFnMap<'a, L, T>,
 ) {
@@ -266,7 +266,7 @@ pub fn merge_fn_map<'a, L: TemplateLanguage<'a>, T>(
     }
 }
 
-impl<'a, L: TemplateLanguage<'a>> CoreTemplateBuildFnTable<'a, L> {
+impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
     /// Creates new symbol table containing the builtin methods.
     pub fn builtin() -> Self {
         CoreTemplateBuildFnTable {
@@ -428,7 +428,7 @@ pub struct BuildContext<'i, P> {
     local_variables: HashMap<&'i str, &'i (dyn Fn() -> P)>,
 }
 
-fn build_keyword<'a, L: TemplateLanguage<'a>>(
+fn build_keyword<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
     name: &str,
@@ -465,7 +465,7 @@ fn build_keyword<'a, L: TemplateLanguage<'a>>(
     }
 }
 
-fn build_unary_operation<'a, L: TemplateLanguage<'a>>(
+fn build_unary_operation<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
     op: UnaryOp,
@@ -487,7 +487,7 @@ fn build_unary_operation<'a, L: TemplateLanguage<'a>>(
     Ok(Expression::unlabeled(property))
 }
 
-fn build_binary_operation<'a, L: TemplateLanguage<'a>>(
+fn build_binary_operation<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
     op: BinaryOp,
@@ -511,7 +511,7 @@ fn build_binary_operation<'a, L: TemplateLanguage<'a>>(
     Ok(Expression::unlabeled(property))
 }
 
-fn build_method_call<'a, L: TemplateLanguage<'a>>(
+fn build_method_call<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
     method: &MethodCallNode,
@@ -523,8 +523,8 @@ fn build_method_call<'a, L: TemplateLanguage<'a>>(
     Ok(expression)
 }
 
-fn builtin_string_methods<'a, L: TemplateLanguage<'a>>() -> TemplateBuildMethodFnMap<'a, L, String>
-{
+fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
+) -> TemplateBuildMethodFnMap<'a, L, String> {
     // Not using maplit::hashmap!{} or custom declarative macro here because
     // code completion inside macro is quite restricted.
     let mut map = TemplateBuildMethodFnMap::<L, String>::new();
@@ -660,7 +660,7 @@ fn string_index_to_char_boundary(s: &str, i: isize) -> usize {
     }
 }
 
-fn builtin_signature_methods<'a, L: TemplateLanguage<'a>>(
+fn builtin_signature_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
 ) -> TemplateBuildMethodFnMap<'a, L, Signature> {
     // Not using maplit::hashmap!{} or custom declarative macro here because
     // code completion inside macro is quite restricted.
@@ -698,7 +698,7 @@ fn builtin_signature_methods<'a, L: TemplateLanguage<'a>>(
     map
 }
 
-fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a>>(
+fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
 ) -> TemplateBuildMethodFnMap<'a, L, Timestamp> {
     // Not using maplit::hashmap!{} or custom declarative macro here because
     // code completion inside macro is quite restricted.
@@ -748,7 +748,7 @@ fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a>>(
     map
 }
 
-fn builtin_timestamp_range_methods<'a, L: TemplateLanguage<'a>>(
+fn builtin_timestamp_range_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
 ) -> TemplateBuildMethodFnMap<'a, L, TimestampRange> {
     // Not using maplit::hashmap!{} or custom declarative macro here because
     // code completion inside macro is quite restricted.
@@ -775,7 +775,7 @@ fn builtin_timestamp_range_methods<'a, L: TemplateLanguage<'a>>(
     map
 }
 
-fn build_list_template_method<'a, L: TemplateLanguage<'a>>(
+fn build_list_template_method<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
     self_template: Box<dyn ListTemplate<L::Context> + 'a>,
@@ -803,7 +803,7 @@ pub fn build_formattable_list_method<'a, L, O>(
     wrap_item: impl Fn(PropertyPlaceholder<O>) -> L::Property,
 ) -> TemplateParseResult<L::Property>
 where
-    L: TemplateLanguage<'a>,
+    L: TemplateLanguage<'a> + ?Sized,
     O: Template<()> + Clone + 'a,
 {
     let property = match function.name {
@@ -836,7 +836,7 @@ pub fn build_unformattable_list_method<'a, L, O>(
     wrap_item: impl Fn(PropertyPlaceholder<O>) -> L::Property,
 ) -> TemplateParseResult<L::Property>
 where
-    L: TemplateLanguage<'a>,
+    L: TemplateLanguage<'a> + ?Sized,
     O: Clone + 'a,
 {
     let property = match function.name {
@@ -865,7 +865,7 @@ fn build_map_operation<'a, L, O, P>(
     wrap_item: impl Fn(PropertyPlaceholder<O>) -> L::Property,
 ) -> TemplateParseResult<L::Property>
 where
-    L: TemplateLanguage<'a>,
+    L: TemplateLanguage<'a> + ?Sized,
     P: TemplateProperty<L::Context> + 'a,
     P::Output: IntoIterator<Item = O>,
     O: Clone + 'a,
@@ -902,7 +902,7 @@ where
     Ok(language.wrap_list_template(Box::new(list_template)))
 }
 
-fn build_global_function<'a, L: TemplateLanguage<'a>>(
+fn build_global_function<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
     function: &FunctionCallNode,
@@ -992,7 +992,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a>>(
 }
 
 /// Builds intermediate expression tree from AST nodes.
-pub fn build_expression<'a, L: TemplateLanguage<'a>>(
+pub fn build_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
     node: &ExpressionNode,
@@ -1054,7 +1054,7 @@ pub fn build_expression<'a, L: TemplateLanguage<'a>>(
 }
 
 /// Builds template evaluation tree from AST nodes, with fresh build context.
-pub fn build<'a, L: TemplateLanguage<'a>>(
+pub fn build<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     node: &ExpressionNode,
 ) -> TemplateParseResult<Box<dyn Template<L::Context> + 'a>> {
@@ -1064,7 +1064,7 @@ pub fn build<'a, L: TemplateLanguage<'a>>(
     expect_template_expression(language, &build_ctx, node)
 }
 
-pub fn expect_boolean_expression<'a, L: TemplateLanguage<'a>>(
+pub fn expect_boolean_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
     node: &ExpressionNode,
@@ -1074,7 +1074,7 @@ pub fn expect_boolean_expression<'a, L: TemplateLanguage<'a>>(
         .ok_or_else(|| TemplateParseError::expected_type("Boolean", node.span))
 }
 
-pub fn expect_integer_expression<'a, L: TemplateLanguage<'a>>(
+pub fn expect_integer_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
     node: &ExpressionNode,
@@ -1085,7 +1085,7 @@ pub fn expect_integer_expression<'a, L: TemplateLanguage<'a>>(
 }
 
 /// If the given expression `node` is of `Integer` type, converts it to `isize`.
-pub fn expect_isize_expression<'a, L: TemplateLanguage<'a>>(
+pub fn expect_isize_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
     node: &ExpressionNode,
@@ -1096,7 +1096,7 @@ pub fn expect_isize_expression<'a, L: TemplateLanguage<'a>>(
 }
 
 /// If the given expression `node` is of `Integer` type, converts it to `usize`.
-pub fn expect_usize_expression<'a, L: TemplateLanguage<'a>>(
+pub fn expect_usize_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
     node: &ExpressionNode,
@@ -1106,7 +1106,7 @@ pub fn expect_usize_expression<'a, L: TemplateLanguage<'a>>(
     Ok(Box::new(usize_property))
 }
 
-pub fn expect_plain_text_expression<'a, L: TemplateLanguage<'a>>(
+pub fn expect_plain_text_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
     node: &ExpressionNode,
@@ -1118,7 +1118,7 @@ pub fn expect_plain_text_expression<'a, L: TemplateLanguage<'a>>(
         .ok_or_else(|| TemplateParseError::expected_type("Template", node.span))
 }
 
-pub fn expect_template_expression<'a, L: TemplateLanguage<'a>>(
+pub fn expect_template_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
     node: &ExpressionNode,
