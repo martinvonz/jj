@@ -12,6 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! An on-disk index of the commits in a repository.
+//!
+//! Implements an index of the commits in a repository that conforms to the
+//! trains in the [index module](crate::index). The index is stored on local
+//! disk and contains an entry for every commit in the repository. See
+//! [`DefaultReadonlyIndex`] and [`DefaultMutableIndex`].
+
 #![allow(missing_docs)]
 
 mod composite;
