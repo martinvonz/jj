@@ -190,7 +190,7 @@ For example:
 
 ```toml
 [revset-aliases]
-'mine' = 'author(martinvonz)'
+'HEAD' = '@-'
 'user(x)' = 'author(x) | committer(x)'
 ```
 
