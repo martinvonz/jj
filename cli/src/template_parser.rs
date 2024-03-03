@@ -561,6 +561,10 @@ impl TemplateAliasesMap {
         Self::default()
     }
 
+    pub fn symbol_names(&self) -> impl Iterator<Item = &str> {
+        self.symbol_aliases.keys().map(|s| s.as_str())
+    }
+
     /// Adds new substitution rule `decl = defn`.
     ///
     /// Returns error if `decl` is invalid. The `defn` part isn't checked. A bad

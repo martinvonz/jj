@@ -51,7 +51,10 @@ pub enum CommandError {
     /// Invalid command line
     CliError(String),
     /// Invalid command line detected by clap
-    ClapCliError(Arc<clap::Error>),
+    ClapCliError {
+        err: Arc<clap::Error>,
+        hint: Option<String>,
+    },
     BrokenPipe,
     InternalError(Arc<dyn error::Error + Send + Sync>),
 }
@@ -414,7 +417,10 @@ impl From<FsPathParseError> for CommandError {
 
 impl From<clap::Error> for CommandError {
     fn from(err: clap::Error) -> Self {
-        CommandError::ClapCliError(Arc::new(err))
+        CommandError::ClapCliError {
+            err: Arc::new(err),
+            hint: None,
+        }
     }
 }
 
@@ -468,14 +474,14 @@ fn try_handle_command_result(
             writeln!(ui.error(), "Error: {message}")?;
             Ok(ExitCode::from(2))
         }
-        Err(CommandError::ClapCliError(inner)) => {
+        Err(CommandError::ClapCliError { err, hint }) => {
             let clap_str = if ui.color() {
-                inner.render().ansi().to_string()
+                err.render().ansi().to_string()
             } else {
-                inner.render().to_string()
+                err.render().to_string()
             };
 
-            match inner.kind() {
+            match err.kind() {
                 clap::error::ErrorKind::DisplayHelp
                 | clap::error::ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => {
                     ui.request_pager()
@@ -484,16 +490,18 @@ fn try_handle_command_result(
             };
             // Definitions for exit codes and streams come from
             // https://github.com/clap-rs/clap/blob/master/src/error/mod.rs
-            match inner.kind() {
+            match err.kind() {
                 clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion => {
                     write!(ui.stdout(), "{clap_str}")?;
-                    Ok(ExitCode::SUCCESS)
+                    return Ok(ExitCode::SUCCESS);
                 }
-                _ => {
-                    write!(ui.stderr(), "{clap_str}")?;
-                    Ok(ExitCode::from(2))
-                }
+                _ => {}
             }
+            write!(ui.stderr(), "{clap_str}")?;
+            if let Some(hint) = hint {
+                writeln!(ui.hint(), "Hint: {hint}")?;
+            }
+            Ok(ExitCode::from(2))
         }
         Err(CommandError::BrokenPipe) => {
             // A broken pipe is not an error, but a signal to exit gracefully.

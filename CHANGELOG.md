@@ -88,6 +88,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Commands producing diffs now accept a `--context` flag for the number of
   lines of context to show.
 
+* `jj` commands with the `-T`/`--template` option now provide a hint containing
+  defined template names when no argument is given, assisting the user in making
+  a selection.
+
 ### Fixed bugs
 
 * On Windows, symlinks in the repo are now supported when Developer Mode is enabled.
