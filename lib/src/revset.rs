@@ -1923,6 +1923,22 @@ fn fold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression {
     })
 }
 
+fn optimize_extensions(expression: &Rc<RevsetExpression>) -> TransformedExpression {
+    transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
+        RevsetExpression::Extension(extension) => extension
+            .transform(&mut |expr| {
+                let new_expr = optimize(expr.clone());
+                if *expr == new_expr {
+                    Ok(None)
+                } else {
+                    Ok(Some(new_expr))
+                }
+            })
+            .unwrap(),
+        _ => None,
+    })
+}
+
 /// Transforms binary difference to more primitive negative intersection.
 ///
 /// For example, `all() ~ e` will become `all() & ~e`, which can be simplified
@@ -2007,6 +2023,7 @@ fn fold_generation(expression: &Rc<RevsetExpression>) -> TransformedExpression {
 /// Rewrites the given `expression` tree to reduce evaluation cost. Returns new
 /// tree.
 pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+    let expression = optimize_extensions(&expression).unwrap_or(expression);
     let expression = unfold_difference(&expression).unwrap_or(expression);
     let expression = fold_redundant_expression(&expression).unwrap_or(expression);
     let expression = fold_generation(&expression).unwrap_or(expression);
