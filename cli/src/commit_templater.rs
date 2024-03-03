@@ -33,7 +33,7 @@ use crate::template_builder::{
     self, merge_fn_map, BuildContext, CoreTemplateBuildFnTable, CoreTemplatePropertyKind,
     IntoTemplateProperty, TemplateBuildMethodFnMap, TemplateLanguage,
 };
-use crate::template_parser::{self, FunctionCallNode, TemplateAliasesMap, TemplateParseResult};
+use crate::template_parser::{self, FunctionCallNode, TemplateParseResult};
 use crate::templater::{
     self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
     TemplatePropertyFn,
@@ -860,16 +860,4 @@ fn builtin_shortest_id_prefix_methods<'repo>(
         Ok(language.wrap_shortest_id_prefix(out_property))
     });
     map
-}
-
-pub fn parse<'repo>(
-    repo: &'repo dyn Repo,
-    workspace_id: &WorkspaceId,
-    id_prefix_context: &'repo IdPrefixContext,
-    extension: Option<&dyn CommitTemplateLanguageExtension>,
-    template_text: &str,
-    aliases_map: &TemplateAliasesMap,
-) -> TemplateParseResult<Box<dyn Template<Commit> + 'repo>> {
-    let language = CommitTemplateLanguage::new(repo, workspace_id, id_prefix_context, extension);
-    template_builder::parse(&language, template_text, aliases_map)
 }
