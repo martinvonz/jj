@@ -1146,83 +1146,11 @@ mod tests {
 
     use super::*;
     use crate::formatter::{self, ColorFormatter};
+    use crate::generic_templater::GenericTemplateLanguage;
     use crate::template_parser::TemplateAliasesMap;
 
-    /// Minimal template language for testing.
-    struct TestTemplateLanguage {
-        build_fn_table: CoreTemplateBuildFnTable<'static, TestTemplateLanguage>,
-        keywords: HashMap<&'static str, TestTemplateKeywordFn>,
-    }
-
-    impl TemplateLanguage<'static> for TestTemplateLanguage {
-        type Context = ();
-        type Property = TestTemplatePropertyKind;
-
-        impl_core_wrap_property_fns!('static, TestTemplatePropertyKind::Core);
-
-        fn build_self(&self) -> Self::Property {
-            TestTemplatePropertyKind::Unit
-        }
-
-        fn build_method(
-            &self,
-            build_ctx: &BuildContext<Self::Property>,
-            property: Self::Property,
-            function: &FunctionCallNode,
-        ) -> TemplateParseResult<Self::Property> {
-            match property {
-                TestTemplatePropertyKind::Core(property) => {
-                    let table = &self.build_fn_table;
-                    table.build_method(self, build_ctx, property, function)
-                }
-                TestTemplatePropertyKind::Unit => {
-                    let build = self
-                        .keywords
-                        .get(function.name)
-                        .ok_or_else(|| TemplateParseError::no_such_method("()", function))?;
-                    template_parser::expect_no_arguments(function)?;
-                    Ok(build(self))
-                }
-            }
-        }
-    }
-
-    enum TestTemplatePropertyKind {
-        Core(CoreTemplatePropertyKind<'static, ()>),
-        Unit,
-    }
-
-    impl IntoTemplateProperty<'static, ()> for TestTemplatePropertyKind {
-        fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<(), Output = bool>>> {
-            match self {
-                TestTemplatePropertyKind::Core(property) => property.try_into_boolean(),
-                TestTemplatePropertyKind::Unit => None,
-            }
-        }
-
-        fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<(), Output = i64>>> {
-            match self {
-                TestTemplatePropertyKind::Core(property) => property.try_into_integer(),
-                TestTemplatePropertyKind::Unit => None,
-            }
-        }
-
-        fn try_into_plain_text(self) -> Option<Box<dyn TemplateProperty<(), Output = String>>> {
-            match self {
-                TestTemplatePropertyKind::Core(property) => property.try_into_plain_text(),
-                TestTemplatePropertyKind::Unit => None,
-            }
-        }
-
-        fn try_into_template(self) -> Option<Box<dyn Template<()>>> {
-            match self {
-                TestTemplatePropertyKind::Core(property) => property.try_into_template(),
-                TestTemplatePropertyKind::Unit => None,
-            }
-        }
-    }
-
-    type TestTemplateKeywordFn = fn(&TestTemplateLanguage) -> TestTemplatePropertyKind;
+    type TestTemplateLanguage = GenericTemplateLanguage<'static, ()>;
+    type TestTemplatePropertyKind = <TestTemplateLanguage as TemplateLanguage<'static>>::Property;
 
     /// Helper to set up template evaluation environment.
     struct TestTemplateEnv {
@@ -1234,10 +1162,7 @@ mod tests {
     impl Default for TestTemplateEnv {
         fn default() -> Self {
             TestTemplateEnv {
-                language: TestTemplateLanguage {
-                    build_fn_table: CoreTemplateBuildFnTable::builtin(),
-                    keywords: HashMap::new(),
-                },
+                language: TestTemplateLanguage::new(),
                 aliases_map: TemplateAliasesMap::new(),
                 color_rules: Vec::new(),
             }
@@ -1245,8 +1170,12 @@ mod tests {
     }
 
     impl TestTemplateEnv {
-        fn add_keyword(&mut self, name: &'static str, f: TestTemplateKeywordFn) {
-            self.language.keywords.insert(name, f);
+        fn add_keyword<F>(&mut self, name: &'static str, build: F)
+        where
+            F: Fn(&TestTemplateLanguage) -> TestTemplatePropertyKind + 'static,
+        {
+            self.language
+                .add_keyword(name, move |language| Ok(build(language)));
         }
 
         fn add_alias(&mut self, decl: impl AsRef<str>, defn: impl Into<String>) {
