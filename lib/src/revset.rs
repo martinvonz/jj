@@ -15,7 +15,6 @@
 #![allow(missing_docs)]
 
 use std::collections::{HashMap, HashSet};
-use std::convert::Infallible;
 use std::ops::Range;
 use std::path::Path;
 use std::rc::Rc;
@@ -1555,14 +1554,14 @@ pub fn parse(
 
 /// `Some` for rewritten expression, or `None` to reuse the original expression.
 type TransformedExpression = Option<Rc<RevsetExpression>>;
+type TransformedExpressionResult = Result<TransformedExpression, RevsetResolutionError>;
 
 /// Walks `expression` tree and applies `f` recursively from leaf nodes.
 fn transform_expression_bottom_up(
     expression: &Rc<RevsetExpression>,
     mut f: impl FnMut(&Rc<RevsetExpression>) -> TransformedExpression,
 ) -> TransformedExpression {
-    try_transform_expression::<Infallible>(expression, |_| Ok(None), |expression| Ok(f(expression)))
-        .unwrap()
+    try_transform_expression(expression, |_| Ok(None), |expression| Ok(f(expression))).unwrap()
 }
 
 /// Walks `expression` tree and applies transformation recursively.
@@ -1577,16 +1576,16 @@ fn transform_expression_bottom_up(
 /// If no nodes rewritten, this function returns `None`.
 /// `std::iter::successors()` could be used if the transformation needs to be
 /// applied repeatedly until converged.
-fn try_transform_expression<E>(
+fn try_transform_expression(
     expression: &Rc<RevsetExpression>,
-    mut pre: impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-    mut post: impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-) -> Result<TransformedExpression, E> {
-    fn transform_child_rec<E>(
+    mut pre: impl FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+    mut post: impl FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+) -> TransformedExpressionResult {
+    fn transform_child_rec(
         expression: &Rc<RevsetExpression>,
-        pre: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-        post: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-    ) -> Result<TransformedExpression, E> {
+        pre: &mut impl FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+        post: &mut impl FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+    ) -> Result<TransformedExpression, RevsetResolutionError> {
         Ok(match expression.as_ref() {
             RevsetExpression::None => None,
             RevsetExpression::All => None,
@@ -1663,11 +1662,11 @@ fn try_transform_expression<E>(
     }
 
     #[allow(clippy::type_complexity)]
-    fn transform_rec_pair<E>(
+    fn transform_rec_pair(
         (expression1, expression2): (&Rc<RevsetExpression>, &Rc<RevsetExpression>),
-        pre: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-        post: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-    ) -> Result<Option<(Rc<RevsetExpression>, Rc<RevsetExpression>)>, E> {
+        pre: &mut impl FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+        post: &mut impl FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+    ) -> Result<Option<(Rc<RevsetExpression>, Rc<RevsetExpression>)>, RevsetResolutionError> {
         match (
             transform_rec(expression1, pre, post)?,
             transform_rec(expression2, pre, post)?,
@@ -1681,11 +1680,11 @@ fn try_transform_expression<E>(
         }
     }
 
-    fn transform_rec<E>(
+    fn transform_rec(
         expression: &Rc<RevsetExpression>,
-        pre: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-        post: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-    ) -> Result<TransformedExpression, E> {
+        pre: &mut impl FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+        post: &mut impl FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+    ) -> TransformedExpressionResult {
         if let Some(new_expression) = pre(expression)? {
             return Ok(Some(new_expression));
         }
