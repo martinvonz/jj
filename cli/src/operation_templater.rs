@@ -36,6 +36,18 @@ pub struct OperationTemplateLanguage {
     build_fn_table: OperationTemplateBuildFnTable,
 }
 
+impl OperationTemplateLanguage {
+    /// Sets up environment where operation template will be transformed to
+    /// evaluation tree.
+    pub fn new(root_op_id: &OperationId, current_op_id: Option<&OperationId>) -> Self {
+        OperationTemplateLanguage {
+            root_op_id: root_op_id.clone(),
+            current_op_id: current_op_id.cloned(),
+            build_fn_table: OperationTemplateBuildFnTable::builtin(),
+        }
+    }
+}
+
 impl TemplateLanguage<'static> for OperationTemplateLanguage {
     type Context = Operation;
     type Property = OperationTemplatePropertyKind;
@@ -256,10 +268,6 @@ pub fn parse(
     template_text: &str,
     aliases_map: &TemplateAliasesMap,
 ) -> TemplateParseResult<Box<dyn Template<Operation>>> {
-    let language = OperationTemplateLanguage {
-        root_op_id: root_op_id.clone(),
-        current_op_id: current_op_id.cloned(),
-        build_fn_table: OperationTemplateBuildFnTable::builtin(),
-    };
+    let language = OperationTemplateLanguage::new(root_op_id, current_op_id);
     template_builder::parse(&language, template_text, aliases_map)
 }

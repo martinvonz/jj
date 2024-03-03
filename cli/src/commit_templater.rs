@@ -40,6 +40,10 @@ use crate::templater::{
 };
 use crate::text_util;
 
+pub trait CommitTemplateLanguageExtension {
+    fn build_fn_table<'repo>(&self) -> CommitTemplateBuildFnTable<'repo>;
+}
+
 pub struct CommitTemplateLanguage<'repo> {
     repo: &'repo dyn Repo,
     workspace_id: WorkspaceId,
@@ -48,8 +52,27 @@ pub struct CommitTemplateLanguage<'repo> {
     keyword_cache: CommitKeywordCache,
 }
 
-pub trait CommitTemplateLanguageExtension {
-    fn build_fn_table<'repo>(&self) -> CommitTemplateBuildFnTable<'repo>;
+impl<'repo> CommitTemplateLanguage<'repo> {
+    /// Sets up environment where commit template will be transformed to
+    /// evaluation tree.
+    pub fn new(
+        repo: &'repo dyn Repo,
+        workspace_id: &WorkspaceId,
+        id_prefix_context: &'repo IdPrefixContext,
+        extension: Option<&dyn CommitTemplateLanguageExtension>,
+    ) -> Self {
+        let mut build_fn_table = CommitTemplateBuildFnTable::builtin();
+        if let Some(extension) = extension {
+            build_fn_table.merge(extension.build_fn_table());
+        }
+        CommitTemplateLanguage {
+            repo,
+            workspace_id: workspace_id.clone(),
+            id_prefix_context,
+            build_fn_table,
+            keyword_cache: CommitKeywordCache::default(),
+        }
+    }
 }
 
 impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
@@ -847,17 +870,6 @@ pub fn parse<'repo>(
     template_text: &str,
     aliases_map: &TemplateAliasesMap,
 ) -> TemplateParseResult<Box<dyn Template<Commit> + 'repo>> {
-    let mut build_fn_table = CommitTemplateBuildFnTable::builtin();
-    if let Some(extension) = extension {
-        build_fn_table.merge(extension.build_fn_table());
-    }
-
-    let language = CommitTemplateLanguage {
-        repo,
-        workspace_id: workspace_id.clone(),
-        id_prefix_context,
-        build_fn_table,
-        keyword_cache: CommitKeywordCache::default(),
-    };
+    let language = CommitTemplateLanguage::new(repo, workspace_id, id_prefix_context, extension);
     template_builder::parse(&language, template_text, aliases_map)
 }
