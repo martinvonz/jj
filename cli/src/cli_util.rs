@@ -367,6 +367,8 @@ pub struct WorkspaceCommandHelper {
     settings: UserSettings,
     workspace: Workspace,
     user_repo: ReadonlyUserRepo,
+    // TODO: Parsed template can be cached if it doesn't capture 'repo lifetime
+    commit_summary_template_text: String,
     commit_template_extension: Option<Arc<dyn CommitTemplateLanguageExtension>>,
     revset_aliases_map: RevsetAliasesMap,
     template_aliases_map: TemplateAliasesMap,
@@ -382,20 +384,11 @@ impl WorkspaceCommandHelper {
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<Self, CommandError> {
+        let settings = command.settings.clone();
+        let commit_summary_template_text =
+            settings.config().get_string("templates.commit_summary")?;
         let revset_aliases_map = load_revset_aliases(ui, &command.layered_configs)?;
         let template_aliases_map = command.load_template_aliases(ui)?;
-        // Parse commit_summary template early to report error before starting mutable
-        // operation.
-        // TODO: Parsed template can be cached if it doesn't capture repo
-        let id_prefix_context = IdPrefixContext::default();
-        parse_commit_summary_template(
-            repo.as_ref(),
-            workspace.workspace_id(),
-            &id_prefix_context,
-            command.commit_template_extension.as_deref(),
-            &template_aliases_map,
-            &command.settings,
-        )?;
         let loaded_at_head = command.global_args.at_operation == "@";
         let may_update_working_copy = loaded_at_head && !command.global_args.ignore_working_copy;
         let working_copy_shared_with_git = is_colocated_git_workspace(&workspace, &repo);
@@ -403,18 +396,19 @@ impl WorkspaceCommandHelper {
             cwd: command.cwd.clone(),
             string_args: command.string_args.clone(),
             global_args: command.global_args.clone(),
-            settings: command.settings.clone(),
+            settings,
             workspace,
             user_repo: ReadonlyUserRepo::new(repo),
+            commit_summary_template_text,
             commit_template_extension: command.commit_template_extension.clone(),
             revset_aliases_map,
             template_aliases_map,
             may_update_working_copy,
             working_copy_shared_with_git,
         };
-        // Parse short-prefixes revset early to report error before starting mutable
-        // operation.
-        helper.id_prefix_context()?;
+        // Parse commit_summary template (and short-prefixes revset) early to
+        // report error before starting mutable operation.
+        helper.parse_commit_template(&helper.commit_summary_template_text)?;
         Ok(helper)
     }
 
@@ -888,6 +882,11 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         Ok(template)
     }
 
+    fn commit_summary_template(&self) -> Box<dyn Template<Commit> + '_> {
+        self.parse_commit_template(&self.commit_summary_template_text)
+            .expect("parse error should be confined by WorkspaceCommandHelper::new()")
+    }
+
     /// Returns one-line summary of the given `commit`.
     pub fn format_commit_summary(&self, commit: &Commit) -> String {
         let mut output = Vec::new();
@@ -903,20 +902,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         formatter: &mut dyn Formatter,
         commit: &Commit,
     ) -> std::io::Result<()> {
-        let id_prefix_context = self
-            .id_prefix_context()
-            .expect("parse error should be confined by WorkspaceCommandHelper::new()");
-        let template = parse_commit_summary_template(
-            self.repo().as_ref(),
-            self.workspace_id(),
-            id_prefix_context,
-            self.commit_template_extension.as_deref(),
-            &self.template_aliases_map,
-            &self.settings,
-        )
-        .expect("parse error should be confined by WorkspaceCommandHelper::new()");
-        template.format(commit, formatter)?;
-        Ok(())
+        self.commit_summary_template().format(commit, formatter)
     }
 
     pub fn check_rewritable<'a>(
@@ -1364,13 +1350,13 @@ impl WorkspaceCommandTransaction<'_> {
     ) -> std::io::Result<()> {
         // TODO: Use the disambiguation revset
         let id_prefix_context = IdPrefixContext::default();
-        let template = parse_commit_summary_template(
+        let template = commit_templater::parse(
             self.tx.repo(),
             self.helper.workspace_id(),
             &id_prefix_context,
             self.helper.commit_template_extension.as_deref(),
+            &self.helper.commit_summary_template_text,
             &self.helper.template_aliases_map,
-            &self.helper.settings,
         )
         .expect("parse error should be confined by WorkspaceCommandHelper::new()");
         template.format(commit, formatter)
@@ -1726,26 +1712,6 @@ fn load_template_aliases(
         }
     }
     Ok(aliases_map)
-}
-
-#[instrument(skip_all)]
-fn parse_commit_summary_template<'a>(
-    repo: &'a dyn Repo,
-    workspace_id: &WorkspaceId,
-    id_prefix_context: &'a IdPrefixContext,
-    extension: Option<&dyn CommitTemplateLanguageExtension>,
-    aliases_map: &TemplateAliasesMap,
-    settings: &UserSettings,
-) -> Result<Box<dyn Template<Commit> + 'a>, CommandError> {
-    let template_text = settings.config().get_string("templates.commit_summary")?;
-    Ok(commit_templater::parse(
-        repo,
-        workspace_id,
-        id_prefix_context,
-        extension,
-        &template_text,
-        aliases_map,
-    )?)
 }
 
 /// Helper to reformat content of log-like commands.
