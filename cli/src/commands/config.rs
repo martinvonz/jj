@@ -24,6 +24,9 @@ use crate::cli_util::{
 };
 use crate::command_error::{user_error, CommandError};
 use crate::config::{AnnotatedValue, ConfigSource};
+use crate::generic_templater::GenericTemplateLanguage;
+use crate::template_builder::TemplateLanguage as _;
+use crate::templater::TemplatePropertyFn;
 use crate::ui::Ui;
 
 #[derive(clap::Args, Clone, Debug)]
@@ -92,6 +95,17 @@ pub(crate) struct ConfigListArgs {
     #[arg(long)]
     repo: bool,
     // TODO(#1047): Support --show-origin using LayeredConfigs.
+    /// Render each variable using the given template
+    ///
+    /// The following keywords are defined:
+    ///
+    /// * `name: String`: Config name.
+    /// * `value: String`: Serialized value in TOML syntax.
+    /// * `overridden: Boolean`: True if the value is shadowed by other.
+    ///
+    /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+    #[arg(long, short = 'T', verbatim_doc_comment)]
+    template: Option<String>,
 }
 
 impl ConfigListArgs {
@@ -170,50 +184,74 @@ pub(crate) fn cmd_config(
     }
 }
 
+fn config_template_language() -> GenericTemplateLanguage<'static, AnnotatedValue> {
+    fn prop_fn<R, F: Fn(&AnnotatedValue) -> R>(f: F) -> TemplatePropertyFn<F> {
+        TemplatePropertyFn(f)
+    }
+    let mut language = GenericTemplateLanguage::new();
+    // "name" instead of "path" to avoid confusion with the source file path
+    language.add_keyword("name", |language| {
+        let property = prop_fn(|annotated| Ok(annotated.path.join(".")));
+        Ok(language.wrap_string(property))
+    });
+    language.add_keyword("value", |language| {
+        // TODO: would be nice if we can provide raw dynamically-typed value
+        let property = prop_fn(|annotated| Ok(serialize_config_value(&annotated.value)));
+        Ok(language.wrap_string(property))
+    });
+    language.add_keyword("overridden", |language| {
+        let property = prop_fn(|annotated| Ok(annotated.is_overridden));
+        Ok(language.wrap_boolean(property))
+    });
+    language
+}
+
 #[instrument(skip_all)]
 pub(crate) fn cmd_config_list(
     ui: &mut Ui,
     command: &CommandHelper,
     args: &ConfigListArgs,
 ) -> Result<(), CommandError> {
+    let template = {
+        let language = config_template_language();
+        let text = match &args.template {
+            Some(value) => value.to_owned(),
+            None => command
+                .settings()
+                .config()
+                .get_string("templates.config_list")?,
+        };
+        command.parse_template(ui, &language, &text)?
+    };
+
     ui.request_pager();
+    let mut formatter = ui.stdout_formatter();
     let name_path = args
         .name
         .as_ref()
         .map_or(vec![], |name| name.split('.').collect_vec());
-    let values = command.resolved_config_values(&name_path)?;
     let mut wrote_values = false;
-    for AnnotatedValue {
-        path,
-        value,
-        source,
-        is_overridden,
-    } in &values
-    {
+    for annotated in command.resolved_config_values(&name_path)? {
         // Remove overridden values.
-        if *is_overridden && !args.include_overridden {
+        if annotated.is_overridden && !args.include_overridden {
             continue;
         }
 
         if let Some(target_source) = args.get_source_kind() {
-            if target_source != *source {
+            if target_source != annotated.source {
                 continue;
             }
         }
 
         // Skip built-ins if not included.
-        if !args.include_defaults && *source == ConfigSource::Default {
+        if !args.include_defaults && annotated.source == ConfigSource::Default {
             continue;
         }
-        writeln!(
-            ui.stdout(),
-            "{}{}={}",
-            if *is_overridden { "# " } else { "" },
-            path.join("."),
-            serialize_config_value(value)
-        )?;
+
+        template.format(&annotated, formatter.as_mut())?;
         wrote_values = true;
     }
+    drop(formatter);
     if !wrote_values {
         // Note to stderr explaining why output is empty.
         if let Some(name) = &args.name {

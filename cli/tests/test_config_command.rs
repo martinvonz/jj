@@ -35,6 +35,14 @@ fn test_config_list_single() {
     insta::assert_snapshot!(stdout, @r###"
     test-table.somekey="some value"
     "###);
+
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &["config", "list", r#"-Tname ++ "\n""#, "test-table.somekey"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    test-table.somekey
+    "###);
 }
 
 #[test]
@@ -114,6 +122,7 @@ fn test_config_list_all() {
     y.bar = 123
     "#,
     );
+
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list"]);
     insta::assert_snapshot!(
         find_stdout_lines(r"(test-val|test-table\b[^=]*)", &stdout),
