@@ -26,7 +26,7 @@ use jj_lib::repo::Repo;
 use crate::cli_util::{short_operation_hash, CommandHelper, LogContentFormat};
 use crate::command_error::{user_error, user_error_with_hint, CommandError};
 use crate::graphlog::{get_graphlog, Edge};
-use crate::operation_templater;
+use crate::operation_templater::OperationTemplateLanguage;
 use crate::templater::Template as _;
 use crate::ui::Ui;
 
@@ -158,17 +158,17 @@ fn cmd_op_log(
         _ => None,
     };
 
-    let template_string = match &args.template {
-        Some(value) => value.to_owned(),
-        None => command.settings().config().get_string("templates.op_log")?,
+    let template = {
+        let language = OperationTemplateLanguage::new(
+            repo_loader.op_store().root_operation_id(),
+            current_op_id,
+        );
+        let text = match &args.template {
+            Some(value) => value.to_owned(),
+            None => command.settings().config().get_string("templates.op_log")?,
+        };
+        command.parse_template(ui, &language, &text)?
     };
-    let template_aliases = command.load_template_aliases(ui)?;
-    let template = operation_templater::parse(
-        repo_loader.op_store().root_operation_id(),
-        current_op_id,
-        &template_string,
-        &template_aliases,
-    )?;
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
     ui.request_pager();

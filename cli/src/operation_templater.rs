@@ -24,7 +24,7 @@ use crate::template_builder::{
     self, BuildContext, CoreTemplateBuildFnTable, CoreTemplatePropertyKind, IntoTemplateProperty,
     TemplateBuildMethodFnMap, TemplateLanguage,
 };
-use crate::template_parser::{self, FunctionCallNode, TemplateAliasesMap, TemplateParseResult};
+use crate::template_parser::{self, FunctionCallNode, TemplateParseResult};
 use crate::templater::{
     IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
     TemplatePropertyFn, TimestampRange,
@@ -260,14 +260,4 @@ fn builtin_operation_id_methods() -> OperationTemplateBuildMethodFnMap<Operation
         Ok(language.wrap_string(out_property))
     });
     map
-}
-
-pub fn parse(
-    root_op_id: &OperationId,
-    current_op_id: Option<&OperationId>,
-    template_text: &str,
-    aliases_map: &TemplateAliasesMap,
-) -> TemplateParseResult<Box<dyn Template<Operation>>> {
-    let language = OperationTemplateLanguage::new(root_op_id, current_op_id);
-    template_builder::parse(&language, template_text, aliases_map)
 }

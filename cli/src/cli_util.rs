@@ -75,7 +75,7 @@ use crate::command_error::{
     handle_command_result, internal_error, internal_error_with_message, user_error,
     user_error_with_hint, user_error_with_message, CommandError,
 };
-use crate::commit_templater::CommitTemplateLanguageExtension;
+use crate::commit_templater::{CommitTemplateLanguage, CommitTemplateLanguageExtension};
 use crate::config::{
     new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigSource, LayeredConfigs,
 };
@@ -84,10 +84,11 @@ use crate::git_util::{
     is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
 };
 use crate::merge_tools::{DiffEditor, MergeEditor, MergeToolConfigError};
+use crate::template_builder::TemplateLanguage;
 use crate::template_parser::TemplateAliasesMap;
 use crate::templater::Template;
 use crate::ui::{ColorChoice, Ui};
-use crate::{commit_templater, text_util};
+use crate::{template_builder, text_util};
 
 #[derive(Clone)]
 struct ChromeTracingFlushGuard {
@@ -230,8 +231,23 @@ impl CommandHelper {
     ///
     /// For most commands that depend on a loaded repo, you should use
     /// `WorkspaceCommandHelper::template_aliases_map()` instead.
-    pub fn load_template_aliases(&self, ui: &Ui) -> Result<TemplateAliasesMap, CommandError> {
+    fn load_template_aliases(&self, ui: &Ui) -> Result<TemplateAliasesMap, CommandError> {
         load_template_aliases(ui, &self.layered_configs)
+    }
+
+    /// Parses template of the given language into evaluation tree.
+    ///
+    /// This function also loads template aliases from the settings. Use
+    /// `WorkspaceCommandHelper::parse_template()` if you've already
+    /// instantiated the workspace helper.
+    pub fn parse_template<'a, L: TemplateLanguage<'a> + ?Sized>(
+        &self,
+        ui: &Ui,
+        language: &L,
+        template_text: &str,
+    ) -> Result<Box<dyn Template<L::Context> + 'a>, CommandError> {
+        let aliases = self.load_template_aliases(ui)?;
+        Ok(template_builder::parse(language, template_text, &aliases)?)
     }
 
     pub fn workspace_loader(&self) -> Result<&WorkspaceLoader, CommandError> {
@@ -866,20 +882,28 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         &self.template_aliases_map
     }
 
+    /// Parses template of the given language into evaluation tree.
+    pub fn parse_template<'a, L: TemplateLanguage<'a> + ?Sized>(
+        &self,
+        language: &L,
+        template_text: &str,
+    ) -> Result<Box<dyn Template<L::Context> + 'a>, CommandError> {
+        let aliases = &self.template_aliases_map;
+        Ok(template_builder::parse(language, template_text, aliases)?)
+    }
+
+    /// Parses commit template into evaluation tree.
     pub fn parse_commit_template(
         &self,
         template_text: &str,
     ) -> Result<Box<dyn Template<Commit> + '_>, CommandError> {
-        let id_prefix_context = self.id_prefix_context()?;
-        let template = commit_templater::parse(
+        let language = CommitTemplateLanguage::new(
             self.repo().as_ref(),
             self.workspace_id(),
-            id_prefix_context,
+            self.id_prefix_context()?,
             self.commit_template_extension.as_deref(),
-            template_text,
-            &self.template_aliases_map,
-        )?;
-        Ok(template)
+        );
+        self.parse_template(&language, template_text)
     }
 
     fn commit_summary_template(&self) -> Box<dyn Template<Commit> + '_> {
@@ -1350,15 +1374,16 @@ impl WorkspaceCommandTransaction<'_> {
     ) -> std::io::Result<()> {
         // TODO: Use the disambiguation revset
         let id_prefix_context = IdPrefixContext::default();
-        let template = commit_templater::parse(
+        let language = CommitTemplateLanguage::new(
             self.tx.repo(),
             self.helper.workspace_id(),
             &id_prefix_context,
             self.helper.commit_template_extension.as_deref(),
-            &self.helper.commit_summary_template_text,
-            &self.helper.template_aliases_map,
-        )
-        .expect("parse error should be confined by WorkspaceCommandHelper::new()");
+        );
+        let template = self
+            .helper
+            .parse_template(&language, &self.helper.commit_summary_template_text)
+            .expect("parse error should be confined by WorkspaceCommandHelper::new()");
         template.format(commit, formatter)
     }
 
