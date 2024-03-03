@@ -24,6 +24,15 @@ separate(" ",
 )
 '''
 
+config_list = '''
+concat(
+  if(overridden, "# "),
+  name,
+  "=",
+  value,
+) ++ "\n"
+'''
+
 log = 'builtin_log_compact'
 op_log = 'builtin_op_log_compact'
 show = 'builtin_log_detailed'

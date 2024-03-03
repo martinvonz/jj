@@ -46,6 +46,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj show` now accepts `-T`/`--template` option to render its output using
   template
 
+* `jj config list` now accepts `-T`/`--template` option.
+
 * `jj git fetch` now accepts `-b` as a shorthand for `--branch`, making it more
   consistent with other commands that accept a branch
 

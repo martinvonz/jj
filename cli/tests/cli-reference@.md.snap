@@ -489,6 +489,7 @@ List variables set in config file, along with their values
 
   Possible values: `true`, `false`
 
+* `-T`, `--template <TEMPLATE>` — Render each variable using the given template
 
 
 
