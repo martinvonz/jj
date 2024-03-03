@@ -2221,10 +2221,11 @@ useful reminder to fill in things like BUG=, TESTED= etc.</p>
 <h3 id="generating-diffs-by-external-command">Generating diffs by external command<a class="headerlink" href="#generating-diffs-by-external-command" title="Permanent link">&para;</a></h3>
 <p>If <code>ui.diff.tool</code> is set, the specified diff command will be called instead of
 the internal diff function.</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># Use Difftastic by default</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">diff</span><span class="p">.</span><span class="n">tool</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;difft&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--color=always&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">]</span>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="c1"># Use Difftastic by default</span>
+<span class="n">diff</span><span class="p">.</span><span class="n">tool</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;difft&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--color=always&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">]</span>
 <span class="c1"># Use tool named &quot;&lt;name&gt;&quot; (see below)</span>
-<span class="n">ui</span><span class="p">.</span><span class="n">diff</span><span class="p">.</span><span class="n">tool</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&lt;name&gt;&quot;</span>
+<span class="n">diff</span><span class="p">.</span><span class="n">tool</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&lt;name&gt;&quot;</span>
 </code></pre></div>
 <p>The external diff tool can also be enabled by <code>diff --tool &lt;name&gt;</code> argument.
 For the tool named <code>&lt;name&gt;</code>, command arguments can be configured as follows.</p>
