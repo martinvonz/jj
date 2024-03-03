@@ -98,7 +98,13 @@ impl<T: AsCompositeIndex + ?Sized> AsCompositeIndex for &mut T {
     }
 }
 
-/// Reference wrapper that provides global access to nested index segments.
+/// `CompositeIndex` provides an index of both commit IDs and change IDs.
+///
+/// We refer to this as a composite index because it's a composite of multiple
+/// nested index segments where each parent segment is roughly twice as large
+/// its child. segment. This provides a good balance between read and write
+/// performance.
+// Reference wrapper that provides global access to nested index segments.
 #[derive(RefCastCustom)]
 #[repr(transparent)]
 pub struct CompositeIndex(DynIndexSegment);
@@ -355,6 +361,8 @@ impl CompositeIndex {
             .map(|(i, _)| IndexPosition(u32::try_from(i).unwrap()))
     }
 
+    /// Returns the subset of positions in `candidate_positions` which refer to
+    /// entries that are heads in the repository.
     pub fn heads_pos(
         &self,
         mut candidate_positions: BTreeSet<IndexPosition>,
@@ -475,7 +483,6 @@ impl Index for &CompositeIndex {
             .collect()
     }
 
-    /// Parents before children
     fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
         let mut ids = input.cloned().collect_vec();
         ids.sort_by_cached_key(|id| self.commit_id_to_pos(id).unwrap());
@@ -511,12 +518,12 @@ impl<I: AsCompositeIndex> ChangeIdIndexImpl<I> {
 }
 
 impl<I: AsCompositeIndex + Send + Sync> ChangeIdIndex for ChangeIdIndexImpl<I> {
-    /// Resolves change id prefix among all ids, then filters out hidden
-    /// entries.
-    ///
-    /// If `SingleMatch` is returned, the commits including in the set are all
-    /// visible. `AmbiguousMatch` may be returned even if the prefix is unique
-    /// within the visible entries.
+    // Resolves change id prefix among all ids, then filters out hidden
+    // entries.
+    //
+    // If `SingleMatch` is returned, the commits including in the set are all
+    // visible. `AmbiguousMatch` may be returned even if the prefix is unique
+    // within the visible entries.
     fn resolve_prefix(&self, prefix: &HexPrefix) -> PrefixResolution<Vec<CommitId>> {
         let index = self.index.as_composite();
         match index.resolve_change_id_prefix(prefix) {
@@ -540,11 +547,12 @@ impl<I: AsCompositeIndex + Send + Sync> ChangeIdIndex for ChangeIdIndexImpl<I> {
         }
     }
 
-    /// Calculates the shortest prefix length of the given `change_id` among all
-    /// ids including hidden entries.
-    ///
-    /// The returned length is usually a few digits longer than the minimum
-    /// length to disambiguate within the visible entries.
+    // Calculates the shortest prefix length of the given `change_id` among all
+    // IDs, including hidden entries.
+    //
+    // The returned length is usually a few digits longer than the minimum
+    // length necessary to disambiguate within the visible entries since hidden
+    // entries are also considered when determining the prefix length.
     fn shortest_unique_prefix_len(&self, change_id: &ChangeId) -> usize {
         self.index
             .as_composite()
