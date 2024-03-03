@@ -5773,8 +5773,9 @@ repository.</li>
 <p>Possible values: <code>true</code>, <code>false</code></p>
 </li>
 <li>
-<p><code>-m</code>, <code>--message &lt;MESSAGE&gt;</code> — The change description to use (don't open editor)</p>
+<p><code>--tool &lt;NAME&gt;</code> — Specify diff editor to be used (implies --interactive)</p>
 </li>
+<li><code>-m</code>, <code>--message &lt;MESSAGE&gt;</code> — The change description to use (don't open editor)</li>
 </ul>
 <h2 id="jj-config"><code>jj config</code><a class="headerlink" href="#jj-config" title="Permanent link">&para;</a></h2>
 <p>Manage config options</p>
@@ -5961,6 +5962,7 @@ Martin von Zweigbergk</p>
 <li><code>-r</code>, <code>--revision &lt;REVISION&gt;</code> — The revision to touch up. Defaults to @ if neither --to nor --from are specified</li>
 <li><code>--from &lt;FROM&gt;</code> — Show changes from this revision. Defaults to @ if --to is specified</li>
 <li><code>--to &lt;TO&gt;</code> — Edit changes in this revision. Defaults to @ if --from is specified</li>
+<li><code>--tool &lt;NAME&gt;</code> — Specify diff editor to be used</li>
 </ul>
 <h2 id="jj-duplicate"><code>jj duplicate</code><a class="headerlink" href="#jj-duplicate" title="Permanent link">&para;</a></h2>
 <p>Create a new change with the same content as an existing one</p>
@@ -6275,6 +6277,9 @@ Martin von Zweigbergk</p>
 <li>
 <p><code>-i</code>, <code>--interactive</code> — Interactively choose which parts to move</p>
 <p>Possible values: <code>true</code>, <code>false</code></p>
+</li>
+<li>
+<p><code>--tool &lt;NAME&gt;</code> — Specify diff editor to be used (implies --interactive)</p>
 </li>
 </ul>
 <h2 id="jj-new"><code>jj new</code><a class="headerlink" href="#jj-new" title="Permanent link">&para;</a></h2>
@@ -6636,6 +6641,9 @@ commit. This is true in general; it is not specific to this command.</p>
 <p><code>-q</code>, <code>--quiet</code> — Do not print the list of remaining conflicts (if any) after resolving a conflict</p>
 <p>Possible values: <code>true</code>, <code>false</code></p>
 </li>
+<li>
+<p><code>--tool &lt;NAME&gt;</code> — Specify 3-way merge tool to be used</p>
+</li>
 </ul>
 <h2 id="jj-restore"><code>jj restore</code><a class="headerlink" href="#jj-restore" title="Permanent link">&para;</a></h2>
 <p>Restore paths from another revision</p>
@@ -6750,6 +6758,9 @@ commit. This is true in general; it is not specific to this command.</p>
 <p>Possible values: <code>true</code>, <code>false</code></p>
 </li>
 <li>
+<p><code>--tool &lt;NAME&gt;</code> — Specify diff editor to be used (implies --interactive)</p>
+</li>
+<li>
 <p><code>-r</code>, <code>--revision &lt;REVISION&gt;</code> — The revision to split</p>
 <p>Default value: <code>@</code></p>
 </li>
@@ -6776,6 +6787,9 @@ commit. This is true in general; it is not specific to this command.</p>
 <li>
 <p><code>-i</code>, <code>--interactive</code> — Interactively choose which parts to squash</p>
 <p>Possible values: <code>true</code>, <code>false</code></p>
+</li>
+<li>
+<p><code>--tool &lt;NAME&gt;</code> — Specify diff editor to be used (implies --interactive)</p>
 </li>
 </ul>
 <h2 id="jj-status"><code>jj status</code><a class="headerlink" href="#jj-status" title="Permanent link">&para;</a></h2>
@@ -6909,6 +6923,9 @@ compinit
 <li>
 <p><code>-i</code>, <code>--interactive</code> — Interactively choose which parts to unsquash</p>
 <p>Possible values: <code>true</code>, <code>false</code></p>
+</li>
+<li>
+<p><code>--tool &lt;NAME&gt;</code> — Specify diff editor to be used (implies --interactive)</p>
 </li>
 </ul>
 <h2 id="jj-untrack"><code>jj untrack</code><a class="headerlink" href="#jj-untrack" title="Permanent link">&para;</a></h2>
