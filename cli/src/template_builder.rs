@@ -19,7 +19,7 @@ use jj_lib::backend::{Signature, Timestamp};
 
 use crate::template_parser::{
     self, BinaryOp, ExpressionKind, ExpressionNode, FunctionCallNode, MethodCallNode,
-    TemplateParseError, TemplateParseErrorKind, TemplateParseResult, UnaryOp,
+    TemplateAliasesMap, TemplateParseError, TemplateParseErrorKind, TemplateParseResult, UnaryOp,
 };
 use crate::templater::{
     ConcatTemplate, ConditionalTemplate, IntoTemplate, LabelTemplate, ListPropertyTemplate,
@@ -1064,6 +1064,16 @@ pub fn build<'a, L: TemplateLanguage<'a> + ?Sized>(
     expect_template_expression(language, &build_ctx, node)
 }
 
+/// Parses text, expands aliases, then builds template evaluation tree.
+pub fn parse<'a, L: TemplateLanguage<'a> + ?Sized>(
+    language: &L,
+    template_text: &str,
+    aliases_map: &TemplateAliasesMap,
+) -> TemplateParseResult<Box<dyn Template<L::Context> + 'a>> {
+    let node = template_parser::parse(template_text, aliases_map)?;
+    build(language, &node).map_err(|err| err.extend_alias_candidates(aliases_map))
+}
+
 pub fn expect_boolean_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
@@ -1253,8 +1263,7 @@ mod tests {
         }
 
         fn parse(&self, template: &str) -> TemplateParseResult<Box<dyn Template<()>>> {
-            let node = template_parser::parse(template, &self.aliases_map)?;
-            build(&self.language, &node)
+            parse(&self.language, template, &self.aliases_map)
         }
 
         fn parse_err(&self, template: &str) -> String {
