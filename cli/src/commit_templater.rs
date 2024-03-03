@@ -859,7 +859,5 @@ pub fn parse<'repo>(
         build_fn_table,
         keyword_cache: CommitKeywordCache::default(),
     };
-    let node = template_parser::parse(template_text, aliases_map)?;
-    template_builder::build(&language, &node)
-        .map_err(|err| err.extend_alias_candidates(aliases_map))
+    template_builder::parse(&language, template_text, aliases_map)
 }
