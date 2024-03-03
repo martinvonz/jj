@@ -49,6 +49,32 @@ fn test_show_with_template() {
 }
 
 #[test]
+fn test_show_with_no_template() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["show", "-T"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: a value is required for '--template <TEMPLATE>' but none was supplied
+
+    For more information, try '--help'.
+    Hint: The following template aliases are defined:
+    - builtin_change_id_with_hidden_and_divergent_info
+    - builtin_log_comfortable
+    - builtin_log_compact
+    - builtin_log_detailed
+    - builtin_log_oneline
+    - builtin_op_log_comfortable
+    - builtin_op_log_compact
+    - commit_summary_separator
+    - description_placeholder
+    - email_placeholder
+    - name_placeholder
+    "###);
+}
+
+#[test]
 fn test_show_relative_timestamps() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);

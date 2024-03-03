@@ -28,6 +28,7 @@ use std::time::SystemTime;
 use std::{fs, str};
 
 use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFactory};
+use clap::error::{ContextKind, ContextValue};
 use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
@@ -2525,7 +2526,8 @@ impl CliRunner {
             &self.tracing_subscription,
             &string_args,
             &mut layered_configs,
-        )?;
+        )
+        .map_err(|err| map_clap_cli_error(err, ui, &layered_configs))?;
         for process_global_args_fn in self.process_global_args_fns {
             process_global_args_fn(ui, &matches)?;
         }
@@ -2598,4 +2600,41 @@ impl CliRunner {
         ui.finalize_pager();
         exit_code
     }
+}
+
+fn map_clap_cli_error(
+    cmd_err: CommandError,
+    ui: &Ui,
+    layered_configs: &LayeredConfigs,
+) -> CommandError {
+    let CommandError::ClapCliError { err, hint: None } = &cmd_err else {
+        return cmd_err;
+    };
+    if let (Some(ContextValue::String(arg)), Some(ContextValue::String(value))) = (
+        err.get(ContextKind::InvalidArg),
+        err.get(ContextKind::InvalidValue),
+    ) {
+        if arg.as_str() == "--template <TEMPLATE>" && value.is_empty() {
+            // Suppress the error, it's less important than the original error.
+            if let Ok(template_aliases) = load_template_aliases(ui, layered_configs) {
+                return CommandError::ClapCliError {
+                    err: err.clone(),
+                    hint: Some(format_template_aliases_hint(&template_aliases)),
+                };
+            }
+        }
+    }
+    cmd_err
+}
+
+fn format_template_aliases_hint(template_aliases: &TemplateAliasesMap) -> String {
+    let mut hint = String::from("The following template aliases are defined:\n");
+    hint.push_str(
+        &template_aliases
+            .symbol_names()
+            .sorted_unstable()
+            .map(|name| format!("- {name}"))
+            .join("\n"),
+    );
+    hint
 }
