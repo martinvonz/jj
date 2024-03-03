@@ -133,42 +133,42 @@ impl<'repo> CommitTemplateLanguage<'repo> {
         &self.keyword_cache
     }
 
-    fn wrap_commit(
+    pub fn wrap_commit(
         &self,
         property: impl TemplateProperty<Commit, Output = Commit> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::Commit(Box::new(property))
     }
 
-    fn wrap_commit_list(
+    pub fn wrap_commit_list(
         &self,
         property: impl TemplateProperty<Commit, Output = Vec<Commit>> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::CommitList(Box::new(property))
     }
 
-    fn wrap_ref_name(
+    pub fn wrap_ref_name(
         &self,
         property: impl TemplateProperty<Commit, Output = RefName> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::RefName(Box::new(property))
     }
 
-    fn wrap_ref_name_list(
+    pub fn wrap_ref_name_list(
         &self,
         property: impl TemplateProperty<Commit, Output = Vec<RefName>> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::RefNameList(Box::new(property))
     }
 
-    fn wrap_commit_or_change_id(
+    pub fn wrap_commit_or_change_id(
         &self,
         property: impl TemplateProperty<Commit, Output = CommitOrChangeId> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::CommitOrChangeId(Box::new(property))
     }
 
-    fn wrap_shortest_id_prefix(
+    pub fn wrap_shortest_id_prefix(
         &self,
         property: impl TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {

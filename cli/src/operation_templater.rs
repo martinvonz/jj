@@ -30,7 +30,7 @@ use crate::templater::{
     TemplatePropertyFn, TimestampRange,
 };
 
-struct OperationTemplateLanguage {
+pub struct OperationTemplateLanguage {
     root_op_id: OperationId,
     current_op_id: Option<OperationId>,
     build_fn_table: OperationTemplateBuildFnTable,
@@ -73,14 +73,14 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage {
 }
 
 impl OperationTemplateLanguage {
-    fn wrap_operation(
+    pub fn wrap_operation(
         &self,
         property: impl TemplateProperty<Operation, Output = Operation> + 'static,
     ) -> OperationTemplatePropertyKind {
         OperationTemplatePropertyKind::Operation(Box::new(property))
     }
 
-    fn wrap_operation_id(
+    pub fn wrap_operation_id(
         &self,
         property: impl TemplateProperty<Operation, Output = OperationId> + 'static,
     ) -> OperationTemplatePropertyKind {
@@ -88,7 +88,7 @@ impl OperationTemplateLanguage {
     }
 }
 
-enum OperationTemplatePropertyKind {
+pub enum OperationTemplatePropertyKind {
     Core(CoreTemplatePropertyKind<'static, Operation>),
     Operation(Box<dyn TemplateProperty<Operation, Output = Operation>>),
     OperationId(Box<dyn TemplateProperty<Operation, Output = OperationId>>),
@@ -130,14 +130,14 @@ impl IntoTemplateProperty<'static, Operation> for OperationTemplatePropertyKind 
 }
 
 /// Table of functions that translate method call node of self type `T`.
-type OperationTemplateBuildMethodFnMap<T> =
+pub type OperationTemplateBuildMethodFnMap<T> =
     TemplateBuildMethodFnMap<'static, OperationTemplateLanguage, T>;
 
 /// Symbol table of methods available in the operation template.
 struct OperationTemplateBuildFnTable {
-    core: CoreTemplateBuildFnTable<'static, OperationTemplateLanguage>,
-    operation_methods: OperationTemplateBuildMethodFnMap<Operation>,
-    operation_id_methods: OperationTemplateBuildMethodFnMap<OperationId>,
+    pub core: CoreTemplateBuildFnTable<'static, OperationTemplateLanguage>,
+    pub operation_methods: OperationTemplateBuildMethodFnMap<Operation>,
+    pub operation_id_methods: OperationTemplateBuildMethodFnMap<OperationId>,
 }
 
 impl OperationTemplateBuildFnTable {
