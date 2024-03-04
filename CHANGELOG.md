@@ -36,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Conflicted files are individually simplified before being materialized.
 
+* `jj git clone` adds the default branch of the remote as repository
+  settings for `revset-aliases."trunk()"`.`
+
 ### Fixed bugs
 
 ## [0.18.0] - 2024-06-05

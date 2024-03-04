@@ -45,6 +45,7 @@ use crate::cli_util::{
 use crate::command_error::{
     user_error, user_error_with_hint, user_error_with_message, CommandError,
 };
+use crate::config::{write_config_value_to_file, ConfigNamePathBuf};
 use crate::git_util::{
     get_git_repo, is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
     with_remote_git_callbacks, GitSidebandProgressMessageWriter,
@@ -725,6 +726,18 @@ fn cmd_git_clone(
 
     let (mut workspace_command, stats) = clone_result?;
     if let Some(default_branch) = &stats.default_branch {
+        // Set repository level `trunk()` alias to the default remote branch.
+        let config_path = workspace_command.repo().repo_path().join("config.toml");
+        write_config_value_to_file(
+            &ConfigNamePathBuf::from_iter(["revset-aliases", "trunk()"]),
+            &format!("{default_branch}@{remote_name}"),
+            &config_path,
+        )?;
+        writeln!(
+            ui.status(),
+            "Setting the revset alias \"trunk()\" to \"{default_branch}@{remote_name}\""
+        )?;
+
         let default_branch_remote_ref = workspace_command
             .repo()
             .view()

@@ -64,6 +64,7 @@ fn test_git_clone() {
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/clone"
     branch: main@origin [new] tracked
+    Setting the revset alias "trunk()" to "main@origin"
     Working copy now at: uuqppmxq 1f0b881a (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 main | message
     Added 1 files, modified 0 files, removed 0 files
@@ -175,6 +176,7 @@ fn test_git_clone_colocate() {
     insta::assert_snapshot!(stderr, @r###"
     Fetching into new repo in "$TEST_ENV/clone"
     branch: main@origin [new] tracked
+    Setting the revset alias "trunk()" to "main@origin"
     Working copy now at: uuqppmxq 1f0b881a (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 main | message
     Added 1 files, modified 0 files, removed 0 files
@@ -332,6 +334,7 @@ fn test_git_clone_remote_default_branch() {
     Fetching into new repo in "$TEST_ENV/clone1"
     branch: feature1@origin [new] tracked
     branch: main@origin     [new] tracked
+    Setting the revset alias "trunk()" to "main@origin"
     Working copy now at: sqpuoqvx cad212e1 (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 feature1 main | message
     Added 1 files, modified 0 files, removed 0 files
@@ -344,6 +347,15 @@ fn test_git_clone_remote_default_branch() {
       @origin: mzyxwzks 9f01a0e0 message
     "###);
 
+    // "trunk()" alias should be set to default branch "main"
+    let stdout = test_env.jj_cmd_success(
+        &test_env.env_root().join("clone1"),
+        &["config", "list", "--repo", "revset-aliases.'trunk()'"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    revset-aliases.'trunk()' = "main@origin"
+    "###);
+
     // Only the default branch will be imported if auto-local-branch is off
     test_env.add_config("git.auto-local-branch = false");
     let (_stdout, stderr) =
@@ -352,7 +364,8 @@ fn test_git_clone_remote_default_branch() {
     Fetching into new repo in "$TEST_ENV/clone2"
     branch: feature1@origin [new] untracked
     branch: main@origin     [new] untracked
-    Working copy now at: pmmvwywv fa729b1e (empty) (no description set)
+    Setting the revset alias "trunk()" to "main@origin"
+    Working copy now at: rzvqmyuk cc8a5041 (empty) (no description set)
     Parent commit      : mzyxwzks 9f01a0e0 feature1@origin main | message
     Added 1 files, modified 0 files, removed 0 files
     "###);
@@ -361,6 +374,35 @@ fn test_git_clone_remote_default_branch() {
     feature1@origin: mzyxwzks 9f01a0e0 message
     main: mzyxwzks 9f01a0e0 message
       @origin: mzyxwzks 9f01a0e0 message
+    "###);
+
+    // Change the default branch in remote
+    git_repo.set_head("refs/heads/feature1").unwrap();
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "clone3"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Fetching into new repo in "$TEST_ENV/clone3"
+    branch: feature1@origin [new] untracked
+    branch: main@origin     [new] untracked
+    Setting the revset alias "trunk()" to "feature1@origin"
+    Working copy now at: nppvrztz b8a8a17b (empty) (no description set)
+    Parent commit      : mzyxwzks 9f01a0e0 feature1 main@origin | message
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(
+        get_branch_output(&test_env, &test_env.env_root().join("clone2")), @r###"
+    feature1@origin: mzyxwzks 9f01a0e0 message
+    main: mzyxwzks 9f01a0e0 message
+      @origin: mzyxwzks 9f01a0e0 message
+    "###);
+
+    // "trunk()" alias should be set to new default branch "feature1"
+    let stdout = test_env.jj_cmd_success(
+        &test_env.env_root().join("clone3"),
+        &["config", "list", "--repo", "revset-aliases.'trunk()'"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    revset-aliases.'trunk()' = "feature1@origin"
     "###);
 }
 
