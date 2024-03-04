@@ -1159,8 +1159,8 @@ mod tests {
         color_rules: Vec<(Vec<String>, formatter::Style)>,
     }
 
-    impl Default for TestTemplateEnv {
-        fn default() -> Self {
+    impl TestTemplateEnv {
+        fn new() -> Self {
             TestTemplateEnv {
                 language: TestTemplateLanguage::new(),
                 aliases_map: TemplateAliasesMap::new(),
@@ -1227,7 +1227,7 @@ mod tests {
 
     #[test]
     fn test_parsed_tree() {
-        let mut env = TestTemplateEnv::default();
+        let mut env = TestTemplateEnv::new();
         env.add_keyword("divergent", |language| {
             language.wrap_boolean(Literal(false))
         });
@@ -1260,7 +1260,7 @@ mod tests {
 
     #[test]
     fn test_parse_error() {
-        let mut env = TestTemplateEnv::default();
+        let mut env = TestTemplateEnv::new();
         env.add_keyword("description", |language| {
             language.wrap_string(Literal("".to_owned()))
         });
@@ -1434,7 +1434,7 @@ mod tests {
 
     #[test]
     fn test_self_keyword() {
-        let mut env = TestTemplateEnv::default();
+        let mut env = TestTemplateEnv::new();
         env.add_keyword("say_hello", |language| {
             language.wrap_string(Literal("Hello".to_owned()))
         });
@@ -1452,7 +1452,7 @@ mod tests {
 
     #[test]
     fn test_boolean_cast() {
-        let mut env = TestTemplateEnv::default();
+        let mut env = TestTemplateEnv::new();
 
         insta::assert_snapshot!(env.render_ok(r#"if("", true, false)"#), @"false");
         insta::assert_snapshot!(env.render_ok(r#"if("a", true, false)"#), @"true");
@@ -1496,7 +1496,7 @@ mod tests {
 
     #[test]
     fn test_arithmetic_operation() {
-        let mut env = TestTemplateEnv::default();
+        let mut env = TestTemplateEnv::new();
         env.add_keyword("i64_min", |language| {
             language.wrap_integer(Literal(i64::MIN))
         });
@@ -1513,7 +1513,7 @@ mod tests {
 
     #[test]
     fn test_logical_operation() {
-        let env = TestTemplateEnv::default();
+        let env = TestTemplateEnv::new();
 
         insta::assert_snapshot!(env.render_ok(r#"!false"#), @"true");
         insta::assert_snapshot!(env.render_ok(r#"false || !false"#), @"true");
@@ -1525,7 +1525,7 @@ mod tests {
 
     #[test]
     fn test_list_method() {
-        let mut env = TestTemplateEnv::default();
+        let mut env = TestTemplateEnv::new();
         env.add_keyword("empty", |language| language.wrap_boolean(Literal(true)));
         env.add_keyword("sep", |language| {
             language.wrap_string(Literal("sep".to_owned()))
@@ -1626,7 +1626,7 @@ mod tests {
 
     #[test]
     fn test_string_method() {
-        let mut env = TestTemplateEnv::default();
+        let mut env = TestTemplateEnv::new();
         env.add_keyword("description", |language| {
             language.wrap_string(Literal("description 1".to_owned()))
         });
@@ -1703,7 +1703,7 @@ mod tests {
 
     #[test]
     fn test_signature() {
-        let mut env = TestTemplateEnv::default();
+        let mut env = TestTemplateEnv::new();
 
         env.add_keyword("author", |language| {
             language.wrap_signature(Literal(new_signature("Test User", "test.user@example.com")))
@@ -1786,7 +1786,7 @@ mod tests {
 
     #[test]
     fn test_timestamp_method() {
-        let mut env = TestTemplateEnv::default();
+        let mut env = TestTemplateEnv::new();
         env.add_keyword("t0", |language| {
             language.wrap_timestamp(Literal(new_timestamp(0, 0)))
         });
@@ -1847,7 +1847,7 @@ mod tests {
 
     #[test]
     fn test_fill_function() {
-        let mut env = TestTemplateEnv::default();
+        let mut env = TestTemplateEnv::new();
         env.add_color("error", crossterm::style::Color::DarkRed);
 
         insta::assert_snapshot!(
@@ -1936,7 +1936,7 @@ mod tests {
 
     #[test]
     fn test_indent_function() {
-        let mut env = TestTemplateEnv::default();
+        let mut env = TestTemplateEnv::new();
         env.add_color("error", crossterm::style::Color::DarkRed);
         env.add_color("warning", crossterm::style::Color::DarkYellow);
         env.add_color("hint", crossterm::style::Color::DarkCyan);
@@ -1984,7 +1984,7 @@ mod tests {
 
     #[test]
     fn test_label_function() {
-        let mut env = TestTemplateEnv::default();
+        let mut env = TestTemplateEnv::new();
         env.add_keyword("empty", |language| language.wrap_boolean(Literal(true)));
         env.add_color("error", crossterm::style::Color::DarkRed);
         env.add_color("warning", crossterm::style::Color::DarkYellow);
@@ -2007,7 +2007,7 @@ mod tests {
 
     #[test]
     fn test_concat_function() {
-        let mut env = TestTemplateEnv::default();
+        let mut env = TestTemplateEnv::new();
         env.add_keyword("empty", |language| language.wrap_boolean(Literal(true)));
         env.add_keyword("hidden", |language| language.wrap_boolean(Literal(false)));
         env.add_color("empty", crossterm::style::Color::DarkGreen);
@@ -2025,7 +2025,7 @@ mod tests {
 
     #[test]
     fn test_separate_function() {
-        let mut env = TestTemplateEnv::default();
+        let mut env = TestTemplateEnv::new();
         env.add_keyword("description", |language| {
             language.wrap_string(Literal("".to_owned()))
         });
@@ -2083,7 +2083,7 @@ mod tests {
 
     #[test]
     fn test_surround_function() {
-        let mut env = TestTemplateEnv::default();
+        let mut env = TestTemplateEnv::new();
         env.add_keyword("lt", |language| {
             language.wrap_string(Literal("<".to_owned()))
         });
