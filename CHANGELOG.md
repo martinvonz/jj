@@ -55,7 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj next/prev` now infer `--edit` when you're already editing a non-head
   commit (a commit with children).
 
-* Built-in pager based on [minus](https://github.com/arijit79/minus/)
+* A new built-in pager named `:builtin` is available on all platforms,
+  implemented with [minus](https://github.com/arijit79/minus/)
 
 * Set config `ui.log-synthetic-elided-nodes = true` to make `jj log` include
   synthetic nodes in the graph where some revisions were elided
@@ -89,7 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * On Windows, symlinks in the repo are now materialized as regular files in the
   working copy (instead of resulting in a crash).
 
-* On Windows, the pager will now be the built-in instead of disabled.
+* On Windows, the `:builtin` pager is now used by default, rather than being
+  disabled entirely.
 
 * Auto-rebase now preserves the shape of history even for merge commits where
   one parent is an ancestor of another.
