@@ -362,6 +362,10 @@ for a comprehensive list.
   tried. If more than one potential trunk commit exists, the newest one is
   chosen. If none of the branches exist, the revset evaluates to `root()`.
 
+  When working with an existing Git repository (via `jj git clone`),
+  `trunk()` will be overridden at the repository level to the default branch of
+  the remote.
+
   You can [override](./config.md) this as appropriate. If you do, make sure it
   always resolves to exactly one commit. For example:
 
