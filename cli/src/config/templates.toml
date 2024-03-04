@@ -25,11 +25,13 @@ separate(" ",
 '''
 
 config_list = '''
-concat(
-  if(overridden, "# "),
-  name,
-  "=",
-  value,
+label(if(overridden, "overridden"),
+  concat(
+    if(overridden, "# "),
+    name,
+    "=",
+    value,
+  ),
 ) ++ "\n"
 '''
 
