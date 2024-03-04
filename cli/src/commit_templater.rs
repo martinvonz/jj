@@ -121,6 +121,18 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
 // If we need to add multiple languages that support Commit types, this can be
 // turned into a trait which extends TemplateLanguage.
 impl<'repo> CommitTemplateLanguage<'repo> {
+    pub fn repo(&self) -> &dyn Repo {
+        self.repo
+    }
+
+    pub fn workspace_id(&self) -> &WorkspaceId {
+        &self.workspace_id
+    }
+
+    pub fn keyword_cache(&self) -> &CommitKeywordCache {
+        &self.keyword_cache
+    }
+
     fn wrap_commit(
         &self,
         property: impl TemplateProperty<Commit, Output = Commit> + 'repo,
@@ -290,7 +302,7 @@ impl<'repo> CommitTemplateBuildFnTable<'repo> {
 }
 
 #[derive(Debug, Default)]
-struct CommitKeywordCache {
+pub struct CommitKeywordCache {
     // Build index lazily, and Rc to get away from &self lifetime.
     branches_index: OnceCell<Rc<RefNamesIndex>>,
     tags_index: OnceCell<Rc<RefNamesIndex>>,
@@ -298,17 +310,17 @@ struct CommitKeywordCache {
 }
 
 impl CommitKeywordCache {
-    fn branches_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
+    pub fn branches_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
         self.branches_index
             .get_or_init(|| Rc::new(build_branches_index(repo)))
     }
 
-    fn tags_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
+    pub fn tags_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
         self.tags_index
             .get_or_init(|| Rc::new(build_ref_names_index(repo.view().tags())))
     }
 
-    fn git_refs_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
+    pub fn git_refs_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
         self.git_refs_index
             .get_or_init(|| Rc::new(build_ref_names_index(repo.view().git_refs())))
     }
@@ -609,7 +621,7 @@ fn builtin_ref_name_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Re
 
 /// Cache for reverse lookup refs.
 #[derive(Clone, Debug, Default)]
-struct RefNamesIndex {
+pub struct RefNamesIndex {
     index: HashMap<CommitId, Vec<RefName>>,
 }
 
@@ -621,7 +633,7 @@ impl RefNamesIndex {
         }
     }
 
-    fn get(&self, id: &CommitId) -> &[RefName] {
+    pub fn get(&self, id: &CommitId) -> &[RefName] {
         if let Some(names) = self.index.get(id) {
             names
         } else {
