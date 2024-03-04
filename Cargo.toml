@@ -56,7 +56,7 @@ glob = "0.3.1"
 hex = "0.4.3"
 ignore = "0.4.20"
 indexmap = "2.2.5"
-insta = { version = "1.35.1", features = ["filters"] }
+insta = { version = "1.36.1", features = ["filters"] }
 itertools = "0.12.1"
 libc = { version = "0.2.153" }
 maplit = "1.0.2"
@@ -64,8 +64,8 @@ minus = { version = "5.5.0", features = [ "dynamic_output", "search" ] }
 num_cpus = "1.16.0"
 once_cell = "1.19.0"
 ouroboros = "0.18.0"
-pest = "2.7.7"
-pest_derive = "2.7.7"
+pest = "2.7.8"
+pest_derive = "2.7.8"
 pollster = "0.3.0"
 pretty_assertions = "1.4.0"
 proc-macro2 = "1.0.78"
@@ -108,7 +108,7 @@ tracing-subscriber = { version = "0.3.18", default-features = false, features = 
 unicode-width = "0.1.11"
 version_check = "0.9.4"
 watchman_client = { version = "0.8.0" }
-whoami = "1.4.1"
+whoami = "1.5.0"
 zstd = "0.12.4"
 
 # put all inter-workspace libraries, i.e. those that use 'path = ...' here in
