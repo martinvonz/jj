@@ -254,6 +254,21 @@ fn test_config_layer_override_default() {
     # merge-tools.vimdiff.program="repo"
     merge-tools.vimdiff.program="command-arg"
     "###);
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "config",
+            "list",
+            "--color=always",
+            config_key,
+            "--include-overridden",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    [38;5;8m# merge-tools.vimdiff.program="user"[39m
+    [38;5;2mmerge-tools.vimdiff.program[39m=[38;5;3m"repo"[39m
+    "###);
 }
 
 #[test]

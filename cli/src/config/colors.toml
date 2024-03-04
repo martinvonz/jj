@@ -59,6 +59,13 @@
 "working_copy placeholder" = "bright red"
 "working_copy description placeholder" = "yellow"
 "working_copy empty description placeholder" = "bright green"
+
+"config_list name" = "green"
+"config_list value" = "yellow"
+"config_list overridden" = "bright black"
+"config_list overridden name" = "bright black"
+"config_list overridden value" = "bright black"
+
 "diff header" = "yellow"
 "diff empty" = "cyan"
 "diff binary" = "cyan"
@@ -67,6 +74,7 @@
 "diff removed" = "red"
 "diff added" = "green"
 "diff modified" = "cyan"
+
 "op_log id" = "blue"
 "op_log user" = "yellow"
 "op_log time" = "cyan"
