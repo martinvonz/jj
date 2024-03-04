@@ -75,14 +75,13 @@ pub(crate) fn cmd_status(
             resolve::print_conflicted_paths(&conflicts, formatter, &workspace_command)?
         }
 
+        let template = workspace_command.commit_summary_template();
         formatter.write_str("Working copy : ")?;
-        formatter.with_label("working_copy", |fmt| {
-            workspace_command.write_commit_summary(fmt, wc_commit)
-        })?;
+        formatter.with_label("working_copy", |fmt| template.format(wc_commit, fmt))?;
         formatter.write_str("\n")?;
         for parent in wc_commit.parents() {
             formatter.write_str("Parent commit: ")?;
-            workspace_command.write_commit_summary(formatter, &parent)?;
+            template.format(&parent, formatter)?;
             formatter.write_str("\n")?;
         }
     } else {

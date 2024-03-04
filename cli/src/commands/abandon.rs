@@ -63,12 +63,13 @@ pub(crate) fn cmd_abandon(
             .write_commit_summary(ui.stderr_formatter().as_mut(), &to_abandon[0])?;
         writeln!(ui.stderr())?;
     } else if !args.summary {
-        writeln!(ui.stderr(), "Abandoned the following commits:")?;
+        let mut formatter = ui.stderr_formatter();
+        let template = tx.base_workspace_helper().commit_summary_template();
+        writeln!(formatter, "Abandoned the following commits:")?;
         for commit in &to_abandon {
-            write!(ui.stderr(), "  ")?;
-            tx.base_workspace_helper()
-                .write_commit_summary(ui.stderr_formatter().as_mut(), commit)?;
-            writeln!(ui.stderr())?;
+            write!(formatter, "  ")?;
+            template.format(commit, formatter.as_mut())?;
+            writeln!(formatter)?;
         }
     } else {
         writeln!(ui.stderr(), "Abandoned {} commits.", &to_abandon.len())?;

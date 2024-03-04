@@ -73,10 +73,11 @@ pub fn choose_commit<'a>(
 ) -> Result<&'a Commit, CommandError> {
     writeln!(ui.stdout(), "ambiguous {cmd} commit, choose one to target:")?;
     let mut formatter = ui.stdout_formatter();
+    let template = workspace_command.commit_summary_template();
     let mut choices: Vec<String> = Default::default();
     for (i, commit) in commits.iter().enumerate() {
         write!(formatter, "{}: ", i + 1)?;
-        workspace_command.write_commit_summary(formatter.as_mut(), commit)?;
+        template.format(commit, formatter.as_mut())?;
         writeln!(formatter)?;
         choices.push(format!("{}", i + 1));
     }
