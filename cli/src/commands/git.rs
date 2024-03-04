@@ -42,8 +42,8 @@ use maplit::hashset;
 
 use crate::cli_util::{
     parse_string_pattern, print_trackable_remote_branches, resolve_multiple_nonempty_revsets,
-    short_change_hash, short_commit_hash, start_repo_transaction, CommandHelper, RevisionArg,
-    WorkspaceCommandHelper,
+    short_change_hash, short_commit_hash, start_repo_transaction, write_config_value_to_file,
+    CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::command_error::{
     user_error, user_error_with_hint, user_error_with_hint_opt, user_error_with_message,
@@ -716,6 +716,14 @@ fn cmd_git_clone(
 
     let (mut workspace_command, stats) = clone_result?;
     if let Some(default_branch) = &stats.default_branch {
+        // Set repository level `trunk()` alias to the default remote branch.
+        let config_path = canonical_wc_path.join(".jj/repo/config.toml");
+        write_config_value_to_file(
+            "revset-aliases.trunk()",
+            &format!("{default_branch}@{remote_name}"),
+            &config_path,
+        )?;
+
         let default_branch_remote_ref = workspace_command
             .repo()
             .view()
