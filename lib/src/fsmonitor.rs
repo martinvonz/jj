@@ -63,7 +63,7 @@ impl FromStr for FsmonitorKind {
 }
 
 /// Filesystem monitor integration using Watchman
-/// (https://facebook.github.io/watchman/). Requires `watchman` to already be
+/// (<https://facebook.github.io/watchman/>). Requires `watchman` to already be
 /// installed on the system.
 #[cfg(feature = "watchman")]
 pub mod watchman {

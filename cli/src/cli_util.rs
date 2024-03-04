@@ -2075,6 +2075,7 @@ impl fmt::Display for RemoteBranchNamePattern {
 /// Jujutsu (An experimental VCS)
 ///
 /// To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/docs/tutorial.md.
+#[allow(rustdoc::bare_urls)]
 #[derive(clap::Parser, Clone, Debug)]
 #[command(name = "jj")]
 pub struct Args {
