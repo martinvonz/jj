@@ -275,11 +275,13 @@ fn cmd_workspace_list(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
+    let mut formatter = ui.stdout_formatter();
+    let template = workspace_command.commit_summary_template();
     for (workspace_id, wc_commit_id) in repo.view().wc_commit_ids().iter().sorted() {
-        write!(ui.stdout(), "{}: ", workspace_id.as_str())?;
+        write!(formatter, "{}: ", workspace_id.as_str())?;
         let commit = repo.store().get_commit(wc_commit_id)?;
-        workspace_command.write_commit_summary(ui.stdout_formatter().as_mut(), &commit)?;
-        writeln!(ui.stdout())?;
+        template.format(&commit, formatter.as_mut())?;
+        writeln!(formatter)?;
     }
     Ok(())
 }

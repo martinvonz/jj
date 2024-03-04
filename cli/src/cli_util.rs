@@ -906,12 +906,16 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         self.parse_template(&language, template_text)
     }
 
-    fn commit_summary_template(&self) -> Box<dyn Template<Commit> + '_> {
+    /// Template for one-line summary of a commit.
+    pub fn commit_summary_template(&self) -> Box<dyn Template<Commit> + '_> {
         self.parse_commit_template(&self.commit_summary_template_text)
             .expect("parse error should be confined by WorkspaceCommandHelper::new()")
     }
 
     /// Returns one-line summary of the given `commit`.
+    ///
+    /// Use `write_commit_summary()` to get colorized output. Use
+    /// `commit_summary_template()` if you have many commits to process.
     pub fn format_commit_summary(&self, commit: &Commit) -> String {
         let mut output = Vec::new();
         self.write_commit_summary(&mut PlainTextFormatter::new(&mut output), commit)
@@ -920,6 +924,8 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
     }
 
     /// Writes one-line summary of the given `commit`.
+    ///
+    /// Use `commit_summary_template()` if you have many commits to process.
     #[instrument(skip_all)]
     pub fn write_commit_summary(
         &self,
@@ -1098,16 +1104,16 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             new_commit,
         )?;
         if Some(new_commit) != maybe_old_commit {
-            write!(ui.stderr(), "Working copy now at: ")?;
-            ui.stderr_formatter().with_label("working_copy", |fmt| {
-                self.write_commit_summary(fmt, new_commit)
-            })?;
-            writeln!(ui.stderr())?;
+            let mut formatter = ui.stderr_formatter();
+            let template = self.commit_summary_template();
+            write!(formatter, "Working copy now at: ")?;
+            formatter.with_label("working_copy", |fmt| template.format(new_commit, fmt))?;
+            writeln!(formatter)?;
             for parent in new_commit.parents() {
-                //                  "Working copy now at: "
-                write!(ui.stderr(), "Parent commit      : ")?;
-                self.write_commit_summary(ui.stderr_formatter().as_mut(), &parent)?;
-                writeln!(ui.stderr())?;
+                //                "Working copy now at: "
+                write!(formatter, "Parent commit      : ")?;
+                template.format(&parent, formatter.as_mut())?;
+                writeln!(formatter)?;
             }
         }
         if let Some(stats) = stats {
@@ -1231,6 +1237,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
 
         // TODO: Also report new divergence and maybe resolved divergence
         let mut fmt = ui.stderr_formatter();
+        let template = self.commit_summary_template();
         if !resolved_conflicts_by_change_id.is_empty() {
             writeln!(
                 fmt,
@@ -1242,7 +1249,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                 // repo, which isn't currently supported by Google's revset engine.
                 for commit in old_commits {
                     write!(fmt, "  ")?;
-                    self.write_commit_summary(fmt.as_mut(), commit)?;
+                    template.format(commit, fmt.as_mut())?;
                     writeln!(fmt)?;
                 }
             }
@@ -1252,7 +1259,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             for (_, new_commits) in &new_conflicts_by_change_id {
                 for commit in new_commits {
                     write!(fmt, "  ")?;
-                    self.write_commit_summary(fmt.as_mut(), commit)?;
+                    template.format(commit, fmt.as_mut())?;
                     writeln!(fmt)?;
                 }
             }
