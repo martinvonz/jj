@@ -103,7 +103,7 @@ fn test_unsquash() {
     "###);
 
     // Can unsquash from a merge commit
-    test_env.jj_cmd_ok(&repo_path, &["co", "e"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "e"]);
     std::fs::write(repo_path.join("file1"), "e\n").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(stdout, @"");
