@@ -121,7 +121,7 @@ fn test_next_fails_on_merge_commit() {
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["branch", "c", "left"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
     test_env.jj_cmd_ok(&repo_path, &["branch", "c", "right"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "left", "right"]);
@@ -139,9 +139,9 @@ fn test_next_fails_on_branching_children_no_stdin() {
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
-    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
 
     // Try to advance the working copy commit.
     let assert = test_env.jj_cmd(&repo_path, &["next"]).assert().code(1);
@@ -158,9 +158,9 @@ fn test_next_fails_on_branching_children_quit_prompt() {
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
-    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
 
     // Try to advance the working copy commit.
     let assert = test_env
@@ -188,9 +188,9 @@ fn test_next_choose_branching_child() {
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
-    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
     // Advance the working copy commit.
     let (stdout, stderr) = test_env.jj_cmd_stdin_ok(&repo_path, &["next"], "1\n");
     insta::assert_snapshot!(stdout,@r###"
@@ -213,7 +213,7 @@ fn test_prev_fails_on_merge_commit() {
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["branch", "c", "left"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
     test_env.jj_cmd_ok(&repo_path, &["branch", "c", "right"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "left", "right"]);
@@ -231,7 +231,7 @@ fn test_prev_fails_on_multiple_parents() {
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["branch", "c", "left"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_ok(&repo_path, &["co", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
     test_env.jj_cmd_ok(&repo_path, &["branch", "c", "right"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
     // Create a merge commit, which has two parents.
