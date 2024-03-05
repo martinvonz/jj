@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::any::Any;
 use std::cmp::max;
 use std::collections::HashMap;
 use std::io;
@@ -20,6 +21,7 @@ use std::rc::Rc;
 use itertools::Itertools as _;
 use jj_lib::backend::{ChangeId, CommitId};
 use jj_lib::commit::Commit;
+use jj_lib::extensions_map::ExtensionsMap;
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::object_id::ObjectId as _;
@@ -42,6 +44,8 @@ use crate::text_util;
 
 pub trait CommitTemplateLanguageExtension {
     fn build_fn_table<'repo>(&self) -> CommitTemplateBuildFnTable<'repo>;
+
+    fn build_cache_extensions(&self, extensions: &mut ExtensionsMap);
 }
 
 pub struct CommitTemplateLanguage<'repo> {
@@ -50,6 +54,7 @@ pub struct CommitTemplateLanguage<'repo> {
     id_prefix_context: &'repo IdPrefixContext,
     build_fn_table: CommitTemplateBuildFnTable<'repo>,
     keyword_cache: CommitKeywordCache,
+    cache_extensions: ExtensionsMap,
 }
 
 impl<'repo> CommitTemplateLanguage<'repo> {
@@ -62,15 +67,22 @@ impl<'repo> CommitTemplateLanguage<'repo> {
         extension: Option<&dyn CommitTemplateLanguageExtension>,
     ) -> Self {
         let mut build_fn_table = CommitTemplateBuildFnTable::builtin();
+        let mut cache_extensions = ExtensionsMap::empty();
+
+        // TODO: Extension methods should be refactored to be plural, to support
+        // multiple extensions in a dynamic load environment
         if let Some(extension) = extension {
             build_fn_table.merge(extension.build_fn_table());
+            extension.build_cache_extensions(&mut cache_extensions);
         }
+
         CommitTemplateLanguage {
             repo,
             workspace_id: workspace_id.clone(),
             id_prefix_context,
             build_fn_table,
             keyword_cache: CommitKeywordCache::default(),
+            cache_extensions,
         }
     }
 }
@@ -154,6 +166,10 @@ impl<'repo> CommitTemplateLanguage<'repo> {
 
     pub fn keyword_cache(&self) -> &CommitKeywordCache {
         &self.keyword_cache
+    }
+
+    pub fn cache_extension<T: Any>(&self) -> Option<&T> {
+        self.cache_extensions.get::<T>()
     }
 
     pub fn wrap_commit(
