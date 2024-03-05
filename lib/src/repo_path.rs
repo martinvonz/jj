@@ -203,11 +203,15 @@ impl RepoPathBuf {
 
     /// Converts repo-relative `Path` to `RepoPathBuf`.
     ///
-    /// The input path should not contain `.` or `..`.
+    /// The input path should not contain redundant `.` or `..`.
     pub fn from_relative_path(
         relative_path: impl AsRef<Path>,
     ) -> Result<Self, RelativePathParseError> {
         let relative_path = relative_path.as_ref();
+        if relative_path == Path::new(".") {
+            return Ok(Self::root());
+        }
+
         let mut components = relative_path
             .components()
             .map(|c| match c {
@@ -247,9 +251,6 @@ impl RepoPathBuf {
         let input = input.as_ref();
         let abs_input_path = file_util::normalize_path(&cwd.join(input));
         let repo_relative_path = file_util::relative_path(base, &abs_input_path);
-        if repo_relative_path == Path::new(".") {
-            return Ok(Self::root());
-        }
         Self::from_relative_path(repo_relative_path).map_err(|source| FsPathParseError {
             base: file_util::relative_path(cwd, base).into(),
             input: input.into(),
@@ -303,6 +304,9 @@ impl RepoPath {
         let mut result = PathBuf::with_capacity(base.as_os_str().len() + self.value.len() + 1);
         result.push(base);
         result.extend(self.components().map(RepoPathComponent::as_str));
+        if result.as_os_str().is_empty() {
+            result.push(".");
+        }
         result
     }
 
@@ -646,7 +650,7 @@ mod tests {
             repo_path("").to_fs_path(Path::new("base/dir")),
             Path::new("base/dir")
         );
-        assert_eq!(repo_path("").to_fs_path(Path::new("")), Path::new(""));
+        assert_eq!(repo_path("").to_fs_path(Path::new("")), Path::new("."));
         assert_eq!(
             repo_path("file").to_fs_path(Path::new("base/dir")),
             Path::new("base/dir/file")
