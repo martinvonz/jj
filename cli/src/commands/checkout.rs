@@ -24,7 +24,6 @@ use crate::ui::Ui;
 /// For more information, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
-#[command(visible_aliases = &["co"])]
 pub(crate) struct CheckoutArgs {
     /// The revision to update to
     revision: RevisionArg,

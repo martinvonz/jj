@@ -1,5 +1,7 @@
+# The code assumes that this table exists, so don't delete it even if you remove
+# all aliases from here.
 [aliases]
-# Placeholder: added by user
+co = ["checkout"]
 
 [format]
 tree-level-conflicts = true
