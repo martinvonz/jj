@@ -183,7 +183,7 @@ impl UserSettings {
     pub fn operation_hostname(&self) -> String {
         self.config
             .get_string("operation.hostname")
-            .unwrap_or_else(|_| whoami::hostname())
+            .unwrap_or_else(|_| whoami::fallible::hostname().expect("valid hostname"))
     }
 
     pub fn operation_username(&self) -> String {
