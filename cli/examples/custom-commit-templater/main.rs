@@ -17,19 +17,24 @@ use jj_cli::commit_templater::{CommitTemplateBuildFnTable, CommitTemplateLanguag
 use jj_cli::template_builder::TemplateLanguage;
 use jj_cli::template_parser::{self, TemplateParseError};
 use jj_cli::templater::{TemplateFunction, TemplatePropertyError};
+use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
+use jj_lib::extensions_map::ExtensionsMap;
 use jj_lib::object_id::ObjectId;
+use jj_lib::repo::Repo;
+use jj_lib::revset::RevsetExpression;
+use once_cell::sync::OnceCell;
 
 struct HexCounter;
 
-fn num_digits_in_id(commit: Commit) -> Result<i64, TemplatePropertyError> {
+fn num_digits_in_id(id: &CommitId) -> i64 {
     let mut count = 0;
-    for ch in commit.id().hex().chars() {
+    for ch in id.hex().chars() {
         if ch.is_ascii_digit() {
             count += 1;
         }
     }
-    Ok(count)
+    count
 }
 
 fn num_char_in_id(commit: Commit, ch_match: char) -> Result<i64, TemplatePropertyError> {
@@ -42,14 +47,57 @@ fn num_char_in_id(commit: Commit, ch_match: char) -> Result<i64, TemplatePropert
     Ok(count)
 }
 
+struct MostDigitsInId {
+    count: OnceCell<i64>,
+}
+
+impl MostDigitsInId {
+    fn new() -> Self {
+        Self {
+            count: OnceCell::new(),
+        }
+    }
+
+    fn count(&self, repo: &dyn Repo) -> i64 {
+        *self.count.get_or_init(|| {
+            RevsetExpression::all()
+                .evaluate_programmatic(repo)
+                .unwrap()
+                .iter()
+                .map(|id| num_digits_in_id(&id))
+                .max()
+                .unwrap_or(0)
+        })
+    }
+}
+
 impl CommitTemplateLanguageExtension for HexCounter {
     fn build_fn_table<'repo>(&self) -> CommitTemplateBuildFnTable<'repo> {
         let mut table = CommitTemplateBuildFnTable::empty();
         table.commit_methods.insert(
+            "has_most_digits",
+            |language, _build_context, property, call| {
+                template_parser::expect_no_arguments(call)?;
+                let most_digits = language
+                    .cache_extension::<MostDigitsInId>()
+                    .unwrap()
+                    .count(language.repo());
+                Ok(
+                    language.wrap_boolean(TemplateFunction::new(property, move |commit| {
+                        Ok(num_digits_in_id(commit.id()) == most_digits)
+                    })),
+                )
+            },
+        );
+        table.commit_methods.insert(
             "num_digits_in_id",
             |language, _build_context, property, call| {
                 template_parser::expect_no_arguments(call)?;
-                Ok(language.wrap_integer(TemplateFunction::new(property, num_digits_in_id)))
+                Ok(
+                    language.wrap_integer(TemplateFunction::new(property, |commit| {
+                        Ok(num_digits_in_id(commit.id()))
+                    })),
+                )
             },
         );
         table.commit_methods.insert(
@@ -77,6 +125,10 @@ impl CommitTemplateLanguageExtension for HexCounter {
         );
 
         table
+    }
+
+    fn build_cache_extensions(&self, extensions: &mut ExtensionsMap) {
+        extensions.insert(MostDigitsInId::new());
     }
 }
 
