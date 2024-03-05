@@ -1015,12 +1015,14 @@ mod tests {
         let id_3 = CommitId::from_hex("333333");
         let id_4 = CommitId::from_hex("444444");
         let id_5 = CommitId::from_hex("555555");
+        let id_6 = CommitId::from_hex("666666");
         index.add_commit_data(id_0.clone(), new_change_id(), &[]);
         index.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
         index.add_commit_data(id_2.clone(), new_change_id(), &[id_0.clone()]);
         index.add_commit_data(id_3.clone(), new_change_id(), &[id_0.clone()]);
         index.add_commit_data(id_4.clone(), new_change_id(), &[id_1.clone()]);
         index.add_commit_data(id_5.clone(), new_change_id(), &[id_4.clone(), id_2.clone()]);
+        index.add_commit_data(id_6.clone(), new_change_id(), &[id_4.clone()]);
 
         assert_eq!(
             index.common_ancestors(&[id_0.clone()], &[id_0.clone()]),
@@ -1054,6 +1056,10 @@ mod tests {
             index.common_ancestors(&[id_5.clone()], &[id_3.clone()]),
             vec![id_0.clone()]
         );
+        assert_eq!(
+            index.common_ancestors(&[id_2.clone()], &[id_6.clone()]),
+            vec![id_0.clone()]
+        );
 
         // With multiple commits in an input set
         assert_eq!(
@@ -1072,6 +1078,12 @@ mod tests {
             index.common_ancestors(&[id_1.clone(), id_2.clone()], &[id_4]),
             vec![id_1.clone()]
         );
+        assert_eq!(
+            index.common_ancestors(&[id_5.clone(), id_6.clone()], &[id_2.clone()]),
+            &[id_2.clone()]
+        );
+        // Both 1 and 2 are returned since (5) expands to (2, 4), which expands
+        // to (1,2) and matches the (1,2) of the first input set.
         assert_eq!(
             index.common_ancestors(&[id_1.clone(), id_2.clone()], &[id_5]),
             vec![id_1.clone(), id_2.clone()]
