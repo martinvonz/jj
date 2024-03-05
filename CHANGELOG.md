@@ -122,9 +122,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `jj checkout` and `jj merge` will no longer be shown as part of `jj help`, but
   will still function for now, emitting a warning about their deprecation.
 
-  **Deadline**: `jj checkout` and `jj merge` will be deleted and are expected
-  become a **hard error later in 2024**.
-
 * `jj init --git` and `jj init --git-repo` are now deprecated and will be removed
   in the near future.
 

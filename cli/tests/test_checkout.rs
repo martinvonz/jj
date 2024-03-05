@@ -30,7 +30,6 @@ fn test_checkout() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     warning: `jj checkout` is deprecated; use `jj new` instead, which is equivalent
-    warning: `jj checkout` will be removed in a future version, and this will be a hard error
     Working copy now at: zsuskuln 05ce7118 (empty) (no description set)
     Parent commit      : rlvkpnrz 5c52832c (empty) second
     "###);
@@ -67,7 +66,6 @@ fn test_checkout_not_single_rev() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "root()..@"]);
     insta::assert_snapshot!(stderr, @r###"
     warning: `jj checkout` is deprecated; use `jj new` instead, which is equivalent
-    warning: `jj checkout` will be removed in a future version, and this will be a hard error
     Error: Revset "root()..@" resolved to more than one revision
     Hint: The revset "root()..@" resolved to these revisions:
     royxmykx 2f859371 (empty) (no description set)
@@ -81,7 +79,6 @@ fn test_checkout_not_single_rev() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "root()..@-"]);
     insta::assert_snapshot!(stderr, @r###"
     warning: `jj checkout` is deprecated; use `jj new` instead, which is equivalent
-    warning: `jj checkout` will be removed in a future version, and this will be a hard error
     Error: Revset "root()..@-" resolved to more than one revision
     Hint: The revset "root()..@-" resolved to these revisions:
     mzvwutvl 5c1afd8b (empty) fifth
@@ -94,7 +91,6 @@ fn test_checkout_not_single_rev() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "@-|@--"]);
     insta::assert_snapshot!(stderr, @r###"
     warning: `jj checkout` is deprecated; use `jj new` instead, which is equivalent
-    warning: `jj checkout` will be removed in a future version, and this will be a hard error
     Error: Revset "@-|@--" resolved to more than one revision
     Hint: The revset "@-|@--" resolved to these revisions:
     mzvwutvl 5c1afd8b (empty) fifth
@@ -104,7 +100,6 @@ fn test_checkout_not_single_rev() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "none()"]);
     insta::assert_snapshot!(stderr, @r###"
     warning: `jj checkout` is deprecated; use `jj new` instead, which is equivalent
-    warning: `jj checkout` will be removed in a future version, and this will be a hard error
     Error: Revset "none()" didn't resolve to any revisions
     "###);
 }
