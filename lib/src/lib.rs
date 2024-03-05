@@ -36,6 +36,7 @@ pub mod dag_walk;
 pub mod default_index;
 pub mod default_submodule_store;
 pub mod diff;
+pub mod extensions_map;
 pub mod file_util;
 pub mod files;
 pub mod fmt_util;
