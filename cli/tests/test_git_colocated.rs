@@ -452,7 +452,7 @@ fn test_git_colocated_checkout_non_empty_working_copy() {
     std::fs::write(workspace_root.join("two"), "y").unwrap();
 
     test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "two"]);
-    test_env.jj_cmd_ok(&workspace_root, &["co", "@-"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "@-"]);
     let (_, stderr) = test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "new"]);
     insta::assert_snapshot!(stderr, @r###"
     Working copy now at: kkmpptxz 4c049607 (empty) new
