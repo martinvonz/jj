@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `ui.default-command` now accepts multiple string arguments, for more complex
   default `jj` commands.
 
+* Graph node symbols are now configurable via `ui.graph.default_node` and `ui.graph.elided_node`.
+
 ### Fixed bugs
 
 ## [0.15.1] - 2024-03-06

@@ -1410,3 +1410,71 @@ fn test_elided() {
     ◉
     "###);
 }
+
+#[test]
+fn test_custom_symbols() {
+    // Test that elided commits are shown as synthetic nodes.
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "initial"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "main branch 1"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "main branch 2"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@--", "-m", "side branch 1"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "side branch 2"]);
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["new", "-m", "merge", r#"description("main branch 2")"#, "@"],
+    );
+
+    let get_log = |revs: &str| -> String {
+        test_env.jj_cmd_success(
+            &repo_path,
+            &["log", "-T", r#"description ++ "\n""#, "-r", revs],
+        )
+    };
+
+    // Simple test with showing default and elided nodes.
+    test_env.add_config(concat!(
+        "ui.log-synthetic-elided-nodes = true\n",
+        "ui.graph.default_node = '┝'\n",
+        "ui.graph.elided_node = '🮀'",
+    ));
+    insta::assert_snapshot!(get_log("@ | @- | description(initial)"), @r###"
+    @    merge
+    ├─╮
+    │ ┝  side branch 2
+    │ │
+    │ 🮀  (elided revisions)
+    ┝ │  main branch 2
+    │ │
+    🮀 │  (elided revisions)
+    ├─╯
+    ┝  initial
+    │
+    ~
+    "###);
+
+    // Simple test with showing default and elided nodes, ascii style.
+    test_env.add_config(concat!(
+        "ui.log-synthetic-elided-nodes = true\n",
+        "ui.graph.style = 'ascii'\n",
+        "ui.graph.default_node = '*'\n",
+        "ui.graph.elided_node = ':'",
+    ));
+    insta::assert_snapshot!(get_log("@ | @- | description(initial)"), @r###"
+    @    merge
+    |\
+    | *  side branch 2
+    | |
+    | :  (elided revisions)
+    * |  main branch 2
+    | |
+    : |  (elided revisions)
+    |/
+    *  initial
+    |
+    ~
+    "###);
+}
