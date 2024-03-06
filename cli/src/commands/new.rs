@@ -24,6 +24,7 @@ use tracing::instrument;
 
 use crate::cli_util::{self, short_commit_hash, CommandHelper, RevisionArg};
 use crate::command_error::{user_error, CommandError};
+use crate::description_util::join_message_paragraphs;
 use crate::ui::Ui;
 
 /// Create a new, empty change and (by default) edit it in the working copy
@@ -141,7 +142,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         new_commit = tx
             .mut_repo()
             .new_commit(command.settings(), new_parents_commit_id, merged_tree.id())
-            .set_description(cli_util::join_message_paragraphs(&args.message_paragraphs))
+            .set_description(join_message_paragraphs(&args.message_paragraphs))
             .write()?;
         num_rebased = target_ids.len();
         for child_commit in target_commits {
@@ -173,7 +174,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         new_commit = tx
             .mut_repo()
             .new_commit(command.settings(), target_ids.clone(), merged_tree.id())
-            .set_description(cli_util::join_message_paragraphs(&args.message_paragraphs))
+            .set_description(join_message_paragraphs(&args.message_paragraphs))
             .write()?;
         num_rebased = commits_to_rebase.len();
         for child_commit in commits_to_rebase {

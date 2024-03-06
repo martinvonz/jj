@@ -2150,19 +2150,6 @@ pub struct EarlyArgs {
     pub config_toml: Vec<String>,
 }
 
-/// Create a description from a list of paragraphs.
-///
-/// Based on the Git CLI behavior. See `opt_parse_m()` and `cleanup_mode` in
-/// `git/builtin/commit.c`.
-pub fn join_message_paragraphs(paragraphs: &[String]) -> String {
-    // Ensure each paragraph ends with a newline, then add another newline between
-    // paragraphs.
-    paragraphs
-        .iter()
-        .map(|p| text_util::complete_newline(p.as_str()))
-        .join("\n")
-}
-
 #[derive(Clone, Debug)]
 pub struct RevisionArg(String);
 
