@@ -242,6 +242,21 @@ impl UserSettings {
             .unwrap_or_else(|_| "curved".to_string())
     }
 
+    pub fn node_symbols(&self) -> (String, String) {
+        let default_node_symbol = self.config.get_string("ui.graph.default_node");
+        let elided_node_symbol = self.config.get_string("ui.graph.elided_node");
+        match self.graph_style().as_str() {
+            "ascii" | "ascii-large" => (
+                default_node_symbol.unwrap_or("o".to_owned()),
+                elided_node_symbol.unwrap_or(".".to_owned()),
+            ),
+            _ => (
+                default_node_symbol.unwrap_or("◉".to_owned()),
+                elided_node_symbol.unwrap_or("◌".to_owned()),
+            ),
+        }
+    }
+
     pub fn max_new_file_size(&self) -> Result<u64, config::ConfigError> {
         let cfg = self
             .config

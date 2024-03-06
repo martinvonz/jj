@@ -124,16 +124,33 @@ pub fn get_graphlog<'a, K: Clone + Eq + Hash + 'a>(
 ) -> Box<dyn GraphLog<K> + 'a> {
     let builder = GraphRowRenderer::new().output().with_min_row_height(0);
 
+    let (default_node_symbol, elided_node_symbol) = settings.node_symbols();
+
     match settings.graph_style().as_str() {
         "square" => SaplingGraphLog::create(
             builder.build_box_drawing().with_square_glyphs(),
             formatter,
-            "◉",
-            "◌",
+            &default_node_symbol,
+            &elided_node_symbol,
         ),
-        "ascii" => SaplingGraphLog::create(builder.build_ascii(), formatter, "o", "."),
-        "ascii-large" => SaplingGraphLog::create(builder.build_ascii_large(), formatter, "o", "."),
+        "ascii" => SaplingGraphLog::create(
+            builder.build_ascii(),
+            formatter,
+            &default_node_symbol,
+            &elided_node_symbol,
+        ),
+        "ascii-large" => SaplingGraphLog::create(
+            builder.build_ascii_large(),
+            formatter,
+            &default_node_symbol,
+            &elided_node_symbol,
+        ),
         // "curved"
-        _ => SaplingGraphLog::create(builder.build_box_drawing(), formatter, "◉", "◌"),
+        _ => SaplingGraphLog::create(
+            builder.build_box_drawing(),
+            formatter,
+            &default_node_symbol,
+            &elided_node_symbol,
+        ),
     }
 }
