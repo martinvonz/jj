@@ -15,7 +15,7 @@
 use core::fmt;
 use std::collections::{HashMap, HashSet};
 use std::env::{self, ArgsOs, VarError};
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::fmt::Debug;
 use std::io::{self, Write as _};
 use std::ops::Deref;
@@ -27,9 +27,11 @@ use std::sync::Arc;
 use std::time::SystemTime;
 use std::{fs, str};
 
-use clap::builder::{NonEmptyStringValueParser, TypedValueParser, ValueParserFactory};
+use clap::builder::{
+    MapValueParser, NonEmptyStringValueParser, TypedValueParser, ValueParserFactory,
+};
 use clap::error::{ContextKind, ContextValue};
-use clap::{Arg, ArgAction, ArgMatches, Command, FromArgMatches};
+use clap::{ArgAction, ArgMatches, Command, FromArgMatches};
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jj_lib::backend::{ChangeId, CommitId, MergedTreeId};
@@ -2161,28 +2163,11 @@ impl Deref for RevisionArg {
     }
 }
 
-#[derive(Clone)]
-pub struct RevisionArgValueParser;
-
-impl TypedValueParser for RevisionArgValueParser {
-    type Value = RevisionArg;
-
-    fn parse_ref(
-        &self,
-        cmd: &Command,
-        arg: Option<&Arg>,
-        value: &OsStr,
-    ) -> Result<Self::Value, clap::Error> {
-        let string = NonEmptyStringValueParser::new().parse(cmd, arg, value.to_os_string())?;
-        Ok(RevisionArg(string))
-    }
-}
-
 impl ValueParserFactory for RevisionArg {
-    type Parser = RevisionArgValueParser;
+    type Parser = MapValueParser<NonEmptyStringValueParser, fn(String) -> RevisionArg>;
 
-    fn value_parser() -> RevisionArgValueParser {
-        RevisionArgValueParser
+    fn value_parser() -> Self::Parser {
+        NonEmptyStringValueParser::new().map(RevisionArg)
     }
 }
 
