@@ -1,0 +1,1725 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://martinvonz.github.io/jj/v0.15.0/revsets/">
+      
+      
+        <link rel="prev" href="../config/">
+      
+      
+        <link rel="next" href="../templates/">
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.5.8">
+    
+    
+      
+        <title>Revset language - Jujutsu docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.f2e4d321.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#revsets" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Jujutsu docs" class="md-header__button md-logo" aria-label="Jujutsu docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Jujutsu docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Revset language
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9h-1.9M20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69m-9.15 3.96h2.3L12 9l-1.15 3.65Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Jujutsu docs" class="md-nav__button md-logo" aria-label="Jujutsu docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    Jujutsu docs
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Getting started
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install-and-setup/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation and Setup
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tutorial and Birds-Eye View
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../github/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working with GitHub
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../windows/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working on Windows
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../FAQ/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FAQ
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli-reference/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CLI Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testimonials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testimonials
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Concepts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../working-copy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working Copy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../branches/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Branches
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../conflicts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conflicts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operation-log/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Operation Log
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../glossary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Glossary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Configuration
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Configuration
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Settings
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Revset language
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Revset language
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#symbols" class="md-nav__link">
+    <span class="md-ellipsis">
+      Symbols
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Symbols">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      Priority
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#operators" class="md-nav__link">
+    <span class="md-ellipsis">
+      Operators
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Functions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#string-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      String patterns
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Aliases
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Aliases">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#built-in-aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Built-in Aliases
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../templates/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Templating language
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Comparisons
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Comparisons
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../git-comparison/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Git comparison
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../git-compatibility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Git compatibility
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sapling-comparison/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sapling
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../related-work/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Other related work
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Technical details
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            Technical details
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/concurrency/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Concurrency
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../technical/conflicts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conflicts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Contributing
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            Contributing
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Guidelines and "How to...?"
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../code-of-conduct/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Code of conduct
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Design docs
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            Design docs
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/git-submodules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    git-submodules
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/git-submodule-storage/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    git-submodule-storage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/run/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JJ run
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/sparse-v2/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sparse Patterns v2
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../design/tracking-branches/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tracking branches
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#symbols" class="md-nav__link">
+    <span class="md-ellipsis">
+      Symbols
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Symbols">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#priority" class="md-nav__link">
+    <span class="md-ellipsis">
+      Priority
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#operators" class="md-nav__link">
+    <span class="md-ellipsis">
+      Operators
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Functions
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#string-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      String patterns
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Aliases
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Aliases">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#built-in-aliases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Built-in Aliases
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+<h1 id="revsets">Revsets<a class="headerlink" href="#revsets" title="Permanent link">&para;</a></h1>
+<p>Jujutsu supports a functional language for selecting a set of revisions.
+Expressions in this language are called "revsets" (the idea comes from
+<a href="https://www.mercurial-scm.org/repo/hg/help/revsets">Mercurial</a>). The language
+consists of symbols, operators, and functions.</p>
+<p>Most <code>jj</code> commands accept a revset (or multiple). Many commands, such as
+<code>jj diff -r &lt;revset&gt;</code> expect the revset to resolve to a single commit; it is
+an error to pass a revset that resolves to more than one commit (or zero
+commits) to such commands.</p>
+<p>The words "revisions" and "commits" are used interchangeably in this document.</p>
+<p>Most revsets search only the <a href="../glossary/#visible-commits">visible commits</a>.
+Other commits are only included if you explicitly mention them (e.g. by commit
+ID or a Git ref pointing to them).</p>
+<h2 id="symbols">Symbols<a class="headerlink" href="#symbols" title="Permanent link">&para;</a></h2>
+<p>The <code>@</code> expression refers to the working copy commit in the current workspace.
+Use <code>&lt;workspace name&gt;@</code> to refer to the working-copy commit in another
+workspace. Use <code>&lt;name&gt;@&lt;remote&gt;</code> to refer to a remote-tracking branch.</p>
+<p>A full commit ID refers to a single commit. A unique prefix of the full commit
+ID can also be used. It is an error to use a non-unique prefix.</p>
+<p>A full change ID refers to all visible commits with that change ID (there is
+typically only one visible commit with a given change ID). A unique prefix of
+the full change ID can also be used. It is an error to use a non-unique prefix.</p>
+<p>Use double quotes to prevent a symbol from being interpreted as an expression.
+For example, <code>"x-"</code> is the symbol <code>x-</code>, not the parents of symbol <code>x</code>.
+Taking shell quoting into account, you may need to use something like
+<code>jj log -r '"x-"'</code>.</p>
+<h3 id="priority">Priority<a class="headerlink" href="#priority" title="Permanent link">&para;</a></h3>
+<p>Jujutsu attempts to resolve a symbol in the following order:</p>
+<ol>
+<li>Tag name</li>
+<li>Branch name</li>
+<li>Git ref</li>
+<li>Commit ID or change ID</li>
+</ol>
+<h2 id="operators">Operators<a class="headerlink" href="#operators" title="Permanent link">&para;</a></h2>
+<p>The following operators are supported. <code>x</code> and <code>y</code> below can be any revset, not
+only symbols.</p>
+<ul>
+<li><code>x &amp; y</code>: Revisions that are in both <code>x</code> and <code>y</code>.</li>
+<li><code>x | y</code>: Revisions that are in either <code>x</code> or <code>y</code> (or both).</li>
+<li><code>x ~ y</code>: Revisions that are in <code>x</code> but not in <code>y</code>.</li>
+<li><code>~x</code>: Revisions that are not in <code>x</code>.</li>
+<li><code>x-</code>: Parents of <code>x</code>.</li>
+<li><code>x+</code>: Children of <code>x</code>.</li>
+<li><code>::x</code>: Ancestors of <code>x</code>, including the commits in <code>x</code> itself.</li>
+<li><code>x::</code>: Descendants of <code>x</code>, including the commits in <code>x</code> itself.</li>
+<li><code>x::y</code>: Descendants of <code>x</code> that are also ancestors of <code>y</code>. Equivalent
+   to <code>x:: &amp; ::y</code>. This is what <code>git log</code> calls <code>--ancestry-path x..y</code>.</li>
+<li><code>::</code>: All visible commits in the repo. Equivalent to <code>all()</code>.</li>
+<li><code>x..y</code>: Ancestors of <code>y</code> that are not also ancestors of <code>x</code>. Equivalent to
+  <code>::y ~ ::x</code>. This is what <code>git log</code> calls <code>x..y</code> (i.e. the same as we call it).</li>
+<li><code>..x</code>: Ancestors of <code>x</code>, including the commits in <code>x</code> itself, but excluding
+  the root commit. Equivalent to <code>::x ~ root()</code>.</li>
+<li><code>x..</code>: Revisions that are not ancestors of <code>x</code>.</li>
+<li><code>..</code>: All visible commits in the repo, but excluding the root commit.
+  Equivalent to <code>~root()</code>.</li>
+</ul>
+<p>You can use parentheses to control evaluation order, such as <code>(x &amp; y) | z</code> or
+<code>x &amp; (y | z)</code>.</p>
+<h2 id="functions">Functions<a class="headerlink" href="#functions" title="Permanent link">&para;</a></h2>
+<p>You can also specify revisions by using functions. Some functions take other
+revsets (expressions) as arguments.</p>
+<ul>
+<li>
+<p><code>parents(x)</code>: Same as <code>x-</code>.</p>
+</li>
+<li>
+<p><code>children(x)</code>: Same as <code>x+</code>.</p>
+</li>
+<li>
+<p><code>ancestors(x[, depth])</code>: <code>ancestors(x)</code> is the same as <code>::x</code>.
+  <code>ancestors(x, depth)</code> returns the ancestors of <code>x</code> limited to the given
+  <code>depth</code>.</p>
+</li>
+<li>
+<p><code>descendants(x)</code>: Same as <code>x::</code>.</p>
+</li>
+<li>
+<p><code>connected(x)</code>: Same as <code>x::x</code>. Useful when <code>x</code> includes several commits.</p>
+</li>
+<li>
+<p><code>all()</code>: All visible commits in the repo.</p>
+</li>
+<li>
+<p><code>none()</code>: No commits. This function is rarely useful; it is provided for
+  completeness.</p>
+</li>
+<li>
+<p><code>branches([pattern])</code>: All local branch targets. If <code>pattern</code> is specified,
+  this selects the branches whose name match the given <a href="#string-patterns">string
+  pattern</a>. For example, <code>branches(push)</code> would match the
+  branches <code>push-123</code> and <code>repushed</code> but not the branch <code>main</code>. If a branch is
+  in a conflicted state, all its possible targets are included.</p>
+</li>
+<li>
+<p><code>remote_branches([branch_pattern[, [remote=]remote_pattern]])</code>: All remote
+  branch targets across all remotes. If just the <code>branch_pattern</code> is
+  specified, the branches whose names match the given <a href="#string-patterns">string
+  pattern</a> across all remotes are selected. If both
+  <code>branch_pattern</code> and <code>remote_pattern</code> are specified, the selection is
+  further restricted to just the remotes whose names match <code>remote_pattern</code>.</p>
+<p>For example, <code>remote_branches(push, ri)</code> would match the branches
+<code>push-123@origin</code> and <code>repushed@private</code> but not <code>push-123@upstream</code> or
+<code>main@origin</code> or <code>main@upstream</code>. If a branch is in a conflicted state, all
+its possible targets are included.</p>
+<p>While Git-tracking branches can be selected by <code>&lt;name&gt;@git</code>, these branches
+aren't included in <code>remote_branches()</code>.</p>
+</li>
+<li>
+<p><code>tags()</code>: All tag targets. If a tag is in a conflicted state, all its
+  possible targets are included.</p>
+</li>
+<li>
+<p><code>git_refs()</code>:  All Git ref targets as of the last import. If a Git ref
+  is in a conflicted state, all its possible targets are included.</p>
+</li>
+<li>
+<p><code>git_head()</code>: The Git <code>HEAD</code> target as of the last import. Equivalent to
+  <code>present(HEAD@git)</code>.</p>
+</li>
+<li>
+<p><code>visible_heads()</code>: All visible heads (same as <code>heads(all())</code>).</p>
+</li>
+<li>
+<p><code>root()</code>: The virtual commit that is the oldest ancestor of all other commits.</p>
+</li>
+<li>
+<p><code>heads(x)</code>: Commits in <code>x</code> that are not ancestors of other commits in <code>x</code>.
+  Note that this is different from
+  <a href="https://repo.mercurial-scm.org/hg/help/revsets">Mercurial's</a> <code>heads(x)</code>
+  function, which is equivalent to <code>x ~ x-</code>.</p>
+</li>
+<li>
+<p><code>roots(x)</code>: Commits in <code>x</code> that are not descendants of other commits in <code>x</code>.
+  Note that this is different from
+  <a href="https://repo.mercurial-scm.org/hg/help/revsets">Mercurial's</a> <code>roots(x)</code>
+  function, which is equivalent to <code>x ~ x+</code>.</p>
+</li>
+<li>
+<p><code>latest(x[, count])</code>: Latest <code>count</code> commits in <code>x</code>, based on committer
+  timestamp. The default <code>count</code> is 1.</p>
+</li>
+<li>
+<p><code>merges()</code>: Merge commits.</p>
+</li>
+<li>
+<p><code>description(pattern)</code>: Commits that have a description matching the given
+  <a href="#string-patterns">string pattern</a>.</p>
+</li>
+<li>
+<p><code>author(pattern)</code>: Commits with the author's name or email matching the given
+  <a href="#string-patterns">string pattern</a>.</p>
+</li>
+<li>
+<p><code>mine()</code>: Commits where the author's email matches the email of the current
+  user.</p>
+</li>
+<li>
+<p><code>committer(pattern)</code>: Commits with the committer's  name or email matching the
+given <a href="#string-patterns">string pattern</a>.</p>
+</li>
+<li>
+<p><code>empty()</code>: Commits modifying no files. This also includes <code>merges()</code> without
+  user modifications and <code>root()</code>.</p>
+</li>
+<li>
+<p><code>file(relativepath)</code> or <code>file("relativepath"[, "relativepath"]...)</code>: Commits
+  modifying one of the paths specified. Currently, string patterns are <em>not</em>
+  supported in the path arguments.</p>
+<p>Paths are relative to the directory <code>jj</code> was invoked from. A directory name
+will match all files in that directory and its subdirectories.</p>
+<p>For example, <code>file(foo)</code> will match files <code>foo</code>, <code>foo/bar</code>, <code>foo/bar/baz</code>.
+It will <em>not</em> match <code>foobar</code> or <code>bar/foo</code>.</p>
+</li>
+<li>
+<p><code>conflict()</code>: Commits with conflicts.</p>
+</li>
+<li>
+<p><code>present(x)</code>: Same as <code>x</code>, but evaluated to <code>none()</code> if any of the commits
+  in <code>x</code> doesn't exist (e.g. is an unknown branch name.)</p>
+</li>
+</ul>
+<h2 id="string-patterns">String patterns<a class="headerlink" href="#string-patterns" title="Permanent link">&para;</a></h2>
+<p>Functions that perform string matching support the following pattern syntax:</p>
+<ul>
+<li><code>"string"</code>, or <code>string</code> (the quotes are optional), or <code>substring:"string"</code>:
+  Matches strings that contain <code>string</code>.</li>
+<li><code>exact:"string"</code>: Matches strings exactly equal to <code>string</code>.</li>
+<li><code>glob:"pattern"</code>: Matches strings with Unix-style shell <a href="https://docs.rs/glob/latest/glob/struct.Pattern.html">wildcard
+  <code>pattern</code></a>.</li>
+</ul>
+<h2 id="aliases">Aliases<a class="headerlink" href="#aliases" title="Permanent link">&para;</a></h2>
+<p>New symbols and functions can be defined in the config file, by using any
+combination of the predefined symbols/functions and other aliases.</p>
+<p>For example:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[revset-aliases]</span>
+<span class="s1">&#39;HEAD&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;@-&#39;</span>
+<span class="s1">&#39;user(x)&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;author(x) | committer(x)&#39;</span>
+</code></pre></div>
+<h3 id="built-in-aliases">Built-in Aliases<a class="headerlink" href="#built-in-aliases" title="Permanent link">&para;</a></h3>
+<p>The following aliases are built-in and used for certain operations. These functions
+are defined as aliases in order to allow you to overwrite them as needed. 
+See <a href="https://github.com/martinvonz/jj/blob/main/cli/src/config/revsets.toml">revsets.toml</a>
+for a comprehensive list.</p>
+<ul>
+<li>
+<p><code>trunk()</code>: Resolves to the head commit for the trunk branch of the remote
+  named <code>origin</code> or <code>upstream</code>. The branches <code>main</code>, <code>master</code>, and <code>trunk</code> are
+  tried. If more than one potential trunk commit exists, the newest one is
+  chosen. If none of the branches exist, the revset evaluates to <code>root()</code>.</p>
+<p>You can <a href="../config/">override</a> this as appropriate. If you do, make sure it
+always resolves to exactly one commit. For example:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[revset-aliases]</span>
+<span class="s1">&#39;trunk()&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;your-branch@your-remote&#39;</span>
+</code></pre></div>
+</li>
+<li>
+<p><code>immutable_heads()</code>: Resolves to <code>trunk() | tags()</code> by default. See
+  <a href="../config/#set-of-immutable-commits">here</a> for details.</p>
+</li>
+</ul>
+<h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
+<p>Show the parent(s) of the working-copy commit (like <code>git log -1 HEAD</code>):</p>
+<div class="highlight"><pre><span></span><code>jj log -r @-
+</code></pre></div>
+<p>Show all ancestors of the working copy (like plain <code>git log</code>)</p>
+<div class="highlight"><pre><span></span><code>jj log -r ::@
+</code></pre></div>
+<p>Show commits not on any remote branch:</p>
+<div class="highlight"><pre><span></span><code>jj log -r &#39;remote_branches()..&#39;
+</code></pre></div>
+<p>Show commits not on <code>origin</code> (if you have other remotes like <code>fork</code>):</p>
+<div class="highlight"><pre><span></span><code>jj log -r &#39;remote_branches(remote=origin)..&#39;
+</code></pre></div>
+<p>Show the initial commits in the repo (the ones Git calls "root commits"):</p>
+<div class="highlight"><pre><span></span><code>jj log -r root()+
+</code></pre></div>
+<p>Show some important commits (like <code>git --simplify-by-decoration</code>):</p>
+<div class="highlight"><pre><span></span><code>jj log -r &#39;tags() | branches()&#39;
+</code></pre></div>
+<p>Show local commits leading up to the working copy, as well as descendants of
+those commits:</p>
+<div class="highlight"><pre><span></span><code>jj log -r &#39;(remote_branches()..@)::&#39;
+</code></pre></div>
+<p>Show commits authored by "martinvonz" and containing the word "reset" in the
+description:</p>
+<div class="highlight"><pre><span></span><code>jj log -r &#39;author(martinvonz) &amp; description(reset)&#39;
+</code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": [], "search": "../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.8fd75fb4.min.js"></script>
+      
+    
+  </body>
+</html>
