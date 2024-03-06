@@ -42,22 +42,48 @@ use crate::revset_util::{self, UserRevsetEvaluationError};
 use crate::template_parser::{TemplateParseError, TemplateParseErrorKind};
 use crate::ui::Ui;
 
-#[derive(Clone, Debug)]
-pub enum CommandError {
-    UserError {
-        err: Arc<dyn error::Error + Send + Sync>,
-        hint: Option<String>,
-    },
-    ConfigError(Arc<dyn error::Error + Send + Sync>),
-    /// Invalid command line
-    CliError(Arc<dyn error::Error + Send + Sync>),
-    /// Invalid command line detected by clap
-    ClapCliError {
-        err: Arc<clap::Error>,
-        hint: Option<String>,
-    },
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CommandErrorKind {
+    User,
+    Config,
+    /// Invalid command line. The inner error type may be `clap::Error`.
+    Cli,
     BrokenPipe,
-    InternalError(Arc<dyn error::Error + Send + Sync>),
+    Internal,
+}
+
+#[derive(Clone, Debug)]
+pub struct CommandError {
+    pub kind: CommandErrorKind,
+    pub error: Arc<dyn error::Error + Send + Sync>,
+    pub hint: Option<String>,
+}
+
+impl CommandError {
+    pub fn new(
+        kind: CommandErrorKind,
+        err: impl Into<Box<dyn error::Error + Send + Sync>>,
+    ) -> Self {
+        CommandError {
+            kind,
+            error: Arc::from(err.into()),
+            hint: None,
+        }
+    }
+
+    fn with_hint_opt(
+        kind: CommandErrorKind,
+        err: impl Into<Box<dyn error::Error + Send + Sync>>,
+        hint: Option<String>,
+    ) -> Self {
+        CommandError {
+            kind,
+            error: Arc::from(err.into()),
+            hint,
+        }
+    }
+
+    // TODO: add method to attach hint?
 }
 
 /// Wraps error with user-visible message.
@@ -110,14 +136,11 @@ pub fn user_error_with_hint_opt(
     err: impl Into<Box<dyn error::Error + Send + Sync>>,
     hint: Option<String>,
 ) -> CommandError {
-    CommandError::UserError {
-        err: Arc::from(err.into()),
-        hint,
-    }
+    CommandError::with_hint_opt(CommandErrorKind::User, err, hint)
 }
 
 pub fn config_error(err: impl Into<Box<dyn error::Error + Send + Sync>>) -> CommandError {
-    CommandError::ConfigError(Arc::from(err.into()))
+    CommandError::new(CommandErrorKind::Config, err)
 }
 
 pub fn config_error_with_message(
@@ -128,18 +151,18 @@ pub fn config_error_with_message(
 }
 
 pub fn cli_error(err: impl Into<Box<dyn error::Error + Send + Sync>>) -> CommandError {
-    CommandError::CliError(Arc::from(err.into()))
+    CommandError::new(CommandErrorKind::Cli, err)
 }
 
 pub fn internal_error(err: impl Into<Box<dyn error::Error + Send + Sync>>) -> CommandError {
-    CommandError::InternalError(Arc::from(err.into()))
+    CommandError::new(CommandErrorKind::Internal, err)
 }
 
 pub fn internal_error_with_message(
     message: impl Into<String>,
     source: impl Into<Box<dyn error::Error + Send + Sync>>,
 ) -> CommandError {
-    CommandError::InternalError(Arc::new(ErrorWithMessage::new(message, source)))
+    internal_error(ErrorWithMessage::new(message, source))
 }
 
 fn format_similarity_hint<S: AsRef<str>>(candidates: &[S]) -> Option<String> {
@@ -157,11 +180,11 @@ fn format_similarity_hint<S: AsRef<str>>(candidates: &[S]) -> Option<String> {
 
 impl From<io::Error> for CommandError {
     fn from(err: io::Error) -> Self {
-        if err.kind() == io::ErrorKind::BrokenPipe {
-            CommandError::BrokenPipe
-        } else {
-            user_error(err)
-        }
+        let kind = match err.kind() {
+            io::ErrorKind::BrokenPipe => CommandErrorKind::BrokenPipe,
+            _ => CommandErrorKind::User,
+        };
+        CommandError::new(kind, err)
     }
 }
 
@@ -445,10 +468,7 @@ impl From<FsPathParseError> for CommandError {
 
 impl From<clap::Error> for CommandError {
     fn from(err: clap::Error) -> Self {
-        CommandError::ClapCliError {
-            err: Arc::new(err),
-            hint: None,
-        }
+        cli_error(err)
     }
 }
 
@@ -480,40 +500,53 @@ fn try_handle_command_result(
     ui: &mut Ui,
     result: Result<(), CommandError>,
 ) -> io::Result<ExitCode> {
-    match &result {
-        Ok(()) => Ok(ExitCode::SUCCESS),
-        Err(CommandError::UserError { err, hint }) => {
+    let Err(cmd_err) = &result else {
+        return Ok(ExitCode::SUCCESS);
+    };
+    let err = &cmd_err.error;
+    match cmd_err.kind {
+        CommandErrorKind::User => {
             writeln!(ui.error(), "Error: {err}")?;
             print_error_sources(ui, err.source())?;
-            if let Some(hint) = hint {
+            if let Some(hint) = &cmd_err.hint {
                 writeln!(ui.hint(), "Hint: {hint}")?;
             }
             Ok(ExitCode::from(1))
         }
-        Err(CommandError::ConfigError(err)) => {
+        CommandErrorKind::Config => {
             writeln!(ui.error(), "Config error: {err}")?;
             print_error_sources(ui, err.source())?;
+            if let Some(hint) = &cmd_err.hint {
+                writeln!(ui.hint(), "Hint: {hint}")?;
+            }
             writeln!(
                 ui.hint(),
                 "For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md."
             )?;
             Ok(ExitCode::from(1))
         }
-        Err(CommandError::CliError(err)) => {
-            writeln!(ui.error(), "Error: {err}")?;
-            print_error_sources(ui, err.source())?;
-            Ok(ExitCode::from(2))
+        CommandErrorKind::Cli => {
+            if let Some(err) = err.downcast_ref::<clap::Error>() {
+                handle_clap_error(ui, err, cmd_err.hint.as_deref())
+            } else {
+                writeln!(ui.error(), "Error: {err}")?;
+                print_error_sources(ui, err.source())?;
+                if let Some(hint) = &cmd_err.hint {
+                    writeln!(ui.hint(), "Hint: {hint}")?;
+                }
+                Ok(ExitCode::from(2))
+            }
         }
-        Err(CommandError::ClapCliError { err, hint }) => {
-            handle_clap_error(ui, err, hint.as_deref())
-        }
-        Err(CommandError::BrokenPipe) => {
+        CommandErrorKind::BrokenPipe => {
             // A broken pipe is not an error, but a signal to exit gracefully.
             Ok(ExitCode::from(BROKEN_PIPE_EXIT_CODE))
         }
-        Err(CommandError::InternalError(err)) => {
+        CommandErrorKind::Internal => {
             writeln!(ui.error(), "Internal error: {err}")?;
             print_error_sources(ui, err.source())?;
+            if let Some(hint) = &cmd_err.hint {
+                writeln!(ui.hint(), "Hint: {hint}")?;
+            }
             Ok(ExitCode::from(255))
         }
     }
