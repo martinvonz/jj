@@ -2587,11 +2587,14 @@ impl CliRunner {
 }
 
 fn map_clap_cli_error(
-    cmd_err: CommandError,
+    mut cmd_err: CommandError,
     ui: &Ui,
     layered_configs: &LayeredConfigs,
 ) -> CommandError {
-    let CommandError::ClapCliError { err, hint: None } = &cmd_err else {
+    if cmd_err.hint.is_some() {
+        return cmd_err;
+    }
+    let Some(err) = cmd_err.error.downcast_ref::<clap::Error>() else {
         return cmd_err;
     };
     if let (Some(ContextValue::String(arg)), Some(ContextValue::String(value))) = (
@@ -2601,10 +2604,7 @@ fn map_clap_cli_error(
         if arg.as_str() == "--template <TEMPLATE>" && value.is_empty() {
             // Suppress the error, it's less important than the original error.
             if let Ok(template_aliases) = load_template_aliases(ui, layered_configs) {
-                return CommandError::ClapCliError {
-                    err: err.clone(),
-                    hint: Some(format_template_aliases_hint(&template_aliases)),
-                };
+                cmd_err.hint = Some(format_template_aliases_hint(&template_aliases));
             }
         }
     }
