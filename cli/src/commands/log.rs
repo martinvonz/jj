@@ -120,6 +120,8 @@ pub(crate) fn cmd_log(
             let mut graph = get_graphlog(command.settings(), formatter.raw());
             let default_node_symbol = graph.default_node_symbol().to_owned();
             let elided_node_symbol = graph.elided_node_symbol().to_owned();
+            let immutable_node_symbol = graph.immutable_node_symbol().to_owned();
+            let immutable_revset = workspace_command.immutable_revset()?;
             let forward_iter = TopoGroupedRevsetGraphIterator::new(revset.iter_graph());
             let iter: Box<dyn Iterator<Item = _>> = if args.reversed {
                 Box::new(ReverseRevsetGraphIterator::new(forward_iter))
@@ -180,7 +182,15 @@ pub(crate) fn cmd_log(
                 let node_symbol = if Some(&key.0) == wc_commit_id {
                     "@"
                 } else {
-                    &default_node_symbol
+                    let commit_revset = RevsetExpression::commit(key.0.clone());
+                    let revset = workspace_command
+                        .evaluate_revset(commit_revset.intersection(&immutable_revset))?;
+                    let is_immutable = revset.iter().commits(store).next().is_some();
+                    if is_immutable {
+                        &immutable_node_symbol
+                    } else {
+                        &default_node_symbol
+                    }
                 };
 
                 graph.add_node(

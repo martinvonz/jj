@@ -41,6 +41,8 @@ pub trait GraphLog<K: Clone + Eq + Hash> {
 
     fn elided_node_symbol(&self) -> &str;
 
+    fn immutable_node_symbol(&self) -> &str;
+
     fn width(&self, id: &K, edges: &[Edge<K>]) -> usize;
 }
 
@@ -49,6 +51,7 @@ pub struct SaplingGraphLog<'writer, R> {
     writer: &'writer mut dyn Write,
     default_node_symbol: String,
     elided_node_symbol: String,
+    immutable_node_symbol: String,
 }
 
 impl<K: Clone> From<&Edge<K>> for Ancestor<K> {
@@ -91,6 +94,10 @@ where
         &self.elided_node_symbol
     }
 
+    fn immutable_node_symbol(&self) -> &str {
+        &self.immutable_node_symbol
+    }
+
     fn width(&self, id: &K, edges: &[Edge<K>]) -> usize {
         let parents = edges.iter().map_into().collect();
         let w: u64 = self.renderer.width(Some(id), Some(&parents));
@@ -104,6 +111,7 @@ impl<'writer, R> SaplingGraphLog<'writer, R> {
         formatter: &'writer mut dyn Write,
         default_node_symbol: &str,
         elided_node_symbol: &str,
+        immutable_node_symbol: &str,
     ) -> Box<dyn GraphLog<K> + 'writer>
     where
         K: Clone + Eq + Hash + 'writer,
@@ -114,6 +122,7 @@ impl<'writer, R> SaplingGraphLog<'writer, R> {
             writer: formatter,
             default_node_symbol: default_node_symbol.to_owned(),
             elided_node_symbol: elided_node_symbol.to_owned(),
+            immutable_node_symbol: immutable_node_symbol.to_owned(),
         })
     }
 }
@@ -130,10 +139,13 @@ pub fn get_graphlog<'a, K: Clone + Eq + Hash + 'a>(
             formatter,
             "◉",
             "◌",
+            "◈",
         ),
-        "ascii" => SaplingGraphLog::create(builder.build_ascii(), formatter, "o", "."),
-        "ascii-large" => SaplingGraphLog::create(builder.build_ascii_large(), formatter, "o", "."),
+        "ascii" => SaplingGraphLog::create(builder.build_ascii(), formatter, "o", ".", "x"),
+        "ascii-large" => {
+            SaplingGraphLog::create(builder.build_ascii_large(), formatter, "o", ".", "x")
+        }
         // "curved"
-        _ => SaplingGraphLog::create(builder.build_box_drawing(), formatter, "◉", "◌"),
+        _ => SaplingGraphLog::create(builder.build_box_drawing(), formatter, "◉", "◌", "◈"),
     }
 }

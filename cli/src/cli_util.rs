@@ -948,21 +948,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
                 .map(|commit| commit.id().clone())
                 .collect(),
         );
-        let (params, immutable_heads_str) = self
-            .revset_aliases_map
-            .get_function("immutable_heads")
-            .unwrap();
-        if !params.is_empty() {
-            return Err(user_error(
-                r#"The `revset-aliases.immutable_heads()` function must be declared without arguments."#,
-            ));
-        }
-        let immutable_heads_revset = self.parse_revset(immutable_heads_str)?;
-        let immutable_revset = immutable_heads_revset
-            .ancestors()
-            .union(&RevsetExpression::commit(
-                self.repo().store().root_commit_id().clone(),
-            ));
+        let immutable_revset = self.immutable_revset()?;
         let revset = self.evaluate_revset(to_rewrite_revset.intersection(&immutable_revset))?;
         if let Some(commit) = revset.iter().commits(self.repo().store()).next() {
             let commit = commit?;
@@ -982,6 +968,26 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         }
 
         Ok(())
+    }
+
+    /// Returns revset represented by immutable commits including root.
+    pub fn immutable_revset(&self) -> Result<Rc<RevsetExpression>, CommandError> {
+        let (params, immutable_heads_str) = self
+            .revset_aliases_map
+            .get_function("immutable_heads")
+            .unwrap();
+        if !params.is_empty() {
+            return Err(user_error(
+                r#"The `revset-aliases.immutable_heads()` function must be declared without arguments."#,
+            ));
+        }
+        let immutable_heads_revset = self.parse_revset(immutable_heads_str)?;
+        let immutable_revset = immutable_heads_revset
+            .ancestors()
+            .union(&RevsetExpression::commit(
+                self.repo().store().root_commit_id().clone(),
+            ));
+        Ok(immutable_revset)
     }
 
     pub fn check_non_empty(&self, commits: &[Commit]) -> Result<(), CommandError> {
