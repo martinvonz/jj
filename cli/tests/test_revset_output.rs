@@ -175,7 +175,8 @@ fn test_bad_function_call() {
       |          ^---------^
       |
       = Function "branches": Invalid string pattern
-    2: Invalid string pattern kind "bad:", try prefixing with one of `exact:`, `glob:` or `substring:`
+    2: Invalid string pattern kind "bad:"
+    Hint: Try prefixing with one of `exact:`, `glob:` or `substring:`
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root()::whatever()"]);
