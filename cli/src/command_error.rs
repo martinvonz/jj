@@ -30,6 +30,7 @@ use jj_lib::revset::{
     RevsetEvaluationError, RevsetParseError, RevsetParseErrorKind, RevsetResolutionError,
 };
 use jj_lib::signing::SignInitError;
+use jj_lib::str_util::StringPatternParseError;
 use jj_lib::working_copy::{ResetError, SnapshotError, WorkingCopyStateError};
 use jj_lib::workspace::WorkspaceInitError;
 use thiserror::Error;
@@ -423,6 +424,9 @@ impl From<RevsetParseError> for CommandError {
                 name: _,
                 candidates,
             } => format_similarity_hint(candidates),
+            RevsetParseErrorKind::InvalidFunctionArguments { .. } => {
+                find_source_parse_error_hint(bottom_err)
+            }
             _ => None,
         };
         let mut cmd_err =
@@ -470,6 +474,8 @@ impl From<TemplateParseError> for CommandError {
             | TemplateParseErrorKind::NoSuchMethod { candidates, .. } => {
                 format_similarity_hint(candidates)
             }
+            TemplateParseErrorKind::InvalidArguments { .. }
+            | TemplateParseErrorKind::Expression(_) => find_source_parse_error_hint(bottom_err),
             _ => None,
         };
         let mut cmd_err =
@@ -489,7 +495,10 @@ impl From<FsPathParseError> for CommandError {
 
 impl From<clap::Error> for CommandError {
     fn from(err: clap::Error) -> Self {
-        cli_error(err)
+        let hint = find_source_parse_error_hint(&err);
+        let mut cmd_err = cli_error(err);
+        cmd_err.extend_hints(hint);
+        cmd_err
     }
 }
 
@@ -508,6 +517,24 @@ impl From<WorkingCopyStateError> for CommandError {
 impl From<GitIgnoreError> for CommandError {
     fn from(err: GitIgnoreError) -> Self {
         user_error_with_message("Failed to process .gitignore.", err)
+    }
+}
+
+fn find_source_parse_error_hint(err: &dyn error::Error) -> Option<String> {
+    let source = err.source()?;
+    if let Some(source) = source.downcast_ref() {
+        string_pattern_parse_error_hint(source)
+    } else {
+        None
+    }
+}
+
+fn string_pattern_parse_error_hint(err: &StringPatternParseError) -> Option<String> {
+    match err {
+        StringPatternParseError::InvalidKind(_) => {
+            Some("Try prefixing with one of `exact:`, `glob:` or `substring:`".into())
+        }
+        StringPatternParseError::GlobPattern(_) => None,
     }
 }
 

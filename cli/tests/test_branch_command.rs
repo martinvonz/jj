@@ -396,9 +396,10 @@ fn test_branch_delete_glob() {
     // Unknown pattern kind
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["branch", "forget", "whatever:branch"]);
     insta::assert_snapshot!(stderr, @r###"
-    error: invalid value 'whatever:branch' for '[NAMES]...': Invalid string pattern kind "whatever:", try prefixing with one of `exact:`, `glob:` or `substring:`
+    error: invalid value 'whatever:branch' for '[NAMES]...': Invalid string pattern kind "whatever:"
 
     For more information, try '--help'.
+    Hint: Try prefixing with one of `exact:`, `glob:` or `substring:`
     "###);
 }
 
