@@ -17,9 +17,9 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::revset;
 use tracing::instrument;
 
-use crate::cli_util::{self, CommandHelper, RevisionArg};
+use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::{user_error, CommandError};
-use crate::description_util::combine_messages;
+use crate::description_util::{combine_messages, join_message_paragraphs};
 use crate::ui::Ui;
 
 /// Move changes from a revision into its parent
@@ -119,7 +119,7 @@ from the source will be moved into the parent.
     // (always the case in the non-interactive case).
     let abandon_child = &new_parent_tree_id == commit.tree_id();
     let description = if !args.message_paragraphs.is_empty() {
-        cli_util::join_message_paragraphs(&args.message_paragraphs)
+        join_message_paragraphs(&args.message_paragraphs)
     } else {
         combine_messages(
             tx.base_repo(),
