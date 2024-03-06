@@ -11,6 +11,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+### New features
+
+### Fixed bugs
+
+
+## [0.15.0] - 2024-03-06
+
+### Breaking changes
+
 * The minimum supported Rust version (MSRV) is now 1.76.0.
 
 * The on-disk index format changed. New index files will be created
@@ -107,6 +116,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Auto-rebase now preserves the shape of history even for merge commits where
   one parent is an ancestor of another.
   [#2600](https://github.com/martinvonz/jj/issues/2600)
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+* Aleksey Kuznetsov (@zummenix)
+* Anton Bulakh (@necauqua)
+* Anton Älgmyr (@algmyr)
+* Austin Seipp (@thoughtpolice)
+* Benjamin Brittain (@benbrittain)
+* Benjamin Tan (@bnjmnt4n)
+* Daehyeok Mun (@daehyeok)
+* Daniel Ploch (@torquestomp)
+* Evan Mesterhazy (@emesterhazy)
+* gulbanana (@gulbanana)
+* Ilya Grigoriev (@ilyagr)
+* Jonathan Tan (@jonathantanmy)
+* Julien Vincent (@julienvincent)
+* jyn (@jyn514)
+* Martin von Zweigbergk (@martinvonz)
+* Paulo Coelho (@prscoelho)
+* Philip Metzger (@PhilipMetzger)
+* Poliorcetics (@poliorcetics)
+* Stephen Jennings (@jennings)
+* Vladimir (@0xdeafbeef)
+* Yuya Nishihara (@yuja)
+
 
 ## [0.14.0] - 2024-02-07
 
