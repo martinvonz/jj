@@ -2204,8 +2204,8 @@ fn resolve_default_command(
 
     if let Some(matches) = matches {
         if matches.subcommand_name().is_none() {
-            let args = get_string_or_array(config, "ui.default-command");
-            if args.is_err() {
+            let args = get_string_or_array(config, "ui.default-command").optional()?;
+            if args.is_none() {
                 writeln!(
                     ui.hint(),
                     "Hint: Use `jj -h` for a list of available commands."
@@ -2215,7 +2215,7 @@ fn resolve_default_command(
                     "Run `jj config set --user ui.default-command log` to disable this message."
                 )?;
             }
-            let default_command = args.unwrap_or_else(|_| vec!["log".to_string()]);
+            let default_command = args.unwrap_or_else(|| vec!["log".to_string()]);
 
             // Insert the default command directly after the path to the binary.
             string_args.splice(1..1, default_command);
