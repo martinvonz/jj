@@ -1,10 +1,15 @@
 [package]
 name = "jj-lib-proc-macros"
-publish = false
+description = "Proc macros for the jj-lib crate"
 
 version = { workspace = true }
 edition = { workspace = true }
+rust-version = { workspace = true }
 license = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+documentation = { workspace = true }
+readme = { workspace = true }
 
 [lib]
 proc-macro = true
