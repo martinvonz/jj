@@ -24,7 +24,7 @@ use smallvec::SmallVec;
 use super::composite::CompositeIndex;
 use super::entry::{IndexEntry, IndexPosition, SmallIndexPositionsVec};
 
-trait RevWalkIndex<'a> {
+pub(super) trait RevWalkIndex<'a> {
     type Position: Copy + Ord;
     type AdjacentPositions: IntoIterator<Item = Self::Position>;
 
@@ -46,7 +46,7 @@ impl<'a> RevWalkIndex<'a> for CompositeIndex<'a> {
 }
 
 #[derive(Clone)]
-struct RevWalkDescendantsIndex<'a> {
+pub(super) struct RevWalkDescendantsIndex<'a> {
     index: CompositeIndex<'a>,
     children_map: HashMap<IndexPosition, DescendantIndexPositionsVec>,
 }
@@ -199,32 +199,33 @@ impl<P: Ord, T: Ord> RevWalkQueue<P, T> {
     }
 }
 
+pub(super) type RevWalk<'a> = RevWalkImpl<'a, CompositeIndex<'a>>;
+
 #[derive(Clone)]
-pub(super) struct RevWalk<'a>(RevWalkImpl<'a, CompositeIndex<'a>>);
+pub(super) struct RevWalkImpl<'a, I: RevWalkIndex<'a>> {
+    index: I,
+    queue: RevWalkQueue<I::Position, ()>,
+}
 
 impl<'a> RevWalk<'a> {
     pub(super) fn new(index: CompositeIndex<'a>) -> Self {
         let queue = RevWalkQueue::new();
-        RevWalk(RevWalkImpl { index, queue })
+        RevWalkImpl { index, queue }
     }
 
     pub(super) fn extend_wanted(&mut self, positions: impl IntoIterator<Item = IndexPosition>) {
-        self.0.queue.extend_wanted(positions, ());
+        self.queue.extend_wanted(positions, ());
     }
 
     pub(super) fn extend_unwanted(&mut self, positions: impl IntoIterator<Item = IndexPosition>) {
-        self.0.queue.extend_unwanted(positions);
+        self.queue.extend_unwanted(positions);
     }
 
     /// Filters entries by generation (or depth from the current wanted set.)
     ///
     /// The generation of the current wanted entries starts from 0.
     pub fn filter_by_generation(self, generation_range: Range<u32>) -> RevWalkGenerationRange<'a> {
-        RevWalkGenerationRange(RevWalkGenerationRangeImpl::new(
-            self.0.index,
-            self.0.queue,
-            generation_range,
-        ))
+        RevWalkGenerationRangeImpl::new(self.index, self.queue, generation_range)
     }
 
     /// Walks ancestors until all of the reachable roots in `root_positions` get
@@ -265,7 +266,7 @@ impl<'a> RevWalk<'a> {
         root_positions: &[IndexPosition],
         generation_range: Range<u32>,
     ) -> RevWalkDescendantsGenerationRange<'a> {
-        let index = self.0.index;
+        let index = self.index;
         let entries = self.take_until_roots(root_positions);
         let descendants_index = RevWalkDescendantsIndex::build(index, entries);
         let mut queue = RevWalkQueue::new();
@@ -275,29 +276,13 @@ impl<'a> RevWalk<'a> {
                 queue.push_wanted(Reverse(pos), ());
             }
         }
-        RevWalkDescendantsGenerationRange(RevWalkGenerationRangeImpl::new(
-            descendants_index,
-            queue,
-            generation_range,
-        ))
+        RevWalkGenerationRangeImpl::new(descendants_index, queue, generation_range)
     }
 }
 
-impl<'a> Iterator for RevWalk<'a> {
+impl<'a, I: RevWalkIndex<'a>> Iterator for RevWalkImpl<'a, I> {
     type Item = IndexEntry<'a>;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
-}
-
-#[derive(Clone)]
-struct RevWalkImpl<'a, I: RevWalkIndex<'a>> {
-    index: I,
-    queue: RevWalkQueue<I::Position, ()>,
-}
-
-impl<'a, I: RevWalkIndex<'a>> RevWalkImpl<'a, I> {
     fn next(&mut self) -> Option<IndexEntry<'a>> {
         while let Some(item) = self.queue.pop() {
             self.queue.skip_while_eq(&item.pos);
@@ -325,32 +310,12 @@ impl<'a, I: RevWalkIndex<'a>> RevWalkImpl<'a, I> {
     }
 }
 
-#[derive(Clone)]
-pub(super) struct RevWalkGenerationRange<'a>(RevWalkGenerationRangeImpl<'a, CompositeIndex<'a>>);
-
-impl<'a> Iterator for RevWalkGenerationRange<'a> {
-    type Item = IndexEntry<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
-}
+pub(super) type RevWalkGenerationRange<'a> = RevWalkGenerationRangeImpl<'a, CompositeIndex<'a>>;
+pub(super) type RevWalkDescendantsGenerationRange<'a> =
+    RevWalkGenerationRangeImpl<'a, RevWalkDescendantsIndex<'a>>;
 
 #[derive(Clone)]
-pub(super) struct RevWalkDescendantsGenerationRange<'a>(
-    RevWalkGenerationRangeImpl<'a, RevWalkDescendantsIndex<'a>>,
-);
-
-impl<'a> Iterator for RevWalkDescendantsGenerationRange<'a> {
-    type Item = IndexEntry<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next()
-    }
-}
-
-#[derive(Clone)]
-struct RevWalkGenerationRangeImpl<'a, I: RevWalkIndex<'a>> {
+pub(super) struct RevWalkGenerationRangeImpl<'a, I: RevWalkIndex<'a>> {
     index: I,
     // Sort item generations in ascending order
     queue: RevWalkQueue<I::Position, Reverse<RevWalkItemGenerationRange>>,
@@ -394,6 +359,10 @@ impl<'a, I: RevWalkIndex<'a>> RevWalkGenerationRangeImpl<'a, I> {
         self.queue
             .extend_wanted(self.index.adjacent_positions(entry), Reverse(succ_gen));
     }
+}
+
+impl<'a, I: RevWalkIndex<'a>> Iterator for RevWalkGenerationRangeImpl<'a, I> {
+    type Item = IndexEntry<'a>;
 
     fn next(&mut self) -> Option<IndexEntry<'a>> {
         while let Some(item) = self.queue.pop() {
