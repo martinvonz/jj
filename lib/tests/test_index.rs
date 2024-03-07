@@ -22,12 +22,13 @@ use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
 use jj_lib::default_index::{
     AsCompositeIndex as _, CompositeIndex, DefaultIndexStore, DefaultIndexStoreError,
-    DefaultMutableIndex, DefaultReadonlyIndex, IndexPosition,
+    DefaultMutableIndex, DefaultReadonlyIndex,
 };
 use jj_lib::index::Index as _;
 use jj_lib::object_id::{HexPrefix, ObjectId as _, PrefixResolution};
 use jj_lib::op_store::{RefTarget, RemoteRef};
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
+use jj_lib::revset::{ResolvedExpression, GENERATION_RANGE_FULL};
 use jj_lib::settings::UserSettings;
 use maplit::hashset;
 use testutils::test_backend::TestBackend;
@@ -47,13 +48,6 @@ fn child_commit<'repo>(
 // Helper just to reduce line wrapping
 fn generation_number(index: CompositeIndex, commit_id: &CommitId) -> u32 {
     index.entry_by_id(commit_id).unwrap().generation_number()
-}
-
-fn to_positions_vec(index: CompositeIndex<'_>, commit_ids: &[CommitId]) -> Vec<IndexPosition> {
-    commit_ids
-        .iter()
-        .map(|id| index.commit_id_to_pos(id).unwrap())
-        .collect()
 }
 
 #[test]
@@ -202,68 +196,85 @@ fn test_index_commits_criss_cross() {
         }
     }
 
-    let walk_revs = |wanted: &[CommitId], unwanted: &[CommitId]| {
-        let wanted_positions = to_positions_vec(index, wanted);
-        let unwanted_positions = to_positions_vec(index, unwanted);
-        index.walk_revs(&wanted_positions, &unwanted_positions)
+    let count_revs = |wanted: &[CommitId], unwanted: &[CommitId], generation| {
+        // Constructs ResolvedExpression directly to bypass tree optimization.
+        let expression = ResolvedExpression::Range {
+            roots: ResolvedExpression::Commits(unwanted.to_vec()).into(),
+            heads: ResolvedExpression::Commits(wanted.to_vec()).into(),
+            generation,
+        };
+        let revset = index.evaluate_revset(&expression, repo.store()).unwrap();
+        // Don't switch to more efficient .count() implementation. Here we're
+        // testing the iterator behavior.
+        revset.iter().count()
     };
 
     // RevWalk deduplicates chains by entry.
     assert_eq!(
-        walk_revs(&[left_commits[num_generations - 1].id().clone()], &[]).count(),
-        2 * num_generations
-    );
-    assert_eq!(
-        walk_revs(&[right_commits[num_generations - 1].id().clone()], &[]).count(),
-        2 * num_generations
-    );
-    assert_eq!(
-        walk_revs(
+        count_revs(
             &[left_commits[num_generations - 1].id().clone()],
-            &[left_commits[num_generations - 2].id().clone()]
-        )
-        .count(),
+            &[],
+            GENERATION_RANGE_FULL,
+        ),
+        2 * num_generations
+    );
+    assert_eq!(
+        count_revs(
+            &[right_commits[num_generations - 1].id().clone()],
+            &[],
+            GENERATION_RANGE_FULL,
+        ),
+        2 * num_generations
+    );
+    assert_eq!(
+        count_revs(
+            &[left_commits[num_generations - 1].id().clone()],
+            &[left_commits[num_generations - 2].id().clone()],
+            GENERATION_RANGE_FULL,
+        ),
         2
     );
     assert_eq!(
-        walk_revs(
+        count_revs(
             &[right_commits[num_generations - 1].id().clone()],
-            &[right_commits[num_generations - 2].id().clone()]
-        )
-        .count(),
+            &[right_commits[num_generations - 2].id().clone()],
+            GENERATION_RANGE_FULL,
+        ),
         2
     );
 
     // RevWalkGenerationRange deduplicates chains by (entry, generation), which may
     // be more expensive than RevWalk, but should still finish in reasonable time.
     assert_eq!(
-        walk_revs(&[left_commits[num_generations - 1].id().clone()], &[])
-            .filter_by_generation(0..(num_generations + 1) as u32)
-            .count(),
-        2 * num_generations
-    );
-    assert_eq!(
-        walk_revs(&[right_commits[num_generations - 1].id().clone()], &[])
-            .filter_by_generation(0..(num_generations + 1) as u32)
-            .count(),
-        2 * num_generations
-    );
-    assert_eq!(
-        walk_revs(
+        count_revs(
             &[left_commits[num_generations - 1].id().clone()],
-            &[left_commits[num_generations - 2].id().clone()]
-        )
-        .filter_by_generation(0..(num_generations + 1) as u32)
-        .count(),
+            &[],
+            0..(num_generations + 1) as u64,
+        ),
+        2 * num_generations
+    );
+    assert_eq!(
+        count_revs(
+            &[right_commits[num_generations - 1].id().clone()],
+            &[],
+            0..(num_generations + 1) as u64,
+        ),
+        2 * num_generations
+    );
+    assert_eq!(
+        count_revs(
+            &[left_commits[num_generations - 1].id().clone()],
+            &[left_commits[num_generations - 2].id().clone()],
+            0..(num_generations + 1) as u64,
+        ),
         2
     );
     assert_eq!(
-        walk_revs(
+        count_revs(
             &[right_commits[num_generations - 1].id().clone()],
-            &[right_commits[num_generations - 2].id().clone()]
-        )
-        .filter_by_generation(0..(num_generations + 1) as u32)
-        .count(),
+            &[right_commits[num_generations - 2].id().clone()],
+            0..(num_generations + 1) as u64,
+        ),
         2
     );
 }
