@@ -200,7 +200,7 @@ impl<P: Ord, T: Ord> RevWalkQueue<P, T> {
 }
 
 #[derive(Clone)]
-pub struct RevWalk<'a>(RevWalkImpl<'a, CompositeIndex<'a>>);
+pub(super) struct RevWalk<'a>(RevWalkImpl<'a, CompositeIndex<'a>>);
 
 impl<'a> RevWalk<'a> {
     pub(super) fn new(index: CompositeIndex<'a>) -> Self {
@@ -326,7 +326,7 @@ impl<'a, I: RevWalkIndex<'a>> RevWalkImpl<'a, I> {
 }
 
 #[derive(Clone)]
-pub struct RevWalkGenerationRange<'a>(RevWalkGenerationRangeImpl<'a, CompositeIndex<'a>>);
+pub(super) struct RevWalkGenerationRange<'a>(RevWalkGenerationRangeImpl<'a, CompositeIndex<'a>>);
 
 impl<'a> Iterator for RevWalkGenerationRange<'a> {
     type Item = IndexEntry<'a>;
@@ -337,7 +337,7 @@ impl<'a> Iterator for RevWalkGenerationRange<'a> {
 }
 
 #[derive(Clone)]
-pub struct RevWalkDescendantsGenerationRange<'a>(
+pub(super) struct RevWalkDescendantsGenerationRange<'a>(
     RevWalkGenerationRangeImpl<'a, RevWalkDescendantsIndex<'a>>,
 );
 
@@ -465,7 +465,7 @@ impl RevWalkItemGenerationRange {
 
 /// Walks descendants from the roots, in order of ascending index position.
 #[derive(Clone)]
-pub struct RevWalkDescendants<'a> {
+pub(super) struct RevWalkDescendants<'a> {
     candidate_entries: Vec<IndexEntry<'a>>,
     root_positions: HashSet<IndexPosition>,
     reachable_positions: HashSet<IndexPosition>,

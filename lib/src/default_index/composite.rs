@@ -330,7 +330,11 @@ impl<'a> CompositeIndex<'a> {
         self.heads_pos(result)
     }
 
-    pub fn walk_revs(&self, wanted: &[IndexPosition], unwanted: &[IndexPosition]) -> RevWalk<'a> {
+    pub(super) fn walk_revs(
+        &self,
+        wanted: &[IndexPosition],
+        unwanted: &[IndexPosition],
+    ) -> RevWalk<'a> {
         let mut rev_walk = RevWalk::new(*self);
         rev_walk.extend_wanted(wanted.iter().copied());
         rev_walk.extend_unwanted(unwanted.iter().copied());

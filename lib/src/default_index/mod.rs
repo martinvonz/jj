@@ -27,9 +27,6 @@ pub use self::composite::{AsCompositeIndex, CompositeIndex, IndexLevelStats, Ind
 pub use self::entry::{IndexEntry, IndexPosition};
 pub use self::mutable::DefaultMutableIndex;
 pub use self::readonly::{DefaultReadonlyIndex, ReadonlyIndexLoadError};
-pub use self::rev_walk::{
-    RevWalk, RevWalkDescendants, RevWalkDescendantsGenerationRange, RevWalkGenerationRange,
-};
 pub use self::store::{DefaultIndexStore, DefaultIndexStoreError, DefaultIndexStoreInitError};
 
 #[cfg(test)]
