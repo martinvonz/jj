@@ -225,12 +225,12 @@ where
     //
     //     for<'index>
     //         F: Fn(CompositeIndex<'index>) -> _,
-    //         F::Output: Iterator<Item = IndexEntry<'index>> + 'index
+    //         F::Output: Iterator<Item = IndexPosition> + 'index
     //
     // There's a workaround, but it doesn't help infer closure types.
     // https://github.com/rust-lang/rust/issues/47815
     // https://users.rust-lang.org/t/hrtb-on-multiple-generics/34255
-    F: Fn(CompositeIndex<'_>) -> Box<dyn Iterator<Item = IndexEntry<'_>> + '_>,
+    F: Fn(CompositeIndex<'_>) -> Box<dyn Iterator<Item = IndexPosition> + '_>,
 {
     fn new(walk: F) -> Self {
         RevWalkRevset { walk }
@@ -245,20 +245,20 @@ impl<F> fmt::Debug for RevWalkRevset<F> {
 
 impl<F> InternalRevset for RevWalkRevset<F>
 where
-    F: Fn(CompositeIndex<'_>) -> Box<dyn Iterator<Item = IndexEntry<'_>> + '_>,
+    F: Fn(CompositeIndex<'_>) -> Box<dyn Iterator<Item = IndexPosition> + '_>,
 {
     fn entries<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
-        (self.walk)(index)
+        Box::new((self.walk)(index).map(move |pos| index.entry_by_pos(pos)))
     }
 
     fn positions<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
     ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
-        Box::new(self.entries(index).map(|entry| entry.position()))
+        (self.walk)(index)
     }
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
@@ -271,20 +271,14 @@ where
 
 impl<F> ToPredicateFn for RevWalkRevset<F>
 where
-    F: Fn(CompositeIndex<'_>) -> Box<dyn Iterator<Item = IndexEntry<'_>> + '_>,
+    F: Fn(CompositeIndex<'_>) -> Box<dyn Iterator<Item = IndexPosition> + '_>,
 {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
     ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
-        predicate_fn_from_entries(self.entries(index))
+        predicate_fn_from_positions(self.positions(index))
     }
-}
-
-fn predicate_fn_from_entries<'index, 'iter>(
-    iter: impl Iterator<Item = IndexEntry<'index>> + 'iter,
-) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'iter> {
-    predicate_fn_from_positions(iter.map(|entry| entry.position()))
 }
 
 fn predicate_fn_from_positions<'iter>(
@@ -834,7 +828,6 @@ impl<'index> EvaluationContext<'index> {
                     let mut positions = RevWalkBuilder::new(index)
                         .wanted_heads(head_positions)
                         .descendants(root_positions)
-                        .map(|entry| entry.position())
                         .collect_vec();
                     positions.reverse();
                     Ok(Box::new(EagerRevset { positions }))
@@ -848,7 +841,7 @@ impl<'index> EvaluationContext<'index> {
                             root_positions,
                             to_u32_generation_range(generation_from_roots)?,
                         )
-                        .map(|entry| entry.position())
+                        .map(|Reverse(pos)| pos)
                         .collect_vec();
                     positions.reverse();
                     Ok(Box::new(EagerRevset { positions }))
