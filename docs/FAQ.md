@@ -137,6 +137,20 @@ commit, then run `jj restore --from Y --to @-` to restore the parent commit
 to the old state, and `jj restore --from X` to restore the new working-copy
 commit to the new state.
 
+### How do I resume working on an existing change?
+
+There are two ways to resume working on an earlier change: `jj new` then `jj squash`,
+and `jj edit`. The first is generally recommended, but `jj edit` can be useful. When 
+you use `jj edit`, the revision is directly amended with your new changes, making it
+difficult to tell what exactly you change. You should avoid using `jj edit` when the
+revision has a conflict, as you may accidentally break the plain-text annotations on
+your state without realising.
+
+To start, use `jj new <rev>` to create a change based on that earlier revision. Make
+your edits, then use `jj squash` to update the earlier revision with those edits.
+For when you would use git stashing, use `jj edit <rev>` for expected behaviour. 
+Other workflows may prefer `jj edit` as well.
+
 ### How do I deal with divergent changes ('??' after the [change ID])?
 
 A [divergent change][glossary_divergent_change] represents a change that has two

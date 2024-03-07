@@ -711,6 +711,8 @@ Sets the specified revision as the working-copy revision
 
 Note: it is generally recommended to instead use `jj new` and `jj squash`.
 
+For more information, see https://martinvonz.github.io/jj/latest/FAQ#how-do-i-resume-working-on-an-existing-change
+
 **Usage:** `jj edit <REVISION>`
 
 ###### **Arguments:**
