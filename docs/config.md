@@ -389,7 +389,7 @@ Obviously, you would only set one line, don't copy them all in!
 ## Editing diffs
 
 The `ui.diff-editor` setting affects the tool used for editing diffs (e.g.  `jj
-split`, `jj amend -i`). The default is the special value `:builtin`, which
+split`, `jj squash -i`). The default is the special value `:builtin`, which
 launches a built-in TUI tool (known as [scm-diff-editor]) to edit the diff in
 your terminal.
 

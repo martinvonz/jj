@@ -1,7 +1,10 @@
 # The code assumes that this table exists, so don't delete it even if you remove
 # all aliases from here.
 [aliases]
+amend = ["squash"]
 co = ["checkout"]
+unamend = ["unsquash"]
+
 
 [format]
 tree-level-conflicts = true
