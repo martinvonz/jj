@@ -22,57 +22,45 @@ use std::ops::Range;
 use smallvec::SmallVec;
 
 use super::composite::CompositeIndex;
-use super::entry::{IndexEntry, IndexPosition, SmallIndexPositionsVec};
+use super::entry::{IndexPosition, SmallIndexPositionsVec};
 
-pub(super) trait RevWalkIndex<'a> {
+pub(super) trait RevWalkIndex {
     type Position: Copy + Ord;
     type AdjacentPositions: IntoIterator<Item = Self::Position>;
 
-    fn entry_by_pos(&self, pos: Self::Position) -> IndexEntry<'a>;
-    fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> Self::AdjacentPositions;
+    fn adjacent_positions(&self, pos: Self::Position) -> Self::AdjacentPositions;
 }
 
-impl<'a> RevWalkIndex<'a> for CompositeIndex<'a> {
+impl RevWalkIndex for CompositeIndex<'_> {
     type Position = IndexPosition;
     type AdjacentPositions = SmallIndexPositionsVec;
 
-    fn entry_by_pos(&self, pos: Self::Position) -> IndexEntry<'a> {
-        CompositeIndex::entry_by_pos(self, pos)
-    }
-
-    fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> Self::AdjacentPositions {
-        entry.parent_positions()
+    fn adjacent_positions(&self, pos: Self::Position) -> Self::AdjacentPositions {
+        self.entry_by_pos(pos).parent_positions()
     }
 }
 
 #[derive(Clone)]
-pub(super) struct RevWalkDescendantsIndex<'a> {
-    index: CompositeIndex<'a>,
+pub(super) struct RevWalkDescendantsIndex {
     children_map: HashMap<IndexPosition, DescendantIndexPositionsVec>,
 }
 
 // See SmallIndexPositionsVec for the array size.
 type DescendantIndexPositionsVec = SmallVec<[Reverse<IndexPosition>; 4]>;
 
-impl<'a> RevWalkDescendantsIndex<'a> {
-    fn build<'b>(
-        index: CompositeIndex<'a>,
-        entries: impl IntoIterator<Item = IndexEntry<'b>>,
-    ) -> Self {
+impl RevWalkDescendantsIndex {
+    fn build(index: CompositeIndex, positions: impl IntoIterator<Item = IndexPosition>) -> Self {
         // For dense set, it's probably cheaper to use `Vec` instead of `HashMap`.
         let mut children_map: HashMap<IndexPosition, DescendantIndexPositionsVec> = HashMap::new();
-        for entry in entries {
-            children_map.entry(entry.position()).or_default(); // mark head node
-            for parent_pos in entry.parent_positions() {
+        for pos in positions {
+            children_map.entry(pos).or_default(); // mark head node
+            for parent_pos in index.entry_by_pos(pos).parent_positions() {
                 let parent = children_map.entry(parent_pos).or_default();
-                parent.push(Reverse(entry.position()));
+                parent.push(Reverse(pos));
             }
         }
 
-        RevWalkDescendantsIndex {
-            index,
-            children_map,
-        }
+        RevWalkDescendantsIndex { children_map }
     }
 
     fn contains_pos(&self, pos: IndexPosition) -> bool {
@@ -80,16 +68,12 @@ impl<'a> RevWalkDescendantsIndex<'a> {
     }
 }
 
-impl<'a> RevWalkIndex<'a> for RevWalkDescendantsIndex<'a> {
+impl RevWalkIndex for RevWalkDescendantsIndex {
     type Position = Reverse<IndexPosition>;
     type AdjacentPositions = DescendantIndexPositionsVec;
 
-    fn entry_by_pos(&self, pos: Self::Position) -> IndexEntry<'a> {
-        self.index.entry_by_pos(pos.0)
-    }
-
-    fn adjacent_positions(&self, entry: &IndexEntry<'_>) -> Self::AdjacentPositions {
-        self.children_map[&entry.position()].clone()
+    fn adjacent_positions(&self, pos: Self::Position) -> Self::AdjacentPositions {
+        self.children_map[&pos.0].clone()
     }
 }
 
@@ -274,12 +258,14 @@ impl<'a> RevWalkBuilder<'a> {
         self,
         root_positions: impl IntoIterator<Item = IndexPosition>,
     ) -> RevWalkDescendants<'a> {
+        let index = self.index;
         let root_positions = HashSet::from_iter(root_positions);
-        let candidate_entries = self
+        let candidate_positions = self
             .ancestors_until_roots(root_positions.iter().copied())
             .collect();
         RevWalkDescendants {
-            candidate_entries,
+            index,
+            candidate_positions,
             root_positions,
             reachable_positions: HashSet::new(),
         }
@@ -296,11 +282,11 @@ impl<'a> RevWalkBuilder<'a> {
         self,
         root_positions: impl IntoIterator<Item = IndexPosition>,
         generation_range: Range<u32>,
-    ) -> RevWalkDescendantsGenerationRange<'a> {
+    ) -> RevWalkDescendantsGenerationRange {
         let index = self.index;
         let root_positions = Vec::from_iter(root_positions);
-        let entries = self.ancestors_until_roots(root_positions.iter().copied());
-        let descendants_index = RevWalkDescendantsIndex::build(index, entries);
+        let positions = self.ancestors_until_roots(root_positions.iter().copied());
+        let descendants_index = RevWalkDescendantsIndex::build(index, positions);
 
         let mut queue = RevWalkQueue::with_min_pos(Reverse(IndexPosition::MAX));
         let item_range = RevWalkItemGenerationRange::from_filter_range(generation_range.clone());
@@ -318,34 +304,32 @@ impl<'a> RevWalkBuilder<'a> {
     }
 }
 
-pub(super) type RevWalkAncestors<'a> = RevWalkImpl<'a, CompositeIndex<'a>>;
+pub(super) type RevWalkAncestors<'a> = RevWalkImpl<CompositeIndex<'a>>;
 
 #[derive(Clone)]
 #[must_use]
-pub(super) struct RevWalkImpl<'a, I: RevWalkIndex<'a>> {
+pub(super) struct RevWalkImpl<I: RevWalkIndex> {
     index: I,
     queue: RevWalkQueue<I::Position, ()>,
 }
 
-impl<'a, I: RevWalkIndex<'a>> Iterator for RevWalkImpl<'a, I> {
-    type Item = IndexEntry<'a>;
+impl<I: RevWalkIndex> Iterator for RevWalkImpl<I> {
+    type Item = I::Position;
 
-    fn next(&mut self) -> Option<IndexEntry<'a>> {
+    fn next(&mut self) -> Option<I::Position> {
         while let Some(item) = self.queue.pop() {
             self.queue.skip_while_eq(&item.pos);
             if item.is_wanted() {
-                let entry = self.index.entry_by_pos(item.pos);
                 self.queue
-                    .extend_wanted(self.index.adjacent_positions(&entry), ());
-                return Some(entry);
+                    .extend_wanted(self.index.adjacent_positions(item.pos), ());
+                return Some(item.pos);
             } else if self.queue.items.len() == self.queue.unwanted_count {
                 // No more wanted entries to walk
                 debug_assert!(!self.queue.items.iter().any(|x| x.is_wanted()));
                 return None;
             } else {
-                let entry = self.index.entry_by_pos(item.pos);
                 self.queue
-                    .extend_unwanted(self.index.adjacent_positions(&entry));
+                    .extend_unwanted(self.index.adjacent_positions(item.pos));
             }
         }
 
@@ -358,25 +342,21 @@ impl<'a, I: RevWalkIndex<'a>> Iterator for RevWalkImpl<'a, I> {
 }
 
 pub(super) type RevWalkAncestorsGenerationRange<'a> =
-    RevWalkGenerationRangeImpl<'a, CompositeIndex<'a>>;
-pub(super) type RevWalkDescendantsGenerationRange<'a> =
-    RevWalkGenerationRangeImpl<'a, RevWalkDescendantsIndex<'a>>;
+    RevWalkGenerationRangeImpl<CompositeIndex<'a>>;
+pub(super) type RevWalkDescendantsGenerationRange =
+    RevWalkGenerationRangeImpl<RevWalkDescendantsIndex>;
 
 #[derive(Clone)]
 #[must_use]
-pub(super) struct RevWalkGenerationRangeImpl<'a, I: RevWalkIndex<'a>> {
+pub(super) struct RevWalkGenerationRangeImpl<I: RevWalkIndex> {
     index: I,
     // Sort item generations in ascending order
     queue: RevWalkQueue<I::Position, Reverse<RevWalkItemGenerationRange>>,
     generation_end: u32,
 }
 
-impl<'a, I: RevWalkIndex<'a>> RevWalkGenerationRangeImpl<'a, I> {
-    fn enqueue_wanted_adjacents(
-        &mut self,
-        entry: &IndexEntry<'_>,
-        gen: RevWalkItemGenerationRange,
-    ) {
+impl<I: RevWalkIndex> RevWalkGenerationRangeImpl<I> {
+    fn enqueue_wanted_adjacents(&mut self, pos: I::Position, gen: RevWalkItemGenerationRange) {
         // `gen.start` is incremented from 0, which should never overflow
         if gen.start + 1 >= self.generation_end {
             return;
@@ -386,17 +366,16 @@ impl<'a, I: RevWalkIndex<'a>> RevWalkGenerationRangeImpl<'a, I> {
             end: gen.end.saturating_add(1),
         };
         self.queue
-            .extend_wanted(self.index.adjacent_positions(entry), Reverse(succ_gen));
+            .extend_wanted(self.index.adjacent_positions(pos), Reverse(succ_gen));
     }
 }
 
-impl<'a, I: RevWalkIndex<'a>> Iterator for RevWalkGenerationRangeImpl<'a, I> {
-    type Item = IndexEntry<'a>;
+impl<I: RevWalkIndex> Iterator for RevWalkGenerationRangeImpl<I> {
+    type Item = I::Position;
 
-    fn next(&mut self) -> Option<IndexEntry<'a>> {
+    fn next(&mut self) -> Option<I::Position> {
         while let Some(item) = self.queue.pop() {
             if let RevWalkWorkItemState::Wanted(Reverse(mut pending_gen)) = item.state {
-                let entry = self.index.entry_by_pos(item.pos);
                 let mut some_in_range = pending_gen.contains_end(self.generation_end);
                 while let Some(x) = self.queue.pop_eq(&item.pos) {
                     // Merge overlapped ranges to reduce number of the queued items.
@@ -408,26 +387,25 @@ impl<'a, I: RevWalkIndex<'a>> Iterator for RevWalkGenerationRangeImpl<'a, I> {
                         pending_gen = if let Some(merged) = pending_gen.try_merge_end(gen) {
                             merged
                         } else {
-                            self.enqueue_wanted_adjacents(&entry, pending_gen);
+                            self.enqueue_wanted_adjacents(item.pos, pending_gen);
                             gen
                         };
                     } else {
                         unreachable!("no more unwanted items of the same entry");
                     }
                 }
-                self.enqueue_wanted_adjacents(&entry, pending_gen);
+                self.enqueue_wanted_adjacents(item.pos, pending_gen);
                 if some_in_range {
-                    return Some(entry);
+                    return Some(item.pos);
                 }
             } else if self.queue.items.len() == self.queue.unwanted_count {
                 // No more wanted entries to walk
                 debug_assert!(!self.queue.items.iter().any(|x| x.is_wanted()));
                 return None;
             } else {
-                let entry = self.index.entry_by_pos(item.pos);
                 self.queue.skip_while_eq(&item.pos);
                 self.queue
-                    .extend_unwanted(self.index.adjacent_positions(&entry));
+                    .extend_unwanted(self.index.adjacent_positions(item.pos));
             }
         }
 
@@ -482,7 +460,8 @@ impl RevWalkItemGenerationRange {
 #[derive(Clone)]
 #[must_use]
 pub(super) struct RevWalkDescendants<'a> {
-    candidate_entries: Vec<IndexEntry<'a>>,
+    index: CompositeIndex<'a>,
+    candidate_positions: Vec<IndexPosition>,
     root_positions: HashSet<IndexPosition>,
     reachable_positions: HashSet<IndexPosition>,
 }
@@ -490,27 +469,29 @@ pub(super) struct RevWalkDescendants<'a> {
 impl RevWalkDescendants<'_> {
     /// Builds a set of index positions reachable from the roots.
     ///
-    /// This is equivalent to `.map(|entry| entry.position()).collect()` on
-    /// the new iterator, but returns the internal buffer instead.
+    /// This is equivalent to `.collect()` on the new iterator, but returns the
+    /// internal buffer instead.
     pub fn collect_positions_set(mut self) -> HashSet<IndexPosition> {
         self.by_ref().for_each(drop);
         self.reachable_positions
     }
 }
 
-impl<'a> Iterator for RevWalkDescendants<'a> {
-    type Item = IndexEntry<'a>;
+impl Iterator for RevWalkDescendants<'_> {
+    type Item = IndexPosition;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(candidate) = self.candidate_entries.pop() {
-            if self.root_positions.contains(&candidate.position())
-                || candidate
+        while let Some(candidate_pos) = self.candidate_positions.pop() {
+            if self.root_positions.contains(&candidate_pos)
+                || self
+                    .index
+                    .entry_by_pos(candidate_pos)
                     .parent_positions()
                     .iter()
                     .any(|parent_pos| self.reachable_positions.contains(parent_pos))
             {
-                self.reachable_positions.insert(candidate.position());
-                return Some(candidate);
+                self.reachable_positions.insert(candidate_pos);
+                return Some(candidate_pos);
             }
         }
         None
@@ -649,7 +630,7 @@ mod tests {
                 .wanted_heads(to_positions_vec(index, wanted))
                 .unwanted_roots(to_positions_vec(index, unwanted))
                 .ancestors()
-                .map(|entry| entry.commit_id())
+                .map(|pos| index.entry_by_pos(pos).commit_id())
                 .collect_vec()
         };
 
@@ -737,7 +718,7 @@ mod tests {
                 .wanted_heads(to_positions_vec(index, heads))
                 .ancestors_until_roots(to_positions_vec(index, roots))
         };
-        let to_commit_id = |entry: IndexEntry| entry.commit_id();
+        let to_commit_id = |pos| index.entry_by_pos(pos).commit_id();
 
         let mut iter = make_iter(&[id_6.clone(), id_7.clone()], &[id_3.clone()]);
         assert_eq!(iter.queue.items.len(), 2);
@@ -798,7 +779,7 @@ mod tests {
                 .wanted_heads(to_positions_vec(index, wanted))
                 .unwanted_roots(to_positions_vec(index, unwanted))
                 .ancestors_filtered_by_generation(range)
-                .map(|entry| entry.commit_id())
+                .map(|pos| index.entry_by_pos(pos).commit_id())
                 .collect_vec()
         };
 
@@ -875,7 +856,7 @@ mod tests {
             RevWalkBuilder::new(index)
                 .wanted_heads(to_positions_vec(index, wanted))
                 .ancestors_filtered_by_generation(range)
-                .map(|entry| entry.commit_id())
+                .map(|pos| index.entry_by_pos(pos).commit_id())
                 .collect_vec()
         };
 
@@ -945,7 +926,7 @@ mod tests {
             RevWalkBuilder::new(index)
                 .wanted_heads(to_positions_vec(index, heads))
                 .descendants_filtered_by_generation(to_positions_vec(index, roots), range)
-                .map(|entry| entry.commit_id())
+                .map(|Reverse(pos)| index.entry_by_pos(pos).commit_id())
                 .collect_vec()
         };
 
