@@ -21,10 +21,10 @@ use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
-/// Edit a commit in the working copy
+/// Sets the specified revision as the working-copy revision
 ///
-/// Puts the contents of a commit in the working copy for editing. Any changes
-/// you make in the working copy will update (amend) the commit.
+/// Note: it is generally recommended to instead use `jj new` and `jj
+/// squash`.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct EditArgs {
     /// The commit to edit

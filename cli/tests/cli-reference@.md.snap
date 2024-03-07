@@ -113,7 +113,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `diff` — Compare file contents between two revisions
 * `diffedit` — Touch up the content changes in a revision with a diff editor
 * `duplicate` — Create a new change with the same content as an existing one
-* `edit` — Edit a commit in the working copy
+* `edit` — Sets the specified revision as the working-copy revision
 * `files` — List files in a revision
 * `git` — Commands for working with the underlying Git repo
 * `init` — Create a new repo in the given directory
@@ -706,9 +706,9 @@ Create a new change with the same content as an existing one
 
 ## `jj edit`
 
-Edit a commit in the working copy
+Sets the specified revision as the working-copy revision
 
-Puts the contents of a commit in the working copy for editing. Any changes you make in the working copy will update (amend) the commit.
+Note: it is generally recommended to instead use `jj new` and `jj squash`.
 
 **Usage:** `jj edit <REVISION>`
 
