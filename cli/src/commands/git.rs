@@ -50,7 +50,7 @@ use crate::command_error::{
 };
 use crate::git_util::{
     get_git_repo, is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
-    with_remote_git_callbacks,
+    with_remote_git_callbacks, GitSidebandProgressMessageWriter,
 };
 use crate::ui::Ui;
 
@@ -535,7 +535,7 @@ fn cmd_git_fetch(
     };
     let mut tx = workspace_command.start_transaction();
     for remote in &remotes {
-        let stats = with_remote_git_callbacks(ui, |cb| {
+        let stats = with_remote_git_callbacks(ui, None, |cb| {
             git::fetch(
                 tx.mut_repo(),
                 &git_repo,
@@ -758,7 +758,7 @@ fn do_git_clone(
     git_repo.remote(remote_name, source).unwrap();
     let mut fetch_tx = workspace_command.start_transaction();
 
-    let stats = with_remote_git_callbacks(ui, |cb| {
+    let stats = with_remote_git_callbacks(ui, None, |cb| {
         git::fetch(
             fetch_tx.mut_repo(),
             &git_repo,
@@ -1049,7 +1049,11 @@ fn cmd_git_push(
         branch_updates,
         force_pushed_branches,
     };
-    with_remote_git_callbacks(ui, |cb| {
+    let mut writer = GitSidebandProgressMessageWriter::new(ui);
+    let mut sideband_progress_callback = |progress_message: &[u8]| {
+        _ = writer.write(ui, progress_message);
+    };
+    with_remote_git_callbacks(ui, Some(&mut sideband_progress_callback), |cb| {
         git::push_branches(tx.mut_repo(), &git_repo, &remote, &targets, cb)
     })
     .map_err(|err| match err {
@@ -1061,6 +1065,7 @@ fn cmd_git_push(
         ),
         _ => user_error(err),
     })?;
+    writer.flush(ui)?;
     tx.finish(ui, tx_description)?;
     Ok(())
 }

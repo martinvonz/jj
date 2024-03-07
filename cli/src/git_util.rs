@@ -137,18 +137,108 @@ fn get_ssh_keys(_username: &str) -> Vec<PathBuf> {
     paths
 }
 
-pub fn with_remote_git_callbacks<T>(ui: &Ui, f: impl FnOnce(git::RemoteCallbacks<'_>) -> T) -> T {
-    let mut callback = None;
+// Based on Git's implementation: https://github.com/git/git/blob/43072b4ca132437f21975ac6acc6b72dc22fd398/sideband.c#L178
+pub struct GitSidebandProgressMessageWriter {
+    display_prefix: &'static [u8],
+    suffix: &'static [u8],
+    scratch: Vec<u8>,
+}
+
+impl GitSidebandProgressMessageWriter {
+    pub fn new(ui: &Ui) -> Self {
+        let is_terminal = ui.use_progress_indicator();
+
+        GitSidebandProgressMessageWriter {
+            display_prefix: "remote: ".as_bytes(),
+            suffix: if is_terminal { "\x1B[K" } else { "        " }.as_bytes(),
+            scratch: Vec::new(),
+        }
+    }
+
+    pub fn write(&mut self, ui: &Ui, progress_message: &[u8]) -> std::io::Result<()> {
+        let mut index = 0;
+        // Append a suffix to each nonempty line to clear the end of the screen line.
+        loop {
+            let Some(i) = progress_message[index..]
+                .iter()
+                .position(|&c| c == b'\r' || c == b'\n')
+                .map(|i| index + i)
+            else {
+                break;
+            };
+            let line_length = i - index;
+
+            // For messages sent across the packet boundary, there would be a nonempty
+            // "scratch" buffer from last call of this function, and there may be a leading
+            // CR/LF in this message. For this case we should add a clear-to-eol suffix to
+            // clean leftover letters we previously have written on the same line.
+            if !self.scratch.is_empty() && line_length == 0 {
+                self.scratch.extend_from_slice(self.suffix);
+            }
+
+            if self.scratch.is_empty() {
+                self.scratch.extend_from_slice(self.display_prefix);
+            }
+
+            // Do not add the clear-to-eol suffix to empty lines:
+            // For progress reporting we may receive a bunch of percentage updates
+            // followed by '\r' to remain on the same line, and at the end receive a single
+            // '\n' to move to the next line. We should preserve the final
+            // status report line by not appending clear-to-eol suffix to this single line
+            // break.
+            if line_length > 0 {
+                self.scratch.extend_from_slice(&progress_message[index..i]);
+                self.scratch.extend_from_slice(self.suffix);
+            }
+            self.scratch.extend_from_slice(&progress_message[i..i + 1]);
+
+            ui.stderr().write_all(&self.scratch)?;
+            self.scratch.clear();
+
+            index = i + 1;
+        }
+
+        // Add leftover message to "scratch" buffer to be printed in next call.
+        if index < progress_message.len() && progress_message[index] != 0 {
+            if self.scratch.is_empty() {
+                self.scratch.extend_from_slice(self.display_prefix);
+            }
+            self.scratch.extend_from_slice(&progress_message[index..]);
+        }
+
+        Ok(())
+    }
+
+    pub fn flush(&mut self, ui: &Ui) -> std::io::Result<()> {
+        if !self.scratch.is_empty() {
+            self.scratch.push(b'\n');
+            ui.stderr().write_all(&self.scratch)?;
+            self.scratch.clear();
+        }
+
+        Ok(())
+    }
+}
+
+type SidebandProgressCallback<'a> = &'a mut dyn FnMut(&[u8]);
+
+pub fn with_remote_git_callbacks<T>(
+    ui: &Ui,
+    sideband_progress_callback: Option<SidebandProgressCallback<'_>>,
+    f: impl FnOnce(git::RemoteCallbacks<'_>) -> T,
+) -> T {
+    let mut callbacks = git::RemoteCallbacks::default();
+    let mut progress_callback = None;
     if let Some(mut output) = ui.progress_output() {
         let mut progress = Progress::new(Instant::now());
-        callback = Some(move |x: &git::Progress| {
+        progress_callback = Some(move |x: &git::Progress| {
             _ = progress.update(Instant::now(), x, &mut output);
         });
     }
-    let mut callbacks = git::RemoteCallbacks::default();
-    callbacks.progress = callback
+    callbacks.progress = progress_callback
         .as_mut()
         .map(|x| x as &mut dyn FnMut(&git::Progress));
+    callbacks.sideband_progress = sideband_progress_callback.map(|x| x as &mut dyn FnMut(&[u8]));
     let mut get_ssh_keys = get_ssh_keys; // Coerce to unit fn type
     callbacks.get_ssh_keys = Some(&mut get_ssh_keys);
     let mut get_pw =
