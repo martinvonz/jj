@@ -1362,6 +1362,7 @@ fn push_refs(
 #[allow(clippy::type_complexity)]
 pub struct RemoteCallbacks<'a> {
     pub progress: Option<&'a mut dyn FnMut(&Progress)>,
+    pub sideband_progress: Option<&'a mut dyn FnMut(&[u8])>,
     pub get_ssh_keys: Option<&'a mut dyn FnMut(&str) -> Vec<PathBuf>>,
     pub get_password: Option<&'a mut dyn FnMut(&str, &str) -> Option<String>>,
     pub get_username_password: Option<&'a mut dyn FnMut(&str) -> Option<(String, String)>>,
@@ -1378,6 +1379,12 @@ impl<'a> RemoteCallbacks<'a> {
                     overall: (progress.indexed_objects() + progress.indexed_deltas()) as f32
                         / (progress.total_objects() + progress.total_deltas()) as f32,
                 });
+                true
+            });
+        }
+        if let Some(sideband_progress_cb) = self.sideband_progress {
+            callbacks.sideband_progress(move |data| {
+                sideband_progress_cb(data);
                 true
             });
         }
