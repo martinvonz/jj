@@ -26,7 +26,7 @@ use super::entry::{
     SmallLocalPositionsVec,
 };
 use super::readonly::ReadonlyIndexSegment;
-use super::rev_walk::{AncestorsBitSet, RevWalk};
+use super::rev_walk::{AncestorsBitSet, RevWalkAncestors};
 use super::revset_engine;
 use crate::backend::{ChangeId, CommitId};
 use crate::hex_util;
@@ -334,8 +334,8 @@ impl<'a> CompositeIndex<'a> {
         &self,
         wanted: &[IndexPosition],
         unwanted: &[IndexPosition],
-    ) -> RevWalk<'a> {
-        let mut rev_walk = RevWalk::new(*self);
+    ) -> RevWalkAncestors<'a> {
+        let mut rev_walk = RevWalkAncestors::new(*self);
         rev_walk.extend_wanted(wanted.iter().copied());
         rev_walk.extend_unwanted(unwanted.iter().copied());
         rev_walk

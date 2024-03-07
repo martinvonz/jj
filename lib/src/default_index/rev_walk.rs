@@ -199,7 +199,7 @@ impl<P: Ord, T: Ord> RevWalkQueue<P, T> {
     }
 }
 
-pub(super) type RevWalk<'a> = RevWalkImpl<'a, CompositeIndex<'a>>;
+pub(super) type RevWalkAncestors<'a> = RevWalkImpl<'a, CompositeIndex<'a>>;
 
 #[derive(Clone)]
 pub(super) struct RevWalkImpl<'a, I: RevWalkIndex<'a>> {
@@ -207,7 +207,7 @@ pub(super) struct RevWalkImpl<'a, I: RevWalkIndex<'a>> {
     queue: RevWalkQueue<I::Position, ()>,
 }
 
-impl<'a> RevWalk<'a> {
+impl<'a> RevWalkAncestors<'a> {
     pub(super) fn new(index: CompositeIndex<'a>) -> Self {
         let queue = RevWalkQueue::new();
         RevWalkImpl { index, queue }
@@ -224,7 +224,10 @@ impl<'a> RevWalk<'a> {
     /// Filters entries by generation (or depth from the current wanted set.)
     ///
     /// The generation of the current wanted entries starts from 0.
-    pub fn filter_by_generation(self, generation_range: Range<u32>) -> RevWalkGenerationRange<'a> {
+    pub fn filter_by_generation(
+        self,
+        generation_range: Range<u32>,
+    ) -> RevWalkAncestorsGenerationRange<'a> {
         RevWalkGenerationRangeImpl::new(self.index, self.queue, generation_range)
     }
 
@@ -310,7 +313,8 @@ impl<'a, I: RevWalkIndex<'a>> Iterator for RevWalkImpl<'a, I> {
     }
 }
 
-pub(super) type RevWalkGenerationRange<'a> = RevWalkGenerationRangeImpl<'a, CompositeIndex<'a>>;
+pub(super) type RevWalkAncestorsGenerationRange<'a> =
+    RevWalkGenerationRangeImpl<'a, CompositeIndex<'a>>;
 pub(super) type RevWalkDescendantsGenerationRange<'a> =
     RevWalkGenerationRangeImpl<'a, RevWalkDescendantsIndex<'a>>;
 
@@ -573,7 +577,7 @@ mod tests {
     }
 
     #[test]
-    fn test_walk_revs() {
+    fn test_walk_ancestors() {
         let mut new_change_id = change_id_generator();
         let mut index = DefaultMutableIndex::full(3, 16);
         // 5
@@ -655,7 +659,7 @@ mod tests {
     }
 
     #[test]
-    fn test_walk_revs_filter_by_generation() {
+    fn test_walk_ancestors_filtered_by_generation() {
         let mut new_change_id = change_id_generator();
         let mut index = DefaultMutableIndex::full(3, 16);
         // 8 6
@@ -747,7 +751,7 @@ mod tests {
 
     #[test]
     #[allow(clippy::redundant_clone)] // allow id_n.clone()
-    fn test_walk_revs_filter_by_generation_range_merging() {
+    fn test_walk_ancestors_filtered_by_generation_range_merging() {
         let mut new_change_id = change_id_generator();
         let mut index = DefaultMutableIndex::full(3, 16);
         // Long linear history with some short branches
@@ -804,7 +808,7 @@ mod tests {
     }
 
     #[test]
-    fn test_walk_revs_descendants_filtered_by_generation() {
+    fn test_walk_descendants_filtered_by_generation() {
         let mut new_change_id = change_id_generator();
         let mut index = DefaultMutableIndex::full(3, 16);
         // 8 6
