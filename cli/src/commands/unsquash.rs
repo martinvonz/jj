@@ -36,7 +36,6 @@ use crate::ui::Ui;
 /// If a working-copy commit gets abandoned, it will be given a new, empty
 /// commit. This is true in general; it is not specific to this command.
 #[derive(clap::Args, Clone, Debug)]
-#[command(visible_alias = "unamend")]
 pub(crate) struct UnsquashArgs {
     #[arg(long, short, default_value = "@")]
     revision: RevisionArg,
