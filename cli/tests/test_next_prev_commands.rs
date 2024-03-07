@@ -318,3 +318,55 @@ fn test_next_editing() {
     Parent commit      : kkmpptxz 3fa8931e (empty) third
     "###);
 }
+
+// #[test]
+// fn test_prev_conflict() {
+//     // Edit the third commit.
+//     let test_env = TestEnvironment::default();
+//     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+//     let repo_path = test_env.env_root().join("repo");
+//     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+//     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+//     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+//     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "fourth"]);
+//     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev", "--conflict"]);
+//     insta::assert_snapshot!(stdout, @"");
+//     insta::assert_snapshot!(stderr, @r###"
+//     Working copy now at: zsuskuln 009f88bf (empty) fourth
+//     Parent commit      : kkmpptxz 3fa8931e (empty) third
+//     "###);
+//     // --edit is implied when already editing a non-head commit
+//     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev"]);
+//     insta::assert_snapshot!(stdout, @"");
+//     insta::assert_snapshot!(stderr, @r###"
+//     Working copy now at: yqosqzyt d2edc95b (empty) (no description set)
+//     Parent commit      : rlvkpnrz 5c52832c (empty) second
+//     "###);
+// }
+
+// #[test]
+// fn test_next_conflict() {
+//     // There is a conflict in the fourth commit, so after next we should create a
+//     // new revision on top of it.
+//     let test_env = TestEnvironment::default();
+//     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+//     let repo_path = test_env.env_root().join("repo");
+//     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+//     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+//     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+//     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "fourth"]);
+//     test_env.jj_cmd_ok(&repo_path, &["edit", "@---"]);
+//     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next", "--conflict"]);
+//     insta::assert_snapshot!(stdout, @"");
+//     insta::assert_snapshot!(stderr, @r###"
+//     Working copy now at: kkmpptxz 3fa8931e (empty) third
+//     Parent commit      : rlvkpnrz 5c52832c (empty) second
+//     "###);
+//     // --edit is implied when already editing a non-head commit
+//     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next"]);
+//     insta::assert_snapshot!(stdout, @"");
+//     insta::assert_snapshot!(stderr, @r###"
+//     Working copy now at: zsuskuln 009f88bf (empty) fourth
+//     Parent commit      : kkmpptxz 3fa8931e (empty) third
+//     "###);
+// }

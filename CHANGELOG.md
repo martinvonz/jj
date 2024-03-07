@@ -109,6 +109,9 @@ No code changes (fixing Rust `Cargo.toml` stuff).
 * `ui.default-command` now accepts multiple string arguments, for more complex
   default `jj` commands.
 
+* `jj prev` and `jj next` have gained a `--conflict` flag which moves you
+  to the next conflict in a child commit.
+
 ### Fixed bugs
 
 * On Windows, symlinks in the repo are now supported when Developer Mode is enabled.

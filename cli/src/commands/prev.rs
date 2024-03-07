@@ -59,6 +59,9 @@ pub(crate) struct PrevArgs {
     /// Edit the parent directly, instead of moving the working-copy commit.
     #[arg(long)]
     edit: bool,
+    /// Jump to nearest the conflicted ancestor.
+    #[arg(long, conflicts_with = "amount")]
+    conflict: bool,
 }
 
 pub(crate) fn cmd_prev(
@@ -68,6 +71,7 @@ pub(crate) fn cmd_prev(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let amount = args.amount;
+    let conflict = args.conflict;
     let current_wc_id = workspace_command
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
@@ -86,7 +90,12 @@ pub(crate) fn cmd_prev(
             _ => return Err(user_error("Cannot run `jj prev` on a merge commit")),
         }
     };
-    let ancestor_expression = RevsetExpression::commit(start_id.clone()).ancestors_at(amount);
+    let base_expr = RevsetExpression::commit(start_id.clone());
+    let ancestor_expression = if conflict {
+        base_expr.ancestors().conflicts()
+    } else {
+        base_expr.ancestors_at(amount)
+    };
     let target_revset = if edit {
         ancestor_expression
     } else {

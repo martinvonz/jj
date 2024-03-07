@@ -63,6 +63,9 @@ pub(crate) struct NextArgs {
     /// edit`).
     #[arg(long)]
     edit: bool,
+    /// Jump to the next conflicted descendant.
+    #[arg(long, conflicts_with = "amount")]
+    conflict: bool,
 }
 
 pub fn choose_commit<'a>(
@@ -113,6 +116,7 @@ pub(crate) fn cmd_next(
             .view()
             .heads()
             .contains(current_wc_id);
+    let conflict = args.conflict;
     let current_wc = workspace_command.repo().store().get_commit(current_wc_id)?;
     // If we're editing, start at the working-copy commit.
     // Otherwise start from our direct parent.
@@ -124,7 +128,12 @@ pub(crate) fn cmd_next(
             _ => return Err(user_error("Cannot run `jj next` on a merge commit")),
         }
     };
-    let descendant_expression = RevsetExpression::commit(start_id.clone()).descendants_at(amount);
+    let base_expr = RevsetExpression::commit(start_id.clone());
+    let descendant_expression = if conflict {
+        base_expr.descendants().conflicts()
+    } else {
+        base_expr.descendants_at(amount)
+    };
     let target_expression = if edit {
         descendant_expression
     } else {

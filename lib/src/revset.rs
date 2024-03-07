@@ -533,6 +533,13 @@ impl RevsetExpression {
         })
     }
 
+    /// Find any conflicts in `self`.
+    pub fn conflicts(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+        self.intersection(&RevsetExpression::filter(
+            RevsetFilterPredicate::HasConflict,
+        ))
+        .clone()
+    }
     /// Commits that are descendants of `self` and ancestors of `heads`, both
     /// inclusive.
     pub fn dag_range_to(
