@@ -57,8 +57,7 @@ control. You can tell Jujutsu to not automatically track certain files by using
 `.gitignore` files (there's no such thing as `.jjignore` yet).
 See https://git-scm.com/docs/gitignore for details about the format.
 `.gitignore` files are supported in any directory in the working copy, as well
-as in `$HOME/.gitignore`. However, `$GIT_DIR/info/exclude` or equivalent way
-(maybe `.jj/gitignore`) of specifying per-clone ignores is not yet supported.
+as in `$HOME/.gitignore` and `$GIT_DIR/info/exclude`.
 
 
 ## Workspaces
