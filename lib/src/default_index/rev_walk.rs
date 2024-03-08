@@ -110,16 +110,6 @@ impl<P, T> RevWalkWorkItem<P, T> {
     fn is_wanted(&self) -> bool {
         matches!(self.state, RevWalkWorkItemState::Wanted(_))
     }
-
-    fn map_wanted<U>(self, f: impl FnOnce(T) -> U) -> RevWalkWorkItem<P, U> {
-        RevWalkWorkItem {
-            pos: self.pos,
-            state: match self.state {
-                RevWalkWorkItemState::Wanted(t) => RevWalkWorkItemState::Wanted(f(t)),
-                RevWalkWorkItemState::Unwanted => RevWalkWorkItemState::Unwanted,
-            },
-        }
-    }
 }
 
 #[derive(Clone)]
@@ -133,17 +123,6 @@ impl<P: Ord, T: Ord> RevWalkQueue<P, T> {
         Self {
             items: BinaryHeap::new(),
             unwanted_count: 0,
-        }
-    }
-
-    fn map_wanted<U: Ord>(self, mut f: impl FnMut(T) -> U) -> RevWalkQueue<P, U> {
-        RevWalkQueue {
-            items: self
-                .items
-                .into_iter()
-                .map(|x| x.map_wanted(&mut f))
-                .collect(),
-            unwanted_count: self.unwanted_count,
         }
     }
 
@@ -203,34 +182,38 @@ impl<P: Ord, T: Ord> RevWalkQueue<P, T> {
 #[must_use]
 pub(super) struct RevWalkBuilder<'a> {
     index: CompositeIndex<'a>,
-    // TODO: Use Vec<_> until queued item type is settled.
-    queue: RevWalkQueue<IndexPosition, ()>,
+    wanted: Vec<IndexPosition>,
+    unwanted: Vec<IndexPosition>,
 }
 
 impl<'a> RevWalkBuilder<'a> {
     pub fn new(index: CompositeIndex<'a>) -> Self {
-        let queue = RevWalkQueue::new();
-        RevWalkBuilder { index, queue }
+        RevWalkBuilder {
+            index,
+            wanted: Vec::new(),
+            unwanted: Vec::new(),
+        }
     }
 
     /// Adds head positions to be included.
     pub fn wanted_heads(mut self, positions: impl IntoIterator<Item = IndexPosition>) -> Self {
-        self.queue.extend_wanted(positions, ());
+        self.wanted.extend(positions);
         self
     }
 
     /// Adds root positions to be excluded. The roots precede the heads.
     pub fn unwanted_roots(mut self, positions: impl IntoIterator<Item = IndexPosition>) -> Self {
-        self.queue.extend_unwanted(positions);
+        self.unwanted.extend(positions);
         self
     }
 
     /// Walks ancestors.
     pub fn ancestors(self) -> RevWalkAncestors<'a> {
-        RevWalkImpl {
-            index: self.index,
-            queue: self.queue,
-        }
+        let index = self.index;
+        let mut queue = RevWalkQueue::new();
+        queue.extend_wanted(self.wanted, ());
+        queue.extend_unwanted(self.unwanted);
+        RevWalkImpl { index, queue }
     }
 
     /// Walks ancestors within the `generation_range`.
@@ -240,7 +223,16 @@ impl<'a> RevWalkBuilder<'a> {
         self,
         generation_range: Range<u32>,
     ) -> RevWalkAncestorsGenerationRange<'a> {
-        RevWalkGenerationRangeImpl::new(self.index, self.queue, generation_range)
+        let index = self.index;
+        let mut queue = RevWalkQueue::new();
+        let item_range = RevWalkItemGenerationRange::from_filter_range(generation_range.clone());
+        queue.extend_wanted(self.wanted, Reverse(item_range));
+        queue.extend_unwanted(self.unwanted);
+        RevWalkGenerationRangeImpl {
+            index,
+            queue,
+            generation_end: generation_range.end,
+        }
     }
 
     /// Walks ancestors until all of the reachable roots in `root_positions` get
@@ -293,14 +285,20 @@ impl<'a> RevWalkBuilder<'a> {
         let root_positions = Vec::from_iter(root_positions);
         let entries = self.ancestors_until_roots(&root_positions);
         let descendants_index = RevWalkDescendantsIndex::build(index, entries);
+
         let mut queue = RevWalkQueue::new();
+        let item_range = RevWalkItemGenerationRange::from_filter_range(generation_range.clone());
         for pos in root_positions {
             // Do not add unreachable roots which shouldn't be visited
             if descendants_index.contains_pos(pos) {
-                queue.push_wanted(Reverse(pos), ());
+                queue.push_wanted(Reverse(pos), Reverse(item_range));
             }
         }
-        RevWalkGenerationRangeImpl::new(descendants_index, queue, generation_range)
+        RevWalkGenerationRangeImpl {
+            index: descendants_index,
+            queue,
+            generation_end: generation_range.end,
+        }
     }
 }
 
@@ -358,26 +356,6 @@ pub(super) struct RevWalkGenerationRangeImpl<'a, I: RevWalkIndex<'a>> {
 }
 
 impl<'a, I: RevWalkIndex<'a>> RevWalkGenerationRangeImpl<'a, I> {
-    fn new(index: I, queue: RevWalkQueue<I::Position, ()>, generation_range: Range<u32>) -> Self {
-        // Translate filter range to item ranges so that overlapped ranges can be
-        // merged later.
-        //
-        // Example: `generation_range = 1..4`
-        //     (original)                       (translated)
-        //     0 1 2 3 4                        0 1 2 3 4
-        //       *=====o  generation_range              +  generation_end
-        //     + :     :  item's generation     o=====* :  item's range
-        let item_range = RevWalkItemGenerationRange {
-            start: 0,
-            end: u32::saturating_sub(generation_range.end, generation_range.start),
-        };
-        RevWalkGenerationRangeImpl {
-            index,
-            queue: queue.map_wanted(|()| Reverse(item_range)),
-            generation_end: generation_range.end,
-        }
-    }
-
     fn enqueue_wanted_adjacents(
         &mut self,
         entry: &IndexEntry<'_>,
@@ -452,6 +430,23 @@ struct RevWalkItemGenerationRange {
 }
 
 impl RevWalkItemGenerationRange {
+    /// Translates filter range to item range so that overlapped ranges can be
+    /// merged later.
+    ///
+    /// Example: `generation_range = 1..4`
+    /// ```text
+    ///     (original)                       (translated)
+    ///     0 1 2 3 4                        0 1 2 3 4
+    ///       *=====o  generation_range              +  generation_end
+    ///     + :     :  item's generation     o=====* :  item's range
+    /// ```
+    fn from_filter_range(range: Range<u32>) -> Self {
+        RevWalkItemGenerationRange {
+            start: 0,
+            end: u32::saturating_sub(range.end, range.start),
+        }
+    }
+
     /// Suppose sorted ranges `self, other`, merges them if overlapped.
     #[must_use]
     fn try_merge_end(self, other: Self) -> Option<Self> {
