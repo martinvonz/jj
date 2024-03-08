@@ -27,14 +27,18 @@ use crate::diff_util::{self, DiffFormatArgs};
 use crate::graphlog::{get_graphlog, Edge};
 use crate::ui::Ui;
 
-/// Show commit history
+/// Show revision history
+///
+/// Renders a graphical view of the project's history, ordered with children
+/// before parents. By default, the output only includes mutable revisions,
+/// along with some additional revisions for context.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct LogArgs {
     /// Which revisions to show. Defaults to the `revsets.log` setting, or
     /// `@ | ancestors(immutable_heads().., 2) | trunk()` if it is not set.
     #[arg(long, short)]
     revisions: Vec<RevisionArg>,
-    /// Show commits modifying the given paths
+    /// Show revisions modifying the given paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
     /// Show revisions in the opposite order (older revisions first)
