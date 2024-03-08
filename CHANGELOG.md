@@ -48,6 +48,9 @@ No code changes (fixing Rust `Cargo.toml` stuff).
 
 ### New features
 
+* Added a new `jj sign` command to explicitly sign a commit using the new signing
+  backend implementation.
+
 * Added support for commit signing and verification. This comes with 
   out-of-the-box support for the following backends:
   * GnuPG

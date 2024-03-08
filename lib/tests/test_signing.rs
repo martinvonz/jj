@@ -1,9 +1,9 @@
 use jj_lib::backend::{MillisSinceEpoch, Signature, Timestamp};
+use jj_lib::mock_signing::MockSigningBackend;
 use jj_lib::repo::Repo;
 use jj_lib::settings::UserSettings;
 use jj_lib::signing::{SigStatus, SignBehavior, Signer, Verification};
 use test_case::test_case;
-use testutils::test_signing_backend::TestSigningBackend;
 use testutils::{create_random_commit, write_random_commit, TestRepoBackend, TestWorkspace};
 
 fn user_settings(sign_all: bool) -> UserSettings {
@@ -46,7 +46,7 @@ fn good_verification() -> Option<Verification> {
 fn manual(backend: TestRepoBackend) {
     let settings = user_settings(true);
 
-    let signer = Signer::new(Some(Box::new(TestSigningBackend)), vec![]);
+    let signer = Signer::new(Some(Box::new(MockSigningBackend)), vec![]);
     let test_workspace = TestWorkspace::init_with_backend_and_signer(&settings, backend, signer);
 
     let repo = &test_workspace.repo;
@@ -76,7 +76,7 @@ fn manual(backend: TestRepoBackend) {
 fn keep_on_rewrite(backend: TestRepoBackend) {
     let settings = user_settings(true);
 
-    let signer = Signer::new(Some(Box::new(TestSigningBackend)), vec![]);
+    let signer = Signer::new(Some(Box::new(MockSigningBackend)), vec![]);
     let test_workspace = TestWorkspace::init_with_backend_and_signer(&settings, backend, signer);
 
     let repo = &test_workspace.repo;
@@ -102,7 +102,7 @@ fn keep_on_rewrite(backend: TestRepoBackend) {
 fn manual_drop_on_rewrite(backend: TestRepoBackend) {
     let settings = user_settings(true);
 
-    let signer = Signer::new(Some(Box::new(TestSigningBackend)), vec![]);
+    let signer = Signer::new(Some(Box::new(MockSigningBackend)), vec![]);
     let test_workspace = TestWorkspace::init_with_backend_and_signer(&settings, backend, signer);
 
     let repo = &test_workspace.repo;
@@ -132,7 +132,7 @@ fn manual_drop_on_rewrite(backend: TestRepoBackend) {
 fn forced(backend: TestRepoBackend) {
     let settings = user_settings(true);
 
-    let signer = Signer::new(Some(Box::new(TestSigningBackend)), vec![]);
+    let signer = Signer::new(Some(Box::new(MockSigningBackend)), vec![]);
     let test_workspace = TestWorkspace::init_with_backend_and_signer(&settings, backend, signer);
 
     let repo = &test_workspace.repo;
@@ -155,7 +155,7 @@ fn forced(backend: TestRepoBackend) {
 fn configured(backend: TestRepoBackend) {
     let settings = user_settings(true);
 
-    let signer = Signer::new(Some(Box::new(TestSigningBackend)), vec![]);
+    let signer = Signer::new(Some(Box::new(MockSigningBackend)), vec![]);
     let test_workspace = TestWorkspace::init_with_backend_and_signer(&settings, backend, signer);
 
     let repo = &test_workspace.repo;

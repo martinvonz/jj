@@ -45,7 +45,6 @@ use tempfile::TempDir;
 use crate::test_backend::TestBackend;
 
 pub mod test_backend;
-pub mod test_signing_backend;
 
 pub fn hermetic_libgit2() {
     // libgit2 respects init.defaultBranch (and possibly other config
