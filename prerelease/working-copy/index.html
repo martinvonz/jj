@@ -1401,8 +1401,7 @@ control. You can tell Jujutsu to not automatically track certain files by using
 <code>.gitignore</code> files (there's no such thing as <code>.jjignore</code> yet).
 See https://git-scm.com/docs/gitignore for details about the format.
 <code>.gitignore</code> files are supported in any directory in the working copy, as well
-as in <code>$HOME/.gitignore</code>. However, <code>$GIT_DIR/info/exclude</code> or equivalent way
-(maybe <code>.jj/gitignore</code>) of specifying per-clone ignores is not yet supported.</p>
+as in <code>$HOME/.gitignore</code> and <code>$GIT_DIR/info/exclude</code>.</p>
 <h2 id="workspaces">Workspaces<a class="headerlink" href="#workspaces" title="Permanent link">&para;</a></h2>
 <p>You can have multiple working copies backed by a single repo. Use 
 <code>jj workspace add</code> to create a new working copy. The working copy will have a
