@@ -24,6 +24,56 @@ use smallvec::SmallVec;
 use super::composite::CompositeIndex;
 use super::entry::{IndexPosition, SmallIndexPositionsVec};
 
+/// Like `Iterator`, but doesn't borrow the `index` internally.
+pub(super) trait RevWalk<I: ?Sized> {
+    type Item;
+
+    /// Advances the iteration and returns the next item.
+    ///
+    /// The caller must provide the same `index` instance.
+    ///
+    /// Returns `None` when the iteration is finished. Once `None` is returned,
+    /// this will never resume. In other words, a `RevWalk` is fused.
+    fn next(&mut self, index: &I) -> Option<Self::Item>;
+}
+
+/// Adapter that turns `RevWalk` into `Iterator` by attaching borrowed `index`.
+#[derive(Clone, Debug)]
+#[must_use]
+pub(super) struct RevWalkBorrowedIndexIter<I, W> {
+    // TODO: `index: I` will be a reference type.
+    index: I,
+    walk: W,
+}
+
+impl<I, W: RevWalk<I>> Iterator for RevWalkBorrowedIndexIter<I, W> {
+    type Item = W::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.walk.next(&self.index)
+    }
+}
+
+impl<I, W: RevWalk<I>> FusedIterator for RevWalkBorrowedIndexIter<I, W> {}
+
+/// Adapter that turns `RevWalk` into `Iterator` by attaching owned `index`.
+#[derive(Clone, Debug)]
+#[must_use]
+pub(super) struct RevWalkOwnedIndexIter<I, W> {
+    index: I,
+    walk: W,
+}
+
+impl<I, W: RevWalk<I>> Iterator for RevWalkOwnedIndexIter<I, W> {
+    type Item = W::Item;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.walk.next(&self.index)
+    }
+}
+
+impl<I, W: RevWalk<I>> FusedIterator for RevWalkOwnedIndexIter<I, W> {}
+
 pub(super) trait RevWalkIndex {
     type Position: Copy + Ord;
     type AdjacentPositions: IntoIterator<Item = Self::Position>;
@@ -209,7 +259,10 @@ impl<'a> RevWalkBuilder<'a> {
         let mut queue = RevWalkQueue::with_min_pos(min_pos);
         queue.extend_wanted(self.wanted, ());
         queue.extend_unwanted(self.unwanted);
-        RevWalkImpl { index, queue }
+        RevWalkBorrowedIndexIter {
+            index,
+            walk: RevWalkImpl { queue },
+        }
     }
 
     /// Walks ancestors within the `generation_range`.
@@ -224,10 +277,12 @@ impl<'a> RevWalkBuilder<'a> {
         let item_range = RevWalkItemGenerationRange::from_filter_range(generation_range.clone());
         queue.extend_wanted(self.wanted, Reverse(item_range));
         queue.extend_unwanted(self.unwanted);
-        RevWalkGenerationRangeImpl {
+        RevWalkBorrowedIndexIter {
             index,
-            queue,
-            generation_end: generation_range.end,
+            walk: RevWalkGenerationRangeImpl {
+                queue,
+                generation_end: generation_range.end,
+            },
         }
     }
 
@@ -296,32 +351,34 @@ impl<'a> RevWalkBuilder<'a> {
                 queue.push_wanted(Reverse(pos), Reverse(item_range));
             }
         }
-        RevWalkGenerationRangeImpl {
+        RevWalkOwnedIndexIter {
             index: descendants_index,
-            queue,
-            generation_end: generation_range.end,
+            walk: RevWalkGenerationRangeImpl {
+                queue,
+                generation_end: generation_range.end,
+            },
         }
     }
 }
 
-pub(super) type RevWalkAncestors<'a> = RevWalkImpl<CompositeIndex<'a>>;
+pub(super) type RevWalkAncestors<'a> =
+    RevWalkBorrowedIndexIter<CompositeIndex<'a>, RevWalkImpl<IndexPosition>>;
 
 #[derive(Clone)]
 #[must_use]
-pub(super) struct RevWalkImpl<I: RevWalkIndex> {
-    index: I,
-    queue: RevWalkQueue<I::Position, ()>,
+pub(super) struct RevWalkImpl<P> {
+    queue: RevWalkQueue<P, ()>,
 }
 
-impl<I: RevWalkIndex> Iterator for RevWalkImpl<I> {
+impl<I: RevWalkIndex + ?Sized> RevWalk<I> for RevWalkImpl<I::Position> {
     type Item = I::Position;
 
-    fn next(&mut self) -> Option<I::Position> {
+    fn next(&mut self, index: &I) -> Option<Self::Item> {
         while let Some(item) = self.queue.pop() {
             self.queue.skip_while_eq(&item.pos);
             if item.is_wanted() {
                 self.queue
-                    .extend_wanted(self.index.adjacent_positions(item.pos), ());
+                    .extend_wanted(index.adjacent_positions(item.pos), ());
                 return Some(item.pos);
             } else if self.queue.items.len() == self.queue.unwanted_count {
                 // No more wanted entries to walk
@@ -329,7 +386,7 @@ impl<I: RevWalkIndex> Iterator for RevWalkImpl<I> {
                 return None;
             } else {
                 self.queue
-                    .extend_unwanted(self.index.adjacent_positions(item.pos));
+                    .extend_unwanted(index.adjacent_positions(item.pos));
             }
         }
 
@@ -342,21 +399,25 @@ impl<I: RevWalkIndex> Iterator for RevWalkImpl<I> {
 }
 
 pub(super) type RevWalkAncestorsGenerationRange<'a> =
-    RevWalkGenerationRangeImpl<CompositeIndex<'a>>;
-pub(super) type RevWalkDescendantsGenerationRange =
-    RevWalkGenerationRangeImpl<RevWalkDescendantsIndex>;
+    RevWalkBorrowedIndexIter<CompositeIndex<'a>, RevWalkGenerationRangeImpl<IndexPosition>>;
+pub(super) type RevWalkDescendantsGenerationRange = RevWalkOwnedIndexIter<
+    RevWalkDescendantsIndex,
+    RevWalkGenerationRangeImpl<Reverse<IndexPosition>>,
+>;
 
 #[derive(Clone)]
 #[must_use]
-pub(super) struct RevWalkGenerationRangeImpl<I: RevWalkIndex> {
-    index: I,
+pub(super) struct RevWalkGenerationRangeImpl<P> {
     // Sort item generations in ascending order
-    queue: RevWalkQueue<I::Position, Reverse<RevWalkItemGenerationRange>>,
+    queue: RevWalkQueue<P, Reverse<RevWalkItemGenerationRange>>,
     generation_end: u32,
 }
 
-impl<I: RevWalkIndex> RevWalkGenerationRangeImpl<I> {
-    fn enqueue_wanted_adjacents(&mut self, pos: I::Position, gen: RevWalkItemGenerationRange) {
+impl<P: Ord> RevWalkGenerationRangeImpl<P> {
+    fn enqueue_wanted_adjacents<I>(&mut self, index: &I, pos: P, gen: RevWalkItemGenerationRange)
+    where
+        I: RevWalkIndex<Position = P> + ?Sized,
+    {
         // `gen.start` is incremented from 0, which should never overflow
         if gen.start + 1 >= self.generation_end {
             return;
@@ -366,14 +427,14 @@ impl<I: RevWalkIndex> RevWalkGenerationRangeImpl<I> {
             end: gen.end.saturating_add(1),
         };
         self.queue
-            .extend_wanted(self.index.adjacent_positions(pos), Reverse(succ_gen));
+            .extend_wanted(index.adjacent_positions(pos), Reverse(succ_gen));
     }
 }
 
-impl<I: RevWalkIndex> Iterator for RevWalkGenerationRangeImpl<I> {
+impl<I: RevWalkIndex + ?Sized> RevWalk<I> for RevWalkGenerationRangeImpl<I::Position> {
     type Item = I::Position;
 
-    fn next(&mut self) -> Option<I::Position> {
+    fn next(&mut self, index: &I) -> Option<Self::Item> {
         while let Some(item) = self.queue.pop() {
             if let RevWalkWorkItemState::Wanted(Reverse(mut pending_gen)) = item.state {
                 let mut some_in_range = pending_gen.contains_end(self.generation_end);
@@ -387,14 +448,14 @@ impl<I: RevWalkIndex> Iterator for RevWalkGenerationRangeImpl<I> {
                         pending_gen = if let Some(merged) = pending_gen.try_merge_end(gen) {
                             merged
                         } else {
-                            self.enqueue_wanted_adjacents(item.pos, pending_gen);
+                            self.enqueue_wanted_adjacents(index, item.pos, pending_gen);
                             gen
                         };
                     } else {
                         unreachable!("no more unwanted items of the same entry");
                     }
                 }
-                self.enqueue_wanted_adjacents(item.pos, pending_gen);
+                self.enqueue_wanted_adjacents(index, item.pos, pending_gen);
                 if some_in_range {
                     return Some(item.pos);
                 }
@@ -405,7 +466,7 @@ impl<I: RevWalkIndex> Iterator for RevWalkGenerationRangeImpl<I> {
             } else {
                 self.queue.skip_while_eq(&item.pos);
                 self.queue
-                    .extend_unwanted(self.index.adjacent_positions(item.pos));
+                    .extend_unwanted(index.adjacent_positions(item.pos));
             }
         }
 
@@ -505,7 +566,6 @@ impl FusedIterator for RevWalkDescendants<'_> {}
 /// This is similar to `RevWalk` functionality-wise, but implemented with the
 /// different design goals:
 ///
-/// * lazy updates with no lifetimed fields
 /// * optimized for dense ancestors set
 /// * optimized for testing set membership
 /// * no iterator API (which could be implemented on top)
@@ -721,22 +781,22 @@ mod tests {
         let to_commit_id = |pos| index.entry_by_pos(pos).commit_id();
 
         let mut iter = make_iter(&[id_6.clone(), id_7.clone()], &[id_3.clone()]);
-        assert_eq!(iter.queue.items.len(), 2);
+        assert_eq!(iter.walk.queue.items.len(), 2);
         assert_eq!(iter.next().map(to_commit_id), Some(id_7.clone()));
         assert_eq!(iter.next().map(to_commit_id), Some(id_6.clone()));
         assert_eq!(iter.next().map(to_commit_id), Some(id_5.clone()));
-        assert_eq!(iter.queue.items.len(), 2);
+        assert_eq!(iter.walk.queue.items.len(), 2);
         assert_eq!(iter.next().map(to_commit_id), Some(id_4.clone()));
-        assert_eq!(iter.queue.items.len(), 1); // id_1 shouldn't be queued
+        assert_eq!(iter.walk.queue.items.len(), 1); // id_1 shouldn't be queued
         assert_eq!(iter.next().map(to_commit_id), Some(id_3.clone()));
-        assert_eq!(iter.queue.items.len(), 0); // id_2 shouldn't be queued
+        assert_eq!(iter.walk.queue.items.len(), 0); // id_2 shouldn't be queued
         assert!(iter.next().is_none());
 
         let iter = make_iter(&[id_6.clone(), id_7.clone(), id_2.clone()], &[id_3.clone()]);
-        assert_eq!(iter.queue.items.len(), 2); // id_2 shouldn't be queued
+        assert_eq!(iter.walk.queue.items.len(), 2); // id_2 shouldn't be queued
 
         let iter = make_iter(&[id_6.clone(), id_7.clone()], &[]);
-        assert!(iter.queue.items.is_empty()); // no ids should be queued
+        assert!(iter.walk.queue.items.is_empty()); // no ids should be queued
     }
 
     #[test]
