@@ -28,6 +28,7 @@ use crate::object_id::ObjectId;
 pub struct IndexPosition(pub(super) u32);
 
 impl IndexPosition {
+    pub const MIN: Self = IndexPosition(u32::MIN);
     pub const MAX: Self = IndexPosition(u32::MAX);
 }
 
