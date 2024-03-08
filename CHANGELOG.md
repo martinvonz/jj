@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Graph node symbols are now configurable via `ui.graph.default_node` and `ui.graph.elided_node`.
 
+* `jj log` now includes synthetic nodes in the graph where some revisions were
+  elided.
+
 * `jj squash` now accepts `--from` and `--into` (mutually exclusive with `-r`).
   It can thereby be for all use cases where `jj move` can be used.
 

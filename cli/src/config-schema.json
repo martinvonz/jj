@@ -141,7 +141,7 @@
                 "log-synthetic-elided-nodes": {
                     "type": "boolean",
                     "description": "Whether to render elided parts of the graph as synthetic nodes.",
-                    "default": false
+                    "default": true
                 },
                 "editor": {
                     "type": "string",
