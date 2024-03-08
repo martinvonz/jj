@@ -815,7 +815,7 @@ impl<'index> EvaluationContext<'index> {
                         Box::new(
                             RevWalkBuilder::new(index)
                                 .wanted_heads(head_positions.iter().copied())
-                                .ancestors_until_roots(&root_positions),
+                                .ancestors_until_roots(root_positions.iter().copied()),
                         )
                     });
                     let predicate = as_pure_predicate_fn(move |_index, entry| {
