@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* `ui.default-command` now accepts multiple string arguments, for more complex
+  default `jj` commands.
+
 ### Fixed bugs
 
 ## [0.15.1] - 2024-03-06
@@ -105,9 +108,6 @@ No code changes (fixing Rust `Cargo.toml` stuff).
 * `jj` commands with the `-T`/`--template` option now provide a hint containing
   defined template names when no argument is given, assisting the user in making
   a selection.
-
-* `ui.default-command` now accepts multiple string arguments, for more complex
-  default `jj` commands.
 
 ### Fixed bugs
 
