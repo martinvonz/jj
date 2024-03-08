@@ -118,7 +118,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `git` — Commands for working with the underlying Git repo
 * `init` — Create a new repo in the given directory
 * `interdiff` — Compare the changes of two commits
-* `log` — Show commit history
+* `log` — Show revision history
 * `move` — Move changes from one revision into another
 * `new` — Create a new, empty change and (by default) edit it in the working copy
 * `next` — Move the current working copy commit to the next child revision in the
@@ -1010,13 +1010,15 @@ This excludes changes from other commits by temporarily rebasing `--from` onto `
 
 ## `jj log`
 
-Show commit history
+Show revision history
+
+Renders a graphical view of the project's history, ordered with children before parents. By default, the output only includes mutable revisions, along with some additional revisions for context.
 
 **Usage:** `jj log [OPTIONS] [PATHS]...`
 
 ###### **Arguments:**
 
-* `<PATHS>` — Show commits modifying the given paths
+* `<PATHS>` — Show revisions modifying the given paths
 
 ###### **Options:**
 
