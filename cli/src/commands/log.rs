@@ -32,6 +32,9 @@ use crate::ui::Ui;
 /// Renders a graphical view of the project's history, ordered with children
 /// before parents. By default, the output only includes mutable revisions,
 /// along with some additional revisions for context.
+///
+/// Spans of revisions that are not included in the graph per `--revisions` are
+/// rendered as a synthetic node labeled "(elided revisions)".
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct LogArgs {
     /// Which revisions to show. Defaults to the `revsets.log` setting, or

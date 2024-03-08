@@ -1356,6 +1356,7 @@ fn test_elided() {
 
     // Elide some commits from each side of the merge. It's unclear that a revision
     // was skipped on the left side.
+    test_env.add_config("ui.log-synthetic-elided-nodes = false");
     insta::assert_snapshot!(get_log("@ | @- | description(initial)"), @r###"
     @    merge
     ├─╮
