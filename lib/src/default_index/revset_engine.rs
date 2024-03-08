@@ -23,7 +23,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use super::rev_walk::RevWalkBuilder;
+use super::rev_walk::{RevWalk, RevWalkBuilder};
 use super::revset_graph_iterator::RevsetGraphIterator;
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexEntry, IndexPosition};
@@ -214,51 +214,33 @@ impl ToPredicateFn for EagerRevset {
     }
 }
 
-struct RevWalkRevset<F> {
-    walk: F,
+struct RevWalkRevset<W> {
+    walk: W,
 }
 
-impl<F> RevWalkRevset<F>
-where
-    // Returns trait object because we can't express the following constraints
-    // without using named lifetime and type parameter:
-    //
-    //     for<'index>
-    //         F: Fn(CompositeIndex<'index>) -> _,
-    //         F::Output: Iterator<Item = IndexPosition> + 'index
-    //
-    // There's a workaround, but it doesn't help infer closure types.
-    // https://github.com/rust-lang/rust/issues/47815
-    // https://users.rust-lang.org/t/hrtb-on-multiple-generics/34255
-    F: Fn(CompositeIndex<'_>) -> Box<dyn Iterator<Item = IndexPosition> + '_>,
-{
-    fn new(walk: F) -> Self {
-        RevWalkRevset { walk }
-    }
-}
-
-impl<F> fmt::Debug for RevWalkRevset<F> {
+impl<W> fmt::Debug for RevWalkRevset<W> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("RevWalkRevset").finish_non_exhaustive()
     }
 }
 
-impl<F> InternalRevset for RevWalkRevset<F>
+impl<W> InternalRevset for RevWalkRevset<W>
 where
-    F: Fn(CompositeIndex<'_>) -> Box<dyn Iterator<Item = IndexPosition> + '_>,
+    W: for<'index> RevWalk<CompositeIndex<'index>, Item = IndexPosition> + Clone,
 {
     fn entries<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
-        Box::new((self.walk)(index).map(move |pos| index.entry_by_pos(pos)))
+        let positions = self.walk.clone().attach(index);
+        Box::new(positions.map(move |pos| index.entry_by_pos(pos)))
     }
 
     fn positions<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
     ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
-        (self.walk)(index)
+        Box::new(self.walk.clone().attach(index))
     }
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
@@ -269,15 +251,16 @@ where
     }
 }
 
-impl<F> ToPredicateFn for RevWalkRevset<F>
+impl<W> ToPredicateFn for RevWalkRevset<W>
 where
-    F: Fn(CompositeIndex<'_>) -> Box<dyn Iterator<Item = IndexPosition> + '_>,
+    W: for<'index> RevWalk<CompositeIndex<'index>, Item = IndexPosition> + Clone,
 {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
         index: CompositeIndex<'index>,
     ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
-        predicate_fn_from_positions(self.positions(index))
+        let positions = self.walk.clone().attach(index);
+        predicate_fn_from_positions(positions)
     }
 }
 
@@ -736,24 +719,17 @@ impl<'index> EvaluationContext<'index> {
             }
             ResolvedExpression::Ancestors { heads, generation } => {
                 let head_set = self.evaluate(heads)?;
-                let head_positions = head_set.positions(index).collect_vec();
+                let head_positions = head_set.positions(index);
+                let builder = RevWalkBuilder::new(index).wanted_heads(head_positions);
                 if generation == &GENERATION_RANGE_FULL {
-                    Ok(Box::new(RevWalkRevset::new(move |index| {
-                        Box::new(
-                            RevWalkBuilder::new(index)
-                                .wanted_heads(head_positions.iter().copied())
-                                .ancestors(),
-                        )
-                    })))
+                    let walk = builder.ancestors().detach();
+                    Ok(Box::new(RevWalkRevset { walk }))
                 } else {
                     let generation = to_u32_generation_range(generation)?;
-                    Ok(Box::new(RevWalkRevset::new(move |index| {
-                        Box::new(
-                            RevWalkBuilder::new(index)
-                                .wanted_heads(head_positions.iter().copied())
-                                .ancestors_filtered_by_generation(generation.clone()),
-                        )
-                    })))
+                    let walk = builder
+                        .ancestors_filtered_by_generation(generation)
+                        .detach();
+                    Ok(Box::new(RevWalkRevset { walk }))
                 }
             }
             ResolvedExpression::Range {
@@ -771,27 +747,19 @@ impl<'index> EvaluationContext<'index> {
                     head_set.positions(index),
                     root_positions.iter().copied(),
                     |pos1, pos2| pos1.cmp(pos2).reverse(),
-                )
-                .collect_vec();
+                );
+                let builder = RevWalkBuilder::new(index)
+                    .wanted_heads(head_positions)
+                    .unwanted_roots(root_positions);
                 if generation == &GENERATION_RANGE_FULL {
-                    Ok(Box::new(RevWalkRevset::new(move |index| {
-                        Box::new(
-                            RevWalkBuilder::new(index)
-                                .wanted_heads(head_positions.iter().copied())
-                                .unwanted_roots(root_positions.iter().copied())
-                                .ancestors(),
-                        )
-                    })))
+                    let walk = builder.ancestors().detach();
+                    Ok(Box::new(RevWalkRevset { walk }))
                 } else {
                     let generation = to_u32_generation_range(generation)?;
-                    Ok(Box::new(RevWalkRevset::new(move |index| {
-                        Box::new(
-                            RevWalkBuilder::new(index)
-                                .wanted_heads(head_positions.iter().copied())
-                                .unwanted_roots(root_positions.iter().copied())
-                                .ancestors_filtered_by_generation(generation.clone()),
-                        )
-                    })))
+                    let walk = builder
+                        .ancestors_filtered_by_generation(generation)
+                        .detach();
+                    Ok(Box::new(RevWalkRevset { walk }))
                 }
             }
             ResolvedExpression::DagRange {
@@ -800,23 +768,21 @@ impl<'index> EvaluationContext<'index> {
                 generation_from_roots,
             } => {
                 let root_set = self.evaluate(roots)?;
-                let root_positions = root_set.positions(index).collect_vec();
+                let root_positions = root_set.positions(index);
                 let head_set = self.evaluate(heads)?;
-                let head_positions = head_set.positions(index).collect_vec();
+                let head_positions = head_set.positions(index);
+                let builder = RevWalkBuilder::new(index).wanted_heads(head_positions);
                 if generation_from_roots == &(1..2) {
-                    let root_positions_set: HashSet<_> = root_positions.iter().copied().collect();
-                    let candidates = RevWalkRevset::new(move |index| {
-                        Box::new(
-                            RevWalkBuilder::new(index)
-                                .wanted_heads(head_positions.iter().copied())
-                                .ancestors_until_roots(root_positions.iter().copied()),
-                        )
-                    });
+                    let root_positions: HashSet<_> = root_positions.collect();
+                    let walk = builder
+                        .ancestors_until_roots(root_positions.iter().copied())
+                        .detach();
+                    let candidates = RevWalkRevset { walk };
                     let predicate = as_pure_predicate_fn(move |_index, entry| {
                         entry
                             .parent_positions()
                             .iter()
-                            .any(|parent_pos| root_positions_set.contains(parent_pos))
+                            .any(|parent_pos| root_positions.contains(parent_pos))
                     });
                     // TODO: Suppose heads include all visible heads, ToPredicateFn version can be
                     // optimized to only test the predicate()
@@ -825,18 +791,14 @@ impl<'index> EvaluationContext<'index> {
                         predicate,
                     }))
                 } else if generation_from_roots == &GENERATION_RANGE_FULL {
-                    let mut positions = RevWalkBuilder::new(index)
-                        .wanted_heads(head_positions)
-                        .descendants(root_positions)
-                        .collect_vec();
+                    let mut positions = builder.descendants(root_positions).collect_vec();
                     positions.reverse();
                     Ok(Box::new(EagerRevset { positions }))
                 } else {
                     // For small generation range, it might be better to build a reachable map
                     // with generation bit set, which can be calculated incrementally from roots:
                     //   reachable[pos] = (reachable[parent_pos] | ...) << 1
-                    let mut positions = RevWalkBuilder::new(index)
-                        .wanted_heads(head_positions)
+                    let mut positions = builder
                         .descendants_filtered_by_generation(
                             root_positions,
                             to_u32_generation_range(generation_from_roots)?,
