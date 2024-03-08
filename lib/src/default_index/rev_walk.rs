@@ -35,6 +35,18 @@ pub(super) trait RevWalk<I: ?Sized> {
     /// Returns `None` when the iteration is finished. Once `None` is returned,
     /// this will never resume. In other words, a `RevWalk` is fused.
     fn next(&mut self, index: &I) -> Option<Self::Item>;
+
+    // The following methods are provided for convenience. They are not supposed
+    // to be reimplemented.
+
+    /// Reattaches the underlying `index`.
+    fn attach(self, index: I) -> RevWalkBorrowedIndexIter<I, Self>
+    where
+        Self: Sized,
+        I: Sized,
+    {
+        RevWalkBorrowedIndexIter { index, walk: self }
+    }
 }
 
 /// Adapter that turns `RevWalk` into `Iterator` by attaching borrowed `index`.
@@ -44,6 +56,13 @@ pub(super) struct RevWalkBorrowedIndexIter<I, W> {
     // TODO: `index: I` will be a reference type.
     index: I,
     walk: W,
+}
+
+impl<I, W> RevWalkBorrowedIndexIter<I, W> {
+    /// Turns into `'static`-lifetime walk object by detaching the index.
+    pub fn detach(self) -> W {
+        self.walk
+    }
 }
 
 impl<I, W: RevWalk<I>> Iterator for RevWalkBorrowedIndexIter<I, W> {
