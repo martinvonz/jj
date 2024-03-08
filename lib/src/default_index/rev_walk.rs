@@ -115,23 +115,31 @@ impl<P, T> RevWalkWorkItem<P, T> {
 #[derive(Clone)]
 struct RevWalkQueue<P, T> {
     items: BinaryHeap<RevWalkWorkItem<P, T>>,
+    min_pos: P,
     unwanted_count: usize,
 }
 
 impl<P: Ord, T: Ord> RevWalkQueue<P, T> {
-    fn new() -> Self {
+    fn with_min_pos(min_pos: P) -> Self {
         Self {
             items: BinaryHeap::new(),
+            min_pos,
             unwanted_count: 0,
         }
     }
 
     fn push_wanted(&mut self, pos: P, t: T) {
+        if pos < self.min_pos {
+            return;
+        }
         let state = RevWalkWorkItemState::Wanted(t);
         self.items.push(RevWalkWorkItem { pos, state });
     }
 
     fn push_unwanted(&mut self, pos: P) {
+        if pos < self.min_pos {
+            return;
+        }
         let state = RevWalkWorkItemState::Unwanted;
         self.items.push(RevWalkWorkItem { pos, state });
         self.unwanted_count += 1;
@@ -209,8 +217,12 @@ impl<'a> RevWalkBuilder<'a> {
 
     /// Walks ancestors.
     pub fn ancestors(self) -> RevWalkAncestors<'a> {
+        self.ancestors_with_min_pos(IndexPosition::MIN)
+    }
+
+    fn ancestors_with_min_pos(self, min_pos: IndexPosition) -> RevWalkAncestors<'a> {
         let index = self.index;
-        let mut queue = RevWalkQueue::new();
+        let mut queue = RevWalkQueue::with_min_pos(min_pos);
         queue.extend_wanted(self.wanted, ());
         queue.extend_unwanted(self.unwanted);
         RevWalkImpl { index, queue }
@@ -224,7 +236,7 @@ impl<'a> RevWalkBuilder<'a> {
         generation_range: Range<u32>,
     ) -> RevWalkAncestorsGenerationRange<'a> {
         let index = self.index;
-        let mut queue = RevWalkQueue::new();
+        let mut queue = RevWalkQueue::with_min_pos(IndexPosition::MIN);
         let item_range = RevWalkItemGenerationRange::from_filter_range(generation_range.clone());
         queue.extend_wanted(self.wanted, Reverse(item_range));
         queue.extend_unwanted(self.unwanted);
@@ -240,16 +252,12 @@ impl<'a> RevWalkBuilder<'a> {
     ///
     /// Use this if you are only interested in descendants of the given roots.
     /// The caller still needs to filter out unwanted entries.
-    pub fn ancestors_until_roots(
-        self,
-        root_positions: &[IndexPosition],
-    ) -> impl Iterator<Item = IndexEntry<'a>> + Clone + 'a {
+    pub fn ancestors_until_roots(self, root_positions: &[IndexPosition]) -> RevWalkAncestors<'a> {
         // We can also make it stop visiting based on the generation number. Maybe
         // it will perform better for unbalanced branchy history.
         // https://github.com/martinvonz/jj/pull/1492#discussion_r1160678325
-        let bottom_position = *root_positions.iter().min().unwrap_or(&IndexPosition::MAX);
-        self.ancestors()
-            .take_while(move |entry| entry.position() >= bottom_position)
+        let min_pos = *root_positions.iter().min().unwrap_or(&IndexPosition::MAX);
+        self.ancestors_with_min_pos(min_pos)
     }
 
     /// Fully consumes ancestors and walks back from the `root_positions`.
@@ -286,7 +294,7 @@ impl<'a> RevWalkBuilder<'a> {
         let entries = self.ancestors_until_roots(&root_positions);
         let descendants_index = RevWalkDescendantsIndex::build(index, entries);
 
-        let mut queue = RevWalkQueue::new();
+        let mut queue = RevWalkQueue::with_min_pos(Reverse(IndexPosition::MAX));
         let item_range = RevWalkItemGenerationRange::from_filter_range(generation_range.clone());
         for pos in root_positions {
             // Do not add unreachable roots which shouldn't be visited
@@ -683,6 +691,63 @@ mod tests {
             walk_commit_ids(&[id_5.clone(), id_3.clone()], &[id_2]),
             vec![id_5, id_4, id_3, id_1]
         );
+    }
+
+    #[test]
+    fn test_walk_ancestors_until_roots() {
+        let mut new_change_id = change_id_generator();
+        let mut index = DefaultMutableIndex::full(3, 16);
+        //   7
+        // 6 |
+        // 5 |
+        // 4 |
+        // | 3
+        // | 2
+        // |/
+        // 1
+        // 0
+        let id_0 = CommitId::from_hex("000000");
+        let id_1 = CommitId::from_hex("111111");
+        let id_2 = CommitId::from_hex("222222");
+        let id_3 = CommitId::from_hex("333333");
+        let id_4 = CommitId::from_hex("444444");
+        let id_5 = CommitId::from_hex("555555");
+        let id_6 = CommitId::from_hex("666666");
+        let id_7 = CommitId::from_hex("777777");
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), &[id_2.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_5.clone(), new_change_id(), &[id_4.clone()]);
+        index.add_commit_data(id_6.clone(), new_change_id(), &[id_5.clone()]);
+        index.add_commit_data(id_7.clone(), new_change_id(), &[id_3.clone()]);
+
+        let index = index.as_composite();
+        let make_iter = |heads: &[CommitId], roots: &[CommitId]| {
+            RevWalkBuilder::new(index)
+                .wanted_heads(to_positions_vec(index, heads))
+                .ancestors_until_roots(&to_positions_vec(index, roots))
+        };
+        let to_commit_id = |entry: IndexEntry| entry.commit_id();
+
+        let mut iter = make_iter(&[id_6.clone(), id_7.clone()], &[id_3.clone()]);
+        assert_eq!(iter.queue.items.len(), 2);
+        assert_eq!(iter.next().map(to_commit_id), Some(id_7.clone()));
+        assert_eq!(iter.next().map(to_commit_id), Some(id_6.clone()));
+        assert_eq!(iter.next().map(to_commit_id), Some(id_5.clone()));
+        assert_eq!(iter.queue.items.len(), 2);
+        assert_eq!(iter.next().map(to_commit_id), Some(id_4.clone()));
+        assert_eq!(iter.queue.items.len(), 1); // id_1 shouldn't be queued
+        assert_eq!(iter.next().map(to_commit_id), Some(id_3.clone()));
+        assert_eq!(iter.queue.items.len(), 0); // id_2 shouldn't be queued
+        assert!(iter.next().is_none());
+
+        let iter = make_iter(&[id_6.clone(), id_7.clone(), id_2.clone()], &[id_3.clone()]);
+        assert_eq!(iter.queue.items.len(), 2); // id_2 shouldn't be queued
+
+        let iter = make_iter(&[id_6.clone(), id_7.clone()], &[]);
+        assert!(iter.queue.items.is_empty()); // no ids should be queued
     }
 
     #[test]
