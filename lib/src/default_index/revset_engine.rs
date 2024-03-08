@@ -23,6 +23,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
+use super::rev_walk::RevWalkBuilder;
 use super::revset_graph_iterator::RevsetGraphIterator;
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexEntry, IndexPosition};
@@ -744,15 +745,19 @@ impl<'index> EvaluationContext<'index> {
                 let head_positions = head_set.positions(index).collect_vec();
                 if generation == &GENERATION_RANGE_FULL {
                     Ok(Box::new(RevWalkRevset::new(move |index| {
-                        Box::new(index.walk_revs(&head_positions, &[]))
+                        Box::new(
+                            RevWalkBuilder::new(index)
+                                .wanted_heads(head_positions.iter().copied())
+                                .ancestors(),
+                        )
                     })))
                 } else {
                     let generation = to_u32_generation_range(generation)?;
                     Ok(Box::new(RevWalkRevset::new(move |index| {
                         Box::new(
-                            index
-                                .walk_revs(&head_positions, &[])
-                                .filter_by_generation(generation.clone()),
+                            RevWalkBuilder::new(index)
+                                .wanted_heads(head_positions.iter().copied())
+                                .ancestors_filtered_by_generation(generation.clone()),
                         )
                     })))
                 }
@@ -776,15 +781,21 @@ impl<'index> EvaluationContext<'index> {
                 .collect_vec();
                 if generation == &GENERATION_RANGE_FULL {
                     Ok(Box::new(RevWalkRevset::new(move |index| {
-                        Box::new(index.walk_revs(&head_positions, &root_positions))
+                        Box::new(
+                            RevWalkBuilder::new(index)
+                                .wanted_heads(head_positions.iter().copied())
+                                .unwanted_roots(root_positions.iter().copied())
+                                .ancestors(),
+                        )
                     })))
                 } else {
                     let generation = to_u32_generation_range(generation)?;
                     Ok(Box::new(RevWalkRevset::new(move |index| {
                         Box::new(
-                            index
-                                .walk_revs(&head_positions, &root_positions)
-                                .filter_by_generation(generation.clone()),
+                            RevWalkBuilder::new(index)
+                                .wanted_heads(head_positions.iter().copied())
+                                .unwanted_roots(root_positions.iter().copied())
+                                .ancestors_filtered_by_generation(generation.clone()),
                         )
                     })))
                 }
@@ -802,9 +813,9 @@ impl<'index> EvaluationContext<'index> {
                     let root_positions_set: HashSet<_> = root_positions.iter().copied().collect();
                     let candidates = RevWalkRevset::new(move |index| {
                         Box::new(
-                            index
-                                .walk_revs(&head_positions, &[])
-                                .take_until_roots(&root_positions),
+                            RevWalkBuilder::new(index)
+                                .wanted_heads(head_positions.iter().copied())
+                                .ancestors_until_roots(&root_positions),
                         )
                     });
                     let predicate = as_pure_predicate_fn(move |_index, entry| {
@@ -820,9 +831,9 @@ impl<'index> EvaluationContext<'index> {
                         predicate,
                     }))
                 } else if generation_from_roots == &GENERATION_RANGE_FULL {
-                    let mut positions = index
-                        .walk_revs(&head_positions, &[])
-                        .descendants(&root_positions)
+                    let mut positions = RevWalkBuilder::new(index)
+                        .wanted_heads(head_positions)
+                        .descendants(root_positions)
                         .map(|entry| entry.position())
                         .collect_vec();
                     positions.reverse();
@@ -831,10 +842,10 @@ impl<'index> EvaluationContext<'index> {
                     // For small generation range, it might be better to build a reachable map
                     // with generation bit set, which can be calculated incrementally from roots:
                     //   reachable[pos] = (reachable[parent_pos] | ...) << 1
-                    let mut positions = index
-                        .walk_revs(&head_positions, &[])
+                    let mut positions = RevWalkBuilder::new(index)
+                        .wanted_heads(head_positions)
                         .descendants_filtered_by_generation(
-                            &root_positions,
+                            root_positions,
                             to_u32_generation_range(generation_from_roots)?,
                         )
                         .map(|entry| entry.position())
@@ -856,9 +867,9 @@ impl<'index> EvaluationContext<'index> {
                     .iter()
                     .map(|entry| entry.position())
                     .collect_vec();
-                let filled = index
-                    .walk_revs(&candidate_positions, &[])
-                    .descendants(&candidate_positions)
+                let filled = RevWalkBuilder::new(index)
+                    .wanted_heads(candidate_positions.iter().copied())
+                    .descendants(candidate_positions)
                     .collect_positions_set();
                 let mut positions = vec![];
                 for candidate in candidate_entries {

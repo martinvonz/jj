@@ -199,32 +199,44 @@ impl<P: Ord, T: Ord> RevWalkQueue<P, T> {
     }
 }
 
-pub(super) type RevWalkAncestors<'a> = RevWalkImpl<'a, CompositeIndex<'a>>;
-
 #[derive(Clone)]
-pub(super) struct RevWalkImpl<'a, I: RevWalkIndex<'a>> {
-    index: I,
-    queue: RevWalkQueue<I::Position, ()>,
+#[must_use]
+pub(super) struct RevWalkBuilder<'a> {
+    index: CompositeIndex<'a>,
+    // TODO: Use Vec<_> until queued item type is settled.
+    queue: RevWalkQueue<IndexPosition, ()>,
 }
 
-impl<'a> RevWalkAncestors<'a> {
-    pub(super) fn new(index: CompositeIndex<'a>) -> Self {
+impl<'a> RevWalkBuilder<'a> {
+    pub fn new(index: CompositeIndex<'a>) -> Self {
         let queue = RevWalkQueue::new();
-        RevWalkImpl { index, queue }
+        RevWalkBuilder { index, queue }
     }
 
-    pub(super) fn extend_wanted(&mut self, positions: impl IntoIterator<Item = IndexPosition>) {
+    /// Adds head positions to be included.
+    pub fn wanted_heads(mut self, positions: impl IntoIterator<Item = IndexPosition>) -> Self {
         self.queue.extend_wanted(positions, ());
+        self
     }
 
-    pub(super) fn extend_unwanted(&mut self, positions: impl IntoIterator<Item = IndexPosition>) {
+    /// Adds root positions to be excluded. The roots precede the heads.
+    pub fn unwanted_roots(mut self, positions: impl IntoIterator<Item = IndexPosition>) -> Self {
         self.queue.extend_unwanted(positions);
+        self
     }
 
-    /// Filters entries by generation (or depth from the current wanted set.)
+    /// Walks ancestors.
+    pub fn ancestors(self) -> RevWalkAncestors<'a> {
+        RevWalkImpl {
+            index: self.index,
+            queue: self.queue,
+        }
+    }
+
+    /// Walks ancestors within the `generation_range`.
     ///
-    /// The generation of the current wanted entries starts from 0.
-    pub fn filter_by_generation(
+    /// A generation number counts from the heads.
+    pub fn ancestors_filtered_by_generation(
         self,
         generation_range: Range<u32>,
     ) -> RevWalkAncestorsGenerationRange<'a> {
@@ -236,7 +248,7 @@ impl<'a> RevWalkAncestors<'a> {
     ///
     /// Use this if you are only interested in descendants of the given roots.
     /// The caller still needs to filter out unwanted entries.
-    pub fn take_until_roots(
+    pub fn ancestors_until_roots(
         self,
         root_positions: &[IndexPosition],
     ) -> impl Iterator<Item = IndexEntry<'a>> + Clone + 'a {
@@ -244,36 +256,45 @@ impl<'a> RevWalkAncestors<'a> {
         // it will perform better for unbalanced branchy history.
         // https://github.com/martinvonz/jj/pull/1492#discussion_r1160678325
         let bottom_position = *root_positions.iter().min().unwrap_or(&IndexPosition::MAX);
-        self.take_while(move |entry| entry.position() >= bottom_position)
+        self.ancestors()
+            .take_while(move |entry| entry.position() >= bottom_position)
     }
 
-    /// Fully consumes the ancestors and walks back from `root_positions`.
+    /// Fully consumes ancestors and walks back from the `root_positions`.
     ///
     /// The returned iterator yields entries in order of ascending index
     /// position.
-    pub fn descendants(self, root_positions: &[IndexPosition]) -> RevWalkDescendants<'a> {
+    pub fn descendants(
+        self,
+        root_positions: impl IntoIterator<Item = IndexPosition>,
+    ) -> RevWalkDescendants<'a> {
+        // TODO: collect HashSet<_> directly
+        let root_positions = Vec::from_iter(root_positions);
         RevWalkDescendants {
-            candidate_entries: self.take_until_roots(root_positions).collect(),
-            root_positions: root_positions.iter().copied().collect(),
+            candidate_entries: self.ancestors_until_roots(&root_positions).collect(),
+            root_positions: root_positions.into_iter().collect(),
             reachable_positions: HashSet::new(),
         }
     }
 
-    /// Fully consumes the ancestors and walks back from `root_positions` within
-    /// `generation_range`.
+    /// Fully consumes ancestors and walks back from the `root_positions` within
+    /// the `generation_range`.
+    ///
+    /// A generation number counts from the roots.
     ///
     /// The returned iterator yields entries in order of ascending index
     /// position.
     pub fn descendants_filtered_by_generation(
         self,
-        root_positions: &[IndexPosition],
+        root_positions: impl IntoIterator<Item = IndexPosition>,
         generation_range: Range<u32>,
     ) -> RevWalkDescendantsGenerationRange<'a> {
         let index = self.index;
-        let entries = self.take_until_roots(root_positions);
+        let root_positions = Vec::from_iter(root_positions);
+        let entries = self.ancestors_until_roots(&root_positions);
         let descendants_index = RevWalkDescendantsIndex::build(index, entries);
         let mut queue = RevWalkQueue::new();
-        for &pos in root_positions {
+        for pos in root_positions {
             // Do not add unreachable roots which shouldn't be visited
             if descendants_index.contains_pos(pos) {
                 queue.push_wanted(Reverse(pos), ());
@@ -281,6 +302,15 @@ impl<'a> RevWalkAncestors<'a> {
         }
         RevWalkGenerationRangeImpl::new(descendants_index, queue, generation_range)
     }
+}
+
+pub(super) type RevWalkAncestors<'a> = RevWalkImpl<'a, CompositeIndex<'a>>;
+
+#[derive(Clone)]
+#[must_use]
+pub(super) struct RevWalkImpl<'a, I: RevWalkIndex<'a>> {
+    index: I,
+    queue: RevWalkQueue<I::Position, ()>,
 }
 
 impl<'a, I: RevWalkIndex<'a>> Iterator for RevWalkImpl<'a, I> {
@@ -319,6 +349,7 @@ pub(super) type RevWalkDescendantsGenerationRange<'a> =
     RevWalkGenerationRangeImpl<'a, RevWalkDescendantsIndex<'a>>;
 
 #[derive(Clone)]
+#[must_use]
 pub(super) struct RevWalkGenerationRangeImpl<'a, I: RevWalkIndex<'a>> {
     index: I,
     // Sort item generations in ascending order
@@ -438,6 +469,7 @@ impl RevWalkItemGenerationRange {
 
 /// Walks descendants from the roots, in order of ascending index position.
 #[derive(Clone)]
+#[must_use]
 pub(super) struct RevWalkDescendants<'a> {
     candidate_entries: Vec<IndexEntry<'a>>,
     root_positions: HashSet<IndexPosition>,
@@ -602,10 +634,10 @@ mod tests {
 
         let walk_commit_ids = |wanted: &[CommitId], unwanted: &[CommitId]| {
             let index = index.as_composite();
-            let wanted_positions = to_positions_vec(index, wanted);
-            let unwanted_positions = to_positions_vec(index, unwanted);
-            index
-                .walk_revs(&wanted_positions, &unwanted_positions)
+            RevWalkBuilder::new(index)
+                .wanted_heads(to_positions_vec(index, wanted))
+                .unwanted_roots(to_positions_vec(index, unwanted))
+                .ancestors()
                 .map(|entry| entry.commit_id())
                 .collect_vec()
         };
@@ -694,11 +726,10 @@ mod tests {
 
         let walk_commit_ids = |wanted: &[CommitId], unwanted: &[CommitId], range: Range<u32>| {
             let index = index.as_composite();
-            let wanted_positions = to_positions_vec(index, wanted);
-            let unwanted_positions = to_positions_vec(index, unwanted);
-            index
-                .walk_revs(&wanted_positions, &unwanted_positions)
-                .filter_by_generation(range)
+            RevWalkBuilder::new(index)
+                .wanted_heads(to_positions_vec(index, wanted))
+                .unwanted_roots(to_positions_vec(index, unwanted))
+                .ancestors_filtered_by_generation(range)
                 .map(|entry| entry.commit_id())
                 .collect_vec()
         };
@@ -773,10 +804,9 @@ mod tests {
 
         let walk_commit_ids = |wanted: &[CommitId], range: Range<u32>| {
             let index = index.as_composite();
-            let wanted_positions = to_positions_vec(index, wanted);
-            index
-                .walk_revs(&wanted_positions, &[])
-                .filter_by_generation(range)
+            RevWalkBuilder::new(index)
+                .wanted_heads(to_positions_vec(index, wanted))
+                .ancestors_filtered_by_generation(range)
                 .map(|entry| entry.commit_id())
                 .collect_vec()
         };
@@ -844,11 +874,9 @@ mod tests {
         let visible_heads = [&id_6, &id_8].map(Clone::clone);
         let walk_commit_ids = |roots: &[CommitId], heads: &[CommitId], range: Range<u32>| {
             let index = index.as_composite();
-            let root_positions = to_positions_vec(index, roots);
-            let head_positions = to_positions_vec(index, heads);
-            index
-                .walk_revs(&head_positions, &[])
-                .descendants_filtered_by_generation(&root_positions, range)
+            RevWalkBuilder::new(index)
+                .wanted_heads(to_positions_vec(index, heads))
+                .descendants_filtered_by_generation(to_positions_vec(index, roots), range)
                 .map(|entry| entry.commit_id())
                 .collect_vec()
         };
