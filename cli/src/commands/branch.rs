@@ -23,7 +23,7 @@ use jj_lib::git;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::{RefTarget, RemoteRef};
 use jj_lib::repo::Repo;
-use jj_lib::revset::{self, RevsetExpression};
+use jj_lib::revset::{self, RevsetExpression, RevsetIteratorExt};
 use jj_lib::str_util::StringPattern;
 use jj_lib::view::View;
 
@@ -31,7 +31,8 @@ use crate::cli_util::{
     parse_string_pattern, CommandHelper, RemoteBranchName, RemoteBranchNamePattern, RevisionArg,
 };
 use crate::command_error::{user_error, user_error_with_hint, CommandError};
-use crate::formatter::Formatter;
+use crate::formatter::{self, Formatter};
+use crate::templater::Template;
 use crate::ui::Ui;
 
 /// Manage branches.
@@ -59,10 +60,30 @@ pub enum BranchCommand {
 
 /// Create a new branch.
 #[derive(clap::Args, Clone, Debug)]
-pub struct BranchCreateArgs {
+pub struct BranchBatchCreateArgs {
     /// The branch's target revision.
     #[arg(long, short)]
-    revision: Option<RevisionArg>,
+    revisions: Vec<RevisionArg>,
+
+    /// Create a branch with the given template
+    ///
+    /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+    #[arg(long)]
+    template: Option<String>,
+}
+
+/// Create a new branch.
+#[derive(clap::Args, Clone, Debug)]
+pub struct BranchCreateArgs {
+    /// The branch's target revision.
+    #[arg(long, short, alias = "revision")]
+    revisions: Vec<RevisionArg>,
+
+    /// Evaluate name as template
+    /// todo: verify a single name passed if this flag used
+    ///
+    /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+    evaluate_name_as_template: bool,
 
     /// The branches to create.
     #[arg(required = true, value_parser=NonEmptyStringValueParser::new())]
@@ -238,41 +259,127 @@ fn cmd_branch_create(
     args: &BranchCreateArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let target_commit =
-        workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
-    let view = workspace_command.repo().view();
-    let branch_names = &args.names;
-    if let Some(branch_name) = branch_names
-        .iter()
-        .find(|&name| view.get_local_branch(name).is_present())
-    {
-        return Err(user_error_with_hint(
-            format!("Branch already exists: {branch_name}"),
-            "Use `jj branch set` to update it.",
-        ));
-    }
+    if args.evaluate_name_as_template {
+        let view = workspace_command.repo().view();
+        let revset_expression = {
+            let expression = if args.revisions.is_empty() {
+                workspace_command.parse_revset(&command.settings().default_revset())?
+            } else {
+                let expressions: Vec<_> = args
+                    .revisions
+                    .iter()
+                    .map(|revision_str| workspace_command.parse_revset(revision_str))
+                    .try_collect()?;
+                RevsetExpression::union_all(&expressions)
+            };
 
-    if branch_names.len() > 1 {
-        writeln!(
-            ui.warning(),
-            "warning: Creating multiple branches: {}",
-            branch_names.join(", "),
+            revset::optimize(expression)
+        };
+        let mut branches = vec![];
+
+        {
+            // build templates for each name
+            let templates: Vec<Box<dyn Template<_>>> = args
+                .names
+                .iter()
+                .map(|t| workspace_command.parse_commit_template(t))
+                .collect::<Result<Vec<_>, _>>()?;
+            let repo = workspace_command.repo();
+            let store = repo.store();
+            let revset = workspace_command.evaluate_revset(revset_expression)?;
+            let iter: Box<dyn Iterator<Item = CommitId>> = Box::new(revset.iter());
+
+            for commit_or_error in iter.commits(store) {
+                let commit = commit_or_error?;
+                for template in &templates {
+                    let mut fmtr = formatter::FormatRecorder::new();
+                    let branch_name = {
+                        template.format(&commit, &mut fmtr)?;
+                        let data = fmtr.data();
+                        std::str::from_utf8(data).unwrap()
+                    };
+                    branches.push((branch_name.to_string(), commit.clone()));
+                }
+            }
+        }
+
+        if let Some((branch_name, _)) = branches
+            .iter()
+            .find(|(name, _)| view.get_local_branch(name).is_present())
+        {
+            return Err(user_error_with_hint(
+                format!("Branch already exists: {branch_name}"),
+                "Use `jj branch set` to update it.",
+            ));
+        }
+
+        if branches.len() > 1 {
+            writeln!(
+                ui.warning(),
+                "warning: Creating multiple branches: {}",
+                branches.iter().map(|(n, _)| n).join(", "),
+            )?;
+        }
+
+        let mut tx = workspace_command.start_transaction();
+        for (branch_name, target_commit) in &branches {
+            tx.mut_repo().set_local_branch_target(
+                branch_name,
+                RefTarget::normal(target_commit.id().clone()),
+            );
+        }
+        tx.finish(
+            ui,
+            format!(
+                "create batch of branches {}",
+                branches.iter().map(|x| &x.0).join(",")
+            ),
+        )?;
+    } else {
+        // todo rm restriction
+        if args.revisions.len() > 1 {
+            return Err(CommandError::CliError(
+                "multiple revisions not allowed".into(),
+            ));
+        }
+        let rev = args.revisions.first().cloned();
+        let target_commit = workspace_command.resolve_single_rev(rev.as_deref().unwrap_or("@"))?;
+        let view = workspace_command.repo().view();
+        let branch_names = &args.names;
+        if let Some(branch_name) = branch_names
+            .iter()
+            .find(|&name| view.get_local_branch(name).is_present())
+        {
+            return Err(user_error_with_hint(
+                format!("Branch already exists: {branch_name}"),
+                "Use `jj branch set` to update it.",
+            ));
+        }
+
+        if branch_names.len() > 1 {
+            writeln!(
+                ui.warning(),
+                "warning: Creating multiple branches: {}",
+                branch_names.join(", "),
+            )?;
+        }
+
+        let mut tx = workspace_command.start_transaction();
+        for branch_name in branch_names {
+            tx.mut_repo().set_local_branch_target(
+                branch_name,
+                RefTarget::normal(target_commit.id().clone()),
+            );
+        }
+        tx.finish(
+            ui,
+            format!(
+                "create {} pointing to commit {}",
+                make_branch_term(branch_names),
+                target_commit.id().hex()
+            ),
         )?;
     }
-
-    let mut tx = workspace_command.start_transaction();
-    for branch_name in branch_names {
-        tx.mut_repo()
-            .set_local_branch_target(branch_name, RefTarget::normal(target_commit.id().clone()));
-    }
-    tx.finish(
-        ui,
-        format!(
-            "create {} pointing to commit {}",
-            make_branch_term(branch_names),
-            target_commit.id().hex()
-        ),
-    )?;
     Ok(())
 }
 
