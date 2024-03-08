@@ -48,10 +48,15 @@ No code changes (fixing Rust `Cargo.toml` stuff).
 
 ### New features
 
-* Added support for commit signing and verification. This comes with 
-  out-of-the-box support for the following backends:
+* Partial support for commit signing. Currently you can configure jj to "keep"
+  commit signatures by making new ones for rewritten commits, and to sign new
+  commits when they are created.
+
+  This comes with out-of-the-box support for the following backends:
   * GnuPG
   * SSH
+
+  Signature verification and an explicit sign command will hopefully come soon.
 
 * Templates now support logical operators: `||`, `&&`, `!`
 
