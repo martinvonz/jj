@@ -318,11 +318,13 @@ impl<'a> RevWalkBuilder<'a> {
         let candidate_positions = self
             .ancestors_until_roots(root_positions.iter().copied())
             .collect();
-        RevWalkDescendants {
+        RevWalkBorrowedIndexIter {
             index,
-            candidate_positions,
-            root_positions,
-            reachable_positions: HashSet::new(),
+            walk: RevWalkDescendantsImpl {
+                candidate_positions,
+                root_positions,
+                reachable_positions: HashSet::new(),
+            },
         }
     }
 
@@ -518,10 +520,12 @@ impl RevWalkItemGenerationRange {
 }
 
 /// Walks descendants from the roots, in order of ascending index position.
+pub(super) type RevWalkDescendants<'a> =
+    RevWalkBorrowedIndexIter<CompositeIndex<'a>, RevWalkDescendantsImpl>;
+
 #[derive(Clone)]
 #[must_use]
-pub(super) struct RevWalkDescendants<'a> {
-    index: CompositeIndex<'a>,
+pub(super) struct RevWalkDescendantsImpl {
     candidate_positions: Vec<IndexPosition>,
     root_positions: HashSet<IndexPosition>,
     reachable_positions: HashSet<IndexPosition>,
@@ -534,18 +538,17 @@ impl RevWalkDescendants<'_> {
     /// internal buffer instead.
     pub fn collect_positions_set(mut self) -> HashSet<IndexPosition> {
         self.by_ref().for_each(drop);
-        self.reachable_positions
+        self.walk.reachable_positions
     }
 }
 
-impl Iterator for RevWalkDescendants<'_> {
+impl RevWalk<CompositeIndex<'_>> for RevWalkDescendantsImpl {
     type Item = IndexPosition;
 
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next(&mut self, index: &CompositeIndex) -> Option<Self::Item> {
         while let Some(candidate_pos) = self.candidate_positions.pop() {
             if self.root_positions.contains(&candidate_pos)
-                || self
-                    .index
+                || index
                     .entry_by_pos(candidate_pos)
                     .parent_positions()
                     .iter()
@@ -558,8 +561,6 @@ impl Iterator for RevWalkDescendants<'_> {
         None
     }
 }
-
-impl FusedIterator for RevWalkDescendants<'_> {}
 
 /// Computes ancestors set lazily.
 ///
