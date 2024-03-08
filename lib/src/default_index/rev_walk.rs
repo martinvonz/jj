@@ -252,11 +252,17 @@ impl<'a> RevWalkBuilder<'a> {
     ///
     /// Use this if you are only interested in descendants of the given roots.
     /// The caller still needs to filter out unwanted entries.
-    pub fn ancestors_until_roots(self, root_positions: &[IndexPosition]) -> RevWalkAncestors<'a> {
+    pub fn ancestors_until_roots(
+        self,
+        root_positions: impl IntoIterator<Item = IndexPosition>,
+    ) -> RevWalkAncestors<'a> {
         // We can also make it stop visiting based on the generation number. Maybe
         // it will perform better for unbalanced branchy history.
         // https://github.com/martinvonz/jj/pull/1492#discussion_r1160678325
-        let min_pos = *root_positions.iter().min().unwrap_or(&IndexPosition::MAX);
+        let min_pos = root_positions
+            .into_iter()
+            .min()
+            .unwrap_or(IndexPosition::MAX);
         self.ancestors_with_min_pos(min_pos)
     }
 
@@ -268,11 +274,13 @@ impl<'a> RevWalkBuilder<'a> {
         self,
         root_positions: impl IntoIterator<Item = IndexPosition>,
     ) -> RevWalkDescendants<'a> {
-        // TODO: collect HashSet<_> directly
-        let root_positions = Vec::from_iter(root_positions);
+        let root_positions = HashSet::from_iter(root_positions);
+        let candidate_entries = self
+            .ancestors_until_roots(root_positions.iter().copied())
+            .collect();
         RevWalkDescendants {
-            candidate_entries: self.ancestors_until_roots(&root_positions).collect(),
-            root_positions: root_positions.into_iter().collect(),
+            candidate_entries,
+            root_positions,
             reachable_positions: HashSet::new(),
         }
     }
@@ -291,7 +299,7 @@ impl<'a> RevWalkBuilder<'a> {
     ) -> RevWalkDescendantsGenerationRange<'a> {
         let index = self.index;
         let root_positions = Vec::from_iter(root_positions);
-        let entries = self.ancestors_until_roots(&root_positions);
+        let entries = self.ancestors_until_roots(root_positions.iter().copied());
         let descendants_index = RevWalkDescendantsIndex::build(index, entries);
 
         let mut queue = RevWalkQueue::with_min_pos(Reverse(IndexPosition::MAX));
@@ -727,7 +735,7 @@ mod tests {
         let make_iter = |heads: &[CommitId], roots: &[CommitId]| {
             RevWalkBuilder::new(index)
                 .wanted_heads(to_positions_vec(index, heads))
-                .ancestors_until_roots(&to_positions_vec(index, roots))
+                .ancestors_until_roots(to_positions_vec(index, roots))
         };
         let to_commit_id = |entry: IndexEntry| entry.commit_id();
 
