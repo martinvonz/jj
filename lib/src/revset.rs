@@ -2415,6 +2415,13 @@ pub trait Revset: fmt::Debug {
     /// to how much effort should be put into the estimation, and how accurate
     /// the resulting estimate should be.
     fn count_estimate(&self) -> (usize, Option<usize>);
+
+    /// Returns a closure that checks if a commit is contained within the
+    /// revset.
+    ///
+    /// The implementation may construct and maintain any necessary internal
+    /// context to optimize the performance of the check.
+    fn containing_fn(&self) -> Box<dyn Fn(&CommitId) -> bool + '_>;
 }
 
 pub trait RevsetIteratorExt<'index, I> {

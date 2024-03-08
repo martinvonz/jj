@@ -14,6 +14,7 @@
 
 #![allow(missing_docs)]
 
+use std::cell::RefCell;
 use std::cmp::{Ordering, Reverse};
 use std::collections::{BTreeSet, BinaryHeap, HashSet};
 use std::fmt;
@@ -162,6 +163,79 @@ impl<I: AsCompositeIndex> Revset for RevsetImpl<I> {
             let count = self.positions().count();
             (count, Some(count))
         }
+    }
+
+    fn containing_fn(&self) -> Box<dyn Fn(&CommitId) -> bool + '_> {
+        let positions = PositionsAccumulator::new(self.index.as_composite(), self.positions());
+        Box::new(move |commit_id| positions.contains(commit_id))
+    }
+}
+
+/// Incrementally consumes positions iterator of the revset collecting
+/// positions.
+struct PositionsAccumulator<'revset, 'index> {
+    index: CompositeIndex<'index>,
+    inner: RefCell<PositionsAccumulatorInner<'revset>>,
+}
+
+impl<'revset, 'index> PositionsAccumulator<'revset, 'index> {
+    fn new(
+        index: CompositeIndex<'index>,
+        positions_iter: Box<dyn Iterator<Item = IndexPosition> + 'revset>,
+    ) -> Self {
+        let inner = RefCell::new(PositionsAccumulatorInner {
+            positions_iter: Some(positions_iter),
+            consumed_positions: Vec::new(),
+        });
+        PositionsAccumulator { index, inner }
+    }
+
+    /// Checks whether the commit is in the revset.
+    fn contains(&self, commit_id: &CommitId) -> bool {
+        let Some(position) = self.index.commit_id_to_pos(commit_id) else {
+            return false;
+        };
+
+        let mut inner = self.inner.borrow_mut();
+        if let Some(last_position) = inner.consumed_positions.last() {
+            if last_position > &position {
+                inner.consume_to(position);
+            }
+        } else {
+            inner.consume_to(position);
+        }
+
+        inner
+            .consumed_positions
+            .binary_search_by(|p| p.cmp(&position).reverse())
+            .is_ok()
+    }
+
+    #[cfg(test)]
+    fn consumed_len(&self) -> usize {
+        self.inner.borrow().consumed_positions.len()
+    }
+}
+
+/// Helper struct for [`PositionsAccumulator`] to simplify interior mutability.
+struct PositionsAccumulatorInner<'revset> {
+    positions_iter: Option<Box<dyn Iterator<Item = IndexPosition> + 'revset>>,
+    consumed_positions: Vec<IndexPosition>,
+}
+
+impl<'revset> PositionsAccumulatorInner<'revset> {
+    /// Consumes positions iterator to a desired position but not deeper.
+    fn consume_to(&mut self, desired_position: IndexPosition) {
+        let Some(iter) = self.positions_iter.as_mut() else {
+            return;
+        };
+        for position in iter {
+            self.consumed_positions.push(position);
+            if position <= desired_position {
+                return;
+            }
+        }
+        self.positions_iter = None;
     }
 }
 
@@ -1196,5 +1270,70 @@ mod tests {
         assert!(!p(&get_entry(&id_2)));
         assert!(!p(&get_entry(&id_1)));
         assert!(p(&get_entry(&id_0)));
+    }
+
+    #[test]
+    fn test_positions_accumulator() {
+        let mut new_change_id = change_id_generator();
+        let mut index = DefaultMutableIndex::full(3, 16);
+        let id_0 = CommitId::from_hex("000000");
+        let id_1 = CommitId::from_hex("111111");
+        let id_2 = CommitId::from_hex("222222");
+        let id_3 = CommitId::from_hex("333333");
+        let id_4 = CommitId::from_hex("444444");
+        index.add_commit_data(id_0.clone(), new_change_id(), &[]);
+        index.add_commit_data(id_1.clone(), new_change_id(), &[id_0.clone()]);
+        index.add_commit_data(id_2.clone(), new_change_id(), &[id_1.clone()]);
+        index.add_commit_data(id_3.clone(), new_change_id(), &[id_2.clone()]);
+        index.add_commit_data(id_4.clone(), new_change_id(), &[id_3.clone()]);
+
+        let get_pos = |id: &CommitId| index.as_composite().commit_id_to_pos(id).unwrap();
+        let make_positions = |ids: &[&CommitId]| ids.iter().copied().map(get_pos).collect_vec();
+        let make_set = |ids: &[&CommitId]| -> Box<dyn InternalRevset> {
+            let positions = make_positions(ids);
+            Box::new(EagerRevset { positions })
+        };
+
+        let full_set = make_set(&[&id_4, &id_3, &id_2, &id_1, &id_0]);
+
+        // Consumes entries incrementally
+        let positions_accum = PositionsAccumulator::new(
+            index.as_composite(),
+            full_set.positions(index.as_composite()),
+        );
+
+        assert!(positions_accum.contains(&id_3));
+        assert_eq!(positions_accum.consumed_len(), 2);
+
+        assert!(positions_accum.contains(&id_0));
+        assert_eq!(positions_accum.consumed_len(), 5);
+
+        assert!(positions_accum.contains(&id_3));
+        assert_eq!(positions_accum.consumed_len(), 5);
+
+        // Does not consume positions for unknown commits
+        let positions_accum = PositionsAccumulator::new(
+            index.as_composite(),
+            full_set.positions(index.as_composite()),
+        );
+
+        assert!(!positions_accum.contains(&CommitId::from_hex("999999")));
+        assert_eq!(positions_accum.consumed_len(), 0);
+
+        // Does not consume without necessity
+        let set = make_set(&[&id_3, &id_2, &id_1]);
+        let positions_accum =
+            PositionsAccumulator::new(index.as_composite(), set.positions(index.as_composite()));
+
+        assert!(!positions_accum.contains(&id_4));
+        assert_eq!(positions_accum.consumed_len(), 1);
+
+        assert!(positions_accum.contains(&id_3));
+        assert_eq!(positions_accum.consumed_len(), 1);
+
+        assert!(!positions_accum.contains(&id_0));
+        assert_eq!(positions_accum.consumed_len(), 3);
+
+        assert!(positions_accum.contains(&id_1));
     }
 }

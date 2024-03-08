@@ -2797,3 +2797,26 @@ fn test_no_such_revision_suggestion() {
         if name == "bax" && candidates == vec!["bar".to_string(), "baz".to_string()]
     );
 }
+
+#[test]
+fn test_revset_containing_fn() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+    let commit_a = write_random_commit(mut_repo, &settings);
+    let commit_b = write_random_commit(mut_repo, &settings);
+    let commit_c = write_random_commit(mut_repo, &settings);
+    let commit_d = write_random_commit(mut_repo, &settings);
+    let repo = tx.commit("test");
+
+    let revset = revset_for_commits(repo.as_ref(), &[&commit_b, &commit_d]);
+
+    let revset_has_commit = revset.containing_fn();
+    assert!(!revset_has_commit(commit_a.id()));
+    assert!(revset_has_commit(commit_b.id()));
+    assert!(!revset_has_commit(commit_c.id()));
+    assert!(revset_has_commit(commit_d.id()));
+}
