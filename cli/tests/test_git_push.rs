@@ -577,7 +577,7 @@ fn test_git_push_conflict() {
     test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "third"]);
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Won't push commit 1973d389875c since it has conflicts
+    Error: Won't push commit d9ca3146ade7 since it has conflicts
     "###);
 }
 

@@ -25,7 +25,8 @@ use std::time::SystemTime;
 use std::{fs, io, str};
 
 use async_trait::async_trait;
-use gix::objs::{CommitRefIter, WriteTo};
+use gix::bstr::BString;
+use gix::objs::{CommitRef, CommitRefIter, WriteTo};
 use itertools::Itertools;
 use prost::Message;
 use smallvec::SmallVec;
@@ -53,6 +54,8 @@ const CHANGE_ID_LENGTH: usize = 16;
 /// Ref namespace used only for preventing GC.
 const NO_GC_REF_NAMESPACE: &str = "refs/jj/keep/";
 const CONFLICT_SUFFIX: &str = ".jjconflict";
+
+const JJ_TREES_COMMIT_HEADER: &[u8] = b"jj:trees";
 
 #[derive(Debug, Error)]
 pub enum GitBackendInitError {
@@ -420,6 +423,27 @@ fn gix_open_opts_from_settings(settings: &UserSettings) -> gix::open::Options {
         .open_path_as_is(true)
 }
 
+/// Reads the `jj:trees` header from the commit.
+fn root_tree_from_header(git_commit: &CommitRef) -> Result<Option<MergedTreeId>, ()> {
+    for (key, value) in &git_commit.extra_headers {
+        if *key == JJ_TREES_COMMIT_HEADER {
+            let mut tree_ids = SmallVec::new();
+            for hex in str::from_utf8(value.as_ref()).or(Err(()))?.split(' ') {
+                let tree_id = TreeId::try_from_hex(hex).or(Err(()))?;
+                if tree_id.as_bytes().len() != HASH_LENGTH {
+                    return Err(());
+                }
+                tree_ids.push(tree_id);
+            }
+            if tree_ids.len() % 2 == 0 {
+                return Err(());
+            }
+            return Ok(Some(MergedTreeId::Merge(Merge::from_vec(tree_ids))));
+        }
+    }
+    Ok(None)
+}
+
 fn commit_from_git_without_root_parent(
     id: &CommitId,
     git_object: &gix::Object,
@@ -449,11 +473,15 @@ fn commit_from_git_without_root_parent(
     let tree_id = TreeId::from_bytes(commit.tree().as_bytes());
     // If this commit is a conflict, we'll update the root tree later, when we read
     // the extra metadata.
-    let root_tree = if uses_tree_conflict_format {
-        MergedTreeId::resolved(tree_id)
-    } else {
-        MergedTreeId::Legacy(tree_id)
-    };
+    let root_tree = root_tree_from_header(&commit)
+        .map_err(|()| to_read_object_err("Invalid jj:trees header", id))?;
+    let root_tree = root_tree.unwrap_or_else(|| {
+        if uses_tree_conflict_format {
+            MergedTreeId::resolved(tree_id)
+        } else {
+            MergedTreeId::Legacy(tree_id)
+        }
+    });
     // Use lossy conversion as commit message with "mojibake" is still better than
     // nothing.
     // TODO: what should we do with commit.encoding?
@@ -571,7 +599,13 @@ fn deserialize_extras(commit: &mut Commit, bytes: &[u8]) {
                 .iter()
                 .map(|id_bytes| TreeId::from_bytes(id_bytes))
                 .collect();
-            commit.root_tree = MergedTreeId::Merge(merge_builder.build());
+            let merge = merge_builder.build();
+            // Check that the trees from the extras match the one we found in the jj:trees
+            // header
+            if let MergedTreeId::Merge(existing_merge) = &commit.root_tree {
+                assert!(existing_merge.is_resolved() || *existing_merge == merge);
+            }
+            commit.root_tree = MergedTreeId::Merge(merge);
         } else {
             // uses_tree_conflict_format was set but there was no root_tree override in the
             // proto, which means we should just promote the tree id from the
@@ -1097,6 +1131,16 @@ impl Backend for GitBackend {
                 parents.push(validate_git_object_id(parent_id)?);
             }
         }
+        let mut extra_headers = vec![];
+        if let MergedTreeId::Merge(tree_ids) = &contents.root_tree {
+            if !tree_ids.is_resolved() {
+                let value = tree_ids.iter().map(|id| id.hex()).join(" ").into_bytes();
+                extra_headers.push((
+                    BString::new(JJ_TREES_COMMIT_HEADER.to_vec()),
+                    BString::new(value),
+                ));
+            }
+        }
         let extras = serialize_extras(&contents);
 
         // If two writers write commits of the same id with different metadata, they
@@ -1114,7 +1158,7 @@ impl Backend for GitBackend {
                 committer: committer.into(),
                 encoding: None,
                 parents: parents.clone(),
-                extra_headers: Default::default(),
+                extra_headers: extra_headers.clone(),
             };
 
             if let Some(sign) = &mut sign_with {
