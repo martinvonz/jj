@@ -39,6 +39,17 @@ pub(super) trait RevWalk<I: ?Sized> {
     // The following methods are provided for convenience. They are not supposed
     // to be reimplemented.
 
+    /// Wraps in adapter that can peek one more item without consuming.
+    fn peekable(self) -> PeekableRevWalk<I, Self>
+    where
+        Self: Sized,
+    {
+        PeekableRevWalk {
+            walk: self,
+            peeked: None,
+        }
+    }
+
     /// Reattaches the underlying `index`.
     fn attach(self, index: &I) -> RevWalkBorrowedIndexIter<'_, I, Self>
     where
@@ -57,7 +68,7 @@ pub(super) struct EagerRevWalk<T> {
 }
 
 impl<T: Iterator> EagerRevWalk<T> {
-    #[allow(unused)] // TODO
+    #[cfg(test)] // TODO
     pub fn new(iter: T) -> Self {
         EagerRevWalk { iter: iter.fuse() }
     }
@@ -68,6 +79,48 @@ impl<I: ?Sized, T: Iterator> RevWalk<I> for EagerRevWalk<T> {
 
     fn next(&mut self, _index: &I) -> Option<Self::Item> {
         self.iter.next()
+    }
+}
+
+#[derive(Clone, Debug)]
+#[must_use]
+pub(super) struct PeekableRevWalk<I: ?Sized, W: RevWalk<I>> {
+    walk: W,
+    // Since RevWalk is fused, we don't need a nested Option<Option<_>>.
+    peeked: Option<W::Item>,
+}
+
+impl<I: ?Sized, W: RevWalk<I>> PeekableRevWalk<I, W> {
+    #[cfg(test)] // TODO
+    pub fn peek(&mut self, index: &I) -> Option<&W::Item> {
+        if self.peeked.is_none() {
+            self.peeked = self.walk.next(index);
+        }
+        self.peeked.as_ref()
+    }
+
+    #[cfg(test)] // TODO
+    pub fn next_if(
+        &mut self,
+        index: &I,
+        predicate: impl FnOnce(&W::Item) -> bool,
+    ) -> Option<W::Item> {
+        match self.next(index) {
+            Some(item) if predicate(&item) => Some(item),
+            other => {
+                assert!(self.peeked.is_none());
+                self.peeked = other;
+                None
+            }
+        }
+    }
+}
+
+impl<I: ?Sized, W: RevWalk<I>> RevWalk<I> for PeekableRevWalk<I, W> {
+    type Item = W::Item;
+
+    fn next(&mut self, index: &I) -> Option<Self::Item> {
+        self.peeked.take().or_else(|| self.walk.next(index))
     }
 }
 
@@ -699,6 +752,30 @@ mod tests {
             .iter()
             .map(|id| index.commit_id_to_pos(id).unwrap())
             .collect()
+    }
+
+    #[test]
+    fn test_peekable_rev_walk() {
+        let source = EagerRevWalk::new(vec![0, 1, 2, 3].into_iter());
+        let mut peekable = source.peekable();
+        assert_eq!(peekable.peek(&()), Some(&0));
+        assert_eq!(peekable.peek(&()), Some(&0));
+        assert_eq!(peekable.next(&()), Some(0));
+        assert_eq!(peekable.peeked, None);
+        assert_eq!(peekable.next_if(&(), |&v| v == 2), None);
+        assert_eq!(peekable.next(&()), Some(1));
+        assert_eq!(peekable.next_if(&(), |&v| v == 2), Some(2));
+        assert_eq!(peekable.peeked, None);
+        assert_eq!(peekable.peek(&()), Some(&3));
+        assert_eq!(peekable.next_if(&(), |&v| v == 3), Some(3));
+        assert_eq!(peekable.peeked, None);
+        assert_eq!(peekable.next(&()), None);
+        assert_eq!(peekable.next(&()), None);
+
+        let source = EagerRevWalk::new((vec![] as Vec<i32>).into_iter());
+        let mut peekable = source.peekable();
+        assert_eq!(peekable.peek(&()), None);
+        assert_eq!(peekable.next(&()), None);
     }
 
     #[test]
