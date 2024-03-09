@@ -321,7 +321,7 @@ fn test_workspaces_conflicting_edits() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
     @r###"
-    ◉  a3c96849ef9f124cbfc2416dc13bf17309d5020a (divergent)
+    ◉  b0b43f24d501eab73ea245c115cdc571541e4a51 (divergent)
     │ ◉  fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
     ├─╯
     │ @  a1896a17282f19089a5cec44358d6609910e0513 secondary@ (divergent)
@@ -333,7 +333,7 @@ fn test_workspaces_conflicting_edits() {
     let stdout = get_log_output(&test_env, &secondary_path);
     assert!(!stdout.starts_with("The working copy is stale"));
     insta::assert_snapshot!(stdout, @r###"
-    ◉  a3c96849ef9f124cbfc2416dc13bf17309d5020a (divergent)
+    ◉  b0b43f24d501eab73ea245c115cdc571541e4a51 (divergent)
     │ ◉  fe8f41ed01d693b2d4365cd89e42ad9c531a939b default@
     ├─╯
     │ @  a1896a17282f19089a5cec44358d6609910e0513 secondary@ (divergent)

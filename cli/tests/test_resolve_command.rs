@@ -220,13 +220,13 @@ conflict
     insta::assert_snapshot!(stderr, @r###"
     Resolving conflicts in: file
     New conflicts appeared in these commits:
-      vruxwmqv 23991847 conflict | (conflict) conflict
+      vruxwmqv 8144e92d conflict | (conflict) conflict
     To resolve the conflicts, start by updating to it:
       jj new vruxwmqvtpmx
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    Working copy now at: vruxwmqv 23991847 conflict | (conflict) conflict
+    Working copy now at: vruxwmqv 8144e92d conflict | (conflict) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
@@ -690,13 +690,13 @@ fn test_multiple_conflicts() {
     insta::assert_snapshot!(stderr, @r###"
     Resolving conflicts in: another_file
     New conflicts appeared in these commits:
-      vruxwmqv c3c25bce conflict | (conflict) conflict
+      vruxwmqv 1e22a8e4 conflict | (conflict) conflict
     To resolve the conflicts, start by updating to it:
       jj new vruxwmqvtpmx
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    Working copy now at: vruxwmqv c3c25bce conflict | (conflict) conflict
+    Working copy now at: vruxwmqv 1e22a8e4 conflict | (conflict) conflict
     Parent commit      : zsuskuln de7553ef a | a
     Parent commit      : royxmykx f68bc2f0 b | b
     Added 0 files, modified 1 files, removed 0 files
@@ -727,13 +727,13 @@ fn test_multiple_conflicts() {
     insta::assert_snapshot!(stderr, @r###"
     Resolving conflicts in: another_file
     New conflicts appeared in these commits:
-      vruxwmqv fd3874cd conflict | (conflict) conflict
+      vruxwmqv 3c438f88 conflict | (conflict) conflict
     To resolve the conflicts, start by updating to it:
       jj new vruxwmqvtpmx
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    Working copy now at: vruxwmqv fd3874cd conflict | (conflict) conflict
+    Working copy now at: vruxwmqv 3c438f88 conflict | (conflict) conflict
     Parent commit      : zsuskuln de7553ef a | a
     Parent commit      : royxmykx f68bc2f0 b | b
     Added 0 files, modified 1 files, removed 0 files
