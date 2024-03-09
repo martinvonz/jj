@@ -1150,8 +1150,9 @@ mod tests {
         index.add_commit_data(id_3.clone(), new_change_id(), &[id_2.clone()]);
         index.add_commit_data(id_4.clone(), new_change_id(), &[id_3.clone()]);
 
-        let get_pos = |id: &CommitId| index.as_composite().commit_id_to_pos(id).unwrap();
-        let get_entry = |id: &CommitId| index.as_composite().entry_by_id(id).unwrap();
+        let index = index.as_composite();
+        let get_pos = |id: &CommitId| index.commit_id_to_pos(id).unwrap();
+        let get_entry = |id: &CommitId| index.entry_by_id(id).unwrap();
         let make_positions = |ids: &[&CommitId]| ids.iter().copied().map(get_pos).collect_vec();
         let make_entries = |ids: &[&CommitId]| ids.iter().copied().map(get_entry).collect_vec();
         let make_set = |ids: &[&CommitId]| -> Box<dyn InternalRevset> {
@@ -1160,14 +1161,14 @@ mod tests {
         };
 
         let set = make_set(&[&id_4, &id_3, &id_2, &id_0]);
-        let mut p = set.to_predicate_fn(index.as_composite());
+        let mut p = set.to_predicate_fn(index);
         assert!(p(&get_entry(&id_4)));
         assert!(p(&get_entry(&id_3)));
         assert!(p(&get_entry(&id_2)));
         assert!(!p(&get_entry(&id_1)));
         assert!(p(&get_entry(&id_0)));
         // Uninteresting entries can be skipped
-        let mut p = set.to_predicate_fn(index.as_composite());
+        let mut p = set.to_predicate_fn(index);
         assert!(p(&get_entry(&id_3)));
         assert!(!p(&get_entry(&id_1)));
         assert!(p(&get_entry(&id_0)));
@@ -1177,14 +1178,14 @@ mod tests {
             predicate: as_pure_predicate_fn(|_index, entry| entry.commit_id() != id_4),
         };
         assert_eq!(
-            set.entries(index.as_composite()).collect_vec(),
+            set.entries(index).collect_vec(),
             make_entries(&[&id_2, &id_0])
         );
         assert_eq!(
-            set.positions(index.as_composite()).collect_vec(),
+            set.positions(index).collect_vec(),
             make_positions(&[&id_2, &id_0])
         );
-        let mut p = set.to_predicate_fn(index.as_composite());
+        let mut p = set.to_predicate_fn(index);
         assert!(!p(&get_entry(&id_4)));
         assert!(!p(&get_entry(&id_3)));
         assert!(p(&get_entry(&id_2)));
@@ -1196,15 +1197,9 @@ mod tests {
             candidates: make_set(&[&id_4, &id_2, &id_0]),
             predicate: make_set(&[&id_3, &id_2, &id_1]),
         };
-        assert_eq!(
-            set.entries(index.as_composite()).collect_vec(),
-            make_entries(&[&id_2])
-        );
-        assert_eq!(
-            set.positions(index.as_composite()).collect_vec(),
-            make_positions(&[&id_2])
-        );
-        let mut p = set.to_predicate_fn(index.as_composite());
+        assert_eq!(set.entries(index).collect_vec(), make_entries(&[&id_2]));
+        assert_eq!(set.positions(index).collect_vec(), make_positions(&[&id_2]));
+        let mut p = set.to_predicate_fn(index);
         assert!(!p(&get_entry(&id_4)));
         assert!(!p(&get_entry(&id_3)));
         assert!(p(&get_entry(&id_2)));
@@ -1216,14 +1211,14 @@ mod tests {
             set2: make_set(&[&id_3, &id_2, &id_1]),
         };
         assert_eq!(
-            set.entries(index.as_composite()).collect_vec(),
+            set.entries(index).collect_vec(),
             make_entries(&[&id_4, &id_3, &id_2, &id_1])
         );
         assert_eq!(
-            set.positions(index.as_composite()).collect_vec(),
+            set.positions(index).collect_vec(),
             make_positions(&[&id_4, &id_3, &id_2, &id_1])
         );
-        let mut p = set.to_predicate_fn(index.as_composite());
+        let mut p = set.to_predicate_fn(index);
         assert!(p(&get_entry(&id_4)));
         assert!(p(&get_entry(&id_3)));
         assert!(p(&get_entry(&id_2)));
@@ -1234,15 +1229,9 @@ mod tests {
             set1: make_set(&[&id_4, &id_2, &id_0]),
             set2: make_set(&[&id_3, &id_2, &id_1]),
         };
-        assert_eq!(
-            set.entries(index.as_composite()).collect_vec(),
-            make_entries(&[&id_2])
-        );
-        assert_eq!(
-            set.positions(index.as_composite()).collect_vec(),
-            make_positions(&[&id_2])
-        );
-        let mut p = set.to_predicate_fn(index.as_composite());
+        assert_eq!(set.entries(index).collect_vec(), make_entries(&[&id_2]));
+        assert_eq!(set.positions(index).collect_vec(), make_positions(&[&id_2]));
+        let mut p = set.to_predicate_fn(index);
         assert!(!p(&get_entry(&id_4)));
         assert!(!p(&get_entry(&id_3)));
         assert!(p(&get_entry(&id_2)));
@@ -1254,14 +1243,14 @@ mod tests {
             set2: make_set(&[&id_3, &id_2, &id_1]),
         };
         assert_eq!(
-            set.entries(index.as_composite()).collect_vec(),
+            set.entries(index).collect_vec(),
             make_entries(&[&id_4, &id_0])
         );
         assert_eq!(
-            set.positions(index.as_composite()).collect_vec(),
+            set.positions(index).collect_vec(),
             make_positions(&[&id_4, &id_0])
         );
-        let mut p = set.to_predicate_fn(index.as_composite());
+        let mut p = set.to_predicate_fn(index);
         assert!(p(&get_entry(&id_4)));
         assert!(!p(&get_entry(&id_3)));
         assert!(!p(&get_entry(&id_2)));
@@ -1284,7 +1273,8 @@ mod tests {
         index.add_commit_data(id_3.clone(), new_change_id(), &[id_2.clone()]);
         index.add_commit_data(id_4.clone(), new_change_id(), &[id_3.clone()]);
 
-        let get_pos = |id: &CommitId| index.as_composite().commit_id_to_pos(id).unwrap();
+        let index = index.as_composite();
+        let get_pos = |id: &CommitId| index.commit_id_to_pos(id).unwrap();
         let make_positions = |ids: &[&CommitId]| ids.iter().copied().map(get_pos).collect_vec();
         let make_set = |ids: &[&CommitId]| -> Box<dyn InternalRevset> {
             let positions = make_positions(ids);
@@ -1294,10 +1284,7 @@ mod tests {
         let full_set = make_set(&[&id_4, &id_3, &id_2, &id_1, &id_0]);
 
         // Consumes entries incrementally
-        let positions_accum = PositionsAccumulator::new(
-            index.as_composite(),
-            full_set.positions(index.as_composite()),
-        );
+        let positions_accum = PositionsAccumulator::new(index, full_set.positions(index));
 
         assert!(positions_accum.contains(&id_3));
         assert_eq!(positions_accum.consumed_len(), 2);
@@ -1309,18 +1296,14 @@ mod tests {
         assert_eq!(positions_accum.consumed_len(), 5);
 
         // Does not consume positions for unknown commits
-        let positions_accum = PositionsAccumulator::new(
-            index.as_composite(),
-            full_set.positions(index.as_composite()),
-        );
+        let positions_accum = PositionsAccumulator::new(index, full_set.positions(index));
 
         assert!(!positions_accum.contains(&CommitId::from_hex("999999")));
         assert_eq!(positions_accum.consumed_len(), 0);
 
         // Does not consume without necessity
         let set = make_set(&[&id_3, &id_2, &id_1]);
-        let positions_accum =
-            PositionsAccumulator::new(index.as_composite(), set.positions(index.as_composite()));
+        let positions_accum = PositionsAccumulator::new(index, set.positions(index));
 
         assert!(!positions_accum.contains(&id_4));
         assert_eq!(positions_accum.consumed_len(), 1);
