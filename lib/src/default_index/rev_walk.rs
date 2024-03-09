@@ -71,6 +71,14 @@ pub(super) trait RevWalk<I: ?Sized> {
     }
 }
 
+impl<I: ?Sized, W: RevWalk<I> + ?Sized> RevWalk<I> for Box<W> {
+    type Item = W::Item;
+
+    fn next(&mut self, index: &I) -> Option<Self::Item> {
+        <W as RevWalk<I>>::next(self, index)
+    }
+}
+
 /// Adapter that turns `Iterator` into `RevWalk` by dropping index argument.
 ///
 /// As the name suggests, the source object is usually a slice or `Vec`.
@@ -127,7 +135,6 @@ pub(super) struct PeekableRevWalk<I: ?Sized, W: RevWalk<I>> {
 }
 
 impl<I: ?Sized, W: RevWalk<I>> PeekableRevWalk<I, W> {
-    #[cfg(test)] // TODO
     pub fn peek(&mut self, index: &I) -> Option<&W::Item> {
         if self.peeked.is_none() {
             self.peeked = self.walk.next(index);
