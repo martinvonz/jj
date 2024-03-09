@@ -80,7 +80,6 @@ pub(super) struct EagerRevWalk<T> {
 }
 
 impl<T: Iterator> EagerRevWalk<T> {
-    #[cfg(test)] // TODO
     pub fn new(iter: T) -> Self {
         EagerRevWalk { iter: iter.fuse() }
     }
@@ -136,7 +135,6 @@ impl<I: ?Sized, W: RevWalk<I>> PeekableRevWalk<I, W> {
         self.peeked.as_ref()
     }
 
-    #[cfg(test)] // TODO
     pub fn next_if(
         &mut self,
         index: &I,

@@ -24,7 +24,7 @@ use std::sync::Arc;
 
 use itertools::Itertools;
 
-use super::rev_walk::{RevWalk, RevWalkBuilder};
+use super::rev_walk::{EagerRevWalk, RevWalk, RevWalkBuilder};
 use super::revset_graph_iterator::RevsetGraphIterator;
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexEntry, IndexPosition};
@@ -38,22 +38,18 @@ use crate::revset_graph::RevsetGraphEdge;
 use crate::rewrite;
 use crate::store::Store;
 
+type BoxedPredicateFn<'a> = Box<dyn FnMut(&CompositeIndex, IndexPosition) -> bool + 'a>;
+
 trait ToPredicateFn: fmt::Debug {
     /// Creates function that tests if the given entry is included in the set.
     ///
     /// The predicate function is evaluated in order of `RevsetIterator`.
-    fn to_predicate_fn<'a, 'index: 'a>(
-        &'a self,
-        index: &'index CompositeIndex,
-    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a>;
+    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_>;
 }
 
 impl<T: ToPredicateFn + ?Sized> ToPredicateFn for Box<T> {
-    fn to_predicate_fn<'a, 'index: 'a>(
-        &'a self,
-        index: &'index CompositeIndex,
-    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
-        <T as ToPredicateFn>::to_predicate_fn(self, index)
+    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+        <T as ToPredicateFn>::to_predicate_fn(self)
     }
 }
 
@@ -277,11 +273,9 @@ impl InternalRevset for EagerRevset {
 }
 
 impl ToPredicateFn for EagerRevset {
-    fn to_predicate_fn<'a, 'index: 'a>(
-        &'a self,
-        _index: &'index CompositeIndex,
-    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
-        predicate_fn_from_positions(self.positions.iter().copied())
+    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+        let walk = EagerRevWalk::new(self.positions.iter().copied());
+        predicate_fn_from_rev_walk(walk)
     }
 }
 
@@ -326,24 +320,21 @@ impl<W> ToPredicateFn for RevWalkRevset<W>
 where
     W: RevWalk<CompositeIndex, Item = IndexPosition> + Clone,
 {
-    fn to_predicate_fn<'a, 'index: 'a>(
-        &'a self,
-        index: &'index CompositeIndex,
-    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
-        let positions = self.walk.clone().attach(index);
-        predicate_fn_from_positions(positions)
+    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+        predicate_fn_from_rev_walk(self.walk.clone())
     }
 }
 
-fn predicate_fn_from_positions<'iter>(
-    iter: impl Iterator<Item = IndexPosition> + 'iter,
-) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'iter> {
-    let mut iter = iter.fuse().peekable();
-    Box::new(move |entry| {
-        while iter.next_if(|&pos| pos > entry.position()).is_some() {
+fn predicate_fn_from_rev_walk<'a, W>(walk: W) -> BoxedPredicateFn<'a>
+where
+    W: RevWalk<CompositeIndex, Item = IndexPosition> + 'a,
+{
+    let mut walk = walk.peekable();
+    Box::new(move |index, entry_pos| {
+        while walk.next_if(index, |&pos| pos > entry_pos).is_some() {
             continue;
         }
-        iter.next_if(|&pos| pos == entry.position()).is_some()
+        walk.next_if(index, |&pos| pos == entry_pos).is_some()
     })
 }
 
@@ -362,15 +353,22 @@ where
         &'a self,
         index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
-        let p = self.predicate.to_predicate_fn(index);
-        Box::new(self.candidates.entries(index).filter(p))
+        Box::new(
+            self.positions(index)
+                .map(move |pos| index.entry_by_pos(pos)),
+        )
     }
 
     fn positions<'a, 'index: 'a>(
         &'a self,
         index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
-        Box::new(self.entries(index).map(|entry| entry.position()))
+        let mut p = self.predicate.to_predicate_fn();
+        Box::new(
+            self.candidates
+                .positions(index)
+                .filter(move |&pos| p(index, pos)),
+        )
     }
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
@@ -386,13 +384,10 @@ where
     S: ToPredicateFn,
     P: ToPredicateFn,
 {
-    fn to_predicate_fn<'a, 'index: 'a>(
-        &'a self,
-        index: &'index CompositeIndex,
-    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
-        let mut p1 = self.candidates.to_predicate_fn(index);
-        let mut p2 = self.predicate.to_predicate_fn(index);
-        Box::new(move |entry| p1(entry) && p2(entry))
+    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+        let mut p1 = self.candidates.to_predicate_fn();
+        let mut p2 = self.predicate.to_predicate_fn();
+        Box::new(move |index, pos| p1(index, pos) && p2(index, pos))
     }
 }
 
@@ -400,12 +395,9 @@ where
 struct NotInPredicate<S>(S);
 
 impl<S: ToPredicateFn> ToPredicateFn for NotInPredicate<S> {
-    fn to_predicate_fn<'a, 'index: 'a>(
-        &'a self,
-        index: &'index CompositeIndex,
-    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
-        let mut p = self.0.to_predicate_fn(index);
-        Box::new(move |entry| !p(entry))
+    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+        let mut p = self.0.to_predicate_fn();
+        Box::new(move |index, pos| !p(index, pos))
     }
 }
 
@@ -455,13 +447,10 @@ where
     S1: ToPredicateFn,
     S2: ToPredicateFn,
 {
-    fn to_predicate_fn<'a, 'index: 'a>(
-        &'a self,
-        index: &'index CompositeIndex,
-    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
-        let mut p1 = self.set1.to_predicate_fn(index);
-        let mut p2 = self.set2.to_predicate_fn(index);
-        Box::new(move |entry| p1(entry) || p2(entry))
+    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+        let mut p1 = self.set1.to_predicate_fn();
+        let mut p2 = self.set2.to_predicate_fn();
+        Box::new(move |index, pos| p1(index, pos) || p2(index, pos))
     }
 }
 
@@ -561,13 +550,10 @@ where
     S1: ToPredicateFn,
     S2: ToPredicateFn,
 {
-    fn to_predicate_fn<'a, 'index: 'a>(
-        &'a self,
-        index: &'index CompositeIndex,
-    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
-        let mut p1 = self.set1.to_predicate_fn(index);
-        let mut p2 = self.set2.to_predicate_fn(index);
-        Box::new(move |entry| p1(entry) && p2(entry))
+    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+        let mut p1 = self.set1.to_predicate_fn();
+        let mut p2 = self.set2.to_predicate_fn();
+        Box::new(move |index, pos| p1(index, pos) && p2(index, pos))
     }
 }
 
@@ -679,13 +665,10 @@ where
     S1: ToPredicateFn,
     S2: ToPredicateFn,
 {
-    fn to_predicate_fn<'a, 'index: 'a>(
-        &'a self,
-        index: &'index CompositeIndex,
-    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
-        let mut p1 = self.set1.to_predicate_fn(index);
-        let mut p2 = self.set2.to_predicate_fn(index);
-        Box::new(move |entry| p1(entry) && !p2(entry))
+    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+        let mut p1 = self.set1.to_predicate_fn();
+        let mut p2 = self.set2.to_predicate_fn();
+        Box::new(move |index, pos| p1(index, pos) && !p2(index, pos))
     }
 }
 
@@ -849,8 +832,9 @@ impl<'index> EvaluationContext<'index> {
                         .ancestors_until_roots(root_positions.iter().copied())
                         .detach();
                     let candidates = RevWalkRevset { walk };
-                    let predicate = as_pure_predicate_fn(move |_index, entry| {
-                        entry
+                    let predicate = as_pure_predicate_fn(move |index, pos| {
+                        index
+                            .entry_by_pos(pos)
                             .parent_positions()
                             .iter()
                             .any(|parent_pos| root_positions.contains(parent_pos))
@@ -1024,26 +1008,22 @@ impl<F> fmt::Debug for PurePredicateFn<F> {
 
 impl<F> ToPredicateFn for PurePredicateFn<F>
 where
-    F: Fn(&CompositeIndex, &IndexEntry<'_>) -> bool,
+    F: Fn(&CompositeIndex, IndexPosition) -> bool,
 {
-    fn to_predicate_fn<'a, 'index: 'a>(
-        &'a self,
-        index: &'index CompositeIndex,
-    ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
-        let f = &self.0;
-        Box::new(move |entry| f(index, entry))
+    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+        Box::new(&self.0)
     }
 }
 
 fn as_pure_predicate_fn<F>(f: F) -> PurePredicateFn<F>
 where
-    F: Fn(&CompositeIndex, &IndexEntry<'_>) -> bool,
+    F: Fn(&CompositeIndex, IndexPosition) -> bool,
 {
     PurePredicateFn(f)
 }
 
 fn box_pure_predicate_fn<'a>(
-    f: impl Fn(&CompositeIndex, &IndexEntry<'_>) -> bool + 'a,
+    f: impl Fn(&CompositeIndex, IndexPosition) -> bool + 'a,
 ) -> Box<dyn ToPredicateFn + 'a> {
     Box::new(PurePredicateFn(f))
 }
@@ -1055,13 +1035,15 @@ fn build_predicate_fn(
     match predicate {
         RevsetFilterPredicate::ParentCount(parent_count_range) => {
             let parent_count_range = parent_count_range.clone();
-            box_pure_predicate_fn(move |_index, entry| {
+            box_pure_predicate_fn(move |index, pos| {
+                let entry = index.entry_by_pos(pos);
                 parent_count_range.contains(&entry.num_parents())
             })
         }
         RevsetFilterPredicate::Description(pattern) => {
             let pattern = pattern.clone();
-            box_pure_predicate_fn(move |_index, entry| {
+            box_pure_predicate_fn(move |index, pos| {
+                let entry = index.entry_by_pos(pos);
                 let commit = store.get_commit(&entry.commit_id()).unwrap();
                 pattern.matches(commit.description())
             })
@@ -1071,14 +1053,16 @@ fn build_predicate_fn(
             // TODO: Make these functions that take a needle to search for accept some
             // syntax for specifying whether it's a regex and whether it's
             // case-sensitive.
-            box_pure_predicate_fn(move |_index, entry| {
+            box_pure_predicate_fn(move |index, pos| {
+                let entry = index.entry_by_pos(pos);
                 let commit = store.get_commit(&entry.commit_id()).unwrap();
                 pattern.matches(&commit.author().name) || pattern.matches(&commit.author().email)
             })
         }
         RevsetFilterPredicate::Committer(pattern) => {
             let pattern = pattern.clone();
-            box_pure_predicate_fn(move |_index, entry| {
+            box_pure_predicate_fn(move |index, pos| {
+                let entry = index.entry_by_pos(pos);
                 let commit = store.get_commit(&entry.commit_id()).unwrap();
                 pattern.matches(&commit.committer().name)
                     || pattern.matches(&commit.committer().email)
@@ -1091,11 +1075,13 @@ fn build_predicate_fn(
             } else {
                 Box::new(EverythingMatcher)
             };
-            box_pure_predicate_fn(move |index, entry| {
-                has_diff_from_parent(&store, index, entry, matcher.as_ref())
+            box_pure_predicate_fn(move |index, pos| {
+                let entry = index.entry_by_pos(pos);
+                has_diff_from_parent(&store, index, &entry, matcher.as_ref())
             })
         }
-        RevsetFilterPredicate::HasConflict => box_pure_predicate_fn(move |_index, entry| {
+        RevsetFilterPredicate::HasConflict => box_pure_predicate_fn(move |index, pos| {
+            let entry = index.entry_by_pos(pos);
             let commit = store.get_commit(&entry.commit_id()).unwrap();
             commit.has_conflict().unwrap()
         }),
@@ -1161,21 +1147,23 @@ mod tests {
         };
 
         let set = make_set(&[&id_4, &id_3, &id_2, &id_0]);
-        let mut p = set.to_predicate_fn(index);
-        assert!(p(&get_entry(&id_4)));
-        assert!(p(&get_entry(&id_3)));
-        assert!(p(&get_entry(&id_2)));
-        assert!(!p(&get_entry(&id_1)));
-        assert!(p(&get_entry(&id_0)));
+        let mut p = set.to_predicate_fn();
+        assert!(p(index, get_pos(&id_4)));
+        assert!(p(index, get_pos(&id_3)));
+        assert!(p(index, get_pos(&id_2)));
+        assert!(!p(index, get_pos(&id_1)));
+        assert!(p(index, get_pos(&id_0)));
         // Uninteresting entries can be skipped
-        let mut p = set.to_predicate_fn(index);
-        assert!(p(&get_entry(&id_3)));
-        assert!(!p(&get_entry(&id_1)));
-        assert!(p(&get_entry(&id_0)));
+        let mut p = set.to_predicate_fn();
+        assert!(p(index, get_pos(&id_3)));
+        assert!(!p(index, get_pos(&id_1)));
+        assert!(p(index, get_pos(&id_0)));
 
         let set = FilterRevset {
             candidates: make_set(&[&id_4, &id_2, &id_0]),
-            predicate: as_pure_predicate_fn(|_index, entry| entry.commit_id() != id_4),
+            predicate: as_pure_predicate_fn(|index, pos| {
+                index.entry_by_pos(pos).commit_id() != id_4
+            }),
         };
         assert_eq!(
             set.entries(index).collect_vec(),
@@ -1185,12 +1173,12 @@ mod tests {
             set.positions(index).collect_vec(),
             make_positions(&[&id_2, &id_0])
         );
-        let mut p = set.to_predicate_fn(index);
-        assert!(!p(&get_entry(&id_4)));
-        assert!(!p(&get_entry(&id_3)));
-        assert!(p(&get_entry(&id_2)));
-        assert!(!p(&get_entry(&id_1)));
-        assert!(p(&get_entry(&id_0)));
+        let mut p = set.to_predicate_fn();
+        assert!(!p(index, get_pos(&id_4)));
+        assert!(!p(index, get_pos(&id_3)));
+        assert!(p(index, get_pos(&id_2)));
+        assert!(!p(index, get_pos(&id_1)));
+        assert!(p(index, get_pos(&id_0)));
 
         // Intersection by FilterRevset
         let set = FilterRevset {
@@ -1199,12 +1187,12 @@ mod tests {
         };
         assert_eq!(set.entries(index).collect_vec(), make_entries(&[&id_2]));
         assert_eq!(set.positions(index).collect_vec(), make_positions(&[&id_2]));
-        let mut p = set.to_predicate_fn(index);
-        assert!(!p(&get_entry(&id_4)));
-        assert!(!p(&get_entry(&id_3)));
-        assert!(p(&get_entry(&id_2)));
-        assert!(!p(&get_entry(&id_1)));
-        assert!(!p(&get_entry(&id_0)));
+        let mut p = set.to_predicate_fn();
+        assert!(!p(index, get_pos(&id_4)));
+        assert!(!p(index, get_pos(&id_3)));
+        assert!(p(index, get_pos(&id_2)));
+        assert!(!p(index, get_pos(&id_1)));
+        assert!(!p(index, get_pos(&id_0)));
 
         let set = UnionRevset {
             set1: make_set(&[&id_4, &id_2]),
@@ -1218,12 +1206,12 @@ mod tests {
             set.positions(index).collect_vec(),
             make_positions(&[&id_4, &id_3, &id_2, &id_1])
         );
-        let mut p = set.to_predicate_fn(index);
-        assert!(p(&get_entry(&id_4)));
-        assert!(p(&get_entry(&id_3)));
-        assert!(p(&get_entry(&id_2)));
-        assert!(p(&get_entry(&id_1)));
-        assert!(!p(&get_entry(&id_0)));
+        let mut p = set.to_predicate_fn();
+        assert!(p(index, get_pos(&id_4)));
+        assert!(p(index, get_pos(&id_3)));
+        assert!(p(index, get_pos(&id_2)));
+        assert!(p(index, get_pos(&id_1)));
+        assert!(!p(index, get_pos(&id_0)));
 
         let set = IntersectionRevset {
             set1: make_set(&[&id_4, &id_2, &id_0]),
@@ -1231,12 +1219,12 @@ mod tests {
         };
         assert_eq!(set.entries(index).collect_vec(), make_entries(&[&id_2]));
         assert_eq!(set.positions(index).collect_vec(), make_positions(&[&id_2]));
-        let mut p = set.to_predicate_fn(index);
-        assert!(!p(&get_entry(&id_4)));
-        assert!(!p(&get_entry(&id_3)));
-        assert!(p(&get_entry(&id_2)));
-        assert!(!p(&get_entry(&id_1)));
-        assert!(!p(&get_entry(&id_0)));
+        let mut p = set.to_predicate_fn();
+        assert!(!p(index, get_pos(&id_4)));
+        assert!(!p(index, get_pos(&id_3)));
+        assert!(p(index, get_pos(&id_2)));
+        assert!(!p(index, get_pos(&id_1)));
+        assert!(!p(index, get_pos(&id_0)));
 
         let set = DifferenceRevset {
             set1: make_set(&[&id_4, &id_2, &id_0]),
@@ -1250,12 +1238,12 @@ mod tests {
             set.positions(index).collect_vec(),
             make_positions(&[&id_4, &id_0])
         );
-        let mut p = set.to_predicate_fn(index);
-        assert!(p(&get_entry(&id_4)));
-        assert!(!p(&get_entry(&id_3)));
-        assert!(!p(&get_entry(&id_2)));
-        assert!(!p(&get_entry(&id_1)));
-        assert!(p(&get_entry(&id_0)));
+        let mut p = set.to_predicate_fn();
+        assert!(p(index, get_pos(&id_4)));
+        assert!(!p(index, get_pos(&id_3)));
+        assert!(!p(index, get_pos(&id_2)));
+        assert!(!p(index, get_pos(&id_1)));
+        assert!(p(index, get_pos(&id_0)));
     }
 
     #[test]
