@@ -18,13 +18,12 @@ use std::cell::RefCell;
 use std::cmp::{Ordering, Reverse};
 use std::collections::{BTreeSet, BinaryHeap, HashSet};
 use std::fmt;
-use std::iter::Peekable;
 use std::ops::Range;
 use std::sync::Arc;
 
 use itertools::Itertools;
 
-use super::rev_walk::{EagerRevWalk, RevWalk, RevWalkBuilder};
+use super::rev_walk::{EagerRevWalk, PeekableRevWalk, RevWalk, RevWalkBuilder};
 use super::revset_graph_iterator::RevsetGraphIterator;
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexEntry, IndexPosition};
@@ -39,6 +38,7 @@ use crate::rewrite;
 use crate::store::Store;
 
 type BoxedPredicateFn<'a> = Box<dyn FnMut(&CompositeIndex, IndexPosition) -> bool + 'a>;
+type BoxedRevWalk<'a> = Box<dyn RevWalk<CompositeIndex, Item = IndexPosition> + 'a>;
 
 trait ToPredicateFn: fmt::Debug {
     /// Creates function that tests if the given entry is included in the set.
@@ -55,10 +55,7 @@ impl<T: ToPredicateFn + ?Sized> ToPredicateFn for Box<T> {
 
 trait InternalRevset: fmt::Debug + ToPredicateFn {
     // All revsets currently iterate in order of descending index position
-    fn positions<'a, 'index: 'a>(
-        &'a self,
-        index: &'index CompositeIndex,
-    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a>;
+    fn positions(&self) -> BoxedRevWalk<'_>;
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
     where
@@ -66,11 +63,8 @@ trait InternalRevset: fmt::Debug + ToPredicateFn {
 }
 
 impl<T: InternalRevset + ?Sized> InternalRevset for Box<T> {
-    fn positions<'a, 'index: 'a>(
-        &'a self,
-        index: &'index CompositeIndex,
-    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
-        <T as InternalRevset>::positions(self, index)
+    fn positions(&self) -> BoxedRevWalk<'_> {
+        <T as InternalRevset>::positions(self)
     }
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
@@ -93,13 +87,11 @@ impl<I: AsCompositeIndex> RevsetImpl<I> {
 
     fn entries(&self) -> impl Iterator<Item = IndexEntry<'_>> + '_ {
         let index = self.index.as_composite();
-        self.inner
-            .positions(index)
-            .map(move |pos| index.entry_by_pos(pos))
+        self.positions().map(move |pos| index.entry_by_pos(pos))
     }
 
-    fn positions(&self) -> Box<dyn Iterator<Item = IndexPosition> + '_> {
-        self.inner.positions(self.index.as_composite())
+    fn positions(&self) -> impl Iterator<Item = IndexPosition> + '_ {
+        self.inner.positions().attach(self.index.as_composite())
     }
 
     pub fn iter_graph_impl(&self) -> RevsetGraphIterator<'_, '_> {
@@ -153,7 +145,8 @@ impl<I: AsCompositeIndex> Revset for RevsetImpl<I> {
     }
 
     fn containing_fn(&self) -> Box<dyn Fn(&CommitId) -> bool + '_> {
-        let positions = PositionsAccumulator::new(self.index.as_composite(), self.positions());
+        let positions =
+            PositionsAccumulator::new(self.index.as_composite(), Box::new(self.positions()));
         Box::new(move |commit_id| positions.contains(commit_id))
     }
 }
@@ -237,11 +230,8 @@ impl EagerRevset {
 }
 
 impl InternalRevset for EagerRevset {
-    fn positions<'a, 'index: 'a>(
-        &'a self,
-        _index: &'index CompositeIndex,
-    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
-        Box::new(self.positions.iter().copied())
+    fn positions(&self) -> BoxedRevWalk<'_> {
+        Box::new(EagerRevWalk::new(self.positions.iter().copied()))
     }
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
@@ -273,11 +263,8 @@ impl<W> InternalRevset for RevWalkRevset<W>
 where
     W: RevWalk<CompositeIndex, Item = IndexPosition> + Clone,
 {
-    fn positions<'a, 'index: 'a>(
-        &'a self,
-        index: &'index CompositeIndex,
-    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
-        Box::new(self.walk.clone().attach(index))
+    fn positions(&self) -> BoxedRevWalk<'_> {
+        Box::new(self.walk.clone())
     }
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
@@ -321,15 +308,12 @@ where
     S: InternalRevset,
     P: ToPredicateFn,
 {
-    fn positions<'a, 'index: 'a>(
-        &'a self,
-        index: &'index CompositeIndex,
-    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
+    fn positions(&self) -> BoxedRevWalk<'_> {
         let mut p = self.predicate.to_predicate_fn();
         Box::new(
             self.candidates
-                .positions(index)
-                .filter(move |&pos| p(index, pos)),
+                .positions()
+                .filter(move |index, &pos| p(index, pos)),
         )
     }
 
@@ -374,13 +358,10 @@ where
     S1: InternalRevset,
     S2: InternalRevset,
 {
-    fn positions<'a, 'index: 'a>(
-        &'a self,
-        index: &'index CompositeIndex,
-    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
+    fn positions(&self) -> BoxedRevWalk<'_> {
         Box::new(union_by(
-            self.set1.positions(index),
-            self.set2.positions(index),
+            self.set1.positions(),
+            self.set2.positions(),
             |pos1, pos2| pos1.cmp(pos2).reverse(),
         ))
     }
@@ -405,52 +386,50 @@ where
     }
 }
 
-/// Iterator that merges two sorted iterators.
+/// `RevWalk` node that merges two sorted walk nodes.
 ///
 /// The input items should be sorted in ascending order by the `cmp` function.
-struct UnionByIterator<I1: Iterator, I2: Iterator, C> {
-    iter1: Peekable<I1>,
-    iter2: Peekable<I2>,
+struct UnionRevWalk<I: ?Sized, W1: RevWalk<I>, W2: RevWalk<I>, C> {
+    walk1: PeekableRevWalk<I, W1>,
+    walk2: PeekableRevWalk<I, W2>,
     cmp: C,
 }
 
-impl<I1, I2, C> Iterator for UnionByIterator<I1, I2, C>
+impl<I, W1, W2, C> RevWalk<I> for UnionRevWalk<I, W1, W2, C>
 where
-    I1: Iterator,
-    I2: Iterator<Item = I1::Item>,
-    C: FnMut(&I1::Item, &I2::Item) -> Ordering,
+    I: ?Sized,
+    W1: RevWalk<I>,
+    W2: RevWalk<I, Item = W1::Item>,
+    C: FnMut(&W1::Item, &W2::Item) -> Ordering,
 {
-    type Item = I1::Item;
+    type Item = W1::Item;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        match (self.iter1.peek(), self.iter2.peek()) {
-            (None, _) => self.iter2.next(),
-            (_, None) => self.iter1.next(),
+    fn next(&mut self, index: &I) -> Option<Self::Item> {
+        match (self.walk1.peek(index), self.walk2.peek(index)) {
+            (None, _) => self.walk2.next(index),
+            (_, None) => self.walk1.next(index),
             (Some(item1), Some(item2)) => match (self.cmp)(item1, item2) {
-                Ordering::Less => self.iter1.next(),
+                Ordering::Less => self.walk1.next(index),
                 Ordering::Equal => {
-                    self.iter2.next();
-                    self.iter1.next()
+                    self.walk2.next(index);
+                    self.walk1.next(index)
                 }
-                Ordering::Greater => self.iter2.next(),
+                Ordering::Greater => self.walk2.next(index),
             },
         }
     }
 }
 
-fn union_by<I1, I2, C>(
-    iter1: I1,
-    iter2: I2,
-    cmp: C,
-) -> UnionByIterator<I1::IntoIter, I2::IntoIter, C>
+fn union_by<I, W1, W2, C>(walk1: W1, walk2: W2, cmp: C) -> UnionRevWalk<I, W1, W2, C>
 where
-    I1: IntoIterator,
-    I2: IntoIterator<Item = I1::Item>,
-    C: FnMut(&I1::Item, &I2::Item) -> Ordering,
+    I: ?Sized,
+    W1: RevWalk<I>,
+    W2: RevWalk<I, Item = W1::Item>,
+    C: FnMut(&W1::Item, &W2::Item) -> Ordering,
 {
-    UnionByIterator {
-        iter1: iter1.into_iter().peekable(),
-        iter2: iter2.into_iter().peekable(),
+    UnionRevWalk {
+        walk1: walk1.peekable(),
+        walk2: walk2.peekable(),
         cmp,
     }
 }
@@ -466,13 +445,10 @@ where
     S1: InternalRevset,
     S2: InternalRevset,
 {
-    fn positions<'a, 'index: 'a>(
-        &'a self,
-        index: &'index CompositeIndex,
-    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
+    fn positions(&self) -> BoxedRevWalk<'_> {
         Box::new(intersection_by(
-            self.set1.positions(index),
-            self.set2.positions(index),
+            self.set1.positions(),
+            self.set2.positions(),
             |pos1, pos2| pos1.cmp(pos2).reverse(),
         ))
     }
@@ -497,26 +473,27 @@ where
     }
 }
 
-/// Iterator that intersects two sorted iterators.
+/// `RevWalk` node that intersects two sorted walk nodes.
 ///
 /// The input items should be sorted in ascending order by the `cmp` function.
-struct IntersectionByIterator<I1: Iterator, I2: Iterator, C> {
-    iter1: Peekable<I1>,
-    iter2: Peekable<I2>,
+struct IntersectionRevWalk<I: ?Sized, W1: RevWalk<I>, W2: RevWalk<I>, C> {
+    walk1: PeekableRevWalk<I, W1>,
+    walk2: PeekableRevWalk<I, W2>,
     cmp: C,
 }
 
-impl<I1, I2, C> Iterator for IntersectionByIterator<I1, I2, C>
+impl<I, W1, W2, C> RevWalk<I> for IntersectionRevWalk<I, W1, W2, C>
 where
-    I1: Iterator,
-    I2: Iterator,
-    C: FnMut(&I1::Item, &I2::Item) -> Ordering,
+    I: ?Sized,
+    W1: RevWalk<I>,
+    W2: RevWalk<I>,
+    C: FnMut(&W1::Item, &W2::Item) -> Ordering,
 {
-    type Item = I1::Item;
+    type Item = W1::Item;
 
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next(&mut self, index: &I) -> Option<Self::Item> {
         loop {
-            match (self.iter1.peek(), self.iter2.peek()) {
+            match (self.walk1.peek(index), self.walk2.peek(index)) {
                 (None, _) => {
                     return None;
                 }
@@ -525,14 +502,14 @@ where
                 }
                 (Some(item1), Some(item2)) => match (self.cmp)(item1, item2) {
                     Ordering::Less => {
-                        self.iter1.next();
+                        self.walk1.next(index);
                     }
                     Ordering::Equal => {
-                        self.iter2.next();
-                        return self.iter1.next();
+                        self.walk2.next(index);
+                        return self.walk1.next(index);
                     }
                     Ordering::Greater => {
-                        self.iter2.next();
+                        self.walk2.next(index);
                     }
                 },
             }
@@ -540,19 +517,16 @@ where
     }
 }
 
-fn intersection_by<I1, I2, C>(
-    iter1: I1,
-    iter2: I2,
-    cmp: C,
-) -> IntersectionByIterator<I1::IntoIter, I2::IntoIter, C>
+fn intersection_by<I, W1, W2, C>(walk1: W1, walk2: W2, cmp: C) -> IntersectionRevWalk<I, W1, W2, C>
 where
-    I1: IntoIterator,
-    I2: IntoIterator,
-    C: FnMut(&I1::Item, &I2::Item) -> Ordering,
+    I: ?Sized,
+    W1: RevWalk<I>,
+    W2: RevWalk<I>,
+    C: FnMut(&W1::Item, &W2::Item) -> Ordering,
 {
-    IntersectionByIterator {
-        iter1: iter1.into_iter().peekable(),
-        iter2: iter2.into_iter().peekable(),
+    IntersectionRevWalk {
+        walk1: walk1.peekable(),
+        walk2: walk2.peekable(),
         cmp,
     }
 }
@@ -570,13 +544,10 @@ where
     S1: InternalRevset,
     S2: InternalRevset,
 {
-    fn positions<'a, 'index: 'a>(
-        &'a self,
-        index: &'index CompositeIndex,
-    ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
+    fn positions(&self) -> BoxedRevWalk<'_> {
         Box::new(difference_by(
-            self.set1.positions(index),
-            self.set2.positions(index),
+            self.set1.positions(),
+            self.set2.positions(),
             |pos1, pos2| pos1.cmp(pos2).reverse(),
         ))
     }
@@ -601,42 +572,43 @@ where
     }
 }
 
-/// Iterator that subtracts `iter2` items from `iter1`.
+/// `RevWalk` node that subtracts `walk2` items from `walk1`.
 ///
 /// The input items should be sorted in ascending order by the `cmp` function.
-struct DifferenceByIterator<I1: Iterator, I2: Iterator, C> {
-    iter1: Peekable<I1>,
-    iter2: Peekable<I2>,
+struct DifferenceRevWalk<I: ?Sized, W1: RevWalk<I>, W2: RevWalk<I>, C> {
+    walk1: PeekableRevWalk<I, W1>,
+    walk2: PeekableRevWalk<I, W2>,
     cmp: C,
 }
 
-impl<I1, I2, C> Iterator for DifferenceByIterator<I1, I2, C>
+impl<I, W1, W2, C> RevWalk<I> for DifferenceRevWalk<I, W1, W2, C>
 where
-    I1: Iterator,
-    I2: Iterator,
-    C: FnMut(&I1::Item, &I2::Item) -> Ordering,
+    I: ?Sized,
+    W1: RevWalk<I>,
+    W2: RevWalk<I>,
+    C: FnMut(&W1::Item, &W2::Item) -> Ordering,
 {
-    type Item = I1::Item;
+    type Item = W1::Item;
 
-    fn next(&mut self) -> Option<Self::Item> {
+    fn next(&mut self, index: &I) -> Option<Self::Item> {
         loop {
-            match (self.iter1.peek(), self.iter2.peek()) {
+            match (self.walk1.peek(index), self.walk2.peek(index)) {
                 (None, _) => {
                     return None;
                 }
                 (_, None) => {
-                    return self.iter1.next();
+                    return self.walk1.next(index);
                 }
                 (Some(item1), Some(item2)) => match (self.cmp)(item1, item2) {
                     Ordering::Less => {
-                        return self.iter1.next();
+                        return self.walk1.next(index);
                     }
                     Ordering::Equal => {
-                        self.iter2.next();
-                        self.iter1.next();
+                        self.walk2.next(index);
+                        self.walk1.next(index);
                     }
                     Ordering::Greater => {
-                        self.iter2.next();
+                        self.walk2.next(index);
                     }
                 },
             }
@@ -644,19 +616,16 @@ where
     }
 }
 
-fn difference_by<I1, I2, C>(
-    iter1: I1,
-    iter2: I2,
-    cmp: C,
-) -> DifferenceByIterator<I1::IntoIter, I2::IntoIter, C>
+fn difference_by<I, W1, W2, C>(walk1: W1, walk2: W2, cmp: C) -> DifferenceRevWalk<I, W1, W2, C>
 where
-    I1: IntoIterator,
-    I2: IntoIterator,
-    C: FnMut(&I1::Item, &I2::Item) -> Ordering,
+    I: ?Sized,
+    W1: RevWalk<I>,
+    W2: RevWalk<I>,
+    C: FnMut(&W1::Item, &W2::Item) -> Ordering,
 {
-    DifferenceByIterator {
-        iter1: iter1.into_iter().peekable(),
-        iter2: iter2.into_iter().peekable(),
+    DifferenceRevWalk {
+        walk1: walk1.peekable(),
+        walk2: walk2.peekable(),
         cmp,
     }
 }
@@ -702,7 +671,7 @@ impl<'index> EvaluationContext<'index> {
             }
             ResolvedExpression::Ancestors { heads, generation } => {
                 let head_set = self.evaluate(heads)?;
-                let head_positions = head_set.positions(index);
+                let head_positions = head_set.positions().attach(index);
                 let builder = RevWalkBuilder::new(index).wanted_heads(head_positions);
                 if generation == &GENERATION_RANGE_FULL {
                     let walk = builder.ancestors().detach();
@@ -721,16 +690,17 @@ impl<'index> EvaluationContext<'index> {
                 generation,
             } => {
                 let root_set = self.evaluate(roots)?;
-                let root_positions = root_set.positions(index).collect_vec();
+                let root_positions = root_set.positions().attach(index).collect_vec();
                 // Pre-filter heads so queries like 'immutable_heads()..' can
                 // terminate early. immutable_heads() usually includes some
                 // visible heads, which can be trivially rejected.
                 let head_set = self.evaluate(heads)?;
                 let head_positions = difference_by(
-                    head_set.positions(index),
-                    root_positions.iter().copied(),
+                    head_set.positions(),
+                    EagerRevWalk::new(root_positions.iter().copied()),
                     |pos1, pos2| pos1.cmp(pos2).reverse(),
-                );
+                )
+                .attach(index);
                 let builder = RevWalkBuilder::new(index)
                     .wanted_heads(head_positions)
                     .unwanted_roots(root_positions);
@@ -751,9 +721,9 @@ impl<'index> EvaluationContext<'index> {
                 generation_from_roots,
             } => {
                 let root_set = self.evaluate(roots)?;
-                let root_positions = root_set.positions(index);
+                let root_positions = root_set.positions().attach(index);
                 let head_set = self.evaluate(heads)?;
-                let head_positions = head_set.positions(index);
+                let head_positions = head_set.positions().attach(index);
                 let builder = RevWalkBuilder::new(index).wanted_heads(head_positions);
                 if generation_from_roots == &(1..2) {
                     let root_positions: HashSet<_> = root_positions.collect();
@@ -796,12 +766,16 @@ impl<'index> EvaluationContext<'index> {
             ResolvedExpression::Heads(candidates) => {
                 let candidate_set = self.evaluate(candidates)?;
                 let head_positions: BTreeSet<_> =
-                    index.heads_pos(candidate_set.positions(index).collect());
+                    index.heads_pos(candidate_set.positions().attach(index).collect());
                 let positions = head_positions.into_iter().rev().collect();
                 Ok(Box::new(EagerRevset { positions }))
             }
             ResolvedExpression::Roots(candidates) => {
-                let mut positions = self.evaluate(candidates)?.positions(index).collect_vec();
+                let mut positions = self
+                    .evaluate(candidates)?
+                    .positions()
+                    .attach(index)
+                    .collect_vec();
                 let filled = RevWalkBuilder::new(index)
                     .wanted_heads(positions.iter().copied())
                     .descendants(positions.iter().copied())
@@ -903,7 +877,8 @@ impl<'index> EvaluationContext<'index> {
         // count and large candidate set, this is probably cheaper than building vec
         // and applying selection algorithm.
         let mut candidate_iter = candidate_set
-            .positions(self.index)
+            .positions()
+            .attach(self.index)
             .map(make_rev_item)
             .fuse();
         let mut latest_items = BinaryHeap::from_iter(candidate_iter.by_ref().take(count));
@@ -1090,7 +1065,7 @@ mod tests {
             }),
         };
         assert_eq!(
-            set.positions(index).collect_vec(),
+            set.positions().attach(index).collect_vec(),
             make_positions(&[&id_2, &id_0])
         );
         let mut p = set.to_predicate_fn();
@@ -1105,7 +1080,10 @@ mod tests {
             candidates: make_set(&[&id_4, &id_2, &id_0]),
             predicate: make_set(&[&id_3, &id_2, &id_1]),
         };
-        assert_eq!(set.positions(index).collect_vec(), make_positions(&[&id_2]));
+        assert_eq!(
+            set.positions().attach(index).collect_vec(),
+            make_positions(&[&id_2])
+        );
         let mut p = set.to_predicate_fn();
         assert!(!p(index, get_pos(&id_4)));
         assert!(!p(index, get_pos(&id_3)));
@@ -1118,7 +1096,7 @@ mod tests {
             set2: make_set(&[&id_3, &id_2, &id_1]),
         };
         assert_eq!(
-            set.positions(index).collect_vec(),
+            set.positions().attach(index).collect_vec(),
             make_positions(&[&id_4, &id_3, &id_2, &id_1])
         );
         let mut p = set.to_predicate_fn();
@@ -1132,7 +1110,10 @@ mod tests {
             set1: make_set(&[&id_4, &id_2, &id_0]),
             set2: make_set(&[&id_3, &id_2, &id_1]),
         };
-        assert_eq!(set.positions(index).collect_vec(), make_positions(&[&id_2]));
+        assert_eq!(
+            set.positions().attach(index).collect_vec(),
+            make_positions(&[&id_2])
+        );
         let mut p = set.to_predicate_fn();
         assert!(!p(index, get_pos(&id_4)));
         assert!(!p(index, get_pos(&id_3)));
@@ -1145,7 +1126,7 @@ mod tests {
             set2: make_set(&[&id_3, &id_2, &id_1]),
         };
         assert_eq!(
-            set.positions(index).collect_vec(),
+            set.positions().attach(index).collect_vec(),
             make_positions(&[&id_4, &id_0])
         );
         let mut p = set.to_predicate_fn();
@@ -1182,7 +1163,8 @@ mod tests {
         let full_set = make_set(&[&id_4, &id_3, &id_2, &id_1, &id_0]);
 
         // Consumes entries incrementally
-        let positions_accum = PositionsAccumulator::new(index, full_set.positions(index));
+        let positions_accum =
+            PositionsAccumulator::new(index, Box::new(full_set.positions().attach(index)));
 
         assert!(positions_accum.contains(&id_3));
         assert_eq!(positions_accum.consumed_len(), 2);
@@ -1194,14 +1176,16 @@ mod tests {
         assert_eq!(positions_accum.consumed_len(), 5);
 
         // Does not consume positions for unknown commits
-        let positions_accum = PositionsAccumulator::new(index, full_set.positions(index));
+        let positions_accum =
+            PositionsAccumulator::new(index, Box::new(full_set.positions().attach(index)));
 
         assert!(!positions_accum.contains(&CommitId::from_hex("999999")));
         assert_eq!(positions_accum.consumed_len(), 0);
 
         // Does not consume without necessity
         let set = make_set(&[&id_3, &id_2, &id_1]);
-        let positions_accum = PositionsAccumulator::new(index, set.positions(index));
+        let positions_accum =
+            PositionsAccumulator::new(index, Box::new(set.positions().attach(index)));
 
         assert!(!positions_accum.contains(&id_4));
         assert_eq!(positions_accum.consumed_len(), 1);
