@@ -14,13 +14,11 @@
 
 use clap::ArgGroup;
 use jj_lib::object_id::ObjectId;
-use jj_lib::repo::Repo;
-use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
+use super::squash::move_diff;
 use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::{user_error, CommandError};
-use crate::description_util::combine_messages;
 use crate::ui::Ui;
 
 /// Move changes from one revision into another
@@ -66,12 +64,10 @@ pub(crate) fn cmd_move(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let source = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
-    let mut destination =
-        workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
+    let destination = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
     if source.id() == destination.id() {
         return Err(user_error("Source and destination cannot be the same."));
     }
-    workspace_command.check_rewritable([&source, &destination])?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_selector =
         workspace_command.diff_selector(ui, args.tool.as_deref(), args.interactive)?;
@@ -81,71 +77,14 @@ pub(crate) fn cmd_move(
         source.id().hex(),
         destination.id().hex()
     );
-    let parent_tree = merge_commit_trees(tx.repo(), &source.parents())?;
-    let source_tree = source.tree()?;
-    let instructions = format!(
-        "\
-You are moving changes from: {}
-into commit: {}
-
-The left side of the diff shows the contents of the parent commit. The
-right side initially shows the contents of the commit you're moving
-changes from.
-
-Adjust the right side until the diff shows the changes you want to move
-to the destination. If you don't make any changes, then all the changes
-from the source will be moved into the destination.
-",
-        tx.format_commit_summary(&source),
-        tx.format_commit_summary(&destination)
-    );
-    let new_parent_tree_id = diff_selector.select(
-        &parent_tree,
-        &source_tree,
-        matcher.as_ref(),
-        Some(&instructions),
-    )?;
-    if diff_selector.is_interactive() && new_parent_tree_id == parent_tree.id() {
-        return Err(user_error("No changes to move"));
-    }
-    let new_parent_tree = tx.repo().store().get_root_tree(&new_parent_tree_id)?;
-    // Apply the reverse of the selected changes onto the source
-    let new_source_tree = source_tree.merge(&new_parent_tree, &parent_tree)?;
-    let abandon_source = new_source_tree.id() == parent_tree.id();
-    if abandon_source {
-        tx.mut_repo().record_abandoned_commit(source.id().clone());
-    } else {
-        tx.mut_repo()
-            .rewrite_commit(command.settings(), &source)
-            .set_tree_id(new_source_tree.id().clone())
-            .write()?;
-    }
-    if tx.repo().index().is_ancestor(source.id(), destination.id()) {
-        // If we're moving changes to a descendant, first rebase descendants onto the
-        // rewritten source. Otherwise it will likely already have the content
-        // changes we're moving, so applying them will have no effect and the
-        // changes will disappear.
-        let rebase_map = tx
-            .mut_repo()
-            .rebase_descendants_return_map(command.settings())?;
-        let rebased_destination_id = rebase_map.get(destination.id()).unwrap().clone();
-        destination = tx.mut_repo().store().get_commit(&rebased_destination_id)?;
-    }
-    // Apply the selected changes onto the destination
-    let destination_tree = destination.tree()?;
-    let new_destination_tree = destination_tree.merge(&parent_tree, &new_parent_tree)?;
-    let description = combine_messages(
-        tx.base_repo(),
-        &source,
-        &destination,
+    move_diff(
+        &mut tx,
         command.settings(),
-        abandon_source,
+        source,
+        destination,
+        matcher.as_ref(),
+        &diff_selector,
     )?;
-    tx.mut_repo()
-        .rewrite_commit(command.settings(), &destination)
-        .set_tree_id(new_destination_tree.id().clone())
-        .set_description(description)
-        .write()?;
     tx.finish(ui, tx_description)?;
     Ok(())
 }
