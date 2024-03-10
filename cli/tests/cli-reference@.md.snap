@@ -133,7 +133,7 @@ repository.
 * `show` — Show commit description and changes in a revision
 * `sparse` — Manage which paths from the working-copy commit are present in the working copy
 * `split` — Split a revision in two
-* `squash` — Move changes from a revision into its parent
+* `squash` — Move changes from a revision into another revision
 * `status` — Show high-level repo status
 * `tag` — Manage tags
 * `util` — Infrequently used commands such as for generating shell completions
@@ -1684,9 +1684,13 @@ If the change you split had a description, you will be asked to enter a change d
 
 ## `jj squash`
 
-Move changes from a revision into its parent
+Move changes from a revision into another revision
 
-After moving the changes into the parent, the child revision will have the same content state as before. If that means that the change is now empty compared to its parent, it will be abandoned. Without `--interactive`, the child change will always be empty.
+With the `-r` option, moves the changes from the specified revision to the parent revision. Fails if there are several parent revisions (i.e., the given revision is a merge).
+
+With the `--from` and/or `--into` options, moves changes from/to the given revisions. If either is left out, it defaults to the working-copy commit. For example, `jj squash --into @--` moves changes from the working-copy commit to the grandparent.
+
+If, after moving changes out, the source revision is empty compared to its parent(s), it will be abandoned. Without `--interactive`, the source revision will always be empty.
 
 If the source became empty and both the source and destination had a non-empty description, you will be asked for the combined description. If either was empty, then the other one will be used.
 
@@ -1701,6 +1705,8 @@ If a working-copy commit gets abandoned, it will be given a new, empty commit. T
 ###### **Options:**
 
 * `-r`, `--revision <REVISION>` — Revision to squash into its parent (default: @)
+* `--from <FROM>` — Revision to squash from (default: @)
+* `--into <INTO>` — Revision to squash into (default: @)
 * `-m`, `--message <MESSAGE>` — The description to use for squashed revision (don't open editor)
 * `-i`, `--interactive` — Interactively choose which parts to squash
 
