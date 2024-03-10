@@ -39,6 +39,18 @@ pub(super) trait RevWalk<I: ?Sized> {
     // The following methods are provided for convenience. They are not supposed
     // to be reimplemented.
 
+    /// Wraps in adapter that will filter items by the given `predicate`.
+    fn filter<P>(self, predicate: P) -> FilterRevWalk<Self, P>
+    where
+        Self: Sized,
+        P: FnMut(&I, &Self::Item) -> bool,
+    {
+        FilterRevWalk {
+            walk: self,
+            predicate,
+        }
+    }
+
     /// Wraps in adapter that can peek one more item without consuming.
     fn peekable(self) -> PeekableRevWalk<I, Self>
     where
@@ -79,6 +91,31 @@ impl<I: ?Sized, T: Iterator> RevWalk<I> for EagerRevWalk<T> {
 
     fn next(&mut self, _index: &I) -> Option<Self::Item> {
         self.iter.next()
+    }
+}
+
+#[derive(Clone, Debug)]
+#[must_use]
+pub(super) struct FilterRevWalk<W, P> {
+    walk: W,
+    predicate: P,
+}
+
+impl<I, W, P> RevWalk<I> for FilterRevWalk<W, P>
+where
+    I: ?Sized,
+    W: RevWalk<I>,
+    P: FnMut(&I, &W::Item) -> bool,
+{
+    type Item = W::Item;
+
+    fn next(&mut self, index: &I) -> Option<Self::Item> {
+        while let Some(item) = self.walk.next(index) {
+            if (self.predicate)(index, &item) {
+                return Some(item);
+            }
+        }
+        None
     }
 }
 
@@ -776,6 +813,17 @@ mod tests {
         let mut peekable = source.peekable();
         assert_eq!(peekable.peek(&()), None);
         assert_eq!(peekable.next(&()), None);
+    }
+
+    #[test]
+    fn test_filter_rev_walk() {
+        let source = EagerRevWalk::new(vec![0, 1, 2, 3, 4].into_iter());
+        let mut filtered = source.filter(|_, &v| v & 1 == 0);
+        assert_eq!(filtered.next(&()), Some(0));
+        assert_eq!(filtered.next(&()), Some(2));
+        assert_eq!(filtered.next(&()), Some(4));
+        assert_eq!(filtered.next(&()), None);
+        assert_eq!(filtered.next(&()), None);
     }
 
     #[test]
