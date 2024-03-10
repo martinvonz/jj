@@ -100,7 +100,7 @@ pub(super) trait RevWalkIndex {
     fn adjacent_positions(&self, pos: Self::Position) -> Self::AdjacentPositions;
 }
 
-impl RevWalkIndex for CompositeIndex<'_> {
+impl RevWalkIndex for &CompositeIndex {
     type Position = IndexPosition;
     type AdjacentPositions = SmallIndexPositionsVec;
 
@@ -118,7 +118,7 @@ pub(super) struct RevWalkDescendantsIndex {
 type DescendantIndexPositionsVec = SmallVec<[Reverse<IndexPosition>; 4]>;
 
 impl RevWalkDescendantsIndex {
-    fn build(index: CompositeIndex, positions: impl IntoIterator<Item = IndexPosition>) -> Self {
+    fn build(index: &CompositeIndex, positions: impl IntoIterator<Item = IndexPosition>) -> Self {
         // For dense set, it's probably cheaper to use `Vec` instead of `HashMap`.
         let mut children_map: HashMap<IndexPosition, DescendantIndexPositionsVec> = HashMap::new();
         for pos in positions {
@@ -242,13 +242,13 @@ impl<P: Ord, T: Ord> RevWalkQueue<P, T> {
 #[derive(Clone)]
 #[must_use]
 pub(super) struct RevWalkBuilder<'a> {
-    index: CompositeIndex<'a>,
+    index: &'a CompositeIndex,
     wanted: Vec<IndexPosition>,
     unwanted: Vec<IndexPosition>,
 }
 
 impl<'a> RevWalkBuilder<'a> {
-    pub fn new(index: CompositeIndex<'a>) -> Self {
+    pub fn new(index: &'a CompositeIndex) -> Self {
         RevWalkBuilder {
             index,
             wanted: Vec::new(),
@@ -383,7 +383,7 @@ impl<'a> RevWalkBuilder<'a> {
 }
 
 pub(super) type RevWalkAncestors<'a> =
-    RevWalkBorrowedIndexIter<CompositeIndex<'a>, RevWalkImpl<IndexPosition>>;
+    RevWalkBorrowedIndexIter<&'a CompositeIndex, RevWalkImpl<IndexPosition>>;
 
 #[derive(Clone)]
 #[must_use]
@@ -420,7 +420,7 @@ impl<I: RevWalkIndex + ?Sized> RevWalk<I> for RevWalkImpl<I::Position> {
 }
 
 pub(super) type RevWalkAncestorsGenerationRange<'a> =
-    RevWalkBorrowedIndexIter<CompositeIndex<'a>, RevWalkGenerationRangeImpl<IndexPosition>>;
+    RevWalkBorrowedIndexIter<&'a CompositeIndex, RevWalkGenerationRangeImpl<IndexPosition>>;
 pub(super) type RevWalkDescendantsGenerationRange = RevWalkOwnedIndexIter<
     RevWalkDescendantsIndex,
     RevWalkGenerationRangeImpl<Reverse<IndexPosition>>,
@@ -540,7 +540,7 @@ impl RevWalkItemGenerationRange {
 
 /// Walks descendants from the roots, in order of ascending index position.
 pub(super) type RevWalkDescendants<'a> =
-    RevWalkBorrowedIndexIter<CompositeIndex<'a>, RevWalkDescendantsImpl>;
+    RevWalkBorrowedIndexIter<&'a CompositeIndex, RevWalkDescendantsImpl>;
 
 #[derive(Clone)]
 #[must_use]
@@ -561,10 +561,10 @@ impl RevWalkDescendants<'_> {
     }
 }
 
-impl RevWalk<CompositeIndex<'_>> for RevWalkDescendantsImpl {
+impl RevWalk<&CompositeIndex> for RevWalkDescendantsImpl {
     type Item = IndexPosition;
 
-    fn next(&mut self, index: &CompositeIndex) -> Option<Self::Item> {
+    fn next(&mut self, index: &&CompositeIndex) -> Option<Self::Item> {
         while let Some(candidate_pos) = self.candidate_positions.pop() {
             if self.root_positions.contains(&candidate_pos)
                 || index
@@ -626,7 +626,7 @@ impl AncestorsBitSet {
     }
 
     /// Updates set by visiting ancestors until the given `to_visit_pos`.
-    pub fn visit_until(&mut self, index: CompositeIndex, to_visit_pos: IndexPosition) {
+    pub fn visit_until(&mut self, index: &CompositeIndex, to_visit_pos: IndexPosition) {
         let to_visit_bitset_pos = to_visit_pos.0 / u64::BITS;
         if to_visit_bitset_pos >= self.last_visited_bitset_pos {
             return;
@@ -673,7 +673,7 @@ mod tests {
         move || iter.next().unwrap()
     }
 
-    fn to_positions_vec(index: CompositeIndex<'_>, commit_ids: &[CommitId]) -> Vec<IndexPosition> {
+    fn to_positions_vec(index: &CompositeIndex, commit_ids: &[CommitId]) -> Vec<IndexPosition> {
         commit_ids
             .iter()
             .map(|id| index.commit_id_to_pos(id).unwrap())

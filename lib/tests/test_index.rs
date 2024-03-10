@@ -46,7 +46,7 @@ fn child_commit<'repo>(
 }
 
 // Helper just to reduce line wrapping
-fn generation_number(index: CompositeIndex, commit_id: &CommitId) -> u32 {
+fn generation_number(index: &CompositeIndex, commit_id: &CommitId) -> u32 {
     index.entry_by_id(commit_id).unwrap().generation_number()
 }
 
@@ -510,7 +510,7 @@ fn create_n_commits(
     tx.commit("test")
 }
 
-fn as_readonly_composite(repo: &Arc<ReadonlyRepo>) -> CompositeIndex<'_> {
+fn as_readonly_composite(repo: &Arc<ReadonlyRepo>) -> &CompositeIndex {
     repo.readonly_index()
         .as_any()
         .downcast_ref::<DefaultReadonlyIndex>()
@@ -518,7 +518,7 @@ fn as_readonly_composite(repo: &Arc<ReadonlyRepo>) -> CompositeIndex<'_> {
         .as_composite()
 }
 
-fn as_mutable_composite(repo: &MutableRepo) -> CompositeIndex<'_> {
+fn as_mutable_composite(repo: &MutableRepo) -> &CompositeIndex {
     repo.mutable_index()
         .as_any()
         .downcast_ref::<DefaultMutableIndex>()

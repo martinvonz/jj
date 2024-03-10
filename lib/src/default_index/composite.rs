@@ -20,6 +20,7 @@ use std::iter;
 use std::sync::{Arc, Mutex};
 
 use itertools::Itertools;
+use ref_cast::{ref_cast_custom, RefCastCustom};
 
 use super::entry::{
     IndexEntry, IndexPosition, IndexPositionByGeneration, LocalPosition, SmallIndexPositionsVec,
@@ -82,41 +83,41 @@ pub(super) type DynIndexSegment = dyn IndexSegment;
 /// a `CompositeIndex` reference.
 pub trait AsCompositeIndex {
     /// Returns reference wrapper that provides global access to this index.
-    fn as_composite(&self) -> CompositeIndex<'_>;
+    fn as_composite(&self) -> &CompositeIndex;
 }
 
 impl<T: AsCompositeIndex + ?Sized> AsCompositeIndex for &T {
-    fn as_composite(&self) -> CompositeIndex<'_> {
+    fn as_composite(&self) -> &CompositeIndex {
         <T as AsCompositeIndex>::as_composite(self)
     }
 }
 
 impl<T: AsCompositeIndex + ?Sized> AsCompositeIndex for &mut T {
-    fn as_composite(&self) -> CompositeIndex<'_> {
+    fn as_composite(&self) -> &CompositeIndex {
         <T as AsCompositeIndex>::as_composite(self)
     }
 }
 
 /// Reference wrapper that provides global access to nested index segments.
-#[derive(Clone, Copy)]
-pub struct CompositeIndex<'a>(&'a DynIndexSegment);
+#[derive(RefCastCustom)]
+#[repr(transparent)]
+pub struct CompositeIndex(DynIndexSegment);
 
-impl<'a> CompositeIndex<'a> {
-    pub(super) fn new(segment: &'a DynIndexSegment) -> Self {
-        CompositeIndex(segment)
-    }
+impl CompositeIndex {
+    #[ref_cast_custom]
+    pub(super) const fn new(segment: &DynIndexSegment) -> &Self;
 
     /// Iterates parent and its ancestor readonly index segments.
     pub(super) fn ancestor_files_without_local(
         &self,
-    ) -> impl Iterator<Item = &'a Arc<ReadonlyIndexSegment>> {
+    ) -> impl Iterator<Item = &Arc<ReadonlyIndexSegment>> {
         let parent_file = self.0.parent_file();
         iter::successors(parent_file, |file| file.parent_file())
     }
 
     /// Iterates self and its ancestor index segments.
-    pub(super) fn ancestor_index_segments(&self) -> impl Iterator<Item = &'a DynIndexSegment> {
-        iter::once(self.0).chain(
+    pub(super) fn ancestor_index_segments(&self) -> impl Iterator<Item = &DynIndexSegment> {
+        iter::once(&self.0).chain(
             self.ancestor_files_without_local()
                 .map(|file| file.as_ref() as &DynIndexSegment),
         )
@@ -160,7 +161,7 @@ impl<'a> CompositeIndex<'a> {
         }
     }
 
-    pub fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry<'a> {
+    pub fn entry_by_pos(&self, pos: IndexPosition) -> IndexEntry<'_> {
         self.ancestor_index_segments()
             .find_map(|segment| {
                 u32::checked_sub(pos.0, segment.num_parent_commits())
@@ -169,7 +170,7 @@ impl<'a> CompositeIndex<'a> {
             .unwrap()
     }
 
-    pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'a>> {
+    pub fn entry_by_id(&self, commit_id: &CommitId) -> Option<IndexEntry<'_>> {
         self.ancestor_index_segments().find_map(|segment| {
             let local_pos = segment.commit_id_to_pos(commit_id)?;
             let pos = IndexPosition(local_pos.0 + segment.num_parent_commits());
@@ -332,7 +333,7 @@ impl<'a> CompositeIndex<'a> {
         self.heads_pos(result)
     }
 
-    pub(super) fn all_heads(self) -> impl Iterator<Item = CommitId> + 'a {
+    pub(super) fn all_heads(&self) -> impl Iterator<Item = CommitId> + '_ {
         self.all_heads_pos()
             .map(move |pos| self.entry_by_pos(pos).commit_id())
     }
@@ -392,19 +393,19 @@ impl<'a> CompositeIndex<'a> {
         &self,
         expression: &ResolvedExpression,
         store: &Arc<Store>,
-    ) -> Result<Box<dyn Revset + 'a>, RevsetEvaluationError> {
-        let revset_impl = revset_engine::evaluate(expression, store, *self)?;
+    ) -> Result<Box<dyn Revset + '_>, RevsetEvaluationError> {
+        let revset_impl = revset_engine::evaluate(expression, store, self)?;
         Ok(Box::new(revset_impl))
     }
 }
 
-impl AsCompositeIndex for CompositeIndex<'_> {
-    fn as_composite(&self) -> CompositeIndex<'_> {
-        *self
+impl AsCompositeIndex for &CompositeIndex {
+    fn as_composite(&self) -> &CompositeIndex {
+        self
     }
 }
 
-impl Index for CompositeIndex<'_> {
+impl Index for &CompositeIndex {
     /// Suppose the given `commit_id` exists, returns the minimum prefix length
     /// to disambiguate it. The length to be returned is a number of hexadecimal
     /// digits.
