@@ -76,6 +76,11 @@ pub(crate) fn cmd_move(
     let diff_selector =
         workspace_command.diff_selector(ui, args.tool.as_deref(), args.interactive)?;
     let mut tx = workspace_command.start_transaction();
+    let tx_description = format!(
+        "move changes from {} to {}",
+        source.id().hex(),
+        destination.id().hex()
+    );
     let parent_tree = merge_commit_trees(tx.repo(), &source.parents())?;
     let source_tree = source.tree()?;
     let instructions = format!(
@@ -141,13 +146,6 @@ from the source will be moved into the destination.
         .set_tree_id(new_destination_tree.id().clone())
         .set_description(description)
         .write()?;
-    tx.finish(
-        ui,
-        format!(
-            "move changes from {} to {}",
-            source.id().hex(),
-            destination.id().hex()
-        ),
-    )?;
+    tx.finish(ui, tx_description)?;
     Ok(())
 }
