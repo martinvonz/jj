@@ -16,7 +16,7 @@
 
 use std::cmp::{max, Reverse};
 use std::collections::{BinaryHeap, HashMap, HashSet};
-use std::iter::FusedIterator;
+use std::iter::{Fuse, FusedIterator};
 use std::ops::Range;
 
 use smallvec::SmallVec;
@@ -45,6 +45,29 @@ pub(super) trait RevWalk<I: ?Sized> {
         Self: Sized,
     {
         RevWalkBorrowedIndexIter { index, walk: self }
+    }
+}
+
+/// Adapter that turns `Iterator` into `RevWalk` by dropping index argument.
+///
+/// As the name suggests, the source object is usually a slice or `Vec`.
+#[derive(Clone, Debug)]
+pub(super) struct EagerRevWalk<T> {
+    iter: Fuse<T>,
+}
+
+impl<T: Iterator> EagerRevWalk<T> {
+    #[allow(unused)] // TODO
+    pub fn new(iter: T) -> Self {
+        EagerRevWalk { iter: iter.fuse() }
+    }
+}
+
+impl<I: ?Sized, T: Iterator> RevWalk<I> for EagerRevWalk<T> {
+    type Item = T::Item;
+
+    fn next(&mut self, _index: &I) -> Option<Self::Item> {
+        self.iter.next()
     }
 }
 
