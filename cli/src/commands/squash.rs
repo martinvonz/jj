@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use clap::parser::ValueSource;
 use jj_lib::commit::Commit;
 use jj_lib::matchers::Matcher;
 use jj_lib::object_id::ObjectId;
@@ -42,8 +41,9 @@ use crate::ui::Ui;
 /// commit. This is true in general; it is not specific to this command.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct SquashArgs {
-    #[arg(long, short, default_value = "@")]
-    revision: RevisionArg,
+    /// Revision to squash into its parent (default: @)
+    #[arg(long, short)]
+    revision: Option<RevisionArg>,
     /// The description to use for squashed revision (don't open editor)
     #[arg(long = "message", short, value_name = "MESSAGE")]
     message_paragraphs: Vec<String>,
@@ -65,7 +65,7 @@ pub(crate) fn cmd_squash(
     args: &SquashArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
     workspace_command.check_rewritable([&commit])?;
     let parents = commit.parents();
     if parents.len() != 1 {
@@ -103,8 +103,7 @@ from the source will be moved into the parent.
         }
 
         if let [only_path] = &args.paths[..] {
-            let (_, matches) = command.matches().subcommand().unwrap();
-            if matches.value_source("revision").unwrap() == ValueSource::DefaultValue
+            if args.revision.is_none()
                 && revset::parse(
                     only_path,
                     &tx.base_workspace_helper().revset_parse_context(),

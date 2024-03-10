@@ -1700,9 +1700,7 @@ If a working-copy commit gets abandoned, it will be given a new, empty commit. T
 
 ###### **Options:**
 
-* `-r`, `--revision <REVISION>`
-
-  Default value: `@`
+* `-r`, `--revision <REVISION>` — Revision to squash into its parent (default: @)
 * `-m`, `--message <MESSAGE>` — The description to use for squashed revision (don't open editor)
 * `-i`, `--interactive` — Interactively choose which parts to squash
 
