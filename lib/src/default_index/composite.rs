@@ -399,12 +399,13 @@ impl CompositeIndex {
     }
 }
 
-impl AsCompositeIndex for &CompositeIndex {
+impl AsCompositeIndex for CompositeIndex {
     fn as_composite(&self) -> &CompositeIndex {
         self
     }
 }
 
+// In revset engine, we need to convert &CompositeIndex to &dyn Index.
 impl Index for &CompositeIndex {
     /// Suppose the given `commit_id` exists, returns the minimum prefix length
     /// to disambiguate it. The length to be returned is a number of hexadecimal
