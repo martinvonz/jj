@@ -46,7 +46,7 @@ impl IndexGraphEdge {
         IndexGraphEdge { target, edge_type }
     }
 
-    fn to_revset_edge(self, index: CompositeIndex<'_>) -> RevsetGraphEdge {
+    fn to_revset_edge(self, index: &CompositeIndex) -> RevsetGraphEdge {
         RevsetGraphEdge {
             target: index.entry_by_pos(self.target).commit_id(),
             edge_type: self.edge_type,
@@ -121,7 +121,7 @@ impl IndexGraphEdge {
 /// could lead to "D", but that would require extra book-keeping to remember for
 /// later that the edges from "f" and "H" are only partially computed.
 pub struct RevsetGraphIterator<'revset, 'index> {
-    index: CompositeIndex<'index>,
+    index: &'index CompositeIndex,
     input_set_iter: Box<dyn Iterator<Item = IndexEntry<'index>> + 'revset>,
     /// Commits in the input set we had to take out of the iterator while
     /// walking external edges. Does not necessarily include the commit
@@ -137,7 +137,7 @@ pub struct RevsetGraphIterator<'revset, 'index> {
 
 impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
     pub fn new(
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
         input_set_iter: Box<dyn Iterator<Item = IndexEntry<'index>> + 'revset>,
     ) -> RevsetGraphIterator<'revset, 'index> {
         RevsetGraphIterator {

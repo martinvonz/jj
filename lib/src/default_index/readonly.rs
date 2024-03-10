@@ -342,7 +342,7 @@ impl ReadonlyIndexSegment {
         }))
     }
 
-    pub(super) fn as_composite(&self) -> CompositeIndex {
+    pub(super) fn as_composite(&self) -> &CompositeIndex {
         CompositeIndex::new(self)
     }
 
@@ -570,7 +570,7 @@ impl DefaultReadonlyIndex {
 }
 
 impl AsCompositeIndex for DefaultReadonlyIndex {
-    fn as_composite(&self) -> CompositeIndex<'_> {
+    fn as_composite(&self) -> &CompositeIndex {
         self.0.as_composite()
     }
 }

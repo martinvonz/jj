@@ -44,14 +44,14 @@ trait ToPredicateFn: fmt::Debug {
     /// The predicate function is evaluated in order of `RevsetIterator`.
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a>;
 }
 
 impl<T: ToPredicateFn + ?Sized> ToPredicateFn for Box<T> {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
         <T as ToPredicateFn>::to_predicate_fn(self, index)
     }
@@ -61,12 +61,12 @@ trait InternalRevset: fmt::Debug + ToPredicateFn {
     // All revsets currently iterate in order of descending index position
     fn entries<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a>;
 
     fn positions<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexPosition> + 'a>;
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
@@ -77,14 +77,14 @@ trait InternalRevset: fmt::Debug + ToPredicateFn {
 impl<T: InternalRevset + ?Sized> InternalRevset for Box<T> {
     fn entries<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
         <T as InternalRevset>::entries(self, index)
     }
 
     fn positions<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
         <T as InternalRevset>::positions(self, index)
     }
@@ -174,13 +174,13 @@ impl<I: AsCompositeIndex> Revset for RevsetImpl<I> {
 /// Incrementally consumes positions iterator of the revset collecting
 /// positions.
 struct PositionsAccumulator<'revset, 'index> {
-    index: CompositeIndex<'index>,
+    index: &'index CompositeIndex,
     inner: RefCell<PositionsAccumulatorInner<'revset>>,
 }
 
 impl<'revset, 'index> PositionsAccumulator<'revset, 'index> {
     fn new(
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
         positions_iter: Box<dyn Iterator<Item = IndexPosition> + 'revset>,
     ) -> Self {
         let inner = RefCell::new(PositionsAccumulatorInner {
@@ -252,7 +252,7 @@ impl EagerRevset {
 impl InternalRevset for EagerRevset {
     fn entries<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
         let entries = self
             .positions
@@ -263,7 +263,7 @@ impl InternalRevset for EagerRevset {
 
     fn positions<'a, 'index: 'a>(
         &'a self,
-        _index: CompositeIndex<'index>,
+        _index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
         Box::new(self.positions.iter().copied())
     }
@@ -279,7 +279,7 @@ impl InternalRevset for EagerRevset {
 impl ToPredicateFn for EagerRevset {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
-        _index: CompositeIndex<'index>,
+        _index: &'index CompositeIndex,
     ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
         predicate_fn_from_positions(self.positions.iter().copied())
     }
@@ -297,11 +297,11 @@ impl<W> fmt::Debug for RevWalkRevset<W> {
 
 impl<W> InternalRevset for RevWalkRevset<W>
 where
-    W: for<'index> RevWalk<CompositeIndex<'index>, Item = IndexPosition> + Clone,
+    W: for<'index> RevWalk<&'index CompositeIndex, Item = IndexPosition> + Clone,
 {
     fn entries<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
         let positions = self.walk.clone().attach(index);
         Box::new(positions.map(move |pos| index.entry_by_pos(pos)))
@@ -309,7 +309,7 @@ where
 
     fn positions<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
         Box::new(self.walk.clone().attach(index))
     }
@@ -324,11 +324,11 @@ where
 
 impl<W> ToPredicateFn for RevWalkRevset<W>
 where
-    W: for<'index> RevWalk<CompositeIndex<'index>, Item = IndexPosition> + Clone,
+    W: for<'index> RevWalk<&'index CompositeIndex, Item = IndexPosition> + Clone,
 {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
         let positions = self.walk.clone().attach(index);
         predicate_fn_from_positions(positions)
@@ -360,7 +360,7 @@ where
 {
     fn entries<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
         let p = self.predicate.to_predicate_fn(index);
         Box::new(self.candidates.entries(index).filter(p))
@@ -368,7 +368,7 @@ where
 
     fn positions<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
         Box::new(self.entries(index).map(|entry| entry.position()))
     }
@@ -388,7 +388,7 @@ where
 {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
         let mut p1 = self.candidates.to_predicate_fn(index);
         let mut p2 = self.predicate.to_predicate_fn(index);
@@ -402,7 +402,7 @@ struct NotInPredicate<S>(S);
 impl<S: ToPredicateFn> ToPredicateFn for NotInPredicate<S> {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
         let mut p = self.0.to_predicate_fn(index);
         Box::new(move |entry| !p(entry))
@@ -422,7 +422,7 @@ where
 {
     fn entries<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
         Box::new(union_by(
             self.set1.entries(index),
@@ -433,7 +433,7 @@ where
 
     fn positions<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
         Box::new(union_by(
             self.set1.positions(index),
@@ -457,7 +457,7 @@ where
 {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
         let mut p1 = self.set1.to_predicate_fn(index);
         let mut p2 = self.set2.to_predicate_fn(index);
@@ -528,7 +528,7 @@ where
 {
     fn entries<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
         Box::new(intersection_by(
             self.set1.entries(index),
@@ -539,7 +539,7 @@ where
 
     fn positions<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
         Box::new(intersection_by(
             self.set1.positions(index),
@@ -563,7 +563,7 @@ where
 {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
         let mut p1 = self.set1.to_predicate_fn(index);
         let mut p2 = self.set2.to_predicate_fn(index);
@@ -646,7 +646,7 @@ where
 {
     fn entries<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexEntry<'index>> + 'a> {
         Box::new(difference_by(
             self.set1.entries(index),
@@ -657,7 +657,7 @@ where
 
     fn positions<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn Iterator<Item = IndexPosition> + 'a> {
         Box::new(difference_by(
             self.set1.positions(index),
@@ -681,7 +681,7 @@ where
 {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
         let mut p1 = self.set1.to_predicate_fn(index);
         let mut p2 = self.set2.to_predicate_fn(index);
@@ -764,7 +764,7 @@ pub fn evaluate<I: AsCompositeIndex>(
 
 struct EvaluationContext<'index> {
     store: Arc<Store>,
-    index: CompositeIndex<'index>,
+    index: &'index CompositeIndex,
 }
 
 fn to_u32_generation_range(range: &Range<u64>) -> Result<Range<u32>, RevsetEvaluationError> {
@@ -1024,11 +1024,11 @@ impl<F> fmt::Debug for PurePredicateFn<F> {
 
 impl<F> ToPredicateFn for PurePredicateFn<F>
 where
-    F: Fn(CompositeIndex<'_>, &IndexEntry<'_>) -> bool,
+    F: Fn(&CompositeIndex, &IndexEntry<'_>) -> bool,
 {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
-        index: CompositeIndex<'index>,
+        index: &'index CompositeIndex,
     ) -> Box<dyn FnMut(&IndexEntry<'_>) -> bool + 'a> {
         let f = &self.0;
         Box::new(move |entry| f(index, entry))
@@ -1037,13 +1037,13 @@ where
 
 fn as_pure_predicate_fn<F>(f: F) -> PurePredicateFn<F>
 where
-    F: Fn(CompositeIndex<'_>, &IndexEntry<'_>) -> bool,
+    F: Fn(&CompositeIndex, &IndexEntry<'_>) -> bool,
 {
     PurePredicateFn(f)
 }
 
 fn box_pure_predicate_fn<'a>(
-    f: impl Fn(CompositeIndex<'_>, &IndexEntry<'_>) -> bool + 'a,
+    f: impl Fn(&CompositeIndex, &IndexEntry<'_>) -> bool + 'a,
 ) -> Box<dyn ToPredicateFn + 'a> {
     Box::new(PurePredicateFn(f))
 }
@@ -1104,7 +1104,7 @@ fn build_predicate_fn(
 
 fn has_diff_from_parent(
     store: &Arc<Store>,
-    index: CompositeIndex<'_>,
+    index: &CompositeIndex,
     entry: &IndexEntry<'_>,
     matcher: &dyn Matcher,
 ) -> bool {

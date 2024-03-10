@@ -90,7 +90,7 @@ impl MutableIndexSegment {
         }
     }
 
-    pub(super) fn as_composite(&self) -> CompositeIndex {
+    pub(super) fn as_composite(&self) -> &CompositeIndex {
         CompositeIndex::new(self)
     }
 
@@ -467,7 +467,7 @@ impl DefaultMutableIndex {
 }
 
 impl AsCompositeIndex for DefaultMutableIndex {
-    fn as_composite(&self) -> CompositeIndex<'_> {
+    fn as_composite(&self) -> &CompositeIndex {
         self.0.as_composite()
     }
 }
