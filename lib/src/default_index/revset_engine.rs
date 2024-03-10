@@ -19,6 +19,7 @@ use std::cmp::{Ordering, Reverse};
 use std::collections::{BTreeSet, BinaryHeap, HashSet};
 use std::fmt;
 use std::ops::Range;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use itertools::Itertools;
@@ -909,22 +910,22 @@ impl<F> fmt::Debug for PurePredicateFn<F> {
 
 impl<F> ToPredicateFn for PurePredicateFn<F>
 where
-    F: Fn(&CompositeIndex, IndexPosition) -> bool,
+    F: Fn(&CompositeIndex, IndexPosition) -> bool + Clone,
 {
     fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
-        Box::new(&self.0)
+        Box::new(self.0.clone())
     }
 }
 
 fn as_pure_predicate_fn<F>(f: F) -> PurePredicateFn<F>
 where
-    F: Fn(&CompositeIndex, IndexPosition) -> bool,
+    F: Fn(&CompositeIndex, IndexPosition) -> bool + Clone,
 {
     PurePredicateFn(f)
 }
 
 fn box_pure_predicate_fn<'a>(
-    f: impl Fn(&CompositeIndex, IndexPosition) -> bool + 'a,
+    f: impl Fn(&CompositeIndex, IndexPosition) -> bool + Clone + 'a,
 ) -> Box<dyn ToPredicateFn + 'a> {
     Box::new(PurePredicateFn(f))
 }
@@ -971,10 +972,10 @@ fn build_predicate_fn(
         }
         RevsetFilterPredicate::File(paths) => {
             // TODO: Add support for globs and other formats
-            let matcher: Box<dyn Matcher> = if let Some(paths) = paths {
-                Box::new(PrefixMatcher::new(paths))
+            let matcher: Rc<dyn Matcher> = if let Some(paths) = paths {
+                Rc::new(PrefixMatcher::new(paths))
             } else {
-                Box::new(EverythingMatcher)
+                Rc::new(EverythingMatcher)
             };
             box_pure_predicate_fn(move |index, pos| {
                 let entry = index.entry_by_pos(pos);
