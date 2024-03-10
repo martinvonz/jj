@@ -26,12 +26,20 @@ use crate::command_error::{user_error, CommandError};
 use crate::description_util::{combine_messages, join_message_paragraphs};
 use crate::ui::Ui;
 
-/// Move changes from a revision into its parent
+/// Move changes from a revision into another revision
 ///
-/// After moving the changes into the parent, the child revision will have the
-/// same content state as before. If that means that the change is now empty
-/// compared to its parent, it will be abandoned.
-/// Without `--interactive`, the child change will always be empty.
+/// With the `-r` option, moves the changes from the specified revision to the
+/// parent revision. Fails if there are several parent revisions (i.e., the
+/// given revision is a merge).
+///
+/// With the `--from` and/or `--into` options, moves changes from/to the given
+/// revisions. If either is left out, it defaults to the working-copy commit.
+/// For example, `jj squash --into @--` moves changes from the working-copy
+/// commit to the grandparent.
+///
+/// If, after moving changes out, the source revision is empty compared to its
+/// parent(s), it will be abandoned. Without `--interactive`, the source
+/// revision will always be empty.
 ///
 /// If the source became empty and both the source and destination had a
 /// non-empty description, you will be asked for the combined description. If
@@ -44,6 +52,12 @@ pub(crate) struct SquashArgs {
     /// Revision to squash into its parent (default: @)
     #[arg(long, short)]
     revision: Option<RevisionArg>,
+    /// Revision to squash from (default: @)
+    #[arg(long, conflicts_with = "revision")]
+    from: Option<RevisionArg>,
+    /// Revision to squash into (default: @)
+    #[arg(long, conflicts_with = "revision")]
+    into: Option<RevisionArg>,
     /// The description to use for squashed revision (don't open editor)
     #[arg(long = "message", short, value_name = "MESSAGE")]
     message_paragraphs: Vec<String>,
@@ -65,12 +79,24 @@ pub(crate) fn cmd_squash(
     args: &SquashArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let source = workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
-    let mut parents = source.parents();
-    if parents.len() != 1 {
-        return Err(user_error("Cannot squash merge commits"));
+
+    let source;
+    let destination;
+    if args.from.is_some() || args.into.is_some() {
+        source = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
+        destination = workspace_command.resolve_single_rev(args.into.as_deref().unwrap_or("@"))?;
+        if source.id() == destination.id() {
+            return Err(user_error("Source and destination cannot be the same"));
+        }
+    } else {
+        source = workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
+        let mut parents = source.parents();
+        if parents.len() != 1 {
+            return Err(user_error("Cannot squash merge commits"));
+        }
+        destination = parents.pop().unwrap();
     }
-    let destination = parents.pop().unwrap();
+
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_selector =
         workspace_command.diff_selector(ui, args.tool.as_deref(), args.interactive)?;
@@ -87,7 +113,7 @@ pub(crate) fn cmd_squash(
         matcher.as_ref(),
         &diff_selector,
         description,
-        args.revision.is_none(),
+        args.revision.is_none() && args.from.is_none() && args.into.is_none(),
         &args.paths,
     )?;
     tx.finish(ui, tx_description)?;
