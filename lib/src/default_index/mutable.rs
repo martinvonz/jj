@@ -29,7 +29,9 @@ use itertools::Itertools;
 use smallvec::{smallvec, SmallVec};
 use tempfile::NamedTempFile;
 
-use super::composite::{AsCompositeIndex, ChangeIdIndexImpl, CompositeIndex, IndexSegment};
+use super::composite::{
+    AsCompositeIndex, ChangeIdIndexImpl, CompositeIndex, DynIndexSegment, IndexSegment,
+};
 use super::entry::{IndexPosition, LocalPosition, SmallIndexPositionsVec, SmallLocalPositionsVec};
 use super::readonly::{
     DefaultReadonlyIndex, ReadonlyIndexSegment, INDEX_SEGMENT_FILE_FORMAT_VERSION, OVERFLOW_FLAG,
@@ -137,7 +139,7 @@ impl MutableIndexSegment {
         self.graph.push(entry);
     }
 
-    pub(super) fn add_commits_from(&mut self, other_segment: &dyn IndexSegment) {
+    pub(super) fn add_commits_from(&mut self, other_segment: &DynIndexSegment) {
         let other = CompositeIndex::new(other_segment);
         for pos in other_segment.num_parent_commits()..other.num_commits() {
             let entry = other.entry_by_pos(IndexPosition(pos));

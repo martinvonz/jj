@@ -19,7 +19,7 @@ use std::hash::{Hash, Hasher};
 
 use smallvec::SmallVec;
 
-use super::composite::{CompositeIndex, IndexSegment};
+use super::composite::{CompositeIndex, DynIndexSegment};
 use crate::backend::{ChangeId, CommitId};
 use crate::object_id::ObjectId;
 
@@ -43,7 +43,7 @@ pub(super) type SmallLocalPositionsVec = SmallVec<[LocalPosition; 4]>;
 
 #[derive(Clone)]
 pub struct IndexEntry<'a> {
-    source: &'a dyn IndexSegment,
+    source: &'a DynIndexSegment,
     pos: IndexPosition,
     /// Position within the source segment
     local_pos: LocalPosition,
@@ -75,7 +75,7 @@ impl Hash for IndexEntry<'_> {
 
 impl<'a> IndexEntry<'a> {
     pub(super) fn new(
-        source: &'a dyn IndexSegment,
+        source: &'a DynIndexSegment,
         pos: IndexPosition,
         local_pos: LocalPosition,
     ) -> Self {
