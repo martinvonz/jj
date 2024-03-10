@@ -52,7 +52,7 @@ pub(crate) struct MoveArgs {
     interactive: bool,
     /// Specify diff editor to be used (implies --interactive)
     #[arg(long, value_name = "NAME")]
-    pub tool: Option<String>,
+    tool: Option<String>,
     /// Move only changes to these paths (instead of all paths)
     #[arg(conflicts_with_all = ["interactive", "tool"], value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,

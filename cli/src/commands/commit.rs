@@ -33,7 +33,7 @@ pub(crate) struct CommitArgs {
     interactive: bool,
     /// Specify diff editor to be used (implies --interactive)
     #[arg(long, value_name = "NAME")]
-    pub tool: Option<String>,
+    tool: Option<String>,
     /// The change description to use (don't open editor)
     #[arg(long = "message", short, value_name = "MESSAGE")]
     message_paragraphs: Vec<String>,

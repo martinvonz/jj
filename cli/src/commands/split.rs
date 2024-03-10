@@ -43,7 +43,7 @@ pub(crate) struct SplitArgs {
     interactive: bool,
     /// Specify diff editor to be used (implies --interactive)
     #[arg(long, value_name = "NAME")]
-    pub tool: Option<String>,
+    tool: Option<String>,
     /// The revision to split
     #[arg(long, short, default_value = "@")]
     revision: RevisionArg,

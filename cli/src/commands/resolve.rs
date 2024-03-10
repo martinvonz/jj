@@ -57,7 +57,7 @@ pub(crate) struct ResolveArgs {
     quiet: bool,
     /// Specify 3-way merge tool to be used
     #[arg(long, conflicts_with = "list", value_name = "NAME")]
-    pub tool: Option<String>,
+    tool: Option<String>,
     /// Restrict to these paths when searching for a conflict to resolve. We
     /// will attempt to resolve the first conflict we can find. You can use
     /// the `--list` argument to find paths to use here.
