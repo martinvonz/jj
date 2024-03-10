@@ -180,7 +180,7 @@ fn test_squash_partial() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "-r", "b", "-i"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Rebased 1 descendant commits
+    Rebased 2 descendant commits
     Working copy now at: mzvwutvl e7a40106 c | (no description set)
     Parent commit      : kkmpptxz 05d95164 b | (no description set)
     "###);
@@ -214,7 +214,7 @@ fn test_squash_partial() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "-r", "b", "file2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Rebased 1 descendant commits
+    Rebased 2 descendant commits
     Working copy now at: mzvwutvl a911fa1d c | (no description set)
     Parent commit      : kkmpptxz fb73ad17 b | (no description set)
     "###);
@@ -247,7 +247,7 @@ fn test_squash_partial() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "-r", "b", "nonexistent"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Rebased 1 descendant commits
+    Rebased 2 descendant commits
     Working copy now at: mzvwutvl 5e297967 c | (no description set)
     Parent commit      : kkmpptxz ac258609 b | (no description set)
     "###);
@@ -257,6 +257,7 @@ fn test_squash_partial() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "b"]);
     insta::assert_snapshot!(stderr, @r###"
     warning: The argument "b" is being interpreted as a path. To specify a revset, pass -r "b" instead.
+    Rebased 1 descendant commits
     Working copy now at: mzvwutvl 1c4e5596 c | (no description set)
     Parent commit      : kkmpptxz 16cc94b4 b | (no description set)
     "###);

@@ -65,100 +65,47 @@ pub(crate) fn cmd_squash(
     args: &SquashArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
-    let parents = commit.parents();
+    let source = workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
+    let mut parents = source.parents();
     if parents.len() != 1 {
         return Err(user_error("Cannot squash merge commits"));
     }
-    let parent = &parents[0];
-    workspace_command.check_rewritable([&commit])?;
-    workspace_command.check_rewritable(&parents[..1])?;
+    let destination = parents.pop().unwrap();
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_selector =
         workspace_command.diff_selector(ui, args.tool.as_deref(), args.interactive)?;
     let mut tx = workspace_command.start_transaction();
-    let instructions = format!(
-        "\
-You are moving changes from: {}
-into its parent: {}
-
-The left side of the diff shows the contents of the parent commit. The
-right side initially shows the contents of the commit you're moving
-changes from.
-
-Adjust the right side until the diff shows the changes you want to move
-to the destination. If you don't make any changes, then all the changes
-from the source will be moved into the parent.
-",
-        tx.format_commit_summary(&commit),
-        tx.format_commit_summary(parent)
-    );
-    let parent_tree = parent.tree()?;
-    let tree = commit.tree()?;
-    let new_parent_tree_id =
-        diff_selector.select(&parent_tree, &tree, matcher.as_ref(), Some(&instructions))?;
-    if &new_parent_tree_id == parent.tree_id() {
-        if diff_selector.is_interactive() {
-            return Err(user_error("No changes selected"));
-        }
-
-        if let [only_path] = &args.paths[..] {
-            if args.revision.is_none()
-                && revset::parse(
-                    only_path,
-                    &tx.base_workspace_helper().revset_parse_context(),
-                )
-                .is_ok()
-            {
-                writeln!(
-                    ui.warning(),
-                    "warning: The argument {only_path:?} is being interpreted as a path. To \
-                     specify a revset, pass -r {only_path:?} instead."
-                )?;
-            }
-        }
-    }
-    // Abandon the child if the parent now has all the content from the child
-    // (always the case in the non-interactive case).
-    let abandon_child = &new_parent_tree_id == commit.tree_id();
-    let description = if !args.message_paragraphs.is_empty() {
-        join_message_paragraphs(&args.message_paragraphs)
-    } else {
-        combine_messages(
-            tx.base_repo(),
-            &commit,
-            parent,
-            command.settings(),
-            abandon_child,
-        )?
-    };
-    let mut_repo = tx.mut_repo();
-    let new_parent = mut_repo
-        .rewrite_commit(command.settings(), parent)
-        .set_tree_id(new_parent_tree_id)
-        .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
-        .set_description(description)
-        .write()?;
-    if abandon_child {
-        mut_repo.record_abandoned_commit(commit.id().clone());
-    } else {
-        // Commit the remainder on top of the new parent commit.
-        mut_repo
-            .rewrite_commit(command.settings(), &commit)
-            .set_parents(vec![new_parent.id().clone()])
-            .write()?;
-    }
-    tx.finish(ui, format!("squash commit {}", commit.id().hex()))?;
+    let tx_description = format!("squash commit {}", source.id().hex());
+    let description = (!args.message_paragraphs.is_empty())
+        .then(|| join_message_paragraphs(&args.message_paragraphs));
+    move_diff(
+        ui,
+        &mut tx,
+        command.settings(),
+        source,
+        destination,
+        matcher.as_ref(),
+        &diff_selector,
+        description,
+        args.revision.is_none(),
+        &args.paths,
+    )?;
+    tx.finish(ui, tx_description)?;
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn move_diff(
+    ui: &mut Ui,
     tx: &mut WorkspaceCommandTransaction,
     settings: &UserSettings,
     source: Commit,
     mut destination: Commit,
     matcher: &dyn Matcher,
     diff_selector: &DiffSelector,
+    description: Option<String>,
+    no_rev_arg: bool,
+    path_arg: &[String],
 ) -> Result<(), CommandError> {
     tx.base_workspace_helper()
         .check_rewritable([&source, &destination])?;
@@ -182,10 +129,31 @@ from the source will be moved into the destination.
     );
     let new_parent_tree_id =
         diff_selector.select(&parent_tree, &source_tree, matcher, Some(&instructions))?;
-    if diff_selector.is_interactive() && new_parent_tree_id == parent_tree.id() {
-        return Err(user_error("No changes to move"));
+    if new_parent_tree_id == parent_tree.id() {
+        if diff_selector.is_interactive() {
+            return Err(user_error("No changes selected"));
+        }
+
+        if let [only_path] = path_arg {
+            if no_rev_arg
+                && revset::parse(
+                    only_path,
+                    &tx.base_workspace_helper().revset_parse_context(),
+                )
+                .is_ok()
+            {
+                writeln!(
+                    ui.warning(),
+                    "warning: The argument {only_path:?} is being interpreted as a path. To \
+                     specify a revset, pass -r {only_path:?} instead."
+                )?;
+            }
+        }
     }
     let new_parent_tree = tx.repo().store().get_root_tree(&new_parent_tree_id)?;
+    // TODO: Do we want to optimize the case of moving to the parent commit (`jj
+    // squash -r`)? The source tree will be unchanged in that case.
+
     // Apply the reverse of the selected changes onto the source
     let new_source_tree = source_tree.merge(&new_parent_tree, &parent_tree)?;
     let abandon_source = new_source_tree.id() == parent_tree.id();
@@ -209,13 +177,16 @@ from the source will be moved into the destination.
     // Apply the selected changes onto the destination
     let destination_tree = destination.tree()?;
     let new_destination_tree = destination_tree.merge(&parent_tree, &new_parent_tree)?;
-    let description = combine_messages(
-        tx.base_repo(),
-        &source,
-        &destination,
-        settings,
-        abandon_source,
-    )?;
+    let description = match description {
+        Some(description) => description,
+        None => combine_messages(
+            tx.base_repo(),
+            &source,
+            &destination,
+            settings,
+            abandon_source,
+        )?,
+    };
     tx.mut_repo()
         .rewrite_commit(settings, &destination)
         .set_tree_id(new_destination_tree.id().clone())

@@ -78,12 +78,16 @@ pub(crate) fn cmd_move(
         destination.id().hex()
     );
     move_diff(
+        ui,
         &mut tx,
         command.settings(),
         source,
         destination,
         matcher.as_ref(),
         &diff_selector,
+        None,
+        false,
+        &args.paths,
     )?;
     tx.finish(ui, tx_description)?;
     Ok(())
