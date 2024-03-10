@@ -40,10 +40,9 @@ pub(super) trait RevWalk<I: ?Sized> {
     // to be reimplemented.
 
     /// Reattaches the underlying `index`.
-    fn attach(self, index: I) -> RevWalkBorrowedIndexIter<I, Self>
+    fn attach(self, index: &I) -> RevWalkBorrowedIndexIter<'_, I, Self>
     where
         Self: Sized,
-        I: Sized,
     {
         RevWalkBorrowedIndexIter { index, walk: self }
     }
@@ -52,28 +51,27 @@ pub(super) trait RevWalk<I: ?Sized> {
 /// Adapter that turns `RevWalk` into `Iterator` by attaching borrowed `index`.
 #[derive(Clone, Debug)]
 #[must_use]
-pub(super) struct RevWalkBorrowedIndexIter<I, W> {
-    // TODO: `index: I` will be a reference type.
-    index: I,
+pub(super) struct RevWalkBorrowedIndexIter<'a, I: ?Sized, W> {
+    index: &'a I,
     walk: W,
 }
 
-impl<I, W> RevWalkBorrowedIndexIter<I, W> {
+impl<I: ?Sized, W> RevWalkBorrowedIndexIter<'_, I, W> {
     /// Turns into `'static`-lifetime walk object by detaching the index.
     pub fn detach(self) -> W {
         self.walk
     }
 }
 
-impl<I, W: RevWalk<I>> Iterator for RevWalkBorrowedIndexIter<I, W> {
+impl<I: ?Sized, W: RevWalk<I>> Iterator for RevWalkBorrowedIndexIter<'_, I, W> {
     type Item = W::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.walk.next(&self.index)
+        self.walk.next(self.index)
     }
 }
 
-impl<I, W: RevWalk<I>> FusedIterator for RevWalkBorrowedIndexIter<I, W> {}
+impl<I: ?Sized, W: RevWalk<I>> FusedIterator for RevWalkBorrowedIndexIter<'_, I, W> {}
 
 /// Adapter that turns `RevWalk` into `Iterator` by attaching owned `index`.
 #[derive(Clone, Debug)]
@@ -100,7 +98,7 @@ pub(super) trait RevWalkIndex {
     fn adjacent_positions(&self, pos: Self::Position) -> Self::AdjacentPositions;
 }
 
-impl RevWalkIndex for &CompositeIndex {
+impl RevWalkIndex for CompositeIndex {
     type Position = IndexPosition;
     type AdjacentPositions = SmallIndexPositionsVec;
 
@@ -383,7 +381,7 @@ impl<'a> RevWalkBuilder<'a> {
 }
 
 pub(super) type RevWalkAncestors<'a> =
-    RevWalkBorrowedIndexIter<&'a CompositeIndex, RevWalkImpl<IndexPosition>>;
+    RevWalkBorrowedIndexIter<'a, CompositeIndex, RevWalkImpl<IndexPosition>>;
 
 #[derive(Clone)]
 #[must_use]
@@ -420,7 +418,7 @@ impl<I: RevWalkIndex + ?Sized> RevWalk<I> for RevWalkImpl<I::Position> {
 }
 
 pub(super) type RevWalkAncestorsGenerationRange<'a> =
-    RevWalkBorrowedIndexIter<&'a CompositeIndex, RevWalkGenerationRangeImpl<IndexPosition>>;
+    RevWalkBorrowedIndexIter<'a, CompositeIndex, RevWalkGenerationRangeImpl<IndexPosition>>;
 pub(super) type RevWalkDescendantsGenerationRange = RevWalkOwnedIndexIter<
     RevWalkDescendantsIndex,
     RevWalkGenerationRangeImpl<Reverse<IndexPosition>>,
@@ -540,7 +538,7 @@ impl RevWalkItemGenerationRange {
 
 /// Walks descendants from the roots, in order of ascending index position.
 pub(super) type RevWalkDescendants<'a> =
-    RevWalkBorrowedIndexIter<&'a CompositeIndex, RevWalkDescendantsImpl>;
+    RevWalkBorrowedIndexIter<'a, CompositeIndex, RevWalkDescendantsImpl>;
 
 #[derive(Clone)]
 #[must_use]
@@ -561,10 +559,10 @@ impl RevWalkDescendants<'_> {
     }
 }
 
-impl RevWalk<&CompositeIndex> for RevWalkDescendantsImpl {
+impl RevWalk<CompositeIndex> for RevWalkDescendantsImpl {
     type Item = IndexPosition;
 
-    fn next(&mut self, index: &&CompositeIndex) -> Option<Self::Item> {
+    fn next(&mut self, index: &CompositeIndex) -> Option<Self::Item> {
         while let Some(candidate_pos) = self.candidate_positions.pop() {
             if self.root_positions.contains(&candidate_pos)
                 || index

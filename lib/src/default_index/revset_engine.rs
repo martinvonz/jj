@@ -300,7 +300,7 @@ impl<W> fmt::Debug for RevWalkRevset<W> {
 
 impl<W> InternalRevset for RevWalkRevset<W>
 where
-    W: for<'index> RevWalk<&'index CompositeIndex, Item = IndexPosition> + Clone,
+    W: RevWalk<CompositeIndex, Item = IndexPosition> + Clone,
 {
     fn entries<'a, 'index: 'a>(
         &'a self,
@@ -327,7 +327,7 @@ where
 
 impl<W> ToPredicateFn for RevWalkRevset<W>
 where
-    W: for<'index> RevWalk<&'index CompositeIndex, Item = IndexPosition> + Clone,
+    W: RevWalk<CompositeIndex, Item = IndexPosition> + Clone,
 {
     fn to_predicate_fn<'a, 'index: 'a>(
         &'a self,
