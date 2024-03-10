@@ -45,18 +45,25 @@ trait ToPredicateFn: fmt::Debug {
     /// Creates function that tests if the given entry is included in the set.
     ///
     /// The predicate function is evaluated in order of `RevsetIterator`.
-    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_>;
+    fn to_predicate_fn<'a>(&self) -> BoxedPredicateFn<'a>
+    where
+        Self: 'a;
 }
 
 impl<T: ToPredicateFn + ?Sized> ToPredicateFn for Box<T> {
-    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+    fn to_predicate_fn<'a>(&self) -> BoxedPredicateFn<'a>
+    where
+        Self: 'a,
+    {
         <T as ToPredicateFn>::to_predicate_fn(self)
     }
 }
 
 trait InternalRevset: fmt::Debug + ToPredicateFn {
     // All revsets currently iterate in order of descending index position
-    fn positions(&self) -> BoxedRevWalk<'_>;
+    fn positions<'a>(&self) -> BoxedRevWalk<'a>
+    where
+        Self: 'a;
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
     where
@@ -64,7 +71,10 @@ trait InternalRevset: fmt::Debug + ToPredicateFn {
 }
 
 impl<T: InternalRevset + ?Sized> InternalRevset for Box<T> {
-    fn positions(&self) -> BoxedRevWalk<'_> {
+    fn positions<'a>(&self) -> BoxedRevWalk<'a>
+    where
+        Self: 'a,
+    {
         <T as InternalRevset>::positions(self)
     }
 
@@ -231,8 +241,11 @@ impl EagerRevset {
 }
 
 impl InternalRevset for EagerRevset {
-    fn positions(&self) -> BoxedRevWalk<'_> {
-        Box::new(EagerRevWalk::new(self.positions.iter().copied()))
+    fn positions<'a>(&self) -> BoxedRevWalk<'a>
+    where
+        Self: 'a,
+    {
+        Box::new(EagerRevWalk::new(self.positions.clone().into_iter()))
     }
 
     fn into_predicate<'a>(self: Box<Self>) -> Box<dyn ToPredicateFn + 'a>
@@ -244,8 +257,11 @@ impl InternalRevset for EagerRevset {
 }
 
 impl ToPredicateFn for EagerRevset {
-    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
-        let walk = EagerRevWalk::new(self.positions.iter().copied());
+    fn to_predicate_fn<'a>(&self) -> BoxedPredicateFn<'a>
+    where
+        Self: 'a,
+    {
+        let walk = EagerRevWalk::new(self.positions.clone().into_iter());
         predicate_fn_from_rev_walk(walk)
     }
 }
@@ -264,7 +280,10 @@ impl<W> InternalRevset for RevWalkRevset<W>
 where
     W: RevWalk<CompositeIndex, Item = IndexPosition> + Clone,
 {
-    fn positions(&self) -> BoxedRevWalk<'_> {
+    fn positions<'a>(&self) -> BoxedRevWalk<'a>
+    where
+        Self: 'a,
+    {
         Box::new(self.walk.clone())
     }
 
@@ -280,7 +299,10 @@ impl<W> ToPredicateFn for RevWalkRevset<W>
 where
     W: RevWalk<CompositeIndex, Item = IndexPosition> + Clone,
 {
-    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+    fn to_predicate_fn<'a>(&self) -> BoxedPredicateFn<'a>
+    where
+        Self: 'a,
+    {
         predicate_fn_from_rev_walk(self.walk.clone())
     }
 }
@@ -309,7 +331,10 @@ where
     S: InternalRevset,
     P: ToPredicateFn,
 {
-    fn positions(&self) -> BoxedRevWalk<'_> {
+    fn positions<'a>(&self) -> BoxedRevWalk<'a>
+    where
+        Self: 'a,
+    {
         let mut p = self.predicate.to_predicate_fn();
         Box::new(
             self.candidates
@@ -331,7 +356,10 @@ where
     S: ToPredicateFn,
     P: ToPredicateFn,
 {
-    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+    fn to_predicate_fn<'a>(&self) -> BoxedPredicateFn<'a>
+    where
+        Self: 'a,
+    {
         let mut p1 = self.candidates.to_predicate_fn();
         let mut p2 = self.predicate.to_predicate_fn();
         Box::new(move |index, pos| p1(index, pos) && p2(index, pos))
@@ -342,7 +370,10 @@ where
 struct NotInPredicate<S>(S);
 
 impl<S: ToPredicateFn> ToPredicateFn for NotInPredicate<S> {
-    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+    fn to_predicate_fn<'a>(&self) -> BoxedPredicateFn<'a>
+    where
+        Self: 'a,
+    {
         let mut p = self.0.to_predicate_fn();
         Box::new(move |index, pos| !p(index, pos))
     }
@@ -359,7 +390,10 @@ where
     S1: InternalRevset,
     S2: InternalRevset,
 {
-    fn positions(&self) -> BoxedRevWalk<'_> {
+    fn positions<'a>(&self) -> BoxedRevWalk<'a>
+    where
+        Self: 'a,
+    {
         Box::new(union_by(
             self.set1.positions(),
             self.set2.positions(),
@@ -380,7 +414,10 @@ where
     S1: ToPredicateFn,
     S2: ToPredicateFn,
 {
-    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+    fn to_predicate_fn<'a>(&self) -> BoxedPredicateFn<'a>
+    where
+        Self: 'a,
+    {
         let mut p1 = self.set1.to_predicate_fn();
         let mut p2 = self.set2.to_predicate_fn();
         Box::new(move |index, pos| p1(index, pos) || p2(index, pos))
@@ -446,7 +483,10 @@ where
     S1: InternalRevset,
     S2: InternalRevset,
 {
-    fn positions(&self) -> BoxedRevWalk<'_> {
+    fn positions<'a>(&self) -> BoxedRevWalk<'a>
+    where
+        Self: 'a,
+    {
         Box::new(intersection_by(
             self.set1.positions(),
             self.set2.positions(),
@@ -467,7 +507,10 @@ where
     S1: ToPredicateFn,
     S2: ToPredicateFn,
 {
-    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+    fn to_predicate_fn<'a>(&self) -> BoxedPredicateFn<'a>
+    where
+        Self: 'a,
+    {
         let mut p1 = self.set1.to_predicate_fn();
         let mut p2 = self.set2.to_predicate_fn();
         Box::new(move |index, pos| p1(index, pos) && p2(index, pos))
@@ -545,7 +588,10 @@ where
     S1: InternalRevset,
     S2: InternalRevset,
 {
-    fn positions(&self) -> BoxedRevWalk<'_> {
+    fn positions<'a>(&self) -> BoxedRevWalk<'a>
+    where
+        Self: 'a,
+    {
         Box::new(difference_by(
             self.set1.positions(),
             self.set2.positions(),
@@ -566,7 +612,10 @@ where
     S1: ToPredicateFn,
     S2: ToPredicateFn,
 {
-    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+    fn to_predicate_fn<'a>(&self) -> BoxedPredicateFn<'a>
+    where
+        Self: 'a,
+    {
         let mut p1 = self.set1.to_predicate_fn();
         let mut p2 = self.set2.to_predicate_fn();
         Box::new(move |index, pos| p1(index, pos) && !p2(index, pos))
@@ -912,7 +961,10 @@ impl<F> ToPredicateFn for PurePredicateFn<F>
 where
     F: Fn(&CompositeIndex, IndexPosition) -> bool + Clone,
 {
-    fn to_predicate_fn(&self) -> BoxedPredicateFn<'_> {
+    fn to_predicate_fn<'a>(&self) -> BoxedPredicateFn<'a>
+    where
+        Self: 'a,
+    {
         Box::new(self.0.clone())
     }
 }
