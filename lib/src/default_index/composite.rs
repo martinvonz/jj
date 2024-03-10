@@ -76,6 +76,8 @@ pub(super) trait IndexSegment: Send + Sync {
     fn parent_positions(&self, local_pos: LocalPosition) -> SmallIndexPositionsVec;
 }
 
+pub(super) type DynIndexSegment = dyn IndexSegment;
+
 /// Abstraction over owned and borrowed types that can be cheaply converted to
 /// a `CompositeIndex` reference.
 pub trait AsCompositeIndex {
@@ -97,10 +99,10 @@ impl<T: AsCompositeIndex + ?Sized> AsCompositeIndex for &mut T {
 
 /// Reference wrapper that provides global access to nested index segments.
 #[derive(Clone, Copy)]
-pub struct CompositeIndex<'a>(&'a dyn IndexSegment);
+pub struct CompositeIndex<'a>(&'a DynIndexSegment);
 
 impl<'a> CompositeIndex<'a> {
-    pub(super) fn new(segment: &'a dyn IndexSegment) -> Self {
+    pub(super) fn new(segment: &'a DynIndexSegment) -> Self {
         CompositeIndex(segment)
     }
 
@@ -113,10 +115,10 @@ impl<'a> CompositeIndex<'a> {
     }
 
     /// Iterates self and its ancestor index segments.
-    pub(super) fn ancestor_index_segments(&self) -> impl Iterator<Item = &'a dyn IndexSegment> {
+    pub(super) fn ancestor_index_segments(&self) -> impl Iterator<Item = &'a DynIndexSegment> {
         iter::once(self.0).chain(
             self.ancestor_files_without_local()
-                .map(|file| file.as_ref() as &dyn IndexSegment),
+                .map(|file| file.as_ref() as &DynIndexSegment),
         )
     }
 

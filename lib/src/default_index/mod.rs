@@ -37,7 +37,7 @@ mod tests {
     use smallvec::smallvec_inline;
     use test_case::test_case;
 
-    use super::composite::IndexSegment;
+    use super::composite::{DynIndexSegment, IndexSegment};
     use super::entry::SmallIndexPositionsVec;
     use super::mutable::MutableIndexSegment;
     use super::*;
@@ -63,7 +63,7 @@ mod tests {
     fn index_empty(on_disk: bool) {
         let temp_dir = testutils::new_temp_dir();
         let mutable_segment = MutableIndexSegment::full(3, 16);
-        let index_segment: Box<dyn IndexSegment> = if on_disk {
+        let index_segment: Box<DynIndexSegment> = if on_disk {
             let saved_index = mutable_segment.save_in(temp_dir.path()).unwrap();
             Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
@@ -94,7 +94,7 @@ mod tests {
         let id_0 = CommitId::from_hex("000000");
         let change_id0 = new_change_id();
         mutable_segment.add_commit_data(id_0.clone(), change_id0.clone(), &[]);
-        let index_segment: Box<dyn IndexSegment> = if on_disk {
+        let index_segment: Box<DynIndexSegment> = if on_disk {
             let saved_index = mutable_segment.save_in(temp_dir.path()).unwrap();
             Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
@@ -179,7 +179,7 @@ mod tests {
         mutable_segment.add_commit_data(id_3.clone(), change_id3.clone(), &[id_2.clone()]);
         mutable_segment.add_commit_data(id_4.clone(), change_id4, &[id_1.clone()]);
         mutable_segment.add_commit_data(id_5.clone(), change_id5, &[id_4.clone(), id_2.clone()]);
-        let index_segment: Box<dyn IndexSegment> = if on_disk {
+        let index_segment: Box<DynIndexSegment> = if on_disk {
             let saved_index = mutable_segment.save_in(temp_dir.path()).unwrap();
             Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
@@ -291,7 +291,7 @@ mod tests {
             new_change_id(),
             &[id_1, id_2, id_3, id_4, id_5],
         );
-        let index_segment: Box<dyn IndexSegment> = if on_disk {
+        let index_segment: Box<DynIndexSegment> = if on_disk {
             let saved_index = mutable_segment.save_in(temp_dir.path()).unwrap();
             Box::new(Arc::try_unwrap(saved_index).unwrap())
         } else {
