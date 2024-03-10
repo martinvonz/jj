@@ -53,7 +53,7 @@ pub(crate) struct DiffeditArgs {
     to: Option<RevisionArg>,
     /// Specify diff editor to be used
     #[arg(long, value_name = "NAME")]
-    pub tool: Option<String>,
+    tool: Option<String>,
 }
 
 #[instrument(skip_all)]
