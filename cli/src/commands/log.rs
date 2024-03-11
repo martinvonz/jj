@@ -118,8 +118,8 @@ pub(crate) fn cmd_log(
 
         if !args.no_graph {
             let mut graph = get_graphlog(command.settings(), formatter.raw());
-            let default_node_symbol = graph.default_node_symbol().to_owned();
-            let elided_node_symbol = graph.elided_node_symbol().to_owned();
+            let default_node_symbol = command.settings().default_node_symbol();
+            let elided_node_symbol = command.settings().elided_node_symbol();
             let forward_iter = TopoGroupedRevsetGraphIterator::new(revset.iter_graph());
             let iter: Box<dyn Iterator<Item = _>> = if args.reversed {
                 Box::new(ReverseRevsetGraphIterator::new(forward_iter))

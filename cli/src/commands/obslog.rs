@@ -90,7 +90,7 @@ pub(crate) fn cmd_obslog(
     }
     if !args.no_graph {
         let mut graph = get_graphlog(command.settings(), formatter.raw());
-        let default_node_symbol = graph.default_node_symbol().to_owned();
+        let default_node_symbol = command.settings().default_node_symbol();
         for commit in commits {
             let mut edges = vec![];
             for predecessor in &commit.predecessors() {
