@@ -2401,10 +2401,14 @@ impl VisibilityResolutionContext<'_> {
 
 pub trait Revset: fmt::Debug {
     /// Iterate in topological order with children before parents.
-    fn iter(&self) -> Box<dyn Iterator<Item = CommitId> + '_>;
+    fn iter<'a>(&self) -> Box<dyn Iterator<Item = CommitId> + 'a>
+    where
+        Self: 'a;
 
     /// Iterates commit/change id pairs in topological order.
-    fn commit_change_ids(&self) -> Box<dyn Iterator<Item = (CommitId, ChangeId)> + '_>;
+    fn commit_change_ids<'a>(&self) -> Box<dyn Iterator<Item = (CommitId, ChangeId)> + 'a>
+    where
+        Self: 'a;
 
     fn iter_graph(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + '_>;
 
