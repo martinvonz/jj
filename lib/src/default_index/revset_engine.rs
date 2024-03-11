@@ -197,14 +197,7 @@ impl<'revset, 'index> PositionsAccumulator<'revset, 'index> {
         };
 
         let mut inner = self.inner.borrow_mut();
-        if let Some(last_position) = inner.consumed_positions.last() {
-            if last_position > &position {
-                inner.consume_to(position);
-            }
-        } else {
-            inner.consume_to(position);
-        }
-
+        inner.consume_to(position);
         inner
             .consumed_positions
             .binary_search_by(|p| p.cmp(&position).reverse())
@@ -226,6 +219,10 @@ struct PositionsAccumulatorInner<'revset> {
 impl<'revset> PositionsAccumulatorInner<'revset> {
     /// Consumes positions iterator to a desired position but not deeper.
     fn consume_to(&mut self, desired_position: IndexPosition) {
+        let last_position = self.consumed_positions.last();
+        if last_position.map_or(false, |&pos| pos <= desired_position) {
+            return;
+        }
         let Some(iter) = self.positions_iter.as_mut() else {
             return;
         };
