@@ -20,7 +20,7 @@ mod mutable;
 mod readonly;
 mod rev_walk;
 pub mod revset_engine;
-pub mod revset_graph_iterator;
+mod revset_graph_iterator;
 mod store;
 
 pub use self::composite::{AsCompositeIndex, CompositeIndex, IndexLevelStats, IndexStats};

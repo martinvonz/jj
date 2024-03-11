@@ -105,8 +105,15 @@ impl<I: AsCompositeIndex> RevsetImpl<I> {
         self.inner.positions().attach(self.index.as_composite())
     }
 
-    pub fn iter_graph_impl(&self) -> RevsetGraphIterator<'_, '_> {
-        RevsetGraphIterator::new(self.index.as_composite(), Box::new(self.entries()))
+    pub fn iter_graph_impl(
+        &self,
+        skip_transitive_edges: bool,
+    ) -> impl Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + '_ {
+        RevsetGraphIterator::new(
+            self.index.as_composite(),
+            Box::new(self.entries()),
+            skip_transitive_edges,
+        )
     }
 }
 
@@ -147,7 +154,8 @@ impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
     }
 
     fn iter_graph(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + '_> {
-        Box::new(self.iter_graph_impl())
+        let skip_transitive_edges = true;
+        Box::new(self.iter_graph_impl(skip_transitive_edges))
     }
 
     fn is_empty(&self) -> bool {
