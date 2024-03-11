@@ -1409,7 +1409,7 @@ fn test_elided() {
 }
 
 #[test]
-fn test_custom_symbols() {
+fn test_log_with_custom_symbols() {
     // Test that elided commits are shown as synthetic nodes.
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
@@ -1435,11 +1435,11 @@ fn test_custom_symbols() {
     // Simple test with showing default and elided nodes.
     test_env.add_config(concat!(
         "ui.log-synthetic-elided-nodes = true\n",
-        "ui.graph.default_node = '┝'\n",
-        "ui.graph.elided_node = '🮀'",
+        "templates.log_node = 'if(current_working_copy, \"$\", if(root, \"┴\", \"┝\"))'\n",
+        "templates.log_node_elided = '\"🮀\"'",
     ));
-    insta::assert_snapshot!(get_log("@ | @- | description(initial)"), @r###"
-    @    merge
+    insta::assert_snapshot!(get_log("@ | @- | description(initial) | root()"), @r###"
+    $    merge
     ├─╮
     │ ┝  side branch 2
     │ │
@@ -1450,18 +1450,18 @@ fn test_custom_symbols() {
     ├─╯
     ┝  initial
     │
-    ~
+    ┴
     "###);
 
     // Simple test with showing default and elided nodes, ascii style.
     test_env.add_config(concat!(
         "ui.log-synthetic-elided-nodes = true\n",
         "ui.graph.style = 'ascii'\n",
-        "ui.graph.default_node = '*'\n",
-        "ui.graph.elided_node = ':'",
+        "templates.log_node = 'if(current_working_copy, \"$\", if(root, \"^\", \"*\"))'\n",
+        "templates.log_node_elided = '\":\"'",
     ));
-    insta::assert_snapshot!(get_log("@ | @- | description(initial)"), @r###"
-    @    merge
+    insta::assert_snapshot!(get_log("@ | @- | description(initial) | root()"), @r###"
+    $    merge
     |\
     | *  side branch 2
     | |
@@ -1472,6 +1472,6 @@ fn test_custom_symbols() {
     |/
     *  initial
     |
-    ~
+    ^
     "###);
 }

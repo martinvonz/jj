@@ -242,12 +242,24 @@ impl UserSettings {
             .unwrap_or_else(|_| "curved".to_string())
     }
 
-    pub fn default_node_symbol(&self) -> String {
-        self.node_symbol_for_key("ui.graph.default_node", "◉", "o")
+    pub fn commit_node_template(&self) -> String {
+        self.node_template_for_key(
+            "templates.log_node",
+            r#"if(current_working_copy, "@", "◉")"#,
+            r#"if(current_working_copy, "@", "o")"#,
+        )
     }
 
-    pub fn elided_node_symbol(&self) -> String {
-        self.node_symbol_for_key("ui.graph.elided_node", "◌", ".")
+    pub fn op_node_template(&self) -> String {
+        self.node_template_for_key(
+            "templates.op_log_node",
+            r#"if(current_operation, "@", "◉")"#,
+            r#"if(current_operation, "@", "o")"#,
+        )
+    }
+
+    pub fn elided_node_template(&self) -> String {
+        self.node_template_for_key("templates.log_node_elided", r#""◌""#, r#"".""#)
     }
 
     pub fn max_new_file_size(&self) -> Result<u64, config::ConfigError> {
@@ -273,7 +285,7 @@ impl UserSettings {
         SignSettings::from_settings(self)
     }
 
-    fn node_symbol_for_key(&self, key: &str, fallback: &str, ascii_fallback: &str) -> String {
+    fn node_template_for_key(&self, key: &str, fallback: &str, ascii_fallback: &str) -> String {
         let symbol = self.config.get_string(key);
         match self.graph_style().as_str() {
             "ascii" | "ascii-large" => symbol.unwrap_or_else(|_| ascii_fallback.to_owned()),

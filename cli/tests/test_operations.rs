@@ -94,6 +94,37 @@ fn test_op_log() {
 }
 
 #[test]
+fn test_op_log_with_custom_symbols() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 0"]);
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "op",
+            "log",
+            "--config-toml",
+            concat!(
+                "template-aliases.'format_time_range(x)' = 'x'\n",
+                "templates.op_log_node = 'if(current_operation, \"$\", if(root, \"┴\", \"┝\"))'",
+            ),
+        ],
+    );
+    insta::assert_snapshot!(&stdout, @r###"
+    $  52ac15d375ba test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    │  args: jj describe -m 'description 0'
+    ┝  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    ┝  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  initialize repo
+    ┴  000000000000 root()
+    "###);
+}
+
+#[test]
 fn test_op_log_with_no_template() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);

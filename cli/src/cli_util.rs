@@ -904,14 +904,19 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         &self,
         template_text: &str,
     ) -> Result<Box<dyn Template<Commit> + '_>, CommandError> {
-        let language = CommitTemplateLanguage::new(
+        let language = self.commit_template_language()?;
+        self.parse_template(&language, template_text)
+    }
+
+    /// Creates commit template language environment for this workspace.
+    pub fn commit_template_language(&self) -> Result<CommitTemplateLanguage<'_>, CommandError> {
+        Ok(CommitTemplateLanguage::new(
             self.repo().as_ref(),
             self.workspace_id(),
             self.revset_parse_context(),
             self.id_prefix_context()?,
             self.commit_template_extension.as_deref(),
-        );
-        self.parse_template(&language, template_text)
+        ))
     }
 
     /// Template for one-line summary of a commit.
@@ -2307,6 +2312,14 @@ pub fn parse_args(
     }
 
     Ok((matches, args))
+}
+
+pub fn format_template<T>(ui: &Ui, arg: &T, template: &dyn Template<T>) -> String {
+    let mut output = vec![];
+    template
+        .format(arg, ui.new_formatter(&mut output).as_mut())
+        .expect("write() to vec backed formatter should never fail");
+    String::from_utf8(output).expect("template output should be utf-8 bytes")
 }
 
 /// CLI command builder and runner.
