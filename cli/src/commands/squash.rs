@@ -66,12 +66,12 @@ pub(crate) fn cmd_squash(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
-    workspace_command.check_rewritable([&commit])?;
     let parents = commit.parents();
     if parents.len() != 1 {
         return Err(user_error("Cannot squash merge commits"));
     }
     let parent = &parents[0];
+    workspace_command.check_rewritable([&commit])?;
     workspace_command.check_rewritable(&parents[..1])?;
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let diff_selector =
