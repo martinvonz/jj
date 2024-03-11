@@ -220,6 +220,7 @@ from the source will be moved into the destination.
     tx.mut_repo()
         .rewrite_commit(settings, &destination)
         .set_tree_id(new_destination_tree.id().clone())
+        .set_predecessors(vec![destination.id().clone(), source.id().clone()])
         .set_description(description)
         .write()?;
     Ok(())
