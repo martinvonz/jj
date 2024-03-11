@@ -582,6 +582,274 @@ fn test_squash_from_to_partial() {
     "###);
 }
 
+#[test]
+fn test_squash_from_multiple() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Create history like this:
+    //   F
+    //   |
+    //   E
+    //  /|\
+    // B C D
+    //  \|/
+    //   A
+    let file = repo_path.join("file");
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a"]);
+    std::fs::write(&file, "a\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "b"]);
+    std::fs::write(&file, "b\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "c"]);
+    std::fs::write(&file, "c\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "d"]);
+    std::fs::write(&file, "d\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "all:visible_heads()"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "e"]);
+    std::fs::write(&file, "e\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "f"]);
+    std::fs::write(&file, "f\n").unwrap();
+    // Test the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  7c982f87d244 f
+    ◉      90fb23310e1d e
+    ├─┬─╮
+    │ │ ◉  512dff087306 b
+    │ ◉ │  5ee503da2262 c
+    │ ├─╯
+    ◉ │  cb214cffd91a d
+    ├─╯
+    ◉  37941ee54ace a
+    ◉  000000000000
+    "###);
+
+    // Squash a few commits sideways
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "--from=b|c", "--into=d"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 2 descendant commits
+    New conflicts appeared in these commits:
+      yqosqzyt d5401742 d | (conflict) (no description set)
+    To resolve the conflicts, start by updating to it:
+      jj new yqosqzytrlsw
+    Then use `jj resolve`, or edit the conflict markers in the file directly.
+    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Then run `jj squash` to move the resolution into the conflicted commit.
+    Working copy now at: kpqxywon cc9f4cad f | (no description set)
+    Parent commit      : yostqsxw 9f25b62d e | (no description set)
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  cc9f4cad1a29 f
+    ◉    9f25b62ddffc e
+    ├─╮
+    ◉ │  d54017421f3f d
+    ├─╯
+    ◉  37941ee54ace a b c
+    ◉  000000000000
+    "###);
+    // The changes from the sources have been applied
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "-r=d", "file"]);
+    insta::assert_snapshot!(stdout, @r###"
+    <<<<<<<
+    %%%%%%%
+    -a
+    +d
+    %%%%%%%
+    -a
+    +b
+    +++++++
+    c
+    >>>>>>>
+    "###);
+
+    // Squash a few commits up an down
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "--from=b|c|f", "--into=e"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 1 descendant commits
+    Working copy now at: xznxytkn 59801ce3 (empty) (no description set)
+    Parent commit      : yostqsxw b7bc1dda e f | (no description set)
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  59801ce3ff81
+    ◉    b7bc1dda247e e f
+    ├─╮
+    ◉ │  cb214cffd91a d
+    ├─╯
+    ◉  37941ee54ace a b c
+    ◉  000000000000
+    "###);
+    // The changes from the sources have been applied to the destination
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "-r=e", "file"]);
+    insta::assert_snapshot!(stdout, @r###"
+    f
+    "###);
+}
+
+#[test]
+fn test_squash_from_multiple_partial() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Create history like this:
+    //   F
+    //   |
+    //   E
+    //  /|\
+    // B C D
+    //  \|/
+    //   A
+    let file1 = repo_path.join("file1");
+    let file2 = repo_path.join("file2");
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a"]);
+    std::fs::write(&file1, "a\n").unwrap();
+    std::fs::write(&file2, "a\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "b"]);
+    std::fs::write(&file1, "b\n").unwrap();
+    std::fs::write(&file2, "b\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "c"]);
+    std::fs::write(&file1, "c\n").unwrap();
+    std::fs::write(&file2, "c\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "d"]);
+    std::fs::write(&file1, "d\n").unwrap();
+    std::fs::write(&file2, "d\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "all:visible_heads()"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "e"]);
+    std::fs::write(&file1, "e\n").unwrap();
+    std::fs::write(&file2, "e\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "f"]);
+    std::fs::write(&file1, "f\n").unwrap();
+    std::fs::write(&file2, "f\n").unwrap();
+    // Test the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  5adc4b1fb0f9 f
+    ◉      8ba764396a28 e
+    ├─┬─╮
+    │ │ ◉  2a2d19a3283f b
+    │ ◉ │  864a16169cef c
+    │ ├─╯
+    ◉ │  5def0e76dfaf d
+    ├─╯
+    ◉  47a1e795d146 a
+    ◉  000000000000
+    "###);
+
+    // Partially squash a few commits sideways
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["squash", "--from=b|c", "--into=d", "file1"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 2 descendant commits
+    New conflicts appeared in these commits:
+      yqosqzyt 13468b54 d | (conflict) (no description set)
+    To resolve the conflicts, start by updating to it:
+      jj new yqosqzytrlsw
+    Then use `jj resolve`, or edit the conflict markers in the file directly.
+    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Then run `jj squash` to move the resolution into the conflicted commit.
+    Working copy now at: kpqxywon 8aaa7910 f | (no description set)
+    Parent commit      : yostqsxw 5aad25ea e | (no description set)
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  8aaa79109163 f
+    ◉      5aad25eae5aa e
+    ├─┬─╮
+    │ │ ◉  ba60ddff2d41 b
+    │ ◉ │  8ef5a315bf7d c
+    │ ├─╯
+    ◉ │  13468b546ba3 d
+    ├─╯
+    ◉  47a1e795d146 a
+    ◉  000000000000
+    "###);
+    // The selected changes have been removed from the sources
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "-r=b", "file1"]);
+    insta::assert_snapshot!(stdout, @r###"
+    a
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "-r=c", "file1"]);
+    insta::assert_snapshot!(stdout, @r###"
+    a
+    "###);
+    // The selected changes from the sources have been applied
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "-r=d", "file1"]);
+    insta::assert_snapshot!(stdout, @r###"
+    <<<<<<<
+    %%%%%%%
+    -a
+    +d
+    %%%%%%%
+    -a
+    +b
+    +++++++
+    c
+    >>>>>>>
+    "###);
+    // The unselected change from the sources have not been applied to the
+    // destination
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "-r=d", "file2"]);
+    insta::assert_snapshot!(stdout, @r###"
+    d
+    "###);
+
+    // Partially squash a few commits up an down
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["squash", "--from=b|c|f", "--into=e", "file1"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 1 descendant commits
+    Working copy now at: kpqxywon 610a144d f | (no description set)
+    Parent commit      : yostqsxw ac27a136 e | (no description set)
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  610a144de39b f
+    ◉      ac27a1361b09 e
+    ├─┬─╮
+    │ │ ◉  0c8eab864a32 b
+    │ ◉ │  ad1776ad0b1b c
+    │ ├─╯
+    ◉ │  5def0e76dfaf d
+    ├─╯
+    ◉  47a1e795d146 a
+    ◉  000000000000
+    "###);
+    // The selected changes have been removed from the sources
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "-r=b", "file1"]);
+    insta::assert_snapshot!(stdout, @r###"
+    a
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "-r=c", "file1"]);
+    insta::assert_snapshot!(stdout, @r###"
+    a
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "-r=f", "file1"]);
+    insta::assert_snapshot!(stdout, @r###"
+    f
+    "###);
+    // The selected changes from the sources have been applied to the destination
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "-r=e", "file1"]);
+    insta::assert_snapshot!(stdout, @r###"
+    f
+    "###);
+    // The unselected changes from the sources have not been applied
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "-r=d", "file2"]);
+    insta::assert_snapshot!(stdout, @r###"
+    d
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     let template = r#"commit_id.short() ++ " " ++ branches"#;
     test_env.jj_cmd_success(repo_path, &["log", "-T", template])

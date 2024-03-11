@@ -80,20 +80,26 @@ pub(crate) fn cmd_squash(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
 
-    let source;
+    let mut sources;
     let destination;
     if args.from.is_some() || args.into.is_some() {
-        source = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
+        sources = workspace_command.resolve_revset(args.from.as_deref().unwrap_or("@"))?;
         destination = workspace_command.resolve_single_rev(args.into.as_deref().unwrap_or("@"))?;
-        if source.id() == destination.id() {
+        if sources.iter().any(|source| source.id() == destination.id()) {
             return Err(user_error("Source and destination cannot be the same"));
         }
+        // Reverse the set so we apply the oldest commits first. It shouldn't affect the
+        // result, but it avoids creating transient conflicts and is therefore probably
+        // a little faster.
+        sources.reverse();
     } else {
-        source = workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
+        let source =
+            workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
         let mut parents = source.parents();
         if parents.len() != 1 {
             return Err(user_error("Cannot squash merge commits"));
         }
+        sources = vec![source];
         destination = parents.pop().unwrap();
     }
 
@@ -101,15 +107,15 @@ pub(crate) fn cmd_squash(
     let diff_selector =
         workspace_command.diff_selector(ui, args.tool.as_deref(), args.interactive)?;
     let mut tx = workspace_command.start_transaction();
-    let tx_description = format!("squash commit {}", source.id().hex());
+    let tx_description = format!("squash commits into {}", destination.id().hex());
     let description = (!args.message_paragraphs.is_empty())
         .then(|| join_message_paragraphs(&args.message_paragraphs));
     move_diff(
         ui,
         &mut tx,
         command.settings(),
-        source,
-        destination,
+        &sources,
+        &destination,
         matcher.as_ref(),
         &diff_selector,
         description,
@@ -125,8 +131,8 @@ pub fn move_diff(
     ui: &mut Ui,
     tx: &mut WorkspaceCommandTransaction,
     settings: &UserSettings,
-    source: Commit,
-    mut destination: Commit,
+    sources: &[Commit],
+    destination: &Commit,
     matcher: &dyn Matcher,
     diff_selector: &DiffSelector,
     description: Option<String>,
@@ -134,11 +140,15 @@ pub fn move_diff(
     path_arg: &[String],
 ) -> Result<(), CommandError> {
     tx.base_workspace_helper()
-        .check_rewritable([&source, &destination])?;
-    let parent_tree = merge_commit_trees(tx.repo(), &source.parents())?;
-    let source_tree = source.tree()?;
-    let instructions = format!(
-        "\
+        .check_rewritable(sources.iter().chain(std::iter::once(destination)))?;
+    // Tree diffs to apply to the destination
+    let mut tree_diffs = vec![];
+    let mut abandoned_commits = vec![];
+    for source in sources {
+        let parent_tree = merge_commit_trees(tx.repo(), &source.parents())?;
+        let source_tree = source.tree()?;
+        let instructions = format!(
+            "\
 You are moving changes from: {}
 into commit: {}
 
@@ -150,12 +160,32 @@ Adjust the right side until the diff shows the changes you want to move
 to the destination. If you don't make any changes, then all the changes
 from the source will be moved into the destination.
 ",
-        tx.format_commit_summary(&source),
-        tx.format_commit_summary(&destination)
-    );
-    let new_parent_tree_id =
-        diff_selector.select(&parent_tree, &source_tree, matcher, Some(&instructions))?;
-    if new_parent_tree_id == parent_tree.id() {
+            tx.format_commit_summary(source),
+            tx.format_commit_summary(destination)
+        );
+        let new_parent_tree_id =
+            diff_selector.select(&parent_tree, &source_tree, matcher, Some(&instructions))?;
+        let new_parent_tree = tx.repo().store().get_root_tree(&new_parent_tree_id)?;
+        // TODO: Do we want to optimize the case of moving to the parent commit (`jj
+        // squash -r`)? The source tree will be unchanged in that case.
+
+        // Apply the reverse of the selected changes onto the source
+        let new_source_tree = source_tree.merge(&new_parent_tree, &parent_tree)?;
+        let abandon_source = new_source_tree.id() == parent_tree.id();
+        if abandon_source {
+            abandoned_commits.push(source);
+            tx.mut_repo().record_abandoned_commit(source.id().clone());
+        } else {
+            tx.mut_repo()
+                .rewrite_commit(settings, source)
+                .set_tree_id(new_source_tree.id().clone())
+                .write()?;
+        }
+        if new_parent_tree_id != parent_tree.id() {
+            tree_diffs.push((parent_tree, new_parent_tree));
+        }
+    }
+    if tree_diffs.is_empty() {
         if diff_selector.is_interactive() {
             return Err(user_error("No changes selected"));
         }
@@ -176,47 +206,34 @@ from the source will be moved into the destination.
             }
         }
     }
-    let new_parent_tree = tx.repo().store().get_root_tree(&new_parent_tree_id)?;
-    // TODO: Do we want to optimize the case of moving to the parent commit (`jj
-    // squash -r`)? The source tree will be unchanged in that case.
-
-    // Apply the reverse of the selected changes onto the source
-    let new_source_tree = source_tree.merge(&new_parent_tree, &parent_tree)?;
-    let abandon_source = new_source_tree.id() == parent_tree.id();
-    if abandon_source {
-        tx.mut_repo().record_abandoned_commit(source.id().clone());
-    } else {
-        tx.mut_repo()
-            .rewrite_commit(settings, &source)
-            .set_tree_id(new_source_tree.id().clone())
-            .write()?;
-    }
-    if tx.repo().index().is_ancestor(source.id(), destination.id()) {
+    let mut rewritten_destination = destination.clone();
+    if sources
+        .iter()
+        .any(|source| tx.repo().index().is_ancestor(source.id(), destination.id()))
+    {
         // If we're moving changes to a descendant, first rebase descendants onto the
-        // rewritten source. Otherwise it will likely already have the content
+        // rewritten sources. Otherwise it will likely already have the content
         // changes we're moving, so applying them will have no effect and the
         // changes will disappear.
         let rebase_map = tx.mut_repo().rebase_descendants_return_map(settings)?;
         let rebased_destination_id = rebase_map.get(destination.id()).unwrap().clone();
-        destination = tx.mut_repo().store().get_commit(&rebased_destination_id)?;
+        rewritten_destination = tx.mut_repo().store().get_commit(&rebased_destination_id)?;
     }
     // Apply the selected changes onto the destination
-    let destination_tree = destination.tree()?;
-    let new_destination_tree = destination_tree.merge(&parent_tree, &new_parent_tree)?;
+    let mut destination_tree = rewritten_destination.tree()?;
+    for (tree1, tree2) in tree_diffs {
+        destination_tree = destination_tree.merge(&tree1, &tree2)?;
+    }
     let description = match description {
         Some(description) => description,
-        None => {
-            if abandon_source {
-                combine_messages(tx.base_repo(), &[&source], &destination, settings)?
-            } else {
-                destination.description().to_owned()
-            }
-        }
+        None => combine_messages(tx.base_repo(), &abandoned_commits, destination, settings)?,
     };
+    let mut predecessors = vec![destination.id().clone()];
+    predecessors.extend(sources.iter().map(|source| source.id().clone()));
     tx.mut_repo()
-        .rewrite_commit(settings, &destination)
-        .set_tree_id(new_destination_tree.id().clone())
-        .set_predecessors(vec![destination.id().clone(), source.id().clone()])
+        .rewrite_commit(settings, &rewritten_destination)
+        .set_tree_id(destination_tree.id().clone())
+        .set_predecessors(predecessors)
         .set_description(description)
         .write()?;
     Ok(())

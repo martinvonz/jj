@@ -24,7 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   elided.
 
 * `jj squash` now accepts `--from` and `--into` (mutually exclusive with `-r`).
-  It can thereby be for all use cases where `jj move` can be used.
+  It can thereby be for all use cases where `jj move` can be used. The `--from`
+  argument accepts a revset that resolves to move than one revision.
 
 ### Fixed bugs
 
