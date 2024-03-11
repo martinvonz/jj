@@ -17,10 +17,10 @@
 use std::cell::RefCell;
 use std::cmp::{Ordering, Reverse};
 use std::collections::{BTreeSet, BinaryHeap, HashSet};
-use std::fmt;
 use std::ops::Range;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::{fmt, iter};
 
 use itertools::Itertools;
 
@@ -119,15 +119,31 @@ impl<I> fmt::Debug for RevsetImpl<I> {
 }
 
 impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
-    fn iter(&self) -> Box<dyn Iterator<Item = CommitId> + '_> {
-        Box::new(self.entries().map(|index_entry| index_entry.commit_id()))
+    fn iter<'a>(&self) -> Box<dyn Iterator<Item = CommitId> + 'a>
+    where
+        Self: 'a,
+    {
+        let index = self.index.clone();
+        let mut walk = self.inner.positions();
+        Box::new(iter::from_fn(move || {
+            let index = index.as_composite();
+            let pos = walk.next(index)?;
+            Some(index.entry_by_pos(pos).commit_id())
+        }))
     }
 
-    fn commit_change_ids(&self) -> Box<dyn Iterator<Item = (CommitId, ChangeId)> + '_> {
-        Box::new(
-            self.entries()
-                .map(|index_entry| (index_entry.commit_id(), index_entry.change_id())),
-        )
+    fn commit_change_ids<'a>(&self) -> Box<dyn Iterator<Item = (CommitId, ChangeId)> + 'a>
+    where
+        Self: 'a,
+    {
+        let index = self.index.clone();
+        let mut walk = self.inner.positions();
+        Box::new(iter::from_fn(move || {
+            let index = index.as_composite();
+            let pos = walk.next(index)?;
+            let entry = index.entry_by_pos(pos);
+            Some((entry.commit_id(), entry.change_id()))
+        }))
     }
 
     fn iter_graph(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + '_> {
