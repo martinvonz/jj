@@ -177,7 +177,7 @@ fn cmd_op_log(
     let iter = op_walk::walk_ancestors(&head_ops).take(args.limit.unwrap_or(usize::MAX));
     if !args.no_graph {
         let mut graph = get_graphlog(command.settings(), formatter.raw());
-        let default_node_symbol = graph.default_node_symbol().to_owned();
+        let default_node_symbol = command.settings().default_node_symbol();
         for op in iter {
             let op = op?;
             let mut edges = vec![];
