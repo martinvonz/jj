@@ -78,6 +78,8 @@ fn test_move() {
     // Errors out if source and destination are the same
     let stderr = test_env.jj_cmd_failure(&repo_path, &["move", "--to", "@"]);
     insta::assert_snapshot!(stderr, @r###"
+    warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
+    warning: `jj move` will be removed in a future version, and this will be a hard error
     Error: Source and destination cannot be the same.
     "###);
 
@@ -85,6 +87,8 @@ fn test_move() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "--from", "c"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
+    warning: `jj move` will be removed in a future version, and this will be a hard error
     Working copy now at: kmkuslsw 1c03e3d3 f | (no description set)
     Parent commit      : znkkpsqq e9515f21 e | (no description set)
     Added 0 files, modified 1 files, removed 0 files
@@ -114,6 +118,8 @@ fn test_move() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "--from", "@--"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
+    warning: `jj move` will be removed in a future version, and this will be a hard error
     Working copy now at: kmkuslsw c8d83075 f | (no description set)
     Parent commit      : znkkpsqq 2c50bfc5 e | (no description set)
     "###);
@@ -140,6 +146,8 @@ fn test_move() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "--from", "e", "--to", "d"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
+    warning: `jj move` will be removed in a future version, and this will be a hard error
     Rebased 1 descendant commits
     Working copy now at: kmkuslsw 2b723b1d f | (no description set)
     Parent commit      : vruxwmqv 4293930d d e | (no description set)
@@ -205,6 +213,8 @@ fn test_move_partial() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "-i", "--from", "c"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
+    warning: `jj move` will be removed in a future version, and this will be a hard error
     Working copy now at: vruxwmqv 71b69e43 d | (no description set)
     Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
     Added 0 files, modified 2 files, removed 0 files
@@ -237,6 +247,8 @@ fn test_move_partial() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "-i", "--from", "c"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
+    warning: `jj move` will be removed in a future version, and this will be a hard error
     Working copy now at: vruxwmqv 63f1a6e9 d | (no description set)
     Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
     Added 0 files, modified 1 files, removed 0 files
@@ -272,6 +284,8 @@ fn test_move_partial() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "--from", "c", "file1"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
+    warning: `jj move` will be removed in a future version, and this will be a hard error
     Working copy now at: vruxwmqv 17c2e663 d | (no description set)
     Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
     Added 0 files, modified 1 files, removed 0 files
@@ -308,6 +322,8 @@ fn test_move_partial() {
         test_env.jj_cmd_ok(&repo_path, &["move", "--from", "c", "--to", "b", "file1"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
+    warning: `jj move` will be removed in a future version, and this will be a hard error
     Rebased 1 descendant commits
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -335,6 +351,8 @@ fn test_move_partial() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "--from", "c", "nonexistent"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
+    warning: `jj move` will be removed in a future version, and this will be a hard error
     Working copy now at: vruxwmqv b670567d d | (no description set)
     Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
     "###);
