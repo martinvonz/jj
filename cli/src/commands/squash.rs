@@ -207,12 +207,7 @@ from the source will be moved into the destination.
         Some(description) => description,
         None => {
             if abandon_source {
-                combine_messages(
-                    tx.base_repo(),
-                    &source,
-                    &destination,
-                    settings,
-                )?
+                combine_messages(tx.base_repo(), &[&source], &destination, settings)?
             } else {
                 destination.description().to_owned()
             }

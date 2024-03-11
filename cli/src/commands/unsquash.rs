@@ -105,8 +105,7 @@ aborted.
     // case).
     if new_parent_tree_id == parent_base_tree.id() {
         tx.mut_repo().record_abandoned_commit(parent.id().clone());
-        let description =
-            combine_messages(tx.base_repo(), parent, &commit, command.settings())?;
+        let description = combine_messages(tx.base_repo(), &[parent], &commit, command.settings())?;
         // Commit the new child on top of the parent's parents.
         tx.mut_repo()
             .rewrite_commit(command.settings(), &commit)
