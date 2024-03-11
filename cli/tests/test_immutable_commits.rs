@@ -143,12 +143,16 @@ fn test_rewrite_immutable_commands() {
     // move --from
     let stderr = test_env.jj_cmd_failure(&repo_path, &["move", "--from=main"]);
     insta::assert_snapshot!(stderr, @r###"
+    warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
+    warning: `jj move` will be removed in a future version, and this will be a hard error
     Error: Commit 3d14df18607e is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // move --to
     let stderr = test_env.jj_cmd_failure(&repo_path, &["move", "--to=main"]);
     insta::assert_snapshot!(stderr, @r###"
+    warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
+    warning: `jj move` will be removed in a future version, and this will be a hard error
     Error: Commit 3d14df18607e is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);

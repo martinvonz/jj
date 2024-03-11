@@ -62,6 +62,14 @@ pub(crate) fn cmd_move(
     command: &CommandHelper,
     args: &MoveArgs,
 ) -> Result<(), CommandError> {
+    writeln!(
+        ui.warning(),
+        "warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent"
+    )?;
+    writeln!(
+        ui.warning(),
+        "warning: `jj move` will be removed in a future version, and this will be a hard error"
+    )?;
     let mut workspace_command = command.workspace_helper(ui)?;
     let source = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
     let destination = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;

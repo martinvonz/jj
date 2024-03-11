@@ -212,7 +212,7 @@ parent.
     </tr>
     <tr>
       <td>Abandon the parent of the working copy, but keep its diff in the working copy</td>
-      <td><code>jj move --from @-</code></td>
+      <td><code>jj squash --from @-</code></td>
       <td><code>git reset --soft HEAD~</code></td>
     </tr>
     <tr>
@@ -275,13 +275,13 @@ parent.
     </tr>
     <tr>
       <td>Move the diff in the working copy into an ancestor</td>
-      <td><code>jj move --to X</code></td>
+      <td><code>jj squash --into X</code></td>
       <td><code>git commit --fixup=X; git rebase -i --autosquash X^</code></td>
     </tr>
     <tr>
       <td>Interactively move part of the diff in an arbitrary change to another
           arbitrary change</td>
-      <td><code>jj move -i --from X --to Y</code></td>
+      <td><code>jj squash -i --from X --into Y</code></td>
       <td>Not supported</td>
     </tr>
     <tr>

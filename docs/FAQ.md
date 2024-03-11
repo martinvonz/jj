@@ -122,9 +122,8 @@ try `jj rebase -s all:commit_with_local_changes+ -d main`
 
 An alternative workflow would be to rebase the commit with local changes on
 top of the PR you're working on and then do `jj new commit_with_local_changes`.
-You'll then need to use `jj new --before` to create new commits
-and `jj move --to`
-to move new changes into the correct commits.
+You'll then need to use `jj new --before` to create new commits and
+`jj squash --into` to move new changes into the correct commits.
 
 ### I accidentally changed files in the wrong commit, how do I move the recent changes into another commit?
 
