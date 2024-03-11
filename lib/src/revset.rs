@@ -2421,7 +2421,9 @@ pub trait Revset: fmt::Debug {
     ///
     /// The implementation may construct and maintain any necessary internal
     /// context to optimize the performance of the check.
-    fn containing_fn(&self) -> Box<dyn Fn(&CommitId) -> bool + '_>;
+    fn containing_fn<'a>(&self) -> Box<dyn Fn(&CommitId) -> bool + 'a>
+    where
+        Self: 'a;
 }
 
 pub trait RevsetIteratorExt<'index, I> {

@@ -118,7 +118,7 @@ impl<I> fmt::Debug for RevsetImpl<I> {
     }
 }
 
-impl<I: AsCompositeIndex> Revset for RevsetImpl<I> {
+impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
     fn iter(&self) -> Box<dyn Iterator<Item = CommitId> + '_> {
         Box::new(self.entries().map(|index_entry| index_entry.commit_id()))
     }
@@ -155,27 +155,25 @@ impl<I: AsCompositeIndex> Revset for RevsetImpl<I> {
         }
     }
 
-    fn containing_fn(&self) -> Box<dyn Fn(&CommitId) -> bool + '_> {
-        let positions =
-            PositionsAccumulator::new(self.index.as_composite(), Box::new(self.positions()));
+    fn containing_fn<'a>(&self) -> Box<dyn Fn(&CommitId) -> bool + 'a>
+    where
+        Self: 'a,
+    {
+        let positions = PositionsAccumulator::new(self.index.clone(), self.inner.positions());
         Box::new(move |commit_id| positions.contains(commit_id))
     }
 }
 
-/// Incrementally consumes positions iterator of the revset collecting
-/// positions.
-struct PositionsAccumulator<'revset, 'index> {
-    index: &'index CompositeIndex,
-    inner: RefCell<PositionsAccumulatorInner<'revset>>,
+/// Incrementally consumes `RevWalk` of the revset collecting positions.
+struct PositionsAccumulator<'a, I> {
+    index: I,
+    inner: RefCell<PositionsAccumulatorInner<'a>>,
 }
 
-impl<'revset, 'index> PositionsAccumulator<'revset, 'index> {
-    fn new(
-        index: &'index CompositeIndex,
-        positions_iter: Box<dyn Iterator<Item = IndexPosition> + 'revset>,
-    ) -> Self {
+impl<'a, I: AsCompositeIndex> PositionsAccumulator<'a, I> {
+    fn new(index: I, walk: BoxedRevWalk<'a>) -> Self {
         let inner = RefCell::new(PositionsAccumulatorInner {
-            positions_iter: Some(positions_iter),
+            walk,
             consumed_positions: Vec::new(),
         });
         PositionsAccumulator { index, inner }
@@ -183,12 +181,13 @@ impl<'revset, 'index> PositionsAccumulator<'revset, 'index> {
 
     /// Checks whether the commit is in the revset.
     fn contains(&self, commit_id: &CommitId) -> bool {
-        let Some(position) = self.index.commit_id_to_pos(commit_id) else {
+        let index = self.index.as_composite();
+        let Some(position) = index.commit_id_to_pos(commit_id) else {
             return false;
         };
 
         let mut inner = self.inner.borrow_mut();
-        inner.consume_to(position);
+        inner.consume_to(index, position);
         inner
             .consumed_positions
             .binary_search_by(|p| p.cmp(&position).reverse())
@@ -202,28 +201,24 @@ impl<'revset, 'index> PositionsAccumulator<'revset, 'index> {
 }
 
 /// Helper struct for [`PositionsAccumulator`] to simplify interior mutability.
-struct PositionsAccumulatorInner<'revset> {
-    positions_iter: Option<Box<dyn Iterator<Item = IndexPosition> + 'revset>>,
+struct PositionsAccumulatorInner<'a> {
+    walk: BoxedRevWalk<'a>,
     consumed_positions: Vec<IndexPosition>,
 }
 
-impl<'revset> PositionsAccumulatorInner<'revset> {
-    /// Consumes positions iterator to a desired position but not deeper.
-    fn consume_to(&mut self, desired_position: IndexPosition) {
+impl PositionsAccumulatorInner<'_> {
+    /// Consumes `RevWalk` to a desired position but not deeper.
+    fn consume_to(&mut self, index: &CompositeIndex, desired_position: IndexPosition) {
         let last_position = self.consumed_positions.last();
         if last_position.map_or(false, |&pos| pos <= desired_position) {
             return;
         }
-        let Some(iter) = self.positions_iter.as_mut() else {
-            return;
-        };
-        for position in iter {
+        while let Some(position) = self.walk.next(index) {
             self.consumed_positions.push(position);
             if position <= desired_position {
                 return;
             }
         }
-        self.positions_iter = None;
     }
 }
 
@@ -680,7 +675,7 @@ where
     }
 }
 
-pub fn evaluate<I: AsCompositeIndex>(
+pub fn evaluate<I: AsCompositeIndex + Clone>(
     expression: &ResolvedExpression,
     store: &Arc<Store>,
     index: I,
@@ -1216,8 +1211,7 @@ mod tests {
         let full_set = make_set(&[&id_4, &id_3, &id_2, &id_1, &id_0]);
 
         // Consumes entries incrementally
-        let positions_accum =
-            PositionsAccumulator::new(index, Box::new(full_set.positions().attach(index)));
+        let positions_accum = PositionsAccumulator::new(index, full_set.positions());
 
         assert!(positions_accum.contains(&id_3));
         assert_eq!(positions_accum.consumed_len(), 2);
@@ -1229,16 +1223,14 @@ mod tests {
         assert_eq!(positions_accum.consumed_len(), 5);
 
         // Does not consume positions for unknown commits
-        let positions_accum =
-            PositionsAccumulator::new(index, Box::new(full_set.positions().attach(index)));
+        let positions_accum = PositionsAccumulator::new(index, full_set.positions());
 
         assert!(!positions_accum.contains(&CommitId::from_hex("999999")));
         assert_eq!(positions_accum.consumed_len(), 0);
 
         // Does not consume without necessity
         let set = make_set(&[&id_3, &id_2, &id_1]);
-        let positions_accum =
-            PositionsAccumulator::new(index, Box::new(set.positions().attach(index)));
+        let positions_accum = PositionsAccumulator::new(index, set.positions());
 
         assert!(!positions_accum.contains(&id_4));
         assert_eq!(positions_accum.consumed_len(), 1);
