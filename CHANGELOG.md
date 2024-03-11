@@ -20,7 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `ui.default-command` now accepts multiple string arguments, for more complex
   default `jj` commands.
 
-* Graph node symbols are now configurable via `ui.graph.default_node` and `ui.graph.elided_node`.
+* Graph node symbols are now configurable via templates
+  * `templates.log_node`
+  * `templates.op_log_node`
+  * `templates.log_node_elided`
+
 
 * `jj log` now includes synthetic nodes in the graph where some revisions were
   elided.

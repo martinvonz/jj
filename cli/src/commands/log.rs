@@ -21,10 +21,12 @@ use jj_lib::revset_graph::{
 };
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, LogContentFormat, RevisionArg};
+use crate::cli_util::{format_template, CommandHelper, LogContentFormat, RevisionArg};
 use crate::command_error::CommandError;
 use crate::diff_util::{self, DiffFormatArgs};
+use crate::generic_templater::GenericTemplateLanguage;
 use crate::graphlog::{get_graphlog, Edge};
+use crate::templater::Template;
 use crate::ui::Ui;
 
 /// Show revision history
@@ -94,7 +96,6 @@ pub(crate) fn cmd_log(
         expression
     };
     let repo = workspace_command.repo();
-    let wc_commit_id = workspace_command.get_wc_commit_id();
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let revset = workspace_command.evaluate_revset(revset_expression)?;
 
@@ -102,16 +103,29 @@ pub(crate) fn cmd_log(
     let diff_formats =
         diff_util::diff_formats_for_log(command.settings(), &args.diff_format, args.patch)?;
 
-    let template_string = match &args.template {
-        Some(value) => value.to_string(),
-        None => command.settings().config().get_string("templates.log")?,
-    };
     let use_elided_nodes = command
         .settings()
         .config()
         .get_bool("ui.log-synthetic-elided-nodes")?;
-    let template = workspace_command.parse_commit_template(&template_string)?;
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
+
+    let template;
+    let commit_node_template;
+    {
+        let language = workspace_command.commit_template_language()?;
+        let template_string = match &args.template {
+            Some(value) => value.to_string(),
+            None => command.settings().config().get_string("templates.log")?,
+        };
+        template = workspace_command.parse_template(&language, &template_string)?;
+        commit_node_template = workspace_command
+            .parse_template(&language, &command.settings().commit_node_template())?;
+    }
+
+    let elided_node_template = workspace_command.parse_template(
+        &GenericTemplateLanguage::new(),
+        &command.settings().elided_node_template(),
+    )?;
 
     {
         ui.request_pager();
@@ -120,8 +134,6 @@ pub(crate) fn cmd_log(
 
         if !args.no_graph {
             let mut graph = get_graphlog(command.settings(), formatter.raw());
-            let default_node_symbol = command.settings().default_node_symbol();
-            let elided_node_symbol = command.settings().elided_node_symbol();
             let forward_iter = TopoGroupedRevsetGraphIterator::new(revset.iter_graph());
             let iter: Box<dyn Iterator<Item = _>> = if args.reversed {
                 Box::new(ReverseRevsetGraphIterator::new(forward_iter))
@@ -179,16 +191,12 @@ pub(crate) fn cmd_log(
                         &diff_formats,
                     )?;
                 }
-                let node_symbol = if Some(&key.0) == wc_commit_id {
-                    "@"
-                } else {
-                    &default_node_symbol
-                };
 
+                let node_symbol = format_template(ui, &commit, commit_node_template.as_ref());
                 graph.add_node(
                     &key,
                     &graphlog_edges,
-                    node_symbol,
+                    &node_symbol,
                     &String::from_utf8_lossy(&buffer),
                 )?;
                 for elided_target in elided_targets {
@@ -201,10 +209,11 @@ pub(crate) fn cmd_log(
                         |formatter| writeln!(formatter.labeled("elided"), "(elided revisions)"),
                         || graph.width(&elided_key, &edges),
                     )?;
+                    let node_symbol = format_template(ui, &(), elided_node_template.as_ref());
                     graph.add_node(
                         &elided_key,
                         &edges,
-                        &elided_node_symbol,
+                        &node_symbol,
                         &String::from_utf8_lossy(&buffer),
                     )?;
                 }

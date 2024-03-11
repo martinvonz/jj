@@ -122,14 +122,6 @@
                                 "ascii-large"
                             ],
                             "default": "curved"
-                        },
-                        "default_node": {
-                            "type": "string",
-                            "description": "The symbol used as the default symbol for nodes."
-                        },
-                        "elided_node": {
-                            "type": "string",
-                            "description": "The symbol used for elided nodes."
                         }
                     }
                 },

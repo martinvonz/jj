@@ -18,7 +18,9 @@ use jj_lib::matchers::EverythingMatcher;
 use jj_lib::rewrite::rebase_to_dest_parent;
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, LogContentFormat, RevisionArg, WorkspaceCommandHelper};
+use crate::cli_util::{
+    format_template, CommandHelper, LogContentFormat, RevisionArg, WorkspaceCommandHelper,
+};
 use crate::command_error::CommandError;
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
 use crate::formatter::Formatter;
@@ -63,17 +65,23 @@ pub(crate) fn cmd_obslog(
     let workspace_command = command.workspace_helper(ui)?;
 
     let start_commit = workspace_command.resolve_single_rev(&args.revision)?;
-    let wc_commit_id = workspace_command.get_wc_commit_id();
 
     let diff_formats =
         diff_util::diff_formats_for_log(command.settings(), &args.diff_format, args.patch)?;
-
-    let template_string = match &args.template {
-        Some(value) => value.to_string(),
-        None => command.settings().config().get_string("templates.log")?,
-    };
-    let template = workspace_command.parse_commit_template(&template_string)?;
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
+
+    let template;
+    let commit_node_template;
+    {
+        let language = workspace_command.commit_template_language()?;
+        let template_string = match &args.template {
+            Some(value) => value.to_string(),
+            None => command.settings().config().get_string("templates.log")?,
+        };
+        template = workspace_command.parse_template(&language, &template_string)?;
+        commit_node_template = workspace_command
+            .parse_template(&language, &command.settings().commit_node_template())?;
+    }
 
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
@@ -90,7 +98,6 @@ pub(crate) fn cmd_obslog(
     }
     if !args.no_graph {
         let mut graph = get_graphlog(command.settings(), formatter.raw());
-        let default_node_symbol = command.settings().default_node_symbol();
         for commit in commits {
             let mut edges = vec![];
             for predecessor in &commit.predecessors() {
@@ -115,15 +122,11 @@ pub(crate) fn cmd_obslog(
                     &diff_formats,
                 )?;
             }
-            let node_symbol = if Some(commit.id()) == wc_commit_id {
-                "@"
-            } else {
-                &default_node_symbol
-            };
+            let node_symbol = format_template(ui, &commit, commit_node_template.as_ref());
             graph.add_node(
                 commit.id(),
                 &edges,
-                node_symbol,
+                &node_symbol,
                 &String::from_utf8_lossy(&buffer),
             )?;
         }

@@ -23,11 +23,11 @@ use jj_lib::op_walk;
 use jj_lib::operation::Operation;
 use jj_lib::repo::Repo;
 
-use crate::cli_util::{short_operation_hash, CommandHelper, LogContentFormat};
+use crate::cli_util::{format_template, short_operation_hash, CommandHelper, LogContentFormat};
 use crate::command_error::{user_error, user_error_with_hint, CommandError};
 use crate::graphlog::{get_graphlog, Edge};
 use crate::operation_templater::OperationTemplateLanguage;
-use crate::templater::Template as _;
+use crate::templater::Template;
 use crate::ui::Ui;
 
 /// Commands for working with the operation log
@@ -157,8 +157,11 @@ fn cmd_op_log(
         [op] => Some(op.id()),
         _ => None,
     };
+    let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
-    let template = {
+    let template;
+    let op_node_template;
+    {
         let language = OperationTemplateLanguage::new(
             repo_loader.op_store().root_operation_id(),
             current_op_id,
@@ -168,9 +171,10 @@ fn cmd_op_log(
             Some(value) => value.to_owned(),
             None => command.settings().config().get_string("templates.op_log")?,
         };
-        command.parse_template(ui, &language, &text)?
-    };
-    let with_content_format = LogContentFormat::new(ui, command.settings())?;
+        template = command.parse_template(ui, &language, &text)?;
+        op_node_template =
+            command.parse_template(ui, &language, &command.settings().op_node_template())?;
+    }
 
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
@@ -178,14 +182,12 @@ fn cmd_op_log(
     let iter = op_walk::walk_ancestors(&head_ops).take(args.limit.unwrap_or(usize::MAX));
     if !args.no_graph {
         let mut graph = get_graphlog(command.settings(), formatter.raw());
-        let default_node_symbol = command.settings().default_node_symbol();
         for op in iter {
             let op = op?;
             let mut edges = vec![];
             for id in op.parent_ids() {
                 edges.push(Edge::Direct(id.clone()));
             }
-            let is_current_op = Some(op.id()) == current_op_id;
             let mut buffer = vec![];
             with_content_format.write_graph_text(
                 ui.new_formatter(&mut buffer).as_mut(),
@@ -197,15 +199,11 @@ fn cmd_op_log(
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
-            let node_symbol = if is_current_op {
-                "@"
-            } else {
-                &default_node_symbol
-            };
+            let node_symbol = format_template(ui, &op, &op_node_template);
             graph.add_node(
                 op.id(),
                 &edges,
-                node_symbol,
+                &node_symbol,
                 &String::from_utf8_lossy(&buffer),
             )?;
         }

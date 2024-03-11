@@ -229,6 +229,30 @@ revsets.log = "main@origin.."
 ui.graph.style = "square"
 ```
 
+#### Node style
+
+The symbols used to represent commits or operations can be customized via
+templates.
+
+  * `templates.log_node` for commits (with `Commit` keywords)
+  * `templates.op_log_node` for operations (with `Operation` keywords)
+  * `templates.log_node_elided` for elided nodes
+
+For example:
+```toml
+[templates]
+log_node = '''
+  if(current_working_copy, "@",
+    if(root, "┴",
+      if(immutable, "●", "○")
+    )
+  )
+'''
+op_log_node = 'if(current_operation, "@", "○")'
+log_node_elided = '"🮀"'
+
+```
+
 ### Wrap log content
 
 If enabled, `log`/`obslog`/`op log` content will be wrapped based on

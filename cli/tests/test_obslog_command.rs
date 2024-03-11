@@ -143,6 +143,35 @@ fn test_obslog_with_or_without_diff() {
 }
 
 #[test]
+fn test_obslog_with_custom_symbols() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "my description"]);
+    std::fs::write(repo_path.join("file1"), "foo\nbar\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "foo\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "@", "-d", "root()"]);
+    std::fs::write(repo_path.join("file1"), "resolved\n").unwrap();
+
+    let toml = concat!("templates.log_node = 'if(current_working_copy, \"$\", \"┝\")'\n",);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--config-toml", toml]);
+
+    insta::assert_snapshot!(stdout, @r###"
+    $  rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
+    │  my description
+    ┝  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 ebc23d4b conflict
+    │  my description
+    ┝  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 6fbba7bc
+    │  my description
+    ┝  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 eac0d0da
+       (empty) my description
+    "###);
+}
+
+#[test]
 fn test_obslog_word_wrap() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
