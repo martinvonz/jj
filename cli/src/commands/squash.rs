@@ -205,13 +205,18 @@ from the source will be moved into the destination.
     let new_destination_tree = destination_tree.merge(&parent_tree, &new_parent_tree)?;
     let description = match description {
         Some(description) => description,
-        None => combine_messages(
-            tx.base_repo(),
-            &source,
-            &destination,
-            settings,
-            abandon_source,
-        )?,
+        None => {
+            if abandon_source {
+                combine_messages(
+                    tx.base_repo(),
+                    &source,
+                    &destination,
+                    settings,
+                )?
+            } else {
+                destination.description().to_owned()
+            }
+        }
     };
     tx.mut_repo()
         .rewrite_commit(settings, &destination)

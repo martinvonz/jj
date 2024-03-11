@@ -45,23 +45,18 @@ pub fn combine_messages(
     source: &Commit,
     destination: &Commit,
     settings: &UserSettings,
-    abandon_source: bool,
 ) -> Result<String, CommandError> {
-    let description = if abandon_source {
-        if source.description().is_empty() {
-            destination.description().to_string()
-        } else if destination.description().is_empty() {
-            source.description().to_string()
-        } else {
-            let combined = "JJ: Enter a description for the combined commit.\n".to_string()
-                + "JJ: Description from the destination commit:\n"
-                + destination.description()
-                + "\nJJ: Description from the source commit:\n"
-                + source.description();
-            edit_description(repo, &combined, settings)?
-        }
-    } else {
+    let description = if source.description().is_empty() {
         destination.description().to_string()
+    } else if destination.description().is_empty() {
+        source.description().to_string()
+    } else {
+        let combined = "JJ: Enter a description for the combined commit.\n".to_string()
+            + "JJ: Description from the destination commit:\n"
+            + destination.description()
+            + "\nJJ: Description from the source commit:\n"
+            + source.description();
+        edit_description(repo, &combined, settings)?
     };
     Ok(description)
 }
