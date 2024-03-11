@@ -40,25 +40,41 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     Ok(text_util::complete_newline(description.trim_matches('\n')))
 }
 
+/// Combines the descriptions from the input commits. If only one is non-empty,
+/// then that one is used. Otherwise we concatenate the messages and ask the
+/// user to edit the result in their editor.
 pub fn combine_messages(
     repo: &ReadonlyRepo,
-    source: &Commit,
+    sources: &[&Commit],
     destination: &Commit,
     settings: &UserSettings,
 ) -> Result<String, CommandError> {
-    let description = if source.description().is_empty() {
-        destination.description().to_string()
-    } else if destination.description().is_empty() {
-        source.description().to_string()
-    } else {
-        let combined = "JJ: Enter a description for the combined commit.\n".to_string()
-            + "JJ: Description from the destination commit:\n"
-            + destination.description()
-            + "\nJJ: Description from the source commit:\n"
-            + source.description();
-        edit_description(repo, &combined, settings)?
-    };
-    Ok(description)
+    let non_empty = sources
+        .iter()
+        .chain(std::iter::once(&destination))
+        .filter(|c| !c.description().is_empty())
+        .take(2)
+        .collect_vec();
+    match *non_empty.as_slice() {
+        [] => {
+            return Ok(String::new());
+        }
+        [commit] => {
+            return Ok(commit.description().to_owned());
+        }
+        _ => {}
+    }
+    // Produce a combined description with instructions for the user to edit.
+    // Include empty descriptins too, so the user doesn't have to wonder why they
+    // only see 2 descriptions when they combined 3 commits.
+    let mut combined = "JJ: Enter a description for the combined commit.".to_string();
+    combined.push_str("\nJJ: Description from the destination commit:\n");
+    combined.push_str(destination.description());
+    for commit in sources {
+        combined.push_str("\nJJ: Description from source commit:\n");
+        combined.push_str(commit.description());
+    }
+    edit_description(repo, &combined, settings)
 }
 
 /// Create a description from a list of paragraphs.

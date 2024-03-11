@@ -415,7 +415,7 @@ fn test_move_description() {
     JJ: Description from the destination commit:
     destination
 
-    JJ: Description from the source commit:
+    JJ: Description from source commit:
     source
 
     JJ: Lines starting with "JJ: " (like this one) will be removed.
