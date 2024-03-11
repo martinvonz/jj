@@ -5533,7 +5533,7 @@ repository.</li>
 <li><code>show</code> — Show commit description and changes in a revision</li>
 <li><code>sparse</code> — Manage which paths from the working-copy commit are present in the working copy</li>
 <li><code>split</code> — Split a revision in two</li>
-<li><code>squash</code> — Move changes from a revision into its parent</li>
+<li><code>squash</code> — Move changes from a revision into another revision</li>
 <li><code>status</code> — Show high-level repo status</li>
 <li><code>tag</code> — Manage tags</li>
 <li><code>util</code> — Infrequently used commands such as for generating shell completions</li>
@@ -6774,8 +6774,10 @@ commit. This is true in general; it is not specific to this command.</p>
 </li>
 </ul>
 <h2 id="jj-squash"><code>jj squash</code><a class="headerlink" href="#jj-squash" title="Permanent link">&para;</a></h2>
-<p>Move changes from a revision into its parent</p>
-<p>After moving the changes into the parent, the child revision will have the same content state as before. If that means that the change is now empty compared to its parent, it will be abandoned. Without <code>--interactive</code>, the child change will always be empty.</p>
+<p>Move changes from a revision into another revision</p>
+<p>With the <code>-r</code> option, moves the changes from the specified revision to the parent revision. Fails if there are several parent revisions (i.e., the given revision is a merge).</p>
+<p>With the <code>--from</code> and/or <code>--into</code> options, moves changes from/to the given revisions. If either is left out, it defaults to the working-copy commit. For example, <code>jj squash --into @--</code> moves changes from the working-copy commit to the grandparent.</p>
+<p>If, after moving changes out, the source revision is empty compared to its parent(s), it will be abandoned. Without <code>--interactive</code>, the source revision will always be empty.</p>
 <p>If the source became empty and both the source and destination had a non-empty description, you will be asked for the combined description. If either was empty, then the other one will be used.</p>
 <p>If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.</p>
 <p><strong>Usage:</strong> <code>jj squash [OPTIONS] [PATHS]...</code></p>
@@ -6786,6 +6788,8 @@ commit. This is true in general; it is not specific to this command.</p>
 <h6 id="options_42"><strong>Options:</strong><a class="headerlink" href="#options_42" title="Permanent link">&para;</a></h6>
 <ul>
 <li><code>-r</code>, <code>--revision &lt;REVISION&gt;</code> — Revision to squash into its parent (default: @)</li>
+<li><code>--from &lt;FROM&gt;</code> — Revision to squash from (default: @)</li>
+<li><code>--into &lt;INTO&gt;</code> — Revision to squash into (default: @)</li>
 <li><code>-m</code>, <code>--message &lt;MESSAGE&gt;</code> — The description to use for squashed revision (don't open editor)</li>
 <li>
 <p><code>-i</code>, <code>--interactive</code> — Interactively choose which parts to squash</p>
