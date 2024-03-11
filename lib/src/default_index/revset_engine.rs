@@ -25,7 +25,7 @@ use std::{fmt, iter};
 use itertools::Itertools;
 
 use super::rev_walk::{EagerRevWalk, PeekableRevWalk, RevWalk, RevWalkBuilder};
-use super::revset_graph_iterator::RevsetGraphIterator;
+use super::revset_graph_iterator::RevsetGraphWalk;
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexEntry, IndexPosition};
 use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
@@ -39,7 +39,7 @@ use crate::rewrite;
 use crate::store::Store;
 
 type BoxedPredicateFn<'a> = Box<dyn FnMut(&CompositeIndex, IndexPosition) -> bool + 'a>;
-type BoxedRevWalk<'a> = Box<dyn RevWalk<CompositeIndex, Item = IndexPosition> + 'a>;
+pub(super) type BoxedRevWalk<'a> = Box<dyn RevWalk<CompositeIndex, Item = IndexPosition> + 'a>;
 
 trait ToPredicateFn: fmt::Debug {
     /// Creates function that tests if the given entry is included in the set.
@@ -91,14 +91,9 @@ pub struct RevsetImpl<I> {
     index: I,
 }
 
-impl<I: AsCompositeIndex> RevsetImpl<I> {
+impl<I: AsCompositeIndex + Clone> RevsetImpl<I> {
     fn new(inner: Box<dyn InternalRevset>, index: I) -> Self {
         Self { inner, index }
-    }
-
-    fn entries(&self) -> impl Iterator<Item = IndexEntry<'_>> + '_ {
-        let index = self.index.as_composite();
-        self.positions().map(move |pos| index.entry_by_pos(pos))
     }
 
     fn positions(&self) -> impl Iterator<Item = IndexPosition> + '_ {
@@ -108,12 +103,11 @@ impl<I: AsCompositeIndex> RevsetImpl<I> {
     pub fn iter_graph_impl(
         &self,
         skip_transitive_edges: bool,
-    ) -> impl Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + '_ {
-        RevsetGraphIterator::new(
-            self.index.as_composite(),
-            Box::new(self.entries()),
-            skip_transitive_edges,
-        )
+    ) -> impl Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> {
+        let index = self.index.clone();
+        let walk = self.inner.positions();
+        let mut graph_walk = RevsetGraphWalk::new(walk, skip_transitive_edges);
+        iter::from_fn(move || graph_walk.next(index.as_composite()))
     }
 }
 
@@ -153,7 +147,10 @@ impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
         }))
     }
 
-    fn iter_graph(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + '_> {
+    fn iter_graph<'a>(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + 'a>
+    where
+        Self: 'a,
+    {
         let skip_transitive_edges = true;
         Box::new(self.iter_graph_impl(skip_transitive_edges))
     }
