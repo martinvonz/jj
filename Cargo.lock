@@ -1924,9 +1924,9 @@ dependencies = [
 
 [[package]]
 name = "minus"
-version = "5.5.3"
+version = "5.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14b5f31d6666667f707078608f25e7615c48c2243a06b66ca0fa6c4ecb96362d"
+checksum = "d76cee2df9ffd9b295b54d4ca2590a77ca49fd5eab1366647ff6e21951969ca5"
 dependencies = [
  "crossbeam-channel",
  "crossterm",
@@ -3356,9 +3356,9 @@ dependencies = [
 
 [[package]]
 name = "whoami"
-version = "1.5.0"
+version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fec781d48b41f8163426ed18e8fc2864c12937df9ce54c88ede7bd47270893e"
+checksum = "a44ab49fad634e88f55bf8f9bb3abd2f27d7204172a112c7c9987e01c1c94ea9"
 dependencies = [
  "redox_syscall",
  "wasite",
