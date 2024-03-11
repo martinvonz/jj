@@ -5518,7 +5518,7 @@ does not match the <code>jj help</code> output exactly.</p>
 <li><code>git</code> — Commands for working with the underlying Git repo</li>
 <li><code>init</code> — Create a new repo in the given directory</li>
 <li><code>interdiff</code> — Compare the changes of two commits</li>
-<li><code>log</code> — Show commit history</li>
+<li><code>log</code> — Show revision history</li>
 <li><code>move</code> — Move changes from one revision into another</li>
 <li><code>new</code> — Create a new, empty change and (by default) edit it in the working copy</li>
 <li><code>next</code> — Move the current working copy commit to the next child revision in the
@@ -6214,11 +6214,13 @@ Martin von Zweigbergk</p>
 <li><code>--context &lt;CONTEXT&gt;</code> — Number of lines of context to show</li>
 </ul>
 <h2 id="jj-log"><code>jj log</code><a class="headerlink" href="#jj-log" title="Permanent link">&para;</a></h2>
-<p>Show commit history</p>
+<p>Show revision history</p>
+<p>Renders a graphical view of the project's history, ordered with children before parents. By default, the output only includes mutable revisions, along with some additional revisions for context.</p>
+<p>Spans of revisions that are not included in the graph per <code>--revisions</code> are rendered as a synthetic node labeled "(elided revisions)".</p>
 <p><strong>Usage:</strong> <code>jj log [OPTIONS] [PATHS]...</code></p>
 <h6 id="arguments_27"><strong>Arguments:</strong><a class="headerlink" href="#arguments_27" title="Permanent link">&para;</a></h6>
 <ul>
-<li><code>&lt;PATHS&gt;</code> — Show commits modifying the given paths</li>
+<li><code>&lt;PATHS&gt;</code> — Show revisions modifying the given paths</li>
 </ul>
 <h6 id="options_27"><strong>Options:</strong><a class="headerlink" href="#options_27" title="Permanent link">&para;</a></h6>
 <ul>
