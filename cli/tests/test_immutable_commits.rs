@@ -207,9 +207,9 @@ fn test_rewrite_immutable_commands() {
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // squash
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["squash", "-r=main"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["squash", "-r=description(b)"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Commit 3d14df18607e is immutable
+    Error: Commit c8d4c7ca95d0 is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // unsquash
