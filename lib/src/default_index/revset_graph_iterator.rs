@@ -17,8 +17,9 @@
 use std::cmp::{min, Ordering};
 use std::collections::{BTreeMap, HashSet};
 
+use super::composite::CompositeIndex;
+use super::entry::{IndexEntry, IndexPosition};
 use crate::backend::CommitId;
-use crate::default_index::{CompositeIndex, IndexEntry, IndexPosition};
 use crate::revset_graph::{RevsetGraphEdge, RevsetGraphEdgeType};
 
 /// Like `RevsetGraphEdge`, but stores `IndexPosition` instead.
@@ -120,7 +121,7 @@ impl IndexGraphEdge {
 /// look-ahead by stopping at "c" since we're only interested in edges that
 /// could lead to "D", but that would require extra book-keeping to remember for
 /// later that the edges from "f" and "H" are only partially computed.
-pub struct RevsetGraphIterator<'revset, 'index> {
+pub(super) struct RevsetGraphIterator<'revset, 'index> {
     index: &'index CompositeIndex,
     input_set_iter: Box<dyn Iterator<Item = IndexEntry<'index>> + 'revset>,
     /// Commits in the input set we had to take out of the iterator while
@@ -139,6 +140,7 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
     pub fn new(
         index: &'index CompositeIndex,
         input_set_iter: Box<dyn Iterator<Item = IndexEntry<'index>> + 'revset>,
+        skip_transitive_edges: bool,
     ) -> RevsetGraphIterator<'revset, 'index> {
         RevsetGraphIterator {
             index,
@@ -146,13 +148,8 @@ impl<'revset, 'index> RevsetGraphIterator<'revset, 'index> {
             look_ahead: Default::default(),
             min_position: IndexPosition::MAX,
             edges: Default::default(),
-            skip_transitive_edges: true,
+            skip_transitive_edges,
         }
-    }
-
-    pub fn set_skip_transitive_edges(mut self, skip_transitive_edges: bool) -> Self {
-        self.skip_transitive_edges = skip_transitive_edges;
-        self
     }
 
     fn next_index_entry(&mut self) -> Option<IndexEntry<'index>> {

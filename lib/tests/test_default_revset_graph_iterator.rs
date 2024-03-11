@@ -73,10 +73,7 @@ fn test_graph_iterator_linearized(skip_transitive_edges: bool) {
     let root_commit = repo.store().root_commit();
 
     let revset = revset_for_commits(repo.as_ref(), &[&commit_a, &commit_d]);
-    let commits = revset
-        .iter_graph_impl()
-        .set_skip_transitive_edges(skip_transitive_edges)
-        .collect_vec();
+    let commits = revset.iter_graph_impl(skip_transitive_edges).collect_vec();
     assert_eq!(commits.len(), 2);
     assert_eq!(commits[0].0, *commit_d.id());
     assert_eq!(commits[1].0, *commit_a.id());
@@ -113,10 +110,7 @@ fn test_graph_iterator_virtual_octopus(skip_transitive_edges: bool) {
     let root_commit = repo.store().root_commit();
 
     let revset = revset_for_commits(repo.as_ref(), &[&commit_a, &commit_b, &commit_c, &commit_f]);
-    let commits = revset
-        .iter_graph_impl()
-        .set_skip_transitive_edges(skip_transitive_edges)
-        .collect_vec();
+    let commits = revset.iter_graph_impl(skip_transitive_edges).collect_vec();
     assert_eq!(commits.len(), 4);
     assert_eq!(commits[0].0, *commit_f.id());
     assert_eq!(commits[1].0, *commit_c.id());
@@ -164,10 +158,7 @@ fn test_graph_iterator_simple_fork(skip_transitive_edges: bool) {
     let root_commit = repo.store().root_commit();
 
     let revset = revset_for_commits(repo.as_ref(), &[&commit_a, &commit_c, &commit_e]);
-    let commits = revset
-        .iter_graph_impl()
-        .set_skip_transitive_edges(skip_transitive_edges)
-        .collect_vec();
+    let commits = revset.iter_graph_impl(skip_transitive_edges).collect_vec();
     assert_eq!(commits.len(), 3);
     assert_eq!(commits[0].0, *commit_e.id());
     assert_eq!(commits[1].0, *commit_c.id());
@@ -205,10 +196,7 @@ fn test_graph_iterator_multiple_missing(skip_transitive_edges: bool) {
     let root_commit = repo.store().root_commit();
 
     let revset = revset_for_commits(repo.as_ref(), &[&commit_b, &commit_f]);
-    let commits = revset
-        .iter_graph_impl()
-        .set_skip_transitive_edges(skip_transitive_edges)
-        .collect_vec();
+    let commits = revset.iter_graph_impl(skip_transitive_edges).collect_vec();
     assert_eq!(commits.len(), 2);
     assert_eq!(commits[0].0, *commit_f.id());
     assert_eq!(commits[1].0, *commit_b.id());
@@ -249,10 +237,7 @@ fn test_graph_iterator_edge_to_ancestor(skip_transitive_edges: bool) {
     let repo = tx.commit("test");
 
     let revset = revset_for_commits(repo.as_ref(), &[&commit_c, &commit_d, &commit_f]);
-    let commits = revset
-        .iter_graph_impl()
-        .set_skip_transitive_edges(skip_transitive_edges)
-        .collect_vec();
+    let commits = revset.iter_graph_impl(skip_transitive_edges).collect_vec();
     assert_eq!(commits.len(), 3);
     assert_eq!(commits[0].0, *commit_f.id());
     assert_eq!(commits[1].0, *commit_d.id());
@@ -308,10 +293,7 @@ fn test_graph_iterator_edge_escapes_from_(skip_transitive_edges: bool) {
         repo.as_ref(),
         &[&commit_a, &commit_d, &commit_g, &commit_h, &commit_j],
     );
-    let commits = revset
-        .iter_graph_impl()
-        .set_skip_transitive_edges(skip_transitive_edges)
-        .collect_vec();
+    let commits = revset.iter_graph_impl(skip_transitive_edges).collect_vec();
     assert_eq!(commits.len(), 5);
     assert_eq!(commits[0].0, *commit_j.id());
     assert_eq!(commits[1].0, *commit_h.id());
