@@ -136,7 +136,7 @@ pub(crate) fn cmd_log(
             for (commit_id, edges) in iter.take(args.limit.unwrap_or(usize::MAX)) {
                 // The graph is keyed by (CommitId, is_synthetic)
                 let mut graphlog_edges = vec![];
-                // TODO: Should we update RevsetGraphIterator to yield this flag instead of all
+                // TODO: Should we update revset.iter_graph() to yield this flag instead of all
                 // the missing edges since we don't care about where they point here
                 // anyway?
                 let mut has_missing = false;

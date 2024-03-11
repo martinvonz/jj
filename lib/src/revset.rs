@@ -2410,7 +2410,9 @@ pub trait Revset: fmt::Debug {
     where
         Self: 'a;
 
-    fn iter_graph(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + '_>;
+    fn iter_graph<'a>(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + 'a>
+    where
+        Self: 'a;
 
     fn is_empty(&self) -> bool;
 
