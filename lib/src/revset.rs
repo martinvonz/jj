@@ -1800,6 +1800,27 @@ fn fold_redundant_expression(expression: &Rc<RevsetExpression>) -> TransformedEx
     })
 }
 
+fn to_difference_range(
+    expression: &Rc<RevsetExpression>,
+    complement: &Rc<RevsetExpression>,
+) -> TransformedExpression {
+    match (expression.as_ref(), complement.as_ref()) {
+        // ::heads & ~(::roots) -> roots..heads
+        (
+            RevsetExpression::Ancestors { heads, generation },
+            RevsetExpression::Ancestors {
+                heads: roots,
+                generation: GENERATION_RANGE_FULL,
+            },
+        ) => Some(Rc::new(RevsetExpression::Range {
+            roots: roots.clone(),
+            heads: heads.clone(),
+            generation: generation.clone(),
+        })),
+        _ => None,
+    }
+}
+
 /// Transforms negative intersection to difference. Redundant intersections like
 /// `all() & e` should have been removed.
 fn fold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression {
@@ -1807,21 +1828,7 @@ fn fold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression {
         expression: &Rc<RevsetExpression>,
         complement: &Rc<RevsetExpression>,
     ) -> Rc<RevsetExpression> {
-        match (expression.as_ref(), complement.as_ref()) {
-            // ::heads & ~(::roots) -> roots..heads
-            (
-                RevsetExpression::Ancestors { heads, generation },
-                RevsetExpression::Ancestors {
-                    heads: roots,
-                    generation: GENERATION_RANGE_FULL,
-                },
-            ) => Rc::new(RevsetExpression::Range {
-                roots: roots.clone(),
-                heads: heads.clone(),
-                generation: generation.clone(),
-            }),
-            _ => expression.minus(complement),
-        }
+        to_difference_range(expression, complement).unwrap_or_else(|| expression.minus(complement))
     }
 
     transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
