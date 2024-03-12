@@ -34,7 +34,9 @@ use jj_lib::working_copy::{
     CheckoutError, CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions,
     WorkingCopy, WorkingCopyFactory, WorkingCopyStateError,
 };
-use jj_lib::workspace::{default_working_copy_factories, Workspace, WorkspaceInitError};
+use jj_lib::workspace::{
+    create_jj_dir, default_working_copy_factories, Workspace, WorkspaceInitError,
+};
 
 #[derive(clap::Parser, Clone, Debug)]
 enum CustomCommand {
@@ -58,6 +60,7 @@ fn run_custom_command(
             Workspace::init_with_factories(
                 command_helper.settings(),
                 wc_path,
+                create_jj_dir,
                 &backend_initializer,
                 Signer::from_settings(command_helper.settings())
                     .map_err(WorkspaceInitError::SignInit)?,

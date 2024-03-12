@@ -87,7 +87,11 @@ pub struct Workspace {
     working_copy: Box<dyn WorkingCopy>,
 }
 
-fn create_jj_dir(workspace_root: &Path) -> Result<PathBuf, WorkspaceInitError> {
+/// Default function to create the .jj directory inside an existing repo
+/// directory.
+///
+/// Custom extensions can override this to do alternative initialization.
+pub fn create_jj_dir(workspace_root: &Path) -> Result<PathBuf, WorkspaceInitError> {
     let jj_dir = workspace_root.join(".jj");
     match std::fs::create_dir(&jj_dir).context(&jj_dir) {
         Ok(()) => Ok(jj_dir),
@@ -230,6 +234,7 @@ impl Workspace {
     pub fn init_with_factories(
         user_settings: &UserSettings,
         workspace_root: &Path,
+        jj_dir_creator: impl FnOnce(&Path) -> Result<PathBuf, WorkspaceInitError>,
         backend_initializer: &BackendInitializer,
         signer: Signer,
         op_store_initializer: &OpStoreInitializer,
@@ -239,7 +244,7 @@ impl Workspace {
         working_copy_factory: &dyn WorkingCopyFactory,
         workspace_id: WorkspaceId,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        let jj_dir = create_jj_dir(workspace_root)?;
+        let jj_dir = jj_dir_creator(workspace_root)?;
         (|| {
             let repo_dir = jj_dir.join("repo");
             std::fs::create_dir(&repo_dir).context(&repo_dir)?;
@@ -284,6 +289,7 @@ impl Workspace {
         Self::init_with_factories(
             user_settings,
             workspace_root,
+            create_jj_dir,
             backend_initializer,
             signer,
             ReadonlyRepo::default_op_store_initializer(),
