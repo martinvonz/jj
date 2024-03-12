@@ -2344,7 +2344,7 @@ impl VisibilityResolutionContext<'_> {
         // but if it does, the heads set could be extended to include the commits
         // (and `remote_branches()`) specified in the revset expression. Alternatively,
         // some optimization rules could be removed, but that means `author(_) & x`
-        // would have to test `:visible_heads() & x`.
+        // would have to test `::visible_heads() & x`.
         ResolvedExpression::Ancestors {
             heads: self.resolve_visible_heads().into(),
             generation: GENERATION_RANGE_FULL,
