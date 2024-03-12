@@ -132,11 +132,14 @@ pub enum DiffCheckoutError {
     TreeState(#[from] TreeStateError),
 }
 
+// TODO: Extract this type and related functions to a separate file, to be used
+// by the external tools and edit_diff_web.
 struct DiffWorkingCopies {
-    _temp_dir: TempDir,
+    _temp_dir: TempDir, // Temp dir will be deleted when this is dropped
     left_tree_state: TreeState,
     right_tree_state: TreeState,
     output_tree_state: Option<TreeState>,
+    instructions_path_to_cleanup: Option<PathBuf>,
 }
 
 impl DiffWorkingCopies {
@@ -277,7 +280,106 @@ fn check_out_trees(
         left_tree_state,
         right_tree_state,
         output_tree_state,
+        instructions_path_to_cleanup: None,
     })
+}
+
+/// Checks out the trees, populates JJ_INSTRUCTIONS, and makes appropriate sides
+/// readonly.
+fn check_out_trees_for_diffedit(
+    store: &Arc<Store>,
+    left_tree: &MergedTree,
+    right_tree: &MergedTree,
+    matcher: &dyn Matcher,
+    output_is: Option<DiffSide>,
+    instructions: Option<&str>,
+) -> Result<DiffWorkingCopies, DiffEditError> {
+    let mut diff_wc = check_out_trees(store, left_tree, right_tree, matcher, output_is)?;
+    let got_output_field = output_is.is_some();
+
+    set_readonly_recursively(diff_wc.left_working_copy_path())
+        .map_err(ExternalToolError::SetUpDir)?;
+    if got_output_field {
+        set_readonly_recursively(diff_wc.right_working_copy_path())
+            .map_err(ExternalToolError::SetUpDir)?;
+    }
+    let output_wc_path = diff_wc
+        .output_working_copy_path()
+        .unwrap_or_else(|| diff_wc.right_working_copy_path());
+    let instructions_path_to_cleanup = output_wc_path.join("JJ-INSTRUCTIONS");
+    // In the unlikely event that the file already exists, then the user will simply
+    // not get any instructions.
+    let add_instructions = if !instructions_path_to_cleanup.exists() {
+        instructions
+    } else {
+        None
+    };
+    if let Some(instructions) = add_instructions {
+        let mut output_instructions_file =
+            File::create(&instructions_path_to_cleanup).map_err(ExternalToolError::SetUpDir)?;
+        if diff_wc.right_working_copy_path() != output_wc_path {
+            let mut right_instructions_file =
+                File::create(diff_wc.right_working_copy_path().join("JJ-INSTRUCTIONS"))
+                    .map_err(ExternalToolError::SetUpDir)?;
+            right_instructions_file
+                .write_all(
+                    b"\
+The content of this pane should NOT be edited. Any edits will be
+lost.
+
+You are using the experimental 3-pane diff editor config. Some of
+the following instructions may have been written with a 2-pane
+diff editing in mind and be a little inaccurate.
+
+",
+                )
+                .map_err(ExternalToolError::SetUpDir)?;
+            right_instructions_file
+                .write_all(instructions.as_bytes())
+                .map_err(ExternalToolError::SetUpDir)?;
+            // Note that some diff tools might not show this message and delete the contents
+            // of the output dir instead. Meld does show this message.
+            output_instructions_file
+                .write_all(
+                    b"\
+Please make your edits in this pane.
+
+You are using the experimental 3-pane diff editor config. Some of
+the following instructions may have been written with a 2-pane
+diff editing in mind and be a little inaccurate.
+
+",
+                )
+                .map_err(ExternalToolError::SetUpDir)?;
+        }
+        output_instructions_file
+            .write_all(instructions.as_bytes())
+            .map_err(ExternalToolError::SetUpDir)?;
+        diff_wc.instructions_path_to_cleanup = Some(instructions_path_to_cleanup);
+    }
+
+    Ok(diff_wc)
+}
+
+fn snapshot_diffedit_results(
+    diff_wc: DiffWorkingCopies,
+    base_ignores: Arc<GitIgnoreFile>,
+) -> Result<MergedTreeId, DiffEditError> {
+    if let Some(path) = diff_wc.instructions_path_to_cleanup {
+        std::fs::remove_file(path).ok();
+    }
+
+    // Snapshot changes in the temporary output directory.
+    let mut output_tree_state = diff_wc
+        .output_tree_state
+        .unwrap_or(diff_wc.right_tree_state);
+    output_tree_state.snapshot(SnapshotOptions {
+        base_ignores,
+        fsmonitor_kind: FsmonitorKind::None,
+        progress: None,
+        max_new_file_size: u64::MAX,
+    })?;
+    Ok(output_tree_state.current_tree_id().clone())
 }
 
 pub fn run_mergetool_external(
@@ -423,72 +525,14 @@ pub fn edit_diff_external(
 ) -> Result<MergedTreeId, DiffEditError> {
     let got_output_field = find_all_variables(&editor.edit_args).contains(&"output");
     let store = left_tree.store();
-    let diff_wc = check_out_trees(
+    let diff_wc = check_out_trees_for_diffedit(
         store,
         left_tree,
         right_tree,
         matcher,
         got_output_field.then_some(DiffSide::Right),
+        instructions,
     )?;
-    set_readonly_recursively(diff_wc.left_working_copy_path())
-        .map_err(ExternalToolError::SetUpDir)?;
-    if got_output_field {
-        set_readonly_recursively(diff_wc.right_working_copy_path())
-            .map_err(ExternalToolError::SetUpDir)?;
-    }
-    let output_wc_path = diff_wc
-        .output_working_copy_path()
-        .unwrap_or_else(|| diff_wc.right_working_copy_path());
-    let instructions_path_to_cleanup = output_wc_path.join("JJ-INSTRUCTIONS");
-    // In the unlikely event that the file already exists, then the user will simply
-    // not get any instructions.
-    let add_instructions = if !instructions_path_to_cleanup.exists() {
-        instructions
-    } else {
-        None
-    };
-    if let Some(instructions) = add_instructions {
-        let mut output_instructions_file =
-            File::create(&instructions_path_to_cleanup).map_err(ExternalToolError::SetUpDir)?;
-        if diff_wc.right_working_copy_path() != output_wc_path {
-            let mut right_instructions_file =
-                File::create(diff_wc.right_working_copy_path().join("JJ-INSTRUCTIONS"))
-                    .map_err(ExternalToolError::SetUpDir)?;
-            right_instructions_file
-                .write_all(
-                    b"\
-The content of this pane should NOT be edited. Any edits will be
-lost.
-
-You are using the experimental 3-pane diff editor config. Some of
-the following instructions may have been written with a 2-pane
-diff editing in mind and be a little inaccurate.
-
-",
-                )
-                .map_err(ExternalToolError::SetUpDir)?;
-            right_instructions_file
-                .write_all(instructions.as_bytes())
-                .map_err(ExternalToolError::SetUpDir)?;
-            // Note that some diff tools might not show this message and delete the contents
-            // of the output dir instead. Meld does show this message.
-            output_instructions_file
-                .write_all(
-                    b"\
-Please make your edits in this pane.
-
-You are using the experimental 3-pane diff editor config. Some of
-the following instructions may have been written with a 2-pane
-diff editing in mind and be a little inaccurate.
-
-",
-                )
-                .map_err(ExternalToolError::SetUpDir)?;
-        }
-        output_instructions_file
-            .write_all(instructions.as_bytes())
-            .map_err(ExternalToolError::SetUpDir)?;
-    }
 
     let patterns = diff_wc.to_command_variables();
     let mut cmd = Command::new(&editor.program);
@@ -505,21 +549,8 @@ diff editing in mind and be a little inaccurate.
             exit_status,
         }));
     }
-    if add_instructions.is_some() {
-        std::fs::remove_file(instructions_path_to_cleanup).ok();
-    }
 
-    // Snapshot changes in the temporary output directory.
-    let mut output_tree_state = diff_wc
-        .output_tree_state
-        .unwrap_or(diff_wc.right_tree_state);
-    output_tree_state.snapshot(SnapshotOptions {
-        base_ignores,
-        fsmonitor_kind: FsmonitorKind::None,
-        progress: None,
-        max_new_file_size: u64::MAX,
-    })?;
-    Ok(output_tree_state.current_tree_id().clone())
+    snapshot_diffedit_results(diff_wc, base_ignores)
 }
 
 /// Generates textual diff by the specified `tool`, and writes into `writer`.
