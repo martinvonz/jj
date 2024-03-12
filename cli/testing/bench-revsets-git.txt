@@ -15,6 +15,7 @@ v2.39.0..v2.40.0
 v2.39.0::v2.40.0
 # Mostly recent history
 v2.40.0-..
+~(::v2.40.0)
 # Tags and branches
 tags()
 branches()

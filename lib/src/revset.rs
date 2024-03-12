@@ -1865,6 +1865,23 @@ fn fold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression {
     })
 }
 
+/// Transforms remaining negated ancestors `~(::h)` to range `h..`.
+///
+/// Since this rule inserts redundant `visible_heads()`, negative intersections
+/// should have been transformed.
+fn fold_not_in_ancestors(expression: &Rc<RevsetExpression>) -> TransformedExpression {
+    transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
+        RevsetExpression::NotIn(complement)
+            if matches!(complement.as_ref(), RevsetExpression::Ancestors { .. }) =>
+        {
+            // ~(::heads) -> heads..
+            // ~(::heads-) -> ~ancestors(heads, 1..) -> heads-..
+            to_difference_range(&RevsetExpression::visible_heads().ancestors(), complement)
+        }
+        _ => None,
+    })
+}
+
 /// Transforms binary difference to more primitive negative intersection.
 ///
 /// For example, `all() ~ e` will become `all() & ~e`, which can be simplified
@@ -1953,7 +1970,8 @@ pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
     let expression = fold_redundant_expression(&expression).unwrap_or(expression);
     let expression = fold_generation(&expression).unwrap_or(expression);
     let expression = internalize_filter(&expression).unwrap_or(expression);
-    fold_difference(&expression).unwrap_or(expression)
+    let expression = fold_difference(&expression).unwrap_or(expression);
+    fold_not_in_ancestors(&expression).unwrap_or(expression)
 }
 
 // TODO: find better place to host this function (or add compile-time revset
@@ -3773,6 +3791,84 @@ mod tests {
                     "bar",
                 ),
             ),
+        )
+        "###);
+    }
+
+    #[test]
+    fn test_optimize_not_in_ancestors() {
+        // '~(::foo)' is equivalent to 'foo..'.
+        insta::assert_debug_snapshot!(optimize(parse("~(::foo)").unwrap()), @r###"
+        Range {
+            roots: CommitRef(
+                Symbol(
+                    "foo",
+                ),
+            ),
+            heads: CommitRef(
+                VisibleHeads,
+            ),
+            generation: 0..18446744073709551615,
+        }
+        "###);
+
+        // '~(::foo-)' is equivalent to 'foo-..'.
+        insta::assert_debug_snapshot!(optimize(parse("~(::foo-)").unwrap()), @r###"
+        Range {
+            roots: Ancestors {
+                heads: CommitRef(
+                    Symbol(
+                        "foo",
+                    ),
+                ),
+                generation: 1..2,
+            },
+            heads: CommitRef(
+                VisibleHeads,
+            ),
+            generation: 0..18446744073709551615,
+        }
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("~(::foo--)").unwrap()), @r###"
+        Range {
+            roots: Ancestors {
+                heads: CommitRef(
+                    Symbol(
+                        "foo",
+                    ),
+                ),
+                generation: 2..3,
+            },
+            heads: CommitRef(
+                VisibleHeads,
+            ),
+            generation: 0..18446744073709551615,
+        }
+        "###);
+
+        // Bounded ancestors shouldn't be substituted.
+        insta::assert_debug_snapshot!(optimize(parse("~ancestors(foo, 1)").unwrap()), @r###"
+        NotIn(
+            Ancestors {
+                heads: CommitRef(
+                    Symbol(
+                        "foo",
+                    ),
+                ),
+                generation: 0..1,
+            },
+        )
+        "###);
+        insta::assert_debug_snapshot!(optimize(parse("~ancestors(foo-, 1)").unwrap()), @r###"
+        NotIn(
+            Ancestors {
+                heads: CommitRef(
+                    Symbol(
+                        "foo",
+                    ),
+                ),
+                generation: 1..2,
+            },
         )
         "###);
     }
