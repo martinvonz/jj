@@ -14,8 +14,8 @@
 
 #![allow(missing_docs)]
 
+use std::any::Any;
 use std::collections::{HashMap, HashSet};
-use std::convert::Infallible;
 use std::ops::Range;
 use std::path::Path;
 use std::rc::Rc;
@@ -341,6 +341,30 @@ pub enum RevsetFilterPredicate {
     HasConflict,
 }
 
+pub trait RevsetExpressionExtension: std::fmt::Debug {
+    fn as_any(&self) -> &dyn Any;
+
+    fn transform(
+        &self,
+        transform_fn: &mut dyn FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+    ) -> TransformedExpressionResult;
+
+    fn resolve(
+        &self,
+        resolve_fn: &dyn Fn(&RevsetExpression) -> ResolvedExpression,
+    ) -> ResolvedExpression;
+
+    fn eq(&self, other: &dyn RevsetExpressionExtension) -> bool;
+}
+
+impl std::cmp::PartialEq for dyn RevsetExpressionExtension {
+    fn eq(&self, other: &Self) -> bool {
+        <Self as RevsetExpressionExtension>::eq(self, other)
+    }
+}
+
+impl std::cmp::Eq for dyn RevsetExpressionExtension {}
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum RevsetExpression {
     None,
@@ -387,6 +411,7 @@ pub enum RevsetExpression {
     Union(Rc<RevsetExpression>, Rc<RevsetExpression>),
     Intersection(Rc<RevsetExpression>, Rc<RevsetExpression>),
     Difference(Rc<RevsetExpression>, Rc<RevsetExpression>),
+    Extension(Rc<Box<dyn RevsetExpressionExtension>>),
 }
 
 impl RevsetExpression {
@@ -654,6 +679,35 @@ pub enum ResolvedPredicateExpression {
     ),
 }
 
+pub trait ResolvedExpressionExtension: std::fmt::Debug {
+    fn as_any(&self) -> &dyn Any;
+
+    // TODO: Rust is dumb. Rust complains that the type for `evaluate_fn` is too
+    // complex and should be extracted to a type alias, but doing so somehow alters
+    // the lifetime semantics of this function causing a compiler error in
+    // revset_engine.rs. Specifically, the following type alias does NOT work:
+    //
+    // pub type EvaluateFn<'index> = dyn Fn(&ResolvedExpression) -> Result<Box<dyn
+    // Revset + 'index>, RevsetEvaluationError>;
+    #[allow(clippy::type_complexity)]
+    fn evaluate<'index>(
+        &self,
+        evaluate_fn: &dyn Fn(
+            &ResolvedExpression,
+        ) -> Result<Box<dyn Revset + 'index>, RevsetEvaluationError>,
+    ) -> Result<Box<dyn Revset + 'index>, RevsetEvaluationError>;
+
+    fn eq(&self, other: &dyn ResolvedExpressionExtension) -> bool;
+}
+
+impl std::cmp::PartialEq for dyn ResolvedExpressionExtension {
+    fn eq(&self, other: &Self) -> bool {
+        <Self as ResolvedExpressionExtension>::eq(self, other)
+    }
+}
+
+impl std::cmp::Eq for dyn ResolvedExpressionExtension {}
+
 /// Describes evaluation plan of revset expression.
 ///
 /// Unlike `RevsetExpression`, this doesn't contain unresolved symbols or `View`
@@ -694,6 +748,7 @@ pub enum ResolvedExpression {
     /// Intersects expressions by merging.
     Intersection(Box<ResolvedExpression>, Box<ResolvedExpression>),
     Difference(Box<ResolvedExpression>, Box<ResolvedExpression>),
+    Extension(Rc<Box<dyn ResolvedExpressionExtension>>),
 }
 
 impl ResolvedExpression {
@@ -704,6 +759,10 @@ impl ResolvedExpression {
         repo.index().evaluate_revset(self, repo.store())
     }
 }
+
+pub type RevsetFunctionMap = HashMap<&'static str, Box<RevsetFunction>>;
+
+type RevsetFunctionMapRef<'a> = HashMap<&'static str, &'a RevsetFunction>;
 
 #[derive(Clone, Debug, Default)]
 pub struct RevsetAliasesMap {
@@ -802,7 +861,8 @@ impl fmt::Display for RevsetAliasId<'_> {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct ParseState<'a> {
+pub struct ParseState<'a> {
+    function_map: &'a RevsetFunctionMapRef<'a>,
     aliases_map: &'a RevsetAliasesMap,
     aliases_expanding: &'a [RevsetAliasId<'a>],
     locals: &'a HashMap<&'a str, Rc<RevsetExpression>>,
@@ -830,6 +890,7 @@ impl ParseState<'_> {
         let mut aliases_expanding = self.aliases_expanding.to_vec();
         aliases_expanding.push(id);
         let expanding_state = ParseState {
+            function_map: self.function_map,
             aliases_map: self.aliases_map,
             aliases_expanding: &aliases_expanding,
             locals,
@@ -856,7 +917,7 @@ fn parse_program(
     parse_expression_rule(first.into_inner(), state)
 }
 
-fn parse_expression_rule(
+pub fn parse_expression_rule(
     pairs: Pairs<Rule>,
     state: ParseState,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
@@ -1109,24 +1170,27 @@ fn parse_function_expression(
         state.with_alias_expanding(id, &locals, primary_span, |state| {
             parse_program(defn, state)
         })
-    } else if let Some(func) = BUILTIN_FUNCTION_MAP.get(name) {
+    } else if let Some(func) = state.function_map.get(name) {
         func(name, arguments_pair, state)
     } else {
         Err(RevsetParseError::with_span(
             RevsetParseErrorKind::NoSuchFunction {
                 name: name.to_owned(),
-                candidates: collect_similar(name, &collect_function_names(state.aliases_map)),
+                candidates: collect_similar(
+                    name,
+                    &collect_function_names(state.function_map, state.aliases_map),
+                ),
             },
             name_pair.as_span(),
         ))
     }
 }
 
-fn collect_function_names(aliases_map: &RevsetAliasesMap) -> Vec<String> {
-    let mut names = BUILTIN_FUNCTION_MAP
-        .keys()
-        .map(|&n| n.to_owned())
-        .collect_vec();
+fn collect_function_names(
+    function_map: &RevsetFunctionMapRef,
+    aliases_map: &RevsetAliasesMap,
+) -> Vec<String> {
+    let mut names = function_map.keys().map(|&n| n.to_owned()).collect_vec();
     names.extend(aliases_map.function_aliases.keys().map(|n| n.to_owned()));
     names.sort_unstable();
     names.dedup();
@@ -1345,7 +1409,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
 
 type OptionalArg<'i> = Option<Pair<'i, Rule>>;
 
-fn expect_no_arguments(
+pub fn expect_no_arguments(
     function_name: &str,
     arguments_pair: Pair<Rule>,
 ) -> Result<(), RevsetParseError> {
@@ -1353,7 +1417,7 @@ fn expect_no_arguments(
     Ok(())
 }
 
-fn expect_one_argument<'i>(
+pub fn expect_one_argument<'i>(
     function_name: &str,
     arguments_pair: Pair<'i, Rule>,
 ) -> Result<Pair<'i, Rule>, RevsetParseError> {
@@ -1361,7 +1425,7 @@ fn expect_one_argument<'i>(
     Ok(arg)
 }
 
-fn expect_arguments<'i, const N: usize, const M: usize>(
+pub fn expect_arguments<'i, const N: usize, const M: usize>(
     function_name: &str,
     arguments_pair: Pair<'i, Rule>,
 ) -> Result<([Pair<'i, Rule>; N], [OptionalArg<'i>; M]), RevsetParseError> {
@@ -1372,7 +1436,7 @@ fn expect_arguments<'i, const N: usize, const M: usize>(
 ///
 /// `argument_names` is a list of argument names. Unnamed positional arguments
 /// should be padded with `""`.
-fn expect_named_arguments<'i, const N: usize, const M: usize>(
+pub fn expect_named_arguments<'i, const N: usize, const M: usize>(
     function_name: &str,
     argument_names: &[&str],
     arguments_pair: Pair<'i, Rule>,
@@ -1382,7 +1446,7 @@ fn expect_named_arguments<'i, const N: usize, const M: usize>(
     Ok((required.try_into().unwrap(), optional.try_into().unwrap()))
 }
 
-fn expect_named_arguments_vec<'i>(
+pub fn expect_named_arguments_vec<'i>(
     function_name: &str,
     argument_names: &[&str],
     arguments_pair: Pair<'i, Rule>,
@@ -1465,7 +1529,7 @@ fn expect_named_arguments_vec<'i>(
     Ok((required, optional))
 }
 
-fn parse_function_argument_to_string(
+pub fn parse_function_argument_to_string(
     name: &str,
     pair: Pair<Rule>,
     state: ParseState,
@@ -1473,7 +1537,7 @@ fn parse_function_argument_to_string(
     parse_function_argument_as_literal("string", name, pair, state)
 }
 
-fn parse_function_argument_to_string_pattern(
+pub fn parse_function_argument_to_string_pattern(
     name: &str,
     pair: Pair<Rule>,
     state: ParseState,
@@ -1508,7 +1572,7 @@ fn parse_function_argument_to_string_pattern(
     Ok(pattern)
 }
 
-fn parse_function_argument_as_literal<T: FromStr>(
+pub fn parse_function_argument_as_literal<T: FromStr>(
     type_name: &str,
     name: &str,
     pair: Pair<Rule>,
@@ -1542,7 +1606,20 @@ pub fn parse(
     revset_str: &str,
     context: &RevsetParseContext,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    let mut function_map = RevsetFunctionMapRef::new();
+    for (name, function) in &*BUILTIN_FUNCTION_MAP {
+        function_map.insert(name, function);
+    }
+    if let Some(ext) = context.function_map_extension {
+        for (name, function) in ext {
+            if function_map.insert(name, function).is_some() {
+                panic!("Extension overrides builtin function '{name}'");
+            }
+        }
+    }
+
     let state = ParseState {
+        function_map: &function_map,
         aliases_map: context.aliases_map,
         aliases_expanding: &[],
         locals: &HashMap::new(),
@@ -1554,15 +1631,15 @@ pub fn parse(
 }
 
 /// `Some` for rewritten expression, or `None` to reuse the original expression.
-type TransformedExpression = Option<Rc<RevsetExpression>>;
+pub type TransformedExpression = Option<Rc<RevsetExpression>>;
+pub type TransformedExpressionResult = Result<TransformedExpression, RevsetResolutionError>;
 
 /// Walks `expression` tree and applies `f` recursively from leaf nodes.
 fn transform_expression_bottom_up(
     expression: &Rc<RevsetExpression>,
     mut f: impl FnMut(&Rc<RevsetExpression>) -> TransformedExpression,
 ) -> TransformedExpression {
-    try_transform_expression::<Infallible>(expression, |_| Ok(None), |expression| Ok(f(expression)))
-        .unwrap()
+    try_transform_expression(expression, |_| Ok(None), |expression| Ok(f(expression))).unwrap()
 }
 
 /// Walks `expression` tree and applies transformation recursively.
@@ -1577,16 +1654,16 @@ fn transform_expression_bottom_up(
 /// If no nodes rewritten, this function returns `None`.
 /// `std::iter::successors()` could be used if the transformation needs to be
 /// applied repeatedly until converged.
-fn try_transform_expression<E>(
+fn try_transform_expression(
     expression: &Rc<RevsetExpression>,
-    mut pre: impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-    mut post: impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-) -> Result<TransformedExpression, E> {
-    fn transform_child_rec<E>(
+    mut pre: impl FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+    mut post: impl FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+) -> TransformedExpressionResult {
+    fn transform_child_rec(
         expression: &Rc<RevsetExpression>,
-        pre: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-        post: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-    ) -> Result<TransformedExpression, E> {
+        pre: &mut impl FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+        post: &mut impl FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+    ) -> Result<TransformedExpression, RevsetResolutionError> {
         Ok(match expression.as_ref() {
             RevsetExpression::None => None,
             RevsetExpression::All => None,
@@ -1658,16 +1735,20 @@ fn try_transform_expression<E>(
                     },
                 )
             }
+            RevsetExpression::Extension(extension) => {
+                let mut transform_fn = |expr: &_| transform_rec(expr, pre, post);
+                return extension.transform(&mut transform_fn);
+            }
         }
         .map(Rc::new))
     }
 
     #[allow(clippy::type_complexity)]
-    fn transform_rec_pair<E>(
+    fn transform_rec_pair(
         (expression1, expression2): (&Rc<RevsetExpression>, &Rc<RevsetExpression>),
-        pre: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-        post: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-    ) -> Result<Option<(Rc<RevsetExpression>, Rc<RevsetExpression>)>, E> {
+        pre: &mut impl FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+        post: &mut impl FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+    ) -> Result<Option<(Rc<RevsetExpression>, Rc<RevsetExpression>)>, RevsetResolutionError> {
         match (
             transform_rec(expression1, pre, post)?,
             transform_rec(expression2, pre, post)?,
@@ -1681,11 +1762,11 @@ fn try_transform_expression<E>(
         }
     }
 
-    fn transform_rec<E>(
+    fn transform_rec(
         expression: &Rc<RevsetExpression>,
-        pre: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-        post: &mut impl FnMut(&Rc<RevsetExpression>) -> Result<TransformedExpression, E>,
-    ) -> Result<TransformedExpression, E> {
+        pre: &mut impl FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+        post: &mut impl FnMut(&Rc<RevsetExpression>) -> TransformedExpressionResult,
+    ) -> TransformedExpressionResult {
         if let Some(new_expression) = pre(expression)? {
             return Ok(Some(new_expression));
         }
@@ -1842,6 +1923,22 @@ fn fold_difference(expression: &Rc<RevsetExpression>) -> TransformedExpression {
     })
 }
 
+fn optimize_extensions(expression: &Rc<RevsetExpression>) -> TransformedExpression {
+    transform_expression_bottom_up(expression, |expression| match expression.as_ref() {
+        RevsetExpression::Extension(extension) => extension
+            .transform(&mut |expr| {
+                let new_expr = optimize(expr.clone());
+                if *expr == new_expr {
+                    Ok(None)
+                } else {
+                    Ok(Some(new_expr))
+                }
+            })
+            .unwrap(),
+        _ => None,
+    })
+}
+
 /// Transforms binary difference to more primitive negative intersection.
 ///
 /// For example, `all() ~ e` will become `all() & ~e`, which can be simplified
@@ -1926,6 +2023,7 @@ fn fold_generation(expression: &Rc<RevsetExpression>) -> TransformedExpression {
 /// Rewrites the given `expression` tree to reduce evaluation cost. Returns new
 /// tree.
 pub fn optimize(expression: Rc<RevsetExpression>) -> Rc<RevsetExpression> {
+    let expression = optimize_extensions(&expression).unwrap_or(expression);
     let expression = unfold_difference(&expression).unwrap_or(expression);
     let expression = fold_redundant_expression(&expression).unwrap_or(expression);
     let expression = fold_generation(&expression).unwrap_or(expression);
@@ -2334,6 +2432,9 @@ impl VisibilityResolutionContext<'_> {
                     self.resolve(expression2).into(),
                 )
             }
+            RevsetExpression::Extension(extension) => {
+                extension.as_ref().resolve(&|expr| self.resolve(expr))
+            }
         }
     }
 
@@ -2395,6 +2496,9 @@ impl VisibilityResolutionContext<'_> {
             RevsetExpression::Intersection(..) | RevsetExpression::Difference(..) => {
                 ResolvedPredicateExpression::Set(self.resolve(expression).into())
             }
+            RevsetExpression::Extension(extension) => ResolvedPredicateExpression::Set(
+                extension.resolve(&|expr| self.resolve(expr)).into(),
+            ),
         }
     }
 }
@@ -2474,6 +2578,7 @@ impl Iterator for ReverseRevsetIterator {
 /// Information needed to parse revset expression.
 #[derive(Clone, Debug)]
 pub struct RevsetParseContext<'a> {
+    pub function_map_extension: Option<&'a RevsetFunctionMap>,
     pub aliases_map: &'a RevsetAliasesMap,
     pub user_email: String,
     pub workspace: Option<RevsetWorkspaceContext<'a>>,
@@ -2513,6 +2618,7 @@ mod tests {
             aliases_map.insert(decl, defn).unwrap();
         }
         let context = RevsetParseContext {
+            function_map_extension: None,
             aliases_map: &aliases_map,
             user_email: "test.user@example.com".to_string(),
             workspace: None,
@@ -2537,6 +2643,7 @@ mod tests {
             aliases_map.insert(decl, defn).unwrap();
         }
         let context = RevsetParseContext {
+            function_map_extension: None,
             aliases_map: &aliases_map,
             user_email: "test.user@example.com".to_string(),
             workspace: Some(workspace_ctx),
