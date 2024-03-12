@@ -1279,6 +1279,15 @@ fn test_evaluate_expression_range() {
         ]
     );
 
+    // Range including merge ancestors: commit4-- == root | commit2
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!("{}--..{}", commit4.id().hex(), commit3.id().hex())
+        ),
+        vec![commit3.id().clone()]
+    );
+
     // Sibling commits
     assert_eq!(
         resolve_commit_ids(

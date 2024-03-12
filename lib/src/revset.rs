@@ -1817,6 +1817,22 @@ fn to_difference_range(
             heads: heads.clone(),
             generation: generation.clone(),
         })),
+        // ::heads & ~(::roots-) -> ::heads & ~ancestors(roots, 1..) -> roots-..heads
+        (
+            RevsetExpression::Ancestors { heads, generation },
+            RevsetExpression::Ancestors {
+                heads: roots,
+                generation:
+                    Range {
+                        start: roots_start,
+                        end: u64::MAX,
+                    },
+            },
+        ) => Some(Rc::new(RevsetExpression::Range {
+            roots: roots.ancestors_at(*roots_start),
+            heads: heads.clone(),
+            generation: generation.clone(),
+        })),
         _ => None,
     }
 }
@@ -4566,9 +4582,28 @@ mod tests {
             generation: 2..18446744073709551615,
         }
         "###);
-        // roots can also be folded, but range expression cannot be reconstructed.
-        // No idea if this is better than the original range expression.
+        // roots can also be folded, and the range expression is reconstructed.
         insta::assert_debug_snapshot!(optimize(parse("(foo--)..(bar---)").unwrap()), @r###"
+        Range {
+            roots: Ancestors {
+                heads: CommitRef(
+                    Symbol(
+                        "foo",
+                    ),
+                ),
+                generation: 2..3,
+            },
+            heads: CommitRef(
+                Symbol(
+                    "bar",
+                ),
+            ),
+            generation: 3..18446744073709551615,
+        }
+        "###);
+        // Bounded ancestors shouldn't be substituted to range.
+        insta::assert_debug_snapshot!(
+            optimize(parse("~ancestors(foo, 2) & ::bar").unwrap()), @r###"
         Difference(
             Ancestors {
                 heads: CommitRef(
@@ -4576,7 +4611,7 @@ mod tests {
                         "bar",
                     ),
                 ),
-                generation: 3..18446744073709551615,
+                generation: 0..18446744073709551615,
             },
             Ancestors {
                 heads: CommitRef(
@@ -4584,7 +4619,7 @@ mod tests {
                         "foo",
                     ),
                 ),
-                generation: 2..18446744073709551615,
+                generation: 0..2,
             },
         )
         "###);
