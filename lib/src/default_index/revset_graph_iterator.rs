@@ -17,8 +17,8 @@
 use std::cmp::min;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::collections::BTreeSet;
 use std::collections::HashSet;
+use std::collections::VecDeque;
 
 use super::composite::CompositeIndex;
 use super::entry::IndexEntry;
@@ -104,7 +104,7 @@ pub(super) struct RevsetGraphWalk<'a> {
     /// Commits in the input set we had to take out of the `RevWalk` while
     /// walking external edges. Does not necessarily include the commit
     /// we're currently about to emit.
-    look_ahead: BTreeSet<IndexPosition>,
+    look_ahead: VecDeque<IndexPosition>,
     /// The last consumed position. This is always the smallest key in the
     /// look_ahead set, but it's faster to keep a separate field for it.
     min_position: IndexPosition,
@@ -117,7 +117,7 @@ impl<'a> RevsetGraphWalk<'a> {
     pub fn new(input_set_walk: BoxedRevWalk<'a>, skip_transitive_edges: bool) -> Self {
         RevsetGraphWalk {
             input_set_walk,
-            look_ahead: Default::default(),
+            look_ahead: VecDeque::new(),
             min_position: IndexPosition::MAX,
             edges: Default::default(),
             skip_transitive_edges,
@@ -126,7 +126,7 @@ impl<'a> RevsetGraphWalk<'a> {
 
     fn next_index_position(&mut self, index: &CompositeIndex) -> Option<IndexPosition> {
         self.look_ahead
-            .pop_last()
+            .pop_back()
             .or_else(|| self.input_set_walk.next(index))
     }
 
@@ -170,7 +170,7 @@ impl<'a> RevsetGraphWalk<'a> {
         for parent in index_entry.parents() {
             let parent_position = parent.position();
             self.consume_to(index, parent_position);
-            if self.look_ahead.contains(&parent_position) {
+            if self.look_ahead.binary_search(&parent_position).is_ok() {
                 edges.push(IndexGraphEdge::direct(parent_position));
             } else {
                 let parent_edges = self.edges_from_external_commit(index, parent);
@@ -210,7 +210,7 @@ impl<'a> RevsetGraphWalk<'a> {
             for parent in entry.parents() {
                 let parent_position = parent.position();
                 self.consume_to(index, parent_position);
-                if self.look_ahead.contains(&parent_position) {
+                if self.look_ahead.binary_search(&parent_position).is_ok() {
                     // We have found a path back into the input set
                     edges.push(IndexGraphEdge::indirect(parent_position));
                 } else if let Some(parent_edges) = self.edges.get(&parent_position) {
@@ -262,7 +262,7 @@ impl<'a> RevsetGraphWalk<'a> {
         for edge in &edges {
             initial_targets.insert(edge.target);
             if edge.edge_type != GraphEdgeType::Missing {
-                assert!(self.look_ahead.contains(&edge.target));
+                assert!(self.look_ahead.binary_search(&edge.target).is_ok());
                 let entry = index.entry_by_pos(edge.target);
                 min_generation = min(min_generation, entry.generation_number());
                 work.extend_from_slice(self.edges_from_internal_commit(index, &entry));
@@ -282,7 +282,7 @@ impl<'a> RevsetGraphWalk<'a> {
                 // Already visited
                 continue;
             }
-            assert!(self.look_ahead.contains(&edge.target));
+            assert!(self.look_ahead.binary_search(&edge.target).is_ok());
             let entry = index.entry_by_pos(edge.target);
             if entry.generation_number() < min_generation {
                 continue;
@@ -299,7 +299,7 @@ impl<'a> RevsetGraphWalk<'a> {
     fn consume_to(&mut self, index: &CompositeIndex, pos: IndexPosition) {
         while pos < self.min_position {
             if let Some(next_position) = self.input_set_walk.next(index) {
-                self.look_ahead.insert(next_position);
+                self.look_ahead.push_front(next_position);
                 self.min_position = next_position;
             } else {
                 break;
