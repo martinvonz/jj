@@ -17,7 +17,7 @@ categories = ["version-control", "development-tools"]
 keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 
 [workspace.dependencies]
-anyhow = "1.0.80"
+anyhow = "1.0.81"
 assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
 async-trait = "0.1.77"
@@ -68,7 +68,7 @@ pest = "2.7.7"
 pest_derive = "2.7.7"
 pollster = "0.3.0"
 pretty_assertions = "1.4.0"
-proc-macro2 = "1.0.78"
+proc-macro2 = "1.0.79"
 prost = "0.12.3"
 prost-build = "0.12.3"
 quote = "1.0.35"
@@ -93,7 +93,7 @@ syn = "2.0.52"
 tempfile = "3.10.1"
 test-case = "3.3.1"
 textwrap = "0.16.1"
-thiserror = "1.0.57"
+thiserror = "1.0.58"
 timeago = { version = "0.4.2", default-features = false }
 tokio = { version = "1.36.0" }
 toml_edit = { version = "0.19.15", features = ["serde"] }
