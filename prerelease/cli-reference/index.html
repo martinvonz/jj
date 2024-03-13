@@ -5521,11 +5521,10 @@ does not match the <code>jj help</code> output exactly.</p>
 <li><code>log</code> — Show revision history</li>
 <li><code>move</code> — Move changes from one revision into another</li>
 <li><code>new</code> — Create a new, empty change and (by default) edit it in the working copy</li>
-<li><code>next</code> — Move the current working copy commit to the next child revision in the
-repository.</li>
+<li><code>next</code> — Move the working-copy commit to the child revision</li>
 <li><code>obslog</code> — Show how a change has evolved</li>
 <li><code>operation</code> — Commands for working with the operation log</li>
-<li><code>prev</code> — Move the working copy commit to the parent of the current revision.</li>
+<li><code>prev</code> — Move the working-copy commit to the parent revision</li>
 <li><code>rebase</code> — Move revisions to different parent(s)</li>
 <li><code>resolve</code> — Resolve a conflicted file with an external merge tool</li>
 <li><code>restore</code> — Restore paths from another revision</li>
@@ -6334,8 +6333,7 @@ Martin von Zweigbergk</p>
 </li>
 </ul>
 <h2 id="jj-next"><code>jj next</code><a class="headerlink" href="#jj-next" title="Permanent link">&para;</a></h2>
-<p>Move the current working copy commit to the next child revision in the
-repository.</p>
+<p>Move the working-copy commit to the child revision</p>
 <p>The command moves you to the next child in a linear fashion.</p>
 <div class="highlight"><pre><span></span><code>D      D @
 |      |/
@@ -6503,7 +6501,7 @@ implied.
 </li>
 </ul>
 <h2 id="jj-prev"><code>jj prev</code><a class="headerlink" href="#jj-prev" title="Permanent link">&para;</a></h2>
-<p>Move the working copy commit to the parent of the current revision.</p>
+<p>Move the working-copy commit to the parent revision</p>
 <p>The command moves you to the parent in a linear fashion.</p>
 <div class="highlight"><pre><span></span><code>D @  D
 |/   |
