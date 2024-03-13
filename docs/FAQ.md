@@ -181,7 +181,7 @@ We hope to integrate with Gerrit natively in the future.
 [branches_conflicts]: branches.md#conflicts
 
 [change ID]: glossary.md#change-id
-[co-located]: glossary.md#change-id
+[co-located]: glossary.md#co-located-repos
 [commit ID]: glossary.md#commit-id
 [config]: config.md
 
