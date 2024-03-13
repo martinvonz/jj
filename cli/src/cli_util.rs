@@ -888,6 +888,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         let language = CommitTemplateLanguage::new(
             self.repo().as_ref(),
             self.workspace_id(),
+            self.revset_parse_context(),
             self.id_prefix_context()?,
             self.commit_template_extension.as_deref(),
         );
@@ -1361,6 +1362,7 @@ impl WorkspaceCommandTransaction<'_> {
         let language = CommitTemplateLanguage::new(
             self.tx.repo(),
             self.helper.workspace_id(),
+            self.helper.revset_parse_context(),
             &id_prefix_context,
             self.helper.commit_template_extension.as_deref(),
         );

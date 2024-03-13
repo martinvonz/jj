@@ -27,6 +27,7 @@ use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::{RefTarget, WorkspaceId};
 use jj_lib::repo::Repo;
+use jj_lib::revset::{Revset, RevsetParseContext};
 use jj_lib::{git, rewrite};
 use once_cell::unsync::OnceCell;
 
@@ -35,12 +36,12 @@ use crate::template_builder::{
     self, merge_fn_map, BuildContext, CoreTemplateBuildFnTable, CoreTemplatePropertyKind,
     IntoTemplateProperty, TemplateBuildMethodFnMap, TemplateLanguage,
 };
-use crate::template_parser::{self, FunctionCallNode, TemplateParseResult};
+use crate::template_parser::{self, FunctionCallNode, TemplateParseError, TemplateParseResult};
 use crate::templater::{
     self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
     TemplatePropertyFn,
 };
-use crate::text_util;
+use crate::{revset_util, text_util};
 
 pub trait CommitTemplateLanguageExtension {
     fn build_fn_table<'repo>(&self) -> CommitTemplateBuildFnTable<'repo>;
@@ -51,6 +52,12 @@ pub trait CommitTemplateLanguageExtension {
 pub struct CommitTemplateLanguage<'repo> {
     repo: &'repo dyn Repo,
     workspace_id: WorkspaceId,
+    // RevsetParseContext doesn't borrow a repo, but we'll need 'repo lifetime
+    // anyway to capture it to evaluate dynamically-constructed user expression
+    // such as `revset("ancestors(" ++ commit_id ++ ")")`.
+    // TODO: Maybe refactor context structs? WorkspaceId is contained in
+    // RevsetParseContext for example.
+    revset_parse_context: RevsetParseContext<'repo>,
     id_prefix_context: &'repo IdPrefixContext,
     build_fn_table: CommitTemplateBuildFnTable<'repo>,
     keyword_cache: CommitKeywordCache,
@@ -63,6 +70,7 @@ impl<'repo> CommitTemplateLanguage<'repo> {
     pub fn new(
         repo: &'repo dyn Repo,
         workspace_id: &WorkspaceId,
+        revset_parse_context: RevsetParseContext<'repo>,
         id_prefix_context: &'repo IdPrefixContext,
         extension: Option<&dyn CommitTemplateLanguageExtension>,
     ) -> Self {
@@ -79,6 +87,7 @@ impl<'repo> CommitTemplateLanguage<'repo> {
         CommitTemplateLanguage {
             repo,
             workspace_id: workspace_id.clone(),
+            revset_parse_context,
             id_prefix_context,
             build_fn_table,
             keyword_cache: CommitKeywordCache::default(),
@@ -545,6 +554,17 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         Ok(language.wrap_boolean(out_property))
     });
     map.insert(
+        "immutable",
+        |language, _build_ctx, self_property, function| {
+            template_parser::expect_no_arguments(function)?;
+            let revset = evaluate_immutable_revset(language, function.name_span)?;
+            let is_immutable = revset.containing_fn();
+            let out_property =
+                TemplateFunction::new(self_property, move |commit| Ok(is_immutable(commit.id())));
+            Ok(language.wrap_boolean(out_property))
+        },
+    );
+    map.insert(
         "conflict",
         |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
@@ -589,6 +609,24 @@ fn extract_working_copies(repo: &dyn Repo, commit: &Commit) -> String {
         }
     }
     names.join(" ")
+}
+
+fn evaluate_immutable_revset<'repo>(
+    language: &CommitTemplateLanguage<'repo>,
+    span: pest::Span<'_>,
+) -> Result<Box<dyn Revset + 'repo>, TemplateParseError> {
+    let repo = language.repo;
+    // Alternatively, a negated (i.e. visible mutable) set could be computed.
+    // It's usually smaller than the immutable set. The revset engine can also
+    // optimize "::<recent_heads>" query to use bitset-based implementation.
+    let expression = revset_util::parse_immutable_expression(repo, &language.revset_parse_context)
+        .map_err(|err| {
+            TemplateParseError::unexpected_expression(revset_util::format_parse_error(&err), span)
+        })?;
+    let symbol_resolver = revset_util::default_symbol_resolver(repo, language.id_prefix_context);
+    let revset = revset_util::evaluate(repo, &symbol_resolver, expression)
+        .map_err(|err| TemplateParseError::unexpected_expression(err.to_string(), span))?;
+    Ok(revset)
 }
 
 /// Branch or tag name with metadata.

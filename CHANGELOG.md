@@ -27,6 +27,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   It can thereby be for all use cases where `jj move` can be used. The `--from`
   argument accepts a revset that resolves to move than one revision.
 
+* Commit templates now support `immutable` keyword.
+
 ### Fixed bugs
 
 ## [0.15.1] - 2024-03-06

@@ -546,3 +546,64 @@ fn test_log_customize_short_id() {
     ◉  ZZZZZZZZ root() 00000000
     "###);
 }
+
+#[test]
+fn test_log_immutable() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&repo_path, &["new", "-mA", "root()"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-mB"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-mC"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-mD", "root()"]);
+
+    let template = r#"
+    separate(" ",
+      description.first_line(),
+      branches,
+      if(immutable, "[immutable]"),
+    ) ++ "\n"
+    "#;
+
+    test_env.add_config("revset-aliases.'immutable_heads()' = 'main'");
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r::", "-T", template]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  D
+    │ ◉  C
+    │ ◉  B main [immutable]
+    │ ◉  A [immutable]
+    ├─╯
+    ◉  [immutable]
+    "###);
+
+    // Suppress error that could be detected earlier
+    test_env.add_config("revsets.short-prefixes = ''");
+
+    test_env.add_config("revset-aliases.'immutable_heads()' = 'unknown_fn()'");
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r::", "-T", template]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse template:  --> 5:10
+      |
+    5 |       if(immutable, "[immutable]"),
+      |          ^-------^
+      |
+      = Failed to parse revset:  --> 1:1
+      |
+    1 | unknown_fn()
+      | ^--------^
+      |
+      = Revset function "unknown_fn" doesn't exist
+    "###);
+
+    test_env.add_config("revset-aliases.'immutable_heads()' = 'unknown_symbol'");
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r::", "-T", template]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse template:  --> 5:10
+      |
+    5 |       if(immutable, "[immutable]"),
+      |          ^-------^
+      |
+      = Revision "unknown_symbol" doesn't exist
+    "###);
+}
