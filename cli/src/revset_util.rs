@@ -21,16 +21,25 @@ use jj_lib::backend::CommitId;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{
-    self, DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetExpression, RevsetParseContext,
-    RevsetParseError,
+    self, DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetEvaluationError, RevsetExpression,
+    RevsetParseContext, RevsetParseError, RevsetResolutionError,
 };
 use jj_lib::settings::ConfigResultExt as _;
+use thiserror::Error;
 
 use crate::command_error::{user_error, CommandError};
 use crate::config::LayeredConfigs;
 use crate::ui::Ui;
 
 const BUILTIN_IMMUTABLE_HEADS: &str = "immutable_heads";
+
+#[derive(Debug, Error)]
+pub enum UserRevsetEvaluationError {
+    #[error(transparent)]
+    Resolution(RevsetResolutionError),
+    #[error(transparent)]
+    Evaluation(RevsetEvaluationError),
+}
 
 pub fn load_revset_aliases(
     ui: &Ui,
@@ -82,9 +91,13 @@ pub fn evaluate<'a>(
     repo: &'a dyn Repo,
     symbol_resolver: &DefaultSymbolResolver,
     expression: Rc<RevsetExpression>,
-) -> Result<Box<dyn Revset + 'a>, CommandError> {
-    let resolved = expression.resolve_user_expression(repo, symbol_resolver)?;
-    Ok(resolved.evaluate(repo)?)
+) -> Result<Box<dyn Revset + 'a>, UserRevsetEvaluationError> {
+    let resolved = expression
+        .resolve_user_expression(repo, symbol_resolver)
+        .map_err(UserRevsetEvaluationError::Resolution)?;
+    resolved
+        .evaluate(repo)
+        .map_err(UserRevsetEvaluationError::Evaluation)
 }
 
 /// Wraps the given `IdPrefixContext` in `SymbolResolver` to be passed in to

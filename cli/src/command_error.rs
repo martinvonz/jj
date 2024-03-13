@@ -38,6 +38,7 @@ use thiserror::Error;
 use crate::merge_tools::{
     ConflictResolveError, DiffEditError, DiffGenerateError, MergeToolConfigError,
 };
+use crate::revset_util::UserRevsetEvaluationError;
 use crate::template_parser::{TemplateParseError, TemplateParseErrorKind};
 use crate::ui::Ui;
 
@@ -389,6 +390,15 @@ impl From<RevsetResolutionError> for CommandError {
             | RevsetResolutionError::StoreError(_) => None,
         };
         user_error_with_hint_opt(err, hint)
+    }
+}
+
+impl From<UserRevsetEvaluationError> for CommandError {
+    fn from(err: UserRevsetEvaluationError) -> Self {
+        match err {
+            UserRevsetEvaluationError::Resolution(err) => err.into(),
+            UserRevsetEvaluationError::Evaluation(err) => err.into(),
+        }
     }
 }
 
