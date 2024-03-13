@@ -23,8 +23,7 @@ use crate::cli_util::{short_commit_hash, CommandHelper, WorkspaceCommandHelper};
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
-/// Move the current working copy commit to the next child revision in the
-/// repository.
+/// Move the working-copy commit to the child revision
 ///
 /// The command moves you to the next child in a linear fashion.
 ///

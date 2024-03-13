@@ -21,7 +21,7 @@ use crate::command_error::{user_error, CommandError};
 use crate::commands::next::choose_commit;
 use crate::ui::Ui;
 
-/// Move the working copy commit to the parent of the current revision.
+/// Move the working-copy commit to the parent revision
 ///
 ///
 /// The command moves you to the parent in a linear fashion.
