@@ -121,11 +121,10 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `log` — Show revision history
 * `move` — Move changes from one revision into another
 * `new` — Create a new, empty change and (by default) edit it in the working copy
-* `next` — Move the current working copy commit to the next child revision in the
-repository.
+* `next` — Move the working-copy commit to the child revision
 * `obslog` — Show how a change has evolved
 * `operation` — Commands for working with the operation log
-* `prev` — Move the working copy commit to the parent of the current revision.
+* `prev` — Move the working-copy commit to the parent revision
 * `rebase` — Move revisions to different parent(s)
 * `resolve` — Resolve a conflicted file with an external merge tool
 * `restore` — Restore paths from another revision
@@ -1142,8 +1141,7 @@ For more information, see https://github.com/martinvonz/jj/blob/main/docs/workin
 
 ## `jj next`
 
-Move the current working copy commit to the next child revision in the
-repository.
+Move the working-copy commit to the child revision
 
 The command moves you to the next child in a linear fashion.
 
@@ -1346,7 +1344,7 @@ This restores the repo to the state at the specified operation, effectively undo
 
 ## `jj prev`
 
-Move the working copy commit to the parent of the current revision.
+Move the working-copy commit to the parent revision
 
 
 The command moves you to the parent in a linear fashion.
