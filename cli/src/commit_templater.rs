@@ -156,7 +156,7 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
 // If we need to add multiple languages that support Commit types, this can be
 // turned into a trait which extends TemplateLanguage.
 impl<'repo> CommitTemplateLanguage<'repo> {
-    pub fn repo(&self) -> &dyn Repo {
+    pub fn repo(&self) -> &'repo dyn Repo {
         self.repo
     }
 
