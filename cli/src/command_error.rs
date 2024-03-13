@@ -38,7 +38,7 @@ use thiserror::Error;
 use crate::merge_tools::{
     ConflictResolveError, DiffEditError, DiffGenerateError, MergeToolConfigError,
 };
-use crate::revset_util::UserRevsetEvaluationError;
+use crate::revset_util::{self, UserRevsetEvaluationError};
 use crate::template_parser::{TemplateParseError, TemplateParseErrorKind};
 use crate::ui::Ui;
 
@@ -347,10 +347,9 @@ impl From<RevsetEvaluationError> for CommandError {
 
 impl From<RevsetParseError> for CommandError {
     fn from(err: RevsetParseError) -> Self {
-        let err_chain = iter::successors(Some(&err), |e| e.origin());
-        let message = err_chain.clone().join("\n");
         // Only for the bottom error, which is usually the root cause
-        let hint = match err_chain.last().unwrap().kind() {
+        let bottom_err = iter::successors(Some(&err), |e| e.origin()).last().unwrap();
+        let hint = match bottom_err.kind() {
             RevsetParseErrorKind::NotPrefixOperator {
                 op: _,
                 similar_op,
@@ -372,7 +371,7 @@ impl From<RevsetParseError> for CommandError {
             } => format_similarity_hint(candidates),
             _ => None,
         };
-        user_error_with_hint_opt(format!("Failed to parse revset: {message}"), hint)
+        user_error_with_hint_opt(revset_util::format_parse_error(&err), hint)
     }
 }
 

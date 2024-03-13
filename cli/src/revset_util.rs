@@ -14,6 +14,7 @@
 
 //! Utility for parsing and evaluating user-provided revset expressions.
 
+use std::iter;
 use std::rc::Rc;
 
 use itertools::Itertools as _;
@@ -134,4 +135,9 @@ pub fn parse_immutable_expression(
         .union(&RevsetExpression::commit(
             repo.store().root_commit_id().clone(),
         )))
+}
+
+pub fn format_parse_error(err: &RevsetParseError) -> String {
+    let message = iter::successors(Some(err), |e| e.origin()).join("\n");
+    format!("Failed to parse revset: {message}")
 }
