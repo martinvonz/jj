@@ -832,7 +832,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
     ) -> Result<Box<dyn Revset + 'repo>, CommandError> {
         let repo = self.repo().as_ref();
         let symbol_resolver = revset_util::default_symbol_resolver(repo, self.id_prefix_context()?);
-        revset_util::evaluate(repo, &symbol_resolver, expression)
+        Ok(revset_util::evaluate(repo, &symbol_resolver, expression)?)
     }
 
     pub(crate) fn revset_parse_context(&self) -> RevsetParseContext {
