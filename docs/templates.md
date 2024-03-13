@@ -85,6 +85,8 @@ This type cannot be printed. The following methods are defined.
 * `divergent() -> Boolean`: True if the commit's change id corresponds to multiple
   visible commits.
 * `hidden() -> Boolean`: True if the commit is not visible (a.k.a. abandoned).
+* `immutable() -> Boolean`: True if the commit is included in [the set of
+  immutable commits](config.md#set-of-immutable-commits).
 * `conflict() -> Boolean`: True if the commit contains merge conflicts.
 * `empty() -> Boolean`: True if the commit modifies no files.
 * `root() -> Boolean`: True if the commit is the root commit.
