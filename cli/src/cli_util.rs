@@ -52,9 +52,8 @@ use jj_lib::repo::{
 };
 use jj_lib::repo_path::{FsPathParseError, RepoPath, RepoPathBuf};
 use jj_lib::revset::{
-    DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetCommitRef, RevsetExpression,
-    RevsetFilterPredicate, RevsetIteratorExt, RevsetParseContext, RevsetParseError,
-    RevsetWorkspaceContext,
+    Revset, RevsetAliasesMap, RevsetCommitRef, RevsetExpression, RevsetFilterPredicate,
+    RevsetIteratorExt, RevsetParseContext, RevsetParseError, RevsetWorkspaceContext,
 };
 use jj_lib::rewrite::restore_tree;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
@@ -68,7 +67,7 @@ use jj_lib::working_copy::{
 use jj_lib::workspace::{
     default_working_copy_factories, LockedWorkspace, Workspace, WorkspaceLoadError, WorkspaceLoader,
 };
-use jj_lib::{dag_walk, file_util, git, op_heads_store, op_walk, revset};
+use jj_lib::{dag_walk, file_util, git, op_heads_store, op_walk};
 use once_cell::unsync::OnceCell;
 use tracing::instrument;
 use tracing_chrome::ChromeLayerBuilder;
@@ -91,7 +90,7 @@ use crate::template_builder::TemplateLanguage;
 use crate::template_parser::TemplateAliasesMap;
 use crate::templater::Template;
 use crate::ui::{ColorChoice, Ui};
-use crate::{template_builder, text_util};
+use crate::{revset_util, template_builder, text_util};
 
 #[derive(Clone)]
 struct ChromeTracingFlushGuard {
@@ -406,7 +405,7 @@ impl WorkspaceCommandHelper {
         let settings = command.settings.clone();
         let commit_summary_template_text =
             settings.config().get_string("templates.commit_summary")?;
-        let revset_aliases_map = load_revset_aliases(ui, &command.layered_configs)?;
+        let revset_aliases_map = revset_util::load_revset_aliases(ui, &command.layered_configs)?;
         let template_aliases_map = command.load_template_aliases(ui)?;
         let loaded_at_head = command.global_args.at_operation == "@";
         let may_update_working_copy = loaded_at_head && !command.global_args.ignore_working_copy;
@@ -824,18 +823,16 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         &self,
         revision_str: &str,
     ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-        let expression = revset::parse(revision_str, &self.revset_parse_context())?;
-        Ok(revset::optimize(expression))
+        revset_util::parse(revision_str, &self.revset_parse_context())
     }
 
     pub fn evaluate_revset<'repo>(
         &'repo self,
-        revset_expression: Rc<RevsetExpression>,
+        expression: Rc<RevsetExpression>,
     ) -> Result<Box<dyn Revset + 'repo>, CommandError> {
-        let symbol_resolver = self.revset_symbol_resolver()?;
-        let revset_expression =
-            revset_expression.resolve_user_expression(self.repo().as_ref(), &symbol_resolver)?;
-        Ok(revset_expression.evaluate(self.repo().as_ref())?)
+        let repo = self.repo().as_ref();
+        let symbol_resolver = revset_util::default_symbol_resolver(repo, self.id_prefix_context()?);
+        revset_util::evaluate(repo, &symbol_resolver, expression)
     }
 
     pub(crate) fn revset_parse_context(&self) -> RevsetParseContext {
@@ -849,18 +846,6 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
             user_email: self.settings.user_email(),
             workspace: Some(workspace_context),
         }
-    }
-
-    pub(crate) fn revset_symbol_resolver(&self) -> Result<DefaultSymbolResolver<'_>, CommandError> {
-        let id_prefix_context = self.id_prefix_context()?;
-        let commit_id_resolver: revset::PrefixResolver<CommitId> =
-            Box::new(|repo, prefix| id_prefix_context.resolve_commit_prefix(repo, prefix));
-        let change_id_resolver: revset::PrefixResolver<Vec<CommitId>> =
-            Box::new(|repo, prefix| id_prefix_context.resolve_change_prefix(repo, prefix));
-        let symbol_resolver = DefaultSymbolResolver::new(self.repo().as_ref())
-            .with_commit_id_resolver(commit_id_resolver)
-            .with_change_id_resolver(change_id_resolver);
-        Ok(symbol_resolver)
     }
 
     pub fn id_prefix_context(&self) -> Result<&IdPrefixContext, CommandError> {
@@ -948,21 +933,10 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
                 .map(|commit| commit.id().clone())
                 .collect(),
         );
-        let (params, immutable_heads_str) = self
-            .revset_aliases_map
-            .get_function("immutable_heads")
-            .unwrap();
-        if !params.is_empty() {
-            return Err(user_error(
-                r#"The `revset-aliases.immutable_heads()` function must be declared without arguments."#,
-            ));
-        }
-        let immutable_heads_revset = self.parse_revset(immutable_heads_str)?;
-        let immutable_revset = immutable_heads_revset
-            .ancestors()
-            .union(&RevsetExpression::commit(
-                self.repo().store().root_commit_id().clone(),
-            ));
+        let immutable_revset = revset_util::parse_immutable_expression(
+            self.repo().as_ref(),
+            &self.revset_parse_context(),
+        )?;
         let revset = self.evaluate_revset(to_rewrite_revset.intersection(&immutable_revset))?;
         if let Some(commit) = revset.iter().commits(self.repo().store()).next() {
             let commit = commit?;
@@ -1632,33 +1606,6 @@ pub fn resolve_all_revs(
     } else {
         Ok(commits)
     }
-}
-
-fn load_revset_aliases(
-    ui: &Ui,
-    layered_configs: &LayeredConfigs,
-) -> Result<RevsetAliasesMap, CommandError> {
-    const TABLE_KEY: &str = "revset-aliases";
-    let mut aliases_map = RevsetAliasesMap::new();
-    // Load from all config layers in order. 'f(x)' in default layer should be
-    // overridden by 'f(a)' in user.
-    for (_, config) in layered_configs.sources() {
-        let table = if let Some(table) = config.get_table(TABLE_KEY).optional()? {
-            table
-        } else {
-            continue;
-        };
-        for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
-            let r = value
-                .into_string()
-                .map_err(|e| e.to_string())
-                .and_then(|v| aliases_map.insert(&decl, v).map_err(|e| e.to_string()));
-            if let Err(s) = r {
-                writeln!(ui.warning(), r#"Failed to load "{TABLE_KEY}.{decl}": {s}"#)?;
-            }
-        }
-    }
-    Ok(aliases_map)
 }
 
 pub fn resolve_multiple_nonempty_revsets(

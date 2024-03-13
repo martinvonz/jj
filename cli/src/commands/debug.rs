@@ -25,8 +25,8 @@ use jj_lib::{op_walk, revset};
 
 use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::{internal_error, user_error, CommandError};
-use crate::template_parser;
 use crate::ui::Ui;
+use crate::{revset_util, template_parser};
 
 /// Low-level commands not intended for users
 #[derive(Subcommand, Clone, Debug)]
@@ -143,7 +143,8 @@ fn cmd_debug_revset(
     writeln!(ui.stdout(), "{expression:#?}")?;
     writeln!(ui.stdout())?;
 
-    let symbol_resolver = workspace_command.revset_symbol_resolver()?;
+    let symbol_resolver =
+        revset_util::default_symbol_resolver(repo, workspace_command.id_prefix_context()?);
     let expression = expression.resolve_user_expression(repo, &symbol_resolver)?;
     writeln!(ui.stdout(), "-- Resolved:")?;
     writeln!(ui.stdout(), "{expression:#?}")?;
