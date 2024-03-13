@@ -536,6 +536,8 @@ To do this you need to configure a signing backend.
 sign-all = true
 backend = "gpg"
 key = "4ED556E9729E000F"
+## You can set `key` to anything accepted by `gpg -u`
+# key = "signing@example.com"
 ```
 
 By default the gpg backend will look for a `gpg` binary on your path. If you want
@@ -559,6 +561,8 @@ signing.backends.gpg.allow-expired-keys = false
 sign-all = true
 backend = "ssh"
 key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGj+J6N6SO+4P8dOZqfR1oiay2yxhhHnagH52avUqw5h"
+## You can also use a path instead of embedding the key
+# key = "/home/me/.ssh/id_for_signing.pub"
 ```
 
 By default the ssh backend will look for a `ssh-keygen` binary on your path. If you want
