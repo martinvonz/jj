@@ -125,14 +125,14 @@ separate(" ",
   label("root", "root()"),
   format_short_commit_id(commit_id),
   branches
-)
+) ++ "\n"
 '''
 
 'builtin_op_log_root(op_id)' = '''
 separate(" ",
   op_id.short(),
   label("root", "root()"),
-)
+) ++ "\n"
 '''
 
 

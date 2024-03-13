@@ -221,32 +221,39 @@ fn test_op_log_builtin_templates() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    let render = |template| test_env.jj_cmd_success(&repo_path, &["op", "log", "-T", template]);
+    // Render without graph and append "[EOF]" marker to test line ending
+    let render = |template| {
+        test_env.jj_cmd_success(&repo_path, &["op", "log", "-T", template, "--no-graph"])
+            + "[EOF]\n"
+    };
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 0"]);
 
     insta::assert_snapshot!(render(r#"builtin_op_log_compact"#), @r###"
-    @  52ac15d375ba test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
-    │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    │  args: jj describe -m 'description 0'
-    ◉  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
-    │  add workspace 'default'
-    ◉  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
-    │  initialize repo
-    ◉  000000000000 root()
+    52ac15d375ba test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    args: jj describe -m 'description 0'
+    b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    add workspace 'default'
+    9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    initialize repo
+    000000000000 root()
+    [EOF]
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_op_log_comfortable"#), @r###"
-    @  52ac15d375ba test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
-    │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    │  args: jj describe -m 'description 0'
-    │
-    ◉  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
-    │  add workspace 'default'
-    │
-    ◉  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
-    │  initialize repo
-    │
-    ◉  000000000000 root()
+    52ac15d375ba test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    args: jj describe -m 'description 0'
+
+    b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    add workspace 'default'
+
+    9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    initialize repo
+
+    000000000000 root()
+
+    [EOF]
     "###);
 }
 
