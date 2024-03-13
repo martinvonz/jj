@@ -442,27 +442,31 @@ fn build_keyword<'a, L: TemplateLanguage<'a> + ?Sized>(
         args: vec![],
         args_span: name_span.end_pos().span(&name_span.end_pos()),
     };
-    match language.build_method(build_ctx, self_property, &function) {
-        Ok(property) => Ok(Expression::with_label(property, name)),
-        Err(err) => {
-            let kind = if let TemplateParseErrorKind::NoSuchMethod { candidates, .. } = err.kind() {
-                TemplateParseErrorKind::NoSuchKeyword {
+    language
+        .build_method(build_ctx, self_property, &function)
+        .map(|property| Expression::with_label(property, name))
+        .map_err(|err| match err.kind() {
+            TemplateParseErrorKind::NoSuchMethod { candidates, .. } => {
+                let kind = TemplateParseErrorKind::NoSuchKeyword {
                     name: name.to_owned(),
                     // TODO: filter methods by arity?
                     candidates: candidates.clone(),
-                }
-            } else {
-                // Since keyword is a 0-ary method, any argument-related errors
-                // mean there's no such keyword.
-                TemplateParseErrorKind::NoSuchKeyword {
+                };
+                TemplateParseError::with_span(kind, name_span)
+            }
+            // Since keyword is a 0-ary method, any argument errors mean there's
+            // no such keyword.
+            TemplateParseErrorKind::InvalidArguments { .. } => {
+                let kind = TemplateParseErrorKind::NoSuchKeyword {
                     name: name.to_owned(),
                     // TODO: might be better to phrase the error differently
                     candidates: vec![format!("self.{name}(..)")],
-                }
-            };
-            Err(TemplateParseError::with_span(kind, name_span))
-        }
-    }
+                };
+                TemplateParseError::with_span(kind, name_span)
+            }
+            // The keyword function may fail with the other reasons.
+            _ => err,
+        })
 }
 
 fn build_unary_operation<'a, L: TemplateLanguage<'a> + ?Sized>(
