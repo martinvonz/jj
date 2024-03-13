@@ -191,7 +191,10 @@ fn test_log_builtin_templates() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    let render = |template| test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
+    // Render without graph and append "[EOF]" marker to test line ending
+    let render = |template| {
+        test_env.jj_cmd_success(&repo_path, &["log", "-T", template, "--no-graph"]) + "[EOF]\n"
+    };
 
     test_env.jj_cmd_ok(
         &repo_path,
@@ -204,52 +207,57 @@ fn test_log_builtin_templates() {
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "my-branch"]);
 
     insta::assert_snapshot!(render(r#"builtin_log_oneline"#), @r###"
-    @  rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 my-branch dc315397 (empty) (no description set)
-    ◉  qpvuntsm test.user 2001-02-03 04:05:07.000 +07:00 230dd059 (empty) (no description set)
-    ◉  zzzzzzzz root() 00000000
+    rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 my-branch dc315397 (empty) (no description set)
+    qpvuntsm test.user 2001-02-03 04:05:07.000 +07:00 230dd059 (empty) (no description set)
+    zzzzzzzz root() 00000000
+    [EOF]
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_log_compact"#), @r###"
-    @  rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 my-branch dc315397
-    │  (empty) (no description set)
-    ◉  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
-    │  (empty) (no description set)
-    ◉  zzzzzzzz root() 00000000
+    rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 my-branch dc315397
+    (empty) (no description set)
+    qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
+    (empty) (no description set)
+    zzzzzzzz root() 00000000
+    [EOF]
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_log_comfortable"#), @r###"
-    @  rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 my-branch dc315397
-    │  (empty) (no description set)
-    │
-    ◉  qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
-    │  (empty) (no description set)
-    │
-    ◉  zzzzzzzz root() 00000000
+    rlvkpnrz (no email set) 2001-02-03 04:05:08.000 +07:00 my-branch dc315397
+    (empty) (no description set)
+
+    qpvuntsm test.user@example.com 2001-02-03 04:05:07.000 +07:00 230dd059
+    (empty) (no description set)
+
+    zzzzzzzz root() 00000000
+
+    [EOF]
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_log_detailed"#), @r###"
-    @  Commit ID: dc31539712c7294d1d712cec63cef4504b94ca74
-    │  Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
-    │  Branches: my-branch
-    │  Author: (no name set) <(no email set)> (2001-02-03 04:05:08.000 +07:00)
-    │  Committer: (no name set) <(no email set)> (2001-02-03 04:05:08.000 +07:00)
-    │
-    │      (no description set)
-    │
-    ◉  Commit ID: 230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    │  Change ID: qpvuntsmwlqtpsluzzsnyyzlmlwvmlnu
-    │  Author: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
-    │  Committer: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
-    │
-    │      (no description set)
-    │
-    ◉  Commit ID: 0000000000000000000000000000000000000000
-       Change ID: zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
-       Author: (no name set) <(no email set)> (1970-01-01 00:00:00.000 +00:00)
-       Committer: (no name set) <(no email set)> (1970-01-01 00:00:00.000 +00:00)
+    Commit ID: dc31539712c7294d1d712cec63cef4504b94ca74
+    Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
+    Branches: my-branch
+    Author: (no name set) <(no email set)> (2001-02-03 04:05:08.000 +07:00)
+    Committer: (no name set) <(no email set)> (2001-02-03 04:05:08.000 +07:00)
 
-           (no description set)
+        (no description set)
 
+    Commit ID: 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    Change ID: qpvuntsmwlqtpsluzzsnyyzlmlwvmlnu
+    Author: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
+    Committer: Test User <test.user@example.com> (2001-02-03 04:05:07.000 +07:00)
+
+        (no description set)
+
+    Commit ID: 0000000000000000000000000000000000000000
+    Change ID: zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
+    Author: (no name set) <(no email set)> (1970-01-01 00:00:00.000 +00:00)
+    Committer: (no name set) <(no email set)> (1970-01-01 00:00:00.000 +00:00)
+
+        (no description set)
+
+    [EOF]
     "###);
 }
 
