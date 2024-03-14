@@ -5,7 +5,9 @@ use itertools::Itertools;
 use crate::common::TestEnvironment;
 
 fn get_log_output_with_branches(test_env: &TestEnvironment, cwd: &Path) -> String {
-    let template = r#"commit_id.short() ++ " br:{" ++ local_branches ++ "} dsc: " ++ description"#;
+    // Don't include commit IDs since they will be different depending on
+    // whether the test runs with `jj commit` or `jj describe` + `jj new`.
+    let template = r#""branches{" ++ local_branches ++ "} desc: " ++ description"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }
 
@@ -40,9 +42,37 @@ fn set_advance_branches_overrides(
     )
 }
 
+// Runs a command in the specified test environment and workspace path that
+// describes the current commit with `commit_message` and creates a new commit
+// on top of it.
+type CommitFn = fn(env: &TestEnvironment, workspace_path: &Path, commit_message: &str);
+
+// Implements CommitFn using the `jj commit` command.
+fn commit_cmd(env: &TestEnvironment, workspace_path: &Path, commit_message: &str) {
+    env.jj_cmd_ok(workspace_path, &["commit", "-m", commit_message]);
+}
+
+macro_rules! parameterized_tests{
+    ($($test_name:ident: $case_fn:ident($commit_fn:ident),)*) => {
+    $(
+        #[test]
+        fn $test_name() {
+            $case_fn($commit_fn);
+        }
+    )*
+    }
+}
+
+parameterized_tests! {
+    test_commit_advance_branches_enabled: case_advance_branches_enabled(commit_cmd),
+    test_commit_advance_branches_at_minus: case_advance_branches_at_minus(commit_cmd),
+    test_commit_advance_branches_overrides: case_advance_branches_overrides(commit_cmd),
+    test_commit_advance_branches_multiple_branches:
+        case_advance_branches_multiple_branches(commit_cmd),
+}
+
 // Check that enabling and disabling advance-branches works as expected.
-#[test]
-fn test_advance_branches_enabled() {
+fn case_advance_branches_enabled(make_commit: CommitFn) {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
@@ -56,34 +86,39 @@ fn test_advance_branches_enabled() {
     );
 
     // Check the initial state of the repo.
+    insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    @  230dd059e1b0 br:{} dsc:
-    ◉  000000000000 br:{test_branch} dsc:
+    @  branches{} desc:
+    ◉  branches{test_branch} desc:
     "###);
+    }
 
     // Run jj commit, which will advance the branch pointing to @-.
-    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=first"]);
+    make_commit(&test_env, &workspace_path, "first");
+    insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    @  24bb7f9da598 br:{} dsc:
-    ◉  95f2456c4bbd br:{test_branch} dsc: first
-    ◉  000000000000 br:{} dsc:
+    @  branches{} desc:
+    ◉  branches{test_branch} desc: first
+    ◉  branches{} desc:
     "###);
+    }
 
     // Now disable advance branches and commit again. The branch shouldn't move.
     set_advance_branches(&test_env, &workspace_path, false);
-    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=second"]);
+    make_commit(&test_env, &workspace_path, "second");
+    insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    @  b29edd893970 br:{} dsc:
-    ◉  ebf7d96fb6ad br:{} dsc: second
-    ◉  95f2456c4bbd br:{test_branch} dsc: first
-    ◉  000000000000 br:{} dsc:
+    @  branches{} desc:
+    ◉  branches{} desc: second
+    ◉  branches{test_branch} desc: first
+    ◉  branches{} desc:
     "###);
+    }
 }
 
 // Check that only a branch pointing to @- advances. Branches pointing to @ are
 // not advanced.
-#[test]
-fn test_advance_branches_at_minus() {
+fn case_advance_branches_at_minus(make_commit: CommitFn) {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
@@ -91,34 +126,39 @@ fn test_advance_branches_at_minus() {
     set_advance_branches(&test_env, &workspace_path, true);
     test_env.jj_cmd_ok(&workspace_path, &["branch", "create", "test_branch"]);
 
+    insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    @  230dd059e1b0 br:{test_branch} dsc:
-    ◉  000000000000 br:{} dsc:
+    @  branches{test_branch} desc:
+    ◉  branches{} desc:
     "###);
+    }
 
-    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=first"]);
+    make_commit(&test_env, &workspace_path, "first");
+    insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    @  24bb7f9da598 br:{} dsc:
-    ◉  95f2456c4bbd br:{test_branch} dsc: first
-    ◉  000000000000 br:{} dsc:
+    @  branches{} desc:
+    ◉  branches{test_branch} desc: first
+    ◉  branches{} desc:
     "###);
+    }
 
     // Create a second branch pointing to @. On the next commit, only the first
     // branch, which points to @-, will advance.
     test_env.jj_cmd_ok(&workspace_path, &["branch", "create", "test_branch2"]);
-    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=second"]);
+    make_commit(&test_env, &workspace_path, "second");
+    insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    @  b29edd893970 br:{} dsc:
-    ◉  ebf7d96fb6ad br:{test_branch test_branch2} dsc: second
-    ◉  95f2456c4bbd br:{} dsc: first
-    ◉  000000000000 br:{} dsc:
+    @  branches{} desc:
+    ◉  branches{test_branch test_branch2} desc: second
+    ◉  branches{} desc: first
+    ◉  branches{} desc:
     "###);
+    }
 }
 
 // Test that per-branch overrides invert the behavior of
 // experimental-advance-branches.enabled.
-#[test]
-fn test_advance_branches_overrides() {
+fn case_advance_branches_overrides(make_commit: CommitFn) {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
@@ -131,18 +171,22 @@ fn test_advance_branches_overrides() {
     );
 
     // Check the initial state of the repo.
+    insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    @  230dd059e1b0 br:{} dsc:
-    ◉  000000000000 br:{test_branch} dsc:
+    @  branches{} desc:
+    ◉  branches{test_branch} desc:
     "###);
+    }
 
     // Commit will not advance the branch since advance-branches is disabled.
-    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=first"]);
+    make_commit(&test_env, &workspace_path, "first");
+    insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    @  24bb7f9da598 br:{} dsc:
-    ◉  95f2456c4bbd br:{} dsc: first
-    ◉  000000000000 br:{test_branch} dsc:
+    @  branches{} desc:
+    ◉  branches{} desc: first
+    ◉  branches{test_branch} desc:
     "###);
+    }
 
     // Now add an override, move the branch, and commit again.
     set_advance_branches_overrides(&test_env, &workspace_path, &["test_branch"]);
@@ -150,30 +194,36 @@ fn test_advance_branches_overrides() {
         &workspace_path,
         &["branch", "set", "test_branch", "-r", "@-"],
     );
+    insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    @  24bb7f9da598 br:{} dsc:
-    ◉  95f2456c4bbd br:{test_branch} dsc: first
-    ◉  000000000000 br:{} dsc:
+    @  branches{} desc:
+    ◉  branches{test_branch} desc: first
+    ◉  branches{} desc:
     "###);
-    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=second"]);
+    }
+    make_commit(&test_env, &workspace_path, "second");
+    insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    @  e424968e6f40 br:{} dsc:
-    ◉  30ebdb93150e br:{test_branch} dsc: second
-    ◉  95f2456c4bbd br:{} dsc: first
-    ◉  000000000000 br:{} dsc:
+    @  branches{} desc:
+    ◉  branches{test_branch} desc: second
+    ◉  branches{} desc: first
+    ◉  branches{} desc:
     "###);
+    }
 
     // Now enable advance-branches, which will cause the override to disable it
     // for test_branch. The branch will not move.
     set_advance_branches(&test_env, &workspace_path, true);
-    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=third"]);
+    make_commit(&test_env, &workspace_path, "third");
+    insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    @  99a9d63e4590 br:{} dsc:
-    ◉  a680f874fbd9 br:{} dsc: third
-    ◉  30ebdb93150e br:{test_branch} dsc: second
-    ◉  95f2456c4bbd br:{} dsc: first
-    ◉  000000000000 br:{} dsc:
+    @  branches{} desc:
+    ◉  branches{} desc: third
+    ◉  branches{test_branch} desc: second
+    ◉  branches{} desc: first
+    ◉  branches{} desc:
     "###);
+    }
 
     // If we create a new branch at @- and move test_branch there as well. When
     // we commit, the new branch will advance. There won't be ambiguity about
@@ -186,27 +236,30 @@ fn test_advance_branches_overrides() {
         &workspace_path,
         &["branch", "set", "test_branch", "-r", "@-"],
     );
+    insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    @  99a9d63e4590 br:{} dsc:
-    ◉  a680f874fbd9 br:{second_branch test_branch} dsc: third
-    ◉  30ebdb93150e br:{} dsc: second
-    ◉  95f2456c4bbd br:{} dsc: first
-    ◉  000000000000 br:{} dsc:
+    @  branches{} desc:
+    ◉  branches{second_branch test_branch} desc: third
+    ◉  branches{} desc: second
+    ◉  branches{} desc: first
+    ◉  branches{} desc:
     "###);
-    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=fourth"]);
+    }
+    make_commit(&test_env, &workspace_path, "fourth");
+    insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    @  008a93ab2831 br:{} dsc:
-    ◉  4ca5627fe5a5 br:{second_branch} dsc: fourth
-    ◉  a680f874fbd9 br:{test_branch} dsc: third
-    ◉  30ebdb93150e br:{} dsc: second
-    ◉  95f2456c4bbd br:{} dsc: first
-    ◉  000000000000 br:{} dsc:
+    @  branches{} desc:
+    ◉  branches{second_branch} desc: fourth
+    ◉  branches{test_branch} desc: third
+    ◉  branches{} desc: second
+    ◉  branches{} desc: first
+    ◉  branches{} desc:
     "###);
+    }
 }
 
 // If multiple eligible branches point to @-, all of them will be advanced.
-#[test]
-fn test_advance_branches_multiple_branches() {
+fn case_advance_branches_multiple_branches(make_commit: CommitFn) {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
@@ -220,17 +273,22 @@ fn test_advance_branches_multiple_branches() {
         &workspace_path,
         &["branch", "create", "-r", "@-", "second_branch"],
     );
+
+    insta::allow_duplicates! {
     // Check the initial state of the repo.
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    @  230dd059e1b0 br:{} dsc:
-    ◉  000000000000 br:{first_branch second_branch} dsc:
+    @  branches{} desc:
+    ◉  branches{first_branch second_branch} desc:
     "###);
+    }
 
     // Both branches are eligible and both will advance.
-    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=first"]);
+    make_commit(&test_env, &workspace_path, "first");
+    insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    @  f307e5d9f90b br:{} dsc:
-    ◉  0fca5c9228e6 br:{first_branch second_branch} dsc: first
-    ◉  000000000000 br:{} dsc:
+    @  branches{} desc:
+    ◉  branches{first_branch second_branch} desc: first
+    ◉  branches{} desc:
     "###);
+    }
 }
