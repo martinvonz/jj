@@ -38,7 +38,7 @@ fn test_templater_parse_error() {
     [template-aliases]
     'conflicting' = ''
     'shorted()' = ''
-    'cap(x)' = 'x'
+    'socat(x)' = 'x'
     'format_id(id)' = 'id.sort()'
     "###,
     );
@@ -60,14 +60,14 @@ fn test_templater_parse_error() {
       = Method "shorter" doesn't exist for type "CommitOrChangeId"
     Hint: Did you mean "short", "shortest"?
     "###);
-    insta::assert_snapshot!(render_err(r#"cat()"#), @r###"
+    insta::assert_snapshot!(render_err(r#"oncat()"#), @r###"
     Error: Failed to parse template:  --> 1:1
       |
-    1 | cat()
-      | ^-^
+    1 | oncat()
+      | ^---^
       |
-      = Function "cat" doesn't exist
-    Hint: Did you mean "cap"?
+      = Function "oncat" doesn't exist
+    Hint: Did you mean "concat", "socat"?
     "###);
     insta::assert_snapshot!(render_err(r#""".lines().map(|s| se)"#), @r###"
     Error: Failed to parse template:  --> 1:20
