@@ -120,10 +120,10 @@ pub fn parse_immutable_expression(
         params.is_empty(),
         "invalid declaration should have been rejected by load_revset_aliases()"
     );
-    let immutable_heads_revset = revset::parse(immutable_heads_str, context)?;
-    Ok(immutable_heads_revset
-        .ancestors()
-        .union(&RevsetExpression::root()))
+    // Negated ancestors expression `~::(<heads> | root())` is slightly easier
+    // to optimize than negated union `~(::<heads> | root())`.
+    let heads = revset::parse(immutable_heads_str, context)?;
+    Ok(heads.union(&RevsetExpression::root()).ancestors())
 }
 
 pub fn format_parse_error(err: &RevsetParseError) -> String {
