@@ -118,6 +118,87 @@ fn test_debug_reindex() {
 }
 
 #[test]
+fn test_debug_tree() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let workspace_path = test_env.env_root().join("repo");
+    let subdir = workspace_path.join("dir").join("subdir");
+    std::fs::create_dir_all(&subdir).unwrap();
+    std::fs::write(subdir.join("file1"), "contents 1").unwrap();
+    test_env.jj_cmd_ok(&workspace_path, &["new"]);
+    std::fs::write(subdir.join("file2"), "contents 2").unwrap();
+
+    // Defaults to showing the tree at the current commit
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "tree"]);
+    assert_snapshot!(stdout.replace('\\',"/"), @r###"
+    dir/subdir/file1: Resolved(Some(File { id: FileId("498e9b01d79cb8d31cdf0df1a663cc1fcefd9de3"), executable: false }))
+    dir/subdir/file2: Resolved(Some(File { id: FileId("b2496eaffe394cd50a9db4de5787f45f09fd9722"), executable: false }))
+    "###
+    );
+
+    // Can show the tree at another commit
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "tree", "-r@-"]);
+    assert_snapshot!(stdout.replace('\\',"/"), @r###"
+    dir/subdir/file1: Resolved(Some(File { id: FileId("498e9b01d79cb8d31cdf0df1a663cc1fcefd9de3"), executable: false }))
+    "###
+    );
+
+    // Can filter by paths
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "tree", "dir/subdir/file2"]);
+    assert_snapshot!(stdout.replace('\\',"/"), @r###"
+    dir/subdir/file2: Resolved(Some(File { id: FileId("b2496eaffe394cd50a9db4de5787f45f09fd9722"), executable: false }))
+    "###
+    );
+
+    // Can a show the root tree by id
+    let stdout = test_env.jj_cmd_success(
+        &workspace_path,
+        &[
+            "debug",
+            "tree",
+            "--id=0958358e3f80e794f032b25ed2be96cf5825da6c",
+        ],
+    );
+    assert_snapshot!(stdout.replace('\\',"/"), @r###"
+    dir/subdir/file1: Resolved(Some(File { id: FileId("498e9b01d79cb8d31cdf0df1a663cc1fcefd9de3"), executable: false }))
+    dir/subdir/file2: Resolved(Some(File { id: FileId("b2496eaffe394cd50a9db4de5787f45f09fd9722"), executable: false }))
+    "###
+    );
+
+    // Can a show non-root tree by id
+    let stdout = test_env.jj_cmd_success(
+        &workspace_path,
+        &[
+            "debug",
+            "tree",
+            "--dir=dir",
+            "--id=6ac232efa713535ae518a1a898b77e76c0478184",
+        ],
+    );
+    assert_snapshot!(stdout.replace('\\',"/"), @r###"
+    dir/subdir/file1: Resolved(Some(File { id: FileId("498e9b01d79cb8d31cdf0df1a663cc1fcefd9de3"), executable: false }))
+    dir/subdir/file2: Resolved(Some(File { id: FileId("b2496eaffe394cd50a9db4de5787f45f09fd9722"), executable: false }))
+    "###
+    );
+
+    // Can filter by paths when showing non-root tree (matcher applies from root)
+    let stdout = test_env.jj_cmd_success(
+        &workspace_path,
+        &[
+            "debug",
+            "tree",
+            "--dir=dir",
+            "--id=6ac232efa713535ae518a1a898b77e76c0478184",
+            "dir/subdir/file2",
+        ],
+    );
+    assert_snapshot!(stdout.replace('\\',"/"), @r###"
+    dir/subdir/file2: Resolved(Some(File { id: FileId("b2496eaffe394cd50a9db4de5787f45f09fd9722"), executable: false }))
+    "###
+    );
+}
+
+#[test]
 fn test_debug_operation_id() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
