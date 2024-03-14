@@ -118,7 +118,6 @@ pub fn default_symbol_resolver<'a>(
 
 /// Parses user-configured expression defining the immutable set.
 pub fn parse_immutable_expression(
-    repo: &dyn Repo,
     context: &RevsetParseContext,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let (params, immutable_heads_str) = context
@@ -132,9 +131,7 @@ pub fn parse_immutable_expression(
     let immutable_heads_revset = parse(immutable_heads_str, context)?;
     Ok(immutable_heads_revset
         .ancestors()
-        .union(&RevsetExpression::commit(
-            repo.store().root_commit_id().clone(),
-        )))
+        .union(&RevsetExpression::root()))
 }
 
 pub fn format_parse_error(err: &RevsetParseError) -> String {

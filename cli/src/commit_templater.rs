@@ -619,7 +619,7 @@ fn evaluate_immutable_revset<'repo>(
     // Alternatively, a negated (i.e. visible mutable) set could be computed.
     // It's usually smaller than the immutable set. The revset engine can also
     // optimize "::<recent_heads>" query to use bitset-based implementation.
-    let expression = revset_util::parse_immutable_expression(repo, &language.revset_parse_context)
+    let expression = revset_util::parse_immutable_expression(&language.revset_parse_context)
         .map_err(|err| {
             TemplateParseError::unexpected_expression(revset_util::format_parse_error(&err), span)
         })?;
