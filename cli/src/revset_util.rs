@@ -30,6 +30,8 @@ use crate::command_error::{user_error, CommandError};
 use crate::config::LayeredConfigs;
 use crate::ui::Ui;
 
+const BUILTIN_IMMUTABLE_HEADS: &str = "immutable_heads";
+
 pub fn load_revset_aliases(
     ui: &Ui,
     layered_configs: &LayeredConfigs,
@@ -54,6 +56,17 @@ pub fn load_revset_aliases(
             }
         }
     }
+
+    // TODO: If we add support for function overloading (#2966), this check can
+    // be removed.
+    let (params, _) = aliases_map.get_function(BUILTIN_IMMUTABLE_HEADS).unwrap();
+    if !params.is_empty() {
+        return Err(user_error(format!(
+            "The `revset-aliases.{name}()` function must be declared without arguments",
+            name = BUILTIN_IMMUTABLE_HEADS
+        )));
+    }
+
     Ok(aliases_map)
 }
 
@@ -93,14 +106,15 @@ pub fn default_symbol_resolver<'a>(
 pub fn parse_immutable_expression(
     repo: &dyn Repo,
     context: &RevsetParseContext,
-) -> Result<Rc<RevsetExpression>, CommandError> {
-    let (params, immutable_heads_str) =
-        context.aliases_map.get_function("immutable_heads").unwrap();
-    if !params.is_empty() {
-        return Err(user_error(
-            r#"The `revset-aliases.immutable_heads()` function must be declared without arguments."#,
-        ));
-    }
+) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    let (params, immutable_heads_str) = context
+        .aliases_map
+        .get_function(BUILTIN_IMMUTABLE_HEADS)
+        .unwrap();
+    assert!(
+        params.is_empty(),
+        "invalid declaration should have been rejected by load_revset_aliases()"
+    );
     let immutable_heads_revset = parse(immutable_heads_str, context)?;
     Ok(immutable_heads_revset
         .ancestors()

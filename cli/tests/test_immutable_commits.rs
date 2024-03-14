@@ -57,24 +57,16 @@ fn test_rewrite_immutable_generic() {
     Error: The root commit 000000000000 is immutable
     "###);
     // Error if we redefine immutable_heads() with an argument
-    // TODO: This error comes from the built-in definition of
-    // `revsets.short-prefixes`. That's not clear to the user.
     test_env.add_config(r#"revset-aliases."immutable_heads(foo)" = "none()""#);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["edit", "root()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Config error: Invalid `revsets.short-prefixes`:  --> 1:31
-      |
-    1 | @ | ancestors(immutable_heads().., 2) | trunk()
-      |                               ^
-      |
-      = Invalid arguments to revset function "immutable_heads": Expected 1 arguments
-    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    Error: The `revset-aliases.immutable_heads()` function must be declared without arguments
     "###);
     // ... even if we also update the built-in call sites
     test_env.add_config(r#"revsets.short-prefixes = "immutable_heads(root())""#);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["edit", "root()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: The `revset-aliases.immutable_heads()` function must be declared without arguments.
+    Error: The `revset-aliases.immutable_heads()` function must be declared without arguments
     "###);
 }
 
