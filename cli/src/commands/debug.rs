@@ -17,9 +17,13 @@ use std::fmt::Debug;
 use std::io::Write as _;
 
 use clap::Subcommand;
+use jj_lib::backend::TreeId;
 use jj_lib::default_index::{AsCompositeIndex as _, DefaultIndexStore, DefaultReadonlyIndex};
 use jj_lib::local_working_copy::LocalWorkingCopy;
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
+use jj_lib::repo::Repo;
+use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::working_copy::WorkingCopy;
 use jj_lib::{op_walk, revset};
 
@@ -94,8 +98,12 @@ pub enum DebugOperationDisplay {
 /// List the recursive entries of a tree.
 #[derive(clap::Args, Clone, Debug)]
 pub struct DebugTreeArgs {
-    #[arg(long, short = 'r', default_value = "@")]
-    revision: RevisionArg,
+    #[arg(long, short = 'r')]
+    revision: Option<RevisionArg>,
+    #[arg(long, conflicts_with = "revision")]
+    id: Option<String>,
+    #[arg(long, requires = "id")]
+    dir: Option<String>,
     paths: Vec<String>,
     // TODO: Add an option to include trees that are ancestors of the matched paths
 }
@@ -292,8 +300,22 @@ fn cmd_debug_tree(
     args: &DebugTreeArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    let tree = commit.tree()?;
+    let tree = if let Some(tree_id_hex) = &args.id {
+        let tree_id =
+            TreeId::try_from_hex(tree_id_hex).map_err(|_| user_error("Invalid tree id"))?;
+        let dir = if let Some(dir_str) = &args.dir {
+            workspace_command.parse_file_path(dir_str)?
+        } else {
+            RepoPathBuf::root()
+        };
+        let store = workspace_command.repo().store();
+        let tree = store.get_tree(&dir, &tree_id)?;
+        MergedTree::resolved(tree)
+    } else {
+        let commit =
+            workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
+        commit.tree()?
+    };
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     for (path, value) in tree.entries_matching(matcher.as_ref()) {
         let ui_path = workspace_command.format_file_path(&path);
