@@ -18,8 +18,8 @@ use itertools::Itertools as _;
 use jj_lib::backend::{Signature, Timestamp};
 
 use crate::template_parser::{
-    self, BinaryOp, ExpressionKind, ExpressionNode, FunctionCallNode, MethodCallNode,
-    TemplateAliasesMap, TemplateParseError, TemplateParseErrorKind, TemplateParseResult, UnaryOp,
+    self, BinaryOp, ExpressionKind, ExpressionNode, FunctionCallNode, TemplateAliasesMap,
+    TemplateParseError, TemplateParseErrorKind, TemplateParseResult, UnaryOp,
 };
 use crate::templater::{
     ConcatTemplate, ConditionalTemplate, IntoTemplate, LabelTemplate, ListPropertyTemplate,
@@ -513,18 +513,6 @@ fn build_binary_operation<'a, L: TemplateLanguage<'a> + ?Sized>(
         }
     };
     Ok(Expression::unlabeled(property))
-}
-
-fn build_method_call<'a, L: TemplateLanguage<'a> + ?Sized>(
-    language: &L,
-    build_ctx: &BuildContext<L::Property>,
-    method: &MethodCallNode,
-) -> TemplateParseResult<Expression<L::Property>> {
-    let mut expression = build_expression(language, build_ctx, &method.object)?;
-    expression.property =
-        language.build_method(build_ctx, expression.property, &method.function)?;
-    expression.labels.push(method.function.name.to_owned());
-    Ok(expression)
 }
 
 fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
@@ -1047,7 +1035,13 @@ pub fn build_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
         ExpressionKind::FunctionCall(function) => {
             build_global_function(language, build_ctx, function)
         }
-        ExpressionKind::MethodCall(method) => build_method_call(language, build_ctx, method),
+        ExpressionKind::MethodCall(method) => {
+            let mut expression = build_expression(language, build_ctx, &method.object)?;
+            expression.property =
+                language.build_method(build_ctx, expression.property, &method.function)?;
+            expression.labels.push(method.function.name.to_owned());
+            Ok(expression)
+        }
         ExpressionKind::Lambda(_) => Err(TemplateParseError::unexpected_expression(
             "Lambda cannot be defined here",
             node.span,
