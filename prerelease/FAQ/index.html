@@ -536,6 +536,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#how-do-i-resume-working-on-an-existing-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      How do I resume working on an existing change?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#how-do-i-deal-with-divergent-changes-after-the-change-id" class="md-nav__link">
     <span class="md-ellipsis">
       How do I deal with divergent changes ('??' after the change ID)?
@@ -1462,6 +1471,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#how-do-i-resume-working-on-an-existing-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      How do I resume working on an existing change?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#how-do-i-deal-with-divergent-changes-after-the-change-id" class="md-nav__link">
     <span class="md-ellipsis">
       How do I deal with divergent changes ('??' after the change ID)?
@@ -1602,6 +1620,17 @@ the log output) of each of them. Now use <code>jj new</code> to create a new wor
 commit, then run <code>jj restore --from Y --to @-</code> to restore the parent commit
 to the old state, and <code>jj restore --from X</code> to restore the new working-copy
 commit to the new state.</p>
+<h3 id="how-do-i-resume-working-on-an-existing-change">How do I resume working on an existing change?<a class="headerlink" href="#how-do-i-resume-working-on-an-existing-change" title="Permanent link">&para;</a></h3>
+<p>There are two ways to resume working on an earlier change: <code>jj new</code> then <code>jj squash</code>,
+and <code>jj edit</code>. The first is generally recommended, but <code>jj edit</code> can be useful. When 
+you use <code>jj edit</code>, the revision is directly amended with your new changes, making it
+difficult to tell what exactly you change. You should avoid using <code>jj edit</code> when the
+revision has a conflict, as you may accidentally break the plain-text annotations on
+your state without realising.</p>
+<p>To start, use <code>jj new &lt;rev&gt;</code> to create a change based on that earlier revision. Make
+your edits, then use <code>jj squash</code> to update the earlier revision with those edits.
+For when you would use git stashing, use <code>jj edit &lt;rev&gt;</code> for expected behaviour. 
+Other workflows may prefer <code>jj edit</code> as well.</p>
 <h3 id="how-do-i-deal-with-divergent-changes-after-the-change-id">How do I deal with divergent changes ('??' after the <a href="../glossary/#change-id">change ID</a>)?<a class="headerlink" href="#how-do-i-deal-with-divergent-changes-after-the-change-id" title="Permanent link">&para;</a></h3>
 <p>A <a href="../glossary/#divergent-change">divergent change</a> represents a change that has two
 or more visible commits associated with it. To refer to such commits, you must

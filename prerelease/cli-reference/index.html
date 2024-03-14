@@ -5513,7 +5513,7 @@ does not match the <code>jj help</code> output exactly.</p>
 <li><code>diff</code> — Compare file contents between two revisions</li>
 <li><code>diffedit</code> — Touch up the content changes in a revision with a diff editor</li>
 <li><code>duplicate</code> — Create a new change with the same content as an existing one</li>
-<li><code>edit</code> — Edit a commit in the working copy</li>
+<li><code>edit</code> — Sets the specified revision as the working-copy revision</li>
 <li><code>files</code> — List files in a revision</li>
 <li><code>git</code> — Commands for working with the underlying Git repo</li>
 <li><code>init</code> — Create a new repo in the given directory</li>
@@ -5985,8 +5985,9 @@ Martin von Zweigbergk</p>
 </li>
 </ul>
 <h2 id="jj-edit"><code>jj edit</code><a class="headerlink" href="#jj-edit" title="Permanent link">&para;</a></h2>
-<p>Edit a commit in the working copy</p>
-<p>Puts the contents of a commit in the working copy for editing. Any changes you make in the working copy will update (amend) the commit.</p>
+<p>Sets the specified revision as the working-copy revision</p>
+<p>Note: it is generally recommended to instead use <code>jj new</code> and <code>jj squash</code>.</p>
+<p>For more information, see https://martinvonz.github.io/jj/latest/FAQ#how-do-i-resume-working-on-an-existing-change</p>
 <p><strong>Usage:</strong> <code>jj edit &lt;REVISION&gt;</code></p>
 <h6 id="arguments_18"><strong>Arguments:</strong><a class="headerlink" href="#arguments_18" title="Permanent link">&para;</a></h6>
 <ul>
