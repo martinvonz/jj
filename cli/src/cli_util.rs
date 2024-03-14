@@ -934,10 +934,8 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
                 .map(|commit| commit.id().clone())
                 .collect(),
         );
-        let immutable_revset = revset_util::parse_immutable_expression(
-            self.repo().as_ref(),
-            &self.revset_parse_context(),
-        )?;
+        let immutable_revset =
+            revset_util::parse_immutable_expression(&self.revset_parse_context())?;
         let revset = self.evaluate_revset(to_rewrite_revset.intersection(&immutable_revset))?;
         if let Some(commit) = revset.iter().commits(self.repo().store()).next() {
             let commit = commit?;
