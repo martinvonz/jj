@@ -88,7 +88,8 @@ impl<'a, C: 'a> TemplateLanguage<'a> for GenericTemplateLanguage<'a, C> {
         build_ctx: &BuildContext<Self::Property>,
         function: &FunctionCallNode,
     ) -> TemplateParseResult<Self::Property> {
-        template_builder::build_global_function(self, build_ctx, function)
+        let table = &self.build_fn_table.core;
+        table.build_function(self, build_ctx, function)
     }
 
     fn build_method(

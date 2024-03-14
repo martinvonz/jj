@@ -136,17 +136,6 @@ impl TemplateParseError {
         }
     }
 
-    // TODO: migrate callers to something like lookup_method()
-    pub(crate) fn no_such_function(function: &FunctionCallNode) -> Self {
-        TemplateParseError::with_span(
-            TemplateParseErrorKind::NoSuchFunction {
-                name: function.name.to_owned(),
-                candidates: vec![],
-            },
-            function.name_span,
-        )
-    }
-
     // TODO: migrate all callers to table-based lookup_method()
     pub(crate) fn no_such_method(
         type_name: impl Into<String>,
@@ -913,6 +902,25 @@ pub fn expect_lambda_with<'a, 'i, T>(
         ExpressionKind::AliasExpanded(id, subst) => {
             expect_lambda_with(subst, f).map_err(|e| e.within_alias_expansion(*id, node.span))
         }
+    }
+}
+
+/// Looks up `table` by the given function name.
+pub fn lookup_function<'a, V>(
+    table: &'a HashMap<&str, V>,
+    function: &FunctionCallNode,
+) -> TemplateParseResult<&'a V> {
+    if let Some(value) = table.get(function.name) {
+        Ok(value)
+    } else {
+        let candidates = collect_similar(function.name, table.keys());
+        Err(TemplateParseError::with_span(
+            TemplateParseErrorKind::NoSuchFunction {
+                name: function.name.to_owned(),
+                candidates,
+            },
+            function.name_span,
+        ))
     }
 }
 

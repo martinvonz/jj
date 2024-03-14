@@ -74,6 +74,9 @@ pub trait TemplateLanguage<'a> {
     fn build_self(&self) -> Self::Property;
 
     /// Translates the given global `function` call to a property.
+    ///
+    /// This should be delegated to
+    /// `CoreTemplateBuildFnTable::build_function()`.
     fn build_function(
         &self,
         build_ctx: &BuildContext<Self::Property>,
@@ -233,12 +236,20 @@ impl<'a, I: 'a> IntoTemplateProperty<'a, I> for CoreTemplatePropertyKind<'a, I> 
     }
 }
 
-/// Function that translates method call node of self type `T`.
+/// Function that translates global function call node.
 // The lifetime parameter 'a could be replaced with for<'a> to keep the method
 // table away from a certain lifetime. That's technically more correct, but I
 // couldn't find an easy way to expand that to the core template methods, which
 // are defined for L: TemplateLanguage<'a>. That's why the build fn table is
 // bound to a named lifetime, and therefore can't be cached statically.
+pub type TemplateBuildFunctionFn<'a, L> =
+    fn(
+        &L,
+        &BuildContext<<L as TemplateLanguage<'a>>::Property>,
+        &FunctionCallNode,
+    ) -> TemplateParseResult<<L as TemplateLanguage<'a>>::Property>;
+
+/// Function that translates method call node of self type `T`.
 pub type TemplateBuildMethodFn<'a, L, T> =
     fn(
         &L,
@@ -247,19 +258,22 @@ pub type TemplateBuildMethodFn<'a, L, T> =
         &FunctionCallNode,
     ) -> TemplateParseResult<<L as TemplateLanguage<'a>>::Property>;
 
+/// Table of functions that translate global function call node.
+pub type TemplateBuildFunctionFnMap<'a, L> = HashMap<&'static str, TemplateBuildFunctionFn<'a, L>>;
+
 /// Table of functions that translate method call node of self type `T`.
 pub type TemplateBuildMethodFnMap<'a, L, T> =
     HashMap<&'static str, TemplateBuildMethodFn<'a, L, T>>;
 
-/// Symbol table of methods available in the core template.
+/// Symbol table of functions and methods available in the core template.
 pub struct CoreTemplateBuildFnTable<'a, L: TemplateLanguage<'a> + ?Sized> {
+    pub functions: TemplateBuildFunctionFnMap<'a, L>,
     pub string_methods: TemplateBuildMethodFnMap<'a, L, String>,
     pub boolean_methods: TemplateBuildMethodFnMap<'a, L, bool>,
     pub integer_methods: TemplateBuildMethodFnMap<'a, L, i64>,
     pub signature_methods: TemplateBuildMethodFnMap<'a, L, Signature>,
     pub timestamp_methods: TemplateBuildMethodFnMap<'a, L, Timestamp>,
     pub timestamp_range_methods: TemplateBuildMethodFnMap<'a, L, TimestampRange>,
-    // TODO: add global functions table?
 }
 
 pub fn merge_fn_map<'s, F>(base: &mut HashMap<&'s str, F>, extension: HashMap<&'s str, F>) {
@@ -271,9 +285,10 @@ pub fn merge_fn_map<'s, F>(base: &mut HashMap<&'s str, F>, extension: HashMap<&'
 }
 
 impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
-    /// Creates new symbol table containing the builtin methods.
+    /// Creates new symbol table containing the builtin functions and methods.
     pub fn builtin() -> Self {
         CoreTemplateBuildFnTable {
+            functions: builtin_functions(),
             string_methods: builtin_string_methods(),
             boolean_methods: HashMap::new(),
             integer_methods: HashMap::new(),
@@ -285,6 +300,7 @@ impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
 
     pub fn empty() -> Self {
         CoreTemplateBuildFnTable {
+            functions: HashMap::new(),
             string_methods: HashMap::new(),
             boolean_methods: HashMap::new(),
             integer_methods: HashMap::new(),
@@ -296,6 +312,7 @@ impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
 
     pub fn merge(&mut self, extension: CoreTemplateBuildFnTable<'a, L>) {
         let CoreTemplateBuildFnTable {
+            functions,
             string_methods,
             boolean_methods,
             integer_methods,
@@ -304,12 +321,25 @@ impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
             timestamp_range_methods,
         } = extension;
 
+        merge_fn_map(&mut self.functions, functions);
         merge_fn_map(&mut self.string_methods, string_methods);
         merge_fn_map(&mut self.boolean_methods, boolean_methods);
         merge_fn_map(&mut self.integer_methods, integer_methods);
         merge_fn_map(&mut self.signature_methods, signature_methods);
         merge_fn_map(&mut self.timestamp_methods, timestamp_methods);
         merge_fn_map(&mut self.timestamp_range_methods, timestamp_range_methods);
+    }
+
+    /// Translates the function call node `function` by using this symbol table.
+    pub fn build_function(
+        &self,
+        language: &L,
+        build_ctx: &BuildContext<L::Property>,
+        function: &FunctionCallNode,
+    ) -> TemplateParseResult<L::Property> {
+        let table = &self.functions;
+        let build = template_parser::lookup_function(table, function)?;
+        build(language, build_ctx, function)
     }
 
     /// Applies the method call node `function` to the given `property` by using
@@ -895,92 +925,88 @@ where
     Ok(language.wrap_list_template(Box::new(list_template)))
 }
 
-pub fn build_global_function<'a, L: TemplateLanguage<'a> + ?Sized>(
-    language: &L,
-    build_ctx: &BuildContext<L::Property>,
-    function: &FunctionCallNode,
-) -> TemplateParseResult<L::Property> {
-    match function.name {
-        "fill" => {
-            let [width_node, content_node] = template_parser::expect_exact_arguments(function)?;
-            let width = expect_usize_expression(language, build_ctx, width_node)?;
-            let content = expect_template_expression(language, build_ctx, content_node)?;
-            let template = ReformatTemplate::new(content, move |context, formatter, recorded| {
-                match width.extract(context) {
-                    Ok(width) => text_util::write_wrapped(formatter, recorded, width),
-                    Err(err) => err.format(&(), formatter),
-                }
-            });
-            Ok(language.wrap_template(Box::new(template)))
-        }
-        "indent" => {
-            let [prefix_node, content_node] = template_parser::expect_exact_arguments(function)?;
-            let prefix = expect_template_expression(language, build_ctx, prefix_node)?;
-            let content = expect_template_expression(language, build_ctx, content_node)?;
-            let template = ReformatTemplate::new(content, move |context, formatter, recorded| {
-                text_util::write_indented(formatter, recorded, |formatter| {
-                    prefix.format(context, formatter)
-                })
-            });
-            Ok(language.wrap_template(Box::new(template)))
-        }
-        "label" => {
-            let [label_node, content_node] = template_parser::expect_exact_arguments(function)?;
-            let label_property = expect_plain_text_expression(language, build_ctx, label_node)?;
-            let content = expect_template_expression(language, build_ctx, content_node)?;
-            let labels = TemplateFunction::new(label_property, |s| {
-                Ok(s.split_whitespace().map(ToString::to_string).collect())
-            });
-            Ok(language.wrap_template(Box::new(LabelTemplate::new(content, labels))))
-        }
-        "if" => {
-            let ([condition_node, true_node], [false_node]) =
-                template_parser::expect_arguments(function)?;
-            let condition = expect_boolean_expression(language, build_ctx, condition_node)?;
-            let true_template = expect_template_expression(language, build_ctx, true_node)?;
-            let false_template = false_node
-                .map(|node| expect_template_expression(language, build_ctx, node))
-                .transpose()?;
-            let template = ConditionalTemplate::new(condition, true_template, false_template);
-            Ok(language.wrap_template(Box::new(template)))
-        }
-        "concat" => {
-            let contents = function
-                .args
-                .iter()
-                .map(|node| expect_template_expression(language, build_ctx, node))
-                .try_collect()?;
-            Ok(language.wrap_template(Box::new(ConcatTemplate(contents))))
-        }
-        "separate" => {
-            let ([separator_node], content_nodes) =
-                template_parser::expect_some_arguments(function)?;
-            let separator = expect_template_expression(language, build_ctx, separator_node)?;
-            let contents = content_nodes
-                .iter()
-                .map(|node| expect_template_expression(language, build_ctx, node))
-                .try_collect()?;
-            Ok(language.wrap_template(Box::new(SeparateTemplate::new(separator, contents))))
-        }
-        "surround" => {
-            let [prefix_node, suffix_node, content_node] =
-                template_parser::expect_exact_arguments(function)?;
-            let prefix = expect_template_expression(language, build_ctx, prefix_node)?;
-            let suffix = expect_template_expression(language, build_ctx, suffix_node)?;
-            let content = expect_template_expression(language, build_ctx, content_node)?;
-            let template = ReformatTemplate::new(content, move |context, formatter, recorded| {
-                if recorded.data().is_empty() {
-                    return Ok(());
-                }
-                prefix.format(context, formatter)?;
-                recorded.replay(formatter)?;
-                suffix.format(context, formatter)?;
-                Ok(())
-            });
-            Ok(language.wrap_template(Box::new(template)))
-        }
-        _ => Err(TemplateParseError::no_such_function(function)),
-    }
+fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFunctionFnMap<'a, L> {
+    // Not using maplit::hashmap!{} or custom declarative macro here because
+    // code completion inside macro is quite restricted.
+    let mut map = TemplateBuildFunctionFnMap::<L>::new();
+    map.insert("fill", |language, build_ctx, function| {
+        let [width_node, content_node] = template_parser::expect_exact_arguments(function)?;
+        let width = expect_usize_expression(language, build_ctx, width_node)?;
+        let content = expect_template_expression(language, build_ctx, content_node)?;
+        let template = ReformatTemplate::new(content, move |context, formatter, recorded| {
+            match width.extract(context) {
+                Ok(width) => text_util::write_wrapped(formatter, recorded, width),
+                Err(err) => err.format(&(), formatter),
+            }
+        });
+        Ok(language.wrap_template(Box::new(template)))
+    });
+    map.insert("indent", |language, build_ctx, function| {
+        let [prefix_node, content_node] = template_parser::expect_exact_arguments(function)?;
+        let prefix = expect_template_expression(language, build_ctx, prefix_node)?;
+        let content = expect_template_expression(language, build_ctx, content_node)?;
+        let template = ReformatTemplate::new(content, move |context, formatter, recorded| {
+            text_util::write_indented(formatter, recorded, |formatter| {
+                prefix.format(context, formatter)
+            })
+        });
+        Ok(language.wrap_template(Box::new(template)))
+    });
+    map.insert("label", |language, build_ctx, function| {
+        let [label_node, content_node] = template_parser::expect_exact_arguments(function)?;
+        let label_property = expect_plain_text_expression(language, build_ctx, label_node)?;
+        let content = expect_template_expression(language, build_ctx, content_node)?;
+        let labels = TemplateFunction::new(label_property, |s| {
+            Ok(s.split_whitespace().map(ToString::to_string).collect())
+        });
+        Ok(language.wrap_template(Box::new(LabelTemplate::new(content, labels))))
+    });
+    map.insert("if", |language, build_ctx, function| {
+        let ([condition_node, true_node], [false_node]) =
+            template_parser::expect_arguments(function)?;
+        let condition = expect_boolean_expression(language, build_ctx, condition_node)?;
+        let true_template = expect_template_expression(language, build_ctx, true_node)?;
+        let false_template = false_node
+            .map(|node| expect_template_expression(language, build_ctx, node))
+            .transpose()?;
+        let template = ConditionalTemplate::new(condition, true_template, false_template);
+        Ok(language.wrap_template(Box::new(template)))
+    });
+    map.insert("concat", |language, build_ctx, function| {
+        let contents = function
+            .args
+            .iter()
+            .map(|node| expect_template_expression(language, build_ctx, node))
+            .try_collect()?;
+        Ok(language.wrap_template(Box::new(ConcatTemplate(contents))))
+    });
+    map.insert("separate", |language, build_ctx, function| {
+        let ([separator_node], content_nodes) = template_parser::expect_some_arguments(function)?;
+        let separator = expect_template_expression(language, build_ctx, separator_node)?;
+        let contents = content_nodes
+            .iter()
+            .map(|node| expect_template_expression(language, build_ctx, node))
+            .try_collect()?;
+        Ok(language.wrap_template(Box::new(SeparateTemplate::new(separator, contents))))
+    });
+    map.insert("surround", |language, build_ctx, function| {
+        let [prefix_node, suffix_node, content_node] =
+            template_parser::expect_exact_arguments(function)?;
+        let prefix = expect_template_expression(language, build_ctx, prefix_node)?;
+        let suffix = expect_template_expression(language, build_ctx, suffix_node)?;
+        let content = expect_template_expression(language, build_ctx, content_node)?;
+        let template = ReformatTemplate::new(content, move |context, formatter, recorded| {
+            if recorded.data().is_empty() {
+                return Ok(());
+            }
+            prefix.format(context, formatter)?;
+            recorded.replay(formatter)?;
+            suffix.format(context, formatter)?;
+            Ok(())
+        });
+        Ok(language.wrap_template(Box::new(template)))
+    });
+    map
 }
 
 /// Builds intermediate expression tree from AST nodes.
