@@ -433,7 +433,7 @@ fn build_keyword<'a, L: TemplateLanguage<'a> + ?Sized>(
     build_ctx: &BuildContext<L::Property>,
     name: &str,
     name_span: pest::Span<'_>,
-) -> TemplateParseResult<Expression<L::Property>> {
+) -> TemplateParseResult<L::Property> {
     // Keyword is a 0-ary method on the "self" property
     let self_property = language.build_self();
     let function = FunctionCallNode {
@@ -444,7 +444,6 @@ fn build_keyword<'a, L: TemplateLanguage<'a> + ?Sized>(
     };
     language
         .build_method(build_ctx, self_property, &function)
-        .map(|property| Expression::with_label(property, name))
         .map_err(|err| match err.kind() {
             TemplateParseErrorKind::NoSuchMethod { candidates, .. } => {
                 let kind = TemplateParseErrorKind::NoSuchKeyword {
@@ -474,21 +473,20 @@ fn build_unary_operation<'a, L: TemplateLanguage<'a> + ?Sized>(
     build_ctx: &BuildContext<L::Property>,
     op: UnaryOp,
     arg_node: &ExpressionNode,
-) -> TemplateParseResult<Expression<L::Property>> {
-    let property = match op {
+) -> TemplateParseResult<L::Property> {
+    match op {
         UnaryOp::LogicalNot => {
             let arg = expect_boolean_expression(language, build_ctx, arg_node)?;
-            language.wrap_boolean(TemplateFunction::new(arg, |v| Ok(!v)))
+            Ok(language.wrap_boolean(TemplateFunction::new(arg, |v| Ok(!v))))
         }
         UnaryOp::Negate => {
             let arg = expect_integer_expression(language, build_ctx, arg_node)?;
-            language.wrap_integer(TemplateFunction::new(arg, |v| {
+            Ok(language.wrap_integer(TemplateFunction::new(arg, |v| {
                 v.checked_neg()
                     .ok_or_else(|| TemplatePropertyError("Attempt to negate with overflow".into()))
-            }))
+            })))
         }
-    };
-    Ok(Expression::unlabeled(property))
+    }
 }
 
 fn build_binary_operation<'a, L: TemplateLanguage<'a> + ?Sized>(
@@ -497,22 +495,21 @@ fn build_binary_operation<'a, L: TemplateLanguage<'a> + ?Sized>(
     op: BinaryOp,
     lhs_node: &ExpressionNode,
     rhs_node: &ExpressionNode,
-) -> TemplateParseResult<Expression<L::Property>> {
-    let property = match op {
+) -> TemplateParseResult<L::Property> {
+    match op {
         BinaryOp::LogicalOr => {
             // No short-circuiting supported
             let lhs = expect_boolean_expression(language, build_ctx, lhs_node)?;
             let rhs = expect_boolean_expression(language, build_ctx, rhs_node)?;
-            language.wrap_boolean(TemplateFunction::new((lhs, rhs), |(l, r)| Ok(l | r)))
+            Ok(language.wrap_boolean(TemplateFunction::new((lhs, rhs), |(l, r)| Ok(l | r))))
         }
         BinaryOp::LogicalAnd => {
             // No short-circuiting supported
             let lhs = expect_boolean_expression(language, build_ctx, lhs_node)?;
             let rhs = expect_boolean_expression(language, build_ctx, rhs_node)?;
-            language.wrap_boolean(TemplateFunction::new((lhs, rhs), |(l, r)| Ok(l & r)))
+            Ok(language.wrap_boolean(TemplateFunction::new((lhs, rhs), |(l, r)| Ok(l & r))))
         }
-    };
-    Ok(Expression::unlabeled(property))
+    }
 }
 
 fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
@@ -898,8 +895,8 @@ fn build_global_function<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
     function: &FunctionCallNode,
-) -> TemplateParseResult<Expression<L::Property>> {
-    let property = match function.name {
+) -> TemplateParseResult<L::Property> {
+    match function.name {
         "fill" => {
             let [width_node, content_node] = template_parser::expect_exact_arguments(function)?;
             let width = expect_usize_expression(language, build_ctx, width_node)?;
@@ -910,7 +907,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a> + ?Sized>(
                     Err(err) => err.format(&(), formatter),
                 }
             });
-            language.wrap_template(Box::new(template))
+            Ok(language.wrap_template(Box::new(template)))
         }
         "indent" => {
             let [prefix_node, content_node] = template_parser::expect_exact_arguments(function)?;
@@ -921,7 +918,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a> + ?Sized>(
                     prefix.format(context, formatter)
                 })
             });
-            language.wrap_template(Box::new(template))
+            Ok(language.wrap_template(Box::new(template)))
         }
         "label" => {
             let [label_node, content_node] = template_parser::expect_exact_arguments(function)?;
@@ -930,7 +927,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a> + ?Sized>(
             let labels = TemplateFunction::new(label_property, |s| {
                 Ok(s.split_whitespace().map(ToString::to_string).collect())
             });
-            language.wrap_template(Box::new(LabelTemplate::new(content, labels)))
+            Ok(language.wrap_template(Box::new(LabelTemplate::new(content, labels))))
         }
         "if" => {
             let ([condition_node, true_node], [false_node]) =
@@ -941,7 +938,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a> + ?Sized>(
                 .map(|node| expect_template_expression(language, build_ctx, node))
                 .transpose()?;
             let template = ConditionalTemplate::new(condition, true_template, false_template);
-            language.wrap_template(Box::new(template))
+            Ok(language.wrap_template(Box::new(template)))
         }
         "concat" => {
             let contents = function
@@ -949,7 +946,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a> + ?Sized>(
                 .iter()
                 .map(|node| expect_template_expression(language, build_ctx, node))
                 .try_collect()?;
-            language.wrap_template(Box::new(ConcatTemplate(contents)))
+            Ok(language.wrap_template(Box::new(ConcatTemplate(contents))))
         }
         "separate" => {
             let ([separator_node], content_nodes) =
@@ -959,7 +956,7 @@ fn build_global_function<'a, L: TemplateLanguage<'a> + ?Sized>(
                 .iter()
                 .map(|node| expect_template_expression(language, build_ctx, node))
                 .try_collect()?;
-            language.wrap_template(Box::new(SeparateTemplate::new(separator, contents)))
+            Ok(language.wrap_template(Box::new(SeparateTemplate::new(separator, contents))))
         }
         "surround" => {
             let [prefix_node, suffix_node, content_node] =
@@ -976,11 +973,10 @@ fn build_global_function<'a, L: TemplateLanguage<'a> + ?Sized>(
                 suffix.format(context, formatter)?;
                 Ok(())
             });
-            language.wrap_template(Box::new(template))
+            Ok(language.wrap_template(Box::new(template)))
         }
-        _ => return Err(TemplateParseError::no_such_function(function)),
-    };
-    Ok(Expression::unlabeled(property))
+        _ => Err(TemplateParseError::no_such_function(function)),
+    }
 }
 
 /// Builds intermediate expression tree from AST nodes.
@@ -998,12 +994,14 @@ pub fn build_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
                 // "self" is a special variable, so don't label it
                 Ok(Expression::unlabeled(language.build_self()))
             } else {
-                build_keyword(language, build_ctx, name, node.span).map_err(|err| {
-                    err.extend_keyword_candidates(itertools::chain(
-                        build_ctx.local_variables.keys().copied(),
-                        ["self"],
-                    ))
-                })
+                let property =
+                    build_keyword(language, build_ctx, name, node.span).map_err(|err| {
+                        err.extend_keyword_candidates(itertools::chain(
+                            build_ctx.local_variables.keys().copied(),
+                            ["self"],
+                        ))
+                    })?;
+                Ok(Expression::with_label(property, *name))
             }
         }
         ExpressionKind::Boolean(value) => {
@@ -1019,10 +1017,12 @@ pub fn build_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
             Ok(Expression::unlabeled(property))
         }
         ExpressionKind::Unary(op, arg_node) => {
-            build_unary_operation(language, build_ctx, *op, arg_node)
+            let property = build_unary_operation(language, build_ctx, *op, arg_node)?;
+            Ok(Expression::unlabeled(property))
         }
         ExpressionKind::Binary(op, lhs_node, rhs_node) => {
-            build_binary_operation(language, build_ctx, *op, lhs_node, rhs_node)
+            let property = build_binary_operation(language, build_ctx, *op, lhs_node, rhs_node)?;
+            Ok(Expression::unlabeled(property))
         }
         ExpressionKind::Concat(nodes) => {
             let templates = nodes
@@ -1033,7 +1033,8 @@ pub fn build_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
             Ok(Expression::unlabeled(property))
         }
         ExpressionKind::FunctionCall(function) => {
-            build_global_function(language, build_ctx, function)
+            let property = build_global_function(language, build_ctx, function)?;
+            Ok(Expression::unlabeled(property))
         }
         ExpressionKind::MethodCall(method) => {
             let mut expression = build_expression(language, build_ctx, &method.object)?;
