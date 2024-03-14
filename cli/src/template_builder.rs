@@ -73,6 +73,13 @@ pub trait TemplateLanguage<'a> {
     /// clones the `Context` object.
     fn build_self(&self) -> Self::Property;
 
+    /// Translates the given global `function` call to a property.
+    fn build_function(
+        &self,
+        build_ctx: &BuildContext<Self::Property>,
+        function: &FunctionCallNode,
+    ) -> TemplateParseResult<Self::Property>;
+
     fn build_method(
         &self,
         build_ctx: &BuildContext<Self::Property>,
@@ -891,7 +898,7 @@ where
     Ok(language.wrap_list_template(Box::new(list_template)))
 }
 
-fn build_global_function<'a, L: TemplateLanguage<'a> + ?Sized>(
+pub fn build_global_function<'a, L: TemplateLanguage<'a> + ?Sized>(
     language: &L,
     build_ctx: &BuildContext<L::Property>,
     function: &FunctionCallNode,
@@ -1033,7 +1040,7 @@ pub fn build_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
             Ok(Expression::unlabeled(property))
         }
         ExpressionKind::FunctionCall(function) => {
-            let property = build_global_function(language, build_ctx, function)?;
+            let property = language.build_function(build_ctx, function)?;
             Ok(Expression::unlabeled(property))
         }
         ExpressionKind::MethodCall(method) => {

@@ -59,6 +59,14 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage {
         self.wrap_operation(TemplatePropertyFn(|op: &Operation| Ok(op.clone())))
     }
 
+    fn build_function(
+        &self,
+        build_ctx: &BuildContext<Self::Property>,
+        function: &FunctionCallNode,
+    ) -> TemplateParseResult<Self::Property> {
+        template_builder::build_global_function(self, build_ctx, function)
+    }
+
     fn build_method(
         &self,
         build_ctx: &BuildContext<Self::Property>,
