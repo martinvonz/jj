@@ -262,10 +262,7 @@ pub struct CoreTemplateBuildFnTable<'a, L: TemplateLanguage<'a> + ?Sized> {
     // TODO: add global functions table?
 }
 
-pub fn merge_fn_map<'a, L: TemplateLanguage<'a> + ?Sized, T>(
-    base: &mut TemplateBuildMethodFnMap<'a, L, T>,
-    extension: TemplateBuildMethodFnMap<'a, L, T>,
-) {
+pub fn merge_fn_map<'s, F>(base: &mut HashMap<&'s str, F>, extension: HashMap<&'s str, F>) {
     for (name, function) in extension {
         if base.insert(name, function).is_some() {
             panic!("Conflicting template definitions for '{name}' function");
