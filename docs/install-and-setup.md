@@ -12,7 +12,7 @@ version should work on all distributions).
 If you'd like to install a prerelease version, you'll need to use one of the
 options below.
 
-#### Cargo BInstall
+#### Cargo Binstall
 
 If you use [`cargo-binstall`](https://github.com/cargo-bins/cargo-binstall), you
 can install the same binaries of the last `jj` release from GitHub as follows:
@@ -27,6 +27,19 @@ be compiled from the same source code.
 
 
 ### Linux
+
+### Arch Linux
+You can install the `jujutsu` package from the [official extra repository](https://archlinux.org/packages/extra/x86_64/jujutsu/):
+
+```
+pacman -S jujutsu
+```
+
+Or install from the [AUR repository](https://aur.archlinux.org/packages/jujutsu-git) with an [AUR Helper](https://wiki.archlinux.org/title/AUR_helpers):
+
+```
+yay -S jujutsu-git
+```
 
 #### From Source
 
