@@ -370,7 +370,7 @@
           <li class="md-nav__item">
   <a href="#cargo-binstall" class="md-nav__link">
     <span class="md-ellipsis">
-      Cargo BInstall
+      Cargo Binstall
     </span>
   </a>
   
@@ -388,7 +388,16 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Linux">
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arch-linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arch Linux
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Arch Linux">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1462,7 +1471,7 @@
           <li class="md-nav__item">
   <a href="#cargo-binstall" class="md-nav__link">
     <span class="md-ellipsis">
-      Cargo BInstall
+      Cargo Binstall
     </span>
   </a>
   
@@ -1480,7 +1489,16 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Linux">
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#arch-linux" class="md-nav__link">
+    <span class="md-ellipsis">
+      Arch Linux
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Arch Linux">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1663,7 +1681,7 @@ of the last released version of <code>jj</code> for Windows, Mac, or Linux (the 
 version should work on all distributions).</p>
 <p>If you'd like to install a prerelease version, you'll need to use one of the
 options below.</p>
-<h4 id="cargo-binstall">Cargo BInstall<a class="headerlink" href="#cargo-binstall" title="Permanent link">&para;</a></h4>
+<h4 id="cargo-binstall">Cargo Binstall<a class="headerlink" href="#cargo-binstall" title="Permanent link">&para;</a></h4>
 <p>If you use <a href="https://github.com/cargo-bins/cargo-binstall"><code>cargo-binstall</code></a>, you
 can install the same binaries of the last <code>jj</code> release from GitHub as follows:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Will put the jj binary for the latest release in ~/.cargo/bin by default</span>
@@ -1672,6 +1690,13 @@ cargo<span class="w"> </span>binstall<span class="w"> </span>--strategies<span c
 <p>Without the <code>--strategies</code> option, you may get equivalent binaries that should
 be compiled from the same source code.</p>
 <h3 id="linux">Linux<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h3>
+<h3 id="arch-linux">Arch Linux<a class="headerlink" href="#arch-linux" title="Permanent link">&para;</a></h3>
+<p>You can install the <code>jujutsu</code> package from the <a href="https://archlinux.org/packages/extra/x86_64/jujutsu/">official extra repository</a>:</p>
+<div class="highlight"><pre><span></span><code>pacman -S jujutsu
+</code></pre></div>
+<p>Or install from the <a href="https://aur.archlinux.org/packages/jujutsu-git">AUR repository</a> with an <a href="https://wiki.archlinux.org/title/AUR_helpers">AUR Helper</a>:</p>
+<div class="highlight"><pre><span></span><code>yay -S jujutsu-git
+</code></pre></div>
 <h4 id="from-source">From Source<a class="headerlink" href="#from-source" title="Permanent link">&para;</a></h4>
 <p>First make sure that you have the <code>libssl-dev</code>, <code>openssl</code>, <code>pkg-config</code>, and
 <code>build-essential</code> packages installed by running something like this:</p>
