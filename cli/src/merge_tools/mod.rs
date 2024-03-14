@@ -1,4 +1,4 @@
-// Copyright 2020 The Jujutsu Authors
+// Copyright 2024 The Jujutsu Authors
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -13,6 +13,7 @@
 // limitations under the License.
 
 mod builtin;
+mod builtin_web;
 mod diff_working_copies;
 mod external;
 
@@ -31,18 +32,19 @@ use pollster::FutureExt;
 use thiserror::Error;
 
 use self::builtin::{edit_diff_builtin, edit_merge_builtin, BuiltinToolError};
+use self::builtin_web::edit_diff_web;
 use self::diff_working_copies::DiffCheckoutError;
 use self::external::{edit_diff_external, ExternalToolError};
 pub use self::external::{generate_diff, ExternalMergeTool};
 use crate::config::CommandNameAndArgs;
 use crate::ui::Ui;
 
-const BUILTIN_EDITOR_NAME: &str = ":builtin";
-
 #[derive(Debug, Error)]
 pub enum DiffEditError {
     #[error(transparent)]
-    InternalTool(#[from] Box<BuiltinToolError>),
+    InternalTUITool(#[from] Box<BuiltinToolError>),
+    #[error(transparent)]
+    InternalWebTool(#[from] Box<diffedit3::local_server::MergeToolError>),
     #[error(transparent)]
     ExternalTool(#[from] ExternalToolError),
     #[error(transparent)]
@@ -65,6 +67,8 @@ pub enum DiffGenerateError {
 pub enum ConflictResolveError {
     #[error(transparent)]
     InternalTool(#[from] Box<BuiltinToolError>),
+    #[error("The ':builtin-web' tool cannot yet be used to resolve merge conflicts.")]
+    BuiltinWebNotImplemented,
     #[error(transparent)]
     ExternalTool(#[from] ExternalToolError),
     #[error("Couldn't find the path {0:?} in this revision")]
@@ -97,7 +101,8 @@ pub enum MergeToolConfigError {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MergeTool {
-    Builtin,
+    BuiltinTUI,
+    BuiltinWeb,
     // Boxed because ExternalMergeTool is big compared to the Builtin variant.
     External(Box<ExternalMergeTool>),
 }
@@ -119,7 +124,7 @@ fn editor_args_from_settings(
     if let Some(args) = settings.config().get(key).optional()? {
         Ok(args)
     } else {
-        let default_editor = BUILTIN_EDITOR_NAME;
+        let default_editor = ":builtin-tui";
         if let Some(mut writer) = ui.hint_default() {
             writeln!(
                 writer,
@@ -135,8 +140,10 @@ fn editor_args_from_settings(
 /// Resolves builtin merge tool name or loads external tool options from
 /// `[merge-tools.<name>]`.
 fn get_tool_config(settings: &UserSettings, name: &str) -> Result<Option<MergeTool>, ConfigError> {
-    if name == BUILTIN_EDITOR_NAME {
-        Ok(Some(MergeTool::Builtin))
+    if [":builtin", ":builtin-tui"].contains(&name) {
+        Ok(Some(MergeTool::BuiltinTUI))
+    } else if name == ":builtin-web" {
+        Ok(Some(MergeTool::BuiltinWeb))
     } else {
         Ok(get_external_tool_config(settings, name)?.map(MergeTool::external))
     }
@@ -222,21 +229,26 @@ impl DiffEditor {
         matcher: &dyn Matcher,
         instructions: Option<&str>,
     ) -> Result<MergedTreeId, DiffEditError> {
+        let instructions = self.use_instructions.then_some(instructions).flatten();
         match &self.tool {
-            MergeTool::Builtin => {
+            MergeTool::BuiltinTUI => {
                 Ok(edit_diff_builtin(left_tree, right_tree, matcher).map_err(Box::new)?)
             }
-            MergeTool::External(editor) => {
-                let instructions = self.use_instructions.then_some(instructions).flatten();
-                edit_diff_external(
-                    editor,
-                    left_tree,
-                    right_tree,
-                    matcher,
-                    instructions,
-                    self.base_ignores.clone(),
-                )
-            }
+            MergeTool::BuiltinWeb => edit_diff_web(
+                left_tree,
+                right_tree,
+                matcher,
+                instructions,
+                self.base_ignores.clone(),
+            ),
+            MergeTool::External(editor) => edit_diff_external(
+                editor,
+                left_tree,
+                right_tree,
+                matcher,
+                instructions,
+                self.base_ignores.clone(),
+            ),
         }
     }
 }
@@ -308,10 +320,11 @@ impl MergeEditor {
         let content = extract_as_single_hunk(&file_merge, tree.store(), repo_path).block_on();
 
         match &self.tool {
-            MergeTool::Builtin => {
+            MergeTool::BuiltinTUI => {
                 let tree_id = edit_merge_builtin(tree, repo_path, content).map_err(Box::new)?;
                 Ok(tree_id)
             }
+            MergeTool::BuiltinWeb => Err(ConflictResolveError::BuiltinWebNotImplemented),
             MergeTool::External(editor) => external::run_mergetool_external(
                 editor, file_merge, content, repo_path, conflict, tree,
             ),
@@ -340,7 +353,7 @@ mod tests {
             DiffEditor::with_name(name, &settings, GitIgnoreFile::empty()).map(|editor| editor.tool)
         };
 
-        insta::assert_debug_snapshot!(get(":builtin", "").unwrap(), @"Builtin");
+        insta::assert_debug_snapshot!(get(":builtin", "").unwrap(), @"BuiltinTUI");
 
         // Just program name, edit_args are filled by default
         insta::assert_debug_snapshot!(get("my diff", "").unwrap(), @r###"
@@ -399,7 +412,7 @@ mod tests {
         };
 
         // Default
-        insta::assert_debug_snapshot!(get("").unwrap(), @"Builtin");
+        insta::assert_debug_snapshot!(get("").unwrap(), @"BuiltinTUI");
 
         // Just program name, edit_args are filled by default
         insta::assert_debug_snapshot!(get(r#"ui.diff-editor = "my-diff""#).unwrap(), @r###"
@@ -546,7 +559,7 @@ mod tests {
             MergeEditor::with_name(name, &settings).map(|editor| editor.tool)
         };
 
-        insta::assert_debug_snapshot!(get(":builtin", "").unwrap(), @"Builtin");
+        insta::assert_debug_snapshot!(get(":builtin", "").unwrap(), @"BuiltinTUI");
 
         // Just program name
         insta::assert_debug_snapshot!(get("my diff", "").unwrap_err(), @r###"
@@ -595,7 +608,7 @@ mod tests {
         };
 
         // Default
-        insta::assert_debug_snapshot!(get("").unwrap(), @"Builtin");
+        insta::assert_debug_snapshot!(get("").unwrap(), @"BuiltinTUI");
 
         // Just program name
         insta::assert_debug_snapshot!(get(r#"ui.merge-editor = "my-merge""#).unwrap_err(), @r###"

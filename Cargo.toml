@@ -42,6 +42,7 @@ chrono = { version = "0.4.38", default-features = false, features = [
 config = { version = "0.13.4", default-features = false, features = ["toml"] }
 criterion = "0.5.1"
 crossterm = { version = "0.27", default-features = false }
+diffedit3 = "0.2.0"
 digest = "0.10.7"
 dirs = "5.0.1"
 either = "1.11.0"

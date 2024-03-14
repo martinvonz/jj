@@ -448,13 +448,29 @@ Obviously, you would only set one line, don't copy them all in!
 ## Editing diffs
 
 The `ui.diff-editor` setting affects the tool used for editing diffs (e.g.  `jj
-split`, `jj squash -i`). The default is the special value `:builtin`, which
-launches a built-in TUI tool (known as [scm-diff-editor]) to edit the diff in
-your terminal.
+split`, `jj squash -i`).
+
+### Built-in diff editors
+
+The default is the special value `:builtin`, which is equivlaent to
+`:builtin-tui`. Either of these launches a built-in TUI tool
+(known as [scm-diff-editor]) to edit the diff in your terminal.
+
+There is also a built-in `:builtin-web` GUI editor (also knows as [diffedit3])
+that runs as a local server that is accessed with a web browser. The interface
+is similar to, and less poished than, that of the [`meld-3` Meld
+config](#experimental-3-pane-diff-editing), but requires neither installing Meld
+nor running Meld. `:builtin-web` can also be run over SSH with port forwarding.
+
+<!-- TODO(ilyagr): Explain what port it runs on, give example SSG commands -->
 
 [scm-diff-editor]: https://github.com/arxanas/scm-record?tab=readme-ov-file#scm-diff-editor
+[diffedit3]: https://github.com/ilyagr/diffedit3
 
-`jj` makes the following substitutions:
+### External diff editors
+
+`ui.diff-editor` can also be set to a command, or to a list of a command
+followed by its arguments. `jj` makes the following substitutions:
 
 - `$left` and `$right` are replaced with the paths to the left and right
   directories to diff respectively.
