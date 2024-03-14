@@ -83,6 +83,14 @@ impl<'a, C: 'a> TemplateLanguage<'a> for GenericTemplateLanguage<'a, C> {
         GenericTemplatePropertyKind::Self_
     }
 
+    fn build_function(
+        &self,
+        build_ctx: &BuildContext<Self::Property>,
+        function: &FunctionCallNode,
+    ) -> TemplateParseResult<Self::Property> {
+        template_builder::build_global_function(self, build_ctx, function)
+    }
+
     fn build_method(
         &self,
         build_ctx: &BuildContext<Self::Property>,
