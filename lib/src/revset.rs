@@ -2932,7 +2932,7 @@ mod tests {
             parse(r#"branches(bad:"foo")"#),
             Err(RevsetParseErrorKind::InvalidFunctionArguments {
                 name: "branches".to_owned(),
-                message: r#"Invalid string pattern kind "bad""#.to_owned()
+                message: r#"Invalid string pattern kind "bad:", try prefixing with one of `exact:`, `glob:` or `substring:`"#.to_owned()
             })
         );
         assert_eq!(
