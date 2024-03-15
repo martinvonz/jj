@@ -2475,6 +2475,8 @@ GnuPG or SSH signing keys.</p>
 <span class="n">sign-all</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 <span class="n">backend</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;gpg&quot;</span>
 <span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;4ED556E9729E000F&quot;</span>
+<span class="c1">## You can set `key` to anything accepted by `gpg -u`</span>
+<span class="c1"># key = &quot;signing@example.com&quot;</span>
 </code></pre></div>
 <p>By default the gpg backend will look for a <code>gpg</code> binary on your path. If you want
 to change the program used or specify a path to <code>gpg</code> explicitly you can set:</p>
@@ -2489,6 +2491,8 @@ To consider expired keys as invalid you can set:</p>
 <span class="n">sign-all</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 <span class="n">backend</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ssh&quot;</span>
 <span class="n">key</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGj+J6N6SO+4P8dOZqfR1oiay2yxhhHnagH52avUqw5h&quot;</span>
+<span class="c1">## You can also use a path instead of embedding the key</span>
+<span class="c1"># key = &quot;/home/me/.ssh/id_for_signing.pub&quot;</span>
 </code></pre></div>
 <p>By default the ssh backend will look for a <code>ssh-keygen</code> binary on your path. If you want
 to change the program used or specify a path to <code>ssh-keygen</code> explicitly you can set:</p>
