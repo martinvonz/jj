@@ -504,10 +504,6 @@ impl Index for DefaultMutableIndex {
         self.as_composite().heads(candidates)
     }
 
-    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
-        self.as_composite().topo_order(input)
-    }
-
     fn evaluate_revset<'index>(
         &'index self,
         expression: &ResolvedExpression,

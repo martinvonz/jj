@@ -483,12 +483,6 @@ impl Index for &CompositeIndex {
             .collect()
     }
 
-    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId> {
-        let mut ids = input.cloned().collect_vec();
-        ids.sort_by_cached_key(|id| self.commit_id_to_pos(id).unwrap());
-        ids
-    }
-
     fn evaluate_revset<'index>(
         &'index self,
         expression: &ResolvedExpression,

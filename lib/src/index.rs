@@ -116,10 +116,6 @@ pub trait Index: Send + Sync {
     /// `candidates` list it will appear at most once in the output.
     fn heads(&self, candidates: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId>;
 
-    /// Orders a list of commit IDs such that parent commits appear before any
-    /// of their children. Commit IDs in the `input` are not deduplicated.
-    fn topo_order(&self, input: &mut dyn Iterator<Item = &CommitId>) -> Vec<CommitId>;
-
     /// Resolves the revset `expression` against the index and corresponding
     /// `store`.
     fn evaluate_revset<'index>(
