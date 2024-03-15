@@ -162,6 +162,7 @@ fn cmd_op_log(
         let language = OperationTemplateLanguage::new(
             repo_loader.op_store().root_operation_id(),
             current_op_id,
+            command.operation_template_extension(),
         );
         let text = match &args.template {
             Some(value) => value.to_owned(),
