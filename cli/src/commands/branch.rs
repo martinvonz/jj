@@ -616,12 +616,7 @@ fn cmd_branch_list(
         }
         if !args.revisions.is_empty() {
             // Match against local targets only, which is consistent with "jj git push".
-            let filter_expressions: Vec<_> = args
-                .revisions
-                .iter()
-                .map(|revision_str| workspace_command.parse_revset(revision_str))
-                .try_collect()?;
-            let filter_expression = RevsetExpression::union_all(&filter_expressions);
+            let filter_expression = workspace_command.parse_union_revsets(&args.revisions)?;
             // Intersects with the set of local branch targets to minimize the lookup space.
             let revset_expression = RevsetExpression::branches(StringPattern::everything())
                 .intersection(&filter_expression);

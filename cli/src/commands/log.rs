@@ -79,12 +79,7 @@ pub(crate) fn cmd_log(
         let mut expression = if args.revisions.is_empty() {
             workspace_command.parse_revset(&command.settings().default_revset())?
         } else {
-            let expressions: Vec<_> = args
-                .revisions
-                .iter()
-                .map(|revision_str| workspace_command.parse_revset(revision_str))
-                .try_collect()?;
-            RevsetExpression::union_all(&expressions)
+            workspace_command.parse_union_revsets(&args.revisions)?
         };
         if !args.paths.is_empty() {
             let repo_paths: Vec<_> = args
