@@ -14,14 +14,13 @@
 
 use std::io::Write;
 
-use indexmap::{IndexMap, IndexSet};
+use indexmap::IndexMap;
+use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::repo::Repo;
 use tracing::instrument;
 
-use crate::cli_util::{
-    resolve_multiple_nonempty_revsets, short_commit_hash, CommandHelper, RevisionArg,
-};
+use crate::cli_util::{short_commit_hash, CommandHelper, RevisionArg};
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
@@ -43,12 +42,15 @@ pub(crate) fn cmd_duplicate(
     args: &DuplicateArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let to_duplicate: IndexSet<Commit> =
-        resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command)?;
-    if to_duplicate
-        .iter()
-        .any(|commit| commit.id() == workspace_command.repo().store().root_commit_id())
-    {
+    let to_duplicate: Vec<CommitId> = {
+        let expression = workspace_command.parse_union_revsets(&args.revisions)?;
+        let revset = workspace_command.evaluate_revset(expression)?;
+        revset.iter().collect() // in reverse topological order
+    };
+    if to_duplicate.is_empty() {
+        return Err(user_error("No revisions to duplicate"));
+    }
+    if to_duplicate.last() == Some(workspace_command.repo().store().root_commit_id()) {
         return Err(user_error("Cannot duplicate the root commit"));
     }
     let mut duplicated_old_to_new: IndexMap<Commit, Commit> = IndexMap::new();
@@ -58,14 +60,10 @@ pub(crate) fn cmd_duplicate(
     let store = base_repo.store();
     let mut_repo = tx.mut_repo();
 
-    for original_commit_id in base_repo
-        .index()
-        .topo_order(&mut to_duplicate.iter().map(|c| c.id()))
-        .into_iter()
-    {
+    for original_commit_id in to_duplicate.iter().rev() {
         // Topological order ensures that any parents of `original_commit` are
         // either not in `to_duplicate` or were already duplicated.
-        let original_commit = store.get_commit(&original_commit_id).unwrap();
+        let original_commit = store.get_commit(original_commit_id).unwrap();
         let new_parents = original_commit
             .parents()
             .iter()

@@ -47,18 +47,23 @@ fn test_duplicate() {
     ◉  000000000000
     "###);
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["duplicate", "root()"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["duplicate", "all()"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Cannot duplicate the root commit
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["duplicate", "none()"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No revisions to duplicate
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Duplicated 2443ea76b0b1 as znkkpsqq 2f6dc5a1 a
+    Duplicated 2443ea76b0b1 as kpqxywon f5b1e687 a
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  2f6dc5a1ffc2   a
+    ◉  f5b1e68729d6   a
     │ @    17a00fc21654   c
     │ ├─╮
     │ │ ◉  d370aee184ba   b
@@ -74,10 +79,10 @@ fn test_duplicate() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate" /* duplicates `c` */]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Duplicated 17a00fc21654 as wqnwkozp 1dd099ea c
+    Duplicated 17a00fc21654 as lylxulpl ef3b0f3d c
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉    1dd099ea963c   c
+    ◉    ef3b0f3d1046   c
     ├─╮
     │ │ @  17a00fc21654   c
     ╭─┬─╯
