@@ -12,17 +12,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::any::Any;
+use std::collections::HashMap;
 use std::io;
 
 use itertools::Itertools as _;
+use jj_lib::extensions_map::ExtensionsMap;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::OperationId;
 use jj_lib::operation::Operation;
 
 use crate::formatter::Formatter;
 use crate::template_builder::{
-    self, BuildContext, CoreTemplateBuildFnTable, CoreTemplatePropertyKind, IntoTemplateProperty,
-    TemplateBuildMethodFnMap, TemplateLanguage,
+    self, merge_fn_map, BuildContext, CoreTemplateBuildFnTable, CoreTemplatePropertyKind,
+    IntoTemplateProperty, TemplateBuildMethodFnMap, TemplateLanguage,
 };
 use crate::template_parser::{self, FunctionCallNode, TemplateParseResult};
 use crate::templater::{
@@ -30,20 +33,40 @@ use crate::templater::{
     TemplatePropertyFn, TimestampRange,
 };
 
+pub trait OperationTemplateLanguageExtension {
+    fn build_fn_table(&self) -> OperationTemplateBuildFnTable;
+
+    fn build_cache_extensions(&self, extensions: &mut ExtensionsMap);
+}
+
 pub struct OperationTemplateLanguage {
     root_op_id: OperationId,
     current_op_id: Option<OperationId>,
     build_fn_table: OperationTemplateBuildFnTable,
+    cache_extensions: ExtensionsMap,
 }
 
 impl OperationTemplateLanguage {
     /// Sets up environment where operation template will be transformed to
     /// evaluation tree.
-    pub fn new(root_op_id: &OperationId, current_op_id: Option<&OperationId>) -> Self {
+    pub fn new(
+        root_op_id: &OperationId,
+        current_op_id: Option<&OperationId>,
+        extension: Option<&dyn OperationTemplateLanguageExtension>,
+    ) -> Self {
+        let mut build_fn_table = OperationTemplateBuildFnTable::builtin();
+        let mut cache_extensions = ExtensionsMap::empty();
+        if let Some(extension) = extension {
+            let ext_table = extension.build_fn_table();
+            build_fn_table.merge(ext_table);
+            extension.build_cache_extensions(&mut cache_extensions);
+        }
+
         OperationTemplateLanguage {
             root_op_id: root_op_id.clone(),
             current_op_id: current_op_id.cloned(),
-            build_fn_table: OperationTemplateBuildFnTable::builtin(),
+            build_fn_table,
+            cache_extensions,
         }
     }
 }
@@ -94,6 +117,10 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage {
 }
 
 impl OperationTemplateLanguage {
+    pub fn cache_extension<T: Any>(&self) -> Option<&T> {
+        self.cache_extensions.get::<T>()
+    }
+
     pub fn wrap_operation(
         &self,
         property: impl TemplateProperty<Operation, Output = Operation> + 'static,
@@ -155,7 +182,7 @@ pub type OperationTemplateBuildMethodFnMap<T> =
     TemplateBuildMethodFnMap<'static, OperationTemplateLanguage, T>;
 
 /// Symbol table of methods available in the operation template.
-struct OperationTemplateBuildFnTable {
+pub struct OperationTemplateBuildFnTable {
     pub core: CoreTemplateBuildFnTable<'static, OperationTemplateLanguage>,
     pub operation_methods: OperationTemplateBuildMethodFnMap<Operation>,
     pub operation_id_methods: OperationTemplateBuildMethodFnMap<OperationId>,
@@ -169,6 +196,26 @@ impl OperationTemplateBuildFnTable {
             operation_methods: builtin_operation_methods(),
             operation_id_methods: builtin_operation_id_methods(),
         }
+    }
+
+    pub fn empty() -> Self {
+        OperationTemplateBuildFnTable {
+            core: CoreTemplateBuildFnTable::empty(),
+            operation_methods: HashMap::new(),
+            operation_id_methods: HashMap::new(),
+        }
+    }
+
+    fn merge(&mut self, other: OperationTemplateBuildFnTable) {
+        let OperationTemplateBuildFnTable {
+            core,
+            operation_methods,
+            operation_id_methods,
+        } = other;
+
+        self.core.merge(core);
+        merge_fn_map(&mut self.operation_methods, operation_methods);
+        merge_fn_map(&mut self.operation_id_methods, operation_id_methods);
     }
 }
 
