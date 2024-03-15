@@ -53,7 +53,7 @@ pub(crate) fn cmd_duplicate(
     if to_duplicate.last() == Some(workspace_command.repo().store().root_commit_id()) {
         return Err(user_error("Cannot duplicate the root commit"));
     }
-    let mut duplicated_old_to_new: IndexMap<Commit, Commit> = IndexMap::new();
+    let mut duplicated_old_to_new: IndexMap<&CommitId, Commit> = IndexMap::new();
 
     let mut tx = workspace_command.start_transaction();
     let base_repo = tx.base_repo().clone();
@@ -63,35 +63,23 @@ pub(crate) fn cmd_duplicate(
     for original_commit_id in to_duplicate.iter().rev() {
         // Topological order ensures that any parents of `original_commit` are
         // either not in `to_duplicate` or were already duplicated.
-        let original_commit = store.get_commit(original_commit_id).unwrap();
+        let original_commit = store.get_commit(original_commit_id)?;
         let new_parents = original_commit
-            .parents()
+            .parent_ids()
             .iter()
-            .map(|parent| {
-                if let Some(duplicated_parent) = duplicated_old_to_new.get(parent) {
-                    duplicated_parent
-                } else {
-                    parent
-                }
-                .id()
-                .clone()
-            })
+            .map(|id| duplicated_old_to_new.get(id).map_or(id, |c| c.id()).clone())
             .collect();
         let new_commit = mut_repo
             .rewrite_commit(command.settings(), &original_commit)
             .generate_new_change_id()
             .set_parents(new_parents)
             .write()?;
-        duplicated_old_to_new.insert(original_commit, new_commit);
+        duplicated_old_to_new.insert(original_commit_id, new_commit);
     }
 
-    for (old, new) in duplicated_old_to_new.iter() {
-        write!(
-            ui.stderr(),
-            "Duplicated {} as ",
-            short_commit_hash(old.id())
-        )?;
-        tx.write_commit_summary(ui.stderr_formatter().as_mut(), new)?;
+    for (old_id, new_commit) in &duplicated_old_to_new {
+        write!(ui.stderr(), "Duplicated {} as ", short_commit_hash(old_id))?;
+        tx.write_commit_summary(ui.stderr_formatter().as_mut(), new_commit)?;
         writeln!(ui.stderr())?;
     }
     tx.finish(ui, format!("duplicating {} commit(s)", to_duplicate.len()))?;
