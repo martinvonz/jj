@@ -157,7 +157,7 @@ fn test_bad_function_call() {
     1 | branches(bad:pattern)
       |          ^---------^
       |
-      = Invalid arguments to revset function "branches": Invalid string pattern kind "bad"
+      = Invalid arguments to revset function "branches": Invalid string pattern kind "bad:", try prefixing with one of `exact:`, `glob:` or `substring:`
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root()::whatever()"]);
