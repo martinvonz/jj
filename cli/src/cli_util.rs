@@ -67,7 +67,7 @@ use jj_lib::working_copy::{
 use jj_lib::workspace::{
     default_working_copy_factories, LockedWorkspace, Workspace, WorkspaceLoadError, WorkspaceLoader,
 };
-use jj_lib::{dag_walk, file_util, git, op_heads_store, op_walk};
+use jj_lib::{dag_walk, file_util, git, op_heads_store, op_walk, revset};
 use once_cell::unsync::OnceCell;
 use tracing::instrument;
 use tracing_chrome::ChromeLayerBuilder;
@@ -823,7 +823,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         &self,
         revision_str: &str,
     ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-        revset_util::parse(revision_str, &self.revset_parse_context())
+        revset::parse(revision_str, &self.revset_parse_context())
     }
 
     pub fn evaluate_revset<'repo>(
@@ -860,7 +860,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
                 let disambiguation_revset = self.parse_revset(&revset_string).map_err(|err| {
                     CommandError::ConfigError(format!("Invalid `revsets.short-prefixes`: {err}"))
                 })?;
-                context = context.disambiguate_within(disambiguation_revset);
+                context = context.disambiguate_within(revset::optimize(disambiguation_revset));
             }
             Ok(context)
         })

@@ -80,20 +80,12 @@ pub fn load_revset_aliases(
     Ok(aliases_map)
 }
 
-pub fn parse(
-    revision_str: &str,
-    context: &RevsetParseContext,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let expression = revset::parse(revision_str, context)?;
-    Ok(revset::optimize(expression))
-}
-
 pub fn evaluate<'a>(
     repo: &'a dyn Repo,
     symbol_resolver: &DefaultSymbolResolver,
     expression: Rc<RevsetExpression>,
 ) -> Result<Box<dyn Revset + 'a>, UserRevsetEvaluationError> {
-    let resolved = expression
+    let resolved = revset::optimize(expression)
         .resolve_user_expression(repo, symbol_resolver)
         .map_err(UserRevsetEvaluationError::Resolution)?;
     resolved
@@ -128,7 +120,7 @@ pub fn parse_immutable_expression(
         params.is_empty(),
         "invalid declaration should have been rejected by load_revset_aliases()"
     );
-    let immutable_heads_revset = parse(immutable_heads_str, context)?;
+    let immutable_heads_revset = revset::parse(immutable_heads_str, context)?;
     Ok(immutable_heads_revset
         .ancestors()
         .union(&RevsetExpression::root()))

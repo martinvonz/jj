@@ -625,7 +625,6 @@ fn cmd_branch_list(
             // Intersects with the set of local branch targets to minimize the lookup space.
             let revset_expression = RevsetExpression::branches(StringPattern::everything())
                 .intersection(&filter_expression);
-            let revset_expression = revset::optimize(revset_expression);
             let revset = workspace_command.evaluate_revset(revset_expression)?;
             let filtered_targets: HashSet<CommitId> = revset.iter().collect();
             branch_names.extend(

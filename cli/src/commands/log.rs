@@ -96,7 +96,7 @@ pub(crate) fn cmd_log(
                 RevsetFilterPredicate::File(Some(repo_paths)),
             ));
         }
-        revset::optimize(expression)
+        expression
     };
     let repo = workspace_command.repo();
     let wc_commit_id = workspace_command.get_wc_commit_id();
