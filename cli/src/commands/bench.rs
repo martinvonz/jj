@@ -15,6 +15,7 @@
 use std::fmt::Debug;
 use std::io;
 use std::io::Write as _;
+use std::rc::Rc;
 use std::time::Instant;
 
 use clap::Subcommand;
@@ -22,6 +23,7 @@ use criterion::measurement::Measurement;
 use criterion::{BatchSize, BenchmarkGroup, BenchmarkId, Criterion};
 use jj_lib::object_id::HexPrefix;
 use jj_lib::repo::Repo;
+use jj_lib::revset::{DefaultSymbolResolver, RevsetExpression};
 
 use crate::cli_util::{CommandHelper, WorkspaceCommandHelper};
 use crate::command_error::CommandError;
@@ -204,12 +206,15 @@ fn bench_revset<M: Measurement>(
     writeln!(ui.stderr(), "----------Testing revset: {revset}----------")?;
     let expression = workspace_command.parse_revset(revset)?;
     // Time both evaluation and iteration.
-    let routine = |workspace_command: &WorkspaceCommandHelper, expression| {
-        workspace_command
-            .evaluate_revset(expression)
-            .unwrap()
-            .iter()
-            .count()
+    let routine = |workspace_command: &WorkspaceCommandHelper, expression: Rc<RevsetExpression>| {
+        // Evaluate the expression without parsing/evaluating short-prefixes.
+        let repo = workspace_command.repo().as_ref();
+        let symbol_resolver = DefaultSymbolResolver::new(repo);
+        let resolved = expression
+            .resolve_user_expression(repo, &symbol_resolver)
+            .unwrap();
+        let revset = resolved.evaluate(repo).unwrap();
+        revset.iter().count()
     };
     let before = Instant::now();
     let result = routine(workspace_command, expression.clone());
