@@ -832,6 +832,19 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
         revset::parse(revision_str, &self.revset_parse_context())
     }
 
+    /// Parses the given revset expressions and concatenates them all.
+    pub fn parse_union_revsets(
+        &self,
+        revision_args: &[RevisionArg],
+    ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+        let context = self.revset_parse_context();
+        let expressions: Vec<_> = revision_args
+            .iter()
+            .map(|s| revset::parse(s, &context))
+            .try_collect()?;
+        Ok(RevsetExpression::union_all(&expressions))
+    }
+
     pub fn evaluate_revset<'repo>(
         &'repo self,
         expression: Rc<RevsetExpression>,
