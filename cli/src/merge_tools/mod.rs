@@ -13,6 +13,7 @@
 // limitations under the License.
 
 mod builtin;
+mod diff_working_copies;
 mod external;
 
 use std::sync::Arc;
@@ -30,7 +31,8 @@ use pollster::FutureExt;
 use thiserror::Error;
 
 use self::builtin::{edit_diff_builtin, edit_merge_builtin, BuiltinToolError};
-use self::external::{edit_diff_external, DiffCheckoutError, ExternalToolError};
+use self::diff_working_copies::DiffCheckoutError;
+use self::external::{edit_diff_external, ExternalToolError};
 pub use self::external::{generate_diff, ExternalMergeTool};
 use crate::config::CommandNameAndArgs;
 use crate::ui::Ui;
