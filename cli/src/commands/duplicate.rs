@@ -82,6 +82,6 @@ pub(crate) fn cmd_duplicate(
         tx.write_commit_summary(ui.stderr_formatter().as_mut(), new_commit)?;
         writeln!(ui.stderr())?;
     }
-    tx.finish(ui, format!("duplicating {} commit(s)", to_duplicate.len()))?;
+    tx.finish(ui, format!("duplicate {} commit(s)", to_duplicate.len()))?;
     Ok(())
 }
