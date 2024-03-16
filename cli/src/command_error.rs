@@ -303,7 +303,6 @@ impl From<git2::Error> for CommandError {
 
 impl From<GitImportError> for CommandError {
     fn from(err: GitImportError) -> Self {
-        let message = format!("Failed to import refs from underlying Git repo: {err}");
         let hint = match &err {
             GitImportError::MissingHeadTarget { .. }
             | GitImportError::MissingRefAncestor { .. } => Some(
@@ -323,7 +322,10 @@ repository contents."
             GitImportError::InternalGitError(_) => None,
             GitImportError::UnexpectedBackend => None,
         };
-        user_error_with_hint_opt(message, hint)
+        user_error_with_hint_opt(
+            ErrorWithMessage::new("Failed to import refs from underlying Git repo", err),
+            hint,
+        )
     }
 }
 
