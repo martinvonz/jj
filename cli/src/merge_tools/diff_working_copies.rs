@@ -203,17 +203,17 @@ pub fn check_out_trees_for_diffedit(
     let output_wc_path = diff_wc
         .output_working_copy_path()
         .unwrap_or_else(|| diff_wc.right_working_copy_path());
-    let instructions_path_to_cleanup = output_wc_path.join("JJ-INSTRUCTIONS");
+    let output_instructions_path = output_wc_path.join("JJ-INSTRUCTIONS");
     // In the unlikely event that the file already exists, then the user will simply
     // not get any instructions.
-    let add_instructions = if !instructions_path_to_cleanup.exists() {
+    let add_instructions = if !output_instructions_path.exists() {
         instructions
     } else {
         None
     };
     if let Some(instructions) = add_instructions {
         let mut output_instructions_file =
-            File::create(&instructions_path_to_cleanup).map_err(ExternalToolError::SetUpDir)?;
+            File::create(&output_instructions_path).map_err(ExternalToolError::SetUpDir)?;
         if diff_wc.right_working_copy_path() != output_wc_path {
             let mut right_instructions_file =
                 File::create(diff_wc.right_working_copy_path().join("JJ-INSTRUCTIONS"))
@@ -252,7 +252,7 @@ diff editing in mind and be a little inaccurate.
         output_instructions_file
             .write_all(instructions.as_bytes())
             .map_err(ExternalToolError::SetUpDir)?;
-        diff_wc.instructions_path_to_cleanup = Some(instructions_path_to_cleanup);
+        diff_wc.instructions_path_to_cleanup = Some(output_instructions_path);
     }
 
     Ok(diff_wc)
