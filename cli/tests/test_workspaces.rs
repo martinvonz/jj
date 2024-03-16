@@ -419,12 +419,24 @@ fn test_workspaces_current_op_discarded_by_other() {
 
     std::fs::write(main_path.join("modified"), "base\n").unwrap();
     std::fs::write(main_path.join("deleted"), "base\n").unwrap();
+    std::fs::write(main_path.join("sparse"), "base\n").unwrap();
     test_env.jj_cmd_ok(&main_path, &["new"]);
     std::fs::write(main_path.join("modified"), "main\n").unwrap();
     test_env.jj_cmd_ok(&main_path, &["new"]);
 
     test_env.jj_cmd_ok(&main_path, &["workspace", "add", "../secondary"]);
     // Make unsnapshotted writes in the secondary working copy
+    test_env.jj_cmd_ok(
+        &secondary_path,
+        &[
+            "sparse",
+            "set",
+            "--clear",
+            "--add=modified",
+            "--add=deleted",
+            "--add=added",
+        ],
+    );
     std::fs::write(secondary_path.join("modified"), "secondary\n").unwrap();
     std::fs::remove_file(secondary_path.join("deleted")).unwrap();
     std::fs::write(secondary_path.join("added"), "secondary\n").unwrap();
@@ -443,13 +455,13 @@ fn test_workspaces_current_op_discarded_by_other() {
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
-    @  ca4014fc13 abandon commit 9e69961a6cb8dc42410fa11421c5ce14c9ba4dba3d85c99b3f5d7214e01c09211d3f6abf0a5502038bc9531d4d7828a4b3e978ca4f64f6cb5b00f4181c1710cc
-    ◉  b7e3c248b3 Create initial working-copy commit in workspace secondary
-    ◉  3a464a164b add workspace 'secondary'
-    ◉  1a8a57ad06 new empty commit
-    ◉  34dce00889 snapshot working copy
-    ◉  64b8644c69 new empty commit
-    ◉  983fc29dc3 snapshot working copy
+    @  716b8d737e abandon commit 8ac26d0060e2be7f3fce2b5ebd2eb0c75053666f6cbc41bee50bb6da463868704a0bcf1ed9848761206d77694a71e3c657e5e250245e342779df1b00f0da9009
+    ◉  bb8aec2a1c Create initial working-copy commit in workspace secondary
+    ◉  af6f39b411 add workspace 'secondary'
+    ◉  05c14c7e78 new empty commit
+    ◉  92bb962606 snapshot working copy
+    ◉  553e0ea3a4 new empty commit
+    ◉  b3755a9026 snapshot working copy
     ◉  17dbb2fe40 add workspace 'default'
     ◉  cecfee9647 initialize repo
     ◉  0000000000
@@ -460,10 +472,10 @@ fn test_workspaces_current_op_discarded_by_other() {
     test_env.jj_cmd_ok(&main_path, &["util", "gc", "--expire=now"]);
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    @  b026dbb4ded8 default@
-    │ ◉  11b31a7bf02c secondary@
+    ◉  ec4904a30161 secondary@
+    │ @  74769415363f default@
     ├─╯
-    ◉  cab81fe8ecb0
+    ◉  bd711986720f
     ◉  000000000000
     "###);
 
@@ -476,29 +488,38 @@ fn test_workspaces_current_op_discarded_by_other() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
     insta::assert_snapshot!(stderr, @r###"
-    Failed to read working copy's current operation; attempting recovery. Error message from read attempt: Object b7e3c248b31b30b9ebe9bc0960bb5138a9832745f0e02d76e7dc9e65a44fcfd092cdf9e22e6ca84498dc496dd08c22027ecc3ba8fc45ab54bf565b9cda13eca6 of type operation not found
-    Created and checked out recovery commit 1e90e5d2ab94
+    Failed to read working copy's current operation; attempting recovery. Error message from read attempt: Object bb8aec2a1ca33ebafdfe8866bc4ad3464dffd25634fde19d1025625880791b141d35753e10737c41b2bc133ab84047312f3021d905bb711960253e7f430100fc of type operation not found
+    Created and checked out recovery commit 30ee0d1fbd7a
     "###);
     insta::assert_snapshot!(stdout, @"");
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ◉  bffc5782a10d secondary@
-    ◉  11b31a7bf02c
-    │ @  b026dbb4ded8 default@
+    ◉  8fd911b4e595 secondary@
+    ◉  ec4904a30161
+    │ @  74769415363f default@
     ├─╯
-    ◉  cab81fe8ecb0
+    ◉  bd711986720f
     ◉  000000000000
     "###);
 
+    // The sparse patterns should remain
+    let stdout = test_env.jj_cmd_success(&secondary_path, &["sparse", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    added
+    deleted
+    modified
+    "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["st"]);
     insta::assert_snapshot!(stderr, @"");
+    // TODO: The file outside the sparse patterns should still be there
     insta::assert_snapshot!(stdout, @r###"
     Working copy changes:
     A added
     D deleted
     M modified
-    Working copy : kpqxywon bffc5782 (no description set)
-    Parent commit: rzvqmyuk 11b31a7b (empty) (no description set)
+    D sparse
+    Working copy : kmkuslsw 8fd911b4 (no description set)
+    Parent commit: rzvqmyuk ec4904a3 (empty) (no description set)
     "###);
     // The modified file should have the same contents it had before (not reset to
     // the base contents)
@@ -509,9 +530,9 @@ fn test_workspaces_current_op_discarded_by_other() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["obslog"]);
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(stdout, @r###"
-    @  kpqxywon test.user@example.com 2001-02-03 04:05:17.000 +07:00 secondary@ bffc5782
+    @  kmkuslsw test.user@example.com 2001-02-03 04:05:18.000 +07:00 secondary@ 8fd911b4
     │  (no description set)
-    ◉  kpqxywon hidden test.user@example.com 2001-02-03 04:05:17.000 +07:00 1e90e5d2
+    ◉  kmkuslsw hidden test.user@example.com 2001-02-03 04:05:18.000 +07:00 30ee0d1f
        (empty) (no description set)
     "###);
 }
