@@ -16,8 +16,7 @@ use regex::{Captures, Regex};
 use thiserror::Error;
 
 use super::diff_working_copies::{
-    check_out_trees, check_out_trees_for_diffedit, new_utf8_temp_dir, set_readonly_recursively,
-    snapshot_diffedit_results, DiffSide,
+    check_out_trees, new_utf8_temp_dir, set_readonly_recursively, DiffEditWorkingCopies, DiffSide,
 };
 use super::{ConflictResolveError, DiffEditError, DiffGenerateError};
 use crate::config::CommandNameAndArgs;
@@ -261,7 +260,7 @@ pub fn edit_diff_external(
 ) -> Result<MergedTreeId, DiffEditError> {
     let got_output_field = find_all_variables(&editor.edit_args).contains(&"output");
     let store = left_tree.store();
-    let diff_wc = check_out_trees_for_diffedit(
+    let diffedit_wc = DiffEditWorkingCopies::check_out(
         store,
         left_tree,
         right_tree,
@@ -270,7 +269,7 @@ pub fn edit_diff_external(
         instructions,
     )?;
 
-    let patterns = diff_wc.to_command_variables();
+    let patterns = diffedit_wc.working_copies.to_command_variables();
     let mut cmd = Command::new(&editor.program);
     cmd.args(interpolate_variables(&editor.edit_args, &patterns));
     tracing::info!(?cmd, "Invoking the external diff editor:");
@@ -286,7 +285,7 @@ pub fn edit_diff_external(
         }));
     }
 
-    snapshot_diffedit_results(diff_wc, base_ignores)
+    diffedit_wc.snapshot_results(base_ignores)
 }
 
 /// Generates textual diff by the specified `tool`, and writes into `writer`.
