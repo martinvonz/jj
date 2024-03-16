@@ -333,7 +333,7 @@ fn rules_from_config(config: &config::Config) -> Result<Rules, config::ConfigErr
         match value.kind {
             config::ValueKind::String(color_name) => {
                 let style = Style {
-                    fg_color: Some(color_for_name(&color_name)?),
+                    fg_color: Some(color_for_name_or_hex(&color_name)?),
                     bg_color: None,
                     bold: None,
                     underlined: None,
@@ -344,12 +344,12 @@ fn rules_from_config(config: &config::Config) -> Result<Rules, config::ConfigErr
                 let mut style = Style::default();
                 if let Some(value) = style_table.get("fg") {
                     if let config::ValueKind::String(color_name) = &value.kind {
-                        style.fg_color = Some(color_for_name(color_name)?);
+                        style.fg_color = Some(color_for_name_or_hex(color_name)?);
                     }
                 }
                 if let Some(value) = style_table.get("bg") {
                     if let config::ValueKind::String(color_name) = &value.kind {
-                        style.bg_color = Some(color_for_name(color_name)?);
+                        style.bg_color = Some(color_for_name_or_hex(color_name)?);
                     }
                 }
                 if let Some(value) = style_table.get("bold") {
@@ -370,8 +370,8 @@ fn rules_from_config(config: &config::Config) -> Result<Rules, config::ConfigErr
     Ok(result)
 }
 
-fn color_for_name(color_name: &str) -> Result<Color, config::ConfigError> {
-    match color_name {
+fn color_for_name_or_hex(name_or_hex: &str) -> Result<Color, config::ConfigError> {
+    match name_or_hex {
         "default" => Ok(Color::Reset),
         "black" => Ok(Color::Black),
         "red" => Ok(Color::DarkRed),
@@ -389,9 +389,25 @@ fn color_for_name(color_name: &str) -> Result<Color, config::ConfigError> {
         "bright magenta" => Ok(Color::Magenta),
         "bright cyan" => Ok(Color::Cyan),
         "bright white" => Ok(Color::White),
-        _ => Err(config::ConfigError::Message(format!(
-            "invalid color: {color_name}"
-        ))),
+        _ => color_for_hex(name_or_hex)
+            .ok_or_else(|| config::ConfigError::Message(format!("invalid color: {}", name_or_hex))),
+    }
+}
+
+fn color_for_hex(color: &str) -> Option<Color> {
+    if color.len() == 7
+        && color.starts_with('#')
+        && color[1..].chars().all(|c| c.is_ascii_hexdigit())
+    {
+        let r = u8::from_str_radix(&color[1..3], 16);
+        let g = u8::from_str_radix(&color[3..5], 16);
+        let b = u8::from_str_radix(&color[5..7], 16);
+        match (r, g, b) {
+            (Ok(r), Ok(g), Ok(b)) => Some(Color::Rgb { r, g, b }),
+            _ => None,
+        }
+    } else {
+        None
     }
 }
 
@@ -677,6 +693,38 @@ mod tests {
     }
 
     #[test]
+    fn test_color_formatter_hex_colors() {
+        // Test the color code for each color.
+        let labels_and_colors = [
+            ["black", "#000000"],
+            ["white", "#ffffff"],
+            ["pastel-blue", "#AFE0D9"],
+        ];
+        let mut config_builder = config::Config::builder();
+        for [label, color] in labels_and_colors {
+            // Use the color name as the label.
+            config_builder = config_builder
+                .set_override(format!("colors.{}", label), color)
+                .unwrap();
+        }
+        let mut output: Vec<u8> = vec![];
+        let mut formatter =
+            ColorFormatter::for_config(&mut output, &config_builder.build().unwrap()).unwrap();
+        for [label, _] in labels_and_colors {
+            formatter.push_label(&label.replace(' ', "-")).unwrap();
+            formatter.write_str(&format!(" {label} ")).unwrap();
+            formatter.pop_label().unwrap();
+            formatter.write_str("\n").unwrap();
+        }
+        drop(formatter);
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @r###"
+        [38;2;0;0;0m black [39m
+        [38;2;255;255;255m white [39m
+        [38;2;175;224;217m pastel-blue [39m
+        "###);
+    }
+
+    #[test]
     fn test_color_formatter_single_label() {
         // Test that a single label can be colored and that the color is reset
         // afterwards.
@@ -877,6 +925,23 @@ mod tests {
             .to_string();
         insta::assert_snapshot!(err,
         @"invalid color: bloo");
+    }
+
+    #[test]
+    fn test_color_formatter_unrecognized_hex_color() {
+        // An unrecognized hex color causes an error.
+        let config = config_from_string(
+            r##"
+            colors."outer" = "red"
+            colors."outer inner" = "#ffgggg"
+            "##,
+        );
+        let mut output: Vec<u8> = vec![];
+        let err = ColorFormatter::for_config(&mut output, &config)
+            .unwrap_err()
+            .to_string();
+        insta::assert_snapshot!(err,
+            @"invalid color: #ffgggg");
     }
 
     #[test]

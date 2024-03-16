@@ -162,7 +162,7 @@
             "type": "object",
             "description": "Mapping from jj formatter labels to colors",
             "definitions": {
-                "colors": {
+                "colorNames": {
                     "enum": [
                         "default",
                         "black",
@@ -182,6 +182,20 @@
                         "bright cyan",
                         "bright white"
                     ]
+                },
+                "hexColor": {
+                    "type": "string",
+                    "pattern": "^#[0-9a-fA-F]{6}$"
+                },
+                "colors": {
+                  "oneOf": [
+                    {
+                        "$ref": "#/properties/colors/definitions/colorNames"
+                    },
+                    {
+                        "$ref": "#/properties/colors/definitions/hexColor"
+                    }
+                  ]
                 },
                 "basicFormatterLabels": {
                     "enum": [
