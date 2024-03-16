@@ -1457,9 +1457,10 @@ impl TreeState {
         Ok(())
     }
 
-    pub fn reset_to_empty(&mut self) {
+    pub async fn recover(&mut self, new_tree: &MergedTree) -> Result<(), ResetError> {
         self.file_states.clear();
         self.tree_id = self.store.empty_merged_tree_id();
+        self.reset(new_tree).await
     }
 }
 
@@ -1778,14 +1779,16 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
         Ok(())
     }
 
-    fn reset_to_empty(&mut self) -> Result<(), ResetError> {
+    fn recover(&mut self, commit: &Commit) -> Result<(), ResetError> {
+        let new_tree = commit.tree()?;
         self.wc
             .tree_state_mut()
             .map_err(|err| ResetError::Other {
                 message: "Failed to read the working copy state".to_string(),
                 err: err.into(),
             })?
-            .reset_to_empty();
+            .recover(&new_tree)
+            .block_on()?;
         self.tree_state_dirty = true;
         Ok(())
     }
