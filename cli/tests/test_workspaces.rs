@@ -494,7 +494,7 @@ fn test_workspaces_current_op_discarded_by_other() {
     insta::assert_snapshot!(stdout, @"");
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ◉  8fd911b4e595 secondary@
+    ◉  b93a924213f3 secondary@
     ◉  ec4904a30161
     │ @  74769415363f default@
     ├─╯
@@ -511,14 +511,12 @@ fn test_workspaces_current_op_discarded_by_other() {
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["st"]);
     insta::assert_snapshot!(stderr, @"");
-    // TODO: The file outside the sparse patterns should still be there
     insta::assert_snapshot!(stdout, @r###"
     Working copy changes:
     A added
     D deleted
     M modified
-    D sparse
-    Working copy : kmkuslsw 8fd911b4 (no description set)
+    Working copy : kmkuslsw b93a9242 (no description set)
     Parent commit: rzvqmyuk ec4904a3 (empty) (no description set)
     "###);
     // The modified file should have the same contents it had before (not reset to
@@ -530,7 +528,7 @@ fn test_workspaces_current_op_discarded_by_other() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["obslog"]);
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(stdout, @r###"
-    @  kmkuslsw test.user@example.com 2001-02-03 04:05:18.000 +07:00 secondary@ 8fd911b4
+    @  kmkuslsw test.user@example.com 2001-02-03 04:05:18.000 +07:00 secondary@ b93a9242
     │  (no description set)
     ◉  kmkuslsw hidden test.user@example.com 2001-02-03 04:05:18.000 +07:00 30ee0d1f
        (empty) (no description set)

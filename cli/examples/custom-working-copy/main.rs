@@ -241,8 +241,8 @@ impl LockedWorkingCopy for LockedConflictsWorkingCopy {
         self.inner.reset(commit)
     }
 
-    fn reset_to_empty(&mut self) -> Result<(), ResetError> {
-        self.inner.reset_to_empty()
+    fn recover(&mut self, commit: &Commit) -> Result<(), ResetError> {
+        self.inner.recover(commit)
     }
 
     fn sparse_patterns(&self) -> Result<&[RepoPathBuf], WorkingCopyStateError> {

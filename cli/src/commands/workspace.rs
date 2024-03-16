@@ -324,7 +324,7 @@ fn create_and_check_out_recovery_commit(
     mut_repo.set_wc_commit(workspace_id, new_commit.id().clone())?;
     let repo = tx.commit("recovery commit");
 
-    locked_workspace.locked_wc().reset_to_empty()?;
+    locked_workspace.locked_wc().recover(&new_commit)?;
     locked_workspace.finish(repo.op_id().clone())?;
 
     writeln!(
