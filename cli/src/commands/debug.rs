@@ -175,7 +175,7 @@ fn cmd_debug_working_copy(
     command: &CommandHelper,
     _args: &DebugWorkingCopyArgs,
 ) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
+    let workspace_command = command.workspace_helper_no_snapshot(ui)?;
     let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
     writeln!(ui.stdout(), "Current operation: {:?}", wc.operation_id())?;
     writeln!(ui.stdout(), "Current tree: {:?}", wc.tree_id()?)?;
@@ -300,7 +300,7 @@ fn cmd_debug_tree(
     command: &CommandHelper,
     args: &DebugTreeArgs,
 ) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
+    let workspace_command = command.workspace_helper_no_snapshot(ui)?;
     let tree = if let Some(tree_id_hex) = &args.id {
         let tree_id =
             TreeId::try_from_hex(tree_id_hex).map_err(|_| user_error("Invalid tree id"))?;
@@ -334,7 +334,7 @@ fn cmd_debug_watchman(
 ) -> Result<(), CommandError> {
     use jj_lib::local_working_copy::LockedLocalWorkingCopy;
 
-    let mut workspace_command = command.workspace_helper(ui)?;
+    let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
     let repo = workspace_command.repo().clone();
     match subcommand {
         DebugWatchmanSubcommand::QueryClock => {
