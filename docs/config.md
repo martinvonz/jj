@@ -113,12 +113,18 @@ All of them but "default" come in a bright version too, e.g. "bright red". The
 "default" color can be used to override a color defined by a parent style
 (explained below).
 
-If you use a string value for a color, as in the example above, it will be used
+You can also use a 6-digit hex code for more control over the exact color used:
+
+```toml
+colors.change_id = "#ff1525"
+```
+
+If you use a string value for a color, as in the examples above, it will be used
 for the foreground color. You can also set the background color, or make the
 text bold or underlined. For that, you need to use a table:
 
 ```toml
-colors.commit_id = { fg = "green", bg = "red", bold = true, underline = true }
+colors.commit_id = { fg = "green", bg = "#ff1525", bold = true, underline = true }
 ```
 
 The key names are called "labels". The above used `commit_id` as label. You can

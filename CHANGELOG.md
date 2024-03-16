@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* Config now supports rgb hex colors (in the form `#rrggbb`) wherever existing color names are supported.
+
 * `ui.default-command` now accepts multiple string arguments, for more complex
   default `jj` commands.
 
