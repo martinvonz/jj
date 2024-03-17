@@ -454,9 +454,10 @@ fn test_git_push_revisions() {
     std::fs::write(workspace_root.join("file"), "modified again").unwrap();
 
     // Push an empty set
-    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "-r=none()"]);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-r=none()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Empty revision set
+    No branches point to the specified revisions.
+    Nothing changed.
     "###);
     // Push a revision with no branches
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-r=@--"]);
