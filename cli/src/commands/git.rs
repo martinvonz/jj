@@ -1188,8 +1188,8 @@ fn find_branches_targeted_by_revisions<'a>(
             workspace_command.evaluate_revset(current_branches_expression)?;
         current_branches_revset.iter().collect()
     } else {
-        // TODO: Narrow search space to local target commits.
-        let expression = workspace_command.parse_union_revsets(revisions)?;
+        let expression = workspace_command.parse_union_revsets(revisions)?
+            .intersection(&RevsetExpression::branches(StringPattern::everything()));
         let revset = workspace_command.evaluate_revset(expression)?;
         revset.iter().collect()
     };
