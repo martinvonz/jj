@@ -18,7 +18,7 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::rewrite::{merge_commit_trees, restore_tree};
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, RevisionArg};
+use crate::cli_util::{print_rebase_info, CommandHelper, RevisionArg};
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
@@ -111,13 +111,11 @@ pub(crate) fn cmd_restore(
             .write()?;
         // rebase_descendants early; otherwise `new_commit` would always have
         // a conflicted change id at this point.
-        let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
+        let rebase_counts = tx.mut_repo().rebase_descendants(command.settings())?;
         write!(ui.stderr(), "Created ")?;
         tx.write_commit_summary(ui.stderr_formatter().as_mut(), &new_commit)?;
         writeln!(ui.stderr())?;
-        if num_rebased > 0 {
-            writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
-        }
+        print_rebase_info(ui, &rebase_counts)?;
         tx.finish(ui, format!("restore into commit {}", to_commit.id().hex()))?;
     }
     Ok(())

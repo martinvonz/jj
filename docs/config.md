@@ -522,6 +522,8 @@ the conflict is done, `jj` assumes that the conflict was only partially resolved
 and parses the conflict markers to get the new state of the conflict. The
 conflict is considered fully resolved when there are no conflict markers left.
 
+<<<<<<<
++++++++
 ## Commit Signing
 
 `jj` can be configured to sign and verify the commits it creates using either 
@@ -581,6 +583,21 @@ as follows:
 
 ```toml
 signing.backends.ssh.allowed-signers = "/path/to/allowed-signers"
+```
+
+## Commit Signature Verification
+
+Commit verification uses the configured [signing backends](#commit-signing) to attempt to verify
+any signatures found on commits when displaying them with `jj log` or `jj show`.
+
+By default signature verification and display is **disabled** as it incurs a performance cost when
+rendering medium to large change logs.
+
+To verify signatures you can either pass the `--show-signature` CLI flag or to have signatures always 
+shown you can configure the `show-signatures` config option:
+
+```toml
+signing.show-signatures = true
 ```
 
 ## Git settings

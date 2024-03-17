@@ -18,6 +18,32 @@ In `jj log`/`jj obslog` templates, all 0-argument methods of [the `Commit`
 type](#commit-type) are available as keywords. For example, `commit_id` is
 equivalent to `self.commit_id()`.
 
+ * `description: String`
+ * `change_id: ChangeId`
+ * `commit_id: CommitId`
+ * `parents: List<Commit>`
+ * `author: Signature`
+ * `committer: Signature`
+ * `signature: CommitSignature`: The information about a cryptographic signature of the commit.
+ * `working_copies: String`: For multi-workspace repository, indicate
+   working-copy commit as `<workspace name>@`.
+ * `current_working_copy: Boolean`: True for the working-copy commit of the
+   current workspace.
+ * `branches: List<RefName>`: Local and remote branches pointing to the commit.
+   A tracking remote branch will be included only if its target is different
+   from the local one.
+ * `local_branches: List<RefName>`: All local branches pointing to the commit.
+ * `remote_branches: List<RefName>`: All remote branches pointing to the commit.
+ * `tags: List<RefName>`
+ * `git_refs: List<RefName>`
+ * `git_head: List<RefName>`
+ * `divergent: Boolean`: True if the commit's change id corresponds to multiple
+   visible commits.
+ * `hidden: Boolean`: True if the commit is not visible (a.k.a. abandoned).
+ * `conflict: Boolean`: True if the commit contains merge conflicts.
+ * `empty: Boolean`: True if the commit modifies no files.
+ * `root: Boolean`: True if the commit is the root commit.
+ 
 ### Operation keywords
 
 In `jj op log` templates, all 0-argument methods of [the `Operation`
@@ -161,6 +187,18 @@ The following methods are defined.
 * `.email() -> String`
 * `.username() -> String`
 * `.timestamp() -> Timestamp`
+
+### CommitSignature type
+
+The following methods are defined.
+
+* `.present() -> Boolean`: True if the commit has a cryptographic signature.
+* `.good() -> Boolean`: True if the signature matches the commit data.
+* `.unknown() -> Boolean`: True if the signing backend cannot verify the signature (e.g. due to a missing public key), or if there's no backend implemented that can verify the signature.
+* `.bad() -> Boolean`: True if the signature does not match the commit data.
+* `.invalid() -> Boolean`: True if the signature is detected to be made with a signing backend (e.g. has a PGP prefix) but is otherwise invalid.
+* `.key() -> String`: Signing backend specific key id. For GPG, it's a long key ID, present for all non-invalid signatures.
+* `.display() -> String`: Signing backend specific display string. For GPG, it's a formatted primary user ID, only present if the public key is known (only for good/bad signatures).
 
 ### String type
 

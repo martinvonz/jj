@@ -140,6 +140,7 @@ fn gpg_signing_roundtrip_explicit_key() {
         display: Some(
             "Someone Else (jj test signing key) <someone-else@example.com>",
         ),
+        backend: None,
     }
     "###);
     assert_debug_snapshot!(backend.verify(b"so so bad", &signature).unwrap(), @r###"
@@ -151,6 +152,7 @@ fn gpg_signing_roundtrip_explicit_key() {
         display: Some(
             "Someone Else (jj test signing key) <someone-else@example.com>",
         ),
+        backend: None,
     }
     "###);
 }
@@ -176,6 +178,7 @@ fn unknown_key() {
             "071FE3E324DD7333",
         ),
         display: None,
+        backend: None,
     }
     "###);
     assert_debug_snapshot!(backend.verify(b"so bad", signature).unwrap(), @r###"
@@ -185,6 +188,7 @@ fn unknown_key() {
             "071FE3E324DD7333",
         ),
         display: None,
+        backend: None,
     }
     "###);
 }

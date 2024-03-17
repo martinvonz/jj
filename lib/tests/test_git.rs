@@ -1070,7 +1070,10 @@ fn test_import_some_refs() {
     })
     .unwrap();
     // No descendant should be rewritten.
-    assert_eq!(tx.mut_repo().rebase_descendants(&settings).unwrap(), 0);
+    assert_eq!(
+        tx.mut_repo().rebase_descendants(&settings).unwrap().rebased,
+        0
+    );
     let repo = tx.commit("test");
 
     // feature2 and feature4 should still be the heads, and all three branches
@@ -1087,7 +1090,10 @@ fn test_import_some_refs() {
     })
     .unwrap();
     // No descendant should be rewritten
-    assert_eq!(tx.mut_repo().rebase_descendants(&settings).unwrap(), 0);
+    assert_eq!(
+        tx.mut_repo().rebase_descendants(&settings).unwrap().rebased,
+        0
+    );
     let repo = tx.commit("test");
 
     // feature2 and feature4 should still be the heads, and both branches
@@ -1103,7 +1109,10 @@ fn test_import_some_refs() {
     })
     .unwrap();
     // No descendant should be rewritten
-    assert_eq!(tx.mut_repo().rebase_descendants(&settings).unwrap(), 0);
+    assert_eq!(
+        tx.mut_repo().rebase_descendants(&settings).unwrap().rebased,
+        0
+    );
     let repo = tx.commit("test");
 
     // feature2 should now be the only head and only branch.

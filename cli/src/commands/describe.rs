@@ -17,7 +17,7 @@ use std::io::{self, Read, Write};
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, RevisionArg};
+use crate::cli_util::{check_dropped_signature, CommandHelper, RevisionArg};
 use crate::command_error::CommandError;
 use crate::description_util::{
     description_template_for_describe, edit_description, join_message_paragraphs,
@@ -94,7 +94,8 @@ pub(crate) fn cmd_describe(
             let new_author = commit_builder.committer().clone();
             commit_builder = commit_builder.set_author(new_author);
         }
-        commit_builder.write()?;
+        let rewritten = commit_builder.write()?;
+        check_dropped_signature(ui, &commit, &rewritten)?;
         tx.finish(ui, format!("describe commit {}", commit.id().hex()))?;
     }
     Ok(())

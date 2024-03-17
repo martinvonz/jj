@@ -103,7 +103,7 @@ fn test_templater_parse_error() {
       | ^-----^
       |
       = Keyword "builtin" doesn't exist
-    Hint: Did you mean "builtin_change_id_with_hidden_and_divergent_info", "builtin_log_comfortable", "builtin_log_compact", "builtin_log_detailed", "builtin_log_oneline", "builtin_op_log_comfortable", "builtin_op_log_compact"?
+    Hint: Did you mean "builtin_change_id_with_hidden_and_divergent_info", "builtin_log_comfortable", "builtin_log_compact", "builtin_log_detailed", "builtin_log_detailed_with_sig", "builtin_log_oneline", "builtin_op_log_comfortable", "builtin_op_log_compact", "builtin_sig_detailed", "builtin_sig_status"?
     "###);
 }
 

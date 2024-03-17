@@ -23,6 +23,7 @@ use thiserror::Error;
 
 use crate::backend::CommitId;
 use crate::gpg_signing::GpgBackend;
+use crate::mock_signing::MockSigningBackend;
 use crate::settings::UserSettings;
 use crate::ssh_signing::SshBackend;
 
@@ -50,6 +51,11 @@ pub struct Verification {
     /// A display string, if available. For GPG, this will be formatted primary
     /// user ID.
     pub display: Option<String>,
+    /// The name of the backend that provided this verification.
+    /// Is `None` when no backend was found that could read the signature.
+    ///
+    /// Always set by the signer.
+    backend: Option<String>,
 }
 
 impl Verification {
@@ -60,6 +66,7 @@ impl Verification {
             status: SigStatus::Unknown,
             key: None,
             display: None,
+            backend: None,
         }
     }
 
@@ -69,7 +76,13 @@ impl Verification {
             status,
             key,
             display,
+            backend: None,
         }
+    }
+
+    /// The name of the backend that provided this verification.
+    pub fn backend(&self) -> Option<&str> {
+        self.backend.as_deref()
     }
 }
 
@@ -167,16 +180,23 @@ impl Signer {
             // Box::new(X509Backend::from_settings(settings)?) as Box<dyn SigningBackend>,
         ];
 
-        let main_backend = settings
-            .signing_backend()
-            .map(|backend| {
-                backends
-                    .iter()
-                    .position(|b| b.name() == backend)
-                    .map(|i| backends.remove(i))
-                    .ok_or(SignInitError::UnknownBackend(backend))
-            })
-            .transpose()?;
+        let signing_backend = settings.signing_backend();
+
+        // This mock signing backend is only really intended to be used for testing
+        let main_backend = if Some("mock".into()) == signing_backend {
+            let mock_backend = Box::new(MockSigningBackend {}) as Box<dyn SigningBackend>;
+            Some(mock_backend)
+        } else {
+            signing_backend
+                .map(|backend| {
+                    backends
+                        .iter()
+                        .position(|b| b.name() == backend)
+                        .map(|i| backends.remove(i))
+                        .ok_or(SignInitError::UnknownBackend(backend))
+                })
+                .transpose()?
+        };
 
         Ok(Self::new(main_backend, backends))
     }
@@ -230,7 +250,10 @@ impl Signer {
             .find_map(|backend| match backend.verify(data, signature) {
                 Ok(check) if check.status == SigStatus::Unknown => None,
                 Err(SignError::InvalidSignatureFormat) => None,
-                e => Some(e),
+                e => Some(e.map(|mut v| {
+                    v.backend = Some(backend.name().to_owned());
+                    v
+                })),
             })
             .transpose()?;
 

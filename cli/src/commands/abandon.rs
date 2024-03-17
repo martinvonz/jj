@@ -17,7 +17,9 @@ use std::io::Write;
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
-use crate::cli_util::{resolve_multiple_nonempty_revsets, CommandHelper, RevisionArg};
+use crate::cli_util::{
+    print_dropped_signatures, resolve_multiple_nonempty_revsets, CommandHelper, RevisionArg,
+};
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
@@ -55,7 +57,8 @@ pub(crate) fn cmd_abandon(
     for commit in &to_abandon {
         tx.mut_repo().record_abandoned_commit(commit.id().clone());
     }
-    let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
+    let rebase_counts = tx.mut_repo().rebase_descendants(command.settings())?;
+    let num_rebased = rebase_counts.rebased;
 
     if to_abandon.len() == 1 {
         write!(ui.stderr(), "Abandoned commit ")?;
@@ -89,6 +92,7 @@ pub(crate) fn cmd_abandon(
             to_abandon.len() - 1
         )
     };
+    print_dropped_signatures(ui, rebase_counts.dropped_signatures)?;
     tx.finish(ui, transaction_description)?;
     Ok(())
 }

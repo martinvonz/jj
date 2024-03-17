@@ -29,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Commit templates now support `immutable` keyword.
 
+* Add templater support for rendering commit signatures and added new builtin templates which
+  show commit signatures.
+
 ### Fixed bugs
 
 ## [0.15.1] - 2024-03-06
