@@ -43,6 +43,7 @@ use maplit::hashset;
 use crate::cli_util::{
     parse_string_pattern, print_trackable_remote_branches, short_change_hash, short_commit_hash,
     start_repo_transaction, CommandHelper, RevisionArg, WorkspaceCommandHelper,
+    WorkspaceCommandTransaction,
 };
 use crate::command_error::{
     user_error, user_error_with_hint, user_error_with_message, CommandError,
@@ -797,12 +798,6 @@ fn cmd_git_push(
     };
 
     let repo = workspace_command.repo().clone();
-    let change_commits: Vec<_> = args
-        .change
-        .iter()
-        .map(|change_str| workspace_command.resolve_single_rev(change_str))
-        .try_collect()?;
-
     let mut tx = workspace_command.start_transaction();
     let tx_description;
     let mut branch_updates = vec![];
@@ -854,48 +849,21 @@ fn cmd_git_push(
             }
         }
 
-        for (change_str, commit) in std::iter::zip(args.change.iter(), change_commits) {
-            let mut branch_name = format!(
-                "{}{}",
-                command.settings().push_branch_prefix(),
-                commit.change_id().hex()
-            );
-            let view = tx.base_repo().view();
-            if view.get_local_branch(&branch_name).is_absent() {
-                // A local branch with the full change ID doesn't exist already, so use the
-                // short ID if it's not ambiguous (which it shouldn't be most of the time).
-                let short_change_id = short_change_hash(commit.change_id());
-                if tx
-                    .base_workspace_helper()
-                    .resolve_single_rev(&short_change_id)
-                    .is_ok()
-                {
-                    // Short change ID is not ambiguous, so update the branch name to use it.
-                    branch_name = format!(
-                        "{}{}",
-                        command.settings().push_branch_prefix(),
-                        short_change_id
-                    );
-                };
-            }
-            if view.get_local_branch(&branch_name).is_absent() {
-                writeln!(
-                    ui.stderr(),
-                    "Creating branch {} for revision {}",
-                    branch_name,
-                    change_str.deref()
-                )?;
-            }
-            tx.mut_repo()
-                .set_local_branch_target(&branch_name, RefTarget::normal(commit.id().clone()));
+        let change_branch_names = update_change_branches(
+            ui,
+            &mut tx,
+            &args.change,
+            &command.settings().push_branch_prefix(),
+        )?;
+        for branch_name in &change_branch_names {
             let targets = LocalAndRemoteRef {
-                local_target: tx.repo().view().get_local_branch(&branch_name),
-                remote_ref: tx.repo().view().get_remote_branch(&branch_name, &remote),
+                local_target: tx.repo().view().get_local_branch(branch_name),
+                remote_ref: tx.repo().view().get_remote_branch(branch_name, &remote),
             };
             if !seen_branches.insert(branch_name.clone()) {
                 continue;
             }
-            match classify_branch_update(&branch_name, &remote, targets) {
+            match classify_branch_update(branch_name, &remote, targets) {
                 Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
                 Ok(None) => writeln!(
                     ui.stderr(),
@@ -1138,6 +1106,46 @@ fn classify_branch_update(
         }),
         BranchPushAction::Update(update) => Ok(Some(update)),
     }
+}
+
+/// Creates or moves branches based on the change IDs.
+fn update_change_branches(
+    ui: &Ui,
+    tx: &mut WorkspaceCommandTransaction,
+    changes: &[RevisionArg],
+    branch_prefix: &str,
+) -> Result<Vec<String>, CommandError> {
+    let mut branch_names = Vec::new();
+    for change_str in changes {
+        let workspace_command = tx.base_workspace_helper();
+        let commit = workspace_command.resolve_single_rev(change_str)?;
+        let mut branch_name = format!("{branch_prefix}{}", commit.change_id().hex());
+        let view = tx.base_repo().view();
+        if view.get_local_branch(&branch_name).is_absent() {
+            // A local branch with the full change ID doesn't exist already, so use the
+            // short ID if it's not ambiguous (which it shouldn't be most of the time).
+            let short_change_id = short_change_hash(commit.change_id());
+            if workspace_command
+                .resolve_single_rev(&short_change_id)
+                .is_ok()
+            {
+                // Short change ID is not ambiguous, so update the branch name to use it.
+                branch_name = format!("{branch_prefix}{short_change_id}");
+            };
+        }
+        if view.get_local_branch(&branch_name).is_absent() {
+            writeln!(
+                ui.stderr(),
+                "Creating branch {} for revision {}",
+                branch_name,
+                change_str.deref()
+            )?;
+        }
+        tx.mut_repo()
+            .set_local_branch_target(&branch_name, RefTarget::normal(commit.id().clone()));
+        branch_names.push(branch_name);
+    }
+    Ok(branch_names)
 }
 
 fn find_branches_to_push<'a>(
