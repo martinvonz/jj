@@ -1174,7 +1174,8 @@ fn find_branches_targeted_by_revisions<'a>(
     revisions: &[RevisionArg],
     use_default_revset: bool,
 ) -> Result<Vec<(&'a str, LocalAndRemoteRef<'a>)>, CommandError> {
-    let revision_commit_ids: HashSet<_> = if use_default_revset {
+    let mut revision_commit_ids = HashSet::new();
+    if use_default_revset {
         let Some(wc_commit_id) = workspace_command.get_wc_commit_id().cloned() else {
             return Err(user_error("Nothing checked out in this workspace"));
         };
@@ -1186,13 +1187,30 @@ fn find_branches_targeted_by_revisions<'a>(
         .intersection(&RevsetExpression::branches(StringPattern::everything()));
         let current_branches_revset =
             workspace_command.evaluate_revset(current_branches_expression)?;
-        current_branches_revset.iter().collect()
-    } else {
-        let expression = workspace_command.parse_union_revsets(revisions)?
+        revision_commit_ids.extend(current_branches_revset.iter());
+        if revision_commit_ids.is_empty() {
+            writeln!(
+                ui.warning(),
+                "No branches found in the default push revset: \
+                 remote_branches(remote={remote_name})..@"
+            )?;
+        }
+    }
+    for rev_str in revisions {
+        let expression = workspace_command
+            .parse_revset(rev_str)?
             .intersection(&RevsetExpression::branches(StringPattern::everything()));
         let revset = workspace_command.evaluate_revset(expression)?;
-        revset.iter().collect()
-    };
+        let mut commit_ids = revset.iter().peekable();
+        if commit_ids.peek().is_none() {
+            let rev_str: &str = rev_str;
+            writeln!(
+                ui.warning(),
+                "No branches point to the specified revisions: {rev_str}"
+            )?;
+        }
+        revision_commit_ids.extend(commit_ids);
+    }
     let branches_targeted = workspace_command
         .repo()
         .view()
@@ -1202,21 +1220,6 @@ fn find_branches_targeted_by_revisions<'a>(
             local_ids.any(|id| revision_commit_ids.contains(id))
         })
         .collect_vec();
-    if branches_targeted.is_empty() {
-        if use_default_revset {
-            writeln!(
-                ui.warning(),
-                "No branches found in the default push revset, \
-                 `remote_branches(remote={remote_name})..@`."
-            )?;
-        } else if !revisions.is_empty() {
-            writeln!(
-                ui.warning(),
-                "No branches point to the specified revisions."
-            )?;
-        } else { /* A plain "Nothing changed" message will suffice */
-        }
-    }
     Ok(branches_targeted)
 }
 
