@@ -422,7 +422,7 @@ fn test_git_push_changes() {
       Force branch push-yostqsxwqrlt from 48d8c7948133 to b5f030322b1d
     "###);
 
-    // FIXME: specifying the same branch with --change/--branch doesn't break things
+    // specifying the same branch with --change/--branch doesn't break things
     std::fs::write(workspace_root.join("file"), "modified4").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_root,
@@ -431,7 +431,6 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Force branch push-yostqsxwqrlt from b5f030322b1d to 4df62cec2ee4
       Force branch push-yostqsxwqrlt from b5f030322b1d to 4df62cec2ee4
     "###);
 
@@ -462,14 +461,13 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
       Force branch push-yostqsxwqrlt from 4df62cec2ee4 to fa16a14170fb
-      Force branch push-yostqsxwqrlt from 4df62cec2ee4 to 3e2ce808759b
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["status"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy changes:
     M file
-    Working copy : yostqsxw 3e2ce808 push-yostqsxwqrlt | bar
-    Parent commit: yqosqzyt fa16a141 push-yqosqzytrlsw | foo
+    Working copy : yostqsxw 3e2ce808 push-yostqsxwqrlt* | bar
+    Parent commit: yqosqzyt fa16a141 push-yostqsxwqrlt@origin push-yqosqzytrlsw | foo
     "###);
 
     // Test changing `git.push-branch-prefix`. It causes us to push again.
