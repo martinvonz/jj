@@ -14,10 +14,13 @@
 
 use std::io::Write;
 
+use itertools::Itertools as _;
 use jj_lib::object_id::ObjectId;
+use jj_lib::repo::Repo as _;
+use jj_lib::revset::RevsetIteratorExt as _;
 use tracing::instrument;
 
-use crate::cli_util::{resolve_multiple_nonempty_revsets, CommandHelper, RevisionArg};
+use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
@@ -49,8 +52,18 @@ pub(crate) fn cmd_abandon(
     args: &AbandonArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let to_abandon = resolve_multiple_nonempty_revsets(&args.revisions, &workspace_command)?;
-    workspace_command.check_rewritable(to_abandon.iter())?;
+    let to_abandon: Vec<_> = {
+        let repo = workspace_command.repo();
+        let expression = workspace_command.parse_union_revsets(&args.revisions)?;
+        let revset = workspace_command.evaluate_revset(expression)?;
+        revset.iter().commits(repo.store()).try_collect()?
+    };
+    if to_abandon.is_empty() {
+        writeln!(ui.stderr(), "No revisions to abandon.")?;
+        return Ok(());
+    }
+    workspace_command.check_rewritable(&to_abandon)?;
+
     let mut tx = workspace_command.start_transaction();
     for commit in &to_abandon {
         tx.mut_repo().record_abandoned_commit(commit.id().clone());

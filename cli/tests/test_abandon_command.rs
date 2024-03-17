@@ -150,6 +150,11 @@ fn test_basics() {
     ├─╯
     ◉  [zzz] a b e??
     "###);
+
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "none()"]);
+    insta::assert_snapshot!(stderr, @r###"
+    No revisions to abandon.
+    "###);
 }
 
 // This behavior illustrates https://github.com/martinvonz/jj/issues/2600.
@@ -263,8 +268,8 @@ fn test_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Abandoned the following commits:
-      royxmykx 98f3b9ba a | a
       vruxwmqv 8c0dced0 b | b
+      royxmykx 98f3b9ba a | a
     Rebased 1 descendant commits onto parents of abandoned commits
     Working copy now at: znkkpsqq 84fac1f8 c | c
     Parent commit      : zsuskuln 73c929fc a b base | base
