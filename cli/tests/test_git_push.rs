@@ -434,7 +434,7 @@ fn test_git_push_changes() {
       Force branch push-yostqsxwqrlt from b5f030322b1d to 4df62cec2ee4
     "###);
 
-    // FIXME: try again with --change that moves the branch forward
+    // try again with --change that moves the branch forward
     std::fs::write(workspace_root.join("file"), "modified5").unwrap();
     test_env.jj_cmd_ok(
         &workspace_root,
@@ -460,14 +460,14 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Force branch push-yostqsxwqrlt from 4df62cec2ee4 to fa16a14170fb
+      Force branch push-yostqsxwqrlt from 4df62cec2ee4 to 3e2ce808759b
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["status"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy changes:
     M file
-    Working copy : yostqsxw 3e2ce808 push-yostqsxwqrlt* | bar
-    Parent commit: yqosqzyt fa16a141 push-yostqsxwqrlt@origin push-yqosqzytrlsw | foo
+    Working copy : yostqsxw 3e2ce808 push-yostqsxwqrlt | bar
+    Parent commit: yqosqzyt fa16a141 push-yqosqzytrlsw | foo
     "###);
 
     // Test changing `git.push-branch-prefix`. It causes us to push again.
@@ -580,8 +580,8 @@ fn test_git_push_mixed() {
     insta::assert_snapshot!(stderr, @r###"
     Creating branch push-yqosqzytrlsw for revision @--
     Branch changes to push to origin:
-      Add branch branch-1 to 7decc7932d9c
       Add branch push-yqosqzytrlsw to fa16a14170fb
+      Add branch branch-1 to 7decc7932d9c
       Add branch branch-2a to 1b45449e18d0
       Add branch branch-2b to 1b45449e18d0
     "###);
