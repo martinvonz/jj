@@ -370,7 +370,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let mut divergent = HashMap::new();
         for (old_commit, new_commits) in rewritten {
             if new_commits.len() == 1 {
-                parent_mapping.insert(old_commit, vec![new_commits.iter().next().unwrap().clone()]);
+                parent_mapping.insert(old_commit, vec![new_commits.into_iter().next().unwrap()]);
             } else {
                 // The call to index.heads() is mostly to get a predictable order
                 let new_commits = mut_repo.index().heads(&mut new_commits.iter());
