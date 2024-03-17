@@ -799,7 +799,6 @@ fn cmd_git_push(
     };
 
     let repo = workspace_command.repo().clone();
-    let wc_commit_id = workspace_command.get_wc_commit_id().cloned();
     let change_commits: Vec<_> = args
         .change
         .iter()
@@ -910,36 +909,13 @@ fn cmd_git_push(
 
         let use_default_revset =
             args.branch.is_empty() && args.change.is_empty() && args.revisions.is_empty();
-        let revision_commit_ids: HashSet<_> = if use_default_revset {
-            let Some(wc_commit_id) = wc_commit_id else {
-                return Err(user_error("Nothing checked out in this workspace"));
-            };
-            let current_branches_expression = RevsetExpression::remote_branches(
-                StringPattern::everything(),
-                StringPattern::Exact(remote.to_owned()),
-            )
-            .range(&RevsetExpression::commit(wc_commit_id))
-            .intersection(&RevsetExpression::branches(StringPattern::everything()));
-            let current_branches_revset = tx
-                .base_workspace_helper()
-                .evaluate_revset(current_branches_expression)?;
-            current_branches_revset.iter().collect()
-        } else {
-            // TODO: Narrow search space to local target commits.
-            // TODO: Remove redundant CommitId -> Commit -> CommitId round trip.
-            resolve_multiple_nonempty_revsets(&args.revisions, tx.base_workspace_helper())?
-                .iter()
-                .map(|commit| commit.id().clone())
-                .collect()
-        };
-        let branches_targeted = repo
-            .view()
-            .local_remote_branches(&remote)
-            .filter(|(_, targets)| {
-                let mut local_ids = targets.local_target.added_ids();
-                local_ids.any(|id| revision_commit_ids.contains(id))
-            })
-            .collect_vec();
+        let branches_targeted = find_branches_targeted_by_revisions(
+            ui,
+            tx.base_workspace_helper(),
+            &remote,
+            &args.revisions,
+            use_default_revset,
+        )?;
         for &(branch_name, targets) in &branches_targeted {
             if !seen_branches.insert(branch_name.to_owned()) {
                 continue;
@@ -948,21 +924,6 @@ fn cmd_git_push(
                 Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
-            }
-        }
-        if branches_targeted.is_empty() {
-            if use_default_revset {
-                writeln!(
-                    ui.warning(),
-                    "No branches found in the default push revset, \
-                     `remote_branches(remote={remote})..@`."
-                )?;
-            } else if !args.revisions.is_empty() {
-                writeln!(
-                    ui.warning(),
-                    "No branches point to the specified revisions."
-                )?;
-            } else { /* A plain "Nothing changed" message will suffice */
             }
         }
 
@@ -1205,6 +1166,61 @@ fn find_branches_to_push<'a>(
             patterns.iter().join(", ")
         ))),
     }
+}
+
+fn find_branches_targeted_by_revisions<'a>(
+    ui: &Ui,
+    workspace_command: &'a WorkspaceCommandHelper,
+    remote_name: &str,
+    revisions: &[RevisionArg],
+    use_default_revset: bool,
+) -> Result<Vec<(&'a str, LocalAndRemoteRef<'a>)>, CommandError> {
+    let revision_commit_ids: HashSet<_> = if use_default_revset {
+        let Some(wc_commit_id) = workspace_command.get_wc_commit_id().cloned() else {
+            return Err(user_error("Nothing checked out in this workspace"));
+        };
+        let current_branches_expression = RevsetExpression::remote_branches(
+            StringPattern::everything(),
+            StringPattern::Exact(remote_name.to_owned()),
+        )
+        .range(&RevsetExpression::commit(wc_commit_id))
+        .intersection(&RevsetExpression::branches(StringPattern::everything()));
+        let current_branches_revset =
+            workspace_command.evaluate_revset(current_branches_expression)?;
+        current_branches_revset.iter().collect()
+    } else {
+        // TODO: Narrow search space to local target commits.
+        // TODO: Remove redundant CommitId -> Commit -> CommitId round trip.
+        resolve_multiple_nonempty_revsets(revisions, workspace_command)?
+            .iter()
+            .map(|commit| commit.id().clone())
+            .collect()
+    };
+    let branches_targeted = workspace_command
+        .repo()
+        .view()
+        .local_remote_branches(remote_name)
+        .filter(|(_, targets)| {
+            let mut local_ids = targets.local_target.added_ids();
+            local_ids.any(|id| revision_commit_ids.contains(id))
+        })
+        .collect_vec();
+    if branches_targeted.is_empty() {
+        if use_default_revset {
+            writeln!(
+                ui.warning(),
+                "No branches found in the default push revset, \
+                 `remote_branches(remote={remote_name})..@`."
+            )?;
+        } else if !revisions.is_empty() {
+            writeln!(
+                ui.warning(),
+                "No branches point to the specified revisions."
+            )?;
+        } else { /* A plain "Nothing changed" message will suffice */
+        }
+    }
+    Ok(branches_targeted)
 }
 
 fn cmd_git_import(
