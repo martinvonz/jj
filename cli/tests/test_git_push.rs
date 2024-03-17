@@ -141,7 +141,7 @@ fn test_git_push_no_matching_branch() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    No branches found in the default push revset, `remote_branches(remote=origin)..@`.
+    No branches found in the default push revset: remote_branches(remote=origin)..@
     Nothing changed.
     "###);
 }
@@ -153,7 +153,7 @@ fn test_git_push_matching_branch_unchanged() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    No branches found in the default push revset, `remote_branches(remote=origin)..@`.
+    No branches found in the default push revset: remote_branches(remote=origin)..@
     Nothing changed.
     "###);
 }
@@ -196,7 +196,7 @@ fn test_git_push_other_remote_has_branch() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    No branches found in the default push revset, `remote_branches(remote=origin)..@`.
+    No branches found in the default push revset: remote_branches(remote=origin)..@
     Nothing changed.
     "###);
     // But it will still get pushed to another remote
@@ -456,14 +456,14 @@ fn test_git_push_revisions() {
     // Push an empty set
     let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-r=none()"]);
     insta::assert_snapshot!(stderr, @r###"
-    No branches point to the specified revisions.
+    No branches point to the specified revisions: none()
     Nothing changed.
     "###);
     // Push a revision with no branches
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-r=@--"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    No branches point to the specified revisions.
+    No branches point to the specified revisions: @--
     Nothing changed.
     "###);
     // Push a revision with a single branch
@@ -482,6 +482,7 @@ fn test_git_push_revisions() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
+    No branches point to the specified revisions: @--
     Branch changes to push to origin:
       Add branch branch-1 to 7decc7932d9c
     Dry-run requested, not pushing.
