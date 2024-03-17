@@ -48,7 +48,8 @@ pub(crate) fn cmd_duplicate(
         revset.iter().collect() // in reverse topological order
     };
     if to_duplicate.is_empty() {
-        return Err(user_error("No revisions to duplicate"));
+        writeln!(ui.stderr(), "No revisions to duplicate.")?;
+        return Ok(());
     }
     if to_duplicate.last() == Some(workspace_command.repo().store().root_commit_id()) {
         return Err(user_error("Cannot duplicate the root commit"));
