@@ -836,37 +836,28 @@ fn cmd_git_push(
         tx_description = format!("push all deleted branches to git remote {remote}");
     } else {
         let mut seen_branches: HashSet<&str> = HashSet::new();
-        let branches_by_name = find_branches_to_push(repo.view(), &args.branch, &remote)?;
-        for &(branch_name, targets) in &branches_by_name {
-            if !seen_branches.insert(branch_name) {
-                continue;
-            }
-            match classify_branch_update(branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
-                Ok(None) => writeln!(
-                    ui.stderr(),
-                    "Branch {branch_name}@{remote} already matches {branch_name}",
-                )?,
-                Err(reason) => return Err(reason.into()),
-            }
-        }
 
+        // Process --change branches first because matching branches can be moved.
         let change_branch_names = update_change_branches(
             ui,
             &mut tx,
             &args.change,
             &command.settings().push_branch_prefix(),
         )?;
-        for branch_name in &change_branch_names {
+        let change_branches = change_branch_names.iter().map(|branch_name| {
             let targets = LocalAndRemoteRef {
                 local_target: tx.repo().view().get_local_branch(branch_name),
                 remote_ref: tx.repo().view().get_remote_branch(branch_name, &remote),
             };
+            (branch_name.as_ref(), targets)
+        });
+        let branches_by_name = find_branches_to_push(repo.view(), &args.branch, &remote)?;
+        for (branch_name, targets) in change_branches.chain(branches_by_name.iter().copied()) {
             if !seen_branches.insert(branch_name) {
                 continue;
             }
             match classify_branch_update(branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
+                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => writeln!(
                     ui.stderr(),
                     "Branch {branch_name}@{remote} already matches {branch_name}",
