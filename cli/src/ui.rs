@@ -415,7 +415,7 @@ impl Ui {
                 .unwrap_or(false)
     }
 
-    pub fn prompt(&mut self, prompt: &str) -> io::Result<String> {
+    pub fn prompt(&self, prompt: &str) -> io::Result<String> {
         if !Self::can_prompt() {
             return Err(io::Error::new(
                 io::ErrorKind::Unsupported,
@@ -441,7 +441,7 @@ impl Ui {
 
     /// Repeat the given prompt until the input is one of the specified choices.
     pub fn prompt_choice(
-        &mut self,
+        &self,
         prompt: &str,
         choices: &[impl AsRef<str>],
         default: Option<&str>,
@@ -470,7 +470,7 @@ impl Ui {
     }
 
     /// Prompts for a yes-or-no response, with yes = true and no = false.
-    pub fn prompt_yes_no(&mut self, prompt: &str, default: Option<bool>) -> io::Result<bool> {
+    pub fn prompt_yes_no(&self, prompt: &str, default: Option<bool>) -> io::Result<bool> {
         let default_str = match &default {
             Some(true) => "(Yn)",
             Some(false) => "(yN)",
@@ -486,7 +486,7 @@ impl Ui {
         Ok(choice.starts_with(['y', 'Y']))
     }
 
-    pub fn prompt_password(&mut self, prompt: &str) -> io::Result<String> {
+    pub fn prompt_password(&self, prompt: &str) -> io::Result<String> {
         if !io::stdout().is_terminal() {
             return Err(io::Error::new(
                 io::ErrorKind::Unsupported,

@@ -17,7 +17,6 @@
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::sync::Mutex;
 use std::time::Instant;
 use std::{error, iter};
 
@@ -60,11 +59,11 @@ pub fn is_colocated_git_workspace(workspace: &Workspace, repo: &ReadonlyRepo) ->
     git_workdir.canonicalize().ok().as_deref() == dot_git_path.parent()
 }
 
-fn terminal_get_username(ui: &mut Ui, url: &str) -> Option<String> {
+fn terminal_get_username(ui: &Ui, url: &str) -> Option<String> {
     ui.prompt(&format!("Username for {url}")).ok()
 }
 
-fn terminal_get_pw(ui: &mut Ui, url: &str) -> Option<String> {
+fn terminal_get_pw(ui: &Ui, url: &str) -> Option<String> {
     ui.prompt_password(&format!("Passphrase for {url}: ")).ok()
 }
 
@@ -138,13 +137,9 @@ fn get_ssh_keys(_username: &str) -> Vec<PathBuf> {
     paths
 }
 
-pub fn with_remote_git_callbacks<T>(
-    ui: &mut Ui,
-    f: impl FnOnce(git::RemoteCallbacks<'_>) -> T,
-) -> T {
-    let mut ui = Mutex::new(ui);
+pub fn with_remote_git_callbacks<T>(ui: &Ui, f: impl FnOnce(git::RemoteCallbacks<'_>) -> T) -> T {
     let mut callback = None;
-    if let Some(mut output) = ui.get_mut().unwrap().progress_output() {
+    if let Some(mut output) = ui.progress_output() {
         let mut progress = Progress::new(Instant::now());
         callback = Some(move |x: &git::Progress| {
             _ = progress.update(Instant::now(), x, &mut output);
@@ -156,14 +151,11 @@ pub fn with_remote_git_callbacks<T>(
         .map(|x| x as &mut dyn FnMut(&git::Progress));
     let mut get_ssh_keys = get_ssh_keys; // Coerce to unit fn type
     callbacks.get_ssh_keys = Some(&mut get_ssh_keys);
-    let mut get_pw = |url: &str, _username: &str| {
-        pinentry_get_pw(url).or_else(|| terminal_get_pw(*ui.lock().unwrap(), url))
-    };
+    let mut get_pw =
+        |url: &str, _username: &str| pinentry_get_pw(url).or_else(|| terminal_get_pw(ui, url));
     callbacks.get_password = Some(&mut get_pw);
-    let mut get_user_pw = |url: &str| {
-        let ui = &mut *ui.lock().unwrap();
-        Some((terminal_get_username(ui, url)?, terminal_get_pw(ui, url)?))
-    };
+    let mut get_user_pw =
+        |url: &str| Some((terminal_get_username(ui, url)?, terminal_get_pw(ui, url)?));
     callbacks.get_username_password = Some(&mut get_user_pw);
     f(callbacks)
 }
