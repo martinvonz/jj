@@ -860,9 +860,6 @@ fn cmd_git_push(
                 command.settings().push_branch_prefix(),
                 commit.change_id().hex()
             );
-            if !seen_branches.insert(branch_name.clone()) {
-                continue;
-            }
             let view = tx.base_repo().view();
             if view.get_local_branch(&branch_name).is_absent() {
                 // A local branch with the full change ID doesn't exist already, so use the
@@ -895,6 +892,9 @@ fn cmd_git_push(
                 local_target: tx.repo().view().get_local_branch(&branch_name),
                 remote_ref: tx.repo().view().get_remote_branch(&branch_name, &remote),
             };
+            if !seen_branches.insert(branch_name.clone()) {
+                continue;
+            }
             match classify_branch_update(&branch_name, &remote, targets) {
                 Ok(Some(update)) => branch_updates.push((branch_name.clone(), update)),
                 Ok(None) => writeln!(
