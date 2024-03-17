@@ -1620,21 +1620,6 @@ pub fn resolve_all_revs(
     }
 }
 
-pub fn resolve_multiple_nonempty_revsets(
-    revision_args: &[RevisionArg],
-    workspace_command: &WorkspaceCommandHelper,
-) -> Result<IndexSet<Commit>, CommandError> {
-    let mut acc = IndexSet::new();
-    for revset in revision_args {
-        let revisions = workspace_command.resolve_revset(revset)?;
-        if revisions.is_empty() {
-            return Err(user_error("Empty revision set"));
-        }
-        acc.extend(revisions);
-    }
-    Ok(acc)
-}
-
 pub fn resolve_multiple_nonempty_revsets_default_single(
     workspace_command: &WorkspaceCommandHelper,
     revisions: &[RevisionArg],
