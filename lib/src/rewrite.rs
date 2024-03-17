@@ -283,7 +283,7 @@ pub(crate) struct DescendantRebaser<'settings, 'repo> {
     // parents). A child of the key commit should be rebased onto all the value commits. A branch
     // pointing to the key commit should become a conflict pointing to all the value commits.
     parent_mapping: HashMap<CommitId, Vec<CommitId>>,
-    divergent: HashMap<CommitId, Vec<CommitId>>,
+    divergent: HashSet<CommitId>,
     // In reverse order (parents after children), so we can remove the last one to rebase first.
     to_visit: Vec<Commit>,
     // Commits to visit but skip. These were also in `to_visit` to start with, but we don't
@@ -367,14 +367,15 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let new_commits = rewritten.values().flatten().cloned().collect();
 
         let mut parent_mapping = HashMap::new();
-        let mut divergent = HashMap::new();
+        let mut divergent = HashSet::new();
         for (old_commit, new_commits) in rewritten {
             if new_commits.len() == 1 {
                 parent_mapping.insert(old_commit, vec![new_commits.into_iter().next().unwrap()]);
             } else {
                 // The call to index.heads() is mostly to get a predictable order
                 let new_commits = mut_repo.index().heads(&mut new_commits.iter());
-                divergent.insert(old_commit, new_commits);
+                parent_mapping.insert(old_commit.clone(), new_commits);
+                divergent.insert(old_commit);
             }
         }
 
@@ -422,6 +423,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     fn new_parents(&self, old_ids: &[CommitId]) -> Vec<CommitId> {
         fn single_substitution_round(
             parent_mapping: &HashMap<CommitId, Vec<CommitId>>,
+            divergent: &HashSet<CommitId>,
             ids: Vec<CommitId>,
         ) -> (Vec<CommitId>, bool) {
             let mut made_replacements = false;
@@ -430,6 +432,10 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             // being singletons. If CommitId-s were Copy. no allocations would be needed in
             // that case, but it probably doesn't matter much while they are Vec<u8>-s.
             for id in ids.into_iter() {
+                if divergent.contains(&id) {
+                    new_ids.push(id);
+                    continue;
+                }
                 match parent_mapping.get(&id) {
                     None => new_ids.push(id),
                     Some(replacements) => {
@@ -455,7 +461,8 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let mut allowed_iterations = 0..self.parent_mapping.len();
         loop {
             let made_replacements;
-            (new_ids, made_replacements) = single_substitution_round(&self.parent_mapping, new_ids);
+            (new_ids, made_replacements) =
+                single_substitution_round(&self.parent_mapping, &self.divergent, new_ids);
             if !made_replacements {
                 break;
             }
@@ -560,12 +567,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             // to rebase it, but we still want to update branches pointing
             // to the old commit.
             self.update_references(old_commit_id, new_parent_ids)?;
-            return Ok(());
-        }
-        if let Some(divergent_ids) = self.divergent.get(&old_commit_id).cloned() {
-            // Leave divergent commits in place. Don't update `parent_mapping` since we
-            // don't want to rebase descendants either.
-            self.update_references(old_commit_id, divergent_ids)?;
             return Ok(());
         }
         let old_parent_ids = old_commit.parent_ids();
