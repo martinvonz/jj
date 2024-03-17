@@ -835,10 +835,12 @@ fn cmd_git_push(
         }
         tx_description = format!("push all deleted branches to git remote {remote}");
     } else {
-        let mut seen_branches = hashset! {};
-        let branches_by_name =
-            find_branches_to_push(repo.view(), &args.branch, &remote, &mut seen_branches)?;
-        for (branch_name, targets) in branches_by_name {
+        let mut seen_branches: HashSet<&str> = HashSet::new();
+        let branches_by_name = find_branches_to_push(repo.view(), &args.branch, &remote)?;
+        for &(branch_name, targets) in &branches_by_name {
+            if !seen_branches.insert(branch_name) {
+                continue;
+            }
             match classify_branch_update(branch_name, &remote, targets) {
                 Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => writeln!(
@@ -860,7 +862,7 @@ fn cmd_git_push(
                 local_target: tx.repo().view().get_local_branch(branch_name),
                 remote_ref: tx.repo().view().get_remote_branch(branch_name, &remote),
             };
-            if !seen_branches.insert(branch_name.clone()) {
+            if !seen_branches.insert(branch_name) {
                 continue;
             }
             match classify_branch_update(branch_name, &remote, targets) {
@@ -883,7 +885,7 @@ fn cmd_git_push(
             use_default_revset,
         )?;
         for &(branch_name, targets) in &branches_targeted {
-            if !seen_branches.insert(branch_name.to_owned()) {
+            if !seen_branches.insert(branch_name) {
                 continue;
             }
             match classify_branch_update(branch_name, &remote, targets) {
@@ -1152,7 +1154,6 @@ fn find_branches_to_push<'a>(
     view: &'a View,
     branch_patterns: &[StringPattern],
     remote_name: &str,
-    seen_branches: &mut HashSet<String>,
 ) -> Result<Vec<(&'a str, LocalAndRemoteRef<'a>)>, CommandError> {
     let mut matching_branches = vec![];
     let mut unmatched_patterns = vec![];
@@ -1168,8 +1169,7 @@ fn find_branches_to_push<'a>(
         if matches.peek().is_none() {
             unmatched_patterns.push(pattern);
         }
-        matching_branches
-            .extend(matches.filter(|&(name, _)| seen_branches.insert(name.to_owned())));
+        matching_branches.extend(matches);
     }
     match &unmatched_patterns[..] {
         [] => Ok(matching_branches),
