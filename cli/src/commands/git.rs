@@ -41,9 +41,8 @@ use jj_lib::workspace::Workspace;
 use maplit::hashset;
 
 use crate::cli_util::{
-    parse_string_pattern, print_trackable_remote_branches, resolve_multiple_nonempty_revsets,
-    short_change_hash, short_commit_hash, start_repo_transaction, CommandHelper, RevisionArg,
-    WorkspaceCommandHelper,
+    parse_string_pattern, print_trackable_remote_branches, short_change_hash, short_commit_hash,
+    start_repo_transaction, CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::command_error::{
     user_error, user_error_with_hint, user_error_with_hint_opt, user_error_with_message,
@@ -1190,11 +1189,9 @@ fn find_branches_targeted_by_revisions<'a>(
         current_branches_revset.iter().collect()
     } else {
         // TODO: Narrow search space to local target commits.
-        // TODO: Remove redundant CommitId -> Commit -> CommitId round trip.
-        resolve_multiple_nonempty_revsets(revisions, workspace_command)?
-            .iter()
-            .map(|commit| commit.id().clone())
-            .collect()
+        let expression = workspace_command.parse_union_revsets(revisions)?;
+        let revset = workspace_command.evaluate_revset(expression)?;
+        revset.iter().collect()
     };
     let branches_targeted = workspace_command
         .repo()
