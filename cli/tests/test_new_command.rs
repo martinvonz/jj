@@ -498,7 +498,6 @@ fn test_new_conflicting_branches() {
     kkmpptxz 66c6502d foo?? | (empty) two
     qpvuntsm a9330854 foo?? | (empty) one
     Set which revision the branch points to with `jj branch set foo -r <REVISION>`.
-    Prefix the expression with 'all' to allow any number of revisions (i.e. 'all:foo').
     "###);
 }
 
@@ -521,7 +520,21 @@ fn test_new_conflicting_change_ids() {
     qpvuntsm?? d2ae6806 (empty) two
     qpvuntsm?? a9330854 (empty) one
     Some of these commits have the same change id. Abandon one of them with `jj abandon -r <REVISION>`.
-    Prefix the expression with 'all' to allow any number of revisions (i.e. 'all:qpvuntsm').
+    "###);
+}
+
+#[test]
+fn test_new_error_revision_does_not_exist() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "one"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "two"]);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "this"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revision "this" doesn't exist
     "###);
 }
 

@@ -169,7 +169,7 @@ fn test_rebase_branch() {
     Hint: The revset "e|d" resolved to these revisions:
     znkkpsqq e52756c8 e | e
     vruxwmqv 514fa6b2 d | d
-    Prefix the expression with 'all' to allow any number of revisions (i.e. 'all:e|d').
+    Prefix the expression with 'all:' to allow any number of revisions (i.e. 'all:e|d').
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b=all:e|d", "-d=b"]);
     insta::assert_snapshot!(stdout, @"");
@@ -480,7 +480,7 @@ fn test_rebase_multiple_destinations() {
     Hint: The revset "b|c" resolved to these revisions:
     royxmykx fe2e8e8b c | c
     zsuskuln d370aee1 b | b
-    Prefix the expression with 'all' to allow any number of revisions (i.e. 'all:b|c').
+    Prefix the expression with 'all:' to allow any number of revisions (i.e. 'all:b|c').
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "a", "-d", "all:b|c"]);
     insta::assert_snapshot!(stdout, @"");
@@ -616,7 +616,7 @@ fn test_rebase_with_descendants() {
     Hint: The revset "b|d" resolved to these revisions:
     vruxwmqv df54a9fd d | d
     zsuskuln d370aee1 b | b
-    Prefix the expression with 'all' to allow any number of revisions (i.e. 'all:b|d').
+    Prefix the expression with 'all:' to allow any number of revisions (i.e. 'all:b|d').
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=all:b|d", "-d=a"]);
     insta::assert_snapshot!(stdout, @"");
@@ -635,6 +635,27 @@ fn test_rebase_with_descendants() {
     ├─╯
     ◉  a
     ◉
+    "###);
+}
+
+#[test]
+fn test_rebase_error_revision_does_not_exist() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "one"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "b-one"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-r", "@-", "-m", "two"]);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-b", "b-one", "-d", "this"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revision "this" doesn't exist
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-b", "this", "-d", "b-one"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revision "this" doesn't exist
     "###);
 }
 
