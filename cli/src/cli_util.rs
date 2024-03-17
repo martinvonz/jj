@@ -748,6 +748,37 @@ impl WorkspaceCommandHelper {
     /// Resolve a revset to a single revision. Return an error if the revset is
     /// empty or has multiple revisions.
     pub fn resolve_single_rev(&self, revision_str: &str) -> Result<Commit, CommandError> {
+        self.resolve_single_rev_with_hint_about_all_prefix(revision_str, false)
+    }
+
+    /// Resolve a revset any number of revisions (including 0).
+    pub fn resolve_revset(&self, revision_str: &str) -> Result<Vec<Commit>, CommandError> {
+        let revset_expression = self.parse_revset(revision_str)?;
+        let revset = self.evaluate_revset(revset_expression)?;
+        Ok(revset.iter().commits(self.repo().store()).try_collect()?)
+    }
+
+    /// Resolve a revset any number of revisions (including 0), but require the
+    /// user to indicate if they allow multiple revisions by prefixing the
+    /// expression with `all:`.
+    pub fn resolve_revset_default_single(
+        &self,
+        revision_str: &str,
+    ) -> Result<Vec<Commit>, CommandError> {
+        // TODO: Let pest parse the prefix too once we've dropped support for `:`
+        if let Some(revision_str) = revision_str.strip_prefix("all:") {
+            self.resolve_revset(revision_str)
+        } else {
+            self.resolve_single_rev_with_hint_about_all_prefix(revision_str, true)
+                .map(|commit| vec![commit])
+        }
+    }
+
+    fn resolve_single_rev_with_hint_about_all_prefix(
+        &self,
+        revision_str: &str,
+        should_hint_about_all_prefix: bool,
+    ) -> Result<Commit, CommandError> {
         let revset_expression = self.parse_revset(revision_str)?;
         let revset = self.evaluate_revset(revset_expression.clone())?;
         let mut iter = revset.iter().commits(self.repo().store()).fuse();
@@ -783,51 +814,23 @@ It resolved to these revisions:
 Set which revision the branch points to with `jj branch set {branch_name} -r <REVISION>`."#,
                     )
                 } else {
-                    format!(
+                    let mut hint = format!(
                         r#"The revset "{revision_str}" resolved to these revisions:
 {commits_summary}"#,
-                    )
+                    );
+                    if should_hint_about_all_prefix {
+                        hint.push_str(&format!(
+                            "\nPrefix the expression with 'all:' to allow any number of revisions \
+                             (i.e. 'all:{revision_str}')."
+                        ));
+                    }
+                    hint
                 };
                 Err(user_error_with_hint(
                     format!(r#"Revset "{revision_str}" resolved to more than one revision"#),
                     hint,
                 ))
             }
-        }
-    }
-
-    /// Resolve a revset any number of revisions (including 0).
-    pub fn resolve_revset(&self, revision_str: &str) -> Result<Vec<Commit>, CommandError> {
-        let revset_expression = self.parse_revset(revision_str)?;
-        let revset = self.evaluate_revset(revset_expression)?;
-        Ok(revset.iter().commits(self.repo().store()).try_collect()?)
-    }
-
-    /// Resolve a revset any number of revisions (including 0), but require the
-    /// user to indicate if they allow multiple revisions by prefixing the
-    /// expression with `all:`.
-    pub fn resolve_revset_default_single(
-        &self,
-        revision_str: &str,
-    ) -> Result<Vec<Commit>, CommandError> {
-        // TODO: Let pest parse the prefix too once we've dropped support for `:`
-        if let Some(revision_str) = revision_str.strip_prefix("all:") {
-            self.resolve_revset(revision_str)
-        } else {
-            self.resolve_single_rev(revision_str)
-                .map_err(|err| match err {
-                    CommandError::UserError { err, hint } => CommandError::UserError {
-                        err,
-                        hint: Some(format!(
-                            "{old_hint}Prefix the expression with 'all' to allow any number of \
-                             revisions (i.e. 'all:{}').",
-                            revision_str,
-                            old_hint = hint.map(|hint| format!("{hint}\n")).unwrap_or_default()
-                        )),
-                    },
-                    err => err,
-                })
-                .map(|commit| vec![commit])
         }
     }
 
