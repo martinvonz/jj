@@ -52,9 +52,9 @@ fn test_duplicate() {
     Error: Cannot duplicate the root commit
     "###);
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["duplicate", "none()"]);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "none()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: No revisions to duplicate
+    No revisions to duplicate.
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a"]);
