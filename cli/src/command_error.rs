@@ -505,33 +505,7 @@ fn try_handle_command_result(
             Ok(ExitCode::from(2))
         }
         Err(CommandError::ClapCliError { err, hint }) => {
-            let clap_str = if ui.color() {
-                err.render().ansi().to_string()
-            } else {
-                err.render().to_string()
-            };
-
-            match err.kind() {
-                clap::error::ErrorKind::DisplayHelp
-                | clap::error::ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => {
-                    ui.request_pager()
-                }
-                _ => {}
-            };
-            // Definitions for exit codes and streams come from
-            // https://github.com/clap-rs/clap/blob/master/src/error/mod.rs
-            match err.kind() {
-                clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion => {
-                    write!(ui.stdout(), "{clap_str}")?;
-                    return Ok(ExitCode::SUCCESS);
-                }
-                _ => {}
-            }
-            write!(ui.stderr(), "{clap_str}")?;
-            if let Some(hint) = hint {
-                writeln!(ui.hint(), "Hint: {hint}")?;
-            }
-            Ok(ExitCode::from(2))
+            handle_clap_error(ui, err, hint.as_deref())
         }
         Err(CommandError::BrokenPipe) => {
             // A broken pipe is not an error, but a signal to exit gracefully.
@@ -558,4 +532,32 @@ fn print_error_sources(ui: &Ui, source: Option<&dyn error::Error>) -> io::Result
         }
     }
     Ok(())
+}
+
+fn handle_clap_error(ui: &mut Ui, err: &clap::Error, hint: Option<&str>) -> io::Result<ExitCode> {
+    let clap_str = if ui.color() {
+        err.render().ansi().to_string()
+    } else {
+        err.render().to_string()
+    };
+
+    match err.kind() {
+        clap::error::ErrorKind::DisplayHelp
+        | clap::error::ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => ui.request_pager(),
+        _ => {}
+    };
+    // Definitions for exit codes and streams come from
+    // https://github.com/clap-rs/clap/blob/master/src/error/mod.rs
+    match err.kind() {
+        clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion => {
+            write!(ui.stdout(), "{clap_str}")?;
+            return Ok(ExitCode::SUCCESS);
+        }
+        _ => {}
+    }
+    write!(ui.stderr(), "{clap_str}")?;
+    if let Some(hint) = hint {
+        writeln!(ui.hint(), "Hint: {hint}")?;
+    }
+    Ok(ExitCode::from(2))
 }
