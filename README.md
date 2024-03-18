@@ -141,6 +141,7 @@ developers monitor both channels.
 
 ### Related Media
 
+- **Mar 2024**: Chris Krycho started [a YouTube series about Jujutsu][krycho-yt].
 - **Feb 2024**: Chris Krycho published an article about Jujutsu called [jj init][krycho]
   and Steve Klabnik followed up with the [Jujutsu Tutorial][klabnik]. 
 - **Jan 2024**: Jujutsu was featured in an LWN.net article called 
@@ -148,6 +149,7 @@ developers monitor both channels.
 - **Jan 2023**: Martin's Talk about Jujutsu at Git Merge 2022, [video][merge-talk] 
   and the associated [slides][merge-slides].
 
+[krycho-yt]: https://www.youtube.com/playlist?list=PLelyiwKWHHAq01Pvmpf6x7J0y-yQpmtxp
 [krycho]: https://v5.chriskrycho.com/essays/jj-init/
 [klabnik]: https://steveklabnik.github.io/jujutsu-tutorial/introduction.html
 [lwn]: https://lwn.net/Articles/958468/ 
