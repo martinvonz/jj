@@ -151,7 +151,7 @@ developers monitor both channels.
 
 [krycho-yt]: https://www.youtube.com/playlist?list=PLelyiwKWHHAq01Pvmpf6x7J0y-yQpmtxp
 [krycho]: https://v5.chriskrycho.com/essays/jj-init/
-[klabnik]: https://steveklabnik.github.io/jujutsu-tutorial/introduction.html
+[klabnik]: https://steveklabnik.github.io/jujutsu-tutorial/
 [lwn]: https://lwn.net/Articles/958468/ 
 [merge-talk]: https://www.youtube.com/watch?v=bx_LGilOuE4
 [merge-slides]: https://docs.google.com/presentation/d/1F8j9_UOOSGUN9MvHxPZX_L4bQ9NMcYOp1isn17kTC_M/view 
