@@ -330,11 +330,23 @@ impl IndexStore for DefaultIndexStore {
             Err(DefaultIndexStoreError::LoadIndex(err)) if err.is_corrupt_or_not_found() => {
                 // If the index was corrupt (maybe it was written in a different format),
                 // we just reindex.
-                // TODO: Move this message to a callback or something.
-                eprintln!(
-                    "{err} (maybe the format has changed): {source}. Reindexing...",
-                    source = err.error
-                );
+                match &err {
+                    ReadonlyIndexLoadError::UnexpectedVersion {
+                        found_version,
+                        expected_version,
+                    } => {
+                        eprintln!(
+                            "Found index format version {found_version}, expected version \
+                             {expected_version}. Reindexing..."
+                        );
+                    }
+                    ReadonlyIndexLoadError::Other { name: _, error } => {
+                        eprintln!(
+                            "{err} (maybe the format has changed): {source}. Reindexing...",
+                            source = error
+                        );
+                    }
+                }
                 self.reinit().map_err(|err| IndexReadError(err.into()))?;
                 self.build_index_segments_at_operation(op, store)
             }
