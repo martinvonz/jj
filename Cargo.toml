@@ -20,7 +20,7 @@ keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 anyhow = "1.0.81"
 assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
-async-trait = "0.1.77"
+async-trait = "0.1.78"
 backoff = "0.4.0"
 blake2 = "0.10.6"
 bytes = "1.5.0"
@@ -89,7 +89,7 @@ smallvec = { version = "1.13.0", features = [
     "union",
 ] }
 strsim = "0.11.0"
-syn = "2.0.52"
+syn = "2.0.53"
 tempfile = "3.10.1"
 test-case = "3.3.1"
 textwrap = "0.16.1"
@@ -98,7 +98,7 @@ timeago = { version = "0.4.2", default-features = false }
 tokio = { version = "1.36.0" }
 toml_edit = { version = "0.19.15", features = ["serde"] }
 tracing = "0.1.40"
-tracing-chrome = "0.7.1"
+tracing-chrome = "0.7.2"
 tracing-subscriber = { version = "0.3.18", default-features = false, features = [
     "std",
     "ansi",
