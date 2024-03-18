@@ -2184,10 +2184,13 @@ very short if you ever need to check.</p>
 <p>All of them but "default" come in a bright version too, e.g. "bright red". The
 "default" color can be used to override a color defined by a parent style
 (explained below).</p>
-<p>If you use a string value for a color, as in the example above, it will be used
+<p>You can also use a 6-digit hex code for more control over the exact color used:</p>
+<div class="highlight"><pre><span></span><code><span class="n">colors</span><span class="p">.</span><span class="n">change_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;#ff1525&quot;</span>
+</code></pre></div>
+<p>If you use a string value for a color, as in the examples above, it will be used
 for the foreground color. You can also set the background color, or make the
 text bold or underlined. For that, you need to use a table:</p>
-<div class="highlight"><pre><span></span><code><span class="n">colors</span><span class="p">.</span><span class="n">commit_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fg</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;green&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">bg</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;red&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">bold</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="n">underline</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
+<div class="highlight"><pre><span></span><code><span class="n">colors</span><span class="p">.</span><span class="n">commit_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">fg</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;green&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">bg</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;#ff1525&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">bold</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="n">underline</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">true</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 <p>The key names are called "labels". The above used <code>commit_id</code> as label. You can
 also create rules combining multiple labels. The rules work a bit like CSS
