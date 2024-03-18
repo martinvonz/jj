@@ -445,7 +445,8 @@ fn test_log_bad_short_prefixes() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["status"]);
     insta::assert_snapshot!(stderr,
         @r###"
-    Config error: Invalid `revsets.short-prefixes`:  --> 1:1
+    Config error: Invalid `revsets.short-prefixes`
+    Caused by: Failed to parse revset:  --> 1:1
       |
     1 | !nval!d
       | ^---

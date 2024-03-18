@@ -23,7 +23,7 @@ use jj_lib::repo_path::RepoPathBuf;
 use tracing::instrument;
 
 use crate::cli_util::{CommandHelper, WorkspaceCommandHelper};
-use crate::command_error::CommandError;
+use crate::command_error::{cli_error, CommandError};
 use crate::formatter::Formatter;
 use crate::ui::Ui;
 
@@ -81,14 +81,11 @@ pub(crate) fn cmd_resolve(
         .filter(|path| matcher.matches(&path.0))
         .collect_vec();
     if conflicts.is_empty() {
-        return Err(CommandError::CliError(format!(
-            "No conflicts found {}",
-            if args.paths.is_empty() {
-                "at this revision"
-            } else {
-                "at the given path(s)"
-            }
-        )));
+        return Err(cli_error(if args.paths.is_empty() {
+            "No conflicts found at this revision"
+        } else {
+            "No conflicts found at the given path(s)"
+        }));
     }
     if args.list {
         return print_conflicted_paths(
