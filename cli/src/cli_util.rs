@@ -74,8 +74,9 @@ use tracing_chrome::ChromeLayerBuilder;
 use tracing_subscriber::prelude::*;
 
 use crate::command_error::{
-    handle_command_result, internal_error, internal_error_with_message, user_error,
-    user_error_with_hint, user_error_with_message, CommandError,
+    cli_error, config_error_with_message, handle_command_result, internal_error,
+    internal_error_with_message, user_error, user_error_with_hint, user_error_with_message,
+    CommandError,
 };
 use crate::commit_templater::{CommitTemplateLanguage, CommitTemplateLanguageExtension};
 use crate::config::{
@@ -886,7 +887,10 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
                 .unwrap_or_else(|_| self.settings.default_revset());
             if !revset_string.is_empty() {
                 let disambiguation_revset = self.parse_revset(&revset_string).map_err(|err| {
-                    CommandError::ConfigError(format!("Invalid `revsets.short-prefixes`: {err}"))
+                    config_error_with_message(
+                        "Invalid `revsets.short-prefixes`",
+                        revset_util::format_parse_error(&err),
+                    )
                 })?;
                 context = context.disambiguate_within(revset::optimize(disambiguation_revset));
             }
@@ -1884,7 +1888,7 @@ pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(),
     let editor: CommandNameAndArgs = settings
         .config()
         .get("ui.editor")
-        .map_err(|err| CommandError::ConfigError(format!("ui.editor: {err}")))?;
+        .map_err(|err| config_error_with_message("Invalid `ui.editor`", err))?;
     let exit_status = editor.to_command().arg(edit_path).status().map_err(|err| {
         user_error_with_message(
             format!(
@@ -2309,7 +2313,7 @@ pub fn expand_args(
         if let Some(string_arg) = arg_os.to_str() {
             string_args.push(string_arg.to_owned());
         } else {
-            return Err(CommandError::CliError("Non-utf8 argument".to_string()));
+            return Err(cli_error("Non-utf8 argument"));
         }
     }
 

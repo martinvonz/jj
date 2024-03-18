@@ -16,7 +16,7 @@ use tracing::instrument;
 
 use super::new;
 use crate::cli_util::CommandHelper;
-use crate::command_error::CommandError;
+use crate::command_error::{cli_error, CommandError};
 use crate::ui::Ui;
 
 #[instrument(skip_all)]
@@ -34,9 +34,7 @@ pub(crate) fn cmd_merge(
         "warning: `jj merge` will be removed in a future version, and this will be a hard error"
     )?;
     if args.revisions.len() < 2 {
-        return Err(CommandError::CliError(String::from(
-            "Merge requires at least two revisions",
-        )));
+        return Err(cli_error("Merge requires at least two revisions"));
     }
     new::cmd_new(ui, command, args)
 }

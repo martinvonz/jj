@@ -21,7 +21,7 @@ use std::{env, fmt, io, mem};
 use minus::Pager as MinusPager;
 use tracing::instrument;
 
-use crate::command_error::CommandError;
+use crate::command_error::{config_error_with_message, CommandError};
 use crate::config::CommandNameAndArgs;
 use crate::formatter::{Formatter, FormatterFactory, LabeledWriter};
 
@@ -233,13 +233,13 @@ pub enum PaginationChoice {
 fn pagination_setting(config: &config::Config) -> Result<PaginationChoice, CommandError> {
     config
         .get::<PaginationChoice>("ui.paginate")
-        .map_err(|err| CommandError::ConfigError(format!("Invalid `ui.paginate`: {err}")))
+        .map_err(|err| config_error_with_message("Invalid `ui.paginate`", err))
 }
 
 fn pager_setting(config: &config::Config) -> Result<CommandNameAndArgs, CommandError> {
     config
         .get::<CommandNameAndArgs>("ui.pager")
-        .map_err(|err| CommandError::ConfigError(format!("Invalid `ui.pager`: {err}")))
+        .map_err(|err| config_error_with_message("Invalid `ui.pager`", err))
 }
 
 impl Ui {

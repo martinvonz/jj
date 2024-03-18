@@ -48,9 +48,9 @@ pub enum CommandError {
         err: Arc<dyn error::Error + Send + Sync>,
         hint: Option<String>,
     },
-    ConfigError(String),
+    ConfigError(Arc<dyn error::Error + Send + Sync>),
     /// Invalid command line
-    CliError(String),
+    CliError(Arc<dyn error::Error + Send + Sync>),
     /// Invalid command line detected by clap
     ClapCliError {
         err: Arc<clap::Error>,
@@ -116,6 +116,21 @@ pub fn user_error_with_hint_opt(
     }
 }
 
+pub fn config_error(err: impl Into<Box<dyn error::Error + Send + Sync>>) -> CommandError {
+    CommandError::ConfigError(Arc::from(err.into()))
+}
+
+pub fn config_error_with_message(
+    message: impl Into<String>,
+    source: impl Into<Box<dyn error::Error + Send + Sync>>,
+) -> CommandError {
+    config_error(ErrorWithMessage::new(message, source))
+}
+
+pub fn cli_error(err: impl Into<Box<dyn error::Error + Send + Sync>>) -> CommandError {
+    CommandError::CliError(Arc::from(err.into()))
+}
+
 pub fn internal_error(err: impl Into<Box<dyn error::Error + Send + Sync>>) -> CommandError {
     CommandError::InternalError(Arc::from(err.into()))
 }
@@ -152,13 +167,13 @@ impl From<io::Error> for CommandError {
 
 impl From<config::ConfigError> for CommandError {
     fn from(err: config::ConfigError) -> Self {
-        CommandError::ConfigError(err.to_string())
+        config_error(err)
     }
 }
 
 impl From<crate::config::ConfigError> for CommandError {
     fn from(err: crate::config::ConfigError) -> Self {
-        CommandError::ConfigError(err.to_string())
+        config_error(err)
     }
 }
 
@@ -475,16 +490,18 @@ fn try_handle_command_result(
             }
             Ok(ExitCode::from(1))
         }
-        Err(CommandError::ConfigError(message)) => {
-            writeln!(ui.error(), "Config error: {message}")?;
+        Err(CommandError::ConfigError(err)) => {
+            writeln!(ui.error(), "Config error: {err}")?;
+            print_error_sources(ui, err.source())?;
             writeln!(
                 ui.hint(),
                 "For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md."
             )?;
             Ok(ExitCode::from(1))
         }
-        Err(CommandError::CliError(message)) => {
-            writeln!(ui.error(), "Error: {message}")?;
+        Err(CommandError::CliError(err)) => {
+            writeln!(ui.error(), "Error: {err}")?;
+            print_error_sources(ui, err.source())?;
             Ok(ExitCode::from(2))
         }
         Err(CommandError::ClapCliError { err, hint }) => {

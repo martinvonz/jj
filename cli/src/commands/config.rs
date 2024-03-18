@@ -22,7 +22,7 @@ use crate::cli_util::{
     get_new_config_file_path, run_ui_editor, serialize_config_value, write_config_value_to_file,
     CommandHelper,
 };
-use crate::command_error::{user_error, CommandError};
+use crate::command_error::{config_error, user_error, CommandError};
 use crate::config::{AnnotatedValue, ConfigSource};
 use crate::generic_templater::GenericTemplateLanguage;
 use crate::template_builder::TemplateLanguage as _;
@@ -295,7 +295,7 @@ pub(crate) fn cmd_config_get(
                 if let Some(origin) = origin {
                     write!(buf, " in {origin}").unwrap();
                 }
-                CommandError::ConfigError(buf.to_string())
+                config_error(buf)
             }
             err => err.into(),
         })?;
