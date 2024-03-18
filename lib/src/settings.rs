@@ -245,8 +245,8 @@ impl UserSettings {
     pub fn commit_node_template(&self) -> String {
         self.node_template_for_key(
             "templates.log_node",
-            r#"if(current_working_copy, "@", "◉")"#,
-            r#"if(current_working_copy, "@", "o")"#,
+            r#"if(self, if(current_working_copy, "@", "◉"), "◌")"#,
+            r#"if(self, if(current_working_copy, "@", "o"), ".")"#,
         )
     }
 
@@ -256,10 +256,6 @@ impl UserSettings {
             r#"if(current_operation, "@", "◉")"#,
             r#"if(current_operation, "@", "o")"#,
         )
-    }
-
-    pub fn elided_node_template(&self) -> String {
-        self.node_template_for_key("templates.log_node_elided", r#""◌""#, r#"".""#)
     }
 
     pub fn max_new_file_size(&self) -> Result<u64, config::ConfigError> {
