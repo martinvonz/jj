@@ -37,13 +37,20 @@ use crate::store::Store;
 
 /// Error while loading index segment file.
 #[derive(Debug, Error)]
-#[error("Failed to load commit index file '{name}'")]
-pub struct ReadonlyIndexLoadError {
-    /// Index file name.
-    pub name: String,
-    /// Underlying error.
-    #[source]
-    pub error: io::Error,
+pub enum ReadonlyIndexLoadError {
+    #[error("Unexpected index version")]
+    UnexpectedVersion {
+        found_version: u32,
+        expected_version: u32,
+    },
+    #[error("Failed to load commit index file '{name}'")]
+    Other {
+        /// Index file name.
+        name: String,
+        /// Underlying error.
+        #[source]
+        error: io::Error,
+    },
 }
 
 impl ReadonlyIndexLoadError {
@@ -55,7 +62,7 @@ impl ReadonlyIndexLoadError {
     }
 
     fn from_io_err(name: impl Into<String>, error: io::Error) -> Self {
-        ReadonlyIndexLoadError {
+        ReadonlyIndexLoadError::Other {
             name: name.into(),
             error,
         }
@@ -63,12 +70,19 @@ impl ReadonlyIndexLoadError {
 
     /// Returns true if the underlying error suggests data corruption.
     pub(super) fn is_corrupt_or_not_found(&self) -> bool {
-        // If the parent file name field is corrupt, the file wouldn't be found.
-        // And there's no need to distinguish it from an empty file.
-        matches!(
-            self.error.kind(),
-            io::ErrorKind::NotFound | io::ErrorKind::InvalidData | io::ErrorKind::UnexpectedEof
-        )
+        match self {
+            ReadonlyIndexLoadError::UnexpectedVersion { .. } => true,
+            ReadonlyIndexLoadError::Other { name: _, error } => {
+                // If the parent file name field is corrupt, the file wouldn't be found.
+                // And there's no need to distinguish it from an empty file.
+                matches!(
+                    error.kind(),
+                    io::ErrorKind::NotFound
+                        | io::ErrorKind::InvalidData
+                        | io::ErrorKind::UnexpectedEof
+                )
+            }
+        }
     }
 }
 
@@ -244,10 +258,10 @@ impl ReadonlyIndexSegment {
         };
         let format_version = read_u32(file)?;
         if format_version != INDEX_SEGMENT_FILE_FORMAT_VERSION {
-            return Err(ReadonlyIndexLoadError::invalid_data(
-                &name,
-                format!("unsupported file format version: {format_version}"),
-            ));
+            return Err(ReadonlyIndexLoadError::UnexpectedVersion {
+                found_version: format_version,
+                expected_version: INDEX_SEGMENT_FILE_FORMAT_VERSION,
+            });
         }
         let parent_filename_len = read_u32(file)?;
         let maybe_parent_file = if parent_filename_len > 0 {
