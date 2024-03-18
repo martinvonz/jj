@@ -73,7 +73,7 @@ pub(crate) fn cmd_obslog(
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
     let template;
-    let commit_node_template;
+    let node_template;
     {
         let language = workspace_command.commit_template_language()?;
         let template_string = match &args.template {
@@ -85,10 +85,10 @@ pub(crate) fn cmd_obslog(
             &template_string,
             CommitTemplateLanguage::wrap_commit,
         )?;
-        commit_node_template = workspace_command.parse_template(
+        node_template = workspace_command.parse_template(
             &language,
             &command.settings().commit_node_template(),
-            CommitTemplateLanguage::wrap_commit,
+            CommitTemplateLanguage::wrap_commit_opt,
         )?;
     }
 
@@ -131,7 +131,7 @@ pub(crate) fn cmd_obslog(
                     &diff_formats,
                 )?;
             }
-            let node_symbol = format_template(ui, &commit, &commit_node_template);
+            let node_symbol = format_template(ui, &Some(commit.clone()), &node_template);
             graph.add_node(
                 commit.id(),
                 &edges,

@@ -1433,11 +1433,12 @@ fn test_log_with_custom_symbols() {
     };
 
     // Simple test with showing default and elided nodes.
-    test_env.add_config(concat!(
-        "ui.log-synthetic-elided-nodes = true\n",
-        "templates.log_node = 'if(current_working_copy, \"$\", if(root, \"┴\", \"┝\"))'\n",
-        "templates.log_node_elided = '\"🮀\"'",
-    ));
+    test_env.add_config(
+        r###"
+        ui.log-synthetic-elided-nodes = true
+        templates.log_node = 'if(self, if(current_working_copy, "$", if(root, "┴", "┝")), "🮀")'
+        "###,
+    );
     insta::assert_snapshot!(get_log("@ | @- | description(initial) | root()"), @r###"
     $    merge
     ├─╮
@@ -1454,12 +1455,13 @@ fn test_log_with_custom_symbols() {
     "###);
 
     // Simple test with showing default and elided nodes, ascii style.
-    test_env.add_config(concat!(
-        "ui.log-synthetic-elided-nodes = true\n",
-        "ui.graph.style = 'ascii'\n",
-        "templates.log_node = 'if(current_working_copy, \"$\", if(root, \"^\", \"*\"))'\n",
-        "templates.log_node_elided = '\":\"'",
-    ));
+    test_env.add_config(
+        r###"
+        ui.log-synthetic-elided-nodes = true
+        ui.graph.style = 'ascii'
+        templates.log_node = 'if(self, if(current_working_copy, "$", if(root, "^", "*")), ":")'
+        "###,
+    );
     insta::assert_snapshot!(get_log("@ | @- | description(initial) | root()"), @r###"
     $    merge
     |\
