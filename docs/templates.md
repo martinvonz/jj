@@ -137,6 +137,12 @@ The following methods are defined.
 
 * `.short([len: Integer]) -> String`
 
+### Option type
+
+An option can be implicitly converted to `Boolean` denoting whether the
+contained value is set. If set, all methods of the contained value can be
+invoked. If not set, an error will be reported inline on method call.
+
 ### RefName type
 
 The following methods are defined.
