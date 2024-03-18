@@ -39,7 +39,7 @@ use crate::template_builder::{
 use crate::template_parser::{self, FunctionCallNode, TemplateParseError, TemplateParseResult};
 use crate::templater::{
     self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateProperty,
-    TemplatePropertyExt as _,
+    TemplatePropertyError, TemplatePropertyExt as _,
 };
 use crate::{revset_util, text_util};
 
@@ -126,6 +126,14 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
                 let build = template_parser::lookup_method("Commit", table, function)?;
                 build(self, build_ctx, property, function)
             }
+            CommitTemplatePropertyKind::CommitOpt(property) => {
+                let table = &self.build_fn_table.commit_methods;
+                let build = template_parser::lookup_method("Commit", table, function)?;
+                let inner_property = property.and_then(|opt| {
+                    opt.ok_or_else(|| TemplatePropertyError("No commit available".into()))
+                });
+                build(self, build_ctx, Box::new(inner_property), function)
+            }
             CommitTemplatePropertyKind::CommitList(property) => {
                 // TODO: migrate to table?
                 template_builder::build_unformattable_list_method(
@@ -190,6 +198,12 @@ impl<'repo> CommitTemplateLanguage<'repo> {
         CommitTemplatePropertyKind::Commit(Box::new(property))
     }
 
+    pub fn wrap_commit_opt(
+        property: impl TemplateProperty<Output = Option<Commit>> + 'repo,
+    ) -> CommitTemplatePropertyKind<'repo> {
+        CommitTemplatePropertyKind::CommitOpt(Box::new(property))
+    }
+
     pub fn wrap_commit_list(
         property: impl TemplateProperty<Output = Vec<Commit>> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
@@ -224,6 +238,7 @@ impl<'repo> CommitTemplateLanguage<'repo> {
 pub enum CommitTemplatePropertyKind<'repo> {
     Core(CoreTemplatePropertyKind<'repo>),
     Commit(Box<dyn TemplateProperty<Output = Commit> + 'repo>),
+    CommitOpt(Box<dyn TemplateProperty<Output = Option<Commit>> + 'repo>),
     CommitList(Box<dyn TemplateProperty<Output = Vec<Commit>> + 'repo>),
     RefName(Box<dyn TemplateProperty<Output = RefName> + 'repo>),
     RefNameList(Box<dyn TemplateProperty<Output = Vec<RefName>> + 'repo>),
@@ -236,6 +251,9 @@ impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
         match self {
             CommitTemplatePropertyKind::Core(property) => property.try_into_boolean(),
             CommitTemplatePropertyKind::Commit(_) => None,
+            CommitTemplatePropertyKind::CommitOpt(property) => {
+                Some(Box::new(property.map(|opt| opt.is_some())))
+            }
             CommitTemplatePropertyKind::CommitList(property) => {
                 Some(Box::new(property.map(|l| !l.is_empty())))
             }
@@ -269,6 +287,7 @@ impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
         match self {
             CommitTemplatePropertyKind::Core(property) => property.try_into_template(),
             CommitTemplatePropertyKind::Commit(_) => None,
+            CommitTemplatePropertyKind::CommitOpt(_) => None,
             CommitTemplatePropertyKind::CommitList(_) => None,
             CommitTemplatePropertyKind::RefName(property) => Some(property.into_template()),
             CommitTemplatePropertyKind::RefNameList(property) => Some(property.into_template()),
