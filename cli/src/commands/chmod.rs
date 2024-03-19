@@ -71,7 +71,8 @@ pub(crate) fn cmd_chmod(
     let mut tx = workspace_command.start_transaction();
     let store = tree.store();
     let mut tree_builder = MergedTreeBuilder::new(commit.tree_id().clone());
-    for (repo_path, tree_value) in tree.entries_matching(matcher.as_ref()) {
+    for (repo_path, result) in tree.entries_matching(matcher.as_ref()) {
+        let tree_value = result?;
         let user_error_with_path = |msg: &str| {
             user_error(format!(
                 "{msg} at '{}'.",

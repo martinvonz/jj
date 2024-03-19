@@ -14,6 +14,7 @@
 
 use std::io::{self, Write};
 
+use jj_lib::backend::BackendResult;
 use jj_lib::conflicts::{materialize_tree_value, MaterializedTreeValue};
 use jj_lib::fileset::{FilePattern, FilesetExpression};
 use jj_lib::merge::MergedTreeValue;
@@ -64,7 +65,7 @@ pub(crate) fn cmd_cat(
         }
         if !value.is_tree() {
             ui.request_pager();
-            write_tree_entries(ui, &workspace_command, [(path, value)])?;
+            write_tree_entries(ui, &workspace_command, [(path, Ok(value))])?;
             return Ok(());
         }
     }
@@ -95,10 +96,11 @@ fn get_single_path(expression: &FilesetExpression) -> Option<&RepoPath> {
 fn write_tree_entries<P: AsRef<RepoPath>>(
     ui: &Ui,
     workspace_command: &WorkspaceCommandHelper,
-    entries: impl IntoIterator<Item = (P, MergedTreeValue)>,
+    entries: impl IntoIterator<Item = (P, BackendResult<MergedTreeValue>)>,
 ) -> Result<(), CommandError> {
     let repo = workspace_command.repo();
-    for (path, value) in entries {
+    for (path, result) in entries {
+        let value = result?;
         let materialized = materialize_tree_value(repo.store(), path.as_ref(), value).block_on()?;
         match materialized {
             MaterializedTreeValue::Absent => panic!("absent values should be excluded"),
