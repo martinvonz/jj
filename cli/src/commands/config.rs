@@ -191,16 +191,16 @@ fn config_template_language() -> GenericTemplateLanguage<'static, AnnotatedValue
     }
     let mut language = GenericTemplateLanguage::new();
     // "name" instead of "path" to avoid confusion with the source file path
-    language.add_keyword("name", |_language| {
+    language.add_keyword("name", || {
         let property = prop_fn(|annotated| Ok(annotated.path.join(".")));
         Ok(L::wrap_string(property))
     });
-    language.add_keyword("value", |_language| {
+    language.add_keyword("value", || {
         // TODO: would be nice if we can provide raw dynamically-typed value
         let property = prop_fn(|annotated| Ok(serialize_config_value(&annotated.value)));
         Ok(L::wrap_string(property))
     });
-    language.add_keyword("overridden", |_language| {
+    language.add_keyword("overridden", || {
         let property = prop_fn(|annotated| Ok(annotated.is_overridden));
         Ok(L::wrap_boolean(property))
     });

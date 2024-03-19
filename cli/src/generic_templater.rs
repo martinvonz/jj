@@ -58,14 +58,14 @@ impl<'a, C> GenericTemplateLanguage<'a, C> {
     /// by `TemplatePropertyFn`.
     ///
     /// ```ignore
-    /// language.add_keyword("name", |_language| {
+    /// language.add_keyword("name", || {
     ///     let property = TemplatePropertyFn(|v: &C| Ok(v.to_string()));
     ///     Ok(GenericTemplateLanguage::wrap_string(property))
     /// });
     /// ```
     pub fn add_keyword<F>(&mut self, name: &'static str, build: F)
     where
-        F: Fn(&Self) -> TemplateParseResult<GenericTemplatePropertyKind<'a, C>> + 'a,
+        F: Fn() -> TemplateParseResult<GenericTemplatePropertyKind<'a, C>> + 'a,
     {
         self.build_fn_table.keywords.insert(name, Box::new(build));
     }
@@ -108,7 +108,7 @@ impl<'a, C: 'a> TemplateLanguage<'a> for GenericTemplateLanguage<'a, C> {
                 let build = template_parser::lookup_method("Self", table, function)?;
                 // For simplicity, only 0-ary method is supported.
                 template_parser::expect_no_arguments(function)?;
-                build(self)
+                build()
             }
         }
     }
@@ -154,12 +154,8 @@ impl<'a, C: 'a> IntoTemplateProperty<'a, C> for GenericTemplatePropertyKind<'a, 
 ///
 /// Because the `GenericTemplateLanguage` doesn't provide a way to pass around
 /// global resources, the keyword function is allowed to capture resources.
-pub type GenericTemplateBuildKeywordFn<'a, C> = Box<
-    dyn Fn(
-            &GenericTemplateLanguage<'a, C>,
-        ) -> TemplateParseResult<GenericTemplatePropertyKind<'a, C>>
-        + 'a,
->;
+pub type GenericTemplateBuildKeywordFn<'a, C> =
+    Box<dyn Fn() -> TemplateParseResult<GenericTemplatePropertyKind<'a, C>> + 'a>;
 
 /// Table of functions that translate keyword node.
 pub type GenericTemplateBuildKeywordFnMap<'a, C> =
