@@ -29,12 +29,13 @@ use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
+use jj_lib::secret_backend::SecretBackend;
 use jj_lib::settings::UserSettings;
 use jj_lib::working_copy::{CheckoutStats, SnapshotError, SnapshotOptions};
-use jj_lib::workspace::LockedWorkspace;
+use jj_lib::workspace::{default_working_copy_factories, LockedWorkspace, Workspace};
 use test_case::test_case;
 use testutils::{
-    commit_with_tree, create_tree, write_random_commit, TestRepoBackend, TestWorkspace,
+    commit_with_tree, create_tree, write_random_commit, TestRepo, TestRepoBackend, TestWorkspace,
 };
 
 fn to_owned_path_vec(paths: &[&RepoPath]) -> Vec<RepoPathBuf> {
@@ -326,6 +327,61 @@ fn test_conflict_subdirectory() {
     ws.check_out(repo.op_id().clone(), None, &commit1).unwrap();
     ws.check_out(repo.op_id().clone(), None, &merged_commit)
         .unwrap();
+}
+
+#[test]
+fn test_acl() {
+    let settings = testutils::user_settings();
+    let test_workspace = TestWorkspace::init_with_backend(&settings, TestRepoBackend::Git);
+    let repo = &test_workspace.repo;
+    let workspace_root = test_workspace.workspace.workspace_root().to_owned();
+
+    let secret_modified_path = RepoPath::from_internal_string("secret/modified");
+    let secret_added_path = RepoPath::from_internal_string("secret/added");
+    let secret_deleted_path = RepoPath::from_internal_string("secret/deleted");
+    let became_secret_path = RepoPath::from_internal_string("file1");
+    let became_public_path = RepoPath::from_internal_string("file2");
+    let tree1 = create_tree(
+        repo,
+        &[
+            (secret_modified_path, "0"),
+            (secret_deleted_path, "0"),
+            (became_secret_path, "public"),
+            (became_public_path, "secret"),
+        ],
+    );
+    let tree2 = create_tree(
+        repo,
+        &[
+            (secret_modified_path, "1"),
+            (secret_added_path, "1"),
+            (became_secret_path, "secret"),
+            (became_public_path, "public"),
+        ],
+    );
+    let commit1 = commit_with_tree(repo.store(), tree1.id());
+    let commit2 = commit_with_tree(repo.store(), tree2.id());
+    SecretBackend::adopt_git_repo(&workspace_root);
+
+    let mut ws = Workspace::load(
+        &settings,
+        &workspace_root,
+        &TestRepo::default_store_factories(),
+        &default_working_copy_factories(),
+    )
+    .unwrap();
+    ws.check_out(repo.op_id().clone(), None, &commit1).unwrap();
+    assert!(!secret_modified_path.to_fs_path(&workspace_root).is_file());
+    assert!(!secret_added_path.to_fs_path(&workspace_root).is_file());
+    assert!(!secret_deleted_path.to_fs_path(&workspace_root).is_file());
+    assert!(became_secret_path.to_fs_path(&workspace_root).is_file());
+    assert!(!became_public_path.to_fs_path(&workspace_root).is_file());
+    ws.check_out(repo.op_id().clone(), None, &commit2).unwrap();
+    assert!(!secret_modified_path.to_fs_path(&workspace_root).is_file());
+    assert!(!secret_added_path.to_fs_path(&workspace_root).is_file());
+    assert!(!secret_deleted_path.to_fs_path(&workspace_root).is_file());
+    assert!(!became_secret_path.to_fs_path(&workspace_root).is_file());
+    assert!(became_public_path.to_fs_path(&workspace_root).is_file());
 }
 
 #[test]

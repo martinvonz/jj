@@ -32,6 +32,7 @@ use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo, RepoLoader, StoreFactories};
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
+use jj_lib::secret_backend::SecretBackend;
 use jj_lib::settings::UserSettings;
 use jj_lib::signing::Signer;
 use jj_lib::store::Store;
@@ -171,6 +172,12 @@ impl TestRepo {
         factories.add_backend(
             "test",
             Box::new(|_settings, store_path| Ok(Box::new(TestBackend::load(store_path)))),
+        );
+        factories.add_backend(
+            SecretBackend::name(),
+            Box::new(|settings, store_path| {
+                Ok(Box::new(SecretBackend::load(settings, store_path)?))
+            }),
         );
         factories
     }

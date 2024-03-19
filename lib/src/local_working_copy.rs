@@ -835,7 +835,7 @@ impl TreeState {
             let tree = self.current_tree().unwrap();
             let tree_paths: HashSet<_> = tree
                 .entries_matching(sparse_matcher.as_ref())
-                .map(|(path, _)| path)
+                .filter_map(|(path, result)| result.is_ok().then_some(path))
                 .collect();
             let file_states = self.file_states.all();
             let state_paths: HashSet<_> = file_states.paths().map(|path| path.to_owned()).collect();
@@ -1368,7 +1368,7 @@ impl TreeState {
             }
             // TODO: Check that the file has not changed before overwriting/removing it.
             let file_state = match after {
-                MaterializedTreeValue::Absent => {
+                MaterializedTreeValue::Absent | MaterializedTreeValue::AccessDenied(_) => {
                     let mut parent_dir = disk_path.parent().unwrap();
                     loop {
                         if fs::remove_dir(parent_dir).is_err() {

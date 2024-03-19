@@ -104,6 +104,13 @@ fn write_tree_entries<P: AsRef<RepoPath>>(
         let materialized = materialize_tree_value(repo.store(), path.as_ref(), value).block_on()?;
         match materialized {
             MaterializedTreeValue::Absent => panic!("absent values should be excluded"),
+            MaterializedTreeValue::AccessDenied(err) => {
+                let ui_path = workspace_command.format_file_path(path.as_ref());
+                writeln!(
+                    ui.warning_default(),
+                    "Path '{ui_path}' exists but access is denied: {err}"
+                )?;
+            }
             MaterializedTreeValue::File { mut reader, .. } => {
                 io::copy(&mut reader, &mut ui.stdout_formatter().as_mut())?;
             }
