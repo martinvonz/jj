@@ -95,6 +95,19 @@
                     "description": "Pager to use for displaying command output",
                     "default": "less -FRX"
                 },
+                "diff-viewer": {
+                  "description": "Format or tool used to show diffs",
+                  "oneOf": [
+                    {
+                        "type": "string"
+                    },
+                    {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }]
+                },
                 "diff": {
                     "type": "object",
                     "description": "Options for how diffs are displayed",

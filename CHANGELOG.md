@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecations
 
+* `ui.diff.format` and `ui.diff.tool` were deprecated in favor of `ui.diff-viewer`
+
 ### Breaking changes
 
 * The default template alias `builtin_op_log_root(op_id: OperationId)` was replaced by `format_root_operation(root: Operation)`.
@@ -72,6 +74,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `jj log` command no longer uses the default revset when a path is specified.
 
 ### New features
+
+* Add `ui.diff-viewer` combining the both `ui.diff.format` and `ui.diff.tool` into a single setting. Built-in formats previously set via `ui.diff.format` can now be specified prefixed with `:`. Having a single option allows a repository level built-in format to override a global tool format.
+
+  * `"ui.diff-viewer" = ":color-words"`
+  * `"ui.diff-viewer" = ["difft", "--color=always", "$left", "$right"]`
 
 * Config now supports rgb hex colors (in the form `#rrggbb`) wherever existing color names are supported.
 
