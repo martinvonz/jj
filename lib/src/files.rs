@@ -16,7 +16,6 @@
 
 use std::collections::VecDeque;
 use std::fmt::{Debug, Error, Formatter};
-use std::ops::Range;
 
 use itertools::Itertools;
 
@@ -157,14 +156,6 @@ impl Debug for ContentHunk {
 pub enum MergeResult {
     Resolved(ContentHunk),
     Conflict(Vec<Merge<ContentHunk>>),
-}
-
-/// A region where the base and two sides match.
-#[derive(Debug, PartialEq, Eq, Clone)]
-struct SyncRegion {
-    base: Range<usize>,
-    left: Range<usize>,
-    right: Range<usize>,
 }
 
 pub fn merge(slices: &Merge<&[u8]>) -> MergeResult {
