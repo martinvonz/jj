@@ -130,6 +130,25 @@ pub fn rebase_commit_with_options(
     new_parents: &[Commit],
     options: &RebaseOptions,
 ) -> Result<RebasedCommit, TreeMergeError> {
+    // If specified, don't create commit where one parent is an ancestor of another.
+    let simplified_new_parents;
+    let new_parents = if options.simplify_ancestor_merge {
+        let mut new_parent_ids = new_parents.iter().map(|commit| commit.id());
+        let head_set: HashSet<_> = mut_repo
+            .index()
+            .heads(&mut new_parent_ids)
+            .into_iter()
+            .collect();
+        simplified_new_parents = new_parents
+            .iter()
+            .filter(|commit| head_set.contains(commit.id()))
+            .cloned()
+            .collect_vec();
+        &simplified_new_parents[..]
+    } else {
+        new_parents
+    };
+
     let old_parents = old_commit.parents();
     let old_parent_trees = old_parents
         .iter()
@@ -550,7 +569,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             return Ok(());
         }
         let old_parent_ids = old_commit.parent_ids();
-        let mut new_parent_ids = self.new_parents(old_parent_ids);
+        let new_parent_ids = self.new_parents(old_parent_ids);
         if self.abandoned.contains(&old_commit_id) {
             // Update the `new_parents` map so descendants are rebased correctly.
             self.parent_mapping
@@ -562,16 +581,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             return Ok(());
         }
 
-        // If specified, don't create commit where one parent is an ancestor of another.
-        if self.options.simplify_ancestor_merge {
-            let head_set: HashSet<_> = self
-                .mut_repo
-                .index()
-                .heads(&mut new_parent_ids.iter())
-                .into_iter()
-                .collect();
-            new_parent_ids.retain(|new_parent| head_set.contains(new_parent));
-        }
         let new_parents: Vec<_> = new_parent_ids
             .iter()
             .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id))
