@@ -1206,7 +1206,7 @@ mod tests {
         where
             F: Fn() -> TestTemplatePropertyKind + 'static,
         {
-            self.language.add_keyword(name, move || Ok(build()));
+            self.language.add_keyword(name, move |_| Ok(build()));
         }
 
         fn add_alias(&mut self, decl: impl AsRef<str>, defn: impl Into<String>) {
