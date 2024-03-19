@@ -35,7 +35,7 @@ fn set_advance_branches(test_env: &TestEnvironment, enabled: bool) {
     } else {
         test_env.add_config(
             r#"[experimental-advance-branches]
-        enabled-branches = [""]
+        enabled-branches = []
         "#,
         );
     }
@@ -51,8 +51,15 @@ fn commit_cmd(env: &TestEnvironment, workspace_path: &Path, commit_message: &str
     env.jj_cmd_ok(workspace_path, &["commit", "-m", commit_message]);
 }
 
+// Implements CommitFn using the `jj describe` and `jj new`.
+fn describe_new_cmd(env: &TestEnvironment, workspace_path: &Path, commit_message: &str) {
+    env.jj_cmd_ok(workspace_path, &["describe", "-m", commit_message]);
+    env.jj_cmd_ok(workspace_path, &["new"]);
+}
+
 // Check that enabling and disabling advance-branches works as expected.
 #[test_case(commit_cmd ; "commit")]
+#[test_case(describe_new_cmd; "new")]
 fn test_advance_branches_enabled(make_commit: CommitFn) {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
@@ -100,6 +107,7 @@ fn test_advance_branches_enabled(make_commit: CommitFn) {
 // Check that only a branch pointing to @- advances. Branches pointing to @ are
 // not advanced.
 #[test_case(commit_cmd ; "commit")]
+#[test_case(describe_new_cmd; "new")]
 fn test_advance_branches_at_minus(make_commit: CommitFn) {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
@@ -141,6 +149,7 @@ fn test_advance_branches_at_minus(make_commit: CommitFn) {
 // Test that per-branch overrides invert the behavior of
 // experimental-advance-branches.enabled.
 #[test_case(commit_cmd ; "commit")]
+#[test_case(describe_new_cmd; "new")]
 fn test_advance_branches_overrides(make_commit: CommitFn) {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
@@ -251,6 +260,7 @@ fn test_advance_branches_overrides(make_commit: CommitFn) {
 
 // If multiple eligible branches point to @-, all of them will be advanced.
 #[test_case(commit_cmd ; "commit")]
+#[test_case(describe_new_cmd; "new")]
 fn test_advance_branches_multiple_branches(make_commit: CommitFn) {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
@@ -283,4 +293,156 @@ fn test_advance_branches_multiple_branches(make_commit: CommitFn) {
     ◉  branches{} desc:
     "###);
     }
+}
+
+// Call `jj new` on an interior commit and see that the branch pointing to its
+// parent's parent is advanced.
+#[test]
+fn test_new_advance_branches_interior() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let workspace_path = test_env.env_root().join("repo");
+
+    set_advance_branches(&test_env, true);
+
+    // Check the initial state of the repo.
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    @  branches{} desc:
+    ◉  branches{} desc:
+    "###);
+
+    // Create a gap in the commits for us to insert our new commit with --before.
+    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_ok(
+        &workspace_path,
+        &["branch", "create", "-r", "@---", "test_branch"],
+    );
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    @  branches{} desc:
+    ◉  branches{} desc: third
+    ◉  branches{} desc: second
+    ◉  branches{test_branch} desc: first
+    ◉  branches{} desc:
+    "###);
+
+    test_env.jj_cmd_ok(&workspace_path, &["new", "-r", "@--"]);
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    @  branches{} desc:
+    │ ◉  branches{} desc: third
+    ├─╯
+    ◉  branches{test_branch} desc: second
+    ◉  branches{} desc: first
+    ◉  branches{} desc:
+    "###);
+}
+
+// If the `--before` flag is passed to `jj new`, branches are not advanced.
+#[test]
+fn test_new_advance_branches_before() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let workspace_path = test_env.env_root().join("repo");
+
+    set_advance_branches(&test_env, true);
+
+    // Check the initial state of the repo.
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    @  branches{} desc:
+    ◉  branches{} desc:
+    "###);
+
+    // Create a gap in the commits for us to insert our new commit with --before.
+    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m", "third"]);
+    test_env.jj_cmd_ok(
+        &workspace_path,
+        &["branch", "create", "-r", "@---", "test_branch"],
+    );
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    @  branches{} desc:
+    ◉  branches{} desc: third
+    ◉  branches{} desc: second
+    ◉  branches{test_branch} desc: first
+    ◉  branches{} desc:
+    "###);
+
+    test_env.jj_cmd_ok(&workspace_path, &["new", "--before", "-r", "@-"]);
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    ◉  branches{} desc: third
+    @  branches{} desc:
+    ◉  branches{} desc: second
+    ◉  branches{test_branch} desc: first
+    ◉  branches{} desc:
+    "###);
+}
+
+// If the `--after` flag is passed to `jj new`, branches are not advanced.
+#[test]
+fn test_new_advance_branches_after() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let workspace_path = test_env.env_root().join("repo");
+
+    set_advance_branches(&test_env, true);
+    test_env.jj_cmd_ok(
+        &workspace_path,
+        &["branch", "create", "-r", "@-", "test_branch"],
+    );
+
+    // Check the initial state of the repo.
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    @  branches{} desc:
+    ◉  branches{test_branch} desc:
+    "###);
+
+    test_env.jj_cmd_ok(&workspace_path, &["describe", "-m", "first"]);
+    test_env.jj_cmd_ok(&workspace_path, &["new", "--after"]);
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    @  branches{} desc:
+    ◉  branches{} desc: first
+    ◉  branches{test_branch} desc:
+    "###);
+}
+
+#[test]
+fn test_new_advance_branches_merge_children() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let workspace_path = test_env.env_root().join("repo");
+
+    set_advance_branches(&test_env, true);
+    test_env.jj_cmd_ok(&workspace_path, &["desc", "-m", "0"]);
+    test_env.jj_cmd_ok(&workspace_path, &["new", "-m", "1"]);
+    test_env.jj_cmd_ok(&workspace_path, &["new", "description(0)", "-m", "2"]);
+    test_env.jj_cmd_ok(
+        &workspace_path,
+        &["branch", "create", "test_branch", "-r", "description(0)"],
+    );
+
+    // Check the initial state of the repo.
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    @  branches{} desc: 2
+    │ ◉  branches{} desc: 1
+    ├─╯
+    ◉  branches{test_branch} desc: 0
+    ◉  branches{} desc:
+    "###);
+
+    // The branch won't advance because `jj  new` had multiple targets.
+    test_env.jj_cmd_ok(
+        &workspace_path,
+        &["new", "description(1)", "description(2)"],
+    );
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    @    branches{} desc:
+    ├─╮
+    │ ◉  branches{} desc: 2
+    ◉ │  branches{} desc: 1
+    ├─╯
+    ◉  branches{test_branch} desc: 0
+    ◉  branches{} desc:
+    "###);
 }

@@ -99,6 +99,18 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         .into_iter()
         .collect_vec();
     let target_ids = target_commits.iter().ids().cloned().collect_vec();
+
+    let should_advance_branches =
+        target_commits.len() == 1 && !args.insert_before && !args.insert_after;
+    let (advance_branches_target, advanceable_branches) = if should_advance_branches {
+        let ab_target = target_ids[0].clone();
+        let ab_branches =
+            workspace_command.get_advanceable_branches(target_commits[0].parent_ids())?;
+        (Some(ab_target), ab_branches)
+    } else {
+        (None, Vec::new())
+    };
+
     let mut tx = workspace_command.start_transaction();
     let mut num_rebased;
     let new_commit;
@@ -197,6 +209,12 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
     if num_rebased > 0 {
         writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
     }
+
+    // Does nothing if there's no branches to advance.
+    if let Some(target) = advance_branches_target {
+        tx.advance_branches(advanceable_branches, &target);
+    }
+
     tx.finish(ui, "new empty commit")?;
     Ok(())
 }
