@@ -23,7 +23,8 @@ use jj_lib::rewrite::{merge_commit_trees, rebase_commit};
 use tracing::instrument;
 
 use crate::cli_util::{
-    resolve_multiple_nonempty_revsets_default_single, short_commit_hash, CommandHelper, RevisionArg,
+    resolve_multiple_nonempty_revsets_default_single, short_commit_hash, AdvanceableBranch,
+    CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::command_error::{user_error, CommandError};
 use crate::description_util::join_message_paragraphs;
@@ -101,6 +102,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             .into_iter()
             .collect_vec();
     let target_ids = target_commits.iter().map(|c| c.id().clone()).collect_vec();
+    let advanceable_branches = get_advanceable_branches(args, &workspace_command, &target_commits)?;
     let mut tx = workspace_command.start_transaction();
     let mut num_rebased;
     let new_commit;
@@ -138,11 +140,11 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             .set_description(join_message_paragraphs(&args.message_paragraphs))
             .write()?;
         num_rebased = target_ids.len();
-        for child_commit in target_commits {
+        for child_commit in &target_commits {
             rebase_commit(
                 command.settings(),
                 tx.mut_repo(),
-                &child_commit,
+                child_commit,
                 &[new_commit.clone()],
             )?;
         }
@@ -199,6 +201,26 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
     if num_rebased > 0 {
         writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
     }
+
+    // Does nothing if there's no branches to advance.
+    tx.advance_branches(advanceable_branches, target_commits[0].id());
+
     tx.finish(ui, "new empty commit")?;
     Ok(())
+}
+
+// Branches are only advanced if `jj new` has a single target commit and the
+// new commit is not being inserted before or after the target.
+fn get_advanceable_branches(
+    args: &NewArgs,
+    ws: &WorkspaceCommandHelper,
+    target_commits: &[Commit],
+) -> Result<Vec<AdvanceableBranch>, CommandError> {
+    let should_advance_branches =
+        target_commits.len() == 1 && !args.insert_before && !args.insert_after;
+    if should_advance_branches {
+        ws.get_advanceable_branches(target_commits[0].parent_ids())
+    } else {
+        Ok(Vec::new())
+    }
 }
