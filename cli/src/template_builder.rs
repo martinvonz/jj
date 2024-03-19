@@ -1204,10 +1204,9 @@ mod tests {
     impl TestTemplateEnv {
         fn add_keyword<F>(&mut self, name: &'static str, build: F)
         where
-            F: Fn(&L) -> TestTemplatePropertyKind + 'static,
+            F: Fn() -> TestTemplatePropertyKind + 'static,
         {
-            self.language
-                .add_keyword(name, move |language| Ok(build(language)));
+            self.language.add_keyword(name, move || Ok(build()));
         }
 
         fn add_alias(&mut self, decl: impl AsRef<str>, defn: impl Into<String>) {
@@ -1260,11 +1259,9 @@ mod tests {
     #[test]
     fn test_parsed_tree() {
         let mut env = TestTemplateEnv::new();
-        env.add_keyword("divergent", |_language| L::wrap_boolean(Literal(false)));
-        env.add_keyword("empty", |_language| L::wrap_boolean(Literal(true)));
-        env.add_keyword("hello", |_language| {
-            L::wrap_string(Literal("Hello".to_owned()))
-        });
+        env.add_keyword("divergent", || L::wrap_boolean(Literal(false)));
+        env.add_keyword("empty", || L::wrap_boolean(Literal(true)));
+        env.add_keyword("hello", || L::wrap_string(Literal("Hello".to_owned())));
 
         // Empty
         insta::assert_snapshot!(env.render_ok(r#"  "#), @"");
@@ -1291,10 +1288,8 @@ mod tests {
     #[test]
     fn test_parse_error() {
         let mut env = TestTemplateEnv::new();
-        env.add_keyword("description", |_language| {
-            L::wrap_string(Literal("".to_owned()))
-        });
-        env.add_keyword("empty", |_language| L::wrap_boolean(Literal(true)));
+        env.add_keyword("description", || L::wrap_string(Literal("".to_owned())));
+        env.add_keyword("empty", || L::wrap_boolean(Literal(true)));
 
         insta::assert_snapshot!(env.parse_err(r#"description ()"#), @r###"
          --> 1:13
@@ -1465,9 +1460,7 @@ mod tests {
     #[test]
     fn test_self_keyword() {
         let mut env = TestTemplateEnv::new();
-        env.add_keyword("say_hello", |_language| {
-            L::wrap_string(Literal("Hello".to_owned()))
-        });
+        env.add_keyword("say_hello", || L::wrap_string(Literal("Hello".to_owned())));
 
         insta::assert_snapshot!(env.render_ok(r#"self.say_hello()"#), @"Hello");
         insta::assert_snapshot!(env.parse_err(r#"self"#), @r###"
@@ -1487,12 +1480,10 @@ mod tests {
         insta::assert_snapshot!(env.render_ok(r#"if("", true, false)"#), @"false");
         insta::assert_snapshot!(env.render_ok(r#"if("a", true, false)"#), @"true");
 
-        env.add_keyword("sl0", |_language| {
+        env.add_keyword("sl0", || {
             L::wrap_string_list(Literal::<Vec<String>>(vec![]))
         });
-        env.add_keyword("sl1", |_language| {
-            L::wrap_string_list(Literal(vec!["".to_owned()]))
-        });
+        env.add_keyword("sl1", || L::wrap_string_list(Literal(vec!["".to_owned()])));
         insta::assert_snapshot!(env.render_ok(r#"if(sl0, true, false)"#), @"false");
         insta::assert_snapshot!(env.render_ok(r#"if(sl1, true, false)"#), @"true");
 
@@ -1527,7 +1518,7 @@ mod tests {
     #[test]
     fn test_arithmetic_operation() {
         let mut env = TestTemplateEnv::new();
-        env.add_keyword("i64_min", |_language| L::wrap_integer(Literal(i64::MIN)));
+        env.add_keyword("i64_min", || L::wrap_integer(Literal(i64::MIN)));
 
         insta::assert_snapshot!(env.render_ok(r#"-1"#), @"-1");
         insta::assert_snapshot!(env.render_ok(r#"--2"#), @"2");
@@ -1554,8 +1545,8 @@ mod tests {
     #[test]
     fn test_list_method() {
         let mut env = TestTemplateEnv::new();
-        env.add_keyword("empty", |_language| L::wrap_boolean(Literal(true)));
-        env.add_keyword("sep", |_language| L::wrap_string(Literal("sep".to_owned())));
+        env.add_keyword("empty", || L::wrap_boolean(Literal(true)));
+        env.add_keyword("sep", || L::wrap_string(Literal("sep".to_owned())));
 
         insta::assert_snapshot!(env.render_ok(r#""".lines().len()"#), @"0");
         insta::assert_snapshot!(env.render_ok(r#""a\nb\nc".lines().len()"#), @"3");
@@ -1653,7 +1644,7 @@ mod tests {
     #[test]
     fn test_string_method() {
         let mut env = TestTemplateEnv::new();
-        env.add_keyword("description", |_language| {
+        env.add_keyword("description", || {
             L::wrap_string(Literal("description 1".to_owned()))
         });
 
@@ -1731,7 +1722,7 @@ mod tests {
     fn test_signature() {
         let mut env = TestTemplateEnv::new();
 
-        env.add_keyword("author", |_language| {
+        env.add_keyword("author", || {
             L::wrap_signature(Literal(new_signature("Test User", "test.user@example.com")))
         });
         insta::assert_snapshot!(env.render_ok(r#"author"#), @"Test User <test.user@example.com>");
@@ -1739,7 +1730,7 @@ mod tests {
         insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"test.user@example.com");
         insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"test.user");
 
-        env.add_keyword("author", |_language| {
+        env.add_keyword("author", || {
             L::wrap_signature(Literal(new_signature(
                 "Another Test User",
                 "test.user@example.com",
@@ -1750,7 +1741,7 @@ mod tests {
         insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"test.user@example.com");
         insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"test.user");
 
-        env.add_keyword("author", |_language| {
+        env.add_keyword("author", || {
             L::wrap_signature(Literal(new_signature(
                 "Test User",
                 "test.user@invalid@example.com",
@@ -1761,14 +1752,14 @@ mod tests {
         insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"test.user@invalid@example.com");
         insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"test.user");
 
-        env.add_keyword("author", |_language| {
+        env.add_keyword("author", || {
             L::wrap_signature(Literal(new_signature("Test User", "test.user")))
         });
         insta::assert_snapshot!(env.render_ok(r#"author"#), @"Test User <test.user>");
         insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"test.user");
         insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"test.user");
 
-        env.add_keyword("author", |_language| {
+        env.add_keyword("author", || {
             L::wrap_signature(Literal(new_signature(
                 "Test User",
                 "test.user+tag@example.com",
@@ -1778,14 +1769,14 @@ mod tests {
         insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"test.user+tag@example.com");
         insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"test.user+tag");
 
-        env.add_keyword("author", |_language| {
+        env.add_keyword("author", || {
             L::wrap_signature(Literal(new_signature("Test User", "x@y")))
         });
         insta::assert_snapshot!(env.render_ok(r#"author"#), @"Test User <x@y>");
         insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"x@y");
         insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"x");
 
-        env.add_keyword("author", |_language| {
+        env.add_keyword("author", || {
             L::wrap_signature(Literal(new_signature("", "test.user@example.com")))
         });
         insta::assert_snapshot!(env.render_ok(r#"author"#), @"<test.user@example.com>");
@@ -1793,7 +1784,7 @@ mod tests {
         insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"test.user@example.com");
         insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"test.user");
 
-        env.add_keyword("author", |_language| {
+        env.add_keyword("author", || {
             L::wrap_signature(Literal(new_signature("Test User", "")))
         });
         insta::assert_snapshot!(env.render_ok(r#"author"#), @"Test User");
@@ -1801,7 +1792,7 @@ mod tests {
         insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"");
         insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"");
 
-        env.add_keyword("author", |_language| {
+        env.add_keyword("author", || {
             L::wrap_signature(Literal(new_signature("", "")))
         });
         insta::assert_snapshot!(env.render_ok(r#"author"#), @"");
@@ -1813,9 +1804,7 @@ mod tests {
     #[test]
     fn test_timestamp_method() {
         let mut env = TestTemplateEnv::new();
-        env.add_keyword("t0", |_language| {
-            L::wrap_timestamp(Literal(new_timestamp(0, 0)))
-        });
+        env.add_keyword("t0", || L::wrap_timestamp(Literal(new_timestamp(0, 0))));
 
         insta::assert_snapshot!(
             env.render_ok(r#"t0.format("%Y%m%d %H:%M:%S")"#),
@@ -2011,7 +2000,7 @@ mod tests {
     #[test]
     fn test_label_function() {
         let mut env = TestTemplateEnv::new();
-        env.add_keyword("empty", |_language| L::wrap_boolean(Literal(true)));
+        env.add_keyword("empty", || L::wrap_boolean(Literal(true)));
         env.add_color("error", crossterm::style::Color::DarkRed);
         env.add_color("warning", crossterm::style::Color::DarkYellow);
 
@@ -2034,8 +2023,8 @@ mod tests {
     #[test]
     fn test_concat_function() {
         let mut env = TestTemplateEnv::new();
-        env.add_keyword("empty", |_language| L::wrap_boolean(Literal(true)));
-        env.add_keyword("hidden", |_language| L::wrap_boolean(Literal(false)));
+        env.add_keyword("empty", || L::wrap_boolean(Literal(true)));
+        env.add_keyword("hidden", || L::wrap_boolean(Literal(false)));
         env.add_color("empty", crossterm::style::Color::DarkGreen);
         env.add_color("error", crossterm::style::Color::DarkRed);
         env.add_color("warning", crossterm::style::Color::DarkYellow);
@@ -2052,11 +2041,9 @@ mod tests {
     #[test]
     fn test_separate_function() {
         let mut env = TestTemplateEnv::new();
-        env.add_keyword("description", |_language| {
-            L::wrap_string(Literal("".to_owned()))
-        });
-        env.add_keyword("empty", |_language| L::wrap_boolean(Literal(true)));
-        env.add_keyword("hidden", |_language| L::wrap_boolean(Literal(false)));
+        env.add_keyword("description", || L::wrap_string(Literal("".to_owned())));
+        env.add_keyword("empty", || L::wrap_boolean(Literal(true)));
+        env.add_keyword("hidden", || L::wrap_boolean(Literal(false)));
         env.add_color("empty", crossterm::style::Color::DarkGreen);
         env.add_color("error", crossterm::style::Color::DarkRed);
         env.add_color("warning", crossterm::style::Color::DarkYellow);
@@ -2110,14 +2097,10 @@ mod tests {
     #[test]
     fn test_surround_function() {
         let mut env = TestTemplateEnv::new();
-        env.add_keyword("lt", |_language| L::wrap_string(Literal("<".to_owned())));
-        env.add_keyword("gt", |_language| L::wrap_string(Literal(">".to_owned())));
-        env.add_keyword("content", |_language| {
-            L::wrap_string(Literal("content".to_owned()))
-        });
-        env.add_keyword("empty_content", |_language| {
-            L::wrap_string(Literal("".to_owned()))
-        });
+        env.add_keyword("lt", || L::wrap_string(Literal("<".to_owned())));
+        env.add_keyword("gt", || L::wrap_string(Literal(">".to_owned())));
+        env.add_keyword("content", || L::wrap_string(Literal("content".to_owned())));
+        env.add_keyword("empty_content", || L::wrap_string(Literal("".to_owned())));
         env.add_color("error", crossterm::style::Color::DarkRed);
         env.add_color("paren", crossterm::style::Color::Cyan);
 
