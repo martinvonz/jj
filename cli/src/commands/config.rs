@@ -26,7 +26,7 @@ use crate::command_error::{user_error, CommandError};
 use crate::config::{AnnotatedValue, ConfigSource};
 use crate::generic_templater::GenericTemplateLanguage;
 use crate::template_builder::TemplateLanguage as _;
-use crate::templater::TemplateFunction;
+use crate::templater::{Template as _, TemplateFunction};
 use crate::ui::Ui;
 
 #[derive(clap::Args, Clone, Debug)]
@@ -225,7 +225,7 @@ pub(crate) fn cmd_config_list(
                 .config()
                 .get_string("templates.config_list")?,
         };
-        command.parse_template(ui, &language, &text)?
+        command.parse_template(ui, &language, &text, GenericTemplateLanguage::wrap_self)?
     };
 
     ui.request_pager();

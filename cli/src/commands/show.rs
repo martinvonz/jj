@@ -18,6 +18,7 @@ use tracing::instrument;
 use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::CommandError;
 use crate::diff_util::{self, DiffFormatArgs};
+use crate::templater::Template as _;
 use crate::ui::Ui;
 
 /// Show commit description and changes in a revision

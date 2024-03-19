@@ -21,6 +21,7 @@ use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 
 use crate::cli_util::{short_commit_hash, CommandHelper, WorkspaceCommandHelper};
 use crate::command_error::{user_error, CommandError};
+use crate::templater::Template as _;
 use crate::ui::Ui;
 
 /// Move the working-copy commit to the child revision

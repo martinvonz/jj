@@ -27,7 +27,7 @@ use crate::cli_util::{format_template, short_operation_hash, CommandHelper, LogC
 use crate::command_error::{user_error, user_error_with_hint, CommandError};
 use crate::graphlog::{get_graphlog, Edge};
 use crate::operation_templater::OperationTemplateLanguage;
-use crate::templater::Template;
+use crate::templater::Template as _;
 use crate::ui::Ui;
 
 /// Commands for working with the operation log
@@ -171,9 +171,18 @@ fn cmd_op_log(
             Some(value) => value.to_owned(),
             None => command.settings().config().get_string("templates.op_log")?,
         };
-        template = command.parse_template(ui, &language, &text)?;
-        op_node_template =
-            command.parse_template(ui, &language, &command.settings().op_node_template())?;
+        template = command.parse_template(
+            ui,
+            &language,
+            &text,
+            OperationTemplateLanguage::wrap_operation,
+        )?;
+        op_node_template = command.parse_template(
+            ui,
+            &language,
+            &command.settings().op_node_template(),
+            OperationTemplateLanguage::wrap_operation,
+        )?;
     }
 
     ui.request_pager();

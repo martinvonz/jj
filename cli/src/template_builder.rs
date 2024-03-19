@@ -23,9 +23,9 @@ use crate::template_parser::{
 };
 use crate::templater::{
     ConcatTemplate, ConditionalTemplate, IntoTemplate, LabelTemplate, ListPropertyTemplate,
-    ListTemplate, Literal, PlainTextFormattedProperty, PropertyPlaceholder, ReformatTemplate,
-    SeparateTemplate, Template, TemplateFunction, TemplateProperty, TemplatePropertyError,
-    TimestampRange,
+    ListTemplate, Literal, PlaceholderTemplate, PlainTextFormattedProperty, PropertyPlaceholder,
+    ReformatTemplate, SeparateTemplate, Template, TemplateFunction, TemplateProperty,
+    TemplatePropertyError, TimestampRange,
 };
 use crate::{text_util, time_util};
 
@@ -58,10 +58,6 @@ pub trait TemplateLanguage<'a> {
 
     fn wrap_template(template: Box<dyn Template<Self::Context> + 'a>) -> Self::Property;
     fn wrap_list_template(template: Box<dyn ListTemplate<Self::Context> + 'a>) -> Self::Property;
-
-    /// Creates the `self` template property, which is usually a function that
-    /// clones the `Context` object.
-    fn build_self(&self) -> Self::Property;
 
     /// Translates the given global `function` call to a property.
     ///
@@ -447,6 +443,11 @@ impl<P> Expression<P> {
 pub struct BuildContext<'i, P> {
     /// Map of functions to create `L::Property`.
     local_variables: HashMap<&'i str, &'i (dyn Fn() -> P)>,
+    /// Function to create `L::Property` representing `self`.
+    ///
+    /// This could be `local_variables["self"]`, but keyword lookup shouldn't be
+    /// overridden by a user-defined `self` variable.
+    self_variable: &'i (dyn Fn() -> P),
 }
 
 fn build_keyword<'a, L: TemplateLanguage<'a> + ?Sized>(
@@ -456,7 +457,7 @@ fn build_keyword<'a, L: TemplateLanguage<'a> + ?Sized>(
     name_span: pest::Span<'_>,
 ) -> TemplateParseResult<L::Property> {
     // Keyword is a 0-ary method on the "self" property
-    let self_property = language.build_self();
+    let self_property = (build_ctx.self_variable)();
     let function = FunctionCallNode {
         name,
         name_span,
@@ -912,8 +913,11 @@ where
                 lambda.params_span,
             ));
         }
-        let build_ctx = BuildContext { local_variables };
-        expect_template_expression(language, &build_ctx, &lambda.body)
+        let inner_build_ctx = BuildContext {
+            local_variables,
+            self_variable: build_ctx.self_variable,
+        };
+        expect_template_expression(language, &inner_build_ctx, &lambda.body)
     })?;
     let list_template = ListPropertyTemplate::new(
         self_property,
@@ -1026,7 +1030,8 @@ pub fn build_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
                 Ok(Expression::unlabeled(make()))
             } else if *name == "self" {
                 // "self" is a special variable, so don't label it
-                Ok(Expression::unlabeled(language.build_self()))
+                let make = build_ctx.self_variable;
+                Ok(Expression::unlabeled(make()))
             } else {
                 let property =
                     build_keyword(language, build_ctx, name, node.span).map_err(|err| {
@@ -1086,25 +1091,39 @@ pub fn build_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     }
 }
 
+/// Template compiled for top-level property of type `C`.
+// TODO: reconsider Template<C> abstraction
+pub type RootTemplate<'a, C> = PlaceholderTemplate<C, Box<dyn Template<()> + 'a>>;
+
 /// Builds template evaluation tree from AST nodes, with fresh build context.
-pub fn build<'a, L: TemplateLanguage<'a> + ?Sized>(
+///
+/// `wrap_self` specifies the type of the top-level property, which should be
+/// one of the `L::wrap_*()` functions.
+pub fn build<'a, C: Clone + 'a, L: TemplateLanguage<'a, Context = ()> + ?Sized>(
     language: &L,
     node: &ExpressionNode,
-) -> TemplateParseResult<Box<dyn Template<L::Context> + 'a>> {
+    // TODO: Generic L: WrapProperty<(), C> trait might be better. See the
+    // comment in build_formattable_list_method().
+    wrap_self: impl Fn(PropertyPlaceholder<C>) -> L::Property,
+) -> TemplateParseResult<RootTemplate<'a, C>> {
+    let self_placeholder = PropertyPlaceholder::new();
     let build_ctx = BuildContext {
         local_variables: HashMap::new(),
+        self_variable: &|| wrap_self(self_placeholder.clone()),
     };
-    expect_template_expression(language, &build_ctx, node)
+    let template = expect_template_expression(language, &build_ctx, node)?;
+    Ok(PlaceholderTemplate::new(template, self_placeholder))
 }
 
 /// Parses text, expands aliases, then builds template evaluation tree.
-pub fn parse<'a, L: TemplateLanguage<'a> + ?Sized>(
+pub fn parse<'a, C: Clone + 'a, L: TemplateLanguage<'a, Context = ()> + ?Sized>(
     language: &L,
     template_text: &str,
     aliases_map: &TemplateAliasesMap,
-) -> TemplateParseResult<Box<dyn Template<L::Context> + 'a>> {
+    wrap_self: impl Fn(PropertyPlaceholder<C>) -> L::Property,
+) -> TemplateParseResult<RootTemplate<'a, C>> {
     let node = template_parser::parse(template_text, aliases_map)?;
-    build(language, &node).map_err(|err| err.extend_alias_candidates(aliases_map))
+    build(language, &node, wrap_self).map_err(|err| err.extend_alias_candidates(aliases_map))
 }
 
 pub fn expect_boolean_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
@@ -1222,8 +1241,8 @@ mod tests {
             self.color_rules.push((labels, style));
         }
 
-        fn parse(&self, template: &str) -> TemplateParseResult<Box<dyn Template<()>>> {
-            parse(&self.language, template, &self.aliases_map)
+        fn parse(&self, template: &str) -> TemplateParseResult<RootTemplate<'static, ()>> {
+            parse(&self.language, template, &self.aliases_map, L::wrap_self)
         }
 
         fn parse_err(&self, template: &str) -> String {
@@ -1566,6 +1585,10 @@ mod tests {
         // Global keyword in item template
         insta::assert_snapshot!(
             env.render_ok(r#""a\nb\nc".lines().map(|s| s ++ empty)"#),
+            @"atrue btrue ctrue");
+        // Global keyword in item template shadowing 'self'
+        insta::assert_snapshot!(
+            env.render_ok(r#""a\nb\nc".lines().map(|self| self ++ empty)"#),
             @"atrue btrue ctrue");
         // Override global keyword 'empty'
         insta::assert_snapshot!(
