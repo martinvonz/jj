@@ -58,9 +58,9 @@ impl<'a, C> GenericTemplateLanguage<'a, C> {
     /// by `TemplatePropertyFn`.
     ///
     /// ```ignore
-    /// language.add_keyword("name", |language| {
+    /// language.add_keyword("name", |_language| {
     ///     let property = TemplatePropertyFn(|v: &C| Ok(v.to_string()));
-    ///     Ok(language.wrap_string(property))
+    ///     Ok(GenericTemplateLanguage::wrap_string(property))
     /// });
     /// ```
     pub fn add_keyword<F>(&mut self, name: &'static str, build: F)

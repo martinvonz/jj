@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use jj_cli::cli_util::CliRunner;
-use jj_cli::commit_templater::{CommitTemplateBuildFnTable, CommitTemplateLanguageExtension};
+use jj_cli::commit_templater::{
+    CommitTemplateBuildFnTable, CommitTemplateLanguage, CommitTemplateLanguageExtension,
+};
 use jj_cli::template_builder::TemplateLanguage;
 use jj_cli::template_parser::{self, TemplateParseError};
 use jj_cli::templater::{TemplateFunction, TemplatePropertyError};
@@ -73,6 +75,7 @@ impl MostDigitsInId {
 
 impl CommitTemplateLanguageExtension for HexCounter {
     fn build_fn_table<'repo>(&self) -> CommitTemplateBuildFnTable<'repo> {
+        type L<'repo> = CommitTemplateLanguage<'repo>;
         let mut table = CommitTemplateBuildFnTable::empty();
         table.commit_methods.insert(
             "has_most_digits",
@@ -82,27 +85,24 @@ impl CommitTemplateLanguageExtension for HexCounter {
                     .cache_extension::<MostDigitsInId>()
                     .unwrap()
                     .count(language.repo());
-                Ok(
-                    language.wrap_boolean(TemplateFunction::new(property, move |commit| {
-                        Ok(num_digits_in_id(commit.id()) == most_digits)
-                    })),
-                )
+                Ok(L::wrap_boolean(TemplateFunction::new(
+                    property,
+                    move |commit| Ok(num_digits_in_id(commit.id()) == most_digits),
+                )))
             },
         );
         table.commit_methods.insert(
             "num_digits_in_id",
-            |language, _build_context, property, call| {
+            |_language, _build_context, property, call| {
                 template_parser::expect_no_arguments(call)?;
-                Ok(
-                    language.wrap_integer(TemplateFunction::new(property, |commit| {
-                        Ok(num_digits_in_id(commit.id()))
-                    })),
-                )
+                Ok(L::wrap_integer(TemplateFunction::new(property, |commit| {
+                    Ok(num_digits_in_id(commit.id()))
+                })))
             },
         );
         table.commit_methods.insert(
             "num_char_in_id",
-            |language, _build_context, property, call| {
+            |_language, _build_context, property, call| {
                 let [string_arg] = template_parser::expect_exact_arguments(call)?;
                 let char_arg =
                     template_parser::expect_string_literal_with(string_arg, |string, span| {
@@ -116,11 +116,10 @@ impl CommitTemplateLanguageExtension for HexCounter {
                         }
                     })?;
 
-                Ok(
-                    language.wrap_integer(TemplateFunction::new(property, move |commit| {
-                        num_char_in_id(commit, char_arg)
-                    })),
-                )
+                Ok(L::wrap_integer(TemplateFunction::new(
+                    property,
+                    move |commit| num_char_in_id(commit, char_arg),
+                )))
             },
         );
 

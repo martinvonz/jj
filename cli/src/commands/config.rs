@@ -185,23 +185,24 @@ pub(crate) fn cmd_config(
 }
 
 fn config_template_language() -> GenericTemplateLanguage<'static, AnnotatedValue> {
+    type L = GenericTemplateLanguage<'static, AnnotatedValue>;
     fn prop_fn<R, F: Fn(&AnnotatedValue) -> R>(f: F) -> TemplatePropertyFn<F> {
         TemplatePropertyFn(f)
     }
     let mut language = GenericTemplateLanguage::new();
     // "name" instead of "path" to avoid confusion with the source file path
-    language.add_keyword("name", |language| {
+    language.add_keyword("name", |_language| {
         let property = prop_fn(|annotated| Ok(annotated.path.join(".")));
-        Ok(language.wrap_string(property))
+        Ok(L::wrap_string(property))
     });
-    language.add_keyword("value", |language| {
+    language.add_keyword("value", |_language| {
         // TODO: would be nice if we can provide raw dynamically-typed value
         let property = prop_fn(|annotated| Ok(serialize_config_value(&annotated.value)));
-        Ok(language.wrap_string(property))
+        Ok(L::wrap_string(property))
     });
-    language.add_keyword("overridden", |language| {
+    language.add_keyword("overridden", |_language| {
         let property = prop_fn(|annotated| Ok(annotated.is_overridden));
-        Ok(language.wrap_boolean(property))
+        Ok(L::wrap_boolean(property))
     });
     language
 }
