@@ -1176,7 +1176,6 @@ mod tests {
     use super::*;
     use crate::formatter::{self, ColorFormatter};
     use crate::generic_templater::GenericTemplateLanguage;
-    use crate::template_parser::TemplateAliasesMap;
 
     type TestTemplateLanguage = GenericTemplateLanguage<'static, ()>;
     type TestTemplatePropertyKind = <TestTemplateLanguage as TemplateLanguage<'static>>::Property;
