@@ -26,7 +26,7 @@ use crate::command_error::{user_error, CommandError};
 use crate::config::{AnnotatedValue, ConfigSource};
 use crate::generic_templater::GenericTemplateLanguage;
 use crate::template_builder::TemplateLanguage as _;
-use crate::templater::TemplatePropertyFn;
+use crate::templater::TemplateFunction;
 use crate::ui::Ui;
 
 #[derive(clap::Args, Clone, Debug)]
@@ -184,25 +184,28 @@ pub(crate) fn cmd_config(
     }
 }
 
+// AnnotatedValue will be cloned internally in the templater. If the cloning
+// cost matters, wrap it with Rc.
 fn config_template_language() -> GenericTemplateLanguage<'static, AnnotatedValue> {
     type L = GenericTemplateLanguage<'static, AnnotatedValue>;
-    fn prop_fn<R, F: Fn(&AnnotatedValue) -> R>(f: F) -> TemplatePropertyFn<F> {
-        TemplatePropertyFn(f)
-    }
-    let mut language = GenericTemplateLanguage::new();
+    let mut language = L::new();
     // "name" instead of "path" to avoid confusion with the source file path
-    language.add_keyword("name", || {
-        let property = prop_fn(|annotated| Ok(annotated.path.join(".")));
-        Ok(L::wrap_string(property))
+    language.add_keyword("name", |self_property| {
+        let out_property =
+            TemplateFunction::new(self_property, |annotated| Ok(annotated.path.join(".")));
+        Ok(L::wrap_string(out_property))
     });
-    language.add_keyword("value", || {
+    language.add_keyword("value", |self_property| {
         // TODO: would be nice if we can provide raw dynamically-typed value
-        let property = prop_fn(|annotated| Ok(serialize_config_value(&annotated.value)));
-        Ok(L::wrap_string(property))
+        let out_property = TemplateFunction::new(self_property, |annotated| {
+            Ok(serialize_config_value(&annotated.value))
+        });
+        Ok(L::wrap_string(out_property))
     });
-    language.add_keyword("overridden", || {
-        let property = prop_fn(|annotated| Ok(annotated.is_overridden));
-        Ok(L::wrap_boolean(property))
+    language.add_keyword("overridden", |self_property| {
+        let out_property =
+            TemplateFunction::new(self_property, |annotated| Ok(annotated.is_overridden));
+        Ok(L::wrap_boolean(out_property))
     });
     language
 }
