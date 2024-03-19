@@ -258,7 +258,7 @@ parent.
     </tr>
     <tr>
       <td>Reorder changes from A-B-C-D to A-C-B-D</td>
-      <td><code>jj rebase -r C -d A; rebase -s B -d C</code> (pass change IDs,
+      <td><code>jj rebase -r C -d A; jj rebase -s B -d C</code> (pass change IDs,
           not commit IDs, to not have to look up commit ID of rewritten C)</td>
       <td><code>git rebase -i A</code></td>
     </tr>
