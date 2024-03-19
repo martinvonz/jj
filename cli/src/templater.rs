@@ -617,6 +617,28 @@ impl<C, O: Clone> TemplateProperty<C> for PropertyPlaceholder<O> {
     }
 }
 
+/// Adapter that renders compiled `template` with the `placeholder` value set.
+pub struct PlaceholderTemplate<C, T> {
+    template: T,
+    placeholder: PropertyPlaceholder<C>,
+}
+
+impl<C: Clone, T: Template<()>> PlaceholderTemplate<C, T> {
+    pub fn new(template: T, placeholder: PropertyPlaceholder<C>) -> Self {
+        PlaceholderTemplate {
+            template,
+            placeholder,
+        }
+    }
+}
+
+impl<C: Clone, T: Template<()>> Template<C> for PlaceholderTemplate<C, T> {
+    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+        self.placeholder
+            .with_value(context.clone(), || self.template.format(&(), formatter))
+    }
+}
+
 pub fn format_joined<C, I, S>(
     context: &C,
     formatter: &mut dyn Formatter,
