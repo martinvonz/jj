@@ -383,6 +383,15 @@ impl Default for StoreFactories {
             GitBackend::name(),
             Box::new(|settings, store_path| Ok(Box::new(GitBackend::load(settings, store_path)?))),
         );
+        #[cfg(feature = "testing")]
+        factories.add_backend(
+            crate::secret_backend::SecretBackend::name(),
+            Box::new(|settings, store_path| {
+                Ok(Box::new(crate::secret_backend::SecretBackend::load(
+                    settings, store_path,
+                )?))
+            }),
+        );
 
         // OpStores
         factories.add_op_store(

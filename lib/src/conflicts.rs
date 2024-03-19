@@ -21,7 +21,7 @@ use futures::StreamExt;
 use itertools::Itertools;
 use regex::bytes::Regex;
 
-use crate::backend::{BackendResult, CommitId, FileId, SymlinkId, TreeId, TreeValue};
+use crate::backend::{BackendError, BackendResult, CommitId, FileId, SymlinkId, TreeId, TreeValue};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
 use crate::files;
 use crate::files::{ContentHunk, MergeResult};
@@ -127,6 +127,7 @@ pub async fn materialize(
 /// e.g. the working copy or in a diff.
 pub enum MaterializedTreeValue {
     Absent,
+    AccessDenied(Box<dyn std::error::Error + Send + Sync>),
     File {
         id: FileId,
         executable: bool,
@@ -158,6 +159,19 @@ impl MaterializedTreeValue {
 /// Reads the data associated with a `MergedTreeValue` so it can be written to
 /// e.g. the working copy or diff.
 pub async fn materialize_tree_value(
+    store: &Store,
+    path: &RepoPath,
+    value: MergedTreeValue,
+) -> BackendResult<MaterializedTreeValue> {
+    match materialize_tree_value_no_access_denied(store, path, value).await {
+        Err(BackendError::ReadAccessDenied { source, .. }) => {
+            Ok(MaterializedTreeValue::AccessDenied(source))
+        }
+        result => result,
+    }
+}
+
+async fn materialize_tree_value_no_access_denied(
     store: &Store,
     path: &RepoPath,
     value: MergedTreeValue,

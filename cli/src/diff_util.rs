@@ -195,6 +195,11 @@ pub enum DiffRenderError {
     DiffGenerate(#[source] DiffGenerateError),
     #[error(transparent)]
     Backend(#[from] BackendError),
+    #[error("Access denied to {path}: {source}")]
+    AccessDenied {
+        path: String,
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
     #[error(transparent)]
     Io(#[from] io::Error),
 }
@@ -437,6 +442,10 @@ fn file_content_for_diff(reader: &mut dyn io::Read) -> io::Result<FileContent> {
 fn diff_content(path: &RepoPath, value: MaterializedTreeValue) -> io::Result<FileContent> {
     match value {
         MaterializedTreeValue::Absent => Ok(FileContent::empty()),
+        MaterializedTreeValue::AccessDenied(err) => Ok(FileContent {
+            is_binary: false,
+            contents: format!("Access denied: {err}").into_bytes(),
+        }),
         MaterializedTreeValue::File { mut reader, .. } => {
             file_content_for_diff(&mut reader).map_err(Into::into)
         }
@@ -469,6 +478,7 @@ fn basic_diff_file_type(value: &MaterializedTreeValue) -> &'static str {
         MaterializedTreeValue::Absent => {
             panic!("absent path in diff");
         }
+        MaterializedTreeValue::AccessDenied(_) => "access denied",
         MaterializedTreeValue::File { executable, .. } => {
             if *executable {
                 "executable file"
@@ -496,6 +506,19 @@ pub fn show_color_words_diff(
         while let Some((path, diff)) = diff_stream.next().await {
             let ui_path = path_converter.format_file_path(&path);
             let (left_value, right_value) = diff?;
+
+            match (&left_value, &right_value) {
+                (_, MaterializedTreeValue::AccessDenied(source))
+                | (MaterializedTreeValue::AccessDenied(source), _) => {
+                    write!(
+                        formatter.labeled("access-denied"),
+                        "Access denied to {ui_path}:"
+                    )?;
+                    writeln!(formatter, " {source}")?;
+                    continue;
+                }
+                _ => {}
+            }
             if left_value.is_absent() {
                 let description = basic_diff_file_type(&right_value);
                 writeln!(
@@ -610,13 +633,22 @@ struct GitDiffPart {
     content: Vec<u8>,
 }
 
-fn git_diff_part(path: &RepoPath, value: MaterializedTreeValue) -> io::Result<GitDiffPart> {
+fn git_diff_part(
+    path: &RepoPath,
+    value: MaterializedTreeValue,
+) -> Result<GitDiffPart, DiffRenderError> {
     let mode;
     let hash;
     let mut contents: Vec<u8>;
     match value {
         MaterializedTreeValue::Absent => {
             panic!("Absent path {path:?} in diff should have been handled by caller");
+        }
+        MaterializedTreeValue::AccessDenied(err) => {
+            return Err(DiffRenderError::AccessDenied {
+                path: path.as_internal_file_string().to_owned(),
+                source: err,
+            });
         }
         MaterializedTreeValue::File {
             id,

@@ -81,6 +81,7 @@
 "diff removed" = "red"
 "diff added" = "green"
 "diff modified" = "cyan"
+"diff access-denied" = { bg = "red" }
 
 "op_log id" = "blue"
 "op_log user" = "yellow"

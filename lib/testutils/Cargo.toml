@@ -20,6 +20,6 @@ config = { workspace = true }
 git2 = { workspace = true }
 hex = { workspace = true }
 itertools = { workspace = true }
-jj-lib = { workspace = true }
+jj-lib = { workspace = true, features = ["testing"] }
 rand = { workspace = true }
 tempfile = { workspace = true }

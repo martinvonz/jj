@@ -137,6 +137,14 @@ fn read_file_contents(
             file_mode: scm_record::FileMode::absent(),
             contents: FileContents::Absent,
         }),
+        MaterializedTreeValue::AccessDenied(err) => Ok(FileInfo {
+            file_mode: scm_record::FileMode(mode::NORMAL),
+            contents: FileContents::Text {
+                contents: format!("Access denied: {err}"),
+                hash: None,
+                num_bytes: 0,
+            },
+        }),
 
         MaterializedTreeValue::File {
             id,

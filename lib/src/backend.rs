@@ -193,6 +193,12 @@ pub enum BackendError {
         hash: String,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
+    #[error("Access denied to read object {hash} of type {object_type}")]
+    ReadAccessDenied {
+        object_type: String,
+        hash: String,
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
     #[error("Could not write object of type {object_type}")]
     WriteObject {
         object_type: &'static str,
