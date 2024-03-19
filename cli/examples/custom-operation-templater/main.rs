@@ -14,7 +14,7 @@
 
 use jj_cli::cli_util::CliRunner;
 use jj_cli::operation_templater::{
-    OperationTemplateBuildFnTable, OperationTemplateLanguageExtension,
+    OperationTemplateBuildFnTable, OperationTemplateLanguage, OperationTemplateLanguageExtension,
 };
 use jj_cli::template_builder::TemplateLanguage;
 use jj_cli::template_parser::{self, TemplateParseError};
@@ -48,21 +48,21 @@ fn num_char_in_id(operation: Operation, ch_match: char) -> Result<i64, TemplateP
 
 impl OperationTemplateLanguageExtension for HexCounter {
     fn build_fn_table(&self) -> OperationTemplateBuildFnTable {
+        type L = OperationTemplateLanguage;
         let mut table = OperationTemplateBuildFnTable::empty();
         table.operation_methods.insert(
             "num_digits_in_id",
-            |language, _build_context, property, call| {
+            |_language, _build_context, property, call| {
                 template_parser::expect_no_arguments(call)?;
-                Ok(
-                    language.wrap_integer(TemplateFunction::new(property, |operation| {
-                        Ok(num_digits_in_id(operation.id()))
-                    })),
-                )
+                Ok(L::wrap_integer(TemplateFunction::new(
+                    property,
+                    |operation| Ok(num_digits_in_id(operation.id())),
+                )))
             },
         );
         table.operation_methods.insert(
             "num_char_in_id",
-            |language, _build_context, property, call| {
+            |_language, _build_context, property, call| {
                 let [string_arg] = template_parser::expect_exact_arguments(call)?;
                 let char_arg =
                     template_parser::expect_string_literal_with(string_arg, |string, span| {
@@ -76,11 +76,10 @@ impl OperationTemplateLanguageExtension for HexCounter {
                         }
                     })?;
 
-                Ok(
-                    language.wrap_integer(TemplateFunction::new(property, move |operation| {
-                        num_char_in_id(operation, char_arg)
-                    })),
-                )
+                Ok(L::wrap_integer(TemplateFunction::new(
+                    property,
+                    move |operation| num_char_in_id(operation, char_arg),
+                )))
             },
         );
 
