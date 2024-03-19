@@ -23,10 +23,11 @@ use tracing::instrument;
 
 use crate::cli_util::{format_template, CommandHelper, LogContentFormat, RevisionArg};
 use crate::command_error::CommandError;
+use crate::commit_templater::CommitTemplateLanguage;
 use crate::diff_util::{self, DiffFormatArgs};
 use crate::generic_templater::GenericTemplateLanguage;
 use crate::graphlog::{get_graphlog, Edge};
-use crate::templater::Template;
+use crate::templater::Template as _;
 use crate::ui::Ui;
 
 /// Show revision history
@@ -117,14 +118,22 @@ pub(crate) fn cmd_log(
             Some(value) => value.to_string(),
             None => command.settings().config().get_string("templates.log")?,
         };
-        template = workspace_command.parse_template(&language, &template_string)?;
-        commit_node_template = workspace_command
-            .parse_template(&language, &command.settings().commit_node_template())?;
+        template = workspace_command.parse_template(
+            &language,
+            &template_string,
+            CommitTemplateLanguage::wrap_commit,
+        )?;
+        commit_node_template = workspace_command.parse_template(
+            &language,
+            &command.settings().commit_node_template(),
+            CommitTemplateLanguage::wrap_commit,
+        )?;
     }
 
     let elided_node_template = workspace_command.parse_template(
         &GenericTemplateLanguage::new(),
         &command.settings().elided_node_template(),
+        GenericTemplateLanguage::wrap_self,
     )?;
 
     {
@@ -192,7 +201,7 @@ pub(crate) fn cmd_log(
                     )?;
                 }
 
-                let node_symbol = format_template(ui, &commit, commit_node_template.as_ref());
+                let node_symbol = format_template(ui, &commit, &commit_node_template);
                 graph.add_node(
                     &key,
                     &graphlog_edges,
@@ -209,7 +218,7 @@ pub(crate) fn cmd_log(
                         |formatter| writeln!(formatter.labeled("elided"), "(elided revisions)"),
                         || graph.width(&elided_key, &edges),
                     )?;
-                    let node_symbol = format_template(ui, &(), elided_node_template.as_ref());
+                    let node_symbol = format_template(ui, &(), &elided_node_template);
                     graph.add_node(
                         &elided_key,
                         &edges,

@@ -39,7 +39,6 @@ use crate::template_builder::{
 use crate::template_parser::{self, FunctionCallNode, TemplateParseError, TemplateParseResult};
 use crate::templater::{
     self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
-    TemplatePropertyFn,
 };
 use crate::{revset_util, text_util};
 
@@ -97,15 +96,10 @@ impl<'repo> CommitTemplateLanguage<'repo> {
 }
 
 impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
-    type Context = Commit;
+    type Context = ();
     type Property = CommitTemplatePropertyKind<'repo>;
 
     template_builder::impl_core_wrap_property_fns!('repo, CommitTemplatePropertyKind::Core);
-
-    fn build_self(&self) -> Self::Property {
-        // Commit object is lightweight (a few Arc + CommitId)
-        Self::wrap_commit(TemplatePropertyFn(|commit: &Commit| Ok(commit.clone())))
-    }
 
     fn build_function(
         &self,
@@ -191,54 +185,54 @@ impl<'repo> CommitTemplateLanguage<'repo> {
     }
 
     pub fn wrap_commit(
-        property: impl TemplateProperty<Commit, Output = Commit> + 'repo,
+        property: impl TemplateProperty<(), Output = Commit> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::Commit(Box::new(property))
     }
 
     pub fn wrap_commit_list(
-        property: impl TemplateProperty<Commit, Output = Vec<Commit>> + 'repo,
+        property: impl TemplateProperty<(), Output = Vec<Commit>> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::CommitList(Box::new(property))
     }
 
     pub fn wrap_ref_name(
-        property: impl TemplateProperty<Commit, Output = RefName> + 'repo,
+        property: impl TemplateProperty<(), Output = RefName> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::RefName(Box::new(property))
     }
 
     pub fn wrap_ref_name_list(
-        property: impl TemplateProperty<Commit, Output = Vec<RefName>> + 'repo,
+        property: impl TemplateProperty<(), Output = Vec<RefName>> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::RefNameList(Box::new(property))
     }
 
     pub fn wrap_commit_or_change_id(
-        property: impl TemplateProperty<Commit, Output = CommitOrChangeId> + 'repo,
+        property: impl TemplateProperty<(), Output = CommitOrChangeId> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::CommitOrChangeId(Box::new(property))
     }
 
     pub fn wrap_shortest_id_prefix(
-        property: impl TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo,
+        property: impl TemplateProperty<(), Output = ShortestIdPrefix> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::ShortestIdPrefix(Box::new(property))
     }
 }
 
 pub enum CommitTemplatePropertyKind<'repo> {
-    Core(CoreTemplatePropertyKind<'repo, Commit>),
-    Commit(Box<dyn TemplateProperty<Commit, Output = Commit> + 'repo>),
-    CommitList(Box<dyn TemplateProperty<Commit, Output = Vec<Commit>> + 'repo>),
-    RefName(Box<dyn TemplateProperty<Commit, Output = RefName> + 'repo>),
-    RefNameList(Box<dyn TemplateProperty<Commit, Output = Vec<RefName>> + 'repo>),
-    CommitOrChangeId(Box<dyn TemplateProperty<Commit, Output = CommitOrChangeId> + 'repo>),
-    ShortestIdPrefix(Box<dyn TemplateProperty<Commit, Output = ShortestIdPrefix> + 'repo>),
+    Core(CoreTemplatePropertyKind<'repo, ()>),
+    Commit(Box<dyn TemplateProperty<(), Output = Commit> + 'repo>),
+    CommitList(Box<dyn TemplateProperty<(), Output = Vec<Commit>> + 'repo>),
+    RefName(Box<dyn TemplateProperty<(), Output = RefName> + 'repo>),
+    RefNameList(Box<dyn TemplateProperty<(), Output = Vec<RefName>> + 'repo>),
+    CommitOrChangeId(Box<dyn TemplateProperty<(), Output = CommitOrChangeId> + 'repo>),
+    ShortestIdPrefix(Box<dyn TemplateProperty<(), Output = ShortestIdPrefix> + 'repo>),
 }
 
-impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'repo> {
-    fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Commit, Output = bool> + 'repo>> {
+impl<'repo> IntoTemplateProperty<'repo, ()> for CommitTemplatePropertyKind<'repo> {
+    fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<(), Output = bool> + 'repo>> {
         match self {
             CommitTemplatePropertyKind::Core(property) => property.try_into_boolean(),
             CommitTemplatePropertyKind::Commit(_) => None,
@@ -258,16 +252,14 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
         }
     }
 
-    fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<Commit, Output = i64> + 'repo>> {
+    fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<(), Output = i64> + 'repo>> {
         match self {
             CommitTemplatePropertyKind::Core(property) => property.try_into_integer(),
             _ => None,
         }
     }
 
-    fn try_into_plain_text(
-        self,
-    ) -> Option<Box<dyn TemplateProperty<Commit, Output = String> + 'repo>> {
+    fn try_into_plain_text(self) -> Option<Box<dyn TemplateProperty<(), Output = String> + 'repo>> {
         match self {
             CommitTemplatePropertyKind::Core(property) => property.try_into_plain_text(),
             _ => {
@@ -277,7 +269,7 @@ impl<'repo> IntoTemplateProperty<'repo, Commit> for CommitTemplatePropertyKind<'
         }
     }
 
-    fn try_into_template(self) -> Option<Box<dyn Template<Commit> + 'repo>> {
+    fn try_into_template(self) -> Option<Box<dyn Template<()> + 'repo>> {
         match self {
             CommitTemplatePropertyKind::Core(property) => property.try_into_template(),
             CommitTemplatePropertyKind::Commit(_) => None,

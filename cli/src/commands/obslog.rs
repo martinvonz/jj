@@ -22,9 +22,11 @@ use crate::cli_util::{
     format_template, CommandHelper, LogContentFormat, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::command_error::CommandError;
+use crate::commit_templater::CommitTemplateLanguage;
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
 use crate::formatter::Formatter;
 use crate::graphlog::{get_graphlog, Edge};
+use crate::templater::Template as _;
 use crate::ui::Ui;
 
 /// Show how a change has evolved
@@ -78,9 +80,16 @@ pub(crate) fn cmd_obslog(
             Some(value) => value.to_string(),
             None => command.settings().config().get_string("templates.log")?,
         };
-        template = workspace_command.parse_template(&language, &template_string)?;
-        commit_node_template = workspace_command
-            .parse_template(&language, &command.settings().commit_node_template())?;
+        template = workspace_command.parse_template(
+            &language,
+            &template_string,
+            CommitTemplateLanguage::wrap_commit,
+        )?;
+        commit_node_template = workspace_command.parse_template(
+            &language,
+            &command.settings().commit_node_template(),
+            CommitTemplateLanguage::wrap_commit,
+        )?;
     }
 
     ui.request_pager();
@@ -122,7 +131,7 @@ pub(crate) fn cmd_obslog(
                     &diff_formats,
                 )?;
             }
-            let node_symbol = format_template(ui, &commit, commit_node_template.as_ref());
+            let node_symbol = format_template(ui, &commit, &commit_node_template);
             graph.add_node(
                 commit.id(),
                 &edges,

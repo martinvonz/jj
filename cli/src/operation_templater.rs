@@ -30,7 +30,7 @@ use crate::template_builder::{
 use crate::template_parser::{self, FunctionCallNode, TemplateParseResult};
 use crate::templater::{
     IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
-    TemplatePropertyFn, TimestampRange,
+    TimestampRange,
 };
 
 pub trait OperationTemplateLanguageExtension {
@@ -72,15 +72,10 @@ impl OperationTemplateLanguage {
 }
 
 impl TemplateLanguage<'static> for OperationTemplateLanguage {
-    type Context = Operation;
+    type Context = ();
     type Property = OperationTemplatePropertyKind;
 
     template_builder::impl_core_wrap_property_fns!('static, OperationTemplatePropertyKind::Core);
-
-    fn build_self(&self) -> Self::Property {
-        // Operation object is lightweight (a few Arc + OperationId)
-        Self::wrap_operation(TemplatePropertyFn(|op: &Operation| Ok(op.clone())))
-    }
 
     fn build_function(
         &self,
@@ -122,26 +117,26 @@ impl OperationTemplateLanguage {
     }
 
     pub fn wrap_operation(
-        property: impl TemplateProperty<Operation, Output = Operation> + 'static,
+        property: impl TemplateProperty<(), Output = Operation> + 'static,
     ) -> OperationTemplatePropertyKind {
         OperationTemplatePropertyKind::Operation(Box::new(property))
     }
 
     pub fn wrap_operation_id(
-        property: impl TemplateProperty<Operation, Output = OperationId> + 'static,
+        property: impl TemplateProperty<(), Output = OperationId> + 'static,
     ) -> OperationTemplatePropertyKind {
         OperationTemplatePropertyKind::OperationId(Box::new(property))
     }
 }
 
 pub enum OperationTemplatePropertyKind {
-    Core(CoreTemplatePropertyKind<'static, Operation>),
-    Operation(Box<dyn TemplateProperty<Operation, Output = Operation>>),
-    OperationId(Box<dyn TemplateProperty<Operation, Output = OperationId>>),
+    Core(CoreTemplatePropertyKind<'static, ()>),
+    Operation(Box<dyn TemplateProperty<(), Output = Operation>>),
+    OperationId(Box<dyn TemplateProperty<(), Output = OperationId>>),
 }
 
-impl IntoTemplateProperty<'static, Operation> for OperationTemplatePropertyKind {
-    fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Operation, Output = bool>>> {
+impl IntoTemplateProperty<'static, ()> for OperationTemplatePropertyKind {
+    fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<(), Output = bool>>> {
         match self {
             OperationTemplatePropertyKind::Core(property) => property.try_into_boolean(),
             OperationTemplatePropertyKind::Operation(_) => None,
@@ -149,14 +144,14 @@ impl IntoTemplateProperty<'static, Operation> for OperationTemplatePropertyKind 
         }
     }
 
-    fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<Operation, Output = i64>>> {
+    fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<(), Output = i64>>> {
         match self {
             OperationTemplatePropertyKind::Core(property) => property.try_into_integer(),
             _ => None,
         }
     }
 
-    fn try_into_plain_text(self) -> Option<Box<dyn TemplateProperty<Operation, Output = String>>> {
+    fn try_into_plain_text(self) -> Option<Box<dyn TemplateProperty<(), Output = String>>> {
         match self {
             OperationTemplatePropertyKind::Core(property) => property.try_into_plain_text(),
             _ => {
@@ -166,7 +161,7 @@ impl IntoTemplateProperty<'static, Operation> for OperationTemplatePropertyKind 
         }
     }
 
-    fn try_into_template(self) -> Option<Box<dyn Template<Operation>>> {
+    fn try_into_template(self) -> Option<Box<dyn Template<()>>> {
         match self {
             OperationTemplatePropertyKind::Core(property) => property.try_into_template(),
             OperationTemplatePropertyKind::Operation(_) => None,
