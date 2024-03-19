@@ -24,7 +24,7 @@ use jj_lib::backend::{MergedTreeId, TreeId, TreeValue};
 use jj_lib::file_util::{check_symlink_support, try_symlink};
 use jj_lib::fsmonitor::FsmonitorKind;
 use jj_lib::local_working_copy::LocalWorkingCopy;
-use jj_lib::merge::Merge;
+use jj_lib::merge::{Merge, MergedTreeValue};
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::op_store::{OperationId, WorkspaceId};
 use jj_lib::repo::{ReadonlyRepo, Repo};
@@ -39,6 +39,12 @@ use testutils::{
 
 fn to_owned_path_vec(paths: &[&RepoPath]) -> Vec<RepoPathBuf> {
     paths.iter().map(|&path| path.to_owned()).collect()
+}
+
+fn tree_entries(tree: &MergedTree) -> Vec<(RepoPathBuf, Option<MergedTreeValue>)> {
+    tree.entries()
+        .map(|(path, result)| (path, result.ok()))
+        .collect_vec()
 }
 
 #[test]
@@ -669,10 +675,7 @@ fn test_gitignores_in_ignored_dir() {
     testutils::write_working_copy_file(&workspace_root, ignored_path, "contents");
 
     let new_tree = test_workspace.snapshot().unwrap();
-    assert_eq!(
-        new_tree.entries().collect_vec(),
-        tree1.entries().collect_vec()
-    );
+    assert_eq!(tree_entries(&new_tree), tree_entries(&tree1));
 
     // The nested .gitignore is ignored even if it's tracked
     let tree2 = create_tree(
@@ -691,10 +694,7 @@ fn test_gitignores_in_ignored_dir() {
     locked_ws.finish(OperationId::from_hex("abc123")).unwrap();
 
     let new_tree = test_workspace.snapshot().unwrap();
-    assert_eq!(
-        new_tree.entries().collect_vec(),
-        tree2.entries().collect_vec()
-    );
+    assert_eq!(tree_entries(&new_tree), tree_entries(&tree2));
 }
 
 #[test]
@@ -822,10 +822,7 @@ fn test_gitignores_ignored_directory_already_tracked() {
         (unchanged_symlink_path, Kind::Symlink, "contents"),
         (modified_symlink_path, Kind::Symlink, "modified"),
     ]);
-    assert_eq!(
-        new_tree.entries().collect_vec(),
-        expected_tree.entries().collect_vec()
-    );
+    assert_eq!(tree_entries(&new_tree), tree_entries(&expected_tree));
 }
 
 #[test]

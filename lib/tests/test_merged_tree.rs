@@ -229,7 +229,7 @@ fn test_from_legacy_tree() {
     let empty_merged_id = MergedTreeId::Merge(empty_merged_id_builder.build());
     let mut tree_builder = MergedTreeBuilder::new(empty_merged_id);
     for (path, value) in merged_tree.entries() {
-        tree_builder.set_or_remove(path, value);
+        tree_builder.set_or_remove(path, value.unwrap());
     }
     let recreated_merged_id = tree_builder.write_tree(store).unwrap();
     assert_eq!(recreated_merged_id, merged_tree.id());
@@ -349,7 +349,10 @@ fn test_path_value_and_entries() {
     );
 
     // Test entries()
-    let actual_entries = merged_tree.entries().collect_vec();
+    let actual_entries = merged_tree
+        .entries()
+        .map(|(path, result)| (path, result.unwrap()))
+        .collect_vec();
     // missing_path, resolved_dir_path, and file_dir_conflict_sub_path should not
     // appear
     let expected_entries = [
@@ -370,6 +373,7 @@ fn test_path_value_and_entries() {
             &modify_delete_path,
             &file_dir_conflict_sub_path,
         ]))
+        .map(|(path, result)| (path, result.unwrap()))
         .collect_vec();
     let expected_entries = [resolved_file_path, modify_delete_path]
         .iter()

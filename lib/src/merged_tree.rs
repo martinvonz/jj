@@ -596,21 +596,21 @@ impl<'matcher> TreeEntriesIterator<'matcher> {
 }
 
 impl Iterator for TreeEntriesIterator<'_> {
-    type Item = (RepoPathBuf, MergedTreeValue);
+    type Item = (RepoPathBuf, BackendResult<MergedTreeValue>);
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(top) = self.stack.last_mut() {
             if let Some((path, value)) = top.entries.pop() {
                 if value.is_tree() {
-                    let tree_merge = value
-                        .to_tree_merge(top.tree.store(), &path)
-                        .unwrap()
-                        .unwrap();
+                    let tree_merge = match value.to_tree_merge(top.tree.store(), &path) {
+                        Ok(tree_merge) => tree_merge.unwrap(),
+                        Err(err) => return Some((path, Err(err))),
+                    };
                     let merged_tree = MergedTree::Merge(tree_merge);
                     self.stack
                         .push(TreeEntriesDirItem::new(merged_tree, self.matcher));
                 } else {
-                    return Some((path, value));
+                    return Some((path, Ok(value)));
                 }
             } else {
                 self.stack.pop();
