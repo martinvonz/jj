@@ -152,6 +152,21 @@ fn diff_formats_from_args(
     Ok(formats)
 }
 
+fn builtin_diff_format(name: &str, num_context_lines: Option<usize>) -> Option<DiffFormat> {
+    match name.as_ref() {
+        "summary" => Some(DiffFormat::Summary),
+        "types" => Some(DiffFormat::Types),
+        "git" => Some(DiffFormat::Git {
+            context: num_context_lines.unwrap_or(DEFAULT_CONTEXT_LINES),
+        }),
+        "color-words" => Some(DiffFormat::ColorWords {
+            context: num_context_lines.unwrap_or(DEFAULT_CONTEXT_LINES),
+        }),
+        "stat" => Some(DiffFormat::Stat),
+        _ => None,
+    }
+}
+
 fn default_diff_format(
     settings: &UserSettings,
     num_context_lines: Option<usize>,
@@ -174,20 +189,8 @@ fn default_diff_format(
     } else {
         "color-words".to_owned()
     };
-    match name.as_ref() {
-        "summary" => Ok(DiffFormat::Summary),
-        "types" => Ok(DiffFormat::Types),
-        "git" => Ok(DiffFormat::Git {
-            context: num_context_lines.unwrap_or(DEFAULT_CONTEXT_LINES),
-        }),
-        "color-words" => Ok(DiffFormat::ColorWords {
-            context: num_context_lines.unwrap_or(DEFAULT_CONTEXT_LINES),
-        }),
-        "stat" => Ok(DiffFormat::Stat),
-        _ => Err(config::ConfigError::Message(format!(
-            "invalid diff format: {name}"
-        ))),
-    }
+    builtin_diff_format(&name, num_context_lines)
+        .ok_or_else(|| config::ConfigError::Message(format!("invalid diff format: {name}")))
 }
 
 pub fn show_diff(
