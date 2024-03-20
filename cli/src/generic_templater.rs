@@ -66,7 +66,7 @@ impl<'a, C> GenericTemplateLanguage<'a, C> {
     pub fn add_keyword<F>(&mut self, name: &'static str, build: F)
     where
         F: Fn(
-                Box<dyn TemplateProperty<(), Output = C> + 'a>,
+                Box<dyn TemplateProperty<Output = C> + 'a>,
             ) -> TemplateParseResult<GenericTemplatePropertyKind<'a, C>>
             + 'a,
     {
@@ -75,7 +75,6 @@ impl<'a, C> GenericTemplateLanguage<'a, C> {
 }
 
 impl<'a, C: 'a> TemplateLanguage<'a> for GenericTemplateLanguage<'a, C> {
-    type Context = ();
     type Property = GenericTemplatePropertyKind<'a, C>;
 
     template_builder::impl_core_wrap_property_fns!('a, GenericTemplatePropertyKind::Core);
@@ -113,33 +112,33 @@ impl<'a, C: 'a> TemplateLanguage<'a> for GenericTemplateLanguage<'a, C> {
 
 impl<'a, C> GenericTemplateLanguage<'a, C> {
     pub fn wrap_self(
-        property: impl TemplateProperty<(), Output = C> + 'a,
+        property: impl TemplateProperty<Output = C> + 'a,
     ) -> GenericTemplatePropertyKind<'a, C> {
         GenericTemplatePropertyKind::Self_(Box::new(property))
     }
 }
 
 pub enum GenericTemplatePropertyKind<'a, C> {
-    Core(CoreTemplatePropertyKind<'a, ()>),
-    Self_(Box<dyn TemplateProperty<(), Output = C> + 'a>),
+    Core(CoreTemplatePropertyKind<'a>),
+    Self_(Box<dyn TemplateProperty<Output = C> + 'a>),
 }
 
-impl<'a, C: 'a> IntoTemplateProperty<'a, ()> for GenericTemplatePropertyKind<'a, C> {
-    fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<(), Output = bool> + 'a>> {
+impl<'a, C: 'a> IntoTemplateProperty<'a> for GenericTemplatePropertyKind<'a, C> {
+    fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Output = bool> + 'a>> {
         match self {
             GenericTemplatePropertyKind::Core(property) => property.try_into_boolean(),
             GenericTemplatePropertyKind::Self_(_) => None,
         }
     }
 
-    fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<(), Output = i64> + 'a>> {
+    fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<Output = i64> + 'a>> {
         match self {
             GenericTemplatePropertyKind::Core(property) => property.try_into_integer(),
             GenericTemplatePropertyKind::Self_(_) => None,
         }
     }
 
-    fn try_into_plain_text(self) -> Option<Box<dyn TemplateProperty<(), Output = String> + 'a>> {
+    fn try_into_plain_text(self) -> Option<Box<dyn TemplateProperty<Output = String> + 'a>> {
         match self {
             GenericTemplatePropertyKind::Core(property) => property.try_into_plain_text(),
             GenericTemplatePropertyKind::Self_(_) => None,
@@ -161,7 +160,7 @@ impl<'a, C: 'a> IntoTemplateProperty<'a, ()> for GenericTemplatePropertyKind<'a,
 /// global resources, the keyword function is allowed to capture resources.
 pub type GenericTemplateBuildKeywordFn<'a, C> = Box<
     dyn Fn(
-            Box<dyn TemplateProperty<(), Output = C> + 'a>,
+            Box<dyn TemplateProperty<Output = C> + 'a>,
         ) -> TemplateParseResult<GenericTemplatePropertyKind<'a, C>>
         + 'a,
 >;

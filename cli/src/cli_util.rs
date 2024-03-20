@@ -244,7 +244,7 @@ impl CommandHelper {
     /// This function also loads template aliases from the settings. Use
     /// `WorkspaceCommandHelper::parse_template()` if you've already
     /// instantiated the workspace helper.
-    pub fn parse_template<'a, C: Clone + 'a, L: TemplateLanguage<'a, Context = ()> + ?Sized>(
+    pub fn parse_template<'a, C: Clone + 'a, L: TemplateLanguage<'a> + ?Sized>(
         &self,
         ui: &Ui,
         language: &L,
@@ -899,7 +899,7 @@ Set which revision the branch points to with `jj branch set {branch_name} -r <RE
     ///
     /// `wrap_self` specifies the type of the top-level property, which should
     /// be one of the `L::wrap_*()` functions.
-    pub fn parse_template<'a, C: Clone + 'a, L: TemplateLanguage<'a, Context = ()> + ?Sized>(
+    pub fn parse_template<'a, C: Clone + 'a, L: TemplateLanguage<'a> + ?Sized>(
         &self,
         language: &L,
         template_text: &str,

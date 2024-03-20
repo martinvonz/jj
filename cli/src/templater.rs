@@ -148,7 +148,7 @@ impl<T, L> LabelTemplate<T, L> {
     pub fn new<C>(content: T, labels: L) -> Self
     where
         T: Template<C>,
-        L: TemplateProperty<C, Output = Vec<String>>,
+        L: TemplateProperty<Output = Vec<String>>,
     {
         LabelTemplate { content, labels }
     }
@@ -157,10 +157,10 @@ impl<T, L> LabelTemplate<T, L> {
 impl<C, T, L> Template<C> for LabelTemplate<T, L>
 where
     T: Template<C>,
-    L: TemplateProperty<C, Output = Vec<String>>,
+    L: TemplateProperty<Output = Vec<String>>,
 {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        let labels = match self.labels.extract(context) {
+        let labels = match self.labels.extract() {
             Ok(labels) => labels,
             Err(err) => return err.format(&(), formatter),
         };
@@ -285,27 +285,25 @@ impl Template<()> for TemplatePropertyError {
     }
 }
 
-pub trait TemplateProperty<C> {
+pub trait TemplateProperty {
     type Output;
 
-    fn extract(&self, context: &C) -> Result<Self::Output, TemplatePropertyError>;
+    fn extract(&self) -> Result<Self::Output, TemplatePropertyError>;
 }
 
-impl<C, P: TemplateProperty<C> + ?Sized> TemplateProperty<C> for Box<P> {
-    type Output = <P as TemplateProperty<C>>::Output;
+impl<P: TemplateProperty + ?Sized> TemplateProperty for Box<P> {
+    type Output = <P as TemplateProperty>::Output;
 
-    fn extract(&self, context: &C) -> Result<Self::Output, TemplatePropertyError> {
-        <P as TemplateProperty<C>>::extract(self, context)
+    fn extract(&self) -> Result<Self::Output, TemplatePropertyError> {
+        <P as TemplateProperty>::extract(self)
     }
 }
 
-impl<C, P: TemplateProperty<C>> TemplateProperty<C> for Option<P> {
+impl<P: TemplateProperty> TemplateProperty for Option<P> {
     type Output = Option<P::Output>;
 
-    fn extract(&self, context: &C) -> Result<Self::Output, TemplatePropertyError> {
-        self.as_ref()
-            .map(|property| property.extract(context))
-            .transpose()
+    fn extract(&self) -> Result<Self::Output, TemplatePropertyError> {
+        self.as_ref().map(|property| property.extract()).transpose()
     }
 }
 
@@ -313,11 +311,11 @@ impl<C, P: TemplateProperty<C>> TemplateProperty<C> for Option<P> {
 macro_rules! tuple_impls {
     ($( ( $($n:tt $T:ident),+ ) )+) => {
         $(
-            impl<C, $($T: TemplateProperty<C>,)+> TemplateProperty<C> for ($($T,)+) {
+            impl<$($T: TemplateProperty,)+> TemplateProperty for ($($T,)+) {
                 type Output = ($($T::Output,)+);
 
-                fn extract(&self, context: &C) -> Result<Self::Output, TemplatePropertyError> {
-                    Ok(($(self.$n.extract(context)?,)+))
+                fn extract(&self) -> Result<Self::Output, TemplatePropertyError> {
+                    Ok(($(self.$n.extract()?,)+))
                 }
             }
         )+
@@ -340,10 +338,10 @@ impl<C, O: Template<()>> Template<C> for Literal<O> {
     }
 }
 
-impl<C, O: Clone> TemplateProperty<C> for Literal<O> {
+impl<O: Clone> TemplateProperty for Literal<O> {
     type Output = O;
 
-    fn extract(&self, _context: &C) -> Result<Self::Output, TemplatePropertyError> {
+    fn extract(&self) -> Result<Self::Output, TemplatePropertyError> {
         Ok(self.0.clone())
     }
 }
@@ -354,33 +352,33 @@ pub struct FormattablePropertyTemplate<P> {
 }
 
 impl<P> FormattablePropertyTemplate<P> {
-    pub fn new<C>(property: P) -> Self
+    pub fn new(property: P) -> Self
     where
-        P: TemplateProperty<C>,
+        P: TemplateProperty,
         P::Output: Template<()>,
     {
         FormattablePropertyTemplate { property }
     }
 }
 
-impl<C, P> Template<C> for FormattablePropertyTemplate<P>
+impl<P> Template<()> for FormattablePropertyTemplate<P>
 where
-    P: TemplateProperty<C>,
+    P: TemplateProperty,
     P::Output: Template<()>,
 {
-    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        match self.property.extract(context) {
+    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+        match self.property.extract() {
             Ok(template) => template.format(&(), formatter),
             Err(err) => err.format(&(), formatter),
         }
     }
 }
 
-impl<'a, C: 'a, O> IntoTemplate<'a, C> for Box<dyn TemplateProperty<C, Output = O> + 'a>
+impl<'a, O> IntoTemplate<'a, ()> for Box<dyn TemplateProperty<Output = O> + 'a>
 where
     O: Template<()> + 'a,
 {
-    fn into_template(self) -> Box<dyn Template<C> + 'a> {
+    fn into_template(self) -> Box<dyn Template<()> + 'a> {
         Box::new(FormattablePropertyTemplate::new(self))
     }
 }
@@ -396,13 +394,13 @@ impl<T> PlainTextFormattedProperty<T> {
     }
 }
 
-impl<C, T: Template<C>> TemplateProperty<C> for PlainTextFormattedProperty<T> {
+impl<T: Template<()>> TemplateProperty for PlainTextFormattedProperty<T> {
     type Output = String;
 
-    fn extract(&self, context: &C) -> Result<Self::Output, TemplatePropertyError> {
+    fn extract(&self) -> Result<Self::Output, TemplatePropertyError> {
         let mut output = vec![];
         self.template
-            .format(context, &mut PlainTextFormatter::new(&mut output))
+            .format(&(), &mut PlainTextFormatter::new(&mut output))
             .expect("write() to PlainTextFormatter should never fail");
         Ok(String::from_utf8(output).map_err(|err| err.utf8_error())?)
     }
@@ -421,7 +419,7 @@ pub struct ListPropertyTemplate<P, S, F> {
 impl<P, S, F> ListPropertyTemplate<P, S, F> {
     pub fn new<C, O>(property: P, separator: S, format_item: F) -> Self
     where
-        P: TemplateProperty<C>,
+        P: TemplateProperty,
         P::Output: IntoIterator<Item = O>,
         S: Template<C>,
         F: Fn(&C, &mut dyn Formatter, O) -> io::Result<()>,
@@ -436,13 +434,13 @@ impl<P, S, F> ListPropertyTemplate<P, S, F> {
 
 impl<C, O, P, S, F> Template<C> for ListPropertyTemplate<P, S, F>
 where
-    P: TemplateProperty<C>,
+    P: TemplateProperty,
     P::Output: IntoIterator<Item = O>,
     S: Template<C>,
     F: Fn(&C, &mut dyn Formatter, O) -> io::Result<()>,
 {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        let contents = match self.property.extract(context) {
+        let contents = match self.property.extract() {
             Ok(contents) => contents,
             Err(err) => return err.format(&(), formatter),
         };
@@ -458,7 +456,7 @@ where
 
 impl<C, O, P, S, F> ListTemplate<C> for ListPropertyTemplate<P, S, F>
 where
-    P: TemplateProperty<C>,
+    P: TemplateProperty,
     P::Output: IntoIterator<Item = O>,
     S: Template<C>,
     F: Fn(&C, &mut dyn Formatter, O) -> io::Result<()>,
@@ -494,7 +492,7 @@ pub struct ConditionalTemplate<P, T, U> {
 impl<P, T, U> ConditionalTemplate<P, T, U> {
     pub fn new<C>(condition: P, true_template: T, false_template: Option<U>) -> Self
     where
-        P: TemplateProperty<C, Output = bool>,
+        P: TemplateProperty<Output = bool>,
         T: Template<C>,
         U: Template<C>,
     {
@@ -508,12 +506,12 @@ impl<P, T, U> ConditionalTemplate<P, T, U> {
 
 impl<C, P, T, U> Template<C> for ConditionalTemplate<P, T, U>
 where
-    P: TemplateProperty<C, Output = bool>,
+    P: TemplateProperty<Output = bool>,
     T: Template<C>,
     U: Template<C>,
 {
     fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        let condition = match self.condition.extract(context) {
+        let condition = match self.condition.extract() {
             Ok(condition) => condition,
             Err(err) => return err.format(&(), formatter),
         };
@@ -526,32 +524,30 @@ where
     }
 }
 
-// TODO: If needed, add a ContextualTemplateFunction where the function also
-// gets the context
 pub struct TemplateFunction<P, F> {
     pub property: P,
     pub function: F,
 }
 
 impl<P, F> TemplateFunction<P, F> {
-    pub fn new<C, O>(property: P, function: F) -> Self
+    pub fn new<O>(property: P, function: F) -> Self
     where
-        P: TemplateProperty<C>,
+        P: TemplateProperty,
         F: Fn(P::Output) -> Result<O, TemplatePropertyError>,
     {
         TemplateFunction { property, function }
     }
 }
 
-impl<C, O, P, F> TemplateProperty<C> for TemplateFunction<P, F>
+impl<O, P, F> TemplateProperty for TemplateFunction<P, F>
 where
-    P: TemplateProperty<C>,
+    P: TemplateProperty,
     F: Fn(P::Output) -> Result<O, TemplatePropertyError>,
 {
     type Output = O;
 
-    fn extract(&self, context: &C) -> Result<Self::Output, TemplatePropertyError> {
-        (self.function)(self.property.extract(context)?)
+    fn extract(&self) -> Result<Self::Output, TemplatePropertyError> {
+        (self.function)(self.property.extract()?)
     }
 }
 
@@ -590,10 +586,10 @@ impl<O> Default for PropertyPlaceholder<O> {
     }
 }
 
-impl<C, O: Clone> TemplateProperty<C> for PropertyPlaceholder<O> {
+impl<O: Clone> TemplateProperty for PropertyPlaceholder<O> {
     type Output = O;
 
-    fn extract(&self, _: &C) -> Result<Self::Output, TemplatePropertyError> {
+    fn extract(&self) -> Result<Self::Output, TemplatePropertyError> {
         Ok(self
             .value
             .borrow()

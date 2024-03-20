@@ -72,7 +72,6 @@ impl OperationTemplateLanguage {
 }
 
 impl TemplateLanguage<'static> for OperationTemplateLanguage {
-    type Context = ();
     type Property = OperationTemplatePropertyKind;
 
     template_builder::impl_core_wrap_property_fns!('static, OperationTemplatePropertyKind::Core);
@@ -117,26 +116,26 @@ impl OperationTemplateLanguage {
     }
 
     pub fn wrap_operation(
-        property: impl TemplateProperty<(), Output = Operation> + 'static,
+        property: impl TemplateProperty<Output = Operation> + 'static,
     ) -> OperationTemplatePropertyKind {
         OperationTemplatePropertyKind::Operation(Box::new(property))
     }
 
     pub fn wrap_operation_id(
-        property: impl TemplateProperty<(), Output = OperationId> + 'static,
+        property: impl TemplateProperty<Output = OperationId> + 'static,
     ) -> OperationTemplatePropertyKind {
         OperationTemplatePropertyKind::OperationId(Box::new(property))
     }
 }
 
 pub enum OperationTemplatePropertyKind {
-    Core(CoreTemplatePropertyKind<'static, ()>),
-    Operation(Box<dyn TemplateProperty<(), Output = Operation>>),
-    OperationId(Box<dyn TemplateProperty<(), Output = OperationId>>),
+    Core(CoreTemplatePropertyKind<'static>),
+    Operation(Box<dyn TemplateProperty<Output = Operation>>),
+    OperationId(Box<dyn TemplateProperty<Output = OperationId>>),
 }
 
-impl IntoTemplateProperty<'static, ()> for OperationTemplatePropertyKind {
-    fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<(), Output = bool>>> {
+impl IntoTemplateProperty<'static> for OperationTemplatePropertyKind {
+    fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Output = bool>>> {
         match self {
             OperationTemplatePropertyKind::Core(property) => property.try_into_boolean(),
             OperationTemplatePropertyKind::Operation(_) => None,
@@ -144,14 +143,14 @@ impl IntoTemplateProperty<'static, ()> for OperationTemplatePropertyKind {
         }
     }
 
-    fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<(), Output = i64>>> {
+    fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<Output = i64>>> {
         match self {
             OperationTemplatePropertyKind::Core(property) => property.try_into_integer(),
             _ => None,
         }
     }
 
-    fn try_into_plain_text(self) -> Option<Box<dyn TemplateProperty<(), Output = String>>> {
+    fn try_into_plain_text(self) -> Option<Box<dyn TemplateProperty<Output = String>>> {
         match self {
             OperationTemplatePropertyKind::Core(property) => property.try_into_plain_text(),
             _ => {
