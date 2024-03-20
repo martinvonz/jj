@@ -47,7 +47,7 @@ dirs = "5.0.1"
 either = "1.10.0"
 esl01-renderdag = "0.3.0"
 futures = "0.3.30"
-git2 = "0.18.2"
+git2 = "0.18.3"
 gix = { version = "0.61.0", default-features = false, features = [
     "index",
     "max-performance-safe",
@@ -78,7 +78,7 @@ rayon = "1.9.0"
 ref-cast = "1.0.22"
 regex = "1.10.3"
 rpassword = "7.3.1"
-rustix = { version = "0.38.31", features = ["fs"] }
+rustix = { version = "0.38.32", features = ["fs"] }
 scm-record = "0.2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.114"
