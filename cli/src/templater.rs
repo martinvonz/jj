@@ -348,20 +348,6 @@ impl<C, O: Clone> TemplateProperty<C> for Literal<O> {
     }
 }
 
-/// Adapter to turn closure into property.
-pub struct TemplatePropertyFn<F>(pub F);
-
-impl<C, O, F> TemplateProperty<C> for TemplatePropertyFn<F>
-where
-    F: Fn(&C) -> Result<O, TemplatePropertyError>,
-{
-    type Output = O;
-
-    fn extract(&self, context: &C) -> Result<Self::Output, TemplatePropertyError> {
-        (self.0)(context)
-    }
-}
-
 /// Adapter to extract context-less template value from property for displaying.
 pub struct FormattablePropertyTemplate<P> {
     property: P,
