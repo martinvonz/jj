@@ -620,12 +620,11 @@ impl<O: Clone> TemplateProperty for PropertyPlaceholder<O> {
     type Output = O;
 
     fn extract(&self) -> Result<Self::Output, TemplatePropertyError> {
-        Ok(self
-            .value
-            .borrow()
-            .as_ref()
-            .expect("placeholder value must be set before evaluating template")
-            .clone())
+        if let Some(value) = self.value.borrow().as_ref() {
+            Ok(value.clone())
+        } else {
+            Err(TemplatePropertyError("Placeholder value is not set".into()))
+        }
     }
 }
 
