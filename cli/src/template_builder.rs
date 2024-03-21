@@ -22,10 +22,10 @@ use crate::template_parser::{
     TemplateParseError, TemplateParseErrorKind, TemplateParseResult, UnaryOp,
 };
 use crate::templater::{
-    CoalesceTemplate, ConcatTemplate, ConditionalTemplate, IntoTemplate, LabelTemplate,
-    ListPropertyTemplate, ListTemplate, Literal, PlainTextFormattedProperty, PropertyPlaceholder,
-    ReformatTemplate, SeparateTemplate, Template, TemplateProperty, TemplatePropertyError,
-    TemplatePropertyExt as _, TemplateRenderer, TimestampRange,
+    CoalesceTemplate, ConcatTemplate, ConditionalTemplate, LabelTemplate, ListPropertyTemplate,
+    ListTemplate, Literal, PlainTextFormattedProperty, PropertyPlaceholder, ReformatTemplate,
+    SeparateTemplate, Template, TemplateProperty, TemplatePropertyError, TemplatePropertyExt as _,
+    TemplateRenderer, TimestampRange,
 };
 use crate::{text_util, time_util};
 

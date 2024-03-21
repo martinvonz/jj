@@ -37,7 +37,7 @@ use crate::template_builder::{
 };
 use crate::template_parser::{self, FunctionCallNode, TemplateParseError, TemplateParseResult};
 use crate::templater::{
-    self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateFormatter, TemplateProperty,
+    self, PlainTextFormattedProperty, Template, TemplateFormatter, TemplateProperty,
     TemplatePropertyError, TemplatePropertyExt as _,
 };
 use crate::{revset_util, text_util};
