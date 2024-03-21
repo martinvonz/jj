@@ -39,10 +39,6 @@ pub trait ListTemplate: Template {
         Self: 'a;
 }
 
-pub trait IntoTemplate<'a> {
-    fn into_template(self) -> Box<dyn Template + 'a>;
-}
-
 impl<T: Template + ?Sized> Template for &T {
     fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         <T as Template>::format(self, formatter)
@@ -352,6 +348,15 @@ pub trait TemplatePropertyExt: TemplateProperty {
     {
         TemplateFunction::new(self, move |value| Ok(function(value)))
     }
+
+    /// Converts this property into `Template`.
+    fn into_template<'a>(self) -> Box<dyn Template + 'a>
+    where
+        Self: Sized + 'a,
+        Self::Output: Template,
+    {
+        Box::new(FormattablePropertyTemplate::new(self))
+    }
 }
 
 impl<P: TemplateProperty + ?Sized> TemplatePropertyExt for P {}
@@ -398,15 +403,6 @@ where
             Ok(template) => template.format(formatter),
             Err(err) => formatter.handle_error(err),
         }
-    }
-}
-
-impl<'a, O> IntoTemplate<'a> for Box<dyn TemplateProperty<Output = O> + 'a>
-where
-    O: Template + 'a,
-{
-    fn into_template(self) -> Box<dyn Template + 'a> {
-        Box::new(FormattablePropertyTemplate::new(self))
     }
 }
 

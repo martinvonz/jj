@@ -28,7 +28,7 @@ use crate::template_builder::{
 };
 use crate::template_parser::{self, FunctionCallNode, TemplateParseResult};
 use crate::templater::{
-    IntoTemplate, PlainTextFormattedProperty, Template, TemplateFormatter, TemplateProperty,
+    PlainTextFormattedProperty, Template, TemplateFormatter, TemplateProperty,
     TemplatePropertyExt as _, TimestampRange,
 };
 
