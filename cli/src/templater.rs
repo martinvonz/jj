@@ -330,6 +330,31 @@ tuple_impls! {
     (0 T0, 1 T1, 2 T2, 3 T3)
 }
 
+/// `TemplateProperty` adapters that are useful when implementing methods.
+pub trait TemplatePropertyExt: TemplateProperty {
+    /// Translates to a property that will apply fallible `function` to an
+    /// extracted value.
+    fn and_then<O, F>(self, function: F) -> TemplateFunction<Self, F>
+    where
+        Self: Sized,
+        F: Fn(Self::Output) -> Result<O, TemplatePropertyError>,
+    {
+        TemplateFunction::new(self, function)
+    }
+
+    /// Translates to a property that will apply `function` to an extracted
+    /// value, leaving `Err` untouched.
+    fn map<O, F>(self, function: F) -> impl TemplateProperty<Output = O>
+    where
+        Self: Sized,
+        F: Fn(Self::Output) -> O,
+    {
+        TemplateFunction::new(self, move |value| Ok(function(value)))
+    }
+}
+
+impl<P: TemplateProperty + ?Sized> TemplatePropertyExt for P {}
+
 /// Adapter to drop template context.
 pub struct Literal<O>(pub O);
 
@@ -525,6 +550,9 @@ where
     }
 }
 
+/// Adapter to apply fallible `function` to the `property`.
+///
+/// This is usually created by `TemplatePropertyExt::and_then()`/`map()`.
 pub struct TemplateFunction<P, F> {
     pub property: P,
     pub function: F,
