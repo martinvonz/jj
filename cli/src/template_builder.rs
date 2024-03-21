@@ -886,8 +886,8 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
         let content = expect_template_expression(language, build_ctx, content_node)?;
         let template =
             ReformatTemplate::new(content, move |formatter, recorded| match width.extract() {
-                Ok(width) => text_util::write_wrapped(formatter, recorded, width),
-                Err(err) => err.format(formatter),
+                Ok(width) => text_util::write_wrapped(formatter.as_mut(), recorded, width),
+                Err(err) => formatter.handle_error(err),
             });
         Ok(L::wrap_template(Box::new(template)))
     });
@@ -896,7 +896,10 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
         let prefix = expect_template_expression(language, build_ctx, prefix_node)?;
         let content = expect_template_expression(language, build_ctx, content_node)?;
         let template = ReformatTemplate::new(content, move |formatter, recorded| {
-            text_util::write_indented(formatter, recorded, |formatter| prefix.format(formatter))
+            let rewrap = formatter.rewrap_fn();
+            text_util::write_indented(formatter.as_mut(), recorded, |formatter| {
+                prefix.format(&mut rewrap(formatter))
+            })
         });
         Ok(L::wrap_template(Box::new(template)))
     });
@@ -959,7 +962,7 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
                 return Ok(());
             }
             prefix.format(formatter)?;
-            recorded.replay(formatter)?;
+            recorded.replay(formatter.as_mut())?;
             suffix.format(formatter)?;
             Ok(())
         });
