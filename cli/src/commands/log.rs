@@ -26,7 +26,6 @@ use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
 use crate::diff_util::{self, DiffFormatArgs};
 use crate::graphlog::{get_graphlog, Edge};
-use crate::templater::Template as _;
 use crate::ui::Ui;
 
 /// Show revision history

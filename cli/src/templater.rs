@@ -629,22 +629,20 @@ impl<O: Clone> TemplateProperty for PropertyPlaceholder<O> {
 }
 
 /// Adapter that renders compiled `template` with the `placeholder` value set.
-pub struct PlaceholderTemplate<C, T> {
-    template: T,
+pub struct TemplateRenderer<'a, C> {
+    template: Box<dyn Template<()> + 'a>,
     placeholder: PropertyPlaceholder<C>,
 }
 
-impl<C: Clone, T: Template<()>> PlaceholderTemplate<C, T> {
-    pub fn new(template: T, placeholder: PropertyPlaceholder<C>) -> Self {
-        PlaceholderTemplate {
+impl<'a, C: Clone> TemplateRenderer<'a, C> {
+    pub fn new(template: Box<dyn Template<()> + 'a>, placeholder: PropertyPlaceholder<C>) -> Self {
+        TemplateRenderer {
             template,
             placeholder,
         }
     }
-}
 
-impl<C: Clone, T: Template<()>> Template<C> for PlaceholderTemplate<C, T> {
-    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+    pub fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         self.placeholder
             .with_value(context.clone(), || self.template.format(&(), formatter))
     }

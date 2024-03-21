@@ -22,7 +22,6 @@ use super::resolve;
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::diff_util;
-use crate::templater::Template as _;
 use crate::ui::Ui;
 
 /// Show high-level repo status
