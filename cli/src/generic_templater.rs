@@ -145,7 +145,7 @@ impl<'a, C: 'a> IntoTemplateProperty<'a> for GenericTemplatePropertyKind<'a, C> 
         }
     }
 
-    fn try_into_template(self) -> Option<Box<dyn Template<()> + 'a>> {
+    fn try_into_template(self) -> Option<Box<dyn Template + 'a>> {
         match self {
             GenericTemplatePropertyKind::Core(property) => property.try_into_template(),
             GenericTemplatePropertyKind::Self_(_) => None,

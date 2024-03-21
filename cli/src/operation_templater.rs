@@ -160,7 +160,7 @@ impl IntoTemplateProperty<'static> for OperationTemplatePropertyKind {
         }
     }
 
-    fn try_into_template(self) -> Option<Box<dyn Template<()>>> {
+    fn try_into_template(self) -> Option<Box<dyn Template>> {
         match self {
             OperationTemplatePropertyKind::Core(property) => property.try_into_template(),
             OperationTemplatePropertyKind::Operation(_) => None,
@@ -275,8 +275,8 @@ fn builtin_operation_methods() -> OperationTemplateBuildMethodFnMap<Operation> {
     map
 }
 
-impl Template<()> for OperationId {
-    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+impl Template for OperationId {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         write!(formatter, "{}", self.hex())
     }
 }

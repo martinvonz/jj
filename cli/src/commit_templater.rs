@@ -283,7 +283,7 @@ impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
         }
     }
 
-    fn try_into_template(self) -> Option<Box<dyn Template<()> + 'repo>> {
+    fn try_into_template(self) -> Option<Box<dyn Template + 'repo>> {
         match self {
             CommitTemplatePropertyKind::Core(property) => property.try_into_template(),
             CommitTemplatePropertyKind::Commit(_) => None,
@@ -651,8 +651,8 @@ impl RefName {
     }
 }
 
-impl Template<()> for RefName {
-    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+impl Template for RefName {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         write!(formatter.labeled("name"), "{}", self.name)?;
         if let Some(remote) = &self.remote {
             write!(formatter, "@")?;
@@ -669,9 +669,9 @@ impl Template<()> for RefName {
     }
 }
 
-impl Template<()> for Vec<RefName> {
-    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
-        templater::format_joined(&(), formatter, self, " ")
+impl Template for Vec<RefName> {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+        templater::format_joined(formatter, self, " ")
     }
 }
 
@@ -823,8 +823,8 @@ impl CommitOrChangeId {
     }
 }
 
-impl Template<()> for CommitOrChangeId {
-    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+impl Template for CommitOrChangeId {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         write!(formatter, "{}", self.hex())
     }
 }
@@ -865,8 +865,8 @@ pub struct ShortestIdPrefix {
     pub rest: String,
 }
 
-impl Template<()> for ShortestIdPrefix {
-    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+impl Template for ShortestIdPrefix {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         write!(formatter.labeled("prefix"), "{}", self.prefix)?;
         write!(formatter.labeled("rest"), "{}", self.rest)?;
         Ok(())
