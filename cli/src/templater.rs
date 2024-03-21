@@ -14,16 +14,16 @@
 
 use std::cell::RefCell;
 use std::rc::Rc;
-use std::{error, io, iter};
+use std::{error, fmt, io, iter};
 
 use jj_lib::backend::{Signature, Timestamp};
 
-use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
+use crate::formatter::{FormatRecorder, Formatter, LabeledWriter, PlainTextFormatter};
 use crate::time_util;
 
 /// Represents printable type or compiled template containing placeholder value.
 pub trait Template {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()>;
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()>;
 }
 
 /// Template that supports list-like behavior.
@@ -44,13 +44,13 @@ pub trait IntoTemplate<'a> {
 }
 
 impl<T: Template + ?Sized> Template for &T {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         <T as Template>::format(self, formatter)
     }
 }
 
 impl<T: Template + ?Sized> Template for Box<T> {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         <T as Template>::format(self, formatter)
     }
 }
@@ -58,13 +58,13 @@ impl<T: Template + ?Sized> Template for Box<T> {
 // All optional printable types should be printable, and it's unlikely to
 // implement different formatting per type.
 impl<T: Template> Template for Option<T> {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         self.as_ref().map_or(Ok(()), |t| t.format(formatter))
     }
 }
 
 impl Template for Signature {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         write!(formatter.labeled("name"), "{}", self.name)?;
         if !self.name.is_empty() && !self.email.is_empty() {
             write!(formatter, " ")?;
@@ -79,22 +79,22 @@ impl Template for Signature {
 }
 
 impl Template for String {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         write!(formatter, "{self}")
     }
 }
 
 impl Template for &str {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         write!(formatter, "{self}")
     }
 }
 
 impl Template for Timestamp {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         match time_util::format_absolute_timestamp(self) {
             Ok(formatted) => write!(formatter, "{formatted}"),
-            Err(err) => format_error_inline(formatter, &err),
+            Err(err) => formatter.handle_error(err.into()),
         }
     }
 }
@@ -121,7 +121,7 @@ impl TimestampRange {
 }
 
 impl Template for TimestampRange {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         self.start.format(formatter)?;
         write!(formatter, " - ")?;
         self.end.format(formatter)?;
@@ -130,20 +130,20 @@ impl Template for TimestampRange {
 }
 
 impl Template for Vec<String> {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         format_joined(formatter, self, " ")
     }
 }
 
 impl Template for bool {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         let repr = if *self { "true" } else { "false" };
         write!(formatter, "{repr}")
     }
 }
 
 impl Template for i64 {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         write!(formatter, "{self}")
     }
 }
@@ -168,10 +168,10 @@ where
     T: Template,
     L: TemplateProperty<Output = Vec<String>>,
 {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         let labels = match self.labels.extract() {
             Ok(labels) => labels,
-            Err(err) => return err.format(formatter),
+            Err(err) => return formatter.handle_error(err),
         };
         for label in &labels {
             formatter.push_label(label)?;
@@ -188,12 +188,13 @@ where
 pub struct CoalesceTemplate<T>(pub Vec<T>);
 
 impl<T: Template> Template for CoalesceTemplate<T> {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         let Some((last, contents)) = self.0.split_last() else {
             return Ok(());
         };
+        let record_non_empty = record_non_empty_fn(formatter);
         if let Some(recorder) = contents.iter().find_map(record_non_empty) {
-            recorder?.replay(formatter)
+            recorder?.replay(formatter.as_mut())
         } else {
             last.format(formatter) // no need to capture the last content
         }
@@ -203,7 +204,7 @@ impl<T: Template> Template for CoalesceTemplate<T> {
 pub struct ConcatTemplate<T>(pub Vec<T>);
 
 impl<T: Template> Template for ConcatTemplate<T> {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         for template in &self.0 {
             template.format(formatter)?
         }
@@ -221,7 +222,7 @@ impl<T, F> ReformatTemplate<T, F> {
     pub fn new(content: T, reformat: F) -> Self
     where
         T: Template,
-        F: Fn(&mut dyn Formatter, &FormatRecorder) -> io::Result<()>,
+        F: Fn(&mut TemplateFormatter, &FormatRecorder) -> io::Result<()>,
     {
         ReformatTemplate { content, reformat }
     }
@@ -230,11 +231,12 @@ impl<T, F> ReformatTemplate<T, F> {
 impl<T, F> Template for ReformatTemplate<T, F>
 where
     T: Template,
-    F: Fn(&mut dyn Formatter, &FormatRecorder) -> io::Result<()>,
+    F: Fn(&mut TemplateFormatter, &FormatRecorder) -> io::Result<()>,
 {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
+        let rewrap = formatter.rewrap_fn();
         let mut recorder = FormatRecorder::new();
-        self.content.format(&mut recorder)?;
+        self.content.format(&mut rewrap(&mut recorder))?;
         (self.reformat)(formatter, &recorder)
     }
 }
@@ -263,14 +265,15 @@ where
     S: Template,
     T: Template,
 {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
+        let record_non_empty = record_non_empty_fn(formatter);
         let mut content_recorders = self.contents.iter().filter_map(record_non_empty).fuse();
         if let Some(recorder) = content_recorders.next() {
-            recorder?.replay(formatter)?;
+            recorder?.replay(formatter.as_mut())?;
         }
         for recorder in content_recorders {
             self.separator.format(formatter)?;
-            recorder?.replay(formatter)?;
+            recorder?.replay(formatter.as_mut())?;
         }
         Ok(())
     }
@@ -289,13 +292,6 @@ where
 {
     fn from(err: E) -> Self {
         TemplatePropertyError(err.into())
-    }
-}
-
-/// Prints the evaluation error as inline template output.
-impl Template for TemplatePropertyError {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
-        format_error_inline(formatter, &*self.0)
     }
 }
 
@@ -372,7 +368,7 @@ impl<P: TemplateProperty + ?Sized> TemplatePropertyExt for P {}
 pub struct Literal<O>(pub O);
 
 impl<O: Template> Template for Literal<O> {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         self.0.format(formatter)
     }
 }
@@ -405,10 +401,10 @@ where
     P: TemplateProperty,
     P::Output: Template,
 {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         match self.property.extract() {
             Ok(template) => template.format(formatter),
-            Err(err) => err.format(formatter),
+            Err(err) => formatter.handle_error(err),
         }
     }
 }
@@ -438,8 +434,10 @@ impl<T: Template> TemplateProperty for PlainTextFormattedProperty<T> {
 
     fn extract(&self) -> Result<Self::Output, TemplatePropertyError> {
         let mut output = vec![];
+        let mut formatter = PlainTextFormatter::new(&mut output);
+        let mut wrapper = TemplateFormatter::new(&mut formatter, format_property_error_inline);
         self.template
-            .format(&mut PlainTextFormatter::new(&mut output))
+            .format(&mut wrapper)
             .expect("write() to PlainTextFormatter should never fail");
         Ok(String::from_utf8(output).map_err(|err| err.utf8_error())?)
     }
@@ -460,7 +458,7 @@ impl<P, S, F> ListPropertyTemplate<P, S, F> {
         P: TemplateProperty,
         P::Output: IntoIterator<Item = O>,
         S: Template,
-        F: Fn(&mut dyn Formatter, O) -> io::Result<()>,
+        F: Fn(&mut TemplateFormatter, O) -> io::Result<()>,
     {
         ListPropertyTemplate {
             property,
@@ -475,12 +473,12 @@ where
     P: TemplateProperty,
     P::Output: IntoIterator<Item = O>,
     S: Template,
-    F: Fn(&mut dyn Formatter, O) -> io::Result<()>,
+    F: Fn(&mut TemplateFormatter, O) -> io::Result<()>,
 {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         let contents = match self.property.extract() {
             Ok(contents) => contents,
-            Err(err) => return err.format(formatter),
+            Err(err) => return formatter.handle_error(err),
         };
         format_joined_with(formatter, contents, &self.separator, &self.format_item)
     }
@@ -491,7 +489,7 @@ where
     P: TemplateProperty,
     P::Output: IntoIterator<Item = O>,
     S: Template,
-    F: Fn(&mut dyn Formatter, O) -> io::Result<()>,
+    F: Fn(&mut TemplateFormatter, O) -> io::Result<()>,
 {
     fn join<'a>(self: Box<Self>, separator: Box<dyn Template + 'a>) -> Box<dyn Template + 'a>
     where
@@ -541,10 +539,10 @@ where
     T: Template,
     U: Template,
 {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         let condition = match self.condition.extract() {
             Ok(condition) => condition,
-            Err(err) => return err.format(formatter),
+            Err(err) => return formatter.handle_error(err),
         };
         if condition {
             self.true_template.format(formatter)?;
@@ -648,13 +646,76 @@ impl<'a, C: Clone> TemplateRenderer<'a, C> {
     }
 
     pub fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+        let mut wrapper = TemplateFormatter::new(formatter, format_property_error_inline);
         self.placeholder
-            .with_value(context.clone(), || self.template.format(formatter))
+            .with_value(context.clone(), || self.template.format(&mut wrapper))
+    }
+}
+
+/// Wrapper to pass around `Formatter` and error handler.
+pub struct TemplateFormatter<'a> {
+    formatter: &'a mut dyn Formatter,
+    error_handler: PropertyErrorHandler,
+}
+
+impl<'a> TemplateFormatter<'a> {
+    fn new(formatter: &'a mut dyn Formatter, error_handler: PropertyErrorHandler) -> Self {
+        TemplateFormatter {
+            formatter,
+            error_handler,
+        }
+    }
+
+    /// Returns function that wraps another `Formatter` with the current error
+    /// handling strategy.
+    ///
+    /// This does not borrow `self` so the underlying formatter can be mutably
+    /// borrowed.
+    pub fn rewrap_fn(&self) -> impl Fn(&mut dyn Formatter) -> TemplateFormatter<'_> {
+        let error_handler = self.error_handler;
+        move |formatter| TemplateFormatter::new(formatter, error_handler)
+    }
+
+    pub fn labeled<S: AsRef<str>>(
+        &mut self,
+        label: S,
+    ) -> LabeledWriter<&mut (dyn Formatter + 'a), S> {
+        self.formatter.labeled(label)
+    }
+
+    pub fn push_label(&mut self, label: &str) -> io::Result<()> {
+        self.formatter.push_label(label)
+    }
+
+    pub fn pop_label(&mut self) -> io::Result<()> {
+        self.formatter.pop_label()
+    }
+
+    pub fn write_fmt(&mut self, args: fmt::Arguments<'_>) -> io::Result<()> {
+        self.formatter.write_fmt(args)
+    }
+
+    /// Handles the given template property evaluation error.
+    ///
+    /// This usually prints the given error inline, and returns `Ok`. It's up to
+    /// caller to decide whether or not to continue template processing on `Ok`.
+    /// For example, `if(cond, ..)` expression will terminate if the `cond`
+    /// failed to evaluate, whereas `concat(x, y, ..)` will continue processing.
+    ///
+    /// If `Err` is returned, the error should be propagated.
+    pub fn handle_error(&mut self, err: TemplatePropertyError) -> io::Result<()> {
+        (self.error_handler)(self.formatter, err)
+    }
+}
+
+impl<'a> AsMut<dyn Formatter + 'a> for TemplateFormatter<'a> {
+    fn as_mut(&mut self) -> &mut (dyn Formatter + 'a) {
+        self.formatter
     }
 }
 
 pub fn format_joined<I, S>(
-    formatter: &mut dyn Formatter,
+    formatter: &mut TemplateFormatter,
     contents: I,
     separator: S,
 ) -> io::Result<()>
@@ -669,7 +730,7 @@ where
 }
 
 fn format_joined_with<I, S, F>(
-    formatter: &mut dyn Formatter,
+    formatter: &mut TemplateFormatter,
     contents: I,
     separator: S,
     mut format_item: F,
@@ -677,7 +738,7 @@ fn format_joined_with<I, S, F>(
 where
     I: IntoIterator,
     S: Template,
-    F: FnMut(&mut dyn Formatter, I::Item) -> io::Result<()>,
+    F: FnMut(&mut TemplateFormatter, I::Item) -> io::Result<()>,
 {
     let mut contents_iter = contents.into_iter().fuse();
     if let Some(item) = contents_iter.next() {
@@ -690,7 +751,14 @@ where
     Ok(())
 }
 
-fn format_error_inline(formatter: &mut dyn Formatter, err: &dyn error::Error) -> io::Result<()> {
+type PropertyErrorHandler = fn(&mut dyn Formatter, TemplatePropertyError) -> io::Result<()>;
+
+/// Prints property evaluation error as inline template output.
+fn format_property_error_inline(
+    formatter: &mut dyn Formatter,
+    err: TemplatePropertyError,
+) -> io::Result<()> {
+    let TemplatePropertyError(err) = &err;
     formatter.with_label("error", |formatter| {
         write!(formatter, "<")?;
         write!(formatter.labeled("heading"), "Error: ")?;
@@ -703,11 +771,20 @@ fn format_error_inline(formatter: &mut dyn Formatter, err: &dyn error::Error) ->
     })
 }
 
-fn record_non_empty(template: impl Template) -> Option<io::Result<FormatRecorder>> {
-    let mut recorder = FormatRecorder::new();
-    match template.format(&mut recorder) {
-        Ok(()) if recorder.data().is_empty() => None, // omit empty content
-        Ok(()) => Some(Ok(recorder)),
-        Err(e) => Some(Err(e)),
+/// Creates function that renders a template to buffer and returns the buffer
+/// only if it isn't empty.
+///
+/// This inherits the error handling strategy from the given `formatter`.
+fn record_non_empty_fn<T: Template + ?Sized>(
+    formatter: &TemplateFormatter,
+) -> impl Fn(&T) -> Option<io::Result<FormatRecorder>> {
+    let rewrap = formatter.rewrap_fn();
+    move |template| {
+        let mut recorder = FormatRecorder::new();
+        match template.format(&mut rewrap(&mut recorder)) {
+            Ok(()) if recorder.data().is_empty() => None, // omit empty content
+            Ok(()) => Some(Ok(recorder)),
+            Err(e) => Some(Err(e)),
+        }
     }
 }
