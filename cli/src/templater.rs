@@ -21,42 +21,42 @@ use jj_lib::backend::{Signature, Timestamp};
 use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
 use crate::time_util;
 
-pub trait Template<C> {
-    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()>;
+/// Represents printable type or compiled template containing placeholder value.
+pub trait Template {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()>;
 }
 
 /// Template that supports list-like behavior.
-pub trait ListTemplate<C>: Template<C> {
+pub trait ListTemplate: Template {
     /// Concatenates items with the given separator.
-    fn join<'a>(self: Box<Self>, separator: Box<dyn Template<C> + 'a>) -> Box<dyn Template<C> + 'a>
+    fn join<'a>(self: Box<Self>, separator: Box<dyn Template + 'a>) -> Box<dyn Template + 'a>
     where
-        Self: 'a,
-        C: 'a;
+        Self: 'a;
 
     /// Upcasts to the template type.
-    fn into_template<'a>(self: Box<Self>) -> Box<dyn Template<C> + 'a>
+    fn into_template<'a>(self: Box<Self>) -> Box<dyn Template + 'a>
     where
         Self: 'a;
 }
 
-pub trait IntoTemplate<'a, C> {
-    fn into_template(self) -> Box<dyn Template<C> + 'a>;
+pub trait IntoTemplate<'a> {
+    fn into_template(self) -> Box<dyn Template + 'a>;
 }
 
-impl<C, T: Template<C> + ?Sized> Template<C> for &T {
-    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        <T as Template<C>>::format(self, context, formatter)
+impl<T: Template + ?Sized> Template for &T {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+        <T as Template>::format(self, formatter)
     }
 }
 
-impl<C, T: Template<C> + ?Sized> Template<C> for Box<T> {
-    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        <T as Template<C>>::format(self, context, formatter)
+impl<T: Template + ?Sized> Template for Box<T> {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+        <T as Template>::format(self, formatter)
     }
 }
 
-impl Template<()> for Signature {
-    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+impl Template for Signature {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         write!(formatter.labeled("name"), "{}", self.name)?;
         if !self.name.is_empty() && !self.email.is_empty() {
             write!(formatter, " ")?;
@@ -70,20 +70,20 @@ impl Template<()> for Signature {
     }
 }
 
-impl Template<()> for String {
-    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+impl Template for String {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         write!(formatter, "{self}")
     }
 }
 
-impl Template<()> for &str {
-    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+impl Template for &str {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         write!(formatter, "{self}")
     }
 }
 
-impl Template<()> for Timestamp {
-    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+impl Template for Timestamp {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         match time_util::format_absolute_timestamp(self) {
             Ok(formatted) => write!(formatter, "{formatted}"),
             Err(err) => format_error_inline(formatter, &err),
@@ -112,30 +112,30 @@ impl TimestampRange {
     }
 }
 
-impl Template<()> for TimestampRange {
-    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
-        self.start.format(&(), formatter)?;
+impl Template for TimestampRange {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+        self.start.format(formatter)?;
         write!(formatter, " - ")?;
-        self.end.format(&(), formatter)?;
+        self.end.format(formatter)?;
         Ok(())
     }
 }
 
-impl Template<()> for Vec<String> {
-    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
-        format_joined(&(), formatter, self, " ")
+impl Template for Vec<String> {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+        format_joined(formatter, self, " ")
     }
 }
 
-impl Template<()> for bool {
-    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+impl Template for bool {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         let repr = if *self { "true" } else { "false" };
         write!(formatter, "{repr}")
     }
 }
 
-impl Template<()> for i64 {
-    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+impl Template for i64 {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         write!(formatter, "{self}")
     }
 }
@@ -146,29 +146,29 @@ pub struct LabelTemplate<T, L> {
 }
 
 impl<T, L> LabelTemplate<T, L> {
-    pub fn new<C>(content: T, labels: L) -> Self
+    pub fn new(content: T, labels: L) -> Self
     where
-        T: Template<C>,
+        T: Template,
         L: TemplateProperty<Output = Vec<String>>,
     {
         LabelTemplate { content, labels }
     }
 }
 
-impl<C, T, L> Template<C> for LabelTemplate<T, L>
+impl<T, L> Template for LabelTemplate<T, L>
 where
-    T: Template<C>,
+    T: Template,
     L: TemplateProperty<Output = Vec<String>>,
 {
-    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         let labels = match self.labels.extract() {
             Ok(labels) => labels,
-            Err(err) => return err.format(&(), formatter),
+            Err(err) => return err.format(formatter),
         };
         for label in &labels {
             formatter.push_label(label)?;
         }
-        self.content.format(context, formatter)?;
+        self.content.format(formatter)?;
         for _label in &labels {
             formatter.pop_label()?;
         }
@@ -178,10 +178,10 @@ where
 
 pub struct ConcatTemplate<T>(pub Vec<T>);
 
-impl<C, T: Template<C>> Template<C> for ConcatTemplate<T> {
-    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+impl<T: Template> Template for ConcatTemplate<T> {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         for template in &self.0 {
-            template.format(context, formatter)?
+            template.format(formatter)?
         }
         Ok(())
     }
@@ -194,24 +194,24 @@ pub struct ReformatTemplate<T, F> {
 }
 
 impl<T, F> ReformatTemplate<T, F> {
-    pub fn new<C>(content: T, reformat: F) -> Self
+    pub fn new(content: T, reformat: F) -> Self
     where
-        T: Template<C>,
-        F: Fn(&C, &mut dyn Formatter, &FormatRecorder) -> io::Result<()>,
+        T: Template,
+        F: Fn(&mut dyn Formatter, &FormatRecorder) -> io::Result<()>,
     {
         ReformatTemplate { content, reformat }
     }
 }
 
-impl<C, T, F> Template<C> for ReformatTemplate<T, F>
+impl<T, F> Template for ReformatTemplate<T, F>
 where
-    T: Template<C>,
-    F: Fn(&C, &mut dyn Formatter, &FormatRecorder) -> io::Result<()>,
+    T: Template,
+    F: Fn(&mut dyn Formatter, &FormatRecorder) -> io::Result<()>,
 {
-    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         let mut recorder = FormatRecorder::new();
-        self.content.format(context, &mut recorder)?;
-        (self.reformat)(context, formatter, &recorder)
+        self.content.format(&mut recorder)?;
+        (self.reformat)(formatter, &recorder)
     }
 }
 
@@ -222,10 +222,10 @@ pub struct SeparateTemplate<S, T> {
 }
 
 impl<S, T> SeparateTemplate<S, T> {
-    pub fn new<C>(separator: S, contents: Vec<T>) -> Self
+    pub fn new(separator: S, contents: Vec<T>) -> Self
     where
-        S: Template<C>,
-        T: Template<C>,
+        S: Template,
+        T: Template,
     {
         SeparateTemplate {
             separator,
@@ -234,18 +234,18 @@ impl<S, T> SeparateTemplate<S, T> {
     }
 }
 
-impl<C, S, T> Template<C> for SeparateTemplate<S, T>
+impl<S, T> Template for SeparateTemplate<S, T>
 where
-    S: Template<C>,
-    T: Template<C>,
+    S: Template,
+    T: Template,
 {
-    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         let mut content_recorders = self
             .contents
             .iter()
             .filter_map(|template| {
                 let mut recorder = FormatRecorder::new();
-                match template.format(context, &mut recorder) {
+                match template.format(&mut recorder) {
                     Ok(()) if recorder.data().is_empty() => None, // omit empty content
                     Ok(()) => Some(Ok(recorder)),
                     Err(e) => Some(Err(e)),
@@ -256,7 +256,7 @@ where
             recorder?.replay(formatter)?;
         }
         for recorder in content_recorders {
-            self.separator.format(context, formatter)?;
+            self.separator.format(formatter)?;
             recorder?.replay(formatter)?;
         }
         Ok(())
@@ -280,8 +280,8 @@ where
 }
 
 /// Prints the evaluation error as inline template output.
-impl Template<()> for TemplatePropertyError {
-    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+impl Template for TemplatePropertyError {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         format_error_inline(formatter, &*self.0)
     }
 }
@@ -355,12 +355,12 @@ pub trait TemplatePropertyExt: TemplateProperty {
 
 impl<P: TemplateProperty + ?Sized> TemplatePropertyExt for P {}
 
-/// Adapter to drop template context.
+/// Adapter that wraps literal value in `TemplateProperty`.
 pub struct Literal<O>(pub O);
 
-impl<C, O: Template<()>> Template<C> for Literal<O> {
-    fn format(&self, _context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
-        self.0.format(&(), formatter)
+impl<O: Template> Template for Literal<O> {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+        self.0.format(formatter)
     }
 }
 
@@ -372,7 +372,7 @@ impl<O: Clone> TemplateProperty for Literal<O> {
     }
 }
 
-/// Adapter to extract context-less template value from property for displaying.
+/// Adapter to extract template value from property for displaying.
 pub struct FormattablePropertyTemplate<P> {
     property: P,
 }
@@ -381,30 +381,30 @@ impl<P> FormattablePropertyTemplate<P> {
     pub fn new(property: P) -> Self
     where
         P: TemplateProperty,
-        P::Output: Template<()>,
+        P::Output: Template,
     {
         FormattablePropertyTemplate { property }
     }
 }
 
-impl<P> Template<()> for FormattablePropertyTemplate<P>
+impl<P> Template for FormattablePropertyTemplate<P>
 where
     P: TemplateProperty,
-    P::Output: Template<()>,
+    P::Output: Template,
 {
-    fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         match self.property.extract() {
-            Ok(template) => template.format(&(), formatter),
-            Err(err) => err.format(&(), formatter),
+            Ok(template) => template.format(formatter),
+            Err(err) => err.format(formatter),
         }
     }
 }
 
-impl<'a, O> IntoTemplate<'a, ()> for Box<dyn TemplateProperty<Output = O> + 'a>
+impl<'a, O> IntoTemplate<'a> for Box<dyn TemplateProperty<Output = O> + 'a>
 where
-    O: Template<()> + 'a,
+    O: Template + 'a,
 {
-    fn into_template(self) -> Box<dyn Template<()> + 'a> {
+    fn into_template(self) -> Box<dyn Template + 'a> {
         Box::new(FormattablePropertyTemplate::new(self))
     }
 }
@@ -420,13 +420,13 @@ impl<T> PlainTextFormattedProperty<T> {
     }
 }
 
-impl<T: Template<()>> TemplateProperty for PlainTextFormattedProperty<T> {
+impl<T: Template> TemplateProperty for PlainTextFormattedProperty<T> {
     type Output = String;
 
     fn extract(&self) -> Result<Self::Output, TemplatePropertyError> {
         let mut output = vec![];
         self.template
-            .format(&(), &mut PlainTextFormatter::new(&mut output))
+            .format(&mut PlainTextFormatter::new(&mut output))
             .expect("write() to PlainTextFormatter should never fail");
         Ok(String::from_utf8(output).map_err(|err| err.utf8_error())?)
     }
@@ -435,7 +435,6 @@ impl<T: Template<()>> TemplateProperty for PlainTextFormattedProperty<T> {
 /// Renders template property of list type with the given separator.
 ///
 /// Each list item will be formatted by the given `format_item()` function.
-/// The separator takes a context of type `C`.
 pub struct ListPropertyTemplate<P, S, F> {
     property: P,
     separator: S,
@@ -443,12 +442,12 @@ pub struct ListPropertyTemplate<P, S, F> {
 }
 
 impl<P, S, F> ListPropertyTemplate<P, S, F> {
-    pub fn new<C, O>(property: P, separator: S, format_item: F) -> Self
+    pub fn new<O>(property: P, separator: S, format_item: F) -> Self
     where
         P: TemplateProperty,
         P::Output: IntoIterator<Item = O>,
-        S: Template<C>,
-        F: Fn(&C, &mut dyn Formatter, O) -> io::Result<()>,
+        S: Template,
+        F: Fn(&mut dyn Formatter, O) -> io::Result<()>,
     {
         ListPropertyTemplate {
             property,
@@ -458,39 +457,32 @@ impl<P, S, F> ListPropertyTemplate<P, S, F> {
     }
 }
 
-impl<C, O, P, S, F> Template<C> for ListPropertyTemplate<P, S, F>
+impl<O, P, S, F> Template for ListPropertyTemplate<P, S, F>
 where
     P: TemplateProperty,
     P::Output: IntoIterator<Item = O>,
-    S: Template<C>,
-    F: Fn(&C, &mut dyn Formatter, O) -> io::Result<()>,
+    S: Template,
+    F: Fn(&mut dyn Formatter, O) -> io::Result<()>,
 {
-    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         let contents = match self.property.extract() {
             Ok(contents) => contents,
-            Err(err) => return err.format(&(), formatter),
+            Err(err) => return err.format(formatter),
         };
-        format_joined_with(
-            context,
-            formatter,
-            contents,
-            &self.separator,
-            &self.format_item,
-        )
+        format_joined_with(formatter, contents, &self.separator, &self.format_item)
     }
 }
 
-impl<C, O, P, S, F> ListTemplate<C> for ListPropertyTemplate<P, S, F>
+impl<O, P, S, F> ListTemplate for ListPropertyTemplate<P, S, F>
 where
     P: TemplateProperty,
     P::Output: IntoIterator<Item = O>,
-    S: Template<C>,
-    F: Fn(&C, &mut dyn Formatter, O) -> io::Result<()>,
+    S: Template,
+    F: Fn(&mut dyn Formatter, O) -> io::Result<()>,
 {
-    fn join<'a>(self: Box<Self>, separator: Box<dyn Template<C> + 'a>) -> Box<dyn Template<C> + 'a>
+    fn join<'a>(self: Box<Self>, separator: Box<dyn Template + 'a>) -> Box<dyn Template + 'a>
     where
         Self: 'a,
-        C: 'a,
     {
         // Once join()-ed, list-like API should be dropped. This is guaranteed by
         // the return type.
@@ -501,7 +493,7 @@ where
         ))
     }
 
-    fn into_template<'a>(self: Box<Self>) -> Box<dyn Template<C> + 'a>
+    fn into_template<'a>(self: Box<Self>) -> Box<dyn Template + 'a>
     where
         Self: 'a,
     {
@@ -516,11 +508,11 @@ pub struct ConditionalTemplate<P, T, U> {
 }
 
 impl<P, T, U> ConditionalTemplate<P, T, U> {
-    pub fn new<C>(condition: P, true_template: T, false_template: Option<U>) -> Self
+    pub fn new(condition: P, true_template: T, false_template: Option<U>) -> Self
     where
         P: TemplateProperty<Output = bool>,
-        T: Template<C>,
-        U: Template<C>,
+        T: Template,
+        U: Template,
     {
         ConditionalTemplate {
             condition,
@@ -530,21 +522,21 @@ impl<P, T, U> ConditionalTemplate<P, T, U> {
     }
 }
 
-impl<C, P, T, U> Template<C> for ConditionalTemplate<P, T, U>
+impl<P, T, U> Template for ConditionalTemplate<P, T, U>
 where
     P: TemplateProperty<Output = bool>,
-    T: Template<C>,
-    U: Template<C>,
+    T: Template,
+    U: Template,
 {
-    fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         let condition = match self.condition.extract() {
             Ok(condition) => condition,
-            Err(err) => return err.format(&(), formatter),
+            Err(err) => return err.format(formatter),
         };
         if condition {
-            self.true_template.format(context, formatter)?;
+            self.true_template.format(formatter)?;
         } else if let Some(false_template) = &self.false_template {
-            false_template.format(context, formatter)?;
+            false_template.format(formatter)?;
         }
         Ok(())
     }
@@ -630,12 +622,12 @@ impl<O: Clone> TemplateProperty for PropertyPlaceholder<O> {
 
 /// Adapter that renders compiled `template` with the `placeholder` value set.
 pub struct TemplateRenderer<'a, C> {
-    template: Box<dyn Template<()> + 'a>,
+    template: Box<dyn Template + 'a>,
     placeholder: PropertyPlaceholder<C>,
 }
 
 impl<'a, C: Clone> TemplateRenderer<'a, C> {
-    pub fn new(template: Box<dyn Template<()> + 'a>, placeholder: PropertyPlaceholder<C>) -> Self {
+    pub fn new(template: Box<dyn Template + 'a>, placeholder: PropertyPlaceholder<C>) -> Self {
         TemplateRenderer {
             template,
             placeholder,
@@ -644,32 +636,26 @@ impl<'a, C: Clone> TemplateRenderer<'a, C> {
 
     pub fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         self.placeholder
-            .with_value(context.clone(), || self.template.format(&(), formatter))
+            .with_value(context.clone(), || self.template.format(formatter))
     }
 }
 
-pub fn format_joined<C, I, S>(
-    context: &C,
+pub fn format_joined<I, S>(
     formatter: &mut dyn Formatter,
     contents: I,
     separator: S,
 ) -> io::Result<()>
 where
     I: IntoIterator,
-    I::Item: Template<C>,
-    S: Template<C>,
+    I::Item: Template,
+    S: Template,
 {
-    format_joined_with(
-        context,
-        formatter,
-        contents,
-        separator,
-        |context, formatter, item| item.format(context, formatter),
-    )
+    format_joined_with(formatter, contents, separator, |formatter, item| {
+        item.format(formatter)
+    })
 }
 
-fn format_joined_with<C, I, S, F>(
-    context: &C,
+fn format_joined_with<I, S, F>(
     formatter: &mut dyn Formatter,
     contents: I,
     separator: S,
@@ -677,16 +663,16 @@ fn format_joined_with<C, I, S, F>(
 ) -> io::Result<()>
 where
     I: IntoIterator,
-    S: Template<C>,
-    F: FnMut(&C, &mut dyn Formatter, I::Item) -> io::Result<()>,
+    S: Template,
+    F: FnMut(&mut dyn Formatter, I::Item) -> io::Result<()>,
 {
     let mut contents_iter = contents.into_iter().fuse();
     if let Some(item) = contents_iter.next() {
-        format_item(context, formatter, item)?;
+        format_item(formatter, item)?;
     }
     for item in contents_iter {
-        separator.format(context, formatter)?;
-        format_item(context, formatter, item)?;
+        separator.format(formatter)?;
+        format_item(formatter, item)?;
     }
     Ok(())
 }
