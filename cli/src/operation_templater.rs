@@ -29,7 +29,7 @@ use crate::template_builder::{
 };
 use crate::template_parser::{self, FunctionCallNode, TemplateParseResult};
 use crate::templater::{
-    IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
+    IntoTemplate, PlainTextFormattedProperty, Template, TemplateProperty, TemplatePropertyExt as _,
     TimestampRange,
 };
 
@@ -221,9 +221,7 @@ fn builtin_operation_methods() -> OperationTemplateBuildMethodFnMap<Operation> {
         |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
             let current_op_id = language.current_op_id.clone();
-            let out_property = TemplateFunction::new(self_property, move |op| {
-                Ok(Some(op.id()) == current_op_id.as_ref())
-            });
+            let out_property = self_property.map(move |op| Some(op.id()) == current_op_id.as_ref());
             Ok(L::wrap_boolean(out_property))
         },
     );
@@ -231,56 +229,47 @@ fn builtin_operation_methods() -> OperationTemplateBuildMethodFnMap<Operation> {
         "description",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let out_property =
-                TemplateFunction::new(self_property, |op| Ok(op.metadata().description.clone()));
+            let out_property = self_property.map(|op| op.metadata().description.clone());
             Ok(L::wrap_string(out_property))
         },
     );
     map.insert("id", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |op| Ok(op.id().clone()));
+        let out_property = self_property.map(|op| op.id().clone());
         Ok(L::wrap_operation_id(out_property))
     });
     map.insert("tags", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |op| {
+        let out_property = self_property.map(|op| {
             // TODO: introduce map type
-            Ok(op
-                .metadata()
+            op.metadata()
                 .tags
                 .iter()
                 .map(|(key, value)| format!("{key}: {value}"))
-                .join("\n"))
+                .join("\n")
         });
         Ok(L::wrap_string(out_property))
     });
     map.insert("time", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |op| {
-            Ok(TimestampRange {
-                start: op.metadata().start_time.clone(),
-                end: op.metadata().end_time.clone(),
-            })
+        let out_property = self_property.map(|op| TimestampRange {
+            start: op.metadata().start_time.clone(),
+            end: op.metadata().end_time.clone(),
         });
         Ok(L::wrap_timestamp_range(out_property))
     });
     map.insert("user", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |op| {
+        let out_property = self_property.map(|op| {
             // TODO: introduce dedicated type and provide accessors?
-            Ok(format!(
-                "{}@{}",
-                op.metadata().username,
-                op.metadata().hostname
-            ))
+            format!("{}@{}", op.metadata().username, op.metadata().hostname)
         });
         Ok(L::wrap_string(out_property))
     });
     map.insert("root", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
         let root_op_id = language.root_op_id.clone();
-        let out_property =
-            TemplateFunction::new(self_property, move |op| Ok(op.id() == &root_op_id));
+        let out_property = self_property.map(move |op| op.id() == &root_op_id);
         Ok(L::wrap_boolean(out_property))
     });
     map
@@ -302,10 +291,10 @@ fn builtin_operation_id_methods() -> OperationTemplateBuildMethodFnMap<Operation
         let len_property = len_node
             .map(|node| template_builder::expect_usize_expression(language, build_ctx, node))
             .transpose()?;
-        let out_property = TemplateFunction::new((self_property, len_property), |(id, len)| {
+        let out_property = (self_property, len_property).map(|(id, len)| {
             let mut hex = id.hex();
             hex.truncate(len.unwrap_or(12));
-            Ok(hex)
+            hex
         });
         Ok(L::wrap_string(out_property))
     });

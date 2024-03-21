@@ -59,7 +59,7 @@ impl<'a, C> GenericTemplateLanguage<'a, C> {
     ///
     /// ```ignore
     /// language.add_keyword("name", |self_property| {
-    ///     let out_property = TemplateFunction::new(self_property, |v| Ok(v.to_string()));
+    ///     let out_property = self_property.map(|v| v.to_string());
     ///     Ok(GenericTemplateLanguage::wrap_string(out_property))
     /// });
     /// ```

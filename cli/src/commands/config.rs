@@ -26,7 +26,7 @@ use crate::command_error::{user_error, CommandError};
 use crate::config::{AnnotatedValue, ConfigSource};
 use crate::generic_templater::GenericTemplateLanguage;
 use crate::template_builder::TemplateLanguage as _;
-use crate::templater::{Template as _, TemplateFunction};
+use crate::templater::{Template as _, TemplatePropertyExt as _};
 use crate::ui::Ui;
 
 #[derive(clap::Args, Clone, Debug)]
@@ -191,20 +191,16 @@ fn config_template_language() -> GenericTemplateLanguage<'static, AnnotatedValue
     let mut language = L::new();
     // "name" instead of "path" to avoid confusion with the source file path
     language.add_keyword("name", |self_property| {
-        let out_property =
-            TemplateFunction::new(self_property, |annotated| Ok(annotated.path.join(".")));
+        let out_property = self_property.map(|annotated| annotated.path.join("."));
         Ok(L::wrap_string(out_property))
     });
     language.add_keyword("value", |self_property| {
         // TODO: would be nice if we can provide raw dynamically-typed value
-        let out_property = TemplateFunction::new(self_property, |annotated| {
-            Ok(serialize_config_value(&annotated.value))
-        });
+        let out_property = self_property.map(|annotated| serialize_config_value(&annotated.value));
         Ok(L::wrap_string(out_property))
     });
     language.add_keyword("overridden", |self_property| {
-        let out_property =
-            TemplateFunction::new(self_property, |annotated| Ok(annotated.is_overridden));
+        let out_property = self_property.map(|annotated| annotated.is_overridden);
         Ok(L::wrap_boolean(out_property))
     });
     language

@@ -18,7 +18,7 @@ use jj_cli::operation_templater::{
 };
 use jj_cli::template_builder::TemplateLanguage;
 use jj_cli::template_parser::{self, TemplateParseError};
-use jj_cli::templater::{TemplateFunction, TemplatePropertyError};
+use jj_cli::templater::TemplatePropertyExt as _;
 use jj_lib::extensions_map::ExtensionsMap;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::OperationId;
@@ -36,14 +36,14 @@ fn num_digits_in_id(id: &OperationId) -> i64 {
     count
 }
 
-fn num_char_in_id(operation: Operation, ch_match: char) -> Result<i64, TemplatePropertyError> {
+fn num_char_in_id(operation: Operation, ch_match: char) -> i64 {
     let mut count = 0;
     for ch in operation.id().hex().chars() {
         if ch == ch_match {
             count += 1;
         }
     }
-    Ok(count)
+    count
 }
 
 impl OperationTemplateLanguageExtension for HexCounter {
@@ -54,10 +54,9 @@ impl OperationTemplateLanguageExtension for HexCounter {
             "num_digits_in_id",
             |_language, _build_context, property, call| {
                 template_parser::expect_no_arguments(call)?;
-                Ok(L::wrap_integer(TemplateFunction::new(
-                    property,
-                    |operation| Ok(num_digits_in_id(operation.id())),
-                )))
+                Ok(L::wrap_integer(
+                    property.map(|operation| num_digits_in_id(operation.id())),
+                ))
             },
         );
         table.operation_methods.insert(
@@ -76,10 +75,9 @@ impl OperationTemplateLanguageExtension for HexCounter {
                         }
                     })?;
 
-                Ok(L::wrap_integer(TemplateFunction::new(
-                    property,
-                    move |operation| num_char_in_id(operation, char_arg),
-                )))
+                Ok(L::wrap_integer(
+                    property.map(move |operation| num_char_in_id(operation, char_arg)),
+                ))
             },
         );
 

@@ -24,8 +24,8 @@ use crate::template_parser::{
 use crate::templater::{
     ConcatTemplate, ConditionalTemplate, IntoTemplate, LabelTemplate, ListPropertyTemplate,
     ListTemplate, Literal, PlaceholderTemplate, PlainTextFormattedProperty, PropertyPlaceholder,
-    ReformatTemplate, SeparateTemplate, Template, TemplateFunction, TemplateProperty,
-    TemplatePropertyError, TimestampRange,
+    ReformatTemplate, SeparateTemplate, Template, TemplateProperty, TemplatePropertyError,
+    TemplatePropertyExt as _, TimestampRange,
 };
 use crate::{text_util, time_util};
 
@@ -147,14 +147,10 @@ impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Output = bool> + 'a>> {
         match self {
             CoreTemplatePropertyKind::String(property) => {
-                Some(Box::new(TemplateFunction::new(property, |s| {
-                    Ok(!s.is_empty())
-                })))
+                Some(Box::new(property.map(|s| !s.is_empty())))
             }
             CoreTemplatePropertyKind::StringList(property) => {
-                Some(Box::new(TemplateFunction::new(property, |l| {
-                    Ok(!l.is_empty())
-                })))
+                Some(Box::new(property.map(|l| !l.is_empty())))
             }
             CoreTemplatePropertyKind::Boolean(property) => Some(property),
             CoreTemplatePropertyKind::Integer(_) => None,
@@ -473,11 +469,11 @@ fn build_unary_operation<'a, L: TemplateLanguage<'a> + ?Sized>(
     match op {
         UnaryOp::LogicalNot => {
             let arg = expect_boolean_expression(language, build_ctx, arg_node)?;
-            Ok(L::wrap_boolean(TemplateFunction::new(arg, |v| Ok(!v))))
+            Ok(L::wrap_boolean(arg.map(|v| !v)))
         }
         UnaryOp::Negate => {
             let arg = expect_integer_expression(language, build_ctx, arg_node)?;
-            Ok(L::wrap_integer(TemplateFunction::new(arg, |v| {
+            Ok(L::wrap_integer(arg.and_then(|v| {
                 v.checked_neg()
                     .ok_or_else(|| TemplatePropertyError("Attempt to negate with overflow".into()))
             })))
@@ -497,19 +493,13 @@ fn build_binary_operation<'a, L: TemplateLanguage<'a> + ?Sized>(
             // No short-circuiting supported
             let lhs = expect_boolean_expression(language, build_ctx, lhs_node)?;
             let rhs = expect_boolean_expression(language, build_ctx, rhs_node)?;
-            Ok(L::wrap_boolean(TemplateFunction::new(
-                (lhs, rhs),
-                |(l, r)| Ok(l | r),
-            )))
+            Ok(L::wrap_boolean((lhs, rhs).map(|(l, r)| l | r)))
         }
         BinaryOp::LogicalAnd => {
             // No short-circuiting supported
             let lhs = expect_boolean_expression(language, build_ctx, lhs_node)?;
             let rhs = expect_boolean_expression(language, build_ctx, rhs_node)?;
-            Ok(L::wrap_boolean(TemplateFunction::new(
-                (lhs, rhs),
-                |(l, r)| Ok(l & r),
-            )))
+            Ok(L::wrap_boolean((lhs, rhs).map(|(l, r)| l & r)))
         }
     }
 }
@@ -521,7 +511,7 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
     let mut map = TemplateBuildMethodFnMap::<L, String>::new();
     map.insert("len", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |s| Ok(s.len().try_into()?));
+        let out_property = self_property.and_then(|s| Ok(s.len().try_into()?));
         Ok(L::wrap_integer(out_property))
     });
     map.insert(
@@ -530,10 +520,8 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
             let [needle_node] = template_parser::expect_exact_arguments(function)?;
             // TODO: or .try_into_string() to disable implicit type cast?
             let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
-            let out_property =
-                TemplateFunction::new((self_property, needle_property), |(haystack, needle)| {
-                    Ok(haystack.contains(&needle))
-                });
+            let out_property = (self_property, needle_property)
+                .map(|(haystack, needle)| haystack.contains(&needle));
             Ok(L::wrap_boolean(out_property))
         },
     );
@@ -542,10 +530,8 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
         |language, build_ctx, self_property, function| {
             let [needle_node] = template_parser::expect_exact_arguments(function)?;
             let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
-            let out_property =
-                TemplateFunction::new((self_property, needle_property), |(haystack, needle)| {
-                    Ok(haystack.starts_with(&needle))
-                });
+            let out_property = (self_property, needle_property)
+                .map(|(haystack, needle)| haystack.starts_with(&needle));
             Ok(L::wrap_boolean(out_property))
         },
     );
@@ -554,10 +540,8 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
         |language, build_ctx, self_property, function| {
             let [needle_node] = template_parser::expect_exact_arguments(function)?;
             let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
-            let out_property =
-                TemplateFunction::new((self_property, needle_property), |(haystack, needle)| {
-                    Ok(haystack.ends_with(&needle))
-                });
+            let out_property = (self_property, needle_property)
+                .map(|(haystack, needle)| haystack.ends_with(&needle));
             Ok(L::wrap_boolean(out_property))
         },
     );
@@ -566,13 +550,12 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
         |language, build_ctx, self_property, function| {
             let [needle_node] = template_parser::expect_exact_arguments(function)?;
             let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
-            let out_property =
-                TemplateFunction::new((self_property, needle_property), |(haystack, needle)| {
-                    Ok(haystack
-                        .strip_prefix(&needle)
-                        .map(ToOwned::to_owned)
-                        .unwrap_or(haystack))
-                });
+            let out_property = (self_property, needle_property).map(|(haystack, needle)| {
+                haystack
+                    .strip_prefix(&needle)
+                    .map(ToOwned::to_owned)
+                    .unwrap_or(haystack)
+            });
             Ok(L::wrap_string(out_property))
         },
     );
@@ -581,13 +564,12 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
         |language, build_ctx, self_property, function| {
             let [needle_node] = template_parser::expect_exact_arguments(function)?;
             let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
-            let out_property =
-                TemplateFunction::new((self_property, needle_property), |(haystack, needle)| {
-                    Ok(haystack
-                        .strip_suffix(&needle)
-                        .map(ToOwned::to_owned)
-                        .unwrap_or(haystack))
-                });
+            let out_property = (self_property, needle_property).map(|(haystack, needle)| {
+                haystack
+                    .strip_suffix(&needle)
+                    .map(ToOwned::to_owned)
+                    .unwrap_or(haystack)
+            });
             Ok(L::wrap_string(out_property))
         },
     );
@@ -595,41 +577,36 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
         let [start_idx, end_idx] = template_parser::expect_exact_arguments(function)?;
         let start_idx_property = expect_isize_expression(language, build_ctx, start_idx)?;
         let end_idx_property = expect_isize_expression(language, build_ctx, end_idx)?;
-        let out_property = TemplateFunction::new(
-            (self_property, start_idx_property, end_idx_property),
-            |(s, start_idx, end_idx)| {
+        let out_property =
+            (self_property, start_idx_property, end_idx_property).map(|(s, start_idx, end_idx)| {
                 let start_idx = string_index_to_char_boundary(&s, start_idx);
                 let end_idx = string_index_to_char_boundary(&s, end_idx);
-                Ok(s.get(start_idx..end_idx).unwrap_or_default().to_owned())
-            },
-        );
+                s.get(start_idx..end_idx).unwrap_or_default().to_owned()
+            });
         Ok(L::wrap_string(out_property))
     });
     map.insert(
         "first_line",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let out_property = TemplateFunction::new(self_property, |s| {
-                Ok(s.lines().next().unwrap_or_default().to_string())
-            });
+            let out_property =
+                self_property.map(|s| s.lines().next().unwrap_or_default().to_string());
             Ok(L::wrap_string(out_property))
         },
     );
     map.insert("lines", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |s| {
-            Ok(s.lines().map(|l| l.to_owned()).collect())
-        });
+        let out_property = self_property.map(|s| s.lines().map(|l| l.to_owned()).collect());
         Ok(L::wrap_string_list(out_property))
     });
     map.insert("upper", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |s| Ok(s.to_uppercase()));
+        let out_property = self_property.map(|s| s.to_uppercase());
         Ok(L::wrap_string(out_property))
     });
     map.insert("lower", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |s| Ok(s.to_lowercase()));
+        let out_property = self_property.map(|s| s.to_lowercase());
         Ok(L::wrap_string(out_property))
     });
     map
@@ -658,21 +635,21 @@ fn builtin_signature_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
     let mut map = TemplateBuildMethodFnMap::<L, Signature>::new();
     map.insert("name", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |signature| Ok(signature.name));
+        let out_property = self_property.map(|signature| signature.name);
         Ok(L::wrap_string(out_property))
     });
     map.insert("email", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |signature| Ok(signature.email));
+        let out_property = self_property.map(|signature| signature.email);
         Ok(L::wrap_string(out_property))
     });
     map.insert(
         "username",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let out_property = TemplateFunction::new(self_property, |signature| {
+            let out_property = self_property.map(|signature| {
                 let (username, _) = text_util::split_email(&signature.email);
-                Ok(username.to_owned())
+                username.to_owned()
             });
             Ok(L::wrap_string(out_property))
         },
@@ -681,8 +658,7 @@ fn builtin_signature_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
         "timestamp",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let out_property =
-                TemplateFunction::new(self_property, |signature| Ok(signature.timestamp));
+            let out_property = self_property.map(|signature| signature.timestamp);
             Ok(L::wrap_timestamp(out_property))
         },
     );
@@ -698,9 +674,8 @@ fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
         template_parser::expect_no_arguments(function)?;
         let now = Timestamp::now();
         let format = timeago::Formatter::new();
-        let out_property = TemplateFunction::new(self_property, move |timestamp| {
-            Ok(time_util::format_duration(&timestamp, &now, &format)?)
-        });
+        let out_property = self_property
+            .and_then(move |timestamp| Ok(time_util::format_duration(&timestamp, &now, &format)?));
         Ok(L::wrap_string(out_property))
     });
     map.insert(
@@ -715,7 +690,7 @@ fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
                     })
                 })?
                 .into_owned();
-            let out_property = TemplateFunction::new(self_property, move |timestamp| {
+            let out_property = self_property.and_then(move |timestamp| {
                 Ok(time_util::format_absolute_timestamp_with(
                     &timestamp, &format,
                 )?)
@@ -725,9 +700,9 @@ fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
     );
     map.insert("utc", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |mut timestamp| {
+        let out_property = self_property.map(|mut timestamp| {
             timestamp.tz_offset = 0;
-            Ok(timestamp)
+            timestamp
         });
         Ok(L::wrap_timestamp(out_property))
     });
@@ -737,9 +712,9 @@ fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
             .ok()
             .and_then(|tz_string| tz_string.parse::<i32>().ok())
             .unwrap_or_else(|| chrono::Local::now().offset().local_minus_utc() / 60);
-        let out_property = TemplateFunction::new(self_property, move |mut timestamp| {
+        let out_property = self_property.map(move |mut timestamp| {
             timestamp.tz_offset = tz_offset;
-            Ok(timestamp)
+            timestamp
         });
         Ok(L::wrap_timestamp(out_property))
     });
@@ -753,20 +728,19 @@ fn builtin_timestamp_range_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
     let mut map = TemplateBuildMethodFnMap::<L, TimestampRange>::new();
     map.insert("start", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |time_range| Ok(time_range.start));
+        let out_property = self_property.map(|time_range| time_range.start);
         Ok(L::wrap_timestamp(out_property))
     });
     map.insert("end", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |time_range| Ok(time_range.end));
+        let out_property = self_property.map(|time_range| time_range.end);
         Ok(L::wrap_timestamp(out_property))
     });
     map.insert(
         "duration",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let out_property =
-                TemplateFunction::new(self_property, |time_range| Ok(time_range.duration()?));
+            let out_property = self_property.and_then(|time_range| Ok(time_range.duration()?));
             Ok(L::wrap_string(out_property))
         },
     );
@@ -807,8 +781,7 @@ where
     let property = match function.name {
         "len" => {
             template_parser::expect_no_arguments(function)?;
-            let out_property =
-                TemplateFunction::new(self_property, |items| Ok(items.len().try_into()?));
+            let out_property = self_property.and_then(|items| Ok(items.len().try_into()?));
             L::wrap_integer(out_property)
         }
         "join" => {
@@ -840,8 +813,7 @@ where
     let property = match function.name {
         "len" => {
             template_parser::expect_no_arguments(function)?;
-            let out_property =
-                TemplateFunction::new(self_property, |items| Ok(items.len().try_into()?));
+            let out_property = self_property.and_then(|items| Ok(items.len().try_into()?));
             L::wrap_integer(out_property)
         }
         // No "join"
@@ -930,9 +902,8 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
         let [label_node, content_node] = template_parser::expect_exact_arguments(function)?;
         let label_property = expect_plain_text_expression(language, build_ctx, label_node)?;
         let content = expect_template_expression(language, build_ctx, content_node)?;
-        let labels = TemplateFunction::new(label_property, |s| {
-            Ok(s.split_whitespace().map(ToString::to_string).collect())
-        });
+        let labels =
+            label_property.map(|s| s.split_whitespace().map(ToString::to_string).collect());
         Ok(L::wrap_template(Box::new(LabelTemplate::new(
             content, labels,
         ))))
@@ -1123,7 +1094,7 @@ pub fn expect_isize_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     node: &ExpressionNode,
 ) -> TemplateParseResult<Box<dyn TemplateProperty<Output = isize> + 'a>> {
     let i64_property = expect_integer_expression(language, build_ctx, node)?;
-    let isize_property = TemplateFunction::new(i64_property, |v| Ok(isize::try_from(v)?));
+    let isize_property = i64_property.and_then(|v| Ok(isize::try_from(v)?));
     Ok(Box::new(isize_property))
 }
 
@@ -1134,7 +1105,7 @@ pub fn expect_usize_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     node: &ExpressionNode,
 ) -> TemplateParseResult<Box<dyn TemplateProperty<Output = usize> + 'a>> {
     let i64_property = expect_integer_expression(language, build_ctx, node)?;
-    let usize_property = TemplateFunction::new(i64_property, |v| Ok(usize::try_from(v)?));
+    let usize_property = i64_property.and_then(|v| Ok(usize::try_from(v)?));
     Ok(Box::new(usize_property))
 }
 

@@ -18,7 +18,7 @@ use jj_cli::commit_templater::{
 };
 use jj_cli::template_builder::TemplateLanguage;
 use jj_cli::template_parser::{self, TemplateParseError};
-use jj_cli::templater::{TemplateFunction, TemplatePropertyError};
+use jj_cli::templater::TemplatePropertyExt as _;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::extensions_map::ExtensionsMap;
@@ -39,14 +39,14 @@ fn num_digits_in_id(id: &CommitId) -> i64 {
     count
 }
 
-fn num_char_in_id(commit: Commit, ch_match: char) -> Result<i64, TemplatePropertyError> {
+fn num_char_in_id(commit: Commit, ch_match: char) -> i64 {
     let mut count = 0;
     for ch in commit.id().hex().chars() {
         if ch == ch_match {
             count += 1;
         }
     }
-    Ok(count)
+    count
 }
 
 struct MostDigitsInId {
@@ -85,19 +85,18 @@ impl CommitTemplateLanguageExtension for HexCounter {
                     .cache_extension::<MostDigitsInId>()
                     .unwrap()
                     .count(language.repo());
-                Ok(L::wrap_boolean(TemplateFunction::new(
-                    property,
-                    move |commit| Ok(num_digits_in_id(commit.id()) == most_digits),
-                )))
+                Ok(L::wrap_boolean(property.map(move |commit| {
+                    num_digits_in_id(commit.id()) == most_digits
+                })))
             },
         );
         table.commit_methods.insert(
             "num_digits_in_id",
             |_language, _build_context, property, call| {
                 template_parser::expect_no_arguments(call)?;
-                Ok(L::wrap_integer(TemplateFunction::new(property, |commit| {
-                    Ok(num_digits_in_id(commit.id()))
-                })))
+                Ok(L::wrap_integer(
+                    property.map(|commit| num_digits_in_id(commit.id())),
+                ))
             },
         );
         table.commit_methods.insert(
@@ -116,10 +115,9 @@ impl CommitTemplateLanguageExtension for HexCounter {
                         }
                     })?;
 
-                Ok(L::wrap_integer(TemplateFunction::new(
-                    property,
-                    move |commit| num_char_in_id(commit, char_arg),
-                )))
+                Ok(L::wrap_integer(
+                    property.map(move |commit| num_char_in_id(commit, char_arg)),
+                ))
             },
         );
 
