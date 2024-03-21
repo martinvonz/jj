@@ -88,9 +88,9 @@ use crate::git_util::{
 };
 use crate::merge_tools::{DiffEditor, MergeEditor, MergeToolConfigError};
 use crate::operation_templater::OperationTemplateLanguageExtension;
-use crate::template_builder::{RootTemplate, TemplateLanguage};
+use crate::template_builder::TemplateLanguage;
 use crate::template_parser::TemplateAliasesMap;
-use crate::templater::{PropertyPlaceholder, Template};
+use crate::templater::{PropertyPlaceholder, TemplateRenderer};
 use crate::ui::{ColorChoice, Ui};
 use crate::{revset_util, template_builder, text_util};
 
@@ -251,7 +251,7 @@ impl CommandHelper {
         language: &L,
         template_text: &str,
         wrap_self: impl Fn(PropertyPlaceholder<C>) -> L::Property,
-    ) -> Result<RootTemplate<'a, C>, CommandError> {
+    ) -> Result<TemplateRenderer<'a, C>, CommandError> {
         let aliases = self.load_template_aliases(ui)?;
         Ok(template_builder::parse(
             language,
@@ -915,7 +915,7 @@ It resolved to these revisions:
         language: &L,
         template_text: &str,
         wrap_self: impl Fn(PropertyPlaceholder<C>) -> L::Property,
-    ) -> Result<RootTemplate<'a, C>, CommandError> {
+    ) -> Result<TemplateRenderer<'a, C>, CommandError> {
         let aliases = &self.template_aliases_map;
         Ok(template_builder::parse(
             language,
@@ -929,7 +929,7 @@ It resolved to these revisions:
     pub fn parse_commit_template(
         &self,
         template_text: &str,
-    ) -> Result<RootTemplate<'_, Commit>, CommandError> {
+    ) -> Result<TemplateRenderer<'_, Commit>, CommandError> {
         let language = self.commit_template_language()?;
         self.parse_template(
             &language,
@@ -950,7 +950,7 @@ It resolved to these revisions:
     }
 
     /// Template for one-line summary of a commit.
-    pub fn commit_summary_template(&self) -> RootTemplate<'_, Commit> {
+    pub fn commit_summary_template(&self) -> TemplateRenderer<'_, Commit> {
         self.parse_commit_template(&self.commit_summary_template_text)
             .expect("parse error should be confined by WorkspaceCommandHelper::new()")
     }
@@ -2348,7 +2348,7 @@ pub fn parse_args(
     Ok((matches, args))
 }
 
-pub fn format_template<T>(ui: &Ui, arg: &T, template: &dyn Template<T>) -> String {
+pub fn format_template<C: Clone>(ui: &Ui, arg: &C, template: &TemplateRenderer<C>) -> String {
     let mut output = vec![];
     template
         .format(arg, ui.new_formatter(&mut output).as_mut())

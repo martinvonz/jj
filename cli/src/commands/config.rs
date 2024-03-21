@@ -26,7 +26,7 @@ use crate::command_error::{config_error, user_error, CommandError};
 use crate::config::{AnnotatedValue, ConfigSource};
 use crate::generic_templater::GenericTemplateLanguage;
 use crate::template_builder::TemplateLanguage as _;
-use crate::templater::{Template as _, TemplatePropertyExt as _};
+use crate::templater::TemplatePropertyExt as _;
 use crate::ui::Ui;
 
 #[derive(clap::Args, Clone, Debug)]

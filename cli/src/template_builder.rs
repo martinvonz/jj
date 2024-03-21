@@ -23,9 +23,9 @@ use crate::template_parser::{
 };
 use crate::templater::{
     ConcatTemplate, ConditionalTemplate, IntoTemplate, LabelTemplate, ListPropertyTemplate,
-    ListTemplate, Literal, PlaceholderTemplate, PlainTextFormattedProperty, PropertyPlaceholder,
-    ReformatTemplate, SeparateTemplate, Template, TemplateProperty, TemplatePropertyError,
-    TemplatePropertyExt as _, TimestampRange,
+    ListTemplate, Literal, PlainTextFormattedProperty, PropertyPlaceholder, ReformatTemplate,
+    SeparateTemplate, Template, TemplateProperty, TemplatePropertyError, TemplatePropertyExt as _,
+    TemplateRenderer, TimestampRange,
 };
 use crate::{text_util, time_util};
 
@@ -1032,10 +1032,6 @@ pub fn build_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     }
 }
 
-/// Template compiled for top-level property of type `C`.
-// TODO: reconsider Template<C> abstraction
-pub type RootTemplate<'a, C> = PlaceholderTemplate<C, Box<dyn Template<()> + 'a>>;
-
 /// Builds template evaluation tree from AST nodes, with fresh build context.
 ///
 /// `wrap_self` specifies the type of the top-level property, which should be
@@ -1046,14 +1042,14 @@ pub fn build<'a, C: Clone + 'a, L: TemplateLanguage<'a> + ?Sized>(
     // TODO: Generic L: WrapProperty<C> trait might be better. See the
     // comment in build_formattable_list_method().
     wrap_self: impl Fn(PropertyPlaceholder<C>) -> L::Property,
-) -> TemplateParseResult<RootTemplate<'a, C>> {
+) -> TemplateParseResult<TemplateRenderer<'a, C>> {
     let self_placeholder = PropertyPlaceholder::new();
     let build_ctx = BuildContext {
         local_variables: HashMap::new(),
         self_variable: &|| wrap_self(self_placeholder.clone()),
     };
     let template = expect_template_expression(language, &build_ctx, node)?;
-    Ok(PlaceholderTemplate::new(template, self_placeholder))
+    Ok(TemplateRenderer::new(template, self_placeholder))
 }
 
 /// Parses text, expands aliases, then builds template evaluation tree.
@@ -1062,7 +1058,7 @@ pub fn parse<'a, C: Clone + 'a, L: TemplateLanguage<'a> + ?Sized>(
     template_text: &str,
     aliases_map: &TemplateAliasesMap,
     wrap_self: impl Fn(PropertyPlaceholder<C>) -> L::Property,
-) -> TemplateParseResult<RootTemplate<'a, C>> {
+) -> TemplateParseResult<TemplateRenderer<'a, C>> {
     let node = template_parser::parse(template_text, aliases_map)?;
     build(language, &node, wrap_self).map_err(|err| err.extend_alias_candidates(aliases_map))
 }
@@ -1182,7 +1178,7 @@ mod tests {
             self.color_rules.push((labels, style));
         }
 
-        fn parse(&self, template: &str) -> TemplateParseResult<RootTemplate<'static, ()>> {
+        fn parse(&self, template: &str) -> TemplateParseResult<TemplateRenderer<'static, ()>> {
             parse(&self.language, template, &self.aliases_map, L::wrap_self)
         }
 

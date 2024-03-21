@@ -33,7 +33,6 @@ use crate::cli_util::{
     RevisionArg, WorkingCopyFreshness, WorkspaceCommandHelper,
 };
 use crate::command_error::{internal_error_with_message, user_error, CommandError};
-use crate::templater::Template as _;
 use crate::ui::Ui;
 
 /// Commands for working with workspaces

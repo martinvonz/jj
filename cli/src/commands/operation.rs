@@ -27,7 +27,6 @@ use crate::cli_util::{format_template, short_operation_hash, CommandHelper, LogC
 use crate::command_error::{user_error, user_error_with_hint, CommandError};
 use crate::graphlog::{get_graphlog, Edge};
 use crate::operation_templater::OperationTemplateLanguage;
-use crate::templater::Template as _;
 use crate::ui::Ui;
 
 /// Commands for working with the operation log

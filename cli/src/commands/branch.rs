@@ -32,7 +32,6 @@ use crate::cli_util::{
 };
 use crate::command_error::{user_error, user_error_with_hint, CommandError};
 use crate::formatter::Formatter;
-use crate::templater::Template as _;
 use crate::ui::Ui;
 
 /// Manage branches.

@@ -26,7 +26,6 @@ use crate::commit_templater::CommitTemplateLanguage;
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
 use crate::formatter::Formatter;
 use crate::graphlog::{get_graphlog, Edge};
-use crate::templater::Template as _;
 use crate::ui::Ui;
 
 /// Show how a change has evolved

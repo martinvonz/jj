@@ -22,7 +22,6 @@ use tracing::instrument;
 
 use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::CommandError;
-use crate::templater::Template as _;
 use crate::ui::Ui;
 
 /// Abandon a revision
