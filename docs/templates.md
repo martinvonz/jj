@@ -31,8 +31,8 @@ The following operators are supported.
 * `x.f()`: Method call.
 * `-x`: Negate integer value.
 * `!x`: Logical not.
-* `x && y`: Logical and.
-* `x || y`: Logical or.
+* `x && y`: Logical and, short-circuiting.
+* `x || y`: Logical or, short-circuiting.
 * `x ++ y`: Concatenate `x` and `y` templates.
 
 ## Global functions
