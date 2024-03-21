@@ -38,7 +38,8 @@ use crate::template_builder::{
 };
 use crate::template_parser::{self, FunctionCallNode, TemplateParseError, TemplateParseResult};
 use crate::templater::{
-    self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateFunction, TemplateProperty,
+    self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateProperty,
+    TemplatePropertyExt as _,
 };
 use crate::{revset_util, text_util};
 
@@ -236,15 +237,11 @@ impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
             CommitTemplatePropertyKind::Core(property) => property.try_into_boolean(),
             CommitTemplatePropertyKind::Commit(_) => None,
             CommitTemplatePropertyKind::CommitList(property) => {
-                Some(Box::new(TemplateFunction::new(property, |l| {
-                    Ok(!l.is_empty())
-                })))
+                Some(Box::new(property.map(|l| !l.is_empty())))
             }
             CommitTemplatePropertyKind::RefName(_) => None,
             CommitTemplatePropertyKind::RefNameList(property) => {
-                Some(Box::new(TemplateFunction::new(property, |l| {
-                    Ok(!l.is_empty())
-                })))
+                Some(Box::new(property.map(|l| !l.is_empty())))
             }
             CommitTemplatePropertyKind::CommitOrChangeId(_) => None,
             CommitTemplatePropertyKind::ShortestIdPrefix(_) => None,
@@ -377,9 +374,8 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         "description",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let out_property = TemplateFunction::new(self_property, |commit| {
-                Ok(text_util::complete_newline(commit.description()))
-            });
+            let out_property =
+                self_property.map(|commit| text_util::complete_newline(commit.description()));
             Ok(L::wrap_string(out_property))
         },
     );
@@ -387,9 +383,8 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         "change_id",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let out_property = TemplateFunction::new(self_property, |commit| {
-                Ok(CommitOrChangeId::Change(commit.change_id().to_owned()))
-            });
+            let out_property =
+                self_property.map(|commit| CommitOrChangeId::Change(commit.change_id().to_owned()));
             Ok(L::wrap_commit_or_change_id(out_property))
         },
     );
@@ -397,9 +392,8 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         "commit_id",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let out_property = TemplateFunction::new(self_property, |commit| {
-                Ok(CommitOrChangeId::Commit(commit.id().to_owned()))
-            });
+            let out_property =
+                self_property.map(|commit| CommitOrChangeId::Commit(commit.id().to_owned()));
             Ok(L::wrap_commit_or_change_id(out_property))
         },
     );
@@ -407,7 +401,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         "parents",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let out_property = TemplateFunction::new(self_property, |commit| Ok(commit.parents()));
+            let out_property = self_property.map(|commit| commit.parents());
             Ok(L::wrap_commit_list(out_property))
         },
     );
@@ -415,8 +409,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         "author",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let out_property =
-                TemplateFunction::new(self_property, |commit| Ok(commit.author().clone()));
+            let out_property = self_property.map(|commit| commit.author().clone());
             Ok(L::wrap_signature(out_property))
         },
     );
@@ -424,8 +417,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         "committer",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let out_property =
-                TemplateFunction::new(self_property, |commit| Ok(commit.committer().clone()));
+            let out_property = self_property.map(|commit| commit.committer().clone());
             Ok(L::wrap_signature(out_property))
         },
     );
@@ -434,9 +426,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
             let repo = language.repo;
-            let out_property = TemplateFunction::new(self_property, |commit| {
-                Ok(extract_working_copies(repo, &commit))
-            });
+            let out_property = self_property.map(|commit| extract_working_copies(repo, &commit));
             Ok(L::wrap_string(out_property))
         },
     );
@@ -446,8 +436,8 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
             template_parser::expect_no_arguments(function)?;
             let repo = language.repo;
             let workspace_id = language.workspace_id.clone();
-            let out_property = TemplateFunction::new(self_property, move |commit| {
-                Ok(Some(commit.id()) == repo.view().get_wc_commit_id(&workspace_id))
+            let out_property = self_property.map(move |commit| {
+                Some(commit.id()) == repo.view().get_wc_commit_id(&workspace_id)
             });
             Ok(L::wrap_boolean(out_property))
         },
@@ -457,13 +447,13 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
             let index = language.keyword_cache.branches_index(language.repo).clone();
-            let out_property = TemplateFunction::new(self_property, move |commit| {
-                Ok(index
+            let out_property = self_property.map(move |commit| {
+                index
                     .get(commit.id())
                     .iter()
                     .filter(|ref_name| ref_name.is_local() || !ref_name.synced)
                     .cloned()
-                    .collect())
+                    .collect()
             });
             Ok(L::wrap_ref_name_list(out_property))
         },
@@ -473,13 +463,13 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
             let index = language.keyword_cache.branches_index(language.repo).clone();
-            let out_property = TemplateFunction::new(self_property, move |commit| {
-                Ok(index
+            let out_property = self_property.map(move |commit| {
+                index
                     .get(commit.id())
                     .iter()
                     .filter(|ref_name| ref_name.is_local())
                     .cloned()
-                    .collect())
+                    .collect()
             });
             Ok(L::wrap_ref_name_list(out_property))
         },
@@ -489,13 +479,13 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
             let index = language.keyword_cache.branches_index(language.repo).clone();
-            let out_property = TemplateFunction::new(self_property, move |commit| {
-                Ok(index
+            let out_property = self_property.map(move |commit| {
+                index
                     .get(commit.id())
                     .iter()
                     .filter(|ref_name| ref_name.is_remote())
                     .cloned()
-                    .collect())
+                    .collect()
             });
             Ok(L::wrap_ref_name_list(out_property))
         },
@@ -503,9 +493,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
     map.insert("tags", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
         let index = language.keyword_cache.tags_index(language.repo).clone();
-        let out_property = TemplateFunction::new(self_property, move |commit| {
-            Ok(index.get(commit.id()).to_vec())
-        });
+        let out_property = self_property.map(move |commit| index.get(commit.id()).to_vec());
         Ok(L::wrap_ref_name_list(out_property))
     });
     map.insert(
@@ -513,9 +501,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
             let index = language.keyword_cache.git_refs_index(language.repo).clone();
-            let out_property = TemplateFunction::new(self_property, move |commit| {
-                Ok(index.get(commit.id()).to_vec())
-            });
+            let out_property = self_property.map(move |commit| index.get(commit.id()).to_vec());
             Ok(L::wrap_ref_name_list(out_property))
         },
     );
@@ -524,8 +510,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
             let repo = language.repo;
-            let out_property =
-                TemplateFunction::new(self_property, |commit| Ok(extract_git_head(repo, &commit)));
+            let out_property = self_property.map(|commit| extract_git_head(repo, &commit));
             Ok(L::wrap_ref_name_list(out_property))
         },
     );
@@ -534,10 +519,10 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
             let repo = language.repo;
-            let out_property = TemplateFunction::new(self_property, |commit| {
+            let out_property = self_property.map(|commit| {
                 // The given commit could be hidden in e.g. obslog.
                 let maybe_entries = repo.resolve_change_id(commit.change_id());
-                Ok(maybe_entries.map_or(0, |entries| entries.len()) > 1)
+                maybe_entries.map_or(0, |entries| entries.len()) > 1
             });
             Ok(L::wrap_boolean(out_property))
         },
@@ -545,9 +530,9 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
     map.insert("hidden", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
         let repo = language.repo;
-        let out_property = TemplateFunction::new(self_property, |commit| {
+        let out_property = self_property.map(|commit| {
             let maybe_entries = repo.resolve_change_id(commit.change_id());
-            Ok(maybe_entries.map_or(true, |entries| !entries.contains(commit.id())))
+            maybe_entries.map_or(true, |entries| !entries.contains(commit.id()))
         });
         Ok(L::wrap_boolean(out_property))
     });
@@ -557,8 +542,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
             template_parser::expect_no_arguments(function)?;
             let revset = evaluate_immutable_revset(language, function.name_span)?;
             let is_immutable = revset.containing_fn();
-            let out_property =
-                TemplateFunction::new(self_property, move |commit| Ok(is_immutable(commit.id())));
+            let out_property = self_property.map(move |commit| is_immutable(commit.id()));
             Ok(L::wrap_boolean(out_property))
         },
     );
@@ -566,15 +550,14 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         "conflict",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let out_property =
-                TemplateFunction::new(self_property, |commit| Ok(commit.has_conflict()?));
+            let out_property = self_property.and_then(|commit| Ok(commit.has_conflict()?));
             Ok(L::wrap_boolean(out_property))
         },
     );
     map.insert("empty", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
         let repo = language.repo;
-        let out_property = TemplateFunction::new(self_property, |commit| {
+        let out_property = self_property.and_then(|commit| {
             if let [parent] = &commit.parents()[..] {
                 return Ok(parent.tree_id() == commit.tree_id());
             }
@@ -586,9 +569,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
     map.insert("root", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
         let repo = language.repo;
-        let out_property = TemplateFunction::new(self_property, |commit| {
-            Ok(commit.id() == repo.store().root_commit_id())
-        });
+        let out_property = self_property.map(|commit| commit.id() == repo.store().root_commit_id());
         Ok(L::wrap_boolean(out_property))
     });
     map
@@ -682,16 +663,14 @@ fn builtin_ref_name_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Re
     let mut map = CommitTemplateBuildMethodFnMap::<RefName>::new();
     map.insert("name", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |ref_name| Ok(ref_name.name));
+        let out_property = self_property.map(|ref_name| ref_name.name);
         Ok(L::wrap_string(out_property))
     });
     map.insert(
         "remote",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let out_property = TemplateFunction::new(self_property, |ref_name| {
-                Ok(ref_name.remote.unwrap_or_default())
-            });
+            let out_property = self_property.map(|ref_name| ref_name.remote.unwrap_or_default());
             Ok(L::wrap_string(out_property))
         },
     );
@@ -842,9 +821,8 @@ fn builtin_commit_or_change_id_methods<'repo>(
         let len_property = len_node
             .map(|node| template_builder::expect_usize_expression(language, build_ctx, node))
             .transpose()?;
-        let out_property = TemplateFunction::new((self_property, len_property), |(id, len)| {
-            Ok(id.short(len.unwrap_or(12)))
-        });
+        let out_property =
+            (self_property, len_property).map(|(id, len)| id.short(len.unwrap_or(12)));
         Ok(L::wrap_string(out_property))
     });
     map.insert(
@@ -855,9 +833,8 @@ fn builtin_commit_or_change_id_methods<'repo>(
             let len_property = len_node
                 .map(|node| template_builder::expect_usize_expression(language, build_ctx, node))
                 .transpose()?;
-            let out_property = TemplateFunction::new((self_property, len_property), |(id, len)| {
-                Ok(id.shortest(language.repo, id_prefix_context, len.unwrap_or(0)))
-            });
+            let out_property = (self_property, len_property)
+                .map(|(id, len)| id.shortest(language.repo, id_prefix_context, len.unwrap_or(0)));
             Ok(L::wrap_shortest_id_prefix(out_property))
         },
     );
@@ -902,23 +879,23 @@ fn builtin_shortest_id_prefix_methods<'repo>(
         "prefix",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let out_property = TemplateFunction::new(self_property, |id| Ok(id.prefix));
+            let out_property = self_property.map(|id| id.prefix);
             Ok(L::wrap_string(out_property))
         },
     );
     map.insert("rest", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |id| Ok(id.rest));
+        let out_property = self_property.map(|id| id.rest);
         Ok(L::wrap_string(out_property))
     });
     map.insert("upper", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |id| Ok(id.to_upper()));
+        let out_property = self_property.map(|id| id.to_upper());
         Ok(L::wrap_shortest_id_prefix(out_property))
     });
     map.insert("lower", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = TemplateFunction::new(self_property, |id| Ok(id.to_lower()));
+        let out_property = self_property.map(|id| id.to_lower());
         Ok(L::wrap_shortest_id_prefix(out_property))
     });
     map
