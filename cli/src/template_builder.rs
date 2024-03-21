@@ -490,16 +490,16 @@ fn build_binary_operation<'a, L: TemplateLanguage<'a> + ?Sized>(
 ) -> TemplateParseResult<L::Property> {
     match op {
         BinaryOp::LogicalOr => {
-            // No short-circuiting supported
             let lhs = expect_boolean_expression(language, build_ctx, lhs_node)?;
             let rhs = expect_boolean_expression(language, build_ctx, rhs_node)?;
-            Ok(L::wrap_boolean((lhs, rhs).map(|(l, r)| l | r)))
+            let out = lhs.and_then(move |l| Ok(l || rhs.extract()?));
+            Ok(L::wrap_boolean(out))
         }
         BinaryOp::LogicalAnd => {
-            // No short-circuiting supported
             let lhs = expect_boolean_expression(language, build_ctx, lhs_node)?;
             let rhs = expect_boolean_expression(language, build_ctx, rhs_node)?;
-            Ok(L::wrap_boolean((lhs, rhs).map(|(l, r)| l & r)))
+            let out = lhs.and_then(move |l| Ok(l && rhs.extract()?));
+            Ok(L::wrap_boolean(out))
         }
     }
 }
@@ -1201,6 +1201,10 @@ mod tests {
         }
     }
 
+    fn new_error_property<O>(message: &str) -> impl TemplateProperty<Output = O> + '_ {
+        Literal(()).and_then(|()| Err(TemplatePropertyError(message.into())))
+    }
+
     fn new_signature(name: &str, email: &str) -> Signature {
         Signature {
             name: name.to_owned(),
@@ -1492,7 +1496,7 @@ mod tests {
 
     #[test]
     fn test_logical_operation() {
-        let env = TestTemplateEnv::new();
+        let mut env = TestTemplateEnv::new();
 
         insta::assert_snapshot!(env.render_ok(r#"!false"#), @"true");
         insta::assert_snapshot!(env.render_ok(r#"false || !false"#), @"true");
@@ -1500,6 +1504,13 @@ mod tests {
 
         insta::assert_snapshot!(env.render_ok(r#" !"" "#), @"true");
         insta::assert_snapshot!(env.render_ok(r#" "" || "a".lines() "#), @"true");
+
+        // Short-circuiting
+        env.add_keyword("bad_bool", || L::wrap_boolean(new_error_property("Bad")));
+        insta::assert_snapshot!(env.render_ok(r#"false && bad_bool"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"true && bad_bool"#), @"<Error: Bad>");
+        insta::assert_snapshot!(env.render_ok(r#"false || bad_bool"#), @"<Error: Bad>");
+        insta::assert_snapshot!(env.render_ok(r#"true || bad_bool"#), @"true");
     }
 
     #[test]
