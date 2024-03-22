@@ -281,7 +281,7 @@ fn show_color_words_diff_hunks(
             }
             if start_skipping_context {
                 context.drain(..2);
-                formatter.write_str(SKIPPED_CONTEXT_LINE)?;
+                write!(formatter, "{SKIPPED_CONTEXT_LINE}")?;
                 skipped_context = true;
                 context_before = true;
             }
@@ -305,7 +305,7 @@ fn show_color_words_diff_hunks(
             show_color_words_diff_line(formatter, line)?;
         }
         if context_before {
-            formatter.write_str(SKIPPED_CONTEXT_LINE)?;
+            write!(formatter, "{SKIPPED_CONTEXT_LINE}")?;
         }
     }
 
@@ -313,7 +313,7 @@ fn show_color_words_diff_hunks(
     let no_hunk = left.is_empty() && right.is_empty();
     let any_last_newline = left.ends_with(b"\n") || right.ends_with(b"\n");
     if !skipped_context && !no_hunk && !any_last_newline {
-        formatter.write_str("\n")?;
+        writeln!(formatter)?;
     }
 
     Ok(())
@@ -329,9 +329,9 @@ fn show_color_words_diff_line(
             "{:>4}",
             diff_line.left_line_number
         )?;
-        formatter.write_str(" ")?;
+        write!(formatter, " ")?;
     } else {
-        formatter.write_str("     ")?;
+        write!(formatter, "     ")?;
     }
     if diff_line.has_right_content {
         write!(
@@ -339,9 +339,9 @@ fn show_color_words_diff_line(
             "{:>4}",
             diff_line.right_line_number
         )?;
-        formatter.write_str(": ")?;
+        write!(formatter, ": ")?;
     } else {
-        formatter.write_str("    : ")?;
+        write!(formatter, "    : ")?;
     }
     for hunk in &diff_line.hunks {
         match hunk {
@@ -744,25 +744,25 @@ fn show_unified_diff_hunks(
             match line_type {
                 DiffLineType::Context => {
                     formatter.with_label("context", |formatter| {
-                        formatter.write_str(" ")?;
+                        write!(formatter, " ")?;
                         formatter.write_all(content)
                     })?;
                 }
                 DiffLineType::Removed => {
                     formatter.with_label("removed", |formatter| {
-                        formatter.write_str("-")?;
+                        write!(formatter, "-")?;
                         formatter.write_all(content)
                     })?;
                 }
                 DiffLineType::Added => {
                     formatter.with_label("added", |formatter| {
-                        formatter.write_str("+")?;
+                        write!(formatter, "+")?;
                         formatter.write_all(content)
                     })?;
                 }
             }
             if !content.ends_with(b"\n") {
-                formatter.write_str("\n\\ No newline at end of file\n")?;
+                write!(formatter, "\n\\ No newline at end of file\n")?;
             }
         }
     }

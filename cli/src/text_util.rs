@@ -261,6 +261,8 @@ pub fn write_wrapped(
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write as _;
+
     use super::*;
     use crate::formatter::{ColorFormatter, PlainTextFormatter};
 
@@ -495,7 +497,7 @@ mod tests {
         // Split single label chunk
         let mut recorder = FormatRecorder::new();
         recorder.push_label("red").unwrap();
-        recorder.write_str("foo bar baz\nqux quux\n").unwrap();
+        write!(recorder, "foo bar baz\nqux quux\n").unwrap();
         recorder.pop_label().unwrap();
         insta::assert_snapshot!(
             format_colored(|formatter| write_wrapped(formatter, &recorder, 7)),
@@ -511,7 +513,7 @@ mod tests {
         let mut recorder = FormatRecorder::new();
         for (i, word) in ["foo ", "bar ", "baz\n", "qux ", "quux"].iter().enumerate() {
             recorder.push_label(["red", "cyan"][i & 1]).unwrap();
-            recorder.write_str(word).unwrap();
+            write!(recorder, "{word}").unwrap();
             recorder.pop_label().unwrap();
         }
         insta::assert_snapshot!(
@@ -528,8 +530,7 @@ mod tests {
         let mut recorder = FormatRecorder::new();
         for (i, word) in ["", "foo", "", "bar baz", ""].iter().enumerate() {
             recorder.push_label(["red", "cyan"][i & 1]).unwrap();
-            recorder.write_str(word).unwrap();
-            recorder.write_str("\n").unwrap();
+            writeln!(recorder, "{word}").unwrap();
             recorder.pop_label().unwrap();
         }
         insta::assert_snapshot!(
@@ -546,11 +547,11 @@ mod tests {
         // Split at label boundary
         let mut recorder = FormatRecorder::new();
         recorder.push_label("red").unwrap();
-        recorder.write_str("foo bar").unwrap();
+        write!(recorder, "foo bar").unwrap();
         recorder.pop_label().unwrap();
-        recorder.write_str(" ").unwrap();
+        write!(recorder, " ").unwrap();
         recorder.push_label("cyan").unwrap();
-        recorder.write_str("baz\n").unwrap();
+        writeln!(recorder, "baz").unwrap();
         recorder.pop_label().unwrap();
         insta::assert_snapshot!(
             format_colored(|formatter| write_wrapped(formatter, &recorder, 10)),
@@ -563,10 +564,10 @@ mod tests {
         // Do not split at label boundary "ba|z" (since it's a single word)
         let mut recorder = FormatRecorder::new();
         recorder.push_label("red").unwrap();
-        recorder.write_str("foo bar ba").unwrap();
+        write!(recorder, "foo bar ba").unwrap();
         recorder.pop_label().unwrap();
         recorder.push_label("cyan").unwrap();
-        recorder.write_str("z\n").unwrap();
+        writeln!(recorder, "z").unwrap();
         recorder.pop_label().unwrap();
         insta::assert_snapshot!(
             format_colored(|formatter| write_wrapped(formatter, &recorder, 10)),
@@ -581,9 +582,9 @@ mod tests {
     fn test_write_wrapped_leading_labeled_whitespace() {
         let mut recorder = FormatRecorder::new();
         recorder.push_label("red").unwrap();
-        recorder.write_str(" ").unwrap();
+        write!(recorder, " ").unwrap();
         recorder.pop_label().unwrap();
-        recorder.write_str("foo").unwrap();
+        write!(recorder, "foo").unwrap();
         insta::assert_snapshot!(
             format_colored(|formatter| write_wrapped(formatter, &recorder, 10)),
             @"[38;5;1m [39mfoo"
@@ -595,9 +596,9 @@ mod tests {
         // data: "foo" " "
         // line:  ---
         let mut recorder = FormatRecorder::new();
-        recorder.write_str("foo").unwrap();
+        write!(recorder, "foo").unwrap();
         recorder.push_label("red").unwrap();
-        recorder.write_str(" ").unwrap();
+        write!(recorder, " ").unwrap();
         recorder.pop_label().unwrap();
         assert_eq!(
             format_plain_text(|formatter| write_wrapped(formatter, &recorder, 10)),
@@ -607,9 +608,9 @@ mod tests {
         // data: "foo" "\n"
         // line:  ---     -
         let mut recorder = FormatRecorder::new();
-        recorder.write_str("foo").unwrap();
+        write!(recorder, "foo").unwrap();
         recorder.push_label("red").unwrap();
-        recorder.write_str("\n").unwrap();
+        writeln!(recorder).unwrap();
         recorder.pop_label().unwrap();
         assert_eq!(
             format_plain_text(|formatter| write_wrapped(formatter, &recorder, 10)),
@@ -619,9 +620,9 @@ mod tests {
         // data: "foo\n" " "
         // line:  ---    -
         let mut recorder = FormatRecorder::new();
-        recorder.write_str("foo\n").unwrap();
+        writeln!(recorder, "foo").unwrap();
         recorder.push_label("red").unwrap();
-        recorder.write_str(" ").unwrap();
+        write!(recorder, " ").unwrap();
         recorder.pop_label().unwrap();
         assert_eq!(
             format_plain_text(|formatter| write_wrapped(formatter, &recorder, 10)),
