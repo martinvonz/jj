@@ -435,10 +435,8 @@ impl<T: Template> TemplateProperty for PlainTextFormattedProperty<T> {
     fn extract(&self) -> Result<Self::Output, TemplatePropertyError> {
         let mut output = vec![];
         let mut formatter = PlainTextFormatter::new(&mut output);
-        let mut wrapper = TemplateFormatter::new(&mut formatter, format_property_error_inline);
-        self.template
-            .format(&mut wrapper)
-            .expect("write() to PlainTextFormatter should never fail");
+        let mut wrapper = TemplateFormatter::new(&mut formatter, propagate_property_error);
+        self.template.format(&mut wrapper)?;
         Ok(String::from_utf8(output).map_err(|err| err.utf8_error())?)
     }
 }
@@ -769,6 +767,13 @@ fn format_property_error_inline(
         write!(formatter, ">")?;
         Ok(())
     })
+}
+
+fn propagate_property_error(
+    _formatter: &mut dyn Formatter,
+    err: TemplatePropertyError,
+) -> io::Result<()> {
+    Err(io::Error::other(err.0))
 }
 
 /// Creates function that renders a template to buffer and returns the buffer

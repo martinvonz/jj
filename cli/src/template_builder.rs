@@ -181,14 +181,6 @@ impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
         match self {
             CoreTemplatePropertyKind::String(property) => Some(property),
             _ => {
-                // TODO: Runtime property evaluation error will be materialized
-                // as string here. Ideally, the error should propagate because
-                // the caller expects a value, not a template to render. Some
-                // ideas to work around the problem:
-                // 1. stringify property without using Template type (works only for
-                //    non-template expressions)
-                // 2. add flag to propagate property error as io::Error::other() (e.g.
-                //    Template::format(formatter, propagate_err))
                 let template = self.try_into_template()?;
                 Some(Box::new(PlainTextFormattedProperty::new(template)))
             }
@@ -1631,6 +1623,7 @@ mod tests {
         env.add_keyword("description", || {
             L::wrap_string(Literal("description 1".to_owned()))
         });
+        env.add_keyword("bad_string", || L::wrap_string(new_error_property("Bad")));
 
         insta::assert_snapshot!(env.render_ok(r#""".len()"#), @"0");
         insta::assert_snapshot!(env.render_ok(r#""foo".len()"#), @"3");
@@ -1642,6 +1635,13 @@ mod tests {
         insta::assert_snapshot!(
             env.render_ok(r#""description 123".contains(description.first_line())"#),
             @"true");
+
+        // inner template error should propagate
+        insta::assert_snapshot!(env.render_ok(r#""foo".contains(bad_string)"#), @"<Error: Bad>");
+        insta::assert_snapshot!(
+            env.render_ok(r#""foo".contains("f" ++ bad_string) ++ "bar""#), @"<Error: Bad>bar");
+        insta::assert_snapshot!(
+            env.render_ok(r#""foo".contains(separate("o", "f", bad_string))"#), @"<Error: Bad>");
 
         insta::assert_snapshot!(env.render_ok(r#""".first_line()"#), @"");
         insta::assert_snapshot!(env.render_ok(r#""foo\nbar".first_line()"#), @"foo");
