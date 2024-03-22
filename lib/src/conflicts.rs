@@ -19,6 +19,7 @@ use std::iter::zip;
 
 use futures::StreamExt;
 use itertools::Itertools;
+use regex::bytes::Regex;
 
 use crate::backend::{BackendResult, CommitId, FileId, SymlinkId, TreeId, TreeValue};
 use crate::diff::{find_line_ranges, Diff, DiffHunk};
@@ -33,6 +34,24 @@ const CONFLICT_END_LINE: &[u8] = b">>>>>>>\n";
 const CONFLICT_DIFF_LINE: &[u8] = b"%%%%%%%\n";
 const CONFLICT_MINUS_LINE: &[u8] = b"-------\n";
 const CONFLICT_PLUS_LINE: &[u8] = b"+++++++\n";
+const CONFLICT_START_LINE_CHAR: u8 = CONFLICT_START_LINE[0];
+const CONFLICT_END_LINE_CHAR: u8 = CONFLICT_END_LINE[0];
+const CONFLICT_DIFF_LINE_CHAR: u8 = CONFLICT_DIFF_LINE[0];
+const CONFLICT_MINUS_LINE_CHAR: u8 = CONFLICT_MINUS_LINE[0];
+const CONFLICT_PLUS_LINE_CHAR: u8 = CONFLICT_PLUS_LINE[0];
+
+/// A conflict marker is one of the separators, optionally followed by a space
+/// and some text.
+// TODO: All the `{7}` could be replaced with `{7,}` to allow longer
+// separators. This could be useful to make it possible to allow conflict
+// markers inside the text of the conflicts.
+static CONFLICT_MARKER_REGEX: once_cell::sync::Lazy<Regex> = once_cell::sync::Lazy::new(|| {
+    Regex::new(
+        r"(<{7}|>{7}|%{7}|\-{7}|\+{7})( .*)?
+",
+    )
+    .unwrap()
+});
 
 fn write_diff_hunks(hunks: &[DiffHunk], file: &mut dyn Write) -> std::io::Result<()> {
     for hunk in hunks {
@@ -267,21 +286,25 @@ pub fn parse_conflict(input: &[u8], num_sides: usize) -> Option<Vec<Merge<Conten
     let mut pos = 0;
     let mut resolved_start = 0;
     let mut conflict_start = None;
+    let mut conflict_start_len = 0;
     for line in input.split_inclusive(|b| *b == b'\n') {
-        if line == CONFLICT_START_LINE {
-            conflict_start = Some(pos);
-        } else if conflict_start.is_some() && line == CONFLICT_END_LINE {
-            let conflict_body = &input[conflict_start.unwrap() + CONFLICT_START_LINE.len()..pos];
-            let hunk = parse_conflict_hunk(conflict_body);
-            if hunk.num_sides() == num_sides {
-                let resolved_slice = &input[resolved_start..conflict_start.unwrap()];
-                if !resolved_slice.is_empty() {
-                    hunks.push(Merge::resolved(ContentHunk(resolved_slice.to_vec())));
+        if CONFLICT_MARKER_REGEX.is_match_at(line, 0) {
+            if line[0] == CONFLICT_START_LINE_CHAR {
+                conflict_start = Some(pos);
+                conflict_start_len = line.len();
+            } else if conflict_start.is_some() && line[0] == CONFLICT_END_LINE_CHAR {
+                let conflict_body = &input[conflict_start.unwrap() + conflict_start_len..pos];
+                let hunk = parse_conflict_hunk(conflict_body);
+                if hunk.num_sides() == num_sides {
+                    let resolved_slice = &input[resolved_start..conflict_start.unwrap()];
+                    if !resolved_slice.is_empty() {
+                        hunks.push(Merge::resolved(ContentHunk(resolved_slice.to_vec())));
+                    }
+                    hunks.push(hunk);
+                    resolved_start = pos + line.len();
                 }
-                hunks.push(hunk);
-                resolved_start = pos + line.len();
+                conflict_start = None;
             }
-            conflict_start = None;
         }
         pos += line.len();
     }
@@ -309,24 +332,26 @@ fn parse_conflict_hunk(input: &[u8]) -> Merge<ContentHunk> {
     let mut removes = vec![];
     let mut adds = vec![];
     for line in input.split_inclusive(|b| *b == b'\n') {
-        match line {
-            CONFLICT_DIFF_LINE => {
-                state = State::Diff;
-                removes.push(ContentHunk(vec![]));
-                adds.push(ContentHunk(vec![]));
-                continue;
+        if CONFLICT_MARKER_REGEX.is_match_at(line, 0) {
+            match line[0] {
+                CONFLICT_DIFF_LINE_CHAR => {
+                    state = State::Diff;
+                    removes.push(ContentHunk(vec![]));
+                    adds.push(ContentHunk(vec![]));
+                    continue;
+                }
+                CONFLICT_MINUS_LINE_CHAR => {
+                    state = State::Minus;
+                    removes.push(ContentHunk(vec![]));
+                    continue;
+                }
+                CONFLICT_PLUS_LINE_CHAR => {
+                    state = State::Plus;
+                    adds.push(ContentHunk(vec![]));
+                    continue;
+                }
+                _ => {}
             }
-            CONFLICT_MINUS_LINE => {
-                state = State::Minus;
-                removes.push(ContentHunk(vec![]));
-                continue;
-            }
-            CONFLICT_PLUS_LINE => {
-                state = State::Plus;
-                adds.push(ContentHunk(vec![]));
-                continue;
-            }
-            _ => {}
         };
         match state {
             State::Diff => {
