@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj git push` now prints messages from the remote.
 
+* `jj branch list` now supports a `--conflicted/-c` option to show only conflicted branches.
+
 ### Fixed bugs
 
 ## [0.15.1] - 2024-03-06
