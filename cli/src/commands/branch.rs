@@ -109,6 +109,10 @@ pub struct BranchListArgs {
     #[arg(long, short, conflicts_with_all = ["all"])]
     tracked: bool,
 
+    /// Show conflicted branches only.
+    #[arg(long, short, conflicts_with_all = ["all"])]
+    conflicted: bool,
+
     /// Show branches whose local name matches
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
@@ -673,10 +677,11 @@ fn cmd_branch_list(
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
 
-    let branches_to_list = view.branches().filter(|&(name, _)| {
+    let branches_to_list = view.branches().filter(|(name, target)| {
         branch_names_to_list
             .as_ref()
             .map_or(true, |branch_names| branch_names.contains(name))
+            && (!args.conflicted || target.local_target.has_conflict())
     });
     for (name, branch_target) in branches_to_list {
         let (mut tracking_remote_refs, untracked_remote_refs) = branch_target

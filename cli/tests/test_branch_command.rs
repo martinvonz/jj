@@ -1348,6 +1348,45 @@ fn test_branch_list_tracked() {
     "###);
 }
 
+#[test]
+fn test_branch_list_conflicted() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Track existing branch. Local branch should result in conflict.
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-m", "a"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-m", "b"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "bar"]);
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["branch", "create", "foo", "-r", "description(a)"],
+    );
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "branch",
+            "create",
+            "foo",
+            "-r",
+            "description(b)",
+            "--at-op=@-",
+        ],
+    );
+    test_env.jj_cmd_ok(&repo_path, &["status"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    bar: kkmpptxz 06a973bc (empty) b
+    foo (conflicted):
+      + rlvkpnrz d8d5f980 (empty) a
+      + kkmpptxz 06a973bc (empty) b
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["branch", "list", "--conflicted"]), @r###"
+    foo (conflicted):
+      + rlvkpnrz d8d5f980 (empty) a
+      + kkmpptxz 06a973bc (empty) b
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"branches ++ " " ++ commit_id.short()"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
