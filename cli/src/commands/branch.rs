@@ -100,13 +100,17 @@ pub struct BranchDeleteArgs {
 pub struct BranchListArgs {
     /// Show all tracking and non-tracking remote branches including the ones
     /// whose targets are synchronized with the local branches.
-    #[arg(long, short, conflicts_with_all = ["names", "revisions", "tracked"])]
+    #[arg(long, short, conflicts_with_all = ["conflicted", "names", "revisions", "tracked"])]
     all: bool,
 
     /// Show remote tracked branches only. Omits local Git-tracking branches by
     /// default.
     #[arg(long, short, conflicts_with_all = ["all"])]
     tracked: bool,
+
+    /// Show conflicted branches only.
+    #[arg(long, short, conflicts_with_all = ["all"])]
+    conflicted: bool,
 
     /// Show branches whose local name matches
     ///
@@ -672,10 +676,17 @@ fn cmd_branch_list(
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
 
-    let branches_to_list = view.branches().filter(|&(name, _)| {
+    let branches_to_list = view.branches().filter(|(name, target)| {
+        let has_conflict = target
+            .local_target
+            .as_normal()
+            .and_then(|id| repo.store().get_commit(id).ok())
+            .map_or(false, |commit| commit.has_conflict().unwrap_or(false));
+        let filter_conflicted = !args.conflicted || has_conflict;
         branch_names_to_list
             .as_ref()
             .map_or(true, |branch_names| branch_names.contains(name))
+            && filter_conflicted
     });
     for (name, branch_target) in branches_to_list {
         let (mut tracking_remote_refs, untracked_remote_refs) = branch_target
