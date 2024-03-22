@@ -192,7 +192,7 @@ pub(crate) fn print_conflicted_paths(
         write!(formatter, "{formatted_path} ",)?;
         formatter.with_label("conflict_description", |formatter| {
             let print_pair = |formatter: &mut dyn Formatter, (text, label): &(String, &str)| {
-                formatter.with_label(label, |fmt| fmt.write_str(text))
+                write!(formatter.labeled(label), "{text}")
             };
             print_pair(
                 formatter,
@@ -201,10 +201,10 @@ pub(crate) fn print_conflicted_paths(
                     if sides > 2 { "difficult" } else { "normal" },
                 ),
             )?;
-            formatter.write_str(" conflict")?;
+            write!(formatter, " conflict")?;
 
             if !seen_objects.is_empty() {
-                formatter.write_str(" including ")?;
+                write!(formatter, " including ")?;
                 let seen_objects = seen_objects.into_iter().collect_vec();
                 match &seen_objects[..] {
                     [] => unreachable!(),
@@ -212,10 +212,10 @@ pub(crate) fn print_conflicted_paths(
                     [first, middle @ .., last] => {
                         print_pair(formatter, first)?;
                         for pair in middle {
-                            formatter.write_str(", ")?;
+                            write!(formatter, ", ")?;
                             print_pair(formatter, pair)?;
                         }
-                        formatter.write_str(" and ")?;
+                        write!(formatter, " and ")?;
                         print_pair(formatter, last)?;
                     }
                 };

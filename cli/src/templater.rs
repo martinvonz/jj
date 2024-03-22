@@ -72,20 +72,20 @@ impl Template<()> for Signature {
 
 impl Template<()> for String {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
-        formatter.write_str(self)
+        write!(formatter, "{self}")
     }
 }
 
 impl Template<()> for &str {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
-        formatter.write_str(self)
+        write!(formatter, "{self}")
     }
 }
 
 impl Template<()> for Timestamp {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
         match time_util::format_absolute_timestamp(self) {
-            Ok(formatted) => formatter.write_str(&formatted),
+            Ok(formatted) => write!(formatter, "{formatted}"),
             Err(err) => format_error_inline(formatter, &err),
         }
     }
@@ -129,7 +129,8 @@ impl Template<()> for Vec<String> {
 
 impl Template<()> for bool {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
-        formatter.write_str(if *self { "true" } else { "false" })
+        let repr = if *self { "true" } else { "false" };
+        write!(formatter, "{repr}")
     }
 }
 

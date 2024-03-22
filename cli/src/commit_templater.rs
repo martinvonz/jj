@@ -827,7 +827,7 @@ impl CommitOrChangeId {
 
 impl Template<()> for CommitOrChangeId {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
-        formatter.write_str(&self.hex())
+        write!(formatter, "{}", self.hex())
     }
 }
 
@@ -871,8 +871,9 @@ pub struct ShortestIdPrefix {
 
 impl Template<()> for ShortestIdPrefix {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
-        formatter.with_label("prefix", |fmt| fmt.write_str(&self.prefix))?;
-        formatter.with_label("rest", |fmt| fmt.write_str(&self.rest))
+        write!(formatter.labeled("prefix"), "{}", self.prefix)?;
+        write!(formatter.labeled("rest"), "{}", self.rest)?;
+        Ok(())
     }
 }
 

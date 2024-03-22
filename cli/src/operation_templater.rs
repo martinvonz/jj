@@ -288,7 +288,7 @@ fn builtin_operation_methods() -> OperationTemplateBuildMethodFnMap<Operation> {
 
 impl Template<()> for OperationId {
     fn format(&self, _: &(), formatter: &mut dyn Formatter) -> io::Result<()> {
-        formatter.write_str(&self.hex())
+        write!(formatter, "{}", self.hex())
     }
 }
 

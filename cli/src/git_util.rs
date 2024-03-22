@@ -313,7 +313,7 @@ pub fn print_failed_git_export(
         writeln!(ui.warning(), "Failed to export some branches:")?;
         let mut formatter = ui.stderr_formatter();
         for FailedRefExport { name, reason } in failed_branches {
-            formatter.write_str("  ")?;
+            write!(formatter, "  ")?;
             write!(formatter.labeled("branch"), "{name}")?;
             for err in iter::successors(Some(reason as &dyn error::Error), |err| err.source()) {
                 write!(formatter, ": {err}")?;

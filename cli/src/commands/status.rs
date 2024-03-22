@@ -57,9 +57,9 @@ pub(crate) fn cmd_status(
         let parent_tree = merge_commit_trees(repo.as_ref(), &wc_commit.parents())?;
         let tree = wc_commit.tree()?;
         if tree.id() == parent_tree.id() {
-            formatter.write_str("The working copy is clean\n")?;
+            writeln!(formatter, "The working copy is clean")?;
         } else {
-            formatter.write_str("Working copy changes:\n")?;
+            writeln!(formatter, "Working copy changes:")?;
             diff_util::show_diff_summary(
                 formatter,
                 &workspace_command,
@@ -77,16 +77,16 @@ pub(crate) fn cmd_status(
         }
 
         let template = workspace_command.commit_summary_template();
-        formatter.write_str("Working copy : ")?;
+        write!(formatter, "Working copy : ")?;
         formatter.with_label("working_copy", |fmt| template.format(wc_commit, fmt))?;
-        formatter.write_str("\n")?;
+        writeln!(formatter)?;
         for parent in wc_commit.parents() {
-            formatter.write_str("Parent commit: ")?;
+            write!(formatter, "Parent commit: ")?;
             template.format(&parent, formatter)?;
-            formatter.write_str("\n")?;
+            writeln!(formatter)?;
         }
     } else {
-        formatter.write_str("No working copy\n")?;
+        writeln!(formatter, "No working copy")?;
     }
 
     let conflicted_local_branches = repo
