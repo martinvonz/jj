@@ -45,8 +45,8 @@ pub(crate) struct NewArgs {
     #[arg(default_value = "@")]
     pub(crate) revisions: Vec<RevisionArg>,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[arg(short = 'r', hide = true, overrides_with = "unused_revision")]
-    unused_revision: bool,
+    #[arg(short = 'r', hide = true, action = clap::ArgAction::Count)]
+    unused_revision: u8,
     /// The change description to use
     #[arg(long = "message", short, value_name = "MESSAGE")]
     message_paragraphs: Vec<String>,

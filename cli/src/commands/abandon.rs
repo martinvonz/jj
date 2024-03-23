@@ -41,8 +41,8 @@ pub(crate) struct AbandonArgs {
     #[arg(long, short)]
     summary: bool,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[arg(short = 'r', hide = true)]
-    unused_revision: bool,
+    #[arg(short = 'r', hide = true, action = clap::ArgAction::Count)]
+    unused_revision: u8,
 }
 
 #[instrument(skip_all)]
