@@ -149,7 +149,7 @@ don't make any changes, then the operation will be aborted.
     // However, we want only the `second_commit` to inherit `commit`'s branches and
     // descendants.
     tx.mut_repo()
-        .set_rewritten_commit(commit.id().clone(), [second_commit.id().clone()]);
+        .set_rewritten_commit(commit.id().clone(), second_commit.id().clone());
     let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
     if num_rebased > 0 {
         writeln!(ui.stderr(), "Rebased {num_rebased} descendant commits")?;
