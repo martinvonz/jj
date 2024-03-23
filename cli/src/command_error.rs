@@ -56,7 +56,7 @@ pub enum CommandErrorKind {
 pub struct CommandError {
     pub kind: CommandErrorKind,
     pub error: Arc<dyn error::Error + Send + Sync>,
-    pub hint: Option<String>,
+    pub hints: Vec<String>,
 }
 
 impl CommandError {
@@ -67,23 +67,25 @@ impl CommandError {
         CommandError {
             kind,
             error: Arc::from(err.into()),
-            hint: None,
+            hints: vec![],
         }
     }
 
-    fn with_hint_opt(
-        kind: CommandErrorKind,
-        err: impl Into<Box<dyn error::Error + Send + Sync>>,
-        hint: Option<String>,
-    ) -> Self {
-        CommandError {
-            kind,
-            error: Arc::from(err.into()),
-            hint,
-        }
+    /// Returns error with the given `hint` attached.
+    pub fn hinted(mut self, hint: impl Into<String>) -> Self {
+        self.add_hint(hint);
+        self
     }
 
-    // TODO: add method to attach hint?
+    /// Appends `hint` to the error.
+    pub fn add_hint(&mut self, hint: impl Into<String>) {
+        self.hints.push(hint.into());
+    }
+
+    /// Appends 0 or more `hints` to the error.
+    pub fn extend_hints(&mut self, hints: impl IntoIterator<Item = String>) {
+        self.hints.extend(hints);
+    }
 }
 
 /// Wraps error with user-visible message.
@@ -107,21 +109,21 @@ impl ErrorWithMessage {
 }
 
 pub fn user_error(err: impl Into<Box<dyn error::Error + Send + Sync>>) -> CommandError {
-    user_error_with_hint_opt(err, None)
+    CommandError::new(CommandErrorKind::User, err)
 }
 
 pub fn user_error_with_hint(
     err: impl Into<Box<dyn error::Error + Send + Sync>>,
     hint: impl Into<String>,
 ) -> CommandError {
-    user_error_with_hint_opt(err, Some(hint.into()))
+    user_error(err).hinted(hint)
 }
 
 pub fn user_error_with_message(
     message: impl Into<String>,
     source: impl Into<Box<dyn error::Error + Send + Sync>>,
 ) -> CommandError {
-    user_error_with_hint_opt(ErrorWithMessage::new(message, source), None)
+    user_error(ErrorWithMessage::new(message, source))
 }
 
 pub fn user_error_with_message_and_hint(
@@ -129,14 +131,16 @@ pub fn user_error_with_message_and_hint(
     hint: impl Into<String>,
     source: impl Into<Box<dyn error::Error + Send + Sync>>,
 ) -> CommandError {
-    user_error_with_hint_opt(ErrorWithMessage::new(message, source), Some(hint.into()))
+    user_error_with_message(message, source).hinted(hint)
 }
 
 pub fn user_error_with_hint_opt(
     err: impl Into<Box<dyn error::Error + Send + Sync>>,
     hint: Option<String>,
 ) -> CommandError {
-    CommandError::with_hint_opt(CommandErrorKind::User, err, hint)
+    let mut err = CommandError::new(CommandErrorKind::User, err);
+    err.extend_hints(hint);
+    err
 }
 
 pub fn config_error(err: impl Into<Box<dyn error::Error + Send + Sync>>) -> CommandError {
@@ -504,14 +508,14 @@ fn try_handle_command_result(
         return Ok(ExitCode::SUCCESS);
     };
     let err = &cmd_err.error;
-    let maybe_hint = cmd_err.hint.as_deref();
+    let hints = &cmd_err.hints;
     match cmd_err.kind {
         CommandErrorKind::User => {
-            print_error(ui, "Error", err, maybe_hint)?;
+            print_error(ui, "Error", err, hints)?;
             Ok(ExitCode::from(1))
         }
         CommandErrorKind::Config => {
-            print_error(ui, "Config error", err, maybe_hint)?;
+            print_error(ui, "Config error", err, hints)?;
             writeln!(
                 ui.hint(),
                 "For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md."
@@ -520,9 +524,9 @@ fn try_handle_command_result(
         }
         CommandErrorKind::Cli => {
             if let Some(err) = err.downcast_ref::<clap::Error>() {
-                handle_clap_error(ui, err, maybe_hint)
+                handle_clap_error(ui, err, hints)
             } else {
-                print_error(ui, "Error", err, maybe_hint)?;
+                print_error(ui, "Error", err, hints)?;
                 Ok(ExitCode::from(2))
             }
         }
@@ -531,21 +535,16 @@ fn try_handle_command_result(
             Ok(ExitCode::from(BROKEN_PIPE_EXIT_CODE))
         }
         CommandErrorKind::Internal => {
-            print_error(ui, "Internal error", err, maybe_hint)?;
+            print_error(ui, "Internal error", err, hints)?;
             Ok(ExitCode::from(255))
         }
     }
 }
 
-fn print_error(
-    ui: &Ui,
-    prefix: &str,
-    err: &dyn error::Error,
-    maybe_hint: Option<&str>,
-) -> io::Result<()> {
+fn print_error(ui: &Ui, prefix: &str, err: &dyn error::Error, hints: &[String]) -> io::Result<()> {
     writeln!(ui.error(), "{prefix}: {err}")?;
     print_error_sources(ui, err.source())?;
-    if let Some(hint) = maybe_hint {
+    for hint in hints {
         writeln!(ui.hint(), "Hint: {hint}")?;
     }
     Ok(())
@@ -566,7 +565,7 @@ fn print_error_sources(ui: &Ui, source: Option<&dyn error::Error>) -> io::Result
     Ok(())
 }
 
-fn handle_clap_error(ui: &mut Ui, err: &clap::Error, hint: Option<&str>) -> io::Result<ExitCode> {
+fn handle_clap_error(ui: &mut Ui, err: &clap::Error, hints: &[String]) -> io::Result<ExitCode> {
     let clap_str = if ui.color() {
         err.render().ansi().to_string()
     } else {
@@ -588,7 +587,7 @@ fn handle_clap_error(ui: &mut Ui, err: &clap::Error, hint: Option<&str>) -> io::
         _ => {}
     }
     write!(ui.stderr(), "{clap_str}")?;
-    if let Some(hint) = hint {
+    for hint in hints {
         writeln!(ui.hint(), "Hint: {hint}")?;
     }
     Ok(ExitCode::from(2))

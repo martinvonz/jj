@@ -2591,9 +2591,6 @@ fn map_clap_cli_error(
     ui: &Ui,
     layered_configs: &LayeredConfigs,
 ) -> CommandError {
-    if cmd_err.hint.is_some() {
-        return cmd_err;
-    }
     let Some(err) = cmd_err.error.downcast_ref::<clap::Error>() else {
         return cmd_err;
     };
@@ -2604,7 +2601,7 @@ fn map_clap_cli_error(
         if arg.as_str() == "--template <TEMPLATE>" && value.is_empty() {
             // Suppress the error, it's less important than the original error.
             if let Ok(template_aliases) = load_template_aliases(ui, layered_configs) {
-                cmd_err.hint = Some(format_template_aliases_hint(&template_aliases));
+                cmd_err.add_hint(format_template_aliases_hint(&template_aliases));
             }
         }
     }
