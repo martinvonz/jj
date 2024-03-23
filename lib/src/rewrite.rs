@@ -313,7 +313,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     pub fn new(
         settings: &'settings UserSettings,
         mut_repo: &'repo mut MutableRepo,
-        rewritten: HashMap<CommitId, HashSet<CommitId>>,
+        rewritten: HashMap<CommitId, Vec<CommitId>>,
         abandoned: HashSet<CommitId>,
     ) -> DescendantRebaser<'settings, 'repo> {
         let store = mut_repo.store();
@@ -372,7 +372,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             if new_commits.len() == 1 {
                 parent_mapping.insert(old_commit, vec![new_commits.into_iter().next().unwrap()]);
             } else {
-                // The call to index.heads() is mostly to get a predictable order
                 let new_commits = mut_repo.index().heads(&mut new_commits.iter());
                 parent_mapping.insert(old_commit.clone(), new_commits);
                 divergent.insert(old_commit);

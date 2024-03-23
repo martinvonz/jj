@@ -732,7 +732,7 @@ pub struct MutableRepo {
     base_repo: Arc<ReadonlyRepo>,
     index: Box<dyn MutableIndex>,
     view: DirtyCell<View>,
-    rewritten_commits: HashMap<CommitId, HashSet<CommitId>>,
+    rewritten_commits: HashMap<CommitId, Vec<CommitId>>,
     abandoned_commits: HashSet<CommitId>,
 }
 
@@ -816,18 +816,16 @@ impl MutableRepo {
     /// docstring for `record_rewritten_commit` for details.
     pub fn set_rewritten_commit(&mut self, old_id: CommitId, new_id: CommitId) {
         assert_ne!(old_id, *self.store().root_commit_id());
-        self.rewritten_commits
-            .insert(old_id, std::iter::once(new_id).collect());
+        self.rewritten_commits.insert(old_id, vec![new_id]);
     }
 
     /// Record a commit as being rewritten into multiple other commits in this
     /// transaction.
     ///
     /// A later call to `rebase_descendants()` will update branches pointing to
-    /// `old_id` be conflicted and pointing to all pf `new_ids`. Working
-    /// copies pointing to `old_id` will be updated to point to an arbitrary
-    /// commit in `new_ids` (TODO: make it point to the first one). Descendants
-    /// of `old_id` will be left alone.
+    /// `old_id` be conflicted and pointing to all pf `new_ids`. Working copies
+    /// pointing to `old_id` will be updated to point to the first commit in
+    /// `new_ids``. Descendants of `old_id` will be left alone.
     pub fn set_divergent_rewrite(
         &mut self,
         old_id: CommitId,
