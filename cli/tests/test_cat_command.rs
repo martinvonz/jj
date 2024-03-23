@@ -89,11 +89,11 @@ fn test_cat() {
     test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "@", "-d", "@--"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
     -b
     +a
-    +++++++
+    +++++++ Contents of side #2
     c
     >>>>>>>
     "###);

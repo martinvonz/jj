@@ -29,11 +29,11 @@ use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
 use crate::repo_path::RepoPath;
 use crate::store::Store;
 
-const CONFLICT_START_LINE: &[u8] = b"<<<<<<<\n";
-const CONFLICT_END_LINE: &[u8] = b">>>>>>>\n";
-const CONFLICT_DIFF_LINE: &[u8] = b"%%%%%%%\n";
-const CONFLICT_MINUS_LINE: &[u8] = b"-------\n";
-const CONFLICT_PLUS_LINE: &[u8] = b"+++++++\n";
+const CONFLICT_START_LINE: &[u8] = b"<<<<<<<";
+const CONFLICT_END_LINE: &[u8] = b">>>>>>>";
+const CONFLICT_DIFF_LINE: &[u8] = b"%%%%%%%";
+const CONFLICT_MINUS_LINE: &[u8] = b"-------";
+const CONFLICT_PLUS_LINE: &[u8] = b"+++++++";
 const CONFLICT_START_LINE_CHAR: u8 = CONFLICT_START_LINE[0];
 const CONFLICT_END_LINE_CHAR: u8 = CONFLICT_END_LINE[0];
 const CONFLICT_DIFF_LINE_CHAR: u8 = CONFLICT_DIFF_LINE[0];
@@ -204,19 +204,37 @@ pub fn materialize_merge_result(
             output.write_all(&content.0)?;
         }
         MergeResult::Conflict(hunks) => {
+            let num_conflicts = hunks
+                .iter()
+                .filter(|hunk| hunk.as_resolved().is_none())
+                .count();
+            let mut conflict_index = 0;
             for hunk in hunks {
                 if let Some(content) = hunk.as_resolved() {
                     output.write_all(&content.0)?;
                 } else {
+                    conflict_index += 1;
                     output.write_all(CONFLICT_START_LINE)?;
+                    output.write_all(
+                        format!(" Conflict {conflict_index} of {num_conflicts}\n").as_bytes(),
+                    )?;
                     let mut add_index = 0;
-                    for left in hunk.removes() {
+                    for (base_index, left) in hunk.removes().enumerate() {
+                        // The vast majority of conflicts one actually tries to
+                        // resolve manually have 1 base.
+                        let base_str = if hunk.removes().len() == 1 {
+                            "base".to_string()
+                        } else {
+                            format!("base #{}", base_index + 1)
+                        };
+
                         let right1 = if let Some(right1) = hunk.get_add(add_index) {
                             right1
                         } else {
                             // If we have no more positive terms, emit the remaining negative
                             // terms as snapshots.
                             output.write_all(CONFLICT_MINUS_LINE)?;
+                            output.write_all(format!(" Contents of {base_str}\n").as_bytes())?;
                             output.write_all(&left.0)?;
                             continue;
                         };
@@ -236,8 +254,18 @@ pub fn materialize_merge_result(
                                 // the current positive term as a snapshot and the next
                                 // positive term as a diff.
                                 output.write_all(CONFLICT_PLUS_LINE)?;
+                                output.write_all(
+                                    format!(" Contents of side #{}\n", add_index + 1).as_bytes(),
+                                )?;
                                 output.write_all(&right1.0)?;
                                 output.write_all(CONFLICT_DIFF_LINE)?;
+                                output.write_all(
+                                    format!(
+                                        " Changes from {base_str} to side #{}\n",
+                                        add_index + 2
+                                    )
+                                    .as_bytes(),
+                                )?;
                                 write_diff_hunks(&diff2, output)?;
                                 add_index += 2;
                                 continue;
@@ -245,16 +273,24 @@ pub fn materialize_merge_result(
                         }
 
                         output.write_all(CONFLICT_DIFF_LINE)?;
+                        output.write_all(
+                            format!(" Changes from {base_str} to side #{}\n", add_index + 1)
+                                .as_bytes(),
+                        )?;
                         write_diff_hunks(&diff1, output)?;
                         add_index += 1;
                     }
 
                     //  Emit the remaining positive terms as snapshots.
-                    for slice in hunk.adds().skip(add_index) {
+                    for (add_index, slice) in hunk.adds().enumerate().skip(add_index) {
                         output.write_all(CONFLICT_PLUS_LINE)?;
+                        output.write_all(
+                            format!(" Contents of side #{}\n", add_index + 1).as_bytes(),
+                        )?;
                         output.write_all(&slice.0)?;
                     }
                     output.write_all(CONFLICT_END_LINE)?;
+                    output.write_all(b"\n")?;
                 }
             }
         }

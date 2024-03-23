@@ -71,11 +71,11 @@ fn test_chmod_regular_conflict() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "file"]);
     insta::assert_snapshot!(stdout, 
     @r###"
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
     -base
     +x
-    +++++++
+    +++++++ Contents of side #2
     n
     >>>>>>>
     "###);
@@ -90,11 +90,11 @@ fn test_chmod_regular_conflict() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "file"]);
     insta::assert_snapshot!(stdout, 
     @r###"
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
     -base
     +x
-    +++++++
+    +++++++ Contents of side #2
     n
     >>>>>>>
     "###);
@@ -107,11 +107,11 @@ fn test_chmod_regular_conflict() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "file"]);
     insta::assert_snapshot!(stdout, 
     @r###"
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
     -base
     +x
-    +++++++
+    +++++++ Contents of side #2
     n
     >>>>>>>
     "###);
@@ -201,10 +201,10 @@ fn test_chmod_file_dir_deletion_conflicts() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "-r=file_deletion", "file"]);
     insta::assert_snapshot!(stdout,
     @r###"
-    <<<<<<<
-    +++++++
+    <<<<<<< Conflict 1 of 1
+    +++++++ Contents of side #1
     a
-    %%%%%%%
+    %%%%%%% Changes from base to side #2
     -base
     >>>>>>>
     "###);
@@ -234,10 +234,10 @@ fn test_chmod_file_dir_deletion_conflicts() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "-r=file_deletion", "file"]);
     insta::assert_snapshot!(stdout,
     @r###"
-    <<<<<<<
-    +++++++
+    <<<<<<< Conflict 1 of 1
+    +++++++ Contents of side #1
     a
-    %%%%%%%
+    %%%%%%% Changes from base to side #2
     -base
     >>>>>>>
     "###);

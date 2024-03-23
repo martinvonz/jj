@@ -171,25 +171,25 @@ fn test_restore_conflicted_merge() {
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
-            <<<<<<<
-            %%%%%%%
-            -base
-            +a
-            +++++++
-            b
-            >>>>>>>
-            "###);
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
+    -base
+    +a
+    +++++++ Contents of side #2
+    b
+    >>>>>>>
+    "###);
 
     // Overwrite the file...
     std::fs::write(repo_path.join("file"), "resolution").unwrap();
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
     Resolved conflict in file:
-       1     : <<<<<<<
-       2     : %%%%%%%
+       1     : <<<<<<< Conflict 1 of 1
+       2     : %%%%%%% Changes from base to side #1
        3     : -base
        4     : +a
-       5     : +++++++
+       5     : +++++++ Contents of side #2
        6     : b
        7     : >>>>>>>
             1: resolution
@@ -210,11 +210,11 @@ fn test_restore_conflicted_merge() {
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
     -base
     +a
-    +++++++
+    +++++++ Contents of side #2
     b
     >>>>>>>
     "###);
@@ -226,11 +226,11 @@ fn test_restore_conflicted_merge() {
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
     @r###"
     Resolved conflict in file:
-       1     : <<<<<<<
-       2     : %%%%%%%
+       1     : <<<<<<< Conflict 1 of 1
+       2     : %%%%%%% Changes from base to side #1
        3     : -base
        4     : +a
-       5     : +++++++
+       5     : +++++++ Contents of side #2
        6     : b
        7     : >>>>>>>
             1: resolution
@@ -251,11 +251,11 @@ fn test_restore_conflicted_merge() {
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
     -base
     +a
-    +++++++
+    +++++++ Contents of side #2
     b
     >>>>>>>
     "###);

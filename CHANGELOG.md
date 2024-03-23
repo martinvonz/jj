@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj tag list` now prints commit summary along with the tag name.
 
+* Conflict markers now include an explanation of what each part of the conflict
+  represents.
+
+
+>>>>>>>
 ### Fixed bugs
 
 ## [0.17.0] - 2024-05-01

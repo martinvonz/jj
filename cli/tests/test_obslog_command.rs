@@ -59,10 +59,10 @@ fn test_obslog_with_or_without_diff() {
     @  rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
     │  my description
     │  Resolved conflict in file1:
-    │     1    1: <<<<<<<resolved
-    │     2     : %%%%%%%
+    │     1    1: <<<<<<< Conflict 1 of 1resolved
+    │     2     : %%%%%%% Changes from base to side #1
     │     3     : -foo
-    │     4     : +++++++
+    │     4     : +++++++ Contents of side #2
     │     5     : foo
     │     6     : bar
     │     7     : >>>>>>>
@@ -111,10 +111,10 @@ fn test_obslog_with_or_without_diff() {
     --- a/file1
     +++ b/file1
     @@ -1,7 +1,1 @@
-    -<<<<<<<
-    -%%%%%%%
+    -<<<<<<< Conflict 1 of 1
+    -%%%%%%% Changes from base to side #1
     --foo
-    -+++++++
+    -+++++++ Contents of side #2
     -foo
     -bar
     ->>>>>>>

@@ -69,14 +69,14 @@ fn test_resolution() {
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
-            <<<<<<<
-            %%%%%%%
-            -base
-            +a
-            +++++++
-            b
-            >>>>>>>
-            "###);
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
+    -base
+    +a
+    +++++++ Contents of side #2
+    b
+    >>>>>>>
+    "###);
 
     let editor_script = test_env.set_up_fake_editor();
     // Check that output file starts out empty and resolve the conflict
@@ -104,11 +104,11 @@ fn test_resolution() {
     --- a/file
     +++ b/file
     @@ -1,7 +1,1 @@
-    -<<<<<<<
-    -%%%%%%%
+    -<<<<<<< Conflict 1 of 1
+    -%%%%%%% Changes from base to side #1
     --base
     -+a
-    -+++++++
+    -+++++++ Contents of side #2
     -b
     ->>>>>>>
     +resolution
@@ -144,11 +144,11 @@ fn test_resolution() {
     --- a/file
     +++ b/file
     @@ -1,7 +1,1 @@
-    -<<<<<<<
-    -%%%%%%%
+    -<<<<<<< Conflict 1 of 1
+    -%%%%%%% Changes from base to side #1
     --base
     -+a
-    -+++++++
+    -+++++++ Contents of side #2
     -b
     ->>>>>>>
     +resolution
@@ -178,11 +178,11 @@ fn test_resolution() {
     );
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(), @r###"
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
     -base
     +a
-    +++++++
+    +++++++ Contents of side #2
     b
     >>>>>>>
     "###);
@@ -193,11 +193,11 @@ fn test_resolution() {
     --- a/file
     +++ b/file
     @@ -1,7 +1,1 @@
-    -<<<<<<<
-    -%%%%%%%
+    -<<<<<<< Conflict 1 of 1
+    -%%%%%%% Changes from base to side #1
     --base
     -+a
-    -+++++++
+    -+++++++ Contents of side #2
     -b
     ->>>>>>>
     +resolution
@@ -253,11 +253,11 @@ fn test_resolution() {
     "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(), @r###"
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
     -base
     +a
-    +++++++
+    +++++++ Contents of side #2
     b
     >>>>>>>
     "###);
@@ -268,13 +268,13 @@ fn test_resolution() {
     --- a/file
     +++ b/file
     @@ -1,7 +1,7 @@
-     <<<<<<<
-     %%%%%%%
+     <<<<<<< Conflict 1 of 1
+     %%%%%%% Changes from base to side #1
     --base
     -+a
     +-some
     ++fake
-     +++++++
+     +++++++ Contents of side #2
     -b
     +conflict
      >>>>>>>
@@ -328,14 +328,17 @@ fn test_resolution() {
     --- a/file
     +++ b/file
     @@ -1,7 +1,7 @@
-     <<<<<<<
-     %%%%%%%
+    -<<<<<<< Conflict 1 of 1
+    -%%%%%%% Changes from base to side #1
     --base
     -+a
+    -+++++++ Contents of side #2
+    -b
+    +<<<<<<<
+    +%%%%%%%
     +-some
     ++fake
-     +++++++
-    -b
+    ++++++++
     +conflict
      >>>>>>>
     "###);
@@ -398,14 +401,14 @@ fn test_normal_conflict_input_files() {
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
-            <<<<<<<
-            %%%%%%%
-            -base
-            +a
-            +++++++
-            b
-            >>>>>>>
-            "###);
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
+    -base
+    +a
+    +++++++ Contents of side #2
+    b
+    >>>>>>>
+    "###);
 
     check_resolve_produces_input_file(&mut test_env, &repo_path, "base", "base\n");
     check_resolve_produces_input_file(&mut test_env, &repo_path, "left", "a\n");
@@ -439,10 +442,10 @@ fn test_baseless_conflict_input_files() {
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
     +a
-    +++++++
+    +++++++ Contents of side #2
     b
     >>>>>>>
     "###);
@@ -510,10 +513,10 @@ fn test_edit_delete_conflict_input_files() {
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
         , @r###"
-    <<<<<<<
-    +++++++
+    <<<<<<< Conflict 1 of 1
+    +++++++ Contents of side #1
     a
-    %%%%%%%
+    %%%%%%% Changes from base to side #2
     -base
     >>>>>>>
     "###);
@@ -682,22 +685,22 @@ fn test_multiple_conflicts() {
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("this_file_has_a_very_long_name_to_test_padding")).unwrap()
         , @r###"
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
     -first base
     +first a
-    +++++++
+    +++++++ Contents of side #2
     first b
     >>>>>>>
     "###);
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("another_file")).unwrap()
         , @r###"
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
     -second base
     +second a
-    +++++++
+    +++++++ Contents of side #2
     second b
     >>>>>>>
     "###);
@@ -742,11 +745,11 @@ fn test_multiple_conflicts() {
     --- a/another_file
     +++ b/another_file
     @@ -1,7 +1,1 @@
-    -<<<<<<<
-    -%%%%%%%
+    -<<<<<<< Conflict 1 of 1
+    -%%%%%%% Changes from base to side #1
     --second base
     -+second a
-    -+++++++
+    -+++++++ Contents of side #2
     -second b
     ->>>>>>>
     +resolution another_file
@@ -781,11 +784,11 @@ fn test_multiple_conflicts() {
     --- a/another_file
     +++ b/another_file
     @@ -1,7 +1,1 @@
-    -<<<<<<<
-    -%%%%%%%
+    -<<<<<<< Conflict 1 of 1
+    -%%%%%%% Changes from base to side #1
     --second base
     -+second a
-    -+++++++
+    -+++++++ Contents of side #2
     -second b
     ->>>>>>>
     +first resolution for auto-chosen file
@@ -808,11 +811,11 @@ fn test_multiple_conflicts() {
     --- a/another_file
     +++ b/another_file
     @@ -1,7 +1,1 @@
-    -<<<<<<<
-    -%%%%%%%
+    -<<<<<<< Conflict 1 of 1
+    -%%%%%%% Changes from base to side #1
     --second base
     -+second a
-    -+++++++
+    -+++++++ Contents of side #2
     -second b
     ->>>>>>>
     +first resolution for auto-chosen file
@@ -821,11 +824,11 @@ fn test_multiple_conflicts() {
     --- a/this_file_has_a_very_long_name_to_test_padding
     +++ b/this_file_has_a_very_long_name_to_test_padding
     @@ -1,7 +1,1 @@
-    -<<<<<<<
-    -%%%%%%%
+    -<<<<<<< Conflict 1 of 1
+    -%%%%%%% Changes from base to side #1
     --first base
     -+first a
-    -+++++++
+    -+++++++ Contents of side #2
     -first b
     ->>>>>>>
     +second resolution for auto-chosen file
