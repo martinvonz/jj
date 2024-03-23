@@ -48,7 +48,7 @@ either = "1.10.0"
 esl01-renderdag = "0.3.0"
 futures = "0.3.30"
 git2 = "0.18.3"
-gix = { version = "0.61.1", default-features = false, features = [
+gix = { version = "0.61.0", default-features = false, features = [
     "index",
     "max-performance-safe",
 ] }
