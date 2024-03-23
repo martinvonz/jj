@@ -789,6 +789,9 @@ impl WorkspaceCommandHelper {
                 r#"Revset "{revision_str}" didn't resolve to any revisions"#
             ))),
             (Some(commit0), Some(commit1)) => {
+                let mut cmd_err = user_error(format!(
+                    r#"Revset "{revision_str}" resolved to more than one revision"#
+                ));
                 let mut iter = [commit0, commit1].into_iter().chain(iter);
                 let commits: Vec<_> = iter.by_ref().take(5).try_collect()?;
                 let elided = iter.next().is_some();
@@ -797,40 +800,41 @@ impl WorkspaceCommandHelper {
                     .map(|c| self.format_commit_summary(c))
                     .join("\n")
                     + elided.then_some("\n...").unwrap_or_default();
-                let hint = if commits[0].change_id() == commits[1].change_id() {
+                if commits[0].change_id() == commits[1].change_id() {
                     // Separate hint if there's commits with same change id
-                    format!(
+                    cmd_err.add_hint(format!(
                         r#"The revset "{revision_str}" resolved to these revisions:
-{commits_summary}
-Some of these commits have the same change id. Abandon one of them with `jj abandon -r <REVISION>`."#,
-                    )
+{commits_summary}"#
+                    ));
+                    cmd_err.add_hint(
+                        "Some of these commits have the same change id. Abandon one of them with \
+                         `jj abandon -r <REVISION>`.",
+                    );
                 } else if let RevsetExpression::CommitRef(RevsetCommitRef::Symbol(branch_name)) =
                     revset_expression.as_ref()
                 {
                     // Separate hint if there's a conflicted branch
-                    format!(
+                    cmd_err.add_hint(format!(
                         r#"Branch {branch_name} resolved to multiple revisions because it's conflicted.
 It resolved to these revisions:
-{commits_summary}
-Set which revision the branch points to with `jj branch set {branch_name} -r <REVISION>`."#,
-                    )
+{commits_summary}"#));
+                    cmd_err.add_hint(format!(
+                        "Set which revision the branch points to with `jj branch set \
+                         {branch_name} -r <REVISION>`.",
+                    ));
                 } else {
-                    let mut hint = format!(
+                    cmd_err.add_hint(format!(
                         r#"The revset "{revision_str}" resolved to these revisions:
 {commits_summary}"#,
-                    );
+                    ));
                     if should_hint_about_all_prefix {
-                        hint.push_str(&format!(
-                            "\nPrefix the expression with 'all:' to allow any number of revisions \
+                        cmd_err.add_hint(format!(
+                            "Prefix the expression with 'all:' to allow any number of revisions \
                              (i.e. 'all:{revision_str}')."
                         ));
                     }
-                    hint
                 };
-                Err(user_error_with_hint(
-                    format!(r#"Revset "{revision_str}" resolved to more than one revision"#),
-                    hint,
-                ))
+                Err(cmd_err)
             }
         }
     }
