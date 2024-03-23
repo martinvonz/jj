@@ -144,9 +144,7 @@ don't make any changes, then the operation will be aborted.
         .set_description(second_description)
         .write()?;
 
-    // Currently, `rebase_descendents` would treat `commit` as being rewritten to
-    // *both* `first_commit` and `second_commit`, as if it was becoming divergent.
-    // However, we want only the `second_commit` to inherit `commit`'s branches and
+    // We want only the `second_commit` to inherit `commit`'s branches and
     // descendants.
     tx.mut_repo()
         .set_rewritten_commit(commit.id().clone(), second_commit.id().clone());

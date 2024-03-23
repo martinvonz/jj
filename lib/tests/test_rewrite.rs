@@ -86,7 +86,7 @@ fn test_rebase_descendants_sideways() {
     let commit_f = graph_builder.commit_with_parents(&[&commit_a]);
 
     tx.mut_repo()
-        .record_rewritten_commit(commit_b.id().clone(), commit_f.id().clone());
+        .set_rewritten_commit(commit_b.id().clone(), commit_f.id().clone());
     let rebase_map = tx
         .mut_repo()
         .rebase_descendants_return_map(&settings)
@@ -140,7 +140,7 @@ fn test_rebase_descendants_forward() {
     let commit_g = graph_builder.commit_with_parents(&[&commit_f]);
 
     tx.mut_repo()
-        .record_rewritten_commit(commit_b.id().clone(), commit_f.id().clone());
+        .set_rewritten_commit(commit_b.id().clone(), commit_f.id().clone());
     let rebase_map = tx
         .mut_repo()
         .rebase_descendants_return_map(&settings)
@@ -197,11 +197,11 @@ fn test_rebase_descendants_reorder() {
     let commit_i = graph_builder.commit_with_parents(&[&commit_g]);
 
     tx.mut_repo()
-        .record_rewritten_commit(commit_e.id().clone(), commit_d.id().clone());
+        .set_rewritten_commit(commit_e.id().clone(), commit_d.id().clone());
     tx.mut_repo()
-        .record_rewritten_commit(commit_c.id().clone(), commit_f.id().clone());
+        .set_rewritten_commit(commit_c.id().clone(), commit_f.id().clone());
     tx.mut_repo()
-        .record_rewritten_commit(commit_g.id().clone(), commit_h.id().clone());
+        .set_rewritten_commit(commit_g.id().clone(), commit_h.id().clone());
     let rebase_map = tx
         .mut_repo()
         .rebase_descendants_return_map(&settings)
@@ -237,7 +237,7 @@ fn test_rebase_descendants_backward() {
     let commit_d = graph_builder.commit_with_parents(&[&commit_c]);
 
     tx.mut_repo()
-        .record_rewritten_commit(commit_c.id().clone(), commit_b.id().clone());
+        .set_rewritten_commit(commit_c.id().clone(), commit_b.id().clone());
     let rebase_map = tx
         .mut_repo()
         .rebase_descendants_return_map(&settings)
@@ -277,9 +277,9 @@ fn test_rebase_descendants_chain_becomes_branchy() {
     let commit_f = graph_builder.commit_with_parents(&[&commit_b]);
 
     tx.mut_repo()
-        .record_rewritten_commit(commit_b.id().clone(), commit_e.id().clone());
+        .set_rewritten_commit(commit_b.id().clone(), commit_e.id().clone());
     tx.mut_repo()
-        .record_rewritten_commit(commit_c.id().clone(), commit_f.id().clone());
+        .set_rewritten_commit(commit_c.id().clone(), commit_f.id().clone());
     let rebase_map = tx
         .mut_repo()
         .rebase_descendants_return_map(&settings)
@@ -323,7 +323,7 @@ fn test_rebase_descendants_internal_merge() {
     let commit_f = graph_builder.commit_with_parents(&[&commit_a]);
 
     tx.mut_repo()
-        .record_rewritten_commit(commit_b.id().clone(), commit_f.id().clone());
+        .set_rewritten_commit(commit_b.id().clone(), commit_f.id().clone());
     let rebase_map = tx
         .mut_repo()
         .rebase_descendants_return_map(&settings)
@@ -371,7 +371,7 @@ fn test_rebase_descendants_external_merge() {
     let commit_f = graph_builder.commit_with_parents(&[&commit_a]);
 
     tx.mut_repo()
-        .record_rewritten_commit(commit_c.id().clone(), commit_f.id().clone());
+        .set_rewritten_commit(commit_c.id().clone(), commit_f.id().clone());
     let rebase_map = tx
         .mut_repo()
         .rebase_descendants_return_map(&settings)
@@ -491,7 +491,7 @@ fn test_rebase_descendants_abandon_and_replace() {
     let commit_e = graph_builder.commit_with_parents(&[&commit_a]);
 
     tx.mut_repo()
-        .record_rewritten_commit(commit_b.id().clone(), commit_e.id().clone());
+        .set_rewritten_commit(commit_b.id().clone(), commit_e.id().clone());
     tx.mut_repo().record_abandoned_commit(commit_c.id().clone());
     let rebase_map = tx
         .mut_repo()
@@ -661,9 +661,9 @@ fn test_rebase_descendants_multiple_sideways() {
     let commit_f = graph_builder.commit_with_parents(&[&commit_a]);
 
     tx.mut_repo()
-        .record_rewritten_commit(commit_b.id().clone(), commit_f.id().clone());
+        .set_rewritten_commit(commit_b.id().clone(), commit_f.id().clone());
     tx.mut_repo()
-        .record_rewritten_commit(commit_d.id().clone(), commit_f.id().clone());
+        .set_rewritten_commit(commit_d.id().clone(), commit_f.id().clone());
     let rebase_map = tx
         .mut_repo()
         .rebase_descendants_return_map(&settings)
@@ -704,9 +704,9 @@ fn test_rebase_descendants_multiple_swap() {
     let _commit_e = graph_builder.commit_with_parents(&[&commit_d]);
 
     tx.mut_repo()
-        .record_rewritten_commit(commit_b.id().clone(), commit_d.id().clone());
+        .set_rewritten_commit(commit_b.id().clone(), commit_d.id().clone());
     tx.mut_repo()
-        .record_rewritten_commit(commit_d.id().clone(), commit_b.id().clone());
+        .set_rewritten_commit(commit_d.id().clone(), commit_b.id().clone());
     let _ = tx.mut_repo().rebase_descendants_return_map(&settings); // Panics because of the cycle
 }
 
@@ -730,9 +730,9 @@ fn test_rebase_descendants_multiple_no_descendants() {
     let commit_c = graph_builder.commit_with_parents(&[&commit_a]);
 
     tx.mut_repo()
-        .record_rewritten_commit(commit_b.id().clone(), commit_c.id().clone());
+        .set_rewritten_commit(commit_b.id().clone(), commit_c.id().clone());
     tx.mut_repo()
-        .record_rewritten_commit(commit_c.id().clone(), commit_b.id().clone());
+        .set_rewritten_commit(commit_c.id().clone(), commit_b.id().clone());
     let rebase_map = tx
         .mut_repo()
         .rebase_descendants_return_map(&settings)
@@ -789,14 +789,14 @@ fn test_rebase_descendants_divergent_rewrite() {
     let commit_f2 = graph_builder.commit_with_parents(&[&commit_a]);
 
     tx.mut_repo()
-        .record_rewritten_commit(commit_b.id().clone(), commit_b2.id().clone());
+        .set_rewritten_commit(commit_b.id().clone(), commit_b2.id().clone());
     // Commit D becomes divergent
+    tx.mut_repo().set_divergent_rewrite(
+        commit_d.id().clone(),
+        vec![commit_d2.id().clone(), commit_d3.id().clone()],
+    );
     tx.mut_repo()
-        .record_rewritten_commit(commit_d.id().clone(), commit_d2.id().clone());
-    tx.mut_repo()
-        .record_rewritten_commit(commit_d.id().clone(), commit_d3.id().clone());
-    tx.mut_repo()
-        .record_rewritten_commit(commit_f.id().clone(), commit_f2.id().clone());
+        .set_rewritten_commit(commit_f.id().clone(), commit_f2.id().clone());
     let rebase_map = tx
         .mut_repo()
         .rebase_descendants_return_map(&settings)
@@ -941,7 +941,7 @@ fn test_rebase_descendants_contents() {
         .unwrap();
 
     tx.mut_repo()
-        .record_rewritten_commit(commit_b.id().clone(), commit_d.id().clone());
+        .set_rewritten_commit(commit_b.id().clone(), commit_d.id().clone());
     let rebase_map = tx
         .mut_repo()
         .rebase_descendants_return_map(&settings)
@@ -1187,6 +1187,14 @@ fn test_rebase_descendants_update_branches_after_divergent_rewrite() {
         .set_description("more different")
         .write()
         .unwrap();
+    tx.mut_repo().set_divergent_rewrite(
+        commit_b.id().clone(),
+        vec![
+            commit_b2.id().clone(),
+            commit_b3.id().clone(),
+            commit_b4.id().clone(),
+        ],
+    );
     tx.mut_repo().rebase_descendants(&settings).unwrap();
 
     let main_target = tx.mut_repo().get_local_branch("main");
@@ -1266,6 +1274,14 @@ fn test_rebase_descendants_rewrite_updates_branch_conflict() {
         .set_description("different")
         .write()
         .unwrap();
+    tx.mut_repo().set_divergent_rewrite(
+        commit_a.id().clone(),
+        vec![commit_a2.id().clone(), commit_a3.id().clone()],
+    );
+    tx.mut_repo().set_divergent_rewrite(
+        commit_b.id().clone(),
+        vec![commit_b2.id().clone(), commit_b3.id().clone()],
+    );
     tx.mut_repo().rebase_descendants(&settings).unwrap();
 
     let target = tx.mut_repo().get_local_branch("main");
@@ -1576,7 +1592,7 @@ fn test_empty_commit_option(empty_behavior: EmptyBehaviour) {
     let commit_bd = create_commit(&[&commit_a], &tree_d);
 
     tx.mut_repo()
-        .record_rewritten_commit(commit_b.id().clone(), commit_bd.id().clone());
+        .set_rewritten_commit(commit_b.id().clone(), commit_bd.id().clone());
     let rebase_map = tx
         .mut_repo()
         .rebase_descendants_with_options_return_map(

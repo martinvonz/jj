@@ -820,33 +820,6 @@ impl MutableRepo {
             .insert(old_id, std::iter::once(new_id).collect());
     }
 
-    /// Record a commit as having been rewritten in this transaction. If it was
-    /// already rewritten, mark it as divergent (unlike `set_rewritten_commit`)
-    ///
-    /// This record is used by `rebase_descendants` to know which commits have
-    /// children that need to be rebased, and where to rebase the children (as
-    /// well as branches) to.
-    ///
-    /// The `rebase_descendants` logic treats these records as follows:
-    ///
-    /// - If a commit is recorded as rewritten to a single commit, its
-    ///   descendants would be rebased to become descendants of `new_id`. Any
-    ///   branches at `old_id` are also moved to `new_id`.
-    /// - If a commit is recorded as rewritten to more than one commit, it is
-    ///   assumed to have become divergent. Its descendants are *not* rebased.
-    ///   However, the *branches* that were at `old_id` are moved to each of the
-    ///   new ids, and thus become conflicted.
-    ///
-    /// In neither case would `rebase_descendants` modify the `old_id` commit
-    /// itself.
-    pub fn record_rewritten_commit(&mut self, old_id: CommitId, new_id: CommitId) {
-        assert_ne!(old_id, *self.store().root_commit_id());
-        self.rewritten_commits
-            .entry(old_id)
-            .or_default()
-            .insert(new_id);
-    }
-
     /// Record a commit as being rewritten into multiple other commits in this
     /// transaction.
     ///
