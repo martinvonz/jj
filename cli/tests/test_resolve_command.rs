@@ -97,16 +97,21 @@ fn test_resolution() {
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @r###"
-    Resolved conflict in file:
-       1    1: <<<<<<<resolution
-       2     : %%%%%%%
-       3     : -base
-       4     : +a
-       5     : +++++++
-       6     : b
-       7     : >>>>>>>
+    diff --git a/file b/file
+    index 0000000000...88425ec521 100644
+    --- a/file
+    +++ b/file
+    @@ -1,7 +1,1 @@
+    -<<<<<<<
+    -%%%%%%%
+    --base
+    -+a
+    -+++++++
+    -b
+    ->>>>>>>
+    +resolution
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_cli_error(&repo_path, &["resolve", "--list"]), 
     @r###"
@@ -132,16 +137,21 @@ fn test_resolution() {
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]),
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]),
     @r###"
-    Resolved conflict in file:
-       1    1: <<<<<<<resolution
-       2     : %%%%%%%
-       3     : -base
-       4     : +a
-       5     : +++++++
-       6     : b
-       7     : >>>>>>>
+    diff --git a/file b/file
+    index 0000000000...88425ec521 100644
+    --- a/file
+    +++ b/file
+    @@ -1,7 +1,1 @@
+    -<<<<<<<
+    -%%%%%%%
+    --base
+    -+a
+    -+++++++
+    -b
+    ->>>>>>>
+    +resolution
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_cli_error(&repo_path, &["resolve", "--list"]),
     @r###"
@@ -151,7 +161,7 @@ fn test_resolution() {
     // Check that the output file starts with conflict markers if
     // `merge-tool-edits-conflict-markers=true`
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]),
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]),
     @"");
     std::fs::write(
         &editor_script,
@@ -176,22 +186,27 @@ fn test_resolution() {
     b
     >>>>>>>
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @r###"
-    Resolved conflict in file:
-       1    1: <<<<<<<resolution
-       2     : %%%%%%%
-       3     : -base
-       4     : +a
-       5     : +++++++
-       6     : b
-       7     : >>>>>>>
+    diff --git a/file b/file
+    index 0000000000...88425ec521 100644
+    --- a/file
+    +++ b/file
+    @@ -1,7 +1,1 @@
+    -<<<<<<<
+    -%%%%%%%
+    --base
+    -+a
+    -+++++++
+    -b
+    ->>>>>>>
+    +resolution
     "###);
 
     // Check that if merge tool leaves conflict markers in output file and
     // `merge-tool-edits-conflict-markers=true`, these markers are properly parsed.
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @"");
     std::fs::write(
         &editor_script,
@@ -247,16 +262,22 @@ fn test_resolution() {
     >>>>>>>
     "###);
     // Note the "Modified" below
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @r###"
-    Modified conflict in file:
-       1    1: <<<<<<<
-       2    2: %%%%%%%
-       3    3: -basesome
-       4    4: +afake
-       5    5: +++++++
-       6    6: bconflict
-       7    7: >>>>>>>
+    diff --git a/file b/file
+    --- a/file
+    +++ b/file
+    @@ -1,7 +1,7 @@
+     <<<<<<<
+     %%%%%%%
+    --base
+    -+a
+    +-some
+    ++fake
+     +++++++
+    -b
+    +conflict
+     >>>>>>>
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
@@ -267,7 +288,7 @@ fn test_resolution() {
     // `merge-tool-edits-conflict-markers=false` or is not specified,
     // `jj` considers the conflict resolved.
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @"");
     std::fs::write(
         &editor_script,
@@ -300,16 +321,23 @@ fn test_resolution() {
         std::fs::read_to_string(test_env.env_root().join("editor3")).unwrap(), @r###"
     "###);
     // Note the "Resolved" below
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @r###"
-    Resolved conflict in file:
-       1    1: <<<<<<<
-       2    2: %%%%%%%
-       3    3: -basesome
-       4    4: +afake
-       5    5: +++++++
-       6    6: bconflict
-       7    7: >>>>>>>
+    diff --git a/file b/file
+    index 0000000000...0610716cc1 100644
+    --- a/file
+    +++ b/file
+    @@ -1,7 +1,7 @@
+     <<<<<<<
+     %%%%%%%
+    --base
+    -+a
+    +-some
+    ++fake
+     +++++++
+    -b
+    +conflict
+     >>>>>>>
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_cli_error(&repo_path, &["resolve", "--list"]), 
     @r###"
@@ -707,16 +735,21 @@ fn test_multiple_conflicts() {
     There are unresolved conflicts at these paths:
     this_file_has_a_very_long_name_to_test_padding 2-sided conflict
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @r###"
-    Resolved conflict in another_file:
-       1     : <<<<<<<
-       2     : %%%%%%%
-       3    1: -secondresolution baseanother_file
-       4     : +second a
-       5     : +++++++
-       6     : second b
-       7     : >>>>>>>
+    diff --git a/another_file b/another_file
+    index 0000000000...a9fcc7d486 100644
+    --- a/another_file
+    +++ b/another_file
+    @@ -1,7 +1,1 @@
+    -<<<<<<<
+    -%%%%%%%
+    --second base
+    -+second a
+    -+++++++
+    -second b
+    ->>>>>>>
+    +resolution another_file
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
@@ -733,7 +766,7 @@ fn test_multiple_conflicts() {
     // For the rest of the test, we call `jj resolve` several times in a row to
     // resolve each conflict in the order it chooses.
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @"");
     std::fs::write(
         &editor_script,
@@ -741,16 +774,21 @@ fn test_multiple_conflicts() {
     )
     .unwrap();
     test_env.jj_cmd_ok(&repo_path, &["resolve"]);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @r###"
-    Resolved conflict in another_file:
-       1     : <<<<<<<
-       2     : %%%%%%%
-       3    1: first resolution for auto-secondchosen basefile
-       4     : +second a
-       5     : +++++++
-       6     : second b
-       7     : >>>>>>>
+    diff --git a/another_file b/another_file
+    index 0000000000...7903e1c1c7 100644
+    --- a/another_file
+    +++ b/another_file
+    @@ -1,7 +1,1 @@
+    -<<<<<<<
+    -%%%%%%%
+    --second base
+    -+second a
+    -+++++++
+    -second b
+    ->>>>>>>
+    +first resolution for auto-chosen file
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
@@ -763,24 +801,34 @@ fn test_multiple_conflicts() {
     .unwrap();
 
     test_env.jj_cmd_ok(&repo_path, &["resolve"]);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @r###"
-    Resolved conflict in another_file:
-       1     : <<<<<<<
-       2     : %%%%%%%
-       3    1: first resolution for auto-secondchosen basefile
-       4     : +second a
-       5     : +++++++
-       6     : second b
-       7     : >>>>>>>
-    Resolved conflict in this_file_has_a_very_long_name_to_test_padding:
-       1     : <<<<<<<
-       2     : %%%%%%%
-       3    1: second resolution for auto-firstchosen basefile
-       4     : +first a
-       5     : +++++++
-       6     : first b
-       7     : >>>>>>>
+    diff --git a/another_file b/another_file
+    index 0000000000...7903e1c1c7 100644
+    --- a/another_file
+    +++ b/another_file
+    @@ -1,7 +1,1 @@
+    -<<<<<<<
+    -%%%%%%%
+    --second base
+    -+second a
+    -+++++++
+    -second b
+    ->>>>>>>
+    +first resolution for auto-chosen file
+    diff --git a/this_file_has_a_very_long_name_to_test_padding b/this_file_has_a_very_long_name_to_test_padding
+    index 0000000000...f8c72adf17 100644
+    --- a/this_file_has_a_very_long_name_to_test_padding
+    +++ b/this_file_has_a_very_long_name_to_test_padding
+    @@ -1,7 +1,1 @@
+    -<<<<<<<
+    -%%%%%%%
+    --first base
+    -+first a
+    -+++++++
+    -first b
+    ->>>>>>>
+    +second resolution for auto-chosen file
     "###);
 
     insta::assert_snapshot!(test_env.jj_cmd_cli_error(&repo_path, &["resolve", "--list"]), 
