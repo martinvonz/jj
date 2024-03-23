@@ -14,6 +14,8 @@
 
 use std::path::Path;
 
+use indoc::indoc;
+
 use crate::common::TestEnvironment;
 
 fn create_commit(
@@ -195,15 +197,16 @@ fn test_resolution() {
         &editor_script,
         [
             "dump editor2",
-            "write
-<<<<<<<
-%%%%%%%
--some
-+fake
-+++++++
-conflict
->>>>>>>
-",
+            indoc! {"
+                write
+                <<<<<<<
+                %%%%%%%
+                -some
+                +fake
+                +++++++
+                conflict
+                >>>>>>>
+            "},
         ]
         .join("\0"),
     )
@@ -270,15 +273,16 @@ conflict
         &editor_script,
         [
             "dump editor3",
-            "write
-<<<<<<<
-%%%%%%%
--some
-+fake
-+++++++
-conflict
->>>>>>>
-",
+            indoc! {"
+                write
+                <<<<<<<
+                %%%%%%%
+                -some
+                +fake
+                +++++++
+                conflict
+                >>>>>>>
+            "},
         ]
         .join("\0"),
     )
