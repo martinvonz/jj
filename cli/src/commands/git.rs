@@ -45,8 +45,7 @@ use crate::cli_util::{
     start_repo_transaction, CommandHelper, RevisionArg, WorkspaceCommandHelper,
 };
 use crate::command_error::{
-    user_error, user_error_with_hint, user_error_with_hint_opt, user_error_with_message,
-    CommandError,
+    user_error, user_error_with_hint, user_error_with_message, CommandError,
 };
 use crate::git_util::{
     get_git_repo, is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
@@ -1107,7 +1106,9 @@ impl RejectedBranchUpdateReason {
 impl From<RejectedBranchUpdateReason> for CommandError {
     fn from(reason: RejectedBranchUpdateReason) -> Self {
         let RejectedBranchUpdateReason { message, hint } = reason;
-        user_error_with_hint_opt(message, hint)
+        let mut cmd_err = user_error(message);
+        cmd_err.extend_hints(hint);
+        cmd_err
     }
 }
 

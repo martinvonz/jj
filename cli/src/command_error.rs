@@ -126,23 +126,6 @@ pub fn user_error_with_message(
     user_error(ErrorWithMessage::new(message, source))
 }
 
-pub fn user_error_with_message_and_hint(
-    message: impl Into<String>,
-    hint: impl Into<String>,
-    source: impl Into<Box<dyn error::Error + Send + Sync>>,
-) -> CommandError {
-    user_error_with_message(message, source).hinted(hint)
-}
-
-pub fn user_error_with_hint_opt(
-    err: impl Into<Box<dyn error::Error + Send + Sync>>,
-    hint: Option<String>,
-) -> CommandError {
-    let mut err = CommandError::new(CommandErrorKind::User, err);
-    err.extend_hints(hint);
-    err
-}
-
 pub fn config_error(err: impl Into<Box<dyn error::Error + Send + Sync>>) -> CommandError {
     CommandError::new(CommandErrorKind::Config, err)
 }
@@ -278,12 +261,12 @@ impl From<OpsetEvaluationError> for CommandError {
 impl From<SnapshotError> for CommandError {
     fn from(err: SnapshotError) -> Self {
         match err {
-            SnapshotError::NewFileTooLarge { .. } => user_error_with_message_and_hint(
-                "Failed to snapshot the working copy",
-                r#"Increase the value of the `snapshot.max-new-file-size` config option if you
+            SnapshotError::NewFileTooLarge { .. } => {
+                user_error_with_message("Failed to snapshot the working copy", err).hinted(
+                    r#"Increase the value of the `snapshot.max-new-file-size` config option if you
 want this file to be snapshotted. Otherwise add it to your `.gitignore` file."#,
-                err,
-            ),
+                )
+            }
             err => internal_error_with_message("Failed to snapshot the working copy", err),
         }
     }
@@ -364,10 +347,10 @@ repository contents."
             GitImportError::InternalGitError(_) => None,
             GitImportError::UnexpectedBackend => None,
         };
-        user_error_with_hint_opt(
-            ErrorWithMessage::new("Failed to import refs from underlying Git repo", err),
-            hint,
-        )
+        let mut cmd_err =
+            user_error_with_message("Failed to import refs from underlying Git repo", err);
+        cmd_err.extend_hints(hint);
+        cmd_err
     }
 }
 
@@ -415,7 +398,9 @@ impl From<RevsetParseError> for CommandError {
             } => format_similarity_hint(candidates),
             _ => None,
         };
-        user_error_with_hint_opt(revset_util::format_parse_error(&err), hint)
+        let mut cmd_err = user_error(revset_util::format_parse_error(&err));
+        cmd_err.extend_hints(hint);
+        cmd_err
     }
 }
 
@@ -432,7 +417,9 @@ impl From<RevsetResolutionError> for CommandError {
             | RevsetResolutionError::AmbiguousChangeIdPrefix(_)
             | RevsetResolutionError::StoreError(_) => None,
         };
-        user_error_with_hint_opt(err, hint)
+        let mut cmd_err = user_error(err);
+        cmd_err.extend_hints(hint);
+        cmd_err
     }
 }
 
@@ -458,7 +445,9 @@ impl From<TemplateParseError> for CommandError {
             }
             _ => None,
         };
-        user_error_with_hint_opt(format!("Failed to parse template: {message}"), hint)
+        let mut cmd_err = user_error(format!("Failed to parse template: {message}"));
+        cmd_err.extend_hints(hint);
+        cmd_err
     }
 }
 
