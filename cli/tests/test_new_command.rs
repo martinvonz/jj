@@ -497,7 +497,7 @@ fn test_new_conflicting_branches() {
     It resolved to these revisions:
     kkmpptxz 66c6502d foo?? | (empty) two
     qpvuntsm a9330854 foo?? | (empty) one
-    Set which revision the branch points to with `jj branch set foo -r <REVISION>`.
+    Hint: Set which revision the branch points to with `jj branch set foo -r <REVISION>`.
     "###);
 }
 
@@ -519,7 +519,7 @@ fn test_new_conflicting_change_ids() {
     Hint: The revset "qpvuntsm" resolved to these revisions:
     qpvuntsm?? d2ae6806 (empty) two
     qpvuntsm?? a9330854 (empty) one
-    Some of these commits have the same change id. Abandon one of them with `jj abandon -r <REVISION>`.
+    Hint: Some of these commits have the same change id. Abandon one of them with `jj abandon -r <REVISION>`.
     "###);
 }
 
