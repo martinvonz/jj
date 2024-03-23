@@ -540,13 +540,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         }
         let old_parent_ids = old_commit.parent_ids();
         let new_parent_ids = self.new_parents(old_parent_ids);
-        if self.mut_repo.abandoned.contains(&old_commit_id) {
-            // Update the `new_parents` map so descendants are rebased correctly.
-            self.mut_repo
-                .parent_mapping
-                .insert(old_commit_id.clone(), new_parent_ids.clone());
-            return Ok(());
-        }
         if new_parent_ids == old_parent_ids {
             // The commit is already in place.
             return Ok(());

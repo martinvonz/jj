@@ -857,9 +857,15 @@ impl MutableRepo {
     /// The `rebase_descendants` logic will rebase the descendants of `old_id`
     /// to become the descendants of parent(s) of `old_id`. Any branches at
     /// `old_id` would be moved to the parent(s) of `old_id` as well.
+    // TODO: Propagate errors from commit lookup or take a Commit as argument.
     pub fn record_abandoned_commit(&mut self, old_id: CommitId) {
         assert_ne!(old_id, *self.store().root_commit_id());
-        self.abandoned.insert(old_id);
+        self.divergent.remove(&old_id);
+        self.abandoned.insert(old_id.clone());
+        // Descendants should be rebased onto the commit's parents
+        let old_commit = self.store().get_commit(&old_id).unwrap();
+        self.parent_mapping
+            .insert(old_id, old_commit.parent_ids().to_vec());
     }
 
     fn clear_descendant_rebaser_plans(&mut self) {
