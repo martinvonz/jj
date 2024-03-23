@@ -77,12 +77,12 @@ fn test_materialize_conflict_basic() {
         @r###"
     line 1
     line 2
-    <<<<<<<
-    +++++++
+    <<<<<<< Conflict 1 of 1
+    +++++++ Contents of side #1
     left 3.1
     left 3.2
     left 3.3
-    %%%%%%%
+    %%%%%%% Changes from base to side #2
     -line 3
     +right 3.1
     >>>>>>>
@@ -101,11 +101,11 @@ fn test_materialize_conflict_basic() {
         @r###"
     line 1
     line 2
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
     -line 3
     +right 3.1
-    +++++++
+    +++++++ Contents of side #2
     left 3.1
     left 3.2
     left 3.3
@@ -173,16 +173,16 @@ fn test_materialize_conflict_multi_rebase_conflicts() {
         &materialize_conflict_string(store, path, &conflict),
         @r###"
     line 1
-    <<<<<<<
-    +++++++
+    <<<<<<< Conflict 1 of 1
+    +++++++ Contents of side #1
     line 2 a.1
     line 2 a.2
     line 2 a.3
-    %%%%%%%
+    %%%%%%% Changes from base #1 to side #2
     -line 2 base
     +line 2 b.1
     +line 2 b.2
-    %%%%%%%
+    %%%%%%% Changes from base #2 to side #3
     -line 2 base
     +line 2 c.1
     >>>>>>>
@@ -197,15 +197,15 @@ fn test_materialize_conflict_multi_rebase_conflicts() {
         &materialize_conflict_string(store, path, &conflict),
         @r###"
     line 1
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base #1 to side #1
     -line 2 base
     +line 2 c.1
-    %%%%%%%
+    %%%%%%% Changes from base #2 to side #2
     -line 2 base
     +line 2 b.1
     +line 2 b.2
-    +++++++
+    +++++++ Contents of side #3
     line 2 a.1
     line 2 a.2
     line 2 a.3
@@ -221,15 +221,15 @@ fn test_materialize_conflict_multi_rebase_conflicts() {
         &materialize_conflict_string(store, path, &conflict),
         @r###"
     line 1
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base #1 to side #1
     -line 2 base
     +line 2 c.1
-    +++++++
+    +++++++ Contents of side #2
     line 2 a.1
     line 2 a.2
     line 2 a.3
-    %%%%%%%
+    %%%%%%% Changes from base #2 to side #3
     -line 2 base
     +line 2 b.1
     +line 2 b.2
@@ -288,22 +288,22 @@ fn test_materialize_parse_roundtrip() {
     insta::assert_snapshot!(
         materialized,
         @r###"
-    <<<<<<<
-    +++++++
+    <<<<<<< Conflict 1 of 2
+    +++++++ Contents of side #1
     line 1 left
     line 2 left
-    %%%%%%%
+    %%%%%%% Changes from base to side #2
     -line 1
     +line 1 right
      line 2
     >>>>>>>
     line 3
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 2 of 2
+    %%%%%%% Changes from base to side #1
      line 4
     -line 5
     +line 5 left
-    +++++++
+    +++++++ Contents of side #2
     line 4 right
     line 5 right
     >>>>>>>
@@ -385,10 +385,10 @@ fn test_materialize_conflict_modify_delete() {
     insta::assert_snapshot!(&materialize_conflict_string(store, path, &conflict), @r###"
     line 1
     line 2
-    <<<<<<<
-    +++++++
+    <<<<<<< Conflict 1 of 1
+    +++++++ Contents of side #1
     modified
-    %%%%%%%
+    %%%%%%% Changes from base to side #2
     -line 3
     >>>>>>>
     line 4
@@ -404,10 +404,10 @@ fn test_materialize_conflict_modify_delete() {
     insta::assert_snapshot!(&materialize_conflict_string(store, path, &conflict), @r###"
     line 1
     line 2
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
     -line 3
-    +++++++
+    +++++++ Contents of side #2
     modified
     >>>>>>>
     line 4
@@ -421,15 +421,15 @@ fn test_materialize_conflict_modify_delete() {
         vec![Some(modified_id.clone()), None],
     );
     insta::assert_snapshot!(&materialize_conflict_string(store, path, &conflict), @r###"
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
      line 1
      line 2
     -line 3
     +modified
      line 4
      line 5
-    +++++++
+    +++++++ Contents of side #2
     >>>>>>>
     "###
     );
@@ -474,16 +474,16 @@ fn test_materialize_conflict_two_forward_diffs() {
     insta::assert_snapshot!(
         &materialize_conflict_string(store, path, &conflict),
         @r###"
-    <<<<<<<
-    +++++++
+    <<<<<<< Conflict 1 of 1
+    +++++++ Contents of side #1
     A
-    %%%%%%%
+    %%%%%%% Changes from base #1 to side #2
      B
-    +++++++
+    +++++++ Contents of side #3
     D
-    %%%%%%%
+    %%%%%%% Changes from base #2 to side #4
      C
-    -------
+    ------- Contents of base #3
     E
     >>>>>>>
     "###

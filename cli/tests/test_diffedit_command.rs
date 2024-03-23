@@ -395,11 +395,11 @@ fn test_diffedit_merge() {
     assert!(!repo_path.join("file1").exists());
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
     insta::assert_snapshot!(stdout, @r###"
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
     -a
     +c
-    +++++++
+    +++++++ Contents of side #2
     b
     >>>>>>>
     "###);

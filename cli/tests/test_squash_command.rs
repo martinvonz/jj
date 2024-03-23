@@ -649,14 +649,14 @@ fn test_squash_from_multiple() {
     // The changes from the sources have been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "-r=d", "file"]);
     insta::assert_snapshot!(stdout, @r###"
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base #1 to side #1
     -a
     +d
-    %%%%%%%
+    %%%%%%% Changes from base #2 to side #2
     -a
     +b
-    +++++++
+    +++++++ Contents of side #3
     c
     >>>>>>>
     "###);
@@ -786,14 +786,14 @@ fn test_squash_from_multiple_partial() {
     // The selected changes from the sources have been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "-r=d", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
-    <<<<<<<
-    %%%%%%%
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base #1 to side #1
     -a
     +d
-    %%%%%%%
+    %%%%%%% Changes from base #2 to side #2
     -a
     +b
-    +++++++
+    +++++++ Contents of side #3
     c
     >>>>>>>
     "###);
