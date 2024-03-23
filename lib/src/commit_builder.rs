@@ -198,7 +198,7 @@ impl CommitBuilder<'_> {
         if let Some(rewrite_source) = self.rewrite_source {
             if rewrite_source.change_id() == commit.change_id() {
                 self.mut_repo
-                    .record_rewritten_commit(rewrite_source.id().clone(), commit.id().clone());
+                    .set_rewritten_commit(rewrite_source.id().clone(), commit.id().clone());
             }
         }
         Ok(commit)

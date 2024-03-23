@@ -191,7 +191,7 @@ pub fn rebase_commit_with_options(
             // Record old_commit as being succeeded by the parent.
             // This ensures that when we stack commits, the second commit knows to
             // rebase on top of the parent commit, rather than the abandoned commit.
-            mut_repo.record_rewritten_commit(old_commit.id().clone(), parent.id().clone());
+            mut_repo.set_rewritten_commit(old_commit.id().clone(), parent.id().clone());
             return Ok(RebasedCommit::Abandoned {
                 parent: parent.clone(),
             });

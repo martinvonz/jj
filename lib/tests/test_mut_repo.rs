@@ -453,7 +453,7 @@ fn test_rebase_descendants_simple() {
     let mut_repo = tx.mut_repo();
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit6 = graph_builder.commit_with_parents(&[&commit1]);
-    mut_repo.record_rewritten_commit(commit2.id().clone(), commit6.id().clone());
+    mut_repo.set_rewritten_commit(commit2.id().clone(), commit6.id().clone());
     mut_repo.record_abandoned_commit(commit4.id().clone());
     let rebase_map = tx
         .mut_repo()
@@ -474,7 +474,7 @@ fn test_rebase_descendants_simple() {
 }
 
 #[test]
-fn test_rebase_descendants_conflicting_rewrite() {
+fn test_rebase_descendants_divergent_rewrite() {
     // Test rebasing descendants when one commit was rewritten to several other
     // commits. There are many additional tests of this functionality in
     // `test_rewrite.rs`.
@@ -494,8 +494,10 @@ fn test_rebase_descendants_conflicting_rewrite() {
     let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
     let commit4 = graph_builder.commit_with_parents(&[&commit1]);
     let commit5 = graph_builder.commit_with_parents(&[&commit1]);
-    mut_repo.record_rewritten_commit(commit2.id().clone(), commit4.id().clone());
-    mut_repo.record_rewritten_commit(commit2.id().clone(), commit5.id().clone());
+    mut_repo.set_divergent_rewrite(
+        commit2.id().clone(),
+        vec![commit4.id().clone(), commit5.id().clone()],
+    );
     // Commit 3 does *not* get rebased because it's unclear if it should go onto
     // commit 4 or commit 5
     let rebase_map = tx
