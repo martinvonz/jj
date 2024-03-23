@@ -808,22 +808,16 @@ impl MutableRepo {
         Ok(commit)
     }
 
-    /// Record a commit as having been rewritten to one or more ids in this
+    /// Record a commit as having been rewritten to another commit in this
     /// transaction.
     ///
     /// This record is used by `rebase_descendants` to know which commits have
     /// children that need to be rebased, and where to rebase them to. See the
     /// docstring for `record_rewritten_commit` for details.
-    //  TODO(ilyagr): Make this API saner, e.g. make `self.rewritten_commits` public
-    // and make empty values correspond to abandoned commits.
-    pub fn set_rewritten_commit(
-        &mut self,
-        old_id: CommitId,
-        new_ids: impl IntoIterator<Item = CommitId>,
-    ) {
+    pub fn set_rewritten_commit(&mut self, old_id: CommitId, new_id: CommitId) {
         assert_ne!(old_id, *self.store().root_commit_id());
         self.rewritten_commits
-            .insert(old_id, new_ids.into_iter().collect());
+            .insert(old_id, std::iter::once(new_id).collect());
     }
 
     /// Record a commit as having been rewritten in this transaction. If it was
@@ -1364,7 +1358,7 @@ impl MutableRepo {
         }
         for (old_commit, new_commits) in rewritten_commits {
             if new_commits.len() == 1 {
-                self.record_rewritten_commit(
+                self.set_rewritten_commit(
                     old_commit.clone(),
                     new_commits.into_iter().next().unwrap(),
                 );
