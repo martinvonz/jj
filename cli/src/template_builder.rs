@@ -134,11 +134,16 @@ pub enum CoreTemplatePropertyKind<'a> {
     Timestamp(Box<dyn TemplateProperty<Output = Timestamp> + 'a>),
     TimestampRange(Box<dyn TemplateProperty<Output = TimestampRange> + 'a>),
 
-    // TODO: This argument no longer makes sense. Maybe we can migrate these to
-    // TemplateProperty<..>:
-    // Similar to `TemplateProperty<I, Output = Box<dyn Template<()> + 'a>`, but doesn't
-    // capture `I` to produce `Template<()>`. The context `I` would have to be cloned
-    // to convert `Template<I>` to `Template<()>`.
+    // Both TemplateProperty and Template can represent a value to be evaluated
+    // dynamically, which suggests that `Box<dyn Template + 'a>` could be
+    // composed as `Box<dyn TemplateProperty<Output = Box<dyn Template ..`.
+    // However, there's a subtle difference: TemplateProperty is strict on
+    // error, whereas Template is usually lax and prints an error inline. If
+    // `concat(x, y)` were a property returning Template, and if `y` failed to
+    // evaluate, the whole expression would fail. In this example, a partial
+    // evaluation output is more useful. That's one reason why Template isn't
+    // wrapped in a TemplateProperty. Another reason is that the outermost
+    // caller expects a Template, not a TemplateProperty of Template output.
     Template(Box<dyn Template + 'a>),
     ListTemplate(Box<dyn ListTemplate + 'a>),
 }
