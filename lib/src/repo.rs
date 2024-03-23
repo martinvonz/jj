@@ -732,7 +732,10 @@ pub struct MutableRepo {
     base_repo: Arc<ReadonlyRepo>,
     index: Box<dyn MutableIndex>,
     view: DirtyCell<View>,
-    rewritten_commits: HashMap<CommitId, Vec<CommitId>>,
+    parent_mapping: HashMap<CommitId, Vec<CommitId>>,
+    /// Commits with a key in `parent_mapping` that have been divergently
+    /// rewritten into all the commits indicated by the value.
+    divergent: HashSet<CommitId>,
     abandoned_commits: HashSet<CommitId>,
 }
 
@@ -748,7 +751,8 @@ impl MutableRepo {
             base_repo,
             index: mut_index,
             view: DirtyCell::with_clean(mut_view),
-            rewritten_commits: Default::default(),
+            parent_mapping: Default::default(),
+            divergent: Default::default(),
             abandoned_commits: Default::default(),
         }
     }
@@ -767,7 +771,7 @@ impl MutableRepo {
 
     pub fn has_changes(&self) -> bool {
         !(self.abandoned_commits.is_empty()
-            && self.rewritten_commits.is_empty()
+            && self.parent_mapping.is_empty()
             && self.view() == &self.base_repo.view)
     }
 
@@ -816,7 +820,8 @@ impl MutableRepo {
     /// docstring for `record_rewritten_commit` for details.
     pub fn set_rewritten_commit(&mut self, old_id: CommitId, new_id: CommitId) {
         assert_ne!(old_id, *self.store().root_commit_id());
-        self.rewritten_commits.insert(old_id, vec![new_id]);
+        self.divergent.remove(&old_id);
+        self.parent_mapping.insert(old_id, vec![new_id]);
     }
 
     /// Record a commit as being rewritten into multiple other commits in this
@@ -832,8 +837,9 @@ impl MutableRepo {
         new_ids: impl IntoIterator<Item = CommitId>,
     ) {
         assert_ne!(old_id, *self.store().root_commit_id());
-        self.rewritten_commits
-            .insert(old_id, new_ids.into_iter().collect());
+        self.parent_mapping
+            .insert(old_id.clone(), new_ids.into_iter().collect());
+        self.divergent.insert(old_id);
     }
 
     /// Record a commit as having been abandoned in this transaction.
@@ -851,12 +857,13 @@ impl MutableRepo {
     }
 
     fn clear_descendant_rebaser_plans(&mut self) {
-        self.rewritten_commits.clear();
+        self.parent_mapping.clear();
+        self.divergent.clear();
         self.abandoned_commits.clear();
     }
 
     pub fn has_rewrites(&self) -> bool {
-        !(self.rewritten_commits.is_empty() && self.abandoned_commits.is_empty())
+        !(self.parent_mapping.is_empty() && self.abandoned_commits.is_empty())
     }
 
     /// After the rebaser returned by this function is dropped,
@@ -873,7 +880,8 @@ impl MutableRepo {
         let mut rebaser = DescendantRebaser::new(
             settings,
             self,
-            self.rewritten_commits.clone(),
+            self.parent_mapping.clone(),
+            self.divergent.clone(),
             self.abandoned_commits.clone(),
         );
         *rebaser.mut_options() = options;
