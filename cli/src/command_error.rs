@@ -504,21 +504,14 @@ fn try_handle_command_result(
         return Ok(ExitCode::SUCCESS);
     };
     let err = &cmd_err.error;
+    let maybe_hint = cmd_err.hint.as_deref();
     match cmd_err.kind {
         CommandErrorKind::User => {
-            writeln!(ui.error(), "Error: {err}")?;
-            print_error_sources(ui, err.source())?;
-            if let Some(hint) = &cmd_err.hint {
-                writeln!(ui.hint(), "Hint: {hint}")?;
-            }
+            print_error(ui, "Error", err, maybe_hint)?;
             Ok(ExitCode::from(1))
         }
         CommandErrorKind::Config => {
-            writeln!(ui.error(), "Config error: {err}")?;
-            print_error_sources(ui, err.source())?;
-            if let Some(hint) = &cmd_err.hint {
-                writeln!(ui.hint(), "Hint: {hint}")?;
-            }
+            print_error(ui, "Config error", err, maybe_hint)?;
             writeln!(
                 ui.hint(),
                 "For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md."
@@ -527,13 +520,9 @@ fn try_handle_command_result(
         }
         CommandErrorKind::Cli => {
             if let Some(err) = err.downcast_ref::<clap::Error>() {
-                handle_clap_error(ui, err, cmd_err.hint.as_deref())
+                handle_clap_error(ui, err, maybe_hint)
             } else {
-                writeln!(ui.error(), "Error: {err}")?;
-                print_error_sources(ui, err.source())?;
-                if let Some(hint) = &cmd_err.hint {
-                    writeln!(ui.hint(), "Hint: {hint}")?;
-                }
+                print_error(ui, "Error", err, maybe_hint)?;
                 Ok(ExitCode::from(2))
             }
         }
@@ -542,14 +531,24 @@ fn try_handle_command_result(
             Ok(ExitCode::from(BROKEN_PIPE_EXIT_CODE))
         }
         CommandErrorKind::Internal => {
-            writeln!(ui.error(), "Internal error: {err}")?;
-            print_error_sources(ui, err.source())?;
-            if let Some(hint) = &cmd_err.hint {
-                writeln!(ui.hint(), "Hint: {hint}")?;
-            }
+            print_error(ui, "Internal error", err, maybe_hint)?;
             Ok(ExitCode::from(255))
         }
     }
+}
+
+fn print_error(
+    ui: &Ui,
+    prefix: &str,
+    err: &dyn error::Error,
+    maybe_hint: Option<&str>,
+) -> io::Result<()> {
+    writeln!(ui.error(), "{prefix}: {err}")?;
+    print_error_sources(ui, err.source())?;
+    if let Some(hint) = maybe_hint {
+        writeln!(ui.hint(), "Hint: {hint}")?;
+    }
+    Ok(())
 }
 
 fn print_error_sources(ui: &Ui, source: Option<&dyn error::Error>) -> io::Result<()> {
