@@ -83,6 +83,9 @@
           ];
 
           cargoLock.lockFile = ./Cargo.lock;
+          cargoLock.outputHashes = {
+            "git2-0.18.3" = "sha256-Kfg3xWIAarAxeIo2wL30OFni7X4Thf9EzaXbFTWsehE=";
+          };
           nativeBuildInputs = with pkgs; [
             gzip
             installShellFiles
@@ -94,11 +97,10 @@
             openssh
           ] ++ linuxNativeDeps;
           buildInputs = with pkgs; [
-            openssl zstd libgit2 libssh2
+            openssl zstd libgit2 openssh
           ] ++ darwinDeps;
 
           ZSTD_SYS_USE_PKG_CONFIG = "1";
-          LIBSSH2_SYS_USE_PKG_CONFIG = "1";
           RUSTFLAGS = pkgs.lib.optionalString useMoldLinker "-C link-arg=-fuse-ld=mold";
           NIX_JJ_GIT_HASH = self.rev or "";
           CARGO_INCREMENTAL = "0";
@@ -161,7 +163,7 @@
           })
 
           # Foreign dependencies
-          openssl zstd libgit2 libssh2
+          openssl zstd libgit2
           pkg-config
 
           # Make sure rust-analyzer is present
@@ -187,7 +189,6 @@
         shellHook = ''
           export RUST_BACKTRACE=1
           export ZSTD_SYS_USE_PKG_CONFIG=1
-          export LIBSSH2_SYS_USE_PKG_CONFIG=1
         '' + pkgs.lib.optionalString useMoldLinker ''
           export RUSTFLAGS="-C link-arg=-fuse-ld=mold"
         '' + darwinNextestHack;
