@@ -853,6 +853,24 @@ impl MutableRepo {
             .insert(new_id);
     }
 
+    /// Record a commit as being rewritten into multiple other commits in this
+    /// transaction.
+    ///
+    /// A later call to `rebase_descendants()` will update branches pointing to
+    /// `old_id` be conflicted and pointing to all pf `new_ids`. Working
+    /// copies pointing to `old_id` will be updated to point to an arbitrary
+    /// commit in `new_ids` (TODO: make it point to the first one). Descendants
+    /// of `old_id` will be left alone.
+    pub fn set_divergent_rewrite(
+        &mut self,
+        old_id: CommitId,
+        new_ids: impl IntoIterator<Item = CommitId>,
+    ) {
+        assert_ne!(old_id, *self.store().root_commit_id());
+        self.rewritten_commits
+            .insert(old_id, new_ids.into_iter().collect());
+    }
+
     /// Record a commit as having been abandoned in this transaction.
     ///
     /// This record is used by `rebase_descendants` to know which commits have
@@ -1345,8 +1363,13 @@ impl MutableRepo {
             rewritten_changes.insert(change_id);
         }
         for (old_commit, new_commits) in rewritten_commits {
-            for new_commit in new_commits {
-                self.record_rewritten_commit(old_commit.clone(), new_commit);
+            if new_commits.len() == 1 {
+                self.record_rewritten_commit(
+                    old_commit.clone(),
+                    new_commits.into_iter().next().unwrap(),
+                );
+            } else {
+                self.set_divergent_rewrite(old_commit.clone(), new_commits);
             }
         }
 
