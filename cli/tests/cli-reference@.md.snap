@@ -189,9 +189,6 @@ If a working-copy commit gets abandoned, it will be given a new, empty commit. T
 
 * `-r` — Ignored (but lets you pass `-r` for consistency with other commands)
 
-  Possible values: `true`, `false`
-
-
 
 
 ## `jj backout`
@@ -703,9 +700,6 @@ Create a new change with the same content as an existing one
 
 * `-r` — Ignored (but lets you pass `-r` for consistency with other commands)
 
-  Possible values: `true`, `false`
-
-
 
 
 ## `jj edit`
@@ -1118,9 +1112,6 @@ For more information, see https://github.com/martinvonz/jj/blob/main/docs/workin
 ###### **Options:**
 
 * `-r` — Ignored (but lets you pass `-r` for consistency with other commands)
-
-  Possible values: `true`, `false`
-
 * `-m`, `--message <MESSAGE>` — The change description to use
 * `-L`, `--allow-large-revsets` — Deprecated. Please prefix the revset with `all:` instead
 
