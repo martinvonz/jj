@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use indoc::indoc;
 use jj_lib::backend::FileId;
 use jj_lib::conflicts::{
     extract_as_single_hunk, materialize_merge_result, parse_conflict, update_from_content,
@@ -32,34 +33,37 @@ fn test_materialize_conflict_basic() {
     let base_id = testutils::write_file(
         store,
         path,
-        "line 1
-line 2
-line 3
-line 4
-line 5
-",
+        indoc! {"
+            line 1
+            line 2
+            line 3
+            line 4
+            line 5
+        "},
     );
     let left_id = testutils::write_file(
         store,
         path,
-        "line 1
-line 2
-left 3.1
-left 3.2
-left 3.3
-line 4
-line 5
-",
+        indoc! {"
+            line 1
+            line 2
+            left 3.1
+            left 3.2
+            left 3.3
+            line 4
+            line 5
+        "},
     );
     let right_id = testutils::write_file(
         store,
         path,
-        "line 1
-line 2
-right 3.1
-line 4
-line 5
-",
+        indoc! {"
+            line 1
+            line 2
+            right 3.1
+            line 4
+            line 5
+        "},
     );
 
     // The left side should come first. The diff should be use the smaller (right)
@@ -122,37 +126,41 @@ fn test_materialize_conflict_multi_rebase_conflicts() {
     let base_id = testutils::write_file(
         store,
         path,
-        "line 1
-line 2 base
-line 3
-",
+        indoc! {"
+            line 1
+            line 2 base
+            line 3
+        "},
     );
     let a_id = testutils::write_file(
         store,
         path,
-        "line 1
-line 2 a.1
-line 2 a.2
-line 2 a.3
-line 3
-",
+        indoc! {"
+            line 1
+            line 2 a.1
+            line 2 a.2
+            line 2 a.3
+            line 3
+        "},
     );
     let b_id = testutils::write_file(
         store,
         path,
-        "line 1
-line 2 b.1
-line 2 b.2
-line 3
-",
+        indoc! {"
+            line 1
+            line 2 b.1
+            line 2 b.2
+            line 3
+        "},
     );
     let c_id = testutils::write_file(
         store,
         path,
-        "line 1
-line 2 c.1
-line 3
-",
+        indoc! {"
+            line 1
+            line 2 c.1
+            line 3
+        "},
     );
 
     // The order of (a, b, c) should be preserved. For all cases, the "a" side
@@ -240,32 +248,35 @@ fn test_materialize_parse_roundtrip() {
     let base_id = testutils::write_file(
         store,
         path,
-        "line 1
-line 2
-line 3
-line 4
-line 5
-",
+        indoc! {"
+            line 1
+            line 2
+            line 3
+            line 4
+            line 5
+        "},
     );
     let left_id = testutils::write_file(
         store,
         path,
-        "line 1 left
-line 2 left
-line 3
-line 4
-line 5 left
-",
+        indoc! {"
+            line 1 left
+            line 2 left
+            line 3
+            line 4
+            line 5 left
+        "},
     );
     let right_id = testutils::write_file(
         store,
         path,
-        "line 1 right
-line 2
-line 3
-line 4 right
-line 5 right
-",
+        indoc! {"
+            line 1 right
+            line 2
+            line 3
+            line 4 right
+            line 5 right
+        "},
     );
 
     let conflict = Merge::from_removes_adds(
@@ -335,31 +346,34 @@ fn test_materialize_conflict_modify_delete() {
     let base_id = testutils::write_file(
         store,
         path,
-        "line 1
-line 2
-line 3
-line 4
-line 5
-",
+        indoc! {"
+            line 1
+            line 2
+            line 3
+            line 4
+            line 5
+        "},
     );
     let modified_id = testutils::write_file(
         store,
         path,
-        "line 1
-line 2
-modified
-line 4
-line 5
-",
+        indoc! {"
+            line 1
+            line 2
+            modified
+            line 4
+            line 5
+        "},
     );
     let deleted_id = testutils::write_file(
         store,
         path,
-        "line 1
-line 2
-line 4
-line 5
-",
+        indoc! {"
+            line 1
+            line 2
+            line 4
+            line 5
+        "},
     );
 
     // left modifies a line, right deletes the same line.
@@ -479,12 +493,13 @@ fn test_materialize_conflict_two_forward_diffs() {
 fn test_parse_conflict_resolved() {
     assert_eq!(
         parse_conflict(
-            b"line 1
+            indoc! {b"
+            line 1
 line 2
 line 3
 line 4
 line 5
-",
+"},
             2
         ),
         None
@@ -494,19 +509,19 @@ line 5
 #[test]
 fn test_parse_conflict_simple() {
     insta::assert_debug_snapshot!(
-        parse_conflict(
-            b"line 1
-<<<<<<<
-%%%%%%%
- line 2
--line 3
-+left
- line 4
-+++++++
-right
->>>>>>>
-line 5
-",
+        parse_conflict(indoc! {b"
+            line 1
+            <<<<<<<
+            %%%%%%%
+             line 2
+            -line 3
+            +left
+             line 4
+            +++++++
+            right
+            >>>>>>>
+            line 5
+            "},
             2
         ),
         @r###"
@@ -535,23 +550,24 @@ line 5
 fn test_parse_conflict_multi_way() {
     insta::assert_debug_snapshot!(
         parse_conflict(
-            b"line 1
-<<<<<<<
-%%%%%%%
- line 2
--line 3
-+left
- line 4
-+++++++
-right
-%%%%%%%
- line 2
-+forward
- line 3
- line 4
->>>>>>>
-line 5
-",
+            indoc! {b"
+                line 1
+                <<<<<<<
+                %%%%%%%
+                 line 2
+                -line 3
+                +left
+                 line 4
+                +++++++
+                right
+                %%%%%%%
+                 line 2
+                +forward
+                 line 3
+                 line 4
+                >>>>>>>
+                line 5
+                "},
             3
         ),
         @r###"
@@ -582,18 +598,19 @@ line 5
 fn test_parse_conflict_different_wrong_arity() {
     assert_eq!(
         parse_conflict(
-            b"line 1
-<<<<<<<
-%%%%%%%
- line 2
--line 3
-+left
- line 4
-+++++++
-right
->>>>>>>
-line 5
-",
+            indoc! {b"
+            line 1
+            <<<<<<<
+            %%%%%%%
+             line 2
+            -line 3
+            +left
+             line 4
+            +++++++
+            right
+            >>>>>>>
+            line 5
+            "},
             3
         ),
         None
@@ -605,17 +622,18 @@ fn test_parse_conflict_malformed_marker() {
     // The conflict marker is missing `%%%%%%%`
     assert_eq!(
         parse_conflict(
-            b"line 1
-<<<<<<<
- line 2
--line 3
-+left
- line 4
-+++++++
-right
->>>>>>>
-line 5
-",
+            indoc! {b"
+            line 1
+            <<<<<<<
+             line 2
+            -line 3
+            +left
+             line 4
+            +++++++
+            right
+            >>>>>>>
+            line 5
+            "},
             2
         ),
         None
@@ -627,18 +645,19 @@ fn test_parse_conflict_malformed_diff() {
     // The diff part is invalid (missing space before "line 4")
     assert_eq!(
         parse_conflict(
-            b"line 1
-<<<<<<<
-%%%%%%%
- line 2
--line 3
-+left
-line 4
-+++++++
-right
->>>>>>>
-line 5
-",
+            indoc! {b"
+            line 1
+            <<<<<<<
+            %%%%%%%
+             line 2
+            -line 3
+            +left
+            line 4
+            +++++++
+            right
+            >>>>>>>
+            line 5
+            "},
             2
         ),
         None

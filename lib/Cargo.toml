@@ -72,6 +72,7 @@ winreg = { workspace = true }
 assert_matches = { workspace = true }
 criterion = { workspace = true }
 esl01-renderdag = { workspace = true }
+indoc = { workspace = true }
 insta = { workspace = true }
 num_cpus = { workspace = true }
 pretty_assertions = { workspace = true }
