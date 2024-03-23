@@ -313,17 +313,18 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     pub fn new(
         settings: &'settings UserSettings,
         mut_repo: &'repo mut MutableRepo,
-        rewritten: HashMap<CommitId, Vec<CommitId>>,
+        parent_mapping: HashMap<CommitId, Vec<CommitId>>,
+        divergent: HashSet<CommitId>,
         abandoned: HashSet<CommitId>,
     ) -> DescendantRebaser<'settings, 'repo> {
         let store = mut_repo.store();
         let root_commit_id = store.root_commit_id();
         assert!(!abandoned.contains(root_commit_id));
-        assert!(!rewritten.contains_key(root_commit_id));
-        let old_commits_expression = RevsetExpression::commits(rewritten.keys().cloned().collect())
-            .union(&RevsetExpression::commits(
-                abandoned.iter().cloned().collect(),
-            ));
+        assert!(!parent_mapping.contains_key(root_commit_id));
+        let old_commits_expression =
+            RevsetExpression::commits(parent_mapping.keys().cloned().collect()).union(
+                &RevsetExpression::commits(abandoned.iter().cloned().collect()),
+            );
         let heads_to_add_expression = old_commits_expression
             .parents()
             .minus(&old_commits_expression);
@@ -349,7 +350,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 visited.insert(commit.id().clone());
                 let mut dependents = vec![];
                 for parent in commit.parents() {
-                    if let Some(targets) = rewritten.get(parent.id()) {
+                    if let Some(targets) = parent_mapping.get(parent.id()) {
                         for target in targets {
                             if to_visit_set.contains(target) && !visited.contains(target) {
                                 dependents.push(store.get_commit(target).unwrap());
@@ -364,19 +365,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             },
         );
 
-        let new_commits = rewritten.values().flatten().cloned().collect();
-
-        let mut parent_mapping = HashMap::new();
-        let mut divergent = HashSet::new();
-        for (old_commit, new_commits) in rewritten {
-            if new_commits.len() == 1 {
-                parent_mapping.insert(old_commit, vec![new_commits.into_iter().next().unwrap()]);
-            } else {
-                let new_commits = mut_repo.index().heads(&mut new_commits.iter());
-                parent_mapping.insert(old_commit.clone(), new_commits);
-                divergent.insert(old_commit);
-            }
-        }
+        let new_commits = parent_mapping.values().flatten().cloned().collect();
 
         // Build a map from commit to branches pointing to it, so we don't need to scan
         // all branches each time we rebase a commit.
