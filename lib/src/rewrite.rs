@@ -476,12 +476,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         if let Some(branch_names) = self.branches.get(&old_commit_id).cloned() {
             let mut branch_updates = vec![];
             for branch_name in &branch_names {
-                for new_commit_id in &new_commit_ids {
-                    self.branches
-                        .entry(new_commit_id.clone())
-                        .or_default()
-                        .insert(branch_name.clone());
-                }
                 let local_target = self.mut_repo.get_local_branch(branch_name);
                 for old_add in local_target.added_ids() {
                     if *old_add == old_commit_id {
