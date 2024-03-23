@@ -1,0 +1,19 @@
+[package]
+name = "jj-docs"
+description = "Documentation for Jujutsu - an experimental version control system"
+autotests = false
+
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+homepage = { workspace = true }
+repository = { workspace = true }
+documentation = { workspace = true }
+readme = { workspace = true }
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+rust-embed = { workspace = true }

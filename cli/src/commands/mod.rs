@@ -26,6 +26,7 @@ mod debug;
 mod describe;
 mod diff;
 mod diffedit;
+mod docs;
 mod duplicate;
 mod edit;
 mod files;
@@ -88,6 +89,7 @@ enum Command {
     Describe(describe::DescribeArgs),
     Diff(diff::DiffArgs),
     Diffedit(diffedit::DiffeditArgs),
+    Docs(docs::DocsArgs),
     Duplicate(duplicate::DuplicateArgs),
     Edit(edit::EditArgs),
     Files(files::FilesArgs),
@@ -169,6 +171,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Files(sub_args) => files::cmd_files(ui, command_helper, sub_args),
         Command::Cat(sub_args) => cat::cmd_cat(ui, command_helper, sub_args),
         Command::Diff(sub_args) => diff::cmd_diff(ui, command_helper, sub_args),
+        Command::Docs(sub_args) => docs::cmd_docs(ui, command_helper, sub_args),
         Command::Show(sub_args) => show::cmd_show(ui, command_helper, sub_args),
         Command::Status(sub_args) => status::cmd_status(ui, command_helper, sub_args),
         Command::Log(sub_args) => log::cmd_log(ui, command_helper, sub_args),
