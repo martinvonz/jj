@@ -732,11 +732,17 @@ pub struct MutableRepo {
     base_repo: Arc<ReadonlyRepo>,
     index: Box<dyn MutableIndex>,
     view: DirtyCell<View>,
-    parent_mapping: HashMap<CommitId, Vec<CommitId>>,
+    // TODO: make these fields private again
+    // The commit identified by the key has been replaced by all the ones in the value, typically
+    // because the key commit was abandoned (the value commits are then the abandoned commit's
+    // parents). A child of the key commit should be rebased onto all the value commits. A branch
+    // pointing to the key commit should become a conflict pointing to all the value commits.
+    pub(crate) parent_mapping: HashMap<CommitId, Vec<CommitId>>,
     /// Commits with a key in `parent_mapping` that have been divergently
     /// rewritten into all the commits indicated by the value.
-    divergent: HashSet<CommitId>,
-    abandoned: HashSet<CommitId>,
+    pub(crate) divergent: HashSet<CommitId>,
+    // Commits that were abandoned. Their children should be rebased onto their parents.
+    pub(crate) abandoned: HashSet<CommitId>,
 }
 
 impl MutableRepo {
@@ -877,13 +883,7 @@ impl MutableRepo {
             // Optimization
             return Ok(None);
         }
-        let mut rebaser = DescendantRebaser::new(
-            settings,
-            self,
-            self.parent_mapping.clone(),
-            self.divergent.clone(),
-            self.abandoned.clone(),
-        );
+        let mut rebaser = DescendantRebaser::new(settings, self);
         *rebaser.mut_options() = options;
         rebaser.rebase_all()?;
         Ok(Some(rebaser))

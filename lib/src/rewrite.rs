@@ -278,18 +278,8 @@ pub struct RebaseOptions {
 pub(crate) struct DescendantRebaser<'settings, 'repo> {
     settings: &'settings UserSettings,
     mut_repo: &'repo mut MutableRepo,
-    // The commit identified by the key has been replaced by all the ones in the value, typically
-    // because the key commit was abandoned (the value commits are then the abandoned commit's
-    // parents). A child of the key commit should be rebased onto all the value commits. A branch
-    // pointing to the key commit should become a conflict pointing to all the value commits.
-    parent_mapping: HashMap<CommitId, Vec<CommitId>>,
-    divergent: HashSet<CommitId>,
     // In reverse order (parents after children), so we can remove the last one to rebase first.
     to_visit: Vec<Commit>,
-    // Commits to visit but skip. These were also in `to_visit` to start with, but we don't
-    // want to rebase them. Instead, we record them in `parent_mapping` when we visit them. That
-    // way, their descendants will be rebased correctly.
-    abandoned: HashSet<CommitId>,
     new_commits: HashSet<CommitId>,
     rebased: HashMap<CommitId, CommitId>,
     // Names of branches where local target includes the commit id in the key.
@@ -313,17 +303,11 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     pub fn new(
         settings: &'settings UserSettings,
         mut_repo: &'repo mut MutableRepo,
-        parent_mapping: HashMap<CommitId, Vec<CommitId>>,
-        divergent: HashSet<CommitId>,
-        abandoned: HashSet<CommitId>,
     ) -> DescendantRebaser<'settings, 'repo> {
         let store = mut_repo.store();
-        let root_commit_id = store.root_commit_id();
-        assert!(!abandoned.contains(root_commit_id));
-        assert!(!parent_mapping.contains_key(root_commit_id));
         let old_commits_expression =
-            RevsetExpression::commits(parent_mapping.keys().cloned().collect()).union(
-                &RevsetExpression::commits(abandoned.iter().cloned().collect()),
+            RevsetExpression::commits(mut_repo.parent_mapping.keys().cloned().collect()).union(
+                &RevsetExpression::commits(mut_repo.abandoned.iter().cloned().collect()),
             );
         let heads_to_add_expression = old_commits_expression
             .parents()
@@ -350,7 +334,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 visited.insert(commit.id().clone());
                 let mut dependents = vec![];
                 for parent in commit.parents() {
-                    if let Some(targets) = parent_mapping.get(parent.id()) {
+                    if let Some(targets) = mut_repo.parent_mapping.get(parent.id()) {
                         for target in targets {
                             if to_visit_set.contains(target) && !visited.contains(target) {
                                 dependents.push(store.get_commit(target).unwrap());
@@ -365,7 +349,12 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             },
         );
 
-        let new_commits = parent_mapping.values().flatten().cloned().collect();
+        let new_commits = mut_repo
+            .parent_mapping
+            .values()
+            .flatten()
+            .cloned()
+            .collect();
 
         // Build a map from commit to branches pointing to it, so we don't need to scan
         // all branches each time we rebase a commit.
@@ -382,10 +371,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         DescendantRebaser {
             settings,
             mut_repo,
-            parent_mapping,
-            divergent,
             to_visit,
-            abandoned,
             new_commits,
             rebased: Default::default(),
             branches,
@@ -446,11 +432,14 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let mut new_ids: Vec<CommitId> = old_ids.to_vec();
         // The longest possible non-cycle substitution sequence goes through each key of
         // parent_mapping once.
-        let mut allowed_iterations = 0..self.parent_mapping.len();
+        let mut allowed_iterations = 0..self.mut_repo.parent_mapping.len();
         loop {
             let made_replacements;
-            (new_ids, made_replacements) =
-                single_substitution_round(&self.parent_mapping, &self.divergent, new_ids);
+            (new_ids, made_replacements) = single_substitution_round(
+                &self.mut_repo.parent_mapping,
+                &self.mut_repo.divergent,
+                new_ids,
+            );
             if !made_replacements {
                 break;
             }
@@ -481,7 +470,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         new_commit_ids: Vec<CommitId>,
     ) -> Result<(), BackendError> {
         // We arbitrarily pick a new working-copy commit among the candidates.
-        let abandoned_old_commit = self.abandoned.contains(&old_commit_id);
+        let abandoned_old_commit = self.mut_repo.abandoned.contains(&old_commit_id);
         self.update_wc_commits(&old_commit_id, &new_commit_ids[0], abandoned_old_commit)?;
 
         if let Some(branch_names) = self.branches.get(&old_commit_id).cloned() {
@@ -549,7 +538,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
 
     fn rebase_one(&mut self, old_commit: Commit) -> Result<(), TreeMergeError> {
         let old_commit_id = old_commit.id().clone();
-        if let Some(new_parent_ids) = self.parent_mapping.get(&old_commit_id).cloned() {
+        if let Some(new_parent_ids) = self.mut_repo.parent_mapping.get(&old_commit_id).cloned() {
             // This is a commit that had already been rebased before `self` was created
             // (i.e. it's part of the input for this rebase). We don't need
             // to rebase it, but we still want to update branches pointing
@@ -559,9 +548,10 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         }
         let old_parent_ids = old_commit.parent_ids();
         let new_parent_ids = self.new_parents(old_parent_ids);
-        if self.abandoned.contains(&old_commit_id) {
+        if self.mut_repo.abandoned.contains(&old_commit_id) {
             // Update the `new_parents` map so descendants are rebased correctly.
-            self.parent_mapping
+            self.mut_repo
+                .parent_mapping
                 .insert(old_commit_id.clone(), new_parent_ids.clone());
             self.update_references(old_commit_id, new_parent_ids)?;
             return Ok(());
@@ -570,9 +560,10 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             return Ok(());
         }
         assert_eq!(
-            (self
-                .rebased.get(&old_commit_id), self
-                .parent_mapping.get(&old_commit_id)),
+            (
+                self.rebased.get(&old_commit_id),
+                self.mut_repo.parent_mapping.get(&old_commit_id)
+            ),
             (None, None),
             "Trying to rebase the same commit {old_commit_id:?} in two different ways",
         );
@@ -591,14 +582,13 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let new_commit = match rebased_commit {
             RebasedCommit::Rewritten(new_commit) => new_commit,
             RebasedCommit::Abandoned { parent } => {
-                self.abandoned.insert(old_commit.id().clone());
+                self.mut_repo.abandoned.insert(old_commit.id().clone());
                 parent
             }
         };
-        self
-            .rebased
+        self.rebased
             .insert(old_commit_id.clone(), new_commit.id().clone());
-        self
+        self.mut_repo
             .parent_mapping
             .insert(old_commit_id.clone(), vec![new_commit.id().clone()]);
         self.update_references(old_commit_id, vec![new_commit.id().clone()])?;
