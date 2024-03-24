@@ -2293,20 +2293,21 @@ immutable even if the set is empty.</p>
 <h4 id="node-style">Node style<a class="headerlink" href="#node-style" title="Permanent link">&para;</a></h4>
 <p>The symbols used to represent commits or operations can be customized via
 templates.</p>
-<p>* <code>templates.log_node</code> for commits (with <code>Commit</code> keywords)
-  * <code>templates.op_log_node</code> for operations (with <code>Operation</code> keywords)
-  * <code>templates.log_node_elided</code> for elided nodes</p>
+<p>* <code>templates.log_node</code> for commits (with <code>Option&lt;Commit&gt;</code> keywords)
+  * <code>templates.op_log_node</code> for operations (with <code>Operation</code> keywords)</p>
 <p>For example:
 <div class="highlight"><pre><span></span><code><span class="k">[templates]</span>
 <span class="n">log_node</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;</span>
+<span class="s1">if(self,</span>
 <span class="s1">  if(current_working_copy, &quot;@&quot;,</span>
 <span class="s1">    if(root, &quot;┴&quot;,</span>
 <span class="s1">      if(immutable, &quot;●&quot;, &quot;○&quot;)</span>
 <span class="s1">    )</span>
-<span class="s1">  )</span>
+<span class="s1">  ),</span>
+<span class="s1">  &quot;🮀&quot;,</span>
+<span class="s1">)</span>
 <span class="s1">&#39;&#39;&#39;</span>
 <span class="n">op_log_node</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;if(current_operation, &quot;@&quot;, &quot;○&quot;)&#39;</span>
-<span class="n">log_node_elided</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&quot;🮀&quot;&#39;</span>
 </code></pre></div></p>
 <h3 id="wrap-log-content">Wrap log content<a class="headerlink" href="#wrap-log-content" title="Permanent link">&para;</a></h3>
 <p>If enabled, <code>log</code>/<code>obslog</code>/<code>op log</code> content will be wrapped based on
