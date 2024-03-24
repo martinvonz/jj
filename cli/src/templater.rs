@@ -55,6 +55,14 @@ impl<T: Template + ?Sized> Template for Box<T> {
     }
 }
 
+// All optional printable types should be printable, and it's unlikely to
+// implement different formatting per type.
+impl<T: Template> Template for Option<T> {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+        self.as_ref().map_or(Ok(()), |t| t.format(formatter))
+    }
+}
+
 impl Template for Signature {
     fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
         write!(formatter.labeled("name"), "{}", self.name)?;

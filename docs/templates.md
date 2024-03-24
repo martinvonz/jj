@@ -81,7 +81,7 @@ This type cannot be printed. The following methods are defined.
 * `remote_branches() -> List<RefName>`: All remote branches pointing to the commit.
 * `tags() -> List<RefName>`
 * `git_refs() -> List<RefName>`
-* `git_head() -> List<RefName>`
+* `git_head() -> Option<RefName>`
 * `divergent() -> Boolean`: True if the commit's change id corresponds to multiple
   visible commits.
 * `hidden() -> Boolean`: True if the commit is not visible (a.k.a. abandoned).
