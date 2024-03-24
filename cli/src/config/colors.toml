@@ -1,10 +1,10 @@
 [colors]
-"error" = "red"
-"warning" = "yellow"
-"hint" = "cyan"
-"error heading" = { bold = true }
-"warning heading" = { bold = true }
-"hint heading" = { bold = true }
+"error" = { fg = "default", bold = true }
+"warning" = { fg = "default", bold = true }
+"hint" = { fg = "default" }
+"error heading" = { fg = "red", bold = true }
+"warning heading" = { fg = "yellow", bold = true }
+"hint heading" = { fg = "cyan", bold = true }
 
 "conflict_description" = "yellow"
 "conflict_description difficult" = "red"
