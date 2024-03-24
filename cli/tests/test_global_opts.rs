@@ -395,15 +395,15 @@ fn test_color_ui_messages() {
     // hint and error
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["-R."]);
     insta::assert_snapshot!(stderr, @r###"
-    [1m[38;5;6mHint: [0m[38;5;6mUse `jj -h` for a list of available commands.[39m
-    [38;5;6mRun `jj config set --user ui.default-command log` to disable this message.[39m
-    [1m[38;5;1mError: [0m[38;5;1mThere is no jj repo in "."[39m
+    [1m[38;5;6mHint: [0m[39mUse `jj -h` for a list of available commands.[39m
+    [39mRun `jj config set --user ui.default-command log` to disable this message.[39m
+    [1m[38;5;1mError: [39mThere is no jj repo in "."[0m
     "###);
 
     // warning
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "@"]);
     insta::assert_snapshot!(stderr, @r###"
-    [1m[38;5;3mWarning: [0m[38;5;3mThe argument "@" is being interpreted as a path. To specify a revset, pass -r "@" instead.[39m
+    [1m[38;5;3mWarning: [39mThe argument "@" is being interpreted as a path. To specify a revset, pass -r "@" instead.[0m
     "###);
 
     // error inlined in template output
@@ -419,7 +419,7 @@ fn test_color_ui_messages() {
     );
     insta::assert_snapshot!(stdout, @r###"
     [38;5;4m8bb159bc30a9859930e567eb9238a7c43ee6744d[39m
-    [38;5;1m<[1mError: [0m[38;5;1mNo commit available>[39m  [38;5;8m(elided revisions)[39m
+    [1m[39m<[38;5;1mError: [39mNo commit available>[0m  [38;5;8m(elided revisions)[39m
     [38;5;4m0000000000000000000000000000000000000000[39m
     "###);
 }
