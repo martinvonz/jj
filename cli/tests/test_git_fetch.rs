@@ -107,11 +107,11 @@ fn test_git_fetch_single_remote() {
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
 
-    test_env
-        .jj_cmd(&repo_path, &["git", "fetch"])
-        .assert()
-        .success()
-        .stderr("Fetching from the only existing remote: rem1\nbranch: rem1@rem1 [new] tracked\n");
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Fetching from the only existing remote: rem1
+    branch: rem1@rem1 [new] tracked
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     rem1: qxosxrvv 6a211027 message
       @rem1: qxosxrvv 6a211027 message
