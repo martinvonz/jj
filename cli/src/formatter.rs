@@ -73,9 +73,50 @@ where
     S: AsRef<str>,
 {
     pub fn write_fmt(&mut self, args: fmt::Arguments<'_>) -> io::Result<()> {
+        self.with_labeled(|formatter| formatter.write_fmt(args))
+    }
+
+    fn with_labeled(
+        &mut self,
+        write_inner: impl FnOnce(&mut dyn Formatter) -> io::Result<()>,
+    ) -> io::Result<()> {
         self.formatter
             .borrow_mut()
-            .with_label(self.label.as_ref(), |formatter| formatter.write_fmt(args))
+            .with_label(self.label.as_ref(), write_inner)
+    }
+}
+
+/// Like `LabeledWriter`, but also prints the `heading` once.
+///
+/// The `heading` will be printed within the first `write!()` or `writeln!()`
+/// invocation, which is handy because `io::Error` can be handled there.
+pub struct HeadingLabeledWriter<T, S, H> {
+    writer: LabeledWriter<T, S>,
+    heading: Option<H>,
+}
+
+impl<T, S, H> HeadingLabeledWriter<T, S, H> {
+    pub fn new(formatter: T, label: S, heading: H) -> Self {
+        HeadingLabeledWriter {
+            writer: LabeledWriter::new(formatter, label),
+            heading: Some(heading),
+        }
+    }
+}
+
+impl<'a, T, S, H> HeadingLabeledWriter<T, S, H>
+where
+    T: BorrowMut<dyn Formatter + 'a>,
+    S: AsRef<str>,
+    H: fmt::Display,
+{
+    pub fn write_fmt(&mut self, args: fmt::Arguments<'_>) -> io::Result<()> {
+        self.writer.with_labeled(|formatter| {
+            if let Some(heading) = self.heading.take() {
+                write!(formatter.labeled("heading"), "{heading}")?;
+            }
+            formatter.write_fmt(args)
+        })
     }
 }
 
@@ -1052,6 +1093,40 @@ mod tests {
         write!(formatter, " inside ").unwrap();
         drop(formatter);
         insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"[38;5;2m inside [39m");
+    }
+
+    #[test]
+    fn test_heading_labeled_writer() {
+        let config = config_from_string(
+            r#"
+        colors.inner = "green"
+        colors."inner heading" = "red"
+        "#,
+        );
+        let mut output: Vec<u8> = vec![];
+        let mut formatter: Box<dyn Formatter> =
+            Box::new(ColorFormatter::for_config(&mut output, &config).unwrap());
+        HeadingLabeledWriter::new(formatter.as_mut(), "inner", "Should be noop: ");
+        let mut writer = HeadingLabeledWriter::new(formatter.as_mut(), "inner", "Heading: ");
+        write!(writer, "Message").unwrap();
+        writeln!(writer, " continues").unwrap();
+        drop(formatter);
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @r###"
+        [38;5;1mHeading: [38;5;2mMessage[39m[38;5;2m continues[39m
+        "###);
+    }
+
+    #[test]
+    fn test_heading_labeled_writer_empty_string() {
+        let mut output: Vec<u8> = vec![];
+        let mut formatter: Box<dyn Formatter> = Box::new(PlainTextFormatter::new(&mut output));
+        let mut writer = HeadingLabeledWriter::new(formatter.as_mut(), "inner", "Heading: ");
+        // write_fmt() is called even if the format string is empty. I don't
+        // know if that's guaranteed, but let's record the current behavior.
+        write!(writer, "").unwrap();
+        write!(writer, "").unwrap();
+        drop(formatter);
+        insta::assert_snapshot!(String::from_utf8(output).unwrap(), @"Heading: ");
     }
 
     #[test]
