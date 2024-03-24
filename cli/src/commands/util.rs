@@ -130,9 +130,9 @@ fn cmd_util_completion(
     let mut app = command.app().clone();
     let warn = |shell| {
         writeln!(
-            ui.warning(),
-            "Warning: `jj util completion --{shell}` will be removed in a future version, and \
-             this will be a hard error"
+            ui.warning_with_heading("Warning: "),
+            "`jj util completion --{shell}` will be removed in a future version, and this will be \
+             a hard error"
         )?;
         writeln!(
             ui.hint_with_heading("Hint: "),

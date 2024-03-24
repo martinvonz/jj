@@ -94,7 +94,7 @@ don't make any changes, then the operation will be aborted.
     if selected_tree_id == base_tree.id() {
         // The user selected nothing, so the first commit will be empty.
         writeln!(
-            ui.warning(),
+            ui.warning_no_heading(),
             "The given paths do not match any file: {}",
             args.paths.join(" ")
         )?;

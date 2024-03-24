@@ -258,8 +258,8 @@ fn cmd_branch_create(
 
     if branch_names.len() > 1 {
         writeln!(
-            ui.warning(),
-            "warning: Creating multiple branches: {}",
+            ui.warning_with_heading("warning: "),
+            "Creating multiple branches: {}",
             branch_names.join(", "),
         )?;
     }
@@ -321,8 +321,8 @@ fn cmd_branch_rename(
         .any(|(_, remote_ref)| remote_ref.is_tracking())
     {
         writeln!(
-            ui.warning(),
-            "Warning: Branch {old_branch} has tracking remote branches which were not renamed."
+            ui.warning_with_heading("Warning: "),
+            "Branch {old_branch} has tracking remote branches which were not renamed."
         )?;
         writeln!(
             ui.hint_with_heading("Hint: "),
@@ -370,8 +370,8 @@ fn cmd_branch_set(
 
     if branch_names.len() > 1 {
         writeln!(
-            ui.warning(),
-            "warning: Updating multiple branches: {}",
+            ui.warning_with_heading("warning: "),
+            "Updating multiple branches: {}",
             branch_names.join(", "),
         )?;
     }
@@ -487,7 +487,7 @@ fn cmd_branch_delete(
     let view = workspace_command.repo().view();
     if !args.glob.is_empty() {
         writeln!(
-            ui.warning(),
+            ui.warning_no_heading(),
             "--glob has been deprecated. Please prefix the pattern with `glob:` instead."
         )?;
     }
@@ -514,7 +514,7 @@ fn cmd_branch_forget(
     let view = workspace_command.repo().view();
     if !args.glob.is_empty() {
         writeln!(
-            ui.warning(),
+            ui.warning_no_heading(),
             "--glob has been deprecated. Please prefix the pattern with `glob:` instead."
         )?;
     }
@@ -541,7 +541,10 @@ fn cmd_branch_track(
     let mut names = Vec::new();
     for (name, remote_ref) in find_remote_branches(view, &args.names)? {
         if remote_ref.is_tracking() {
-            writeln!(ui.warning(), "Remote branch already tracked: {name}")?;
+            writeln!(
+                ui.warning_no_heading(),
+                "Remote branch already tracked: {name}"
+            )?;
         } else {
             names.push(name);
         }
@@ -574,11 +577,14 @@ fn cmd_branch_untrack(
         if name.remote == git::REMOTE_NAME_FOR_LOCAL_GIT_REPO {
             // This restriction can be lifted if we want to support untracked @git branches.
             writeln!(
-                ui.warning(),
+                ui.warning_no_heading(),
                 "Git-tracking branch cannot be untracked: {name}"
             )?;
         } else if !remote_ref.is_tracking() {
-            writeln!(ui.warning(), "Remote branch not tracked yet: {name}")?;
+            writeln!(
+                ui.warning_no_heading(),
+                "Remote branch not tracked yet: {name}"
+            )?;
         } else {
             names.push(name);
         }

@@ -383,7 +383,7 @@ fn cmd_op_abandon(
         let old_op_id = locked_ws.locked_wc().old_operation_id();
         if old_op_id != current_head_op.id() {
             writeln!(
-                ui.warning(),
+                ui.warning_no_heading(),
                 "The working copy operation {} is not updated because it differs from the repo {}.",
                 short_operation_hash(old_op_id),
                 short_operation_hash(current_head_op.id()),

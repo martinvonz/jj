@@ -62,8 +62,8 @@ pub(crate) fn cmd_init(
     if args.git || args.git_repo.is_some() {
         git::git_init(ui, command, &wc_path, colocate, args.git_repo.as_deref())?;
         writeln!(
-            ui.warning(),
-            "warning: `--git` and `--git-repo` are deprecated.
+            ui.warning_with_heading("warning: "),
+            "`--git` and `--git-repo` are deprecated.
 Use `jj git init` instead"
         )?;
     } else {
