@@ -597,9 +597,8 @@ fn get_default_fetch_remotes(
         // if nothing was explicitly configured, try to guess
         if remote != DEFAULT_REMOTE {
             writeln!(
-                ui.hint(),
-                "Fetching from the only existing remote: {}",
-                remote
+                ui.hint_no_heading(),
+                "Fetching from the only existing remote: {remote}"
             )?;
         }
         Ok(vec![remote])
@@ -1040,7 +1039,10 @@ fn get_default_push_remote(
     } else if let Some(remote) = get_single_remote(git_repo)? {
         // similar to get_default_fetch_remotes
         if remote != DEFAULT_REMOTE {
-            writeln!(ui.hint(), "Pushing to the only existing remote: {}", remote)?;
+            writeln!(
+                ui.hint_no_heading(),
+                "Pushing to the only existing remote: {remote}"
+            )?;
         }
         Ok(remote)
     } else {
@@ -1058,7 +1060,7 @@ impl RejectedBranchUpdateReason {
     fn print(&self, ui: &Ui) -> io::Result<()> {
         writeln!(ui.warning(), "{}", self.message)?;
         if let Some(hint) = &self.hint {
-            writeln!(ui.hint(), "Hint: {hint}")?;
+            writeln!(ui.hint_with_heading("Hint: "), "{hint}")?;
         }
         Ok(())
     }

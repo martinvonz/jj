@@ -134,7 +134,10 @@ fn cmd_util_completion(
             "Warning: `jj util completion --{shell}` will be removed in a future version, and \
              this will be a hard error"
         )?;
-        writeln!(ui.hint(), "Hint: Use `jj util completion {shell}` instead")
+        writeln!(
+            ui.hint_with_heading("Hint: "),
+            "Use `jj util completion {shell}` instead"
+        )
     };
     let shell = match (args.shell, args.fish, args.zsh, args.bash) {
         (Some(s), false, false, false) => s,

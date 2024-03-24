@@ -2,6 +2,7 @@
 "error" = "red"
 "warning" = "yellow"
 "hint" = "cyan"
+"hint heading" = { bold = true }
 
 "conflict_description" = "yellow"
 "conflict_description difficult" = "red"

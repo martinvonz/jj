@@ -408,8 +408,8 @@ pub fn print_failed_git_export(
             .any(|failed| matches!(failed.reason, FailedRefExportReason::FailedToSet(_)))
         {
             writeln!(
-                ui.hint(),
-                r#"Hint: Git doesn't allow a branch name that looks like a parent directory of
+                ui.hint_with_heading("Hint: "),
+                r#"Git doesn't allow a branch name that looks like a parent directory of
 another (e.g. `foo` and `foo/bar`). Try to rename the branches that failed to
 export or their "parent" branches."#,
             )?;

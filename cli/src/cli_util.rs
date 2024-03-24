@@ -1602,8 +1602,8 @@ pub fn print_checkout_stats(
             stats.skipped_files
         )?;
         writeln!(
-            ui.hint(),
-            "Hint: Inspect the changes compared to the intended target with `jj diff --from {}`.
+            ui.hint_with_heading("Hint: "),
+            "Inspect the changes compared to the intended target with `jj diff --from {}`.
 Discard the conflicting changes with `jj restore --from {}`.",
             short_commit_hash(new_commit.id()),
             short_commit_hash(new_commit.id())
@@ -1629,7 +1629,7 @@ pub fn print_trackable_remote_branches(ui: &Ui, view: &View) -> io::Result<()> {
     }
 
     writeln!(
-        ui.hint(),
+        ui.hint_no_heading(),
         "The following remote branches aren't associated with the existing local branches:"
     )?;
     let mut formatter = ui.stderr_formatter();
@@ -1639,8 +1639,8 @@ pub fn print_trackable_remote_branches(ui: &Ui, view: &View) -> io::Result<()> {
     }
     drop(formatter);
     writeln!(
-        ui.hint(),
-        "Hint: Run `jj branch track {names}` to keep local branches updated on future pulls.",
+        ui.hint_with_heading("Hint: "),
+        "Run `jj branch track {names}` to keep local branches updated on future pulls.",
         names = remote_branch_names.join(" "),
     )?;
     Ok(())
@@ -2204,11 +2204,11 @@ fn resolve_default_command(
             let args = get_string_or_array(config, "ui.default-command").optional()?;
             if args.is_none() {
                 writeln!(
-                    ui.hint(),
-                    "Hint: Use `jj -h` for a list of available commands."
+                    ui.hint_with_heading("Hint: "),
+                    "Use `jj -h` for a list of available commands."
                 )?;
                 writeln!(
-                    ui.hint(),
+                    ui.hint_no_heading(),
                     "Run `jj config set --user ui.default-command log` to disable this message."
                 )?;
             }
