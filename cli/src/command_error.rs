@@ -35,6 +35,7 @@ use jj_lib::working_copy::{ResetError, SnapshotError, WorkingCopyStateError};
 use jj_lib::workspace::WorkspaceInitError;
 use thiserror::Error;
 
+use crate::formatter::{FormatRecorder, Formatter};
 use crate::merge_tools::{
     ConflictResolveError, DiffEditError, DiffGenerateError, MergeToolConfigError,
 };
@@ -56,7 +57,7 @@ pub enum CommandErrorKind {
 pub struct CommandError {
     pub kind: CommandErrorKind,
     pub error: Arc<dyn error::Error + Send + Sync>,
-    pub hints: Vec<String>,
+    pub hints: Vec<ErrorHint>,
 }
 
 impl CommandError {
@@ -71,21 +72,43 @@ impl CommandError {
         }
     }
 
-    /// Returns error with the given `hint` attached.
+    /// Returns error with the given plain-text `hint` attached.
     pub fn hinted(mut self, hint: impl Into<String>) -> Self {
         self.add_hint(hint);
         self
     }
 
-    /// Appends `hint` to the error.
+    /// Appends plain-text `hint` to the error.
     pub fn add_hint(&mut self, hint: impl Into<String>) {
-        self.hints.push(hint.into());
+        self.hints.push(ErrorHint::PlainText(hint.into()));
     }
 
-    /// Appends 0 or more `hints` to the error.
-    pub fn extend_hints(&mut self, hints: impl IntoIterator<Item = String>) {
-        self.hints.extend(hints);
+    /// Appends formatted `hint` to the error.
+    pub fn add_formatted_hint(&mut self, hint: FormatRecorder) {
+        self.hints.push(ErrorHint::Formatted(hint));
     }
+
+    /// Constructs formatted hint and appends it to the error.
+    pub fn add_formatted_hint_with(
+        &mut self,
+        write: impl FnOnce(&mut dyn Formatter) -> io::Result<()>,
+    ) {
+        let mut formatter = FormatRecorder::new();
+        write(&mut formatter).expect("write() to FormatRecorder should never fail");
+        self.add_formatted_hint(formatter);
+    }
+
+    /// Appends 0 or more plain-text `hints` to the error.
+    pub fn extend_hints(&mut self, hints: impl IntoIterator<Item = String>) {
+        self.hints
+            .extend(hints.into_iter().map(ErrorHint::PlainText));
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum ErrorHint {
+    PlainText(String),
+    Formatted(FormatRecorder),
 }
 
 /// Wraps error with user-visible message.
@@ -530,12 +553,15 @@ fn try_handle_command_result(
     }
 }
 
-fn print_error(ui: &Ui, heading: &str, err: &dyn error::Error, hints: &[String]) -> io::Result<()> {
+fn print_error(
+    ui: &Ui,
+    heading: &str,
+    err: &dyn error::Error,
+    hints: &[ErrorHint],
+) -> io::Result<()> {
     writeln!(ui.error_with_heading(heading), "{err}")?;
     print_error_sources(ui, err.source())?;
-    for hint in hints {
-        writeln!(ui.hint_default(), "{hint}")?;
-    }
+    print_error_hints(ui, hints)?;
     Ok(())
 }
 
@@ -559,7 +585,30 @@ fn print_error_sources(ui: &Ui, source: Option<&dyn error::Error>) -> io::Result
         })
 }
 
-fn handle_clap_error(ui: &mut Ui, err: &clap::Error, hints: &[String]) -> io::Result<ExitCode> {
+fn print_error_hints(ui: &Ui, hints: &[ErrorHint]) -> io::Result<()> {
+    for hint in hints {
+        match hint {
+            ErrorHint::PlainText(message) => {
+                writeln!(ui.hint_default(), "{message}")?;
+            }
+            ErrorHint::Formatted(recorded) => {
+                ui.stderr_formatter().with_label("hint", |formatter| {
+                    write!(formatter.labeled("heading"), "Hint: ")?;
+                    recorded.replay(formatter)?;
+                    // Formatted hint is usually multi-line text, and it's
+                    // convenient if trailing "\n" doesn't have to be omitted.
+                    if !recorded.data().ends_with(b"\n") {
+                        writeln!(formatter)?;
+                    }
+                    Ok(())
+                })?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn handle_clap_error(ui: &mut Ui, err: &clap::Error, hints: &[ErrorHint]) -> io::Result<ExitCode> {
     let clap_str = if ui.color() {
         err.render().ansi().to_string()
     } else {
@@ -581,8 +630,6 @@ fn handle_clap_error(ui: &mut Ui, err: &clap::Error, hints: &[String]) -> io::Re
         _ => {}
     }
     write!(ui.stderr(), "{clap_str}")?;
-    for hint in hints {
-        writeln!(ui.hint_default(), "{hint}")?;
-    }
+    print_error_hints(ui, hints)?;
     Ok(ExitCode::from(2))
 }
