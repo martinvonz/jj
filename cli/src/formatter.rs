@@ -529,7 +529,7 @@ impl<W: Write> Drop for ColorFormatter<W> {
 /// the destination formatter has already been labeled, the recorded labels
 /// will be stacked on top of the existing labels, and the subsequent data
 /// may be colorized differently.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct FormatRecorder {
     data: Vec<u8>,
     label_ops: Vec<(usize, LabelOp)>,
