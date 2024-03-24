@@ -199,7 +199,7 @@ from the source will be moved into the destination.
                 .is_ok()
             {
                 writeln!(
-                    ui.warning_with_heading("warning: "),
+                    ui.warning_default(),
                     "The argument {only_path:?} is being interpreted as a path. To specify a \
                      revset, pass -r {only_path:?} instead."
                 )?;

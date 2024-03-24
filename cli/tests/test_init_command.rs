@@ -72,7 +72,7 @@ fn test_init_git_internal() {
     let (stdout, stderr) = test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    warning: `--git` and `--git-repo` are deprecated.
+    Warning: `--git` and `--git-repo` are deprecated.
     Use `jj git init` instead
     Initialized repo in "repo"
     "###);
@@ -113,7 +113,7 @@ fn test_init_git_external(bare: bool) {
         Working copy now at: sqpuoqvx f6950fc1 (empty) (no description set)
         Parent commit      : mwrttmos 8d698d4a my-branch | My commit message
         Added 1 files, modified 0 files, removed 0 files
-        warning: `--git` and `--git-repo` are deprecated.
+        Warning: `--git` and `--git-repo` are deprecated.
         Use `jj git init` instead
         Initialized repo in "repo"
         "###);
@@ -187,7 +187,7 @@ fn test_init_git_colocated() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Done importing changes from the underlying Git repo.
-    warning: `--git` and `--git-repo` are deprecated.
+    Warning: `--git` and `--git-repo` are deprecated.
     Use `jj git init` instead
     Initialized repo in "."
     "###);
@@ -237,7 +237,7 @@ fn test_init_git_colocated_gitlink() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Done importing changes from the underlying Git repo.
-    warning: `--git` and `--git-repo` are deprecated.
+    Warning: `--git` and `--git-repo` are deprecated.
     Use `jj git init` instead
     Initialized repo in "."
     "###);
@@ -275,7 +275,7 @@ fn test_init_git_colocated_symlink_directory() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Done importing changes from the underlying Git repo.
-    warning: `--git` and `--git-repo` are deprecated.
+    Warning: `--git` and `--git-repo` are deprecated.
     Use `jj git init` instead
     Initialized repo in "."
     "###);
@@ -316,7 +316,7 @@ fn test_init_git_colocated_symlink_directory_without_bare_config() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Done importing changes from the underlying Git repo.
-    warning: `--git` and `--git-repo` are deprecated.
+    Warning: `--git` and `--git-repo` are deprecated.
     Use `jj git init` instead
     Initialized repo in "."
     "###);
@@ -359,7 +359,7 @@ fn test_init_git_colocated_symlink_gitlink() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Done importing changes from the underlying Git repo.
-    warning: `--git` and `--git-repo` are deprecated.
+    Warning: `--git` and `--git-repo` are deprecated.
     Use `jj git init` instead
     Initialized repo in "."
     "###);
@@ -421,7 +421,7 @@ fn test_init_git_colocated_imported_refs() {
     let (_stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["init", "--git-repo=."]);
     insta::assert_snapshot!(stderr, @r###"
     Done importing changes from the underlying Git repo.
-    warning: `--git` and `--git-repo` are deprecated.
+    Warning: `--git` and `--git-repo` are deprecated.
     Use `jj git init` instead
     Initialized repo in "."
     "###);
@@ -444,7 +444,7 @@ fn test_init_git_colocated_imported_refs() {
     The following remote branches aren't associated with the existing local branches:
       local-remote@origin
     Hint: Run `jj branch track local-remote@origin` to keep local branches updated on future pulls.
-    warning: `--git` and `--git-repo` are deprecated.
+    Warning: `--git` and `--git-repo` are deprecated.
     Use `jj git init` instead
     Initialized repo in "."
     "###);
@@ -469,7 +469,7 @@ fn test_init_git_external_but_git_dir_exists() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    warning: `--git` and `--git-repo` are deprecated.
+    Warning: `--git` and `--git-repo` are deprecated.
     Use `jj git init` instead
     Initialized repo in "."
     "###);

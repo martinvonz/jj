@@ -373,6 +373,13 @@ impl Ui {
         })
     }
 
+    /// Writer to print hint with the default "Hint: " heading.
+    pub fn hint_default(
+        &self,
+    ) -> HeadingLabeledWriter<Box<dyn Formatter + '_>, &'static str, &'static str> {
+        self.hint_with_heading("Hint: ")
+    }
+
     /// Writer to print hint without the "Hint: " heading.
     pub fn hint_no_heading(&self) -> LabeledWriter<Box<dyn Formatter + '_>, &'static str> {
         LabeledWriter::new(self.stderr_formatter(), "hint")
@@ -384,6 +391,13 @@ impl Ui {
         heading: H,
     ) -> HeadingLabeledWriter<Box<dyn Formatter + '_>, &'static str, H> {
         HeadingLabeledWriter::new(self.stderr_formatter(), "hint", heading)
+    }
+
+    /// Writer to print warning with the default "Warning: " heading.
+    pub fn warning_default(
+        &self,
+    ) -> HeadingLabeledWriter<Box<dyn Formatter + '_>, &'static str, &'static str> {
+        self.warning_with_heading("Warning: ")
     }
 
     /// Writer to print warning without the "Warning: " heading.

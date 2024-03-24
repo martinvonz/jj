@@ -1060,7 +1060,7 @@ impl RejectedBranchUpdateReason {
     fn print(&self, ui: &Ui) -> io::Result<()> {
         writeln!(ui.warning_no_heading(), "{}", self.message)?;
         if let Some(hint) = &self.hint {
-            writeln!(ui.hint_with_heading("Hint: "), "{hint}")?;
+            writeln!(ui.hint_default(), "{hint}")?;
         }
         Ok(())
     }

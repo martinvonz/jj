@@ -403,7 +403,7 @@ fn test_color_ui_messages() {
     // warning
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "@"]);
     insta::assert_snapshot!(stderr, @r###"
-    [1m[38;5;3mwarning: [0m[38;5;3mThe argument "@" is being interpreted as a path. To specify a revset, pass -r "@" instead.[39m
+    [1m[38;5;3mWarning: [0m[38;5;3mThe argument "@" is being interpreted as a path. To specify a revset, pass -r "@" instead.[39m
     "###);
 
     // error inlined in template output
