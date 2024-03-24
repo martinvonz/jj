@@ -393,69 +393,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         self.rebased
     }
 
-    /// Panics if `parent_mapping` contains cycles
-    fn new_parents(&self, old_ids: &[CommitId]) -> Vec<CommitId> {
-        fn single_substitution_round(
-            parent_mapping: &HashMap<CommitId, Vec<CommitId>>,
-            divergent: &HashSet<CommitId>,
-            ids: Vec<CommitId>,
-        ) -> (Vec<CommitId>, bool) {
-            let mut made_replacements = false;
-            let mut new_ids = vec![];
-            // TODO(ilyagr): (Maybe?) optimize common case of replacements all
-            // being singletons. If CommitId-s were Copy. no allocations would be needed in
-            // that case, but it probably doesn't matter much while they are Vec<u8>-s.
-            for id in ids.into_iter() {
-                if divergent.contains(&id) {
-                    new_ids.push(id);
-                    continue;
-                }
-                match parent_mapping.get(&id) {
-                    None => new_ids.push(id),
-                    Some(replacements) => {
-                        assert!(
-                            // Each commit must have a parent, so a parent can
-                            // not just be mapped to nothing. This assertion
-                            // could be removed if this function is used for
-                            // mapping something other than a commit's parents.
-                            !replacements.is_empty(),
-                            "Found empty value for key {id:?} in the parent mapping",
-                        );
-                        made_replacements = true;
-                        new_ids.extend(replacements.iter().cloned())
-                    }
-                };
-            }
-            (new_ids, made_replacements)
-        }
-
-        let mut new_ids: Vec<CommitId> = old_ids.to_vec();
-        // The longest possible non-cycle substitution sequence goes through each key of
-        // parent_mapping once.
-        let mut allowed_iterations = 0..self.mut_repo.parent_mapping.len();
-        loop {
-            let made_replacements;
-            (new_ids, made_replacements) = single_substitution_round(
-                &self.mut_repo.parent_mapping,
-                &self.mut_repo.divergent,
-                new_ids,
-            );
-            if !made_replacements {
-                break;
-            }
-            allowed_iterations
-                .next()
-                .expect("cycle detected in the parent mapping");
-        }
-        match new_ids.as_slice() {
-            // The first two cases are an optimization for the common case of commits with <=2
-            // parents
-            [_singleton] => new_ids,
-            [a, b] if a != b => new_ids,
-            _ => new_ids.into_iter().unique().collect(),
-        }
-    }
-
     fn ref_target_update(old_id: CommitId, new_ids: Vec<CommitId>) -> (RefTarget, RefTarget) {
         let old_ids = std::iter::repeat(old_id).take(new_ids.len());
         (
@@ -539,7 +476,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             return Ok(());
         }
         let old_parent_ids = old_commit.parent_ids();
-        let new_parent_ids = self.new_parents(old_parent_ids);
+        let new_parent_ids = self.mut_repo.new_parents(old_parent_ids);
         if new_parent_ids == old_parent_ids {
             // The commit is already in place.
             return Ok(());
@@ -579,7 +516,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             // mappings, not transitive ones.
             // TODO: keep parent_mapping updated with transitive mappings so we don't need
             // to call `new_parents()` here.
-            let new_parent_ids = self.new_parents(&new_parent_ids);
+            let new_parent_ids = self.mut_repo.new_parents(&new_parent_ids);
             self.update_references(old_parent_id, new_parent_ids)?;
         }
         Ok(())
