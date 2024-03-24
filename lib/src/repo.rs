@@ -892,6 +892,70 @@ impl MutableRepo {
         !(self.parent_mapping.is_empty() && self.abandoned.is_empty())
     }
 
+    /// Calculates new parents for a commit that's currently based on the given
+    /// parents. It does that by considering how previous commits have been
+    /// rewritten and abandoned.
+    ///
+    /// Panics if `parent_mapping` contains cycles
+    pub fn new_parents(&self, old_ids: &[CommitId]) -> Vec<CommitId> {
+        fn single_substitution_round(
+            parent_mapping: &HashMap<CommitId, Vec<CommitId>>,
+            divergent: &HashSet<CommitId>,
+            ids: Vec<CommitId>,
+        ) -> (Vec<CommitId>, bool) {
+            let mut made_replacements = false;
+            let mut new_ids = vec![];
+            // TODO(ilyagr): (Maybe?) optimize common case of replacements all
+            // being singletons. If CommitId-s were Copy. no allocations would be needed in
+            // that case, but it probably doesn't matter much while they are Vec<u8>-s.
+            for id in ids.into_iter() {
+                if divergent.contains(&id) {
+                    new_ids.push(id);
+                    continue;
+                }
+                match parent_mapping.get(&id) {
+                    None => new_ids.push(id),
+                    Some(replacements) => {
+                        assert!(
+                            // Each commit must have a parent, so a parent can
+                            // not just be mapped to nothing. This assertion
+                            // could be removed if this function is used for
+                            // mapping something other than a commit's parents.
+                            !replacements.is_empty(),
+                            "Found empty value for key {id:?} in the parent mapping",
+                        );
+                        made_replacements = true;
+                        new_ids.extend(replacements.iter().cloned())
+                    }
+                };
+            }
+            (new_ids, made_replacements)
+        }
+
+        let mut new_ids: Vec<CommitId> = old_ids.to_vec();
+        // The longest possible non-cycle substitution sequence goes through each key of
+        // parent_mapping once.
+        let mut allowed_iterations = 0..self.parent_mapping.len();
+        loop {
+            let made_replacements;
+            (new_ids, made_replacements) =
+                single_substitution_round(&self.parent_mapping, &self.divergent, new_ids);
+            if !made_replacements {
+                break;
+            }
+            allowed_iterations
+                .next()
+                .expect("cycle detected in the parent mapping");
+        }
+        match new_ids.as_slice() {
+            // The first two cases are an optimization for the common case of commits with <=2
+            // parents
+            [_singleton] => new_ids,
+            [a, b] if a != b => new_ids,
+            _ => new_ids.into_iter().unique().collect(),
+        }
+    }
+
     /// After the rebaser returned by this function is dropped,
     /// self.clear_descendant_rebaser_plans() needs to be called.
     fn rebase_descendants_return_rebaser<'settings, 'repo>(
