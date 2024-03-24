@@ -534,7 +534,7 @@ fn print_error(ui: &Ui, heading: &str, err: &dyn error::Error, hints: &[String])
     writeln!(ui.error_with_heading(heading), "{err}")?;
     print_error_sources(ui, err.source())?;
     for hint in hints {
-        writeln!(ui.hint_with_heading("Hint: "), "{hint}")?;
+        writeln!(ui.hint_default(), "{hint}")?;
     }
     Ok(())
 }
@@ -577,7 +577,7 @@ fn handle_clap_error(ui: &mut Ui, err: &clap::Error, hints: &[String]) -> io::Re
     }
     write!(ui.stderr(), "{clap_str}")?;
     for hint in hints {
-        writeln!(ui.hint_with_heading("Hint: "), "{hint}")?;
+        writeln!(ui.hint_default(), "{hint}")?;
     }
     Ok(ExitCode::from(2))
 }

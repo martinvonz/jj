@@ -25,7 +25,7 @@ fn test_branch_multiple_names() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo", "bar"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    warning: Creating multiple branches: foo, bar
+    Warning: Creating multiple branches: foo, bar
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar foo 230dd059e1b0
@@ -36,7 +36,7 @@ fn test_branch_multiple_names() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo", "bar"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    warning: Updating multiple branches: foo, bar
+    Warning: Updating multiple branches: foo, bar
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar foo 8bb159bc30a9

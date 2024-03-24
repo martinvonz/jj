@@ -26,11 +26,11 @@ pub(crate) fn cmd_merge(
     args: &new::NewArgs,
 ) -> Result<(), CommandError> {
     writeln!(
-        ui.warning_with_heading("warning: "),
+        ui.warning_default(),
         "`jj merge` is deprecated; use `jj new` instead, which is equivalent"
     )?;
     writeln!(
-        ui.warning_with_heading("warning: "),
+        ui.warning_default(),
         "`jj merge` will be removed in a future version, and this will be a hard error"
     )?;
     if args.revisions.len() < 2 {

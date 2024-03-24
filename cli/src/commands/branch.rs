@@ -258,7 +258,7 @@ fn cmd_branch_create(
 
     if branch_names.len() > 1 {
         writeln!(
-            ui.warning_with_heading("warning: "),
+            ui.warning_default(),
             "Creating multiple branches: {}",
             branch_names.join(", "),
         )?;
@@ -321,11 +321,11 @@ fn cmd_branch_rename(
         .any(|(_, remote_ref)| remote_ref.is_tracking())
     {
         writeln!(
-            ui.warning_with_heading("Warning: "),
+            ui.warning_default(),
             "Branch {old_branch} has tracking remote branches which were not renamed."
         )?;
         writeln!(
-            ui.hint_with_heading("Hint: "),
+            ui.hint_default(),
             "to rename the branch on the remote, you can `jj git push --branch {old_branch}` \
              first (to delete it on the remote), and then `jj git push --branch {new_branch}`. \
              `jj git push --all` would also be sufficient."
@@ -370,7 +370,7 @@ fn cmd_branch_set(
 
     if branch_names.len() > 1 {
         writeln!(
-            ui.warning_with_heading("warning: "),
+            ui.warning_default(),
             "Updating multiple branches: {}",
             branch_names.join(", "),
         )?;

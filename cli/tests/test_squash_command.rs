@@ -256,7 +256,7 @@ fn test_squash_partial() {
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "b"]);
     insta::assert_snapshot!(stderr, @r###"
-    warning: The argument "b" is being interpreted as a path. To specify a revset, pass -r "b" instead.
+    Warning: The argument "b" is being interpreted as a path. To specify a revset, pass -r "b" instead.
     Rebased 1 descendant commits
     Working copy now at: mzvwutvl 1c4e5596 c | (no description set)
     Parent commit      : kkmpptxz 16cc94b4 b | (no description set)

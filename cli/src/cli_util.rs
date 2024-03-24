@@ -1602,7 +1602,7 @@ pub fn print_checkout_stats(
             stats.skipped_files
         )?;
         writeln!(
-            ui.hint_with_heading("Hint: "),
+            ui.hint_default(),
             "Inspect the changes compared to the intended target with `jj diff --from {}`.
 Discard the conflicting changes with `jj restore --from {}`.",
             short_commit_hash(new_commit.id()),
@@ -1639,7 +1639,7 @@ pub fn print_trackable_remote_branches(ui: &Ui, view: &View) -> io::Result<()> {
     }
     drop(formatter);
     writeln!(
-        ui.hint_with_heading("Hint: "),
+        ui.hint_default(),
         "Run `jj branch track {names}` to keep local branches updated on future pulls.",
         names = remote_branch_names.join(" "),
     )?;
@@ -2207,7 +2207,7 @@ fn resolve_default_command(
             let args = get_string_or_array(config, "ui.default-command").optional()?;
             if args.is_none() {
                 writeln!(
-                    ui.hint_with_heading("Hint: "),
+                    ui.hint_default(),
                     "Use `jj -h` for a list of available commands."
                 )?;
                 writeln!(
