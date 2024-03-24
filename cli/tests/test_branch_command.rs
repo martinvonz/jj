@@ -71,7 +71,7 @@ fn test_branch_at_root() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
-    Failed to export some branches:
+    Warning: Failed to export some branches:
       fred: Ref cannot point to the root commit in Git
     "###);
 }
@@ -251,7 +251,7 @@ fn test_branch_forget_glob() {
         test_env.jj_cmd_ok(&repo_path, &["branch", "forget", "--glob", "foo-[1-3]"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    --glob has been deprecated. Please prefix the pattern with `glob:` instead.
+    Warning: --glob has been deprecated. Please prefix the pattern with `glob:` instead.
     Forgot 2 branches.
     "###);
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -273,7 +273,7 @@ fn test_branch_forget_glob() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    --glob has been deprecated. Please prefix the pattern with `glob:` instead.
+    Warning: --glob has been deprecated. Please prefix the pattern with `glob:` instead.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 230dd059e1b0
@@ -294,7 +294,7 @@ fn test_branch_forget_glob() {
         &["branch", "forget", "glob:bar*", "glob:baz*", "--glob=boom*"],
     );
     insta::assert_snapshot!(stderr, @r###"
-    --glob has been deprecated. Please prefix the pattern with `glob:` instead.
+    Warning: --glob has been deprecated. Please prefix the pattern with `glob:` instead.
     Error: No matching branches for patterns: baz*, boom*
     "###);
 }
@@ -333,7 +333,7 @@ fn test_branch_delete_glob() {
         test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "--glob", "foo-[1-3]"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    --glob has been deprecated. Please prefix the pattern with `glob:` instead.
+    Warning: --glob has been deprecated. Please prefix the pattern with `glob:` instead.
     Deleted 2 branches.
     "###);
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -351,7 +351,7 @@ fn test_branch_delete_glob() {
     // forget`, it's not allowed to delete already deleted branches.
     let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "delete", "--glob=foo-[1-3]"]);
     insta::assert_snapshot!(stderr, @r###"
-    --glob has been deprecated. Please prefix the pattern with `glob:` instead.
+    Warning: --glob has been deprecated. Please prefix the pattern with `glob:` instead.
     Error: No matching branches for patterns: foo-[1-3]
     "###);
 
@@ -363,7 +363,7 @@ fn test_branch_delete_glob() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    --glob has been deprecated. Please prefix the pattern with `glob:` instead.
+    Warning: --glob has been deprecated. Please prefix the pattern with `glob:` instead.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1@origin foo-3@origin foo-4@origin 6fbf398c2d59
@@ -907,14 +907,14 @@ fn test_branch_track_untrack_patterns() {
     test_env.jj_cmd_ok(&repo_path, &["branch", "track", "feature1@origin"]);
     let (_, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "track", "feature1@origin"]);
     insta::assert_snapshot!(stderr, @r###"
-    Remote branch already tracked: feature1@origin
+    Warning: Remote branch already tracked: feature1@origin
     Nothing changed.
     "###);
 
     // Untrack non-tracking branch
     let (_, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "untrack", "feature2@origin"]);
     insta::assert_snapshot!(stderr, @r###"
-    Remote branch not tracked yet: feature2@origin
+    Warning: Remote branch not tracked yet: feature2@origin
     Nothing changed.
     "###);
 
@@ -922,7 +922,7 @@ fn test_branch_track_untrack_patterns() {
     test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     let (_, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "untrack", "main@git"]);
     insta::assert_snapshot!(stderr, @r###"
-    Git-tracking branch cannot be untracked: main@git
+    Warning: Git-tracking branch cannot be untracked: main@git
     Nothing changed.
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
@@ -937,9 +937,9 @@ fn test_branch_track_untrack_patterns() {
     // Untrack by pattern
     let (_, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "untrack", "glob:*@*"]);
     insta::assert_snapshot!(stderr, @r###"
-    Git-tracking branch cannot be untracked: feature1@git
-    Remote branch not tracked yet: feature2@origin
-    Git-tracking branch cannot be untracked: main@git
+    Warning: Git-tracking branch cannot be untracked: feature1@git
+    Warning: Remote branch not tracked yet: feature2@origin
+    Warning: Git-tracking branch cannot be untracked: main@git
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: omvolwpu 1336caed commit

@@ -257,9 +257,9 @@ pub(crate) fn cmd_config_list(
     if !wrote_values {
         // Note to stderr explaining why output is empty.
         if let Some(name) = &args.name {
-            writeln!(ui.warning_no_heading(), "No matching config key for {name}")?;
+            writeln!(ui.warning_default(), "No matching config key for {name}")?;
         } else {
-            writeln!(ui.warning_no_heading(), "No config to list")?;
+            writeln!(ui.warning_default(), "No config to list")?;
         }
     }
     Ok(())

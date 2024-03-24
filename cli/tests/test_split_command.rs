@@ -119,7 +119,7 @@ fn test_split_by_paths() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["split", "-r", "@-", "nonexistent"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    The given paths do not match any file: nonexistent
+    Warning: The given paths do not match any file: nonexistent
     Rebased 1 descendant commits
     First part: qpvuntsm 7086b0bc (empty) (no description set)
     Second part: lylxulpl 2252ed18 (no description set)

@@ -63,7 +63,7 @@ pub fn load_revset_aliases(
                 .and_then(|v| aliases_map.insert(&decl, v).map_err(|e| e.to_string()));
             if let Err(s) = r {
                 writeln!(
-                    ui.warning_no_heading(),
+                    ui.warning_default(),
                     r#"Failed to load "{TABLE_KEY}.{decl}": {s}"#
                 )?;
             }

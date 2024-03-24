@@ -78,7 +78,7 @@ new working-copy commit.
     let middle_tree = tx.repo().store().get_root_tree(&tree_id)?;
     if !args.paths.is_empty() && middle_tree.id() == base_tree.id() {
         writeln!(
-            ui.warning_no_heading(),
+            ui.warning_default(),
             "The given paths do not match any file: {}",
             args.paths.join(" ")
         )?;
