@@ -569,6 +569,13 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             // The commit is already in place.
             return Ok(());
         }
+        assert_eq!(
+            (self
+                .rebased.get(&old_commit_id), self
+                .parent_mapping.get(&old_commit_id)),
+            (None, None),
+            "Trying to rebase the same commit {old_commit_id:?} in two different ways",
+        );
 
         let new_parents: Vec<_> = new_parent_ids
             .iter()
@@ -588,17 +595,12 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 parent
             }
         };
-        let previous_rebased_value = self
+        self
             .rebased
             .insert(old_commit_id.clone(), new_commit.id().clone());
-        let previous_mapping_value = self
+        self
             .parent_mapping
             .insert(old_commit_id.clone(), vec![new_commit.id().clone()]);
-        assert_eq!(
-            (previous_rebased_value, previous_mapping_value),
-            (None, None),
-            "Trying to rebase the same commit {old_commit_id:?} in two different ways",
-        );
         self.update_references(old_commit_id, vec![new_commit.id().clone()])?;
         Ok(())
     }
