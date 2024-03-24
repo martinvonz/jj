@@ -188,10 +188,10 @@ pub fn rebase_commit_with_options(
             EmptyBehaviour::AbandonAllEmpty => *parent.tree_id() == new_tree_id,
         };
         if should_abandon {
-            // Record old_commit as being succeeded by the parent.
-            // This ensures that when we stack commits, the second commit knows to
-            // rebase on top of the parent commit, rather than the abandoned commit.
-            mut_repo.set_rewritten_commit(old_commit.id().clone(), parent.id().clone());
+            mut_repo.record_abandoned_commit_with_parents(
+                old_commit.id().clone(),
+                std::iter::once(parent.id().clone()),
+            );
             return Ok(RebasedCommit::Abandoned {
                 parent: parent.clone(),
             });
@@ -566,13 +566,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         )?;
         let new_commit = match rebased_commit {
             RebasedCommit::Rewritten(new_commit) => new_commit,
-            RebasedCommit::Abandoned { parent } => {
-                self.mut_repo
-                    .parent_mapping
-                    .insert(old_commit_id.clone(), vec![parent.id().clone()]);
-                self.mut_repo.abandoned.insert(old_commit.id().clone());
-                parent
-            }
+            RebasedCommit::Abandoned { parent } => parent,
         };
         self.rebased
             .insert(old_commit_id.clone(), new_commit.id().clone());
