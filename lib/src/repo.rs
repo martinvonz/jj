@@ -860,12 +860,26 @@ impl MutableRepo {
     // TODO: Propagate errors from commit lookup or take a Commit as argument.
     pub fn record_abandoned_commit(&mut self, old_id: CommitId) {
         assert_ne!(old_id, *self.store().root_commit_id());
-        self.divergent.remove(&old_id);
-        self.abandoned.insert(old_id.clone());
         // Descendants should be rebased onto the commit's parents
         let old_commit = self.store().get_commit(&old_id).unwrap();
+        self.record_abandoned_commit_with_parents(old_id, old_commit.parent_ids().to_vec());
+    }
+
+    /// Record a commit as having been abandoned in this transaction.
+    ///
+    /// A later `rebase_descendants()` will rebase children of `old_id` onto
+    /// `new_parent_ids`. A working copy pointing to `old_id` will point to a
+    /// new commit on top of `new_parent_ids`.
+    pub fn record_abandoned_commit_with_parents(
+        &mut self,
+        old_id: CommitId,
+        new_parent_ids: impl IntoIterator<Item = CommitId>,
+    ) {
+        self.divergent.remove(&old_id);
+        assert_ne!(old_id, *self.store().root_commit_id());
+        self.abandoned.insert(old_id.clone());
         self.parent_mapping
-            .insert(old_id, old_commit.parent_ids().to_vec());
+            .insert(old_id, new_parent_ids.into_iter().collect());
     }
 
     fn clear_descendant_rebaser_plans(&mut self) {
