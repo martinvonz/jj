@@ -439,7 +439,7 @@ impl Ui {
                     // It's possible (though unlikely) that this write fails, but
                     // this function gets called so late that there's not much we
                     // can do about it.
-                    writeln!(self.error_no_heading(), "Failed to wait on pager: {e}").ok();
+                    writeln!(self.warning_default(), "Failed to wait on pager: {e}").ok();
                 }
             }
             UiOutput::BuiltinPaged { pager } => {
