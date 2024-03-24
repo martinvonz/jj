@@ -386,6 +386,20 @@ fn test_color_config() {
 }
 
 #[test]
+fn test_color_ui_messages() {
+    let test_env = TestEnvironment::default();
+    test_env.add_config("ui.color = 'always'");
+
+    // hint and error
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["-R."]);
+    insta::assert_snapshot!(stderr, @r###"
+    [1m[38;5;6mHint: [0m[38;5;6mUse `jj -h` for a list of available commands.[39m
+    [38;5;6mRun `jj config set --user ui.default-command log` to disable this message.[39m
+    [38;5;1mError: There is no jj repo in "."[39m
+    "###);
+}
+
+#[test]
 fn test_early_args() {
     // Test that help output parses early args
     let test_env = TestEnvironment::default();

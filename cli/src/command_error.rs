@@ -506,7 +506,7 @@ fn try_handle_command_result(
         CommandErrorKind::Config => {
             print_error(ui, "Config error", err, hints)?;
             writeln!(
-                ui.hint(),
+                ui.hint_no_heading(),
                 "For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md."
             )?;
             Ok(ExitCode::from(1))
@@ -534,7 +534,7 @@ fn print_error(ui: &Ui, prefix: &str, err: &dyn error::Error, hints: &[String]) 
     writeln!(ui.error(), "{prefix}: {err}")?;
     print_error_sources(ui, err.source())?;
     for hint in hints {
-        writeln!(ui.hint(), "Hint: {hint}")?;
+        writeln!(ui.hint_with_heading("Hint: "), "{hint}")?;
     }
     Ok(())
 }
@@ -577,7 +577,7 @@ fn handle_clap_error(ui: &mut Ui, err: &clap::Error, hints: &[String]) -> io::Re
     }
     write!(ui.stderr(), "{clap_str}")?;
     for hint in hints {
-        writeln!(ui.hint(), "Hint: {hint}")?;
+        writeln!(ui.hint_with_heading("Hint: "), "{hint}")?;
     }
     Ok(ExitCode::from(2))
 }

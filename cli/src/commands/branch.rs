@@ -325,10 +325,10 @@ fn cmd_branch_rename(
             "Warning: Branch {old_branch} has tracking remote branches which were not renamed."
         )?;
         writeln!(
-            ui.hint(),
-            "Hint: to rename the branch on the remote, you can `jj git push --branch \
-             {old_branch}` first (to delete it on the remote), and then `jj git push --branch \
-             {new_branch}`. `jj git push --all` would also be sufficient."
+            ui.hint_with_heading("Hint: "),
+            "to rename the branch on the remote, you can `jj git push --branch {old_branch}` \
+             first (to delete it on the remote), and then `jj git push --branch {new_branch}`. \
+             `jj git push --all` would also be sufficient."
         )?;
     }
 

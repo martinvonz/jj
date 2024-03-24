@@ -124,7 +124,7 @@ fn editor_args_from_settings(
     } else {
         let default_editor = BUILTIN_EDITOR_NAME;
         writeln!(
-            ui.hint(),
+            ui.hint_no_heading(),
             "Using default editor '{default_editor}'; run `jj config set --user {key} :builtin` \
              to disable this message."
         )

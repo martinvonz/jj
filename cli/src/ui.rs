@@ -23,7 +23,7 @@ use tracing::instrument;
 
 use crate::command_error::{config_error_with_message, CommandError};
 use crate::config::CommandNameAndArgs;
-use crate::formatter::{Formatter, FormatterFactory, LabeledWriter};
+use crate::formatter::{Formatter, FormatterFactory, HeadingLabeledWriter, LabeledWriter};
 
 const BUILTIN_PAGER_NAME: &str = ":builtin";
 
@@ -373,8 +373,17 @@ impl Ui {
         })
     }
 
-    pub fn hint(&self) -> LabeledWriter<Box<dyn Formatter + '_>, &'static str> {
+    /// Writer to print hint without the "Hint: " heading.
+    pub fn hint_no_heading(&self) -> LabeledWriter<Box<dyn Formatter + '_>, &'static str> {
         LabeledWriter::new(self.stderr_formatter(), "hint")
+    }
+
+    /// Writer to print hint with the given heading.
+    pub fn hint_with_heading<H: fmt::Display>(
+        &self,
+        heading: H,
+    ) -> HeadingLabeledWriter<Box<dyn Formatter + '_>, &'static str, H> {
+        HeadingLabeledWriter::new(self.stderr_formatter(), "hint", heading)
     }
 
     pub fn warning(&self) -> LabeledWriter<Box<dyn Formatter + '_>, &'static str> {
