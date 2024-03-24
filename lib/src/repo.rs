@@ -736,7 +736,7 @@ pub struct MutableRepo {
     /// Commits with a key in `parent_mapping` that have been divergently
     /// rewritten into all the commits indicated by the value.
     divergent: HashSet<CommitId>,
-    abandoned_commits: HashSet<CommitId>,
+    abandoned: HashSet<CommitId>,
 }
 
 impl MutableRepo {
@@ -753,7 +753,7 @@ impl MutableRepo {
             view: DirtyCell::with_clean(mut_view),
             parent_mapping: Default::default(),
             divergent: Default::default(),
-            abandoned_commits: Default::default(),
+            abandoned: Default::default(),
         }
     }
 
@@ -770,7 +770,7 @@ impl MutableRepo {
     }
 
     pub fn has_changes(&self) -> bool {
-        !(self.abandoned_commits.is_empty()
+        !(self.abandoned.is_empty()
             && self.parent_mapping.is_empty()
             && self.view() == &self.base_repo.view)
     }
@@ -853,17 +853,17 @@ impl MutableRepo {
     /// `old_id` would be moved to the parent(s) of `old_id` as well.
     pub fn record_abandoned_commit(&mut self, old_id: CommitId) {
         assert_ne!(old_id, *self.store().root_commit_id());
-        self.abandoned_commits.insert(old_id);
+        self.abandoned.insert(old_id);
     }
 
     fn clear_descendant_rebaser_plans(&mut self) {
         self.parent_mapping.clear();
         self.divergent.clear();
-        self.abandoned_commits.clear();
+        self.abandoned.clear();
     }
 
     pub fn has_rewrites(&self) -> bool {
-        !(self.parent_mapping.is_empty() && self.abandoned_commits.is_empty())
+        !(self.parent_mapping.is_empty() && self.abandoned.is_empty())
     }
 
     /// After the rebaser returned by this function is dropped,
@@ -882,7 +882,7 @@ impl MutableRepo {
             self,
             self.parent_mapping.clone(),
             self.divergent.clone(),
-            self.abandoned_commits.clone(),
+            self.abandoned.clone(),
         );
         *rebaser.mut_options() = options;
         rebaser.rebase_all()?;
