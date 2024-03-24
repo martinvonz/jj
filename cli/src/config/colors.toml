@@ -2,6 +2,7 @@
 "error" = "red"
 "warning" = "yellow"
 "hint" = "cyan"
+"error heading" = { bold = true }
 "warning heading" = { bold = true }
 "hint heading" = { bold = true }
 

@@ -500,11 +500,11 @@ fn try_handle_command_result(
     let hints = &cmd_err.hints;
     match cmd_err.kind {
         CommandErrorKind::User => {
-            print_error(ui, "Error", err, hints)?;
+            print_error(ui, "Error: ", err, hints)?;
             Ok(ExitCode::from(1))
         }
         CommandErrorKind::Config => {
-            print_error(ui, "Config error", err, hints)?;
+            print_error(ui, "Config error: ", err, hints)?;
             writeln!(
                 ui.hint_no_heading(),
                 "For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md."
@@ -515,7 +515,7 @@ fn try_handle_command_result(
             if let Some(err) = err.downcast_ref::<clap::Error>() {
                 handle_clap_error(ui, err, hints)
             } else {
-                print_error(ui, "Error", err, hints)?;
+                print_error(ui, "Error: ", err, hints)?;
                 Ok(ExitCode::from(2))
             }
         }
@@ -524,14 +524,14 @@ fn try_handle_command_result(
             Ok(ExitCode::from(BROKEN_PIPE_EXIT_CODE))
         }
         CommandErrorKind::Internal => {
-            print_error(ui, "Internal error", err, hints)?;
+            print_error(ui, "Internal error: ", err, hints)?;
             Ok(ExitCode::from(255))
         }
     }
 }
 
-fn print_error(ui: &Ui, prefix: &str, err: &dyn error::Error, hints: &[String]) -> io::Result<()> {
-    writeln!(ui.error(), "{prefix}: {err}")?;
+fn print_error(ui: &Ui, heading: &str, err: &dyn error::Error, hints: &[String]) -> io::Result<()> {
+    writeln!(ui.error_with_heading(heading), "{err}")?;
     print_error_sources(ui, err.source())?;
     for hint in hints {
         writeln!(ui.hint_with_heading("Hint: "), "{hint}")?;
