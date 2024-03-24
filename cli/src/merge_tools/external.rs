@@ -324,7 +324,12 @@ pub fn generate_diff(
     let exit_status = child.wait().map_err(ExternalToolError::Io)?;
     tracing::info!(?cmd, ?exit_status, "The external diff generator exited:");
     if !exit_status.success() {
-        writeln!(ui.warning(), "{}", format_tool_aborted(&exit_status)).ok();
+        writeln!(
+            ui.warning_no_heading(),
+            "{}",
+            format_tool_aborted(&exit_status)
+        )
+        .ok();
     }
     copy_result.map_err(ExternalToolError::Io)?;
     Ok(())

@@ -43,12 +43,12 @@ pub(crate) fn cmd_checkout(
     args: &CheckoutArgs,
 ) -> Result<(), CommandError> {
     writeln!(
-        ui.warning(),
-        "warning: `jj checkout` is deprecated; use `jj new` instead, which is equivalent"
+        ui.warning_with_heading("warning: "),
+        "`jj checkout` is deprecated; use `jj new` instead, which is equivalent"
     )?;
     writeln!(
-        ui.warning(),
-        "warning: `jj checkout` will be removed in a future version, and this will be a hard error"
+        ui.warning_with_heading("warning: "),
+        "`jj checkout` will be removed in a future version, and this will be a hard error"
     )?;
     let mut workspace_command = command.workspace_helper(ui)?;
     let target = workspace_command.resolve_single_rev(&args.revision)?;

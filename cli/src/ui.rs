@@ -292,7 +292,7 @@ impl Ui {
                     Err(e) => {
                         // The pager executable couldn't be found or couldn't be run
                         writeln!(
-                            self.warning(),
+                            self.warning_no_heading(),
                             "Failed to spawn pager '{name}': {e}. Consider using the `:builtin` \
                              pager.",
                             name = self.pager_cmd.split_name(),
@@ -386,8 +386,17 @@ impl Ui {
         HeadingLabeledWriter::new(self.stderr_formatter(), "hint", heading)
     }
 
-    pub fn warning(&self) -> LabeledWriter<Box<dyn Formatter + '_>, &'static str> {
+    /// Writer to print warning without the "Warning: " heading.
+    pub fn warning_no_heading(&self) -> LabeledWriter<Box<dyn Formatter + '_>, &'static str> {
         LabeledWriter::new(self.stderr_formatter(), "warning")
+    }
+
+    /// Writer to print warning with the given heading.
+    pub fn warning_with_heading<H: fmt::Display>(
+        &self,
+        heading: H,
+    ) -> HeadingLabeledWriter<Box<dyn Formatter + '_>, &'static str, H> {
+        HeadingLabeledWriter::new(self.stderr_formatter(), "warning", heading)
     }
 
     pub fn error(&self) -> LabeledWriter<Box<dyn Formatter + '_>, &'static str> {
@@ -474,7 +483,7 @@ impl Ui {
                 return Ok(choice);
             }
 
-            writeln!(self.warning(), "unrecognized response")?;
+            writeln!(self.warning_no_heading(), "unrecognized response")?;
         }
     }
 

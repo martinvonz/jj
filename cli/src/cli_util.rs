@@ -1210,7 +1210,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         let settings = &self.settings;
         if settings.user_name().is_empty() || settings.user_email().is_empty() {
             writeln!(
-                ui.warning(),
+                ui.warning_no_heading(),
                 r#"Name and email not configured. Until configured, your commits will be created with the empty identity, and can't be pushed to remotes. To configure, run:
   jj config set --user user.name "Some One"
   jj config set --user user.email "someone@example.com""#
@@ -1596,7 +1596,7 @@ pub fn print_checkout_stats(
     }
     if stats.skipped_files != 0 {
         writeln!(
-            ui.warning(),
+            ui.warning_no_heading(),
             "{} of those updates were skipped because there were conflicting changes in the \
              working copy.",
             stats.skipped_files
@@ -1739,7 +1739,10 @@ fn load_template_aliases(
                 .map_err(|e| e.to_string())
                 .and_then(|v| aliases_map.insert(&decl, v).map_err(|e| e.to_string()));
             if let Err(s) = r {
-                writeln!(ui.warning(), r#"Failed to load "{TABLE_KEY}.{decl}": {s}"#)?;
+                writeln!(
+                    ui.warning_no_heading(),
+                    r#"Failed to load "{TABLE_KEY}.{decl}": {s}"#
+                )?;
             }
         }
     }
@@ -2549,7 +2552,7 @@ impl CliRunner {
             let new_string_args = expand_args(ui, &self.app, env::args_os(), &config).ok();
             if new_string_args.as_ref() != Some(&string_args) {
                 writeln!(
-                    ui.warning(),
+                    ui.warning_no_heading(),
                     "Command aliases cannot be loaded from -R/--repository path"
                 )?;
             }

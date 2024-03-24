@@ -249,18 +249,18 @@ pub(crate) fn cmd_log(
         if only_path == "." && workspace_command.parse_file_path(only_path)?.is_root() {
             // For users of e.g. Mercurial, where `.` indicates the current commit.
             writeln!(
-                ui.warning(),
-                "warning: The argument {only_path:?} is being interpreted as a path, but this is \
-                 often not useful because all non-empty commits touch '.'.  If you meant to show \
-                 the working copy commit, pass -r '@' instead."
+                ui.warning_with_heading("warning: "),
+                "The argument {only_path:?} is being interpreted as a path, but this is often not \
+                 useful because all non-empty commits touch '.'.  If you meant to show the \
+                 working copy commit, pass -r '@' instead."
             )?;
         } else if revset.is_empty()
             && revset::parse(only_path, &workspace_command.revset_parse_context()).is_ok()
         {
             writeln!(
-                ui.warning(),
-                "warning: The argument {only_path:?} is being interpreted as a path. To specify a \
-                 revset, pass -r {only_path:?} instead."
+                ui.warning_with_heading("warning: "),
+                "The argument {only_path:?} is being interpreted as a path. To specify a revset, \
+                 pass -r {only_path:?} instead."
             )?;
         }
     }
