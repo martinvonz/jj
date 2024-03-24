@@ -795,27 +795,27 @@ impl WorkspaceCommandHelper {
                 let mut iter = [commit0, commit1].into_iter().chain(iter);
                 let commits: Vec<_> = iter.by_ref().take(5).try_collect()?;
                 let elided = iter.next().is_some();
-                let commits_summary = {
+                let write_commits_summary = |formatter: &mut dyn Formatter| {
                     let template = self.commit_summary_template();
-                    let mut output = Vec::new();
-                    let mut formatter = PlainTextFormatter::new(&mut output);
                     for commit in &commits {
                         write!(formatter, "  ")?;
-                        template.format(commit, &mut formatter).unwrap();
-                        writeln!(formatter).unwrap();
+                        template.format(commit, formatter)?;
+                        writeln!(formatter)?;
                     }
                     if elided {
-                        writeln!(formatter, "  ...").unwrap();
+                        writeln!(formatter, "  ...")?;
                     }
-                    output.pop(); // drop last newline
-                    String::from_utf8(output).expect("template output should be utf-8 bytes")
+                    Ok(())
                 };
                 if commits[0].change_id() == commits[1].change_id() {
                     // Separate hint if there's commits with same change id
-                    cmd_err.add_hint(format!(
-                        r#"The revset "{revision_str}" resolved to these revisions:
-{commits_summary}"#
-                    ));
+                    cmd_err.add_formatted_hint_with(|formatter| {
+                        writeln!(
+                            formatter,
+                            r#"The revset "{revision_str}" resolved to these revisions:"#
+                        )?;
+                        write_commits_summary(formatter)
+                    });
                     cmd_err.add_hint(
                         "Some of these commits have the same change id. Abandon one of them with \
                          `jj abandon -r <REVISION>`.",
@@ -824,19 +824,27 @@ impl WorkspaceCommandHelper {
                     revset_expression.as_ref()
                 {
                     // Separate hint if there's a conflicted branch
-                    cmd_err.add_hint(format!(
-                        r#"Branch {branch_name} resolved to multiple revisions because it's conflicted.
-It resolved to these revisions:
-{commits_summary}"#));
+                    cmd_err.add_formatted_hint_with(|formatter| {
+                        writeln!(
+                            formatter,
+                            "Branch {branch_name} resolved to multiple revisions because it's \
+                             conflicted."
+                        )?;
+                        writeln!(formatter, "It resolved to these revisions:")?;
+                        write_commits_summary(formatter)
+                    });
                     cmd_err.add_hint(format!(
                         "Set which revision the branch points to with `jj branch set \
                          {branch_name} -r <REVISION>`.",
                     ));
                 } else {
-                    cmd_err.add_hint(format!(
-                        r#"The revset "{revision_str}" resolved to these revisions:
-{commits_summary}"#,
-                    ));
+                    cmd_err.add_formatted_hint_with(|formatter| {
+                        writeln!(
+                            formatter,
+                            r#"The revset "{revision_str}" resolved to these revisions:"#
+                        )?;
+                        write_commits_summary(formatter)
+                    });
                     if should_hint_about_all_prefix {
                         cmd_err.add_hint(format!(
                             "Prefix the expression with 'all:' to allow any number of revisions \
