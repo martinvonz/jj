@@ -400,6 +400,13 @@ fn test_color_ui_messages() {
     [1m[38;5;1mError: [39mThere is no jj repo in "."[0m
     "###);
 
+    // error source
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", ".."]);
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
+    [1m[38;5;1mError: [39mPath ".." is not in the repo "."[0m
+    [1m[39mCaused by: [0m[39mInvalid component ".." in repo-relative path "../"[39m
+    "###);
+
     // warning
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "@"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -418,7 +425,7 @@ fn test_color_ui_messages() {
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
-    [38;5;4m8bb159bc30a9859930e567eb9238a7c43ee6744d[39m
+    [38;5;4m167f90e7600a50f85c4f909b53eaf546faa82879[39m
     [1m[39m<[38;5;1mError: [39mNo commit available>[0m  [38;5;8m(elided revisions)[39m
     [38;5;4m0000000000000000000000000000000000000000[39m
     "###);

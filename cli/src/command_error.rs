@@ -543,15 +543,20 @@ fn print_error_sources(ui: &Ui, source: Option<&dyn error::Error>) -> io::Result
     let Some(err) = source else {
         return Ok(());
     };
-    if err.source().is_none() {
-        writeln!(ui.stderr(), "Caused by: {err}")?;
-    } else {
-        writeln!(ui.stderr(), "Caused by:")?;
-        for (i, err) in iter::successors(Some(err), |err| err.source()).enumerate() {
-            writeln!(ui.stderr(), "{n}: {err}", n = i + 1)?;
-        }
-    }
-    Ok(())
+    ui.stderr_formatter()
+        .with_label("error_source", |formatter| {
+            if err.source().is_none() {
+                write!(formatter.labeled("heading"), "Caused by: ")?;
+                writeln!(formatter, "{err}")?;
+            } else {
+                writeln!(formatter.labeled("heading"), "Caused by:")?;
+                for (i, err) in iter::successors(Some(err), |err| err.source()).enumerate() {
+                    write!(formatter.labeled("heading"), "{}: ", i + 1)?;
+                    writeln!(formatter, "{err}")?;
+                }
+            }
+            Ok(())
+        })
 }
 
 fn handle_clap_error(ui: &mut Ui, err: &clap::Error, hints: &[String]) -> io::Result<ExitCode> {

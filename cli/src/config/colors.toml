@@ -1,8 +1,10 @@
 [colors]
 "error" = { fg = "default", bold = true }
+"error_source" = { fg = "default" }
 "warning" = { fg = "default", bold = true }
 "hint" = { fg = "default" }
 "error heading" = { fg = "red", bold = true }
+"error_source heading" = { bold = true }
 "warning heading" = { fg = "yellow", bold = true }
 "hint heading" = { fg = "cyan", bold = true }
 
