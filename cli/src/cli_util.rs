@@ -795,11 +795,20 @@ impl WorkspaceCommandHelper {
                 let mut iter = [commit0, commit1].into_iter().chain(iter);
                 let commits: Vec<_> = iter.by_ref().take(5).try_collect()?;
                 let elided = iter.next().is_some();
-                let commits_summary = commits
-                    .iter()
-                    .map(|c| self.format_commit_summary(c))
-                    .join("\n")
-                    + elided.then_some("\n...").unwrap_or_default();
+                let commits_summary = {
+                    let template = self.commit_summary_template();
+                    let mut output = Vec::new();
+                    let mut formatter = PlainTextFormatter::new(&mut output);
+                    for commit in &commits {
+                        template.format(commit, &mut formatter).unwrap();
+                        writeln!(formatter).unwrap();
+                    }
+                    if elided {
+                        writeln!(formatter, "...").unwrap();
+                    }
+                    output.pop(); // drop last newline
+                    String::from_utf8(output).expect("template output should be utf-8 bytes")
+                };
                 if commits[0].change_id() == commits[1].change_id() {
                     // Separate hint if there's commits with same change id
                     cmd_err.add_hint(format!(
