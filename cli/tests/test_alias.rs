@@ -303,7 +303,7 @@ fn test_alias_in_repo_config() {
     user alias
     "###);
     insta::assert_snapshot!(stderr, @r###"
-    Command aliases cannot be loaded from -R/--repository path
+    Warning: Command aliases cannot be loaded from -R/--repository path
     "###);
 
     // Aliases are loaded from the cwd-relative workspace even with -R.
@@ -313,7 +313,7 @@ fn test_alias_in_repo_config() {
     repo1 alias
     "###);
     insta::assert_snapshot!(stderr, @r###"
-    Command aliases cannot be loaded from -R/--repository path
+    Warning: Command aliases cannot be loaded from -R/--repository path
     "###);
 
     // No warning if the expanded command is identical.

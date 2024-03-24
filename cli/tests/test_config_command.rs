@@ -54,7 +54,7 @@ fn test_config_list_nonexistent() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    No matching config key for nonexistent-test-key
+    Warning: No matching config key for nonexistent-test-key
     "###);
 }
 

@@ -392,7 +392,7 @@ pub fn print_failed_git_export(
     failed_branches: &[FailedRefExport],
 ) -> Result<(), std::io::Error> {
     if !failed_branches.is_empty() {
-        writeln!(ui.warning_no_heading(), "Failed to export some branches:")?;
+        writeln!(ui.warning_default(), "Failed to export some branches:")?;
         let mut formatter = ui.stderr_formatter();
         for FailedRefExport { name, reason } in failed_branches {
             write!(formatter, "  ")?;

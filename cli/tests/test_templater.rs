@@ -306,7 +306,7 @@ fn test_templater_bad_alias_decl() {
         test_env.jj_cmd_ok(&repo_path, &["log", "--no-graph", "-r@-", "-Tmy_commit_id"]);
     insta::assert_snapshot!(stdout, @"000000000000");
     insta::assert_snapshot!(stderr, @r###"
-    Failed to load "template-aliases.badfn(a, a)":  --> 1:7
+    Warning: Failed to load "template-aliases.badfn(a, a)":  --> 1:7
       |
     1 | badfn(a, a)
       |       ^--^

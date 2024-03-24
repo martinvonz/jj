@@ -441,7 +441,7 @@ fn test_init_git_colocated_imported_refs() {
     let (_stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["init", "--git-repo=."]);
     insta::assert_snapshot!(stderr, @r###"
     Done importing changes from the underlying Git repo.
-    The following remote branches aren't associated with the existing local branches:
+    Hint: The following remote branches aren't associated with the existing local branches:
       local-remote@origin
     Hint: Run `jj branch track local-remote@origin` to keep local branches updated on future pulls.
     Warning: `--git` and `--git-repo` are deprecated.

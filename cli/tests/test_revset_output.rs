@@ -422,13 +422,13 @@ fn test_bad_alias_decl() {
     ◉  zzzzzzzz root() 00000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
-    Failed to load "revset-aliases."bad"":  --> 1:1
+    Warning: Failed to load "revset-aliases."bad"":  --> 1:1
       |
     1 | "bad"
       | ^---
       |
       = expected <identifier> or <function_name>
-    Failed to load "revset-aliases.badfn(a, a)":  --> 1:7
+    Warning: Failed to load "revset-aliases.badfn(a, a)":  --> 1:7
       |
     1 | badfn(a, a)
       |       ^--^

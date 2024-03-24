@@ -597,7 +597,7 @@ fn get_default_fetch_remotes(
         // if nothing was explicitly configured, try to guess
         if remote != DEFAULT_REMOTE {
             writeln!(
-                ui.hint_no_heading(),
+                ui.hint_default(),
                 "Fetching from the only existing remote: {remote}"
             )?;
         }
@@ -703,7 +703,7 @@ fn cmd_git_clone(
         };
         if let Err(err) = clean_up_dirs() {
             writeln!(
-                ui.warning_no_heading(),
+                ui.warning_default(),
                 "Failed to clean up {}: {}",
                 canonical_wc_path.display(),
                 err
@@ -1040,7 +1040,7 @@ fn get_default_push_remote(
         // similar to get_default_fetch_remotes
         if remote != DEFAULT_REMOTE {
             writeln!(
-                ui.hint_no_heading(),
+                ui.hint_default(),
                 "Pushing to the only existing remote: {remote}"
             )?;
         }
@@ -1058,7 +1058,7 @@ struct RejectedBranchUpdateReason {
 
 impl RejectedBranchUpdateReason {
     fn print(&self, ui: &Ui) -> io::Result<()> {
-        writeln!(ui.warning_no_heading(), "{}", self.message)?;
+        writeln!(ui.warning_default(), "{}", self.message)?;
         if let Some(hint) = &self.hint {
             writeln!(ui.hint_default(), "{hint}")?;
         }
@@ -1197,7 +1197,7 @@ fn find_branches_targeted_by_revisions<'a>(
         revision_commit_ids.extend(current_branches_revset.iter());
         if revision_commit_ids.is_empty() {
             writeln!(
-                ui.warning_no_heading(),
+                ui.warning_default(),
                 "No branches found in the default push revset: \
                  remote_branches(remote={remote_name})..@"
             )?;
@@ -1212,7 +1212,7 @@ fn find_branches_targeted_by_revisions<'a>(
         if commit_ids.peek().is_none() {
             let rev_str: &str = rev_str;
             writeln!(
-                ui.warning_no_heading(),
+                ui.warning_default(),
                 "No branches point to the specified revisions: {rev_str}"
             )?;
         }

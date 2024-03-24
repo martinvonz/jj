@@ -292,7 +292,7 @@ impl Ui {
                     Err(e) => {
                         // The pager executable couldn't be found or couldn't be run
                         writeln!(
-                            self.warning_no_heading(),
+                            self.warning_default(),
                             "Failed to spawn pager '{name}': {e}. Consider using the `:builtin` \
                              pager.",
                             name = self.pager_cmd.split_name(),

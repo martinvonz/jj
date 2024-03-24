@@ -325,7 +325,7 @@ pub fn generate_diff(
     tracing::info!(?cmd, ?exit_status, "The external diff generator exited:");
     if !exit_status.success() {
         writeln!(
-            ui.warning_no_heading(),
+            ui.warning_default(),
             "{}",
             format_tool_aborted(&exit_status)
         )

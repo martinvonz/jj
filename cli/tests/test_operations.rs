@@ -489,7 +489,7 @@ fn test_op_abandon_without_updating_working_copy() {
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "abandon", "@-"]);
     insta::assert_snapshot!(stderr, @r###"
     Abandoned 1 operations and reparented 1 descendant operations.
-    The working copy operation 61aeade2493b is not updated because it differs from the repo ae6364994418.
+    Warning: The working copy operation 61aeade2493b is not updated because it differs from the repo ae6364994418.
     "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["debug", "workingcopy", "--ignore-working-copy"]), @r###"
