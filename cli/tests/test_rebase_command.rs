@@ -167,8 +167,8 @@ fn test_rebase_branch() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "e|d" resolved to more than one revision
     Hint: The revset "e|d" resolved to these revisions:
-    znkkpsqq e52756c8 e | e
-    vruxwmqv 514fa6b2 d | d
+      znkkpsqq e52756c8 e | e
+      vruxwmqv 514fa6b2 d | d
     Hint: Prefix the expression with 'all:' to allow any number of revisions (i.e. 'all:e|d').
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b=all:e|d", "-d=b"]);
@@ -478,8 +478,8 @@ fn test_rebase_multiple_destinations() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "b|c" resolved to more than one revision
     Hint: The revset "b|c" resolved to these revisions:
-    royxmykx fe2e8e8b c | c
-    zsuskuln d370aee1 b | b
+      royxmykx fe2e8e8b c | c
+      zsuskuln d370aee1 b | b
     Hint: Prefix the expression with 'all:' to allow any number of revisions (i.e. 'all:b|c').
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "a", "-d", "all:b|c"]);
@@ -614,8 +614,8 @@ fn test_rebase_with_descendants() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "b|d" resolved to more than one revision
     Hint: The revset "b|d" resolved to these revisions:
-    vruxwmqv df54a9fd d | d
-    zsuskuln d370aee1 b | b
+      vruxwmqv df54a9fd d | d
+      zsuskuln d370aee1 b | b
     Hint: Prefix the expression with 'all:' to allow any number of revisions (i.e. 'all:b|d').
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s=all:b|d", "-d=a"]);

@@ -70,12 +70,12 @@ fn test_checkout_not_single_rev() {
     warning: `jj checkout` will be removed in a future version, and this will be a hard error
     Error: Revset "root()..@" resolved to more than one revision
     Hint: The revset "root()..@" resolved to these revisions:
-    royxmykx 2f859371 (empty) (no description set)
-    mzvwutvl 5c1afd8b (empty) fifth
-    zsuskuln 009f88bf (empty) fourth
-    kkmpptxz 3fa8931e (empty) third
-    rlvkpnrz 5c52832c (empty) second
-    ...
+      royxmykx 2f859371 (empty) (no description set)
+      mzvwutvl 5c1afd8b (empty) fifth
+      zsuskuln 009f88bf (empty) fourth
+      kkmpptxz 3fa8931e (empty) third
+      rlvkpnrz 5c52832c (empty) second
+      ...
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "root()..@-"]);
@@ -84,11 +84,11 @@ fn test_checkout_not_single_rev() {
     warning: `jj checkout` will be removed in a future version, and this will be a hard error
     Error: Revset "root()..@-" resolved to more than one revision
     Hint: The revset "root()..@-" resolved to these revisions:
-    mzvwutvl 5c1afd8b (empty) fifth
-    zsuskuln 009f88bf (empty) fourth
-    kkmpptxz 3fa8931e (empty) third
-    rlvkpnrz 5c52832c (empty) second
-    qpvuntsm 69542c19 (empty) first
+      mzvwutvl 5c1afd8b (empty) fifth
+      zsuskuln 009f88bf (empty) fourth
+      kkmpptxz 3fa8931e (empty) third
+      rlvkpnrz 5c52832c (empty) second
+      qpvuntsm 69542c19 (empty) first
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "@-|@--"]);
@@ -97,8 +97,8 @@ fn test_checkout_not_single_rev() {
     warning: `jj checkout` will be removed in a future version, and this will be a hard error
     Error: Revset "@-|@--" resolved to more than one revision
     Hint: The revset "@-|@--" resolved to these revisions:
-    mzvwutvl 5c1afd8b (empty) fifth
-    zsuskuln 009f88bf (empty) fourth
+      mzvwutvl 5c1afd8b (empty) fifth
+      zsuskuln 009f88bf (empty) fourth
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "none()"]);
