@@ -149,6 +149,14 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
                 let build = template_parser::lookup_method("RefName", table, function)?;
                 build(self, build_ctx, property, function)
             }
+            CommitTemplatePropertyKind::RefNameOpt(property) => {
+                let table = &self.build_fn_table.ref_name_methods;
+                let build = template_parser::lookup_method("RefName", table, function)?;
+                let inner_property = property.and_then(|opt| {
+                    opt.ok_or_else(|| TemplatePropertyError("No RefName available".into()))
+                });
+                build(self, build_ctx, Box::new(inner_property), function)
+            }
             CommitTemplatePropertyKind::RefNameList(property) => {
                 // TODO: migrate to table?
                 template_builder::build_formattable_list_method(
@@ -216,6 +224,12 @@ impl<'repo> CommitTemplateLanguage<'repo> {
         CommitTemplatePropertyKind::RefName(Box::new(property))
     }
 
+    pub fn wrap_ref_name_opt(
+        property: impl TemplateProperty<Output = Option<RefName>> + 'repo,
+    ) -> CommitTemplatePropertyKind<'repo> {
+        CommitTemplatePropertyKind::RefNameOpt(Box::new(property))
+    }
+
     pub fn wrap_ref_name_list(
         property: impl TemplateProperty<Output = Vec<RefName>> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
@@ -241,6 +255,7 @@ pub enum CommitTemplatePropertyKind<'repo> {
     CommitOpt(Box<dyn TemplateProperty<Output = Option<Commit>> + 'repo>),
     CommitList(Box<dyn TemplateProperty<Output = Vec<Commit>> + 'repo>),
     RefName(Box<dyn TemplateProperty<Output = RefName> + 'repo>),
+    RefNameOpt(Box<dyn TemplateProperty<Output = Option<RefName>> + 'repo>),
     RefNameList(Box<dyn TemplateProperty<Output = Vec<RefName>> + 'repo>),
     CommitOrChangeId(Box<dyn TemplateProperty<Output = CommitOrChangeId> + 'repo>),
     ShortestIdPrefix(Box<dyn TemplateProperty<Output = ShortestIdPrefix> + 'repo>),
@@ -258,6 +273,9 @@ impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
                 Some(Box::new(property.map(|l| !l.is_empty())))
             }
             CommitTemplatePropertyKind::RefName(_) => None,
+            CommitTemplatePropertyKind::RefNameOpt(property) => {
+                Some(Box::new(property.map(|opt| opt.is_some())))
+            }
             CommitTemplatePropertyKind::RefNameList(property) => {
                 Some(Box::new(property.map(|l| !l.is_empty())))
             }
@@ -290,6 +308,7 @@ impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
             CommitTemplatePropertyKind::CommitOpt(_) => None,
             CommitTemplatePropertyKind::CommitList(_) => None,
             CommitTemplatePropertyKind::RefName(property) => Some(property.into_template()),
+            CommitTemplatePropertyKind::RefNameOpt(property) => Some(property.into_template()),
             CommitTemplatePropertyKind::RefNameList(property) => Some(property.into_template()),
             CommitTemplatePropertyKind::CommitOrChangeId(property) => {
                 Some(property.into_template())
@@ -530,7 +549,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
             template_parser::expect_no_arguments(function)?;
             let repo = language.repo;
             let out_property = self_property.map(|commit| extract_git_head(repo, &commit));
-            Ok(L::wrap_ref_name_list(out_property))
+            Ok(L::wrap_ref_name_opt(out_property))
         },
     );
     map.insert(
@@ -764,20 +783,16 @@ fn build_ref_names_index<'a>(
     index
 }
 
-// TODO: maybe add option or nullable type?
-fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> Vec<RefName> {
+fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> Option<RefName> {
     let target = repo.view().git_head();
-    if target.added_ids().contains(commit.id()) {
-        let ref_name = RefName {
+    target.added_ids().contains(commit.id()).then(|| {
+        RefName {
             name: "HEAD".to_owned(),
             remote: Some(git::REMOTE_NAME_FOR_LOCAL_GIT_REPO.to_owned()),
             conflict: target.has_conflict(),
             synced: false, // has no local counterpart
-        };
-        vec![ref_name]
-    } else {
-        vec![]
-    }
+        }
+    })
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
