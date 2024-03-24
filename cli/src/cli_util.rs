@@ -800,11 +800,12 @@ impl WorkspaceCommandHelper {
                     let mut output = Vec::new();
                     let mut formatter = PlainTextFormatter::new(&mut output);
                     for commit in &commits {
+                        write!(formatter, "  ")?;
                         template.format(commit, &mut formatter).unwrap();
                         writeln!(formatter).unwrap();
                     }
                     if elided {
-                        writeln!(formatter, "...").unwrap();
+                        writeln!(formatter, "  ...").unwrap();
                     }
                     output.pop(); // drop last newline
                     String::from_utf8(output).expect("template output should be utf-8 bytes")
