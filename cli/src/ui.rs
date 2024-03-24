@@ -399,8 +399,17 @@ impl Ui {
         HeadingLabeledWriter::new(self.stderr_formatter(), "warning", heading)
     }
 
-    pub fn error(&self) -> LabeledWriter<Box<dyn Formatter + '_>, &'static str> {
+    /// Writer to print error without the "Error: " heading.
+    pub fn error_no_heading(&self) -> LabeledWriter<Box<dyn Formatter + '_>, &'static str> {
         LabeledWriter::new(self.stderr_formatter(), "error")
+    }
+
+    /// Writer to print error with the given heading.
+    pub fn error_with_heading<H: fmt::Display>(
+        &self,
+        heading: H,
+    ) -> HeadingLabeledWriter<Box<dyn Formatter + '_>, &'static str, H> {
+        HeadingLabeledWriter::new(self.stderr_formatter(), "error", heading)
     }
 
     /// Waits for the pager exits.
@@ -416,7 +425,7 @@ impl Ui {
                     // It's possible (though unlikely) that this write fails, but
                     // this function gets called so late that there's not much we
                     // can do about it.
-                    writeln!(self.error(), "Failed to wait on pager: {e}").ok();
+                    writeln!(self.error_no_heading(), "Failed to wait on pager: {e}").ok();
                 }
             }
             UiOutput::BuiltinPaged { pager } => {

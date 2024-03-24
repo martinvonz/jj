@@ -679,8 +679,10 @@ where
 
 fn format_error_inline(formatter: &mut dyn Formatter, err: &dyn error::Error) -> io::Result<()> {
     formatter.with_label("error", |formatter| {
-        write!(formatter, "<Error")?;
-        for err in iter::successors(Some(err), |err| err.source()) {
+        write!(formatter, "<")?;
+        write!(formatter.labeled("heading"), "Error: ")?;
+        write!(formatter, "{err}")?;
+        for err in iter::successors(err.source(), |err| err.source()) {
             write!(formatter, ": {err}")?;
         }
         write!(formatter, ">")?;
