@@ -582,15 +582,15 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let new_commit = match rebased_commit {
             RebasedCommit::Rewritten(new_commit) => new_commit,
             RebasedCommit::Abandoned { parent } => {
+                self.mut_repo
+                    .parent_mapping
+                    .insert(old_commit_id.clone(), vec![parent.id().clone()]);
                 self.mut_repo.abandoned.insert(old_commit.id().clone());
                 parent
             }
         };
         self.rebased
             .insert(old_commit_id.clone(), new_commit.id().clone());
-        self.mut_repo
-            .parent_mapping
-            .insert(old_commit_id.clone(), vec![new_commit.id().clone()]);
         self.update_references(old_commit_id, vec![new_commit.id().clone()])?;
         Ok(())
     }
