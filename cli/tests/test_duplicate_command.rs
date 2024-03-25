@@ -293,49 +293,55 @@ fn test_rebase_duplicates() {
 
     create_commit(&test_env, &repo_path, "a", &[]);
     create_commit(&test_env, &repo_path, "b", &["a"]);
+    create_commit(&test_env, &repo_path, "c", &["b"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output_with_ts(&test_env, &repo_path), @r###"
-    @  1394f625cbbd   b @ 2001-02-03 04:05:11.000 +07:00
+    @  7e4fbf4f2759   c @ 2001-02-03 04:05:13.000 +07:00
+    ◉  1394f625cbbd   b @ 2001-02-03 04:05:11.000 +07:00
     ◉  2443ea76b0b1   a @ 2001-02-03 04:05:09.000 +07:00
     ◉  000000000000    @ 1970-01-01 00:00:00.000 +00:00
     "###);
 
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "b"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "c"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Duplicated 1394f625cbbd as yqosqzyt fdaaf395 b
+    Duplicated 7e4fbf4f2759 as yostqsxw 0ac2063b c
     "###);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "b"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "c"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Duplicated 1394f625cbbd as vruxwmqv 870cf438 b
+    Duplicated 7e4fbf4f2759 as znkkpsqq ce5f4eeb c
     "###);
     insta::assert_snapshot!(get_log_output_with_ts(&test_env, &repo_path), @r###"
-    ◉  870cf438ccbb   b @ 2001-02-03 04:05:14.000 +07:00
-    │ ◉  fdaaf3950f07   b @ 2001-02-03 04:05:13.000 +07:00
+    ◉  ce5f4eeb69d1   c @ 2001-02-03 04:05:16.000 +07:00
+    │ ◉  0ac2063b1bee   c @ 2001-02-03 04:05:15.000 +07:00
     ├─╯
-    │ @  1394f625cbbd   b @ 2001-02-03 04:05:11.000 +07:00
+    │ @  7e4fbf4f2759   c @ 2001-02-03 04:05:13.000 +07:00
     ├─╯
+    ◉  1394f625cbbd   b @ 2001-02-03 04:05:11.000 +07:00
     ◉  2443ea76b0b1   a @ 2001-02-03 04:05:09.000 +07:00
     ◉  000000000000    @ 1970-01-01 00:00:00.000 +00:00
     "###);
 
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s", "a", "-d", "a-"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s", "b", "-d", "root()"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 4 commits
-    Working copy now at: zsuskuln 29bd36b6 b | b
-    Parent commit      : rlvkpnrz 2f6dc5a1 a | a
+    Working copy now at: royxmykx ed671a3c c | c
+    Parent commit      : zsuskuln 4c6f1569 b | b
+    Added 0 files, modified 0 files, removed 1 files
     "###);
     // Some of the duplicate commits' timestamps were changed a little to make them
     // have distinct commit ids.
     insta::assert_snapshot!(get_log_output_with_ts(&test_env, &repo_path), @r###"
-    ◉  b43fe7354758   b @ 2001-02-03 04:05:14.000 +07:00
-    │ ◉  08beb14c3ead   b @ 2001-02-03 04:05:15.000 +07:00
+    ◉  b86e9f27d085   c @ 2001-02-03 04:05:16.000 +07:00
+    │ ◉  8033590fe04d   c @ 2001-02-03 04:05:17.000 +07:00
     ├─╯
-    │ @  29bd36b60e60   b @ 2001-02-03 04:05:16.000 +07:00
+    │ @  ed671a3cbf35   c @ 2001-02-03 04:05:18.000 +07:00
     ├─╯
-    ◉  2f6dc5a1ffc2   a @ 2001-02-03 04:05:16.000 +07:00
+    ◉  4c6f1569e2a9   b @ 2001-02-03 04:05:18.000 +07:00
+    │ ◉  2443ea76b0b1   a @ 2001-02-03 04:05:09.000 +07:00
+    ├─╯
     ◉  000000000000    @ 1970-01-01 00:00:00.000 +00:00
     "###);
 }
