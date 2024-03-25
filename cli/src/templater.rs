@@ -184,6 +184,22 @@ where
     }
 }
 
+/// Renders contents in order, and returns the first non-empty output.
+pub struct CoalesceTemplate<T>(pub Vec<T>);
+
+impl<T: Template> Template for CoalesceTemplate<T> {
+    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+        let Some((last, contents)) = self.0.split_last() else {
+            return Ok(());
+        };
+        if let Some(recorder) = contents.iter().find_map(record_non_empty) {
+            recorder?.replay(formatter)
+        } else {
+            last.format(formatter) // no need to capture the last content
+        }
+    }
+}
+
 pub struct ConcatTemplate<T>(pub Vec<T>);
 
 impl<T: Template> Template for ConcatTemplate<T> {
@@ -248,18 +264,7 @@ where
     T: Template,
 {
     fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
-        let mut content_recorders = self
-            .contents
-            .iter()
-            .filter_map(|template| {
-                let mut recorder = FormatRecorder::new();
-                match template.format(&mut recorder) {
-                    Ok(()) if recorder.data().is_empty() => None, // omit empty content
-                    Ok(()) => Some(Ok(recorder)),
-                    Err(e) => Some(Err(e)),
-                }
-            })
-            .fuse();
+        let mut content_recorders = self.contents.iter().filter_map(record_non_empty).fuse();
         if let Some(recorder) = content_recorders.next() {
             recorder?.replay(formatter)?;
         }
@@ -696,4 +701,13 @@ fn format_error_inline(formatter: &mut dyn Formatter, err: &dyn error::Error) ->
         write!(formatter, ">")?;
         Ok(())
     })
+}
+
+fn record_non_empty(template: impl Template) -> Option<io::Result<FormatRecorder>> {
+    let mut recorder = FormatRecorder::new();
+    match template.format(&mut recorder) {
+        Ok(()) if recorder.data().is_empty() => None, // omit empty content
+        Ok(()) => Some(Ok(recorder)),
+        Err(e) => Some(Err(e)),
+    }
 }

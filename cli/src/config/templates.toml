@@ -96,7 +96,7 @@ concat(
   "Author: " ++ format_detailed_signature(author) ++ "\n",
   "Committer: " ++ format_detailed_signature(committer)  ++ "\n",
   "\n",
-  indent("    ", if(description, description, description_placeholder ++ "\n")),
+  indent("    ", coalesce(description, description_placeholder ++ "\n")),
   "\n",
 )
 '''

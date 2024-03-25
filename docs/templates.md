@@ -47,6 +47,8 @@ The following functions are defined.
   the content. The `label` is evaluated as a space-separated string.
 * `if(condition: Boolean, then: Template[, else: Template]) -> Template`:
   Conditionally evaluate `then`/`else` template content.
+* `coalesce(content: Template...) -> Template`: Returns the first **non-empty**
+  content.
 * `concat(content: Template...) -> Template`:
   Same as `content_1 ++ ... ++ content_n`.
 * `separate(separator: Template, content: Template...) -> Template`:

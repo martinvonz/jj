@@ -241,13 +241,11 @@ For example:
 ```toml
 [templates]
 log_node = '''
-if(self,
-  if(current_working_copy, "@",
-    if(root, "┴",
-      if(immutable, "●", "○")
-    )
-  ),
-  "🮀",
+coalesce(
+  if(!self, "🮀"),
+  if(current_working_copy, "@"),
+  if(root, "┴"),
+  if(immutable, "●", "○"),
 )
 '''
 op_log_node = 'if(current_operation, "@", "○")'
