@@ -22,10 +22,10 @@ use crate::template_parser::{
     TemplateParseError, TemplateParseErrorKind, TemplateParseResult, UnaryOp,
 };
 use crate::templater::{
-    ConcatTemplate, ConditionalTemplate, IntoTemplate, LabelTemplate, ListPropertyTemplate,
-    ListTemplate, Literal, PlainTextFormattedProperty, PropertyPlaceholder, ReformatTemplate,
-    SeparateTemplate, Template, TemplateProperty, TemplatePropertyError, TemplatePropertyExt as _,
-    TemplateRenderer, TimestampRange,
+    CoalesceTemplate, ConcatTemplate, ConditionalTemplate, IntoTemplate, LabelTemplate,
+    ListPropertyTemplate, ListTemplate, Literal, PlainTextFormattedProperty, PropertyPlaceholder,
+    ReformatTemplate, SeparateTemplate, Template, TemplateProperty, TemplatePropertyError,
+    TemplatePropertyExt as _, TemplateRenderer, TimestampRange,
 };
 use crate::{text_util, time_util};
 
@@ -920,6 +920,14 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
             .transpose()?;
         let template = ConditionalTemplate::new(condition, true_template, false_template);
         Ok(L::wrap_template(Box::new(template)))
+    });
+    map.insert("coalesce", |language, build_ctx, function| {
+        let contents = function
+            .args
+            .iter()
+            .map(|node| expect_template_expression(language, build_ctx, node))
+            .try_collect()?;
+        Ok(L::wrap_template(Box::new(CoalesceTemplate(contents))))
     });
     map.insert("concat", |language, build_ctx, function| {
         let contents = function
@@ -1991,6 +1999,30 @@ mod tests {
         insta::assert_snapshot!(
             env.render_ok(r#"label(if(empty, "error", "warning"), "text")"#),
             @"[38;5;1mtext[39m");
+    }
+
+    #[test]
+    fn test_coalesce_function() {
+        let mut env = TestTemplateEnv::new();
+        env.add_keyword("bad_string", || L::wrap_string(new_error_property("Bad")));
+        env.add_keyword("empty_string", || L::wrap_string(Literal("".to_owned())));
+        env.add_keyword("non_empty_string", || {
+            L::wrap_string(Literal("a".to_owned()))
+        });
+
+        insta::assert_snapshot!(env.render_ok(r#"coalesce()"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"coalesce("")"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"coalesce("", "a", "", "b")"#), @"a");
+        insta::assert_snapshot!(
+            env.render_ok(r#"coalesce(empty_string, "", non_empty_string)"#), @"a");
+
+        // "false" is not empty
+        insta::assert_snapshot!(env.render_ok(r#"coalesce(false, true)"#), @"false");
+
+        // Error is not empty
+        insta::assert_snapshot!(env.render_ok(r#"coalesce(bad_string, "a")"#), @"<Error: Bad>");
+        // but can be short-circuited
+        insta::assert_snapshot!(env.render_ok(r#"coalesce("a", bad_string)"#), @"a");
     }
 
     #[test]
