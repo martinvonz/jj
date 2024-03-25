@@ -280,7 +280,6 @@ pub(crate) struct DescendantRebaser<'settings, 'repo> {
     mut_repo: &'repo mut MutableRepo,
     // In reverse order (parents after children), so we can remove the last one to rebase first.
     to_visit: Vec<Commit>,
-    new_commits: HashSet<CommitId>,
     rebased: HashMap<CommitId, CommitId>,
     // Names of branches where local target includes the commit id in the key.
     branches: HashMap<CommitId, HashSet<String>>,
@@ -349,13 +348,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             },
         );
 
-        let new_commits = mut_repo
-            .parent_mapping
-            .values()
-            .flatten()
-            .cloned()
-            .collect();
-
         // Build a map from commit to branches pointing to it, so we don't need to scan
         // all branches each time we rebase a commit.
         let mut branches: HashMap<_, HashSet<_>> = HashMap::new();
@@ -372,7 +364,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             settings,
             mut_repo,
             to_visit,
-            new_commits,
             rebased: Default::default(),
             branches,
             heads_to_add,
@@ -519,9 +510,17 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     }
 
     fn update_heads(&mut self) {
+        let new_commits: HashSet<_> = self
+            .mut_repo
+            .parent_mapping
+            .values()
+            .flatten()
+            .cloned()
+            .collect();
+
         for old_parent_id in self.mut_repo.parent_mapping.keys() {
             self.heads_to_add.remove(old_parent_id);
-            if !self.new_commits.contains(old_parent_id) || self.rebased.contains_key(old_parent_id) {
+            if !new_commits.contains(old_parent_id) || self.rebased.contains_key(old_parent_id) {
                 self.heads_to_remove.push(old_parent_id.clone());
             }
         }
