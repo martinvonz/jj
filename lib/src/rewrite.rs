@@ -421,17 +421,13 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 }
             }
             let (old_target, new_target) =
-                DescendantRebaser::ref_target_update(old_commit_id.clone(), new_commit_ids);
+                DescendantRebaser::ref_target_update(old_commit_id, new_commit_ids);
             for branch_name in &branch_updates {
                 self.mut_repo
                     .merge_local_branch(branch_name, &old_target, &new_target);
             }
         }
 
-        self.heads_to_add.remove(&old_commit_id);
-        if !self.new_commits.contains(&old_commit_id) || self.rebased.contains_key(&old_commit_id) {
-            self.heads_to_remove.push(old_commit_id);
-        }
         Ok(())
     }
 
@@ -523,6 +519,13 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     }
 
     fn update_heads(&mut self) {
+        for old_parent_id in self.mut_repo.parent_mapping.keys() {
+            self.heads_to_add.remove(old_parent_id);
+            if !self.new_commits.contains(old_parent_id) || self.rebased.contains_key(old_parent_id) {
+                self.heads_to_remove.push(old_parent_id.clone());
+            }
+        }
+
         let mut view = self.mut_repo.view().store_view().clone();
         for commit_id in &self.heads_to_remove {
             view.head_ids.remove(commit_id);
