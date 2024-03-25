@@ -286,7 +286,6 @@ pub(crate) struct DescendantRebaser<'settings, 'repo> {
     // Parents of rebased/abandoned commit that should become new heads once their descendants
     // have been rebased.
     heads_to_add: HashSet<CommitId>,
-    heads_to_remove: Vec<CommitId>,
 
     // Options to apply during a rebase.
     options: RebaseOptions,
@@ -367,7 +366,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             rebased: Default::default(),
             branches,
             heads_to_add,
-            heads_to_remove: Default::default(),
             options: Default::default(),
         }
     }
@@ -518,21 +516,21 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             .cloned()
             .collect();
 
+        let mut heads_to_remove = vec![];
         for old_parent_id in self.mut_repo.parent_mapping.keys() {
             self.heads_to_add.remove(old_parent_id);
             if !new_commits.contains(old_parent_id) || self.rebased.contains_key(old_parent_id) {
-                self.heads_to_remove.push(old_parent_id.clone());
+                heads_to_remove.push(old_parent_id.clone());
             }
         }
 
         let mut view = self.mut_repo.view().store_view().clone();
-        for commit_id in &self.heads_to_remove {
+        for commit_id in &heads_to_remove {
             view.head_ids.remove(commit_id);
         }
         for commit_id in &self.heads_to_add {
             view.head_ids.insert(commit_id.clone());
         }
-        self.heads_to_remove.clear();
         self.heads_to_add.clear();
         self.mut_repo.set_view(view);
     }
