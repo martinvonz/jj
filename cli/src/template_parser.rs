@@ -14,7 +14,7 @@
 
 use std::collections::HashMap;
 use std::num::ParseIntError;
-use std::{error, fmt, iter, mem};
+use std::{error, fmt, mem};
 
 use itertools::Itertools as _;
 use once_cell::sync::Lazy;
@@ -107,7 +107,7 @@ pub enum TemplateParseErrorKind {
 
 impl TemplateParseError {
     pub fn with_span(kind: TemplateParseErrorKind, span: pest::Span<'_>) -> Self {
-        let message = iter::successors(Some(&kind as &dyn error::Error), |e| e.source()).join(": ");
+        let message = kind.to_string();
         let pest_error = Box::new(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError { message },
             span,
@@ -124,7 +124,7 @@ impl TemplateParseError {
         span: pest::Span<'_>,
         source: impl Into<Box<dyn error::Error + Send + Sync>>,
     ) -> Self {
-        let message = iter::successors(Some(&kind as &dyn error::Error), |e| e.source()).join(": ");
+        let message = kind.to_string();
         let pest_error = Box::new(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError { message },
             span,
@@ -170,6 +170,19 @@ impl TemplateParseError {
         TemplateParseError::with_span(
             TemplateParseErrorKind::UnexpectedExpression(message.into()),
             span,
+        )
+    }
+
+    /// Some other expression error with the underlying error `source`.
+    pub fn other(
+        message: impl Into<String>,
+        source: impl Into<Box<dyn error::Error + Send + Sync>>,
+        span: pest::Span<'_>,
+    ) -> Self {
+        TemplateParseError::with_span_and_source(
+            TemplateParseErrorKind::UnexpectedExpression(message.into()),
+            span,
+            source,
         )
     }
 
@@ -248,13 +261,11 @@ impl fmt::Display for TemplateParseError {
 impl error::Error for TemplateParseError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         if let Some(e) = self.source.as_deref() {
-            return Some(e);
-        }
-        match &self.kind {
-            // SyntaxError is a wrapper for pest::error::Error.
-            TemplateParseErrorKind::SyntaxError => Some(&self.pest_error as &dyn error::Error),
-            // Otherwise the kind represents this error.
-            e => e.source(),
+            Some(e)
+        } else {
+            // SyntaxError originates from self.pest_error, but
+            // pest::error::Error doesn't have a source anyway.
+            self.kind.source()
         }
     }
 }

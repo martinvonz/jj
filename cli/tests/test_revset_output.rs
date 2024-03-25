@@ -22,7 +22,8 @@ fn test_syntax_error() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", ":x"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:1
+    Error: Failed to parse revset
+    Caused by:  --> 1:1
       |
     1 | :x
       | ^
@@ -33,7 +34,8 @@ fn test_syntax_error() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "x &"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:4
+    Error: Failed to parse revset
+    Caused by:  --> 1:4
       |
     1 | x &
       |    ^---
@@ -43,7 +45,8 @@ fn test_syntax_error() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "x - y"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:3
+    Error: Failed to parse revset
+    Caused by:  --> 1:3
       |
     1 | x - y
       |   ^
@@ -54,7 +57,8 @@ fn test_syntax_error() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "HEAD^"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:5
+    Error: Failed to parse revset
+    Caused by:  --> 1:5
       |
     1 | HEAD^
       |     ^
@@ -72,7 +76,8 @@ fn test_bad_function_call() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "all(or::nothing)"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:5
+    Error: Failed to parse revset
+    Caused by:  --> 1:5
       |
     1 | all(or::nothing)
       |     ^---------^
@@ -82,7 +87,8 @@ fn test_bad_function_call() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "parents()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:9
+    Error: Failed to parse revset
+    Caused by:  --> 1:9
       |
     1 | parents()
       |         ^
@@ -92,7 +98,8 @@ fn test_bad_function_call() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "parents(foo, bar)"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:9
+    Error: Failed to parse revset
+    Caused by:  --> 1:9
       |
     1 | parents(foo, bar)
       |         ^------^
@@ -102,7 +109,8 @@ fn test_bad_function_call() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "heads(foo, bar)"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:7
+    Error: Failed to parse revset
+    Caused by:  --> 1:7
       |
     1 | heads(foo, bar)
       |       ^------^
@@ -112,7 +120,8 @@ fn test_bad_function_call() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "latest(a, not_an_integer)"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:11
+    Error: Failed to parse revset
+    Caused by:  --> 1:11
       |
     1 | latest(a, not_an_integer)
       |           ^------------^
@@ -122,7 +131,8 @@ fn test_bad_function_call() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:6
+    Error: Failed to parse revset
+    Caused by:  --> 1:6
       |
     1 | file()
       |      ^
@@ -132,7 +142,8 @@ fn test_bad_function_call() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file(a, not:a-string)"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:9
+    Error: Failed to parse revset
+    Caused by:  --> 1:9
       |
     1 | file(a, not:a-string)
       |         ^----------^
@@ -142,17 +153,22 @@ fn test_bad_function_call() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"file(a, "../out")"#]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
-    Error: Failed to parse revset:  --> 1:9
+    Error: Failed to parse revset
+    Caused by:
+    1:  --> 1:9
       |
     1 | file(a, "../out")
       |         ^------^
       |
-      = Invalid file pattern: Path "../out" is not in the repo ".": Invalid component ".." in repo-relative path "../out"
+      = Invalid file pattern
+    2: Path "../out" is not in the repo "."
+    3: Invalid component ".." in repo-relative path "../out"
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "branches(bad:pattern)"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:10
+    Error: Failed to parse revset
+    Caused by:  --> 1:10
       |
     1 | branches(bad:pattern)
       |          ^---------^
@@ -162,7 +178,8 @@ fn test_bad_function_call() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root()::whatever()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:9
+    Error: Failed to parse revset
+    Caused by:  --> 1:9
       |
     1 | root()::whatever()
       |         ^------^
@@ -175,7 +192,8 @@ fn test_bad_function_call() {
         &["log", "-r", "remote_branches(a, b, remote=c)"],
     );
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:23
+    Error: Failed to parse revset
+    Caused by:  --> 1:23
       |
     1 | remote_branches(a, b, remote=c)
       |                       ^------^
@@ -186,7 +204,8 @@ fn test_bad_function_call() {
     let stderr =
         test_env.jj_cmd_failure(&repo_path, &["log", "-r", "remote_branches(remote=a, b)"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:27
+    Error: Failed to parse revset
+    Caused by:  --> 1:27
       |
     1 | remote_branches(remote=a, b)
       |                           ^
@@ -196,7 +215,8 @@ fn test_bad_function_call() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "remote_branches(=foo)"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:17
+    Error: Failed to parse revset
+    Caused by:  --> 1:17
       |
     1 | remote_branches(=foo)
       |                 ^---
@@ -206,7 +226,8 @@ fn test_bad_function_call() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "remote_branches(remote=)"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:24
+    Error: Failed to parse revset
+    Caused by:  --> 1:24
       |
     1 | remote_branches(remote=)
       |                        ^---
@@ -234,7 +255,8 @@ fn test_function_name_hint() {
 
     // The suggestion "branches" shouldn't be duplicated
     insta::assert_snapshot!(evaluate_err("branch()"), @r###"
-    Error: Failed to parse revset:  --> 1:1
+    Error: Failed to parse revset
+    Caused by:  --> 1:1
       |
     1 | branch()
       | ^----^
@@ -245,7 +267,8 @@ fn test_function_name_hint() {
 
     // Both builtin function and function alias should be suggested
     insta::assert_snapshot!(evaluate_err("author_()"), @r###"
-    Error: Failed to parse revset:  --> 1:1
+    Error: Failed to parse revset
+    Caused by:  --> 1:1
       |
     1 | author_()
       | ^-----^
@@ -255,13 +278,15 @@ fn test_function_name_hint() {
     "###);
 
     insta::assert_snapshot!(evaluate_err("my_branches"), @r###"
-    Error: Failed to parse revset:  --> 1:1
+    Error: Failed to parse revset
+    Caused by:
+    1:  --> 1:1
       |
     1 | my_branches
       | ^---------^
       |
       = Alias "my_branches" cannot be expanded
-     --> 1:1
+    2:  --> 1:1
       |
     1 | branch()
       | ^----^
@@ -302,13 +327,15 @@ fn test_alias() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root() & syntax-error"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:10
+    Error: Failed to parse revset
+    Caused by:
+    1:  --> 1:10
       |
     1 | root() & syntax-error
       |          ^----------^
       |
       = Alias "syntax-error" cannot be expanded
-     --> 1:11
+    2:  --> 1:11
       |
     1 | whatever &
       |           ^---
@@ -318,7 +345,8 @@ fn test_alias() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "identity()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:10
+    Error: Failed to parse revset
+    Caused by:  --> 1:10
       |
     1 | identity()
       |          ^
@@ -328,13 +356,15 @@ fn test_alias() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "my_author(none())"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:1
+    Error: Failed to parse revset
+    Caused by:
+    1:  --> 1:1
       |
     1 | my_author(none())
       | ^---------------^
       |
       = Alias "my_author()" cannot be expanded
-     --> 1:8
+    2:  --> 1:8
       |
     1 | author(x)
       |        ^
@@ -344,25 +374,27 @@ fn test_alias() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root() & recurse"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset:  --> 1:10
+    Error: Failed to parse revset
+    Caused by:
+    1:  --> 1:10
       |
     1 | root() & recurse
       |          ^-----^
       |
       = Alias "recurse" cannot be expanded
-     --> 1:1
+    2:  --> 1:1
       |
     1 | recurse1
       | ^------^
       |
       = Alias "recurse1" cannot be expanded
-     --> 1:1
+    3:  --> 1:1
       |
     1 | recurse2()
       | ^--------^
       |
       = Alias "recurse2()" cannot be expanded
-     --> 1:1
+    4:  --> 1:1
       |
     1 | recurse
       | ^-----^

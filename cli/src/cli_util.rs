@@ -909,10 +909,7 @@ impl WorkspaceCommandHelper {
                 .unwrap_or_else(|_| self.settings.default_revset());
             if !revset_string.is_empty() {
                 let disambiguation_revset = self.parse_revset(&revset_string).map_err(|err| {
-                    config_error_with_message(
-                        "Invalid `revsets.short-prefixes`",
-                        revset_util::format_parse_error(&err),
-                    )
+                    config_error_with_message("Invalid `revsets.short-prefixes`", err)
                 })?;
                 context = context.disambiguate_within(revset::optimize(disambiguation_revset));
             }

@@ -14,7 +14,6 @@
 
 //! Utility for parsing and evaluating user-provided revset expressions.
 
-use std::iter;
 use std::rc::Rc;
 
 use itertools::Itertools as _;
@@ -127,9 +126,4 @@ pub fn parse_immutable_expression(
     // to optimize than negated union `~(::<heads> | root())`.
     let heads = revset::parse(immutable_heads_str, context)?;
     Ok(heads.union(&RevsetExpression::root()).ancestors())
-}
-
-pub fn format_parse_error(err: &RevsetParseError) -> String {
-    let message = iter::successors(Some(err), |e| e.origin()).join("\n");
-    format!("Failed to parse revset: {message}")
 }

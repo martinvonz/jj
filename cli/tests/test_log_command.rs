@@ -446,7 +446,7 @@ fn test_log_bad_short_prefixes() {
     insta::assert_snapshot!(stderr,
         @r###"
     Config error: Invalid `revsets.short-prefixes`
-    Caused by: Failed to parse revset:  --> 1:1
+    Caused by:  --> 1:1
       |
     1 | !nval!d
       | ^---
