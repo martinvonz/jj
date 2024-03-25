@@ -133,7 +133,6 @@ pub(crate) fn cmd_next(
         .evaluate_programmatic(workspace_command.repo().as_ref())?
         .iter()
         .commits(workspace_command.repo().store())
-        .take(2)
         .try_collect()?;
     let target = match targets.as_slice() {
         [target] => target,
