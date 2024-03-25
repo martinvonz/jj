@@ -24,7 +24,8 @@ fn test_templater_parse_error() {
     let render_err = |template| test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
 
     insta::assert_snapshot!(render_err(r#"description ()"#), @r###"
-    Error: Failed to parse template:  --> 1:13
+    Error: Failed to parse template
+    Caused by:  --> 1:13
       |
     1 | description ()
       |             ^---
@@ -43,7 +44,8 @@ fn test_templater_parse_error() {
     "###,
     );
     insta::assert_snapshot!(render_err(r#"conflicts"#), @r###"
-    Error: Failed to parse template:  --> 1:1
+    Error: Failed to parse template
+    Caused by:  --> 1:1
       |
     1 | conflicts
       | ^-------^
@@ -52,7 +54,8 @@ fn test_templater_parse_error() {
     Hint: Did you mean "conflict", "conflicting"?
     "###);
     insta::assert_snapshot!(render_err(r#"commit_id.shorter()"#), @r###"
-    Error: Failed to parse template:  --> 1:11
+    Error: Failed to parse template
+    Caused by:  --> 1:11
       |
     1 | commit_id.shorter()
       |           ^-----^
@@ -61,7 +64,8 @@ fn test_templater_parse_error() {
     Hint: Did you mean "short", "shortest"?
     "###);
     insta::assert_snapshot!(render_err(r#"oncat()"#), @r###"
-    Error: Failed to parse template:  --> 1:1
+    Error: Failed to parse template
+    Caused by:  --> 1:1
       |
     1 | oncat()
       | ^---^
@@ -70,7 +74,8 @@ fn test_templater_parse_error() {
     Hint: Did you mean "concat", "socat"?
     "###);
     insta::assert_snapshot!(render_err(r#""".lines().map(|s| se)"#), @r###"
-    Error: Failed to parse template:  --> 1:20
+    Error: Failed to parse template
+    Caused by:  --> 1:20
       |
     1 | "".lines().map(|s| se)
       |                    ^^
@@ -79,13 +84,15 @@ fn test_templater_parse_error() {
     Hint: Did you mean "s", "self"?
     "###);
     insta::assert_snapshot!(render_err(r#"format_id(commit_id)"#), @r###"
-    Error: Failed to parse template:  --> 1:1
+    Error: Failed to parse template
+    Caused by:
+    1:  --> 1:1
       |
     1 | format_id(commit_id)
       | ^------------------^
       |
       = Alias "format_id()" cannot be expanded
-     --> 1:4
+    2:  --> 1:4
       |
     1 | id.sort()
       |    ^--^
@@ -97,7 +104,8 @@ fn test_templater_parse_error() {
     // -Tbuiltin shows the predefined builtin_* aliases. This isn't 100%
     // guaranteed, but is nice.
     insta::assert_snapshot!(render_err(r#"builtin"#), @r###"
-    Error: Failed to parse template:  --> 1:1
+    Error: Failed to parse template
+    Caused by:  --> 1:1
       |
     1 | builtin
       | ^-----^
@@ -147,13 +155,15 @@ fn test_templater_alias() {
     insta::assert_snapshot!(render("identity(my_commit_id)"), @"000000000000");
 
     insta::assert_snapshot!(render_err("commit_id ++ syntax_error"), @r###"
-    Error: Failed to parse template:  --> 1:14
+    Error: Failed to parse template
+    Caused by:
+    1:  --> 1:14
       |
     1 | commit_id ++ syntax_error
       |              ^----------^
       |
       = Alias "syntax_error" cannot be expanded
-     --> 1:5
+    2:  --> 1:5
       |
     1 | foo.
       |     ^---
@@ -162,13 +172,15 @@ fn test_templater_alias() {
     "###);
 
     insta::assert_snapshot!(render_err("commit_id ++ name_error"), @r###"
-    Error: Failed to parse template:  --> 1:14
+    Error: Failed to parse template
+    Caused by:
+    1:  --> 1:14
       |
     1 | commit_id ++ name_error
       |              ^--------^
       |
       = Alias "name_error" cannot be expanded
-     --> 1:1
+    2:  --> 1:1
       |
     1 | unknown_id
       | ^--------^
@@ -177,19 +189,21 @@ fn test_templater_alias() {
     "###);
 
     insta::assert_snapshot!(render_err(r#"identity(identity(commit_id.short("")))"#), @r###"
-    Error: Failed to parse template:  --> 1:1
+    Error: Failed to parse template
+    Caused by:
+    1:  --> 1:1
       |
     1 | identity(identity(commit_id.short("")))
       | ^-------------------------------------^
       |
       = Alias "identity()" cannot be expanded
-     --> 1:10
+    2:  --> 1:10
       |
     1 | identity(identity(commit_id.short("")))
       |          ^---------------------------^
       |
       = Alias "identity()" cannot be expanded
-     --> 1:35
+    3:  --> 1:35
       |
     1 | identity(identity(commit_id.short("")))
       |                                   ^^
@@ -198,25 +212,27 @@ fn test_templater_alias() {
     "###);
 
     insta::assert_snapshot!(render_err("commit_id ++ recurse"), @r###"
-    Error: Failed to parse template:  --> 1:14
+    Error: Failed to parse template
+    Caused by:
+    1:  --> 1:14
       |
     1 | commit_id ++ recurse
       |              ^-----^
       |
       = Alias "recurse" cannot be expanded
-     --> 1:1
+    2:  --> 1:1
       |
     1 | recurse1
       | ^------^
       |
       = Alias "recurse1" cannot be expanded
-     --> 1:1
+    3:  --> 1:1
       |
     1 | recurse2()
       | ^--------^
       |
       = Alias "recurse2()" cannot be expanded
-     --> 1:1
+    4:  --> 1:1
       |
     1 | recurse
       | ^-----^
@@ -225,7 +241,8 @@ fn test_templater_alias() {
     "###);
 
     insta::assert_snapshot!(render_err("identity()"), @r###"
-    Error: Failed to parse template:  --> 1:10
+    Error: Failed to parse template
+    Caused by:  --> 1:10
       |
     1 | identity()
       |          ^
@@ -233,7 +250,8 @@ fn test_templater_alias() {
       = Function "identity": Expected 1 arguments
     "###);
     insta::assert_snapshot!(render_err("identity(commit_id, commit_id)"), @r###"
-    Error: Failed to parse template:  --> 1:10
+    Error: Failed to parse template
+    Caused by:  --> 1:10
       |
     1 | identity(commit_id, commit_id)
       |          ^------------------^
@@ -242,13 +260,15 @@ fn test_templater_alias() {
     "###);
 
     insta::assert_snapshot!(render_err(r#"coalesce(label("x", "not boolean"), "")"#), @r###"
-    Error: Failed to parse template:  --> 1:1
+    Error: Failed to parse template
+    Caused by:
+    1:  --> 1:1
       |
     1 | coalesce(label("x", "not boolean"), "")
       | ^-------------------------------------^
       |
       = Alias "coalesce()" cannot be expanded
-     --> 1:10
+    2:  --> 1:10
       |
     1 | coalesce(label("x", "not boolean"), "")
       |          ^-----------------------^

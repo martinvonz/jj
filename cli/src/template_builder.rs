@@ -1320,7 +1320,7 @@ mod tests {
         1 | 10000000000000000000
           | ^------------------^
           |
-          = Invalid integer literal: number too large to fit in target type
+          = Invalid integer literal
         "###);
         insta::assert_snapshot!(env.parse_err(r#"42.foo()"#), @r###"
          --> 1:4

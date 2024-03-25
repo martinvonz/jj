@@ -21,7 +21,7 @@ use std::path::Path;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::{error, fmt, iter};
+use std::{error, fmt};
 
 use itertools::Itertools;
 use once_cell::sync::Lazy;
@@ -193,7 +193,7 @@ pub enum RevsetParseErrorKind {
 
 impl RevsetParseError {
     fn with_span(kind: RevsetParseErrorKind, span: pest::Span<'_>) -> Self {
-        let message = iter::successors(Some(&kind as &dyn error::Error), |e| e.source()).join(": ");
+        let message = kind.to_string();
         let pest_error = Box::new(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError { message },
             span,
@@ -210,7 +210,7 @@ impl RevsetParseError {
         span: pest::Span<'_>,
         source: impl Into<Box<dyn error::Error + Send + Sync>>,
     ) -> Self {
-        let message = iter::successors(Some(&kind as &dyn error::Error), |e| e.source()).join(": ");
+        let message = kind.to_string();
         let pest_error = Box::new(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError { message },
             span,
@@ -251,13 +251,11 @@ impl fmt::Display for RevsetParseError {
 impl error::Error for RevsetParseError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
         if let Some(e) = self.source.as_deref() {
-            return Some(e);
-        }
-        match &self.kind {
-            // SyntaxError is a wrapper for pest::error::Error.
-            RevsetParseErrorKind::SyntaxError => Some(&self.pest_error as &dyn error::Error),
-            // Otherwise the kind represents this error.
-            e => e.source(),
+            Some(e)
+        } else {
+            // SyntaxError originates from self.pest_error, but
+            // pest::error::Error doesn't have a source anyway.
+            self.kind.source()
         }
     }
 }

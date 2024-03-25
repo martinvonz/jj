@@ -39,7 +39,7 @@ use crate::formatter::{FormatRecorder, Formatter};
 use crate::merge_tools::{
     ConflictResolveError, DiffEditError, DiffGenerateError, MergeToolConfigError,
 };
-use crate::revset_util::{self, UserRevsetEvaluationError};
+use crate::revset_util::UserRevsetEvaluationError;
 use crate::template_parser::{TemplateParseError, TemplateParseErrorKind};
 use crate::ui::Ui;
 
@@ -421,7 +421,7 @@ impl From<RevsetParseError> for CommandError {
             } => format_similarity_hint(candidates),
             _ => None,
         };
-        let mut cmd_err = user_error(revset_util::format_parse_error(&err));
+        let mut cmd_err = user_error_with_message("Failed to parse revset", err);
         cmd_err.extend_hints(hint);
         cmd_err
     }
@@ -457,10 +457,9 @@ impl From<UserRevsetEvaluationError> for CommandError {
 
 impl From<TemplateParseError> for CommandError {
     fn from(err: TemplateParseError) -> Self {
-        let err_chain = iter::successors(Some(&err), |e| e.origin());
-        let message = err_chain.clone().join("\n");
         // Only for the bottom error, which is usually the root cause
-        let hint = match err_chain.last().unwrap().kind() {
+        let bottom_err = iter::successors(Some(&err), |e| e.origin()).last().unwrap();
+        let hint = match bottom_err.kind() {
             TemplateParseErrorKind::NoSuchKeyword { candidates, .. }
             | TemplateParseErrorKind::NoSuchFunction { candidates, .. }
             | TemplateParseErrorKind::NoSuchMethod { candidates, .. } => {
@@ -468,7 +467,7 @@ impl From<TemplateParseError> for CommandError {
             }
             _ => None,
         };
-        let mut cmd_err = user_error(format!("Failed to parse template: {message}"));
+        let mut cmd_err = user_error_with_message("Failed to parse template", err);
         cmd_err.extend_hints(hint);
         cmd_err
     }
