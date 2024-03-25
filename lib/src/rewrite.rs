@@ -522,11 +522,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         Ok(())
     }
 
-    pub fn rebase_all(&mut self) -> Result<(), TreeMergeError> {
-        while let Some(old_commit) = self.to_visit.pop() {
-            self.rebase_one(old_commit)?;
-        }
-        self.update_all_references()?;
+    fn update_heads(&mut self) {
         let mut view = self.mut_repo.view().store_view().clone();
         for commit_id in &self.heads_to_remove {
             view.head_ids.remove(commit_id);
@@ -537,6 +533,15 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         self.heads_to_remove.clear();
         self.heads_to_add.clear();
         self.mut_repo.set_view(view);
+    }
+
+    pub fn rebase_all(&mut self) -> Result<(), TreeMergeError> {
+        while let Some(old_commit) = self.to_visit.pop() {
+            self.rebase_one(old_commit)?;
+        }
+        self.update_all_references()?;
+        self.update_heads();
+
         Ok(())
     }
 }
