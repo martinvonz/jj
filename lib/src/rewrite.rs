@@ -281,9 +281,6 @@ pub(crate) struct DescendantRebaser<'settings, 'repo> {
     // In reverse order (parents after children), so we can remove the last one to rebase first.
     to_visit: Vec<Commit>,
     rebased: HashMap<CommitId, CommitId>,
-    // Names of branches where local target includes the commit id in the key.
-    branches: HashMap<CommitId, HashSet<String>>,
-
     // Options to apply during a rebase.
     options: RebaseOptions,
 }
@@ -335,24 +332,11 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             },
         );
 
-        // Build a map from commit to branches pointing to it, so we don't need to scan
-        // all branches each time we rebase a commit.
-        let mut branches: HashMap<_, HashSet<_>> = HashMap::new();
-        for (branch_name, target) in mut_repo.view().local_branches() {
-            for commit in target.added_ids() {
-                branches
-                    .entry(commit.clone())
-                    .or_default()
-                    .insert(branch_name.to_owned());
-            }
-        }
-
         DescendantRebaser {
             settings,
             mut_repo,
             to_visit,
             rebased: Default::default(),
-            branches,
             options: Default::default(),
         }
     }
@@ -386,7 +370,21 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let abandoned_old_commit = self.mut_repo.abandoned.contains(&old_commit_id);
         self.update_wc_commits(&old_commit_id, &new_commit_ids[0], abandoned_old_commit)?;
 
-        if let Some(branch_names) = self.branches.get(&old_commit_id).cloned() {
+        // Build a map from commit to branches pointing to it, so we don't need to scan
+        // all branches each time we rebase a commit.
+        // TODO: We no longer need to do this now that we update branches for all
+        // commits at once.
+        let mut branches: HashMap<_, HashSet<_>> = HashMap::new();
+        for (branch_name, target) in self.mut_repo.view().local_branches() {
+            for commit in target.added_ids() {
+                branches
+                    .entry(commit.clone())
+                    .or_default()
+                    .insert(branch_name.to_owned());
+            }
+        }
+
+        if let Some(branch_names) = branches.get(&old_commit_id).cloned() {
             let mut branch_updates = vec![];
             for branch_name in &branch_names {
                 let local_target = self.mut_repo.get_local_branch(branch_name);
