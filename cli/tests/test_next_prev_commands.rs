@@ -191,17 +191,20 @@ fn test_next_choose_branching_child() {
     test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "fourth"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
     // Advance the working copy commit.
-    let (stdout, stderr) = test_env.jj_cmd_stdin_ok(&repo_path, &["next"], "1\n");
+    let (stdout, stderr) = test_env.jj_cmd_stdin_ok(&repo_path, &["next"], "2\n");
     insta::assert_snapshot!(stdout,@r###"
     ambiguous next commit, choose one to target:
-    1: zsuskuln 40a959a0 (empty) third
-    2: rlvkpnrz 5c52832c (empty) second
+    1: royxmykx e488d731 (empty) fourth
+    2: zsuskuln 40a959a0 (empty) third
+    3: rlvkpnrz 5c52832c (empty) second
     q: quit the prompt
     enter the index of the commit you want to target: 
     "###);
     insta::assert_snapshot!(stderr,@r###"
-    Working copy now at: yqosqzyt f9f7101a (empty) (no description set)
+    Working copy now at: yostqsxw 3e7e69dc (empty) (no description set)
     Parent commit      : zsuskuln 40a959a0 (empty) third
     "###);
 }
@@ -229,26 +232,27 @@ fn test_prev_fails_on_multiple_parents() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "left"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "right"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
     // Create a merge commit, which has two parents.
-    test_env.jj_cmd_ok(&repo_path, &["new", "left", "right"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "all:@--+"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "merge"]);
     // Advance the working copy commit.
-    let (stdout, stderr) = test_env.jj_cmd_stdin_ok(&repo_path, &["prev"], "2\n");
+    let (stdout, stderr) = test_env.jj_cmd_stdin_ok(&repo_path, &["prev"], "3\n");
     insta::assert_snapshot!(stdout,@r###"
     ambiguous prev commit, choose one to target:
-    1: zsuskuln edad76e9 right | (empty) second
-    2: qpvuntsm 5ae1a6a5 left | (empty) first
+    1: mzvwutvl a082e25d (empty) third
+    2: kkmpptxz 09881e5f (empty) second
+    3: qpvuntsm 69542c19 (empty) first
     q: quit the prompt
     enter the index of the commit you want to target: 
     "###);
     insta::assert_snapshot!(stderr,@r###"
-    Working copy now at: yostqsxw a9de0711 (empty) (no description set)
-    Parent commit      : qpvuntsm 5ae1a6a5 left | (empty) first
+    Working copy now at: yostqsxw 286a9951 (empty) (no description set)
+    Parent commit      : qpvuntsm 69542c19 (empty) first
     "###);
 }
 
