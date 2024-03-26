@@ -153,6 +153,18 @@ impl<'repo> CommitRewriter<'repo> {
         self.new_parents = new_parents;
     }
 
+    /// If a merge commit would end up with one parent being an ancestor of the
+    /// other, then filter out the ancestor.
+    pub fn simplify_ancestor_merge(&mut self) {
+        let head_set: HashSet<_> = self
+            .mut_repo
+            .index()
+            .heads(&mut self.new_parents.iter())
+            .into_iter()
+            .collect();
+        self.new_parents.retain(|parent| head_set.contains(parent));
+    }
+
     /// Create `CommitBuilder` for a rewritten version of the old commit with
     /// the new parents.
     pub fn commit_builder(self, settings: &UserSettings) -> CommitBuilder<'repo> {
@@ -178,23 +190,19 @@ pub fn rebase_commit_with_options(
 
     // If specified, don't create commit where one parent is an ancestor of another.
     if options.simplify_ancestor_merge {
-        let head_set: HashSet<_> = rewriter.mut_repo
-            .index()
-            .heads(&mut rewriter.new_parents.iter())
-            .into_iter()
-            .collect();
-        rewriter.new_parents.retain(|id| head_set.contains(id))
-    };
-    let new_parents: Vec<Commit> = rewriter.new_parents
-        .iter()
-        .map(|id| rewriter.mut_repo.store().get_commit(id))
-        .try_collect()?;
+        rewriter.simplify_ancestor_merge();
+    }
 
     let old_parents = rewriter.old_commit.parents();
     let old_parent_trees = old_parents
         .iter()
         .map(|parent| parent.tree_id().clone())
         .collect_vec();
+    let new_parents: Vec<Commit> = rewriter
+        .new_parents
+        .iter()
+        .map(|id| rewriter.mut_repo.store().get_commit(id))
+        .try_collect()?;
     let new_parent_trees = new_parents
         .iter()
         .map(|parent| parent.tree_id().clone())
