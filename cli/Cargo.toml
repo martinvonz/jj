@@ -32,6 +32,7 @@ name = "runner"
 
 [build-dependencies]
 cargo_metadata = { workspace = true }
+chrono = { workspace = true }
 
 [dependencies]
 chrono = { workspace = true }
