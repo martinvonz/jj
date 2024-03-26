@@ -301,7 +301,9 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             RevsetExpression::commits(mut_repo.parent_mapping.keys().cloned().collect()).union(
                 &RevsetExpression::commits(mut_repo.abandoned.iter().cloned().collect()),
             );
-        let to_visit_expression = old_commits_expression.descendants();
+        let to_visit_expression = old_commits_expression
+            .descendants()
+            .minus(&old_commits_expression);
         let to_visit_revset = to_visit_expression.evaluate_programmatic(mut_repo).unwrap();
         let to_visit: Vec<_> = to_visit_revset.iter().commits(store).try_collect().unwrap();
         drop(to_visit_revset);
@@ -439,12 +441,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
 
     fn rebase_one(&mut self, old_commit: Commit) -> Result<(), TreeMergeError> {
         let old_commit_id = old_commit.id().clone();
-        if self.mut_repo.parent_mapping.contains_key(&old_commit_id) {
-            // This is a commit that had already been rebased before `self` was created
-            // (i.e. it's part of the input for this rebase). We don't need
-            // to rebase it.
-            return Ok(());
-        }
+        assert!(!self.mut_repo.parent_mapping.contains_key(&old_commit_id));
         let old_parent_ids = old_commit.parent_ids();
         let new_parent_ids = self.mut_repo.new_parents(old_parent_ids);
         if new_parent_ids == old_parent_ids {
