@@ -421,7 +421,8 @@ impl From<RevsetParseError> for CommandError {
             } => format_similarity_hint(candidates),
             _ => None,
         };
-        let mut cmd_err = user_error_with_message("Failed to parse revset", err);
+        let mut cmd_err =
+            user_error_with_message(format!("Failed to parse revset: {}", err.kind()), err);
         cmd_err.extend_hints(hint);
         cmd_err
     }
@@ -467,7 +468,8 @@ impl From<TemplateParseError> for CommandError {
             }
             _ => None,
         };
-        let mut cmd_err = user_error_with_message("Failed to parse template", err);
+        let mut cmd_err =
+            user_error_with_message(format!("Failed to parse template: {}", err.kind()), err);
         cmd_err.extend_hints(hint);
         cmd_err
     }
