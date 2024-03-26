@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::collections::HashMap;
-use std::num::ParseIntError;
 use std::{error, fmt, mem};
 
 use itertools::Itertools as _;
@@ -64,7 +63,8 @@ impl Rule {
 
 pub type TemplateParseResult<T> = Result<T, TemplateParseError>;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
+#[error("{pest_error}")]
 pub struct TemplateParseError {
     kind: TemplateParseErrorKind,
     pest_error: Box<pest::error::Error<Rule>>,
@@ -76,7 +76,7 @@ pub enum TemplateParseErrorKind {
     #[error("Syntax error")]
     SyntaxError,
     #[error("Invalid integer literal")]
-    ParseIntError(#[source] ParseIntError),
+    ParseIntError,
     #[error(r#"Keyword "{name}" doesn't exist"#)]
     NoSuchKeyword {
         name: String,
@@ -248,24 +248,6 @@ impl From<pest::error::Error<Rule>> for TemplateParseError {
             kind: TemplateParseErrorKind::SyntaxError,
             pest_error: Box::new(rename_rules_in_pest_error(err)),
             source: None,
-        }
-    }
-}
-
-impl fmt::Display for TemplateParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.pest_error.fmt(f)
-    }
-}
-
-impl error::Error for TemplateParseError {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        if let Some(e) = self.source.as_deref() {
-            Some(e)
-        } else {
-            // SyntaxError originates from self.pest_error, but
-            // pest::error::Error doesn't have a source anyway.
-            self.kind.source()
         }
     }
 }
@@ -453,7 +435,11 @@ fn parse_term_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
         }
         Rule::integer_literal => {
             let value = expr.as_str().parse().map_err(|err| {
-                TemplateParseError::with_span(TemplateParseErrorKind::ParseIntError(err), span)
+                TemplateParseError::with_span_and_source(
+                    TemplateParseErrorKind::ParseIntError,
+                    span,
+                    err,
+                )
             })?;
             ExpressionNode::new(ExpressionKind::Integer(value), span)
         }
@@ -1276,7 +1262,7 @@ mod tests {
         );
         assert_matches!(
             parse_into_kind(&format!("{}", (i64::MAX as u64) + 1)),
-            Err(TemplateParseErrorKind::ParseIntError(_))
+            Err(TemplateParseErrorKind::ParseIntError)
         );
     }
 
