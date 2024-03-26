@@ -145,7 +145,7 @@ impl Rule {
 pub struct RevsetParseError {
     kind: RevsetParseErrorKind,
     pest_error: Box<pest::error::Error<Rule>>,
-    origin: Option<Box<RevsetParseError>>,
+    source: Option<Box<dyn error::Error + Send + Sync>>,
 }
 
 #[derive(Debug, Error, PartialEq, Eq)]
@@ -201,14 +201,14 @@ impl RevsetParseError {
         RevsetParseError {
             kind,
             pest_error,
-            origin: None,
+            source: None,
         }
     }
 
-    fn with_span_and_origin(
+    fn with_span_and_source(
         kind: RevsetParseErrorKind,
         span: pest::Span<'_>,
-        origin: Self,
+        source: impl Into<Box<dyn error::Error + Send + Sync>>,
     ) -> Self {
         let message = iter::successors(Some(&kind as &dyn error::Error), |e| e.source()).join(": ");
         let pest_error = Box::new(pest::error::Error::new_from_span(
@@ -218,7 +218,7 @@ impl RevsetParseError {
         RevsetParseError {
             kind,
             pest_error,
-            origin: Some(Box::new(origin)),
+            source: Some(source.into()),
         }
     }
 
@@ -228,7 +228,7 @@ impl RevsetParseError {
 
     /// Original parsing error which typically occurred in an alias expression.
     pub fn origin(&self) -> Option<&Self> {
-        self.origin.as_deref()
+        self.source.as_ref().and_then(|e| e.downcast_ref())
     }
 }
 
@@ -237,7 +237,7 @@ impl From<pest::error::Error<Rule>> for RevsetParseError {
         RevsetParseError {
             kind: RevsetParseErrorKind::SyntaxError,
             pest_error: Box::new(rename_rules_in_pest_error(err)),
-            origin: None,
+            source: None,
         }
     }
 }
@@ -250,8 +250,8 @@ impl fmt::Display for RevsetParseError {
 
 impl error::Error for RevsetParseError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        if let Some(e) = self.origin() {
-            return Some(e as &dyn error::Error);
+        if let Some(e) = self.source.as_deref() {
+            return Some(e);
         }
         match &self.kind {
             // SyntaxError is a wrapper for pest::error::Error.
@@ -824,7 +824,7 @@ impl ParseState<'_> {
             allow_string_pattern: self.allow_string_pattern,
         };
         f(expanding_state).map_err(|e| {
-            RevsetParseError::with_span_and_origin(
+            RevsetParseError::with_span_and_source(
                 RevsetParseErrorKind::BadAliasExpansion(id.to_string()),
                 span,
                 e,

@@ -64,11 +64,11 @@ impl Rule {
 
 pub type TemplateParseResult<T> = Result<T, TemplateParseError>;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct TemplateParseError {
     kind: TemplateParseErrorKind,
     pest_error: Box<pest::error::Error<Rule>>,
-    origin: Option<Box<TemplateParseError>>,
+    source: Option<Box<dyn error::Error + Send + Sync>>,
 }
 
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
@@ -115,14 +115,14 @@ impl TemplateParseError {
         TemplateParseError {
             kind,
             pest_error,
-            origin: None,
+            source: None,
         }
     }
 
-    pub fn with_span_and_origin(
+    pub fn with_span_and_source(
         kind: TemplateParseErrorKind,
         span: pest::Span<'_>,
-        origin: Self,
+        source: impl Into<Box<dyn error::Error + Send + Sync>>,
     ) -> Self {
         let message = iter::successors(Some(&kind as &dyn error::Error), |e| e.source()).join(": ");
         let pest_error = Box::new(pest::error::Error::new_from_span(
@@ -132,7 +132,7 @@ impl TemplateParseError {
         TemplateParseError {
             kind,
             pest_error,
-            origin: Some(Box::new(origin)),
+            source: Some(source.into()),
         }
     }
 
@@ -174,7 +174,7 @@ impl TemplateParseError {
     }
 
     pub fn within_alias_expansion(self, id: TemplateAliasId<'_>, span: pest::Span<'_>) -> Self {
-        TemplateParseError::with_span_and_origin(
+        TemplateParseError::with_span_and_source(
             TemplateParseErrorKind::BadAliasExpansion(id.to_string()),
             span,
             self,
@@ -225,7 +225,7 @@ impl TemplateParseError {
 
     /// Original parsing error which typically occurred in an alias expression.
     pub fn origin(&self) -> Option<&Self> {
-        self.origin.as_deref()
+        self.source.as_ref().and_then(|e| e.downcast_ref())
     }
 }
 
@@ -234,7 +234,7 @@ impl From<pest::error::Error<Rule>> for TemplateParseError {
         TemplateParseError {
             kind: TemplateParseErrorKind::SyntaxError,
             pest_error: Box::new(rename_rules_in_pest_error(err)),
-            origin: None,
+            source: None,
         }
     }
 }
@@ -247,8 +247,8 @@ impl fmt::Display for TemplateParseError {
 
 impl error::Error for TemplateParseError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        if let Some(e) = self.origin() {
-            return Some(e as &dyn error::Error);
+        if let Some(e) = self.source.as_deref() {
+            return Some(e);
         }
         match &self.kind {
             // SyntaxError is a wrapper for pest::error::Error.
