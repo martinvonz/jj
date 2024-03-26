@@ -54,7 +54,7 @@ fn test_log_parents() {
     // Commit object isn't printable
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-T", "parents"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Expected expression of type "Template"
     Caused by:  --> 1:1
       |
     1 | parents
@@ -67,7 +67,7 @@ fn test_log_parents() {
     let template = r#"parents.map(|c| c.commit_id(""))"#;
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Function "commit_id": Expected 0 arguments
     Caused by:  --> 1:29
       |
     1 | parents.map(|c| c.commit_id(""))
@@ -599,7 +599,7 @@ fn test_log_immutable() {
     test_env.add_config("revset-aliases.'immutable_heads()' = 'unknown_fn()'");
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r::", "-T", template]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Failed to parse revset
     Caused by:
     1:  --> 5:10
       |
@@ -612,13 +612,13 @@ fn test_log_immutable() {
     1 | unknown_fn()
       | ^--------^
       |
-      = Revset function "unknown_fn" doesn't exist
+      = Function "unknown_fn" doesn't exist
     "###);
 
     test_env.add_config("revset-aliases.'immutable_heads()' = 'unknown_symbol'");
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r::", "-T", template]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Failed to evaluate revset
     Caused by:
     1:  --> 5:10
       |

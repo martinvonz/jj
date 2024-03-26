@@ -171,12 +171,12 @@ pub enum RevsetParseErrorKind {
         similar_op: String,
         description: String,
     },
-    #[error(r#"Revset function "{name}" doesn't exist"#)]
+    #[error(r#"Function "{name}" doesn't exist"#)]
     NoSuchFunction {
         name: String,
         candidates: Vec<String>,
     },
-    #[error("Invalid arguments to revset function \"{name}\": {message}")]
+    #[error(r#"Function "{name}": {message}"#)]
     InvalidFunctionArguments { name: String, message: String },
     #[error("Invalid file pattern")]
     FsPathParseError,

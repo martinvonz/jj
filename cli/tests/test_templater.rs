@@ -24,7 +24,7 @@ fn test_templater_parse_error() {
     let render_err = |template| test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
 
     insta::assert_snapshot!(render_err(r#"description ()"#), @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Syntax error
     Caused by:  --> 1:13
       |
     1 | description ()
@@ -44,7 +44,7 @@ fn test_templater_parse_error() {
     "###,
     );
     insta::assert_snapshot!(render_err(r#"conflicts"#), @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Keyword "conflicts" doesn't exist
     Caused by:  --> 1:1
       |
     1 | conflicts
@@ -54,7 +54,7 @@ fn test_templater_parse_error() {
     Hint: Did you mean "conflict", "conflicting"?
     "###);
     insta::assert_snapshot!(render_err(r#"commit_id.shorter()"#), @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Method "shorter" doesn't exist for type "CommitOrChangeId"
     Caused by:  --> 1:11
       |
     1 | commit_id.shorter()
@@ -64,7 +64,7 @@ fn test_templater_parse_error() {
     Hint: Did you mean "short", "shortest"?
     "###);
     insta::assert_snapshot!(render_err(r#"oncat()"#), @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Function "oncat" doesn't exist
     Caused by:  --> 1:1
       |
     1 | oncat()
@@ -74,7 +74,7 @@ fn test_templater_parse_error() {
     Hint: Did you mean "concat", "socat"?
     "###);
     insta::assert_snapshot!(render_err(r#""".lines().map(|s| se)"#), @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Keyword "se" doesn't exist
     Caused by:  --> 1:20
       |
     1 | "".lines().map(|s| se)
@@ -84,7 +84,7 @@ fn test_templater_parse_error() {
     Hint: Did you mean "s", "self"?
     "###);
     insta::assert_snapshot!(render_err(r#"format_id(commit_id)"#), @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Alias "format_id()" cannot be expanded
     Caused by:
     1:  --> 1:1
       |
@@ -104,7 +104,7 @@ fn test_templater_parse_error() {
     // -Tbuiltin shows the predefined builtin_* aliases. This isn't 100%
     // guaranteed, but is nice.
     insta::assert_snapshot!(render_err(r#"builtin"#), @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Keyword "builtin" doesn't exist
     Caused by:  --> 1:1
       |
     1 | builtin
@@ -155,7 +155,7 @@ fn test_templater_alias() {
     insta::assert_snapshot!(render("identity(my_commit_id)"), @"000000000000");
 
     insta::assert_snapshot!(render_err("commit_id ++ syntax_error"), @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Alias "syntax_error" cannot be expanded
     Caused by:
     1:  --> 1:14
       |
@@ -172,7 +172,7 @@ fn test_templater_alias() {
     "###);
 
     insta::assert_snapshot!(render_err("commit_id ++ name_error"), @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Alias "name_error" cannot be expanded
     Caused by:
     1:  --> 1:14
       |
@@ -189,7 +189,7 @@ fn test_templater_alias() {
     "###);
 
     insta::assert_snapshot!(render_err(r#"identity(identity(commit_id.short("")))"#), @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Alias "identity()" cannot be expanded
     Caused by:
     1:  --> 1:1
       |
@@ -212,7 +212,7 @@ fn test_templater_alias() {
     "###);
 
     insta::assert_snapshot!(render_err("commit_id ++ recurse"), @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Alias "recurse" cannot be expanded
     Caused by:
     1:  --> 1:14
       |
@@ -241,7 +241,7 @@ fn test_templater_alias() {
     "###);
 
     insta::assert_snapshot!(render_err("identity()"), @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Function "identity": Expected 1 arguments
     Caused by:  --> 1:10
       |
     1 | identity()
@@ -250,7 +250,7 @@ fn test_templater_alias() {
       = Function "identity": Expected 1 arguments
     "###);
     insta::assert_snapshot!(render_err("identity(commit_id, commit_id)"), @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Function "identity": Expected 1 arguments
     Caused by:  --> 1:10
       |
     1 | identity(commit_id, commit_id)
@@ -260,7 +260,7 @@ fn test_templater_alias() {
     "###);
 
     insta::assert_snapshot!(render_err(r#"coalesce(label("x", "not boolean"), "")"#), @r###"
-    Error: Failed to parse template
+    Error: Failed to parse template: Alias "coalesce()" cannot be expanded
     Caused by:
     1:  --> 1:1
       |
