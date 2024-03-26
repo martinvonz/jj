@@ -24,6 +24,7 @@ use tracing::instrument;
 
 use crate::backend::{BackendError, BackendResult, CommitId, MergedTreeId};
 use crate::commit::Commit;
+use crate::commit_builder::CommitBuilder;
 use crate::index::Index;
 use crate::matchers::{Matcher, Visit};
 use crate::merged_tree::{MergedTree, MergedTreeBuilder};
@@ -111,6 +112,56 @@ pub fn rebase_commit(
     }
 }
 
+/// Helps rewrite a commit.
+pub struct CommitRewriter<'repo> {
+    mut_repo: &'repo mut MutableRepo,
+    old_commit: Commit,
+    new_parents: Vec<CommitId>,
+}
+
+impl<'repo> CommitRewriter<'repo> {
+    /// Create a new instance.
+    pub fn new(
+        mut_repo: &'repo mut MutableRepo,
+        old_commit: Commit,
+        new_parents: Vec<CommitId>,
+    ) -> Self {
+        Self {
+            mut_repo,
+            old_commit,
+            new_parents,
+        }
+    }
+
+    /// Returns the `MutableRepo`.
+    pub fn mut_repo(&mut self) -> &mut MutableRepo {
+        self.mut_repo
+    }
+
+    /// The commit we're rewriting.
+    pub fn old_commit(&self) -> &Commit {
+        &self.old_commit
+    }
+
+    /// Get the old commit's intended new parents.
+    pub fn new_parents(&self) -> &[CommitId] {
+        &self.new_parents
+    }
+
+    /// Set the old commit's intended new parents.
+    pub fn set_new_parents(&mut self, new_parents: Vec<CommitId>) {
+        self.new_parents = new_parents;
+    }
+
+    /// Create `CommitBuilder` for a rewritten version of the old commit with
+    /// the new parents.
+    pub fn commit_builder(self, settings: &UserSettings) -> CommitBuilder<'repo> {
+        self.mut_repo
+            .rewrite_commit(settings, &self.old_commit)
+            .set_parents(self.new_parents)
+    }
+}
+
 pub enum RebasedCommit {
     Rewritten(Commit),
     Abandoned { parent: Commit },
@@ -120,24 +171,26 @@ pub fn rebase_commit_with_options(
     settings: &UserSettings,
     mut_repo: &mut MutableRepo,
     old_commit: Commit,
-    mut new_parent_ids: Vec<CommitId>,
+    new_parents: Vec<CommitId>,
     options: &RebaseOptions,
 ) -> BackendResult<RebasedCommit> {
+    let mut rewriter = CommitRewriter::new(mut_repo, old_commit, new_parents);
+
     // If specified, don't create commit where one parent is an ancestor of another.
     if options.simplify_ancestor_merge {
-        let head_set: HashSet<_> = mut_repo
+        let head_set: HashSet<_> = rewriter.mut_repo
             .index()
-            .heads(&mut new_parent_ids.iter())
+            .heads(&mut rewriter.new_parents.iter())
             .into_iter()
             .collect();
-        new_parent_ids.retain(|id| head_set.contains(id))
+        rewriter.new_parents.retain(|id| head_set.contains(id))
     };
-    let new_parents: Vec<Commit> = new_parent_ids
+    let new_parents: Vec<Commit> = rewriter.new_parents
         .iter()
-        .map(|id| mut_repo.store().get_commit(id))
+        .map(|id| rewriter.mut_repo.store().get_commit(id))
         .try_collect()?;
 
-    let old_parents = old_commit.parents();
+    let old_parents = rewriter.old_commit.parents();
     let old_parent_trees = old_parents
         .iter()
         .map(|parent| parent.tree_id().clone())
@@ -153,12 +206,12 @@ pub fn rebase_commit_with_options(
             // haven't changed it can't be newly empty.
             None,
             // Optimization: Skip merging.
-            old_commit.tree_id().clone(),
+            rewriter.old_commit.tree_id().clone(),
         )
     } else {
-        let old_base_tree = merge_commit_trees(mut_repo, &old_parents)?;
-        let new_base_tree = merge_commit_trees(mut_repo, &new_parents)?;
-        let old_tree = old_commit.tree()?;
+        let old_base_tree = merge_commit_trees(rewriter.mut_repo, &old_parents)?;
+        let new_base_tree = merge_commit_trees(rewriter.mut_repo, &new_parents)?;
+        let old_tree = rewriter.old_commit.tree()?;
         (
             Some(old_base_tree.id()),
             new_base_tree.merge(&old_base_tree, &old_tree)?.id(),
@@ -171,13 +224,13 @@ pub fn rebase_commit_with_options(
             EmptyBehaviour::Keep => false,
             EmptyBehaviour::AbandonNewlyEmpty => {
                 *parent.tree_id() == new_tree_id
-                    && old_base_tree_id.map_or(false, |id| id != *old_commit.tree_id())
+                    && old_base_tree_id.map_or(false, |id| id != *rewriter.old_commit.tree_id())
             }
             EmptyBehaviour::AbandonAllEmpty => *parent.tree_id() == new_tree_id,
         };
         if should_abandon {
-            mut_repo.record_abandoned_commit_with_parents(
-                old_commit.id().clone(),
+            rewriter.mut_repo.record_abandoned_commit_with_parents(
+                rewriter.old_commit.id().clone(),
                 std::iter::once(parent.id().clone()),
             );
             return Ok(RebasedCommit::Abandoned {
@@ -185,13 +238,8 @@ pub fn rebase_commit_with_options(
             });
         }
     }
-    let new_parent_ids = new_parents
-        .iter()
-        .map(|commit| commit.id().clone())
-        .collect();
-    let new_commit = mut_repo
-        .rewrite_commit(settings, &old_commit)
-        .set_parents(new_parent_ids)
+    let new_commit = rewriter
+        .commit_builder(settings)
         .set_tree_id(new_tree_id)
         .write()?;
     Ok(RebasedCommit::Rewritten(new_commit))
