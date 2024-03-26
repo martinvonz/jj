@@ -38,7 +38,7 @@ use crate::hex_util::to_forward_hex;
 use crate::object_id::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
-use crate::repo_path::{FsPathParseError, RepoPathBuf};
+use crate::repo_path::RepoPathBuf;
 use crate::revset_graph::RevsetGraphEdge;
 use crate::store::Store;
 use crate::str_util::StringPattern;
@@ -141,7 +141,8 @@ impl Rule {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
+#[error("{pest_error}")]
 pub struct RevsetParseError {
     kind: RevsetParseErrorKind,
     pest_error: Box<pest::error::Error<Rule>>,
@@ -178,7 +179,7 @@ pub enum RevsetParseErrorKind {
     #[error("Invalid arguments to revset function \"{name}\": {message}")]
     InvalidFunctionArguments { name: String, message: String },
     #[error("Invalid file pattern")]
-    FsPathParseError(#[source] FsPathParseError),
+    FsPathParseError,
     #[error("Cannot resolve file pattern without workspace")]
     FsPathWithoutWorkspace,
     #[error(r#"Cannot resolve "@" without workspace"#)]
@@ -238,24 +239,6 @@ impl From<pest::error::Error<Rule>> for RevsetParseError {
             kind: RevsetParseErrorKind::SyntaxError,
             pest_error: Box::new(rename_rules_in_pest_error(err)),
             source: None,
-        }
-    }
-}
-
-impl fmt::Display for RevsetParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.pest_error.fmt(f)
-    }
-}
-
-impl error::Error for RevsetParseError {
-    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        if let Some(e) = self.source.as_deref() {
-            Some(e)
-        } else {
-            // SyntaxError originates from self.pest_error, but
-            // pest::error::Error doesn't have a source anyway.
-            self.kind.source()
         }
     }
 }
@@ -1288,9 +1271,10 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
                     let needle = parse_function_argument_to_string(name, arg, state)?;
                     let path = RepoPathBuf::parse_fs_path(ctx.cwd, ctx.workspace_root, needle)
                         .map_err(|e| {
-                            RevsetParseError::with_span(
-                                RevsetParseErrorKind::FsPathParseError(e),
+                            RevsetParseError::with_span_and_source(
+                                RevsetParseErrorKind::FsPathParseError,
                                 span,
+                                e,
                             )
                         })?;
                     Ok(path)
