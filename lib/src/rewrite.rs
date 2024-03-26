@@ -148,11 +148,11 @@ pub fn rebase_commit_with_options(
     let old_parents = old_commit.parents();
     let old_parent_trees = old_parents
         .iter()
-        .map(|parent| parent.store_commit().root_tree.clone())
+        .map(|parent| parent.tree_id().clone())
         .collect_vec();
     let new_parent_trees = new_parents
         .iter()
-        .map(|parent| parent.store_commit().root_tree.clone())
+        .map(|parent| parent.tree_id().clone())
         .collect_vec();
 
     let (old_base_tree_id, new_tree_id) = if new_parent_trees == old_parent_trees {
