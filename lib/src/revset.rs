@@ -144,7 +144,7 @@ impl Rule {
 #[derive(Debug)]
 pub struct RevsetParseError {
     kind: RevsetParseErrorKind,
-    pest_error: Option<Box<pest::error::Error<Rule>>>,
+    pest_error: Box<pest::error::Error<Rule>>,
     origin: Option<Box<RevsetParseError>>,
 }
 
@@ -192,23 +192,15 @@ pub enum RevsetParseErrorKind {
 }
 
 impl RevsetParseError {
-    fn new(kind: RevsetParseErrorKind) -> Self {
-        RevsetParseError {
-            kind,
-            pest_error: None,
-            origin: None,
-        }
-    }
-
     fn with_span(kind: RevsetParseErrorKind, span: pest::Span<'_>) -> Self {
         let message = iter::successors(Some(&kind as &dyn error::Error), |e| e.source()).join(": ");
-        let err = pest::error::Error::new_from_span(
+        let pest_error = Box::new(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError { message },
             span,
-        );
+        ));
         RevsetParseError {
             kind,
-            pest_error: Some(Box::new(err)),
+            pest_error,
             origin: None,
         }
     }
@@ -219,13 +211,13 @@ impl RevsetParseError {
         origin: Self,
     ) -> Self {
         let message = iter::successors(Some(&kind as &dyn error::Error), |e| e.source()).join(": ");
-        let err = pest::error::Error::new_from_span(
+        let pest_error = Box::new(pest::error::Error::new_from_span(
             pest::error::ErrorVariant::CustomError { message },
             span,
-        );
+        ));
         RevsetParseError {
             kind,
-            pest_error: Some(Box::new(err)),
+            pest_error,
             origin: Some(Box::new(origin)),
         }
     }
@@ -244,7 +236,7 @@ impl From<pest::error::Error<Rule>> for RevsetParseError {
     fn from(err: pest::error::Error<Rule>) -> Self {
         RevsetParseError {
             kind: RevsetParseErrorKind::SyntaxError,
-            pest_error: Some(Box::new(rename_rules_in_pest_error(err))),
+            pest_error: Box::new(rename_rules_in_pest_error(err)),
             origin: None,
         }
     }
@@ -252,11 +244,7 @@ impl From<pest::error::Error<Rule>> for RevsetParseError {
 
 impl fmt::Display for RevsetParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(err) = &self.pest_error {
-            err.fmt(f)
-        } else {
-            self.kind.fmt(f)
-        }
+        self.pest_error.fmt(f)
     }
 }
 
@@ -267,9 +255,7 @@ impl error::Error for RevsetParseError {
         }
         match &self.kind {
             // SyntaxError is a wrapper for pest::error::Error.
-            RevsetParseErrorKind::SyntaxError => {
-                self.pest_error.as_ref().map(|e| e as &dyn error::Error)
-            }
+            RevsetParseErrorKind::SyntaxError => Some(&self.pest_error as &dyn error::Error),
             // Otherwise the kind represents this error.
             e => e.source(),
         }
@@ -1000,7 +986,7 @@ fn parse_primary_rule(
         Rule::at_op => {
             // nullary "@"
             let ctx = state.workspace_ctx.as_ref().ok_or_else(|| {
-                RevsetParseError::new(RevsetParseErrorKind::WorkingCopyWithoutWorkspace)
+                RevsetParseError::with_span(RevsetParseErrorKind::WorkingCopyWithoutWorkspace, span)
             })?;
             Ok(RevsetExpression::working_copy(ctx.workspace_id.clone()))
         }
@@ -1295,8 +1281,8 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         Ok(RevsetExpression::filter(RevsetFilterPredicate::File(None)).negated())
     });
     map.insert("file", |name, arguments_pair, state| {
+        let arguments_span = arguments_pair.as_span();
         if let Some(ctx) = state.workspace_ctx {
-            let arguments_span = arguments_pair.as_span();
             let paths: Vec<_> = arguments_pair
                 .into_inner()
                 .map(|arg| -> Result<_, RevsetParseError> {
@@ -1326,8 +1312,9 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
                 ))))
             }
         } else {
-            Err(RevsetParseError::new(
+            Err(RevsetParseError::with_span(
                 RevsetParseErrorKind::FsPathWithoutWorkspace,
+                arguments_span,
             ))
         }
     });
