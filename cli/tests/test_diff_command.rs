@@ -776,17 +776,17 @@ fn test_diff_formatter_setting() {
     std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
 
     insta::assert_snapshot!(
-      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer=':summary'"]), @r###"
+      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer='summary'"]), @r###"
     A file1
     "###);
 
     insta::assert_snapshot!(
-      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer=':types'"]), @r###"
+      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer='types'"]), @r###"
     -F file1
     "###);
 
     insta::assert_snapshot!(
-      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer=':git'"]), @r###"
+      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer='git'"]), @r###"
     diff --git a/file1 b/file1
     new file mode 100644
     index 0000000000..257cc5642c
@@ -797,19 +797,19 @@ fn test_diff_formatter_setting() {
     "###);
 
     insta::assert_snapshot!(
-      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer=':color-words'"]), @r###"
+      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer='color-words'"]), @r###"
     Added regular file file1:
             1: foo
     "###);
 
     insta::assert_snapshot!(
-      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer=':stat'"]), @r###"
+      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer='stat'"]), @r###"
     file1 | 1 +
     1 file changed, 1 insertion(+), 0 deletions(-)
     "###);
 
     insta::assert_snapshot!(
-      test_env.jj_cmd_failure(&repo_path, &["diff", "--config-toml=ui.diff-viewer=':unknown'"]), @r###"
+      test_env.jj_cmd_failure(&repo_path, &["diff", "--config-toml=ui.diff-viewer='unknown'"]), @r###"
     Config error: Unknown format setting for 'ui.diff-viewer', built-in formats are ':summary', ':types', ':git', ':color-words', and ':stat', or use an external tool
     For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
     "###);
@@ -824,9 +824,15 @@ fn test_diff_formatter_setting() {
     let command = escaped_fake_diff_editor_path();
 
     insta::assert_snapshot!(
-      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer='fake-diff-editor'"]), @r###"
+      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer='tool:fake-diff-editor'"]), @r###"
     --
     file1
+    "###);
+
+    insta::assert_snapshot!(
+      test_env.jj_cmd_failure(&repo_path, &["diff", "--config-toml=ui.diff-viewer='tool:unknown-diff-tool'"]), @r###"
+    Config error: Unknown external tool 'unknown-diff-tool'
+    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
     "###);
 
     insta::assert_snapshot!(
@@ -926,7 +932,7 @@ fn test_diff_external_tool() {
     "###);
 
     // Enabled by default, looks up the merge-tools table
-    let config = "--config-toml=ui.diff-viewer='fake-diff-editor'";
+    let config = "--config-toml=ui.diff-viewer='tool:fake-diff-editor'";
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", config]), @r###"
     file1
     file2
