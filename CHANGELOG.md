@@ -82,6 +82,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * `templates.log_node`
   * `templates.op_log_node`
 
+* A default configuration for `templates.log_node` is now provided which, out of
+  the box, uses visually distinct nodes with distinct colors, for ease of
+  reading.
+
+  Please see [the documentation](https://martinvonz.github.io/jj/v0.16.0/config/#node-style) 
+  for `templates.log_node` for the default symbols, and an example of how to
+  re-configure this behavior and provide your own symbols.
+
 * `jj log` now includes synthetic nodes in the graph where some revisions were
   elided.
 
