@@ -178,8 +178,6 @@ pub enum RevsetParseErrorKind {
     },
     #[error(r#"Function "{name}": {message}"#)]
     InvalidFunctionArguments { name: String, message: String },
-    #[error("Invalid file pattern")]
-    FsPathParseError,
     #[error("Cannot resolve file pattern without workspace")]
     FsPathWithoutWorkspace,
     #[error(r#"Cannot resolve "@" without workspace"#)]
@@ -1272,7 +1270,10 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
                     let path = RepoPathBuf::parse_fs_path(ctx.cwd, ctx.workspace_root, needle)
                         .map_err(|e| {
                             RevsetParseError::with_span_and_source(
-                                RevsetParseErrorKind::FsPathParseError,
+                                RevsetParseErrorKind::InvalidFunctionArguments {
+                                    name: name.to_owned(),
+                                    message: "Invalid file pattern".to_owned(),
+                                },
                                 span,
                                 e,
                             )

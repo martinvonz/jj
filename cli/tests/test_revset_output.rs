@@ -153,14 +153,14 @@ fn test_bad_function_call() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"file(a, "../out")"#]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
-    Error: Failed to parse revset: Invalid file pattern
+    Error: Failed to parse revset: Function "file": Invalid file pattern
     Caused by:
     1:  --> 1:9
       |
     1 | file(a, "../out")
       |         ^------^
       |
-      = Invalid file pattern
+      = Function "file": Invalid file pattern
     2: Path "../out" is not in the repo "."
     3: Invalid component ".." in repo-relative path "../out"
     "###);
