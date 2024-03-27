@@ -47,18 +47,18 @@ fn test_workspaces_add_second_workspace() {
     // Can see the working-copy commit in each workspace in the log output. The "@"
     // node in the graph indicates the current workspace's working-copy commit.
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ◉  397eac932ad3 second@
+    ○  397eac932ad3 second@
     │ @  e0e6d5672858 default@
     ├─╯
-    ◉  7d308bc9d934
-    ◉  000000000000
+    ○  7d308bc9d934
+    ◆  000000000000
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path), @r###"
     @  397eac932ad3 second@
-    │ ◉  e0e6d5672858 default@
+    │ ○  e0e6d5672858 default@
     ├─╯
-    ◉  7d308bc9d934
-    ◉  000000000000
+    ○  7d308bc9d934
+    ◆  000000000000
     "###);
 
     // Both workspaces show up when we list them
@@ -117,14 +117,14 @@ fn test_workspaces_add_second_workspace_on_merge() {
 
     // The new workspace's working-copy commit shares all parents with the old one.
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ◉    6d4c2b8ab610 second@
+    ○    6d4c2b8ab610 second@
     ├─╮
     │ │ @  21a0ea6d1c86 default@
     ╭─┬─╯
-    │ ◉  09ba8d9dfa21
-    ◉ │  1694f2ddf8ec
+    │ ○  09ba8d9dfa21
+    ○ │  1694f2ddf8ec
     ├─╯
-    ◉  000000000000
+    ◆  000000000000
     "###);
 }
 
@@ -169,20 +169,20 @@ fn test_workspaces_add_workspace_at_revision() {
     // Can see the working-copy commit in each workspace in the log output. The "@"
     // node in the graph indicates the current workspace's working-copy commit.
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ◉  e6baf9d9cfd0 second@
+    ○  e6baf9d9cfd0 second@
     │ @  2801c219094d default@
-    │ ◉  4ec5df5a189c
+    │ ○  4ec5df5a189c
     ├─╯
-    ◉  e7d7dbb91c5a
-    ◉  000000000000
+    ○  e7d7dbb91c5a
+    ◆  000000000000
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path), @r###"
     @  e6baf9d9cfd0 second@
-    │ ◉  2801c219094d default@
-    │ ◉  4ec5df5a189c
+    │ ○  2801c219094d default@
+    │ ○  4ec5df5a189c
     ├─╯
-    ◉  e7d7dbb91c5a
-    ◉  000000000000
+    ○  e7d7dbb91c5a
+    ◆  000000000000
     "###);
 }
 
@@ -208,13 +208,13 @@ fn test_workspaces_add_workspace_multiple_revisions() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
     @  5b36783cd11c
-    │ ◉  23881f07b53c
+    │ ○  23881f07b53c
     ├─╯
-    │ ◉  1f6a15f0af2a
+    │ ○  1f6a15f0af2a
     ├─╯
-    │ ◉  e7d7dbb91c5a
+    │ ○  e7d7dbb91c5a
     ├─╯
-    ◉  000000000000
+    ◆  000000000000
     "###);
 
     let (_, stderr) = test_env.jj_cmd_ok(
@@ -239,16 +239,16 @@ fn test_workspaces_add_workspace_multiple_revisions() {
     "###);
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ◉      fa8fdc28af12 merge@
+    ○      fa8fdc28af12 merge@
     ├─┬─╮
-    │ │ ◉  e7d7dbb91c5a
-    │ ◉ │  1f6a15f0af2a
+    │ │ ○  e7d7dbb91c5a
+    │ ○ │  1f6a15f0af2a
     │ ├─╯
-    ◉ │  23881f07b53c
+    ○ │  23881f07b53c
     ├─╯
     │ @  5b36783cd11c default@
     ├─╯
-    ◉  000000000000
+    ◆  000000000000
     "###);
 }
 
@@ -267,11 +267,11 @@ fn test_workspaces_conflicting_edits() {
     test_env.jj_cmd_ok(&main_path, &["workspace", "add", "../secondary"]);
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ◉  265af0cdbcc7 secondary@
+    ○  265af0cdbcc7 secondary@
     │ @  351099fa72cf default@
     ├─╯
-    ◉  cf911c223d3e
-    ◉  000000000000
+    ○  cf911c223d3e
+    ◆  000000000000
     "###);
 
     // Make changes in both working copies
@@ -290,10 +290,10 @@ fn test_workspaces_conflicting_edits() {
     // The secondary workspace's working-copy commit was updated
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
     @  fe8f41ed01d6 default@
-    │ ◉  a1896a17282f secondary@
+    │ ○  a1896a17282f secondary@
     ├─╯
-    ◉  c0d4a99ef98a
-    ◉  000000000000
+    ○  c0d4a99ef98a
+    ◆  000000000000
     "###);
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["st"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -321,25 +321,25 @@ fn test_workspaces_conflicting_edits() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
     @r###"
-    ◉  b0b43f24d501 (divergent)
-    │ ◉  fe8f41ed01d6 default@
+    ○  b0b43f24d501 (divergent)
+    │ ○  fe8f41ed01d6 default@
     ├─╯
     │ @  a1896a17282f secondary@ (divergent)
     ├─╯
-    ◉  c0d4a99ef98a
-    ◉  000000000000
+    ○  c0d4a99ef98a
+    ◆  000000000000
     "###);
     // The stale working copy should have been resolved by the previous command
     let stdout = get_log_output(&test_env, &secondary_path);
     assert!(!stdout.starts_with("The working copy is stale"));
     insta::assert_snapshot!(stdout, @r###"
-    ◉  b0b43f24d501 (divergent)
-    │ ◉  fe8f41ed01d6 default@
+    ○  b0b43f24d501 (divergent)
+    │ ○  fe8f41ed01d6 default@
     ├─╯
     │ @  a1896a17282f secondary@ (divergent)
     ├─╯
-    ◉  c0d4a99ef98a
-    ◉  000000000000
+    ○  c0d4a99ef98a
+    ◆  000000000000
     "###);
 }
 
@@ -357,11 +357,11 @@ fn test_workspaces_updated_by_other() {
     test_env.jj_cmd_ok(&main_path, &["workspace", "add", "../secondary"]);
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ◉  265af0cdbcc7 secondary@
+    ○  265af0cdbcc7 secondary@
     │ @  351099fa72cf default@
     ├─╯
-    ◉  cf911c223d3e
-    ◉  000000000000
+    ○  cf911c223d3e
+    ◆  000000000000
     "###);
 
     // Rewrite the check-out commit in one workspace.
@@ -377,10 +377,10 @@ fn test_workspaces_updated_by_other() {
     // The secondary workspace's working-copy commit was updated.
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
     @  fe8f41ed01d6 default@
-    │ ◉  a1896a17282f secondary@
+    │ ○  a1896a17282f secondary@
     ├─╯
-    ◉  c0d4a99ef98a
-    ◉  000000000000
+    ○  c0d4a99ef98a
+    ◆  000000000000
     "###);
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["st"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -398,11 +398,11 @@ fn test_workspaces_updated_by_other() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path),
     @r###"
-    ◉  fe8f41ed01d6 default@
+    ○  fe8f41ed01d6 default@
     │ @  a1896a17282f secondary@
     ├─╯
-    ◉  c0d4a99ef98a
-    ◉  000000000000
+    ○  c0d4a99ef98a
+    ◆  000000000000
     "###);
 }
 
@@ -472,11 +472,11 @@ fn test_workspaces_current_op_discarded_by_other() {
     test_env.jj_cmd_ok(&main_path, &["util", "gc", "--expire=now"]);
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ◉  ec4904a30161 secondary@
+    ○  ec4904a30161 secondary@
     │ @  74769415363f default@
     ├─╯
-    ◉  bd711986720f
-    ◉  000000000000
+    ○  bd711986720f
+    ◆  000000000000
     "###);
 
     let stderr = test_env.jj_cmd_failure(&secondary_path, &["st"]);
@@ -494,12 +494,12 @@ fn test_workspaces_current_op_discarded_by_other() {
     insta::assert_snapshot!(stdout, @"");
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ◉  b93a924213f3 secondary@
-    ◉  ec4904a30161
+    ○  b93a924213f3 secondary@
+    ○  ec4904a30161
     │ @  74769415363f default@
     ├─╯
-    ◉  bd711986720f
-    ◉  000000000000
+    ○  bd711986720f
+    ◆  000000000000
     "###);
 
     // The sparse patterns should remain
@@ -530,7 +530,7 @@ fn test_workspaces_current_op_discarded_by_other() {
     insta::assert_snapshot!(stdout, @r###"
     @  kmkuslsw test.user@example.com 2001-02-03 08:05:18 secondary@ b93a9242
     │  (no description set)
-    ◉  kmkuslsw hidden test.user@example.com 2001-02-03 08:05:18 30ee0d1f
+    ○  kmkuslsw hidden test.user@example.com 2001-02-03 08:05:18 30ee0d1f
        (empty) (no description set)
     "###);
 }
@@ -591,11 +591,11 @@ fn test_workspaces_update_stale_snapshot() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &secondary_path), @r###"
     @  4976dfa88529 secondary@
-    │ ◉  8357b22214ba default@
-    │ ◉  1a769966ed69
+    │ ○  8357b22214ba default@
+    │ ○  1a769966ed69
     ├─╯
-    ◉  b4a6c25e7778
-    ◉  000000000000
+    ○  b4a6c25e7778
+    ◆  000000000000
     "###);
 }
 
@@ -633,11 +633,11 @@ fn test_workspaces_forget() {
     // there's only one workspace. We should show it when the command is not run
     // from that workspace.
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ◉  feda1c4e5ffe
-    │ ◉  e949be04e93e
+    ○  feda1c4e5ffe
+    │ ○  e949be04e93e
     ├─╯
-    ◉  123ed18e4c4c
-    ◉  000000000000
+    ○  123ed18e4c4c
+    ◆  000000000000
     "###);
 
     // Revision "@" cannot be used

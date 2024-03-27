@@ -786,12 +786,12 @@ fn test_diff_external_tool() {
     │  --
     │  file2
     │  file3
-    ◉  qpvuntsm test.user@example.com 2001-02-03 08:05:08 39b5a56f
+    ○  qpvuntsm test.user@example.com 2001-02-03 08:05:08 39b5a56f
     │  (no description set)
     │  --
     │  file1
     │  file2
-    ◉  zzzzzzzz root() 00000000
+    ◆  zzzzzzzz root() 00000000
        --
     "###);
 

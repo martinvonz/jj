@@ -39,6 +39,19 @@ log = 'builtin_log_compact'
 op_log = 'builtin_op_log_compact'
 show = 'builtin_log_detailed'
 
+op_log_node = 'if(current_operation, "@", "◉")'
+
+log_node = '''
+label("node",
+  coalesce(
+    if(!self, label("elided", "⇋")),
+    if(current_working_copy, label("working_copy", "@")),
+    if(immutable, label("immutable", "◆")),
+    label("normal", "○")
+  )
+)
+'''
+
 [template-aliases]
 builtin_log_oneline = '''
 if(root,

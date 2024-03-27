@@ -29,7 +29,7 @@ fn test_branch_multiple_names() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar foo 230dd059e1b0
-    ◉   000000000000
+    ◆   000000000000
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["new"]);
@@ -40,8 +40,8 @@ fn test_branch_multiple_names() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar foo 8bb159bc30a9
-    ◉   230dd059e1b0
-    ◉   000000000000
+    ○   230dd059e1b0
+    ◆   000000000000
     "###);
 
     let (stdout, stderr) =
@@ -52,8 +52,8 @@ fn test_branch_multiple_names() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @   8bb159bc30a9
-    ◉   230dd059e1b0
-    ◉   000000000000
+    ○   230dd059e1b0
+    ◆   000000000000
     "###);
 }
 
@@ -155,12 +155,12 @@ fn test_branch_move_conflicting() {
     );
     insta::assert_snapshot!(get_log(), @r###"
     @  A1
-    ◉  A0 foo??
-    │ ◉  C0
+    ○  A0 foo??
+    │ ○  C0
     ├─╯
-    │ ◉  B0 foo??
+    │ ○  B0 foo??
     ├─╯
-    ◉
+    ◆
     "###);
 
     // Can't move the branch to C0 since it's sibling.
@@ -178,12 +178,12 @@ fn test_branch_move_conflicting() {
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log(), @r###"
     @  A1 foo
-    ◉  A0
-    │ ◉  C0
+    ○  A0
+    │ ○  C0
     ├─╯
-    │ ◉  B0
+    │ ○  B0
     ├─╯
-    ◉
+    ◆
     "###);
 }
 
@@ -245,7 +245,7 @@ fn test_branch_forget_glob() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1 foo-3 foo-4 230dd059e1b0
-    ◉   000000000000
+    ◆   000000000000
     "###);
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["branch", "forget", "--glob", "foo-[1-3]"]);
@@ -262,7 +262,7 @@ fn test_branch_forget_glob() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-4 230dd059e1b0
-    ◉   000000000000
+    ◆   000000000000
     "###);
 
     // Forgetting a branch via both explicit name and glob pattern, or with
@@ -277,7 +277,7 @@ fn test_branch_forget_glob() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 230dd059e1b0
-    ◉   000000000000
+    ◆   000000000000
     "###);
 
     // Malformed glob
@@ -327,7 +327,7 @@ fn test_branch_delete_glob() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1 foo-3 foo-4 6fbf398c2d59
-    ◉   000000000000
+    ◆   000000000000
     "###);
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "--glob", "foo-[1-3]"]);
@@ -344,7 +344,7 @@ fn test_branch_delete_glob() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1@origin foo-3@origin foo-4 6fbf398c2d59
-    ◉   000000000000
+    ◆   000000000000
     "###);
 
     // We get an error if none of the globs match live branches. Unlike `jj branch
@@ -367,7 +367,7 @@ fn test_branch_delete_glob() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1@origin foo-3@origin foo-4@origin 6fbf398c2d59
-    ◉   000000000000
+    ◆   000000000000
     "###);
 
     // The deleted branches are still there
@@ -705,10 +705,10 @@ fn test_branch_track_untrack() {
     main@origin: sptzoqmo 7b33f629 commit 1
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  feature1@origin feature2@origin main@origin 7b33f6295eda
+    ◆  feature1@origin feature2@origin main@origin 7b33f6295eda
     │ @   230dd059e1b0
     ├─╯
-    ◉   000000000000
+    ◆   000000000000
     "###);
 
     // Track new branch. Local branch should be created.
@@ -753,10 +753,10 @@ fn test_branch_track_untrack() {
       @origin: sptzoqmo 7b33f629 commit 1
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  feature1 feature1@origin feature2@origin main 7b33f6295eda
+    ◆  feature1 feature1@origin feature2@origin main 7b33f6295eda
     │ @   230dd059e1b0
     ├─╯
-    ◉   000000000000
+    ◆   000000000000
     "###);
 
     // Fetch new commit. Only tracking branch "main" should be merged.
@@ -784,12 +784,12 @@ fn test_branch_track_untrack() {
       @origin: mmqqkyyt 40dabdaf commit 2
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  feature1@origin feature2@origin main 40dabdaf4abe
-    │ ◉  feature1 7b33f6295eda
+    ◆  feature1@origin feature2@origin main 40dabdaf4abe
+    │ ○  feature1 7b33f6295eda
     ├─╯
     │ @   230dd059e1b0
     ├─╯
-    ◉   000000000000
+    ◆   000000000000
     "###);
 
     // Fetch new commit with auto tracking. Tracking branch "main" and new
@@ -823,12 +823,12 @@ fn test_branch_track_untrack() {
       @origin: wwnpyzpo 3f0f86fa commit 3
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  feature1@origin feature2@origin feature3 main 3f0f86fa0e57
-    │ ◉  feature1 7b33f6295eda
+    ◆  feature1@origin feature2@origin feature3 main 3f0f86fa0e57
+    │ ○  feature1 7b33f6295eda
     ├─╯
     │ @   230dd059e1b0
     ├─╯
-    ◉   000000000000
+    ◆   000000000000
     "###);
 }
 
@@ -1071,16 +1071,16 @@ fn test_branch_list_filtered() {
             &["log", "-r::(branches() | remote_branches())", "-T", template],
         ),
         @r###"
-    ◉  e31634b64294 remote-rewrite*
+    ○  e31634b64294 remote-rewrite*
     │ @  c7b4c09cd77c local-keep
     ├─╯
-    │ ◉  3e9a5af6ef15 remote-rewrite@origin (hidden)
+    │ ○  3e9a5af6ef15 remote-rewrite@origin (hidden)
     ├─╯
-    │ ◉  dad5f298ca57 remote-delete@origin
+    │ ○  dad5f298ca57 remote-delete@origin
     ├─╯
-    │ ◉  911e912015fb remote-keep
+    │ ○  911e912015fb remote-keep
     ├─╯
-    ◉  000000000000
+    ◆  000000000000
     "###);
 
     // All branches are listed by default.

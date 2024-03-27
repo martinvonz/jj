@@ -317,12 +317,12 @@ fn test_alias() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "my-root"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  zzzzzzzz root() 00000000
+    ◆  zzzzzzzz root() 00000000
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "identity(my-root)"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  zzzzzzzz root() 00000000
+    ◆  zzzzzzzz root() 00000000
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root() & syntax-error"]);
@@ -451,7 +451,7 @@ fn test_bad_alias_decl() {
     // Invalid declaration should be warned and ignored.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-r", "my-root"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  zzzzzzzz root() 00000000
+    ◆  zzzzzzzz root() 00000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
     Warning: Failed to load "revset-aliases."bad"":  --> 1:1

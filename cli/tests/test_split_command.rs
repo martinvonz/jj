@@ -28,7 +28,7 @@ fn test_split_by_paths() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  qpvuntsmwlqt false
-    ◉  zzzzzzzzzzzz true
+    ◆  zzzzzzzzzzzz true
     "###);
     insta::assert_snapshot!(get_recorded_dates(&test_env, &repo_path,"@"), @r###"
     Author date:  2001-02-03 04:05:07.000 +07:00
@@ -62,8 +62,8 @@ fn test_split_by_paths() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  zsuskulnrvyr false
-    ◉  qpvuntsmwlqt false
-    ◉  zzzzzzzzzzzz true
+    ○  qpvuntsmwlqt false
+    ◆  zzzzzzzzzzzz true
     "###);
 
     // The author dates of the new commits should be inherited from the commit being
@@ -101,9 +101,9 @@ fn test_split_by_paths() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  zsuskulnrvyr false
-    ◉  znkkpsqqskkl true
-    ◉  qpvuntsmwlqt false
-    ◉  zzzzzzzzzzzz true
+    ○  znkkpsqqskkl true
+    ○  qpvuntsmwlqt false
+    ◆  zzzzzzzzzzzz true
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@--"]);
@@ -129,9 +129,9 @@ fn test_split_by_paths() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  zsuskulnrvyr false
-    ◉  lylxulplsnyw false
-    ◉  qpvuntsmwlqt true
-    ◉  zzzzzzzzzzzz true
+    ○  lylxulplsnyw false
+    ○  qpvuntsmwlqt true
+    ◆  zzzzzzzzzzzz true
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
@@ -189,8 +189,8 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     );
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @  kkmpptxzrspx false part 2
-    ◉  qpvuntsmwlqt false part 1
-    ◉  zzzzzzzzzzzz true
+    ○  qpvuntsmwlqt false part 1
+    ◆  zzzzzzzzzzzz true
     "###);
 }
 
@@ -226,8 +226,8 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     assert!(!test_env.env_root().join("editor2").exists());
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @  rlvkpnrzqnoo false
-    ◉  qpvuntsmwlqt false TESTED=TODO
-    ◉  zzzzzzzzzzzz true
+    ○  qpvuntsmwlqt false TESTED=TODO
+    ◆  zzzzzzzzzzzz true
     "###);
 }
 
