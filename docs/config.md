@@ -237,7 +237,25 @@ templates.
   * `templates.log_node` for commits (with `Option<Commit>` keywords)
   * `templates.op_log_node` for operations (with `Operation` keywords)
 
-For example:
+By default, the following graph nodes are shown to the user:
+
+  * The working-copy-commit is the `@` symbol, and is green.
+  * Immutable nodes (as specified by the `immutable_heads()` revset) are
+    represented with blue diamonds `◆`
+  * Mutable commits are represented with ordinary uncolored circles `○`
+  * "Elided nodes" are specified with the "harpoon" symbol `⇋` to show that
+    there are commits between the two nodes that are "cut" out, and not shown.
+  * Commits whose description begins with `wip:` are represented with a yellow
+    `!` symbol.
+
+These symbols are chosen to be visually distinct from one another, with distinct
+colors. However, certain Unicode characters may not render correctly in all
+terminals, or with all monospace fonts. We welcome feedback on the default
+symbols and colors, and we may adjust them in future releases.
+
+Reconfiguring the symbols can be done by setting the `templates.log_node`, like
+the following example:
+
 ```toml
 [templates]
 log_node = '''
@@ -250,6 +268,40 @@ coalesce(
 '''
 op_log_node = 'if(current_operation, "@", "○")'
 ```
+
+If you wish to color the symbols, you can use the `label()` function to mark the
+symbols with a label, and then provide a color for that label. You can also
+provide default colors for every node, using nested `label()` calls. For
+example, to make every node bold by default, except working-copy symbol `@`, and
+also make `@` green at the same time, you can first provide an label name in the
+colors section of your config:
+
+```toml
+[colors]
+"mynode" = { bold = true }
+"mynode wcc" = { fg = "green", bold = false }
+```
+
+Then, you can use nested `label()` calls in the `log_node` template to attach
+the label `"mynode wcc"` to the `@` symbol, like so:
+
+```toml
+label("mynode",
+  if(self,
+    if(current_working_copy, label("wcc", "@"),
+    ...
+  )
+)
+```
+
+A default set of colors for nodes is provided in `colors.toml`, including:
+
+- `"node"`
+- `"node elided"`
+- `"node wcc"`
+- `"node immutable"`
+- `"node wip"`
+- `"node normal"`
 
 ### Wrap log content
 
