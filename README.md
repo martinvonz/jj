@@ -21,12 +21,12 @@
 
 ## Introduction
 
-Jujutsu is a powerful [version control system](https://en.wikipedia.org/wiki/Version_control)
-for software projects. You use it to get a copy of your code, track changes
-to the code, and finally publish those changes for others to see and use.
-It is designed from the ground up to be easy to use—whether you're new or
-experienced, working on brand new projects alone, or large scale software
-projects with large histories and teams.
+Jujutsu (呪術 _Jujutsu_) is a powerful [version control
+system](https://en.wikipedia.org/wiki/Version_control) for software projects.
+You use it to get a copy of your code, track changes to the code, and finally
+publish those changes for others to see and use. It is designed from the ground
+up to be easy to use—whether you're new or experienced, working on brand new
+projects alone, or large scale software projects with large histories and teams.
 
 Jujutsu is unlike most other systems, because internally it abstracts the user
 interface and version control algorithms from the *storage systems* used to
@@ -118,9 +118,8 @@ And it adds several innovative, useful features of its own:
 [undo-history]: https://en.wikipedia.org/wiki/Undo#History
 [conc-safety]: https://martinvonz.github.io/jj/latest/technical/concurrency/
 
-The command-line tool is called `jj` for now because it's easy to type and easy
-to replace (rare in English). The project is called "Jujutsu" because it matches
-"jj".
+The command-line tool is known as `jj`, making it easy to type and easy to
+remember (rare in English).
 
 Jujutsu is relatively young, with lots of work to still be done. If you have any
 questions, or want to talk about future plans, please join us on Discord
