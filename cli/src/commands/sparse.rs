@@ -14,7 +14,7 @@
 
 use std::collections::HashSet;
 use std::fmt::Write as _;
-use std::io::{self, Write};
+use std::io::Write;
 use std::path::Path;
 
 use clap::Subcommand;
@@ -24,7 +24,9 @@ use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
 use crate::cli_util::{edit_temp_file, print_checkout_stats, CommandHelper};
-use crate::command_error::{internal_error_with_message, user_error_with_message, CommandError};
+use crate::command_error::{
+    internal_error, internal_error_with_message, user_error_with_message, CommandError,
+};
 use crate::ui::Ui;
 
 /// Manage which paths from the working-copy commit are present in the working
@@ -152,13 +154,10 @@ fn edit_sparse(
     for sparse_path in sparse {
         let workspace_relative_sparse_path = sparse_path.to_fs_path(Path::new(""));
         let path_string = workspace_relative_sparse_path.to_str().ok_or_else(|| {
-            io::Error::new(
-                io::ErrorKind::InvalidData,
-                format!(
-                    "stored sparse path is not valid utf-8: {}",
-                    workspace_relative_sparse_path.display()
-                ),
-            )
+            internal_error(format!(
+                "Stored sparse path is not valid utf-8: {}",
+                workspace_relative_sparse_path.display()
+            ))
         })?;
         writeln!(&mut content, "{}", path_string).unwrap();
     }
