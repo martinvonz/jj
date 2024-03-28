@@ -19,7 +19,7 @@ use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
 use super::resolve;
-use crate::cli_util::CommandHelper;
+use crate::cli_util::{print_conflict_resolution_hint, CommandHelper};
 use crate::command_error::CommandError;
 use crate::diff_util;
 use crate::ui::Ui;
@@ -72,7 +72,14 @@ pub(crate) fn cmd_status(
                 formatter.labeled("conflict"),
                 "There are unresolved conflicts at these paths:"
             )?;
-            resolve::print_conflicted_paths(&conflicts, formatter, &workspace_command)?
+            resolve::print_conflicted_paths(&conflicts, formatter, &workspace_command)?;
+
+            print_conflict_resolution_hint(
+                formatter,
+                "To resolve the conflicts, either work on the current change or create a new one \
+                 to squash later.",
+                &[],
+            )?;
         }
 
         let template = workspace_command.commit_summary_template();

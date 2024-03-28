@@ -1332,36 +1332,53 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                 .iter()
                 .commits(new_repo.store())
                 .try_collect()?;
+
             if !root_conflict_commits.is_empty() {
-                fmt.push_label("hint")?;
-                if added_conflict_commits.len() == 1 {
-                    writeln!(fmt, "To resolve the conflicts, start by updating to it:",)?;
+                let hint_start = if added_conflict_commits.len() == 1 {
+                    "To resolve the conflicts, start by updating to it:"
                 } else if root_conflict_commits.len() == 1 {
-                    writeln!(
-                        fmt,
-                        "To resolve the conflicts, start by updating to the first one:",
-                    )?;
+                    "To resolve the conflicts, start by updating to the first one:"
                 } else {
-                    writeln!(
-                        fmt,
-                        "To resolve the conflicts, start by updating to one of the first ones:",
-                    )?;
-                }
-                for commit in root_conflict_commits {
-                    writeln!(fmt, "  jj new {}", short_change_hash(commit.change_id()))?;
-                }
-                writeln!(
-                    fmt,
-                    r#"Then use `jj resolve`, or edit the conflict markers in the file directly.
-Once the conflicts are resolved, you may want inspect the result with `jj diff`.
-Then run `jj squash` to move the resolution into the conflicted commit."#,
-                )?;
-                fmt.pop_label()?;
+                    "To resolve the conflicts, start by updating to one of the first ones:"
+                };
+                print_conflict_resolution_hint(fmt.as_mut(), hint_start, &root_conflict_commits)?;
             }
         }
 
         Ok(())
     }
+}
+
+/// Prints conflict resolution hints when appropriate.
+///
+/// `hint_start` is used to adapt the hint to the situation (for example, adapt
+/// the hint to conflicts introduced after a rebase or to being in the middle of
+/// a rebase where the focus will be the current change).
+///
+/// NOTE: passing an empty list of commit is okay, for example when the conflict
+/// is on the current commit we should not spam the user with "do jj new XYZ" on
+/// each `jj status`.
+pub(crate) fn print_conflict_resolution_hint(
+    fmt: &mut (dyn Formatter + '_),
+    hint_start: &str,
+    conflict_commits: &[Commit],
+) -> Result<(), CommandError> {
+    fmt.push_label("hint")?;
+    writeln!(fmt, "{hint_start}")?;
+
+    for commit in conflict_commits {
+        writeln!(fmt, "  jj new {}", short_change_hash(commit.change_id()))?;
+    }
+
+    writeln!(
+        fmt,
+        r#"Then use `jj resolve`, or edit the conflict markers in the file directly.
+Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+Then run `jj squash` to move the resolution into the conflicted commit."#,
+    )?;
+
+    fmt.pop_label()?;
+    Ok(())
 }
 
 /// A [`Transaction`] tied to a particular workspace.
