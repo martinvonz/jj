@@ -70,6 +70,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj sparse`↴](#jj-sparse)
 * [`jj sparse list`↴](#jj-sparse-list)
 * [`jj sparse set`↴](#jj-sparse-set)
+* [`jj sparse edit`↴](#jj-sparse-edit)
 * [`jj split`↴](#jj-split)
 * [`jj squash`↴](#jj-squash)
 * [`jj status`↴](#jj-status)
@@ -1623,6 +1624,7 @@ Manage which paths from the working-copy commit are present in the working copy
 
 * `list` — List the patterns that are currently present in the working copy
 * `set` — Update the patterns that are present in the working copy
+* `edit` — Start an editor to update the patterns that are present in the working copy
 
 
 
@@ -1652,14 +1654,18 @@ For example, if all you need is the `README.md` and the `lib/` directory, use `j
 
   Possible values: `true`, `false`
 
-* `--edit` — Edit patterns with $EDITOR
-
-  Possible values: `true`, `false`
-
 * `--reset` — Include all files in the working copy
 
   Possible values: `true`, `false`
 
+
+
+
+## `jj sparse edit`
+
+Start an editor to update the patterns that are present in the working copy
+
+**Usage:** `jj sparse edit`
 
 
 
