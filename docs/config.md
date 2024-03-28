@@ -730,6 +730,29 @@ executable on your system](https://facebook.github.io/watchman/docs/install).
 You can check whether Watchman is enabled and whether it is installed correctly
 using `jj debug watchman status`.
 
+## Snapshot settings
+
+### Maximum size for new files
+
+By default, as an anti-footgun measure, `jj` will refuse to add new files to the
+snapshot that are larger than a certain size; the default is 1MiB. This can be
+changed by setting `snapshot.max-new-file-size` to a different value. For
+example:
+
+```toml
+snapshot.max-new-file-size = "10MiB"
+# the following is equivalent
+snapshot.max-new-file-size = 10485760
+```
+
+The value can be specified using a human readable string with typical suffixes;
+`B`, `MiB`, `GB`, etc. By default, if no suffix is provided, or the value is a
+raw integer literal, the value is interpreted as if it were specified in bytes.
+
+Files that already exist in the working copy are not subject to this limit.
+
+Setting this value to zero will disable the limit entirely.
+
 ## Ways to specify `jj` config: details
 
 ### User config file
