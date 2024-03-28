@@ -2138,6 +2138,9 @@ pub struct GlobalArgs {
     /// Enable debug logging
     #[arg(long, global = true)]
     pub debug: bool,
+    /// Reduce the amount of output logged
+    #[arg(long, global = true)]
+    pub quiet: bool,
 
     #[command(flatten)]
     pub early_args: EarlyArgs,

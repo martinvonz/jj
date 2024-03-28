@@ -156,6 +156,10 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 
   Possible values: `true`, `false`
 
+* `--quiet` — Reduce the amount of output logged
+
+  Possible values: `true`, `false`
+
 * `--color <WHEN>` — When to colorize output (always, never, auto)
 * `--no-pager` — Disable the pager
 

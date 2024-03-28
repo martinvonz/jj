@@ -534,6 +534,7 @@ fn test_help() {
           --ignore-working-copy          Don't snapshot the working copy, and don't update it
           --at-operation <AT_OPERATION>  Operation to load the repo at [default: @] [aliases: at-op]
           --debug                        Enable debug logging
+          --quiet                        Reduce the amount of output logged
           --color <WHEN>                 When to colorize output (always, never, auto)
           --no-pager                     Disable the pager
           --config-toml <TOML>           Additional configuration options (can be repeated)
