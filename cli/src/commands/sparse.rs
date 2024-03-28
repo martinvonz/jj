@@ -37,6 +37,7 @@ use crate::ui::Ui;
 pub(crate) enum SparseArgs {
     List(SparseListArgs),
     Set(SparseSetArgs),
+    Edit(SparseEditArgs),
 }
 
 /// List the patterns that are currently present in the working copy
@@ -72,13 +73,14 @@ pub(crate) struct SparseSetArgs {
     /// Include no files in the working copy (combine with --add)
     #[arg(long)]
     clear: bool,
-    /// Edit patterns with $EDITOR
-    #[arg(long)]
-    edit: bool,
     /// Include all files in the working copy
     #[arg(long, conflicts_with_all = &["add", "remove", "clear"])]
     reset: bool,
 }
+
+/// Start an editor to update the patterns that are present in the working copy
+#[derive(clap::Args, Clone, Debug)]
+pub(crate) struct SparseEditArgs {}
 
 #[instrument(skip_all)]
 pub(crate) fn cmd_sparse(
@@ -89,6 +91,7 @@ pub(crate) fn cmd_sparse(
     match args {
         SparseArgs::List(sub_args) => cmd_sparse_list(ui, command, sub_args),
         SparseArgs::Set(sub_args) => cmd_sparse_set(ui, command, sub_args),
+        SparseArgs::Edit(sub_args) => cmd_sparse_edit(ui, command, sub_args),
     }
 }
 
@@ -112,7 +115,6 @@ fn cmd_sparse_set(
     args: &SparseSetArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let repo_path = workspace_command.repo().repo_path().to_owned();
     update_sparse_patterns_with(ui, &mut workspace_command, |_ui, old_patterns| {
         let mut new_patterns = HashSet::new();
         if args.reset {
@@ -128,12 +130,21 @@ fn cmd_sparse_set(
                 new_patterns.insert(path.to_owned());
             }
         }
-        let mut new_patterns = new_patterns.into_iter().collect_vec();
-        new_patterns.sort();
-        if args.edit {
-            new_patterns = edit_sparse(&repo_path, &new_patterns, command.settings())?;
-            new_patterns.sort();
-        }
+        Ok(new_patterns.into_iter().sorted_unstable().collect())
+    })
+}
+
+#[instrument(skip_all)]
+fn cmd_sparse_edit(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &SparseEditArgs,
+) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let repo_path = workspace_command.repo().repo_path().to_owned();
+    update_sparse_patterns_with(ui, &mut workspace_command, |_ui, old_patterns| {
+        let mut new_patterns = edit_sparse(&repo_path, old_patterns, command.settings())?;
+        new_patterns.sort_unstable();
         Ok(new_patterns)
     })
 }
