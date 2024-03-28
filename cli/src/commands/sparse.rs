@@ -53,11 +53,20 @@ pub(crate) struct SparseListArgs {}
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct SparseSetArgs {
     /// Patterns to add to the working copy
-    #[arg(long, value_hint = clap::ValueHint::AnyPath)]
-    add: Vec<String>,
+    #[arg(
+        long,
+        value_hint = clap::ValueHint::AnyPath,
+        value_parser = |s: &str| RepoPathBuf::from_relative_path(s),
+    )]
+    add: Vec<RepoPathBuf>,
     /// Patterns to remove from the working copy
-    #[arg(long, conflicts_with = "clear", value_hint = clap::ValueHint::AnyPath)]
-    remove: Vec<String>,
+    #[arg(
+        long,
+        conflicts_with = "clear",
+        value_hint = clap::ValueHint::AnyPath,
+        value_parser = |s: &str| RepoPathBuf::from_relative_path(s),
+    )]
+    remove: Vec<RepoPathBuf>,
     /// Include no files in the working copy (combine with --add)
     #[arg(long)]
     clear: bool,
@@ -89,8 +98,7 @@ fn cmd_sparse_list(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     for path in workspace_command.working_copy().sparse_patterns()? {
-        let ui_path = workspace_command.format_file_path(path);
-        writeln!(ui.stdout(), "{ui_path}")?;
+        writeln!(ui.stdout(), "{}", path.to_fs_path(Path::new("")).display())?;
     }
     Ok(())
 }
@@ -102,16 +110,6 @@ fn cmd_sparse_set(
     args: &SparseSetArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let paths_to_add: Vec<_> = args
-        .add
-        .iter()
-        .map(|v| workspace_command.parse_file_path(v))
-        .try_collect()?;
-    let paths_to_remove: Vec<_> = args
-        .remove
-        .iter()
-        .map(|v| workspace_command.parse_file_path(v))
-        .try_collect()?;
     let repo_path = workspace_command.repo().repo_path().to_owned();
     let (mut locked_ws, wc_commit) = workspace_command.start_working_copy_mutation()?;
     let mut new_patterns = HashSet::new();
@@ -120,12 +118,12 @@ fn cmd_sparse_set(
     } else {
         if !args.clear {
             new_patterns.extend(locked_ws.locked_wc().sparse_patterns()?.iter().cloned());
-            for path in paths_to_remove {
-                new_patterns.remove(&path);
+            for path in &args.remove {
+                new_patterns.remove(path);
             }
         }
-        for path in paths_to_add {
-            new_patterns.insert(path);
+        for path in &args.add {
+            new_patterns.insert(path.to_owned());
         }
     }
     let mut new_patterns = new_patterns.into_iter().collect_vec();
