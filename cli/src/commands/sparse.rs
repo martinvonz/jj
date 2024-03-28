@@ -23,7 +23,9 @@ use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
-use crate::cli_util::{edit_temp_file, print_checkout_stats, CommandHelper};
+use crate::cli_util::{
+    edit_temp_file, print_checkout_stats, CommandHelper, WorkspaceCommandHelper,
+};
 use crate::command_error::{
     internal_error, internal_error_with_message, user_error_with_message, CommandError,
 };
@@ -35,6 +37,8 @@ use crate::ui::Ui;
 pub(crate) enum SparseArgs {
     List(SparseListArgs),
     Set(SparseSetArgs),
+    Reset(SparseResetArgs),
+    Edit(SparseEditArgs),
 }
 
 /// List the patterns that are currently present in the working copy
@@ -53,21 +57,32 @@ pub(crate) struct SparseListArgs {}
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct SparseSetArgs {
     /// Patterns to add to the working copy
-    #[arg(long, value_hint = clap::ValueHint::AnyPath)]
-    add: Vec<String>,
+    #[arg(
+        long,
+        value_hint = clap::ValueHint::AnyPath,
+        value_parser = |s: &str| RepoPathBuf::from_relative_path(s),
+    )]
+    add: Vec<RepoPathBuf>,
     /// Patterns to remove from the working copy
-    #[arg(long, conflicts_with = "clear", value_hint = clap::ValueHint::AnyPath)]
-    remove: Vec<String>,
+    #[arg(
+        long,
+        conflicts_with = "clear",
+        value_hint = clap::ValueHint::AnyPath,
+        value_parser = |s: &str| RepoPathBuf::from_relative_path(s),
+    )]
+    remove: Vec<RepoPathBuf>,
     /// Include no files in the working copy (combine with --add)
     #[arg(long)]
     clear: bool,
-    /// Edit patterns with $EDITOR
-    #[arg(long)]
-    edit: bool,
-    /// Include all files in the working copy
-    #[arg(long, conflicts_with_all = &["add", "remove", "clear"])]
-    reset: bool,
 }
+
+/// Reset the patterns to include all files in the working copy
+#[derive(clap::Args, Clone, Debug)]
+pub(crate) struct SparseResetArgs {}
+
+/// Start an editor to update the patterns that are present in the working copy
+#[derive(clap::Args, Clone, Debug)]
+pub(crate) struct SparseEditArgs {}
 
 #[instrument(skip_all)]
 pub(crate) fn cmd_sparse(
@@ -78,6 +93,8 @@ pub(crate) fn cmd_sparse(
     match args {
         SparseArgs::List(sub_args) => cmd_sparse_list(ui, command, sub_args),
         SparseArgs::Set(sub_args) => cmd_sparse_set(ui, command, sub_args),
+        SparseArgs::Reset(sub_args) => cmd_sparse_reset(ui, command, sub_args),
+        SparseArgs::Edit(sub_args) => cmd_sparse_edit(ui, command, sub_args),
     }
 }
 
@@ -89,8 +106,7 @@ fn cmd_sparse_list(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     for path in workspace_command.working_copy().sparse_patterns()? {
-        let ui_path = workspace_command.format_file_path(path);
-        writeln!(ui.stdout(), "{ui_path}")?;
+        writeln!(ui.stdout(), "{}", path.to_fs_path(Path::new("")).display())?;
     }
     Ok(())
 }
@@ -102,47 +118,47 @@ fn cmd_sparse_set(
     args: &SparseSetArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let paths_to_add: Vec<_> = args
-        .add
-        .iter()
-        .map(|v| workspace_command.parse_file_path(v))
-        .try_collect()?;
-    let paths_to_remove: Vec<_> = args
-        .remove
-        .iter()
-        .map(|v| workspace_command.parse_file_path(v))
-        .try_collect()?;
-    let repo_path = workspace_command.repo().repo_path().to_owned();
-    let (mut locked_ws, wc_commit) = workspace_command.start_working_copy_mutation()?;
-    let mut new_patterns = HashSet::new();
-    if args.reset {
-        new_patterns.insert(RepoPathBuf::root());
-    } else {
+    update_sparse_patterns_with(ui, &mut workspace_command, |_ui, old_patterns| {
+        let mut new_patterns = HashSet::new();
         if !args.clear {
-            new_patterns.extend(locked_ws.locked_wc().sparse_patterns()?.iter().cloned());
-            for path in paths_to_remove {
-                new_patterns.remove(&path);
+            new_patterns.extend(old_patterns.iter().cloned());
+            for path in &args.remove {
+                new_patterns.remove(path);
             }
         }
-        for path in paths_to_add {
-            new_patterns.insert(path);
+        for path in &args.add {
+            new_patterns.insert(path.to_owned());
         }
-    }
-    let mut new_patterns = new_patterns.into_iter().collect_vec();
-    new_patterns.sort();
-    if args.edit {
-        new_patterns = edit_sparse(&repo_path, &new_patterns, command.settings())?;
-        new_patterns.sort();
-    }
-    let stats = locked_ws
-        .locked_wc()
-        .set_sparse_patterns(new_patterns)
-        .map_err(|err| internal_error_with_message("Failed to update working copy paths", err))?;
-    let operation_id = locked_ws.locked_wc().old_operation_id().clone();
-    locked_ws.finish(operation_id)?;
-    print_checkout_stats(ui, stats, &wc_commit)?;
+        Ok(new_patterns.into_iter().sorted_unstable().collect())
+    })
+}
 
-    Ok(())
+#[instrument(skip_all)]
+fn cmd_sparse_reset(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &SparseResetArgs,
+) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    update_sparse_patterns_with(ui, &mut workspace_command, |_ui, _old_patterns| {
+        Ok(vec![RepoPathBuf::root()])
+    })
+}
+
+#[instrument(skip_all)]
+fn cmd_sparse_edit(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &SparseEditArgs,
+) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    let repo_path = workspace_command.repo().repo_path().to_owned();
+    update_sparse_patterns_with(ui, &mut workspace_command, |_ui, old_patterns| {
+        let mut new_patterns = edit_sparse(&repo_path, old_patterns, command.settings())?;
+        new_patterns.sort_unstable();
+        new_patterns.dedup();
+        Ok(new_patterns)
+    })
 }
 
 fn edit_sparse(
@@ -181,4 +197,21 @@ fn edit_sparse(
             })
         })
         .try_collect()
+}
+
+fn update_sparse_patterns_with(
+    ui: &mut Ui,
+    workspace_command: &mut WorkspaceCommandHelper,
+    f: impl FnOnce(&mut Ui, &[RepoPathBuf]) -> Result<Vec<RepoPathBuf>, CommandError>,
+) -> Result<(), CommandError> {
+    let (mut locked_ws, wc_commit) = workspace_command.start_working_copy_mutation()?;
+    let new_patterns = f(ui, locked_ws.locked_wc().sparse_patterns()?)?;
+    let stats = locked_ws
+        .locked_wc()
+        .set_sparse_patterns(new_patterns)
+        .map_err(|err| internal_error_with_message("Failed to update working copy paths", err))?;
+    let operation_id = locked_ws.locked_wc().old_operation_id().clone();
+    locked_ws.finish(operation_id)?;
+    print_checkout_stats(ui, stats, &wc_commit)?;
+    Ok(())
 }
