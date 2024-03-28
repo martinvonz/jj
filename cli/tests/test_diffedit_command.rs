@@ -384,6 +384,8 @@ fn test_diffedit_merge() {
     Working copy now at: yqosqzyt 1de824f2 (conflict) (empty) (no description set)
     Parent commit      : royxmykx b90654a0 (conflict) merge
     Added 0 files, modified 0 files, removed 1 files
+    There are unresolved conflicts at these paths:
+    file2    2-sided conflict
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"

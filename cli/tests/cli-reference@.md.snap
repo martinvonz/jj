@@ -156,6 +156,10 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 
   Possible values: `true`, `false`
 
+* `--quiet` — Reduce the amount of output logged
+
+  Possible values: `true`, `false`
+
 * `--color <WHEN>` — When to colorize output (always, never, auto)
 * `--no-pager` — Disable the pager
 
@@ -1523,10 +1527,6 @@ Note that conflicts can also be resolved without using this command. You may edi
 
   Default value: `@`
 * `-l`, `--list` — Instead of resolving one conflict, list all the conflicts
-
-  Possible values: `true`, `false`
-
-* `-q`, `--quiet` — Do not print the list of remaining conflicts (if any) after resolving a conflict
 
   Possible values: `true`, `false`
 

@@ -45,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj branch list` now supports a `--conflicted/-c` option to show only conflicted branches.
 
+* The list of conflicted paths is printed whenever the working copy changes.
+  This can be disabled with the `--quiet` option.
+
 ### Fixed bugs
 
 ## [0.15.1] - 2024-03-06

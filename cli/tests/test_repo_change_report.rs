@@ -43,6 +43,8 @@ fn test_report_conflicts() {
     Working copy now at: zsuskuln 7dc9bf15 (conflict) (empty) (no description set)
     Parent commit      : kkmpptxz 9baab11e (conflict) C
     Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    file    2-sided conflict including 1 deletion
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d=description(A)"]);
@@ -75,6 +77,8 @@ fn test_report_conflicts() {
     Working copy now at: zsuskuln 83074dac (conflict) (empty) (no description set)
     Parent commit      : kkmpptxz 4f0eeaa6 (conflict) C
     Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    file    2-sided conflict
     "###);
 
     // Resolve one of the conflicts by (mostly) following the instructions
@@ -84,6 +88,8 @@ fn test_report_conflicts() {
     Working copy now at: vruxwmqv 2ec0b4c3 (conflict) (empty) (no description set)
     Parent commit      : rlvkpnrz e93270ab (conflict) B
     Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    file    2-sided conflict including 1 deletion
     "###);
     std::fs::write(repo_path.join("file"), "resolved\n").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash"]);
@@ -129,6 +135,8 @@ fn test_report_conflicts_with_divergent_commits() {
     Working copy now at: zsuskuln?? cdae4322 (conflict) C2
     Parent commit      : kkmpptxz b76d6a88 (conflict) B
     Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    file    2-sided conflict including 1 deletion
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d=description(A)"]);
@@ -160,6 +168,8 @@ fn test_report_conflicts_with_divergent_commits() {
     Working copy now at: zsuskuln?? 33752e7e (conflict) C2
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    file    2-sided conflict including 1 deletion
     "###);
 
     let (stdout, stderr) =
