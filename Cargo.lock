@@ -1663,6 +1663,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1a46d1a171d865aa5f83f92695765caa047a9b4cbae2cbf37dbd613a793fd4c"
 
 [[package]]
+name = "jj-cbits"
+version = "0.15.1"
+dependencies = [
+ "cc",
+ "libc",
+]
+
+[[package]]
 name = "jj-cli"
 version = "0.15.1"
 dependencies = [
@@ -1690,6 +1698,7 @@ dependencies = [
  "indoc",
  "insta",
  "itertools 0.12.1",
+ "jj-cbits",
  "jj-cli",
  "jj-lib",
  "libc",

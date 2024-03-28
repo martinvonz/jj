@@ -2,7 +2,14 @@ cargo-features = []
 
 [workspace]
 resolver = "2"
-members = ["cli", "lib", "lib/gen-protos", "lib/proc-macros", "lib/testutils"]
+members = [
+    "cli",
+    "lib",
+    "cbits",
+    "lib/gen-protos",
+    "lib/proc-macros",
+    "lib/testutils",
+]
 
 [workspace.package]
 version = "0.15.1"
@@ -24,6 +31,7 @@ async-trait = "0.1.79"
 backoff = "0.4.0"
 blake2 = "0.10.6"
 bytes = "1.5.0"
+cc = "1.0"
 cargo_metadata = "0.17.0"
 clap = { version = "4.5.4", features = [
     "derive",
@@ -116,6 +124,7 @@ zstd = "0.12.4"
 # put all inter-workspace libraries, i.e. those that use 'path = ...' here in
 # their own (alphabetically sorted) block
 
+jj-cbits = { path = "cbits", version = "0.15.1" }
 jj-lib = { path = "lib", version = "0.15.1" }
 jj-lib-proc-macros = { path = "lib/proc-macros", version = "0.15.1" }
 testutils = { path = "lib/testutils" }

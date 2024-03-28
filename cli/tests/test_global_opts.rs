@@ -537,6 +537,8 @@ fn test_help() {
           --color <WHEN>                 When to colorize output (always, never, auto)
           --no-pager                     Disable the pager
           --config-toml <TOML>           Additional configuration options (can be repeated)
+          --show-heap-stats              Show memory allocation statistics from the internal heap
+                                         allocator on `stderr`, when the program exits
     "###);
 }
 
