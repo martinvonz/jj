@@ -233,7 +233,7 @@ fn test_resolution() {
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
-    After this operation, some files at this revision still have conflicts:
+    There are unresolved conflicts at these paths:
     file    2-sided conflict
     "###);
     insta::assert_snapshot!(
@@ -704,7 +704,7 @@ fn test_multiple_conflicts() {
     Parent commit      : zsuskuln de7553ef a | a
     Parent commit      : royxmykx f68bc2f0 b | b
     Added 0 files, modified 1 files, removed 0 files
-    After this operation, some files at this revision still have conflicts:
+    There are unresolved conflicts at these paths:
     this_file_has_a_very_long_name_to_test_padding 2-sided conflict
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff"]), 

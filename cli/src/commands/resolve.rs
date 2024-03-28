@@ -12,19 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::BTreeMap;
 use std::io::Write;
 
 use itertools::Itertools;
-use jj_lib::backend::TreeValue;
-use jj_lib::merge::MergedTreeValue;
 use jj_lib::object_id::ObjectId;
-use jj_lib::repo_path::RepoPathBuf;
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, RevisionArg, WorkspaceCommandHelper};
+use crate::cli_util::{print_conflicted_paths, CommandHelper, RevisionArg};
 use crate::command_error::{cli_error, CommandError};
-use crate::formatter::Formatter;
 use crate::ui::Ui;
 
 /// Resolve a conflicted file with an external merge tool
@@ -111,107 +106,21 @@ pub(crate) fn cmd_resolve(
         format!("Resolve conflicts in commit {}", commit.id().hex()),
     )?;
 
-    if let Some(mut formatter) = ui.status_formatter() {
-        let new_tree = new_commit.tree()?;
-        let new_conflicts = new_tree.conflicts().collect_vec();
-        if !new_conflicts.is_empty() {
-            writeln!(
-                formatter,
-                "After this operation, some files at this revision still have conflicts:"
-            )?;
-            print_conflicted_paths(&new_conflicts, formatter.as_mut(), &workspace_command)?;
-        }
-    }
-    Ok(())
-}
-
-#[instrument(skip_all)]
-pub(crate) fn print_conflicted_paths(
-    conflicts: &[(RepoPathBuf, MergedTreeValue)],
-    formatter: &mut dyn Formatter,
-    workspace_command: &WorkspaceCommandHelper,
-) -> Result<(), CommandError> {
-    let formatted_paths = conflicts
-        .iter()
-        .map(|(path, _conflict)| workspace_command.format_file_path(path))
-        .collect_vec();
-    let max_path_len = formatted_paths.iter().map(|p| p.len()).max().unwrap_or(0);
-    let formatted_paths = formatted_paths
-        .into_iter()
-        .map(|p| format!("{:width$}", p, width = max_path_len.min(32) + 3));
-
-    for ((_, conflict), formatted_path) in std::iter::zip(conflicts.iter(), formatted_paths) {
-        let sides = conflict.num_sides();
-        let n_adds = conflict.adds().flatten().count();
-        let deletions = sides - n_adds;
-
-        let mut seen_objects = BTreeMap::new(); // Sort for consistency and easier testing
-        if deletions > 0 {
-            seen_objects.insert(
-                format!(
-                    // Starting with a number sorts this first
-                    "{deletions} deletion{}",
-                    if deletions > 1 { "s" } else { "" }
-                ),
-                "normal", // Deletions don't interfere with `jj resolve` or diff display
-            );
-        }
-        // TODO: We might decide it's OK for `jj resolve` to ignore special files in the
-        // `removes` of a conflict (see e.g. https://github.com/martinvonz/jj/pull/978). In
-        // that case, `conflict.removes` should be removed below.
-        for term in itertools::chain(conflict.removes(), conflict.adds()).flatten() {
-            seen_objects.insert(
-                match term {
-                    TreeValue::File {
-                        executable: false, ..
-                    } => continue,
-                    TreeValue::File {
-                        executable: true, ..
-                    } => "an executable",
-                    TreeValue::Symlink(_) => "a symlink",
-                    TreeValue::Tree(_) => "a directory",
-                    TreeValue::GitSubmodule(_) => "a git submodule",
-                    TreeValue::Conflict(_) => "another conflict (you found a bug!)",
-                }
-                .to_string(),
-                "difficult",
-            );
-        }
-
-        write!(formatter, "{formatted_path} ",)?;
-        formatter.with_label("conflict_description", |formatter| {
-            let print_pair = |formatter: &mut dyn Formatter, (text, label): &(String, &str)| {
-                write!(formatter.labeled(label), "{text}")
-            };
-            print_pair(
-                formatter,
-                &(
-                    format!("{sides}-sided"),
-                    if sides > 2 { "difficult" } else { "normal" },
-                ),
-            )?;
-            write!(formatter, " conflict")?;
-
-            if !seen_objects.is_empty() {
-                write!(formatter, " including ")?;
-                let seen_objects = seen_objects.into_iter().collect_vec();
-                match &seen_objects[..] {
-                    [] => unreachable!(),
-                    [only] => print_pair(formatter, only)?,
-                    [first, middle @ .., last] => {
-                        print_pair(formatter, first)?;
-                        for pair in middle {
-                            write!(formatter, ", ")?;
-                            print_pair(formatter, pair)?;
-                        }
-                        write!(formatter, " and ")?;
-                        print_pair(formatter, last)?;
-                    }
-                };
+    // Print conflicts that are still present after resolution if the workspace
+    // working copy is not at the commit. Otherwise, the conflicting paths will
+    // be printed by the `tx.finish()` instead.
+    if workspace_command.get_wc_commit_id() != Some(new_commit.id()) {
+        if let Some(mut formatter) = ui.status_formatter() {
+            let new_tree = new_commit.tree()?;
+            let new_conflicts = new_tree.conflicts().collect_vec();
+            if !new_conflicts.is_empty() {
+                writeln!(
+                    formatter,
+                    "After this operation, some files at this revision still have conflicts:"
+                )?;
+                print_conflicted_paths(&new_conflicts, formatter.as_mut(), &workspace_command)?;
             }
-            Ok(())
-        })?;
-        writeln!(formatter)?;
+        }
     }
     Ok(())
 }

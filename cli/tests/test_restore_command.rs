@@ -71,6 +71,8 @@ fn test_restore() {
     Working copy now at: kkmpptxz 761deaef (conflict) (no description set)
     Parent commit      : rlvkpnrz e25100af (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    file2    2-sided conflict including 1 deletion
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r=@-"]);
     insta::assert_snapshot!(stdout, @"");
@@ -202,6 +204,8 @@ fn test_restore_conflicted_merge() {
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    file    2-sided conflict
     "###);
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
@@ -241,6 +245,8 @@ fn test_restore_conflicted_merge() {
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    file    2-sided conflict
     "###);
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("file")).unwrap()
