@@ -27,9 +27,7 @@ use jj_lib::revset::{self, RevsetExpression};
 use jj_lib::str_util::StringPattern;
 use jj_lib::view::View;
 
-use crate::cli_util::{
-    parse_string_pattern, CommandHelper, RemoteBranchName, RemoteBranchNamePattern, RevisionArg,
-};
+use crate::cli_util::{CommandHelper, RemoteBranchName, RemoteBranchNamePattern, RevisionArg};
 use crate::command_error::{user_error, user_error_with_hint, CommandError};
 use crate::formatter::Formatter;
 use crate::ui::Ui;
@@ -78,7 +76,7 @@ pub struct BranchDeleteArgs {
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select branches by wildcard pattern. For details, see
     /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
-    #[arg(required_unless_present_any(&["glob"]), value_parser = parse_string_pattern)]
+    #[arg(required_unless_present_any(&["glob"]), value_parser = StringPattern::parse)]
     pub names: Vec<StringPattern>,
 
     /// Deprecated. Please prefix the pattern with `glob:` instead.
@@ -117,7 +115,7 @@ pub struct BranchListArgs {
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select branches by wildcard pattern. For details, see
     /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
-    #[arg(value_parser = parse_string_pattern)]
+    #[arg(value_parser = StringPattern::parse)]
     pub names: Vec<StringPattern>,
 
     /// Show branches whose local targets are in the given revisions.
@@ -140,7 +138,7 @@ pub struct BranchForgetArgs {
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select branches by wildcard pattern. For details, see
     /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
-    #[arg(required_unless_present_any(&["glob"]), value_parser = parse_string_pattern)]
+    #[arg(required_unless_present_any(&["glob"]), value_parser = StringPattern::parse)]
     pub names: Vec<StringPattern>,
 
     /// Deprecated. Please prefix the pattern with `glob:` instead.

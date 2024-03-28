@@ -50,6 +50,19 @@ impl StringPattern {
         StringPattern::Substring(String::new())
     }
 
+    /// Parses the given string as a `StringPattern`. Everything before the
+    /// first ":" is considered the string's prefix. If the prefix is "exact:",
+    /// "glob:", or "substring:", a pattern of the specified kind is returned.
+    /// Returns an error if the string has an unrecognized prefix. Otherwise, a
+    /// `StringPattern::Exact` is returned.
+    pub fn parse(src: &str) -> Result<StringPattern, StringPatternParseError> {
+        if let Some((kind, pat)) = src.split_once(':') {
+            StringPattern::from_str_kind(pat, kind)
+        } else {
+            Ok(StringPattern::exact(src))
+        }
+    }
+
     /// Creates pattern that matches exactly.
     pub fn exact(src: impl Into<String>) -> Self {
         StringPattern::Exact(src.into())
@@ -162,5 +175,40 @@ mod tests {
             StringPattern::Substring("*".into()).to_glob(),
             Some("*[*]*".into())
         );
+    }
+
+    #[test]
+    fn test_parse() {
+        // Parse specific pattern kinds.
+        assert_eq!(
+            StringPattern::parse("exact:foo").unwrap(),
+            StringPattern::from_str_kind("foo", "exact").unwrap()
+        );
+        assert_eq!(
+            StringPattern::parse("glob:foo*").unwrap(),
+            StringPattern::from_str_kind("foo*", "glob").unwrap()
+        );
+        assert_eq!(
+            StringPattern::parse("substring:foo").unwrap(),
+            StringPattern::from_str_kind("foo", "substring").unwrap()
+        );
+
+        // Parse a pattern that contains a : itself.
+        assert_eq!(
+            StringPattern::parse("exact:foo:bar").unwrap(),
+            StringPattern::from_str_kind("foo:bar", "exact").unwrap()
+        );
+
+        // If no kind is specified, the input is treated as an exact pattern.
+        assert_eq!(
+            StringPattern::parse("foo").unwrap(),
+            StringPattern::from_str_kind("foo", "exact").unwrap()
+        );
+
+        // Parsing an unknown prefix results in an error.
+        assert!(matches! {
+            StringPattern::parse("unknown-prefix:foo"),
+            Err(StringPatternParseError::InvalidKind(_))
+        });
     }
 }

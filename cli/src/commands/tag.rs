@@ -14,7 +14,7 @@
 
 use jj_lib::str_util::StringPattern;
 
-use crate::cli_util::{parse_string_pattern, CommandHelper};
+use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
@@ -33,7 +33,7 @@ pub struct TagListArgs {
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select tags by wildcard pattern. For details, see
     /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
-    #[arg(value_parser = parse_string_pattern)]
+    #[arg(value_parser = StringPattern::parse)]
     pub names: Vec<StringPattern>,
 }
 

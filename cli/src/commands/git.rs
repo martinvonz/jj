@@ -41,9 +41,8 @@ use jj_lib::workspace::Workspace;
 use maplit::hashset;
 
 use crate::cli_util::{
-    parse_string_pattern, print_trackable_remote_branches, short_change_hash, short_commit_hash,
-    start_repo_transaction, CommandHelper, RevisionArg, WorkspaceCommandHelper,
-    WorkspaceCommandTransaction,
+    print_trackable_remote_branches, short_change_hash, short_commit_hash, start_repo_transaction,
+    CommandHelper, RevisionArg, WorkspaceCommandHelper, WorkspaceCommandTransaction,
 };
 use crate::command_error::{
     user_error, user_error_with_hint, user_error_with_message, CommandError,
@@ -158,7 +157,7 @@ pub struct GitFetchArgs {
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// expand `*` as a glob. The other wildcard characters aren't supported.
-    #[arg(long, short, default_value = "glob:*", value_parser = parse_string_pattern)]
+    #[arg(long, short, default_value = "glob:*", value_parser = StringPattern::parse)]
     branch: Vec<StringPattern>,
     /// The remote to fetch from (only named remotes are supported, can be
     /// repeated)
@@ -203,7 +202,7 @@ pub struct GitPushArgs {
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select branches by wildcard pattern. For details, see
     /// https://martinvonz.github.io/jj/latest/revsets#string-patterns.
-    #[arg(long, short, value_parser = parse_string_pattern)]
+    #[arg(long, short, value_parser = StringPattern::parse)]
     branch: Vec<StringPattern>,
     /// Push all branches (including deleted branches)
     #[arg(long)]

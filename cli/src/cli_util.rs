@@ -58,7 +58,7 @@ use jj_lib::revset::{
 use jj_lib::rewrite::restore_tree;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::signing::SignInitError;
-use jj_lib::str_util::{StringPattern, StringPatternParseError};
+use jj_lib::str_util::StringPattern;
 use jj_lib::transaction::Transaction;
 use jj_lib::view::View;
 use jj_lib::working_copy::{
@@ -1649,14 +1649,6 @@ pub fn print_trackable_remote_branches(ui: &Ui, view: &View) -> io::Result<()> {
         names = remote_branch_names.join(" "),
     )?;
     Ok(())
-}
-
-pub fn parse_string_pattern(src: &str) -> Result<StringPattern, StringPatternParseError> {
-    if let Some((kind, pat)) = src.split_once(':') {
-        StringPattern::from_str_kind(pat, kind)
-    } else {
-        Ok(StringPattern::exact(src))
-    }
 }
 
 /// Resolves revsets into revisions for use; useful for rebases or operations
