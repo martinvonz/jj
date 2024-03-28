@@ -37,6 +37,8 @@ This document contains the help content for the `jj` command-line program.
 * [`jj duplicate`↴](#jj-duplicate)
 * [`jj edit`↴](#jj-edit)
 * [`jj files`↴](#jj-files)
+* [`jj gerrit`↴](#jj-gerrit)
+* [`jj gerrit send`↴](#jj-gerrit-send)
 * [`jj git`↴](#jj-git)
 * [`jj git remote`↴](#jj-git-remote)
 * [`jj git remote add`↴](#jj-git-remote-add)
@@ -115,6 +117,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `duplicate` — Create a new change with the same content as an existing one
 * `edit` — Sets the specified revision as the working-copy revision
 * `files` — List files in a revision
+* `gerrit` — Interact with Gerrit Code Review
 * `git` — Commands for working with the underlying Git repo
 * `init` — Create a new repo in the given directory
 * `interdiff` — Compare the changes of two commits
@@ -746,6 +749,41 @@ List files in a revision
 * `-r`, `--revision <REVISION>` — The revision to list files in
 
   Default value: `@`
+
+
+
+## `jj gerrit`
+
+Interact with Gerrit Code Review
+
+**Usage:** `jj gerrit <COMMAND>`
+
+###### **Subcommands:**
+
+* `send` — Send in revisions to Gerrit for code review; this is the primary way to create changes or update changes for code review
+
+
+
+## `jj gerrit send`
+
+Send in revisions to Gerrit for code review; this is the primary way to create changes or update changes for code review.
+
+This command modifies each commit in the revset to include a `Change-Id` footer in its commit message if one does not already exist. This ID is NOT compatible with jj IDs, and is a Gerrit-specific ID.
+
+Note: this command takes a revset as an argument, and will send in all revisions in the revset to Gerrit appropriately, so you may post trees or ranges of commits to Gerrit for review.
+
+**Usage:** `jj gerrit send [OPTIONS]`
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>` — The revset, selecting which commits are sent in to Gerrit. This can be any arbitrary set of commits; they will be modified to include a `Change-Id` footer if one does not already exist, and then sent off to Gerrit for review
+* `-f`, `--for <FOR>` — The location where your changes are intended to land. This MUST be a reference of the form `branch@remote`, where `branch` is the name of the branch that the change will be submitted to, and `remote` is the remote to push the changes to
+
+  Default value: `main@origin`
+* `-n`, `--dry-run` — If true, do not actually add `Change-Id`s to commits, and do not push the changes to Gerrit
+
+  Possible values: `true`, `false`
+
 
 
 

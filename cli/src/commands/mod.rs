@@ -29,6 +29,7 @@ mod diffedit;
 mod duplicate;
 mod edit;
 mod files;
+mod gerrit;
 mod git;
 mod init;
 mod interdiff;
@@ -91,6 +92,8 @@ enum Command {
     Duplicate(duplicate::DuplicateArgs),
     Edit(edit::EditArgs),
     Files(files::FilesArgs),
+    #[command(subcommand)]
+    Gerrit(gerrit::GerritCommand),
     #[command(subcommand)]
     Git(git::GitCommand),
     Init(init::InitArgs),
@@ -203,6 +206,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Tag(sub_args) => tag::cmd_tag(ui, command_helper, sub_args),
         Command::Chmod(sub_args) => chmod::cmd_chmod(ui, command_helper, sub_args),
         Command::Git(sub_args) => git::cmd_git(ui, command_helper, sub_args),
+        Command::Gerrit(sub_args) => gerrit::cmd_gerrit(ui, command_helper, sub_args),
         Command::Util(sub_args) => util::cmd_util(ui, command_helper, sub_args),
         #[cfg(feature = "bench")]
         Command::Bench(sub_args) => bench::cmd_bench(ui, command_helper, sub_args),
