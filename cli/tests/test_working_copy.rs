@@ -25,8 +25,12 @@ fn test_snapshot_large_file() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["files"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to snapshot the working copy
-    Caused by: New file $TEST_ENV/repo/large of size ~13.0B exceeds snapshot.max-new-file-size (10.0B)
-    Hint: Increase the value of the `snapshot.max-new-file-size` config option if you
-    want this file to be snapshotted. Otherwise add it to your `.gitignore` file.
+    The file '$TEST_ENV/repo/large' is too large to be snapshotted: it is 3 bytes too large; the maximum size allowed is 10 bytes (10.0B).
+    Hint: This is to prevent large files from being added on accident. You can fix this error by:
+      - Adding the file to `.gitignore`
+      - Run `jj config set --repo snapshot.max-new-file-size 13`
+        This will increase the maximum file size allowed for new files, in this repository only.
+      - Run `jj --config-toml 'snapshot.max-new-file-size=13' st`
+        This will increase the maximum file size allowed for new files, for this command only.
     "###);
 }
