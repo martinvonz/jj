@@ -147,7 +147,7 @@ fn test_templater_alias() {
     'recurse1' = 'recurse2()'
     'recurse2()' = 'recurse'
     'identity(x)' = 'x'
-    'coalesce(x, y)' = 'if(x, x, y)'
+    'if_non_null(x, y)' = 'if(x, x, y)'
     "###,
     );
 
@@ -259,19 +259,19 @@ fn test_templater_alias() {
       = Function "identity": Expected 1 arguments
     "###);
 
-    insta::assert_snapshot!(render_err(r#"coalesce(label("x", "not boolean"), "")"#), @r###"
-    Error: Failed to parse template: Alias "coalesce()" cannot be expanded
+    insta::assert_snapshot!(render_err(r#"if_non_null(label("x", "not boolean"), "")"#), @r###"
+    Error: Failed to parse template: Alias "if_non_null()" cannot be expanded
     Caused by:
     1:  --> 1:1
       |
-    1 | coalesce(label("x", "not boolean"), "")
-      | ^-------------------------------------^
+    1 | if_non_null(label("x", "not boolean"), "")
+      | ^----------------------------------------^
       |
-      = Alias "coalesce()" cannot be expanded
-    2:  --> 1:10
+      = Alias "if_non_null()" cannot be expanded
+    2:  --> 1:13
       |
-    1 | coalesce(label("x", "not boolean"), "")
-      |          ^-----------------------^
+    1 | if_non_null(label("x", "not boolean"), "")
+      |             ^-----------------------^
       |
       = Expected expression of type "Boolean"
     "###);
