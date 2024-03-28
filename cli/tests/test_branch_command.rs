@@ -1128,6 +1128,14 @@ fn test_branch_list_filtered() {
       @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
 
+    // Select branches by name, combined with --all
+    test_env.jj_cmd_ok(&local_path, &["git", "export"]);
+    insta::assert_snapshot!(query(&["--all", "-rbranches(remote-rewrite)"]), @r###"
+    remote-rewrite: xyxluytn e31634b6 (empty) rewritten
+      @git: xyxluytn e31634b6 (empty) rewritten
+      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
+    "###);
+
     // Can select deleted branch by name pattern, but not by revset.
     insta::assert_snapshot!(query(&["remote-delete"]), @r###"
     remote-delete (deleted)

@@ -98,7 +98,7 @@ pub struct BranchDeleteArgs {
 pub struct BranchListArgs {
     /// Show all tracking and non-tracking remote branches including the ones
     /// whose targets are synchronized with the local branches.
-    #[arg(long, short, conflicts_with_all = ["names", "revisions", "tracked"])]
+    #[arg(long, short, conflicts_with_all = ["names", "tracked"])]
     all: bool,
 
     /// Show remote tracked branches only. Omits local Git-tracking branches by
