@@ -159,7 +159,7 @@ fn test_sparse_manage_patterns() {
     "###);
 
     // Can edit with multiple files
-    edit_patterns(&["file3", "file2"]);
+    edit_patterns(&["file3", "file2", "file3"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&sub_dir, &["sparse", "edit"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"

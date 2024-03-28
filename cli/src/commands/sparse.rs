@@ -145,6 +145,7 @@ fn cmd_sparse_edit(
     update_sparse_patterns_with(ui, &mut workspace_command, |_ui, old_patterns| {
         let mut new_patterns = edit_sparse(&repo_path, old_patterns, command.settings())?;
         new_patterns.sort_unstable();
+        new_patterns.dedup();
         Ok(new_patterns)
     })
 }
