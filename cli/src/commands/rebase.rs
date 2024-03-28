@@ -290,13 +290,22 @@ fn rebase_descendants(
     rebase_options: RebaseOptions,
 ) -> Result<(), CommandError> {
     workspace_command.check_rewritable(old_commits)?;
+    let (skipped_commits, old_commits) = old_commits
+        .iter()
+        .partition::<Vec<_>, _>(|commit| commit.parents() == new_parents);
+    if !skipped_commits.is_empty() {
+        log_skipped_rebase_commits_message(ui, workspace_command, &skipped_commits)?;
+    }
+    if old_commits.is_empty() {
+        return Ok(());
+    }
     for old_commit in old_commits.iter() {
         check_rebase_destinations(workspace_command.repo(), new_parents, old_commit)?;
     }
     let mut tx = workspace_command.start_transaction();
     // `rebase_descendants` takes care of sorting in reverse topological order, so
     // no need to do it here.
-    for old_commit in old_commits {
+    for old_commit in old_commits.iter() {
         rebase_commit_with_options(
             settings,
             tx.mut_repo(),
@@ -344,7 +353,7 @@ fn rebase_revision(
         .iter()
         .commits(workspace_command.repo().store())
         .try_collect()?;
-    // Currently, immutable commits are defied so that a child of a rewriteable
+    // Currently, immutable commits are defined so that a child of a rewriteable
     // commit is always rewriteable.
     debug_assert!(workspace_command.check_rewritable(&child_commits).is_ok());
 
@@ -432,21 +441,40 @@ fn rebase_revision(
         })
         .try_collect()?;
 
-    // Finally, it's safe to rebase `old_commit`. At this point, it should no longer
-    // have any children; they have all been rebased and the originals have been
-    // abandoned.
-    rebase_commit(settings, tx.mut_repo(), &old_commit, &new_parents)?;
-    debug_assert_eq!(tx.mut_repo().rebase_descendants(settings)?, 0);
+    // Finally, it's safe to rebase `old_commit`. We can skip rebasing if it is
+    // already a child of `new_parents`. Otherwise, at this point, it should no
+    // longer have any children; they have all been rebased and the originals
+    // have been abandoned.
+    let skipped_commit_rebase = if old_commit.parents() == new_parents {
+        write!(ui.stderr(), "Skipping rebase of commit ")?;
+        tx.write_commit_summary(ui.stderr_formatter().as_mut(), &old_commit)?;
+        writeln!(ui.stderr())?;
+        true
+    } else {
+        rebase_commit(settings, tx.mut_repo(), &old_commit, &new_parents)?;
+        debug_assert_eq!(tx.mut_repo().rebase_descendants(settings)?, 0);
+        false
+    };
 
     if num_rebased_descendants > 0 {
-        writeln!(
-            ui.stderr(),
-            "Also rebased {num_rebased_descendants} descendant commits onto parent of rebased \
-             commit"
-        )?;
+        if skipped_commit_rebase {
+            writeln!(
+                ui.stderr(),
+                "Rebased {num_rebased_descendants} descendant commits onto parent of commit"
+            )?;
+        } else {
+            writeln!(
+                ui.stderr(),
+                "Also rebased {num_rebased_descendants} descendant commits onto parent of rebased \
+                 commit"
+            )?;
+        }
     }
-    tx.finish(ui, format!("rebase commit {}", old_commit.id().hex()))?;
-    Ok(())
+    if tx.mut_repo().has_changes() {
+        tx.finish(ui, format!("rebase commit {}", old_commit.id().hex()))
+    } else {
+        Ok(()) // Do not print "Nothing changed."
+    }
 }
 
 fn check_rebase_destinations(
@@ -461,6 +489,28 @@ fn check_rebase_destinations(
                 short_commit_hash(commit.id()),
                 short_commit_hash(parent.id())
             )));
+        }
+    }
+    Ok(())
+}
+
+fn log_skipped_rebase_commits_message(
+    ui: &Ui,
+    workspace_command: &WorkspaceCommandHelper,
+    commits: &[&Commit],
+) -> Result<(), CommandError> {
+    let mut fmt = ui.stderr_formatter();
+    let template = workspace_command.commit_summary_template();
+    if commits.len() == 1 {
+        write!(fmt, "Skipping rebase of commit ")?;
+        template.format(commits[0], fmt.as_mut())?;
+        writeln!(fmt)?;
+    } else {
+        writeln!(fmt, "Skipping rebase of commits:")?;
+        for commit in commits {
+            write!(fmt, "  ")?;
+            template.format(commit, fmt.as_mut())?;
+            writeln!(fmt)?;
         }
     }
     Ok(())
