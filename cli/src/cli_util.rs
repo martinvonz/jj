@@ -41,9 +41,10 @@ use jj_lib::gitignore::{GitIgnoreError, GitIgnoreFile};
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
+use jj_lib::merge::MergeBuilder;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
-use jj_lib::op_store::{OpStoreError, OperationId, WorkspaceId};
+use jj_lib::op_store::{OpStoreError, OperationId, RefTarget, WorkspaceId};
 use jj_lib::op_walk::OpsetEvaluationError;
 use jj_lib::operation::Operation;
 use jj_lib::repo::{
@@ -387,6 +388,18 @@ impl ReadonlyUserRepo {
     pub fn git_backend(&self) -> Option<&GitBackend> {
         self.repo.store().backend_impl().downcast_ref()
     }
+}
+
+/// A branch that should be advanced to satisfy the "advance-branches" feature.
+/// This is a helper for `WorkspaceCommandTransaction`. It provides a type-safe
+/// way to separate the work of checking whether a branch can be advanced and
+/// actually advancing it. Advancing the branch never fails, but can't be done
+/// until the new `CommitId` is available. Splitting the work in this way also
+/// allows us to identify eligible branches without actually moving them.
+pub struct AdvanceableBranch {
+    name: String,
+    old_commit_id: CommitId,
+    old_target: RefTarget,
 }
 
 /// Provides utilities for writing a command that works on a [`Workspace`]
@@ -1362,6 +1375,51 @@ Then run `jj squash` to move the resolution into the conflicted commit."#,
 
         Ok(())
     }
+
+    /// Identifies branches which are eligible to be moved automatically during
+    /// `jj commit` and `jj new`. Whether a branch is eligible is determined by
+    /// its target and the user and repo config for "advance-branches".
+    ///
+    /// Returns a Vec of branches in `repo` that point to any of the `from`
+    /// commits and that are eligible to advance. The `from` commits are
+    /// typically the parents of the target commit of `jj commit` or `jj new`.
+    ///
+    /// Branches are not moved until
+    /// `WorkspaceCommandTransaction::advance_branches()` is called with the
+    /// `AdvanceableBranch`s returned by this function.
+    ///
+    /// Returns an empty `std::Vec` if no branches are eligible to advance.
+    pub fn get_advanceable_branches<'a>(
+        &self,
+        repo: &impl Repo,
+        from: impl IntoIterator<Item = &'a CommitId>,
+    ) -> Vec<AdvanceableBranch> {
+        let advance_branches = self.settings.advance_branches();
+        let overrides = self.settings.advance_branches_overrides();
+        let allow_branch = |branch: &str| {
+            let overridden = overrides.iter().any(|x| x.eq(branch));
+            (advance_branches && !overridden) || (!advance_branches && overridden)
+        };
+        // Return early if we know that there's no work to do.
+        if !advance_branches && overrides.is_empty() {
+            return Vec::new();
+        }
+
+        let mut advanceable_branches = Vec::new();
+        for from_commit in from.into_iter() {
+            for (name, target) in repo.view().local_branches_for_commit(from_commit) {
+                if allow_branch(name) {
+                    advanceable_branches.push(AdvanceableBranch {
+                        name: name.to_owned(),
+                        old_commit_id: from_commit.clone(),
+                        old_target: target.clone(),
+                    });
+                }
+            }
+        }
+
+        advanceable_branches
+    }
 }
 
 /// A [`Transaction`] tied to a particular workspace.
@@ -1447,6 +1505,34 @@ impl WorkspaceCommandTransaction<'_> {
     /// the working copy, if applicable.
     pub fn into_inner(self) -> Transaction {
         self.tx
+    }
+
+    /// Moves each branch in `branches` from an old commit it's associated with
+    /// (configured by `get_advanceable_branches`) to the `move_to` commit. If
+    /// the branch is conflicted before the update, it will remain conflicted
+    /// after the update, but the conflict will involve the `move_to` commit
+    /// instead of the old commit.
+    pub fn advance_branches(&mut self, branches: Vec<AdvanceableBranch>, move_to: &CommitId) {
+        for branch in branches {
+            // We are going to remove the old commit and add the new commit. The
+            // removed commit must be listed first in order for the `MergeBuilder`
+            // to recognize that it's being removed.
+            let remove_add = [Some(branch.old_commit_id), Some(move_to.clone())];
+            let new_target = RefTarget::from_merge(
+                MergeBuilder::from_iter(
+                    branch
+                        .old_target
+                        .as_merge()
+                        .iter()
+                        .chain(&remove_add)
+                        .cloned(),
+                )
+                .build()
+                .simplify(),
+            );
+            self.mut_repo()
+                .set_local_branch_target(&branch.name, new_target);
+        }
     }
 }
 
