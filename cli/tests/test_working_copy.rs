@@ -20,7 +20,7 @@ fn test_snapshot_large_file() {
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    test_env.add_config(r#"snapshot.max-new-file-size = "10""#);
+    test_env.add_config(r#"snapshot.max-new-file-size = 10"#);
     std::fs::write(repo_path.join("large"), "a lot of text").unwrap();
     let stderr = test_env.jj_cmd_failure(&repo_path, &["files"]);
     insta::assert_snapshot!(stderr, @r###"

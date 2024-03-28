@@ -59,6 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rebase the children of the revision being split if they had other parents
   (i.e. if the child was a merge).
 
+* The `snapshot.max-new-file-size` option can now handle raw integer literals,
+  interpreted as a number of bytes, where previously it could only handle string
+  literals. This means that `snapshot.max-new-file-size="1"` and
+  `snapshot.max-new-file-size=1` are now equivalent.
 
 ## [0.16.0] - 2024-04-03
 

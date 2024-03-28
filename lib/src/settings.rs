@@ -331,7 +331,8 @@ impl<T> ConfigResultExt<T> for Result<T, config::ConfigError> {
 }
 
 /// A size in bytes optionally formatted/serialized with binary prefixes
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, serde::Deserialize)]
+#[serde(try_from = "String")]
 pub struct HumanByteSize(pub u64);
 
 impl std::fmt::Display for HumanByteSize {
@@ -341,42 +342,17 @@ impl std::fmt::Display for HumanByteSize {
     }
 }
 
-impl<'de> serde::Deserialize<'de> for HumanByteSize {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        use serde::de::Error;
+impl TryFrom<String> for HumanByteSize {
+    type Error = String;
 
-        struct Visitor;
-
-        impl<'de> serde::de::Visitor<'de> for Visitor {
-            type Value = HumanByteSize;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(formatter, "a size in bytes with an optional binary unit")
-            }
-
-            fn visit_u64<E>(self, v: u64) -> Result<Self::Value, E>
-            where
-                E: Error,
-            {
-                Ok(HumanByteSize(v))
-            }
-
-            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-            where
-                E: Error,
-            {
-                let bytes = parse_human_byte_size(v).map_err(Error::custom)?;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let res = value.parse::<u64>();
+        match res {
+            Ok(bytes) => Ok(HumanByteSize(bytes)),
+            Err(_) => {
+                let bytes = parse_human_byte_size(&value)?;
                 Ok(HumanByteSize(bytes))
             }
-        }
-
-        if deserializer.is_human_readable() {
-            deserializer.deserialize_any(Visitor)
-        } else {
-            deserializer.deserialize_u64(Visitor)
         }
     }
 }
