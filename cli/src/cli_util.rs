@@ -14,7 +14,7 @@
 
 use core::fmt;
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env::{self, ArgsOs, VarError};
 use std::ffi::OsString;
 use std::fmt::Debug;
@@ -34,13 +34,14 @@ use clap::error::{ContextKind, ContextValue};
 use clap::{ArgAction, ArgMatches, Command, FromArgMatches};
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
-use jj_lib::backend::{ChangeId, CommitId, MergedTreeId};
+use jj_lib::backend::{ChangeId, CommitId, MergedTreeId, TreeValue};
 use jj_lib::commit::Commit;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::{GitIgnoreError, GitIgnoreFile};
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
+use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::{OpStoreError, OperationId, WorkspaceId};
@@ -1127,6 +1128,15 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         if let Some(stats) = stats {
             print_checkout_stats(ui, stats, new_commit)?;
         }
+        if Some(new_commit) != maybe_old_commit {
+            if let Some(mut formatter) = ui.status_formatter() {
+                let conflicts = new_commit.tree()?.conflicts().collect_vec();
+                if !conflicts.is_empty() {
+                    writeln!(formatter, "There are unresolved conflicts at these paths:")?;
+                    print_conflicted_paths(&conflicts, formatter.as_mut(), self)?;
+                }
+            }
+        }
         Ok(())
     }
 
@@ -1555,6 +1565,97 @@ pub fn check_stale_working_copy(
             Ok(WorkingCopyFreshness::SiblingOperation)
         }
     }
+}
+
+#[instrument(skip_all)]
+pub fn print_conflicted_paths(
+    conflicts: &[(RepoPathBuf, MergedTreeValue)],
+    formatter: &mut dyn Formatter,
+    workspace_command: &WorkspaceCommandHelper,
+) -> Result<(), CommandError> {
+    let formatted_paths = conflicts
+        .iter()
+        .map(|(path, _conflict)| workspace_command.format_file_path(path))
+        .collect_vec();
+    let max_path_len = formatted_paths.iter().map(|p| p.len()).max().unwrap_or(0);
+    let formatted_paths = formatted_paths
+        .into_iter()
+        .map(|p| format!("{:width$}", p, width = max_path_len.min(32) + 3));
+
+    for ((_, conflict), formatted_path) in std::iter::zip(conflicts.iter(), formatted_paths) {
+        let sides = conflict.num_sides();
+        let n_adds = conflict.adds().flatten().count();
+        let deletions = sides - n_adds;
+
+        let mut seen_objects = BTreeMap::new(); // Sort for consistency and easier testing
+        if deletions > 0 {
+            seen_objects.insert(
+                format!(
+                    // Starting with a number sorts this first
+                    "{deletions} deletion{}",
+                    if deletions > 1 { "s" } else { "" }
+                ),
+                "normal", // Deletions don't interfere with `jj resolve` or diff display
+            );
+        }
+        // TODO: We might decide it's OK for `jj resolve` to ignore special files in the
+        // `removes` of a conflict (see e.g. https://github.com/martinvonz/jj/pull/978). In
+        // that case, `conflict.removes` should be removed below.
+        for term in itertools::chain(conflict.removes(), conflict.adds()).flatten() {
+            seen_objects.insert(
+                match term {
+                    TreeValue::File {
+                        executable: false, ..
+                    } => continue,
+                    TreeValue::File {
+                        executable: true, ..
+                    } => "an executable",
+                    TreeValue::Symlink(_) => "a symlink",
+                    TreeValue::Tree(_) => "a directory",
+                    TreeValue::GitSubmodule(_) => "a git submodule",
+                    TreeValue::Conflict(_) => "another conflict (you found a bug!)",
+                }
+                .to_string(),
+                "difficult",
+            );
+        }
+
+        write!(formatter, "{formatted_path} ")?;
+        formatter.with_label("conflict_description", |formatter| {
+            let print_pair = |formatter: &mut dyn Formatter, (text, label): &(String, &str)| {
+                write!(formatter.labeled(label), "{text}")
+            };
+            print_pair(
+                formatter,
+                &(
+                    format!("{sides}-sided"),
+                    if sides > 2 { "difficult" } else { "normal" },
+                ),
+            )?;
+            write!(formatter, " conflict")?;
+
+            if !seen_objects.is_empty() {
+                write!(formatter, " including ")?;
+                let seen_objects = seen_objects.into_iter().collect_vec();
+                match &seen_objects[..] {
+                    [] => unreachable!(),
+                    [only] => print_pair(formatter, only)?,
+                    [first, middle @ .., last] => {
+                        print_pair(formatter, first)?;
+                        for pair in middle {
+                            write!(formatter, ", ")?;
+                            print_pair(formatter, pair)?;
+                        }
+                        write!(formatter, " and ")?;
+                        print_pair(formatter, last)?;
+                    }
+                };
+            }
+            Ok(())
+        })?;
+        writeln!(formatter)?;
+    }
+    Ok(())
 }
 
 pub fn print_checkout_stats(
