@@ -31,8 +31,8 @@ fn test_undo_rewrite_with_child() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]);
     insta::assert_snapshot!(stdout, @r###"
     @  child
-    ◉  modified
-    ◉
+    ○  modified
+    ◆
     "###);
     test_env.jj_cmd_ok(&repo_path, &["undo", &op_id_hex]);
 
@@ -41,8 +41,8 @@ fn test_undo_rewrite_with_child() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]);
     insta::assert_snapshot!(stdout, @r###"
     @  child
-    ◉  initial
-    ◉
+    ○  initial
+    ◆
     "###);
 }
 

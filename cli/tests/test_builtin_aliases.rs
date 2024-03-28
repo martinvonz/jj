@@ -52,7 +52,7 @@ fn test_builtin_alias_trunk_matches_main() {
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "trunk()"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 main 45a3aa29
+    ◆  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 main 45a3aa29
     │  (empty) description 1
     ~
     "###);
@@ -64,7 +64,7 @@ fn test_builtin_alias_trunk_matches_master() {
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "trunk()"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 master 45a3aa29
+    ◆  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 master 45a3aa29
     │  (empty) description 1
     ~
     "###);
@@ -76,7 +76,7 @@ fn test_builtin_alias_trunk_matches_trunk() {
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "trunk()"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 trunk 45a3aa29
+    ◆  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 trunk 45a3aa29
     │  (empty) description 1
     ~
     "###);
@@ -91,7 +91,7 @@ fn test_builtin_alias_trunk_matches_exactly_one_commit() {
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "trunk()"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 main 45a3aa29
+    ◆  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 main 45a3aa29
     │  (empty) description 1
     ~
     "###);
@@ -107,7 +107,7 @@ fn test_builtin_alias_trunk_override_alias() {
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "trunk()"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 override-trunk 45a3aa29
+    ◆  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 override-trunk 45a3aa29
     │  (empty) description 1
     ~
     "###);
@@ -119,7 +119,7 @@ fn test_builtin_alias_trunk_no_match() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["log", "-r", "trunk()"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  zzzzzzzz root() 00000000
+    ◆  zzzzzzzz root() 00000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
     "###);
@@ -131,7 +131,7 @@ fn test_builtin_alias_trunk_no_match_only_exact() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["log", "-r", "trunk()"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  zzzzzzzz root() 00000000
+    ◆  zzzzzzzz root() 00000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
     "###);
