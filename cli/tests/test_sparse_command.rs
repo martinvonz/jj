@@ -122,7 +122,7 @@ fn test_sparse_manage_patterns() {
     assert!(!repo_path.join("file3").exists());
 
     // Can reset back to all files
-    let (stdout, stderr) = test_env.jj_cmd_ok(&sub_dir, &["sparse", "set", "--reset"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&sub_dir, &["sparse", "reset"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Added 2 files, modified 0 files, removed 0 files

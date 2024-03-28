@@ -37,6 +37,7 @@ use crate::ui::Ui;
 pub(crate) enum SparseArgs {
     List(SparseListArgs),
     Set(SparseSetArgs),
+    Reset(SparseResetArgs),
     Edit(SparseEditArgs),
 }
 
@@ -73,10 +74,11 @@ pub(crate) struct SparseSetArgs {
     /// Include no files in the working copy (combine with --add)
     #[arg(long)]
     clear: bool,
-    /// Include all files in the working copy
-    #[arg(long, conflicts_with_all = &["add", "remove", "clear"])]
-    reset: bool,
 }
+
+/// Reset the patterns to include all files in the working copy
+#[derive(clap::Args, Clone, Debug)]
+pub(crate) struct SparseResetArgs {}
 
 /// Start an editor to update the patterns that are present in the working copy
 #[derive(clap::Args, Clone, Debug)]
@@ -91,6 +93,7 @@ pub(crate) fn cmd_sparse(
     match args {
         SparseArgs::List(sub_args) => cmd_sparse_list(ui, command, sub_args),
         SparseArgs::Set(sub_args) => cmd_sparse_set(ui, command, sub_args),
+        SparseArgs::Reset(sub_args) => cmd_sparse_reset(ui, command, sub_args),
         SparseArgs::Edit(sub_args) => cmd_sparse_edit(ui, command, sub_args),
     }
 }
@@ -117,20 +120,28 @@ fn cmd_sparse_set(
     let mut workspace_command = command.workspace_helper(ui)?;
     update_sparse_patterns_with(ui, &mut workspace_command, |_ui, old_patterns| {
         let mut new_patterns = HashSet::new();
-        if args.reset {
-            new_patterns.insert(RepoPathBuf::root());
-        } else {
-            if !args.clear {
-                new_patterns.extend(old_patterns.iter().cloned());
-                for path in &args.remove {
-                    new_patterns.remove(path);
-                }
-            }
-            for path in &args.add {
-                new_patterns.insert(path.to_owned());
+        if !args.clear {
+            new_patterns.extend(old_patterns.iter().cloned());
+            for path in &args.remove {
+                new_patterns.remove(path);
             }
         }
+        for path in &args.add {
+            new_patterns.insert(path.to_owned());
+        }
         Ok(new_patterns.into_iter().sorted_unstable().collect())
+    })
+}
+
+#[instrument(skip_all)]
+fn cmd_sparse_reset(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    _args: &SparseResetArgs,
+) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+    update_sparse_patterns_with(ui, &mut workspace_command, |_ui, _old_patterns| {
+        Ok(vec![RepoPathBuf::root()])
     })
 }
 
