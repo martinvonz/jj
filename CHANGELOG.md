@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `git_head` template keyword now returns an optional value instead of a
   list of 0 or 1 element.
 
+* The `jj sparse` subcommands now parse and print patterns as workspace-relative
+  paths.
+
 ### New features
 
 * Config now supports rgb hex colors (in the form `#rrggbb`) wherever existing color names are supported.
