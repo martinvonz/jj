@@ -31,14 +31,13 @@ use jj_lib::revset::{Revset, RevsetParseContext};
 use jj_lib::{git, rewrite};
 use once_cell::unsync::OnceCell;
 
-use crate::formatter::Formatter;
 use crate::template_builder::{
     self, merge_fn_map, BuildContext, CoreTemplateBuildFnTable, CoreTemplatePropertyKind,
     IntoTemplateProperty, TemplateBuildMethodFnMap, TemplateLanguage,
 };
 use crate::template_parser::{self, FunctionCallNode, TemplateParseError, TemplateParseResult};
 use crate::templater::{
-    self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateProperty,
+    self, IntoTemplate, PlainTextFormattedProperty, Template, TemplateFormatter, TemplateProperty,
     TemplatePropertyError, TemplatePropertyExt as _,
 };
 use crate::{revset_util, text_util};
@@ -669,7 +668,7 @@ impl RefName {
 }
 
 impl Template for RefName {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         write!(formatter.labeled("name"), "{}", self.name)?;
         if let Some(remote) = &self.remote {
             write!(formatter, "@")?;
@@ -687,7 +686,7 @@ impl Template for RefName {
 }
 
 impl Template for Vec<RefName> {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         templater::format_joined(formatter, self, " ")
     }
 }
@@ -837,7 +836,7 @@ impl CommitOrChangeId {
 }
 
 impl Template for CommitOrChangeId {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         write!(formatter, "{}", self.hex())
     }
 }
@@ -879,7 +878,7 @@ pub struct ShortestIdPrefix {
 }
 
 impl Template for ShortestIdPrefix {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         write!(formatter.labeled("prefix"), "{}", self.prefix)?;
         write!(formatter.labeled("rest"), "{}", self.rest)?;
         Ok(())

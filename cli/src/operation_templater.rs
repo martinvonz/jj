@@ -22,15 +22,14 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::OperationId;
 use jj_lib::operation::Operation;
 
-use crate::formatter::Formatter;
 use crate::template_builder::{
     self, merge_fn_map, BuildContext, CoreTemplateBuildFnTable, CoreTemplatePropertyKind,
     IntoTemplateProperty, TemplateBuildMethodFnMap, TemplateLanguage,
 };
 use crate::template_parser::{self, FunctionCallNode, TemplateParseResult};
 use crate::templater::{
-    IntoTemplate, PlainTextFormattedProperty, Template, TemplateProperty, TemplatePropertyExt as _,
-    TimestampRange,
+    IntoTemplate, PlainTextFormattedProperty, Template, TemplateFormatter, TemplateProperty,
+    TemplatePropertyExt as _, TimestampRange,
 };
 
 pub trait OperationTemplateLanguageExtension {
@@ -276,7 +275,7 @@ fn builtin_operation_methods() -> OperationTemplateBuildMethodFnMap<Operation> {
 }
 
 impl Template for OperationId {
-    fn format(&self, formatter: &mut dyn Formatter) -> io::Result<()> {
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         write!(formatter, "{}", self.hex())
     }
 }
