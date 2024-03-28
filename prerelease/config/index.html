@@ -2298,13 +2298,11 @@ templates.</p>
 <p>For example:
 <div class="highlight"><pre><span></span><code><span class="k">[templates]</span>
 <span class="n">log_node</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;</span>
-<span class="s1">if(self,</span>
-<span class="s1">  if(current_working_copy, &quot;@&quot;,</span>
-<span class="s1">    if(root, &quot;┴&quot;,</span>
-<span class="s1">      if(immutable, &quot;●&quot;, &quot;○&quot;)</span>
-<span class="s1">    )</span>
-<span class="s1">  ),</span>
-<span class="s1">  &quot;🮀&quot;,</span>
+<span class="s1">coalesce(</span>
+<span class="s1">  if(!self, &quot;🮀&quot;),</span>
+<span class="s1">  if(current_working_copy, &quot;@&quot;),</span>
+<span class="s1">  if(root, &quot;┴&quot;),</span>
+<span class="s1">  if(immutable, &quot;●&quot;, &quot;○&quot;),</span>
 <span class="s1">)</span>
 <span class="s1">&#39;&#39;&#39;</span>
 <span class="n">op_log_node</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;if(current_operation, &quot;@&quot;, &quot;○&quot;)&#39;</span>

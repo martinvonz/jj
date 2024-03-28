@@ -1759,6 +1759,8 @@ type</a> are available as keywords. For example,
   the content. The <code>label</code> is evaluated as a space-separated string.</li>
 <li><code>if(condition: Boolean, then: Template[, else: Template]) -&gt; Template</code>:
   Conditionally evaluate <code>then</code>/<code>else</code> template content.</li>
+<li><code>coalesce(content: Template...) -&gt; Template</code>: Returns the first <strong>non-empty</strong>
+  content.</li>
 <li><code>concat(content: Template...) -&gt; Template</code>:
   Same as <code>content_1 ++ ... ++ content_n</code>.</li>
 <li><code>separate(separator: Template, content: Template...) -&gt; Template</code>:
