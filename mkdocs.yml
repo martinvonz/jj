@@ -86,6 +86,8 @@ nav:
 
 - FAQ: 'FAQ.md'
 
+- 'Jujutsu from first principles': 'jj_first_principles.md'
+
 - "CLI Reference": 'cli-reference.md'
 
 - Testimonials: 'testimonials.md'
