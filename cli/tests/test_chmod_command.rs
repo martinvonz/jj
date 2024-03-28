@@ -234,6 +234,8 @@ fn test_chmod_file_dir_deletion_conflicts() {
     Parent commit      : zsuskuln c51c9c55 file | file
     Parent commit      : royxmykx 6b18b3c1 deletion | deletion
     Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    file    2-sided conflict including 1 deletion and an executable
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["debug", "tree", "-r=file_deletion"]);
     insta::assert_snapshot!(stdout,
