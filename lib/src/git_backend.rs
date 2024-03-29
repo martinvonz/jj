@@ -1121,10 +1121,10 @@ impl Backend for GitBackend {
                 // there are no other parents since Git cannot represent a merge between a root
                 // commit and another commit.
                 if contents.parents.len() > 1 {
-                    return Err(BackendError::Other(
+                    return Err(BackendError::Unsupported(
                         "The Git backend does not support creating merge commits with the root \
                          commit as one of the parents."
-                            .into(),
+                            .to_owned(),
                     ));
                 }
             } else {
@@ -1702,7 +1702,7 @@ mod tests {
         commit.parents = vec![first_id, backend.root_commit_id().clone()];
         assert_matches!(
             backend.write_commit(commit, None),
-            Err(BackendError::Other(err)) if err.to_string().contains("root commit")
+            Err(BackendError::Unsupported(message)) if message.contains("root commit")
         );
     }
 
