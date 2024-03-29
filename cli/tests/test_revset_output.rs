@@ -167,13 +167,15 @@ fn test_bad_function_call() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "branches(bad:pattern)"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Function "branches": Invalid string pattern kind "bad:", try prefixing with one of `exact:`, `glob:` or `substring:`
-    Caused by:  --> 1:10
+    Error: Failed to parse revset: Function "branches": Invalid string pattern
+    Caused by:
+    1:  --> 1:10
       |
     1 | branches(bad:pattern)
       |          ^---------^
       |
-      = Function "branches": Invalid string pattern kind "bad:", try prefixing with one of `exact:`, `glob:` or `substring:`
+      = Function "branches": Invalid string pattern
+    2: Invalid string pattern kind "bad:", try prefixing with one of `exact:`, `glob:` or `substring:`
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root()::whatever()"]);
