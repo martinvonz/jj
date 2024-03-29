@@ -29,7 +29,7 @@ use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
 use crate::cli_util::{
-    self, resolve_multiple_nonempty_revsets_default_single, short_commit_hash, CommandHelper,
+    resolve_multiple_nonempty_revsets_default_single, short_commit_hash, CommandHelper,
     RevisionArg, WorkspaceCommandHelper,
 };
 use crate::command_error::{user_error, CommandError};
@@ -191,9 +191,10 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
         simplify_ancestor_merge: false,
     };
     let mut workspace_command = command.workspace_helper(ui)?;
-    let new_parents = cli_util::resolve_all_revs(&workspace_command, &args.destination)?
-        .into_iter()
-        .collect_vec();
+    let new_parents =
+        resolve_multiple_nonempty_revsets_default_single(&workspace_command, &args.destination)?
+            .into_iter()
+            .collect_vec();
     if let Some(rev_str) = &args.revision {
         assert_eq!(
             // In principle, `-r --skip-empty` could mean to abandon the `-r`

@@ -1651,21 +1651,6 @@ pub fn print_trackable_remote_branches(ui: &Ui, view: &View) -> io::Result<()> {
     Ok(())
 }
 
-/// Resolves revsets into revisions for use; useful for rebases or operations
-/// that take multiple parents.
-pub fn resolve_all_revs(
-    workspace_command: &WorkspaceCommandHelper,
-    revisions: &[RevisionArg],
-) -> Result<IndexSet<Commit>, CommandError> {
-    let commits = resolve_multiple_nonempty_revsets_default_single(workspace_command, revisions)?;
-    let root_commit_id = workspace_command.repo().store().root_commit_id();
-    if commits.len() >= 2 && commits.iter().any(|c| c.id() == root_commit_id) {
-        Err(user_error("Cannot merge with root revision"))
-    } else {
-        Ok(commits)
-    }
-}
-
 pub fn resolve_multiple_nonempty_revsets_default_single(
     workspace_command: &WorkspaceCommandHelper,
     revisions: &[RevisionArg],
