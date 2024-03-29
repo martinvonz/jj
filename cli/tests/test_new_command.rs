@@ -141,7 +141,7 @@ fn test_new_merge() {
     // merge with root
     let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "@", "root()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Cannot merge with root revision
+    Error: The Git backend does not support creating merge commits with the root commit as one of the parents.
     "###);
 }
 

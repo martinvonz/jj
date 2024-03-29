@@ -22,7 +22,9 @@ use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 use jj_lib::rewrite::{merge_commit_trees, rebase_commit};
 use tracing::instrument;
 
-use crate::cli_util::{self, short_commit_hash, CommandHelper, RevisionArg};
+use crate::cli_util::{
+    resolve_multiple_nonempty_revsets_default_single, short_commit_hash, CommandHelper, RevisionArg,
+};
 use crate::command_error::{user_error, CommandError};
 use crate::description_util::join_message_paragraphs;
 use crate::ui::Ui;
@@ -98,9 +100,10 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         !args.revisions.is_empty(),
         "expected a non-empty list from clap"
     );
-    let target_commits = cli_util::resolve_all_revs(&workspace_command, &args.revisions)?
-        .into_iter()
-        .collect_vec();
+    let target_commits =
+        resolve_multiple_nonempty_revsets_default_single(&workspace_command, &args.revisions)?
+            .into_iter()
+            .collect_vec();
     let target_ids = target_commits.iter().map(|c| c.id().clone()).collect_vec();
     let mut tx = workspace_command.start_transaction();
     let mut num_rebased;
