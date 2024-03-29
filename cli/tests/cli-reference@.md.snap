@@ -1532,7 +1532,7 @@ J          J
 If a working-copy commit gets abandoned, it will be given a new, empty
 commit. This is true in general; it is not specific to this command.
 
-**Usage:** `jj rebase [OPTIONS] --destination <DESTINATION>`
+**Usage:** `jj rebase [OPTIONS] <--destination <DESTINATION>|--insert-after <INSERT_AFTER>|--insert-before <INSERT_BEFORE>>`
 
 ###### **Options:**
 
@@ -1540,6 +1540,8 @@ commit. This is true in general; it is not specific to this command.
 * `-s`, `--source <SOURCE>` — Rebase specified revision(s) together with their trees of descendants (can be repeated)
 * `-r`, `--revisions <REVISIONS>` — Rebase the given revisions, rebasing descendants onto this revision's parent(s)
 * `-d`, `--destination <DESTINATION>` — The revision(s) to rebase onto (can be repeated to create a merge commit)
+* `-A`, `--insert-after <INSERT_AFTER>` — The revision(s) to insert after (can be repeated to create a merge commit)
+* `-B`, `--insert-before <INSERT_BEFORE>` — The revision(s) to insert before (can be repeated to create a merge commit)
 * `--skip-empty` — If true, when rebasing would produce an empty commit, the commit is abandoned. It will not be abandoned if it was already empty before the rebase. Will never skip merge commits with multiple non-empty parents
 
   Possible values: `true`, `false`

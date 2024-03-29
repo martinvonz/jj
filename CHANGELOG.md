@@ -62,6 +62,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj rebase` now accepts revsets resolving to multiple revisions with the
    `--revisions`/`-r` option.
 
+* `jj rebase -r` now accepts `--insert-after` and `--insert-before` options to
+  customize the location of the rebased revisions.
+
 ### Fixed bugs
 
 * Revsets now support `\`-escapes in string literal.
