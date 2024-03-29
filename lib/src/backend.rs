@@ -200,6 +200,10 @@ pub enum BackendError {
     },
     #[error(transparent)]
     Other(Box<dyn std::error::Error + Send + Sync>),
+    /// A valid operation attempted, but failed because it isn't supported by
+    /// the particular backend.
+    #[error("{0}")]
+    Unsupported(String),
 }
 
 pub type BackendResult<T> = Result<T, BackendError>;

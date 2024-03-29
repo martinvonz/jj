@@ -314,9 +314,9 @@ fn test_bug_2600_rootcommit_special_case() {
     "###);
 
     // Now, the test
-    let stderr = test_env.jj_cmd_internal_error(&repo_path, &["abandon", "base"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["abandon", "base"]);
     insta::assert_snapshot!(stderr, @r###"
-    Internal error: Merge failed
+    Error: Merge failed
     Caused by: The Git backend does not support creating merge commits with the root commit as one of the parents.
     "###);
 }

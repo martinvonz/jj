@@ -238,7 +238,10 @@ impl From<CheckOutCommitError> for CommandError {
 
 impl From<BackendError> for CommandError {
     fn from(err: BackendError) -> Self {
-        internal_error_with_message("Unexpected error from backend", err)
+        match &err {
+            BackendError::Unsupported(_) => user_error(err),
+            _ => internal_error_with_message("Unexpected error from backend", err),
+        }
     }
 }
 
@@ -305,7 +308,11 @@ want this file to be snapshotted. Otherwise add it to your `.gitignore` file."#,
 
 impl From<TreeMergeError> for CommandError {
     fn from(err: TreeMergeError) -> Self {
-        internal_error_with_message("Merge failed", err)
+        let kind = match &err {
+            TreeMergeError::BackendError(BackendError::Unsupported(_)) => CommandErrorKind::User,
+            _ => CommandErrorKind::Internal,
+        };
+        CommandError::with_message(kind, "Merge failed", err)
     }
 }
 
