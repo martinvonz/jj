@@ -72,6 +72,14 @@ impl CommandError {
         }
     }
 
+    pub fn with_message(
+        kind: CommandErrorKind,
+        message: impl Into<String>,
+        source: impl Into<Box<dyn error::Error + Send + Sync>>,
+    ) -> Self {
+        Self::new(kind, ErrorWithMessage::new(message, source))
+    }
+
     /// Returns error with the given plain-text `hint` attached.
     pub fn hinted(mut self, hint: impl Into<String>) -> Self {
         self.add_hint(hint);
@@ -146,7 +154,7 @@ pub fn user_error_with_message(
     message: impl Into<String>,
     source: impl Into<Box<dyn error::Error + Send + Sync>>,
 ) -> CommandError {
-    user_error(ErrorWithMessage::new(message, source))
+    CommandError::with_message(CommandErrorKind::User, message, source)
 }
 
 pub fn config_error(err: impl Into<Box<dyn error::Error + Send + Sync>>) -> CommandError {
@@ -157,7 +165,7 @@ pub fn config_error_with_message(
     message: impl Into<String>,
     source: impl Into<Box<dyn error::Error + Send + Sync>>,
 ) -> CommandError {
-    config_error(ErrorWithMessage::new(message, source))
+    CommandError::with_message(CommandErrorKind::Config, message, source)
 }
 
 pub fn cli_error(err: impl Into<Box<dyn error::Error + Send + Sync>>) -> CommandError {
@@ -172,7 +180,7 @@ pub fn internal_error_with_message(
     message: impl Into<String>,
     source: impl Into<Box<dyn error::Error + Send + Sync>>,
 ) -> CommandError {
-    internal_error(ErrorWithMessage::new(message, source))
+    CommandError::with_message(CommandErrorKind::Internal, message, source)
 }
 
 fn format_similarity_hint<S: AsRef<str>>(candidates: &[S]) -> Option<String> {
