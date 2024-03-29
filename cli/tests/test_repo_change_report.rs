@@ -65,13 +65,13 @@ fn test_report_conflicts() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 1 commits onto destination
-    Rebased 2 descendant commits onto parents of rebased commits
+    Rebased 2 descendant commits
     New conflicts appeared in these commits:
-      rlvkpnrz 262c4c38 (conflict) B
       kkmpptxz d1edf578 (conflict) C
+      rlvkpnrz 262c4c38 (conflict) B
     To resolve the conflicts, start by updating to one of the first ones:
-      jj new rlvkpnrzqnoo
       jj new kkmpptxzrspx
+      jj new rlvkpnrzqnoo
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
