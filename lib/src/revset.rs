@@ -204,21 +204,9 @@ impl RevsetParseError {
         }
     }
 
-    fn with_span_and_source(
-        kind: RevsetParseErrorKind,
-        span: pest::Span<'_>,
-        source: impl Into<Box<dyn error::Error + Send + Sync>>,
-    ) -> Self {
-        let message = kind.to_string();
-        let pest_error = Box::new(pest::error::Error::new_from_span(
-            pest::error::ErrorVariant::CustomError { message },
-            span,
-        ));
-        RevsetParseError {
-            kind,
-            pest_error,
-            source: Some(source.into()),
-        }
+    fn with_source(mut self, source: impl Into<Box<dyn error::Error + Send + Sync>>) -> Self {
+        self.source = Some(source.into());
+        self
     }
 
     pub fn kind(&self) -> &RevsetParseErrorKind {
@@ -803,11 +791,11 @@ impl ParseState<'_> {
             allow_string_pattern: self.allow_string_pattern,
         };
         f(expanding_state).map_err(|e| {
-            RevsetParseError::with_span_and_source(
+            RevsetParseError::with_span(
                 RevsetParseErrorKind::BadAliasExpansion(id.to_string()),
                 span,
-                e,
             )
+            .with_source(e)
         })
     }
 }
@@ -1269,14 +1257,14 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
                     let needle = parse_function_argument_to_string(name, arg, state)?;
                     let path = RepoPathBuf::parse_fs_path(ctx.cwd, ctx.workspace_root, needle)
                         .map_err(|e| {
-                            RevsetParseError::with_span_and_source(
+                            RevsetParseError::with_span(
                                 RevsetParseErrorKind::InvalidFunctionArguments {
                                     name: name.to_owned(),
                                     message: "Invalid file pattern".to_owned(),
                                 },
                                 span,
-                                e,
                             )
+                            .with_source(e)
                         })?;
                     Ok(path)
                 })
