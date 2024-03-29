@@ -15,6 +15,7 @@
 use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use clap::ArgGroup;
@@ -126,6 +127,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 #[command(group(ArgGroup::new("to_rebase").args(&["branch", "source", "revisions"])))]
+#[command(group(ArgGroup::new("target").args(&["destination", "insert_after", "insert_before"]).required(true)))]
 pub(crate) struct RebaseArgs {
     /// Rebase the whole branch relative to destination's ancestors (can be
     /// repeated)
@@ -158,8 +160,34 @@ pub(crate) struct RebaseArgs {
     revisions: Vec<RevisionArg>,
     /// The revision(s) to rebase onto (can be repeated to create a merge
     /// commit)
-    #[arg(long, short, required = true)]
+    #[arg(long, short)]
     destination: Vec<RevisionArg>,
+    /// The revision(s) to insert after (can be repeated to create a merge
+    /// commit)
+    ///
+    /// Only works with `-r`.
+    #[arg(
+        long,
+        short = 'A',
+        visible_alias = "after",
+        conflicts_with = "destination",
+        conflicts_with = "source",
+        conflicts_with = "branch"
+    )]
+    insert_after: Vec<RevisionArg>,
+    /// The revision(s) to insert before (can be repeated to create a merge
+    /// commit)
+    ///
+    /// Only works with `-r`.
+    #[arg(
+        long,
+        short = 'B',
+        visible_alias = "before",
+        conflicts_with = "destination",
+        conflicts_with = "source",
+        conflicts_with = "branch"
+    )]
+    insert_before: Vec<RevisionArg>,
 
     /// If true, when rebasing would produce an empty commit, the commit is
     /// abandoned. It will not be abandoned if it was already empty before the
@@ -194,10 +222,6 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
         simplify_ancestor_merge: false,
     };
     let mut workspace_command = command.workspace_helper(ui)?;
-    let new_parents = workspace_command
-        .resolve_some_revsets_default_single(&args.destination)?
-        .into_iter()
-        .collect_vec();
     if !args.revisions.is_empty() {
         assert_eq!(
             // In principle, `-r --skip-empty` could mean to abandon the `-r`
@@ -218,14 +242,44 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
             .parse_union_revsets(&args.revisions)?
             .evaluate_to_commits()?
             .try_collect()?; // in reverse topological order
-        rebase_revisions(
-            ui,
-            command.settings(),
-            &mut workspace_command,
-            &new_parents,
-            &target_commits,
-        )?;
+        if !args.insert_after.is_empty() {
+            let after_commits =
+                workspace_command.resolve_some_revsets_default_single(&args.insert_after)?;
+            rebase_revisions_after(
+                ui,
+                command.settings(),
+                &mut workspace_command,
+                &after_commits,
+                &target_commits,
+            )?;
+        } else if !args.insert_before.is_empty() {
+            let before_commits =
+                workspace_command.resolve_some_revsets_default_single(&args.insert_before)?;
+            rebase_revisions_before(
+                ui,
+                command.settings(),
+                &mut workspace_command,
+                &before_commits,
+                &target_commits,
+            )?;
+        } else {
+            let new_parents = workspace_command
+                .resolve_some_revsets_default_single(&args.destination)?
+                .into_iter()
+                .collect_vec();
+            rebase_revisions(
+                ui,
+                command.settings(),
+                &mut workspace_command,
+                &new_parents,
+                &target_commits,
+            )?;
+        }
     } else if !args.source.is_empty() {
+        let new_parents = workspace_command
+            .resolve_some_revsets_default_single(&args.destination)?
+            .into_iter()
+            .collect_vec();
         let source_commits = workspace_command.resolve_some_revsets_default_single(&args.source)?;
         rebase_descendants_transaction(
             ui,
@@ -236,6 +290,10 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
             rebase_options,
         )?;
     } else {
+        let new_parents = workspace_command
+            .resolve_some_revsets_default_single(&args.destination)?
+            .into_iter()
+            .collect_vec();
         let branch_commits = if args.branch.is_empty() {
             IndexSet::from([workspace_command.resolve_single_rev(&RevisionArg::AT)?])
         } else {
@@ -383,6 +441,82 @@ fn rebase_revisions(
         workspace_command,
         &new_parents.iter().ids().cloned().collect_vec(),
         &[],
+        target_commits,
+    )
+}
+
+fn rebase_revisions_after(
+    ui: &mut Ui,
+    settings: &UserSettings,
+    workspace_command: &mut WorkspaceCommandHelper,
+    after_commits: &IndexSet<Commit>,
+    target_commits: &[Commit],
+) -> Result<(), CommandError> {
+    workspace_command.check_rewritable(target_commits.iter().ids())?;
+
+    let after_commit_ids = after_commits.iter().ids().cloned().collect_vec();
+    let new_parents_expression = RevsetExpression::commits(after_commit_ids.clone());
+    let new_children_expression = new_parents_expression.children();
+
+    ensure_no_commit_loop(
+        workspace_command.repo().as_ref(),
+        &new_children_expression,
+        &new_parents_expression,
+    )?;
+
+    let new_parent_ids = after_commit_ids;
+    let new_children: Vec<_> = new_children_expression
+        .evaluate_programmatic(workspace_command.repo().as_ref())?
+        .iter()
+        .commits(workspace_command.repo().store())
+        .try_collect()?;
+    workspace_command.check_rewritable(new_children.iter().ids())?;
+
+    move_commits_transaction(
+        ui,
+        settings,
+        workspace_command,
+        &new_parent_ids,
+        &new_children,
+        target_commits,
+    )
+}
+
+fn rebase_revisions_before(
+    ui: &mut Ui,
+    settings: &UserSettings,
+    workspace_command: &mut WorkspaceCommandHelper,
+    before_commits: &IndexSet<Commit>,
+    target_commits: &[Commit],
+) -> Result<(), CommandError> {
+    workspace_command.check_rewritable(target_commits.iter().ids())?;
+    let before_commit_ids = before_commits.iter().ids().cloned().collect_vec();
+    workspace_command.check_rewritable(&before_commit_ids)?;
+
+    let new_children_expression = RevsetExpression::commits(before_commit_ids);
+    let new_parents_expression = new_children_expression.parents();
+
+    ensure_no_commit_loop(
+        workspace_command.repo().as_ref(),
+        &new_children_expression,
+        &new_parents_expression,
+    )?;
+
+    // Not using `new_parents_expression` here to persist the order of parents
+    // specified in `before_commits`.
+    let new_parent_ids: IndexSet<_> = before_commits
+        .iter()
+        .flat_map(|commit| commit.parent_ids().iter().cloned().collect_vec())
+        .collect();
+    let new_parent_ids = new_parent_ids.into_iter().collect_vec();
+    let new_children = before_commits.iter().cloned().collect_vec();
+
+    move_commits_transaction(
+        ui,
+        settings,
+        workspace_command,
+        &new_parent_ids,
+        &new_children,
         target_commits,
     )
 }
@@ -770,6 +904,28 @@ fn move_commits(
         num_rebased_descendants,
         skipped_commits,
     ))
+}
+
+/// Ensure that there is no possible cycle between the potential children and
+/// parents of rebased commits.
+fn ensure_no_commit_loop(
+    repo: &ReadonlyRepo,
+    children_expression: &Rc<RevsetExpression>,
+    parents_expression: &Rc<RevsetExpression>,
+) -> Result<(), CommandError> {
+    if let Some(commit_id) = children_expression
+        .dag_range_to(parents_expression)
+        .evaluate_programmatic(repo)?
+        .iter()
+        .next()
+    {
+        return Err(user_error(format!(
+            "Refusing to create a loop: commit {} would be both an ancestor and a descendant of \
+             the rebased commits",
+            short_commit_hash(&commit_id),
+        )));
+    }
+    Ok(())
 }
 
 fn check_rebase_destinations(
