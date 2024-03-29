@@ -119,21 +119,9 @@ impl TemplateParseError {
         }
     }
 
-    pub fn with_span_and_source(
-        kind: TemplateParseErrorKind,
-        span: pest::Span<'_>,
-        source: impl Into<Box<dyn error::Error + Send + Sync>>,
-    ) -> Self {
-        let message = kind.to_string();
-        let pest_error = Box::new(pest::error::Error::new_from_span(
-            pest::error::ErrorVariant::CustomError { message },
-            span,
-        ));
-        TemplateParseError {
-            kind,
-            pest_error,
-            source: Some(source.into()),
-        }
+    pub fn with_source(mut self, source: impl Into<Box<dyn error::Error + Send + Sync>>) -> Self {
+        self.source = Some(source.into());
+        self
     }
 
     // TODO: migrate all callers to table-based lookup_method()
@@ -179,19 +167,19 @@ impl TemplateParseError {
         source: impl Into<Box<dyn error::Error + Send + Sync>>,
         span: pest::Span<'_>,
     ) -> Self {
-        TemplateParseError::with_span_and_source(
+        TemplateParseError::with_span(
             TemplateParseErrorKind::UnexpectedExpression(message.into()),
             span,
-            source,
         )
+        .with_source(source)
     }
 
     pub fn within_alias_expansion(self, id: TemplateAliasId<'_>, span: pest::Span<'_>) -> Self {
-        TemplateParseError::with_span_and_source(
+        TemplateParseError::with_span(
             TemplateParseErrorKind::BadAliasExpansion(id.to_string()),
             span,
-            self,
         )
+        .with_source(self)
     }
 
     /// If this is a `NoSuchKeyword` error, expands the candidates list with the
@@ -435,11 +423,8 @@ fn parse_term_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
         }
         Rule::integer_literal => {
             let value = expr.as_str().parse().map_err(|err| {
-                TemplateParseError::with_span_and_source(
-                    TemplateParseErrorKind::ParseIntError,
-                    span,
-                    err,
-                )
+                TemplateParseError::with_span(TemplateParseErrorKind::ParseIntError, span)
+                    .with_source(err)
             })?;
             ExpressionNode::new(ExpressionKind::Integer(value), span)
         }
