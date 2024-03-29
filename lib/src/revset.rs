@@ -209,6 +209,20 @@ impl RevsetParseError {
         self
     }
 
+    fn invalid_arguments(
+        name: impl Into<String>,
+        message: impl Into<String>,
+        span: pest::Span<'_>,
+    ) -> Self {
+        Self::with_span(
+            RevsetParseErrorKind::InvalidFunctionArguments {
+                name: name.into(),
+                message: message.into(),
+            },
+            span,
+        )
+    }
+
     pub fn kind(&self) -> &RevsetParseErrorKind {
         &self.kind
     }
@@ -1257,24 +1271,16 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
                     let needle = parse_function_argument_to_string(name, arg, state)?;
                     let path = RepoPathBuf::parse_fs_path(ctx.cwd, ctx.workspace_root, needle)
                         .map_err(|e| {
-                            RevsetParseError::with_span(
-                                RevsetParseErrorKind::InvalidFunctionArguments {
-                                    name: name.to_owned(),
-                                    message: "Invalid file pattern".to_owned(),
-                                },
-                                span,
-                            )
-                            .with_source(e)
+                            RevsetParseError::invalid_arguments(name, "Invalid file pattern", span)
+                                .with_source(e)
                         })?;
                     Ok(path)
                 })
                 .try_collect()?;
             if paths.is_empty() {
-                Err(RevsetParseError::with_span(
-                    RevsetParseErrorKind::InvalidFunctionArguments {
-                        name: name.to_owned(),
-                        message: "Expected at least 1 argument".to_string(),
-                    },
+                Err(RevsetParseError::invalid_arguments(
+                    name,
+                    "Expected at least 1 argument",
                     arguments_span,
                 ))
             } else {
@@ -1349,22 +1355,13 @@ fn expect_named_arguments_vec<'i>(
 ) -> Result<(Vec<Pair<'i, Rule>>, Vec<OptionalArg<'i>>), RevsetParseError> {
     assert!(argument_names.len() <= max_arg_count);
     let arguments_span = arguments_pair.as_span();
-    let make_error = |message, span| {
-        RevsetParseError::with_span(
-            RevsetParseErrorKind::InvalidFunctionArguments {
-                name: function_name.to_owned(),
-                message,
-            },
-            span,
-        )
-    };
     let make_count_error = || {
         let message = if min_arg_count == max_arg_count {
             format!("Expected {min_arg_count} arguments")
         } else {
             format!("Expected {min_arg_count} to {max_arg_count} arguments")
         };
-        make_error(message, arguments_span)
+        RevsetParseError::invalid_arguments(function_name, message, arguments_span)
     };
 
     let mut pos_iter = Some(0..max_arg_count);
@@ -1376,8 +1373,9 @@ fn expect_named_arguments_vec<'i>(
                 let pos = pos_iter
                     .as_mut()
                     .ok_or_else(|| {
-                        make_error(
-                            "Positional argument follows keyword argument".to_owned(),
+                        RevsetParseError::invalid_arguments(
+                            function_name,
+                            "Positional argument follows keyword argument",
                             span,
                         )
                     })?
@@ -1397,13 +1395,15 @@ fn expect_named_arguments_vec<'i>(
                     .iter()
                     .position(|&n| n == name.as_str())
                     .ok_or_else(|| {
-                        make_error(
+                        RevsetParseError::invalid_arguments(
+                            function_name,
                             format!(r#"Unexpected keyword argument "{}""#, name.as_str()),
                             span,
                         )
                     })?;
                 if extracted_pairs[pos].is_some() {
-                    return Err(make_error(
+                    return Err(RevsetParseError::invalid_arguments(
+                        function_name,
                         format!(r#"Got multiple values for keyword "{}""#, name.as_str()),
                         span,
                     ));
@@ -1437,16 +1437,6 @@ fn parse_function_argument_to_string_pattern(
     state: ParseState,
 ) -> Result<StringPattern, RevsetParseError> {
     let span = pair.as_span();
-    let make_error = |message| {
-        RevsetParseError::with_span(
-            RevsetParseErrorKind::InvalidFunctionArguments {
-                name: name.to_string(),
-                message,
-            },
-            span,
-        )
-    };
-    let make_type_error = || make_error("Expected function argument of string pattern".to_owned());
     let expression = {
         let mut inner_state = state;
         inner_state.allow_string_pattern = true;
@@ -1459,9 +1449,16 @@ fn parse_function_argument_to_string_pattern(
         }
         RevsetExpression::StringPattern { kind, value } => {
             // TODO: error span can be narrowed to the lhs node
-            StringPattern::from_str_kind(value, kind).map_err(|err| make_error(err.to_string()))?
+            StringPattern::from_str_kind(value, kind)
+                .map_err(|err| RevsetParseError::invalid_arguments(name, err.to_string(), span))?
         }
-        _ => return Err(make_type_error()),
+        _ => {
+            return Err(RevsetParseError::invalid_arguments(
+                name,
+                "Expected function argument of string pattern",
+                span,
+            ));
+        }
     };
     Ok(pattern)
 }
@@ -1474,11 +1471,9 @@ fn parse_function_argument_as_literal<T: FromStr>(
 ) -> Result<T, RevsetParseError> {
     let span = pair.as_span();
     let make_error = || {
-        RevsetParseError::with_span(
-            RevsetParseErrorKind::InvalidFunctionArguments {
-                name: name.to_string(),
-                message: format!("Expected function argument of type {type_name}"),
-            },
+        RevsetParseError::invalid_arguments(
+            name,
+            format!("Expected function argument of type {type_name}"),
             span,
         )
     };
