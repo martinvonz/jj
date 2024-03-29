@@ -75,8 +75,6 @@ pub struct TemplateParseError {
 pub enum TemplateParseErrorKind {
     #[error("Syntax error")]
     SyntaxError,
-    #[error("Invalid integer literal")]
-    ParseIntError,
     #[error(r#"Keyword "{name}" doesn't exist"#)]
     NoSuchKeyword {
         name: String,
@@ -405,8 +403,7 @@ fn parse_term_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
         }
         Rule::integer_literal => {
             let value = expr.as_str().parse().map_err(|err| {
-                TemplateParseError::with_span(TemplateParseErrorKind::ParseIntError, span)
-                    .with_source(err)
+                TemplateParseError::expression("Invalid integer literal", span).with_source(err)
             })?;
             ExpressionNode::new(ExpressionKind::Integer(value), span)
         }
@@ -1229,7 +1226,7 @@ mod tests {
         );
         assert_matches!(
             parse_into_kind(&format!("{}", (i64::MAX as u64) + 1)),
-            Err(TemplateParseErrorKind::ParseIntError)
+            Err(TemplateParseErrorKind::Expression(_))
         );
     }
 
