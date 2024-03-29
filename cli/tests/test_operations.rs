@@ -51,21 +51,21 @@ fn test_op_log() {
 
     // Can load the repo at a specific operation ID
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path, initialize_repo_id), @r###"
-    ◉  0000000000000000000000000000000000000000
+    ◆  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path, add_workspace_id), @r###"
     @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    ◉  0000000000000000000000000000000000000000
+    ◆  0000000000000000000000000000000000000000
     "###);
     // "@" resolves to the head operation
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path, "@"), @r###"
     @  bc8f18aa6f396a93572811632313cbb5625d475d
-    ◉  0000000000000000000000000000000000000000
+    ◆  0000000000000000000000000000000000000000
     "###);
     // "@-" resolves to the parent of the head operation
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path, "@-"), @r###"
     @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    ◉  0000000000000000000000000000000000000000
+    ◆  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "@----"]), @r###"

@@ -49,10 +49,10 @@ fn test_concurrent_operation_divergence() {
     // We should be informed about the concurrent modification
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-T", "description"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  message 2
+    ○  message 2
     │ @  message 1
     ├─╯
-    ◉
+    ◆
     "###);
     insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
@@ -92,9 +92,9 @@ fn test_concurrent_operations_auto_rebase() {
     // We should be informed about the concurrent modification
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  3f06323826b4a293a9ee6d24cc0e07ad2961b5d5 new child
+    ○  3f06323826b4a293a9ee6d24cc0e07ad2961b5d5 new child
     @  d91437157468ec86bbbc9e6a14a60d3e8d1790ac rewritten
-    ◉  0000000000000000000000000000000000000000
+    ◆  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
@@ -127,10 +127,10 @@ fn test_concurrent_operations_wc_modified() {
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
     insta::assert_snapshot!(stdout, @r###"
     @  4eb0610031b7cd148ff9f729a673a3f815033170 new child1
-    │ ◉  4b20e61d23ee7d7c4d5e61e11e97c26e716f9c30 new child2
+    │ ○  4b20e61d23ee7d7c4d5e61e11e97c26e716f9c30 new child2
     ├─╯
-    ◉  52c893bf3cd201e215b23e084e8a871244ca14d5 initial
-    ◉  0000000000000000000000000000000000000000
+    ○  52c893bf3cd201e215b23e084e8a871244ca14d5 initial
+    ◆  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
@@ -229,11 +229,11 @@ fn test_concurrent_snapshot_wc_reloadable() {
     insta::assert_snapshot!(stdout, @r###"
     @  4011424ea0a210a914f869ea3c47d76931598d1d new child2
     │  A child2
-    ◉  e08863ee7a0df688755d3d3126498afdf4f580ad new child1
+    ○  e08863ee7a0df688755d3d3126498afdf4f580ad new child1
     │  A child1
-    ◉  79989e62f8331e69a803058b57bacc264405cb65 initial
+    ○  79989e62f8331e69a803058b57bacc264405cb65 initial
     │  A base
-    ◉  0000000000000000000000000000000000000000
+    ◆  0000000000000000000000000000000000000000
     "###);
 }
 

@@ -41,13 +41,13 @@ fn test_enable_tree_level_conflicts() {
     insta::assert_snapshot!(stdout, @r###"
     @  mzvwutvl test.user@example.com 2001-02-03 08:05:11 f2101bed conflict
     │  (empty) (no description set)
-    ◉    zsuskuln test.user@example.com 2001-02-03 08:05:10 5100e4e1 conflict
+    ○    zsuskuln test.user@example.com 2001-02-03 08:05:10 5100e4e1 conflict
     ├─╮  (empty) merge
-    │ ◉  kkmpptxz test.user@example.com 2001-02-03 08:05:10 0b65c8fb
+    │ ○  kkmpptxz test.user@example.com 2001-02-03 08:05:10 0b65c8fb
     │ │  right
-    ◉ │  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 32003b88
+    ○ │  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 32003b88
     ├─╯  left
-    ◉  zzzzzzzz root() 00000000
+    ◆  zzzzzzzz root() 00000000
     "###);
 
     // Enable tree-level conflicts
@@ -58,13 +58,13 @@ fn test_enable_tree_level_conflicts() {
     insta::assert_snapshot!(stdout, @r###"
     @  mzvwutvl test.user@example.com 2001-02-03 08:05:13 51f1748d conflict
     │  (no description set)
-    ◉    zsuskuln test.user@example.com 2001-02-03 08:05:10 5100e4e1 conflict
+    ○    zsuskuln test.user@example.com 2001-02-03 08:05:10 5100e4e1 conflict
     ├─╮  (empty) merge
-    │ ◉  kkmpptxz test.user@example.com 2001-02-03 08:05:10 0b65c8fb
+    │ ○  kkmpptxz test.user@example.com 2001-02-03 08:05:10 0b65c8fb
     │ │  right
-    ◉ │  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 32003b88
+    ○ │  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 32003b88
     ├─╯  left
-    ◉  zzzzzzzz root() 00000000
+    ◆  zzzzzzzz root() 00000000
     "###);
     // ...but at least it has no diff
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff"]);
