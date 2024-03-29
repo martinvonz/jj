@@ -127,7 +127,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 #[command(group(ArgGroup::new("to_rebase").args(&["branch", "source", "revisions"])))]
-#[command(group(ArgGroup::new("target").args(&["destination", "insert_after", "insert_before"]).required(true)))]
+#[command(group(ArgGroup::new("target").args(&["destination", "insert_after", "insert_before"]).multiple(true).required(true)))]
 pub(crate) struct RebaseArgs {
     /// Rebase the whole branch relative to destination's ancestors (can be
     /// repeated)
@@ -242,7 +242,20 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
             .parse_union_revsets(&args.revisions)?
             .evaluate_to_commits()?
             .try_collect()?; // in reverse topological order
-        if !args.insert_after.is_empty() {
+        if !args.insert_after.is_empty() && !args.insert_before.is_empty() {
+            let after_commits =
+                workspace_command.resolve_some_revsets_default_single(&args.insert_after)?;
+            let before_commits =
+                workspace_command.resolve_some_revsets_default_single(&args.insert_before)?;
+            rebase_revisions_after_before(
+                ui,
+                command.settings(),
+                &mut workspace_command,
+                &after_commits,
+                &before_commits,
+                &target_commits,
+            )?;
+        } else if !args.insert_after.is_empty() {
             let after_commits =
                 workspace_command.resolve_some_revsets_default_single(&args.insert_after)?;
             rebase_revisions_after(
@@ -509,6 +522,41 @@ fn rebase_revisions_before(
         .flat_map(|commit| commit.parent_ids().iter().cloned().collect_vec())
         .collect();
     let new_parent_ids = new_parent_ids.into_iter().collect_vec();
+    let new_children = before_commits.iter().cloned().collect_vec();
+
+    move_commits_transaction(
+        ui,
+        settings,
+        workspace_command,
+        &new_parent_ids,
+        &new_children,
+        target_commits,
+    )
+}
+
+fn rebase_revisions_after_before(
+    ui: &mut Ui,
+    settings: &UserSettings,
+    workspace_command: &mut WorkspaceCommandHelper,
+    after_commits: &IndexSet<Commit>,
+    before_commits: &IndexSet<Commit>,
+    target_commits: &[Commit],
+) -> Result<(), CommandError> {
+    workspace_command.check_rewritable(target_commits.iter().ids())?;
+    let before_commit_ids = before_commits.iter().ids().cloned().collect_vec();
+    workspace_command.check_rewritable(&before_commit_ids)?;
+
+    let after_commit_ids = after_commits.iter().ids().cloned().collect_vec();
+    let new_children_expression = RevsetExpression::commits(before_commit_ids);
+    let new_parents_expression = RevsetExpression::commits(after_commit_ids.clone());
+
+    ensure_no_commit_loop(
+        workspace_command.repo().as_ref(),
+        &new_children_expression,
+        &new_parents_expression,
+    )?;
+
+    let new_parent_ids = after_commit_ids;
     let new_children = before_commits.iter().cloned().collect_vec();
 
     move_commits_transaction(

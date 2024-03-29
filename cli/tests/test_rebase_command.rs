@@ -2086,6 +2086,172 @@ fn test_rebase_revisions_before() {
 }
 
 #[test]
+fn test_rebase_revisions_after_before() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "a", &[]);
+    create_commit(&test_env, &repo_path, "b1", &["a"]);
+    create_commit(&test_env, &repo_path, "b2", &["a"]);
+    create_commit(&test_env, &repo_path, "c", &["b1", "b2"]);
+    create_commit(&test_env, &repo_path, "d", &["c"]);
+    create_commit(&test_env, &repo_path, "e", &["c"]);
+    create_commit(&test_env, &repo_path, "f", &["e"]);
+    // Test the setup
+    insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
+    @  f  lylxulpl  88f778c5
+    ◉  e  kmkuslsw  48dd9e3f
+    │ ◉  d  znkkpsqq  92438fc9
+    ├─╯
+    ◉    c  vruxwmqv  c41e416e
+    ├─╮
+    │ ◉  b2  royxmykx  903ab0d6
+    ◉ │  b1  zsuskuln  072d5ae1
+    ├─╯
+    ◉  a  rlvkpnrz  2443ea76
+    ◉    zzzzzzzz  00000000
+    "###);
+    let setup_opid = test_env.current_operation_id(&repo_path);
+
+    // Rebase a commit after another commit and before that commit's child to
+    // insert directly between the two commits.
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["rebase", "-r", "d", "--after", "e", "--before", "f"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 1 commits onto destination
+    Rebased 1 descendant commits
+    Working copy now at: lylxulpl fe3d8c30 f | f
+    Parent commit      : znkkpsqq cca70ee1 d | d
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
+    @  f  lylxulpl  fe3d8c30
+    ◉  d  znkkpsqq  cca70ee1
+    ◉  e  kmkuslsw  48dd9e3f
+    ◉    c  vruxwmqv  c41e416e
+    ├─╮
+    │ ◉  b2  royxmykx  903ab0d6
+    ◉ │  b1  zsuskuln  072d5ae1
+    ├─╯
+    ◉  a  rlvkpnrz  2443ea76
+    ◉    zzzzzzzz  00000000
+    "###);
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+
+    // Rebase a commit after another commit and before that commit's descendant to
+    // create a new merge commit.
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["rebase", "-r", "d", "--after", "a", "--before", "f"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 1 commits onto destination
+    Rebased 1 descendant commits
+    Working copy now at: lylxulpl 22f0323c f | f
+    Parent commit      : kmkuslsw 48dd9e3f e | e
+    Parent commit      : znkkpsqq 61388bb6 d | d
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
+    @    f  lylxulpl  22f0323c
+    ├─╮
+    │ ◉  d  znkkpsqq  61388bb6
+    ◉ │  e  kmkuslsw  48dd9e3f
+    ◉ │    c  vruxwmqv  c41e416e
+    ├───╮
+    │ │ ◉  b2  royxmykx  903ab0d6
+    │ ├─╯
+    ◉ │  b1  zsuskuln  072d5ae1
+    ├─╯
+    ◉  a  rlvkpnrz  2443ea76
+    ◉    zzzzzzzz  00000000
+    "###);
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+
+    // "c" has parents "b1" and "b2", so when it is rebased, its children "d" and
+    // "e" should have "b1" and "b2" as parents as well. "c" is then inserted in
+    // between "d" and "e", making "e" a merge commit with 3 parents "b1", "b2",
+    // and "c".
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["rebase", "-r", "c", "--after", "d", "--before", "e"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 1 commits onto destination
+    Rebased 3 descendant commits
+    Working copy now at: lylxulpl e37682c5 f | f
+    Parent commit      : kmkuslsw 9bbc9e53 e | e
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
+    @  f  lylxulpl  e37682c5
+    ◉      e  kmkuslsw  9bbc9e53
+    ├─┬─╮
+    │ │ ◉  c  vruxwmqv  e11c7c95
+    │ │ ◉  d  znkkpsqq  37869bd5
+    ╭─┬─╯
+    │ ◉  b2  royxmykx  903ab0d6
+    ◉ │  b1  zsuskuln  072d5ae1
+    ├─╯
+    ◉  a  rlvkpnrz  2443ea76
+    ◉    zzzzzzzz  00000000
+    "###);
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+
+    // Rebase multiple commits and preserve their ancestry. Apart from the heads of
+    // the target commits ("d" and "e"), "f" also has commits "b1" and "b2" as
+    // parents since its parents "d" and "e" were in the target set and were
+    // replaced by their closest ancestors outside the target set.
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "rebase", "-r", "c", "-r", "d", "-r", "e", "--after", "a", "--before", "f",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 3 commits onto destination
+    Rebased 1 descendant commits
+    Working copy now at: lylxulpl 868f6c61 f | f
+    Parent commit      : zsuskuln 072d5ae1 b1 | b1
+    Parent commit      : royxmykx 903ab0d6 b2 | b2
+    Parent commit      : znkkpsqq ae6181e6 d | d
+    Parent commit      : kmkuslsw a55a6779 e | e
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
+    @        f  lylxulpl  868f6c61
+    ├─┬─┬─╮
+    │ │ │ ◉  e  kmkuslsw  a55a6779
+    │ │ ◉ │  d  znkkpsqq  ae6181e6
+    │ │ ├─╯
+    │ │ ◉  c  vruxwmqv  22540859
+    │ ◉ │  b2  royxmykx  903ab0d6
+    │ ├─╯
+    ◉ │  b1  zsuskuln  072d5ae1
+    ├─╯
+    ◉  a  rlvkpnrz  2443ea76
+    ◉    zzzzzzzz  00000000
+    "###);
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+
+    // Should error if a loop will be created.
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &["rebase", "-r", "e", "--after", "c", "--before", "a"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Refusing to create a loop: commit c41e416ee4cf would be both an ancestor and a descendant of the rebased commits
+    "###);
+}
+
+#[test]
 fn test_rebase_skip_empty() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
