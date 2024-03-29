@@ -1449,8 +1449,10 @@ fn parse_function_argument_to_string_pattern(
         }
         RevsetExpression::StringPattern { kind, value } => {
             // TODO: error span can be narrowed to the lhs node
-            StringPattern::from_str_kind(value, kind)
-                .map_err(|err| RevsetParseError::invalid_arguments(name, err.to_string(), span))?
+            StringPattern::from_str_kind(value, kind).map_err(|err| {
+                RevsetParseError::invalid_arguments(name, "Invalid string pattern", span)
+                    .with_source(err)
+            })?
         }
         _ => {
             return Err(RevsetParseError::invalid_arguments(
@@ -2926,7 +2928,7 @@ mod tests {
             parse(r#"branches(bad:"foo")"#),
             Err(RevsetParseErrorKind::InvalidFunctionArguments {
                 name: "branches".to_owned(),
-                message: r#"Invalid string pattern kind "bad:", try prefixing with one of `exact:`, `glob:` or `substring:`"#.to_owned()
+                message: "Invalid string pattern".to_owned()
             })
         );
         assert_eq!(
