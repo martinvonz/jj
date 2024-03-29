@@ -636,10 +636,13 @@ fn evaluate_immutable_revset<'repo>(
     // It's usually smaller than the immutable set. The revset engine can also
     // optimize "::<recent_heads>" query to use bitset-based implementation.
     let expression = revset_util::parse_immutable_expression(&language.revset_parse_context)
-        .map_err(|err| TemplateParseError::other("Failed to parse revset", err, span))?;
+        .map_err(|err| {
+            TemplateParseError::expression("Failed to parse revset", span).with_source(err)
+        })?;
     let symbol_resolver = revset_util::default_symbol_resolver(repo, language.id_prefix_context);
-    let revset = revset_util::evaluate(repo, &symbol_resolver, expression)
-        .map_err(|err| TemplateParseError::other("Failed to evaluate revset", err, span))?;
+    let revset = revset_util::evaluate(repo, &symbol_resolver, expression).map_err(|err| {
+        TemplateParseError::expression("Failed to evaluate revset", span).with_source(err)
+    })?;
     Ok(revset)
 }
 
