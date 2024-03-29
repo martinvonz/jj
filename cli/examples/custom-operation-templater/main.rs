@@ -68,7 +68,7 @@ impl OperationTemplateLanguageExtension for HexCounter {
                         let chars: Vec<_> = string.chars().collect();
                         match chars[..] {
                             [ch] => Ok(ch),
-                            _ => Err(TemplateParseError::unexpected_expression(
+                            _ => Err(TemplateParseError::expression(
                                 "Expected singular character argument",
                                 span,
                             )),

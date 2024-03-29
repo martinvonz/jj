@@ -98,7 +98,7 @@ pub enum TemplateParseErrorKind {
     #[error("Redefinition of function parameter")]
     RedefinedFunctionParameter,
     #[error("{0}")]
-    UnexpectedExpression(String),
+    Expression(String),
     #[error(r#"Alias "{0}" cannot be expanded"#)]
     BadAliasExpansion(String),
     #[error(r#"Alias "{0}" expanded recursively"#)]
@@ -151,27 +151,12 @@ impl TemplateParseError {
 
     pub fn expected_type(type_name: &str, span: pest::Span<'_>) -> Self {
         let message = format!(r#"Expected expression of type "{type_name}""#);
-        TemplateParseError::unexpected_expression(message, span)
+        TemplateParseError::expression(message, span)
     }
 
-    pub fn unexpected_expression(message: impl Into<String>, span: pest::Span<'_>) -> Self {
-        TemplateParseError::with_span(
-            TemplateParseErrorKind::UnexpectedExpression(message.into()),
-            span,
-        )
-    }
-
-    /// Some other expression error with the underlying error `source`.
-    pub fn other(
-        message: impl Into<String>,
-        source: impl Into<Box<dyn error::Error + Send + Sync>>,
-        span: pest::Span<'_>,
-    ) -> Self {
-        TemplateParseError::with_span(
-            TemplateParseErrorKind::UnexpectedExpression(message.into()),
-            span,
-        )
-        .with_source(source)
+    /// Some other expression error.
+    pub fn expression(message: impl Into<String>, span: pest::Span<'_>) -> Self {
+        TemplateParseError::with_span(TemplateParseErrorKind::Expression(message.into()), span)
     }
 
     pub fn within_alias_expansion(self, id: TemplateAliasId<'_>, span: pest::Span<'_>) -> Self {
@@ -328,10 +313,7 @@ fn parse_identifier_name(pair: Pair<Rule>) -> TemplateParseResult<&str> {
     if let ExpressionKind::Identifier(name) = parse_identifier_or_literal(pair) {
         Ok(name)
     } else {
-        Err(TemplateParseError::unexpected_expression(
-            "Expected identifier",
-            span,
-        ))
+        Err(TemplateParseError::expression("Expected identifier", span))
     }
 }
 
@@ -853,7 +835,7 @@ pub fn expect_string_literal_with<'a, 'i, T>(
         | ExpressionKind::Concat(_)
         | ExpressionKind::FunctionCall(_)
         | ExpressionKind::MethodCall(_)
-        | ExpressionKind::Lambda(_) => Err(TemplateParseError::unexpected_expression(
+        | ExpressionKind::Lambda(_) => Err(TemplateParseError::expression(
             "Expected string literal",
             node.span,
         )),
@@ -877,7 +859,7 @@ pub fn expect_lambda_with<'a, 'i, T>(
         | ExpressionKind::Binary(..)
         | ExpressionKind::Concat(_)
         | ExpressionKind::FunctionCall(_)
-        | ExpressionKind::MethodCall(_) => Err(TemplateParseError::unexpected_expression(
+        | ExpressionKind::MethodCall(_) => Err(TemplateParseError::expression(
             "Expected lambda expression",
             node.span,
         )),

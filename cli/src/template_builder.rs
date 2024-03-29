@@ -682,9 +682,8 @@ fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
             let [format_node] = template_parser::expect_exact_arguments(function)?;
             let format =
                 template_parser::expect_string_literal_with(format_node, |format, span| {
-                    time_util::FormattingItems::parse(format).ok_or_else(|| {
-                        TemplateParseError::unexpected_expression("Invalid time format", span)
-                    })
+                    time_util::FormattingItems::parse(format)
+                        .ok_or_else(|| TemplateParseError::expression("Invalid time format", span))
                 })?
                 .into_owned();
             let out_property = self_property.and_then(move |timestamp| {
@@ -847,7 +846,7 @@ where
         if let [name] = lambda.params.as_slice() {
             local_variables.insert(name, &item_fn);
         } else {
-            return Err(TemplateParseError::unexpected_expression(
+            return Err(TemplateParseError::expression(
                 "Expected 1 lambda parameters",
                 lambda.params_span,
             ));
@@ -1028,7 +1027,7 @@ pub fn build_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
             expression.labels.push(method.function.name.to_owned());
             Ok(expression)
         }
-        ExpressionKind::Lambda(_) => Err(TemplateParseError::unexpected_expression(
+        ExpressionKind::Lambda(_) => Err(TemplateParseError::expression(
             "Lambda cannot be defined here",
             node.span,
         )),
