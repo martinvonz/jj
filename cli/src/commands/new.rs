@@ -96,10 +96,6 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         ));
     }
     let mut workspace_command = command.workspace_helper(ui)?;
-    assert!(
-        !args.revisions.is_empty(),
-        "expected a non-empty list from clap"
-    );
     let target_commits =
         resolve_multiple_nonempty_revsets_default_single(&workspace_command, &args.revisions)?
             .into_iter()
