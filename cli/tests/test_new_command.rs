@@ -417,26 +417,10 @@ fn test_new_insert_before_no_root_merge() {
     ◉  root
     "###);
 
-    let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["new", "--insert-before", "-m", "G", "B", "D"]);
-    insta::assert_snapshot!(stdout, @"");
+    let stderr =
+        test_env.jj_cmd_failure(&repo_path, &["new", "--insert-before", "-m", "G", "B", "D"]);
     insta::assert_snapshot!(stderr, @r###"
-    Rebased 4 descendant commits
-    Working copy now at: kxryzmor bf9fc493 (empty) G
-    Parent commit      : qpvuntsm 65b1ef43 A | (empty) A
-    "###);
-    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
-    ◉    F
-    ├─╮
-    │ ◉  E
-    ◉ │  D
-    │ │ ◉  C
-    │ │ ◉  B
-    ├───╯
-    @ │  G
-    ◉ │  A
-    ├─╯
-    ◉  root
+    Error: The Git backend does not support creating merge commits with the root commit as one of the parents.
     "###);
 }
 
