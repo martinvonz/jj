@@ -35,13 +35,9 @@ use crate::repo_path::RepoPath;
 use crate::revset::{RevsetExpression, RevsetIteratorExt};
 use crate::settings::UserSettings;
 use crate::store::Store;
-use crate::tree::TreeMergeError;
 
 #[instrument(skip(repo))]
-pub fn merge_commit_trees(
-    repo: &dyn Repo,
-    commits: &[Commit],
-) -> Result<MergedTree, TreeMergeError> {
+pub fn merge_commit_trees(repo: &dyn Repo, commits: &[Commit]) -> BackendResult<MergedTree> {
     merge_commit_trees_without_repo(repo.store(), repo.index(), commits)
 }
 
@@ -50,7 +46,7 @@ pub fn merge_commit_trees_without_repo(
     store: &Arc<Store>,
     index: &dyn Index,
     commits: &[Commit],
-) -> Result<MergedTree, TreeMergeError> {
+) -> BackendResult<MergedTree> {
     if commits.is_empty() {
         Ok(store.get_root_tree(&store.empty_merged_tree_id())?)
     } else {
@@ -104,7 +100,7 @@ pub fn rebase_commit(
     mut_repo: &mut MutableRepo,
     old_commit: &Commit,
     new_parents: &[Commit],
-) -> Result<Commit, TreeMergeError> {
+) -> BackendResult<Commit> {
     let rebased_commit = rebase_commit_with_options(
         settings,
         mut_repo,
@@ -129,7 +125,7 @@ pub fn rebase_commit_with_options(
     old_commit: &Commit,
     new_parents: &[Commit],
     options: &RebaseOptions,
-) -> Result<RebasedCommit, TreeMergeError> {
+) -> BackendResult<RebasedCommit> {
     // If specified, don't create commit where one parent is an ancestor of another.
     let simplified_new_parents;
     let new_parents = if options.simplify_ancestor_merge {
@@ -213,7 +209,7 @@ pub fn rebase_to_dest_parent(
     repo: &dyn Repo,
     source: &Commit,
     destination: &Commit,
-) -> Result<MergedTree, TreeMergeError> {
+) -> BackendResult<MergedTree> {
     if source.parent_ids() == destination.parent_ids() {
         Ok(source.tree()?)
     } else {
@@ -230,7 +226,7 @@ pub fn back_out_commit(
     mut_repo: &mut MutableRepo,
     old_commit: &Commit,
     new_parents: &[Commit],
-) -> Result<Commit, TreeMergeError> {
+) -> BackendResult<Commit> {
     let old_base_tree = merge_commit_trees(mut_repo, &old_commit.parents())?;
     let new_base_tree = merge_commit_trees(mut_repo, new_parents)?;
     let old_tree = old_commit.tree()?;
@@ -240,10 +236,10 @@ pub fn back_out_commit(
         .map(|commit| commit.id().clone())
         .collect();
     // TODO: i18n the description based on repo language
-    Ok(mut_repo
+    mut_repo
         .new_commit(settings, new_parent_ids, new_tree.id())
         .set_description(format!("backout of commit {}", &old_commit.id().hex()))
-        .write()?)
+        .write()
 }
 
 #[derive(Clone, Default, PartialEq, Eq, Debug)]
@@ -437,7 +433,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         Ok(())
     }
 
-    fn rebase_one(&mut self, old_commit: Commit) -> Result<(), TreeMergeError> {
+    fn rebase_one(&mut self, old_commit: Commit) -> BackendResult<()> {
         let old_commit_id = old_commit.id().clone();
         assert!(!self.mut_repo.parent_mapping.contains_key(&old_commit_id));
         let old_parent_ids = old_commit.parent_ids();
@@ -506,7 +502,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         self.mut_repo.set_view(view);
     }
 
-    pub fn rebase_all(&mut self) -> Result<(), TreeMergeError> {
+    pub fn rebase_all(&mut self) -> BackendResult<()> {
         while let Some(old_commit) = self.to_visit.pop() {
             self.rebase_one(old_commit)?;
         }

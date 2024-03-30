@@ -30,7 +30,6 @@ use jj_lib::revset::{
     RevsetEvaluationError, RevsetParseError, RevsetParseErrorKind, RevsetResolutionError,
 };
 use jj_lib::signing::SignInitError;
-use jj_lib::tree::TreeMergeError;
 use jj_lib::working_copy::{ResetError, SnapshotError, WorkingCopyStateError};
 use jj_lib::workspace::WorkspaceInitError;
 use thiserror::Error;
@@ -303,16 +302,6 @@ want this file to be snapshotted. Otherwise add it to your `.gitignore` file."#,
             }
             err => internal_error_with_message("Failed to snapshot the working copy", err),
         }
-    }
-}
-
-impl From<TreeMergeError> for CommandError {
-    fn from(err: TreeMergeError) -> Self {
-        let kind = match &err {
-            TreeMergeError::BackendError(BackendError::Unsupported(_)) => CommandErrorKind::User,
-            _ => CommandErrorKind::Internal,
-        };
-        CommandError::with_message(kind, "Merge failed", err)
     }
 }
 
