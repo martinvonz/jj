@@ -827,6 +827,7 @@ impl MutableRepo {
     pub fn set_rewritten_commit(&mut self, old_id: CommitId, new_id: CommitId) {
         assert_ne!(old_id, *self.store().root_commit_id());
         self.divergent.remove(&old_id);
+        self.abandoned.remove(&old_id);
         self.parent_mapping.insert(old_id, vec![new_id]);
     }
 
@@ -843,6 +844,7 @@ impl MutableRepo {
         new_ids: impl IntoIterator<Item = CommitId>,
     ) {
         assert_ne!(old_id, *self.store().root_commit_id());
+        self.abandoned.remove(&old_id);
         self.parent_mapping
             .insert(old_id.clone(), new_ids.into_iter().collect());
         self.divergent.insert(old_id);
