@@ -134,8 +134,8 @@ pub(crate) struct RebaseArgs {
     #[arg(long, short)]
     branch: Vec<RevisionArg>,
 
-    /// Rebase specified revision(s) together their tree of descendants (can be
-    /// repeated)
+    /// Rebase specified revision(s) together with their trees of descendants
+    /// (can be repeated)
     ///
     /// Each specified revision will become a direct child of the destination
     /// revision(s), even if some of the source revisions are descendants
