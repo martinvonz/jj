@@ -488,35 +488,19 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     }
 
     fn update_heads(&mut self) {
-        let new_commits: HashSet<_> = self
-            .mut_repo
-            .parent_mapping
-            .values()
-            .flatten()
-            .cloned()
-            .collect();
-
         let old_commits_expression =
             RevsetExpression::commits(self.mut_repo.parent_mapping.keys().cloned().collect());
         let heads_to_add_expression = old_commits_expression
             .parents()
             .minus(&old_commits_expression);
-        let mut heads_to_add: HashSet<_> = heads_to_add_expression
+        let heads_to_add: HashSet<_> = heads_to_add_expression
             .evaluate_programmatic(self.mut_repo)
             .unwrap()
             .iter()
             .collect();
 
-        let mut heads_to_remove = vec![];
-        for old_parent_id in self.mut_repo.parent_mapping.keys() {
-            heads_to_add.remove(old_parent_id);
-            if !new_commits.contains(old_parent_id) || self.rebased.contains_key(old_parent_id) {
-                heads_to_remove.push(old_parent_id.clone());
-            }
-        }
-
         let mut view = self.mut_repo.view().store_view().clone();
-        for commit_id in &heads_to_remove {
+        for commit_id in self.mut_repo.parent_mapping.keys() {
             view.head_ids.remove(commit_id);
         }
         view.head_ids.extend(heads_to_add);
