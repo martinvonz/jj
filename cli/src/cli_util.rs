@@ -2137,6 +2137,16 @@ pub struct EarlyArgs {
     /// When to colorize output (always, never, auto)
     #[arg(long, value_name = "WHEN", global = true)]
     pub color: Option<ColorChoice>,
+    /// Silence non-primary command output
+    ///
+    /// For example, `jj files` will still list files, but it won't tell you if
+    /// the working copy was snapshotted or if descendants were rebased.
+    ///
+    /// Warnings and errors will still be printed.
+    #[arg(long, global = true, action = ArgAction::SetTrue)]
+    // Parsing with ignore_errors will crash if this is bool, so use
+    // Option<bool>.
+    pub quiet: Option<bool>,
     /// Disable the pager
     #[arg(long, value_name = "WHEN", global = true, action = ArgAction::SetTrue)]
     // Parsing with ignore_errors will crash if this is bool, so use
@@ -2305,6 +2315,9 @@ fn handle_early_args(
 
     if let Some(choice) = args.color {
         args.config_toml.push(format!(r#"ui.color="{choice}""#));
+    }
+    if args.quiet.unwrap_or_default() {
+        args.config_toml.push(r#"ui.quiet=true"#.to_string());
     }
     if args.no_pager.unwrap_or_default() {
         args.config_toml.push(r#"ui.paginate="never""#.to_owned());

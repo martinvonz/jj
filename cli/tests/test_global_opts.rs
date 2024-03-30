@@ -442,6 +442,19 @@ fn test_color_ui_messages() {
 }
 
 #[test]
+fn test_quiet() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Can skip message about new working copy with `--quiet`
+    std::fs::write(repo_path.join("file1"), "contents").unwrap();
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["--quiet", "describe", "-m=new description"]);
+    insta::assert_snapshot!(stderr, @"");
+}
+
+#[test]
 fn test_early_args() {
     // Test that help output parses early args
     let test_env = TestEnvironment::default();
@@ -535,6 +548,7 @@ fn test_help() {
           --at-operation <AT_OPERATION>  Operation to load the repo at [default: @] [aliases: at-op]
           --debug                        Enable debug logging
           --color <WHEN>                 When to colorize output (always, never, auto)
+          --quiet                        Silence non-primary command output
           --no-pager                     Disable the pager
           --config-toml <TOML>           Additional configuration options (can be repeated)
     "###);

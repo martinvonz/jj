@@ -163,6 +163,7 @@ impl Write for UiStderr<'_> {
 
 pub struct Ui {
     color: bool,
+    quiet: bool,
     pager_cmd: CommandNameAndArgs,
     paginate: PaginationChoice,
     progress_indicator: bool,
@@ -222,6 +223,10 @@ fn use_color(choice: ColorChoice) -> bool {
     }
 }
 
+fn be_quiet(config: &config::Config) -> bool {
+    config.get_bool("ui.quiet").unwrap_or_default()
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Deserialize)]
 #[serde(rename_all(deserialize = "kebab-case"))]
 pub enum PaginationChoice {
@@ -245,6 +250,7 @@ fn pager_setting(config: &config::Config) -> Result<CommandNameAndArgs, CommandE
 impl Ui {
     pub fn with_config(config: &config::Config) -> Result<Ui, CommandError> {
         let color = use_color(color_setting(config));
+        let quiet = be_quiet(config);
         // Sanitize ANSI escape codes if we're printing to a terminal. Doesn't affect
         // ANSI escape codes that originate from the formatter itself.
         let sanitize = io::stdout().is_terminal();
@@ -252,6 +258,7 @@ impl Ui {
         let progress_indicator = progress_indicator_setting(config);
         Ok(Ui {
             color,
+            quiet,
             formatter_factory,
             pager_cmd: pager_setting(config)?,
             paginate: pagination_setting(config)?,
@@ -262,6 +269,7 @@ impl Ui {
 
     pub fn reset(&mut self, config: &config::Config) -> Result<(), CommandError> {
         self.color = use_color(color_setting(config));
+        self.quiet = be_quiet(config);
         self.paginate = pagination_setting(config)?;
         self.pager_cmd = pager_setting(config)?;
         self.progress_indicator = progress_indicator_setting(config);
@@ -375,14 +383,17 @@ impl Ui {
 
     /// Writer to print an update that's not part of the command's main output.
     pub fn status(&self) -> Box<dyn Write + '_> {
-        Box::new(self.stderr())
+        if self.quiet {
+            Box::new(std::io::sink())
+        } else {
+            Box::new(self.stderr())
+        }
     }
 
     /// A formatter to print an update that's not part of the command's main
     /// output. Returns `None` if `--quiet` was requested.
-    // TODO: Actually support `--quiet`
     pub fn status_formatter(&self) -> Option<Box<dyn Formatter + '_>> {
-        Some(self.stderr_formatter())
+        (!self.quiet).then(|| self.stderr_formatter())
     }
 
     /// Writer to print hint with the default "Hint: " heading.
@@ -394,7 +405,7 @@ impl Ui {
 
     /// Writer to print hint without the "Hint: " heading.
     pub fn hint_no_heading(&self) -> Option<LabeledWriter<Box<dyn Formatter + '_>, &'static str>> {
-        Some(LabeledWriter::new(self.stderr_formatter(), "hint"))
+        (!self.quiet).then(|| LabeledWriter::new(self.stderr_formatter(), "hint"))
     }
 
     /// Writer to print hint with the given heading.
@@ -402,11 +413,7 @@ impl Ui {
         &self,
         heading: H,
     ) -> Option<HeadingLabeledWriter<Box<dyn Formatter + '_>, &'static str, H>> {
-        Some(HeadingLabeledWriter::new(
-            self.stderr_formatter(),
-            "hint",
-            heading,
-        ))
+        (!self.quiet).then(|| HeadingLabeledWriter::new(self.stderr_formatter(), "hint", heading))
     }
 
     /// Writer to print warning with the default "Warning: " heading.
