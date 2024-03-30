@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::io::Write;
 use std::sync::Arc;
@@ -30,7 +31,7 @@ use tracing::instrument;
 
 use crate::cli_util::{
     resolve_multiple_nonempty_revsets_default_single, short_commit_hash, CommandHelper,
-    RevisionArg, WorkspaceCommandHelper,
+    RevisionArg, WorkspaceCommandHelper, WorkspaceCommandTransaction,
 };
 use crate::command_error::{user_error, CommandError};
 use crate::formatter::Formatter;
@@ -222,7 +223,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
     } else if !args.source.is_empty() {
         let source_commits =
             resolve_multiple_nonempty_revsets_default_single(&workspace_command, &args.source)?;
-        rebase_descendants(
+        rebase_descendants_transaction(
             ui,
             command.settings(),
             &mut workspace_command,
@@ -273,7 +274,7 @@ fn rebase_branch(
         .iter()
         .commits(workspace_command.repo().store())
         .try_collect()?;
-    rebase_descendants(
+    rebase_descendants_transaction(
         ui,
         settings,
         workspace_command,
@@ -283,7 +284,30 @@ fn rebase_branch(
     )
 }
 
-fn rebase_descendants(
+/// Rebases `old_commits` onto `new_parents`.
+pub fn rebase_descendants(
+    tx: &mut WorkspaceCommandTransaction,
+    settings: &UserSettings,
+    new_parents: &[Commit],
+    old_commits: &[impl Borrow<Commit>],
+    rebase_options: RebaseOptions,
+) -> Result<usize, CommandError> {
+    for old_commit in old_commits.iter() {
+        rebase_commit_with_options(
+            settings,
+            tx.mut_repo(),
+            old_commit.borrow(),
+            new_parents,
+            &rebase_options,
+        )?;
+    }
+    let num_rebased = old_commits.len()
+        + tx.mut_repo()
+            .rebase_descendants_with_options(settings, rebase_options)?;
+    Ok(num_rebased)
+}
+
+fn rebase_descendants_transaction(
     ui: &mut Ui,
     settings: &UserSettings,
     workspace_command: &mut WorkspaceCommandHelper,
@@ -307,20 +331,8 @@ fn rebase_descendants(
         check_rebase_destinations(workspace_command.repo(), new_parents, old_commit)?;
     }
     let mut tx = workspace_command.start_transaction();
-    // `rebase_descendants` takes care of sorting in reverse topological order, so
-    // no need to do it here.
-    for old_commit in old_commits.iter() {
-        rebase_commit_with_options(
-            settings,
-            tx.mut_repo(),
-            old_commit,
-            new_parents,
-            &rebase_options,
-        )?;
-    }
-    let num_rebased = old_commits.len()
-        + tx.mut_repo()
-            .rebase_descendants_with_options(settings, rebase_options)?;
+    let num_rebased =
+        rebase_descendants(&mut tx, settings, new_parents, &old_commits, rebase_options)?;
     writeln!(ui.status(), "Rebased {num_rebased} commits")?;
     let tx_message = if old_commits.len() == 1 {
         format!(
