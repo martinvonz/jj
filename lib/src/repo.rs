@@ -727,21 +727,27 @@ impl RepoLoader {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RewriteType {
+    Rewritten,
+    Divergent,
+    Abandoned,
+}
+
 pub struct MutableRepo {
     base_repo: Arc<ReadonlyRepo>,
     index: Box<dyn MutableIndex>,
     view: DirtyCell<View>,
     // TODO: make these fields private again
-    // The commit identified by the key has been replaced by all the ones in the value, typically
-    // because the key commit was abandoned (the value commits are then the abandoned commit's
-    // parents). A child of the key commit should be rebased onto all the value commits. A branch
-    // pointing to the key commit should become a conflict pointing to all the value commits.
-    pub(crate) parent_mapping: HashMap<CommitId, Vec<CommitId>>,
-    /// Commits with a key in `parent_mapping` that have been divergently
-    /// rewritten into all the commits indicated by the value.
-    pub(crate) divergent: HashSet<CommitId>,
-    // Commits that were abandoned. Their children should be rebased onto their parents.
-    pub(crate) abandoned: HashSet<CommitId>,
+    // The commit identified by the key has been replaced by all the ones in the value.
+    // * Branches pointing to the old commit should be updated to the new commit, resulting in a
+    //   conflict if there multiple new commits.
+    // * Children of the old commit should be rebased onto the new commits. However, if the type is
+    //   `Divergent`, they should be left in place.
+    // * Working copies pointing to the old commit should be updated to the first of the new
+    //   commits. However, if the type is `Abandoned`, a new working-copy commit should be created
+    //   on top of all of the new commits instead.
+    pub(crate) parent_mapping: HashMap<CommitId, (RewriteType, Vec<CommitId>)>,
 }
 
 impl MutableRepo {
@@ -757,8 +763,6 @@ impl MutableRepo {
             index: mut_index,
             view: DirtyCell::with_clean(mut_view),
             parent_mapping: Default::default(),
-            divergent: Default::default(),
-            abandoned: Default::default(),
         }
     }
 
@@ -775,9 +779,7 @@ impl MutableRepo {
     }
 
     pub fn has_changes(&self) -> bool {
-        !(self.abandoned.is_empty()
-            && self.parent_mapping.is_empty()
-            && self.view() == &self.base_repo.view)
+        !(self.parent_mapping.is_empty() && self.view() == &self.base_repo.view)
     }
 
     pub(crate) fn consume(self) -> (Box<dyn MutableIndex>, View) {
@@ -825,9 +827,8 @@ impl MutableRepo {
     /// docstring for `record_rewritten_commit` for details.
     pub fn set_rewritten_commit(&mut self, old_id: CommitId, new_id: CommitId) {
         assert_ne!(old_id, *self.store().root_commit_id());
-        self.divergent.remove(&old_id);
-        self.abandoned.remove(&old_id);
-        self.parent_mapping.insert(old_id, vec![new_id]);
+        self.parent_mapping
+            .insert(old_id, (RewriteType::Rewritten, vec![new_id]));
     }
 
     /// Record a commit as being rewritten into multiple other commits in this
@@ -843,10 +844,10 @@ impl MutableRepo {
         new_ids: impl IntoIterator<Item = CommitId>,
     ) {
         assert_ne!(old_id, *self.store().root_commit_id());
-        self.abandoned.remove(&old_id);
-        self.parent_mapping
-            .insert(old_id.clone(), new_ids.into_iter().collect());
-        self.divergent.insert(old_id);
+        self.parent_mapping.insert(
+            old_id.clone(),
+            (RewriteType::Divergent, new_ids.into_iter().collect()),
+        );
     }
 
     /// Record a commit as having been abandoned in this transaction.
@@ -876,21 +877,15 @@ impl MutableRepo {
         old_id: CommitId,
         new_parent_ids: impl IntoIterator<Item = CommitId>,
     ) {
-        self.divergent.remove(&old_id);
         assert_ne!(old_id, *self.store().root_commit_id());
-        self.abandoned.insert(old_id.clone());
-        self.parent_mapping
-            .insert(old_id, new_parent_ids.into_iter().collect());
-    }
-
-    fn clear_descendant_rebaser_plans(&mut self) {
-        self.parent_mapping.clear();
-        self.divergent.clear();
-        self.abandoned.clear();
+        self.parent_mapping.insert(
+            old_id,
+            (RewriteType::Abandoned, new_parent_ids.into_iter().collect()),
+        );
     }
 
     pub fn has_rewrites(&self) -> bool {
-        !(self.parent_mapping.is_empty() && self.abandoned.is_empty())
+        !self.parent_mapping.is_empty()
     }
 
     /// Calculates new parents for a commit that's currently based on the given
@@ -900,8 +895,7 @@ impl MutableRepo {
     /// Panics if `parent_mapping` contains cycles
     pub fn new_parents(&self, old_ids: &[CommitId]) -> Vec<CommitId> {
         fn single_substitution_round(
-            parent_mapping: &HashMap<CommitId, Vec<CommitId>>,
-            divergent: &HashSet<CommitId>,
+            parent_mapping: &HashMap<CommitId, (RewriteType, Vec<CommitId>)>,
             ids: Vec<CommitId>,
         ) -> (Vec<CommitId>, bool) {
             let mut made_replacements = false;
@@ -910,13 +904,11 @@ impl MutableRepo {
             // being singletons. If CommitId-s were Copy. no allocations would be needed in
             // that case, but it probably doesn't matter much while they are Vec<u8>-s.
             for id in ids.into_iter() {
-                if divergent.contains(&id) {
-                    new_ids.push(id);
-                    continue;
-                }
                 match parent_mapping.get(&id) {
-                    None => new_ids.push(id),
-                    Some(replacements) => {
+                    None | Some((RewriteType::Divergent, _)) => {
+                        new_ids.push(id);
+                    }
+                    Some((_, replacements)) => {
                         assert!(
                             // Each commit must have a parent, so a parent can
                             // not just be mapped to nothing. This assertion
@@ -939,8 +931,7 @@ impl MutableRepo {
         let mut allowed_iterations = 0..self.parent_mapping.len();
         loop {
             let made_replacements;
-            (new_ids, made_replacements) =
-                single_substitution_round(&self.parent_mapping, &self.divergent, new_ids);
+            (new_ids, made_replacements) = single_substitution_round(&self.parent_mapping, new_ids);
             if !made_replacements {
                 break;
             }
@@ -958,7 +949,7 @@ impl MutableRepo {
     }
 
     /// After the rebaser returned by this function is dropped,
-    /// self.clear_descendant_rebaser_plans() needs to be called.
+    /// self.parent_mapping needs to be cleared.
     fn rebase_descendants_return_rebaser<'settings, 'repo>(
         &'repo mut self,
         settings: &'settings UserSettings,
@@ -985,7 +976,7 @@ impl MutableRepo {
         let result = self
             .rebase_descendants_return_rebaser(settings, options)?
             .map_or(0, |rebaser| rebaser.into_map().len());
-        self.clear_descendant_rebaser_plans();
+        self.parent_mapping.clear();
         Ok(result)
     }
 
@@ -1013,7 +1004,7 @@ impl MutableRepo {
             // abandoned
             .rebase_descendants_return_rebaser(settings, options)?
             .map_or(HashMap::new(), |rebaser| rebaser.into_map()));
-        self.clear_descendant_rebaser_plans();
+        self.parent_mapping.clear();
         result
     }
 

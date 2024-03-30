@@ -30,7 +30,7 @@ use crate::matchers::{Matcher, Visit};
 use crate::merged_tree::{MergedTree, MergedTreeBuilder};
 use crate::object_id::ObjectId;
 use crate::op_store::RefTarget;
-use crate::repo::{MutableRepo, Repo};
+use crate::repo::{MutableRepo, Repo, RewriteType};
 use crate::repo_path::RepoPath;
 use crate::revset::{RevsetExpression, RevsetIteratorExt};
 use crate::settings::UserSettings;
@@ -313,7 +313,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                 visited.insert(commit.id().clone());
                 let mut dependents = vec![];
                 for parent in commit.parents() {
-                    if let Some(targets) = mut_repo.parent_mapping.get(parent.id()) {
+                    if let Some((_, targets)) = mut_repo.parent_mapping.get(parent.id()) {
                         for target in targets {
                             if to_visit_set.contains(target) && !visited.contains(target) {
                                 dependents.push(store.get_commit(target).unwrap());
@@ -363,7 +363,10 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         new_commit_ids: Vec<CommitId>,
     ) -> Result<(), BackendError> {
         // We arbitrarily pick a new working-copy commit among the candidates.
-        let abandoned_old_commit = self.mut_repo.abandoned.contains(&old_commit_id);
+        let abandoned_old_commit = matches!(
+            self.mut_repo.parent_mapping.get(&old_commit_id),
+            Some((RewriteType::Abandoned, _))
+        );
         self.update_wc_commits(&old_commit_id, &new_commit_ids[0], abandoned_old_commit)?;
 
         // Build a map from commit to branches pointing to it, so we don't need to scan
@@ -472,7 +475,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     }
 
     fn update_all_references(&mut self) -> Result<(), BackendError> {
-        for (old_parent_id, new_parent_ids) in self.mut_repo.parent_mapping.clone() {
+        for (old_parent_id, (_, new_parent_ids)) in self.mut_repo.parent_mapping.clone() {
             // Call `new_parents()` here since `parent_mapping` only contains direct
             // mappings, not transitive ones.
             // TODO: keep parent_mapping updated with transitive mappings so we don't need
