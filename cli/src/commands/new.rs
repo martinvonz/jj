@@ -129,17 +129,11 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
                 short_commit_hash(&commit_id),
             )));
         }
-        let mut new_parents_commits: Vec<Commit> = new_parents
+        let new_parents_commits: Vec<Commit> = new_parents
             .evaluate_programmatic(tx.repo())?
             .iter()
             .commits(tx.repo().store())
             .try_collect()?;
-        // The git backend does not support creating merge commits involving the root
-        // commit.
-        if new_parents_commits.len() > 1 {
-            let root_commit = tx.repo().store().root_commit();
-            new_parents_commits.retain(|c| c != &root_commit);
-        }
         let merged_tree = merge_commit_trees(tx.repo(), &new_parents_commits)?;
         let new_parents_commit_id = new_parents_commits.iter().map(|c| c.id().clone()).collect();
         new_commit = tx
