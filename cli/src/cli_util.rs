@@ -53,7 +53,7 @@ use jj_lib::repo::{
 use jj_lib::repo_path::{FsPathParseError, RepoPath, RepoPathBuf};
 use jj_lib::revset::{
     Revset, RevsetAliasesMap, RevsetCommitRef, RevsetExpression, RevsetFilterPredicate,
-    RevsetIteratorExt, RevsetParseContext, RevsetParseError, RevsetWorkspaceContext,
+    RevsetIteratorExt, RevsetParseContext, RevsetWorkspaceContext,
 };
 use jj_lib::rewrite::restore_tree;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
@@ -88,6 +88,7 @@ use crate::git_util::{
 };
 use crate::merge_tools::{DiffEditor, MergeEditor, MergeToolConfigError};
 use crate::operation_templater::OperationTemplateLanguageExtension;
+use crate::revset_util::RevsetExpressionEvaluator;
 use crate::template_builder::TemplateLanguage;
 use crate::template_parser::TemplateAliasesMap;
 use crate::templater::{PropertyPlaceholder, TemplateRenderer};
@@ -754,9 +755,10 @@ impl WorkspaceCommandHelper {
 
     /// Resolve a revset any number of revisions (including 0).
     pub fn resolve_revset(&self, revision_str: &str) -> Result<Vec<Commit>, CommandError> {
-        let revset_expression = self.parse_revset(revision_str)?;
-        let revset = self.evaluate_revset(revset_expression)?;
-        Ok(revset.iter().commits(self.repo().store()).try_collect()?)
+        Ok(self
+            .parse_revset(revision_str)?
+            .evaluate_to_commits()?
+            .try_collect()?)
     }
 
     /// Resolve a revset any number of revisions (including 0), but require the
@@ -781,8 +783,7 @@ impl WorkspaceCommandHelper {
         should_hint_about_all_prefix: bool,
     ) -> Result<Commit, CommandError> {
         let revset_expression = self.parse_revset(revision_str)?;
-        let revset = self.evaluate_revset(revset_expression.clone())?;
-        let mut iter = revset.iter().commits(self.repo().store()).fuse();
+        let mut iter = revset_expression.evaluate_to_commits()?.fuse();
         match (iter.next(), iter.next()) {
             (Some(commit), None) => Ok(commit?),
             (None, _) => Err(user_error(format!(
@@ -821,7 +822,7 @@ impl WorkspaceCommandHelper {
                          `jj abandon -r <REVISION>`.",
                     );
                 } else if let RevsetExpression::CommitRef(RevsetCommitRef::Symbol(branch_name)) =
-                    revset_expression.as_ref()
+                    revset_expression.expression().as_ref()
                 {
                     // Separate hint if there's a conflicted branch
                     cmd_err.add_formatted_hint_with(|formatter| {
@@ -860,30 +861,41 @@ impl WorkspaceCommandHelper {
     pub fn parse_revset(
         &self,
         revision_str: &str,
-    ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-        revset::parse(revision_str, &self.revset_parse_context())
+    ) -> Result<RevsetExpressionEvaluator<'_>, CommandError> {
+        let expression = revset::parse(revision_str, &self.revset_parse_context())?;
+        self.attach_revset_evaluator(expression)
     }
 
     /// Parses the given revset expressions and concatenates them all.
     pub fn parse_union_revsets(
         &self,
         revision_args: &[RevisionArg],
-    ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    ) -> Result<RevsetExpressionEvaluator<'_>, CommandError> {
         let context = self.revset_parse_context();
         let expressions: Vec<_> = revision_args
             .iter()
             .map(|s| revset::parse(s, &context))
             .try_collect()?;
-        Ok(RevsetExpression::union_all(&expressions))
+        let expression = RevsetExpression::union_all(&expressions);
+        self.attach_revset_evaluator(expression)
     }
 
     pub fn evaluate_revset<'repo>(
         &'repo self,
         expression: Rc<RevsetExpression>,
     ) -> Result<Box<dyn Revset + 'repo>, CommandError> {
-        let repo = self.repo().as_ref();
-        let symbol_resolver = revset_util::default_symbol_resolver(repo, self.id_prefix_context()?);
-        Ok(revset_util::evaluate(repo, &symbol_resolver, expression)?)
+        Ok(self.attach_revset_evaluator(expression)?.evaluate()?)
+    }
+
+    fn attach_revset_evaluator(
+        &self,
+        expression: Rc<RevsetExpression>,
+    ) -> Result<RevsetExpressionEvaluator<'_>, CommandError> {
+        Ok(RevsetExpressionEvaluator::new(
+            self.repo().as_ref(),
+            self.id_prefix_context()?,
+            expression,
+        ))
     }
 
     pub(crate) fn revset_parse_context(&self) -> RevsetParseContext {
@@ -908,9 +920,10 @@ impl WorkspaceCommandHelper {
                 .get_string("revsets.short-prefixes")
                 .unwrap_or_else(|_| self.settings.default_revset());
             if !revset_string.is_empty() {
-                let disambiguation_revset = self.parse_revset(&revset_string).map_err(|err| {
-                    config_error_with_message("Invalid `revsets.short-prefixes`", err)
-                })?;
+                let disambiguation_revset =
+                    revset::parse(&revset_string, &self.revset_parse_context()).map_err(|err| {
+                        config_error_with_message("Invalid `revsets.short-prefixes`", err)
+                    })?;
                 context = context.disambiguate_within(revset::optimize(disambiguation_revset));
             }
             Ok(context)

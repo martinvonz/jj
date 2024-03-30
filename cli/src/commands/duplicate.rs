@@ -42,11 +42,10 @@ pub(crate) fn cmd_duplicate(
     args: &DuplicateArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let to_duplicate: Vec<CommitId> = {
-        let expression = workspace_command.parse_union_revsets(&args.revisions)?;
-        let revset = workspace_command.evaluate_revset(expression)?;
-        revset.iter().collect() // in reverse topological order
-    };
+    let to_duplicate: Vec<CommitId> = workspace_command
+        .parse_union_revsets(&args.revisions)?
+        .evaluate_to_commit_ids()?
+        .collect(); // in reverse topological order
     if to_duplicate.is_empty() {
         writeln!(ui.stderr(), "No revisions to duplicate.")?;
         return Ok(());

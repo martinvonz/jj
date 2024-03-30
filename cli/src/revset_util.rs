@@ -17,12 +17,13 @@
 use std::rc::Rc;
 
 use itertools::Itertools as _;
-use jj_lib::backend::CommitId;
+use jj_lib::backend::{BackendResult, CommitId};
+use jj_lib::commit::Commit;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{
     self, DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetEvaluationError, RevsetExpression,
-    RevsetParseContext, RevsetParseError, RevsetResolutionError,
+    RevsetIteratorExt as _, RevsetParseContext, RevsetParseError, RevsetResolutionError,
 };
 use jj_lib::settings::ConfigResultExt as _;
 use thiserror::Error;
@@ -39,6 +40,55 @@ pub enum UserRevsetEvaluationError {
     Resolution(RevsetResolutionError),
     #[error(transparent)]
     Evaluation(RevsetEvaluationError),
+}
+
+/// Wrapper around `RevsetExpression` to provide convenient methods.
+pub struct RevsetExpressionEvaluator<'repo> {
+    repo: &'repo dyn Repo,
+    id_prefix_context: &'repo IdPrefixContext,
+    expression: Rc<RevsetExpression>,
+}
+
+impl<'repo> RevsetExpressionEvaluator<'repo> {
+    pub fn new(
+        repo: &'repo dyn Repo,
+        id_prefix_context: &'repo IdPrefixContext,
+        expression: Rc<RevsetExpression>,
+    ) -> Self {
+        RevsetExpressionEvaluator {
+            repo,
+            id_prefix_context,
+            expression,
+        }
+    }
+
+    /// Returns the underlying expression.
+    pub fn expression(&self) -> &Rc<RevsetExpression> {
+        &self.expression
+    }
+
+    /// Evaluates the expression.
+    pub fn evaluate(&self) -> Result<Box<dyn Revset + 'repo>, UserRevsetEvaluationError> {
+        let symbol_resolver = default_symbol_resolver(self.repo, self.id_prefix_context);
+        evaluate(self.repo, &symbol_resolver, self.expression.clone())
+    }
+
+    /// Evaluates the expression to an iterator over commit ids. Entries are
+    /// sorted in reverse topological order.
+    pub fn evaluate_to_commit_ids(
+        &self,
+    ) -> Result<Box<dyn Iterator<Item = CommitId> + 'repo>, UserRevsetEvaluationError> {
+        Ok(self.evaluate()?.iter())
+    }
+
+    /// Evaluates the expression to an iterator over commit objects. Entries are
+    /// sorted in reverse topological order.
+    pub fn evaluate_to_commits(
+        &self,
+    ) -> Result<impl Iterator<Item = BackendResult<Commit>> + 'repo, UserRevsetEvaluationError>
+    {
+        Ok(self.evaluate()?.iter().commits(self.repo.store()))
+    }
 }
 
 pub fn load_revset_aliases(

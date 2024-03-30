@@ -204,7 +204,7 @@ fn bench_revset<M: Measurement>(
     revset: &str,
 ) -> Result<(), CommandError> {
     writeln!(ui.stderr(), "----------Testing revset: {revset}----------")?;
-    let expression = revset::optimize(workspace_command.parse_revset(revset)?);
+    let expression = revset::optimize(workspace_command.parse_revset(revset)?.expression().clone());
     // Time both evaluation and iteration.
     let routine = |workspace_command: &WorkspaceCommandHelper, expression: Rc<RevsetExpression>| {
         // Evaluate the expression without parsing/evaluating short-prefixes.

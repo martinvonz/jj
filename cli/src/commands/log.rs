@@ -81,7 +81,9 @@ pub(crate) fn cmd_log(
             workspace_command.parse_revset(&command.settings().default_revset())?
         } else {
             workspace_command.parse_union_revsets(&args.revisions)?
-        };
+        }
+        .expression()
+        .clone();
         if !args.paths.is_empty() {
             let repo_paths: Vec<_> = args
                 .paths
