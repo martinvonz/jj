@@ -58,6 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `--all` is now named `--all-remotes` for `jj branch list`
 
+* There is a new global `--quiet` flag to silence commands' non-primary output.
+
 ### Fixed bugs
 
 ## [0.15.1] - 2024-03-06
