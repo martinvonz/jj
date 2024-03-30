@@ -15,8 +15,6 @@
 //! This file contains the internal implementation of `run`.
 
 use itertools::Itertools as _;
-use jj_lib::repo::Repo as _;
-use jj_lib::revset::RevsetIteratorExt as _;
 
 use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::{user_error, CommandError};
@@ -52,12 +50,10 @@ pub struct RunArgs {
 
 pub fn cmd_run(ui: &mut Ui, command: &CommandHelper, args: &RunArgs) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let _resolved_commits: Vec<_> = {
-        let repo = workspace_command.repo();
-        let expression = workspace_command.parse_union_revsets(&args.revisions)?;
-        let revset = workspace_command.evaluate_revset(expression)?;
-        revset.iter().commits(repo.store()).try_collect()?
-    };
+    let _resolved_commits: Vec<_> = workspace_command
+        .parse_union_revsets(&args.revisions)?
+        .evaluate_to_commits()?
+        .try_collect()?;
     // Jobs are resolved in this order:
     // 1. Commandline argument iff > 0.
     // 2. the amount of cores available.

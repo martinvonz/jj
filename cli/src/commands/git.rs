@@ -1205,6 +1205,7 @@ fn find_branches_targeted_by_revisions<'a>(
     for rev_str in revisions {
         let expression = workspace_command
             .parse_revset(rev_str)?
+            .expression()
             .intersection(&RevsetExpression::branches(StringPattern::everything()));
         let revset = workspace_command.evaluate_revset(expression)?;
         let mut commit_ids = revset.iter().peekable();
