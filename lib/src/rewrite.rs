@@ -298,9 +298,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     ) -> DescendantRebaser<'settings, 'repo> {
         let store = mut_repo.store();
         let old_commits_expression =
-            RevsetExpression::commits(mut_repo.parent_mapping.keys().cloned().collect()).union(
-                &RevsetExpression::commits(mut_repo.abandoned.iter().cloned().collect()),
-            );
+            RevsetExpression::commits(mut_repo.parent_mapping.keys().cloned().collect());
         let to_visit_expression = old_commits_expression
             .descendants()
             .minus(&old_commits_expression);
@@ -499,10 +497,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             .collect();
 
         let old_commits_expression =
-            RevsetExpression::commits(self.mut_repo.parent_mapping.keys().cloned().collect())
-                .union(&RevsetExpression::commits(
-                    self.mut_repo.abandoned.iter().cloned().collect(),
-                ));
+            RevsetExpression::commits(self.mut_repo.parent_mapping.keys().cloned().collect());
         let heads_to_add_expression = old_commits_expression
             .parents()
             .minus(&old_commits_expression);
