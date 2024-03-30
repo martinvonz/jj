@@ -1658,9 +1658,6 @@ pub fn resolve_multiple_nonempty_revsets_default_single(
     let mut all_commits = IndexSet::new();
     for revision_str in revisions {
         let commits = workspace_command.resolve_revset_default_single(revision_str)?;
-        if commits.is_empty() {
-            return Err(user_error("Empty revision set"));
-        }
         for commit in commits {
             let commit_hash = short_commit_hash(commit.id());
             if !all_commits.insert(commit) {
@@ -1670,7 +1667,11 @@ pub fn resolve_multiple_nonempty_revsets_default_single(
             }
         }
     }
-    Ok(all_commits)
+    if all_commits.is_empty() {
+        Err(user_error("Empty revision set"))
+    } else {
+        Ok(all_commits)
+    }
 }
 
 pub fn update_working_copy(
