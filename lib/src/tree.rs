@@ -24,7 +24,7 @@ use thiserror::Error;
 use tracing::instrument;
 
 use crate::backend::{
-    BackendError, ConflictId, FileId, TreeEntriesNonRecursiveIterator, TreeEntry, TreeId, TreeValue,
+    BackendError, ConflictId, TreeEntriesNonRecursiveIterator, TreeEntry, TreeId, TreeValue,
 };
 use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};
@@ -36,11 +36,6 @@ use crate::{backend, files};
 
 #[derive(Debug, Error)]
 pub enum TreeMergeError {
-    #[error("Failed to read file with ID {} ", .file_id.hex())]
-    ReadError {
-        source: std::io::Error,
-        file_id: FileId,
-    },
     #[error(transparent)]
     BackendError(#[from] BackendError),
 }
@@ -448,9 +443,10 @@ pub fn try_resolve_file_conflict(
             store
                 .read_file(filename, file_id)?
                 .read_to_end(&mut content)
-                .map_err(|err| TreeMergeError::ReadError {
-                    source: err,
-                    file_id: file_id.clone(),
+                .map_err(|err| BackendError::ReadObject {
+                    object_type: file_id.object_type(),
+                    hash: file_id.hex(),
+                    source: err.into(),
                 })?;
             Ok(content)
         })?;
