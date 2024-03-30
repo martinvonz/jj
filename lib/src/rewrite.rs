@@ -493,11 +493,10 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let heads_to_add_expression = old_commits_expression
             .parents()
             .minus(&old_commits_expression);
-        let heads_to_add: HashSet<_> = heads_to_add_expression
+        let heads_to_add = heads_to_add_expression
             .evaluate_programmatic(self.mut_repo)
             .unwrap()
-            .iter()
-            .collect();
+            .iter();
 
         let mut view = self.mut_repo.view().store_view().clone();
         for commit_id in self.mut_repo.parent_mapping.keys() {
