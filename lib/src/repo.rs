@@ -57,7 +57,6 @@ use crate::simple_op_store::SimpleOpStore;
 use crate::store::Store;
 use crate::submodule_store::SubmoduleStore;
 use crate::transaction::Transaction;
-use crate::tree::TreeMergeError;
 use crate::view::View;
 use crate::{backend, dag_walk, op_store, revset};
 
@@ -580,7 +579,7 @@ pub fn read_store_type_compat(
 #[derive(Debug, Error)]
 pub enum RepoLoaderError {
     #[error(transparent)]
-    TreeMerge(#[from] TreeMergeError),
+    Backend(#[from] BackendError),
     #[error(transparent)]
     OpHeadResolution(#[from] OpHeadResolutionError),
     #[error(transparent)]
@@ -962,7 +961,7 @@ impl MutableRepo {
         &'repo mut self,
         settings: &'settings UserSettings,
         options: RebaseOptions,
-    ) -> Result<Option<DescendantRebaser<'settings, 'repo>>, TreeMergeError> {
+    ) -> BackendResult<Option<DescendantRebaser<'settings, 'repo>>> {
         if !self.has_rewrites() {
             // Optimization
             return Ok(None);
@@ -980,7 +979,7 @@ impl MutableRepo {
         &mut self,
         settings: &UserSettings,
         options: RebaseOptions,
-    ) -> Result<usize, TreeMergeError> {
+    ) -> BackendResult<usize> {
         let result = self
             .rebase_descendants_return_rebaser(settings, options)?
             .map_or(0, |rebaser| rebaser.into_map().len());
@@ -1005,7 +1004,7 @@ impl MutableRepo {
         &mut self,
         settings: &UserSettings,
         options: RebaseOptions,
-    ) -> Result<HashMap<CommitId, CommitId>, TreeMergeError> {
+    ) -> BackendResult<HashMap<CommitId, CommitId>> {
         let result = Ok(self
             // We do not set RebaseOptions here, since this function does not currently return
             // enough information to describe the results of a rebase if some commits got
@@ -1016,14 +1015,14 @@ impl MutableRepo {
         result
     }
 
-    pub fn rebase_descendants(&mut self, settings: &UserSettings) -> Result<usize, TreeMergeError> {
+    pub fn rebase_descendants(&mut self, settings: &UserSettings) -> BackendResult<usize> {
         self.rebase_descendants_with_options(settings, Default::default())
     }
 
     pub fn rebase_descendants_return_map(
         &mut self,
         settings: &UserSettings,
-    ) -> Result<HashMap<CommitId, CommitId>, TreeMergeError> {
+    ) -> BackendResult<HashMap<CommitId, CommitId>> {
         self.rebase_descendants_with_options_return_map(settings, Default::default())
     }
 

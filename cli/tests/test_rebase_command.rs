@@ -515,8 +515,7 @@ fn test_rebase_multiple_destinations() {
         &["rebase", "-r", "a", "-d", "b", "-d", "root()"],
     );
     insta::assert_snapshot!(stderr, @r###"
-    Error: Merge failed
-    Caused by: The Git backend does not support creating merge commits with the root commit as one of the parents.
+    Error: The Git backend does not support creating merge commits with the root commit as one of the parents.
     "###);
 }
 

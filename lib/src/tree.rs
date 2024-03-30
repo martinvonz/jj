@@ -20,11 +20,11 @@ use std::io::Read;
 use std::sync::Arc;
 
 use itertools::Itertools;
-use thiserror::Error;
 use tracing::instrument;
 
 use crate::backend::{
-    BackendError, ConflictId, TreeEntriesNonRecursiveIterator, TreeEntry, TreeId, TreeValue,
+    BackendError, BackendResult, ConflictId, TreeEntriesNonRecursiveIterator, TreeEntry, TreeId,
+    TreeValue,
 };
 use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};
@@ -33,12 +33,6 @@ use crate::object_id::ObjectId;
 use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent, RepoPathComponentsIter};
 use crate::store::Store;
 use crate::{backend, files};
-
-#[derive(Debug, Error)]
-pub enum TreeMergeError {
-    #[error(transparent)]
-    BackendError(#[from] BackendError),
-}
 
 #[derive(Clone)]
 pub struct Tree {
@@ -281,11 +275,7 @@ impl<'trees> Iterator for TreeEntryDiffIterator<'trees> {
     }
 }
 
-pub fn merge_trees(
-    side1_tree: &Tree,
-    base_tree: &Tree,
-    side2_tree: &Tree,
-) -> Result<Tree, TreeMergeError> {
+pub fn merge_trees(side1_tree: &Tree, base_tree: &Tree, side2_tree: &Tree) -> BackendResult<Tree> {
     let store = base_tree.store();
     let dir = base_tree.dir();
     assert_eq!(side1_tree.dir(), dir);
@@ -313,7 +303,7 @@ pub fn merge_trees(
             new_tree.set_or_remove(basename, new_value);
         }
     }
-    Ok(store.write_tree(dir, new_tree)?)
+    store.write_tree(dir, new_tree)
 }
 
 /// Returns `Some(TreeId)` if this is a directory or missing. If it's missing,
@@ -336,7 +326,7 @@ fn merge_tree_value(
     maybe_base: Option<&TreeValue>,
     maybe_side1: Option<&TreeValue>,
     maybe_side2: Option<&TreeValue>,
-) -> Result<Option<TreeValue>, TreeMergeError> {
+) -> BackendResult<Option<TreeValue>> {
     // Resolve non-trivial conflicts:
     //   * resolve tree conflicts by recursing
     //   * try to resolve file conflicts by merging the file contents
@@ -399,7 +389,7 @@ pub fn try_resolve_file_conflict(
     store: &Store,
     filename: &RepoPath,
     conflict: &MergedTreeValue,
-) -> Result<Option<TreeValue>, TreeMergeError> {
+) -> BackendResult<Option<TreeValue>> {
     // If there are any non-file or any missing parts in the conflict, we can't
     // merge it. We check early so we don't waste time reading file contents if
     // we can't merge them anyway. At the same time we determine whether the
@@ -438,7 +428,7 @@ pub fn try_resolve_file_conflict(
     let file_id_conflict = file_id_conflict.simplify();
 
     let contents: Merge<Vec<u8>> =
-        file_id_conflict.try_map(|&file_id| -> Result<Vec<u8>, TreeMergeError> {
+        file_id_conflict.try_map(|&file_id| -> BackendResult<Vec<u8>> {
             let mut content = vec![];
             store
                 .read_file(filename, file_id)?

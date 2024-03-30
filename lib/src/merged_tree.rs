@@ -31,7 +31,7 @@ use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
 use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent, RepoPathComponentsIter};
 use crate::store::Store;
-use crate::tree::{try_resolve_file_conflict, Tree, TreeMergeError};
+use crate::tree::{try_resolve_file_conflict, Tree};
 use crate::tree_builder::TreeBuilder;
 use crate::{backend, tree};
 
@@ -184,7 +184,7 @@ impl MergedTree {
     /// automatically resolved and leaving the rest unresolved. The returned
     /// conflict will either be resolved or have the same number of sides as
     /// the input.
-    pub fn resolve(&self) -> Result<Merge<Tree>, TreeMergeError> {
+    pub fn resolve(&self) -> BackendResult<Merge<Tree>> {
         match self {
             MergedTree::Legacy(tree) => Ok(Merge::resolved(tree.clone())),
             MergedTree::Merge(trees) => merge_trees(trees),
@@ -362,11 +362,7 @@ impl MergedTree {
     }
 
     /// Merges this tree with `other`, using `base` as base.
-    pub fn merge(
-        &self,
-        base: &MergedTree,
-        other: &MergedTree,
-    ) -> Result<MergedTree, TreeMergeError> {
+    pub fn merge(&self, base: &MergedTree, other: &MergedTree) -> BackendResult<MergedTree> {
         if let (MergedTree::Legacy(this), MergedTree::Legacy(base), MergedTree::Legacy(other)) =
             (self, base, other)
         {
@@ -374,7 +370,7 @@ impl MergedTree {
             Ok(MergedTree::legacy(merged_tree))
         } else {
             // Convert legacy trees to merged trees and unwrap to `Merge<Tree>`
-            let to_merge = |tree: &MergedTree| -> Result<Merge<Tree>, TreeMergeError> {
+            let to_merge = |tree: &MergedTree| -> BackendResult<Merge<Tree>> {
                 match tree {
                     MergedTree::Legacy(tree) => {
                         let MergedTree::Merge(tree) = MergedTree::from_legacy_tree(tree.clone())?
@@ -475,7 +471,7 @@ fn trees_value<'a>(trees: &'a Merge<Tree>, basename: &RepoPathComponent) -> Merg
     MergedTreeVal::Conflict(value.map(|x| x.cloned()))
 }
 
-fn merge_trees(merge: &Merge<Tree>) -> Result<Merge<Tree>, TreeMergeError> {
+fn merge_trees(merge: &Merge<Tree>) -> BackendResult<Merge<Tree>> {
     if let Some(tree) = merge.resolve_trivial() {
         return Ok(Merge::resolved(tree.clone()));
     }
@@ -529,7 +525,7 @@ fn merge_tree_values(
     store: &Arc<Store>,
     path: &RepoPath,
     values: MergedTreeValue,
-) -> Result<MergedTreeValue, TreeMergeError> {
+) -> BackendResult<MergedTreeValue> {
     if let Some(resolved) = values.resolve_trivial() {
         return Ok(Merge::resolved(resolved.clone()));
     }
