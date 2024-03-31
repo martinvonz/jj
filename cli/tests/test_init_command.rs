@@ -57,7 +57,7 @@ fn init_git_repo_with_opts(
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all"])
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes"])
 }
 
 fn read_git_target(workspace_root: &Path) -> String {

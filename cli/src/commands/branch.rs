@@ -97,16 +97,16 @@ pub struct BranchDeleteArgs {
 pub struct BranchListArgs {
     /// Show all tracking and non-tracking remote branches including the ones
     /// whose targets are synchronized with the local branches.
-    #[arg(long, short, conflicts_with_all = ["names", "tracked"])]
-    all: bool,
+    #[arg(long, short, alias = "all", conflicts_with_all = ["names", "tracked"])]
+    all_remotes: bool,
 
     /// Show remote tracked branches only. Omits local Git-tracking branches by
     /// default.
-    #[arg(long, short, conflicts_with_all = ["all"])]
+    #[arg(long, short, conflicts_with_all = ["all_remotes"])]
     tracked: bool,
 
     /// Show conflicted branches only.
-    #[arg(long, short, conflicts_with_all = ["all"])]
+    #[arg(long, short, conflicts_with_all = ["all_remotes"])]
     conflicted: bool,
 
     /// Show branches whose local name matches
@@ -708,7 +708,7 @@ fn cmd_branch_list(
         for &(remote, remote_ref) in &tracking_remote_refs {
             let synced = remote_ref.target == *branch_target.local_target;
 
-            if !args.all && !args.tracked && synced {
+            if !args.all_remotes && !args.tracked && synced {
                 continue;
             }
             write!(formatter, "  ")?;
@@ -769,7 +769,7 @@ fn cmd_branch_list(
             }
         }
 
-        if args.all {
+        if args.all_remotes {
             for &(remote, remote_ref) in &untracked_remote_refs {
                 write!(formatter.labeled("branch"), "{name}@{remote}")?;
                 print_branch_target(formatter, &remote_ref.target)?;

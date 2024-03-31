@@ -414,7 +414,7 @@ fn test_branch_delete_export() {
     test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
 
     test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "foo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all-remotes"]);
     insta::assert_snapshot!(stdout, @r###"
     foo (deleted)
       @git: rlvkpnrz 65b6b74e (empty) (no description set)
@@ -422,7 +422,7 @@ fn test_branch_delete_export() {
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all-remotes"]);
     insta::assert_snapshot!(stdout, @r###"
     "###);
 }
@@ -435,7 +435,7 @@ fn test_branch_forget_export() {
 
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all-remotes"]);
     insta::assert_snapshot!(stdout, @r###"
     foo: rlvkpnrz 65b6b74e (empty) (no description set)
     "###);
@@ -449,7 +449,7 @@ fn test_branch_forget_export() {
     insta::assert_snapshot!(stderr, @"");
     // Forgetting a branch deletes local and remote-tracking branches including
     // the corresponding git-tracking branch.
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all-remotes"]);
     insta::assert_snapshot!(stdout, @"");
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r=foo", "--no-graph"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -463,7 +463,7 @@ fn test_branch_forget_export() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all-remotes"]);
     insta::assert_snapshot!(stdout, @"");
 }
 
@@ -1021,7 +1021,7 @@ fn test_branch_list() {
     "###);
 
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&local_path, &["branch", "list", "--all"]), @r###"
+        test_env.jj_cmd_success(&local_path, &["branch", "list", "--all-remotes"]), @r###"
     local-only: wqnwkozp 4e887f78 (empty) local-only
     remote-delete (deleted)
       @origin: mnmymoky 203e60eb (empty) remote-delete
@@ -1128,9 +1128,9 @@ fn test_branch_list_filtered() {
       @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
 
-    // Select branches by name, combined with --all
+    // Select branches by name, combined with --all-remotes
     test_env.jj_cmd_ok(&local_path, &["git", "export"]);
-    insta::assert_snapshot!(query(&["--all", "-rbranches(remote-rewrite)"]), @r###"
+    insta::assert_snapshot!(query(&["--all-remotes", "-rbranches(remote-rewrite)"]), @r###"
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
       @git: xyxluytn e31634b6 (empty) rewritten
       @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
@@ -1301,7 +1301,7 @@ fn test_branch_list_tracked() {
     );
 
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&local_path, &["branch", "list", "--all"]), @r###"
+        test_env.jj_cmd_success(&local_path, &["branch", "list", "--all-remotes"]), @r###"
     local-only: nmzmmopx e1da745b (empty) local-only
       @git: nmzmmopx e1da745b (empty) local-only
     remote-delete (deleted)
@@ -1402,5 +1402,5 @@ fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all"])
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes"])
 }
