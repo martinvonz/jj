@@ -118,6 +118,8 @@ pub struct DebugTreeArgs {
 
 #[derive(Subcommand, Clone, Debug)]
 pub enum DebugWatchmanSubcommand {
+    /// Check whether `watchman` is enabled and whether it's correctly installed
+    Status,
     QueryClock,
     QueryChangedFiles,
     ResetClock,
@@ -367,6 +369,31 @@ fn cmd_debug_watchman(
     let mut workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo().clone();
     match subcommand {
+        DebugWatchmanSubcommand::Status => {
+            // TODO(ilyagr): It would be nice to add colors here
+            match command.settings().fsmonitor_kind()? {
+                jj_lib::fsmonitor::FsmonitorKind::Watchman => {
+                    writeln!(ui.stdout(), "Watchman is enabled via `core.fsmonitor`.")?
+                }
+                jj_lib::fsmonitor::FsmonitorKind::None => writeln!(
+                    ui.stdout(),
+                    "Watchman is disabled. Set `core.fsmonitor=\"watchman\"` to \
+                     enable.\nAttempting to contact the `watchman` CLI regardless..."
+                )?,
+                other_fsmonitor => {
+                    return Err(user_error(format!(
+                        "This command does not support the currently enabled filesystem monitor: \
+                         {other_fsmonitor:?}."
+                    )))
+                }
+            };
+            let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
+            let _ = wc.query_watchman()?;
+            writeln!(
+                ui.stdout(),
+                "The watchman server seems to be installed and working correctly."
+            )?;
+        }
         DebugWatchmanSubcommand::QueryClock => {
             let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
             let (clock, _changed_files) = wc.query_watchman()?;

@@ -727,7 +727,8 @@ To configure the Watchman filesystem monitor, set
 `core.fsmonitor = "watchman"`. Ensure that you have [installed the Watchman
 executable on your system](https://facebook.github.io/watchman/docs/install).
 
-Debugging commands are available under `jj debug watchman`.
+You can check whether Watchman is enabled and whether it is installed correctly
+using `jj debug watchman status`.
 
 ## Ways to specify `jj` config: details
 

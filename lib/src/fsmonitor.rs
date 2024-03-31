@@ -24,7 +24,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 
 /// The recognized kinds of filesystem monitors.
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub enum FsmonitorKind {
     /// The Watchman filesystem monitor (<https://facebook.github.io/watchman/>).
     Watchman,
