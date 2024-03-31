@@ -771,7 +771,19 @@ impl WorkspaceCommandHelper {
     ) -> Result<IndexSet<Commit>, CommandError> {
         let mut all_commits = IndexSet::new();
         for revision_str in revision_args {
-            let commits = self.resolve_revset_default_single(revision_str)?;
+            let (expression, all) = self.parse_revset_with_all_prefix(revision_str)?;
+            let commits = if all {
+                expression.evaluate_to_commits()?.try_collect()?
+            } else {
+                let should_hint_about_all_prefix = true;
+                let commit = revset_util::evaluate_revset_to_single_commit(
+                    revision_str,
+                    &expression,
+                    || self.commit_summary_template(),
+                    should_hint_about_all_prefix,
+                )?;
+                vec![commit]
+            };
             for commit in commits {
                 let commit_hash = short_commit_hash(commit.id());
                 if !all_commits.insert(commit) {
@@ -794,28 +806,6 @@ impl WorkspaceCommandHelper {
             .parse_revset(revision_str)?
             .evaluate_to_commits()?
             .try_collect()?)
-    }
-
-    /// Resolve a revset any number of revisions (including 0), but require the
-    /// user to indicate if they allow multiple revisions by prefixing the
-    /// expression with `all:`.
-    fn resolve_revset_default_single(
-        &self,
-        revision_str: &str,
-    ) -> Result<Vec<Commit>, CommandError> {
-        let (expression, all) = self.parse_revset_with_all_prefix(revision_str)?;
-        if all {
-            Ok(expression.evaluate_to_commits()?.try_collect()?)
-        } else {
-            let should_hint_about_all_prefix = true;
-            let commit = revset_util::evaluate_revset_to_single_commit(
-                revision_str,
-                &expression,
-                || self.commit_summary_template(),
-                should_hint_about_all_prefix,
-            )?;
-            Ok(vec![commit])
-        }
     }
 
     pub fn parse_revset(
