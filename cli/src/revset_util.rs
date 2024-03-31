@@ -22,14 +22,17 @@ use jj_lib::commit::Commit;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{
-    self, DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetEvaluationError, RevsetExpression,
-    RevsetIteratorExt as _, RevsetParseContext, RevsetParseError, RevsetResolutionError,
+    self, DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetCommitRef, RevsetEvaluationError,
+    RevsetExpression, RevsetIteratorExt as _, RevsetParseContext, RevsetParseError,
+    RevsetResolutionError,
 };
 use jj_lib::settings::ConfigResultExt as _;
 use thiserror::Error;
 
 use crate::command_error::{user_error, CommandError};
 use crate::config::LayeredConfigs;
+use crate::formatter::Formatter;
+use crate::templater::TemplateRenderer;
 use crate::ui::Ui;
 
 const BUILTIN_IMMUTABLE_HEADS: &str = "immutable_heads";
@@ -181,4 +184,72 @@ pub fn parse_immutable_expression(
     // to optimize than negated union `~(::<heads> | root())`.
     let heads = revset::parse(immutable_heads_str, context)?;
     Ok(heads.union(&RevsetExpression::root()).ancestors())
+}
+
+pub(super) fn format_multiple_revisions_error(
+    revision_str: &str,
+    expression: &RevsetExpression,
+    commits: &[Commit],
+    elided: bool,
+    template: &TemplateRenderer<'_, Commit>,
+    should_hint_about_all_prefix: bool,
+) -> CommandError {
+    assert!(commits.len() >= 2);
+    let mut cmd_err = user_error(format!(
+        r#"Revset "{revision_str}" resolved to more than one revision"#
+    ));
+    let write_commits_summary = |formatter: &mut dyn Formatter| {
+        for commit in commits {
+            write!(formatter, "  ")?;
+            template.format(commit, formatter)?;
+            writeln!(formatter)?;
+        }
+        if elided {
+            writeln!(formatter, "  ...")?;
+        }
+        Ok(())
+    };
+    if commits[0].change_id() == commits[1].change_id() {
+        // Separate hint if there's commits with same change id
+        cmd_err.add_formatted_hint_with(|formatter| {
+            writeln!(
+                formatter,
+                r#"The revset "{revision_str}" resolved to these revisions:"#
+            )?;
+            write_commits_summary(formatter)
+        });
+        cmd_err.add_hint(
+            "Some of these commits have the same change id. Abandon one of them with `jj abandon \
+             -r <REVISION>`.",
+        );
+    } else if let RevsetExpression::CommitRef(RevsetCommitRef::Symbol(branch_name)) = expression {
+        // Separate hint if there's a conflicted branch
+        cmd_err.add_formatted_hint_with(|formatter| {
+            writeln!(
+                formatter,
+                "Branch {branch_name} resolved to multiple revisions because it's conflicted."
+            )?;
+            writeln!(formatter, "It resolved to these revisions:")?;
+            write_commits_summary(formatter)
+        });
+        cmd_err.add_hint(format!(
+            "Set which revision the branch points to with `jj branch set {branch_name} -r \
+             <REVISION>`.",
+        ));
+    } else {
+        cmd_err.add_formatted_hint_with(|formatter| {
+            writeln!(
+                formatter,
+                r#"The revset "{revision_str}" resolved to these revisions:"#
+            )?;
+            write_commits_summary(formatter)
+        });
+        if should_hint_about_all_prefix {
+            cmd_err.add_hint(format!(
+                "Prefix the expression with 'all:' to allow any number of revisions (i.e. \
+                 'all:{revision_str}')."
+            ));
+        }
+    };
+    cmd_err
 }
