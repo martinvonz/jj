@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   evaluates to true if the operation was a snapshot created by a non-mutating
   command (e.g. `jj log`).
 
+* You can check whether Watchman fsmonitor is enabled or installed with the new
+  `jj debug watchman status` command.
+
 ### Fixed bugs
 
 * Revsets now support `\`-escapes in string literal.
