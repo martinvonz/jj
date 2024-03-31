@@ -97,6 +97,10 @@ expression = {
 }
 
 program = _{ SOI ~ whitespace* ~ expression ~ whitespace* ~ EOI }
+program_modifier = { identifier ~ pattern_kind_op ~ !":" }
+program_with_modifier = _{
+  SOI ~ whitespace* ~ (program_modifier ~ whitespace*)? ~ expression ~ whitespace* ~ EOI
+}
 
 alias_declaration_part = _{
   function_name ~ "(" ~ whitespace* ~ formal_parameters ~ whitespace* ~ ")"
