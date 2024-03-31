@@ -1460,7 +1460,7 @@ fn test_log_with_custom_symbols() {
         r###"
         ui.log-synthetic-elided-nodes = true
         ui.graph.style = 'ascii'
-        templates.log_node = 'if(self, if(current_working_copy, "$", if(root, "^", "*")), ":")'
+        templates.log_node_ascii = 'if(self, if(current_working_copy, "$", if(root, "^", "*")), ":")'
         "###,
     );
     insta::assert_snapshot!(get_log("@ | @- | description(initial) | root()"), @r###"

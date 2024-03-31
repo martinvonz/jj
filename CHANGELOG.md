@@ -31,7 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Graph node symbols are now configurable via templates
   * `templates.log_node`
+  * `templates.log_node_ascii`
   * `templates.op_log_node`
+  * `templates.op_log_node_ascii`
 
 * `jj log` now includes synthetic nodes in the graph where some revisions were
   elided.

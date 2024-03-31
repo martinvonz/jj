@@ -39,6 +39,11 @@ log = 'builtin_log_compact'
 op_log = 'builtin_op_log_compact'
 show = 'builtin_log_detailed'
 
+log_node = 'if(self, if(current_working_copy, "@", "◉"), "◌")'
+log_node_ascii = 'if(self, if(current_working_copy, "@", "o"), ".")'
+op_log_node = 'if(current_operation, "@", "◉")'
+op_log_node_ascii = 'if(current_operation, "@", "o")'
+
 [template-aliases]
 builtin_log_oneline = '''
 if(root,
