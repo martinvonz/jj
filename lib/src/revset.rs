@@ -135,6 +135,8 @@ impl Rule {
             Rule::range_expression => None,
             Rule::expression => None,
             Rule::program => None,
+            Rule::program_modifier => None,
+            Rule::program_with_modifier => None,
             Rule::alias_declaration_part => None,
             Rule::alias_declaration => None,
         }
@@ -171,6 +173,8 @@ pub enum RevsetParseErrorKind {
         similar_op: String,
         description: String,
     },
+    #[error(r#"Modifier "{0}" doesn't exist"#)]
+    NoSuchModifier(String),
     #[error(r#"Function "{name}" doesn't exist"#)]
     NoSuchFunction {
         name: String,
@@ -270,6 +274,17 @@ fn rename_rules_in_pest_error(mut err: pest::error::Error<Rule>) -> pest::error:
 // assumes index has less than u64::MAX entries.
 pub const GENERATION_RANGE_FULL: Range<u64> = 0..u64::MAX;
 pub const GENERATION_RANGE_EMPTY: Range<u64> = 0..0;
+
+/// Global flag applied to the entire expression.
+///
+/// The core revset engine doesn't use this value. It's up to caller to
+/// interpret it to change the evaluation behavior.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RevsetModifier {
+    /// Expression can be evaluated to multiple revisions even if a single
+    /// revision is expected by default.
+    All,
+}
 
 /// Symbol or function to be resolved to `CommitId`s.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -840,6 +855,39 @@ fn parse_program(
     let mut pairs = RevsetParser::parse(Rule::program, revset_str)?;
     let first = pairs.next().unwrap();
     parse_expression_rule(first.into_inner(), state)
+}
+
+fn parse_program_with_modifier(
+    revset_str: &str,
+    state: ParseState,
+) -> Result<(Rc<RevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
+    let mut pairs = RevsetParser::parse(Rule::program_with_modifier, revset_str)?;
+    let first = pairs.next().unwrap();
+    match first.as_rule() {
+        Rule::expression => {
+            let expression = parse_expression_rule(first.into_inner(), state)?;
+            Ok((expression, None))
+        }
+        Rule::program_modifier => {
+            let (lhs, op) = first.into_inner().collect_tuple().unwrap();
+            let rhs = pairs.next().unwrap();
+            assert_eq!(lhs.as_rule(), Rule::identifier);
+            assert_eq!(op.as_rule(), Rule::pattern_kind_op);
+            assert_eq!(rhs.as_rule(), Rule::expression);
+            let modififer = match lhs.as_str() {
+                "all" => RevsetModifier::All,
+                name => {
+                    return Err(RevsetParseError::with_span(
+                        RevsetParseErrorKind::NoSuchModifier(name.to_owned()),
+                        lhs.as_span(),
+                    ));
+                }
+            };
+            let expression = parse_expression_rule(rhs.into_inner(), state)?;
+            Ok((expression, Some(modififer)))
+        }
+        r => panic!("unexpected revset parse rule: {r:?}"),
+    }
 }
 
 fn parse_expression_rule(
@@ -1523,6 +1571,15 @@ pub fn parse(
     let locals = HashMap::new();
     let state = ParseState::new(context, &locals);
     parse_program(revset_str, state)
+}
+
+pub fn parse_with_modifier(
+    revset_str: &str,
+    context: &RevsetParseContext,
+) -> Result<(Rc<RevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
+    let locals = HashMap::new();
+    let state = ParseState::new(context, &locals);
+    parse_program_with_modifier(revset_str, state)
 }
 
 /// `Some` for rewritten expression, or `None` to reuse the original expression.
@@ -2570,6 +2627,29 @@ mod tests {
         super::parse(revset_str, &context).map_err(|e| e.kind)
     }
 
+    fn parse_with_modifier(
+        revset_str: &str,
+    ) -> Result<(Rc<RevsetExpression>, Option<RevsetModifier>), RevsetParseErrorKind> {
+        parse_with_aliases_and_modifier(revset_str, [] as [(&str, &str); 0])
+    }
+
+    fn parse_with_aliases_and_modifier(
+        revset_str: &str,
+        aliases: impl IntoIterator<Item = (impl AsRef<str>, impl Into<String>)>,
+    ) -> Result<(Rc<RevsetExpression>, Option<RevsetModifier>), RevsetParseErrorKind> {
+        let mut aliases_map = RevsetAliasesMap::new();
+        for (decl, defn) in aliases {
+            aliases_map.insert(decl, defn).unwrap();
+        }
+        let context = RevsetParseContext {
+            aliases_map: &aliases_map,
+            user_email: "test.user@example.com".to_string(),
+            workspace: None,
+        };
+        // Map error to comparable object
+        super::parse_with_modifier(revset_str, &context).map_err(|e| e.kind)
+    }
+
     #[test]
     #[allow(clippy::redundant_clone)] // allow symbol.clone()
     fn test_revset_expression_building() {
@@ -2900,6 +2980,83 @@ mod tests {
         assert!(parse_with_workspace("file(a,,b)", &main_workspace_id).is_err());
         assert!(parse("remote_branches(a,remote=b  , )").is_ok());
         assert!(parse("remote_branches(a,,remote=b)").is_err());
+    }
+
+    #[test]
+    fn test_parse_revset_with_modifier() {
+        let all_symbol = RevsetExpression::symbol("all".to_owned());
+        let foo_symbol = RevsetExpression::symbol("foo".to_owned());
+
+        // all: is a program modifier, but all:: isn't
+        assert_eq!(
+            parse_with_modifier("all:"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_with_modifier("all:foo"),
+            Ok((foo_symbol.clone(), Some(RevsetModifier::All)))
+        );
+        assert_eq!(
+            parse_with_modifier("all::"),
+            Ok((all_symbol.descendants(), None))
+        );
+        assert_eq!(
+            parse_with_modifier("all::foo"),
+            Ok((all_symbol.dag_range_to(&foo_symbol), None))
+        );
+
+        // all::: could be parsed as all:(::), but rejected for simplicity
+        assert_eq!(
+            parse_with_modifier("all:::"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_with_modifier("all:::foo"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+
+        assert_eq!(
+            parse_with_modifier("all:(foo)"),
+            Ok((foo_symbol.clone(), Some(RevsetModifier::All)))
+        );
+        assert_eq!(
+            parse_with_modifier("all:all::foo"),
+            Ok((
+                all_symbol.dag_range_to(&foo_symbol),
+                Some(RevsetModifier::All)
+            ))
+        );
+        assert_eq!(
+            parse_with_modifier("all:all | foo"),
+            Ok((all_symbol.union(&foo_symbol), Some(RevsetModifier::All)))
+        );
+
+        assert_eq!(
+            parse_with_modifier("all: ::foo"),
+            Ok((foo_symbol.ancestors(), Some(RevsetModifier::All)))
+        );
+        assert_eq!(
+            parse_with_modifier(" all: foo"),
+            Ok((foo_symbol.clone(), Some(RevsetModifier::All)))
+        );
+        assert_matches!(
+            parse_with_modifier("(all:foo)"),
+            Err(RevsetParseErrorKind::NotInfixOperator { .. })
+        );
+        assert_matches!(
+            parse_with_modifier("all :foo"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_matches!(
+            parse_with_modifier("all:all:all"),
+            Err(RevsetParseErrorKind::NotInfixOperator { .. })
+        );
+
+        // Top-level string pattern can't be parsed, which is an error anyway
+        assert_eq!(
+            parse_with_modifier(r#"exact:"foo""#),
+            Err(RevsetParseErrorKind::NoSuchModifier("exact".to_owned()))
+        );
     }
 
     #[test]
@@ -3286,6 +3443,12 @@ mod tests {
             parse("a@B").unwrap()
         );
 
+        // Modifier cannot be substituted.
+        assert_eq!(
+            parse_with_aliases_and_modifier("all:all", [("all", "ALL")]).unwrap(),
+            parse_with_modifier("all:ALL").unwrap()
+        );
+
         // Multi-level substitution.
         assert_eq!(
             parse_with_aliases("A", [("A", "BC"), ("BC", "b|C"), ("C", "c")]).unwrap(),
@@ -3305,6 +3468,11 @@ mod tests {
         // Error in alias definition.
         assert_eq!(
             parse_with_aliases("A", [("A", "a(")]),
+            Err(RevsetParseErrorKind::BadAliasExpansion("A".to_owned()))
+        );
+        // Modifier isn't allowed in alias definition.
+        assert_eq!(
+            parse_with_aliases_and_modifier("A", [("A", "all:a")]),
             Err(RevsetParseErrorKind::BadAliasExpansion("A".to_owned()))
         );
     }

@@ -52,7 +52,7 @@ use jj_lib::repo::{
 };
 use jj_lib::repo_path::{FsPathParseError, RepoPath, RepoPathBuf};
 use jj_lib::revset::{
-    RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt,
+    RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt, RevsetModifier,
     RevsetParseContext, RevsetWorkspaceContext,
 };
 use jj_lib::rewrite::restore_tree;
@@ -771,7 +771,11 @@ impl WorkspaceCommandHelper {
     ) -> Result<IndexSet<Commit>, CommandError> {
         let mut all_commits = IndexSet::new();
         for revision_str in revision_args {
-            let (expression, all) = self.parse_revset_with_all_prefix(revision_str)?;
+            let (expression, modifier) = self.parse_revset_with_modifier(revision_str)?;
+            let all = match modifier {
+                Some(RevsetModifier::All) => true,
+                None => false,
+            };
             if all {
                 for commit in expression.evaluate_to_commits()? {
                     all_commits.insert(commit?);
@@ -807,16 +811,15 @@ impl WorkspaceCommandHelper {
         self.attach_revset_evaluator(expression)
     }
 
-    fn parse_revset_with_all_prefix(
+    // TODO: maybe better to parse all: prefix even if it is the default? It
+    // shouldn't be allowed in aliases, though.
+    fn parse_revset_with_modifier(
         &self,
         revision_str: &str,
-    ) -> Result<(RevsetExpressionEvaluator<'_>, bool), CommandError> {
-        // TODO: Let pest parse the prefix too once we've dropped support for `:`
-        if let Some(revision_str) = revision_str.strip_prefix("all:") {
-            Ok((self.parse_revset(revision_str)?, true))
-        } else {
-            Ok((self.parse_revset(revision_str)?, false))
-        }
+    ) -> Result<(RevsetExpressionEvaluator<'_>, Option<RevsetModifier>), CommandError> {
+        let context = self.revset_parse_context();
+        let (expression, modifier) = revset::parse_with_modifier(revision_str, &context)?;
+        Ok((self.attach_revset_evaluator(expression)?, modifier))
     }
 
     /// Parses the given revset expressions and concatenates them all.

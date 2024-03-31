@@ -66,6 +66,18 @@ fn test_syntax_error() {
       = '^' is not a postfix operator
     Hint: Did you mean '-' for parents?
     "###);
+
+    // "jj new" supports "all:" prefix
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "ale:x"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset: Modifier "ale" doesn't exist
+    Caused by:  --> 1:1
+      |
+    1 | ale:x
+      | ^-^
+      |
+      = Modifier "ale" doesn't exist
+    "###);
 }
 
 #[test]
