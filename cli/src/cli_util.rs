@@ -52,8 +52,8 @@ use jj_lib::repo::{
 };
 use jj_lib::repo_path::{FsPathParseError, RepoPath, RepoPathBuf};
 use jj_lib::revset::{
-    Revset, RevsetAliasesMap, RevsetCommitRef, RevsetExpression, RevsetFilterPredicate,
-    RevsetIteratorExt, RevsetParseContext, RevsetWorkspaceContext,
+    RevsetAliasesMap, RevsetCommitRef, RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt,
+    RevsetParseContext, RevsetWorkspaceContext,
 };
 use jj_lib::rewrite::restore_tree;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
@@ -878,13 +878,6 @@ impl WorkspaceCommandHelper {
             .try_collect()?;
         let expression = RevsetExpression::union_all(&expressions);
         self.attach_revset_evaluator(expression)
-    }
-
-    pub fn evaluate_revset<'repo>(
-        &'repo self,
-        expression: Rc<RevsetExpression>,
-    ) -> Result<Box<dyn Revset + 'repo>, CommandError> {
-        Ok(self.attach_revset_evaluator(expression)?.evaluate()?)
     }
 
     fn attach_revset_evaluator(
