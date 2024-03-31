@@ -1192,7 +1192,7 @@ fn find_branches_targeted_by_revisions<'a>(
         .range(&RevsetExpression::commit(wc_commit_id))
         .intersection(&RevsetExpression::branches(StringPattern::everything()));
         let current_branches_revset =
-            workspace_command.evaluate_revset(current_branches_expression)?;
+            current_branches_expression.evaluate_programmatic(workspace_command.repo().as_ref())?;
         revision_commit_ids.extend(current_branches_revset.iter());
         if revision_commit_ids.is_empty() {
             writeln!(
