@@ -561,7 +561,7 @@ fn try_handle_command_result(
         CommandErrorKind::Config => {
             print_error(ui, "Config error: ", err, hints)?;
             writeln!(
-                ui.hint_no_heading(),
+                ui.stderr_formatter().labeled("hint"),
                 "For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md."
             )?;
             Ok(ExitCode::from(1))
@@ -619,13 +619,14 @@ fn print_error_sources(ui: &Ui, source: Option<&dyn error::Error>) -> io::Result
 
 fn print_error_hints(ui: &Ui, hints: &[ErrorHint]) -> io::Result<()> {
     for hint in hints {
-        match hint {
-            ErrorHint::PlainText(message) => {
-                writeln!(ui.hint_default(), "{message}")?;
-            }
-            ErrorHint::Formatted(recorded) => {
-                ui.stderr_formatter().with_label("hint", |formatter| {
-                    write!(formatter.labeled("heading"), "Hint: ")?;
+        ui.stderr_formatter().with_label("hint", |formatter| {
+            write!(formatter.labeled("heading"), "Hint: ")?;
+            match hint {
+                ErrorHint::PlainText(message) => {
+                    writeln!(formatter, "{message}")?;
+                    Ok(())
+                }
+                ErrorHint::Formatted(recorded) => {
                     recorded.replay(formatter)?;
                     // Formatted hint is usually multi-line text, and it's
                     // convenient if trailing "\n" doesn't have to be omitted.
@@ -633,9 +634,9 @@ fn print_error_hints(ui: &Ui, hints: &[ErrorHint]) -> io::Result<()> {
                         writeln!(formatter)?;
                     }
                     Ok(())
-                })?;
+                }
             }
-        }
+        })?;
     }
     Ok(())
 }
