@@ -39,6 +39,7 @@ mod new;
 mod next;
 mod obslog;
 mod operation;
+mod parallelize;
 mod prev;
 mod rebase;
 mod resolve;
@@ -114,6 +115,7 @@ enum Command {
     #[command(subcommand)]
     #[command(visible_alias = "op")]
     Operation(operation::OperationCommand),
+    Parallelize(parallelize::ParallelizeArgs),
     Prev(prev::PrevArgs),
     Rebase(rebase::RebaseArgs),
     Resolve(resolve::ResolveArgs),
@@ -180,6 +182,9 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Abandon(sub_args) => abandon::cmd_abandon(ui, command_helper, sub_args),
         Command::Edit(sub_args) => edit::cmd_edit(ui, command_helper, sub_args),
         Command::Next(sub_args) => next::cmd_next(ui, command_helper, sub_args),
+        Command::Parallelize(sub_args) => {
+            parallelize::cmd_parallelize(ui, command_helper, sub_args)
+        }
         Command::Prev(sub_args) => prev::cmd_prev(ui, command_helper, sub_args),
         Command::New(sub_args) => new::cmd_new(ui, command_helper, sub_args),
         Command::Move(sub_args) => r#move::cmd_move(ui, command_helper, sub_args),

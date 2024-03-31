@@ -61,6 +61,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj operation log`↴](#jj-operation-log)
 * [`jj operation undo`↴](#jj-operation-undo)
 * [`jj operation restore`↴](#jj-operation-restore)
+* [`jj parallelize`↴](#jj-parallelize)
 * [`jj prev`↴](#jj-prev)
 * [`jj rebase`↴](#jj-rebase)
 * [`jj resolve`↴](#jj-resolve)
@@ -126,6 +127,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `next` — Move the working-copy commit to the child revision
 * `obslog` — Show how a change has evolved
 * `operation` — Commands for working with the operation log
+* `parallelize` — Parallelize revisions by making them siblings
 * `prev` — Move the working-copy commit to the parent revision
 * `rebase` — Move revisions to different parent(s)
 * `resolve` — Resolve a conflicted file with an external merge tool
@@ -1342,6 +1344,42 @@ This restores the repo to the state at the specified operation, effectively undo
   - `remote-tracking`:
     The remote-tracking branches. Do not restore these if you'd like to push after the undo
 
+
+
+
+## `jj parallelize`
+
+Parallelize revisions by making them siblings
+
+Running `jj parallelize 1::2` will transform the history like this:
+```text
+3
+|             3
+2            / \
+|    ->     1   2
+1            \ /
+|             0
+0
+```
+
+Each of the target revisions is rebased onto the parents of the root(s) of
+the target revset (not to be confused with the repo root). The children of
+the head(s) of the target revset are rebased onto the target revisions.
+
+The target revset is the union of the REVISIONS arguments and must satisfy
+several conditions, otherwise the command will fail.
+
+1. The heads of the target revset must have either the same children as the
+   other heads or none.
+2. The roots of the target revset have the same parents.
+3. The parents of all target revisions except the roots must also be
+   parallelized. This means that the target revisions must be connected.
+
+**Usage:** `jj parallelize [REVISIONS]...`
+
+###### **Arguments:**
+
+* `<REVISIONS>` — Revisions to parallelize
 
 
 

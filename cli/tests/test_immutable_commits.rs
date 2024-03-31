@@ -184,6 +184,12 @@ fn test_rewrite_immutable_commands() {
     Error: Commit 3d14df18607e is immutable
     Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
+    // parallelize
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["parallelize", "description(b)", "main"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Commit 3d14df18607e is immutable
+    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    "###);
     // rebase -s
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-s=main", "-d=@"]);
     insta::assert_snapshot!(stderr, @r###"
