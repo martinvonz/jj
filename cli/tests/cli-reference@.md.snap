@@ -297,7 +297,7 @@ For information about branches, see https://github.com/martinvonz/jj/blob/main/d
 
 ###### **Options:**
 
-* `-a`, `--all` — Show all tracking and non-tracking remote branches including the ones whose targets are synchronized with the local branches
+* `-a`, `--all-remotes` — Show all tracking and non-tracking remote branches including the ones whose targets are synchronized with the local branches
 
   Possible values: `true`, `false`
 

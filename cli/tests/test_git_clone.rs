@@ -365,5 +365,5 @@ fn test_git_clone_remote_default_branch() {
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all"])
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes"])
 }

@@ -56,6 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj branch list` now allows combining `-r` and `-a` options.
 
+* `--all` is now named `--all-remotes` for `jj branch list`
+
 ### Fixed bugs
 
 ## [0.15.1] - 2024-03-06

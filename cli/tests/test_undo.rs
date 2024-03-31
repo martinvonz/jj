@@ -388,5 +388,5 @@ fn test_branch_track_untrack_undo() {
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all"])
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes"])
 }

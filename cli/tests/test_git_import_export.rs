@@ -253,7 +253,7 @@ fn test_git_import_move_export_with_default_undo() {
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all"])
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes"])
 }
 
 fn get_git_repo_refs(git_repo: &git2::Repository) -> Vec<(String, CommitId)> {
