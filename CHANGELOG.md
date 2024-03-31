@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * A new config option `ui.always-allow-large-revsets` has been added to
   allow large revsets expressions in some commands, without the `all:` prefix.
 
+* New command `jj parallelize` that rebases a set of revisions into siblings.
+
 ### Fixed bugs
 
 ## [0.16.0] - 2024-04-03
