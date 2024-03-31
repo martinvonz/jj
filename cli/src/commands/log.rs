@@ -81,24 +81,22 @@ pub(crate) fn cmd_log(
             workspace_command.parse_revset(&command.settings().default_revset())?
         } else {
             workspace_command.parse_union_revsets(&args.revisions)?
-        }
-        .expression()
-        .clone();
+        };
         if !args.paths.is_empty() {
             let repo_paths: Vec<_> = args
                 .paths
                 .iter()
                 .map(|path_arg| workspace_command.parse_file_path(path_arg))
                 .try_collect()?;
-            expression = expression.intersection(&RevsetExpression::filter(
-                RevsetFilterPredicate::File(Some(repo_paths)),
-            ));
+            expression.intersect_with(&RevsetExpression::filter(RevsetFilterPredicate::File(
+                Some(repo_paths),
+            )));
         }
         expression
     };
     let repo = workspace_command.repo();
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
-    let revset = workspace_command.evaluate_revset(revset_expression)?;
+    let revset = revset_expression.evaluate()?;
 
     let store = repo.store();
     let diff_formats =

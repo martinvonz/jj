@@ -1016,10 +1016,10 @@ impl WorkspaceCommandHelper {
                 .map(|commit| commit.id().clone())
                 .collect(),
         );
-        let immutable_revset =
-            revset_util::parse_immutable_expression(&self.revset_parse_context())?;
-        let revset = self.evaluate_revset(to_rewrite_revset.intersection(&immutable_revset))?;
-        if let Some(commit) = revset.iter().commits(self.repo().store()).next() {
+        let immutable = revset_util::parse_immutable_expression(&self.revset_parse_context())?;
+        let mut expression = self.attach_revset_evaluator(immutable)?;
+        expression.intersect_with(&to_rewrite_revset);
+        if let Some(commit) = expression.evaluate_to_commits()?.next() {
             let commit = commit?;
             let error = if commit.id() == self.repo().store().root_commit_id() {
                 user_error(format!(

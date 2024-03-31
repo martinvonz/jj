@@ -1203,12 +1203,9 @@ fn find_branches_targeted_by_revisions<'a>(
         }
     }
     for rev_str in revisions {
-        let expression = workspace_command
-            .parse_revset(rev_str)?
-            .expression()
-            .intersection(&RevsetExpression::branches(StringPattern::everything()));
-        let revset = workspace_command.evaluate_revset(expression)?;
-        let mut commit_ids = revset.iter().peekable();
+        let mut expression = workspace_command.parse_revset(rev_str)?;
+        expression.intersect_with(&RevsetExpression::branches(StringPattern::everything()));
+        let mut commit_ids = expression.evaluate_to_commit_ids()?.peekable();
         if commit_ids.peek().is_none() {
             let rev_str: &str = rev_str;
             writeln!(

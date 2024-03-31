@@ -67,6 +67,11 @@ impl<'repo> RevsetExpressionEvaluator<'repo> {
         &self.expression
     }
 
+    /// Intersects the underlying expression with the `other` expression.
+    pub fn intersect_with(&mut self, other: &Rc<RevsetExpression>) {
+        self.expression = self.expression.intersection(other);
+    }
+
     /// Evaluates the expression.
     pub fn evaluate(&self) -> Result<Box<dyn Revset + 'repo>, UserRevsetEvaluationError> {
         let symbol_resolver = default_symbol_resolver(self.repo, self.id_prefix_context);
