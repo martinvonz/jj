@@ -782,27 +782,13 @@ impl WorkspaceCommandHelper {
         revision_str: &str,
         should_hint_about_all_prefix: bool,
     ) -> Result<Commit, CommandError> {
-        let revset_expression = self.parse_revset(revision_str)?;
-        let mut iter = revset_expression.evaluate_to_commits()?.fuse();
-        match (iter.next(), iter.next()) {
-            (Some(commit), None) => Ok(commit?),
-            (None, _) => Err(user_error(format!(
-                r#"Revset "{revision_str}" didn't resolve to any revisions"#
-            ))),
-            (Some(commit0), Some(commit1)) => {
-                let mut iter = [commit0, commit1].into_iter().chain(iter);
-                let commits: Vec<_> = iter.by_ref().take(5).try_collect()?;
-                let elided = iter.next().is_some();
-                Err(revset_util::format_multiple_revisions_error(
-                    revision_str,
-                    revset_expression.expression(),
-                    &commits,
-                    elided,
-                    &self.commit_summary_template(),
-                    should_hint_about_all_prefix,
-                ))
-            }
-        }
+        let expression = self.parse_revset(revision_str)?;
+        revset_util::evaluate_revset_to_single_commit(
+            revision_str,
+            &expression,
+            || self.commit_summary_template(),
+            should_hint_about_all_prefix,
+        )
     }
 
     pub fn parse_revset(
