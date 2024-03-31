@@ -45,6 +45,7 @@ mod test_new_command;
 mod test_next_prev_commands;
 mod test_obslog_command;
 mod test_operations;
+mod test_parallelize_command;
 mod test_rebase_command;
 mod test_repo_change_report;
 mod test_resolve_command;

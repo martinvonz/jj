@@ -87,6 +87,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * new function `working_copies()` for revsets to show the working copy commits of all workspaces.
 
+* New command `jj parallelize` that rebases a chain of commits into siblings.
+
 ### Fixed bugs
 
 None.
