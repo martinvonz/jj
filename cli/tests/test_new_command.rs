@@ -137,6 +137,13 @@ fn test_new_merge() {
     insta::assert_snapshot!(stderr, @r###"
     Error: More than one revset resolved to revision 3a44e52b073c
     "###);
+    // if prefixed with all:, duplicates are allowed
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["new", "@", "all:visible_heads()"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: xznxytkn dddeb489 (empty) (no description set)
+    Parent commit      : wqnwkozp 3a44e52b (empty) (no description set)
+    "###);
 
     // merge with root
     let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "@", "root()"]);

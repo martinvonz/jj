@@ -772,8 +772,10 @@ impl WorkspaceCommandHelper {
         let mut all_commits = IndexSet::new();
         for revision_str in revision_args {
             let (expression, all) = self.parse_revset_with_all_prefix(revision_str)?;
-            let commits = if all {
-                expression.evaluate_to_commits()?.try_collect()?
+            if all {
+                for commit in expression.evaluate_to_commits()? {
+                    all_commits.insert(commit?);
+                }
             } else {
                 let should_hint_about_all_prefix = true;
                 let commit = revset_util::evaluate_revset_to_single_commit(
@@ -782,9 +784,6 @@ impl WorkspaceCommandHelper {
                     || self.commit_summary_template(),
                     should_hint_about_all_prefix,
                 )?;
-                vec![commit]
-            };
-            for commit in commits {
                 let commit_hash = short_commit_hash(commit.id());
                 if !all_commits.insert(commit) {
                     return Err(user_error(format!(
