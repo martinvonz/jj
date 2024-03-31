@@ -1019,16 +1019,15 @@ impl WorkspaceCommandHelper {
         let immutable = revset_util::parse_immutable_expression(&self.revset_parse_context())?;
         let mut expression = self.attach_revset_evaluator(immutable)?;
         expression.intersect_with(&to_rewrite_revset);
-        if let Some(commit) = expression.evaluate_to_commits()?.next() {
-            let commit = commit?;
-            let error = if commit.id() == self.repo().store().root_commit_id() {
+        if let Some(commit_id) = expression.evaluate_to_commit_ids()?.next() {
+            let error = if &commit_id == self.repo().store().root_commit_id() {
                 user_error(format!(
                     "The root commit {} is immutable",
-                    short_commit_hash(commit.id()),
+                    short_commit_hash(&commit_id),
                 ))
             } else {
                 user_error_with_hint(
-                    format!("Commit {} is immutable", short_commit_hash(commit.id()),),
+                    format!("Commit {} is immutable", short_commit_hash(&commit_id)),
                     "Configure the set of immutable commits via \
                      `revset-aliases.immutable_heads()`.",
                 )
