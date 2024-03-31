@@ -750,7 +750,14 @@ impl WorkspaceCommandHelper {
     /// Resolve a revset to a single revision. Return an error if the revset is
     /// empty or has multiple revisions.
     pub fn resolve_single_rev(&self, revision_str: &str) -> Result<Commit, CommandError> {
-        self.resolve_single_rev_with_hint_about_all_prefix(revision_str, false)
+        let expression = self.parse_revset(revision_str)?;
+        let should_hint_about_all_prefix = false;
+        revset_util::evaluate_revset_to_single_commit(
+            revision_str,
+            &expression,
+            || self.commit_summary_template(),
+            should_hint_about_all_prefix,
+        )
     }
 
     /// Evaluates revset expressions to non-empty set of commits. The returned
@@ -796,27 +803,19 @@ impl WorkspaceCommandHelper {
         &self,
         revision_str: &str,
     ) -> Result<Vec<Commit>, CommandError> {
-        // TODO: Let pest parse the prefix too once we've dropped support for `:`
-        if let Some(revision_str) = revision_str.strip_prefix("all:") {
-            self.resolve_revset(revision_str)
+        let (expression, all) = self.parse_revset_with_all_prefix(revision_str)?;
+        if all {
+            Ok(expression.evaluate_to_commits()?.try_collect()?)
         } else {
-            self.resolve_single_rev_with_hint_about_all_prefix(revision_str, true)
-                .map(|commit| vec![commit])
+            let should_hint_about_all_prefix = true;
+            let commit = revset_util::evaluate_revset_to_single_commit(
+                revision_str,
+                &expression,
+                || self.commit_summary_template(),
+                should_hint_about_all_prefix,
+            )?;
+            Ok(vec![commit])
         }
-    }
-
-    fn resolve_single_rev_with_hint_about_all_prefix(
-        &self,
-        revision_str: &str,
-        should_hint_about_all_prefix: bool,
-    ) -> Result<Commit, CommandError> {
-        let expression = self.parse_revset(revision_str)?;
-        revset_util::evaluate_revset_to_single_commit(
-            revision_str,
-            &expression,
-            || self.commit_summary_template(),
-            should_hint_about_all_prefix,
-        )
     }
 
     pub fn parse_revset(
@@ -825,6 +824,18 @@ impl WorkspaceCommandHelper {
     ) -> Result<RevsetExpressionEvaluator<'_>, CommandError> {
         let expression = revset::parse(revision_str, &self.revset_parse_context())?;
         self.attach_revset_evaluator(expression)
+    }
+
+    fn parse_revset_with_all_prefix(
+        &self,
+        revision_str: &str,
+    ) -> Result<(RevsetExpressionEvaluator<'_>, bool), CommandError> {
+        // TODO: Let pest parse the prefix too once we've dropped support for `:`
+        if let Some(revision_str) = revision_str.strip_prefix("all:") {
+            Ok((self.parse_revset(revision_str)?, true))
+        } else {
+            Ok((self.parse_revset(revision_str)?, false))
+        }
     }
 
     /// Parses the given revset expressions and concatenates them all.
