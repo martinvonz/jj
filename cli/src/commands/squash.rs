@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools as _;
 use jj_lib::commit::Commit;
 use jj_lib::matchers::Matcher;
 use jj_lib::object_id::ObjectId;
@@ -80,10 +81,13 @@ pub(crate) fn cmd_squash(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
 
-    let mut sources;
+    let mut sources: Vec<Commit>;
     let destination;
     if args.from.is_some() || args.into.is_some() {
-        sources = workspace_command.resolve_revset(args.from.as_deref().unwrap_or("@"))?;
+        sources = workspace_command
+            .parse_revset(args.from.as_deref().unwrap_or("@"))?
+            .evaluate_to_commits()?
+            .try_collect()?;
         destination = workspace_command.resolve_single_rev(args.into.as_deref().unwrap_or("@"))?;
         if sources.iter().any(|source| source.id() == destination.id()) {
             return Err(user_error("Source and destination cannot be the same"));
