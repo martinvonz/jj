@@ -1025,7 +1025,7 @@ Spans of revisions that are not included in the graph per `--revisions` are rend
 
 ###### **Options:**
 
-* `-r`, `--revisions <REVISIONS>` — Which revisions to show. Defaults to the `revsets.log` setting, or `@ | ancestors(immutable_heads().., 2) | trunk()` if it is not set
+* `-r`, `--revisions <REVISIONS>` — Which revisions to show. If no paths nor revisions are specified, this defaults to the `revsets.log` setting, or `@ | ancestors(immutable_heads().., 2) | trunk()` if it is not set
 * `--reversed` — Show revisions in the opposite order (older revisions first)
 
   Possible values: `true`, `false`

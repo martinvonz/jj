@@ -1001,6 +1001,15 @@ fn test_default_revset() {
             .lines()
             .count()
     );
+
+    // The default revset is not used if a path is specified
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "file1", "-T", "description"]),
+        @r###"
+    @  add a file
+    │
+    ~
+    "###);
 }
 
 #[test]

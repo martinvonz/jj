@@ -22,6 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `jj sparse` subcommands now parse and print patterns as workspace-relative
   paths.
 
+* The `jj log` command no longer uses the default revset when a path is specified.
+
 ### New features
 
 * Config now supports rgb hex colors (in the form `#rrggbb`) wherever existing color names are supported.
