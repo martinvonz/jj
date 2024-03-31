@@ -799,14 +799,6 @@ impl WorkspaceCommandHelper {
         }
     }
 
-    /// Resolve a revset any number of revisions (including 0).
-    pub fn resolve_revset(&self, revision_str: &str) -> Result<Vec<Commit>, CommandError> {
-        Ok(self
-            .parse_revset(revision_str)?
-            .evaluate_to_commits()?
-            .try_collect()?)
-    }
-
     pub fn parse_revset(
         &self,
         revision_str: &str,
