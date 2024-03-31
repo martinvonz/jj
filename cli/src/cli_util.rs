@@ -52,7 +52,7 @@ use jj_lib::repo::{
 };
 use jj_lib::repo_path::{FsPathParseError, RepoPath, RepoPathBuf};
 use jj_lib::revset::{
-    RevsetAliasesMap, RevsetCommitRef, RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt,
+    RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt,
     RevsetParseContext, RevsetWorkspaceContext,
 };
 use jj_lib::rewrite::restore_tree;
@@ -790,70 +790,17 @@ impl WorkspaceCommandHelper {
                 r#"Revset "{revision_str}" didn't resolve to any revisions"#
             ))),
             (Some(commit0), Some(commit1)) => {
-                let mut cmd_err = user_error(format!(
-                    r#"Revset "{revision_str}" resolved to more than one revision"#
-                ));
                 let mut iter = [commit0, commit1].into_iter().chain(iter);
                 let commits: Vec<_> = iter.by_ref().take(5).try_collect()?;
                 let elided = iter.next().is_some();
-                let write_commits_summary = |formatter: &mut dyn Formatter| {
-                    let template = self.commit_summary_template();
-                    for commit in &commits {
-                        write!(formatter, "  ")?;
-                        template.format(commit, formatter)?;
-                        writeln!(formatter)?;
-                    }
-                    if elided {
-                        writeln!(formatter, "  ...")?;
-                    }
-                    Ok(())
-                };
-                if commits[0].change_id() == commits[1].change_id() {
-                    // Separate hint if there's commits with same change id
-                    cmd_err.add_formatted_hint_with(|formatter| {
-                        writeln!(
-                            formatter,
-                            r#"The revset "{revision_str}" resolved to these revisions:"#
-                        )?;
-                        write_commits_summary(formatter)
-                    });
-                    cmd_err.add_hint(
-                        "Some of these commits have the same change id. Abandon one of them with \
-                         `jj abandon -r <REVISION>`.",
-                    );
-                } else if let RevsetExpression::CommitRef(RevsetCommitRef::Symbol(branch_name)) =
-                    revset_expression.expression().as_ref()
-                {
-                    // Separate hint if there's a conflicted branch
-                    cmd_err.add_formatted_hint_with(|formatter| {
-                        writeln!(
-                            formatter,
-                            "Branch {branch_name} resolved to multiple revisions because it's \
-                             conflicted."
-                        )?;
-                        writeln!(formatter, "It resolved to these revisions:")?;
-                        write_commits_summary(formatter)
-                    });
-                    cmd_err.add_hint(format!(
-                        "Set which revision the branch points to with `jj branch set \
-                         {branch_name} -r <REVISION>`.",
-                    ));
-                } else {
-                    cmd_err.add_formatted_hint_with(|formatter| {
-                        writeln!(
-                            formatter,
-                            r#"The revset "{revision_str}" resolved to these revisions:"#
-                        )?;
-                        write_commits_summary(formatter)
-                    });
-                    if should_hint_about_all_prefix {
-                        cmd_err.add_hint(format!(
-                            "Prefix the expression with 'all:' to allow any number of revisions \
-                             (i.e. 'all:{revision_str}')."
-                        ));
-                    }
-                };
-                Err(cmd_err)
+                Err(revset_util::format_multiple_revisions_error(
+                    revision_str,
+                    revset_expression.expression(),
+                    &commits,
+                    elided,
+                    &self.commit_summary_template(),
+                    should_hint_about_all_prefix,
+                ))
             }
         }
     }
