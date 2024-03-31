@@ -149,14 +149,16 @@ don't make any changes, then the operation will be aborted.
     tx.mut_repo()
         .set_rewritten_commit(commit.id().clone(), second_commit.id().clone());
     let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
-    if num_rebased > 0 {
-        writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
+    if let Some(mut formatter) = ui.status_formatter() {
+        if num_rebased > 0 {
+            writeln!(formatter, "Rebased {num_rebased} descendant commits")?;
+        }
+        write!(formatter, "First part: ")?;
+        tx.write_commit_summary(formatter.as_mut(), &first_commit)?;
+        write!(formatter, "\nSecond part: ")?;
+        tx.write_commit_summary(formatter.as_mut(), &second_commit)?;
+        writeln!(formatter)?;
     }
-    write!(ui.status(), "First part: ")?;
-    tx.write_commit_summary(ui.status().as_mut(), &first_commit)?;
-    write!(ui.status(), "\nSecond part: ")?;
-    tx.write_commit_summary(ui.status().as_mut(), &second_commit)?;
-    writeln!(ui.status())?;
     tx.finish(ui, format!("split commit {}", commit.id().hex()))?;
     Ok(())
 }

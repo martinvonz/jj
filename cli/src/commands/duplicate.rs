@@ -77,10 +77,12 @@ pub(crate) fn cmd_duplicate(
         duplicated_old_to_new.insert(original_commit_id, new_commit);
     }
 
-    for (old_id, new_commit) in &duplicated_old_to_new {
-        write!(ui.status(), "Duplicated {} as ", short_commit_hash(old_id))?;
-        tx.write_commit_summary(ui.status().as_mut(), new_commit)?;
-        writeln!(ui.status())?;
+    if let Some(mut formatter) = ui.status_formatter() {
+        for (old_id, new_commit) in &duplicated_old_to_new {
+            write!(formatter, "Duplicated {} as ", short_commit_hash(old_id))?;
+            tx.write_commit_summary(formatter.as_mut(), new_commit)?;
+            writeln!(formatter)?;
+        }
     }
     tx.finish(ui, format!("duplicate {} commit(s)", to_duplicate.len()))?;
     Ok(())

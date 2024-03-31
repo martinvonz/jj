@@ -66,28 +66,29 @@ pub(crate) fn cmd_abandon(
     }
     let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
 
-    if to_abandon.len() == 1 {
-        write!(ui.status(), "Abandoned commit ")?;
-        tx.base_workspace_helper()
-            .write_commit_summary(ui.status().as_mut(), &to_abandon[0])?;
-        writeln!(ui.status())?;
-    } else if !args.summary {
-        let mut formatter = ui.status();
-        let template = tx.base_workspace_helper().commit_summary_template();
-        writeln!(formatter, "Abandoned the following commits:")?;
-        for commit in &to_abandon {
-            write!(formatter, "  ")?;
-            template.format(commit, formatter.as_mut())?;
-            writeln!(formatter)?;
+    if let Some(mut formatter) = ui.status_formatter() {
+        if to_abandon.len() == 1 {
+            write!(formatter, "Abandoned commit ")?;
+            tx.base_workspace_helper()
+                .write_commit_summary(formatter.as_mut(), &to_abandon[0])?;
+            writeln!(ui.status())?;
+        } else if !args.summary {
+            let template = tx.base_workspace_helper().commit_summary_template();
+            writeln!(formatter, "Abandoned the following commits:")?;
+            for commit in &to_abandon {
+                write!(formatter, "  ")?;
+                template.format(commit, formatter.as_mut())?;
+                writeln!(formatter)?;
+            }
+        } else {
+            writeln!(formatter, "Abandoned {} commits.", &to_abandon.len())?;
         }
-    } else {
-        writeln!(ui.status(), "Abandoned {} commits.", &to_abandon.len())?;
-    }
-    if num_rebased > 0 {
-        writeln!(
-            ui.status(),
-            "Rebased {num_rebased} descendant commits onto parents of abandoned commits"
-        )?;
+        if num_rebased > 0 {
+            writeln!(
+                formatter,
+                "Rebased {num_rebased} descendant commits onto parents of abandoned commits"
+            )?;
+        }
     }
     let transaction_description = if to_abandon.len() == 1 {
         format!("abandon commit {}", to_abandon[0].id().hex())

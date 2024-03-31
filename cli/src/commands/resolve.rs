@@ -115,15 +115,18 @@ pub(crate) fn cmd_resolve(
         format!("Resolve conflicts in commit {}", commit.id().hex()),
     )?;
 
+    // TODO: Delete local `--quiet`
     if !args.quiet {
-        let new_tree = new_commit.tree()?;
-        let new_conflicts = new_tree.conflicts().collect_vec();
-        if !new_conflicts.is_empty() {
-            writeln!(
-                ui.status(),
-                "After this operation, some files at this revision still have conflicts:"
-            )?;
-            print_conflicted_paths(&new_conflicts, ui.status().as_mut(), &workspace_command)?;
+        if let Some(mut formatter) = ui.status_formatter() {
+            let new_tree = new_commit.tree()?;
+            let new_conflicts = new_tree.conflicts().collect_vec();
+            if !new_conflicts.is_empty() {
+                writeln!(
+                    formatter,
+                    "After this operation, some files at this revision still have conflicts:"
+                )?;
+                print_conflicted_paths(&new_conflicts, formatter.as_mut(), &workspace_command)?;
+            }
         }
     };
     Ok(())
