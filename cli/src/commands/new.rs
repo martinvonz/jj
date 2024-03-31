@@ -189,9 +189,11 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
     }
     num_rebased += tx.mut_repo().rebase_descendants(command.settings())?;
     if args.no_edit {
-        write!(ui.status(), "Created new commit ")?;
-        tx.write_commit_summary(ui.status().as_mut(), &new_commit)?;
-        writeln!(ui.status())?;
+        if let Some(mut formatter) = ui.status_formatter() {
+            write!(formatter, "Created new commit ")?;
+            tx.write_commit_summary(formatter.as_mut(), &new_commit)?;
+            writeln!(formatter)?;
+        }
     } else {
         tx.edit(&new_commit).unwrap();
         // The description of the new commit will be printed by tx.finish()

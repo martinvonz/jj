@@ -256,6 +256,9 @@ pub fn print_git_import_stats(
     stats: &GitImportStats,
     show_ref_stats: bool,
 ) -> Result<(), CommandError> {
+    let Some(mut formatter) = ui.status_formatter() else {
+        return Ok(());
+    };
     if show_ref_stats {
         let refs_stats = stats
             .changed_remote_refs
@@ -274,7 +277,6 @@ pub fn print_git_import_stats(
 
         let max_width = refs_stats.iter().map(|x| x.ref_name.width()).max();
         if let Some(max_width) = max_width {
-            let mut formatter = ui.status();
             for status in refs_stats {
                 status.output(max_width, has_both_ref_kinds, &mut *formatter)?;
             }
@@ -283,7 +285,7 @@ pub fn print_git_import_stats(
 
     if !stats.abandoned_commits.is_empty() {
         writeln!(
-            ui.status(),
+            formatter,
             "Abandoned {} commits that are no longer reachable.",
             stats.abandoned_commits.len()
         )?;

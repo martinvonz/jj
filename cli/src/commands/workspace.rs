@@ -424,11 +424,13 @@ fn cmd_workspace_update_stale(
                     )
                 })?;
             locked_ws.finish(repo.op_id().clone())?;
-            write!(ui.status(), "Working copy now at: ")?;
-            ui.status().with_label("working_copy", |fmt| {
-                workspace_command.write_commit_summary(fmt, &desired_wc_commit)
-            })?;
-            writeln!(ui.status())?;
+            if let Some(mut formatter) = ui.status_formatter() {
+                write!(formatter, "Working copy now at: ")?;
+                formatter.with_label("working_copy", |fmt| {
+                    workspace_command.write_commit_summary(fmt, &desired_wc_commit)
+                })?;
+                writeln!(formatter)?;
+            }
             print_checkout_stats(ui, stats, &desired_wc_commit)?;
         }
     }

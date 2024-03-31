@@ -33,6 +33,7 @@ use crate::cli_util::{
     RevisionArg, WorkspaceCommandHelper,
 };
 use crate::command_error::{user_error, CommandError};
+use crate::formatter::Formatter;
 use crate::ui::Ui;
 
 /// Move revisions to different parent(s)
@@ -295,7 +296,9 @@ fn rebase_descendants(
         .iter()
         .partition::<Vec<_>, _>(|commit| commit.parents() == new_parents);
     if !skipped_commits.is_empty() {
-        log_skipped_rebase_commits_message(ui, workspace_command, &skipped_commits)?;
+        if let Some(mut fmt) = ui.status_formatter() {
+            log_skipped_rebase_commits_message(fmt.as_mut(), workspace_command, &skipped_commits)?;
+        }
     }
     if old_commits.is_empty() {
         return Ok(());
@@ -447,9 +450,11 @@ fn rebase_revision(
     // longer have any children; they have all been rebased and the originals
     // have been abandoned.
     let skipped_commit_rebase = if old_commit.parents() == new_parents {
-        write!(ui.status(), "Skipping rebase of commit ")?;
-        tx.write_commit_summary(ui.status().as_mut(), &old_commit)?;
-        writeln!(ui.status())?;
+        if let Some(mut formatter) = ui.status_formatter() {
+            write!(formatter, "Skipping rebase of commit ")?;
+            tx.write_commit_summary(formatter.as_mut(), &old_commit)?;
+            writeln!(formatter)?;
+        }
         true
     } else {
         rebase_commit(settings, tx.mut_repo(), &old_commit, &new_parents)?;
@@ -496,21 +501,20 @@ fn check_rebase_destinations(
 }
 
 fn log_skipped_rebase_commits_message(
-    ui: &Ui,
+    fmt: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
     commits: &[&Commit],
 ) -> Result<(), CommandError> {
-    let mut fmt = ui.status();
     let template = workspace_command.commit_summary_template();
     if commits.len() == 1 {
         write!(fmt, "Skipping rebase of commit ")?;
-        template.format(commits[0], fmt.as_mut())?;
+        template.format(commits[0], fmt)?;
         writeln!(fmt)?;
     } else {
         writeln!(fmt, "Skipping rebase of commits:")?;
         for commit in commits {
             write!(fmt, "  ")?;
-            template.format(commit, fmt.as_mut())?;
+            template.format(commit, fmt)?;
             writeln!(fmt)?;
         }
     }

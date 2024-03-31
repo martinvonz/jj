@@ -112,11 +112,13 @@ pub(crate) fn cmd_restore(
         // rebase_descendants early; otherwise `new_commit` would always have
         // a conflicted change id at this point.
         let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
-        write!(ui.status(), "Created ")?;
-        tx.write_commit_summary(ui.status().as_mut(), &new_commit)?;
-        writeln!(ui.status())?;
-        if num_rebased > 0 {
-            writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
+        if let Some(mut formatter) = ui.status_formatter() {
+            write!(formatter, "Created ")?;
+            tx.write_commit_summary(formatter.as_mut(), &new_commit)?;
+            writeln!(formatter)?;
+            if num_rebased > 0 {
+                writeln!(formatter, "Rebased {num_rebased} descendant commits")?;
+            }
         }
         tx.finish(ui, format!("restore into commit {}", to_commit.id().hex()))?;
     }

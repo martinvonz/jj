@@ -1147,16 +1147,17 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             new_commit,
         )?;
         if Some(new_commit) != maybe_old_commit {
-            let mut formatter = ui.status();
-            let template = self.commit_summary_template();
-            write!(formatter, "Working copy now at: ")?;
-            formatter.with_label("working_copy", |fmt| template.format(new_commit, fmt))?;
-            writeln!(formatter)?;
-            for parent in new_commit.parents() {
-                //                "Working copy now at: "
-                write!(formatter, "Parent commit      : ")?;
-                template.format(&parent, formatter.as_mut())?;
+            if let Some(mut formatter) = ui.status_formatter() {
+                let template = self.commit_summary_template();
+                write!(formatter, "Working copy now at: ")?;
+                formatter.with_label("working_copy", |fmt| template.format(new_commit, fmt))?;
                 writeln!(formatter)?;
+                for parent in new_commit.parents() {
+                    //                "Working copy now at: "
+                    write!(formatter, "Parent commit      : ")?;
+                    template.format(&parent, formatter.as_mut())?;
+                    writeln!(formatter)?;
+                }
             }
         }
         if let Some(stats) = stats {
@@ -1236,6 +1237,9 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         ui: &mut Ui,
         old_repo: &Arc<ReadonlyRepo>,
     ) -> Result<(), CommandError> {
+        let Some(mut fmt) = ui.status_formatter() else {
+            return Ok(());
+        };
         let old_view = old_repo.view();
         let new_repo = self.repo().as_ref();
         let new_view = new_repo.view();
@@ -1279,7 +1283,6 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             .retain(|change_id, _commits| !removed_conflicts_by_change_id.contains_key(change_id));
 
         // TODO: Also report new divergence and maybe resolved divergence
-        let mut fmt = ui.status();
         let template = self.commit_summary_template();
         if !resolved_conflicts_by_change_id.is_empty() {
             writeln!(
@@ -1642,12 +1645,12 @@ pub fn print_trackable_remote_branches(ui: &Ui, view: &View) -> io::Result<()> {
         ui.hint_default(),
         "The following remote branches aren't associated with the existing local branches:"
     )?;
-    let mut formatter = ui.status();
-    for full_name in &remote_branch_names {
-        write!(formatter, "  ")?;
-        writeln!(formatter.labeled("branch"), "{full_name}")?;
+    if let Some(mut formatter) = ui.status_formatter() {
+        for full_name in &remote_branch_names {
+            write!(formatter, "  ")?;
+            writeln!(formatter.labeled("branch"), "{full_name}")?;
+        }
     }
-    drop(formatter);
     writeln!(
         ui.hint_default(),
         "Run `jj branch track {names}` to keep local branches updated on future pulls.",
