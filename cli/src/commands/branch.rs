@@ -18,7 +18,6 @@ use std::io::Write as _;
 
 use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
-use jj_lib::backend::CommitId;
 use jj_lib::git;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::{RefTarget, RemoteRef};
@@ -624,15 +623,10 @@ fn cmd_branch_list(
         }
         if !args.revisions.is_empty() {
             // Match against local targets only, which is consistent with "jj git push".
-            let filter_expression = workspace_command
-                .parse_union_revsets(&args.revisions)?
-                .expression()
-                .clone();
+            let mut expression = workspace_command.parse_union_revsets(&args.revisions)?;
             // Intersects with the set of local branch targets to minimize the lookup space.
-            let revset_expression = RevsetExpression::branches(StringPattern::everything())
-                .intersection(&filter_expression);
-            let revset = workspace_command.evaluate_revset(revset_expression)?;
-            let filtered_targets: HashSet<CommitId> = revset.iter().collect();
+            expression.intersect_with(&RevsetExpression::branches(StringPattern::everything()));
+            let filtered_targets: HashSet<_> = expression.evaluate_to_commit_ids()?.collect();
             branch_names.extend(
                 view.local_branches()
                     .filter(|(_, target)| {
