@@ -753,6 +753,34 @@ impl WorkspaceCommandHelper {
         self.resolve_single_rev_with_hint_about_all_prefix(revision_str, false)
     }
 
+    /// Evaluates revset expressions to non-empty set of commits. The returned
+    /// set preserves the order of the input expressions.
+    ///
+    /// If an input expression is prefixed with `all:`, it may be evaluated to
+    /// any number of revisions (including 0.)
+    pub fn resolve_some_revsets_default_single(
+        &self,
+        revision_args: &[RevisionArg],
+    ) -> Result<IndexSet<Commit>, CommandError> {
+        let mut all_commits = IndexSet::new();
+        for revision_str in revision_args {
+            let commits = self.resolve_revset_default_single(revision_str)?;
+            for commit in commits {
+                let commit_hash = short_commit_hash(commit.id());
+                if !all_commits.insert(commit) {
+                    return Err(user_error(format!(
+                        r#"More than one revset resolved to revision {commit_hash}"#,
+                    )));
+                }
+            }
+        }
+        if all_commits.is_empty() {
+            Err(user_error("Empty revision set"))
+        } else {
+            Ok(all_commits)
+        }
+    }
+
     /// Resolve a revset any number of revisions (including 0).
     pub fn resolve_revset(&self, revision_str: &str) -> Result<Vec<Commit>, CommandError> {
         Ok(self
@@ -764,7 +792,7 @@ impl WorkspaceCommandHelper {
     /// Resolve a revset any number of revisions (including 0), but require the
     /// user to indicate if they allow multiple revisions by prefixing the
     /// expression with `all:`.
-    pub fn resolve_revset_default_single(
+    fn resolve_revset_default_single(
         &self,
         revision_str: &str,
     ) -> Result<Vec<Commit>, CommandError> {
@@ -1596,29 +1624,6 @@ pub fn print_trackable_remote_branches(ui: &Ui, view: &View) -> io::Result<()> {
         )?;
     }
     Ok(())
-}
-
-pub fn resolve_multiple_nonempty_revsets_default_single(
-    workspace_command: &WorkspaceCommandHelper,
-    revisions: &[RevisionArg],
-) -> Result<IndexSet<Commit>, CommandError> {
-    let mut all_commits = IndexSet::new();
-    for revision_str in revisions {
-        let commits = workspace_command.resolve_revset_default_single(revision_str)?;
-        for commit in commits {
-            let commit_hash = short_commit_hash(commit.id());
-            if !all_commits.insert(commit) {
-                return Err(user_error(format!(
-                    r#"More than one revset resolved to revision {commit_hash}"#,
-                )));
-            }
-        }
-    }
-    if all_commits.is_empty() {
-        Err(user_error("Empty revision set"))
-    } else {
-        Ok(all_commits)
-    }
 }
 
 pub fn update_working_copy(

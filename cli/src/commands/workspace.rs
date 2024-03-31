@@ -29,9 +29,8 @@ use jj_lib::workspace::Workspace;
 use tracing::instrument;
 
 use crate::cli_util::{
-    check_stale_working_copy, print_checkout_stats,
-    resolve_multiple_nonempty_revsets_default_single, short_commit_hash, CommandHelper,
-    RevisionArg, WorkingCopyFreshness, WorkspaceCommandHelper,
+    check_stale_working_copy, print_checkout_stats, short_commit_hash, CommandHelper, RevisionArg,
+    WorkingCopyFreshness, WorkspaceCommandHelper,
 };
 use crate::command_error::{internal_error_with_message, user_error, CommandError};
 use crate::ui::Ui;
@@ -203,7 +202,8 @@ fn cmd_workspace_add(
             vec![tx.repo().store().root_commit()]
         }
     } else {
-        resolve_multiple_nonempty_revsets_default_single(&old_workspace_command, &args.revision)?
+        old_workspace_command
+            .resolve_some_revsets_default_single(&args.revision)?
             .into_iter()
             .collect_vec()
     };

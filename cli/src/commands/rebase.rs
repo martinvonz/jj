@@ -30,8 +30,8 @@ use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
 use crate::cli_util::{
-    resolve_multiple_nonempty_revsets_default_single, short_commit_hash, CommandHelper,
-    RevisionArg, WorkspaceCommandHelper, WorkspaceCommandTransaction,
+    short_commit_hash, CommandHelper, RevisionArg, WorkspaceCommandHelper,
+    WorkspaceCommandTransaction,
 };
 use crate::command_error::{user_error, CommandError};
 use crate::formatter::Formatter;
@@ -193,10 +193,10 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
         simplify_ancestor_merge: false,
     };
     let mut workspace_command = command.workspace_helper(ui)?;
-    let new_parents =
-        resolve_multiple_nonempty_revsets_default_single(&workspace_command, &args.destination)?
-            .into_iter()
-            .collect_vec();
+    let new_parents = workspace_command
+        .resolve_some_revsets_default_single(&args.destination)?
+        .into_iter()
+        .collect_vec();
     if let Some(rev_str) = &args.revision {
         assert_eq!(
             // In principle, `-r --skip-empty` could mean to abandon the `-r`
@@ -221,8 +221,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
             rev_str,
         )?;
     } else if !args.source.is_empty() {
-        let source_commits =
-            resolve_multiple_nonempty_revsets_default_single(&workspace_command, &args.source)?;
+        let source_commits = workspace_command.resolve_some_revsets_default_single(&args.source)?;
         rebase_descendants_transaction(
             ui,
             command.settings(),
@@ -235,7 +234,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
         let branch_commits = if args.branch.is_empty() {
             IndexSet::from([workspace_command.resolve_single_rev("@")?])
         } else {
-            resolve_multiple_nonempty_revsets_default_single(&workspace_command, &args.branch)?
+            workspace_command.resolve_some_revsets_default_single(&args.branch)?
         };
         rebase_branch(
             ui,
