@@ -1266,11 +1266,30 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             .transpose()?;
         if self.working_copy_shared_with_git {
             let git_repo = self.git_backend().unwrap().open_git_repo()?;
-            if let Some(wc_commit) = &maybe_new_wc_commit {
-                git::reset_head(tx.mut_repo(), &git_repo, wc_commit)?;
-            }
+            // TODO(emesterhazy): Is it problematic that we're exporting these
+            //   refs before resetting head? If the ref export fails, the head
+            //   won't be reset. We could defer returning the error until after
+            //   HEAD is reset, but we need to try to export the refs first so
+            //   that we can set HEAD to an advanceable branch if one exists.
             let failed_branches = git::export_refs(tx.mut_repo())?;
             print_failed_git_export(ui, &failed_branches)?;
+            if let Some(wc_commit) = &maybe_new_wc_commit {
+                // If there's a single branch pointing to one of the working
+                // copy's parents and advance-branches is enabled for it, then
+                // set the Git HEAD to that branch instead of detaching at the
+                // commit. Ignore errors since it's too late to bail out without
+                // losing any work.
+                let parent_branch = match self.get_advanceable_branches(wc_commit.parent_ids()) {
+                    Ok(branches) if branches.len() == 1 => Some(branches[0].name.clone()),
+                    _ => None,
+                };
+                git::reset_head(
+                    tx.mut_repo(),
+                    &git_repo,
+                    wc_commit,
+                    parent_branch.as_deref(),
+                )?;
+            }
         }
         self.user_repo = ReadonlyUserRepo::new(tx.commit(description));
         self.report_repo_changes(ui, &old_repo)?;

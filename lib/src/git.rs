@@ -904,20 +904,43 @@ fn update_git_ref(
 }
 
 /// Sets `HEAD@git` to the parent of the given working-copy commit and resets
-/// the Git index.
+/// the Git index. If `try_branch` points to the parent of the given
+/// working-copy commit, then the Git HEAD is set to the branch instead of being
+/// detached.
 pub fn reset_head(
     mut_repo: &mut MutableRepo,
     git_repo: &git2::Repository,
     wc_commit: &Commit,
+    try_branch: Option<&str>,
 ) -> Result<(), git2::Error> {
     let first_parent_id = &wc_commit.parent_ids()[0];
+    // Try to look up the branch reference if `try_branch` is provided, but
+    // don't return an error and proceed to detach HEAD it the lookup fails.
+    // Setting HEAD to a branch instead of a commit provides a better Git
+    // interop experience for CLI users that enable the "advance-branches"
+    // feature.
+    let branch_ref = if let Some(branch) = try_branch {
+        git_repo.resolve_reference_from_short_name(branch).ok()
+    } else {
+        None
+    };
+
     if first_parent_id != mut_repo.store().root_commit_id() {
         let first_parent = RefTarget::normal(first_parent_id.clone());
         let git_head = mut_repo.view().git_head();
         let new_git_commit_id = Oid::from_bytes(first_parent_id.as_bytes()).unwrap();
         let new_git_commit = git_repo.find_commit(new_git_commit_id)?;
         if git_head != &first_parent {
-            git_repo.set_head_detached(new_git_commit_id)?;
+            if let Some(branch_ref) = branch_ref {
+                let branch_commit = branch_ref.peel_to_commit()?.id();
+                if branch_commit == new_git_commit_id {
+                    // Set Git HEAD to the branch pointing to the parent Git
+                    // commit instead of detaching.
+                    git_repo.set_head_bytes(branch_ref.name_bytes())?;
+                }
+            } else {
+                git_repo.set_head_detached(new_git_commit_id)?;
+            }
             mut_repo.set_git_head_target(first_parent);
         }
         git_repo.reset(new_git_commit.as_object(), git2::ResetType::Mixed, None)?;
@@ -941,6 +964,7 @@ pub fn reset_head(
         git_repo.cleanup_state()?;
         mut_repo.set_git_head_target(RefTarget::absent());
     }
+
     Ok(())
 }
 
