@@ -186,7 +186,35 @@ pub fn parse_immutable_expression(
     Ok(heads.union(&RevsetExpression::root()).ancestors())
 }
 
-pub(super) fn format_multiple_revisions_error(
+pub(super) fn evaluate_revset_to_single_commit<'a>(
+    revision_str: &str,
+    expression: &RevsetExpressionEvaluator<'_>,
+    commit_summary_template: impl FnOnce() -> TemplateRenderer<'a, Commit>,
+    should_hint_about_all_prefix: bool,
+) -> Result<Commit, CommandError> {
+    let mut iter = expression.evaluate_to_commits()?.fuse();
+    match (iter.next(), iter.next()) {
+        (Some(commit), None) => Ok(commit?),
+        (None, _) => Err(user_error(format!(
+            r#"Revset "{revision_str}" didn't resolve to any revisions"#
+        ))),
+        (Some(commit0), Some(commit1)) => {
+            let mut iter = [commit0, commit1].into_iter().chain(iter);
+            let commits: Vec<_> = iter.by_ref().take(5).try_collect()?;
+            let elided = iter.next().is_some();
+            Err(format_multiple_revisions_error(
+                revision_str,
+                expression.expression(),
+                &commits,
+                elided,
+                &commit_summary_template(),
+                should_hint_about_all_prefix,
+            ))
+        }
+    }
+}
+
+fn format_multiple_revisions_error(
     revision_str: &str,
     expression: &RevsetExpression,
     commits: &[Commit],
