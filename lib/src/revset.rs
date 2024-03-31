@@ -784,7 +784,21 @@ struct ParseState<'a> {
     allow_string_pattern: bool,
 }
 
-impl ParseState<'_> {
+impl<'a> ParseState<'a> {
+    fn new(
+        context: &'a RevsetParseContext,
+        locals: &'a HashMap<&str, Rc<RevsetExpression>>,
+    ) -> Self {
+        ParseState {
+            aliases_map: context.aliases_map,
+            aliases_expanding: &[],
+            locals,
+            user_email: &context.user_email,
+            workspace_ctx: &context.workspace,
+            allow_string_pattern: false,
+        }
+    }
+
     fn with_alias_expanding<T>(
         self,
         id: RevsetAliasId<'_>,
@@ -1506,14 +1520,8 @@ pub fn parse(
     revset_str: &str,
     context: &RevsetParseContext,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let state = ParseState {
-        aliases_map: context.aliases_map,
-        aliases_expanding: &[],
-        locals: &HashMap::new(),
-        user_email: &context.user_email,
-        workspace_ctx: &context.workspace,
-        allow_string_pattern: false,
-    };
+    let locals = HashMap::new();
+    let state = ParseState::new(context, &locals);
     parse_program(revset_str, state)
 }
 
