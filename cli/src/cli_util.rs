@@ -836,7 +836,7 @@ impl WorkspaceCommandHelper {
         self.attach_revset_evaluator(expression)
     }
 
-    fn attach_revset_evaluator(
+    pub fn attach_revset_evaluator(
         &self,
         expression: Rc<RevsetExpression>,
     ) -> Result<RevsetExpressionEvaluator<'_>, CommandError> {

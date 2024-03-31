@@ -215,7 +215,7 @@ immutable even if the set is empty.
 
 ### Default revisions to log
 
-You can configure the revisions `jj log` without `-r` should show.
+You can configure the revisions `jj log` would show when neither `-r` nor any paths are specified.
 
 ```toml
 # Show commits that are not in `main@origin`

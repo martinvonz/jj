@@ -38,8 +38,9 @@ use crate::ui::Ui;
 /// rendered as a synthetic node labeled "(elided revisions)".
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct LogArgs {
-    /// Which revisions to show. Defaults to the `revsets.log` setting, or
-    /// `@ | ancestors(immutable_heads().., 2) | trunk()` if it is not set.
+    /// Which revisions to show. If no paths nor revisions are specified, this
+    /// defaults to the `revsets.log` setting, or `@ |
+    /// ancestors(immutable_heads().., 2) | trunk()` if it is not set.
     #[arg(long, short)]
     revisions: Vec<RevisionArg>,
     /// Show revisions modifying the given paths
@@ -77,10 +78,14 @@ pub(crate) fn cmd_log(
     let workspace_command = command.workspace_helper(ui)?;
 
     let revset_expression = {
-        let mut expression = if args.revisions.is_empty() {
+        // only use default revset if neither revset nor path are specified
+        let mut expression = if args.revisions.is_empty() && args.paths.is_empty() {
             workspace_command.parse_revset(&command.settings().default_revset())?
-        } else {
+        } else if !args.revisions.is_empty() {
             workspace_command.parse_union_revsets(&args.revisions)?
+        } else {
+            // a path was specified so we use all() and add path filter later
+            workspace_command.attach_revset_evaluator(RevsetExpression::all())?
         };
         if !args.paths.is_empty() {
             let repo_paths: Vec<_> = args
@@ -94,6 +99,7 @@ pub(crate) fn cmd_log(
         }
         expression
     };
+
     let repo = workspace_command.repo();
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let revset = revset_expression.evaluate()?;
