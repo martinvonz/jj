@@ -17,7 +17,7 @@ use std::path::Path;
 use crate::common::TestEnvironment;
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
-    let template = r#"separate(" ", change_id.short(), empty, description)"#;
+    let template = r#"separate(" ", change_id.short(), empty, description, local_branches)"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }
 
@@ -213,6 +213,11 @@ fn test_split_with_default_description() {
 
     std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
     std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
+
+    // Create a branch pointing to the commit. It will be moved to the second
+    // commit after the split.
+    test_env.jj_cmd_ok(&workspace_path, &["branch", "create", "test_branch"]);
+
     let edit_script = test_env.set_up_fake_editor();
     std::fs::write(
         edit_script,
@@ -239,7 +244,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     );
     assert!(!test_env.env_root().join("editor2").exists());
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  rlvkpnrzqnoo false
+    @  kkmpptxzrspx false test_branch
     ◉  qpvuntsmwlqt false TESTED=TODO
     ◉  zzzzzzzzzzzz true
     "###);
@@ -256,6 +261,15 @@ fn test_split_siblings_no_descendants() {
 
     std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
     std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
+
+    // Create a branch pointing to the commit. It will be moved to the second
+    // commit after the split.
+    test_env.jj_cmd_ok(&workspace_path, &["branch", "create", "test_branch"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    @  qpvuntsmwlqt false test_branch
+    ◉  zzzzzzzzzzzz true
+    "###);
+
     let edit_script = test_env.set_up_fake_editor();
     std::fs::write(
         edit_script,
@@ -282,7 +296,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     );
     assert!(!test_env.env_root().join("editor2").exists());
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  rlvkpnrzqnoo false
+    @  zsuskulnrvyr false test_branch
     │ ◉  qpvuntsmwlqt false TESTED=TODO
     ├─╯
     ◉  zzzzzzzzzzzz true
