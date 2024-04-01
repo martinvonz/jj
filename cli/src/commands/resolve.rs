@@ -22,7 +22,7 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::repo_path::RepoPathBuf;
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, WorkspaceCommandHelper};
+use crate::cli_util::{CommandHelper, RevisionArg, WorkspaceCommandHelper};
 use crate::command_error::{cli_error, CommandError};
 use crate::formatter::Formatter;
 use crate::ui::Ui;
@@ -45,7 +45,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct ResolveArgs {
     #[arg(long, short, default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
     /// Instead of resolving one conflict, list all the conflicts
     // TODO: Also have a `--summary` option. `--list` currently acts like
     // `diff --summary`, but should be more verbose.

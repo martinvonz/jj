@@ -14,7 +14,7 @@
 
 use std::io::Write as _;
 
-use jj_cli::cli_util::{CliRunner, CommandHelper};
+use jj_cli::cli_util::{CliRunner, CommandHelper, RevisionArg};
 use jj_cli::command_error::CommandError;
 use jj_cli::ui::Ui;
 
@@ -28,7 +28,7 @@ enum CustomCommand {
 struct FrobnicateArgs {
     /// The revision to frobnicate
     #[arg(default_value = "@")]
-    revision: String,
+    revision: RevisionArg,
 }
 
 fn run_custom_command(
