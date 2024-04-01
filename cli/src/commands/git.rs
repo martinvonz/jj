@@ -14,7 +14,6 @@
 
 use std::collections::HashSet;
 use std::io::Write;
-use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fmt, fs, io};
@@ -1130,9 +1129,7 @@ fn update_change_branches(
         if view.get_local_branch(&branch_name).is_absent() {
             writeln!(
                 ui.status(),
-                "Creating branch {} for revision {}",
-                branch_name,
-                change_arg.deref()
+                "Creating branch {branch_name} for revision {change_arg}",
             )?;
         }
         tx.mut_repo()
@@ -1207,10 +1204,9 @@ fn find_branches_targeted_by_revisions<'a>(
         expression.intersect_with(&RevsetExpression::branches(StringPattern::everything()));
         let mut commit_ids = expression.evaluate_to_commit_ids()?.peekable();
         if commit_ids.peek().is_none() {
-            let rev_str: &str = rev_arg;
             writeln!(
                 ui.warning_default(),
-                "No branches point to the specified revisions: {rev_str}"
+                "No branches point to the specified revisions: {rev_arg}"
             )?;
         }
         revision_commit_ids.extend(commit_ids);
