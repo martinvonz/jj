@@ -1110,9 +1110,9 @@ fn update_change_branches(
     branch_prefix: &str,
 ) -> Result<Vec<String>, CommandError> {
     let mut branch_names = Vec::new();
-    for change_str in changes {
+    for change_arg in changes {
         let workspace_command = tx.base_workspace_helper();
-        let commit = workspace_command.resolve_single_rev(change_str)?;
+        let commit = workspace_command.resolve_single_rev(change_arg)?;
         let mut branch_name = format!("{branch_prefix}{}", commit.change_id().hex());
         let view = tx.base_repo().view();
         if view.get_local_branch(&branch_name).is_absent() {
@@ -1120,7 +1120,7 @@ fn update_change_branches(
             // short ID if it's not ambiguous (which it shouldn't be most of the time).
             let short_change_id = short_change_hash(commit.change_id());
             if workspace_command
-                .resolve_single_rev(&short_change_id)
+                .resolve_single_rev(&RevisionArg::from(short_change_id.clone()))
                 .is_ok()
             {
                 // Short change ID is not ambiguous, so update the branch name to use it.
@@ -1132,7 +1132,7 @@ fn update_change_branches(
                 ui.status(),
                 "Creating branch {} for revision {}",
                 branch_name,
-                change_str.deref()
+                change_arg.deref()
             )?;
         }
         tx.mut_repo()
@@ -1202,12 +1202,12 @@ fn find_branches_targeted_by_revisions<'a>(
             )?;
         }
     }
-    for rev_str in revisions {
-        let mut expression = workspace_command.parse_revset(rev_str)?;
+    for rev_arg in revisions {
+        let mut expression = workspace_command.parse_revset(rev_arg)?;
         expression.intersect_with(&RevsetExpression::branches(StringPattern::everything()));
         let mut commit_ids = expression.evaluate_to_commit_ids()?.peekable();
         if commit_ids.peek().is_none() {
-            let rev_str: &str = rev_str;
+            let rev_str: &str = rev_arg;
             writeln!(
                 ui.warning_default(),
                 "No branches point to the specified revisions: {rev_str}"

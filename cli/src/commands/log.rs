@@ -80,7 +80,8 @@ pub(crate) fn cmd_log(
     let revset_expression = {
         // only use default revset if neither revset nor path are specified
         let mut expression = if args.revisions.is_empty() && args.paths.is_empty() {
-            workspace_command.parse_revset(&command.settings().default_revset())?
+            workspace_command
+                .parse_revset(&RevisionArg::from(command.settings().default_revset()))?
         } else if !args.revisions.is_empty() {
             workspace_command.parse_union_revsets(&args.revisions)?
         } else {

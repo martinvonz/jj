@@ -750,11 +750,11 @@ impl WorkspaceCommandHelper {
 
     /// Resolve a revset to a single revision. Return an error if the revset is
     /// empty or has multiple revisions.
-    pub fn resolve_single_rev(&self, revision_str: &str) -> Result<Commit, CommandError> {
-        let expression = self.parse_revset(revision_str)?;
+    pub fn resolve_single_rev(&self, revision_arg: &RevisionArg) -> Result<Commit, CommandError> {
+        let expression = self.parse_revset(revision_arg)?;
         let should_hint_about_all_prefix = false;
         revset_util::evaluate_revset_to_single_commit(
-            revision_str,
+            revision_arg,
             &expression,
             || self.commit_summary_template(),
             should_hint_about_all_prefix,
@@ -771,8 +771,8 @@ impl WorkspaceCommandHelper {
         revision_args: &[RevisionArg],
     ) -> Result<IndexSet<Commit>, CommandError> {
         let mut all_commits = IndexSet::new();
-        for revision_str in revision_args {
-            let (expression, modifier) = self.parse_revset_with_modifier(revision_str)?;
+        for revision_arg in revision_args {
+            let (expression, modifier) = self.parse_revset_with_modifier(revision_arg)?;
             let all = match modifier {
                 Some(RevsetModifier::All) => true,
                 None => false,
@@ -784,7 +784,7 @@ impl WorkspaceCommandHelper {
             } else {
                 let should_hint_about_all_prefix = true;
                 let commit = revset_util::evaluate_revset_to_single_commit(
-                    revision_str,
+                    revision_arg,
                     &expression,
                     || self.commit_summary_template(),
                     should_hint_about_all_prefix,
@@ -806,9 +806,9 @@ impl WorkspaceCommandHelper {
 
     pub fn parse_revset(
         &self,
-        revision_str: &str,
+        revision_arg: &RevisionArg,
     ) -> Result<RevsetExpressionEvaluator<'_>, CommandError> {
-        let expression = revset::parse(revision_str, &self.revset_parse_context())?;
+        let expression = revset::parse(revision_arg, &self.revset_parse_context())?;
         self.attach_revset_evaluator(expression)
     }
 
@@ -816,10 +816,10 @@ impl WorkspaceCommandHelper {
     // shouldn't be allowed in aliases, though.
     fn parse_revset_with_modifier(
         &self,
-        revision_str: &str,
+        revision_arg: &RevisionArg,
     ) -> Result<(RevsetExpressionEvaluator<'_>, Option<RevsetModifier>), CommandError> {
         let context = self.revset_parse_context();
-        let (expression, modifier) = revset::parse_with_modifier(revision_str, &context)?;
+        let (expression, modifier) = revset::parse_with_modifier(revision_arg, &context)?;
         Ok((self.attach_revset_evaluator(expression)?, modifier))
     }
 
