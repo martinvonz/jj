@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use core::fmt;
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::env::{self, ArgsOs, VarError};
 use std::ffi::OsString;
@@ -2100,14 +2101,30 @@ pub struct EarlyArgs {
     pub config_toml: Vec<String>,
 }
 
+/// Wrapper around revset expression argument.
+///
+/// An empty string is rejected early by the CLI value parser, but it's still
+/// allowed to construct an empty `RevisionArg` from a config value for
+/// example. An empty expression will be rejected by the revset parser.
 #[derive(Clone, Debug)]
-pub struct RevisionArg(String);
+pub struct RevisionArg(Cow<'static, str>);
+
+impl RevisionArg {
+    /// The working-copy symbol, which is the default of the most commands.
+    pub const AT: Self = RevisionArg(Cow::Borrowed("@"));
+}
+
+impl From<String> for RevisionArg {
+    fn from(s: String) -> Self {
+        RevisionArg(s.into())
+    }
+}
 
 impl Deref for RevisionArg {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        self.0.as_str()
+        &self.0
     }
 }
 
@@ -2115,7 +2132,7 @@ impl ValueParserFactory for RevisionArg {
     type Parser = MapValueParser<NonEmptyStringValueParser, fn(String) -> RevisionArg>;
 
     fn value_parser() -> Self::Parser {
-        NonEmptyStringValueParser::new().map(RevisionArg)
+        NonEmptyStringValueParser::new().map(RevisionArg::from)
     }
 }
 
