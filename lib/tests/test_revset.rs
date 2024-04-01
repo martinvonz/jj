@@ -372,6 +372,41 @@ fn test_resolve_working_copy() {
 }
 
 #[test]
+fn test_resolve_working_copies() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+
+    let commit1 = write_random_commit(mut_repo, &settings);
+    let commit2 = write_random_commit(mut_repo, &settings);
+
+    // Add some workspaces
+    let ws1 = WorkspaceId::new("ws1".to_string());
+    let ws2 = WorkspaceId::new("ws2".to_string());
+
+    // add one commit to each working copy
+    mut_repo
+        .set_wc_commit(ws1.clone(), commit1.id().clone())
+        .unwrap();
+    mut_repo
+        .set_wc_commit(ws2.clone(), commit2.id().clone())
+        .unwrap();
+    let resolve = || -> Vec<CommitId> {
+        RevsetExpression::working_copies()
+            .evaluate_programmatic(mut_repo)
+            .unwrap()
+            .iter()
+            .collect()
+    };
+
+    // ensure our output has those two commits
+    assert_eq!(resolve(), vec![commit2.id().clone(), commit1.id().clone()]);
+}
+
+#[test]
 fn test_resolve_symbol_branches() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
