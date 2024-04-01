@@ -66,16 +66,18 @@ pub(crate) fn cmd_diffedit(
 
     let (target_commit, base_commits, diff_description);
     if args.from.is_some() || args.to.is_some() {
-        target_commit = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
+        target_commit =
+            workspace_command.resolve_single_rev(args.to.as_ref().unwrap_or(&RevisionArg::AT))?;
         base_commits =
-            vec![workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?];
+            vec![workspace_command
+                .resolve_single_rev(args.from.as_ref().unwrap_or(&RevisionArg::AT))?];
         diff_description = format!(
             "The diff initially shows the commit's changes relative to:\n{}",
             workspace_command.format_commit_summary(&base_commits[0])
         );
     } else {
-        target_commit =
-            workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
+        target_commit = workspace_command
+            .resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
         base_commits = target_commit.parents();
         diff_description = "The diff initially shows the commit's changes.".to_string();
     };

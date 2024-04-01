@@ -71,8 +71,10 @@ pub(crate) fn cmd_move(
         "`jj move` will be removed in a future version, and this will be a hard error"
     )?;
     let mut workspace_command = command.workspace_helper(ui)?;
-    let source = workspace_command.resolve_single_rev(args.from.as_deref().unwrap_or("@"))?;
-    let destination = workspace_command.resolve_single_rev(args.to.as_deref().unwrap_or("@"))?;
+    let source =
+        workspace_command.resolve_single_rev(args.from.as_ref().unwrap_or(&RevisionArg::AT))?;
+    let destination =
+        workspace_command.resolve_single_rev(args.to.as_ref().unwrap_or(&RevisionArg::AT))?;
     if source.id() == destination.id() {
         return Err(user_error("Source and destination cannot be the same."));
     }

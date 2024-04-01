@@ -197,7 +197,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
         .resolve_some_revsets_default_single(&args.destination)?
         .into_iter()
         .collect_vec();
-    if let Some(rev_str) = &args.revision {
+    if let Some(rev_arg) = &args.revision {
         assert_eq!(
             // In principle, `-r --skip-empty` could mean to abandon the `-r`
             // commit if it becomes empty. This seems internally consistent with
@@ -218,7 +218,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
             command.settings(),
             &mut workspace_command,
             &new_parents,
-            rev_str,
+            rev_arg,
         )?;
     } else if !args.source.is_empty() {
         let source_commits = workspace_command.resolve_some_revsets_default_single(&args.source)?;
@@ -232,7 +232,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
         )?;
     } else {
         let branch_commits = if args.branch.is_empty() {
-            IndexSet::from([workspace_command.resolve_single_rev("@")?])
+            IndexSet::from([workspace_command.resolve_single_rev(&RevisionArg::AT)?])
         } else {
             workspace_command.resolve_some_revsets_default_single(&args.branch)?
         };
@@ -350,9 +350,9 @@ fn rebase_revision(
     settings: &UserSettings,
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
-    rev_str: &str,
+    rev_arg: &RevisionArg,
 ) -> Result<(), CommandError> {
-    let old_commit = workspace_command.resolve_single_rev(rev_str)?;
+    let old_commit = workspace_command.resolve_single_rev(rev_arg)?;
     workspace_command.check_rewritable([&old_commit])?;
     if new_parents.contains(&old_commit) {
         return Err(user_error(format!(
