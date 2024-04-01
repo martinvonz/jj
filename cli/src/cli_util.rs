@@ -965,10 +965,18 @@ impl WorkspaceCommandHelper {
                 .map(|commit| commit.id().clone())
                 .collect(),
         );
-        let immutable = revset_util::parse_immutable_expression(&self.revset_parse_context())?;
+        let immutable = revset_util::parse_immutable_expression(&self.revset_parse_context())
+            .map_err(|e| {
+                config_error_with_message("Invalid `revset-aliases.immutable_heads()`", e)
+            })?;
         let mut expression = self.attach_revset_evaluator(immutable)?;
         expression.intersect_with(&to_rewrite_revset);
-        if let Some(commit_id) = expression.evaluate_to_commit_ids()?.next() {
+
+        let mut commit_id_iter = expression.evaluate_to_commit_ids().map_err(|e| {
+            config_error_with_message("Invalid `revset-aliases.immutable_heads()`", e)
+        })?;
+
+        if let Some(commit_id) = commit_id_iter.next() {
             let error = if &commit_id == self.repo().store().root_commit_id() {
                 user_error(format!(
                     "The root commit {} is immutable",
