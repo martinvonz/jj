@@ -1949,9 +1949,9 @@ dependencies = [
 
 [[package]]
 name = "minus"
-version = "5.6.0"
+version = "5.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d76cee2df9ffd9b295b54d4ca2590a77ca49fd5eab1366647ff6e21951969ca5"
+checksum = "093bd0520d2a37943566a73750e6d44094dac75d66a978d1f0d97ffc78686832"
 dependencies = [
  "crossbeam-channel",
  "crossterm",
@@ -2815,9 +2815,9 @@ checksum = "81cdd64d312baedb58e21336b31bc043b77e01cc99033ce76ef539f78e965ebc"
 
 [[package]]
 name = "syn"
-version = "2.0.55"
+version = "2.0.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "002a1b3dbf967edfafc32655d0f377ab0bb7b994aa1d32c8cc7e9b8bf3ebb8f0"
+checksum = "11a6ae1e52eb25aab8f3fb9fca13be982a373b8f1157ca14b897a825ba4a2d35"
 dependencies = [
  "proc-macro2",
  "quote",
