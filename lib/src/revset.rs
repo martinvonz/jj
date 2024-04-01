@@ -275,6 +275,7 @@ pub const GENERATION_RANGE_EMPTY: Range<u64> = 0..0;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RevsetCommitRef {
     WorkingCopy(WorkspaceId),
+    WorkingCopies,
     Symbol(String),
     RemoteSymbol {
         name: String,
@@ -369,6 +370,10 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::WorkingCopy(
             workspace_id,
         )))
+    }
+
+    pub fn working_copies() -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::WorkingCopies))
     }
 
     pub fn symbol(value: String) -> Rc<RevsetExpression> {
@@ -1156,6 +1161,10 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     map.insert("all", |name, arguments_pair, _state| {
         expect_no_arguments(name, arguments_pair)?;
         Ok(RevsetExpression::all())
+    });
+    map.insert("working_copies", |name, arguments_pair, _state| {
+        expect_no_arguments(name, arguments_pair)?;
+        Ok(RevsetExpression::working_copies())
     });
     map.insert("heads", |name, arguments_pair, state| {
         let arg = expect_one_argument(name, arguments_pair)?;
@@ -2138,6 +2147,10 @@ fn resolve_commit_ref(
                     name: workspace_id.as_str().to_string(),
                 })
             }
+        }
+        RevsetCommitRef::WorkingCopies => {
+            let wc_commits = repo.view().wc_commit_ids().values().cloned().collect_vec();
+            Ok(wc_commits)
         }
         RevsetCommitRef::VisibleHeads => Ok(repo.view().heads().iter().cloned().collect_vec()),
         RevsetCommitRef::Root => Ok(vec![repo.store().root_commit_id().clone()]),

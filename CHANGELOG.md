@@ -63,6 +63,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj split` now supports a `--siblings/-s` option that splits the target
   revision into siblings with the same parents and children.
 
+* new function `working_copies()` for revsets to show the working copy commits of all workspaces.
+
 ### Fixed bugs
 
 ## [0.15.1] - 2024-03-06

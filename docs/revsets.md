@@ -171,6 +171,8 @@ given [string pattern](#string-patterns).
 * `present(x)`: Same as `x`, but evaluated to `none()` if any of the commits
   in `x` doesn't exist (e.g. is an unknown branch name.)
 
+* `working_copies()`: The working copy commits across all the workspaces.
+
 ## String patterns
 
 Functions that perform string matching support the following pattern syntax:
