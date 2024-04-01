@@ -313,8 +313,8 @@ fn cmd_debug_tree(
         let tree = store.get_tree(&dir, &tree_id)?;
         MergedTree::resolved(tree)
     } else {
-        let commit =
-            workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
+        let commit = workspace_command
+            .resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
         commit.tree()?
     };
     let matcher = workspace_command.matcher_from_values(&args.paths)?;

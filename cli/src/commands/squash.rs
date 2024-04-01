@@ -85,10 +85,11 @@ pub(crate) fn cmd_squash(
     let destination;
     if args.from.is_some() || args.into.is_some() {
         sources = workspace_command
-            .parse_revset(args.from.as_deref().unwrap_or("@"))?
+            .parse_revset(args.from.as_ref().unwrap_or(&RevisionArg::AT))?
             .evaluate_to_commits()?
             .try_collect()?;
-        destination = workspace_command.resolve_single_rev(args.into.as_deref().unwrap_or("@"))?;
+        destination =
+            workspace_command.resolve_single_rev(args.into.as_ref().unwrap_or(&RevisionArg::AT))?;
         if sources.iter().any(|source| source.id() == destination.id()) {
             return Err(user_error("Source and destination cannot be the same"));
         }
@@ -97,8 +98,8 @@ pub(crate) fn cmd_squash(
         // a little faster.
         sources.reverse();
     } else {
-        let source =
-            workspace_command.resolve_single_rev(args.revision.as_deref().unwrap_or("@"))?;
+        let source = workspace_command
+            .resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
         let mut parents = source.parents();
         if parents.len() != 1 {
             return Err(user_error("Cannot squash merge commits"));
