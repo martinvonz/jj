@@ -409,12 +409,14 @@ pub fn print_failed_git_export(
             .iter()
             .any(|failed| matches!(failed.reason, FailedRefExportReason::FailedToSet(_)))
         {
-            writeln!(
-                ui.hint_default(),
-                r#"Git doesn't allow a branch name that looks like a parent directory of
+            if let Some(mut writer) = ui.hint_default() {
+                writeln!(
+                    writer,
+                    r#"Git doesn't allow a branch name that looks like a parent directory of
 another (e.g. `foo` and `foo/bar`). Try to rename the branches that failed to
 export or their "parent" branches."#,
-            )?;
+                )?;
+            }
         }
     }
     Ok(())

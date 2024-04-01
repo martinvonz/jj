@@ -321,12 +321,14 @@ fn cmd_branch_rename(
             ui.warning_default(),
             "Branch {old_branch} has tracking remote branches which were not renamed."
         )?;
-        writeln!(
-            ui.hint_default(),
-            "to rename the branch on the remote, you can `jj git push --branch {old_branch}` \
-             first (to delete it on the remote), and then `jj git push --branch {new_branch}`. \
-             `jj git push --all` would also be sufficient."
-        )?;
+        if let Some(mut writer) = ui.hint_default() {
+            writeln!(
+                writer,
+                "to rename the branch on the remote, you can `jj git push --branch {old_branch}` \
+                 first (to delete it on the remote), and then `jj git push --branch \
+                 {new_branch}`. `jj git push --all` would also be sufficient."
+            )?;
+        }
     }
 
     Ok(())

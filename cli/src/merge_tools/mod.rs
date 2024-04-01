@@ -123,12 +123,14 @@ fn editor_args_from_settings(
         Ok(args)
     } else {
         let default_editor = BUILTIN_EDITOR_NAME;
-        writeln!(
-            ui.hint_default(),
-            "Using default editor '{default_editor}'; run `jj config set --user {key} :builtin` \
-             to disable this message."
-        )
-        .ok();
+        if let Some(mut writer) = ui.hint_default() {
+            writeln!(
+                writer,
+                "Using default editor '{default_editor}'; run `jj config set --user {key} \
+                 :builtin` to disable this message."
+            )
+            .ok();
+        }
         Ok(default_editor.into())
     }
 }
