@@ -1614,13 +1614,15 @@ pub fn print_checkout_stats(
              working copy.",
             stats.skipped_files
         )?;
-        writeln!(
-            ui.hint_default(),
-            "Inspect the changes compared to the intended target with `jj diff --from {}`.
+        if let Some(mut writer) = ui.hint_default() {
+            writeln!(
+                writer,
+                "Inspect the changes compared to the intended target with `jj diff --from {}`.
 Discard the conflicting changes with `jj restore --from {}`.",
-            short_commit_hash(new_commit.id()),
-            short_commit_hash(new_commit.id())
-        )?;
+                short_commit_hash(new_commit.id()),
+                short_commit_hash(new_commit.id())
+            )?;
+        }
     }
     Ok(())
 }
@@ -1641,21 +1643,25 @@ pub fn print_trackable_remote_branches(ui: &Ui, view: &View) -> io::Result<()> {
         return Ok(());
     }
 
-    writeln!(
-        ui.hint_default(),
-        "The following remote branches aren't associated with the existing local branches:"
-    )?;
+    if let Some(mut writer) = ui.hint_default() {
+        writeln!(
+            writer,
+            "The following remote branches aren't associated with the existing local branches:"
+        )?;
+    }
     if let Some(mut formatter) = ui.status_formatter() {
         for full_name in &remote_branch_names {
             write!(formatter, "  ")?;
             writeln!(formatter.labeled("branch"), "{full_name}")?;
         }
     }
-    writeln!(
-        ui.hint_default(),
-        "Run `jj branch track {names}` to keep local branches updated on future pulls.",
-        names = remote_branch_names.join(" "),
-    )?;
+    if let Some(mut writer) = ui.hint_default() {
+        writeln!(
+            writer,
+            "Run `jj branch track {names}` to keep local branches updated on future pulls.",
+            names = remote_branch_names.join(" "),
+        )?;
+    }
     Ok(())
 }
 
@@ -2197,14 +2203,14 @@ fn resolve_default_command(
         if matches.subcommand_name().is_none() {
             let args = get_string_or_array(config, "ui.default-command").optional()?;
             if args.is_none() {
-                writeln!(
-                    ui.hint_default(),
-                    "Use `jj -h` for a list of available commands."
-                )?;
-                writeln!(
-                    ui.hint_no_heading(),
-                    "Run `jj config set --user ui.default-command log` to disable this message."
-                )?;
+                if let Some(mut writer) = ui.hint_default() {
+                    writeln!(writer, "Use `jj -h` for a list of available commands.")?;
+                    writeln!(
+                        writer,
+                        "Run `jj config set --user ui.default-command log` to disable this \
+                         message."
+                    )?;
+                }
             }
             let default_command = args.unwrap_or_else(|| vec!["log".to_string()]);
 

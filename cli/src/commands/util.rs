@@ -128,16 +128,16 @@ fn cmd_util_completion(
     args: &UtilCompletionArgs,
 ) -> Result<(), CommandError> {
     let mut app = command.app().clone();
-    let warn = |shell| {
+    let warn = |shell| -> std::io::Result<()> {
         writeln!(
             ui.warning_default(),
             "`jj util completion --{shell}` will be removed in a future version, and this will be \
              a hard error"
         )?;
-        writeln!(
-            ui.hint_default(),
-            "Use `jj util completion {shell}` instead"
-        )
+        if let Some(mut writer) = ui.hint_default() {
+            writeln!(writer, "Use `jj util completion {shell}` instead")?;
+        }
+        Ok(())
     };
     let shell = match (args.shell, args.fish, args.zsh, args.bash) {
         (Some(s), false, false, false) => s,
