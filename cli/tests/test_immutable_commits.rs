@@ -56,6 +56,30 @@ fn test_rewrite_immutable_generic() {
     insta::assert_snapshot!(stderr, @r###"
     Error: The root commit 000000000000 is immutable
     "###);
+
+    // Error mutating the repo if immutable_heads() uses a ref that can't be
+    // resolved
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "branch_that_does_not_exist""#);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "main"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Config error: Invalid `revset-aliases.immutable_heads()`
+    Caused by: Revision "branch_that_does_not_exist" doesn't exist
+    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    "###);
+
+    // Mutating the repo works if ref is wrapped in present()
+    test_env.add_config(
+        r#"revset-aliases."immutable_heads()" = "present(branch_that_does_not_exist)""#,
+    );
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["new", "main"]);
+    insta::assert_snapshot!(stdout, @r###"
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: kpqxywon dbce15b4 (empty) (no description set)
+    Parent commit      : kkmpptxz c8d4c7ca main | b
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
+
     // Error if we redefine immutable_heads() with an argument
     test_env.add_config(r#"revset-aliases."immutable_heads(foo)" = "none()""#);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["edit", "root()"]);
