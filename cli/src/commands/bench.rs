@@ -25,7 +25,7 @@ use jj_lib::object_id::HexPrefix;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{self, DefaultSymbolResolver, RevsetExpression};
 
-use crate::cli_util::{CommandHelper, WorkspaceCommandHelper};
+use crate::cli_util::{CommandHelper, RevisionArg, WorkspaceCommandHelper};
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
@@ -46,8 +46,8 @@ pub enum BenchCommand {
 /// Find the common ancestor(s) of a set of commits
 #[derive(clap::Args, Clone, Debug)]
 pub struct BenchCommonAncestorsArgs {
-    revision1: String,
-    revision2: String,
+    revision1: RevisionArg,
+    revision2: RevisionArg,
     #[command(flatten)]
     criterion: CriterionArgs,
 }
@@ -55,8 +55,8 @@ pub struct BenchCommonAncestorsArgs {
 /// Checks if the first commit is an ancestor of the second commit
 #[derive(clap::Args, Clone, Debug)]
 pub struct BenchIsAncestorArgs {
-    ancestor: String,
-    descendant: String,
+    ancestor: RevisionArg,
+    descendant: RevisionArg,
     #[command(flatten)]
     criterion: CriterionArgs,
 }
@@ -66,7 +66,7 @@ pub struct BenchIsAncestorArgs {
 #[command(group(clap::ArgGroup::new("revset_source").required(true)))]
 pub struct BenchRevsetArgs {
     #[arg(group = "revset_source")]
-    revisions: Vec<String>,
+    revisions: Vec<RevisionArg>,
     /// Read revsets from file
     #[arg(long, short = 'f', group = "revset_source", value_hint = clap::ValueHint::FilePath)]
     file: Option<String>,
@@ -142,7 +142,7 @@ pub(crate) fn cmd_bench(
                 || index.common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()]);
             run_bench(
                 ui,
-                &format!("commonancestors-{}-{}", &args.revision1, &args.revision2),
+                &format!("commonancestors-{}-{}", &*args.revision1, &*args.revision2),
                 &args.criterion,
                 routine,
             )?;
@@ -155,7 +155,7 @@ pub(crate) fn cmd_bench(
             let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
             run_bench(
                 ui,
-                &format!("isancestor-{}-{}", &args.ancestor, &args.descendant),
+                &format!("isancestor-{}-{}", &*args.ancestor, &*args.descendant),
                 &args.criterion,
                 routine,
             )?;
@@ -179,6 +179,7 @@ pub(crate) fn cmd_bench(
                     .lines()
                     .map(|line| line.trim().to_owned())
                     .filter(|line| !line.is_empty() && !line.starts_with('#'))
+                    .map(RevisionArg::from)
                     .collect()
             } else {
                 args.revisions.clone()
@@ -201,9 +202,13 @@ fn bench_revset<M: Measurement>(
     command: &CommandHelper,
     workspace_command: &WorkspaceCommandHelper,
     group: &mut BenchmarkGroup<M>,
-    revset: &str,
+    revset: &RevisionArg,
 ) -> Result<(), CommandError> {
-    writeln!(ui.status(), "----------Testing revset: {revset}----------")?;
+    writeln!(
+        ui.status(),
+        "----------Testing revset: {revset}----------",
+        revset = &**revset
+    )?;
     let expression = revset::optimize(workspace_command.parse_revset(revset)?.expression().clone());
     // Time both evaluation and iteration.
     let routine = |workspace_command: &WorkspaceCommandHelper, expression: Rc<RevsetExpression>| {
@@ -226,7 +231,7 @@ fn bench_revset<M: Measurement>(
     )?;
 
     group.bench_with_input(
-        BenchmarkId::from_parameter(revset),
+        BenchmarkId::from_parameter(&**revset),
         &expression,
         |bencher, expression| {
             bencher.iter_batched(
