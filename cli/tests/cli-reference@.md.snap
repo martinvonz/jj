@@ -1523,10 +1523,6 @@ Note that conflicts can also be resolved without using this command. You may edi
 
   Possible values: `true`, `false`
 
-* `-q`, `--quiet` — Do not print the list of remaining conflicts (if any) after resolving a conflict
-
-  Possible values: `true`, `false`
-
 * `--tool <NAME>` — Specify 3-way merge tool to be used
 
 

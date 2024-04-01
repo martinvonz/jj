@@ -51,10 +51,6 @@ pub(crate) struct ResolveArgs {
     // `diff --summary`, but should be more verbose.
     #[arg(long, short)]
     list: bool,
-    /// Do not print the list of remaining conflicts (if any) after resolving a
-    /// conflict
-    #[arg(long, short, conflicts_with = "list")]
-    quiet: bool,
     /// Specify 3-way merge tool to be used
     #[arg(long, conflicts_with = "list", value_name = "NAME")]
     tool: Option<String>,
@@ -115,20 +111,17 @@ pub(crate) fn cmd_resolve(
         format!("Resolve conflicts in commit {}", commit.id().hex()),
     )?;
 
-    // TODO: Delete local `--quiet`
-    if !args.quiet {
-        if let Some(mut formatter) = ui.status_formatter() {
-            let new_tree = new_commit.tree()?;
-            let new_conflicts = new_tree.conflicts().collect_vec();
-            if !new_conflicts.is_empty() {
-                writeln!(
-                    formatter,
-                    "After this operation, some files at this revision still have conflicts:"
-                )?;
-                print_conflicted_paths(&new_conflicts, formatter.as_mut(), &workspace_command)?;
-            }
+    if let Some(mut formatter) = ui.status_formatter() {
+        let new_tree = new_commit.tree()?;
+        let new_conflicts = new_tree.conflicts().collect_vec();
+        if !new_conflicts.is_empty() {
+            writeln!(
+                formatter,
+                "After this operation, some files at this revision still have conflicts:"
+            )?;
+            print_conflicted_paths(&new_conflicts, formatter.as_mut(), &workspace_command)?;
         }
-    };
+    }
     Ok(())
 }
 
