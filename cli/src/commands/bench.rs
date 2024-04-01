@@ -142,7 +142,7 @@ pub(crate) fn cmd_bench(
                 || index.common_ancestors(&[commit1.id().clone()], &[commit2.id().clone()]);
             run_bench(
                 ui,
-                &format!("commonancestors-{}-{}", &*args.revision1, &*args.revision2),
+                &format!("commonancestors-{}-{}", args.revision1, args.revision2),
                 &args.criterion,
                 routine,
             )?;
@@ -155,7 +155,7 @@ pub(crate) fn cmd_bench(
             let routine = || index.is_ancestor(ancestor_commit.id(), descendant_commit.id());
             run_bench(
                 ui,
-                &format!("isancestor-{}-{}", &*args.ancestor, &*args.descendant),
+                &format!("isancestor-{}-{}", args.ancestor, args.descendant),
                 &args.criterion,
                 routine,
             )?;
@@ -204,11 +204,7 @@ fn bench_revset<M: Measurement>(
     group: &mut BenchmarkGroup<M>,
     revset: &RevisionArg,
 ) -> Result<(), CommandError> {
-    writeln!(
-        ui.status(),
-        "----------Testing revset: {revset}----------",
-        revset = &**revset
-    )?;
+    writeln!(ui.status(), "----------Testing revset: {revset}----------")?;
     let expression = revset::optimize(workspace_command.parse_revset(revset)?.expression().clone());
     // Time both evaluation and iteration.
     let routine = |workspace_command: &WorkspaceCommandHelper, expression: Rc<RevsetExpression>| {
@@ -231,7 +227,7 @@ fn bench_revset<M: Measurement>(
     )?;
 
     group.bench_with_input(
-        BenchmarkId::from_parameter(&**revset),
+        BenchmarkId::from_parameter(revset),
         &expression,
         |bencher, expression| {
             bencher.iter_batched(

@@ -19,7 +19,6 @@ use std::env::{self, ArgsOs, VarError};
 use std::ffi::OsString;
 use std::fmt::Debug;
 use std::io::{self, Write as _};
-use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::rc::Rc;
@@ -754,7 +753,7 @@ impl WorkspaceCommandHelper {
         let expression = self.parse_revset(revision_arg)?;
         let should_hint_about_all_prefix = false;
         revset_util::evaluate_revset_to_single_commit(
-            revision_arg,
+            revision_arg.as_ref(),
             &expression,
             || self.commit_summary_template(),
             should_hint_about_all_prefix,
@@ -784,7 +783,7 @@ impl WorkspaceCommandHelper {
             } else {
                 let should_hint_about_all_prefix = true;
                 let commit = revset_util::evaluate_revset_to_single_commit(
-                    revision_arg,
+                    revision_arg.as_ref(),
                     &expression,
                     || self.commit_summary_template(),
                     should_hint_about_all_prefix,
@@ -808,7 +807,7 @@ impl WorkspaceCommandHelper {
         &self,
         revision_arg: &RevisionArg,
     ) -> Result<RevsetExpressionEvaluator<'_>, CommandError> {
-        let expression = revset::parse(revision_arg, &self.revset_parse_context())?;
+        let expression = revset::parse(revision_arg.as_ref(), &self.revset_parse_context())?;
         self.attach_revset_evaluator(expression)
     }
 
@@ -819,7 +818,7 @@ impl WorkspaceCommandHelper {
         revision_arg: &RevisionArg,
     ) -> Result<(RevsetExpressionEvaluator<'_>, Option<RevsetModifier>), CommandError> {
         let context = self.revset_parse_context();
-        let (expression, modifier) = revset::parse_with_modifier(revision_arg, &context)?;
+        let (expression, modifier) = revset::parse_with_modifier(revision_arg.as_ref(), &context)?;
         Ok((self.attach_revset_evaluator(expression)?, modifier))
     }
 
@@ -831,7 +830,7 @@ impl WorkspaceCommandHelper {
         let context = self.revset_parse_context();
         let expressions: Vec<_> = revision_args
             .iter()
-            .map(|s| revset::parse(s, &context))
+            .map(|arg| revset::parse(arg.as_ref(), &context))
             .try_collect()?;
         let expression = RevsetExpression::union_all(&expressions);
         self.attach_revset_evaluator(expression)
@@ -2120,11 +2119,15 @@ impl From<String> for RevisionArg {
     }
 }
 
-impl Deref for RevisionArg {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
+impl AsRef<str> for RevisionArg {
+    fn as_ref(&self) -> &str {
         &self.0
+    }
+}
+
+impl fmt::Display for RevisionArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 
