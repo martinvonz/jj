@@ -228,7 +228,7 @@ fn test_next_choose_branching_child() {
 }
 
 #[test]
-fn test_prev_fails_on_merge_commit() {
+fn test_prev_on_merge_commit() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -248,10 +248,86 @@ fn test_prev_fails_on_merge_commit() {
     ◉  zzzzzzzzzzzz
     "###);
 
-    // Try to advance the working copy commit.
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["prev"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev"]);
+    insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr,@r###"
-    Error: Cannot run `jj prev` on a merge commit
+    Working copy now at: vruxwmqv 41658cf4 (empty) (no description set)
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    "###);
+
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_stdin_ok(&repo_path, &["prev", "--edit"], "2\n");
+    insta::assert_snapshot!(stdout, @r###"
+    ambiguous prev commit, choose one to target:
+    1: zsuskuln b0d21db3 right | (empty) second
+    2: qpvuntsm 69542c19 left | (empty) first
+    q: quit the prompt
+    enter the index of the commit you want to target: 
+    "###);
+    insta::assert_snapshot!(stderr,@r###"
+    Working copy now at: qpvuntsm 69542c19 left | (empty) first
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    "###);
+}
+
+#[test]
+fn test_prev_on_merge_commit_with_parent_merge() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&repo_path, &["desc", "-m", "x"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-m", "y"]);
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["new", "description(x)", "description(y)", "-m", "z"],
+    );
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-m", "1"]);
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["new", "description(z)", "description(1)", "-m", "M"],
+    );
+
+    // Check that the graph looks the way we expect.
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @    royxmykxtrkr M
+    ├─╮
+    │ ◉  mzvwutvlkqwt 1
+    ◉ │    zsuskulnrvyr z
+    ├───╮
+    │ │ ◉  kkmpptxzrspx y
+    │ ├─╯
+    ◉ │  qpvuntsmwlqt x
+    ├─╯
+    ◉  zzzzzzzzzzzz
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_stdin_ok(&repo_path, &["prev"], "2\n");
+    insta::assert_snapshot!(stdout, @r###"
+    ambiguous prev commit, choose one to target:
+    1: kkmpptxz 146d5c67 (empty) y
+    2: qpvuntsm c56e5035 (empty) x
+    3: zzzzzzzz 00000000 (empty) (no description set)
+    q: quit the prompt
+    enter the index of the commit you want to target: 
+    "###);
+    insta::assert_snapshot!(stderr,@r###"
+    Working copy now at: vruxwmqv e8ff4fa0 (empty) (no description set)
+    Parent commit      : qpvuntsm c56e5035 (empty) x
+    "###);
+
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_stdin_ok(&repo_path, &["prev", "--edit"], "2\n");
+    insta::assert_snapshot!(stdout, @r###"
+    ambiguous prev commit, choose one to target:
+    1: mzvwutvl 89b8a355 (empty) 1
+    2: zsuskuln 1ef71474 (empty) z
+    q: quit the prompt
+    enter the index of the commit you want to target: 
+    "###);
+    insta::assert_snapshot!(stderr,@r###"
+    Working copy now at: zsuskuln 1ef71474 (empty) z
+    Parent commit      : qpvuntsm c56e5035 (empty) x
+    Parent commit      : kkmpptxz 146d5c67 (empty) y
     "###);
 }
 
