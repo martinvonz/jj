@@ -1130,6 +1130,11 @@ fn test_branch_list_filtered() {
 
     // Select branches by name, combined with --all-remotes
     test_env.jj_cmd_ok(&local_path, &["git", "export"]);
+    insta::assert_snapshot!(query(&["--all-remotes", "remote-rewrite"]), @r###"
+    remote-rewrite: xyxluytn e31634b6 (empty) rewritten
+      @git: xyxluytn e31634b6 (empty) rewritten
+      @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
+    "###);
     insta::assert_snapshot!(query(&["--all-remotes", "-rbranches(remote-rewrite)"]), @r###"
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
       @git: xyxluytn e31634b6 (empty) rewritten

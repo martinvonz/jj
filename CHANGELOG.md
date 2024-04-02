@@ -54,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj duplicate` and `jj abandon` can now take more than a single `-r` argument,
   for consistency with other commands.
 
-* `jj branch list` now allows combining `-r` and `-a` options.
+* `jj branch list` now allows combining `-r REVISIONS`/`NAMES` and `-a` options.
 
 * `--all` is now named `--all-remotes` for `jj branch list`
 
