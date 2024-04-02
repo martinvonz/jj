@@ -977,9 +977,84 @@ fn test_squash_empty() {
     "###);
 }
 
+#[test]
+fn test_squash_use_destination_message() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m=a"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m=b"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m=c"]);
+    // Test the setup
+    insta::assert_snapshot!(get_log_output_with_description(&test_env, &repo_path), @r###"
+    @  71f7c810d8ed c
+    ◉  10dd87c3b4e2 b
+    ◉  4c5b3042d9e0 a
+    ◉  000000000000
+    "###);
+
+    // Squash the current revision using the short name for the option.
+    test_env.jj_cmd_ok(&repo_path, &["squash", "-u"]);
+    insta::assert_snapshot!(get_log_output_with_description(&test_env, &repo_path), @r###"
+    @  10e30ce4a910
+    ◉  1c21278b775f b
+    ◉  4c5b3042d9e0 a
+    ◉  000000000000
+    "###);
+
+    // Undo and squash again, but this time squash both "b" and "c" into "a".
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "squash",
+            "--use-destination-message",
+            "--from",
+            "description(b)::",
+            "--into",
+            "description(a)",
+        ],
+    );
+    insta::assert_snapshot!(get_log_output_with_description(&test_env, &repo_path), @r###"
+    @  da1507508bdf
+    ◉  f1387f804776 a
+    ◉  000000000000
+    "###);
+}
+
+// The --use-destination-message and --message options are incompatible.
+#[test]
+fn test_squash_use_destination_message_and_message_mutual_exclusion() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m=a"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m=b"]);
+    insta::assert_snapshot!(test_env.jj_cmd_cli_error(
+        &repo_path,
+        &[
+            "squash",
+            "--message=123",
+            "--use-destination-message",
+        ],
+    ), @r###"
+    error: the argument '--message <MESSAGE>' cannot be used with '--use-destination-message'
+
+    Usage: jj squash --message <MESSAGE> [PATHS]...
+
+    For more information, try '--help'.
+    "###);
+}
+
 fn get_description(test_env: &TestEnvironment, repo_path: &Path, rev: &str) -> String {
     test_env.jj_cmd_success(
         repo_path,
         &["log", "--no-graph", "-T", "description", "-r", rev],
     )
+}
+
+fn get_log_output_with_description(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    let template = r#"separate(" ", commit_id.short(), description)"#;
+    test_env.jj_cmd_success(repo_path, &["log", "-T", template])
 }
