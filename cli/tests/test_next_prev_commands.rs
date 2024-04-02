@@ -13,6 +13,8 @@
 // limitations under the License.
 //
 
+use std::path::Path;
+
 use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
 
 #[test]
@@ -63,25 +65,32 @@ fn test_next_multiple() {
 
 #[test]
 fn test_prev_simple() {
-    // Move from third => second.
+    // Move @- from third to second.
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  zsuskulnrvyr
+    ◉  kkmpptxzrspx third
+    ◉  rlvkpnrzqnoo second
+    ◉  qpvuntsmwlqt first
+    ◉  zzzzzzzzzzzz
+    "###);
+
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev"]);
-    // The working copy commit is now a child of "second".
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: mzvwutvl f7a0f876 (empty) (no description set)
+    Working copy now at: royxmykx 5647d685 (empty) (no description set)
     Parent commit      : rlvkpnrz 5c52832c (empty) second
     "###);
 }
 
 #[test]
 fn test_prev_multiple_without_root() {
-    // Move from fourth => second.
+    // Move @- from fourth to second.
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -89,10 +98,19 @@ fn test_prev_multiple_without_root() {
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "fourth"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  mzvwutvlkqwt
+    ◉  zsuskulnrvyr fourth
+    ◉  kkmpptxzrspx third
+    ◉  rlvkpnrzqnoo second
+    ◉  qpvuntsmwlqt first
+    ◉  zzzzzzzzzzzz
+    "###);
+
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev", "2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: royxmykx 5647d685 (empty) (no description set)
+    Working copy now at: yqosqzyt d2edc95b (empty) (no description set)
     Parent commit      : rlvkpnrz 5c52832c (empty) second
     "###);
 }
@@ -214,12 +232,22 @@ fn test_prev_fails_on_merge_commit() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&repo_path, &["desc", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["branch", "c", "left"]);
-    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-m", "second"]);
     test_env.jj_cmd_ok(&repo_path, &["branch", "c", "right"]);
-    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "left", "right"]);
+
+    // Check that the graph looks the way we expect.
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @    royxmykxtrkr
+    ├─╮
+    │ ◉  zsuskulnrvyr right second
+    ◉ │  qpvuntsmwlqt left first
+    ├─╯
+    ◉  zzzzzzzzzzzz
+    "###);
+
     // Try to advance the working copy commit.
     let stderr = test_env.jj_cmd_failure(&repo_path, &["prev"]);
     insta::assert_snapshot!(stderr,@r###"
@@ -228,7 +256,7 @@ fn test_prev_fails_on_merge_commit() {
 }
 
 #[test]
-fn test_prev_fails_on_multiple_parents() {
+fn test_prev_prompts_on_multiple_parents() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -240,7 +268,21 @@ fn test_prev_fails_on_multiple_parents() {
     // Create a merge commit, which has two parents.
     test_env.jj_cmd_ok(&repo_path, &["new", "all:@--+"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "merge"]);
-    // Advance the working copy commit.
+
+    // Check that the graph looks the way we expect.
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  vruxwmqvtpmx
+    ◉      yqosqzytrlsw merge
+    ├─┬─╮
+    │ │ ◉  qpvuntsmwlqt first
+    │ ◉ │  kkmpptxzrspx second
+    │ ├─╯
+    ◉ │  mzvwutvlkqwt third
+    ├─╯
+    ◉  zzzzzzzzzzzz
+    "###);
+
+    // Move @ backwards.
     let (stdout, stderr) = test_env.jj_cmd_stdin_ok(&repo_path, &["prev"], "3\n");
     insta::assert_snapshot!(stdout,@r###"
     ambiguous prev commit, choose one to target:
@@ -251,13 +293,13 @@ fn test_prev_fails_on_multiple_parents() {
     enter the index of the commit you want to target: 
     "###);
     insta::assert_snapshot!(stderr,@r###"
-    Working copy now at: yostqsxw 286a9951 (empty) (no description set)
+    Working copy now at: znkkpsqq 94715f3c (empty) (no description set)
     Parent commit      : qpvuntsm 69542c19 (empty) first
     "###);
 }
 
 #[test]
-fn test_prev_onto_root_fails() {
+fn test_prev_beyond_root_fails() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -265,10 +307,18 @@ fn test_prev_onto_root_fails() {
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "fourth"]);
-    // The root commit is before "first".
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["prev", "6"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  mzvwutvlkqwt
+    ◉  zsuskulnrvyr fourth
+    ◉  kkmpptxzrspx third
+    ◉  rlvkpnrzqnoo second
+    ◉  qpvuntsmwlqt first
+    ◉  zzzzzzzzzzzz
+    "###);
+    // @- is at "fourth", and there is no parent 5 commits behind it.
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["prev", "5"]);
     insta::assert_snapshot!(stderr,@r###"
-    Error: No ancestor found 6 commits back
+    Error: No ancestor found 5 commits back
     "###);
 }
 
@@ -282,18 +332,29 @@ fn test_prev_editing() {
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "fourth"]);
+    // Edit the "fourth" commit, which becomes the leaf.
+    test_env.jj_cmd_ok(&repo_path, &["edit", "@-"]);
+    // Check that the graph looks the way we expect.
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  zsuskulnrvyr fourth
+    ◉  kkmpptxzrspx third
+    ◉  rlvkpnrzqnoo second
+    ◉  qpvuntsmwlqt first
+    ◉  zzzzzzzzzzzz
+    "###);
+
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev", "--edit"]);
-    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stdout, @r"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: zsuskuln 009f88bf (empty) fourth
-    Parent commit      : kkmpptxz 3fa8931e (empty) third
+    Working copy now at: kkmpptxz 3fa8931e (empty) third
+    Parent commit      : rlvkpnrz 5c52832c (empty) second
     "###);
     // --edit is implied when already editing a non-head commit
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: yqosqzyt d2edc95b (empty) (no description set)
-    Parent commit      : rlvkpnrz 5c52832c (empty) second
+    Working copy now at: rlvkpnrz 5c52832c (empty) second
+    Parent commit      : qpvuntsm 69542c19 (empty) first
     "###);
 }
 
@@ -321,4 +382,9 @@ fn test_next_editing() {
     Working copy now at: zsuskuln 009f88bf (empty) fourth
     Parent commit      : kkmpptxz 3fa8931e (empty) third
     "###);
+}
+
+fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
+    let template = r#"separate(" ", change_id.short(), local_branches, description)"#;
+    test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }
