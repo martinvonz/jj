@@ -67,7 +67,6 @@ pub(crate) fn cmd_prev(
     args: &PrevArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let offset = args.offset;
     let current_wc_id = workspace_command
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
@@ -78,25 +77,7 @@ pub(crate) fn cmd_prev(
             .heads()
             .contains(current_wc_id);
     let current_wc = workspace_command.repo().store().get_commit(current_wc_id)?;
-    let start_id = if edit {
-        current_wc_id
-    } else {
-        match current_wc.parent_ids() {
-            [parent_id] => parent_id,
-            _ => return Err(user_error("Cannot run `jj prev` on a merge commit")),
-        }
-    };
-    let ancestor_expression = RevsetExpression::commit(start_id.clone()).ancestors_at(offset);
-    let target_revset = if edit {
-        ancestor_expression
-    } else {
-        // Jujutsu will always create a new commit for prev, even where Mercurial cannot
-        // and fails. The decision and all discussion around it are available
-        // here: https://github.com/martinvonz/jj/pull/1200#discussion_r1298623933
-        //
-        // If users ever request erroring out, add `.ancestors()` to the revset below.
-        ancestor_expression.minus(&RevsetExpression::commit(current_wc_id.clone()))
-    };
+    let target_revset = RevsetExpression::commit(current_wc_id.clone()).ancestors_at(args.offset);
     let targets: Vec<_> = target_revset
         .evaluate_programmatic(workspace_command.repo().as_ref())?
         .iter()
@@ -105,13 +86,11 @@ pub(crate) fn cmd_prev(
     let target = match targets.as_slice() {
         [target] => target,
         [] => {
-            return Err(user_error(format!(
-                "No ancestor found {offset} commit{} back",
-                if offset > 1 { "s" } else { "" }
-            )))
+            return Err(user_error("No ancestor found at requested offset."));
         }
         commits => choose_commit(ui, &workspace_command, "prev", commits)?,
     };
+
     // Generate a short commit hash, to make it readable in the op log.
     let current_short = short_commit_hash(current_wc.id());
     let target_short = short_commit_hash(target.id());

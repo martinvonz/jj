@@ -87,8 +87,8 @@ fn test_prev_simple() {
     // move backwards.
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: royxmykx 5647d685 (empty) (no description set)
-    Parent commit      : rlvkpnrz 5c52832c (empty) second
+    Working copy now at: royxmykx f039cf03 (empty) (no description set)
+    Parent commit      : kkmpptxz 3fa8931e (empty) third
     "###);
 }
 
@@ -112,8 +112,8 @@ fn test_prev_non_discardable_working_copy() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: royxmykx f04d8595 (empty) (no description set)
-    Parent commit      : qpvuntsm 69542c19 (empty) first
+    Working copy now at: royxmykx 5647d685 (empty) (no description set)
+    Parent commit      : rlvkpnrz 5c52832c (empty) second
     "###);
 }
 
@@ -139,8 +139,8 @@ fn test_prev_multiple_without_root() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev", "2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: vruxwmqv bcea672c (empty) (no description set)
-    Parent commit      : qpvuntsm 69542c19 (empty) first
+    Working copy now at: vruxwmqv 6c3e8d2a (empty) (no description set)
+    Parent commit      : rlvkpnrz 5c52832c (empty) second
     "###);
 }
 
@@ -257,35 +257,6 @@ fn test_next_choose_branching_child() {
 }
 
 #[test]
-fn test_prev_fails_on_merge_commit() {
-    let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
-    let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "left"]);
-    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "right"]);
-    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_ok(&repo_path, &["new", "left", "right"]);
-
-    // Check that the graph looks the way we expect.
-    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @    yqosqzytrlsw
-    ├─╮
-    │ ◉  zsuskulnrvyr right second
-    ◉ │  qpvuntsmwlqt left first
-    ├─╯
-    ◉  zzzzzzzzzzzz
-    "###);
-
-    // Try to advance the working copy commit.
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["prev"]);
-    insta::assert_snapshot!(stderr,@r###"
-    Error: Cannot run `jj prev` on a merge commit
-    "###);
-}
-
-#[test]
 fn test_prev_prompts_on_multiple_parents() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
@@ -297,12 +268,11 @@ fn test_prev_prompts_on_multiple_parents() {
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
     // Create a merge commit, which has two parents.
     test_env.jj_cmd_ok(&repo_path, &["new", "all:@--+"]);
-    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "merge"]);
+    test_env.jj_cmd_ok(&repo_path, &["desc", "-m", "merge"]);
 
     // Check that the graph looks the way we expect.
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  vruxwmqvtpmx
-    ◉      yqosqzytrlsw merge
+    @      yqosqzytrlsw merge
     ├─┬─╮
     │ │ ◉  qpvuntsmwlqt first
     │ ◉ │  kkmpptxzrspx second
@@ -329,7 +299,7 @@ fn test_prev_prompts_on_multiple_parents() {
 }
 
 #[test]
-fn test_prev_onto_root_fails() {
+fn test_prev_beyond_root_fails() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
@@ -346,9 +316,9 @@ fn test_prev_onto_root_fails() {
     ◉  zzzzzzzzzzzz
     "###);
     // The root commit is before "first", which is 5 commits back.
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["prev", "5"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["prev", "6"]);
     insta::assert_snapshot!(stderr,@r###"
-    Error: No ancestor found 5 commits back
+    Error: No ancestor found at requested offset.
     "###);
 }
 
