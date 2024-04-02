@@ -21,7 +21,7 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::OperationId;
 use jj_lib::op_walk;
 use jj_lib::operation::Operation;
-use jj_lib::repo::Repo;
+use jj_lib::repo::{Repo, RepoLoader};
 
 use crate::cli_util::{format_template, short_operation_hash, CommandHelper, LogContentFormat};
 use crate::command_error::{user_error, user_error_with_hint, CommandError};
@@ -39,6 +39,7 @@ pub enum OperationCommand {
     Log(OperationLogArgs),
     Undo(OperationUndoArgs),
     Restore(OperationRestoreArgs),
+    Waypoint(OperationWaypointArgs),
 }
 
 /// Show the operation log
@@ -69,6 +70,11 @@ pub struct OperationRestoreArgs {
     /// --at-op=<operation ID> log` before restoring to an operation to see the
     /// state of the repo at that operation.
     operation: String,
+
+    /// Restore by specifying a waypoint instead of an operation id.
+    /// The latest operation marked with that waypoint will be restored.
+    #[arg(long, short)]
+    waypoint: bool,
 
     /// What portions of the local state to restore (can be repeated)
     ///
@@ -111,6 +117,16 @@ pub struct OperationUndoArgs {
 pub struct OperationAbandonArgs {
     /// The operation or operation range to abandon
     operation: String,
+}
+
+/// Append a new operation tagged with a waypoint to more easily restore it
+/// later
+///
+/// To restore a waypoint, simply run `jj op restore --waypoint <waypoint name>`
+#[derive(clap::Args, Clone, Debug)]
+pub struct OperationWaypointArgs {
+    /// The name for the waypoint
+    waypoint: String,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum)]
@@ -291,7 +307,14 @@ fn cmd_op_restore(
     args: &OperationRestoreArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let target_op = workspace_command.resolve_single_op(&args.operation)?;
+    let target_op = if args.waypoint {
+        let workspace = command.load_workspace()?;
+        let repo_loader = workspace.repo_loader();
+        find_first_operation_with_waypoint(repo_loader, &args.operation)?
+    } else {
+        workspace_command.resolve_single_op(&args.operation)?
+    };
+
     let mut tx = workspace_command.start_transaction();
     let new_view = view_with_desired_portions_restored(
         target_op.view()?.store_view(),
@@ -395,6 +418,51 @@ fn cmd_op_abandon(
     Ok(())
 }
 
+pub fn cmd_op_waypoint(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &OperationWaypointArgs,
+) -> Result<(), CommandError> {
+    let mut workspace_command = command.workspace_helper(ui)?;
+
+    let mut tx = workspace_command.start_transaction().into_inner();
+    tx.set_tag("waypoint".to_string(), args.waypoint.clone());
+    tx.commit(format!("Create waypoint \"{}\"", args.waypoint));
+
+    Ok(())
+}
+
+fn find_first_operation_with_waypoint(
+    repo_loader: &RepoLoader,
+    waypoint: &str,
+) -> Result<Operation, CommandError> {
+    let current_op = op_walk::resolve_op_for_load(repo_loader, "@").ok();
+    let head_ops = if let Some(op) = current_op {
+        vec![op]
+    } else {
+        op_walk::get_current_head_ops(
+            repo_loader.op_store(),
+            repo_loader.op_heads_store().as_ref(),
+        )?
+    };
+
+    for op in op_walk::walk_ancestors(&head_ops) {
+        let op = op?;
+        if op
+            .metadata()
+            .tags
+            .get("waypoint")
+            .map_or(false, |value| value == waypoint)
+        {
+            return Ok(op);
+        }
+    }
+
+    Err(user_error(format!(
+        r#"Could not find an operation with the waypoint '{waypoint}'"#
+    )))
+}
+
 pub fn cmd_operation(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -405,5 +473,6 @@ pub fn cmd_operation(
         OperationCommand::Log(args) => cmd_op_log(ui, command, args),
         OperationCommand::Restore(args) => cmd_op_restore(ui, command, args),
         OperationCommand::Undo(args) => cmd_op_undo(ui, command, args),
+        OperationCommand::Waypoint(args) => cmd_op_waypoint(ui, command, args),
     }
 }
