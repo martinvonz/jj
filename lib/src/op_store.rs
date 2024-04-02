@@ -432,6 +432,13 @@ pub trait OpStore: Send + Sync + Debug {
 
     fn write_operation(&self, contents: &Operation) -> OpStoreResult<OperationId>;
 
+    fn update_tag(
+        &self,
+        id: &OperationId,
+        name: String,
+        value: Option<String>,
+    ) -> OpStoreResult<()>;
+
     /// Resolves an unambiguous operation ID prefix.
     fn resolve_operation_id_prefix(
         &self,
