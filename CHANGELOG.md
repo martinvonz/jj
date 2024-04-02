@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * New command `jj parallelize` that rebases a set of revisions into siblings.
 
+* `jj status` now supports filtering by paths. For example, `jj status .` will
+  only list changed files that are descendants of the current directory.
+
 ### Fixed bugs
 
 ## [0.16.0] - 2024-04-03

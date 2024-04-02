@@ -1779,7 +1779,11 @@ This includes:
 
 * Conflicted branches (see https://github.com/martinvonz/jj/blob/main/docs/branches.md)
 
-**Usage:** `jj status`
+**Usage:** `jj status [PATHS]...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Restrict the status display to these paths
 
 
 

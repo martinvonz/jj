@@ -62,3 +62,22 @@ fn test_status_ignored_gitignore() {
     Parent commit: zzzzzzzz 00000000 (empty) (no description set)
     "###);
 }
+
+#[test]
+fn test_status_filtered() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file_1"), "file_1").unwrap();
+    std::fs::write(repo_path.join("file_2"), "file_2").unwrap();
+
+    // The output filtered to file_1 should not list the addition of file_2.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["status", "file_1"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy changes:
+    A file_1
+    Working copy : qpvuntsm abcaaacd (no description set)
+    Parent commit: zzzzzzzz 00000000 (empty) (no description set)
+    "###);
+}

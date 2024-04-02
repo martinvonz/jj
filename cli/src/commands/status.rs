@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use itertools::Itertools;
-use jj_lib::matchers::EverythingMatcher;
 use jj_lib::repo::Repo;
 use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
@@ -33,13 +32,17 @@ use crate::ui::Ui;
 ///  * Conflicted branches (see https://github.com/martinvonz/jj/blob/main/docs/branches.md)
 #[derive(clap::Args, Clone, Debug)]
 #[command(visible_alias = "st")]
-pub(crate) struct StatusArgs {}
+pub(crate) struct StatusArgs {
+    /// Restrict the status display to these paths
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    paths: Vec<String>,
+}
 
 #[instrument(skip_all)]
 pub(crate) fn cmd_status(
     ui: &mut Ui,
     command: &CommandHelper,
-    _args: &StatusArgs,
+    args: &StatusArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
@@ -47,6 +50,7 @@ pub(crate) fn cmd_status(
         .get_wc_commit_id()
         .map(|id| repo.store().get_commit(id))
         .transpose()?;
+    let matcher = workspace_command.matcher_from_values(&args.paths)?;
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
@@ -61,10 +65,12 @@ pub(crate) fn cmd_status(
             diff_util::show_diff_summary(
                 formatter,
                 &workspace_command,
-                parent_tree.diff_stream(&tree, &EverythingMatcher),
+                parent_tree.diff_stream(&tree, matcher.as_ref()),
             )?;
         }
 
+        // TODO: Conflicts should also be filtered by the `matcher`. See the related
+        // TODO on `MergedTree::conflicts()`.
         let conflicts = wc_commit.tree()?.conflicts().collect_vec();
         if !conflicts.is_empty() {
             writeln!(
