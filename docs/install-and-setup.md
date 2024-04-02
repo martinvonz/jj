@@ -175,7 +175,7 @@ depends on your shell.
 ### Bash
 
 ```shell
-source <(jj util completion)  # --bash is the default
+source <(jj util completion bash)
 ```
 
 ### Zsh
