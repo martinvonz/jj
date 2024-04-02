@@ -181,6 +181,44 @@ impl OpStore for SimpleOpStore {
         Ok(id)
     }
 
+    fn update_tag(
+        &self,
+        id: &OperationId,
+        tag: String,
+        value: Option<String>,
+    ) -> OpStoreResult<()> {
+        let operation = self.read_operation(id)?;
+
+        let temp_file =
+            NamedTempFile::new_in(&self.path).map_err(|err| io_to_write_error(err, "operation"))?;
+
+        let mut tags = operation.metadata.tags;
+
+        if let Some(value) = value {
+            tags.insert(tag, value);
+        } else {
+            tags.remove(&tag);
+        }
+
+        let operation = op_store::Operation {
+            metadata: op_store::OperationMetadata {
+                tags,
+                ..operation.metadata
+            },
+            ..operation
+        };
+
+        let proto = operation_to_proto(&operation);
+        temp_file
+            .as_file()
+            .write_all(&proto.encode_to_vec())
+            .map_err(|err| io_to_write_error(err, "operation"))?;
+
+        persist_content_addressed_temp_file(temp_file, self.operation_path(id))
+            .map_err(|err| io_to_write_error(err, "operation"))?;
+        Ok(())
+    }
+
     fn resolve_operation_id_prefix(
         &self,
         prefix: &HexPrefix,

@@ -18,10 +18,10 @@ use std::slice;
 use clap::Subcommand;
 use itertools::Itertools as _;
 use jj_lib::object_id::ObjectId;
-use jj_lib::op_store::OperationId;
+use jj_lib::op_store::{OpStoreResult, OperationId};
 use jj_lib::op_walk;
 use jj_lib::operation::Operation;
-use jj_lib::repo::Repo;
+use jj_lib::repo::{Repo, RepoLoader};
 
 use crate::cli_util::{format_template, short_operation_hash, CommandHelper, LogContentFormat};
 use crate::command_error::{user_error, user_error_with_hint, CommandError};
@@ -39,6 +39,7 @@ pub enum OperationCommand {
     Log(OperationLogArgs),
     Undo(OperationUndoArgs),
     Restore(OperationRestoreArgs),
+    Waypoint(OperationWaypointArgs),
 }
 
 /// Show the operation log
@@ -69,6 +70,10 @@ pub struct OperationRestoreArgs {
     /// --at-op=<operation ID> log` before restoring to an operation to see the
     /// state of the repo at that operation.
     operation: String,
+
+    /// Restore using a waypoint instead of an operation id
+    #[arg(long, short)]
+    waypoint: bool,
 
     /// What portions of the local state to restore (can be repeated)
     ///
@@ -110,6 +115,22 @@ pub struct OperationUndoArgs {
 #[derive(clap::Args, Clone, Debug)]
 pub struct OperationAbandonArgs {
     /// The operation or operation range to abandon
+    operation: String,
+}
+
+/// Create a new operation that restores the repo to an earlier state
+///
+/// This restores the repo to the state at the specified operation, effectively
+/// undoing all later operations. It does so by creating a new operation.
+#[derive(clap::Args, Clone, Debug)]
+pub struct OperationWaypointArgs {
+    /// The name for the waypoint
+    waypoint: String,
+
+    /// The operation to add a named waypoint to
+    ///
+    /// Use `jj op log` to find an operation to undo.
+    #[arg(default_value = "@")]
     operation: String,
 }
 
@@ -291,7 +312,25 @@ fn cmd_op_restore(
     args: &OperationRestoreArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let target_op = workspace_command.resolve_single_op(&args.operation)?;
+    let target_op = if args.waypoint {
+        let workspace = command.load_workspace()?;
+        let repo_loader = workspace.repo_loader();
+        let ops = find_tagged_ops(repo_loader, "waypoint", &args.operation)?;
+        let [op] = ops.as_slice() else {
+            return Err(if ops.is_empty() {
+                user_error("There no op log entries with this waypoint!")
+            } else {
+                user_error("There is more than one op log entry with this waypoint!").hinted(
+                    "Try setting the waypoint again, this should clear all other waypoints with \
+                     this name.",
+                )
+            });
+        };
+        op.to_owned()
+    } else {
+        workspace_command.resolve_single_op(&args.operation)?
+    };
+
     let mut tx = workspace_command.start_transaction();
     let new_view = view_with_desired_portions_restored(
         target_op.view()?.store_view(),
@@ -395,6 +434,56 @@ fn cmd_op_abandon(
     Ok(())
 }
 
+pub fn cmd_op_waypoint(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &OperationWaypointArgs,
+) -> Result<(), CommandError> {
+    let workspace = command.load_workspace()?;
+    let repo_loader = workspace.repo_loader();
+    let workspace_command = command.workspace_helper(ui)?;
+    let target_op = workspace_command.resolve_single_op(&args.operation)?;
+    let op_store = workspace_command.repo().op_store();
+
+    let tagged_ops = find_tagged_ops(repo_loader, "waypoint", &args.waypoint)?;
+    for op in tagged_ops {
+        op_store.update_tag(op.id(), "waypoint".to_string(), None)?;
+    }
+
+    op_store.update_tag(
+        target_op.id(),
+        "waypoint".to_string(),
+        Some(args.waypoint.clone()),
+    )?;
+
+    Ok(())
+}
+
+fn find_tagged_ops(
+    repo_loader: &RepoLoader,
+    tag: &str,
+    value: &str,
+) -> OpStoreResult<Vec<Operation>> {
+    let current_op = op_walk::resolve_op_for_load(repo_loader, "@").ok();
+    let head_ops = if let Some(op) = current_op {
+        vec![op]
+    } else {
+        op_walk::get_current_head_ops(
+            repo_loader.op_store(),
+            repo_loader.op_heads_store().as_ref(),
+        )?
+    };
+    let ops = op_walk::walk_ancestors(&head_ops);
+    ops.filter_ok(|op| {
+        op.metadata()
+            .tags
+            .get(tag)
+            .map(|val| val == value)
+            .unwrap_or(false)
+    })
+    .collect()
+}
+
 pub fn cmd_operation(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -405,5 +494,6 @@ pub fn cmd_operation(
         OperationCommand::Log(args) => cmd_op_log(ui, command, args),
         OperationCommand::Restore(args) => cmd_op_restore(ui, command, args),
         OperationCommand::Undo(args) => cmd_op_undo(ui, command, args),
+        OperationCommand::Waypoint(args) => cmd_op_waypoint(ui, command, args),
     }
 }
