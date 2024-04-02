@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Operation objects in templates now have a `snapshot() -> Boolean` method that
   evaluates to true if the operation was a snapshot created by a non-mutating
   command (e.g. `jj log`).
+ 
+* `jj squash` now accepts a `--use-destination-message/-u` option that uses the
+  description of the destination for the new squashed revision and discards the
+  descriptions of the source revisions.
 
 * You can check whether Watchman fsmonitor is enabled or installed with the new
   `jj debug watchman status` command.

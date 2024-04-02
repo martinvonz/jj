@@ -62,6 +62,10 @@ pub(crate) struct SquashArgs {
     /// The description to use for squashed revision (don't open editor)
     #[arg(long = "message", short, value_name = "MESSAGE")]
     message_paragraphs: Vec<String>,
+    /// Use the description of the destination revision and discard the
+    /// description(s) of the source revision(s)
+    #[arg(long, short, conflicts_with = "message_paragraphs")]
+    use_destination_message: bool,
     /// Interactively choose which parts to squash
     #[arg(long, short)]
     interactive: bool,
@@ -118,8 +122,6 @@ pub(crate) fn cmd_squash(
         workspace_command.diff_selector(ui, args.tool.as_deref(), args.interactive)?;
     let mut tx = workspace_command.start_transaction();
     let tx_description = format!("squash commits into {}", destination.id().hex());
-    let description = (!args.message_paragraphs.is_empty())
-        .then(|| join_message_paragraphs(&args.message_paragraphs));
     move_diff(
         ui,
         &mut tx,
@@ -128,12 +130,40 @@ pub(crate) fn cmd_squash(
         &destination,
         matcher.as_ref(),
         &diff_selector,
-        description,
+        SquashedDescription::from_args(args),
         args.revision.is_none() && args.from.is_empty() && args.into.is_none(),
         &args.paths,
     )?;
     tx.finish(ui, tx_description)?;
     Ok(())
+}
+
+// TODO(#2882): Remove public visibility once `jj move` is deleted.
+pub(crate) enum SquashedDescription {
+    // Use this exact description.
+    Exact(String),
+    // Use the destination's description and discard the descriptions of the
+    // source revisions.
+    UseDestination,
+    // Combine the descriptions of the source and destination revisions.
+    Combine,
+}
+
+// TODO(#2882): Remove public visibility once `jj move` is deleted.
+impl SquashedDescription {
+    pub(crate) fn from_args(args: &SquashArgs) -> Self {
+        // These options are incompatible and Clap is configured to prevent this.
+        assert!(args.message_paragraphs.is_empty() || !args.use_destination_message);
+
+        if !args.message_paragraphs.is_empty() {
+            let desc = join_message_paragraphs(&args.message_paragraphs);
+            SquashedDescription::Exact(desc)
+        } else if args.use_destination_message {
+            SquashedDescription::UseDestination
+        } else {
+            SquashedDescription::Combine
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -145,7 +175,7 @@ pub fn move_diff(
     destination: &Commit,
     matcher: &dyn Matcher,
     diff_selector: &DiffSelector,
-    description: Option<String>,
+    description: SquashedDescription,
     no_rev_arg: bool,
     path_arg: &[String],
 ) -> Result<(), CommandError> {
@@ -235,8 +265,11 @@ from the source will be moved into the destination.
         destination_tree = destination_tree.merge(&tree1, &tree2)?;
     }
     let description = match description {
-        Some(description) => description,
-        None => combine_messages(tx.base_repo(), &abandoned_commits, destination, settings)?,
+        SquashedDescription::Exact(description) => description,
+        SquashedDescription::UseDestination => destination.description().to_owned(),
+        SquashedDescription::Combine => {
+            combine_messages(tx.base_repo(), &abandoned_commits, destination, settings)?
+        }
     };
     let mut predecessors = vec![destination.id().clone()];
     predecessors.extend(sources.iter().map(|source| source.id().clone()));

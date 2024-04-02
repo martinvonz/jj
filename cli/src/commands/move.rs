@@ -16,7 +16,7 @@ use clap::ArgGroup;
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
-use super::squash::move_diff;
+use super::squash::{move_diff, SquashedDescription};
 use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
@@ -97,7 +97,7 @@ pub(crate) fn cmd_move(
         &destination,
         matcher.as_ref(),
         &diff_selector,
-        None,
+        SquashedDescription::Combine,
         false,
         &args.paths,
     )?;
