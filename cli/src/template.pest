@@ -71,13 +71,9 @@ expression = {
   ~ (whitespace* ~ infix_ops ~ whitespace* ~ (prefix_ops ~ whitespace*)* ~ term)*
 }
 
-// Use 'term' instead of 'expression' to disallow 'x || y ++ z'. It can be
-// parsed, but the precedence isn't obvious.
-concat = _{
-  term ~ (whitespace* ~ concat_op ~ whitespace* ~ term)+
+template = {
+  expression ~ (whitespace* ~ concat_op ~ whitespace* ~ expression)*
 }
-
-template = { concat | expression }
 
 program = _{ SOI ~ whitespace* ~ template? ~ whitespace* ~ EOI }
 
