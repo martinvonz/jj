@@ -52,7 +52,6 @@ impl Rule {
             Rule::primary => None,
             Rule::term => None,
             Rule::expression => None,
-            Rule::concat => None,
             Rule::template => None,
             Rule::program => None,
             Rule::function_alias_declaration => None,
@@ -476,7 +475,6 @@ fn parse_template_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> 
     let mut nodes: Vec<_> = inner
         .filter_map(|pair| match pair.as_rule() {
             Rule::concat_op => None,
-            Rule::term => Some(parse_term_node(pair)),
             Rule::expression => Some(parse_expression_node(pair)),
             r => panic!("unexpected template item rule {r:?}"),
         })
@@ -1070,11 +1068,16 @@ mod tests {
             parse_normalized("x || (y && (z.h()))").unwrap(),
         );
 
-        // Top-level expression is allowed, but not in concatenation
-        assert!(parse_template(r"x && y").is_ok());
-        assert!(parse_template(r"f(x && y)").is_ok());
-        assert!(parse_template(r"x && y ++ z").is_err());
-        assert!(parse_template(r"(x && y) ++ z").is_ok());
+        // Logical operator bounds more tightly than concatenation. This might
+        // not be so intuitive, but should be harmless.
+        assert_eq!(
+            parse_normalized(r"x && y ++ z").unwrap(),
+            parse_normalized(r"(x && y) ++ z").unwrap(),
+        );
+        assert_eq!(
+            parse_normalized(r"x ++ y || z").unwrap(),
+            parse_normalized(r"x ++ (y || z)").unwrap(),
+        );
 
         // Expression span
         assert_eq!(parse_template(" ! x ").unwrap().span.as_str(), "! x");
