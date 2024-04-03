@@ -53,9 +53,9 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 pub(crate) struct PrevArgs {
-    /// How many revisions to move backward. By default moves to the parent.
+    /// How many revisions to move backward. Moves to the parent by default.
     #[arg(default_value = "1")]
-    amount: u64,
+    offset: u64,
     /// Edit the parent directly, instead of moving the working-copy commit.
     #[arg(long)]
     edit: bool,
@@ -67,7 +67,7 @@ pub(crate) fn cmd_prev(
     args: &PrevArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let amount = args.amount;
+    let offset = args.offset;
     let current_wc_id = workspace_command
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
@@ -86,7 +86,7 @@ pub(crate) fn cmd_prev(
             _ => return Err(user_error("Cannot run `jj prev` on a merge commit")),
         }
     };
-    let ancestor_expression = RevsetExpression::commit(start_id.clone()).ancestors_at(amount);
+    let ancestor_expression = RevsetExpression::commit(start_id.clone()).ancestors_at(offset);
     let target_revset = if edit {
         ancestor_expression
     } else {
@@ -106,8 +106,8 @@ pub(crate) fn cmd_prev(
         [target] => target,
         [] => {
             return Err(user_error(format!(
-                "No ancestor found {amount} commit{} back",
-                if amount > 1 { "s" } else { "" }
+                "No ancestor found {offset} commit{} back",
+                if offset > 1 { "s" } else { "" }
             )))
         }
         commits => choose_commit(ui, &workspace_command, "prev", commits)?,

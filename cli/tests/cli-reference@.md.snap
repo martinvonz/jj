@@ -1172,11 +1172,11 @@ If your working-copy commit already has visible children, then `--edit` is
 implied.
 ```
 
-**Usage:** `jj next [OPTIONS] [AMOUNT]`
+**Usage:** `jj next [OPTIONS] [OFFSET]`
 
 ###### **Arguments:**
 
-* `<AMOUNT>` — How many revisions to move forward. By default advances to the next child
+* `<OFFSET>` — How many revisions to move forward. Advances to the next child by default
 
   Default value: `1`
 
@@ -1376,11 +1376,11 @@ If your working-copy commit already has visible children, then `--edit` is
 implied.
 ```
 
-**Usage:** `jj prev [OPTIONS] [AMOUNT]`
+**Usage:** `jj prev [OPTIONS] [OFFSET]`
 
 ###### **Arguments:**
 
-* `<AMOUNT>` — How many revisions to move backward. By default moves to the parent
+* `<OFFSET>` — How many revisions to move backward. Moves to the parent by default
 
   Default value: `1`
 
