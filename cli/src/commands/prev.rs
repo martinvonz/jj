@@ -118,7 +118,7 @@ pub(crate) fn cmd_prev(
     // If we're editing, just move to the revision directly.
     if edit {
         // The target must be rewritable if we're editing.
-        workspace_command.check_rewritable([target])?;
+        workspace_command.check_rewritable([target.id()])?;
         let mut tx = workspace_command.start_transaction();
         tx.edit(target)?;
         tx.finish(

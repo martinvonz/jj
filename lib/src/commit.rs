@@ -163,6 +163,19 @@ impl Commit {
     }
 }
 
+pub trait CommitIteratorExt<'c, I> {
+    fn ids(self) -> impl Iterator<Item = &'c CommitId> + 'c;
+}
+
+impl<'c, I> CommitIteratorExt<'c, I> for I
+where
+    I: Iterator<Item = &'c Commit> + 'c,
+{
+    fn ids(self) -> impl Iterator<Item = &'c CommitId> + 'c {
+        Box::new(self.map(|commit| commit.id()))
+    }
+}
+
 /// Wrapper to sort `Commit` by committer timestamp.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct CommitByCommitterTimestamp(pub Commit);

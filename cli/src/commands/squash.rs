@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use itertools::Itertools as _;
-use jj_lib::commit::Commit;
+use jj_lib::commit::{Commit, CommitIteratorExt};
 use jj_lib::matchers::Matcher;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
@@ -145,7 +145,7 @@ pub fn move_diff(
     path_arg: &[String],
 ) -> Result<(), CommandError> {
     tx.base_workspace_helper()
-        .check_rewritable(sources.iter().chain(std::iter::once(destination)))?;
+        .check_rewritable(sources.iter().chain(std::iter::once(destination)).ids())?;
     // Tree diffs to apply to the destination
     let mut tree_diffs = vec![];
     let mut abandoned_commits = vec![];

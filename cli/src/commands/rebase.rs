@@ -21,7 +21,7 @@ use clap::ArgGroup;
 use indexmap::IndexSet;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
-use jj_lib::commit::Commit;
+use jj_lib::commit::{Commit, CommitIteratorExt};
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
@@ -314,7 +314,7 @@ fn rebase_descendants_transaction(
     old_commits: &IndexSet<Commit>,
     rebase_options: RebaseOptions,
 ) -> Result<(), CommandError> {
-    workspace_command.check_rewritable(old_commits)?;
+    workspace_command.check_rewritable(old_commits.iter().ids())?;
     let (skipped_commits, old_commits) = old_commits
         .iter()
         .partition::<Vec<_>, _>(|commit| commit.parents() == new_parents);
@@ -353,7 +353,7 @@ fn rebase_revision(
     rev_arg: &RevisionArg,
 ) -> Result<(), CommandError> {
     let old_commit = workspace_command.resolve_single_rev(rev_arg)?;
-    workspace_command.check_rewritable([&old_commit])?;
+    workspace_command.check_rewritable([old_commit.id()])?;
     if new_parents.contains(&old_commit) {
         return Err(user_error(format!(
             "Cannot rebase {} onto itself",
@@ -370,7 +370,9 @@ fn rebase_revision(
         .try_collect()?;
     // Currently, immutable commits are defined so that a child of a rewriteable
     // commit is always rewriteable.
-    debug_assert!(workspace_command.check_rewritable(&child_commits).is_ok());
+    debug_assert!(workspace_command
+        .check_rewritable(child_commits.iter().ids())
+        .is_ok());
 
     // First, rebase the children of `old_commit`.
     let mut tx = workspace_command.start_transaction();
