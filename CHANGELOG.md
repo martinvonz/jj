@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecations
 
+### Breaking changes
+
+### New features
+
+### Fixed bugs
+
+## [0.16.0] - 2024-04-03
+
+### Deprecations
+
 * `jj move` was deprecated in favor of `jj squash`.
 
 ### Breaking changes
@@ -69,6 +79,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * new function `working_copies()` for revsets to show the working copy commits of all workspaces.
 
 ### Fixed bugs
+
+None.
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+* Aleksey Kuznetsov (@zummenix)
+* Anton Älgmyr (@algmyr)
+* Austin Seipp (@thoughtpolice)
+* Benjamin Tan (@bnjmnt4n)
+* Chris Krycho (@chriskrycho)
+* Christoph Koehler (@ckoehler)
+* Daniel Ploch (@torquestomp)
+* Evan Mesterhazy (@emesterhazy)
+* Ilya Grigoriev (@ilyagr)
+* Khionu Sybiern (@khionu)
+* Martin von Zweigbergk (@martinvonz)
+* Matthew Davidson (@KingMob)
+* mrstanwell (@mrstanwell)
+* Noah Mayr (@noahmayr)
+* Patric Stout (@TrueBrain)
+* Poliorcetics (@poliorcetics)
+* Simon Wollwage (@Kintaro)
+* Steve Klabnik (@steveklabnik)
+* Tom Ward (@tomafro)
+* TrashCan (@TrashCan69420)
+* Yuya Nishihara (@yuja)
+
 
 ## [0.15.1] - 2024-03-06
 
