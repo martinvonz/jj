@@ -53,9 +53,9 @@ pub(crate) struct SquashArgs {
     /// Revision to squash into its parent (default: @)
     #[arg(long, short)]
     revision: Option<RevisionArg>,
-    /// Revision to squash from (default: @)
+    /// Revision(s) to squash from (default: @)
     #[arg(long, conflicts_with = "revision")]
-    from: Option<RevisionArg>,
+    from: Vec<RevisionArg>,
     /// Revision to squash into (default: @)
     #[arg(long, conflicts_with = "revision", visible_alias = "to")]
     into: Option<RevisionArg>,
@@ -83,11 +83,14 @@ pub(crate) fn cmd_squash(
 
     let mut sources: Vec<Commit>;
     let destination;
-    if args.from.is_some() || args.into.is_some() {
-        sources = workspace_command
-            .parse_revset(args.from.as_ref().unwrap_or(&RevisionArg::AT))?
-            .evaluate_to_commits()?
-            .try_collect()?;
+    if !args.from.is_empty() || args.into.is_some() {
+        sources = if args.from.is_empty() {
+            workspace_command.parse_revset(&RevisionArg::AT)?
+        } else {
+            workspace_command.parse_union_revsets(&args.from)?
+        }
+        .evaluate_to_commits()?
+        .try_collect()?;
         destination =
             workspace_command.resolve_single_rev(args.into.as_ref().unwrap_or(&RevisionArg::AT))?;
         if sources.iter().any(|source| source.id() == destination.id()) {
@@ -124,7 +127,7 @@ pub(crate) fn cmd_squash(
         matcher.as_ref(),
         &diff_selector,
         description,
-        args.revision.is_none() && args.from.is_none() && args.into.is_none(),
+        args.revision.is_none() && args.from.is_empty() && args.into.is_none(),
         &args.paths,
     )?;
     tx.finish(ui, tx_description)?;

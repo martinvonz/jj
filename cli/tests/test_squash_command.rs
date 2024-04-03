@@ -629,7 +629,8 @@ fn test_squash_from_multiple() {
     "###);
 
     // Squash a few commits sideways
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "--from=b|c", "--into=d"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["squash", "--from=b", "--from=c", "--into=d"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 2 descendant commits
@@ -689,6 +690,14 @@ fn test_squash_from_multiple() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["print", "-r=e", "file"]);
     insta::assert_snapshot!(stdout, @r###"
     f
+    "###);
+
+    // Empty squash shouldn't crash (could be noop)
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "--from=none()"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: xznxytkn 68d54010 (empty) (no description set)
+    Parent commit      : yostqsxw b7bc1dda e f | (no description set)
     "###);
 }
 
