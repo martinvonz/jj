@@ -53,10 +53,10 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 pub(crate) struct NextArgs {
-    /// How many revisions to move forward. By default advances to the next
-    /// child.
+    /// How many revisions to move forward. Advances to the next child by
+    /// default.
     #[arg(default_value = "1")]
-    amount: u64,
+    offset: u64,
     /// Instead of creating a new working-copy commit on top of the target
     /// commit (like `jj new`), edit the target commit directly (like `jj
     /// edit`).
@@ -102,7 +102,7 @@ pub(crate) fn cmd_next(
     args: &NextArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let amount = args.amount;
+    let offset = args.offset;
     let current_wc_id = workspace_command
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
@@ -123,7 +123,7 @@ pub(crate) fn cmd_next(
             _ => return Err(user_error("Cannot run `jj next` on a merge commit")),
         }
     };
-    let descendant_expression = RevsetExpression::commit(start_id.clone()).descendants_at(amount);
+    let descendant_expression = RevsetExpression::commit(start_id.clone()).descendants_at(offset);
     let target_expression = if edit {
         descendant_expression
     } else {
@@ -139,8 +139,8 @@ pub(crate) fn cmd_next(
         [] => {
             // We found no descendant.
             return Err(user_error(format!(
-                "No descendant found {amount} commit{} forward",
-                if amount > 1 { "s" } else { "" }
+                "No descendant found {offset} commit{} forward",
+                if offset > 1 { "s" } else { "" }
             )));
         }
         commits => choose_commit(ui, &workspace_command, "next", commits)?,
