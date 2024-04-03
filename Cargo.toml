@@ -89,8 +89,8 @@ smallvec = { version = "1.13.2", features = [
     "const_new",
     "union",
 ] }
-strsim = "0.11.0"
-syn = "2.0.57"
+strsim = "0.11.1"
+syn = "2.0.58"
 tempfile = "3.10.1"
 test-case = "3.3.1"
 textwrap = "0.16.1"
