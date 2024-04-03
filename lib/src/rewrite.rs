@@ -362,11 +362,13 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         old_commit_id: CommitId,
         new_commit_ids: Vec<CommitId>,
     ) -> Result<(), BackendError> {
+        let mapping = self.mut_repo.parent_mapping.get(&old_commit_id);
+        // Skip updating references for extracted commits.
+        if matches!(mapping, Some((RewriteType::Extracted, _))) {
+            return Ok(());
+        }
         // We arbitrarily pick a new working-copy commit among the candidates.
-        let abandoned_old_commit = matches!(
-            self.mut_repo.parent_mapping.get(&old_commit_id),
-            Some((RewriteType::Abandoned, _))
-        );
+        let abandoned_old_commit = matches!(mapping, Some((RewriteType::Abandoned, _)));
         self.update_wc_commits(&old_commit_id, &new_commit_ids[0], abandoned_old_commit)?;
 
         // Build a map from commit to branches pointing to it, so we don't need to scan
@@ -475,7 +477,11 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     }
 
     fn update_all_references(&mut self) -> Result<(), BackendError> {
-        for (old_parent_id, (_, new_parent_ids)) in self.mut_repo.parent_mapping.clone() {
+        for (old_parent_id, (rewrite_type, new_parent_ids)) in self.mut_repo.parent_mapping.clone()
+        {
+            if rewrite_type == RewriteType::Extracted {
+                continue;
+            }
             // Call `new_parents()` here since `parent_mapping` only contains direct
             // mappings, not transitive ones.
             // TODO: keep parent_mapping updated with transitive mappings so we don't need
@@ -487,8 +493,20 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     }
 
     fn update_heads(&mut self) {
-        let old_commits_expression =
-            RevsetExpression::commits(self.mut_repo.parent_mapping.keys().cloned().collect());
+        let old_commits_expression = RevsetExpression::commits(
+            self.mut_repo
+                .parent_mapping
+                .iter()
+                .filter_map(|(old_commit_id, (rewrite_type, _))| {
+                    if *rewrite_type == RewriteType::Extracted {
+                        None
+                    } else {
+                        Some(old_commit_id)
+                    }
+                })
+                .cloned()
+                .collect(),
+        );
         let heads_to_add_expression = old_commits_expression
             .parents()
             .minus(&old_commits_expression);
@@ -498,8 +516,10 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             .iter();
 
         let mut view = self.mut_repo.view().store_view().clone();
-        for commit_id in self.mut_repo.parent_mapping.keys() {
-            view.head_ids.remove(commit_id);
+        for (commit_id, (rewrite_type, _)) in self.mut_repo.parent_mapping.iter() {
+            if *rewrite_type != RewriteType::Extracted {
+                view.head_ids.remove(commit_id);
+            }
         }
         view.head_ids.extend(heads_to_add);
         self.mut_repo.set_view(view);

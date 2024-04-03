@@ -732,6 +732,7 @@ pub(crate) enum RewriteType {
     Rewritten,
     Divergent,
     Abandoned,
+    Extracted,
 }
 
 pub struct MutableRepo {
@@ -881,6 +882,20 @@ impl MutableRepo {
         self.parent_mapping.insert(
             old_id,
             (RewriteType::Abandoned, new_parent_ids.into_iter().collect()),
+        );
+    }
+
+    /// Record a commit as having been extracted in this transaction.
+    ///
+    /// A later `rebase_descendants()` will rebase children of `old_id` onto
+    /// its parents, whilst persisting the commit itself.
+    pub fn set_extracted_commit(&mut self, old_id: CommitId) {
+        assert_ne!(old_id, *self.store().root_commit_id());
+        // Descendants should be rebased onto the commit's parents
+        let old_commit = self.store().get_commit(&old_id).unwrap();
+        self.parent_mapping.insert(
+            old_id,
+            (RewriteType::Extracted, old_commit.parent_ids().to_vec()),
         );
     }
 
