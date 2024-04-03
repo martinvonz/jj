@@ -87,7 +87,7 @@ pub(crate) fn cmd_resolve(
     };
 
     let (repo_path, _) = conflicts.first().unwrap();
-    workspace_command.check_rewritable([&commit])?;
+    workspace_command.check_rewritable([commit.id()])?;
     let merge_editor = workspace_command.merge_editor(ui, args.tool.as_deref())?;
     writeln!(
         ui.status(),

@@ -96,7 +96,7 @@ pub(crate) fn cmd_restore(
             .resolve_single_rev(args.changes_in.as_ref().unwrap_or(&RevisionArg::AT))?;
         from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &to_commit.parents())?;
     }
-    workspace_command.check_rewritable([&to_commit])?;
+    workspace_command.check_rewritable([to_commit.id()])?;
 
     let matcher = workspace_command.matcher_from_values(&args.paths)?;
     let to_tree = to_commit.tree()?;

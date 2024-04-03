@@ -150,7 +150,7 @@ pub(crate) fn cmd_next(
     // We're editing, just move to the target commit.
     if edit {
         // We're editing, the target must be rewritable.
-        workspace_command.check_rewritable([target])?;
+        workspace_command.check_rewritable([target.id()])?;
         let mut tx = workspace_command.start_transaction();
         tx.edit(target)?;
         tx.finish(

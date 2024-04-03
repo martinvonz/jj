@@ -958,14 +958,10 @@ impl WorkspaceCommandHelper {
 
     pub fn check_rewritable<'a>(
         &self,
-        commits: impl IntoIterator<Item = &'a Commit>,
+        commits: impl IntoIterator<Item = &'a CommitId>,
     ) -> Result<(), CommandError> {
-        let to_rewrite_revset = RevsetExpression::commits(
-            commits
-                .into_iter()
-                .map(|commit| commit.id().clone())
-                .collect(),
-        );
+        let to_rewrite_revset =
+            RevsetExpression::commits(commits.into_iter().cloned().collect_vec());
         let immutable = revset_util::parse_immutable_expression(&self.revset_parse_context())
             .map_err(|e| {
                 config_error_with_message("Invalid `revset-aliases.immutable_heads()`", e)

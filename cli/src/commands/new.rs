@@ -16,7 +16,7 @@ use std::io::Write;
 
 use clap::ArgGroup;
 use itertools::Itertools;
-use jj_lib::commit::Commit;
+use jj_lib::commit::{Commit, CommitIteratorExt};
 use jj_lib::repo::Repo;
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 use jj_lib::rewrite::{merge_commit_trees, rebase_commit};
@@ -107,8 +107,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         // command line, add it between the changes' parents and the changes.
         // The parents of the new commit will be the parents of the target commits
         // which are not descendants of other target commits.
-        tx.base_workspace_helper()
-            .check_rewritable(&target_commits)?;
+        tx.base_workspace_helper().check_rewritable(&target_ids)?;
         let new_children = RevsetExpression::commits(target_ids.clone());
         let new_parents = new_children.parents();
         if let Some(commit_id) = new_children
@@ -160,7 +159,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             vec![]
         };
         tx.base_workspace_helper()
-            .check_rewritable(&commits_to_rebase)?;
+            .check_rewritable(commits_to_rebase.iter().ids())?;
         let merged_tree = merge_commit_trees(tx.repo(), &target_commits)?;
         new_commit = tx
             .mut_repo()

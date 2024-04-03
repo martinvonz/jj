@@ -57,13 +57,12 @@ pub(crate) fn cmd_unsquash(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    workspace_command.check_rewritable([&commit])?;
-    let parents = commit.parents();
-    if parents.len() != 1 {
+    workspace_command.check_rewritable([commit.id()])?;
+    if commit.parent_ids().len() > 1 {
         return Err(user_error("Cannot unsquash merge commits"));
     }
-    let parent = &parents[0];
-    workspace_command.check_rewritable(&parents[..1])?;
+    let parent = commit.parents().pop().unwrap();
+    workspace_command.check_rewritable([parent.id()])?;
     let interactive_editor = if args.tool.is_some() || args.interactive {
         Some(workspace_command.diff_editor(ui, args.tool.as_deref())?)
     } else {
@@ -85,7 +84,7 @@ the parent commit. The changes you edited out will be moved into the
 child commit. If you don't make any changes, then the operation will be
 aborted.
 ",
-            tx.format_commit_summary(parent),
+            tx.format_commit_summary(&parent),
             tx.format_commit_summary(&commit)
         );
         let parent_tree = parent.tree()?;
@@ -105,7 +104,8 @@ aborted.
     // case).
     if new_parent_tree_id == parent_base_tree.id() {
         tx.mut_repo().record_abandoned_commit(parent.id().clone());
-        let description = combine_messages(tx.base_repo(), &[parent], &commit, command.settings())?;
+        let description =
+            combine_messages(tx.base_repo(), &[&parent], &commit, command.settings())?;
         // Commit the new child on top of the parent's parents.
         tx.mut_repo()
             .rewrite_commit(command.settings(), &commit)
@@ -115,7 +115,7 @@ aborted.
     } else {
         let new_parent = tx
             .mut_repo()
-            .rewrite_commit(command.settings(), parent)
+            .rewrite_commit(command.settings(), &parent)
             .set_tree_id(new_parent_tree_id)
             .set_predecessors(vec![parent.id().clone(), commit.id().clone()])
             .write()?;

@@ -15,6 +15,7 @@
 use std::io::Write;
 
 use itertools::Itertools as _;
+use jj_lib::commit::CommitIteratorExt;
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
@@ -58,7 +59,7 @@ pub(crate) fn cmd_abandon(
         writeln!(ui.status(), "No revisions to abandon.")?;
         return Ok(());
     }
-    workspace_command.check_rewritable(&to_abandon)?;
+    workspace_command.check_rewritable(to_abandon.iter().ids())?;
 
     let mut tx = workspace_command.start_transaction();
     for commit in &to_abandon {

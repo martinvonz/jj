@@ -68,7 +68,7 @@ pub(crate) fn cmd_describe(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    workspace_command.check_rewritable([&commit])?;
+    workspace_command.check_rewritable([commit.id()])?;
     let description = if args.stdin {
         let mut buffer = String::new();
         io::stdin().read_to_string(&mut buffer).unwrap();
