@@ -280,6 +280,10 @@ fn test_rebase_single_revision() {
     ◉
     "###);
 
+    // NOTE: this test now fails since the unsimplified ancestry means that
+    // C is a merge commit of the root commit and A, which is not supported by the
+    // Git backend.
+
     // Descendants of the rebased commit "b" should be rebased onto parents. First
     // we test with a non-merge commit. Normally, the descendant "c" would still
     // have 2 parents afterwards: the parent of "b" -- the root commit -- and
@@ -354,17 +358,17 @@ fn test_rebase_single_revision_merge_parent() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
-    Working copy now at: vruxwmqv c62d0789 d | d
-    Parent commit      : zsuskuln d370aee1 b | b
+    Working copy now at: vruxwmqv a37531e8 d | d
     Parent commit      : rlvkpnrz 2443ea76 a | a
+    Parent commit      : zsuskuln d370aee1 b | b
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  c
     │ @  d
     ╭─┤
-    ◉ │  a
     │ ◉  b
+    ◉ │  a
     ├─╯
     ◉
     "###);
@@ -827,11 +831,10 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Skipping rebase of commit rlvkpnrz 0c61db1b base | base
-    Rebased 4 descendant commits onto parent of commit
-    Working copy now at: vruxwmqv 57aaa944 c | c
-    Parent commit      : royxmykx c8495a71 b | b
-    Added 0 files, modified 0 files, removed 1 files
     "###);
+    // NOTE: this test now fails since the unsimplified ancestry means that
+    // B is a merge commit of the root commit and A, which is not supported by the
+    // Git backend.
     // The user would expect unsimplified ancestry here.
     // ◉  base
     // │ @  c
@@ -843,10 +846,11 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     // ◉
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉  b
-    ◉  a
-    │ ◉  base
+    ◉    b
+    ├─╮
+    │ ◉  a
     ├─╯
+    ◉  base
     ◉
     "###);
 

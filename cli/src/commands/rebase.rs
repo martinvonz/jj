@@ -13,14 +13,12 @@
 // limitations under the License.
 
 use std::borrow::Borrow;
-use std::collections::HashMap;
 use std::io::Write;
 use std::sync::Arc;
 
 use clap::ArgGroup;
 use indexmap::IndexSet;
 use itertools::Itertools;
-use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::{ReadonlyRepo, Repo};
@@ -361,129 +359,38 @@ fn rebase_revision(
         )));
     }
 
-    let children_expression = RevsetExpression::commit(old_commit.id().clone()).children();
-    let child_commits: Vec<_> = children_expression
-        .evaluate_programmatic(workspace_command.repo().as_ref())
-        .unwrap()
-        .iter()
-        .commits(workspace_command.repo().store())
-        .try_collect()?;
-    // Currently, immutable commits are defined so that a child of a rewriteable
-    // commit is always rewriteable.
-    debug_assert!(workspace_command.check_rewritable(&child_commits).is_ok());
-
-    // First, rebase the children of `old_commit`.
     let mut tx = workspace_command.start_transaction();
-    let mut rebased_commit_ids = HashMap::new();
-    for child_commit in &child_commits {
-        let new_child_parent_ids: Vec<CommitId> = child_commit
-            .parents()
-            .iter()
-            .flat_map(|c| {
-                if c == &old_commit {
-                    old_commit
-                        .parents()
-                        .iter()
-                        .map(|c| c.id().clone())
-                        .collect()
-                } else {
-                    [c.id().clone()].to_vec()
-                }
-            })
-            .collect();
 
-        // Some of the new parents may be ancestors of others as in
-        // `test_rebase_single_revision`.
-        let new_child_parents_expression = RevsetExpression::commits(new_child_parent_ids.clone())
-            .minus(
-                &RevsetExpression::commits(new_child_parent_ids.clone())
-                    .parents()
-                    .ancestors(),
-            );
-        let new_child_parents: Vec<Commit> = new_child_parents_expression
-            .evaluate_programmatic(tx.base_repo().as_ref())
-            .unwrap()
-            .iter()
-            .commits(tx.base_repo().store())
-            .try_collect()?;
-
-        rebased_commit_ids.insert(
-            child_commit.id().clone(),
-            rebase_commit(settings, tx.mut_repo(), child_commit, &new_child_parents)?
-                .id()
-                .clone(),
-        );
-    }
-    // Now, rebase the descendants of the children.
-    // TODO(ilyagr): Consider making it possible for these descendants to become
-    // emptied, like --skip_empty. This would require writing careful tests.
-    rebased_commit_ids.extend(tx.mut_repo().rebase_descendants_return_map(settings)?);
+    // Rebase the descendants of the `old_commit`.
+    tx.mut_repo().set_extracted_commit(old_commit.id().clone());
+    let rebased_commit_ids = tx.mut_repo().rebase_descendants_return_map(settings)?;
     let num_rebased_descendants = rebased_commit_ids.len();
 
-    // We now update `new_parents` to account for the rebase of all of
-    // `old_commit`'s descendants. Even if some of the original `new_parents`
-    // were descendants of `old_commit`, this will no longer be the case after
-    // the update.
-    //
-    // To make the update simpler, we assume that each commit was rewritten only
-    // once; we don't have a situation where both `(A,B)` and `(B,C)` are in
-    // `rebased_commit_ids`.
-    //
-    // TODO(BUG #2650): There is something wrong with this assumption, the next TODO
-    // seems to be a little optimistic. See the panicked test in
-    // `test_rebase_with_child_and_descendant_bug_2600`.
-    //
-    // TODO(ilyagr): This assumption relies on the fact that, after
-    // `rebase_descendants`, a descendant of `old_commit` cannot also be a
-    // direct child of `old_commit`. This fact will likely change, see
-    // https://github.com/martinvonz/jj/issues/2600. So, the code needs to be
-    // updated before that happens. This would also affect
-    // `test_rebase_with_child_and_descendant_bug_2600`.
-    //
-    // The issue is that if a child and a descendant of `old_commit` were the
-    // same commit (call it `Q`), it would be rebased first by `rebase_commit`
-    // above, and then the result would be rebased again by
-    // `rebase_descendants_return_map`. Then, if we were trying to rebase
-    // `old_commit` onto `Q`, new_parents would only account for one of these.
-    let new_parents: Vec<_> = new_parents
-        .iter()
-        .map(|new_parent| {
-            rebased_commit_ids
-                .get(new_parent.id())
-                .map_or(Ok(new_parent.clone()), |rebased_new_parent_id| {
-                    tx.repo().store().get_commit(rebased_new_parent_id)
-                })
-        })
-        .try_collect()?;
-
-    // Finally, it's safe to rebase `old_commit`. We can skip rebasing if it is
-    // already a child of `new_parents`. Otherwise, at this point, it should no
-    // longer have any children; they have all been rebased and the originals
-    // have been abandoned.
-    let skipped_commit_rebase = if old_commit.parents() == new_parents {
+    // Then, move `old_commit` to `new_parents`.
+    let new_commit = if old_commit.parents() == new_parents {
         if let Some(mut formatter) = ui.status_formatter() {
             write!(formatter, "Skipping rebase of commit ")?;
             tx.write_commit_summary(formatter.as_mut(), &old_commit)?;
             writeln!(formatter)?;
         }
-        true
+        None
     } else {
-        rebase_commit(settings, tx.mut_repo(), &old_commit, &new_parents)?;
+        let new_commit = rebase_commit(settings, tx.mut_repo(), &old_commit, &new_parents)?;
         debug_assert_eq!(tx.mut_repo().rebase_descendants(settings)?, 0);
-        false
+        Some(new_commit)
     };
 
     if num_rebased_descendants > 0 {
-        if skipped_commit_rebase {
-            writeln!(
-                ui.status(),
-                "Rebased {num_rebased_descendants} descendant commits onto parent of commit"
-            )?;
-        } else {
+        if new_commit.is_some() {
             writeln!(
                 ui.status(),
                 "Also rebased {num_rebased_descendants} descendant commits onto parent of rebased \
                  commit"
+            )?;
+        } else {
+            writeln!(
+                ui.status(),
+                "Rebased {num_rebased_descendants} descendant commits onto parent of commit"
             )?;
         }
     }
