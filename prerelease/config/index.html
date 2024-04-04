@@ -859,6 +859,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#allow-large-revsets-by-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      Allow "large" revsets by default
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1851,6 +1860,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#allow-large-revsets-by-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      Allow "large" revsets by default
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2356,6 +2374,20 @@ will need to modify the <code>format_time_range()</code> template alias.</p>
 <span class="s1">&#39;format_short_signature(signature)&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;signature&#39;</span>
 <span class="c1"># Username part of the email address</span>
 <span class="s1">&#39;format_short_signature(signature)&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;signature.username()&#39;</span>
+</code></pre></div>
+<h3 id="allow-large-revsets-by-default">Allow "large" revsets by default<a class="headerlink" href="#allow-large-revsets-by-default" title="Permanent link">&para;</a></h3>
+<p>Certain commands (such as <code>jj rebase</code>) can take multiple revset arguments, and
+each of these may resolve to one-or-many revisions. By default, <code>jj</code> will not
+allow revsets that resolve to more than one revision &mdash; a so-called "large
+revset" &mdash; and will ask you to confirm that you want to proceed by
+prefixing it with the <code>all:</code> modifier.</p>
+<p>For instance, to add a new parent <code>abc</code> to the commit <code>xyz</code>, you may use <code>jj
+rebase</code>:</p>
+<div class="highlight"><pre><span></span><code>jj rebase -r xyz -d &quot;all:xyz-&quot; -d &quot;abc&quot;
+</code></pre></div>
+<p><code>jj</code> requires the <code>all:</code> prefix for the above command. However, you may disable
+this behavior by setting <code>ui.always-allow-large-revsets</code> to <code>true</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">always-allow-large-revsets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 </code></pre></div>
 <h2 id="pager">Pager<a class="headerlink" href="#pager" title="Permanent link">&para;</a></h2>
 <p>The default pager is can be set via <code>ui.pager</code> or the <code>PAGER</code> environment
