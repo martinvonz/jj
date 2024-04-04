@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* The list of conflicted paths is printed whenever the working copy changes.
+  This can be disabled with the `--quiet` option.
+
 ### Fixed bugs
 
 ## [0.16.0] - 2024-04-03
@@ -77,9 +80,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   revision into siblings with the same parents and children.
 
 * new function `working_copies()` for revsets to show the working copy commits of all workspaces.
-
-* The list of conflicted paths is printed whenever the working copy changes.
-  This can be disabled with the `--quiet` option.
 
 ### Fixed bugs
 
