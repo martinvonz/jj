@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Commit objects in templates now have a `mine() -> Boolean` method analog to the same function in revsets.
   It evaluates to true if the email of the commit author matches the current `user.email`.
 
+* A new config option `ui.always-allow-large-revsets` has been added to
+  allow large revsets expressions in some commands, without the `all:` prefix.
+
 ### Fixed bugs
 
 ## [0.16.0] - 2024-04-03

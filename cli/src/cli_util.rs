@@ -775,7 +775,10 @@ impl WorkspaceCommandHelper {
             let (expression, modifier) = self.parse_revset_with_modifier(revision_arg)?;
             let all = match modifier {
                 Some(RevsetModifier::All) => true,
-                None => false,
+                None => self
+                    .settings
+                    .config()
+                    .get_bool("ui.always-allow-large-revsets")?,
             };
             if all {
                 for commit in expression.evaluate_to_commits()? {

@@ -484,9 +484,31 @@ fn test_rebase_multiple_destinations() {
       zsuskuln d370aee1 b | b
     Hint: Prefix the expression with 'all:' to allow any number of revisions (i.e. 'all:b|c').
     "###);
+
+    // try with 'all:' and succeed
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "a", "-d", "all:b|c"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉    a
+    ├─╮
+    │ ◉  b
+    @ │  c
+    ├─╯
+    ◉
+    "###);
+
+    // undo and do it again, but with 'ui.always-allow-large-revsets'
+    let (_, _) = test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (_, _) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "rebase",
+            "--config-toml=ui.always-allow-large-revsets=true",
+            "-r=a",
+            "-d=b|c",
+        ],
+    );
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉    a
     ├─╮

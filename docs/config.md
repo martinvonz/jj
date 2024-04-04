@@ -326,6 +326,28 @@ Can be customized by the `format_short_signature()` template alias.
 'format_short_signature(signature)' = 'signature.username()'
 ```
 
+### Allow "large" revsets by default
+
+Certain commands (such as `jj rebase`) can take multiple revset arguments, and
+each of these may resolve to one-or-many revisions. By default, `jj` will not
+allow revsets that resolve to more than one revision &mdash; a so-called "large
+revset" &mdash; and will ask you to confirm that you want to proceed by
+prefixing it with the `all:` modifier.
+
+For instance, to add a new parent `abc` to the commit `xyz`, you may use `jj
+rebase`:
+
+```
+jj rebase -r xyz -d "all:xyz-" -d "abc"
+```
+
+`jj` requires the `all:` prefix for the above command. However, you may disable
+this behavior by setting `ui.always-allow-large-revsets` to `true`:
+
+```toml
+ui.always-allow-large-revsets = true
+```
+
 ## Pager
 
 The default pager is can be set via `ui.pager` or the `PAGER` environment
