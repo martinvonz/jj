@@ -120,11 +120,9 @@ jj-lib = { path = "lib", version = "0.18.0" }
 jj-lib-proc-macros = { path = "lib/proc-macros", version = "0.18.0" }
 testutils = { path = "lib/testutils" }
 
-# Insta suggests compiling these packages in opt mode for faster testing.
-# See https://docs.rs/insta/latest/insta/#optional-faster-runs.
-[profile.dev.package]
-insta.opt-level = 3
-similar.opt-level = 3
+[profile.dev.package."*"]
+codegen-units = 1
+opt-level = 3
 
 [profile.release]
 strip = "debuginfo"
