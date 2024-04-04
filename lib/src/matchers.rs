@@ -180,6 +180,60 @@ impl Matcher for PrefixMatcher {
     }
 }
 
+/// Matches paths that are matched by any of the input matchers.
+#[derive(Clone, Debug)]
+pub struct UnionMatcher<M1, M2> {
+    input1: M1,
+    input2: M2,
+}
+
+impl<M1: Matcher, M2: Matcher> UnionMatcher<M1, M2> {
+    pub fn new(input1: M1, input2: M2) -> Self {
+        Self { input1, input2 }
+    }
+}
+
+impl<M1: Matcher, M2: Matcher> Matcher for UnionMatcher<M1, M2> {
+    fn matches(&self, file: &RepoPath) -> bool {
+        self.input1.matches(file) || self.input2.matches(file)
+    }
+
+    fn visit(&self, dir: &RepoPath) -> Visit {
+        match self.input1.visit(dir) {
+            Visit::AllRecursively => Visit::AllRecursively,
+            Visit::Nothing => self.input2.visit(dir),
+            Visit::Specific {
+                dirs: dirs1,
+                files: files1,
+            } => match self.input2.visit(dir) {
+                Visit::AllRecursively => Visit::AllRecursively,
+                Visit::Nothing => Visit::Specific {
+                    dirs: dirs1,
+                    files: files1,
+                },
+                Visit::Specific {
+                    dirs: dirs2,
+                    files: files2,
+                } => {
+                    let dirs = match (dirs1, dirs2) {
+                        (VisitDirs::All, _) | (_, VisitDirs::All) => VisitDirs::All,
+                        (VisitDirs::Set(dirs1), VisitDirs::Set(dirs2)) => {
+                            VisitDirs::Set(dirs1.iter().chain(&dirs2).cloned().collect())
+                        }
+                    };
+                    let files = match (files1, files2) {
+                        (VisitFiles::All, _) | (_, VisitFiles::All) => VisitFiles::All,
+                        (VisitFiles::Set(files1), VisitFiles::Set(files2)) => {
+                            VisitFiles::Set(files1.iter().chain(&files2).cloned().collect())
+                        }
+                    };
+                    Visit::Specific { dirs, files }
+                }
+            },
+        }
+    }
+}
+
 /// Matches paths that are matched by the first input matcher but not by the
 /// second.
 #[derive(Clone, Debug)]
@@ -556,6 +610,107 @@ mod tests {
         assert_eq!(m.visit(repo_path("foo")), Visit::AllRecursively);
         // Same thing in subdirectories of the prefix
         assert_eq!(m.visit(repo_path("foo/bar/baz")), Visit::AllRecursively);
+    }
+
+    #[test]
+    fn test_unionmatcher_concatenate_roots() {
+        let m1 = PrefixMatcher::new([repo_path("foo"), repo_path("bar")]);
+        let m2 = PrefixMatcher::new([repo_path("bar"), repo_path("baz")]);
+        let m = UnionMatcher::new(&m1, &m2);
+
+        assert!(m.matches(repo_path("foo")));
+        assert!(m.matches(repo_path("foo/bar")));
+        assert!(m.matches(repo_path("bar")));
+        assert!(m.matches(repo_path("bar/foo")));
+        assert!(m.matches(repo_path("baz")));
+        assert!(m.matches(repo_path("baz/foo")));
+        assert!(!m.matches(repo_path("qux")));
+        assert!(!m.matches(repo_path("qux/foo")));
+
+        assert_eq!(
+            m.visit(RepoPath::root()),
+            Visit::sets(
+                hashset! {
+                    RepoPathComponentBuf::from("foo"),
+                    RepoPathComponentBuf::from("bar"),
+                    RepoPathComponentBuf::from("baz"),
+                },
+                hashset! {
+                    RepoPathComponentBuf::from("foo"),
+                    RepoPathComponentBuf::from("bar"),
+                    RepoPathComponentBuf::from("baz"),
+                },
+            )
+        );
+        assert_eq!(m.visit(repo_path("foo")), Visit::AllRecursively);
+        assert_eq!(m.visit(repo_path("foo/bar")), Visit::AllRecursively);
+        assert_eq!(m.visit(repo_path("bar")), Visit::AllRecursively);
+        assert_eq!(m.visit(repo_path("bar/foo")), Visit::AllRecursively);
+        assert_eq!(m.visit(repo_path("baz")), Visit::AllRecursively);
+        assert_eq!(m.visit(repo_path("baz/foo")), Visit::AllRecursively);
+        assert_eq!(m.visit(repo_path("qux")), Visit::Nothing);
+        assert_eq!(m.visit(repo_path("qux/foo")), Visit::Nothing);
+    }
+
+    #[test]
+    fn test_unionmatcher_concatenate_subdirs() {
+        let m1 = PrefixMatcher::new([repo_path("common/bar"), repo_path("1/foo")]);
+        let m2 = PrefixMatcher::new([repo_path("common/baz"), repo_path("2/qux")]);
+        let m = UnionMatcher::new(&m1, &m2);
+
+        assert!(!m.matches(repo_path("common")));
+        assert!(!m.matches(repo_path("1")));
+        assert!(!m.matches(repo_path("2")));
+        assert!(m.matches(repo_path("common/bar")));
+        assert!(m.matches(repo_path("common/bar/baz")));
+        assert!(m.matches(repo_path("common/baz")));
+        assert!(m.matches(repo_path("1/foo")));
+        assert!(m.matches(repo_path("1/foo/qux")));
+        assert!(m.matches(repo_path("2/qux")));
+        assert!(!m.matches(repo_path("2/quux")));
+
+        assert_eq!(
+            m.visit(RepoPath::root()),
+            Visit::sets(
+                hashset! {
+                    RepoPathComponentBuf::from("common"),
+                    RepoPathComponentBuf::from("1"),
+                    RepoPathComponentBuf::from("2"),
+                },
+                hashset! {},
+            )
+        );
+        assert_eq!(
+            m.visit(repo_path("common")),
+            Visit::sets(
+                hashset! {
+                    RepoPathComponentBuf::from("bar"),
+                    RepoPathComponentBuf::from("baz"),
+                },
+                hashset! {
+                    RepoPathComponentBuf::from("bar"),
+                    RepoPathComponentBuf::from("baz"),
+                },
+            )
+        );
+        assert_eq!(
+            m.visit(repo_path("1")),
+            Visit::sets(
+                hashset! {RepoPathComponentBuf::from("foo")},
+                hashset! {RepoPathComponentBuf::from("foo")},
+            )
+        );
+        assert_eq!(
+            m.visit(repo_path("2")),
+            Visit::sets(
+                hashset! {RepoPathComponentBuf::from("qux")},
+                hashset! {RepoPathComponentBuf::from("qux")},
+            )
+        );
+        assert_eq!(m.visit(repo_path("common/bar")), Visit::AllRecursively);
+        assert_eq!(m.visit(repo_path("1/foo")), Visit::AllRecursively);
+        assert_eq!(m.visit(repo_path("2/qux")), Visit::AllRecursively);
+        assert_eq!(m.visit(repo_path("2/quux")), Visit::Nothing);
     }
 
     #[test]
