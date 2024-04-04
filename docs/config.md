@@ -152,7 +152,7 @@ When `jj` is run with no explicit subcommand, the value of the
 subcommand name, subcommand alias, or user-defined alias (defaults to `"log"`).
 
 ```toml
-ui.default-command = "log"
+ui.default-command = ["log", "--reversed"]
 ```
 
 ### Default description
