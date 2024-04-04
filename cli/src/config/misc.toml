@@ -5,11 +5,11 @@ amend = ["squash"]
 co = ["checkout"]
 unamend = ["unsquash"]
 
-
 [format]
 tree-level-conflicts = true
 
 [ui]
+always-allow-large-revsets = false
 diff-instructions = true
 paginate = "auto"
 pager = { command = ["less", "-FRX"], env = { LESSCHARSET = "utf-8" } }
