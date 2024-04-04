@@ -164,15 +164,15 @@ impl Commit {
 }
 
 pub trait CommitIteratorExt<'c, I> {
-    fn ids(self) -> impl Iterator<Item = &'c CommitId> + 'c;
+    fn ids(self) -> impl Iterator<Item = &'c CommitId>;
 }
 
 impl<'c, I> CommitIteratorExt<'c, I> for I
 where
-    I: Iterator<Item = &'c Commit> + 'c,
+    I: Iterator<Item = &'c Commit>,
 {
-    fn ids(self) -> impl Iterator<Item = &'c CommitId> + 'c {
-        Box::new(self.map(|commit| commit.id()))
+    fn ids(self) -> impl Iterator<Item = &'c CommitId> {
+        self.map(|commit| commit.id())
     }
 }
 
