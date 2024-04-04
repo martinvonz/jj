@@ -175,8 +175,10 @@
           export RUST_BACKTRACE=1
           export ZSTD_SYS_USE_PKG_CONFIG=1
           export LIBSSH2_SYS_USE_PKG_CONFIG=1
+
+          export RUSTFLAGS="-Zthreads=0"
         '' + pkgs.lib.optionalString useMoldLinker ''
-          export RUSTFLAGS="-C link-arg=-fuse-ld=mold"
+          export RUSTFLAGS+=" -C link-arg=-fuse-ld=mold"
         '' + darwinNextestHack;
       };
     }));
