@@ -63,6 +63,8 @@ impl CommitBuilder<'_> {
     }
 
     /// Only called from [`MutRepo::rewrite_commit`]. Use that function instead.
+    #[allow(unknown_lints)] // XXX FIXME (aseipp): nightly bogons; re-test this occasionally
+    #[allow(clippy::assigning_clones)]
     pub(crate) fn for_rewrite_from<'repo>(
         mut_repo: &'repo mut MutableRepo,
         settings: &UserSettings,

@@ -479,6 +479,8 @@ impl Ui {
                 .unwrap_or(false)
     }
 
+    #[allow(unknown_lints)] // XXX FIXME (aseipp): nightly bogons; re-test this occasionally
+    #[allow(clippy::assigning_clones)]
     pub fn prompt(&self, prompt: &str) -> io::Result<String> {
         if !Self::can_prompt() {
             return Err(io::Error::new(

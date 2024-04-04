@@ -306,6 +306,8 @@ impl Backend for LocalBackend {
     }
 }
 
+#[allow(unknown_lints)] // XXX FIXME (aseipp): nightly bogons; re-test this occasionally
+#[allow(clippy::assigning_clones)]
 pub fn commit_to_proto(commit: &Commit) -> crate::protos::local_store::Commit {
     let mut proto = crate::protos::local_store::Commit::default();
     for parent in &commit.parents {

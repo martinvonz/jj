@@ -729,6 +729,8 @@ impl RefNamesIndex {
         }
     }
 
+    #[allow(unknown_lints)] // XXX FIXME (aseipp): nightly bogons; re-test this occasionally
+    #[allow(clippy::manual_unwrap_or_default)]
     pub fn get(&self, id: &CommitId) -> &[RefName] {
         if let Some(names) = self.index.get(id) {
             names
