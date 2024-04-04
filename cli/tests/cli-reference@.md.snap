@@ -128,7 +128,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `obslog` — Show how a change has evolved
 * `operation` — Commands for working with the operation log
 * `parallelize` — Parallelize revisions by making them siblings
-* `prev` — Move the working-copy commit to the parent revision
+* `prev` — Change the working copy revision relative to the parent revision
 * `rebase` — Move revisions to different parent(s)
 * `resolve` — Resolve a conflicted file with an external merge tool
 * `restore` — Restore paths from another revision
@@ -1385,34 +1385,36 @@ several conditions, otherwise the command will fail.
 
 ## `jj prev`
 
-Move the working-copy commit to the parent revision
+Change the working copy revision relative to the parent revision
 
+The command creates a new empty working copy revision that is the child of
+an ancestor `offset` revisions behind the parent of the current working
+copy.
 
-The command moves you to the parent in a linear fashion.
+For example, when the offset is 1:
 
 ```text
-D @  D
-|/   |
-A => A @
-|    |/
-B    B
+D @      D
+|/       |
+A   =>   A @
+|        |/
+B        B
 ```
 
-If `--edit` is passed, it will move the working copy commit
-directly to the parent.
+If `--edit` is passed, the working copy revision is changed to the parent of
+the current working copy revision.
 
 ```text
-D @  D
-|/   |
-C => @
-|    |
-B    B
-|    |
-A    A
-
-If your working-copy commit already has visible children, then `--edit` is
+D @      D
+|/       |
+C   =>   @
+|        |
+B        B
+|        |
+A        A
+```
+If the working copy revision already has visible children, then `--edit` is
 implied.
-```
 
 **Usage:** `jj prev [OPTIONS] [OFFSET]`
 
