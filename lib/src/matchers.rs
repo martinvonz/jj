@@ -72,6 +72,26 @@ pub trait Matcher: Sync {
     fn visit(&self, dir: &RepoPath) -> Visit;
 }
 
+impl<T: Matcher + ?Sized> Matcher for &T {
+    fn matches(&self, file: &RepoPath) -> bool {
+        <T as Matcher>::matches(self, file)
+    }
+
+    fn visit(&self, dir: &RepoPath) -> Visit {
+        <T as Matcher>::visit(self, dir)
+    }
+}
+
+impl<T: Matcher + ?Sized> Matcher for Box<T> {
+    fn matches(&self, file: &RepoPath) -> bool {
+        <T as Matcher>::matches(self, file)
+    }
+
+    fn visit(&self, dir: &RepoPath) -> Visit {
+        <T as Matcher>::visit(self, dir)
+    }
+}
+
 #[derive(PartialEq, Eq, Debug)]
 pub struct NothingMatcher;
 
@@ -162,20 +182,21 @@ impl Matcher for PrefixMatcher {
 
 /// Matches paths that are matched by the first input matcher but not by the
 /// second.
-pub struct DifferenceMatcher<'input> {
+#[derive(Clone, Debug)]
+pub struct DifferenceMatcher<M1, M2> {
     /// The minuend
-    wanted: &'input dyn Matcher,
+    wanted: M1,
     /// The subtrahend
-    unwanted: &'input dyn Matcher,
+    unwanted: M2,
 }
 
-impl<'input> DifferenceMatcher<'input> {
-    pub fn new(wanted: &'input dyn Matcher, unwanted: &'input dyn Matcher) -> Self {
+impl<M1: Matcher, M2: Matcher> DifferenceMatcher<M1, M2> {
+    pub fn new(wanted: M1, unwanted: M2) -> Self {
         Self { wanted, unwanted }
     }
 }
 
-impl Matcher for DifferenceMatcher<'_> {
+impl<M1: Matcher, M2: Matcher> Matcher for DifferenceMatcher<M1, M2> {
     fn matches(&self, file: &RepoPath) -> bool {
         self.wanted.matches(file) && !self.unwanted.matches(file)
     }
@@ -196,18 +217,19 @@ impl Matcher for DifferenceMatcher<'_> {
 }
 
 /// Matches paths that are matched by both input matchers.
-pub struct IntersectionMatcher<'input> {
-    input1: &'input dyn Matcher,
-    input2: &'input dyn Matcher,
+#[derive(Clone, Debug)]
+pub struct IntersectionMatcher<M1, M2> {
+    input1: M1,
+    input2: M2,
 }
 
-impl<'input> IntersectionMatcher<'input> {
-    pub fn new(input1: &'input dyn Matcher, input2: &'input dyn Matcher) -> Self {
+impl<M1: Matcher, M2: Matcher> IntersectionMatcher<M1, M2> {
+    pub fn new(input1: M1, input2: M2) -> Self {
         Self { input1, input2 }
     }
 }
 
-impl Matcher for IntersectionMatcher<'_> {
+impl<M1: Matcher, M2: Matcher> Matcher for IntersectionMatcher<M1, M2> {
     fn matches(&self, file: &RepoPath) -> bool {
         self.input1.matches(file) && self.input2.matches(file)
     }
