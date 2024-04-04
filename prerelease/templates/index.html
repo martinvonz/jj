@@ -1780,6 +1780,8 @@ type</a> are available as keywords. For example,
 <li><code>parents() -&gt; List&lt;Commit&gt;</code></li>
 <li><code>author() -&gt; Signature</code></li>
 <li><code>committer() -&gt; Signature</code></li>
+<li><code>mine() -&gt; Boolean</code>: Commits where the author's email matches the email of the current
+  user.</li>
 <li><code>working_copies() -&gt; String</code>: For multi-workspace repository, indicate
   working-copy commit as <code>&lt;workspace name&gt;@</code>.</li>
 <li><code>current_working_copy() -&gt; Boolean</code>: True for the working-copy commit of the
