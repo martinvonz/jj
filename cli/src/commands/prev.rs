@@ -20,35 +20,36 @@ use crate::cli_util::{short_commit_hash, CommandHelper};
 use crate::command_error::{user_error, CommandError};
 use crate::commands::next::choose_commit;
 use crate::ui::Ui;
-
-/// Move the working-copy commit to the parent revision
+/// Change the working copy revision relative to the parent revision
 ///
+/// The command creates a new empty working copy revision that is the child of
+/// an ancestor `offset` revisions behind the parent of the current working
+/// copy.
 ///
-/// The command moves you to the parent in a linear fashion.
+/// For example, when the offset is 1:
 ///
 /// ```text
-/// D @  D
-/// |/   |
-/// A => A @
-/// |    |/
-/// B    B
+/// D @      D
+/// |/       |
+/// A   =>   A @
+/// |        |/
+/// B        B
 /// ```
 ///
-/// If `--edit` is passed, it will move the working copy commit
-/// directly to the parent.
+/// If `--edit` is passed, the working copy revision is changed to the parent of
+/// the current working copy revision.
 ///
 /// ```text
-/// D @  D
-/// |/   |
-/// C => @
-/// |    |
-/// B    B
-/// |    |
-/// A    A
-///
-/// If your working-copy commit already has visible children, then `--edit` is
+/// D @      D
+/// |/       |
+/// C   =>   @
+/// |        |
+/// B        B
+/// |        |
+/// A        A
+/// ```
+/// If the working copy revision already has visible children, then `--edit` is
 /// implied.
-/// ```
 // TODO(#2126): Handle multiple parents, e.g merges.
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
