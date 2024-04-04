@@ -122,8 +122,13 @@ testutils = { path = "lib/testutils" }
 
 [profile.dev.package."*"]
 codegen-units = 1
+debug = "line-tables-only"
 opt-level = 3
 
+[profile.dev]
+debug = "line-tables-only"
+
 [profile.release]
+debug = "line-tables-only"
 strip = "debuginfo"
 codegen-units = 1
