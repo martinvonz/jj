@@ -223,6 +223,8 @@ impl MutableTable {
         other.segment_add_entries_to(self);
     }
 
+    #[allow(unknown_lints)] // XXX FIXME (aseipp): nightly bogons; re-test this occasionally
+    #[allow(clippy::assigning_clones)]
     fn merge_in(&mut self, other: &Arc<ReadonlyTable>) {
         let mut maybe_own_ancestor = self.parent_file.clone();
         let mut maybe_other_ancestor = Some(other.clone());
@@ -281,6 +283,8 @@ impl MutableTable {
     /// If the MutableTable has more than half the entries of its parent
     /// ReadonlyTable, return MutableTable with the commits from both. This
     /// is done recursively, so the stack of index files has O(log n) files.
+    #[allow(unknown_lints)] // XXX FIXME (aseipp): nightly bogons; re-test this occasionally
+    #[allow(clippy::assigning_clones)]
     fn maybe_squash_with_ancestors(self) -> MutableTable {
         let mut num_new_entries = self.entries.len();
         let mut files_to_squash = vec![];
