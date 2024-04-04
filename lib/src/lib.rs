@@ -39,6 +39,7 @@ pub mod diff;
 pub mod extensions_map;
 pub mod file_util;
 pub mod files;
+pub mod fileset;
 pub mod fmt_util;
 pub mod fsmonitor;
 pub mod git;
