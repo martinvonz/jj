@@ -72,6 +72,8 @@ This type cannot be printed. The following methods are defined.
 * `parents() -> List<Commit>`
 * `author() -> Signature`
 * `committer() -> Signature`
+* `mine() -> Boolean`: Commits where the author's email matches the email of the current
+  user.
 * `working_copies() -> String`: For multi-workspace repository, indicate
   working-copy commit as `<workspace name>@`.
 * `current_working_copy() -> Boolean`: True for the working-copy commit of the

@@ -147,6 +147,35 @@ fn test_log_author_timestamp_local() {
 }
 
 #[test]
+fn test_mine_is_true_when_author_is_user() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "--config-toml=user.email='johndoe@example.com'",
+            "--config-toml=user.name='John Doe'",
+            "new",
+        ],
+    );
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-T",
+            r#"coalesce(if(mine, "mine"), author.email(), email_placeholder)"#,
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @  johndoe@example.com
+    ◉  mine
+    ◉  (no email set)
+    "###);
+}
+
+#[test]
 fn test_log_default() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);

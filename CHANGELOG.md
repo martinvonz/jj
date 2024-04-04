@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The list of conflicted paths is printed whenever the working copy changes.
   This can be disabled with the `--quiet` option.
 
+* Commit objects in templates now have a `mine() -> Boolean` method analog to the same function in revsets.
+  It evaluates to true if the email of the commit author matches the current `user.email`.
+
 ### Fixed bugs
 
 ## [0.16.0] - 2024-04-03
