@@ -178,7 +178,7 @@
 
           export RUSTFLAGS="-Zthreads=0"
         '' + pkgs.lib.optionalString useMoldLinker ''
-          export RUSTFLAGS+=" -C link-arg=-fuse-ld=mold"
+          export RUSTFLAGS+=" -C link-arg=-fuse-ld=mold -C link-arg=-Wl,--compress-debug-sections=zstd"
         '' + darwinNextestHack;
       };
     }));
