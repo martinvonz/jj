@@ -249,6 +249,14 @@ fn builtin_operation_methods() -> OperationTemplateBuildMethodFnMap<Operation> {
         });
         Ok(L::wrap_string(out_property))
     });
+    map.insert(
+        "snapshot",
+        |_language, _build_ctx, self_property, function| {
+            template_parser::expect_no_arguments(function)?;
+            let out_property = self_property.map(|op| op.metadata().is_snapshot);
+            Ok(L::wrap_boolean(out_property))
+        },
+    );
     map.insert("time", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
         let out_property = self_property.map(|op| TimestampRange {
