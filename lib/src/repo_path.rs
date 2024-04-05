@@ -16,7 +16,7 @@
 
 use std::borrow::Borrow;
 use std::cmp::Ordering;
-use std::fmt::{Debug, Error, Formatter};
+use std::fmt::{self, Debug, Formatter};
 use std::iter::FusedIterator;
 use std::ops::Deref;
 use std::path::{Component, Path, PathBuf};
@@ -172,13 +172,13 @@ pub struct RepoPath {
 }
 
 impl Debug for RepoPath {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.write_fmt(format_args!("{:?}", &self.value))
     }
 }
 
 impl Debug for RepoPathBuf {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         <RepoPath as Debug>::fmt(self, f)
     }
 }
