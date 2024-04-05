@@ -133,7 +133,8 @@ This type cannot be printed. The following methods are defined.
 * `tags() -> String`
 * `time() -> TimestampRange`
 * `user() -> String`
-* `root() -> Boolean`: True if the commit is the root commit.
+* `snapshot() -> Boolean`: True if the operation is a snapshot operation.
+* `root() -> Boolean`: True if the operation is the root operation.
 
 ### OperationId type
 
