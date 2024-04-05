@@ -102,18 +102,11 @@ concat(
 '''
 
 builtin_op_log_compact = '''
-if(root,
-  builtin_op_log_root(id),
-  label(if(current_operation, "current_operation"),
-    concat(
-      separate(" ",
-        id.short(),
-        user,
-        format_time_range(time),
-      ) ++ "\n",
-      description.first_line() ++ "\n",
-      if(tags, tags ++ "\n"),
-    ),
+label(if(current_operation, "current_operation"),
+  coalesce(
+    if(snapshot, format_snapshot_operation(self)),
+    if(root, format_root_operation(self)),
+    format_operation(self),
   )
 )
 '''
@@ -125,13 +118,6 @@ separate(" ",
   label("root", "root()"),
   format_short_commit_id(commit_id),
   branches
-) ++ "\n"
-'''
-
-'builtin_op_log_root(op_id)' = '''
-separate(" ",
-  op_id.short(),
-  label("root", "root()"),
 ) ++ "\n"
 '''
 
@@ -156,12 +142,22 @@ commit_summary_separator = 'label("separator", " | ")'
   time_range.start().ago() ++ label("time", ", lasted ") ++ time_range.duration()'''
 'format_timestamp(timestamp)' = 'timestamp.local().format("%Y-%m-%d %H:%M:%S")'
 
+'format_operation(op)' = '''
+  concat(
+    separate(" ", op.id().short(), op.user(), format_time_range(op.time())), "\n",
+    op.description().first_line(), "\n",
+    if(op.tags(), op.tags() ++ "\n"),
+  )
+'''
+'format_snapshot_operation(op)' = 'format_operation(op)'
+'format_root_operation(root)' = 'separate(" ", root.id().short(), label("root", "root()")) ++ "\n"'
+
 # We have "hidden" override "divergent", since a hidden revision does not cause
 # change id conflicts and is not affected by such conflicts; you have to use the
 # commit id to refer to a hidden revision regardless.
 builtin_change_id_with_hidden_and_divergent_info = '''
 if(hidden,
-  label("hidden", 
+  label("hidden",
     format_short_change_id(change_id) ++ " hidden"
   ),
   label(if(divergent, "divergent"),
