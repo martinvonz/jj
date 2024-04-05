@@ -203,7 +203,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             writeln!(formatter)?;
         }
     } else {
-        tx.edit(&new_commit).unwrap();
+        tx.edit(&new_commit)?;
         // The description of the new commit will be printed by tx.finish()
     }
     if num_rebased > 0 {
