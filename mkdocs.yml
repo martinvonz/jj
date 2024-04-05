@@ -99,6 +99,7 @@ nav:
 
 - 'Configuration':
       - 'Settings': 'config.md'
+      - 'Fileset language': 'filesets.md'
       - 'Revset language': 'revsets.md'
       - 'Templating language': 'templates.md'
 

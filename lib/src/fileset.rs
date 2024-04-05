@@ -14,13 +14,30 @@
 
 //! Functional language for selecting a set of paths.
 
+use std::path::Path;
 use std::slice;
+
+use thiserror::Error;
 
 use crate::matchers::{
     DifferenceMatcher, EverythingMatcher, FilesMatcher, IntersectionMatcher, Matcher,
     NothingMatcher, PrefixMatcher, UnionMatcher,
 };
-use crate::repo_path::RepoPathBuf;
+use crate::repo_path::{FsPathParseError, RelativePathParseError, RepoPathBuf};
+
+/// Error occurred during file pattern parsing.
+#[derive(Debug, Error)]
+pub enum FilePatternParseError {
+    /// Unknown pattern kind is specified.
+    #[error(r#"Invalid file pattern kind "{0}:""#)]
+    InvalidKind(String),
+    /// Failed to parse input cwd-relative path.
+    #[error(transparent)]
+    FsPath(#[from] FsPathParseError),
+    /// Failed to parse input workspace-relative path.
+    #[error(transparent)]
+    RelativePath(#[from] RelativePathParseError),
+}
 
 /// Basic pattern to match `RepoPath`.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -33,6 +50,78 @@ pub enum FilePattern {
     // - FilesInPath: files in directory, non-recursively?
     // - FileGlob: file (or exact) path with glob?
     // - NameGlob or SuffixGlob: file name with glob?
+}
+
+impl FilePattern {
+    /// Parses the given `input` string as a file pattern.
+    // TODO: If we decide to parse any file argument as a fileset expression,
+    // this function can be removed.
+    pub fn parse(ctx: &FilesetParseContext, input: &str) -> Result<Self, FilePatternParseError> {
+        if let Some((kind, pat)) = input.split_once(':') {
+            Self::from_str_kind(ctx, pat, kind)
+        } else {
+            Self::cwd_prefix_path(ctx, input)
+        }
+    }
+
+    /// Parses the given `input` string as pattern of the specified `kind`.
+    pub fn from_str_kind(
+        ctx: &FilesetParseContext,
+        input: &str,
+        kind: &str,
+    ) -> Result<Self, FilePatternParseError> {
+        // Naming convention:
+        // * path normalization
+        //   * cwd: cwd-relative path (default)
+        //   * root: workspace-relative path
+        // * where to anchor
+        //   * file: exact file path
+        //   * prefix: path prefix (files under directory recursively) (default)
+        //   * files-in: files in directory non-recursively
+        //   * name: file name component (or suffix match?)
+        //   * substring: substring match?
+        // * string pattern syntax (+ case sensitivity?)
+        //   * path: literal path (default)
+        //   * glob
+        //   * regex?
+        match kind {
+            "cwd" => Self::cwd_prefix_path(ctx, input),
+            "cwd-file" | "file" => Self::cwd_file_path(ctx, input),
+            "root" => Self::root_prefix_path(input),
+            "root-file" => Self::root_file_path(input),
+            _ => Err(FilePatternParseError::InvalidKind(kind.to_owned())),
+        }
+    }
+
+    /// Pattern that matches cwd-relative file (or exact) path.
+    pub fn cwd_file_path(
+        ctx: &FilesetParseContext,
+        input: impl AsRef<Path>,
+    ) -> Result<Self, FilePatternParseError> {
+        let path = ctx.parse_cwd_path(input)?;
+        Ok(FilePattern::FilePath(path))
+    }
+
+    /// Pattern that matches cwd-relative path prefix.
+    pub fn cwd_prefix_path(
+        ctx: &FilesetParseContext,
+        input: impl AsRef<Path>,
+    ) -> Result<Self, FilePatternParseError> {
+        let path = ctx.parse_cwd_path(input)?;
+        Ok(FilePattern::PrefixPath(path))
+    }
+
+    /// Pattern that matches workspace-relative file (or exact) path.
+    pub fn root_file_path(input: impl AsRef<Path>) -> Result<Self, FilePatternParseError> {
+        let path = RepoPathBuf::from_relative_path(input)?;
+        Ok(FilePattern::FilePath(path))
+    }
+
+    /// Pattern that matches workspace-relative path prefix.
+    pub fn root_prefix_path(input: impl AsRef<Path>) -> Result<Self, FilePatternParseError> {
+        let path = RepoPathBuf::from_relative_path(input)?;
+        Ok(FilePattern::PrefixPath(path))
+    }
 }
 
 /// AST-level representation of the fileset expression.
@@ -178,12 +267,79 @@ fn union_all_matchers(matchers: &mut [Option<Box<dyn Matcher>>]) -> Box<dyn Matc
     }
 }
 
+/// Environment where fileset expression is parsed.
+#[derive(Clone, Debug)]
+pub struct FilesetParseContext<'a> {
+    /// Normalized path to the current working directory.
+    pub cwd: &'a Path,
+    /// Normalized path to the workspace root.
+    pub workspace_root: &'a Path,
+}
+
+impl FilesetParseContext<'_> {
+    fn parse_cwd_path(&self, input: impl AsRef<Path>) -> Result<RepoPathBuf, FsPathParseError> {
+        RepoPathBuf::parse_fs_path(self.cwd, self.workspace_root, input)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn repo_path_buf(value: impl Into<String>) -> RepoPathBuf {
         RepoPathBuf::from_internal_string(value)
+    }
+
+    #[test]
+    fn test_parse_file_pattern() {
+        let ctx = FilesetParseContext {
+            cwd: Path::new("/ws/cur"),
+            workspace_root: Path::new("/ws"),
+        };
+        // TODO: implement fileset expression parser and test it instead
+        let parse = |input| FilePattern::parse(&ctx, input).map(FilesetExpression::pattern);
+
+        // cwd-relative patterns
+        assert_eq!(
+            parse(".").unwrap(),
+            FilesetExpression::prefix_path(repo_path_buf("cur"))
+        );
+        assert_eq!(
+            parse("..").unwrap(),
+            FilesetExpression::prefix_path(RepoPathBuf::root())
+        );
+        assert!(parse("../..").is_err());
+        assert_eq!(
+            parse("foo").unwrap(),
+            FilesetExpression::prefix_path(repo_path_buf("cur/foo"))
+        );
+        assert_eq!(
+            parse("cwd:.").unwrap(),
+            FilesetExpression::prefix_path(repo_path_buf("cur"))
+        );
+        assert_eq!(
+            parse("cwd-file:foo").unwrap(),
+            FilesetExpression::file_path(repo_path_buf("cur/foo"))
+        );
+        assert_eq!(
+            parse("file:../foo/bar").unwrap(),
+            FilesetExpression::file_path(repo_path_buf("foo/bar"))
+        );
+
+        // workspace-relative patterns
+        assert_eq!(
+            parse("root:.").unwrap(),
+            FilesetExpression::prefix_path(RepoPathBuf::root())
+        );
+        assert!(parse("root:..").is_err());
+        assert_eq!(
+            parse("root:foo/bar").unwrap(),
+            FilesetExpression::prefix_path(repo_path_buf("foo/bar"))
+        );
+        assert_eq!(
+            parse("root-file:bar").unwrap(),
+            FilesetExpression::file_path(repo_path_buf("bar"))
+        );
     }
 
     #[test]
