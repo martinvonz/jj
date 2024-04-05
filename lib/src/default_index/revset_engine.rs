@@ -28,7 +28,7 @@ use super::rev_walk::{EagerRevWalk, PeekableRevWalk, RevWalk, RevWalkBuilder};
 use super::revset_graph_iterator::RevsetGraphWalk;
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexEntry, IndexPosition};
-use crate::matchers::{EverythingMatcher, Matcher, PrefixMatcher, Visit};
+use crate::matchers::{Matcher, Visit};
 use crate::repo_path::RepoPath;
 use crate::revset::{
     ResolvedExpression, ResolvedPredicateExpression, Revset, RevsetEvaluationError,
@@ -1038,13 +1038,8 @@ fn build_predicate_fn(
                     || pattern.matches(&commit.committer().email)
             })
         }
-        RevsetFilterPredicate::File(paths) => {
-            // TODO: Add support for globs and other formats
-            let matcher: Rc<dyn Matcher> = if let Some(paths) = paths {
-                Rc::new(PrefixMatcher::new(paths))
-            } else {
-                Rc::new(EverythingMatcher)
-            };
+        RevsetFilterPredicate::File(expr) => {
+            let matcher: Rc<dyn Matcher> = expr.to_matcher().into();
             box_pure_predicate_fn(move |index, pos| {
                 let entry = index.entry_by_pos(pos);
                 has_diff_from_parent(&store, index, &entry, matcher.as_ref())

@@ -14,6 +14,7 @@
 
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
+use jj_lib::fileset::FilesetExpression;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{self, RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt};
 use jj_lib::revset_graph::{
@@ -89,14 +90,14 @@ pub(crate) fn cmd_log(
             workspace_command.attach_revset_evaluator(RevsetExpression::all())?
         };
         if !args.paths.is_empty() {
-            let repo_paths: Vec<_> = args
+            let file_expressions: Vec<_> = args
                 .paths
                 .iter()
                 .map(|path_arg| workspace_command.parse_file_path(path_arg))
+                .map_ok(FilesetExpression::prefix_path)
                 .try_collect()?;
-            expression.intersect_with(&RevsetExpression::filter(RevsetFilterPredicate::File(
-                Some(repo_paths),
-            )));
+            let expr = FilesetExpression::union_all(file_expressions);
+            expression.intersect_with(&RevsetExpression::filter(RevsetFilterPredicate::File(expr)));
         }
         expression
     };

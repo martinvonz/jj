@@ -33,6 +33,7 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, ChangeId, CommitId};
 use crate::commit::Commit;
+use crate::fileset::FilesetExpression;
 use crate::git;
 use crate::hex_util::to_forward_hex;
 use crate::object_id::{HexPrefix, PrefixResolution};
@@ -318,8 +319,8 @@ pub enum RevsetFilterPredicate {
     Author(StringPattern),
     /// Commits with committer's name or email containing the needle.
     Committer(StringPattern),
-    /// Commits modifying the paths specified by the pattern.
-    File(Option<Vec<RepoPathBuf>>), // TODO: embed matcher expression?
+    /// Commits modifying the paths specified by the fileset.
+    File(FilesetExpression),
     /// Commits with conflicts
     HasConflict,
 }
@@ -1330,12 +1331,15 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     });
     map.insert("empty", |name, arguments_pair, _state| {
         expect_no_arguments(name, arguments_pair)?;
-        Ok(RevsetExpression::filter(RevsetFilterPredicate::File(None)).negated())
+        Ok(
+            RevsetExpression::filter(RevsetFilterPredicate::File(FilesetExpression::all()))
+                .negated(),
+        )
     });
     map.insert("file", |name, arguments_pair, state| {
         let arguments_span = arguments_pair.as_span();
         if let Some(ctx) = state.workspace_ctx {
-            let paths: Vec<_> = arguments_pair
+            let file_expressions: Vec<_> = arguments_pair
                 .into_inner()
                 .map(|arg| -> Result<_, RevsetParseError> {
                     let span = arg.as_span();
@@ -1345,19 +1349,18 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
                             RevsetParseError::invalid_arguments(name, "Invalid file pattern", span)
                                 .with_source(e)
                         })?;
-                    Ok(path)
+                    Ok(FilesetExpression::prefix_path(path))
                 })
                 .try_collect()?;
-            if paths.is_empty() {
+            if file_expressions.is_empty() {
                 Err(RevsetParseError::invalid_arguments(
                     name,
                     "Expected at least 1 argument",
                     arguments_span,
                 ))
             } else {
-                Ok(RevsetExpression::filter(RevsetFilterPredicate::File(Some(
-                    paths,
-                ))))
+                let expr = FilesetExpression::union_all(file_expressions);
+                Ok(RevsetExpression::filter(RevsetFilterPredicate::File(expr)))
             }
         } else {
             Err(RevsetParseError::with_span(
@@ -2955,9 +2958,9 @@ mod tests {
                 StringPattern::Substring("arg1".to_string())
             ))
             .minus(&RevsetExpression::filter(RevsetFilterPredicate::File(
-                Some(vec![
-                    RepoPathBuf::from_internal_string("arg1"),
-                    RepoPathBuf::from_internal_string("arg2"),
+                FilesetExpression::union_all(vec![
+                    FilesetExpression::prefix_path(RepoPathBuf::from_internal_string("arg1")),
+                    FilesetExpression::prefix_path(RepoPathBuf::from_internal_string("arg2")),
                 ])
             )))
             .minus(&RevsetExpression::visible_heads()))
@@ -3317,25 +3320,28 @@ mod tests {
         );
         assert_eq!(
             parse_with_workspace("empty()", &WorkspaceId::default()),
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(None)).negated())
+            Ok(
+                RevsetExpression::filter(RevsetFilterPredicate::File(FilesetExpression::all()))
+                    .negated()
+            )
         );
         assert!(parse_with_workspace("empty(foo)", &WorkspaceId::default()).is_err());
         assert!(parse_with_workspace("file()", &WorkspaceId::default()).is_err());
         assert_eq!(
             parse_with_workspace("file(foo)", &WorkspaceId::default()),
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(Some(
-                vec![RepoPathBuf::from_internal_string("foo")]
-            ))))
+            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(
+                FilesetExpression::prefix_path(RepoPathBuf::from_internal_string("foo"))
+            )))
         );
         assert_eq!(
             parse_with_workspace("file(foo, bar, baz)", &WorkspaceId::default()),
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(Some(
-                vec![
-                    RepoPathBuf::from_internal_string("foo"),
-                    RepoPathBuf::from_internal_string("bar"),
-                    RepoPathBuf::from_internal_string("baz"),
-                ]
-            ))))
+            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(
+                FilesetExpression::union_all(vec![
+                    FilesetExpression::prefix_path(RepoPathBuf::from_internal_string("foo")),
+                    FilesetExpression::prefix_path(RepoPathBuf::from_internal_string("bar")),
+                    FilesetExpression::prefix_path(RepoPathBuf::from_internal_string("baz")),
+                ])
+            )))
         );
     }
 
@@ -4023,7 +4029,7 @@ mod tests {
         insta::assert_debug_snapshot!(optimize(parse("~empty()").unwrap()), @r###"
         Filter(
             File(
-                None,
+                All,
             ),
         )
         "###);
@@ -4260,10 +4266,10 @@ mod tests {
             ),
             Filter(
                 File(
-                    Some(
-                        [
+                    Pattern(
+                        PrefixPath(
                             "bar",
-                        ],
+                        ),
                     ),
                 ),
             ),
@@ -4282,10 +4288,10 @@ mod tests {
                 ),
                 Filter(
                     File(
-                        Some(
-                            [
+                        Pattern(
+                            PrefixPath(
                                 "bar",
-                            ],
+                            ),
                         ),
                     ),
                 ),
@@ -4315,10 +4321,10 @@ mod tests {
             ),
             Filter(
                 File(
-                    Some(
-                        [
+                    Pattern(
+                        PrefixPath(
                             "bar",
-                        ],
+                        ),
                     ),
                 ),
             ),
