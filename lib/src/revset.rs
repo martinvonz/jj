@@ -33,13 +33,12 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, ChangeId, CommitId};
 use crate::commit::Commit;
-use crate::fileset::FilesetExpression;
+use crate::fileset::{FilePattern, FilesetExpression, FilesetParseContext};
 use crate::git;
 use crate::hex_util::to_forward_hex;
 use crate::object_id::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
-use crate::repo_path::RepoPathBuf;
 use crate::revset_graph::RevsetGraphEdge;
 use crate::store::Store;
 use crate::str_util::StringPattern;
@@ -1339,18 +1338,14 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     map.insert("file", |name, arguments_pair, state| {
         let arguments_span = arguments_pair.as_span();
         if let Some(ctx) = state.workspace_ctx {
+            let ctx = FilesetParseContext {
+                cwd: ctx.cwd,
+                workspace_root: ctx.workspace_root,
+            };
             let file_expressions: Vec<_> = arguments_pair
                 .into_inner()
-                .map(|arg| -> Result<_, RevsetParseError> {
-                    let span = arg.as_span();
-                    let needle = parse_function_argument_to_string(name, arg, state)?;
-                    let path = RepoPathBuf::parse_fs_path(ctx.cwd, ctx.workspace_root, needle)
-                        .map_err(|e| {
-                            RevsetParseError::invalid_arguments(name, "Invalid file pattern", span)
-                                .with_source(e)
-                        })?;
-                    Ok(FilesetExpression::prefix_path(path))
-                })
+                .map(|arg| parse_function_argument_to_file_pattern(name, arg, state, &ctx))
+                .map_ok(FilesetExpression::pattern)
                 .try_collect()?;
             if file_expressions.is_empty() {
                 Err(RevsetParseError::invalid_arguments(
@@ -1497,12 +1492,17 @@ fn expect_named_arguments_vec<'i>(
     Ok((required, optional))
 }
 
-fn parse_function_argument_to_string(
+fn parse_function_argument_to_file_pattern(
     name: &str,
     pair: Pair<Rule>,
     state: ParseState,
-) -> Result<String, RevsetParseError> {
-    parse_function_argument_as_literal("string", name, pair, state)
+    ctx: &FilesetParseContext,
+) -> Result<FilePattern, RevsetParseError> {
+    let parse_pattern = |value: &str, kind: Option<&str>| match kind {
+        Some(kind) => FilePattern::from_str_kind(ctx, value, kind),
+        None => FilePattern::cwd_prefix_path(ctx, value),
+    };
+    parse_function_argument_as_pattern("file pattern", name, pair, state, parse_pattern)
 }
 
 fn parse_function_argument_to_string_pattern(
@@ -2587,6 +2587,7 @@ mod tests {
     use assert_matches::assert_matches;
 
     use super::*;
+    use crate::repo_path::RepoPathBuf;
 
     fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseErrorKind> {
         parse_with_aliases(revset_str, [] as [(&str, &str); 0])
@@ -3341,6 +3342,12 @@ mod tests {
             parse_with_workspace("file(foo)", &WorkspaceId::default()),
             Ok(RevsetExpression::filter(RevsetFilterPredicate::File(
                 FilesetExpression::prefix_path(RepoPathBuf::from_internal_string("foo"))
+            )))
+        );
+        assert_eq!(
+            parse_with_workspace(r#"file(file:"foo")"#, &WorkspaceId::default()),
+            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(
+                FilesetExpression::file_path(RepoPathBuf::from_internal_string("foo"))
             )))
         );
         assert_eq!(

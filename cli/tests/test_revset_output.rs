@@ -152,15 +152,28 @@ fn test_bad_function_call() {
       = Function "file": Expected at least 1 argument
     "###);
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file(a, not:a-string)"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file(a, not@a-string)"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Function "file": Expected function argument of type string
+    Error: Failed to parse revset: Function "file": Expected function argument of file pattern
     Caused by:  --> 1:9
       |
-    1 | file(a, not:a-string)
+    1 | file(a, not@a-string)
       |         ^----------^
       |
-      = Function "file": Expected function argument of type string
+      = Function "file": Expected function argument of file pattern
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"file(foo:"bar")"#]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset: Function "file": Invalid file pattern
+    Caused by:
+    1:  --> 1:6
+      |
+    1 | file(foo:"bar")
+      |      ^-------^
+      |
+      = Function "file": Invalid file pattern
+    2: Invalid file pattern kind "foo:"
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"file(a, "../out")"#]);
