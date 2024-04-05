@@ -18,6 +18,7 @@ use assert_matches::assert_matches;
 use itertools::Itertools;
 use jj_lib::backend::{CommitId, MillisSinceEpoch, Signature, Timestamp};
 use jj_lib::commit::Commit;
+use jj_lib::fileset::FilesetExpression;
 use jj_lib::git;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::object_id::ObjectId;
@@ -2671,10 +2672,9 @@ fn test_evaluate_expression_file() {
 
     let resolve = |file_path: &RepoPath| -> Vec<CommitId> {
         let mut_repo = &*mut_repo;
-        let expression =
-            RevsetExpression::filter(RevsetFilterPredicate::File(Some(
-                vec![file_path.to_owned()],
-            )));
+        let expression = RevsetExpression::filter(RevsetFilterPredicate::File(
+            FilesetExpression::prefix_path(file_path.to_owned()),
+        ));
         let revset = expression.evaluate_programmatic(mut_repo).unwrap();
         revset.iter().collect()
     };

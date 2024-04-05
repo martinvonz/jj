@@ -36,6 +36,7 @@ use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jj_lib::backend::{ChangeId, CommitId, MergedTreeId, TreeValue};
 use jj_lib::commit::Commit;
+use jj_lib::fileset::FilesetExpression;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::{GitIgnoreError, GitIgnoreFile};
 use jj_lib::hex_util::to_reverse_hex;
@@ -1223,8 +1224,9 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
         // are millions of commits added to the repo, assuming the revset engine can
         // efficiently skip non-conflicting commits. Filter out empty commits mostly so
         // `jj new <conflicted commit>` doesn't result in a message about new conflicts.
-        let conflicts = RevsetExpression::filter(RevsetFilterPredicate::HasConflict)
-            .intersection(&RevsetExpression::filter(RevsetFilterPredicate::File(None)));
+        let conflicts = RevsetExpression::filter(RevsetFilterPredicate::HasConflict).intersection(
+            &RevsetExpression::filter(RevsetFilterPredicate::File(FilesetExpression::all())),
+        );
         let removed_conflicts_expr = new_heads.range(&old_heads).intersection(&conflicts);
         let added_conflicts_expr = old_heads.range(&new_heads).intersection(&conflicts);
 
