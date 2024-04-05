@@ -1148,31 +1148,34 @@ For more information, see https://github.com/martinvonz/jj/blob/main/docs/workin
 
 Move the working-copy commit to the child revision
 
-The command moves you to the next child in a linear fashion.
+The command creates a new empty working copy revision that is the child of a
+descendant `offset` revisions ahead of the parent of the current working
+copy.
+
+For example, when the offset is 1:
 
 ```text
-D      D @
-|      |/
-C @ => C
-|/     |
-B      B
+D        D @
+|        |/
+C @  =>  C
+|/       |
+B        B
 ```
 
-If `--edit` is passed, it will move you directly to the child
-revision.
+If `--edit` is passed, the working copy revision is changed to the child of
+the current working copy revision.
 
 ```text
-D    D
-|    |
-C    C
-|    |
-B => @
-|    |
-@    A
-
+D        D
+|        |
+C        C
+|        |
+B   =>   @
+|        |
+@        A
+```
 If your working-copy commit already has visible children, then `--edit` is
 implied.
-```
 
 **Usage:** `jj next [OPTIONS] [OFFSET]`
 
