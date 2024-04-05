@@ -15,6 +15,7 @@
 #![allow(dead_code, missing_docs)]
 
 use std::collections::{HashMap, HashSet};
+use std::fmt::Debug;
 use std::iter;
 
 use tracing::instrument;
@@ -67,7 +68,7 @@ pub enum VisitFiles {
     Set(HashSet<RepoPathComponentBuf>),
 }
 
-pub trait Matcher: Sync {
+pub trait Matcher: Debug + Sync {
     fn matches(&self, file: &RepoPath) -> bool;
     fn visit(&self, dir: &RepoPath) -> Visit;
 }
@@ -143,6 +144,7 @@ impl Matcher for FilesMatcher {
     }
 }
 
+#[derive(Debug)]
 pub struct PrefixMatcher {
     tree: RepoPathTree,
 }
