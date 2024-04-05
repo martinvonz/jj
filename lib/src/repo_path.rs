@@ -28,7 +28,7 @@ use crate::content_hash::ContentHash;
 use crate::file_util;
 
 /// Owned `RepoPath` component.
-#[derive(ContentHash, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
+#[derive(ContentHash, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct RepoPathComponentBuf {
     // Don't add more fields. Eq, Hash, and Ord must be compatible with the
     // borrowed RepoPathComponent type.
@@ -36,7 +36,7 @@ pub struct RepoPathComponentBuf {
 }
 
 /// Borrowed `RepoPath` component.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Hash, RefCastCustom)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, RefCastCustom)]
 #[repr(transparent)]
 pub struct RepoPathComponent {
     value: str,
@@ -56,6 +56,18 @@ impl RepoPathComponent {
 
     pub fn as_str(&self) -> &str {
         &self.value
+    }
+}
+
+impl Debug for RepoPathComponent {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", &self.value)
+    }
+}
+
+impl Debug for RepoPathComponentBuf {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        <RepoPathComponent as Debug>::fmt(self, f)
     }
 }
 
