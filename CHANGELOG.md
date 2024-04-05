@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * The default template alias `builtin_op_log_root(op_id: OperationId)` was replaced by `format_root_operation(root: Operation)`.
 
+* The default template alias `builtin_log_root(change_id: ChangeId, commit_id: CommitId)` was replaced by `format_root_commit(root: Commit)`.
+
 ### New features
 
 * The list of conflicted paths is printed whenever the working copy changes.

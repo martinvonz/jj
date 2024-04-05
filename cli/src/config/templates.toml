@@ -42,7 +42,7 @@ show = 'builtin_log_detailed'
 [template-aliases]
 builtin_log_oneline = '''
 if(root,
-  builtin_log_root(change_id, commit_id),
+  format_root_commit(self),
   label(if(current_working_copy, "working_copy"),
     concat(
       separate(" ",
@@ -64,7 +64,7 @@ if(root,
 '''
 builtin_log_compact = '''
 if(root,
-  builtin_log_root(change_id, commit_id),
+  format_root_commit(self),
   label(if(current_working_copy, "working_copy"),
     concat(
       separate(" ",
@@ -87,7 +87,7 @@ if(root,
 )
 '''
 builtin_log_comfortable = 'builtin_log_compact ++ "\n"'
-'builtin_log_detailed' = '''
+builtin_log_detailed = '''
 concat(
   "Commit ID: " ++ commit_id ++ "\n",
   "Change ID: " ++ change_id ++ "\n",
@@ -112,15 +112,6 @@ label(if(current_operation, "current_operation"),
 '''
 builtin_op_log_comfortable = 'builtin_op_log_compact ++ "\n"'
 
-'builtin_log_root(change_id, commit_id)' = '''
-separate(" ",
-  format_short_change_id(change_id),
-  label("root", "root()"),
-  format_short_commit_id(commit_id),
-  branches
-) ++ "\n"
-'''
-
 
 description_placeholder = '''
   label(if(empty, "empty ") ++ "description placeholder", "(no description set)")'''
@@ -141,6 +132,15 @@ commit_summary_separator = 'label("separator", " | ")'
 'format_time_range(time_range)' = '''
   time_range.start().ago() ++ label("time", ", lasted ") ++ time_range.duration()'''
 'format_timestamp(timestamp)' = 'timestamp.local().format("%Y-%m-%d %H:%M:%S")'
+
+'format_root_commit(root)' = '''
+separate(" ",
+  format_short_change_id(root.change_id()),
+  label("root", "root()"),
+  format_short_commit_id(root.commit_id()),
+  root.branches()
+) ++ "\n"
+'''
 
 'format_operation(op)' = '''
   concat(
