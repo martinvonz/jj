@@ -156,9 +156,8 @@ given [string pattern](#string-patterns).
 * `empty()`: Commits modifying no files. This also includes `merges()` without
   user modifications and `root()`.
 
-* `file(relativepath)` or `file("relativepath"[, "relativepath"]...)`: Commits
-  modifying one of the paths specified. Currently, string patterns are *not*
-  supported in the path arguments.
+* `file(pattern[, pattern]...)`: Commits modifying paths matching one of the
+  given [file patterns](filesets.md#file-patterns).
 
   Paths are relative to the directory `jj` was invoked from. A directory name
   will match all files in that directory and its subdirectories.

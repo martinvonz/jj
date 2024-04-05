@@ -70,6 +70,6 @@ tags()+++::
 merges()
 ~merges()
 # These are unbearably slow, so only filter within small set
-file(Makefile) & v1.0.0..v1.2.0
+file(root:"Makefile") & v1.0.0..v1.2.0
 empty() & v1.0.0..v1.2.0
 conflict() & v1.0.0..v1.2.0
