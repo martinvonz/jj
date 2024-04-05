@@ -173,7 +173,7 @@ pub struct RepoPath {
 
 impl Debug for RepoPath {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.write_fmt(format_args!("{:?}", &self.value))
+        write!(f, "{:?}", &self.value)
     }
 }
 
