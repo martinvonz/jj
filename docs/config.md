@@ -481,17 +481,74 @@ merge-tools.kdiff3.edit-args = [
 
 ### Experimental 3-pane diff editing
 
-The special `"meld-3"` diff editor sets up Meld to show 3 panes: the sides of
-the diff on the left and right, and an editing pane in the middle. This allow
-you to see both sides of the original diff while editing. If you use
-`ui.diff-editor = "meld-3"`, note that you can still get the 2-pane Meld view
-using `jj diff --tool meld`.
+We offer two special "3-pane" diff editor configs:
 
-To configure other diff editors, you can include `$output` together with `$left`
-and `$right` in `merge-tools.TOOL.edit-args`. `jj` will replace `$output` with
-the directory where the diff editor will be expected to put the result of the
-user's edits. Initially, the contents of `$output` will be the same as the
-contents of `$right`.
+- `meld-3`, which requires installing [Meld](https://meldmerge.org/), and
+- `diffedit3`, which requires installing [`diffedit3`](https://github.com/ilyagr/diffedit3/releases).
+
+`Meld` is a graphical application that is recommended, but can be difficult to
+install in some situations. `diffedit3` is designed to be easy to install and to
+be usable in environments where Meld is difficult to use (e.g. over SSH via port
+forwarding). `diffedit3` starts a local server that can be accessed via a web
+browser, similarly to [Jupyter](https://jupyter.org/).
+
+There is also the `diffedit3-ssh` which is similar to `diffedit3` but does not
+try to open the web browser pointing to the local server (the URL
+printed to the terminal) automatically. `diffedit3-ssh` also always uses ports in between
+17376-17380 and fails if they are all busy. This can be useful when working
+over SSH. Open the fold below for more details of how to set that up.
+
+<details>
+<summary> Tips for using `diffedit3-ssh` over SSH </summary>
+
+To use `diffedit3` over SSH, you need to set up port forwarding. One way to do
+this is to start SSH as follows (copy-paste the relevant lines):
+
+```shell
+ssh -L 17376:localhost:17376 \
+    -L 17377:localhost:17377 \
+    -L 17378:localhost:17378 \
+    -L 17379:localhost:17379 \
+    -L 17380:localhost:17380 \
+    myhost.example.com
+```
+
+`diffedit3-ssh` is set up to use these 5 ports by default. Usually, only the
+first of them will be used. The rest are used if another program happens to use
+one of them, or if you run multiple instances of `diffedit3` at the same time.
+
+Another way is to add a snippet to `~/.ssh/config`:
+
+```
+Host myhost
+    User     myself
+    Hostname myhost.example.com
+    LocalForward 17376 localhost:17376
+    LocalForward 17377 localhost:17377
+    LocalForward 17378 localhost:17378
+    LocalForward 17379 localhost:17379
+    LocalForward 17380 localhost:17380
+```
+
+With that configuration, you should be able to simply `ssh myhost`.
+
+</details>
+
+
+Setting either `ui.diff-editor = "meld-3"` or `ui.diff-editor = "diffedit3"`
+will result in the diff editor showing 3 panes: the diff on the left and right,
+and an editing pane in the middle. This allow you to see both sides of the
+original diff while editing.
+
+If you use `ui.diff-editor = "meld-3"`, note that you can still get the 2-pane
+Meld view using `jj diff --tool meld`. `diffedit3` has a button you can use to
+switch to a 2-pane view.
+
+To configure other diff editors in this way, you can include `$output` together
+with `$left` and `$right` in `merge-tools.TOOL.edit-args`. `jj` will replace
+`$output` with the directory where the diff editor will be expected to put the
+result of the user's edits. Initially, the contents of `$output` will be the
+same as the contents of `$right`.
 
 ### `JJ-INSTRUCTIONS`
 
