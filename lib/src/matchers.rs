@@ -16,8 +16,9 @@
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
-use std::iter;
+use std::{fmt, iter};
 
+use itertools::Itertools as _;
 use tracing::instrument;
 
 use crate::repo_path::{RepoPath, RepoPathComponentBuf};
@@ -339,7 +340,7 @@ impl<M1: Matcher, M2: Matcher> Matcher for IntersectionMatcher<M1, M2> {
 
 /// Keeps track of which subdirectories and files of each directory need to be
 /// visited.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq)]
 struct RepoPathTree {
     entries: HashMap<RepoPathComponentBuf, RepoPathTree>,
     // is_dir/is_file aren't exclusive, both can be set to true. If entries is not empty,
@@ -412,6 +413,25 @@ impl RepoPathTree {
             }
         }
         Visit::sets(dirs, files)
+    }
+}
+
+impl Debug for RepoPathTree {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let type_name = match (self.is_dir, self.is_file) {
+            (true, true) => "Dir|File",
+            (true, false) => "Dir",
+            (false, true) => "File",
+            (false, false) => "_",
+        };
+        write!(f, "{type_name} ")?;
+        f.debug_map()
+            .entries(
+                self.entries
+                    .iter()
+                    .sorted_unstable_by_key(|&(name, _)| name),
+            )
+            .finish()
     }
 }
 
