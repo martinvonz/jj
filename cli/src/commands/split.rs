@@ -68,7 +68,9 @@ pub(crate) fn cmd_split(
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewritable([commit.id()])?;
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    let matcher = workspace_command
+        .parse_file_patterns(&args.paths)?
+        .to_matcher();
     let diff_selector = workspace_command.diff_selector(
         ui,
         args.tool.as_deref(),

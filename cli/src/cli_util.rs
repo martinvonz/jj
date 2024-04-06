@@ -671,11 +671,6 @@ impl WorkspaceCommandHelper {
         }
     }
 
-    pub fn matcher_from_values(&self, values: &[String]) -> Result<Box<dyn Matcher>, CommandError> {
-        let expr = self.parse_file_patterns(values)?;
-        Ok(expr.to_matcher())
-    }
-
     #[instrument(skip_all)]
     pub fn base_ignores(&self) -> Result<Arc<GitIgnoreFile>, GitIgnoreError> {
         fn get_excludes_file_path(config: &gix::config::File) -> Option<PathBuf> {

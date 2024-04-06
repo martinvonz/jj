@@ -98,7 +98,9 @@ pub(crate) fn cmd_restore(
     }
     workspace_command.check_rewritable([to_commit.id()])?;
 
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    let matcher = workspace_command
+        .parse_file_patterns(&args.paths)?
+        .to_matcher();
     let to_tree = to_commit.tree()?;
     let new_tree_id = restore_tree(&from_tree, &to_tree, matcher.as_ref())?;
     if &new_tree_id == to_commit.tree_id() {

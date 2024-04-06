@@ -55,7 +55,9 @@ pub(crate) fn cmd_interdiff(
 
     let from_tree = rebase_to_dest_parent(workspace_command.repo().as_ref(), &from, &to)?;
     let to_tree = to.tree()?;
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    let matcher = workspace_command
+        .parse_file_patterns(&args.paths)?
+        .to_matcher();
     let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
     ui.request_pager();
     diff_util::show_diff(

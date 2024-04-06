@@ -40,7 +40,9 @@ pub(crate) fn cmd_files(
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     let tree = commit.tree()?;
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    let matcher = workspace_command
+        .parse_file_patterns(&args.paths)?
+        .to_matcher();
     ui.request_pager();
     for (name, _value) in tree.entries_matching(matcher.as_ref()) {
         writeln!(

@@ -44,7 +44,9 @@ pub(crate) fn cmd_untrack(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let store = workspace_command.repo().store().clone();
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    let matcher = workspace_command
+        .parse_file_patterns(&args.paths)?
+        .to_matcher();
 
     let mut tx = workspace_command.start_transaction().into_inner();
     let base_ignores = workspace_command.base_ignores()?;
