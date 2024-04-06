@@ -822,6 +822,26 @@ fn test_log_filtered_by_path() {
     A file2
     "###);
 
+    // "root:<path>" is resolved relative to the workspace root.
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &[
+            "log",
+            "-R",
+            repo_path.to_str().unwrap(),
+            "-Tdescription",
+            "-s",
+            "root:file1",
+        ],
+    );
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
+    @  second
+    │  M repo/file1
+    ◉  first
+    │  A repo/file1
+    ~
+    "###);
+
     // file() revset doesn't filter the diff.
     let stdout = test_env.jj_cmd_success(
         &repo_path,

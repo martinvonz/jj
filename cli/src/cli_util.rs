@@ -36,12 +36,12 @@ use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jj_lib::backend::{ChangeId, CommitId, MergedTreeId, TreeValue};
 use jj_lib::commit::Commit;
-use jj_lib::fileset::FilesetExpression;
+use jj_lib::fileset::{FilePattern, FilesetExpression, FilesetParseContext};
 use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::{GitIgnoreError, GitIgnoreFile};
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
-use jj_lib::matchers::{EverythingMatcher, Matcher, PrefixMatcher};
+use jj_lib::matchers::Matcher;
 use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
@@ -646,17 +646,34 @@ impl WorkspaceCommandHelper {
         RepoPathBuf::parse_fs_path(&self.cwd, self.workspace_root(), input)
     }
 
-    pub fn matcher_from_values(&self, values: &[String]) -> Result<Box<dyn Matcher>, CommandError> {
+    /// Parses the given strings as file patterns.
+    pub fn parse_file_patterns(
+        &self,
+        values: &[String],
+    ) -> Result<FilesetExpression, CommandError> {
+        // TODO: This function might be superseded by parse_union_filesets(),
+        // but it would be weird if parse_union_*() had a special case for the
+        // empty arguments.
         if values.is_empty() {
-            Ok(Box::new(EverythingMatcher))
+            Ok(FilesetExpression::all())
         } else {
-            // TODO: Add support for globs and other formats
-            let paths: Vec<_> = values
+            let ctx = FilesetParseContext {
+                cwd: &self.cwd,
+                workspace_root: self.workspace.workspace_root(),
+            };
+            let expressions = values
                 .iter()
-                .map(|v| self.parse_file_path(v))
-                .try_collect()?;
-            Ok(Box::new(PrefixMatcher::new(paths)))
+                .map(|v| FilePattern::parse(&ctx, v))
+                .map_ok(FilesetExpression::pattern)
+                .try_collect()
+                .map_err(user_error)?;
+            Ok(FilesetExpression::union_all(expressions))
         }
+    }
+
+    pub fn matcher_from_values(&self, values: &[String]) -> Result<Box<dyn Matcher>, CommandError> {
+        let expr = self.parse_file_patterns(values)?;
+        Ok(expr.to_matcher())
     }
 
     #[instrument(skip_all)]

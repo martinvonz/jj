@@ -43,6 +43,7 @@ pub(crate) fn cmd_cat(
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     let tree = commit.tree()?;
+    // TODO: migrate to .parse_file_patterns()?.to_matcher()?
     let path = workspace_command.parse_file_path(&args.path)?;
     let repo = workspace_command.repo();
     let value = tree.path_value(&path);
