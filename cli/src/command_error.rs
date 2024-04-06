@@ -487,8 +487,6 @@ impl From<TemplateParseError> for CommandError {
 
 impl From<FsPathParseError> for CommandError {
     fn from(err: FsPathParseError) -> Self {
-        // TODO: implement pattern prefix like "root:<path>" or "--cwd" option,
-        // and suggest it if the user input looks like repo-relative path #3216.
         user_error(err)
     }
 }
@@ -522,6 +520,8 @@ impl From<GitIgnoreError> for CommandError {
 
 fn find_source_parse_error_hint(err: &dyn error::Error) -> Option<String> {
     let source = err.source()?;
+    // TODO: For FilePatternParseError, suggest "root:<path>" if the user
+    // input looks like repo-relative path #3216.
     if let Some(source) = source.downcast_ref() {
         string_pattern_parse_error_hint(source)
     } else {

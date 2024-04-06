@@ -12,9 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use itertools::Itertools;
 use jj_lib::backend::CommitId;
-use jj_lib::fileset::FilesetExpression;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{self, RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt};
 use jj_lib::revset_graph::{
@@ -78,6 +76,7 @@ pub(crate) fn cmd_log(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
 
+    let fileset_expression = workspace_command.parse_file_patterns(&args.paths)?;
     let revset_expression = {
         // only use default revset if neither revset nor path are specified
         let mut expression = if args.revisions.is_empty() && args.paths.is_empty() {
@@ -90,20 +89,16 @@ pub(crate) fn cmd_log(
             workspace_command.attach_revset_evaluator(RevsetExpression::all())?
         };
         if !args.paths.is_empty() {
-            let file_expressions: Vec<_> = args
-                .paths
-                .iter()
-                .map(|path_arg| workspace_command.parse_file_path(path_arg))
-                .map_ok(FilesetExpression::prefix_path)
-                .try_collect()?;
-            let expr = FilesetExpression::union_all(file_expressions);
-            expression.intersect_with(&RevsetExpression::filter(RevsetFilterPredicate::File(expr)));
+            // Beware that args.paths = ["root:."] is not identical to []. The
+            // former will filter out empty commits.
+            let predicate = RevsetFilterPredicate::File(fileset_expression.clone());
+            expression.intersect_with(&RevsetExpression::filter(predicate));
         }
         expression
     };
 
     let repo = workspace_command.repo();
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    let matcher = fileset_expression.to_matcher();
     let revset = revset_expression.evaluate()?;
 
     let store = repo.store();

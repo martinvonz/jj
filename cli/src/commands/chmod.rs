@@ -60,6 +60,7 @@ pub(crate) fn cmd_chmod(
     };
 
     let mut workspace_command = command.workspace_helper(ui)?;
+    // TODO: migrate to .parse_file_patterns()?.to_matcher()
     let repo_paths: Vec<_> = args
         .paths
         .iter()
