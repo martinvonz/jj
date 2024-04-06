@@ -1510,33 +1510,43 @@ fn parse_function_argument_to_string_pattern(
     pair: Pair<Rule>,
     state: ParseState,
 ) -> Result<StringPattern, RevsetParseError> {
+    let parse_pattern = |value: &str, kind: Option<&str>| match kind {
+        Some(kind) => StringPattern::from_str_kind(value, kind),
+        None => Ok(StringPattern::Substring(value.to_owned())),
+    };
+    parse_function_argument_as_pattern("string pattern", name, pair, state, parse_pattern)
+}
+
+fn parse_function_argument_as_pattern<T, E: Into<Box<dyn error::Error + Send + Sync>>>(
+    type_name: &str,
+    function_name: &str,
+    pair: Pair<Rule>,
+    state: ParseState,
+    parse_pattern: impl FnOnce(&str, Option<&str>) -> Result<T, E>,
+) -> Result<T, RevsetParseError> {
     let span = pair.as_span();
+    let wrap_error = |err: E| {
+        RevsetParseError::invalid_arguments(function_name, format!("Invalid {type_name}"), span)
+            .with_source(err)
+    };
     let expression = {
         let mut inner_state = state;
         inner_state.allow_string_pattern = true;
         parse_expression_rule(pair.into_inner(), inner_state)?
     };
-    let pattern = match expression.as_ref() {
+    match expression.as_ref() {
         RevsetExpression::CommitRef(RevsetCommitRef::Symbol(symbol)) => {
-            let needle = symbol.to_owned();
-            StringPattern::Substring(needle)
+            parse_pattern(symbol, None).map_err(wrap_error)
         }
         RevsetExpression::StringPattern { kind, value } => {
-            // TODO: error span can be narrowed to the lhs node
-            StringPattern::from_str_kind(value, kind).map_err(|err| {
-                RevsetParseError::invalid_arguments(name, "Invalid string pattern", span)
-                    .with_source(err)
-            })?
+            parse_pattern(value, Some(kind)).map_err(wrap_error)
         }
-        _ => {
-            return Err(RevsetParseError::invalid_arguments(
-                name,
-                "Expected function argument of string pattern",
-                span,
-            ));
-        }
-    };
-    Ok(pattern)
+        _ => Err(RevsetParseError::invalid_arguments(
+            function_name,
+            format!("Expected function argument of {type_name}"),
+            span,
+        )),
+    }
 }
 
 fn parse_function_argument_as_literal<T: FromStr>(
