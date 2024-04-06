@@ -54,7 +54,9 @@ pub(crate) fn cmd_commit(
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
     let commit = workspace_command.repo().store().get_commit(commit_id)?;
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    let matcher = workspace_command
+        .parse_file_patterns(&args.paths)?
+        .to_matcher();
     let diff_selector =
         workspace_command.diff_selector(ui, args.tool.as_deref(), args.interactive)?;
     let mut tx = workspace_command.start_transaction();

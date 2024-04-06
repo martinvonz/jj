@@ -76,7 +76,9 @@ pub(crate) fn cmd_diff(
         from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &parents)?;
         to_tree = commit.tree()?
     }
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    let matcher = workspace_command
+        .parse_file_patterns(&args.paths)?
+        .to_matcher();
     let diff_formats = diff_formats_for(command.settings(), &args.format)?;
     ui.request_pager();
     show_diff(

@@ -50,7 +50,9 @@ pub(crate) fn cmd_status(
         .get_wc_commit_id()
         .map(|id| repo.store().get_commit(id))
         .transpose()?;
-    let matcher = workspace_command.matcher_from_values(&args.paths)?;
+    let matcher = workspace_command
+        .parse_file_patterns(&args.paths)?
+        .to_matcher();
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
