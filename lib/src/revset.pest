@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+whitespace = _{ " " | "\t" | "\r" | "\n" | "\x0c" }
+
 identifier_part = @{ (ASCII_ALPHANUMERIC | "_" | "/")+ }
 identifier = @{
   identifier_part ~ ("." | "-" | "+" ) ~ identifier
@@ -26,8 +28,6 @@ string_escape = @{ "\\" ~ ("t" | "r" | "n" | "0" | "\"" | "\\") }
 string_content_char = @{ !("\"" | "\\") ~ ANY }
 string_content = @{ string_content_char+ }
 string_literal = ${ "\"" ~ (string_content | string_escape)* ~ "\"" }
-
-whitespace = _{ " " | "\t" | "\r" | "\n" | "\x0c" }
 
 at_op = { "@" }
 pattern_kind_op = { ":" }
