@@ -33,6 +33,7 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, ChangeId, CommitId};
 use crate::commit::Commit;
+use crate::dsl_util::StringLiteralParser;
 use crate::fileset::{FilePattern, FilesetExpression, FilesetParseContext};
 use crate::git;
 use crate::hex_util::to_forward_hex;
@@ -76,6 +77,11 @@ pub enum RevsetEvaluationError {
 #[grammar = "revset.pest"]
 pub struct RevsetParser;
 
+const STRING_LITERAL_PARSER: StringLiteralParser<Rule> = StringLiteralParser {
+    content_rule: Rule::string_content,
+    escape_rule: Rule::string_escape,
+};
+
 impl Rule {
     /// Whether this is a placeholder rule for compatibility with the other
     /// systems.
@@ -97,6 +103,9 @@ impl Rule {
             Rule::identifier_part => None,
             Rule::identifier => None,
             Rule::symbol => None,
+            Rule::string_escape => None,
+            Rule::string_content_char => None,
+            Rule::string_content => None,
             Rule::string_literal => None,
             Rule::whitespace => None,
             Rule::at_op => Some("@"),
@@ -1090,7 +1099,9 @@ fn parse_symbol_rule(
                 Ok(RevsetExpression::symbol(name.to_owned()))
             }
         }
-        Rule::string_literal => parse_string_literal(first).map(RevsetExpression::symbol),
+        Rule::string_literal => Ok(RevsetExpression::symbol(
+            STRING_LITERAL_PARSER.parse(first.into_inner()),
+        )),
         _ => {
             panic!("unexpected symbol parse rule: {:?}", first.as_str());
         }
@@ -1102,23 +1113,11 @@ fn parse_symbol_rule_as_literal(mut pairs: Pairs<Rule>) -> Result<String, Revset
     let first = pairs.next().unwrap();
     match first.as_rule() {
         Rule::identifier => Ok(first.as_str().to_owned()),
-        Rule::string_literal => parse_string_literal(first),
+        Rule::string_literal => Ok(STRING_LITERAL_PARSER.parse(first.into_inner())),
         _ => {
             panic!("unexpected symbol parse rule: {:?}", first.as_str());
         }
     }
-}
-
-// TODO: Add support for \-escape syntax
-fn parse_string_literal(pair: Pair<Rule>) -> Result<String, RevsetParseError> {
-    assert_eq!(pair.as_rule(), Rule::string_literal);
-    Ok(pair
-        .as_str()
-        .strip_prefix('"')
-        .unwrap()
-        .strip_suffix('"')
-        .unwrap()
-        .to_owned())
 }
 
 fn parse_function_expression(
@@ -3081,6 +3080,23 @@ mod tests {
         assert_eq!(
             parse(&format!("{ascii_whitespaces}all()")).unwrap(),
             parse("all()").unwrap(),
+        );
+    }
+
+    #[test]
+    fn test_parse_string_literal() {
+        // "\<char>" escapes
+        assert_eq!(
+            parse(r#"branches("\t\r\n\"\\\0")"#),
+            Ok(RevsetExpression::branches(StringPattern::Substring(
+                "\t\r\n\"\\\0".to_owned()
+            )))
+        );
+
+        // Invalid "\<char>" escape
+        assert_eq!(
+            parse(r#"branches("\y")"#),
+            Err(RevsetParseErrorKind::SyntaxError)
         );
     }
 

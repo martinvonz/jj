@@ -21,7 +21,12 @@ symbol = {
   identifier
   | string_literal
 }
-string_literal = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+
+string_escape = @{ "\\" ~ ("t" | "r" | "n" | "0" | "\"" | "\\") }
+string_content_char = @{ !("\"" | "\\") ~ ANY }
+string_content = @{ string_content_char+ }
+string_literal = ${ "\"" ~ (string_content | string_escape)* ~ "\"" }
+
 whitespace = _{ " " | "\t" | "\r" | "\n" | "\x0c" }
 
 at_op = { "@" }
