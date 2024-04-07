@@ -97,7 +97,7 @@ impl Rule {
             Rule::identifier_part => None,
             Rule::identifier => None,
             Rule::symbol => None,
-            Rule::literal_string => None,
+            Rule::string_literal => None,
             Rule::whitespace => None,
             Rule::at_op => Some("@"),
             Rule::pattern_kind_op => Some(":"),
@@ -1090,7 +1090,7 @@ fn parse_symbol_rule(
                 Ok(RevsetExpression::symbol(name.to_owned()))
             }
         }
-        Rule::literal_string => parse_string_literal(first).map(RevsetExpression::symbol),
+        Rule::string_literal => parse_string_literal(first).map(RevsetExpression::symbol),
         _ => {
             panic!("unexpected symbol parse rule: {:?}", first.as_str());
         }
@@ -1102,7 +1102,7 @@ fn parse_symbol_rule_as_literal(mut pairs: Pairs<Rule>) -> Result<String, Revset
     let first = pairs.next().unwrap();
     match first.as_rule() {
         Rule::identifier => Ok(first.as_str().to_owned()),
-        Rule::literal_string => parse_string_literal(first),
+        Rule::string_literal => parse_string_literal(first),
         _ => {
             panic!("unexpected symbol parse rule: {:?}", first.as_str());
         }
@@ -1111,7 +1111,7 @@ fn parse_symbol_rule_as_literal(mut pairs: Pairs<Rule>) -> Result<String, Revset
 
 // TODO: Add support for \-escape syntax
 fn parse_string_literal(pair: Pair<Rule>) -> Result<String, RevsetParseError> {
-    assert_eq!(pair.as_rule(), Rule::literal_string);
+    assert_eq!(pair.as_rule(), Rule::string_literal);
     Ok(pair
         .as_str()
         .strip_prefix('"')
