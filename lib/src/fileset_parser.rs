@@ -14,8 +14,6 @@
 
 //! Parser for the fileset language.
 
-#![allow(unused)] // TODO
-
 use std::error;
 
 use itertools::Itertools as _;
@@ -301,6 +299,17 @@ pub fn parse_program(text: &str) -> FilesetParseResult<ExpressionNode> {
     let mut pairs = FilesetParser::parse(Rule::program, text)?;
     let first = pairs.next().unwrap();
     parse_expression_node(first)
+}
+
+pub fn expect_no_arguments(function: &FunctionCallNode) -> FilesetParseResult<()> {
+    if function.args.is_empty() {
+        Ok(())
+    } else {
+        Err(FilesetParseError::invalid_arguments(
+            function,
+            "Expected 0 arguments",
+        ))
+    }
 }
 
 #[cfg(test)]
