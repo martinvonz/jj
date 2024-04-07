@@ -25,6 +25,7 @@ use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::CommandError;
 use crate::commands::rebase::rebase_descendants;
 use crate::description_util::{description_template_for_commit, edit_description};
+use crate::diff_util::DiffFormatArgs;
 use crate::ui::Ui;
 
 /// Split a revision in two
@@ -57,6 +58,8 @@ pub(crate) struct SplitArgs {
     /// Put these paths in the first commit
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
+    #[command(flatten)]
+    diff_format: DiffFormatArgs,
 }
 
 #[instrument(skip_all)]
@@ -119,6 +122,7 @@ the operation will be aborted.
         commit.description(),
         &base_tree,
         &selected_tree,
+        &args.diff_format,
     )?;
     let first_description = edit_description(tx.base_repo(), &first_template, command.settings())?;
     let first_commit = tx
@@ -155,6 +159,7 @@ the operation will be aborted.
             commit.description(),
             second_base_tree,
             &second_tree,
+            &args.diff_format,
         )?;
         edit_description(tx.base_repo(), &second_template, command.settings())?
     };

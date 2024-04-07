@@ -120,6 +120,19 @@ pub fn diff_formats_for_log(
     Ok(formats)
 }
 
+/// Returns a list of requested diff formats for describe-like commands, which
+/// will never be empty.
+pub fn diff_formats_for_describe(
+    settings: &UserSettings,
+    args: &DiffFormatArgs,
+) -> Result<Vec<DiffFormat>, config::ConfigError> {
+    let mut formats = diff_formats_from_args(settings, args)?;
+    if formats.is_empty() {
+        formats.push(DiffFormat::Summary);
+    }
+    Ok(formats)
+}
+
 fn diff_formats_from_args(
     settings: &UserSettings,
     args: &DiffFormatArgs,
