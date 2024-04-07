@@ -33,7 +33,7 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, ChangeId, CommitId};
 use crate::commit::Commit;
-use crate::dsl_util::StringLiteralParser;
+use crate::dsl_util::{collect_similar, StringLiteralParser};
 use crate::fileset::{FilePattern, FilesetExpression, FilesetParseContext};
 use crate::git;
 use crate::hex_util::to_forward_hex;
@@ -1150,33 +1150,18 @@ fn parse_function_expression(
         Err(RevsetParseError::with_span(
             RevsetParseErrorKind::NoSuchFunction {
                 name: name.to_owned(),
-                candidates: collect_similar(name, &collect_function_names(state.aliases_map)),
+                candidates: collect_similar(name, all_function_names(state.aliases_map)),
             },
             name_pair.as_span(),
         ))
     }
 }
 
-fn collect_function_names(aliases_map: &RevsetAliasesMap) -> Vec<String> {
-    let mut names = BUILTIN_FUNCTION_MAP
-        .keys()
-        .map(|&n| n.to_owned())
-        .collect_vec();
-    names.extend(aliases_map.function_aliases.keys().map(|n| n.to_owned()));
-    names.sort_unstable();
-    names.dedup();
-    names
-}
-
-fn collect_similar(name: &str, candidates: &[impl AsRef<str>]) -> Vec<String> {
-    candidates
-        .iter()
-        .filter(|cand| {
-            // The parameter is borrowed from clap f5540d26
-            strsim::jaro(name, cand.as_ref()) > 0.7
-        })
-        .map(|s| s.as_ref().to_owned())
-        .collect_vec()
+fn all_function_names(aliases_map: &RevsetAliasesMap) -> impl Iterator<Item = &str> {
+    itertools::chain(
+        BUILTIN_FUNCTION_MAP.keys().copied(),
+        aliases_map.function_aliases.keys().map(|n| n.as_ref()),
+    )
 }
 
 type RevsetFunction =
@@ -2060,10 +2045,14 @@ fn resolve_remote_branch(repo: &dyn Repo, name: &str, remote: &str) -> Option<Ve
         .then(|| target.added_ids().cloned().collect())
 }
 
-fn collect_branch_symbols(repo: &dyn Repo, include_synced_remotes: bool) -> Vec<String> {
+fn all_branch_symbols(
+    repo: &dyn Repo,
+    include_synced_remotes: bool,
+) -> impl Iterator<Item = String> + '_ {
     let view = repo.view();
     view.branches()
-        .flat_map(|(name, branch_target)| {
+        .flat_map(move |(name, branch_target)| {
+            // Remote branch "x"@"y" may conflict with local "x@y" in unquoted form.
             let local_target = branch_target.local_target;
             let local_symbol = local_target.is_present().then(|| name.to_owned());
             let remote_symbols = branch_target
@@ -2078,17 +2067,13 @@ fn collect_branch_symbols(repo: &dyn Repo, include_synced_remotes: bool) -> Vec<
             local_symbol.into_iter().chain(remote_symbols)
         })
         .chain(view.git_head().is_present().then(|| "HEAD@git".to_owned()))
-        .collect()
 }
 
 fn make_no_such_symbol_error(repo: &dyn Repo, name: impl Into<String>) -> RevsetResolutionError {
     let name = name.into();
     // TODO: include tags?
-    let mut branch_names = collect_branch_symbols(repo, name.contains('@'));
-    branch_names.sort_unstable();
-    // Remote branch "x"@"y" may conflict with local "x@y" in unquoted form.
-    branch_names.dedup();
-    let candidates = collect_similar(&name, &branch_names);
+    let branch_names = all_branch_symbols(repo, name.contains('@'));
+    let candidates = collect_similar(&name, branch_names);
     RevsetResolutionError::NoSuchRevision { name, candidates }
 }
 
