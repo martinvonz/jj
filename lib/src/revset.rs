@@ -1028,12 +1028,12 @@ fn parse_primary_rule(
         // is considered an indecomposable unit, and no alias substitution would be made.
         Rule::symbol if pairs.peek().is_none() => parse_symbol_rule(first.into_inner(), state),
         Rule::symbol => {
-            let name = parse_symbol_rule_as_literal(first.into_inner())?;
+            let name = parse_symbol_rule_as_literal(first.into_inner());
             assert_eq!(pairs.next().unwrap().as_rule(), Rule::at_op);
             if let Some(second) = pairs.next() {
                 // infix "<name>@<remote>"
                 assert_eq!(second.as_rule(), Rule::symbol);
-                let remote = parse_symbol_rule_as_literal(second.into_inner())?;
+                let remote = parse_symbol_rule_as_literal(second.into_inner());
                 Ok(RevsetExpression::remote_symbol(name, remote))
             } else {
                 // postfix "<workspace_id>@"
@@ -1064,7 +1064,7 @@ fn parse_string_pattern_rule(
     assert_eq!(rhs.as_rule(), Rule::symbol);
     if state.allow_string_pattern {
         let kind = lhs.as_str().to_owned();
-        let value = parse_symbol_rule_as_literal(rhs.into_inner())?;
+        let value = parse_symbol_rule_as_literal(rhs.into_inner());
         Ok(Rc::new(RevsetExpression::StringPattern { kind, value }))
     } else {
         Err(RevsetParseError::with_span(
@@ -1109,11 +1109,11 @@ fn parse_symbol_rule(
 }
 
 /// Parses part of compound symbol to string without alias substitution.
-fn parse_symbol_rule_as_literal(mut pairs: Pairs<Rule>) -> Result<String, RevsetParseError> {
+fn parse_symbol_rule_as_literal(mut pairs: Pairs<Rule>) -> String {
     let first = pairs.next().unwrap();
     match first.as_rule() {
-        Rule::identifier => Ok(first.as_str().to_owned()),
-        Rule::string_literal => Ok(STRING_LITERAL_PARSER.parse(first.into_inner())),
+        Rule::identifier => first.as_str().to_owned(),
+        Rule::string_literal => STRING_LITERAL_PARSER.parse(first.into_inner()),
         _ => {
             panic!("unexpected symbol parse rule: {:?}", first.as_str());
         }
