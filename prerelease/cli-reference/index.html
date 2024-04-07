@@ -5663,7 +5663,7 @@ does not match the <code>jj help</code> output exactly.</p>
 <li><code>obslog</code> — Show how a change has evolved</li>
 <li><code>operation</code> — Commands for working with the operation log</li>
 <li><code>parallelize</code> — Parallelize revisions by making them siblings</li>
-<li><code>prev</code> — Move the working-copy commit to the parent revision</li>
+<li><code>prev</code> — Change the working copy revision relative to the parent revision</li>
 <li><code>rebase</code> — Move revisions to different parent(s)</li>
 <li><code>resolve</code> — Resolve a conflicted file with an external merge tool</li>
 <li><code>restore</code> — Restore paths from another revision</li>
@@ -6668,27 +6668,29 @@ several conditions, otherwise the command will fail.</p>
 <li><code>&lt;REVISIONS&gt;</code> — Revisions to parallelize</li>
 </ul>
 <h2 id="jj-prev"><code>jj prev</code><a class="headerlink" href="#jj-prev" title="Permanent link">&para;</a></h2>
-<p>Move the working-copy commit to the parent revision</p>
-<p>The command moves you to the parent in a linear fashion.</p>
-<div class="highlight"><pre><span></span><code>D @  D
-|/   |
-A =&gt; A @
-|    |/
-B    B
+<p>Change the working copy revision relative to the parent revision</p>
+<p>The command creates a new empty working copy revision that is the child of
+an ancestor <code>offset</code> revisions behind the parent of the current working
+copy.</p>
+<p>For example, when the offset is 1:</p>
+<div class="highlight"><pre><span></span><code>D @      D
+|/       |
+A   =&gt;   A @
+|        |/
+B        B
 </code></pre></div>
-<p>If <code>--edit</code> is passed, it will move the working copy commit
-directly to the parent.</p>
-<div class="highlight"><pre><span></span><code>D @  D
-|/   |
-C =&gt; @
-|    |
-B    B
-|    |
-A    A
-
-If your working-copy commit already has visible children, then `--edit` is
-implied.
+<p>If <code>--edit</code> is passed, the working copy revision is changed to the parent of
+the current working copy revision.</p>
+<p><div class="highlight"><pre><span></span><code>D @      D
+|/       |
+C   =&gt;   @
+|        |
+B        B
+|        |
+A        A
 </code></pre></div>
+If the working copy revision already has visible children, then <code>--edit</code> is
+implied.</p>
 <p><strong>Usage:</strong> <code>jj prev [OPTIONS] [OFFSET]</code></p>
 <h6 id="arguments_35"><strong>Arguments:</strong><a class="headerlink" href="#arguments_35" title="Permanent link">&para;</a></h6>
 <ul>
