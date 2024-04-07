@@ -22,9 +22,9 @@ whitespace = _{ " " | "\t" | "\r" | "\n" | "\x0c" }
 string_escape = @{ "\\" ~ ("t" | "r" | "n" | "0" | "\"" | "\\") }
 string_content_char = @{ !("\"" | "\\") ~ ANY }
 string_content = @{ string_content_char+ }
-string_literal = { "\"" ~ (string_content | string_escape)* ~ "\"" }
+string_literal = ${ "\"" ~ (string_content | string_escape)* ~ "\"" }
 
-integer_literal = {
+integer_literal = @{
   ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*
   | "0"
 }
