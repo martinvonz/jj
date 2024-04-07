@@ -11,7 +11,7 @@
         <link rel="canonical" href="https://martinvonz.github.io/jj/prerelease/revsets/">
       
       
-        <link rel="prev" href="../config/">
+        <link rel="prev" href="../filesets/">
       
       
         <link rel="next" href="../templates/">
@@ -644,6 +644,27 @@
   
   <span class="md-ellipsis">
     Settings
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../filesets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fileset language
   </span>
   
 
@@ -1587,9 +1608,8 @@ given <a href="#string-patterns">string pattern</a>.</p>
   user modifications and <code>root()</code>.</p>
 </li>
 <li>
-<p><code>file(relativepath)</code> or <code>file("relativepath"[, "relativepath"]...)</code>: Commits
-  modifying one of the paths specified. Currently, string patterns are <em>not</em>
-  supported in the path arguments.</p>
+<p><code>file(pattern[, pattern]...)</code>: Commits modifying paths matching one of the
+  given <a href="../filesets/#file-patterns">file patterns</a>.</p>
 <p>Paths are relative to the directory <code>jj</code> was invoked from. A directory name
 will match all files in that directory and its subdirectories.</p>
 <p>For example, <code>file(foo)</code> will match files <code>foo</code>, <code>foo/bar</code>, <code>foo/bar/baz</code>.
