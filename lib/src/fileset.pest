@@ -1,0 +1,60 @@
+// Copyright 2021-2024 The Jujutsu Authors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+whitespace = _{ " " | "\t" | "\r" | "\n" | "\x0c" }
+
+// TODO: adjust identifier rule for file names
+identifier_part = @{ (ASCII_ALPHANUMERIC | "_" | "/")+ }
+identifier = @{
+  identifier_part ~ (("." | "-" | "+") ~ identifier_part)*
+}
+
+string_escape = @{ "\\" ~ ("t" | "r" | "n" | "0" | "\"" | "\\") }
+string_content_char = @{ !("\"" | "\\") ~ ANY }
+string_content = @{ string_content_char+ }
+string_literal = ${ "\"" ~ (string_content | string_escape)* ~ "\"" }
+
+pattern_kind_op = { ":" }
+
+negate_op = { "~" }
+union_op = { "|" }
+intersection_op = { "&" }
+difference_op = { "~" }
+prefix_ops = _{ negate_op }
+infix_ops = _{ union_op | intersection_op | difference_op }
+
+function = { function_name ~ "(" ~ whitespace* ~ function_arguments ~ whitespace* ~ ")" }
+function_name = @{ (ASCII_ALPHANUMERIC | "_")+ }
+function_arguments = {
+  expression ~ (whitespace* ~ "," ~ whitespace* ~ expression)* ~ (whitespace* ~ ",")?
+  | ""
+}
+
+// TODO: change rhs to string_literal to require quoting? #2101
+string_pattern = { identifier ~ pattern_kind_op ~ (identifier | string_literal) }
+
+primary = {
+  "(" ~ whitespace* ~ expression ~ whitespace* ~ ")"
+  | function
+  | string_pattern
+  | identifier
+  | string_literal
+}
+
+expression = {
+  (prefix_ops ~ whitespace*)* ~ primary
+  ~ (whitespace* ~ infix_ops ~ whitespace* ~ (prefix_ops ~ whitespace*)* ~ primary)*
+}
+
+program = _{ SOI ~ whitespace* ~ expression ~ whitespace* ~ EOI }

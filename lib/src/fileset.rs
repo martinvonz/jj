@@ -19,6 +19,7 @@ use std::slice;
 
 use thiserror::Error;
 
+pub use crate::fileset_parser::{FilesetParseError, FilesetParseErrorKind, FilesetParseResult};
 use crate::matchers::{
     DifferenceMatcher, EverythingMatcher, FilesMatcher, IntersectionMatcher, Matcher,
     NothingMatcher, PrefixMatcher, UnionMatcher,
