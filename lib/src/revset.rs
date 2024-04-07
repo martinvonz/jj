@@ -100,6 +100,7 @@ impl Rule {
     fn to_symbol(self) -> Option<&'static str> {
         match self {
             Rule::EOI => None,
+            Rule::whitespace => None,
             Rule::identifier_part => None,
             Rule::identifier => None,
             Rule::symbol => None,
@@ -107,7 +108,6 @@ impl Rule {
             Rule::string_content_char => None,
             Rule::string_content => None,
             Rule::string_literal => None,
-            Rule::whitespace => None,
             Rule::at_op => Some("@"),
             Rule::pattern_kind_op => Some(":"),
             Rule::parents_op => Some("-"),
