@@ -14,11 +14,17 @@
 
 //! Functional language for selecting a set of paths.
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::slice;
 
+use once_cell::sync::Lazy;
 use thiserror::Error;
 
+use crate::dsl_util::collect_similar;
+use crate::fileset_parser::{
+    self, BinaryOp, ExpressionKind, ExpressionNode, FunctionCallNode, UnaryOp,
+};
 pub use crate::fileset_parser::{FilesetParseError, FilesetParseErrorKind, FilesetParseResult};
 use crate::matchers::{
     DifferenceMatcher, EverythingMatcher, FilesMatcher, IntersectionMatcher, Matcher,
@@ -171,6 +177,18 @@ impl FilesetExpression {
         FilesetExpression::Pattern(FilePattern::PrefixPath(path))
     }
 
+    /// Expression that matches either `self` or `other` (or both).
+    pub fn union(self, other: Self) -> Self {
+        match self {
+            // Micro optimization for "x | y | z"
+            FilesetExpression::UnionAll(mut expressions) => {
+                expressions.push(other);
+                FilesetExpression::UnionAll(expressions)
+            }
+            expr => FilesetExpression::UnionAll(vec![expr, other]),
+        }
+    }
+
     /// Expression that matches any of the given `expressions`.
     pub fn union_all(expressions: Vec<FilesetExpression>) -> Self {
         match expressions.len() {
@@ -283,6 +301,87 @@ impl FilesetParseContext<'_> {
     }
 }
 
+type FilesetFunction =
+    fn(&FilesetParseContext, &FunctionCallNode) -> FilesetParseResult<FilesetExpression>;
+
+static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, FilesetFunction>> = Lazy::new(|| {
+    // Not using maplit::hashmap!{} or custom declarative macro here because
+    // code completion inside macro is quite restricted.
+    let mut map: HashMap<&'static str, FilesetFunction> = HashMap::new();
+    map.insert("none", |_ctx, function| {
+        fileset_parser::expect_no_arguments(function)?;
+        Ok(FilesetExpression::none())
+    });
+    map.insert("all", |_ctx, function| {
+        fileset_parser::expect_no_arguments(function)?;
+        Ok(FilesetExpression::all())
+    });
+    map
+});
+
+fn resolve_function(
+    ctx: &FilesetParseContext,
+    function: &FunctionCallNode,
+) -> FilesetParseResult<FilesetExpression> {
+    if let Some(func) = BUILTIN_FUNCTION_MAP.get(function.name) {
+        func(ctx, function)
+    } else {
+        Err(FilesetParseError::new(
+            FilesetParseErrorKind::NoSuchFunction {
+                name: function.name.to_owned(),
+                candidates: collect_similar(function.name, BUILTIN_FUNCTION_MAP.keys()),
+            },
+            function.name_span,
+        ))
+    }
+}
+
+fn resolve_expression(
+    ctx: &FilesetParseContext,
+    node: &ExpressionNode,
+) -> FilesetParseResult<FilesetExpression> {
+    let wrap_pattern_error =
+        |err| FilesetParseError::expression("Invalid file pattern", node.span).with_source(err);
+    match &node.kind {
+        ExpressionKind::Identifier(name) => {
+            let pattern = FilePattern::cwd_prefix_path(ctx, name).map_err(wrap_pattern_error)?;
+            Ok(FilesetExpression::pattern(pattern))
+        }
+        ExpressionKind::String(name) => {
+            let pattern = FilePattern::cwd_prefix_path(ctx, name).map_err(wrap_pattern_error)?;
+            Ok(FilesetExpression::pattern(pattern))
+        }
+        ExpressionKind::StringPattern { kind, value } => {
+            let pattern =
+                FilePattern::from_str_kind(ctx, value, kind).map_err(wrap_pattern_error)?;
+            Ok(FilesetExpression::pattern(pattern))
+        }
+        ExpressionKind::Unary(op, arg_node) => {
+            let arg = resolve_expression(ctx, arg_node)?;
+            match op {
+                UnaryOp::Negate => Ok(FilesetExpression::all().difference(arg)),
+            }
+        }
+        ExpressionKind::Binary(op, lhs_node, rhs_node) => {
+            let lhs = resolve_expression(ctx, lhs_node)?;
+            let rhs = resolve_expression(ctx, rhs_node)?;
+            match op {
+                BinaryOp::Union => Ok(lhs.union(rhs)),
+                BinaryOp::Intersection => Ok(lhs.intersection(rhs)),
+                BinaryOp::Difference => Ok(lhs.difference(rhs)),
+            }
+        }
+        ExpressionKind::FunctionCall(function) => resolve_function(ctx, function),
+    }
+}
+
+/// Parses text into `FilesetExpression`.
+pub fn parse(text: &str, ctx: &FilesetParseContext) -> FilesetParseResult<FilesetExpression> {
+    let node = fileset_parser::parse_program(text)?;
+    // TODO: add basic tree substitution pass to eliminate redundant expressions
+    resolve_expression(ctx, &node)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -297,7 +396,7 @@ mod tests {
             cwd: Path::new("/ws/cur"),
             workspace_root: Path::new("/ws"),
         };
-        // TODO: implement fileset expression parser and test it instead
+        // TODO: adjust identifier rule and test the expression parser instead
         let parse = |input| FilePattern::parse(&ctx, input).map(FilesetExpression::pattern);
 
         // cwd-relative patterns
@@ -341,6 +440,96 @@ mod tests {
             parse("root-file:bar").unwrap(),
             FilesetExpression::file_path(repo_path_buf("bar"))
         );
+    }
+
+    #[test]
+    fn test_parse_function() {
+        let ctx = FilesetParseContext {
+            cwd: Path::new("/ws/cur"),
+            workspace_root: Path::new("/ws"),
+        };
+        let parse = |text| parse(text, &ctx);
+
+        assert_eq!(parse("all()").unwrap(), FilesetExpression::all());
+        assert_eq!(parse("none()").unwrap(), FilesetExpression::none());
+        insta::assert_debug_snapshot!(parse("all(x)").unwrap_err().kind(), @r###"
+        InvalidArguments {
+            name: "all",
+            message: "Expected 0 arguments",
+        }
+        "###);
+        insta::assert_debug_snapshot!(parse("ale()").unwrap_err().kind(), @r###"
+        NoSuchFunction {
+            name: "ale",
+            candidates: [
+                "all",
+            ],
+        }
+        "###);
+    }
+
+    #[test]
+    fn test_parse_compound_expression() {
+        let ctx = FilesetParseContext {
+            cwd: Path::new("/ws/cur"),
+            workspace_root: Path::new("/ws"),
+        };
+        let parse = |text| parse(text, &ctx);
+
+        insta::assert_debug_snapshot!(parse("~x").unwrap(), @r###"
+        Difference(
+            All,
+            Pattern(
+                PrefixPath(
+                    "cur/x",
+                ),
+            ),
+        )
+        "###);
+        insta::assert_debug_snapshot!(parse("x|y|root:z").unwrap(), @r###"
+        UnionAll(
+            [
+                Pattern(
+                    PrefixPath(
+                        "cur/x",
+                    ),
+                ),
+                Pattern(
+                    PrefixPath(
+                        "cur/y",
+                    ),
+                ),
+                Pattern(
+                    PrefixPath(
+                        "z",
+                    ),
+                ),
+            ],
+        )
+        "###);
+        insta::assert_debug_snapshot!(parse("x|y&z").unwrap(), @r###"
+        UnionAll(
+            [
+                Pattern(
+                    PrefixPath(
+                        "cur/x",
+                    ),
+                ),
+                Intersection(
+                    Pattern(
+                        PrefixPath(
+                            "cur/y",
+                        ),
+                    ),
+                    Pattern(
+                        PrefixPath(
+                            "cur/z",
+                        ),
+                    ),
+                ),
+            ],
+        )
+        "###);
     }
 
     #[test]
