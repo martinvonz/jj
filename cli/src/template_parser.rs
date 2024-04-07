@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use std::{error, fmt, mem};
 
 use itertools::Itertools as _;
+use jj_lib::dsl_util::StringLiteralParser;
 use once_cell::sync::Lazy;
 use pest::iterators::{Pair, Pairs};
 use pest::pratt_parser::{Assoc, Op, PrattParser};
@@ -26,6 +27,11 @@ use thiserror::Error;
 #[derive(Parser)]
 #[grammar = "template.pest"]
 struct TemplateParser;
+
+const STRING_LITERAL_PARSER: StringLiteralParser<Rule> = StringLiteralParser {
+    content_rule: Rule::string_content,
+    escape_rule: Rule::string_escape,
+};
 
 impl Rule {
     fn to_symbol(self) -> Option<&'static str> {
@@ -314,29 +320,6 @@ fn parse_identifier_name(pair: Pair<Rule>) -> TemplateParseResult<&str> {
     }
 }
 
-fn parse_string_literal(pair: Pair<Rule>) -> String {
-    assert_eq!(pair.as_rule(), Rule::string_literal);
-    let mut result = String::new();
-    for part in pair.into_inner() {
-        match part.as_rule() {
-            Rule::string_content => {
-                result.push_str(part.as_str());
-            }
-            Rule::string_escape => match &part.as_str()[1..] {
-                "\"" => result.push('"'),
-                "\\" => result.push('\\'),
-                "t" => result.push('\t'),
-                "r" => result.push('\r'),
-                "n" => result.push('\n'),
-                "0" => result.push('\0'),
-                char => panic!("invalid escape: \\{char:?}"),
-            },
-            _ => panic!("unexpected part of string: {part:?}"),
-        }
-    }
-    result
-}
-
 fn parse_formal_parameters(params_pair: Pair<Rule>) -> TemplateParseResult<Vec<&str>> {
     assert_eq!(params_pair.as_rule(), Rule::formal_parameters);
     let params_span = params_pair.as_span();
@@ -397,7 +380,7 @@ fn parse_term_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
     let span = expr.as_span();
     let primary = match expr.as_rule() {
         Rule::string_literal => {
-            let text = parse_string_literal(expr);
+            let text = STRING_LITERAL_PARSER.parse(expr.into_inner());
             ExpressionNode::new(ExpressionKind::String(text), span)
         }
         Rule::integer_literal => {
