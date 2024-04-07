@@ -32,10 +32,10 @@ impl Rule {
         match self {
             Rule::EOI => None,
             Rule::whitespace => None,
-            Rule::escape => None,
-            Rule::literal_char => None,
-            Rule::raw_literal => None,
-            Rule::literal => None,
+            Rule::string_escape => None,
+            Rule::string_content_char => None,
+            Rule::string_content => None,
+            Rule::string_literal => None,
             Rule::integer_literal => None,
             Rule::identifier => None,
             Rule::concat_op => Some("++"),
@@ -315,14 +315,14 @@ fn parse_identifier_name(pair: Pair<Rule>) -> TemplateParseResult<&str> {
 }
 
 fn parse_string_literal(pair: Pair<Rule>) -> String {
-    assert_eq!(pair.as_rule(), Rule::literal);
+    assert_eq!(pair.as_rule(), Rule::string_literal);
     let mut result = String::new();
     for part in pair.into_inner() {
         match part.as_rule() {
-            Rule::raw_literal => {
+            Rule::string_content => {
                 result.push_str(part.as_str());
             }
-            Rule::escape => match &part.as_str()[1..] {
+            Rule::string_escape => match &part.as_str()[1..] {
                 "\"" => result.push('"'),
                 "\\" => result.push('\\'),
                 "t" => result.push('\t'),
@@ -396,7 +396,7 @@ fn parse_term_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
     let expr = inner.next().unwrap();
     let span = expr.as_span();
     let primary = match expr.as_rule() {
-        Rule::literal => {
+        Rule::string_literal => {
             let text = parse_string_literal(expr);
             ExpressionNode::new(ExpressionKind::String(text), span)
         }
