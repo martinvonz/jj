@@ -16,7 +16,7 @@ use std::collections::HashMap;
 use std::{error, fmt, mem};
 
 use itertools::Itertools as _;
-use jj_lib::dsl_util::StringLiteralParser;
+use jj_lib::dsl_util::{collect_similar, StringLiteralParser};
 use once_cell::sync::Lazy;
 use pest::iterators::{Pair, Pairs};
 use pest::pratt_parser::{Assoc, Op, PrattParser};
@@ -885,23 +885,6 @@ pub fn lookup_method<'a, V>(
             function.name_span,
         ))
     }
-}
-
-// TODO: merge with revset::collect_similar()?
-fn collect_similar<I>(name: &str, candidates: I) -> Vec<String>
-where
-    I: IntoIterator,
-    I::Item: AsRef<str>,
-{
-    candidates
-        .into_iter()
-        .filter(|cand| {
-            // The parameter is borrowed from clap f5540d26
-            strsim::jaro(name, cand.as_ref()) > 0.7
-        })
-        .map(|s| s.as_ref().to_owned())
-        .sorted_unstable()
-        .collect()
 }
 
 #[cfg(test)]

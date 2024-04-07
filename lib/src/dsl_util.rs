@@ -14,6 +14,7 @@
 
 //! Domain-specific language helpers.
 
+use itertools::Itertools as _;
 use pest::iterators::Pairs;
 use pest::RuleType;
 
@@ -49,4 +50,22 @@ impl<R: RuleType> StringLiteralParser<R> {
         }
         result
     }
+}
+
+/// Collects similar names from the `candidates` list.
+pub fn collect_similar<I>(name: &str, candidates: I) -> Vec<String>
+where
+    I: IntoIterator,
+    I::Item: AsRef<str>,
+{
+    candidates
+        .into_iter()
+        .filter(|cand| {
+            // The parameter is borrowed from clap f5540d26
+            strsim::jaro(name, cand.as_ref()) > 0.7
+        })
+        .map(|s| s.as_ref().to_owned())
+        .sorted_unstable()
+        .dedup()
+        .collect()
 }
