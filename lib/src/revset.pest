@@ -16,8 +16,7 @@ whitespace = _{ " " | "\t" | "\r" | "\n" | "\x0c" }
 
 identifier_part = @{ (ASCII_ALPHANUMERIC | "_" | "/")+ }
 identifier = @{
-  identifier_part ~ ("." | "-" | "+" ) ~ identifier
-  | identifier_part
+  identifier_part ~ (("." | "-" | "+") ~ identifier_part)*
 }
 symbol = {
   identifier
