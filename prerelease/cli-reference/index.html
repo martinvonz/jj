@@ -6473,26 +6473,28 @@ Martin von Zweigbergk</p>
 </ul>
 <h2 id="jj-next"><code>jj next</code><a class="headerlink" href="#jj-next" title="Permanent link">&para;</a></h2>
 <p>Move the working-copy commit to the child revision</p>
-<p>The command moves you to the next child in a linear fashion.</p>
-<div class="highlight"><pre><span></span><code>D      D @
-|      |/
-C @ =&gt; C
-|/     |
-B      B
+<p>The command creates a new empty working copy revision that is the child of a
+descendant <code>offset</code> revisions ahead of the parent of the current working
+copy.</p>
+<p>For example, when the offset is 1:</p>
+<div class="highlight"><pre><span></span><code>D        D @
+|        |/
+C @  =&gt;  C
+|/       |
+B        B
 </code></pre></div>
-<p>If <code>--edit</code> is passed, it will move you directly to the child
-revision.</p>
-<div class="highlight"><pre><span></span><code>D    D
-|    |
-C    C
-|    |
-B =&gt; @
-|    |
-@    A
-
-If your working-copy commit already has visible children, then `--edit` is
-implied.
+<p>If <code>--edit</code> is passed, the working copy revision is changed to the child of
+the current working copy revision.</p>
+<p><div class="highlight"><pre><span></span><code>D        D
+|        |
+C        C
+|        |
+B   =&gt;   @
+|        |
+@        A
 </code></pre></div>
+If your working-copy commit already has visible children, then <code>--edit</code> is
+implied.</p>
 <p><strong>Usage:</strong> <code>jj next [OPTIONS] [OFFSET]</code></p>
 <h6 id="arguments_30"><strong>Arguments:</strong><a class="headerlink" href="#arguments_30" title="Permanent link">&para;</a></h6>
 <ul>
