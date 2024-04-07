@@ -19,9 +19,9 @@ identifier = @{
 }
 symbol = {
   identifier
-  | literal_string
+  | string_literal
 }
-literal_string = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
+string_literal = { "\"" ~ (!"\"" ~ ANY)* ~ "\"" }
 whitespace = _{ " " | "\t" | "\r" | "\n" | "\x0c" }
 
 at_op = { "@" }
@@ -67,7 +67,7 @@ formal_parameters = {
   | ""
 }
 
-// TODO: change rhs to literal_string to require quoting? #2101
+// TODO: change rhs to string_literal to require quoting? #2101
 string_pattern = { identifier ~ pattern_kind_op ~ symbol }
 
 primary = {
