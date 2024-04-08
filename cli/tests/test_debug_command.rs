@@ -18,6 +18,36 @@ use regex::Regex;
 use crate::common::TestEnvironment;
 
 #[test]
+fn test_debug_fileset() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let workspace_path = test_env.env_root().join("repo");
+
+    let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "fileset", "all()"]);
+    assert_snapshot!(stdout, @r###"
+    -- Parsed:
+    All
+
+    -- Matcher:
+    EverythingMatcher
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&workspace_path, &["debug", "fileset", "cwd:.."]);
+    assert_snapshot!(stderr.replace('\\', "/"), @r###"
+    Error: Failed to parse fileset: Invalid file pattern
+    Caused by:
+    1:  --> 1:1
+      |
+    1 | cwd:..
+      | ^----^
+      |
+      = Invalid file pattern
+    2: Path ".." is not in the repo "."
+    3: Invalid component ".." in repo-relative path "../"
+    "###);
+}
+
+#[test]
 fn test_debug_revset() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);

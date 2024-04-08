@@ -25,7 +25,7 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::working_copy::WorkingCopy;
-use jj_lib::{op_walk, revset};
+use jj_lib::{fileset, op_walk, revset};
 
 use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::{internal_error, user_error, CommandError};
@@ -36,6 +36,7 @@ use crate::{revset_util, template_parser};
 #[derive(Subcommand, Clone, Debug)]
 #[command(hide = true)]
 pub enum DebugCommand {
+    Fileset(DebugFilesetArgs),
     Revset(DebugRevsetArgs),
     #[command(name = "workingcopy")]
     WorkingCopy(DebugWorkingCopyArgs),
@@ -48,6 +49,13 @@ pub enum DebugCommand {
     Tree(DebugTreeArgs),
     #[command(subcommand)]
     Watchman(DebugWatchmanSubcommand),
+}
+
+/// Parse fileset expression
+#[derive(clap::Args, Clone, Debug)]
+pub struct DebugFilesetArgs {
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    path: String,
 }
 
 /// Evaluate revset to full commit IDs
@@ -121,6 +129,7 @@ pub fn cmd_debug(
     subcommand: &DebugCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
+        DebugCommand::Fileset(args) => cmd_debug_fileset(ui, command, args),
         DebugCommand::Revset(args) => cmd_debug_revset(ui, command, args),
         DebugCommand::WorkingCopy(args) => cmd_debug_working_copy(ui, command, args),
         DebugCommand::Template(args) => cmd_debug_template(ui, command, args),
@@ -130,6 +139,25 @@ pub fn cmd_debug(
         DebugCommand::Tree(args) => cmd_debug_tree(ui, command, args),
         DebugCommand::Watchman(args) => cmd_debug_watchman(ui, command, args),
     }
+}
+
+fn cmd_debug_fileset(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &DebugFilesetArgs,
+) -> Result<(), CommandError> {
+    let workspace_command = command.workspace_helper(ui)?;
+    let ctx = workspace_command.fileset_parse_context();
+
+    let expression = fileset::parse(&args.path, &ctx)?;
+    writeln!(ui.stdout(), "-- Parsed:")?;
+    writeln!(ui.stdout(), "{expression:#?}")?;
+    writeln!(ui.stdout())?;
+
+    let matcher = expression.to_matcher();
+    writeln!(ui.stdout(), "-- Matcher:")?;
+    writeln!(ui.stdout(), "{matcher:#?}")?;
+    Ok(())
 }
 
 fn cmd_debug_revset(
