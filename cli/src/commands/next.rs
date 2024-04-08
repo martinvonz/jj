@@ -105,7 +105,6 @@ pub(crate) fn cmd_next(
     args: &NextArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let offset = args.offset;
     let current_wc_id = workspace_command
         .get_wc_commit_id()
         .ok_or_else(|| user_error("This command requires a working copy"))?;
@@ -115,24 +114,20 @@ pub(crate) fn cmd_next(
             .view()
             .heads()
             .contains(current_wc_id);
-    let current_wc = workspace_command.repo().store().get_commit(current_wc_id)?;
-    // If we're editing, start at the working-copy commit.
-    // Otherwise start from our direct parent.
-    let start_id = if edit {
-        current_wc_id
+    let wc_revset = RevsetExpression::commit(current_wc_id.clone());
+    // If we're editing, start at the working-copy commit. Otherwise, start from
+    // its direct parent(s).
+    let target_revset = if edit {
+        wc_revset.descendants_at(args.offset)
     } else {
-        match current_wc.parent_ids() {
-            [parent_id] => parent_id,
-            _ => return Err(user_error("Cannot run `jj next` on a merge commit")),
-        }
+        wc_revset
+            .parents()
+            .descendants_at(args.offset)
+            // In previous versions we subtracted `wc_revset.descendants()`. That's
+            // unnecessary now that --edit is implied if `@` has descendants.
+            .minus(&wc_revset)
     };
-    let descendant_expression = RevsetExpression::commit(start_id.clone()).descendants_at(offset);
-    let target_expression = if edit {
-        descendant_expression
-    } else {
-        descendant_expression.minus(&RevsetExpression::commit(current_wc_id.clone()).descendants())
-    };
-    let targets: Vec<Commit> = target_expression
+    let targets: Vec<Commit> = target_revset
         .evaluate_programmatic(workspace_command.repo().as_ref())?
         .iter()
         .commits(workspace_command.repo().store())
@@ -142,13 +137,14 @@ pub(crate) fn cmd_next(
         [] => {
             // We found no descendant.
             return Err(user_error(format!(
-                "No descendant found {offset} commit{} forward",
-                if offset > 1 { "s" } else { "" }
+                "No descendant found {} commit{} forward",
+                args.offset,
+                if args.offset > 1 { "s" } else { "" }
             )));
         }
         commits => choose_commit(ui, &workspace_command, "next", commits)?,
     };
-    let current_short = short_commit_hash(current_wc.id());
+    let current_short = short_commit_hash(current_wc_id);
     let target_short = short_commit_hash(target.id());
     // We're editing, just move to the target commit.
     if edit {
