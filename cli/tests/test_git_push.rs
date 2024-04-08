@@ -235,6 +235,96 @@ fn test_git_push_not_fast_forward() {
     "###);
 }
 
+// Short-term TODO: implement this.
+// This tests whether the push checks that the remote branches are in expected
+// positions. Once this is implemented, `jj git push` will be similar to `git
+// push --force-with-lease`
+#[test]
+fn test_git_push_sideways_unexpectedly_moved() {
+    let (test_env, workspace_root) = set_up();
+
+    // Move branch1 forward on the remote
+    let origin_path = test_env.env_root().join("origin");
+    test_env.jj_cmd_ok(&origin_path, &["new", "branch1", "-m=remote"]);
+    std::fs::write(origin_path.join("remote"), "remote").unwrap();
+    test_env.jj_cmd_ok(&origin_path, &["branch", "set", "branch1"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &origin_path), @r###"
+    branch1: vruxwmqv fb645b4b remote
+      @git (behind by 1 commits): qpvuntsm 45a3aa29 (empty) description 1
+    branch2: zsuskuln 8476341e (empty) description 2
+      @git: zsuskuln 8476341e (empty) description 2
+    "###);
+    test_env.jj_cmd_ok(&origin_path, &["git", "export"]);
+
+    // Move branch1 sideways to another commit locally
+    test_env.jj_cmd_ok(&workspace_root, &["new", "root()", "-m=local"]);
+    std::fs::write(workspace_root.join("local"), "local").unwrap();
+    test_env.jj_cmd_ok(
+        &workspace_root,
+        &["branch", "set", "branch1", "--allow-backwards"],
+    );
+    insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
+    branch1: kmkuslsw 0f8bf988 local
+      @origin (ahead by 1 commits, behind by 1 commits): lzmmnrxq 45a3aa29 (empty) description 1
+    branch2: rlzusymt 8476341e (empty) description 2
+      @origin: rlzusymt 8476341e (empty) description 2
+    "###);
+
+    // BUG: Pushing should fail. Currently, it succeeds because moving the branch
+    // sideways causes `jj` to use the analogue of `git push --force` when pushing.
+    let assert = test_env
+        .jj_cmd(&workspace_root, &["git", "push"])
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_stdout_string(&assert), @"");
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Branch changes to push to origin:
+      Force branch branch1 from 45a3aa29e907 to 0f8bf988588e
+    "###);
+}
+
+// Short-term TODO: implement this.
+// This tests whether the push checks that the remote branches are in expected
+// positions. Once this is implemented, `jj git push` will be similar to `git
+// push --force-with-lease`
+#[test]
+fn test_git_push_deletion_unexpectedly_moved() {
+    let (test_env, workspace_root) = set_up();
+
+    // Move branch1 forward on the remote
+    let origin_path = test_env.env_root().join("origin");
+    test_env.jj_cmd_ok(&origin_path, &["new", "branch1", "-m=remote"]);
+    std::fs::write(origin_path.join("remote"), "remote").unwrap();
+    test_env.jj_cmd_ok(&origin_path, &["branch", "set", "branch1"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &origin_path), @r###"
+    branch1: vruxwmqv fb645b4b remote
+      @git (behind by 1 commits): qpvuntsm 45a3aa29 (empty) description 1
+    branch2: zsuskuln 8476341e (empty) description 2
+      @git: zsuskuln 8476341e (empty) description 2
+    "###);
+    test_env.jj_cmd_ok(&origin_path, &["git", "export"]);
+
+    // Delete branch1 locally
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "delete", "branch1"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
+    branch1 (deleted)
+      @origin: lzmmnrxq 45a3aa29 (empty) description 1
+    branch2: rlzusymt 8476341e (empty) description 2
+      @origin: rlzusymt 8476341e (empty) description 2
+    "###);
+
+    // BUG: Pushing should fail because the branch was moved on the remote
+    let assert = test_env
+        .jj_cmd(&workspace_root, &["git", "push", "--branch", "branch1"])
+        .assert()
+        .success();
+    insta::assert_snapshot!(get_stdout_string(&assert), @"");
+    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    Branch changes to push to origin:
+      Delete branch branch1 from 45a3aa29e907
+    "###);
+}
+
 #[test]
 fn test_git_push_locally_created_and_rewritten() {
     let (test_env, workspace_root) = set_up();
