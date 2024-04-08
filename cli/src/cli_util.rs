@@ -69,7 +69,7 @@ use jj_lib::working_copy::{
 use jj_lib::workspace::{
     default_working_copy_factories, LockedWorkspace, Workspace, WorkspaceLoadError, WorkspaceLoader,
 };
-use jj_lib::{dag_walk, file_util, git, op_heads_store, op_walk, revset};
+use jj_lib::{dag_walk, file_util, fileset, git, op_heads_store, op_walk, revset};
 use once_cell::unsync::OnceCell;
 use tracing::instrument;
 use tracing_chrome::ChromeLayerBuilder;
@@ -657,10 +657,7 @@ impl WorkspaceCommandHelper {
         if values.is_empty() {
             Ok(FilesetExpression::all())
         } else {
-            let ctx = FilesetParseContext {
-                cwd: &self.cwd,
-                workspace_root: self.workspace.workspace_root(),
-            };
+            let ctx = self.fileset_parse_context();
             let expressions = values
                 .iter()
                 .map(|v| FilePattern::parse(&ctx, v))
@@ -668,6 +665,26 @@ impl WorkspaceCommandHelper {
                 .try_collect()
                 .map_err(user_error)?;
             Ok(FilesetExpression::union_all(expressions))
+        }
+    }
+
+    /// Parses the given fileset expressions and concatenates them all.
+    pub fn parse_union_filesets(
+        &self,
+        file_args: &[String], // TODO: introduce FileArg newtype?
+    ) -> Result<FilesetExpression, CommandError> {
+        let ctx = self.fileset_parse_context();
+        let expressions: Vec<_> = file_args
+            .iter()
+            .map(|arg| fileset::parse(arg, &ctx))
+            .try_collect()?;
+        Ok(FilesetExpression::union_all(expressions))
+    }
+
+    pub(crate) fn fileset_parse_context(&self) -> FilesetParseContext<'_> {
+        FilesetParseContext {
+            cwd: &self.cwd,
+            workspace_root: self.workspace.workspace_root(),
         }
     }
 

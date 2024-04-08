@@ -19,6 +19,7 @@ use std::{error, io, iter, str};
 
 use itertools::Itertools as _;
 use jj_lib::backend::BackendError;
+use jj_lib::fileset::{FilesetParseError, FilesetParseErrorKind};
 use jj_lib::git::{GitConfigParseError, GitExportError, GitImportError, GitRemoteManagementError};
 use jj_lib::gitignore::GitIgnoreError;
 use jj_lib::op_heads_store::OpHeadResolutionError;
@@ -397,6 +398,24 @@ impl From<GitRemoteManagementError> for CommandError {
 impl From<RevsetEvaluationError> for CommandError {
     fn from(err: RevsetEvaluationError) -> Self {
         user_error(err)
+    }
+}
+
+impl From<FilesetParseError> for CommandError {
+    fn from(err: FilesetParseError) -> Self {
+        let hint = match err.kind() {
+            FilesetParseErrorKind::NoSuchFunction {
+                name: _,
+                candidates,
+            } => format_similarity_hint(candidates),
+            FilesetParseErrorKind::InvalidArguments { .. }
+            | FilesetParseErrorKind::Expression(_) => find_source_parse_error_hint(&err),
+            _ => None,
+        };
+        let mut cmd_err =
+            user_error_with_message(format!("Failed to parse fileset: {}", err.kind()), err);
+        cmd_err.extend_hints(hint);
+        cmd_err
     }
 }
 
