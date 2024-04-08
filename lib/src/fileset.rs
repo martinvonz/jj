@@ -396,8 +396,7 @@ mod tests {
             cwd: Path::new("/ws/cur"),
             workspace_root: Path::new("/ws"),
         };
-        // TODO: adjust identifier rule and test the expression parser instead
-        let parse = |input| FilePattern::parse(&ctx, input).map(FilesetExpression::pattern);
+        let parse = |text| parse(text, &ctx);
 
         // cwd-relative patterns
         assert_eq!(
