@@ -189,6 +189,18 @@ pub struct GitCloneArgs {
 /// `remote_branches(remote=<remote>)..@`. Use `--branch` to push specific
 /// branches. Use `--all` to push all branches. Use `--change` to generate
 /// branch names based on the change IDs of specific commits.
+///
+/// Before the command actually moves, creates, or deletes a remote branch, it
+/// makes several [safety checks]. If there is a problem, you may need to run
+/// `jj git fetch --remote <remote name>` and/or resolve some [branch
+/// conflicts].
+///
+/// [safety checks]:
+///     https://martinvonz.github.io/jj/latest/branches/#pushing-branches-safety-checks
+///
+/// [branch conflicts]:
+///     https://martinvonz.github.io/jj/latest/branches/#conflicts
+
 #[derive(clap::Args, Clone, Debug)]
 #[command(group(ArgGroup::new("specific").args(&["branch", "change", "revisions"]).multiple(true)))]
 #[command(group(ArgGroup::new("what").args(&["all", "deleted", "tracked"]).conflicts_with("specific")))]

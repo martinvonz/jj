@@ -152,6 +152,44 @@ met:
 You could describe the movement as following along the change-id of the 
 current branch commit, even if it isn't entirely accurate.
 
+## Pushing branches: Safety checks
+
+Before `jj git push` actually moves, creates, or deletes a remote branch, it
+makes several safety checks.
+
+1. `jj` will contact the remote and check that the actual state of the remote
+   branch matches `jj`'s record of its last known position. If there is a
+   conflict, `jj` will refuse to push the branch. In this case, you need to run
+   `jj git fetch --remote <remote name>` and resolve the resulting branch
+   conflict. Then, you can try `jj git push` again.
+
+   If you are familiar with Git, this makes `jj git push` similar to `git
+   push --force-with-lease`.
+
+   There are a few cases where `jj git push` will succeed even though the remote
+   branch is in an unexpected location. These are the cases where `jj git fetch`
+   would not create a branch conflict and would not move the local branch, e.g.
+   if the unexpected location is identical to the local position of the branch.
+
+2. The local branch must not be [conflicted](#conflicts). If it is, you would
+   need to use `jj branch set`, for example, to resolve the conflict.
+
+   This makes `jj git push` safe even if `jj git fetch` is performed on a timer
+   in the background (this situation is a known issue[^known-issue] with some
+   forms of `git push --force-with-lease`). If the branch moves on a remote in a
+   problematic way, `jj git fetch` will create a conflict. This should ensure
+   that the user becomes aware of the conflict before they can `jj git push` and
+   override the branch on the remote.
+
+3. If the remote branch already exists on the remote, it must be
+   [tracked](#remotes-and-tracked-branches). If the branch does not already
+   exist on the remote, there is no problem; `jj git push` will create the
+   remote branch and mark it as tracked.
+
+[^known-issue]: See "A general note on safety" in
+    <https://git-scm.com/docs/git-push#Documentation/git-push.txt---no-force-with-lease>
+
+
 ## Conflicts
 
 Branches can end up in a conflicted state. When that happens, `jj status` will
