@@ -489,7 +489,8 @@ impl RevsetExpression {
         self.ancestors_range(GENERATION_RANGE_FULL)
     }
 
-    /// Ancestors of `self`, including `self` until `generation` back.
+    /// Ancestors of `self` at an offset of `generation` behind `self`.
+    /// The `generation` offset is zero-based starting from `self`.
     pub fn ancestors_at(self: &Rc<RevsetExpression>, generation: u64) -> Rc<RevsetExpression> {
         self.ancestors_range(generation..(generation + 1))
     }
@@ -521,7 +522,8 @@ impl RevsetExpression {
         })
     }
 
-    /// Descendants of `self`, including `self` until `generation` ahead.
+    /// Descendants of `self` at an offset of `generation` ahead of `self`.
+    /// The `generation` offset is zero-based starting from `self`.
     pub fn descendants_at(self: &Rc<RevsetExpression>, generation: u64) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::Descendants {
             roots: self.clone(),
