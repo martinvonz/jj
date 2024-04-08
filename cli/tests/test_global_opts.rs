@@ -230,13 +230,60 @@ fn test_bad_path() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
+    let subdir = repo_path.join("dir");
+    std::fs::create_dir_all(&subdir).unwrap();
 
+    test_env.add_config("ui.allow-filesets = true");
+
+    // cwd == workspace_root
     let stderr = test_env.jj_cmd_failure(&repo_path, &["cat", "../out"]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
-    Error: Path "../out" is not in the repo "."
-    Caused by: Invalid component ".." in repo-relative path "../out"
+    Error: Failed to parse fileset: Invalid file pattern
+    Caused by:
+    1:  --> 1:1
+      |
+    1 | ../out
+      | ^----^
+      |
+      = Invalid file pattern
+    2: Path "../out" is not in the repo "."
+    3: Invalid component ".." in repo-relative path "../out"
     "###);
 
+    // cwd != workspace_root, can't be parsed as repo-relative path
+    let stderr = test_env.jj_cmd_failure(&subdir, &["cat", "../.."]);
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
+    Error: Failed to parse fileset: Invalid file pattern
+    Caused by:
+    1:  --> 1:1
+      |
+    1 | ../..
+      | ^---^
+      |
+      = Invalid file pattern
+    2: Path "../.." is not in the repo "../"
+    3: Invalid component ".." in repo-relative path "../"
+    "###);
+
+    // cwd != workspace_root, can be parsed as repo-relative path
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["cat", "-Rrepo", "out"]);
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
+    Error: Failed to parse fileset: Invalid file pattern
+    Caused by:
+    1:  --> 1:1
+      |
+    1 | out
+      | ^-^
+      |
+      = Invalid file pattern
+    2: Path "out" is not in the repo "repo"
+    3: Invalid component ".." in repo-relative path "../out"
+    Hint: Consider using root:"out" to specify repo-relative path
+    "###);
+
+    test_env.add_config("ui.allow-filesets = false");
+
+    // If fileset/pattern syntax is disabled, no hint should be generated
     let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["cat", "-Rrepo", "out"]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
     Error: Path "out" is not in the repo "repo"

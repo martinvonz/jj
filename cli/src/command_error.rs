@@ -19,14 +19,14 @@ use std::{error, io, iter, str};
 
 use itertools::Itertools as _;
 use jj_lib::backend::BackendError;
-use jj_lib::fileset::{FilesetParseError, FilesetParseErrorKind};
+use jj_lib::fileset::{FilePatternParseError, FilesetParseError, FilesetParseErrorKind};
 use jj_lib::git::{GitConfigParseError, GitExportError, GitImportError, GitRemoteManagementError};
 use jj_lib::gitignore::GitIgnoreError;
 use jj_lib::op_heads_store::OpHeadResolutionError;
 use jj_lib::op_store::OpStoreError;
 use jj_lib::op_walk::OpsetEvaluationError;
 use jj_lib::repo::{CheckOutCommitError, EditCommitError, RepoLoaderError, RewriteRootCommit};
-use jj_lib::repo_path::FsPathParseError;
+use jj_lib::repo_path::{FsPathParseError, RepoPathBuf};
 use jj_lib::revset::{
     RevsetEvaluationError, RevsetParseError, RevsetParseErrorKind, RevsetResolutionError,
 };
@@ -539,12 +539,24 @@ impl From<GitIgnoreError> for CommandError {
 
 fn find_source_parse_error_hint(err: &dyn error::Error) -> Option<String> {
     let source = err.source()?;
-    // TODO: For FilePatternParseError, suggest "root:<path>" if the user
-    // input looks like repo-relative path #3216.
     if let Some(source) = source.downcast_ref() {
+        file_pattern_parse_error_hint(source)
+    } else if let Some(source) = source.downcast_ref() {
         string_pattern_parse_error_hint(source)
     } else {
         None
+    }
+}
+
+fn file_pattern_parse_error_hint(err: &FilePatternParseError) -> Option<String> {
+    match err {
+        FilePatternParseError::InvalidKind(_) => None,
+        // Suggest root:"<path>" if input can be parsed as repo-relative path
+        FilePatternParseError::FsPath(e) => RepoPathBuf::from_relative_path(&e.input)
+            .ok()
+            .map(|path| format!(r#"Consider using root:{path:?} to specify repo-relative path"#)),
+        FilePatternParseError::RelativePath(_) => None,
+        FilePatternParseError::GlobPattern(_) => None,
     }
 }
 

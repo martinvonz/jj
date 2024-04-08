@@ -452,9 +452,12 @@ pub enum RelativePathParseError {
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 #[error(r#"Path "{input}" is not in the repo "{base}""#)]
 pub struct FsPathParseError {
-    base: Box<Path>,
-    input: Box<Path>,
-    source: RelativePathParseError,
+    /// Repository or workspace root path relative to the `cwd`.
+    pub base: Box<Path>,
+    /// Input path without normalization.
+    pub input: Box<Path>,
+    /// Source error.
+    pub source: RelativePathParseError,
 }
 
 fn is_valid_repo_path_component_str(value: &str) -> bool {
