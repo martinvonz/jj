@@ -34,7 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * File path arguments now support [file pattern
   syntax](docs/filesets.md#file-patterns).
 
-* `jj prev` now works when the working copy revision is a merge.
+* `jj prev` and `jj next` now work when the working copy revision is a merge.
 
 * Operation objects in templates now have a `snapshot() -> Boolean` method that
   evaluates to true if the operation was a snapshot created by a non-mutating

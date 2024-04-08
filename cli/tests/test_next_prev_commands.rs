@@ -132,21 +132,128 @@ fn test_next_exceeding_history() {
     "###);
 }
 
+// The working copy commit is a child of a "fork" with two children on each
+// branch.
 #[test]
-fn test_next_fails_on_merge_commit() {
+fn test_next_parent_has_multiple_descendants() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
-    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "left"]);
-    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
-    test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
-    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "right"]);
-    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
-    test_env.jj_cmd_ok(&repo_path, &["new", "left", "right"]);
-    // Try to advance the working copy commit.
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["next"]);
+    // Setup.
+    test_env.jj_cmd_ok(&repo_path, &["desc", "-m", "1"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "2"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-m", "3"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "4"]);
+    test_env.jj_cmd_ok(&repo_path, &["edit", "description(3)"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  mzvwutvlkqwt 4
+    @  zsuskulnrvyr 3
+    │ ◉  kkmpptxzrspx 2
+    │ ◉  qpvuntsmwlqt 1
+    ├─╯
+    ◉  zzzzzzzzzzzz
+    "###);
+
+    // --edit is implied since the working copy isn't a leaf commit.
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next"]);
+    insta::assert_snapshot!(stdout,@r###""###);
     insta::assert_snapshot!(stderr,@r###"
-    Error: Cannot run `jj next` on a merge commit
+    Working copy now at: mzvwutvl 1b8531ce (empty) 4
+    Parent commit      : zsuskuln b1394455 (empty) 3
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  mzvwutvlkqwt 4
+    ◉  zsuskulnrvyr 3
+    │ ◉  kkmpptxzrspx 2
+    │ ◉  qpvuntsmwlqt 1
+    ├─╯
+    ◉  zzzzzzzzzzzz
+    "###);
+}
+
+#[test]
+fn test_next_with_merge_commit_parent() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    // Setup.
+    test_env.jj_cmd_ok(&repo_path, &["desc", "-m", "1"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-m", "2"]);
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["new", "description(1)", "description(2)", "-m", "3"],
+    );
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "4"]);
+    test_env.jj_cmd_ok(&repo_path, &["prev", "0"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  royxmykxtrkr
+    │ ◉  mzvwutvlkqwt 4
+    ├─╯
+    ◉    zsuskulnrvyr 3
+    ├─╮
+    │ ◉  kkmpptxzrspx 2
+    ◉ │  qpvuntsmwlqt 1
+    ├─╯
+    ◉  zzzzzzzzzzzz
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next"]);
+    insta::assert_snapshot!(stdout,@r###""###);
+    insta::assert_snapshot!(stderr,@r###"
+    Working copy now at: vruxwmqv 718bbcd9 (empty) (no description set)
+    Parent commit      : mzvwutvl cb5881ec (empty) 4
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  vruxwmqvtpmx
+    ◉  mzvwutvlkqwt 4
+    ◉    zsuskulnrvyr 3
+    ├─╮
+    │ ◉  kkmpptxzrspx 2
+    ◉ │  qpvuntsmwlqt 1
+    ├─╯
+    ◉  zzzzzzzzzzzz
+    "###);
+}
+
+#[test]
+fn test_next_on_merge_commit() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    // Setup.
+    test_env.jj_cmd_ok(&repo_path, &["desc", "-m", "1"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-m", "2"]);
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["new", "description(1)", "description(2)", "-m", "3"],
+    );
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "4"]);
+    test_env.jj_cmd_ok(&repo_path, &["edit", "description(3)"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  mzvwutvlkqwt 4
+    @    zsuskulnrvyr 3
+    ├─╮
+    │ ◉  kkmpptxzrspx 2
+    ◉ │  qpvuntsmwlqt 1
+    ├─╯
+    ◉  zzzzzzzzzzzz
+    "###);
+
+    // --edit is implied since the working copy is not a leaf commit.
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next"]);
+    insta::assert_snapshot!(stdout,@r###""###);
+    insta::assert_snapshot!(stderr,@r###"
+    Working copy now at: mzvwutvl cb5881ec (empty) 4
+    Parent commit      : zsuskuln 038acb86 (empty) 3
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  mzvwutvlkqwt 4
+    ◉    zsuskulnrvyr 3
+    ├─╮
+    │ ◉  kkmpptxzrspx 2
+    ◉ │  qpvuntsmwlqt 1
+    ├─╯
+    ◉  zzzzzzzzzzzz
     "###);
 }
 
