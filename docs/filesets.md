@@ -42,3 +42,17 @@ You can also specify patterns by using functions.
 
 * `all()`: Matches everything.
 * `none()`: Matches nothing.
+
+## Examples
+
+Show diff excluding `Cargo.lock`.
+
+```
+jj diff '~Cargo.lock'
+```
+
+Split a revision in two, putting `foo` into the second commit.
+
+```
+jj split '~foo'
+```
