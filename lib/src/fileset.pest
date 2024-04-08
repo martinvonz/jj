@@ -14,10 +14,17 @@
 
 whitespace = _{ " " | "\t" | "\r" | "\n" | "\x0c" }
 
-// TODO: adjust identifier rule for file names
-identifier_part = @{ (ASCII_ALPHANUMERIC | "_" | "/")+ }
+// XID_CONTINUE: https://www.unicode.org/reports/tr31/#Default_Identifier_Syntax
+// +, -, ., @, _: commonly used in file name including "." and ".."
+// /: path separator
+// \: path separator (Windows)
+// TODO: accept glob characters as identifier?
 identifier = @{
-  identifier_part ~ (("." | "-" | "+") ~ identifier_part)*
+  (XID_CONTINUE | "+" | "-" | "." | "@" | "_" | "/" | "\\")+
+}
+strict_identifier_part = @{ (ASCII_ALPHANUMERIC | "_")+ }
+strict_identifier = @{
+  strict_identifier_part ~ ("-" ~ strict_identifier_part)*
 }
 
 string_escape = @{ "\\" ~ ("t" | "r" | "n" | "0" | "\"" | "\\") }
@@ -42,7 +49,7 @@ function_arguments = {
 }
 
 // TODO: change rhs to string_literal to require quoting? #2101
-string_pattern = { identifier ~ pattern_kind_op ~ (identifier | string_literal) }
+string_pattern = { strict_identifier ~ pattern_kind_op ~ (identifier | string_literal) }
 
 primary = {
   "(" ~ whitespace* ~ expression ~ whitespace* ~ ")"

@@ -40,8 +40,9 @@ impl Rule {
         match self {
             Rule::EOI => None,
             Rule::whitespace => None,
-            Rule::identifier_part => None,
             Rule::identifier => None,
+            Rule::strict_identifier_part => None,
+            Rule::strict_identifier => None,
             Rule::string_escape => None,
             Rule::string_content_char => None,
             Rule::string_content => None,
@@ -237,7 +238,7 @@ fn parse_primary_node(pair: Pair<Rule>) -> FilesetParseResult<ExpressionNode> {
         }
         Rule::string_pattern => {
             let (lhs, op, rhs) = first.into_inner().collect_tuple().unwrap();
-            assert_eq!(lhs.as_rule(), Rule::identifier);
+            assert_eq!(lhs.as_rule(), Rule::strict_identifier);
             assert_eq!(op.as_rule(), Rule::pattern_kind_op);
             let kind = lhs.as_str();
             let value = match rhs.as_rule() {
@@ -398,6 +399,18 @@ mod tests {
         assert_eq!(
             parse_into_kind("dir/foo-bar_0.baz"),
             Ok(ExpressionKind::Identifier("dir/foo-bar_0.baz"))
+        );
+        assert_eq!(
+            parse_into_kind("cli-reference@.md.snap"),
+            Ok(ExpressionKind::Identifier("cli-reference@.md.snap"))
+        );
+        assert_eq!(
+            parse_into_kind("柔術.jj"),
+            Ok(ExpressionKind::Identifier("柔術.jj"))
+        );
+        assert_eq!(
+            parse_into_kind(r#"Windows\Path"#),
+            Ok(ExpressionKind::Identifier(r#"Windows\Path"#))
         );
     }
 
