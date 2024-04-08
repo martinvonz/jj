@@ -36,7 +36,7 @@ use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jj_lib::backend::{ChangeId, CommitId, MergedTreeId, TreeValue};
 use jj_lib::commit::Commit;
-use jj_lib::fileset::{FilePattern, FilesetExpression, FilesetParseContext};
+use jj_lib::fileset::{FilesetExpression, FilesetParseContext};
 use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::{GitIgnoreError, GitIgnoreFile};
 use jj_lib::hex_util::to_reverse_hex;
@@ -657,14 +657,7 @@ impl WorkspaceCommandHelper {
         if values.is_empty() {
             Ok(FilesetExpression::all())
         } else if self.settings.config().get_bool("ui.allow-filesets")? {
-            let ctx = self.fileset_parse_context();
-            let expressions = values
-                .iter()
-                .map(|v| FilePattern::parse(&ctx, v))
-                .map_ok(FilesetExpression::pattern)
-                .try_collect()
-                .map_err(user_error)?;
-            Ok(FilesetExpression::union_all(expressions))
+            self.parse_union_filesets(values)
         } else {
             let expressions = values
                 .iter()

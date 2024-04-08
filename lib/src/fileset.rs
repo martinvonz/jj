@@ -60,17 +60,6 @@ pub enum FilePattern {
 }
 
 impl FilePattern {
-    /// Parses the given `input` string as a file pattern.
-    // TODO: If we decide to parse any file argument as a fileset expression,
-    // this function can be removed.
-    pub fn parse(ctx: &FilesetParseContext, input: &str) -> Result<Self, FilePatternParseError> {
-        if let Some((kind, pat)) = input.split_once(':') {
-            Self::from_str_kind(ctx, pat, kind)
-        } else {
-            Self::cwd_prefix_path(ctx, input)
-        }
-    }
-
     /// Parses the given `input` string as pattern of the specified `kind`.
     pub fn from_str_kind(
         ctx: &FilesetParseContext,

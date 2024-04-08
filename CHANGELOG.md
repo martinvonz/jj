@@ -31,8 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj status` now supports filtering by paths. For example, `jj status .` will
   only list changed files that are descendants of the current directory.
 
-* A new config option `ui.allow-filesets` has been added to enable [file pattern
-  syntax](docs/filesets.md#file-patterns).
+* A new config option `ui.allow-filesets` has been added to enable ["fileset"
+  expressions](docs/filesets.md). Note that filesets are currently experimental,
+  but will be enabled by default in a future release.
 
 * `jj prev` and `jj next` now work when the working copy revision is a merge.
 
