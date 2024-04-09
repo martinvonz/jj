@@ -81,3 +81,76 @@ fn test_status_filtered() {
     Parent commit: zzzzzzzz 00000000 (empty) (no description set)
     "###);
 }
+
+// See <https://github.com/martinvonz/jj/issues/3108>
+#[test]
+fn test_status_display_rebase_instructions() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+
+    let repo_path = test_env.env_root().join("repo");
+    let conflicted_path = repo_path.join("conflicted.txt");
+
+    // PARENT: Write the initial file
+    std::fs::write(&conflicted_path, "initial contents").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["describe", "--message", "Initial contents"]);
+
+    // CHILD1: New commit on top of <PARENT>
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["new", "--message", "First part of conflicting change"],
+    );
+    std::fs::write(&conflicted_path, "Child 1").unwrap();
+
+    // CHILD2: New commit also on top of <PARENT>
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "new",
+            "--message",
+            "Second part of conflicting change",
+            "@-",
+        ],
+    );
+    std::fs::write(&conflicted_path, "Child 2").unwrap();
+
+    // CONFLICT: New commit that is conflicted by merging <CHILD1> and <CHILD2>
+    test_env.jj_cmd_ok(&repo_path, &["new", "--message", "boom", "all:(@-)+"]);
+    // Adding more descendants to ensure we correctly find the root ancestors with
+    // conflicts, not just the parents.
+    test_env.jj_cmd_ok(&repo_path, &["new", "--message", "boom-cont"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "--message", "boom-cont-2"]);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "::@"]);
+
+    insta::assert_snapshot!(stdout, @r###"
+    @  yqosqzyt test.user@example.com 2001-02-03 08:05:13 93e9928b conflict
+    │  (empty) boom-cont-2
+    ◉  royxmykx test.user@example.com 2001-02-03 08:05:12 ac5398e8 conflict
+    │  (empty) boom-cont
+    ◉    mzvwutvl test.user@example.com 2001-02-03 08:05:11 be6032ca conflict
+    ├─╮  (empty) boom
+    │ ◉  kkmpptxz test.user@example.com 2001-02-03 08:05:10 55ce6709
+    │ │  First part of conflicting change
+    ◉ │  zsuskuln test.user@example.com 2001-02-03 08:05:11 ba5f8773
+    ├─╯  Second part of conflicting change
+    ◉  qpvuntsm test.user@example.com 2001-02-03 08:05:08 98e0dcf8
+    │  Initial contents
+    ◉  zzzzzzzz root() 00000000
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["status"]);
+
+    insta::assert_snapshot!(stdout, @r###"
+    The working copy is clean
+    There are unresolved conflicts at these paths:
+    conflicted.txt    2-sided conflict
+    Working copy : yqosqzyt 93e9928b (conflict) (empty) boom-cont-2
+    Parent commit: royxmykx ac5398e8 (conflict) (empty) boom-cont
+    To resolve the conflicts, start by updating to the first one:
+      jj new mzvwutvlkqwt
+    Then use `jj resolve`, or edit the conflict markers in the file directly.
+    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Then run `jj squash` to move the resolution into the conflicted commit.
+    "###);
+}

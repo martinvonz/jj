@@ -14,6 +14,7 @@
 
 use itertools::Itertools;
 use jj_lib::repo::Repo;
+use jj_lib::revset::{RevsetExpression, RevsetFilterPredicate};
 use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
@@ -91,6 +92,16 @@ pub(crate) fn cmd_status(
             template.format(&parent, formatter)?;
             writeln!(formatter)?;
         }
+
+        let wc_revset = RevsetExpression::commit(wc_commit.id().clone());
+        // Ancestors with conflicts, excluding the current working copy commit.
+        let ancestors_conflicts = RevsetExpression::filter(RevsetFilterPredicate::HasConflict)
+            .intersection(&wc_revset.ancestors())
+            .minus(&wc_revset)
+            .evaluate_programmatic(repo.as_ref())?
+            .iter()
+            .collect();
+        workspace_command.report_repo_conflicts(formatter, repo, ancestors_conflicts)?;
     } else {
         writeln!(formatter, "No working copy")?;
     }
