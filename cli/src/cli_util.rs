@@ -1722,6 +1722,32 @@ Discard the conflicting changes with `jj restore --from {}`.",
     Ok(())
 }
 
+/// Prints warning about explicit paths that don't match any of the tree
+/// entries.
+pub fn print_unmatched_explicit_paths<'a>(
+    ui: &Ui,
+    workspace_command: &WorkspaceCommandHelper,
+    expression: &FilesetExpression,
+    trees: impl IntoIterator<Item = &'a MergedTree>,
+) -> io::Result<()> {
+    let mut explicit_paths = expression.explicit_paths().collect_vec();
+    for tree in trees {
+        explicit_paths.retain(|&path| tree.path_value(path).is_absent());
+        if explicit_paths.is_empty() {
+            return Ok(());
+        }
+    }
+    let ui_paths = explicit_paths
+        .iter()
+        .map(|&path| workspace_command.format_file_path(path))
+        .join(", ");
+    writeln!(
+        ui.warning_default(),
+        "No matching entries for paths: {ui_paths}"
+    )?;
+    Ok(())
+}
+
 pub fn print_trackable_remote_branches(ui: &Ui, view: &View) -> io::Result<()> {
     let remote_branch_names = view
         .branches()
