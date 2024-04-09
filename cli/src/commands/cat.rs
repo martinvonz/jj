@@ -15,25 +15,31 @@
 use std::io::{self, Write};
 
 use jj_lib::conflicts::{materialize_tree_value, MaterializedTreeValue};
+use jj_lib::fileset::{FilePattern, FilesetExpression};
 use jj_lib::merge::MergedTreeValue;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use pollster::FutureExt;
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, RevisionArg, WorkspaceCommandHelper};
+use crate::cli_util::{
+    print_unmatched_explicit_paths, CommandHelper, RevisionArg, WorkspaceCommandHelper,
+};
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
-/// Print contents of a file in a revision
+/// Print contents of files in a revision
+///
+/// If the given path is a directory, files in the directory will be visited
+/// recursively.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct CatArgs {
     /// The revision to get the file contents from
     #[arg(long, short, default_value = "@")]
     revision: RevisionArg,
-    /// The file to print
-    #[arg(value_hint = clap::ValueHint::FilePath)]
-    path: String,
+    /// Paths to print
+    #[arg(required = true, value_hint = clap::ValueHint::FilePath)]
+    paths: Vec<String>,
 }
 
 #[instrument(skip_all)]
@@ -45,16 +51,44 @@ pub(crate) fn cmd_cat(
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     let tree = commit.tree()?;
-    // TODO: migrate to .parse_file_patterns()?.to_matcher()?
-    let path = workspace_command.parse_file_path(&args.path)?;
-    let value = tree.path_value(&path);
-    if value.is_absent() {
-        let ui_path = workspace_command.format_file_path(&path);
-        return Err(user_error(format!("No such path: {ui_path}")));
+    // TODO: No need to add special case for empty paths when switching to
+    // parse_union_filesets(). paths = [] should be "none()" if supported.
+    let fileset_expression = workspace_command.parse_file_patterns(&args.paths)?;
+
+    // Try fast path for single file entry
+    if let Some(path) = get_single_path(&fileset_expression) {
+        let value = tree.path_value(path);
+        if value.is_absent() {
+            let ui_path = workspace_command.format_file_path(path);
+            return Err(user_error(format!("No such path: {ui_path}")));
+        }
+        if !value.is_tree() {
+            ui.request_pager();
+            write_tree_entries(ui, &workspace_command, [(path, value)])?;
+            return Ok(());
+        }
     }
+
+    let matcher = fileset_expression.to_matcher();
     ui.request_pager();
-    write_tree_entries(ui, &workspace_command, [(&path, value)])?;
+    write_tree_entries(
+        ui,
+        &workspace_command,
+        tree.entries_matching(matcher.as_ref()),
+    )?;
+    print_unmatched_explicit_paths(ui, &workspace_command, &fileset_expression, [&tree])?;
     Ok(())
+}
+
+fn get_single_path(expression: &FilesetExpression) -> Option<&RepoPath> {
+    match &expression {
+        FilesetExpression::Pattern(pattern) => match pattern {
+            // Not using pattern.as_path() because files-in:<path> shouldn't
+            // select the literal <path> itself.
+            FilePattern::FilePath(path) | FilePattern::PrefixPath(path) => Some(path),
+        },
+        _ => None,
+    }
 }
 
 fn write_tree_entries<P: AsRef<RepoPath>>(
@@ -73,15 +107,14 @@ fn write_tree_entries<P: AsRef<RepoPath>>(
             MaterializedTreeValue::Conflict { contents, .. } => {
                 ui.stdout_formatter().write_all(&contents)?;
             }
-            MaterializedTreeValue::Symlink { .. }
-            | MaterializedTreeValue::Tree(_)
-            | MaterializedTreeValue::GitSubmodule(_) => {
+            MaterializedTreeValue::Symlink { .. } | MaterializedTreeValue::GitSubmodule(_) => {
                 let ui_path = workspace_command.format_file_path(path.as_ref());
                 writeln!(
                     ui.warning_default(),
                     "Path exists but is not a file: {ui_path}"
                 )?;
             }
+            MaterializedTreeValue::Tree(_) => panic!("entries should not contain trees"),
         }
     }
     Ok(())

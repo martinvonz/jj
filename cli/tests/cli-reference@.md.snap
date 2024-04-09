@@ -108,7 +108,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `abandon` — Abandon a revision
 * `backout` — Apply the reverse of a revision on top of another revision
 * `branch` — Manage branches
-* `cat` — Print contents of a file in a revision
+* `cat` — Print contents of files in a revision
 * `chmod` — Sets or removes the executable bit for paths in the repo
 * `commit` — Update the description and create a new change on top
 * `config` — Manage config options
@@ -384,13 +384,15 @@ A non-tracking remote branch is just a pointer to the last-fetched remote branch
 
 ## `jj cat`
 
-Print contents of a file in a revision
+Print contents of files in a revision
 
-**Usage:** `jj cat [OPTIONS] <PATH>`
+If the given path is a directory, files in the directory will be visited recursively.
+
+**Usage:** `jj cat [OPTIONS] <PATHS>...`
 
 ###### **Arguments:**
 
-* `<PATH>` — The file to print
+* `<PATHS>` — Paths to print
 
 ###### **Options:**
 
