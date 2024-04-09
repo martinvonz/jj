@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use itertools::Itertools;
 use jj_lib::backend::TreeValue;
 use jj_lib::merged_tree::MergedTreeBuilder;
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, RevisionArg};
+use crate::cli_util::{print_unmatched_explicit_paths, CommandHelper, RevisionArg};
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
@@ -60,30 +59,25 @@ pub(crate) fn cmd_chmod(
     };
 
     let mut workspace_command = command.workspace_helper(ui)?;
-    // TODO: migrate to .parse_file_patterns()?.to_matcher()
-    let repo_paths: Vec<_> = args
-        .paths
-        .iter()
-        .map(|path| workspace_command.parse_file_path(path))
-        .try_collect()?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewritable([commit.id()])?;
+    let tree = commit.tree()?;
+    // TODO: No need to add special case for empty paths when switching to
+    // parse_union_filesets(). paths = [] should be "none()" if supported.
+    let fileset_expression = workspace_command.parse_file_patterns(&args.paths)?;
+    let matcher = fileset_expression.to_matcher();
+    print_unmatched_explicit_paths(ui, &workspace_command, &fileset_expression, [&tree])?;
 
     let mut tx = workspace_command.start_transaction();
-    let tree = commit.tree()?;
     let store = tree.store();
     let mut tree_builder = MergedTreeBuilder::new(commit.tree_id().clone());
-    for repo_path in repo_paths {
+    for (repo_path, tree_value) in tree.entries_matching(matcher.as_ref()) {
         let user_error_with_path = |msg: &str| {
             user_error(format!(
                 "{msg} at '{}'.",
                 tx.base_workspace_helper().format_file_path(&repo_path)
             ))
         };
-        let tree_value = tree.path_value(&repo_path);
-        if tree_value.is_absent() {
-            return Err(user_error_with_path("No such path"));
-        }
         let all_files = tree_value
             .adds()
             .flatten()

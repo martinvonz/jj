@@ -116,27 +116,16 @@ fn test_chmod_regular_conflict() {
     >>>>>>>
     "###);
 
-    // An error prevents `chmod` from making any changes.
-    // In this case, the failure with `nonexistent` prevents any changes to `file`.
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["chmod", "x", "nonexistent", "file"]);
+    // Unmatched paths should generate warnings
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["chmod", "x", "nonexistent", "file"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: No such path at 'nonexistent'.
-    "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["debug", "tree"]);
-    insta::assert_snapshot!(stdout, 
-    @r###"
-    file: Conflicted([Some(File { id: FileId("587be6b4c3f93f93c489c0111bba5596147a26cb"), executable: false }), Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false }), Some(File { id: FileId("8ba3a16384aacc37d01564b28401755ce8053f51"), executable: false })])
-    "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "file"]);
-    insta::assert_snapshot!(stdout, 
-    @r###"
-    <<<<<<<
-    %%%%%%%
-    -base
-    +x
-    +++++++
-    n
-    >>>>>>>
+    Warning: No matching entries for paths: nonexistent
+    Working copy now at: yostqsxw cbc43289 conflict | (conflict) conflict
+    Parent commit      : royxmykx 427fbd2f x | x
+    Parent commit      : zsuskuln 3f83a26d n | n
+    Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    file    2-sided conflict including an executable
     "###);
 }
 
