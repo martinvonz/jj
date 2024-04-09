@@ -2172,7 +2172,7 @@ pub struct GlobalArgs {
     /// This may be useful e.g. in a command prompt, especially if you have
     /// another process that commits the working copy.
     ///
-    /// Loading the repository is at a specific operation with `--at-operation`
+    /// Loading the repository at a specific operation with `--at-operation`
     /// implies `--ignore-working-copy`.
     #[arg(long, global = true)]
     pub ignore_working_copy: bool,
