@@ -58,13 +58,14 @@ fn test_cat() {
     // Error if the path doesn't exist
     let stderr = test_env.jj_cmd_failure(&repo_path, &["cat", "nonexistent"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: No such path
+    Error: No such path: nonexistent
     "###);
 
-    // Error if the path is not a file
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["cat", "dir"]);
+    // TODO: files under the directory will be printed
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["cat", "dir"]);
+    insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Error: Path exists but is not a file
+    Warning: Path exists but is not a file: dir
     "###);
 
     // Can print a conflict

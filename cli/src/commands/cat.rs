@@ -12,14 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::Write;
+use std::io::{self, Write};
 
 use jj_lib::conflicts::{materialize_tree_value, MaterializedTreeValue};
+use jj_lib::merge::MergedTreeValue;
 use jj_lib::repo::Repo;
+use jj_lib::repo_path::RepoPath;
 use pollster::FutureExt;
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, RevisionArg};
+use crate::cli_util::{CommandHelper, RevisionArg, WorkspaceCommandHelper};
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
@@ -45,25 +47,41 @@ pub(crate) fn cmd_cat(
     let tree = commit.tree()?;
     // TODO: migrate to .parse_file_patterns()?.to_matcher()?
     let path = workspace_command.parse_file_path(&args.path)?;
-    let repo = workspace_command.repo();
     let value = tree.path_value(&path);
-    let materialized = materialize_tree_value(repo.store(), &path, value).block_on()?;
-    match materialized {
-        MaterializedTreeValue::Absent => {
-            return Err(user_error("No such path"));
-        }
-        MaterializedTreeValue::File { mut reader, .. } => {
-            ui.request_pager();
-            std::io::copy(&mut reader, &mut ui.stdout_formatter().as_mut())?;
-        }
-        MaterializedTreeValue::Conflict { contents, .. } => {
-            ui.request_pager();
-            ui.stdout_formatter().write_all(&contents)?;
-        }
-        MaterializedTreeValue::Symlink { .. }
-        | MaterializedTreeValue::Tree(_)
-        | MaterializedTreeValue::GitSubmodule(_) => {
-            return Err(user_error("Path exists but is not a file"));
+    if value.is_absent() {
+        let ui_path = workspace_command.format_file_path(&path);
+        return Err(user_error(format!("No such path: {ui_path}")));
+    }
+    ui.request_pager();
+    write_tree_entries(ui, &workspace_command, [(&path, value)])?;
+    Ok(())
+}
+
+fn write_tree_entries<P: AsRef<RepoPath>>(
+    ui: &Ui,
+    workspace_command: &WorkspaceCommandHelper,
+    entries: impl IntoIterator<Item = (P, MergedTreeValue)>,
+) -> Result<(), CommandError> {
+    let repo = workspace_command.repo();
+    for (path, value) in entries {
+        let materialized = materialize_tree_value(repo.store(), path.as_ref(), value).block_on()?;
+        match materialized {
+            MaterializedTreeValue::Absent => panic!("absent values should be excluded"),
+            MaterializedTreeValue::File { mut reader, .. } => {
+                io::copy(&mut reader, &mut ui.stdout_formatter().as_mut())?;
+            }
+            MaterializedTreeValue::Conflict { contents, .. } => {
+                ui.stdout_formatter().write_all(&contents)?;
+            }
+            MaterializedTreeValue::Symlink { .. }
+            | MaterializedTreeValue::Tree(_)
+            | MaterializedTreeValue::GitSubmodule(_) => {
+                let ui_path = workspace_command.format_file_path(path.as_ref());
+                writeln!(
+                    ui.warning_default(),
+                    "Path exists but is not a file: {ui_path}"
+                )?;
+            }
         }
     }
     Ok(())
