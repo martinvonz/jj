@@ -16,7 +16,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::slice;
+use std::{iter, slice};
 
 use once_cell::sync::Lazy;
 use thiserror::Error;
@@ -30,7 +30,7 @@ use crate::matchers::{
     DifferenceMatcher, EverythingMatcher, FilesMatcher, IntersectionMatcher, Matcher,
     NothingMatcher, PrefixMatcher, UnionMatcher,
 };
-use crate::repo_path::{FsPathParseError, RelativePathParseError, RepoPathBuf};
+use crate::repo_path::{FsPathParseError, RelativePathParseError, RepoPath, RepoPathBuf};
 
 /// Error occurred during file pattern parsing.
 #[derive(Debug, Error)]
@@ -129,6 +129,15 @@ impl FilePattern {
         let path = RepoPathBuf::from_relative_path(input)?;
         Ok(FilePattern::PrefixPath(path))
     }
+
+    /// Returns path if this pattern represents a literal path in a workspace.
+    /// Returns `None` if this is a glob pattern for example.
+    pub fn as_path(&self) -> Option<&RepoPath> {
+        match self {
+            FilePattern::FilePath(path) => Some(path),
+            FilePattern::PrefixPath(path) => Some(path),
+        }
+    }
 }
 
 /// AST-level representation of the fileset expression.
@@ -215,6 +224,38 @@ impl FilesetExpression {
             FilesetExpression::UnionAll(exprs) => exprs,
             _ => slice::from_ref(self),
         }
+    }
+
+    fn dfs_pre(&self) -> impl Iterator<Item = &Self> {
+        let mut stack: Vec<&Self> = vec![self];
+        iter::from_fn(move || {
+            let expr = stack.pop()?;
+            match expr {
+                FilesetExpression::None
+                | FilesetExpression::All
+                | FilesetExpression::Pattern(_) => {}
+                FilesetExpression::UnionAll(exprs) => stack.extend(exprs.iter().rev()),
+                FilesetExpression::Intersection(expr1, expr2)
+                | FilesetExpression::Difference(expr1, expr2) => {
+                    stack.push(expr2);
+                    stack.push(expr1);
+                }
+            }
+            Some(expr)
+        })
+    }
+
+    /// Iterates literal paths recursively from this expression.
+    ///
+    /// For example, `"a", "b", "c"` will be yielded in that order for
+    /// expression `"a" | all() & "b" | ~"c"`.
+    pub fn explicit_paths(&self) -> impl Iterator<Item = &RepoPath> {
+        // pre/post-ordering doesn't matter so long as children are visited from
+        // left to right.
+        self.dfs_pre().flat_map(|expr| match expr {
+            FilesetExpression::Pattern(pattern) => pattern.as_path(),
+            _ => None,
+        })
     }
 
     /// Transforms the expression tree to `Matcher` object.
@@ -529,6 +570,39 @@ mod tests {
             ],
         )
         "###);
+    }
+
+    #[test]
+    fn test_explicit_paths() {
+        let collect = |expr: &FilesetExpression| -> Vec<RepoPathBuf> {
+            expr.explicit_paths().map(|path| path.to_owned()).collect()
+        };
+        let file_expr = |path: &str| FilesetExpression::file_path(repo_path_buf(path));
+        assert!(collect(&FilesetExpression::none()).is_empty());
+        assert_eq!(collect(&file_expr("a")), ["a"].map(repo_path_buf));
+        assert_eq!(
+            collect(&FilesetExpression::union_all(vec![
+                file_expr("a"),
+                file_expr("b"),
+                file_expr("c"),
+            ])),
+            ["a", "b", "c"].map(repo_path_buf)
+        );
+        assert_eq!(
+            collect(&FilesetExpression::intersection(
+                FilesetExpression::union_all(vec![
+                    file_expr("a"),
+                    FilesetExpression::none(),
+                    file_expr("b"),
+                    file_expr("c"),
+                ]),
+                FilesetExpression::difference(
+                    file_expr("d"),
+                    FilesetExpression::union_all(vec![file_expr("e"), file_expr("f")])
+                )
+            )),
+            ["a", "b", "c", "d", "e", "f"].map(repo_path_buf)
+        );
     }
 
     #[test]
