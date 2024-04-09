@@ -61,11 +61,26 @@ fn test_cat() {
     Error: No such path: nonexistent
     "###);
 
-    // TODO: files under the directory will be printed
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["cat", "dir"]);
-    insta::assert_snapshot!(stdout, @"");
+    // Can print files under the specified directory
+    let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "dir"]);
+    insta::assert_snapshot!(stdout, @r###"
+    c
+    "###);
+
+    // Can print multiple files
+    let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "."]);
+    insta::assert_snapshot!(stdout, @r###"
+    c
+    b
+    "###);
+
+    // Unmatched paths should generate warnings
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["cat", "file1", "non-existent"]);
+    insta::assert_snapshot!(stdout, @r###"
+    b
+    "###);
     insta::assert_snapshot!(stderr, @r###"
-    Warning: Path exists but is not a file: dir
+    Warning: No matching entries for paths: non-existent
     "###);
 
     // Can print a conflict
@@ -81,5 +96,28 @@ fn test_cat() {
     +++++++
     c
     >>>>>>>
+    "###);
+}
+
+#[cfg(unix)]
+#[test]
+fn test_cat_symlink() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "a\n").unwrap();
+    std::fs::create_dir(repo_path.join("dir")).unwrap();
+    std::fs::write(repo_path.join("dir").join("file2"), "c\n").unwrap();
+    std::os::unix::fs::symlink("symlink1_target", repo_path.join("symlink1")).unwrap();
+
+    // Can print multiple files
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["cat", "."]);
+    insta::assert_snapshot!(stdout, @r###"
+    c
+    a
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Warning: Path exists but is not a file: symlink1
     "###);
 }
