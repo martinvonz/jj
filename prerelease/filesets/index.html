@@ -714,6 +714,24 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#operators" class="md-nav__link">
+    <span class="md-ellipsis">
+      Operators
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Functions
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1277,6 +1295,24 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#operators" class="md-nav__link">
+    <span class="md-ellipsis">
+      Operators
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Functions
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1293,15 +1329,10 @@
 
 
 <h1 id="filesets">Filesets<a class="headerlink" href="#filesets" title="Permanent link">&para;</a></h1>
-<!--
-TODO: implement fileset parser and add logical operators
-
-Jujutsu supports a functional language for selecting a set of files.
+<p>Jujutsu supports a functional language for selecting a set of files.
 Expressions in this language are called "filesets" (the idea comes from
-[Mercurial](https://repo.mercurial-scm.org/hg/help/filesets)). The language
-consists of symbols, operators, and functions.
--->
-
+<a href="https://repo.mercurial-scm.org/hg/help/filesets">Mercurial</a>). The language
+consists of file patterns, operators, and functions.</p>
 <h2 id="file-patterns">File patterns<a class="headerlink" href="#file-patterns" title="Permanent link">&para;</a></h2>
 <p>The following patterns are supported:</p>
 <ul>
@@ -1311,6 +1342,23 @@ consists of symbols, operators, and functions.
 <li><code>root:"path"</code>: Matches workspace-relative path prefix (file or files under
   directory recursively.)</li>
 <li><code>root-file:"path"</code>: Matches workspace-relative file (or exact) path.</li>
+</ul>
+<h2 id="operators">Operators<a class="headerlink" href="#operators" title="Permanent link">&para;</a></h2>
+<p>The following operators are supported. <code>x</code> and <code>y</code> below can be any fileset
+expressions.</p>
+<ul>
+<li><code>x &amp; y</code>: Matches both <code>x</code> and <code>y</code>.</li>
+<li><code>x | y</code>: Matches either <code>x</code> or <code>y</code> (or both).</li>
+<li><code>x ~ y</code>: Matches <code>x</code> but not <code>y</code>.</li>
+<li><code>~x</code>: Matches everything but <code>x</code>.</li>
+</ul>
+<p>You can use parentheses to control evaluation order, such as <code>(x &amp; y) | z</code> or
+<code>x &amp; (y | z)</code>.</p>
+<h2 id="functions">Functions<a class="headerlink" href="#functions" title="Permanent link">&para;</a></h2>
+<p>You can also specify patterns by using functions.</p>
+<ul>
+<li><code>all()</code>: Matches everything.</li>
+<li><code>none()</code>: Matches nothing.</li>
 </ul>
 
 
