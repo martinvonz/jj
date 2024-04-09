@@ -149,6 +149,33 @@ fn test_diff_basic() {
     file3 | 1 +
     3 files changed, 2 insertions(+), 1 deletion(-)
     "###);
+
+    // Unmatched paths should generate warnings
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &[
+            "diff",
+            "-Rrepo",
+            "-s",
+            "repo",       // matches directory
+            "repo/file1", // deleted in to_tree, but exists in from_tree
+            "repo/x",
+            "repo/y/z",
+        ],
+    );
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
+    D repo/file1
+    M repo/file2
+    A repo/file3
+    "###);
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
+    Warning: No matching entries for paths: repo/x, repo/y/z
+    "###);
+
+    // Unmodified paths shouldn't generate warnings
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["diff", "-s", "--from=@", "file2"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]

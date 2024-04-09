@@ -15,7 +15,7 @@
 use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, RevisionArg};
+use crate::cli_util::{print_unmatched_explicit_paths, CommandHelper, RevisionArg};
 use crate::command_error::CommandError;
 use crate::diff_util::{diff_formats_for, show_diff, DiffFormatArgs};
 use crate::ui::Ui;
@@ -76,9 +76,8 @@ pub(crate) fn cmd_diff(
         from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &parents)?;
         to_tree = commit.tree()?
     }
-    let matcher = workspace_command
-        .parse_file_patterns(&args.paths)?
-        .to_matcher();
+    let fileset_expression = workspace_command.parse_file_patterns(&args.paths)?;
+    let matcher = fileset_expression.to_matcher();
     let diff_formats = diff_formats_for(command.settings(), &args.format)?;
     ui.request_pager();
     show_diff(
@@ -89,6 +88,12 @@ pub(crate) fn cmd_diff(
         &to_tree,
         matcher.as_ref(),
         &diff_formats,
+    )?;
+    print_unmatched_explicit_paths(
+        ui,
+        &workspace_command,
+        &fileset_expression,
+        [&from_tree, &to_tree],
     )?;
     Ok(())
 }
