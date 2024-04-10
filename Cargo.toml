@@ -17,7 +17,7 @@ categories = ["version-control", "development-tools"]
 keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 
 [workspace.dependencies]
-anyhow = "1.0.81"
+anyhow = "1.0.82"
 assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
 async-trait = "0.1.79"
@@ -31,7 +31,7 @@ clap = { version = "4.5.4", features = [
     "wrap_help",
     "string",
 ] }
-clap_complete = "4.5.1"
+clap_complete = "4.5.2"
 clap_complete_nushell = "4.5.1"
 clap-markdown = "0.1.3"
 clap_mangen = "0.2.10"
@@ -72,7 +72,7 @@ pretty_assertions = "1.4.0"
 proc-macro2 = "1.0.79"
 prost = "0.12.3"
 prost-build = "0.12.3"
-quote = "1.0.35"
+quote = "1.0.36"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 rayon = "1.10.0"
