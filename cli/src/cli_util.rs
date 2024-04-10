@@ -748,7 +748,7 @@ impl WorkspaceCommandHelper {
         let ctx = self.fileset_parse_context();
         let expressions: Vec<_> = file_args
             .iter()
-            .map(|arg| fileset::parse(arg, &ctx))
+            .map(|arg| fileset::parse_maybe_bare(arg, &ctx))
             .try_collect()?;
         Ok(FilesetExpression::union_all(expressions))
     }

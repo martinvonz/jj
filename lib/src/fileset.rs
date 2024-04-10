@@ -462,9 +462,15 @@ fn resolve_expression(
     }
 }
 
-/// Parses text into `FilesetExpression`.
-pub fn parse(text: &str, ctx: &FilesetParseContext) -> FilesetParseResult<FilesetExpression> {
-    let node = fileset_parser::parse_program(text)?;
+/// Parses text into `FilesetExpression` with bare string fallback.
+///
+/// If the text can't be parsed as a fileset expression, and if it doesn't
+/// contain any operator-like characters, it will be parsed as a file path.
+pub fn parse_maybe_bare(
+    text: &str,
+    ctx: &FilesetParseContext,
+) -> FilesetParseResult<FilesetExpression> {
+    let node = fileset_parser::parse_program_or_bare_string(text)?;
     // TODO: add basic tree substitution pass to eliminate redundant expressions
     resolve_expression(ctx, &node)
 }
@@ -483,7 +489,7 @@ mod tests {
             cwd: Path::new("/ws/cur"),
             workspace_root: Path::new("/ws"),
         };
-        let parse = |text| parse(text, &ctx);
+        let parse = |text| parse_maybe_bare(text, &ctx);
 
         // cwd-relative patterns
         assert_eq!(
@@ -535,7 +541,7 @@ mod tests {
             cwd: Path::new("/ws/cur*"),
             workspace_root: Path::new("/ws"),
         };
-        let parse = |text| parse(text, &ctx);
+        let parse = |text| parse_maybe_bare(text, &ctx);
         let glob_expr = |dir: &str, pattern: &str| {
             FilesetExpression::pattern(FilePattern::FileGlob {
                 dir: repo_path_buf(dir),
@@ -618,7 +624,7 @@ mod tests {
             cwd: Path::new("/ws/cur"),
             workspace_root: Path::new("/ws"),
         };
-        let parse = |text| parse(text, &ctx);
+        let parse = |text| parse_maybe_bare(text, &ctx);
 
         assert_eq!(parse("all()").unwrap(), FilesetExpression::all());
         assert_eq!(parse("none()").unwrap(), FilesetExpression::none());
@@ -644,7 +650,7 @@ mod tests {
             cwd: Path::new("/ws/cur"),
             workspace_root: Path::new("/ws"),
         };
-        let parse = |text| parse(text, &ctx);
+        let parse = |text| parse_maybe_bare(text, &ctx);
 
         insta::assert_debug_snapshot!(parse("~x").unwrap(), @r###"
         Difference(

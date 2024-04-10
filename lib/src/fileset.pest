@@ -27,6 +27,14 @@ strict_identifier = @{
   strict_identifier_part ~ ("-" ~ strict_identifier_part)*
 }
 
+// TODO: accept glob characters?
+// TODO: accept more ASCII meta characters such as "#" and ","?
+bare_string = @{
+  ( ASCII_ALPHANUMERIC
+  | " " | "+" | "-" | "." | "@" | "_" | "/" | "\\"
+  | '\u{80}'..'\u{10ffff}' )+
+}
+
 string_escape = @{ "\\" ~ ("t" | "r" | "n" | "0" | "\"" | "\\") }
 string_content_char = @{ !("\"" | "\\") ~ ANY }
 string_content = @{ string_content_char+ }
@@ -50,6 +58,7 @@ function_arguments = {
 
 // TODO: change rhs to string_literal to require quoting? #2101
 string_pattern = { strict_identifier ~ pattern_kind_op ~ (identifier | string_literal) }
+bare_string_pattern = { strict_identifier ~ pattern_kind_op ~ bare_string }
 
 primary = {
   "(" ~ whitespace* ~ expression ~ whitespace* ~ ")"
@@ -65,3 +74,8 @@ expression = {
 }
 
 program = _{ SOI ~ whitespace* ~ expression ~ whitespace* ~ EOI }
+program_or_bare_string = _{
+  SOI ~ ( whitespace* ~ expression ~ whitespace* ~ EOI
+        | bare_string_pattern ~ EOI
+        | bare_string ~ EOI )
+}
