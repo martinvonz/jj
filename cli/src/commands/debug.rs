@@ -151,7 +151,7 @@ fn cmd_debug_fileset(
     let workspace_command = command.workspace_helper(ui)?;
     let ctx = workspace_command.fileset_parse_context();
 
-    let expression = fileset::parse(&args.path, &ctx)?;
+    let expression = fileset::parse_maybe_bare(&args.path, &ctx)?;
     writeln!(ui.stdout(), "-- Parsed:")?;
     writeln!(ui.stdout(), "{expression:#?}")?;
     writeln!(ui.stdout())?;

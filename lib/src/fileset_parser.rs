@@ -43,6 +43,7 @@ impl Rule {
             Rule::identifier => None,
             Rule::strict_identifier_part => None,
             Rule::strict_identifier => None,
+            Rule::bare_string => None,
             Rule::string_escape => None,
             Rule::string_content_char => None,
             Rule::string_content => None,
@@ -58,9 +59,11 @@ impl Rule {
             Rule::function_name => None,
             Rule::function_arguments => None,
             Rule::string_pattern => None,
+            Rule::bare_string_pattern => None,
             Rule::primary => None,
             Rule::expression => None,
             Rule::program => None,
+            Rule::program_or_bare_string => None,
         }
     }
 }
@@ -296,10 +299,37 @@ fn parse_expression_node(pair: Pair<Rule>) -> FilesetParseResult<ExpressionNode>
 }
 
 /// Parses text into expression tree. No name resolution is made at this stage.
+#[cfg(test)] // TODO: alias will be parsed with no bare_string fallback
 pub fn parse_program(text: &str) -> FilesetParseResult<ExpressionNode> {
     let mut pairs = FilesetParser::parse(Rule::program, text)?;
     let first = pairs.next().unwrap();
     parse_expression_node(first)
+}
+
+/// Parses text into expression tree with bare string fallback. No name
+/// resolution is made at this stage.
+///
+/// If the text can't be parsed as a fileset expression, and if it doesn't
+/// contain any operator-like characters, it will be parsed as a file path.
+pub fn parse_program_or_bare_string(text: &str) -> FilesetParseResult<ExpressionNode> {
+    let mut pairs = FilesetParser::parse(Rule::program_or_bare_string, text)?;
+    let first = pairs.next().unwrap();
+    let span = first.as_span();
+    let expr = match first.as_rule() {
+        Rule::expression => return parse_expression_node(first),
+        Rule::bare_string_pattern => {
+            let (lhs, op, rhs) = first.into_inner().collect_tuple().unwrap();
+            assert_eq!(lhs.as_rule(), Rule::strict_identifier);
+            assert_eq!(op.as_rule(), Rule::pattern_kind_op);
+            assert_eq!(rhs.as_rule(), Rule::bare_string);
+            let kind = lhs.as_str();
+            let value = rhs.as_str().to_owned();
+            ExpressionKind::StringPattern { kind, value }
+        }
+        Rule::bare_string => ExpressionKind::String(first.as_str().to_owned()),
+        r => panic!("unexpected program or bare string rule: {r:?}"),
+    };
+    Ok(ExpressionNode::new(expr, span))
 }
 
 pub fn expect_no_arguments(function: &FunctionCallNode) -> FilesetParseResult<()> {
@@ -325,8 +355,18 @@ mod tests {
             .map_err(|err| err.kind)
     }
 
+    fn parse_maybe_bare_into_kind(text: &str) -> Result<ExpressionKind, FilesetParseErrorKind> {
+        parse_program_or_bare_string(text)
+            .map(|node| node.kind)
+            .map_err(|err| err.kind)
+    }
+
     fn parse_normalized(text: &str) -> FilesetParseResult<ExpressionNode> {
         parse_program(text).map(normalize_tree)
+    }
+
+    fn parse_maybe_bare_normalized(text: &str) -> FilesetParseResult<ExpressionNode> {
+        parse_program_or_bare_string(text).map(normalize_tree)
     }
 
     /// Drops auxiliary data from parsed tree so it can be compared with other.
@@ -559,6 +599,75 @@ mod tests {
             parse_normalized("foo(a,b)").unwrap()
         );
         assert!(parse_normalized("foo(a,,b)").is_err());
+    }
+
+    #[test]
+    fn test_parse_bare_string() {
+        // Valid expression should be parsed as such
+        assert_eq!(
+            parse_maybe_bare_into_kind(" valid "),
+            Ok(ExpressionKind::Identifier("valid"))
+        );
+        assert_eq!(
+            parse_maybe_bare_normalized("f(x)&y").unwrap(),
+            parse_normalized("f(x)&y").unwrap()
+        );
+
+        // Bare string
+        assert_eq!(
+            parse_maybe_bare_into_kind("Foo Bar.txt"),
+            Ok(ExpressionKind::String("Foo Bar.txt".to_owned()))
+        );
+        assert_eq!(
+            parse_maybe_bare_into_kind(r#"Windows\Path with space"#),
+            Ok(ExpressionKind::String(
+                r#"Windows\Path with space"#.to_owned()
+            ))
+        );
+        assert_eq!(
+            parse_maybe_bare_into_kind("柔 術 . j j"),
+            Ok(ExpressionKind::String("柔 術 . j j".to_owned()))
+        );
+        assert_eq!(
+            parse_maybe_bare_into_kind("Unicode emoji 💩"),
+            Ok(ExpressionKind::String("Unicode emoji 💩".to_owned()))
+        );
+        assert_eq!(
+            parse_maybe_bare_into_kind("looks like & expression"),
+            Err(FilesetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_maybe_bare_into_kind("unbalanced_parens("),
+            Err(FilesetParseErrorKind::SyntaxError)
+        );
+
+        // Bare string pattern
+        assert_eq!(
+            parse_maybe_bare_into_kind("foo: bar baz"),
+            Ok(ExpressionKind::StringPattern {
+                kind: "foo",
+                value: " bar baz".to_owned()
+            })
+        );
+        assert_eq!(
+            parse_maybe_bare_into_kind("foo:bar:baz"),
+            Err(FilesetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_maybe_bare_into_kind("foo:"),
+            Err(FilesetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_maybe_bare_into_kind(r#"foo:"unclosed quote"#),
+            Err(FilesetParseErrorKind::SyntaxError)
+        );
+
+        // Surrounding spaces are simply preserved. They could be trimmed, but
+        // space is valid bare_string character.
+        assert_eq!(
+            parse_maybe_bare_into_kind(" No trim "),
+            Ok(ExpressionKind::String(" No trim ".to_owned()))
+        );
     }
 
     #[test]
