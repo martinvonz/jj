@@ -718,6 +718,9 @@ In large repositories, it may be beneficial to use a "filesystem monitor" to
 track changes to the working copy. This allows `jj` to take working copy
 snapshots without having to rescan the entire working copy.
 
+This is governed by the `core.fsmonitor` option. Currently, the valid values are
+`"none"` or `"watchman"`.
+
 ### Watchman
 
 To configure the Watchman filesystem monitor, set
