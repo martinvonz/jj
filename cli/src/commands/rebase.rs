@@ -226,7 +226,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
             ui,
             command.settings(),
             &mut workspace_command,
-            &new_parents,
+            new_parents,
             &source_commits,
             rebase_options,
         )?;
@@ -240,7 +240,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
             ui,
             command.settings(),
             &mut workspace_command,
-            &new_parents,
+            new_parents,
             &branch_commits,
             rebase_options,
         )?;
@@ -252,7 +252,7 @@ fn rebase_branch(
     ui: &mut Ui,
     settings: &UserSettings,
     workspace_command: &mut WorkspaceCommandHelper,
-    new_parents: &[Commit],
+    new_parents: Vec<Commit>,
     branch_commits: &IndexSet<Commit>,
     rebase_options: RebaseOptions,
 ) -> Result<(), CommandError> {
@@ -287,7 +287,7 @@ fn rebase_branch(
 pub fn rebase_descendants(
     tx: &mut WorkspaceCommandTransaction,
     settings: &UserSettings,
-    new_parents: &[Commit],
+    new_parents: Vec<Commit>,
     old_commits: &[impl Borrow<Commit>],
     rebase_options: RebaseOptions,
 ) -> Result<usize, CommandError> {
@@ -295,8 +295,8 @@ pub fn rebase_descendants(
         rebase_commit_with_options(
             settings,
             tx.mut_repo(),
-            old_commit.borrow(),
-            new_parents,
+            old_commit.borrow().clone(),
+            new_parents.to_vec(),
             &rebase_options,
         )?;
     }
@@ -310,7 +310,7 @@ fn rebase_descendants_transaction(
     ui: &mut Ui,
     settings: &UserSettings,
     workspace_command: &mut WorkspaceCommandHelper,
-    new_parents: &[Commit],
+    new_parents: Vec<Commit>,
     old_commits: &IndexSet<Commit>,
     rebase_options: RebaseOptions,
 ) -> Result<(), CommandError> {
@@ -327,7 +327,7 @@ fn rebase_descendants_transaction(
         return Ok(());
     }
     for old_commit in old_commits.iter() {
-        check_rebase_destinations(workspace_command.repo(), new_parents, old_commit)?;
+        check_rebase_destinations(workspace_command.repo(), &new_parents, old_commit)?;
     }
     let mut tx = workspace_command.start_transaction();
     let num_rebased =
@@ -377,7 +377,7 @@ fn rebase_revision(
     // First, rebase the children of `old_commit`.
     let mut tx = workspace_command.start_transaction();
     let mut rebased_commit_ids = HashMap::new();
-    for child_commit in &child_commits {
+    for child_commit in child_commits {
         let new_child_parent_ids: Vec<CommitId> = child_commit
             .parents()
             .iter()
@@ -411,7 +411,7 @@ fn rebase_revision(
 
         rebased_commit_ids.insert(
             child_commit.id().clone(),
-            rebase_commit(settings, tx.mut_repo(), child_commit, &new_child_parents)?
+            rebase_commit(settings, tx.mut_repo(), child_commit, new_child_parents)?
                 .id()
                 .clone(),
         );
@@ -458,6 +458,7 @@ fn rebase_revision(
         })
         .try_collect()?;
 
+    let tx_description = format!("rebase commit {}", old_commit.id().hex());
     // Finally, it's safe to rebase `old_commit`. We can skip rebasing if it is
     // already a child of `new_parents`. Otherwise, at this point, it should no
     // longer have any children; they have all been rebased and the originals
@@ -470,7 +471,7 @@ fn rebase_revision(
         }
         true
     } else {
-        rebase_commit(settings, tx.mut_repo(), &old_commit, &new_parents)?;
+        rebase_commit(settings, tx.mut_repo(), old_commit, new_parents)?;
         debug_assert_eq!(tx.mut_repo().rebase_descendants(settings)?, 0);
         false
     };
@@ -490,7 +491,7 @@ fn rebase_revision(
         }
     }
     if tx.mut_repo().has_changes() {
-        tx.finish(ui, format!("rebase commit {}", old_commit.id().hex()))
+        tx.finish(ui, tx_description)
     } else {
         Ok(()) // Do not print "Nothing changed."
     }

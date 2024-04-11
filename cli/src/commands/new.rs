@@ -139,8 +139,8 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             rebase_commit(
                 command.settings(),
                 tx.mut_repo(),
-                &child_commit,
-                &[new_commit.clone()],
+                child_commit,
+                vec![new_commit.clone()],
             )?;
         }
     } else {
@@ -179,8 +179,8 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             rebase_commit(
                 command.settings(),
                 tx.mut_repo(),
-                &child_commit,
-                &new_parent_commits,
+                child_commit,
+                new_parent_commits,
             )?;
         }
     }

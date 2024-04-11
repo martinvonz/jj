@@ -232,8 +232,7 @@ fn rebase_children_for_siblings_split(
                 }
             })
             .collect_vec();
-        num_rebased +=
-            rebase_descendants(tx, settings, &new_parents, &[child], Default::default())?;
+        num_rebased += rebase_descendants(tx, settings, new_parents, &[child], Default::default())?;
     }
     Ok(num_rebased)
 }
