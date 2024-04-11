@@ -349,14 +349,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         self.rebased
     }
 
-    fn ref_target_update(old_id: CommitId, new_ids: Vec<CommitId>) -> (RefTarget, RefTarget) {
-        let old_ids = std::iter::repeat(old_id).take(new_ids.len());
-        (
-            RefTarget::from_legacy_form([], old_ids),
-            RefTarget::from_legacy_form([], new_ids),
-        )
-    }
-
     fn update_references(
         &mut self,
         old_commit_id: CommitId,
@@ -393,8 +385,13 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
                     }
                 }
             }
-            let (old_target, new_target) =
-                DescendantRebaser::ref_target_update(old_commit_id, new_commit_ids);
+
+            let old_target = RefTarget::normal(old_commit_id.clone());
+            assert!(!new_commit_ids.is_empty());
+            let new_target = RefTarget::from_legacy_form(
+                std::iter::repeat(old_commit_id).take(new_commit_ids.len() - 1),
+                new_commit_ids,
+            );
             for branch_name in &branch_updates {
                 self.mut_repo
                     .merge_local_branch(branch_name, &old_target, &new_target);
