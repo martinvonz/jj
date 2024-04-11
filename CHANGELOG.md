@@ -44,6 +44,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Revsets now support `\`-escapes in string literal.
 
+* Fixed a bug with `jj split` introduced in 0.16.0 that caused it to incorrectly
+  rebase the children of the revision being split if they had other parents
+  (i.e. if the child was a merge).
 
 ## [0.16.0] - 2024-04-03
 
