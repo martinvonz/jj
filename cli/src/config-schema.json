@@ -155,6 +155,16 @@
                 }
             }
         },
+        "core": {
+            "type": "object",
+            "properties": {
+                "fsmonitor": {
+                    "type": "string",
+                    "enum": ["none", "watchman"],
+                    "description": "Whether to use an external filesystem monitor, useful for large repos"
+                }
+            }
+        },
         "colors": {
             "type": "object",
             "description": "Mapping from jj formatter labels to colors",
