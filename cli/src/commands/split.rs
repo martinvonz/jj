@@ -175,18 +175,16 @@ the operation will be aborted.
     // second commit after the command finishes. This also means that any
     // branches pointing to the commit being split are moved to the second
     // commit.
-    tx.mut_repo()
-        .set_rewritten_commit(commit.id().clone(), second_commit.id().clone());
-    let num_rebased = if args.siblings {
-        rebase_children_for_siblings_split(
-            &mut tx,
-            command.settings(),
-            &commit,
-            vec![first_commit.clone(), second_commit.clone()],
-        )?
+    if args.siblings {
+        tx.mut_repo().set_rewritten_commit_multiple(
+            commit.id().clone(),
+            vec![first_commit.id().clone(), second_commit.id().clone()],
+        );
     } else {
-        tx.mut_repo().rebase_descendants(command.settings())?
+        tx.mut_repo()
+            .set_rewritten_commit(commit.id().clone(), second_commit.id().clone());
     };
+    let num_rebased = tx.mut_repo().rebase_descendants(command.settings())?;
 
     if let Some(mut formatter) = ui.status_formatter() {
         if num_rebased > 0 {
@@ -200,38 +198,4 @@ the operation will be aborted.
     }
     tx.finish(ui, format!("split commit {}", commit.id().hex()))?;
     Ok(())
-}
-
-// Rebases the children of `original_commit` by replacing `original_commit` with
-// `new_siblings`. Any parents other than `original_commit` will remain after
-// the rebase.
-fn rebase_children_for_siblings_split(
-    tx: &mut WorkspaceCommandTransaction,
-    settings: &UserSettings,
-    original_commit: &Commit,
-    new_siblings: Vec<Commit>,
-) -> Result<usize, CommandError> {
-    let children: Vec<Commit> = RevsetExpression::commit(original_commit.id().clone())
-        .children()
-        .evaluate_programmatic(tx.base_repo().as_ref())?
-        .iter()
-        .commits(tx.base_repo().store())
-        .try_collect()?;
-    let mut num_rebased = 0;
-    for child in children {
-        let new_parents = child
-            .parents()
-            .into_iter()
-            .flat_map(|c| {
-                if c.id() == original_commit.id() {
-                    new_siblings.clone().into_iter()
-                } else {
-                    vec![c].into_iter()
-                }
-            })
-            .collect_vec();
-        num_rebased +=
-            rebase_descendants(tx, settings, &new_parents, &[child], Default::default())?;
-    }
-    Ok(num_rebased)
 }

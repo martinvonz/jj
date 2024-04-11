@@ -831,6 +831,12 @@ impl MutableRepo {
             .insert(old_id, (RewriteType::Rewritten, vec![new_id]));
     }
 
+    pub fn set_rewritten_commit_multiple(&mut self, old_id: CommitId, new_ids: Vec<CommitId>) {
+        assert_ne!(old_id, *self.store().root_commit_id());
+        self.parent_mapping
+            .insert(old_id, (RewriteType::Rewritten, new_ids));
+    }
+
     /// Record a commit as being rewritten into multiple other commits in this
     /// transaction.
     ///

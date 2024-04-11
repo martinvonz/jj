@@ -296,9 +296,9 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     );
     assert!(!test_env.env_root().join("editor2").exists());
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  zsuskulnrvyr false test_branch
-    │ ◉  qpvuntsmwlqt false TESTED=TODO
-    ├─╯
+    ◉  zsuskulnrvyr false test_branch??
+    │ @  qpvuntsmwlqt false TESTED=TODO
+    ├─╯   test_branch??
     ◉  zzzzzzzzzzzz true
     "###);
 }
@@ -371,8 +371,8 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     ◉  kkmpptxzrspx false Add file4
     ◉    rlvkpnrzqnoo false Add file3
     ├─╮
-    │ @  yqosqzytrlsw false Add file2
-    ◉ │  qpvuntsmwlqt false Add file1
+    │ ◉  yqosqzytrlsw false Add file2
+    @ │  qpvuntsmwlqt false Add file1
     ├─╯
     ◉  zzzzzzzzzzzz true
     "###);
