@@ -822,6 +822,18 @@ fn test_log_filtered_by_path() {
     A file2
     "###);
 
+    // Fileset/pattern syntax is disabled by default.
+    let stderr = test_env.jj_cmd_failure(
+        test_env.env_root(),
+        &["log", "-R", repo_path.to_str().unwrap(), "root:file1"],
+    );
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
+    Error: Path "root:file1" is not in the repo "repo"
+    Caused by: Invalid component ".." in repo-relative path "../root:file1"
+    "###);
+
+    test_env.add_config("ui.allow-filesets = true");
+
     // "root:<path>" is resolved relative to the workspace root.
     let stdout = test_env.jj_cmd_success(
         test_env.env_root(),
