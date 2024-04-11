@@ -71,16 +71,16 @@ impl<'repo> CommitTemplateLanguage<'repo> {
         workspace_id: &WorkspaceId,
         revset_parse_context: RevsetParseContext<'repo>,
         id_prefix_context: &'repo IdPrefixContext,
-        extension: Option<&dyn CommitTemplateLanguageExtension>,
+        extensions: &[impl AsRef<dyn CommitTemplateLanguageExtension>],
     ) -> Self {
         let mut build_fn_table = CommitTemplateBuildFnTable::builtin();
         let mut cache_extensions = ExtensionsMap::empty();
 
-        // TODO: Extension methods should be refactored to be plural, to support
-        // multiple extensions in a dynamic load environment
-        if let Some(extension) = extension {
-            build_fn_table.merge(extension.build_fn_table());
-            extension.build_cache_extensions(&mut cache_extensions);
+        for extension in extensions {
+            build_fn_table.merge(extension.as_ref().build_fn_table());
+            extension
+                .as_ref()
+                .build_cache_extensions(&mut cache_extensions);
         }
 
         CommitTemplateLanguage {

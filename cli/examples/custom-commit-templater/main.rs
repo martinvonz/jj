@@ -131,6 +131,6 @@ impl CommitTemplateLanguageExtension for HexCounter {
 
 fn main() -> std::process::ExitCode {
     CliRunner::init()
-        .set_commit_template_extension(Box::new(HexCounter))
+        .add_commit_template_extension(Box::new(HexCounter))
         .run()
 }

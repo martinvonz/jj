@@ -332,7 +332,7 @@ impl Workspace {
         user_settings: &UserSettings,
         workspace_path: &Path,
         store_factories: &StoreFactories,
-        working_copy_factories: &HashMap<String, Box<dyn WorkingCopyFactory>>,
+        working_copy_factories: &WorkingCopyFactories,
     ) -> Result<Self, WorkspaceLoadError> {
         let loader = WorkspaceLoader::init(workspace_path)?;
         let workspace = loader.load(user_settings, store_factories, working_copy_factories)?;
@@ -425,6 +425,8 @@ pub struct WorkspaceLoader {
     working_copy_state_path: PathBuf,
 }
 
+pub type WorkingCopyFactories = HashMap<String, Box<dyn WorkingCopyFactory>>;
+
 impl WorkspaceLoader {
     pub fn init(workspace_root: &Path) -> Result<Self, WorkspaceLoadError> {
         let jj_dir = workspace_root.join(".jj");
@@ -468,7 +470,7 @@ impl WorkspaceLoader {
         &self,
         user_settings: &UserSettings,
         store_factories: &StoreFactories,
-        working_copy_factories: &HashMap<String, Box<dyn WorkingCopyFactory>>,
+        working_copy_factories: &WorkingCopyFactories,
     ) -> Result<Workspace, WorkspaceLoadError> {
         let repo_loader = RepoLoader::init(user_settings, &self.repo_dir, store_factories)?;
         let working_copy = self.load_working_copy(repo_loader.store(), working_copy_factories)?;
@@ -478,7 +480,7 @@ impl WorkspaceLoader {
 
     pub fn get_working_copy_factory<'a>(
         &self,
-        working_copy_factories: &'a HashMap<String, Box<dyn WorkingCopyFactory>>,
+        working_copy_factories: &'a WorkingCopyFactories,
     ) -> Result<&'a dyn WorkingCopyFactory, StoreLoadError> {
         // For compatibility with existing repos. TODO: Delete default in 0.17+
         let working_copy_type = read_store_type_compat(
@@ -500,7 +502,7 @@ impl WorkspaceLoader {
     fn load_working_copy(
         &self,
         store: &Arc<Store>,
-        working_copy_factories: &HashMap<String, Box<dyn WorkingCopyFactory>>,
+        working_copy_factories: &WorkingCopyFactories,
     ) -> Result<Box<dyn WorkingCopy>, StoreLoadError> {
         let working_copy_factory = self.get_working_copy_factory(working_copy_factories)?;
         Ok(working_copy_factory.load_working_copy(
@@ -511,8 +513,8 @@ impl WorkspaceLoader {
     }
 }
 
-pub fn default_working_copy_factories() -> HashMap<String, Box<dyn WorkingCopyFactory>> {
-    let mut factories: HashMap<String, Box<dyn WorkingCopyFactory>> = HashMap::new();
+pub fn default_working_copy_factories() -> WorkingCopyFactories {
+    let mut factories = WorkingCopyFactories::new();
     factories.insert(
         LocalWorkingCopy::name().to_owned(),
         Box::new(LocalWorkingCopyFactory {}),

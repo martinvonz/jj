@@ -34,7 +34,7 @@ use jj_lib::working_copy::{
     CheckoutError, CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions,
     WorkingCopy, WorkingCopyFactory, WorkingCopyStateError,
 };
-use jj_lib::workspace::{default_working_copy_factories, Workspace, WorkspaceInitError};
+use jj_lib::workspace::{WorkingCopyFactories, Workspace, WorkspaceInitError};
 
 #[derive(clap::Parser, Clone, Debug)]
 enum CustomCommand {
@@ -74,13 +74,13 @@ fn run_custom_command(
 }
 
 fn main() -> std::process::ExitCode {
-    let mut working_copy_factories = default_working_copy_factories();
+    let mut working_copy_factories = WorkingCopyFactories::new();
     working_copy_factories.insert(
         ConflictsWorkingCopy::name().to_owned(),
         Box::new(ConflictsWorkingCopyFactory {}),
     );
     CliRunner::init()
-        .set_working_copy_factories(working_copy_factories)
+        .add_working_copy_factories(working_copy_factories)
         .add_subcommand(run_custom_command)
         .run()
 }

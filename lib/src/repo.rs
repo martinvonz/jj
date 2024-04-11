@@ -14,6 +14,7 @@
 
 #![allow(missing_docs)]
 
+use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::io::ErrorKind;
@@ -347,6 +348,19 @@ type IndexStoreFactory =
     Box<dyn Fn(&UserSettings, &Path) -> Result<Box<dyn IndexStore>, BackendLoadError>>;
 type SubmoduleStoreFactory = Box<dyn Fn(&UserSettings, &Path) -> Box<dyn SubmoduleStore>>;
 
+pub fn merge_factories_map<F>(base: &mut HashMap<String, F>, ext: HashMap<String, F>) {
+    for (name, factory) in ext {
+        match base.entry(name) {
+            Entry::Vacant(v) => {
+                v.insert(factory);
+            }
+            Entry::Occupied(o) => {
+                panic!("Conflicting factory definitions for '{}' factory", o.key())
+            }
+        }
+    }
+}
+
 pub struct StoreFactories {
     backend_factories: HashMap<String, BackendFactory>,
     op_store_factories: HashMap<String, OpStoreFactory>,
@@ -424,6 +438,25 @@ impl StoreFactories {
             index_store_factories: HashMap::new(),
             submodule_store_factories: HashMap::new(),
         }
+    }
+
+    pub fn merge(&mut self, ext: StoreFactories) {
+        let StoreFactories {
+            backend_factories,
+            op_store_factories,
+            op_heads_store_factories,
+            index_store_factories,
+            submodule_store_factories,
+        } = ext;
+
+        merge_factories_map(&mut self.backend_factories, backend_factories);
+        merge_factories_map(&mut self.op_store_factories, op_store_factories);
+        merge_factories_map(&mut self.op_heads_store_factories, op_heads_store_factories);
+        merge_factories_map(&mut self.index_store_factories, index_store_factories);
+        merge_factories_map(
+            &mut self.submodule_store_factories,
+            submodule_store_factories,
+        );
     }
 
     pub fn add_backend(&mut self, name: &str, factory: BackendFactory) {
