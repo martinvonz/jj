@@ -656,7 +656,7 @@ impl WorkspaceCommandHelper {
         // empty arguments.
         if values.is_empty() {
             Ok(FilesetExpression::all())
-        } else {
+        } else if self.settings.config().get_bool("ui.allow-filesets")? {
             let ctx = self.fileset_parse_context();
             let expressions = values
                 .iter()
@@ -664,6 +664,13 @@ impl WorkspaceCommandHelper {
                 .map_ok(FilesetExpression::pattern)
                 .try_collect()
                 .map_err(user_error)?;
+            Ok(FilesetExpression::union_all(expressions))
+        } else {
+            let expressions = values
+                .iter()
+                .map(|v| self.parse_file_path(v))
+                .map_ok(FilesetExpression::prefix_path)
+                .try_collect()?;
             Ok(FilesetExpression::union_all(expressions))
         }
     }

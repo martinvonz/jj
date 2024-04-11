@@ -5,6 +5,13 @@ Expressions in this language are called "filesets" (the idea comes from
 [Mercurial](https://repo.mercurial-scm.org/hg/help/filesets)). The language
 consists of file patterns, operators, and functions.
 
+**Filesets support is still experimental.** It can be enabled by
+`ui.allow-filesets`.
+
+```toml
+ui.allow-filesets = true
+```
+
 ## File patterns
 
 The following patterns are supported:

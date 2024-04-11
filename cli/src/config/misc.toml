@@ -9,6 +9,7 @@ unamend = ["unsquash"]
 tree-level-conflicts = true
 
 [ui]
+allow-filesets = false
 always-allow-large-revsets = false
 diff-instructions = true
 paginate = "auto"
