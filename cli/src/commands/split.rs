@@ -19,9 +19,10 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 use jj_lib::rewrite::merge_commit_trees;
+use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, RevisionArg};
+use crate::cli_util::{CommandHelper, RevisionArg, WorkspaceCommandTransaction};
 use crate::command_error::CommandError;
 use crate::commands::rebase::rebase_descendants;
 use crate::description_util::{description_template_for_commit, edit_description};
@@ -176,25 +177,17 @@ the operation will be aborted.
     // commit.
     tx.mut_repo()
         .set_rewritten_commit(commit.id().clone(), second_commit.id().clone());
-    // Rebase descendants of the commit being split.
-    let new_parents = if args.siblings {
-        vec![first_commit.clone(), second_commit.clone()]
+    let num_rebased = if args.siblings {
+        rebase_children_for_siblings_split(
+            &mut tx,
+            command.settings(),
+            &commit,
+            vec![first_commit.clone(), second_commit.clone()],
+        )?
     } else {
-        vec![second_commit.clone()]
+        tx.mut_repo().rebase_descendants(command.settings())?
     };
-    let children: Vec<Commit> = RevsetExpression::commit(commit.id().clone())
-        .children()
-        .evaluate_programmatic(tx.base_repo().as_ref())?
-        .iter()
-        .commits(tx.base_repo().store())
-        .try_collect()?;
-    let num_rebased = rebase_descendants(
-        &mut tx,
-        command.settings(),
-        &new_parents,
-        &children,
-        Default::default(),
-    )?;
+
     if let Some(mut formatter) = ui.status_formatter() {
         if num_rebased > 0 {
             writeln!(formatter, "Rebased {num_rebased} descendant commits")?;
@@ -207,4 +200,38 @@ the operation will be aborted.
     }
     tx.finish(ui, format!("split commit {}", commit.id().hex()))?;
     Ok(())
+}
+
+// Rebases the children of `original_commit` by replacing `original_commit` with
+// `new_siblings`. Any parents other than `original_commit` will remain after
+// the rebase.
+fn rebase_children_for_siblings_split(
+    tx: &mut WorkspaceCommandTransaction,
+    settings: &UserSettings,
+    original_commit: &Commit,
+    new_siblings: Vec<Commit>,
+) -> Result<usize, CommandError> {
+    let children: Vec<Commit> = RevsetExpression::commit(original_commit.id().clone())
+        .children()
+        .evaluate_programmatic(tx.base_repo().as_ref())?
+        .iter()
+        .commits(tx.base_repo().store())
+        .try_collect()?;
+    let mut num_rebased = 0;
+    for child in children {
+        let new_parents = child
+            .parents()
+            .into_iter()
+            .flat_map(|c| {
+                if c.id() == original_commit.id() {
+                    new_siblings.clone().into_iter()
+                } else {
+                    vec![c].into_iter()
+                }
+            })
+            .collect_vec();
+        num_rebased +=
+            rebase_descendants(tx, settings, &new_parents, &[child], Default::default())?;
+    }
+    Ok(num_rebased)
 }
