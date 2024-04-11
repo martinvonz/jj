@@ -89,6 +89,6 @@ impl OperationTemplateLanguageExtension for HexCounter {
 
 fn main() -> std::process::ExitCode {
     CliRunner::init()
-        .set_operation_template_extension(Box::new(HexCounter))
+        .add_operation_template_extension(Box::new(HexCounter))
         .run()
 }

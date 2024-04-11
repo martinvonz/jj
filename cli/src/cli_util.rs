@@ -14,7 +14,7 @@
 
 use core::fmt;
 use std::borrow::Cow;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::env::{self, ArgsOs, VarError};
 use std::ffi::OsString;
 use std::fmt::Debug;
@@ -49,8 +49,8 @@ use jj_lib::op_store::{OpStoreError, OperationId, WorkspaceId};
 use jj_lib::op_walk::OpsetEvaluationError;
 use jj_lib::operation::Operation;
 use jj_lib::repo::{
-    CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, Repo, RepoLoader,
-    StoreFactories, StoreLoadError,
+    merge_factories_map, CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, Repo,
+    RepoLoader, StoreFactories, StoreLoadError,
 };
 use jj_lib::repo_path::{FsPathParseError, RepoPath, RepoPathBuf};
 use jj_lib::revset::{
@@ -67,7 +67,8 @@ use jj_lib::working_copy::{
     CheckoutStats, LockedWorkingCopy, SnapshotOptions, WorkingCopy, WorkingCopyFactory,
 };
 use jj_lib::workspace::{
-    default_working_copy_factories, LockedWorkspace, Workspace, WorkspaceLoadError, WorkspaceLoader,
+    default_working_copy_factories, LockedWorkspace, WorkingCopyFactories, Workspace,
+    WorkspaceLoadError, WorkspaceLoader,
 };
 use jj_lib::{dag_walk, file_util, fileset, git, op_heads_store, op_walk, revset};
 use once_cell::unsync::OnceCell;
@@ -192,11 +193,11 @@ pub struct CommandHelper {
     global_args: GlobalArgs,
     settings: UserSettings,
     layered_configs: LayeredConfigs,
-    commit_template_extension: Option<Arc<dyn CommitTemplateLanguageExtension>>,
-    operation_template_extension: Option<Arc<dyn OperationTemplateLanguageExtension>>,
+    commit_template_extensions: Vec<Arc<dyn CommitTemplateLanguageExtension>>,
+    operation_template_extensions: Vec<Arc<dyn OperationTemplateLanguageExtension>>,
     maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
     store_factories: StoreFactories,
-    working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>>,
+    working_copy_factories: WorkingCopyFactories,
 }
 
 impl CommandHelper {
@@ -264,8 +265,8 @@ impl CommandHelper {
         )?)
     }
 
-    pub fn operation_template_extension(&self) -> Option<&dyn OperationTemplateLanguageExtension> {
-        self.operation_template_extension.as_deref()
+    pub fn operation_template_extensions(&self) -> &[Arc<dyn OperationTemplateLanguageExtension>] {
+        &self.operation_template_extensions
     }
 
     pub fn workspace_loader(&self) -> Result<&WorkspaceLoader, CommandError> {
@@ -403,7 +404,7 @@ pub struct WorkspaceCommandHelper {
     user_repo: ReadonlyUserRepo,
     // TODO: Parsed template can be cached if it doesn't capture 'repo lifetime
     commit_summary_template_text: String,
-    commit_template_extension: Option<Arc<dyn CommitTemplateLanguageExtension>>,
+    commit_template_extensions: Vec<Arc<dyn CommitTemplateLanguageExtension>>,
     revset_aliases_map: RevsetAliasesMap,
     template_aliases_map: TemplateAliasesMap,
     may_update_working_copy: bool,
@@ -434,7 +435,7 @@ impl WorkspaceCommandHelper {
             workspace,
             user_repo: ReadonlyUserRepo::new(repo),
             commit_summary_template_text,
-            commit_template_extension: command.commit_template_extension.clone(),
+            commit_template_extensions: command.commit_template_extensions.clone(),
             revset_aliases_map,
             template_aliases_map,
             may_update_working_copy,
@@ -956,7 +957,7 @@ impl WorkspaceCommandHelper {
             self.workspace_id(),
             self.revset_parse_context(),
             self.id_prefix_context()?,
-            self.commit_template_extension.as_deref(),
+            &self.commit_template_extensions,
         ))
     }
 
@@ -1436,7 +1437,7 @@ impl WorkspaceCommandTransaction<'_> {
             self.helper.workspace_id(),
             self.helper.revset_parse_context(),
             &id_prefix_context,
-            self.helper.commit_template_extension.as_deref(),
+            &self.helper.commit_template_extensions,
         );
         let template = self
             .helper
@@ -2502,11 +2503,11 @@ pub fn format_template<C: Clone>(ui: &Ui, arg: &C, template: &TemplateRenderer<C
 pub struct CliRunner {
     tracing_subscription: TracingSubscription,
     app: Command,
-    extra_configs: Option<config::Config>,
-    store_factories: Option<StoreFactories>,
-    working_copy_factories: Option<HashMap<String, Box<dyn WorkingCopyFactory>>>,
-    commit_template_extension: Option<Arc<dyn CommitTemplateLanguageExtension>>,
-    operation_template_extension: Option<Arc<dyn OperationTemplateLanguageExtension>>,
+    extra_configs: Vec<config::Config>,
+    store_factories: StoreFactories,
+    working_copy_factories: WorkingCopyFactories,
+    commit_template_extensions: Vec<Arc<dyn CommitTemplateLanguageExtension>>,
+    operation_template_extensions: Vec<Arc<dyn OperationTemplateLanguageExtension>>,
     dispatch_fn: CliDispatchFn,
     start_hook_fns: Vec<CliDispatchFn>,
     process_global_args_fns: Vec<ProcessGlobalArgsFn>,
@@ -2525,11 +2526,11 @@ impl CliRunner {
         CliRunner {
             tracing_subscription,
             app: crate::commands::default_app(),
-            extra_configs: None,
-            store_factories: None,
-            working_copy_factories: None,
-            commit_template_extension: None,
-            operation_template_extension: None,
+            extra_configs: vec![],
+            store_factories: StoreFactories::default(),
+            working_copy_factories: default_working_copy_factories(),
+            commit_template_extensions: vec![],
+            operation_template_extensions: vec![],
             dispatch_fn: Box::new(crate::commands::run_command),
             start_hook_fns: vec![],
             process_global_args_fns: vec![],
@@ -2543,39 +2544,41 @@ impl CliRunner {
     }
 
     /// Adds default configs in addition to the normal defaults.
-    pub fn set_extra_config(mut self, extra_configs: config::Config) -> Self {
-        self.extra_configs = Some(extra_configs);
+    pub fn add_extra_config(mut self, extra_configs: config::Config) -> Self {
+        self.extra_configs.push(extra_configs);
         self
     }
 
-    /// Replaces `StoreFactories` to be used.
-    pub fn set_store_factories(mut self, store_factories: StoreFactories) -> Self {
-        self.store_factories = Some(store_factories);
+    /// Adds `StoreFactories` to be used.
+    pub fn add_store_factories(mut self, store_factories: StoreFactories) -> Self {
+        self.store_factories.merge(store_factories);
         self
     }
 
-    /// Replaces working copy factories to be used.
-    pub fn set_working_copy_factories(
+    /// Adds working copy factories to be used.
+    pub fn add_working_copy_factories(
         mut self,
-        working_copy_factories: HashMap<String, Box<dyn WorkingCopyFactory>>,
+        working_copy_factories: WorkingCopyFactories,
     ) -> Self {
-        self.working_copy_factories = Some(working_copy_factories);
+        merge_factories_map(&mut self.working_copy_factories, working_copy_factories);
         self
     }
 
-    pub fn set_commit_template_extension(
+    pub fn add_commit_template_extension(
         mut self,
         commit_template_extension: Box<dyn CommitTemplateLanguageExtension>,
     ) -> Self {
-        self.commit_template_extension = Some(commit_template_extension.into());
+        self.commit_template_extensions
+            .push(commit_template_extension.into());
         self
     }
 
-    pub fn set_operation_template_extension(
+    pub fn add_operation_template_extension(
         mut self,
         operation_template_extension: Box<dyn OperationTemplateLanguageExtension>,
     ) -> Self {
-        self.operation_template_extension = Some(operation_template_extension.into());
+        self.operation_template_extensions
+            .push(operation_template_extension.into());
         self
     }
 
@@ -2687,9 +2690,6 @@ impl CliRunner {
         }
 
         let settings = UserSettings::from_config(config);
-        let working_copy_factories = self
-            .working_copy_factories
-            .unwrap_or_else(default_working_copy_factories);
         let command_helper = CommandHelper {
             app: self.app,
             cwd,
@@ -2698,11 +2698,11 @@ impl CliRunner {
             global_args: args.global_args,
             settings,
             layered_configs,
-            commit_template_extension: self.commit_template_extension,
-            operation_template_extension: self.operation_template_extension,
+            commit_template_extensions: self.commit_template_extensions,
+            operation_template_extensions: self.operation_template_extensions,
             maybe_workspace_loader,
-            store_factories: self.store_factories.unwrap_or_default(),
-            working_copy_factories,
+            store_factories: self.store_factories,
+            working_copy_factories: self.working_copy_factories,
         };
         for start_hook_fn in self.start_hook_fns {
             start_hook_fn(ui, &command_helper)?;
@@ -2713,15 +2713,14 @@ impl CliRunner {
     #[must_use]
     #[instrument(skip(self))]
     pub fn run(mut self) -> ExitCode {
-        let mut default_config = crate::config::default_config();
-        if let Some(extra_configs) = self.extra_configs.take() {
-            default_config = config::Config::builder()
-                .add_source(default_config)
-                .add_source(extra_configs)
-                .build()
-                .unwrap();
-        }
-        let layered_configs = LayeredConfigs::from_environment(default_config);
+        let builder = config::Config::builder().add_source(crate::config::default_config());
+        let config = self
+            .extra_configs
+            .drain(..)
+            .fold(builder, |builder, config| builder.add_source(config))
+            .build()
+            .unwrap();
+        let layered_configs = LayeredConfigs::from_environment(config);
         let mut ui = Ui::with_config(&layered_configs.merge())
             .expect("default config should be valid, env vars are stringly typed");
         let result = self.run_internal(&mut ui, layered_configs);

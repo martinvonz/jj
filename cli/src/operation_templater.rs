@@ -51,14 +51,16 @@ impl OperationTemplateLanguage {
     pub fn new(
         root_op_id: &OperationId,
         current_op_id: Option<&OperationId>,
-        extension: Option<&dyn OperationTemplateLanguageExtension>,
+        extensions: &[impl AsRef<dyn OperationTemplateLanguageExtension>],
     ) -> Self {
         let mut build_fn_table = OperationTemplateBuildFnTable::builtin();
         let mut cache_extensions = ExtensionsMap::empty();
-        if let Some(extension) = extension {
-            let ext_table = extension.build_fn_table();
-            build_fn_table.merge(ext_table);
-            extension.build_cache_extensions(&mut cache_extensions);
+
+        for extension in extensions {
+            build_fn_table.merge(extension.as_ref().build_fn_table());
+            extension
+                .as_ref()
+                .build_cache_extensions(&mut cache_extensions);
         }
 
         OperationTemplateLanguage {

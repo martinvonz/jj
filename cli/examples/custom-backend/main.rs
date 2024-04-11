@@ -40,7 +40,7 @@ enum CustomCommand {
 }
 
 fn create_store_factories() -> StoreFactories {
-    let mut store_factories = StoreFactories::default();
+    let mut store_factories = StoreFactories::empty();
     // Register the backend so it can be loaded when the repo is loaded. The name
     // must match `Backend::name()`.
     store_factories.add_backend(
@@ -73,7 +73,7 @@ fn run_custom_command(
 
 fn main() -> std::process::ExitCode {
     CliRunner::init()
-        .set_store_factories(create_store_factories())
+        .add_store_factories(create_store_factories())
         .add_subcommand(run_custom_command)
         .run()
 }
