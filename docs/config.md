@@ -328,23 +328,18 @@ Can be customized by the `format_short_signature()` template alias.
 
 ### Allow "large" revsets by default
 
-Certain commands (such as `jj rebase`) can take multiple revset arguments, and
-each of these may resolve to one-or-many revisions. By default, `jj` will not
-allow revsets that resolve to more than one revision &mdash; a so-called "large
-revset" &mdash; and will ask you to confirm that you want to proceed by
-prefixing it with the `all:` modifier.
+Certain commands (such as `jj rebase`) can take multiple revset arguments, but
+default to requiring each of those revsets to expand to a *single* revision.
+This restriction can be overridden by prefixing a revset that the user wants to
+be able to expand to more than one revision with the [`all:`
+modifier](revsets.md#the-all-modifier).
 
-For instance, to add a new parent `abc` to the commit `xyz`, you may use `jj
-rebase`:
-
-```
-jj rebase -r xyz -d "all:xyz-" -d "abc"
-```
-
-`jj` requires the `all:` prefix for the above command. However, you may disable
-this behavior by setting `ui.always-allow-large-revsets` to `true`:
+Another way you can override this check is by setting
+`ui.always-allow-large-revsets` to `true`. Then, `jj` will allow every one of
+the revset arguments of such commands to expand to any number of revisions.
 
 ```toml
+# Assume `all:` prefix before revsets whenever it would make a difference
 ui.always-allow-large-revsets = true
 ```
 
