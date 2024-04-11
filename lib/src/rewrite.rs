@@ -95,8 +95,8 @@ pub fn restore_tree(
 pub fn rebase_commit(
     settings: &UserSettings,
     mut_repo: &mut MutableRepo,
-    old_commit: &Commit,
-    new_parents: &[Commit],
+    old_commit: Commit,
+    new_parents: Vec<Commit>,
 ) -> BackendResult<Commit> {
     let rebased_commit = rebase_commit_with_options(
         settings,
@@ -119,8 +119,8 @@ pub enum RebasedCommit {
 pub fn rebase_commit_with_options(
     settings: &UserSettings,
     mut_repo: &mut MutableRepo,
-    old_commit: &Commit,
-    new_parents: &[Commit],
+    old_commit: Commit,
+    new_parents: Vec<Commit>,
     options: &RebaseOptions,
 ) -> BackendResult<RebasedCommit> {
     // If specified, don't create commit where one parent is an ancestor of another.
@@ -139,7 +139,7 @@ pub fn rebase_commit_with_options(
             .collect_vec();
         &simplified_new_parents[..]
     } else {
-        new_parents
+        &new_parents
     };
 
     let old_parents = old_commit.parents();
@@ -195,7 +195,7 @@ pub fn rebase_commit_with_options(
         .map(|commit| commit.id().clone())
         .collect();
     let new_commit = mut_repo
-        .rewrite_commit(settings, old_commit)
+        .rewrite_commit(settings, &old_commit)
         .set_parents(new_parent_ids)
         .set_tree_id(new_tree_id)
         .write()?;
@@ -327,8 +327,8 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let rebased_commit: RebasedCommit = rebase_commit_with_options(
             self.settings,
             self.mut_repo,
-            &old_commit,
-            &new_parents,
+            old_commit,
+            new_parents,
             &self.options,
         )?;
         let new_commit = match rebased_commit {

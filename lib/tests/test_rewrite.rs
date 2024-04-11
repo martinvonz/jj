@@ -1729,8 +1729,8 @@ fn test_rebase_abandoning_empty() {
     rebase_commit_with_options(
         &settings,
         tx.mut_repo(),
-        &commit_b,
-        &[commit_b2.clone()],
+        commit_b,
+        vec![commit_b2.clone()],
         &rebase_options,
     )
     .unwrap();

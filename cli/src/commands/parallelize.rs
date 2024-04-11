@@ -114,7 +114,7 @@ pub(crate) fn cmd_parallelize(
             rebase_descendants(
                 &mut tx,
                 command.settings(),
-                &new_parents.into_iter().collect_vec(),
+                new_parents.into_iter().collect_vec(),
                 &[child],
                 Default::default(),
             )?;
@@ -135,7 +135,7 @@ pub(crate) fn cmd_parallelize(
     rebase_descendants(
         &mut tx,
         command.settings(),
-        &new_parents,
+        new_parents,
         &target_commits,
         Default::default(),
     )?;
