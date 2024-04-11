@@ -2667,11 +2667,14 @@ example:</p>
 <p>In large repositories, it may be beneficial to use a "filesystem monitor" to
 track changes to the working copy. This allows <code>jj</code> to take working copy
 snapshots without having to rescan the entire working copy.</p>
+<p>This is governed by the <code>core.fsmonitor</code> option. Currently, the valid values are
+<code>"none"</code> or <code>"watchman"</code>.</p>
 <h3 id="watchman">Watchman<a class="headerlink" href="#watchman" title="Permanent link">&para;</a></h3>
 <p>To configure the Watchman filesystem monitor, set
 <code>core.fsmonitor = "watchman"</code>. Ensure that you have <a href="https://facebook.github.io/watchman/docs/install">installed the Watchman
 executable on your system</a>.</p>
-<p>Debugging commands are available under <code>jj debug watchman</code>.</p>
+<p>You can check whether Watchman is enabled and whether it is installed correctly
+using <code>jj debug watchman status</code>.</p>
 <h2 id="ways-to-specify-jj-config-details">Ways to specify <code>jj</code> config: details<a class="headerlink" href="#ways-to-specify-jj-config-details" title="Permanent link">&para;</a></h2>
 <h3 id="user-config-file">User config file<a class="headerlink" href="#user-config-file" title="Permanent link">&para;</a></h3>
 <p>An easy way to find the user config file is:</p>
