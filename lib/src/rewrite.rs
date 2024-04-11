@@ -29,8 +29,7 @@ use crate::index::Index;
 use crate::matchers::{Matcher, Visit};
 use crate::merged_tree::{MergedTree, MergedTreeBuilder};
 use crate::object_id::ObjectId;
-use crate::op_store::RefTarget;
-use crate::repo::{MutableRepo, Repo, RewriteType};
+use crate::repo::{MutableRepo, Repo};
 use crate::repo_path::RepoPath;
 use crate::revset::{RevsetExpression, RevsetIteratorExt};
 use crate::settings::UserSettings;
@@ -349,97 +348,6 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         self.rebased
     }
 
-    fn update_references(
-        &mut self,
-        settings: &UserSettings,
-        old_commit_id: CommitId,
-        new_commit_ids: Vec<CommitId>,
-    ) -> Result<(), BackendError> {
-        // We arbitrarily pick a new working-copy commit among the candidates.
-        let abandoned_old_commit = matches!(
-            self.mut_repo.parent_mapping.get(&old_commit_id),
-            Some((RewriteType::Abandoned, _))
-        );
-        self.update_wc_commits(
-            settings,
-            &old_commit_id,
-            &new_commit_ids[0],
-            abandoned_old_commit,
-        )?;
-
-        // Build a map from commit to branches pointing to it, so we don't need to scan
-        // all branches each time we rebase a commit.
-        // TODO: We no longer need to do this now that we update branches for all
-        // commits at once.
-        let mut branches: HashMap<_, HashSet<_>> = HashMap::new();
-        for (branch_name, target) in self.mut_repo.view().local_branches() {
-            for commit in target.added_ids() {
-                branches
-                    .entry(commit.clone())
-                    .or_default()
-                    .insert(branch_name.to_owned());
-            }
-        }
-
-        if let Some(branch_names) = branches.get(&old_commit_id).cloned() {
-            let mut branch_updates = vec![];
-            for branch_name in &branch_names {
-                let local_target = self.mut_repo.get_local_branch(branch_name);
-                for old_add in local_target.added_ids() {
-                    if *old_add == old_commit_id {
-                        branch_updates.push(branch_name.clone());
-                    }
-                }
-            }
-
-            let old_target = RefTarget::normal(old_commit_id.clone());
-            assert!(!new_commit_ids.is_empty());
-            let new_target = RefTarget::from_legacy_form(
-                std::iter::repeat(old_commit_id).take(new_commit_ids.len() - 1),
-                new_commit_ids,
-            );
-            for branch_name in &branch_updates {
-                self.mut_repo
-                    .merge_local_branch(branch_name, &old_target, &new_target);
-            }
-        }
-
-        Ok(())
-    }
-
-    fn update_wc_commits(
-        &mut self,
-        settings: &UserSettings,
-        old_commit_id: &CommitId,
-        new_commit_id: &CommitId,
-        abandoned_old_commit: bool,
-    ) -> Result<(), BackendError> {
-        let workspaces_to_update = self
-            .mut_repo
-            .view()
-            .workspaces_for_wc_commit_id(old_commit_id);
-        if workspaces_to_update.is_empty() {
-            return Ok(());
-        }
-
-        let new_commit = self.mut_repo.store().get_commit(new_commit_id)?;
-        let new_wc_commit = if !abandoned_old_commit {
-            new_commit
-        } else {
-            self.mut_repo
-                .new_commit(
-                    settings,
-                    vec![new_commit.id().clone()],
-                    new_commit.tree_id().clone(),
-                )
-                .write()?
-        };
-        for workspace_id in workspaces_to_update.into_iter() {
-            self.mut_repo.edit(workspace_id, &new_wc_commit).unwrap();
-        }
-        Ok(())
-    }
-
     fn rebase_one(&mut self, old_commit: Commit) -> BackendResult<()> {
         let old_commit_id = old_commit.id().clone();
         let old_parent_ids = old_commit.parent_ids();
@@ -469,44 +377,10 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         Ok(())
     }
 
-    fn update_all_references(&mut self, settings: &UserSettings) -> Result<(), BackendError> {
-        for (old_parent_id, (_, new_parent_ids)) in self.mut_repo.parent_mapping.clone() {
-            // Call `new_parents()` here since `parent_mapping` only contains direct
-            // mappings, not transitive ones.
-            // TODO: keep parent_mapping updated with transitive mappings so we don't need
-            // to call `new_parents()` here.
-            let new_parent_ids = self.mut_repo.new_parents(&new_parent_ids);
-            self.update_references(settings, old_parent_id, new_parent_ids)?;
-        }
-        Ok(())
-    }
-
-    fn update_heads(&mut self) {
-        let old_commits_expression =
-            RevsetExpression::commits(self.mut_repo.parent_mapping.keys().cloned().collect());
-        let heads_to_add_expression = old_commits_expression
-            .parents()
-            .minus(&old_commits_expression);
-        let heads_to_add = heads_to_add_expression
-            .evaluate_programmatic(self.mut_repo)
-            .unwrap()
-            .iter();
-
-        let mut view = self.mut_repo.view().store_view().clone();
-        for commit_id in self.mut_repo.parent_mapping.keys() {
-            view.head_ids.remove(commit_id);
-        }
-        view.head_ids.extend(heads_to_add);
-        self.mut_repo.set_view(view);
-    }
-
     pub fn rebase_all(&mut self) -> BackendResult<()> {
         while let Some(old_commit) = self.to_visit.pop() {
             self.rebase_one(old_commit)?;
         }
-        self.update_all_references(self.settings)?;
-        self.update_heads();
-
-        Ok(())
+        self.mut_repo.update_rewritten_references(self.settings)
     }
 }
