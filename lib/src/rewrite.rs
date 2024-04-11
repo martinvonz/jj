@@ -351,6 +351,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
 
     fn update_references(
         &mut self,
+        settings: &UserSettings,
         old_commit_id: CommitId,
         new_commit_ids: Vec<CommitId>,
     ) -> Result<(), BackendError> {
@@ -359,7 +360,12 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             self.mut_repo.parent_mapping.get(&old_commit_id),
             Some((RewriteType::Abandoned, _))
         );
-        self.update_wc_commits(&old_commit_id, &new_commit_ids[0], abandoned_old_commit)?;
+        self.update_wc_commits(
+            settings,
+            &old_commit_id,
+            &new_commit_ids[0],
+            abandoned_old_commit,
+        )?;
 
         // Build a map from commit to branches pointing to it, so we don't need to scan
         // all branches each time we rebase a commit.
@@ -403,6 +409,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
 
     fn update_wc_commits(
         &mut self,
+        settings: &UserSettings,
         old_commit_id: &CommitId,
         new_commit_id: &CommitId,
         abandoned_old_commit: bool,
@@ -421,7 +428,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         } else {
             self.mut_repo
                 .new_commit(
-                    self.settings,
+                    settings,
                     vec![new_commit.id().clone()],
                     new_commit.tree_id().clone(),
                 )
@@ -471,14 +478,14 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         Ok(())
     }
 
-    fn update_all_references(&mut self) -> Result<(), BackendError> {
+    fn update_all_references(&mut self, settings: &UserSettings) -> Result<(), BackendError> {
         for (old_parent_id, (_, new_parent_ids)) in self.mut_repo.parent_mapping.clone() {
             // Call `new_parents()` here since `parent_mapping` only contains direct
             // mappings, not transitive ones.
             // TODO: keep parent_mapping updated with transitive mappings so we don't need
             // to call `new_parents()` here.
             let new_parent_ids = self.mut_repo.new_parents(&new_parent_ids);
-            self.update_references(old_parent_id, new_parent_ids)?;
+            self.update_references(settings, old_parent_id, new_parent_ids)?;
         }
         Ok(())
     }
@@ -506,7 +513,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         while let Some(old_commit) = self.to_visit.pop() {
             self.rebase_one(old_commit)?;
         }
-        self.update_all_references()?;
+        self.update_all_references(self.settings)?;
         self.update_heads();
 
         Ok(())
