@@ -218,6 +218,40 @@ for a comprehensive list.
 * `immutable_heads()`: Resolves to `trunk() | tags()` by default. See
   [here](config.md#set-of-immutable-commits) for details.
 
+
+## The `all:` modifier
+
+Certain commands (such as `jj rebase`) can take multiple revset arguments, and
+each of these may resolve to one-or-many revisions. By default, `jj` will not
+allow revsets that resolve to more than one revision &mdash; a so-called "large
+revset" &mdash; and will ask you to confirm that you want to proceed by
+prefixing it with the `all:` modifier.
+
+If you set the `ui.always-allow-large-revsets` option to `true`, `jj` will
+behave as though the `all:` modifier was used every time it would matter.
+
+An `all:` modifier before a revset expression does not otherwise change its
+meaning. Strictly speaking, it is not part of the revset language. The notation
+is similar to the modifiers like `glob:` allowed before [string
+patterms](#string-patterns).
+
+For example, `jj rebase -r w -d xyz+` will rebase `w` on top of the child of
+`xyz` as long as `xyz` has exactly one child.
+
+If `xyz` has more than one child, the `all:` modifier is *not* specified, and
+`ui.always-allow-large-revsets` is `false` (the default), `jj rebase -r w -d
+xyz+` will return an error.
+
+If `ui.always-allow-large-revsets` was `true`, the above command would act as if
+`all:` was set (see the next paragraph).
+
+With the `all:` modifier, `jj rebase -r w -d all:xyz+` will make `w` into a merge
+commit if `xyz` has more than one child. The `all:` modifier confirms that the
+user expected `xyz` to have more than one child.
+
+A more useful example: if `w` is a merge commit, `jj rebase -s w -d all:w- -d
+xyz` will add `xyz` to the list of `w`'s parents.
+
 ## Examples
 
 Show the parent(s) of the working-copy commit (like `git log -1 HEAD`):
