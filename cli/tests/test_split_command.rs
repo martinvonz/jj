@@ -250,6 +250,49 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     "###);
 }
 
+// This test makes sure that the children of the commit being split retain any
+// other parents which weren't involved in the split.
+#[test]
+fn test_split_with_merge_child() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let workspace_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&workspace_path, &["describe", "-m=1"]);
+    test_env.jj_cmd_ok(&workspace_path, &["new", "root()", "-m=a"]);
+    std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
+    test_env.jj_cmd_ok(
+        &workspace_path,
+        &["new", "description(1)", "description(a)", "-m=2"],
+    );
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    @    zsuskulnrvyr true 2
+    ├─╮
+    │ ◉  kkmpptxzrspx false a
+    ◉ │  qpvuntsmwlqt true 1
+    ├─╯
+    ◉  zzzzzzzzzzzz true
+    "###);
+
+    // Set up the editor and do the split.
+    let edit_script = test_env.set_up_fake_editor();
+    std::fs::write(
+        edit_script,
+        ["write\nAdd file1", "next invocation\n", "write\nAdd file2"].join("\0"),
+    )
+    .unwrap();
+    test_env.jj_cmd_ok(&workspace_path, &["split", "-r", "description(a)", "file1"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    @    zsuskulnrvyr true 2
+    ├─╮
+    │ ◉  royxmykxtrkr false Add file2
+    │ ◉  kkmpptxzrspx false Add file1
+    ◉ │  qpvuntsmwlqt true 1
+    ├─╯
+    ◉  zzzzzzzzzzzz true
+    "###);
+}
+
 #[test]
 // Split a commit with no descendants into siblings. Also tests that the default
 // description is set correctly on the first commit.
