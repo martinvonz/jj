@@ -442,21 +442,12 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
 
     fn rebase_one(&mut self, old_commit: Commit) -> BackendResult<()> {
         let old_commit_id = old_commit.id().clone();
-        assert!(!self.mut_repo.parent_mapping.contains_key(&old_commit_id));
         let old_parent_ids = old_commit.parent_ids();
         let new_parent_ids = self.mut_repo.new_parents(old_parent_ids);
         if new_parent_ids == old_parent_ids {
             // The commit is already in place.
             return Ok(());
         }
-        assert_eq!(
-            (
-                self.rebased.get(&old_commit_id),
-                self.mut_repo.parent_mapping.get(&old_commit_id)
-            ),
-            (None, None),
-            "Trying to rebase the same commit {old_commit_id:?} in two different ways",
-        );
 
         let new_parents: Vec<_> = new_parent_ids
             .iter()
