@@ -24,14 +24,12 @@ use tracing::instrument;
 
 use crate::backend::{BackendError, BackendResult, CommitId, MergedTreeId};
 use crate::commit::Commit;
-use crate::dag_walk;
 use crate::index::Index;
 use crate::matchers::{Matcher, Visit};
 use crate::merged_tree::{MergedTree, MergedTreeBuilder};
 use crate::object_id::ObjectId;
 use crate::repo::{MutableRepo, Repo};
 use crate::repo_path::RepoPath;
-use crate::revset::{RevsetExpression, RevsetIteratorExt};
 use crate::settings::UserSettings;
 use crate::store::Store;
 
@@ -290,43 +288,8 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     pub fn new(
         settings: &'settings UserSettings,
         mut_repo: &'repo mut MutableRepo,
+        to_visit: Vec<Commit>,
     ) -> DescendantRebaser<'settings, 'repo> {
-        let store = mut_repo.store();
-        let old_commits_expression =
-            RevsetExpression::commits(mut_repo.parent_mapping.keys().cloned().collect());
-        let to_visit_expression = old_commits_expression
-            .descendants()
-            .minus(&old_commits_expression);
-        let to_visit_revset = to_visit_expression.evaluate_programmatic(mut_repo).unwrap();
-        let to_visit: Vec<_> = to_visit_revset.iter().commits(store).try_collect().unwrap();
-        drop(to_visit_revset);
-        let to_visit_set: HashSet<CommitId> =
-            to_visit.iter().map(|commit| commit.id().clone()).collect();
-        let mut visited = HashSet::new();
-        // Calculate an order where we rebase parents first, but if the parents were
-        // rewritten, make sure we rebase the rewritten parent first.
-        let to_visit = dag_walk::topo_order_reverse(
-            to_visit,
-            |commit| commit.id().clone(),
-            |commit| {
-                visited.insert(commit.id().clone());
-                let mut dependents = vec![];
-                for parent in commit.parents() {
-                    if let Some((_, targets)) = mut_repo.parent_mapping.get(parent.id()) {
-                        for target in targets {
-                            if to_visit_set.contains(target) && !visited.contains(target) {
-                                dependents.push(store.get_commit(target).unwrap());
-                            }
-                        }
-                    }
-                    if to_visit_set.contains(parent.id()) {
-                        dependents.push(parent);
-                    }
-                }
-                dependents
-            },
-        );
-
         DescendantRebaser {
             settings,
             mut_repo,
