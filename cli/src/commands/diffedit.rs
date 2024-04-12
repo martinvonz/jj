@@ -25,11 +25,14 @@ use crate::ui::Ui;
 
 /// Touch up the content changes in a revision with a diff editor
 ///
-/// With the `-r` option, which is the default, starts a diff editor (`meld` by
-/// default) on the changes in the revision.
+/// With the `-r` option, which is the default, starts a [diff editor] on the
+/// changes in the revision.
 ///
-/// With the `--from` and/or `--to` options, starts a diff editor comparing the
-/// "from" revision to the "to" revision.
+/// With the `--from` and/or `--to` options, starts a [diff editor] comparing
+/// the "from" revision to the "to" revision.
+///
+/// [diff editor]:
+///     https://martinvonz.github.io/jj/latest/config/#editing-diffs
 ///
 /// Edit the right side of the diff until it looks the way you want. Once you
 /// close the editor, the revision specified with `-r` or `--to` will be

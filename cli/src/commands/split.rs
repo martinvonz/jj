@@ -30,11 +30,13 @@ use crate::ui::Ui;
 
 /// Split a revision in two
 ///
-/// Starts a diff editor (`meld` by default) on the changes in the revision.
-/// Edit the right side of the diff until it has the content you want in the
-/// first revision. Once you close the editor, your edited content will replace
-/// the previous revision. The remaining changes will be put in a new revision
-/// on top.
+/// Starts a [diff editor] on the changes in the revision. Edit the right side
+/// of the diff until it has the content you want in the first revision. Once
+/// you close the editor, your edited content will replace the previous
+/// revision. The remaining changes will be put in a new revision on top.
+///
+/// [diff editor]:
+///     https://martinvonz.github.io/jj/latest/config/#editing-diffs
 ///
 /// If the change you split had a description, you will be asked to enter a
 /// change description for each commit. If the change did not have a
