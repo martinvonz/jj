@@ -242,11 +242,13 @@ By default, the following graph nodes are shown to the user:
   * The working-copy-commit is the `@` symbol, and is green.
   * Immutable nodes (as specified by the `immutable_heads()` revset) are
     represented with blue diamonds `◆`
-  * Mutable commits are represented with ordinary uncolored circles `○`
-  * "Elided nodes" are specified with the "harpoon" symbol `⇋` to show that
-    there are commits between the two nodes that are "cut" out, and not shown.
-  * Commits whose description begins with `wip:` are represented with a yellow
-    `!` symbol.
+  * Conflicted commits are represented with red crosses `×`.
+  * Other mutable commits are represented with ordinary uncolored circles `○`
+  * "Elided nodes" are represented with a tilde `~` to reflect the similarity
+    to its usage for graphs with cut roots.
+
+For the ascii style graph colors are the same, while symbols differ due to
+the character set restriction.
 
 These symbols are chosen to be visually distinct from one another, with distinct
 colors. However, certain Unicode characters may not render correctly in all

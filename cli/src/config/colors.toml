@@ -92,5 +92,5 @@
 "node elided" = { fg = "bright black" }
 "node working_copy" = { fg = "green" }
 "node immutable" = { fg = "bright cyan" }
-"node wip" = { fg = "yellow" }
+"node conflict" = { fg = "red" }
 "node normal" = { bold = false }

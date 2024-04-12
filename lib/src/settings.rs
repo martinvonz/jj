@@ -245,16 +245,50 @@ impl UserSettings {
     pub fn commit_node_template(&self) -> String {
         self.node_template_for_key(
             "templates.log_node",
-            r#"if(self, if(current_working_copy, "@", "◉"), "◌")"#,
-            r#"if(self, if(current_working_copy, "@", "o"), ".")"#,
+            r#"
+            label("node",
+              coalesce(
+                if(!self, label("elided", "~")),
+                if(current_working_copy, label("working_copy", "@")),
+                if(immutable, label("immutable", "◆")),
+                if(conflict, label("conflict", "×")),
+                label("normal", "○"),
+              )
+            )
+            "#,
+            r##"
+            label("node",
+              coalesce(
+                if(!self, label("elided", "~")),
+                if(current_working_copy, label("working_copy", "@")),
+                if(immutable, label("immutable", "#")),
+                if(conflict, label("conflict", "x")),
+                label("normal", "o"),
+              )
+            )
+            "##,
         )
     }
 
     pub fn op_node_template(&self) -> String {
         self.node_template_for_key(
             "templates.op_log_node",
-            r#"if(current_operation, "@", "◉")"#,
-            r#"if(current_operation, "@", "o")"#,
+            r#"
+            label("node",
+              coalesce(
+                if(current_operation, label("working_copy", "@")),
+                "○",
+              )
+            )
+            "#,
+            r#"
+            label("node",
+              coalesce(
+                if(current_operation, label("working_copy", "@")),
+                "o",
+              )
+            )
+            "#,
         )
     }
 
