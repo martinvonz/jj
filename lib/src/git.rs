@@ -1240,9 +1240,12 @@ pub struct GitBranchPushTargets {
 
 pub struct GitRefUpdate {
     pub qualified_name: String,
-    // TODO: We want this to be a `current_target: Option<CommitId>` for the expected current
-    // commit on the remote. It's a blunt "force" option instead until git2-rs supports the
-    // "push negotiation" callback (https://github.com/rust-lang/git2-rs/issues/733).
+    /// Expected position on the remote or None if we expect the ref to not
+    /// exist on the remote
+    ///
+    /// This is sourced from the local remote-tracking branch.
+    pub expected_current_target: Option<CommitId>,
+    // Short-term TODO: Delete `force`
     pub force: bool,
     pub new_target: Option<CommitId>,
 }
@@ -1261,6 +1264,7 @@ pub fn push_branches(
         .map(|(branch_name, update)| GitRefUpdate {
             qualified_name: format!("refs/heads/{branch_name}"),
             force: targets.force_pushed_branches.contains(branch_name),
+            expected_current_target: update.old_target.clone(),
             new_target: update.new_target.clone(),
         })
         .collect_vec();
@@ -1289,10 +1293,13 @@ pub fn push_updates(
     updates: &[GitRefUpdate],
     callbacks: RemoteCallbacks<'_>,
 ) -> Result<(), GitPushError> {
-    let mut qualified_remote_refs = vec![];
+    let mut qualified_remote_refs_expected_locations = HashMap::new();
     let mut refspecs = vec![];
     for update in updates {
-        qualified_remote_refs.push(update.qualified_name.as_str());
+        qualified_remote_refs_expected_locations.insert(
+            update.qualified_name.as_str(),
+            update.expected_current_target.as_ref(),
+        );
         if let Some(new_target) = &update.new_target {
             refspecs.push(format!(
                 "{}{}:{}",
@@ -1310,7 +1317,7 @@ pub fn push_updates(
     push_refs(
         git_repo,
         remote_name,
-        &qualified_remote_refs,
+        &qualified_remote_refs_expected_locations,
         &refspecs,
         callbacks,
     )
@@ -1319,7 +1326,7 @@ pub fn push_updates(
 fn push_refs(
     git_repo: &git2::Repository,
     remote_name: &str,
-    qualified_remote_refs: &[&str],
+    qualified_remote_refs_expected_locations: &HashMap<&str, Option<&CommitId>>,
     refspecs: &[String],
     callbacks: RemoteCallbacks<'_>,
 ) -> Result<(), GitPushError> {
@@ -1333,12 +1340,44 @@ fn push_refs(
             GitPushError::InternalGitError(err)
         }
     })?;
-    let mut remaining_remote_refs: HashSet<_> = qualified_remote_refs.iter().copied().collect();
+    let mut remaining_remote_refs: HashSet<_> = qualified_remote_refs_expected_locations
+        .keys()
+        .copied()
+        .collect();
     let mut push_options = git2::PushOptions::new();
     let mut proxy_options = git2::ProxyOptions::new();
     proxy_options.auto();
     push_options.proxy_options(proxy_options);
     let mut callbacks = callbacks.into_git();
+    callbacks.push_negotiation(|updates| {
+        for update in updates {
+            let dst_refname = update
+                .dst_refname()
+                .expect("Expect reference name to be valid UTF-8");
+            let expected_remote_location = *qualified_remote_refs_expected_locations
+                .get(dst_refname)
+                .expect("Push is trying to move a ref it wasn't asked to move");
+
+            // `update.src()` is the current actual position of the branch
+            // `dst_refname` on the remote. `update.dst()` is the position
+            // we are trying to push the branch to (AKA our local branch
+            // location). 0000000000 is a valid value for either, indicating
+            // branch creation or deletion.
+            let oid_to_maybe_commitid =
+                |oid: git2::Oid| (!oid.is_zero()).then(|| CommitId::from_bytes(oid.as_bytes()));
+            let actual_remote_location = oid_to_maybe_commitid(update.src());
+            let local_location = oid_to_maybe_commitid(update.dst());
+
+            // Short-term TODO: Replace this with actual rules of when to permit the push
+            tracing::info!(
+                "Forcing {dst_refname} to {dst:?}. It was at {src:?} at the server. We expected \
+                 it to be at {expected_remote_location:?}.",
+                src = actual_remote_location,
+                dst = local_location
+            );
+        }
+        Ok(())
+    });
     callbacks.push_update_reference(|refname, status| {
         // The status is Some if the ref update was rejected
         if status.is_none() {
