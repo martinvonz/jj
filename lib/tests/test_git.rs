@@ -777,6 +777,151 @@ fn test_import_refs_reimport_with_moved_untracked_remote_ref() {
 }
 
 #[test]
+fn test_import_refs_reimport_with_deleted_untracked_intermediate_remote_ref() {
+    let settings = testutils::user_settings();
+    let git_settings = GitSettings {
+        auto_local_branch: false,
+        ..Default::default()
+    };
+    let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let repo = &test_workspace.repo;
+    let git_repo = get_git_repo(repo);
+
+    // Set up linear graph:
+    // o feature-b@origin
+    // o feature-a@origin
+    let remote_ref_name_a = "refs/remotes/origin/feature-a";
+    let remote_ref_name_b = "refs/remotes/origin/feature-b";
+    let commit_remote_a = empty_git_commit(&git_repo, remote_ref_name_a, &[]);
+    let commit_remote_b = empty_git_commit(&git_repo, remote_ref_name_b, &[&commit_remote_a]);
+    let mut tx = repo.start_transaction(&settings);
+    git::import_refs(tx.mut_repo(), &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    let repo = tx.commit("test");
+    let view = repo.view();
+
+    assert_eq!(*view.heads(), hashset! { jj_id(&commit_remote_b) });
+    assert_eq!(view.local_branches().count(), 0);
+    assert_eq!(view.all_remote_branches().count(), 2);
+    assert_eq!(
+        view.get_remote_branch("feature-a", "origin"),
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_remote_a)),
+            state: RemoteRefState::New,
+        },
+    );
+    assert_eq!(
+        view.get_remote_branch("feature-b", "origin"),
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_remote_b)),
+            state: RemoteRefState::New,
+        },
+    );
+
+    // Delete feature-a remotely and fetch the changes.
+    delete_git_ref(&git_repo, remote_ref_name_a);
+    let mut tx = repo.start_transaction(&settings);
+    git::import_refs(tx.mut_repo(), &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    let repo = tx.commit("test");
+    let view = repo.view();
+
+    // No commits should be abandoned because feature-a is pinned by feature-b.
+    // Otherwise, feature-b would have to be rebased locally even though the
+    // user haven't made any modifications to these commits yet.
+    assert_eq!(*view.heads(), hashset! { jj_id(&commit_remote_b) });
+    assert_eq!(view.local_branches().count(), 0);
+    assert_eq!(view.all_remote_branches().count(), 1);
+    assert_eq!(
+        view.get_remote_branch("feature-b", "origin"),
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_remote_b)),
+            state: RemoteRefState::New,
+        },
+    );
+}
+
+#[test]
+fn test_import_refs_reimport_with_deleted_abandoned_untracked_remote_ref() {
+    let settings = testutils::user_settings();
+    let git_settings = GitSettings {
+        auto_local_branch: false,
+        ..Default::default()
+    };
+    let test_workspace = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let repo = &test_workspace.repo;
+    let git_repo = get_git_repo(repo);
+
+    // Set up linear graph:
+    // o feature-b@origin
+    // o feature-a@origin
+    let remote_ref_name_a = "refs/remotes/origin/feature-a";
+    let remote_ref_name_b = "refs/remotes/origin/feature-b";
+    let commit_remote_a = empty_git_commit(&git_repo, remote_ref_name_a, &[]);
+    let commit_remote_b = empty_git_commit(&git_repo, remote_ref_name_b, &[&commit_remote_a]);
+    let mut tx = repo.start_transaction(&settings);
+    git::import_refs(tx.mut_repo(), &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    let repo = tx.commit("test");
+    let view = repo.view();
+
+    assert_eq!(*view.heads(), hashset! { jj_id(&commit_remote_b) });
+    assert_eq!(view.local_branches().count(), 0);
+    assert_eq!(view.all_remote_branches().count(), 2);
+    assert_eq!(
+        view.get_remote_branch("feature-a", "origin"),
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_remote_a)),
+            state: RemoteRefState::New,
+        },
+    );
+    assert_eq!(
+        view.get_remote_branch("feature-b", "origin"),
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_remote_b)),
+            state: RemoteRefState::New,
+        },
+    );
+
+    // Abandon feature-b locally:
+    // x feature-b@origin (hidden)
+    // o feature-a@origin
+    let mut tx = repo.start_transaction(&settings);
+    tx.mut_repo()
+        .record_abandoned_commit(jj_id(&commit_remote_b));
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    let repo = tx.commit("test");
+    let view = repo.view();
+    assert_eq!(*view.heads(), hashset! { jj_id(&commit_remote_a) });
+    assert_eq!(view.local_branches().count(), 0);
+    assert_eq!(view.all_remote_branches().count(), 2);
+
+    // Delete feature-a remotely and fetch the changes.
+    delete_git_ref(&git_repo, remote_ref_name_a);
+    let mut tx = repo.start_transaction(&settings);
+    git::import_refs(tx.mut_repo(), &git_settings).unwrap();
+    tx.mut_repo().rebase_descendants(&settings).unwrap();
+    let repo = tx.commit("test");
+    let view = repo.view();
+
+    // The feature-a commit should be abandoned. Since feature-b has already
+    // been abandoned, there are no descendant commits to be rebased.
+    assert_eq!(
+        *view.heads(),
+        hashset! { repo.store().root_commit_id().clone() }
+    );
+    assert_eq!(view.local_branches().count(), 0);
+    assert_eq!(view.all_remote_branches().count(), 1);
+    assert_eq!(
+        view.get_remote_branch("feature-b", "origin"),
+        &RemoteRef {
+            target: RefTarget::normal(jj_id(&commit_remote_b)),
+            state: RemoteRefState::New,
+        },
+    );
+}
+
+#[test]
 fn test_import_refs_reimport_git_head_with_fixed_ref() {
     // Simulate external `git checkout` in colocated repo, from named branch.
     let settings = testutils::user_settings();

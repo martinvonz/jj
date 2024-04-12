@@ -350,17 +350,17 @@ fn abandon_unreachable_commits(
     if hidable_git_heads.is_empty() {
         return vec![];
     }
-    let pinned_heads = itertools::chain!(
-        changed_remote_refs
-            .values()
-            .flat_map(|(_, new_target)| new_target.added_ids()),
-        pinned_commit_ids(mut_repo.view()),
-        iter::once(mut_repo.store().root_commit_id()),
-    )
-    .cloned()
-    .collect_vec();
-    let abandoned_expression = RevsetExpression::commits(pinned_heads)
+    let pinned_expression = RevsetExpression::union_all(&[
+        // Local refs are usually visible, no need to filter out hidden
+        RevsetExpression::commits(pinned_commit_ids(mut_repo.view())),
+        RevsetExpression::commits(remotely_pinned_commit_ids(mut_repo.view()))
+            // Hidden remote branches should not contribute to pinning
+            .intersection(&RevsetExpression::visible_heads().ancestors()),
+        RevsetExpression::root(),
+    ]);
+    let abandoned_expression = pinned_expression
         .range(&RevsetExpression::commits(hidable_git_heads))
+        // Don't include already-abandoned commits in GitImportStats
         .intersection(&RevsetExpression::visible_heads().ancestors());
     let abandoned_commits = abandoned_expression
         .evaluate_programmatic(mut_repo)
@@ -500,13 +500,30 @@ fn default_remote_ref_state_for(ref_name: &RefName, git_settings: &GitSettings) 
 /// On `import_refs()`, this is similar to collecting commits referenced by
 /// `view.git_refs()`. Main difference is that local branches can be moved by
 /// tracking remotes, and such mutation isn't applied to `view.git_refs()` yet.
-fn pinned_commit_ids(view: &View) -> impl Iterator<Item = &CommitId> {
+fn pinned_commit_ids(view: &View) -> Vec<CommitId> {
     itertools::chain!(
         view.local_branches().map(|(_, target)| target),
         view.tags().values(),
         iter::once(view.git_head()),
     )
     .flat_map(|target| target.added_ids())
+    .cloned()
+    .collect()
+}
+
+/// Commits referenced by untracked remote branches including hidden ones.
+///
+/// Tracked remote branches aren't included because they should have been merged
+/// into the local counterparts, and the changes pulled from one remote should
+/// propagate to the other remotes on later push. OTOH, untracked remote
+/// branches are considered independent refs.
+fn remotely_pinned_commit_ids(view: &View) -> Vec<CommitId> {
+    view.all_remote_branches()
+        .filter(|(_, remote_ref)| !remote_ref.is_tracking())
+        .map(|(_, remote_ref)| &remote_ref.target)
+        .flat_map(|target| target.added_ids())
+        .cloned()
+        .collect()
 }
 
 /// Imports `HEAD@git` from the underlying Git repo.
