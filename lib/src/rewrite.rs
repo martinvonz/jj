@@ -290,7 +290,7 @@ pub fn back_out_commit(
         .write()
 }
 
-#[derive(Clone, Default, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
 pub enum EmptyBehaviour {
     /// Always keep empty commits
     #[default]

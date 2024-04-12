@@ -1589,7 +1589,7 @@ fn test_empty_commit_option(empty_behavior: EmptyBehaviour) {
         .rebase_descendants_with_options_return_map(
             &settings,
             RebaseOptions {
-                empty: empty_behavior.clone(),
+                empty: empty_behavior,
                 simplify_ancestor_merge: true,
             },
         )
