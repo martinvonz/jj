@@ -2838,6 +2838,7 @@ fn test_push_updates_success() {
         &[GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),
             force: false,
+            expected_current_target: Some(setup.main_commit.id().clone()),
             new_target: Some(setup.child_of_main_commit.id().clone()),
         }],
         git::RemoteCallbacks::default(),
@@ -2874,6 +2875,7 @@ fn test_push_updates_no_such_remote() {
         &[GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),
             force: false,
+            expected_current_target: Some(setup.main_commit.id().clone()),
             new_target: Some(setup.child_of_main_commit.id().clone()),
         }],
         git::RemoteCallbacks::default(),
@@ -2892,6 +2894,7 @@ fn test_push_updates_invalid_remote() {
         &[GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),
             force: false,
+            expected_current_target: Some(setup.main_commit.id().clone()),
             new_target: Some(setup.child_of_main_commit.id().clone()),
         }],
         git::RemoteCallbacks::default(),
