@@ -673,9 +673,11 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
 
 Touch up the content changes in a revision with a diff editor
 
-With the `-r` option, which is the default, starts a diff editor (`meld` by default) on the changes in the revision.
+With the `-r` option, which is the default, starts a [diff editor] on the changes in the revision.
 
-With the `--from` and/or `--to` options, starts a diff editor comparing the "from" revision to the "to" revision.
+With the `--from` and/or `--to` options, starts a [diff editor] comparing the "from" revision to the "to" revision.
+
+[diff editor]: https://martinvonz.github.io/jj/latest/config/#editing-diffs
 
 Edit the right side of the diff until it looks the way you want. Once you close the editor, the revision specified with `-r` or `--to` will be updated. Descendants will be rebased on top as usual, which may result in conflicts.
 
@@ -1713,7 +1715,9 @@ Start an editor to update the patterns that are present in the working copy
 
 Split a revision in two
 
-Starts a diff editor (`meld` by default) on the changes in the revision. Edit the right side of the diff until it has the content you want in the first revision. Once you close the editor, your edited content will replace the previous revision. The remaining changes will be put in a new revision on top.
+Starts a [diff editor] on the changes in the revision. Edit the right side of the diff until it has the content you want in the first revision. Once you close the editor, your edited content will replace the previous revision. The remaining changes will be put in a new revision on top.
+
+[diff editor]: https://martinvonz.github.io/jj/latest/config/#editing-diffs
 
 If the change you split had a description, you will be asked to enter a change description for each commit. If the change did not have a description, the second part will not get a description, and you will be asked for a description only for the first part.
 
