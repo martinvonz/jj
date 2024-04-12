@@ -50,7 +50,7 @@ use crate::operation::Operation;
 use crate::refs::{
     diff_named_ref_targets, diff_named_remote_refs, merge_ref_targets, merge_remote_refs,
 };
-use crate::revset::RevsetExpression;
+use crate::revset::{RevsetExpression, RevsetIteratorExt};
 use crate::rewrite::{DescendantRebaser, RebaseOptions};
 use crate::settings::{RepoSettings, UserSettings};
 use crate::signing::{SignInitError, Signer};
@@ -772,7 +772,6 @@ pub struct MutableRepo {
     base_repo: Arc<ReadonlyRepo>,
     index: Box<dyn MutableIndex>,
     view: DirtyCell<View>,
-    // TODO: make these fields private again
     // The commit identified by the key has been replaced by all the ones in the value.
     // * Branches pointing to the old commit should be updated to the new commit, resulting in a
     //   conflict if there multiple new commits.
@@ -781,7 +780,7 @@ pub struct MutableRepo {
     // * Working copies pointing to the old commit should be updated to the first of the new
     //   commits. However, if the type is `Abandoned`, a new working-copy commit should be created
     //   on top of all of the new commits instead.
-    pub(crate) parent_mapping: HashMap<CommitId, (RewriteType, Vec<CommitId>)>,
+    parent_mapping: HashMap<CommitId, (RewriteType, Vec<CommitId>)>,
 }
 
 impl MutableRepo {
@@ -1107,6 +1106,47 @@ impl MutableRepo {
         self.set_view(view);
     }
 
+    /// Find descendants of commits in `parent_mapping` and then return them in
+    /// an order they should be rebased in. The result is in reverse order
+    /// so the next value can be removed from the end.
+    fn find_descendants_to_rebase(&self) -> Vec<Commit> {
+        let store = self.store();
+        let old_commits_expression =
+            RevsetExpression::commits(self.parent_mapping.keys().cloned().collect());
+        let to_visit_expression = old_commits_expression
+            .descendants()
+            .minus(&old_commits_expression);
+        let to_visit_revset = to_visit_expression.evaluate_programmatic(self).unwrap();
+        let to_visit: Vec<_> = to_visit_revset.iter().commits(store).try_collect().unwrap();
+        drop(to_visit_revset);
+        let to_visit_set: HashSet<CommitId> =
+            to_visit.iter().map(|commit| commit.id().clone()).collect();
+        let mut visited = HashSet::new();
+        // Calculate an order where we rebase parents first, but if the parents were
+        // rewritten, make sure we rebase the rewritten parent first.
+        dag_walk::topo_order_reverse(
+            to_visit,
+            |commit| commit.id().clone(),
+            |commit| {
+                visited.insert(commit.id().clone());
+                let mut dependents = vec![];
+                for parent in commit.parents() {
+                    if let Some((_, targets)) = self.parent_mapping.get(parent.id()) {
+                        for target in targets {
+                            if to_visit_set.contains(target) && !visited.contains(target) {
+                                dependents.push(store.get_commit(target).unwrap());
+                            }
+                        }
+                    }
+                    if to_visit_set.contains(parent.id()) {
+                        dependents.push(parent);
+                    }
+                }
+                dependents
+            },
+        )
+    }
+
     /// After the rebaser returned by this function is dropped,
     /// self.parent_mapping needs to be cleared.
     fn rebase_descendants_return_rebaser<'settings, 'repo>(
@@ -1118,7 +1158,9 @@ impl MutableRepo {
             // Optimization
             return Ok(None);
         }
-        let mut rebaser = DescendantRebaser::new(settings, self);
+
+        let to_visit = self.find_descendants_to_rebase();
+        let mut rebaser = DescendantRebaser::new(settings, self, to_visit);
         *rebaser.mut_options() = options;
         rebaser.rebase_all()?;
         Ok(Some(rebaser))
