@@ -732,6 +732,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1313,6 +1322,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      Examples
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1333,6 +1351,10 @@
 Expressions in this language are called "filesets" (the idea comes from
 <a href="https://repo.mercurial-scm.org/hg/help/filesets">Mercurial</a>). The language
 consists of file patterns, operators, and functions.</p>
+<p><strong>Filesets support is still experimental.</strong> It can be enabled by
+<code>ui.allow-filesets</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">allow-filesets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+</code></pre></div>
 <h2 id="file-patterns">File patterns<a class="headerlink" href="#file-patterns" title="Permanent link">&para;</a></h2>
 <p>The following patterns are supported:</p>
 <ul>
@@ -1360,6 +1382,13 @@ expressions.</p>
 <li><code>all()</code>: Matches everything.</li>
 <li><code>none()</code>: Matches nothing.</li>
 </ul>
+<h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
+<p>Show diff excluding <code>Cargo.lock</code>.</p>
+<div class="highlight"><pre><span></span><code>jj diff &#39;~Cargo.lock&#39;
+</code></pre></div>
+<p>Split a revision in two, putting <code>foo</code> into the second commit.</p>
+<div class="highlight"><pre><span></span><code>jj split &#39;~foo&#39;
+</code></pre></div>
 
 
 
