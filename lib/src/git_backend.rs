@@ -34,16 +34,16 @@ use thiserror::Error;
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendInitError, BackendLoadError, BackendResult,
-    ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictTerm, FileId, MergedTreeId,
-    MillisSinceEpoch, SecureSig, Signature, SigningFn, SymlinkId, Timestamp, Tree, TreeId,
-    TreeValue,
+    ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictTerm, CopyTrace, FileId,
+    MergedTreeId, MillisSinceEpoch, SecureSig, Signature, SigningFn, SymlinkId, Timestamp, Tree,
+    TreeId, TreeValue,
 };
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::index::Index;
 use crate::lock::FileLock;
 use crate::merge::{Merge, MergeBuilder};
 use crate::object_id::ObjectId;
-use crate::repo_path::{RepoPath, RepoPathComponentBuf};
+use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponentBuf};
 use crate::settings::UserSettings;
 use crate::stacked_table::{
     MutableTable, ReadonlyTable, TableSegment, TableStore, TableStoreError,
@@ -516,6 +516,7 @@ fn commit_from_git_without_root_parent(
         root_tree,
         change_id,
         description,
+        copy_sources: None,
         author,
         committer,
         secure_sig,
@@ -1209,6 +1210,18 @@ impl Backend for GitBackend {
         Ok((id, contents))
     }
 
+    fn copy_trace(
+        &self,
+        _paths: &[RepoPathBuf],
+        _head: &CommitId,
+        _root: &CommitId,
+    ) -> BackendResult<Box<dyn Iterator<Item = BackendResult<CopyTrace>> + '_>> {
+        // TODO: Implement copy tracing for git repos
+        Err(BackendError::Unsupported(
+            "Git backend does not support copy tracing".to_string(),
+        ))
+    }
+
     #[tracing::instrument(skip(self, index))]
     fn gc(&self, index: &dyn Index, keep_newer: SystemTime) -> BackendResult<()> {
         let git_repo = self.lock_git_repo();
@@ -1656,6 +1669,7 @@ mod tests {
             root_tree: MergedTreeId::Legacy(backend.empty_tree_id().clone()),
             change_id: ChangeId::from_hex("abc123"),
             description: "".to_string(),
+            copy_sources: None,
             author: create_signature(),
             committer: create_signature(),
             secure_sig: None,
@@ -1734,6 +1748,7 @@ mod tests {
             root_tree: MergedTreeId::Merge(root_tree.clone()),
             change_id: ChangeId::from_hex("abc123"),
             description: "".to_string(),
+            copy_sources: None,
             author: create_signature(),
             committer: create_signature(),
             secure_sig: None,
@@ -1817,6 +1832,7 @@ mod tests {
             root_tree: MergedTreeId::Legacy(backend.empty_tree_id().clone()),
             change_id: ChangeId::new(vec![]),
             description: "initial".to_string(),
+            copy_sources: None,
             author: signature.clone(),
             committer: signature,
             secure_sig: None,
@@ -1894,6 +1910,7 @@ mod tests {
             root_tree: MergedTreeId::Legacy(backend.empty_tree_id().clone()),
             change_id: ChangeId::new(vec![]),
             description: "initial".to_string(),
+            copy_sources: None,
             author: create_signature(),
             committer: create_signature(),
             secure_sig: None,
@@ -1935,6 +1952,7 @@ mod tests {
             root_tree: MergedTreeId::Legacy(backend.empty_tree_id().clone()),
             change_id: ChangeId::new(vec![]),
             description: "initial".to_string(),
+            copy_sources: None,
             author: create_signature(),
             committer: create_signature(),
             secure_sig: None,

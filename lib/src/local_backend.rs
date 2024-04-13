@@ -28,16 +28,16 @@ use prost::Message;
 use tempfile::NamedTempFile;
 
 use crate::backend::{
-    make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, ConflictTerm, FileId, MergedTreeId, MillisSinceEpoch, SecureSig, Signature,
-    SigningFn, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
+    self, make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId,
+    Conflict, ConflictId, ConflictTerm, CopyTrace, FileId, MergedTreeId, MillisSinceEpoch,
+    SecureSig, Signature, SigningFn, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::index::Index;
 use crate::merge::MergeBuilder;
 use crate::object_id::ObjectId;
-use crate::repo_path::{RepoPath, RepoPathComponentBuf};
+use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponentBuf};
 
 const COMMIT_ID_LENGTH: usize = 64;
 const CHANGE_ID_LENGTH: usize = 16;
@@ -92,7 +92,9 @@ impl LocalBackend {
     pub fn load(store_path: &Path) -> Self {
         let root_commit_id = CommitId::from_bytes(&[0; COMMIT_ID_LENGTH]);
         let root_change_id = ChangeId::from_bytes(&[0; CHANGE_ID_LENGTH]);
-        let empty_tree_id = TreeId::from_hex("482ae5a29fbe856c7272f2071b8b0f0359ee2d89ff392b8a900643fbd0836eccd067b8bf41909e206c90d45d6e7d8b6686b93ecaee5fe1a9060d87b672101310");
+        let empty_tree_id = TreeId::from_hex(
+            "482ae5a29fbe856c7272f2071b8b0f0359ee2d89ff392b8a900643fbd0836eccd067b8bf41909e206c90d45d6e7d8b6686b93ecaee5fe1a9060d87b672101310",
+        );
         LocalBackend {
             path: store_path.to_path_buf(),
             root_commit_id,
@@ -301,9 +303,55 @@ impl Backend for LocalBackend {
         Ok((id, commit))
     }
 
+    fn copy_trace(
+        &self,
+        _paths: &[RepoPathBuf],
+        _head: &CommitId,
+        _root: &CommitId,
+    ) -> BackendResult<Box<dyn Iterator<Item = BackendResult<CopyTrace>> + '_>> {
+        // TODO: Implement a rev walk from head->root and emit copy trace events.
+        Err(BackendError::Unsupported(
+            "Local copy tracing not implemented".to_string(),
+        ))
+    }
+
     fn gc(&self, _index: &dyn Index, _keep_newer: SystemTime) -> BackendResult<()> {
         Ok(())
     }
+}
+
+fn copy_sources_to_proto(
+    copy_sources: &backend::CopySources,
+) -> crate::protos::local_store::CopySources {
+    let mut records = vec![];
+    for (target_path, copy_source) in copy_sources {
+        records.push(crate::protos::local_store::CopyRecord {
+            target: target_path.as_internal_file_string().to_owned(),
+            source: copy_source.path.as_internal_file_string().to_owned(),
+            commit_id: copy_source.commit_id.as_ref().map(|id| id.to_bytes()),
+        });
+    }
+
+    crate::protos::local_store::CopySources { records }
+}
+
+fn copy_sources_from_proto(
+    copy_sources: crate::protos::local_store::CopySources,
+) -> backend::CopySources {
+    let mut out = backend::CopySources::new();
+    for record in copy_sources.records {
+        let target_path = RepoPathBuf::from_internal_string(record.target);
+        let source_path = RepoPathBuf::from_internal_string(record.source);
+        let source_id = record.commit_id.map(CommitId::new);
+        out.insert(
+            target_path,
+            backend::CopySource {
+                path: source_path,
+                commit_id: source_id,
+            },
+        );
+    }
+    out
 }
 
 #[allow(unknown_lints)] // XXX FIXME (aseipp): nightly bogons; re-test this occasionally
@@ -327,6 +375,7 @@ pub fn commit_to_proto(commit: &Commit) -> crate::protos::local_store::Commit {
     }
     proto.change_id = commit.change_id.to_bytes();
     proto.description = commit.description.clone();
+    proto.copy_sources = commit.copy_sources.as_ref().map(copy_sources_to_proto);
     proto.author = Some(signature_to_proto(&commit.author));
     proto.committer = Some(signature_to_proto(&commit.committer));
     proto
@@ -356,6 +405,7 @@ fn commit_from_proto(mut proto: crate::protos::local_store::Commit) -> Commit {
         root_tree,
         change_id,
         description: proto.description,
+        copy_sources: proto.copy_sources.map(copy_sources_from_proto),
         author: signature_from_proto(proto.author.unwrap_or_default()),
         committer: signature_from_proto(proto.committer.unwrap_or_default()),
         secure_sig,
@@ -512,6 +562,7 @@ mod tests {
             root_tree: MergedTreeId::resolved(backend.empty_tree_id().clone()),
             change_id: ChangeId::from_hex("abc123"),
             description: "".to_string(),
+            copy_sources: None,
             author: create_signature(),
             committer: create_signature(),
             secure_sig: None,

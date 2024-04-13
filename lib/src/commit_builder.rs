@@ -47,6 +47,7 @@ impl CommitBuilder<'_> {
             parents,
             predecessors: vec![],
             root_tree: tree_id,
+            copy_sources: None,
             change_id,
             description: String::new(),
             author: signature.clone(),

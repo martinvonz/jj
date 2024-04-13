@@ -15,7 +15,7 @@
 #![allow(missing_docs)]
 
 use std::any::Any;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::io::Read;
 use std::time::SystemTime;
@@ -27,7 +27,7 @@ use crate::content_hash::ContentHash;
 use crate::index::Index;
 use crate::merge::Merge;
 use crate::object_id::{id_type, ObjectId};
-use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathComponentBuf};
+use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent, RepoPathComponentBuf};
 use crate::signing::SignResult;
 
 id_type!(
@@ -125,11 +125,43 @@ impl MergedTreeId {
     }
 }
 
+/// An optionally versioned copy source.
+#[derive(ContentHash, Debug, PartialEq, Eq, Clone)]
+pub struct CopySource {
+    /// The path the target was copied from.
+    pub path: RepoPathBuf,
+    /// The specific version the target was copied from. If unspecified, the
+    /// copy comes from the parent commit of the target file version.
+    pub commit_id: Option<CommitId>,
+}
+
+/// A singular copy event in a specific file's history.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct CopyTrace {
+    /// The file that was copied into.
+    pub target: RepoPathBuf,
+    /// The commit where the file was copied.
+    pub commit_id: CommitId,
+    /// The source of the copy.
+    pub source: CopySource,
+}
+
+/// Map from target -> source
+///
+/// This can be set on write to explicitly record copies in the backend. The
+/// backend may discard these silently if it does not support explicit copy
+/// tracking (e.g. git, which tracks copies only implicitly). Backends which
+/// do support explicit copy tracking may provide this information on read,
+/// but are not required to. Callers should always use `copy_trace()` to get
+/// copy info in order to support backends which don't explicitly store it.
+pub type CopySources = HashMap<RepoPathBuf, CopySource>;
+
 #[derive(ContentHash, Debug, PartialEq, Eq, Clone)]
 pub struct Commit {
     pub parents: Vec<CommitId>,
     pub predecessors: Vec<CommitId>,
     pub root_tree: MergedTreeId,
+    pub copy_sources: Option<CopySources>,
     pub change_id: ChangeId,
     pub description: String,
     pub author: Signature,
@@ -327,6 +359,7 @@ pub fn make_root_commit(root_change_id: ChangeId, empty_tree_id: TreeId) -> Comm
         parents: vec![],
         predecessors: vec![],
         root_tree: MergedTreeId::Legacy(empty_tree_id),
+        copy_sources: None,
         change_id: root_change_id,
         description: String::new(),
         author: signature.clone(),
@@ -403,6 +436,20 @@ pub trait Backend: Send + Sync + Debug {
         contents: Commit,
         sign_with: Option<&mut SigningFn>,
     ) -> BackendResult<(CommitId, Commit)>;
+
+    /// Trace copy events for a set of files in a specific range of commits, in
+    /// reverse topological order.
+    ///
+    /// Performs transitive tracing if the backend supports it. Thus, the
+    /// returned iterator may emit copy traces for files not in `paths`, because
+    /// they were transitively copied into `paths` later on in the revset
+    /// topology (earlier in the iterator).
+    fn copy_trace(
+        &self,
+        paths: &[RepoPathBuf],
+        head: &CommitId,
+        root: &CommitId,
+    ) -> BackendResult<Box<dyn Iterator<Item = BackendResult<CopyTrace>> + '_>>;
 
     /// Perform garbage collection.
     ///

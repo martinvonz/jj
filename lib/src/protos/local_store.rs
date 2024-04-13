@@ -47,6 +47,22 @@ pub mod tree {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CopySources {
+    #[prost(message, repeated, tag = "1")]
+    pub records: ::prost::alloc::vec::Vec<CopyRecord>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct CopyRecord {
+    #[prost(string, tag = "1")]
+    pub target: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub source: ::prost::alloc::string::String,
+    #[prost(bytes = "vec", optional, tag = "3")]
+    pub commit_id: ::core::option::Option<::prost::alloc::vec::Vec<u8>>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Commit {
     #[prost(bytes = "vec", repeated, tag = "1")]
     pub parents: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
@@ -62,6 +78,8 @@ pub struct Commit {
     pub change_id: ::prost::alloc::vec::Vec<u8>,
     #[prost(string, tag = "5")]
     pub description: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "10")]
+    pub copy_sources: ::core::option::Option<CopySources>,
     #[prost(message, optional, tag = "6")]
     pub author: ::core::option::Option<commit::Signature>,
     #[prost(message, optional, tag = "7")]

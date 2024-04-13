@@ -23,12 +23,12 @@ use jj_cli::command_error::CommandError;
 use jj_cli::ui::Ui;
 use jj_lib::backend::{
     Backend, BackendInitError, BackendLoadError, BackendResult, ChangeId, Commit, CommitId,
-    Conflict, ConflictId, FileId, SigningFn, SymlinkId, Tree, TreeId,
+    Conflict, ConflictId, CopyTrace, FileId, SigningFn, SymlinkId, Tree, TreeId,
 };
 use jj_lib::git_backend::GitBackend;
 use jj_lib::index::Index;
 use jj_lib::repo::StoreFactories;
-use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::settings::UserSettings;
 use jj_lib::signing::Signer;
 use jj_lib::workspace::{Workspace, WorkspaceInitError};
@@ -172,6 +172,15 @@ impl Backend for JitBackend {
         sign_with: Option<&mut SigningFn>,
     ) -> BackendResult<(CommitId, Commit)> {
         self.inner.write_commit(contents, sign_with)
+    }
+
+    fn copy_trace(
+        &self,
+        paths: &[RepoPathBuf],
+        head: &CommitId,
+        root: &CommitId,
+    ) -> BackendResult<Box<dyn Iterator<Item = BackendResult<CopyTrace>> + '_>> {
+        self.inner.copy_trace(paths, head, root)
     }
 
     fn gc(&self, index: &dyn Index, keep_newer: SystemTime) -> BackendResult<()> {

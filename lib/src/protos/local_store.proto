@@ -39,6 +39,16 @@ message Tree {
   repeated Entry entries = 1;
 }
 
+message CopySources {
+  repeated CopyRecord records = 1;
+}
+
+message CopyRecord {
+  string target = 1;
+  string source = 2;
+  optional bytes commit_id = 3;
+}
+
 message Commit {
   repeated bytes parents = 1;
   repeated bytes predecessors = 2;
@@ -48,6 +58,7 @@ message Commit {
   bool uses_tree_conflict_format = 8;
   bytes change_id = 4;
   string description = 5;
+  optional CopySources copy_sources = 10;
 
   message Timestamp {
     int64 millis_since_epoch = 1;

@@ -23,7 +23,7 @@ use std::time::SystemTime;
 use async_trait::async_trait;
 use jj_lib::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, FileId, SecureSig, SigningFn, SymlinkId, Tree, TreeId,
+    ConflictId, CopyTrace, FileId, SecureSig, SigningFn, SymlinkId, Tree, TreeId,
 };
 use jj_lib::index::Index;
 use jj_lib::object_id::ObjectId;
@@ -298,6 +298,18 @@ impl Backend for TestBackend {
             .commits
             .insert(id.clone(), contents.clone());
         Ok((id, contents))
+    }
+
+    fn copy_trace(
+        &self,
+        _paths: &[RepoPathBuf],
+        _head: &CommitId,
+        _root: &CommitId,
+    ) -> BackendResult<Box<dyn Iterator<Item = BackendResult<CopyTrace>> + '_>> {
+        // TODO: Implement a rev walk which emits copy trace events.
+        Err(BackendError::Unsupported(
+            "TestBackend does not support copy tracing".to_string(),
+        ))
     }
 
     fn gc(&self, _index: &dyn Index, _keep_newer: SystemTime) -> BackendResult<()> {
