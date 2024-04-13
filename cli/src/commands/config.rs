@@ -221,12 +221,13 @@ pub(crate) fn cmd_config_list(
                 .config()
                 .get_string("templates.config_list")?,
         };
-        command.parse_template(ui, &language, &text, GenericTemplateLanguage::wrap_self)?
+        command
+            .parse_template(ui, &language, &text, GenericTemplateLanguage::wrap_self)?
+            .labeled("config_list")
     };
 
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
-    formatter.push_label("config_list")?;
     let name_path = args
         .name
         .as_ref()
@@ -252,7 +253,6 @@ pub(crate) fn cmd_config_list(
         template.format(&annotated, formatter.as_mut())?;
         wrote_values = true;
     }
-    formatter.pop_label()?;
     drop(formatter);
     if !wrote_values {
         // Note to stderr explaining why output is empty.

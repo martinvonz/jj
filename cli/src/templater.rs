@@ -624,6 +624,7 @@ impl<O: Clone> TemplateProperty for PropertyPlaceholder<O> {
 pub struct TemplateRenderer<'a, C> {
     template: Box<dyn Template + 'a>,
     placeholder: PropertyPlaceholder<C>,
+    labels: Vec<String>,
 }
 
 impl<'a, C: Clone> TemplateRenderer<'a, C> {
@@ -631,13 +632,25 @@ impl<'a, C: Clone> TemplateRenderer<'a, C> {
         TemplateRenderer {
             template,
             placeholder,
+            labels: Vec::new(),
         }
+    }
+
+    /// Returns renderer that will format template with the given `label`.
+    ///
+    /// This is equivalent to wrapping the content template with `label()`
+    /// function. For example, `content.labeled("foo").labeled("bar")` can be
+    /// expressed as `label("bar", label("foo", content))` in template.
+    pub fn labeled(mut self, label: impl Into<String>) -> Self {
+        self.labels.insert(0, label.into());
+        self
     }
 
     pub fn format(&self, context: &C, formatter: &mut dyn Formatter) -> io::Result<()> {
         let mut wrapper = TemplateFormatter::new(formatter, format_property_error_inline);
-        self.placeholder
-            .with_value(context.clone(), || self.template.format(&mut wrapper))
+        self.placeholder.with_value(context.clone(), || {
+            format_labeled(&mut wrapper, &self.template, &self.labels)
+        })
     }
 }
 
