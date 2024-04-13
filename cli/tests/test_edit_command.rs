@@ -47,9 +47,9 @@ fn test_edit() {
     "###);
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  b2f7e9c549aa second
+    ○  b2f7e9c549aa second
     @  f41390a5efbf first
-    ◉  000000000000
+    ◆  000000000000
     "###);
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(read_file(&repo_path.join("file1")), @"0");
@@ -58,9 +58,9 @@ fn test_edit() {
     std::fs::write(repo_path.join("file2"), "0").unwrap();
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  51d937a3eeb4 second
+    ○  51d937a3eeb4 second
     @  409306de8f44 first
-    ◉  000000000000
+    ◆  000000000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
     Rebased 1 descendant commits onto updated working copy

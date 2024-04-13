@@ -30,11 +30,11 @@ fn test_rewrite_immutable_generic() {
     insta::assert_snapshot!(stdout, @r###"
     @  mzvwutvl test.user@example.com 2001-02-03 08:05:12 78ebd449
     │  c
-    │ ◉  kkmpptxz test.user@example.com 2001-02-03 08:05:10 main c8d4c7ca
+    │ ○  kkmpptxz test.user@example.com 2001-02-03 08:05:10 main c8d4c7ca
     ├─╯  b
-    ◉  qpvuntsm test.user@example.com 2001-02-03 08:05:08 46a8dc51
+    ○  qpvuntsm test.user@example.com 2001-02-03 08:05:08 46a8dc51
     │  a
-    ◉  zzzzzzzz root() 00000000
+    ◆  zzzzzzzz root() 00000000
     "###);
 
     // Cannot rewrite a commit in the configured set
@@ -116,12 +116,12 @@ fn test_rewrite_immutable_commands() {
     insta::assert_snapshot!(stdout, @r###"
     @  yqosqzyt test.user@example.com 2001-02-03 08:05:13 3f89addf
     │  (empty) (no description set)
-    │ ◉  mzvwutvl test.user@example.com 2001-02-03 08:05:11 main 3d14df18 conflict
+    │ ◆  mzvwutvl test.user@example.com 2001-02-03 08:05:11 main 3d14df18 conflict
     ╭─┤  (empty) merge
     │ │
     │ ~
     │
-    ◉  kkmpptxz test.user@example.com 2001-02-03 08:05:10 c8d4c7ca
+    ◆  kkmpptxz test.user@example.com 2001-02-03 08:05:10 c8d4c7ca
     │  b
     ~
     "###);

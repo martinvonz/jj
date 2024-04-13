@@ -33,26 +33,26 @@ fn test_concurrent_operation_divergence() {
     // "op log" doesn't merge the concurrent operations
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  bd72b691e2a8 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    ○  bd72b691e2a8 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
     │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj describe -m 'message 2' --at-op @-
-    │ ◉  aff16879e85e test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │ ○  aff16879e85e test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     ├─╯  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │    args: jj describe -m 'message 1'
-    ◉  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ○  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ○  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
-    ◉  000000000000 root()
+    ○  000000000000 root()
     "###);
 
     // We should be informed about the concurrent modification
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log", "-T", "description"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  message 2
+    ○  message 2
     │ @  message 1
     ├─╯
-    ◉
+    ◆
     "###);
     insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
@@ -72,14 +72,14 @@ fn test_concurrent_operations_auto_rebase() {
     @  254fed738276 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  describe commit 123ed18e4c4c0d77428df41112bc02ffc83fb935
     │  args: jj describe -m initial
-    ◉  1a6e7a5002b6 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    ○  1a6e7a5002b6 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  snapshot working copy
     │  args: jj describe -m initial
-    ◉  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ○  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ○  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
-    ◉  000000000000 root()
+    ○  000000000000 root()
     "###);
     let op_id_hex = stdout[3..15].to_string();
 
@@ -92,9 +92,9 @@ fn test_concurrent_operations_auto_rebase() {
     // We should be informed about the concurrent modification
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  3f06323826b4a293a9ee6d24cc0e07ad2961b5d5 new child
+    ○  3f06323826b4a293a9ee6d24cc0e07ad2961b5d5 new child
     @  d91437157468ec86bbbc9e6a14a60d3e8d1790ac rewritten
-    ◉  0000000000000000000000000000000000000000
+    ◆  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
@@ -127,10 +127,10 @@ fn test_concurrent_operations_wc_modified() {
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
     insta::assert_snapshot!(stdout, @r###"
     @  4eb0610031b7cd148ff9f729a673a3f815033170 new child1
-    │ ◉  4b20e61d23ee7d7c4d5e61e11e97c26e716f9c30 new child2
+    │ ○  4b20e61d23ee7d7c4d5e61e11e97c26e716f9c30 new child2
     ├─╯
-    ◉  52c893bf3cd201e215b23e084e8a871244ca14d5 initial
-    ◉  0000000000000000000000000000000000000000
+    ○  52c893bf3cd201e215b23e084e8a871244ca14d5 initial
+    ◆  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
@@ -150,16 +150,16 @@ fn test_concurrent_operations_wc_modified() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "-Tdescription"]);
     insta::assert_snapshot!(stdout, @r###"
     @  snapshot working copy
-    ◉    resolve concurrent operations
+    ○    resolve concurrent operations
     ├─╮
-    ◉ │  new empty commit
-    │ ◉  new empty commit
+    ○ │  new empty commit
+    │ ○  new empty commit
     ├─╯
-    ◉  describe commit cf911c223d3e24e001fc8264d6dbf0610804fc40
-    ◉  snapshot working copy
-    ◉  add workspace 'default'
-    ◉  initialize repo
-    ◉
+    ○  describe commit cf911c223d3e24e001fc8264d6dbf0610804fc40
+    ○  snapshot working copy
+    ○  add workspace 'default'
+    ○  initialize repo
+    ○
     "###);
 }
 
@@ -187,20 +187,20 @@ fn test_concurrent_snapshot_wc_reloadable() {
     @  072711d601c17a74367ab8654d797d1743063208689cafad1bd43581490b4a4180916964824916c5e10d1ecdbaa0763efe79066554959978af0f7ff4b5ed66f0
     │  commit 323b414dd255b51375d7f4392b7b2641ffe4289f
     │  args: jj commit -m 'new child1'
-    ◉  ab6c5b4e16160c48cabbde43a267ee6991b78668695e744b97e2ae150995458e3ea1d553550e2305028b23af62f74270dc86bd8826b36ad7f1fa7e3986cfdaa3
+    ○  ab6c5b4e16160c48cabbde43a267ee6991b78668695e744b97e2ae150995458e3ea1d553550e2305028b23af62f74270dc86bd8826b36ad7f1fa7e3986cfdaa3
     │  snapshot working copy
     │  args: jj commit -m 'new child1'
-    ◉  6454b2aacf0821685fda129124aecd7a379bdc2da9c3f9b5e0d58da24d1300bf6a09806a572aa7040263fbe57d430aa706d9cea1f3356fe042029e53d9faa991
+    ○  6454b2aacf0821685fda129124aecd7a379bdc2da9c3f9b5e0d58da24d1300bf6a09806a572aa7040263fbe57d430aa706d9cea1f3356fe042029e53d9faa991
     │  commit 3d918700494a9895696e955b85fa05eb0d314cc6
     │  args: jj commit -m initial
-    ◉  8ae097b5e512914cd62b7e13b2ce27ded56ced97005b6e0232438f08b067df1272b06ad428984a6d28496df5ae41aa3522c5b54d7588abf76210922345d94b17
+    ○  8ae097b5e512914cd62b7e13b2ce27ded56ced97005b6e0232438f08b067df1272b06ad428984a6d28496df5ae41aa3522c5b54d7588abf76210922345d94b17
     │  snapshot working copy
     │  args: jj commit -m initial
-    ◉  b51416386f2685fd5493f2b20e8eec3c24a1776d9e1a7cb5ed7e30d2d9c88c0c1e1fe71b0b7358cba60de42533d1228ed9878f2f89817d892c803395ccf9fe92
+    ○  b51416386f2685fd5493f2b20e8eec3c24a1776d9e1a7cb5ed7e30d2d9c88c0c1e1fe71b0b7358cba60de42533d1228ed9878f2f89817d892c803395ccf9fe92
     │  add workspace 'default'
-    ◉  9a7d829846af88a2f7a1e348fb46ff58729e49632bc9c6a052aec8501563cb0d10f4a4e6010ffde529f84a2b9b5b3a4c211a889106a41f6c076dfdacc79f6af7
+    ○  9a7d829846af88a2f7a1e348fb46ff58729e49632bc9c6a052aec8501563cb0d10f4a4e6010ffde529f84a2b9b5b3a4c211a889106a41f6c076dfdacc79f6af7
     │  initialize repo
-    ◉  00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    ○  00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 
     "###);
     let op_log_lines = op_log_stdout.lines().collect_vec();
@@ -229,11 +229,11 @@ fn test_concurrent_snapshot_wc_reloadable() {
     insta::assert_snapshot!(stdout, @r###"
     @  4011424ea0a210a914f869ea3c47d76931598d1d new child2
     │  A child2
-    ◉  e08863ee7a0df688755d3d3126498afdf4f580ad new child1
+    ○  e08863ee7a0df688755d3d3126498afdf4f580ad new child1
     │  A child1
-    ◉  79989e62f8331e69a803058b57bacc264405cb65 initial
+    ○  79989e62f8331e69a803058b57bacc264405cb65 initial
     │  A base
-    ◉  0000000000000000000000000000000000000000
+    ◆  0000000000000000000000000000000000000000
     "###);
 }
 

@@ -26,8 +26,8 @@ fn test_commit_with_description_from_cli() {
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=first"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @  b88fb4e51bdd
-    ◉  69542c1984c1 first
-    ◉  000000000000
+    ○  69542c1984c1 first
+    ◆  000000000000
     "###);
 }
 
@@ -45,8 +45,8 @@ fn test_commit_with_editor() {
     test_env.jj_cmd_ok(&workspace_path, &["commit"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @  3df78bc2b9b5
-    ◉  30a8c2b3d6eb modified
-    ◉  000000000000
+    ○  30a8c2b3d6eb modified
+    ◆  000000000000
     "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
@@ -136,11 +136,11 @@ fn test_commit_with_default_description() {
     std::fs::write(edit_script, ["dump editor"].join("\0")).unwrap();
     test_env.jj_cmd_ok(&workspace_path, &["commit"]);
 
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r#"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @  8dc0591d00f7
-    ◉  7e780ba80aeb TESTED=TODO
-    ◉  000000000000
-    "#);
+    ○  7e780ba80aeb TESTED=TODO
+    ◆  000000000000
+    "###);
     assert_eq!(
         std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(),
         r#"
