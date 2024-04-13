@@ -44,9 +44,13 @@ fn test_log_with_no_template() {
     - builtin_log_comfortable
     - builtin_log_compact
     - builtin_log_detailed
+    - builtin_log_node
+    - builtin_log_node_ascii
     - builtin_log_oneline
     - builtin_op_log_comfortable
     - builtin_op_log_compact
+    - builtin_op_log_node
+    - builtin_op_log_node_ascii
     - commit_summary_separator
     - description_placeholder
     - email_placeholder
