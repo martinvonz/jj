@@ -170,12 +170,14 @@ fn cmd_op_log(
             Some(value) => value.to_owned(),
             None => command.settings().config().get_string("templates.op_log")?,
         };
-        template = command.parse_template(
-            ui,
-            &language,
-            &text,
-            OperationTemplateLanguage::wrap_operation,
-        )?;
+        template = command
+            .parse_template(
+                ui,
+                &language,
+                &text,
+                OperationTemplateLanguage::wrap_operation,
+            )?
+            .labeled("op_log");
         op_node_template = command.parse_template(
             ui,
             &language,
@@ -199,9 +201,7 @@ fn cmd_op_log(
             let mut buffer = vec![];
             with_content_format.write_graph_text(
                 ui.new_formatter(&mut buffer).as_mut(),
-                |formatter| {
-                    formatter.with_label("op_log", |formatter| template.format(&op, formatter))
-                },
+                |formatter| template.format(&op, formatter),
                 || graph.width(op.id(), &edges),
             )?;
             if !buffer.ends_with(b"\n") {
@@ -218,9 +218,7 @@ fn cmd_op_log(
     } else {
         for op in iter {
             let op = op?;
-            with_content_format.write(formatter, |formatter| {
-                formatter.with_label("op_log", |formatter| template.format(&op, formatter))
-            })?;
+            with_content_format.write(formatter, |formatter| template.format(&op, formatter))?;
         }
     }
 
