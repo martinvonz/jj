@@ -6101,8 +6101,8 @@ Martin von Zweigbergk</p>
 </ul>
 <h2 id="jj-diffedit"><code>jj diffedit</code><a class="headerlink" href="#jj-diffedit" title="Permanent link">&para;</a></h2>
 <p>Touch up the content changes in a revision with a diff editor</p>
-<p>With the <code>-r</code> option, which is the default, starts a diff editor (<code>meld</code> by default) on the changes in the revision.</p>
-<p>With the <code>--from</code> and/or <code>--to</code> options, starts a diff editor comparing the "from" revision to the "to" revision.</p>
+<p>With the <code>-r</code> option, which is the default, starts a <a href="https://martinvonz.github.io/jj/latest/config/#editing-diffs">diff editor</a> on the changes in the revision.</p>
+<p>With the <code>--from</code> and/or <code>--to</code> options, starts a <a href="https://martinvonz.github.io/jj/latest/config/#editing-diffs">diff editor</a> comparing the "from" revision to the "to" revision.</p>
 <p>Edit the right side of the diff until it looks the way you want. Once you close the editor, the revision specified with <code>-r</code> or <code>--to</code> will be updated. Descendants will be rebased on top as usual, which may result in conflicts.</p>
 <p>See <code>jj restore</code> if you want to move entire files from one revision to another. See <code>jj squash -i</code> or <code>jj unsquash -i</code> if you instead want to move changes into or out of the parent revision.</p>
 <p><strong>Usage:</strong> <code>jj diffedit [OPTIONS]</code></p>
@@ -6919,7 +6919,7 @@ commit. This is true in general; it is not specific to this command.</p>
 <p><strong>Usage:</strong> <code>jj sparse edit</code></p>
 <h2 id="jj-split"><code>jj split</code><a class="headerlink" href="#jj-split" title="Permanent link">&para;</a></h2>
 <p>Split a revision in two</p>
-<p>Starts a diff editor (<code>meld</code> by default) on the changes in the revision. Edit the right side of the diff until it has the content you want in the first revision. Once you close the editor, your edited content will replace the previous revision. The remaining changes will be put in a new revision on top.</p>
+<p>Starts a <a href="https://martinvonz.github.io/jj/latest/config/#editing-diffs">diff editor</a> on the changes in the revision. Edit the right side of the diff until it has the content you want in the first revision. Once you close the editor, your edited content will replace the previous revision. The remaining changes will be put in a new revision on top.</p>
 <p>If the change you split had a description, you will be asked to enter a change description for each commit. If the change did not have a description, the second part will not get a description, and you will be asked for a description only for the first part.</p>
 <p><strong>Usage:</strong> <code>jj split [OPTIONS] [PATHS]...</code></p>
 <h6 id="arguments_39"><strong>Arguments:</strong><a class="headerlink" href="#arguments_39" title="Permanent link">&para;</a></h6>
