@@ -87,3 +87,11 @@
 "op_log current_operation id" = "bright blue"
 "op_log current_operation user" = "yellow"                    # No bright yellow, see comment above
 "op_log current_operation time" = "bright cyan"
+
+"node" = { bold = true }
+"node elided" = { fg = "bright black" }
+"node working_copy" = { fg = "green" }
+"node current_operation" = { fg = "green" }
+"node immutable" = { fg = "bright cyan" }
+"node conflict" = { fg = "red" }
+"node normal" = { bold = false }
