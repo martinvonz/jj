@@ -169,18 +169,10 @@ where
     L: TemplateProperty<Output = Vec<String>>,
 {
     fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
-        let labels = match self.labels.extract() {
-            Ok(labels) => labels,
-            Err(err) => return formatter.handle_error(err),
-        };
-        for label in &labels {
-            formatter.push_label(label)?;
+        match self.labels.extract() {
+            Ok(labels) => format_labeled(formatter, &self.content, &labels),
+            Err(err) => formatter.handle_error(err),
         }
-        self.content.format(formatter)?;
-        for _label in &labels {
-            formatter.pop_label()?;
-        }
-        Ok(())
     }
 }
 
@@ -744,6 +736,21 @@ where
     for item in contents_iter {
         separator.format(formatter)?;
         format_item(formatter, item)?;
+    }
+    Ok(())
+}
+
+fn format_labeled<T: Template + ?Sized>(
+    formatter: &mut TemplateFormatter,
+    content: &T,
+    labels: &[String],
+) -> io::Result<()> {
+    for label in labels {
+        formatter.push_label(label)?;
+    }
+    content.format(formatter)?;
+    for _label in labels {
+        formatter.pop_label()?;
     }
     Ok(())
 }
