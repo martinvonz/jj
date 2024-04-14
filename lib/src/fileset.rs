@@ -16,7 +16,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use std::{iter, slice};
+use std::{iter, path, slice};
 
 use once_cell::sync::Lazy;
 use thiserror::Error;
@@ -27,8 +27,8 @@ use crate::fileset_parser::{
 };
 pub use crate::fileset_parser::{FilesetParseError, FilesetParseErrorKind, FilesetParseResult};
 use crate::matchers::{
-    DifferenceMatcher, EverythingMatcher, FilesMatcher, IntersectionMatcher, Matcher,
-    NothingMatcher, PrefixMatcher, UnionMatcher,
+    DifferenceMatcher, EverythingMatcher, FileGlobsMatcher, FilesMatcher, IntersectionMatcher,
+    Matcher, NothingMatcher, PrefixMatcher, UnionMatcher,
 };
 use crate::repo_path::{FsPathParseError, RelativePathParseError, RepoPath, RepoPathBuf};
 
@@ -44,6 +44,9 @@ pub enum FilePatternParseError {
     /// Failed to parse input workspace-relative path.
     #[error(transparent)]
     RelativePath(#[from] RelativePathParseError),
+    /// Failed to parse glob pattern.
+    #[error(transparent)]
+    GlobPattern(#[from] glob::PatternError),
 }
 
 /// Basic pattern to match `RepoPath`.
@@ -53,9 +56,15 @@ pub enum FilePattern {
     FilePath(RepoPathBuf),
     /// Matches path prefix.
     PrefixPath(RepoPathBuf),
+    /// Matches file (or exact) path with glob pattern.
+    FileGlob {
+        /// Prefix directory path where the `pattern` will be evaluated.
+        dir: RepoPathBuf,
+        /// Glob pattern relative to `dir`.
+        pattern: glob::Pattern,
+    },
     // TODO: add more patterns:
     // - FilesInPath: files in directory, non-recursively?
-    // - FileGlob: file (or exact) path with glob?
     // - NameGlob or SuffixGlob: file name with glob?
 }
 
@@ -72,19 +81,21 @@ impl FilePattern {
         //   * root: workspace-relative path
         // * where to anchor
         //   * file: exact file path
-        //   * prefix: path prefix (files under directory recursively) (default)
+        //   * prefix: path prefix (files under directory recursively)
         //   * files-in: files in directory non-recursively
         //   * name: file name component (or suffix match?)
         //   * substring: substring match?
         // * string pattern syntax (+ case sensitivity?)
-        //   * path: literal path (default)
-        //   * glob
+        //   * path: literal path (default) (default anchor: prefix)
+        //   * glob: glob pattern (default anchor: file)
         //   * regex?
         match kind {
             "cwd" => Self::cwd_prefix_path(ctx, input),
             "cwd-file" | "file" => Self::cwd_file_path(ctx, input),
+            "cwd-glob" | "glob" => Self::cwd_file_glob(ctx, input),
             "root" => Self::root_prefix_path(input),
             "root-file" => Self::root_file_path(input),
+            "root-glob" => Self::root_file_glob(input),
             _ => Err(FilePatternParseError::InvalidKind(kind.to_owned())),
         }
     }
@@ -107,6 +118,16 @@ impl FilePattern {
         Ok(FilePattern::PrefixPath(path))
     }
 
+    /// Pattern that matches cwd-relative file path glob.
+    pub fn cwd_file_glob(
+        ctx: &FilesetParseContext,
+        input: impl AsRef<str>,
+    ) -> Result<Self, FilePatternParseError> {
+        let (dir, pattern) = split_glob_path(input.as_ref());
+        let dir = ctx.parse_cwd_path(dir)?;
+        Self::file_glob_at(dir, pattern)
+    }
+
     /// Pattern that matches workspace-relative file (or exact) path.
     pub fn root_file_path(input: impl AsRef<Path>) -> Result<Self, FilePatternParseError> {
         let path = RepoPathBuf::from_relative_path(input)?;
@@ -119,14 +140,43 @@ impl FilePattern {
         Ok(FilePattern::PrefixPath(path))
     }
 
+    /// Pattern that matches workspace-relative file path glob.
+    pub fn root_file_glob(input: impl AsRef<str>) -> Result<Self, FilePatternParseError> {
+        let (dir, pattern) = split_glob_path(input.as_ref());
+        let dir = RepoPathBuf::from_relative_path(dir)?;
+        Self::file_glob_at(dir, pattern)
+    }
+
+    fn file_glob_at(dir: RepoPathBuf, input: &str) -> Result<Self, FilePatternParseError> {
+        if input.is_empty() {
+            return Ok(FilePattern::FilePath(dir));
+        }
+        // Normalize separator to '/', reject ".." which will never match
+        let normalized = RepoPathBuf::from_relative_path(input)?;
+        let pattern = glob::Pattern::new(normalized.as_internal_file_string())?;
+        Ok(FilePattern::FileGlob { dir, pattern })
+    }
+
     /// Returns path if this pattern represents a literal path in a workspace.
     /// Returns `None` if this is a glob pattern for example.
     pub fn as_path(&self) -> Option<&RepoPath> {
         match self {
             FilePattern::FilePath(path) => Some(path),
             FilePattern::PrefixPath(path) => Some(path),
+            FilePattern::FileGlob { .. } => None,
         }
     }
+}
+
+/// Splits `input` path into literal directory path and glob pattern.
+fn split_glob_path(input: &str) -> (&str, &str) {
+    const GLOB_CHARS: &[char] = &['?', '*', '[', ']']; // see glob::Pattern::escape()
+    let prefix_len = input
+        .split_inclusive(path::is_separator)
+        .take_while(|component| !component.contains(GLOB_CHARS))
+        .map(|component| component.len())
+        .sum();
+    input.split_at(prefix_len)
 }
 
 /// AST-level representation of the fileset expression.
@@ -260,6 +310,7 @@ impl FilesetExpression {
 fn build_union_matcher(expressions: &[FilesetExpression]) -> Box<dyn Matcher> {
     let mut file_paths = Vec::new();
     let mut prefix_paths = Vec::new();
+    let mut file_globs = Vec::new();
     let mut matchers: Vec<Option<Box<dyn Matcher>>> = Vec::new();
     for expr in expressions {
         let matcher: Box<dyn Matcher> = match expr {
@@ -270,6 +321,9 @@ fn build_union_matcher(expressions: &[FilesetExpression]) -> Box<dyn Matcher> {
                 match pattern {
                     FilePattern::FilePath(path) => file_paths.push(path),
                     FilePattern::PrefixPath(path) => prefix_paths.push(path),
+                    FilePattern::FileGlob { dir, pattern } => {
+                        file_globs.push((dir, pattern.clone()))
+                    }
                 }
                 continue;
             }
@@ -294,6 +348,9 @@ fn build_union_matcher(expressions: &[FilesetExpression]) -> Box<dyn Matcher> {
     }
     if !prefix_paths.is_empty() {
         matchers.push(Some(Box::new(PrefixMatcher::new(prefix_paths))));
+    }
+    if !file_globs.is_empty() {
+        matchers.push(Some(Box::new(FileGlobsMatcher::new(file_globs))));
     }
     union_all_matchers(&mut matchers)
 }
@@ -472,6 +529,90 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_glob_pattern() {
+        let ctx = FilesetParseContext {
+            // meta character in cwd path shouldn't be expanded
+            cwd: Path::new("/ws/cur*"),
+            workspace_root: Path::new("/ws"),
+        };
+        let parse = |text| parse(text, &ctx);
+        let glob_expr = |dir: &str, pattern: &str| {
+            FilesetExpression::pattern(FilePattern::FileGlob {
+                dir: repo_path_buf(dir),
+                pattern: glob::Pattern::new(pattern).unwrap(),
+            })
+        };
+
+        // cwd-relative, without meta characters
+        assert_eq!(
+            parse(r#"cwd-glob:"foo""#).unwrap(),
+            FilesetExpression::file_path(repo_path_buf("cur*/foo"))
+        );
+        // Strictly speaking, glob:"" shouldn't match a file named <cwd>, but
+        // file pattern doesn't distinguish "foo/" from "foo".
+        assert_eq!(
+            parse(r#"glob:"""#).unwrap(),
+            FilesetExpression::file_path(repo_path_buf("cur*"))
+        );
+        assert_eq!(
+            parse(r#"glob:".""#).unwrap(),
+            FilesetExpression::file_path(repo_path_buf("cur*"))
+        );
+        assert_eq!(
+            parse(r#"glob:"..""#).unwrap(),
+            FilesetExpression::file_path(RepoPathBuf::root())
+        );
+
+        // cwd-relative, with meta characters
+        assert_eq!(parse(r#"glob:"*""#).unwrap(), glob_expr("cur*", "*"));
+        assert_eq!(parse(r#"glob:"./*""#).unwrap(), glob_expr("cur*", "*"));
+        assert_eq!(parse(r#"glob:"../*""#).unwrap(), glob_expr("", "*"));
+        // glob:"**" is equivalent to root-glob:"<cwd>/**", not root-glob:"**"
+        assert_eq!(parse(r#"glob:"**""#).unwrap(), glob_expr("cur*", "**"));
+        assert_eq!(
+            parse(r#"glob:"../foo/b?r/baz""#).unwrap(),
+            glob_expr("foo", "b?r/baz")
+        );
+        assert!(parse(r#"glob:"../../*""#).is_err());
+        assert!(parse(r#"glob:"/*""#).is_err());
+        // no support for relative path component after glob meta character
+        assert!(parse(r#"glob:"*/..""#).is_err());
+
+        // cwd-relative, with Windows path separators
+        assert_eq!(
+            parse(r#"glob:"..\\foo\\*\\bar""#).unwrap(),
+            if cfg!(windows) {
+                glob_expr("foo", "*/bar")
+            } else {
+                glob_expr("cur*", r"..\foo\*\bar")
+            }
+        );
+
+        // workspace-relative, without meta characters
+        assert_eq!(
+            parse(r#"root-glob:"foo""#).unwrap(),
+            FilesetExpression::file_path(repo_path_buf("foo"))
+        );
+        assert_eq!(
+            parse(r#"root-glob:"""#).unwrap(),
+            FilesetExpression::file_path(RepoPathBuf::root())
+        );
+        assert_eq!(
+            parse(r#"root-glob:".""#).unwrap(),
+            FilesetExpression::file_path(RepoPathBuf::root())
+        );
+
+        // workspace-relative, with meta characters
+        assert_eq!(parse(r#"root-glob:"*""#).unwrap(), glob_expr("", "*"));
+        assert_eq!(
+            parse(r#"root-glob:"foo/bar/b[az]""#).unwrap(),
+            glob_expr("foo/bar", "b[az]")
+        );
+        assert!(parse(r#"root-glob:"../*""#).is_err());
+        assert!(parse(r#"root-glob:"/*""#).is_err());
+    }
+
+    #[test]
     fn test_parse_function() {
         let ctx = FilesetParseContext {
             cwd: Path::new("/ws/cur"),
@@ -613,6 +754,58 @@ mod tests {
         PrefixMatcher {
             tree: Dir {
                 "foo": Prefix {},
+            },
+        }
+        "###);
+    }
+
+    #[test]
+    fn test_build_matcher_glob_pattern() {
+        let glob_expr = |dir: &str, pattern: &str| {
+            FilesetExpression::pattern(FilePattern::FileGlob {
+                dir: repo_path_buf(dir),
+                pattern: glob::Pattern::new(pattern).unwrap(),
+            })
+        };
+
+        insta::assert_debug_snapshot!(glob_expr("", "*").to_matcher(), @r###"
+        FileGlobsMatcher {
+            tree: [
+                Pattern {
+                    original: "*",
+                    tokens: [
+                        AnySequence,
+                    ],
+                    is_recursive: false,
+                },
+            ] {},
+        }
+        "###);
+
+        let expr =
+            FilesetExpression::union_all(vec![glob_expr("foo", "*"), glob_expr("foo/bar", "*")]);
+        insta::assert_debug_snapshot!(expr.to_matcher(), @r###"
+        FileGlobsMatcher {
+            tree: [] {
+                "foo": [
+                    Pattern {
+                        original: "*",
+                        tokens: [
+                            AnySequence,
+                        ],
+                        is_recursive: false,
+                    },
+                ] {
+                    "bar": [
+                        Pattern {
+                            original: "*",
+                            tokens: [
+                                AnySequence,
+                            ],
+                            is_recursive: false,
+                        },
+                    ] {},
+                },
             },
         }
         "###);

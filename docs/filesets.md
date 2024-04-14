@@ -19,9 +19,16 @@ The following patterns are supported:
 * `"path"`, `path` (the quotes are optional), or `cwd:"path"`: Matches
   cwd-relative path prefix (file or files under directory recursively.)
 * `cwd-file:"path"` or `file:"path"`: Matches cwd-relative file (or exact) path.
+* `cwd-glob:"pattern"` or `glob:"pattern"`: Matches file paths with cwd-relative
+  Unix-style shell [wildcard `pattern`][glob]. For example, `glob:"*.c"` will
+  match all `.c` files in the current working directory non-recursively.
 * `root:"path"`: Matches workspace-relative path prefix (file or files under
   directory recursively.)
 * `root-file:"path"`: Matches workspace-relative file (or exact) path.
+* `root-glob:"pattern"`: Matches file paths with workspace-relative Unix-style
+  shell [wildcard `pattern`][glob].
+
+[glob]: https://docs.rs/glob/latest/glob/struct.Pattern.html
 
 ## Operators
 
@@ -49,6 +56,12 @@ Show diff excluding `Cargo.lock`.
 
 ```
 jj diff '~Cargo.lock'
+```
+
+List files in `src` excluding Rust sources.
+
+```
+jj files 'src ~ glob:"**/*.rs"'
 ```
 
 Split a revision in two, putting `foo` into the second commit.
