@@ -233,6 +233,67 @@ fn prefix_tree_to_visit_sets(tree: &RepoPathTree<PrefixNodeKind>) -> Visit {
     Visit::sets(dirs, files)
 }
 
+/// Matches file paths with glob patterns.
+///
+/// Patterns are provided as `(dir, pattern)` pairs, where `dir` should be the
+/// longest directory path that contains no glob meta characters, and `pattern`
+/// will be evaluated relative to `dir`.
+#[derive(Clone, Debug)]
+pub struct FileGlobsMatcher {
+    tree: RepoPathTree<Vec<glob::Pattern>>,
+}
+
+impl FileGlobsMatcher {
+    pub fn new<D: AsRef<RepoPath>>(
+        dir_patterns: impl IntoIterator<Item = (D, glob::Pattern)>,
+    ) -> Self {
+        let mut tree: RepoPathTree<Vec<glob::Pattern>> = Default::default();
+        for (dir, pattern) in dir_patterns {
+            tree.add(dir.as_ref()).value.push(pattern);
+        }
+        FileGlobsMatcher { tree }
+    }
+}
+
+impl Matcher for FileGlobsMatcher {
+    fn matches(&self, file: &RepoPath) -> bool {
+        // TODO: glob::Pattern relies on path::is_separator() internally, but
+        // RepoPath separator should be '/'. One way to address this problem is
+        // to switch to globset::Glob, and use the underlying regex pattern.
+        const OPTIONS: glob::MatchOptions = glob::MatchOptions {
+            case_sensitive: true,
+            require_literal_separator: true,
+            require_literal_leading_dot: false,
+        };
+        // check if any ancestor (dir, patterns) matches 'file'
+        self.tree
+            .walk_to(file)
+            .take_while(|(_, tail_path)| !tail_path.is_root()) // only dirs
+            .any(|(sub, tail_path)| {
+                let name = tail_path.as_internal_file_string();
+                sub.value.iter().any(|pat| pat.matches_with(name, OPTIONS))
+            })
+    }
+
+    fn visit(&self, dir: &RepoPath) -> Visit {
+        for (sub, tail_path) in self.tree.walk_to(dir) {
+            // ancestor of 'dir' has patterns, can't narrow visit anymore
+            if !sub.value.is_empty() {
+                return Visit::Specific {
+                    dirs: VisitDirs::All,
+                    files: VisitFiles::All,
+                };
+            }
+            // 'dir' found, and is an ancestor of pattern paths
+            if tail_path.is_root() {
+                let sub_dirs = sub.entries.keys().cloned().collect();
+                return Visit::sets(sub_dirs, HashSet::new());
+            }
+        }
+        Visit::Nothing
+    }
+}
+
 /// Matches paths that are matched by any of the input matchers.
 #[derive(Clone, Debug)]
 pub struct UnionMatcher<M1, M2> {
@@ -597,6 +658,160 @@ mod tests {
         assert_eq!(m.visit(repo_path("foo")), Visit::AllRecursively);
         // Same thing in subdirectories of the prefix
         assert_eq!(m.visit(repo_path("foo/bar/baz")), Visit::AllRecursively);
+    }
+
+    #[test]
+    fn test_fileglobsmatcher_rooted() {
+        let to_pattern = |s| glob::Pattern::new(s).unwrap();
+
+        let m = FileGlobsMatcher::new([(RepoPath::root(), to_pattern("*.rs"))]);
+        assert!(!m.matches(repo_path("foo")));
+        assert!(m.matches(repo_path("foo.rs")));
+        assert!(!m.matches(repo_path("foo.rss")));
+        assert!(!m.matches(repo_path("foo.rs/bar.rs")));
+        assert!(!m.matches(repo_path("foo/bar.rs")));
+        assert_eq!(
+            m.visit(RepoPath::root()),
+            Visit::Specific {
+                dirs: VisitDirs::All,
+                files: VisitFiles::All
+            }
+        );
+
+        // Multiple patterns at the same directory
+        let m = FileGlobsMatcher::new([
+            (RepoPath::root(), to_pattern("foo?")),
+            (RepoPath::root(), to_pattern("**/*.rs")),
+        ]);
+        assert!(!m.matches(repo_path("foo")));
+        assert!(m.matches(repo_path("foo1")));
+        assert!(!m.matches(repo_path("Foo1")));
+        assert!(!m.matches(repo_path("foo1/foo2")));
+        assert!(m.matches(repo_path("foo.rs")));
+        assert!(m.matches(repo_path("foo.rs/bar.rs")));
+        assert!(m.matches(repo_path("foo/bar.rs")));
+        assert_eq!(
+            m.visit(RepoPath::root()),
+            Visit::Specific {
+                dirs: VisitDirs::All,
+                files: VisitFiles::All
+            }
+        );
+        assert_eq!(
+            m.visit(repo_path("foo")),
+            Visit::Specific {
+                dirs: VisitDirs::All,
+                files: VisitFiles::All
+            }
+        );
+        assert_eq!(
+            m.visit(repo_path("bar/baz")),
+            Visit::Specific {
+                dirs: VisitDirs::All,
+                files: VisitFiles::All
+            }
+        );
+    }
+
+    #[test]
+    fn test_fileglobsmatcher_nested() {
+        let to_pattern = |s| glob::Pattern::new(s).unwrap();
+
+        let m = FileGlobsMatcher::new([
+            (repo_path("foo"), to_pattern("**/*.a")),
+            (repo_path("foo/bar"), to_pattern("*.b")),
+            (repo_path("baz"), to_pattern("?*")),
+        ]);
+        assert!(!m.matches(repo_path("foo")));
+        assert!(m.matches(repo_path("foo/x.a")));
+        assert!(!m.matches(repo_path("foo/x.b")));
+        assert!(m.matches(repo_path("foo/bar/x.a")));
+        assert!(m.matches(repo_path("foo/bar/x.b")));
+        assert!(m.matches(repo_path("foo/bar/baz/x.a")));
+        assert!(!m.matches(repo_path("foo/bar/baz/x.b")));
+        assert!(!m.matches(repo_path("baz")));
+        assert!(m.matches(repo_path("baz/x")));
+        assert_eq!(
+            m.visit(RepoPath::root()),
+            Visit::Specific {
+                dirs: VisitDirs::Set(hashset! {
+                    RepoPathComponentBuf::from("foo"),
+                    RepoPathComponentBuf::from("baz"),
+                }),
+                files: VisitFiles::Set(hashset! {}),
+            }
+        );
+        assert_eq!(
+            m.visit(repo_path("foo")),
+            Visit::Specific {
+                dirs: VisitDirs::All,
+                files: VisitFiles::All,
+            }
+        );
+        assert_eq!(
+            m.visit(repo_path("foo/bar")),
+            Visit::Specific {
+                dirs: VisitDirs::All,
+                files: VisitFiles::All,
+            }
+        );
+        assert_eq!(
+            m.visit(repo_path("foo/bar/baz")),
+            Visit::Specific {
+                dirs: VisitDirs::All,
+                files: VisitFiles::All,
+            }
+        );
+        assert_eq!(m.visit(repo_path("bar")), Visit::Nothing);
+        assert_eq!(
+            m.visit(repo_path("baz")),
+            Visit::Specific {
+                dirs: VisitDirs::All,
+                files: VisitFiles::All,
+            }
+        );
+    }
+
+    #[test]
+    fn test_fileglobsmatcher_wildcard_any() {
+        let to_pattern = |s| glob::Pattern::new(s).unwrap();
+
+        // "*" could match the root path, but it doesn't matter since the root
+        // isn't a valid file path.
+        let m = FileGlobsMatcher::new([(RepoPath::root(), to_pattern("*"))]);
+        assert!(!m.matches(RepoPath::root())); // doesn't matter
+        assert!(m.matches(repo_path("x")));
+        assert!(m.matches(repo_path("x.rs")));
+        assert!(!m.matches(repo_path("foo/bar.rs")));
+        assert_eq!(
+            m.visit(RepoPath::root()),
+            Visit::Specific {
+                dirs: VisitDirs::All,
+                files: VisitFiles::All
+            }
+        );
+
+        // "foo/*" shouldn't match "foo"
+        let m = FileGlobsMatcher::new([(repo_path("foo"), to_pattern("*"))]);
+        assert!(!m.matches(RepoPath::root()));
+        assert!(!m.matches(repo_path("foo")));
+        assert!(m.matches(repo_path("foo/x")));
+        assert!(!m.matches(repo_path("foo/bar/baz")));
+        assert_eq!(
+            m.visit(RepoPath::root()),
+            Visit::Specific {
+                dirs: VisitDirs::Set(hashset! {RepoPathComponentBuf::from("foo")}),
+                files: VisitFiles::Set(hashset! {}),
+            }
+        );
+        assert_eq!(
+            m.visit(repo_path("foo")),
+            Visit::Specific {
+                dirs: VisitDirs::All,
+                files: VisitFiles::All
+            }
+        );
+        assert_eq!(m.visit(repo_path("bar")), Visit::Nothing);
     }
 
     #[test]
