@@ -1330,14 +1330,13 @@
 
 <h1 id="first-class-conflicts">First-class conflicts<a class="headerlink" href="#first-class-conflicts" title="Permanent link">&para;</a></h1>
 <h2 id="introduction">Introduction<a class="headerlink" href="#introduction" title="Permanent link">&para;</a></h2>
-<p>Like <a href="https://pijul.org/">Pijul</a> and <a href="http://darcs.net/">Darcs</a> but unlike most
-other VCSs, Jujutsu can record conflicted states in commits. For example, if you
-rebase a commit and it results in a conflict, the conflict will be recorded in
-the rebased commit and the rebase operation will succeed. You can then resolve
-the conflict whenever you want. Conflicted states can be further rebased,
-merged, or backed out. Note that what's stored in the commit is a logical
-representation of the conflict, not conflict <em>markers</em>; rebasing a conflict
-doesn't result in a nested conflict markers (see
+<p>Unlike most other VCSs, Jujutsu can record conflicted states in commits. For
+example, if you rebase a commit and it results in a conflict, the conflict will
+be recorded in the rebased commit and the rebase operation will succeed. You can
+then resolve the conflict whenever you want. Conflicted states can be further
+rebased, merged, or backed out. Note that what's stored in the commit is a
+logical representation of the conflict, not conflict <em>markers</em>; rebasing a
+conflict doesn't result in a nested conflict markers (see
 <a href="../technical/conflicts/">technical doc</a> for how this works).</p>
 <h2 id="advantages">Advantages<a class="headerlink" href="#advantages" title="Permanent link">&para;</a></h2>
 <p>The deeper understanding of conflicts has many advantages:</p>
