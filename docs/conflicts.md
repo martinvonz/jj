@@ -3,14 +3,13 @@
 
 ## Introduction
 
-Like [Pijul](https://pijul.org/) and [Darcs](http://darcs.net/) but unlike most
-other VCSs, Jujutsu can record conflicted states in commits. For example, if you
-rebase a commit and it results in a conflict, the conflict will be recorded in
-the rebased commit and the rebase operation will succeed. You can then resolve
-the conflict whenever you want. Conflicted states can be further rebased,
-merged, or backed out. Note that what's stored in the commit is a logical
-representation of the conflict, not conflict *markers*; rebasing a conflict
-doesn't result in a nested conflict markers (see
+Unlike most other VCSs, Jujutsu can record conflicted states in commits. For
+example, if you rebase a commit and it results in a conflict, the conflict will
+be recorded in the rebased commit and the rebase operation will succeed. You can
+then resolve the conflict whenever you want. Conflicted states can be further
+rebased, merged, or backed out. Note that what's stored in the commit is a
+logical representation of the conflict, not conflict *markers*; rebasing a
+conflict doesn't result in a nested conflict markers (see
 [technical doc](technical/conflicts.md) for how this works).
 
 

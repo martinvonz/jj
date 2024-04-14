@@ -92,8 +92,8 @@ where
     } else if counts.len() == 2 {
         // All sides made the same change.
         // This matches what Git and Mercurial do (in the 3-way case at least), but not
-        // what Darcs and Pijul do. It means that repeated 3-way merging of multiple
-        // trees may give different results depending on the order of merging.
+        // what Darcs does. It means that repeated 3-way merging of multiple trees may
+        // give different results depending on the order of merging.
         // TODO: Consider removing this special case, making the algorithm more strict,
         // and maybe add a more lenient version that is used when the user explicitly
         // asks for conflict resolution.
