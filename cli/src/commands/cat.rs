@@ -86,6 +86,7 @@ fn get_single_path(expression: &FilesetExpression) -> Option<&RepoPath> {
             // Not using pattern.as_path() because files-in:<path> shouldn't
             // select the literal <path> itself.
             FilePattern::FilePath(path) | FilePattern::PrefixPath(path) => Some(path),
+            FilePattern::FileGlob { .. } => None,
         },
         _ => None,
     }

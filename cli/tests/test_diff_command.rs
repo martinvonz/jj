@@ -150,6 +150,21 @@ fn test_diff_basic() {
     3 files changed, 2 insertions(+), 1 deletion(-)
     "###);
 
+    // Filter by glob pattern
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "diff",
+            "--config-toml=ui.allow-filesets=true",
+            "-s",
+            r#"glob:"file[12]""#,
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    D file1
+    M file2
+    "###);
+
     // Unmatched paths should generate warnings
     let (stdout, stderr) = test_env.jj_cmd_ok(
         test_env.env_root(),
