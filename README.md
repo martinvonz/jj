@@ -58,13 +58,12 @@ systems into a single tool. Some of those sources of inspiration include:
   powerful and simple. Formatting output is done with a robust template language
   that can be configured by the user.
 
-- **Pijul & Darcs**: Jujutsu keeps track of conflicts as [first-class
+- **Darcs**: Jujutsu keeps track of conflicts as [first-class
   objects][conflicts] in its model; they are first-class in the same way commits
   are, while alternatives like Git simply think of conflicts as textual diffs.
-  While not as rigorous as systems like Darcs and Pijul (which are based on a
-  formalized theory of patches, as opposed to snapshots), the effect is that
-  many forms of conflict resolution can be performed and propagated
-  automatically.
+  While not as rigorous as systems like Darcs (which is based on a formalized
+  theory of patches, as opposed to snapshots), the effect is that many forms of
+  conflict resolution can be performed and propagated automatically.
 
 [perf]: https://github.com/martinvonz/jj/discussions/49
 [revset]: https://martinvonz.github.io/jj/latest/revsets/
