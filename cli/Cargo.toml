@@ -13,6 +13,18 @@ repository = { workspace = true }
 documentation = { workspace = true }
 keywords = { workspace = true }
 
+include = [
+    "/LICENSE",
+    "/build.rs",
+    "/examples/",
+    "/src/",
+    "/testing/",
+    "/tests/",
+    "!*.pending-snap",
+    "!*.snap*",
+    "/tests/cli-reference@.md.snap"
+]
+
 [[bin]]
 name = "jj"
 path = "src/main.rs"
