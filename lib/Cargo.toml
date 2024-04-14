@@ -12,6 +12,16 @@ repository = { workspace = true }
 documentation = { workspace = true }
 readme = { workspace = true }
 
+include = [
+    "/LICENSE",
+    "/benches/",
+    "/src/",
+    "/tests/",
+    "!*.pending-snap",
+    "!*.snap*",
+]
+
+
 [[test]]
 name = "runner"
 

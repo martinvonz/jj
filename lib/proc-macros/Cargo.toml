@@ -11,6 +11,8 @@ repository = { workspace = true }
 documentation = { workspace = true }
 readme = { workspace = true }
 
+include = ["/LICENSE", "/src/"]
+
 [lib]
 proc-macro = true
 
