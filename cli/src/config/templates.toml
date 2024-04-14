@@ -166,64 +166,63 @@ if(hidden,
 )
 '''
 
-'label_log_node(content)' = '''
-label("node",
-  coalesce(
-    if(!self, label("elided", content)),
-    if(immutable, label("immutable", content)),
-    if(conflict, label("conflict", content)),
-    if(current_working_copy, label("working_copy", content)),
-    label("normal", content),
-  )
-)
-'''
-
-'label_op_log_node(content)' = '''
-label("node",
-  coalesce(
-    if(current_operation, label("current_operation", content)),
-    label("normal", content),
-  )
-)
-'''
-
 builtin_log_node = '''
-label_log_node(
+label("node", 
   coalesce(
-    if(!self, "~"),
-    if(current_working_copy, "@"),
-    if(immutable, "◆"),
-    if(conflict, "×"),
-    "○",
+    if(!self, label("elided", "~")),
+    label(
+      separate(" ",
+        if(current_working_copy, "working_copy"),
+        if(immutable, "immutable"),
+        if(conflict, "conflict"),
+      ),
+      coalesce(
+        if(!self, "~"),
+        if(current_working_copy, "@"),
+        if(immutable, "◆"),
+        if(conflict, "×"),
+        "○",
+      )
+    )
   )
 )
 '''
 
 builtin_log_node_ascii = '''
-label_log_node(
+label("node", 
   coalesce(
-    if(!self, "~"),
-    if(current_working_copy, "@"),
-    if(immutable, "#"),
-    if(conflict, "x"),
-    "o",
+    if(!self, label("elided", "~")),
+    label(
+      separate(" ",
+        if(current_working_copy, "working_copy"),
+        if(immutable, "immutable"),
+        if(conflict, "conflict"),
+      ),
+      coalesce(
+        if(!self, "~"),
+        if(current_working_copy, "@"),
+        if(immutable, "#"),
+        if(conflict, "x"),
+        "o",
+      )
+    )
   )
 )
 '''
 
 builtin_op_log_node = '''
-label_op_log_node(
+label("node",
   coalesce(
-    if(current_operation, "@"),
+    if(current_operation, label("current_operation", "@")),
     "○",
   )
 )
 '''
 
 builtin_op_log_node_ascii = '''
-label_op_log_node(
+label("node",
   coalesce(
-    if(current_operation, "@"),
+    if(current_operation, label("current_operation", "@")),
     "o",
   )
 )
