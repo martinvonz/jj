@@ -143,8 +143,23 @@ impl Matcher for FilesMatcher {
     fn visit(&self, dir: &RepoPath) -> Visit {
         self.tree
             .get(dir)
-            .map_or(Visit::Nothing, RepoPathTree::to_visit_sets)
+            .map_or(Visit::Nothing, files_tree_to_visit_sets)
     }
+}
+
+fn files_tree_to_visit_sets(tree: &RepoPathTree) -> Visit {
+    let mut dirs = HashSet::new();
+    let mut files = HashSet::new();
+    for (name, sub) in &tree.entries {
+        // should visit only intermediate directories
+        if !sub.entries.is_empty() {
+            dirs.insert(name.clone());
+        }
+        if sub.is_file {
+            files.insert(name.clone());
+        }
+    }
+    Visit::sets(dirs, files)
 }
 
 #[derive(Debug)]
@@ -178,11 +193,24 @@ impl Matcher for PrefixMatcher {
             }
             // 'dir' found, and is an ancestor of prefix paths
             if tail_path.is_root() {
-                return sub.to_visit_sets();
+                return prefix_tree_to_visit_sets(sub);
             }
         }
         Visit::Nothing
     }
+}
+
+fn prefix_tree_to_visit_sets(tree: &RepoPathTree) -> Visit {
+    let mut dirs = HashSet::new();
+    let mut files = HashSet::new();
+    for (name, sub) in &tree.entries {
+        // should visit both intermediate and prefix directories
+        dirs.insert(name.clone());
+        if sub.is_file {
+            files.insert(name.clone());
+        }
+    }
+    Visit::sets(dirs, files)
 }
 
 /// Matches paths that are matched by any of the input matchers.
@@ -379,20 +407,6 @@ impl RepoPathTree {
             let name = components.next()?;
             Some((sub.entries.get(name)?, components.as_path()))
         })
-    }
-
-    fn to_visit_sets(&self) -> Visit {
-        let mut dirs = HashSet::new();
-        let mut files = HashSet::new();
-        for (name, sub) in &self.entries {
-            if sub.is_dir {
-                dirs.insert(name.clone());
-            }
-            if sub.is_file {
-                files.insert(name.clone());
-            }
-        }
-        Visit::sets(dirs, files)
     }
 }
 
