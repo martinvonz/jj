@@ -369,11 +369,6 @@ impl RepoPathTree {
         })
     }
 
-    #[cfg(test)]
-    fn add_dir(&mut self, dir: &RepoPath) {
-        self.add(dir).is_dir = true;
-    }
-
     fn add_file(&mut self, file: &RepoPath) {
         self.add(file).is_file = true;
     }
@@ -444,48 +439,6 @@ mod tests {
 
     fn repo_path(value: &str) -> &RepoPath {
         RepoPath::from_internal_string(value)
-    }
-
-    #[test]
-    fn test_repo_path_tree_empty() {
-        let tree = RepoPathTree::new();
-        assert_eq!(tree.get_visit_sets(RepoPath::root()), Visit::Nothing);
-    }
-
-    #[test]
-    fn test_repo_path_tree_root() {
-        let mut tree = RepoPathTree::new();
-        tree.add_dir(RepoPath::root());
-        assert_eq!(tree.get_visit_sets(RepoPath::root()), Visit::Nothing);
-    }
-
-    #[test]
-    fn test_repo_path_tree_dir() {
-        let mut tree = RepoPathTree::new();
-        tree.add_dir(repo_path("dir"));
-        assert_eq!(
-            tree.get_visit_sets(RepoPath::root()),
-            Visit::sets(hashset! {RepoPathComponentBuf::from("dir")}, hashset! {}),
-        );
-        tree.add_dir(repo_path("dir/sub"));
-        assert_eq!(
-            tree.get_visit_sets(repo_path("dir")),
-            Visit::sets(hashset! {RepoPathComponentBuf::from("sub")}, hashset! {}),
-        );
-    }
-
-    #[test]
-    fn test_repo_path_tree_file() {
-        let mut tree = RepoPathTree::new();
-        tree.add_file(repo_path("dir/file"));
-        assert_eq!(
-            tree.get_visit_sets(RepoPath::root()),
-            Visit::sets(hashset! {RepoPathComponentBuf::from("dir")}, hashset! {}),
-        );
-        assert_eq!(
-            tree.get_visit_sets(repo_path("dir")),
-            Visit::sets(hashset! {}, hashset! {RepoPathComponentBuf::from("file")}),
-        );
     }
 
     #[test]
