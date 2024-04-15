@@ -141,7 +141,9 @@ impl Matcher for FilesMatcher {
     }
 
     fn visit(&self, dir: &RepoPath) -> Visit {
-        self.tree.get_visit_sets(dir)
+        self.tree
+            .get(dir)
+            .map_or(Visit::Nothing, RepoPathTree::to_visit_sets)
     }
 }
 
@@ -364,12 +366,6 @@ impl RepoPathTree {
     fn get(&self, dir: &RepoPath) -> Option<&RepoPathTree> {
         dir.components()
             .try_fold(self, |sub, name| sub.entries.get(name))
-    }
-
-    fn get_visit_sets(&self, dir: &RepoPath) -> Visit {
-        self.get(dir)
-            .map(RepoPathTree::to_visit_sets)
-            .unwrap_or(Visit::Nothing)
     }
 
     /// Walks the tree from the root to the given `dir`, yielding each sub tree
