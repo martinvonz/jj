@@ -122,14 +122,14 @@ impl Matcher for EverythingMatcher {
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct FilesMatcher {
-    tree: RepoPathTree,
+    tree: RepoPathTree<FilesNodeKind>,
 }
 
 impl FilesMatcher {
     pub fn new(files: impl IntoIterator<Item = impl AsRef<RepoPath>>) -> Self {
         let mut tree = RepoPathTree::default();
         for f in files {
-            tree.add(f.as_ref()).is_file = true;
+            tree.add(f.as_ref()).value = FilesNodeKind::File;
         }
         FilesMatcher { tree }
     }
@@ -137,7 +137,9 @@ impl FilesMatcher {
 
 impl Matcher for FilesMatcher {
     fn matches(&self, file: &RepoPath) -> bool {
-        self.tree.get(file).map(|sub| sub.is_file).unwrap_or(false)
+        self.tree
+            .get(file)
+            .map_or(false, |sub| sub.value == FilesNodeKind::File)
     }
 
     fn visit(&self, dir: &RepoPath) -> Visit {
@@ -147,7 +149,16 @@ impl Matcher for FilesMatcher {
     }
 }
 
-fn files_tree_to_visit_sets(tree: &RepoPathTree) -> Visit {
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum FilesNodeKind {
+    /// Represents an intermediate directory.
+    #[default]
+    Dir,
+    /// Represents a file (which might also be an intermediate directory.)
+    File,
+}
+
+fn files_tree_to_visit_sets(tree: &RepoPathTree<FilesNodeKind>) -> Visit {
     let mut dirs = HashSet::new();
     let mut files = HashSet::new();
     for (name, sub) in &tree.entries {
@@ -155,7 +166,7 @@ fn files_tree_to_visit_sets(tree: &RepoPathTree) -> Visit {
         if !sub.entries.is_empty() {
             dirs.insert(name.clone());
         }
-        if sub.is_file {
+        if sub.value == FilesNodeKind::File {
             files.insert(name.clone());
         }
     }
@@ -164,7 +175,7 @@ fn files_tree_to_visit_sets(tree: &RepoPathTree) -> Visit {
 
 #[derive(Debug)]
 pub struct PrefixMatcher {
-    tree: RepoPathTree,
+    tree: RepoPathTree<PrefixNodeKind>,
 }
 
 impl PrefixMatcher {
@@ -172,9 +183,7 @@ impl PrefixMatcher {
     pub fn new(prefixes: impl IntoIterator<Item = impl AsRef<RepoPath>>) -> Self {
         let mut tree = RepoPathTree::default();
         for prefix in prefixes {
-            let sub = tree.add(prefix.as_ref());
-            sub.is_dir = true;
-            sub.is_file = true;
+            tree.add(prefix.as_ref()).value = PrefixNodeKind::Prefix;
         }
         PrefixMatcher { tree }
     }
@@ -182,13 +191,15 @@ impl PrefixMatcher {
 
 impl Matcher for PrefixMatcher {
     fn matches(&self, file: &RepoPath) -> bool {
-        self.tree.walk_to(file).any(|(sub, _)| sub.is_file)
+        self.tree
+            .walk_to(file)
+            .any(|(sub, _)| sub.value == PrefixNodeKind::Prefix)
     }
 
     fn visit(&self, dir: &RepoPath) -> Visit {
         for (sub, tail_path) in self.tree.walk_to(dir) {
-            // 'is_file' means the current path matches prefix paths
-            if sub.is_file {
+            // ancestor of 'dir' matches prefix paths
+            if sub.value == PrefixNodeKind::Prefix {
                 return Visit::AllRecursively;
             }
             // 'dir' found, and is an ancestor of prefix paths
@@ -200,13 +211,22 @@ impl Matcher for PrefixMatcher {
     }
 }
 
-fn prefix_tree_to_visit_sets(tree: &RepoPathTree) -> Visit {
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+enum PrefixNodeKind {
+    /// Represents an intermediate directory.
+    #[default]
+    Dir,
+    /// Represents a file and prefix directory.
+    Prefix,
+}
+
+fn prefix_tree_to_visit_sets(tree: &RepoPathTree<PrefixNodeKind>) -> Visit {
     let mut dirs = HashSet::new();
     let mut files = HashSet::new();
     for (name, sub) in &tree.entries {
         // should visit both intermediate and prefix directories
         dirs.insert(name.clone());
-        if sub.is_file {
+        if sub.value == PrefixNodeKind::Prefix {
             files.insert(name.clone());
         }
     }
@@ -368,30 +388,28 @@ impl<M1: Matcher, M2: Matcher> Matcher for IntersectionMatcher<M1, M2> {
     }
 }
 
-/// Keeps track of which subdirectories and files of each directory need to be
-/// visited.
-#[derive(Default, PartialEq, Eq)]
-struct RepoPathTree {
-    entries: HashMap<RepoPathComponentBuf, RepoPathTree>,
-    // is_dir/is_file aren't exclusive, both can be set to true. If entries is not empty,
-    // is_dir should be set.
-    is_dir: bool,
-    is_file: bool,
+/// Tree that maps `RepoPath` to value of type `V`.
+#[derive(Clone, Default, Eq, PartialEq)]
+struct RepoPathTree<V> {
+    entries: HashMap<RepoPathComponentBuf, RepoPathTree<V>>,
+    value: V,
 }
 
-impl RepoPathTree {
-    fn add(&mut self, dir: &RepoPath) -> &mut RepoPathTree {
+impl<V> RepoPathTree<V> {
+    fn add(&mut self, dir: &RepoPath) -> &mut Self
+    where
+        V: Default,
+    {
         dir.components().fold(self, |sub, name| {
             // Avoid name.clone() if entry already exists.
             if !sub.entries.contains_key(name) {
-                sub.is_dir = true;
                 sub.entries.insert(name.to_owned(), Self::default());
             }
             sub.entries.get_mut(name).unwrap()
         })
     }
 
-    fn get(&self, dir: &RepoPath) -> Option<&RepoPathTree> {
+    fn get(&self, dir: &RepoPath) -> Option<&Self> {
         dir.components()
             .try_fold(self, |sub, name| sub.entries.get(name))
     }
@@ -401,7 +419,7 @@ impl RepoPathTree {
     fn walk_to<'a, 'b: 'a>(
         &'a self,
         dir: &'b RepoPath,
-    ) -> impl Iterator<Item = (&'a RepoPathTree, &'b RepoPath)> + 'a {
+    ) -> impl Iterator<Item = (&'a Self, &'b RepoPath)> + 'a {
         iter::successors(Some((self, dir)), |(sub, dir)| {
             let mut components = dir.components();
             let name = components.next()?;
@@ -410,15 +428,10 @@ impl RepoPathTree {
     }
 }
 
-impl Debug for RepoPathTree {
+impl<V: Debug> Debug for RepoPathTree<V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let type_name = match (self.is_dir, self.is_file) {
-            (true, true) => "Dir|File",
-            (true, false) => "Dir",
-            (false, true) => "File",
-            (false, false) => "_",
-        };
-        write!(f, "{type_name} ")?;
+        self.value.fmt(f)?;
+        f.write_str(" ")?;
         f.debug_map()
             .entries(
                 self.entries
