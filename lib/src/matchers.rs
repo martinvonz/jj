@@ -129,7 +129,7 @@ impl FilesMatcher {
     pub fn new(files: impl IntoIterator<Item = impl AsRef<RepoPath>>) -> Self {
         let mut tree = RepoPathTree::new();
         for f in files {
-            tree.add_file(f.as_ref());
+            tree.add(f.as_ref()).is_file = true;
         }
         FilesMatcher { tree }
     }
@@ -367,10 +367,6 @@ impl RepoPathTree {
             }
             sub.entries.get_mut(name).unwrap()
         })
-    }
-
-    fn add_file(&mut self, file: &RepoPath) {
-        self.add(file).is_file = true;
     }
 
     fn get(&self, dir: &RepoPath) -> Option<&RepoPathTree> {
