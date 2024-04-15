@@ -35,7 +35,7 @@ clap_complete = "4.5.2"
 clap_complete_nushell = "4.5.1"
 clap-markdown = "0.1.3"
 clap_mangen = "0.2.10"
-chrono = { version = "0.4.37", default-features = false, features = [
+chrono = { version = "0.4.38", default-features = false, features = [
     "std",
     "clock",
 ] }
@@ -44,7 +44,7 @@ criterion = "0.5.1"
 crossterm = { version = "0.27", default-features = false }
 digest = "0.10.7"
 dirs = "5.0.1"
-either = "1.10.0"
+either = "1.11.0"
 esl01-renderdag = "0.3.0"
 futures = "0.3.30"
 git2 = "0.18.3"
@@ -69,7 +69,7 @@ pest = "2.7.9"
 pest_derive = "2.7.9"
 pollster = "0.3.0"
 pretty_assertions = "1.4.0"
-proc-macro2 = "1.0.79"
+proc-macro2 = "1.0.80"
 prost = "0.12.3"
 prost-build = "0.12.3"
 quote = "1.0.36"
@@ -90,7 +90,7 @@ smallvec = { version = "1.13.2", features = [
     "union",
 ] }
 strsim = "0.11.1"
-syn = "2.0.58"
+syn = "2.0.59"
 tempfile = "3.10.1"
 test-case = "3.3.1"
 textwrap = "0.16.1"
