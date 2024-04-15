@@ -127,7 +127,7 @@ pub struct FilesMatcher {
 
 impl FilesMatcher {
     pub fn new(files: impl IntoIterator<Item = impl AsRef<RepoPath>>) -> Self {
-        let mut tree = RepoPathTree::new();
+        let mut tree = RepoPathTree::default();
         for f in files {
             tree.add(f.as_ref()).is_file = true;
         }
@@ -153,7 +153,7 @@ pub struct PrefixMatcher {
 impl PrefixMatcher {
     #[instrument(skip(prefixes))]
     pub fn new(prefixes: impl IntoIterator<Item = impl AsRef<RepoPath>>) -> Self {
-        let mut tree = RepoPathTree::new();
+        let mut tree = RepoPathTree::default();
         for prefix in prefixes {
             let sub = tree.add(prefix.as_ref());
             sub.is_dir = true;
@@ -340,7 +340,7 @@ impl<M1: Matcher, M2: Matcher> Matcher for IntersectionMatcher<M1, M2> {
 
 /// Keeps track of which subdirectories and files of each directory need to be
 /// visited.
-#[derive(PartialEq, Eq)]
+#[derive(Default, PartialEq, Eq)]
 struct RepoPathTree {
     entries: HashMap<RepoPathComponentBuf, RepoPathTree>,
     // is_dir/is_file aren't exclusive, both can be set to true. If entries is not empty,
@@ -350,20 +350,12 @@ struct RepoPathTree {
 }
 
 impl RepoPathTree {
-    fn new() -> Self {
-        RepoPathTree {
-            entries: HashMap::new(),
-            is_dir: false,
-            is_file: false,
-        }
-    }
-
     fn add(&mut self, dir: &RepoPath) -> &mut RepoPathTree {
         dir.components().fold(self, |sub, name| {
             // Avoid name.clone() if entry already exists.
             if !sub.entries.contains_key(name) {
                 sub.is_dir = true;
-                sub.entries.insert(name.to_owned(), RepoPathTree::new());
+                sub.entries.insert(name.to_owned(), Self::default());
             }
             sub.entries.get_mut(name).unwrap()
         })
