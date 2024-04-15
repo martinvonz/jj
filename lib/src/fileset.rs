@@ -612,7 +612,7 @@ mod tests {
             @r###"
         PrefixMatcher {
             tree: Dir {
-                "foo": Dir|File {},
+                "foo": Prefix {},
             },
         }
         "###);
@@ -627,7 +627,7 @@ mod tests {
         insta::assert_debug_snapshot!(expr.to_matcher(), @r###"
         FilesMatcher {
             tree: Dir {
-                "foo": Dir|File {
+                "foo": File {
                     "bar": File {},
                 },
             },
@@ -641,8 +641,8 @@ mod tests {
         insta::assert_debug_snapshot!(expr.to_matcher(), @r###"
         PrefixMatcher {
             tree: Dir {
-                "bar": Dir|File {
-                    "baz": Dir|File {},
+                "bar": Prefix {
+                    "baz": Prefix {},
                 },
             },
         }
@@ -664,7 +664,7 @@ mod tests {
             },
             input2: PrefixMatcher {
                 tree: Dir {
-                    "bar": Dir|File {},
+                    "bar": Prefix {},
                 },
             },
         }
@@ -714,7 +714,7 @@ mod tests {
                 },
                 input2: PrefixMatcher {
                     tree: Dir {
-                        "bar": Dir|File {},
+                        "bar": Prefix {},
                     },
                 },
             },
