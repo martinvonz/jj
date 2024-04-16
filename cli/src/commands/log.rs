@@ -119,11 +119,13 @@ pub(crate) fn cmd_log(
             Some(value) => value.to_string(),
             None => command.settings().config().get_string("templates.log")?,
         };
-        template = workspace_command.parse_template(
-            &language,
-            &template_string,
-            CommitTemplateLanguage::wrap_commit,
-        )?;
+        template = workspace_command
+            .parse_template(
+                &language,
+                &template_string,
+                CommitTemplateLanguage::wrap_commit,
+            )?
+            .labeled("log");
         node_template = workspace_command
             .parse_template(
                 &language,
