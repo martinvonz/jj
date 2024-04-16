@@ -178,12 +178,14 @@ fn cmd_op_log(
                 OperationTemplateLanguage::wrap_operation,
             )?
             .labeled("op_log");
-        op_node_template = command.parse_template(
-            ui,
-            &language,
-            &command.settings().op_node_template(),
-            OperationTemplateLanguage::wrap_operation,
-        )?;
+        op_node_template = command
+            .parse_template(
+                ui,
+                &language,
+                &command.settings().op_node_template(),
+                OperationTemplateLanguage::wrap_operation,
+            )?
+            .labeled("node");
     }
 
     ui.request_pager();
