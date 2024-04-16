@@ -51,7 +51,7 @@ use crate::refs::{
     diff_named_ref_targets, diff_named_remote_refs, merge_ref_targets, merge_remote_refs,
 };
 use crate::revset::{RevsetEvaluationError, RevsetExpression, RevsetIteratorExt};
-use crate::rewrite::{DescendantRebaser, RebaseOptions};
+use crate::rewrite::{CommitRewriter, DescendantRebaser, RebaseOptions};
 use crate::settings::{RepoSettings, UserSettings};
 use crate::signing::{SignInitError, Signer};
 use crate::simple_op_heads_store::SimpleOpHeadsStore;
@@ -1154,6 +1154,42 @@ impl MutableRepo {
         )
     }
 
+    /// Rewrite descendants of the given roots.
+    ///
+    /// The callback will be called for each commit with the new parents
+    /// prepopulated. The callback may change the parents and write the new
+    /// commit, or it may abandon the commit, or it may leave the old commit
+    /// unchanged.
+    ///
+    /// The set of commits to visit is determined at the start. If the callback
+    /// adds new descendants, then the callback will not be called for those.
+    /// Similarly, if the callback rewrites unrelated commits, then the callback
+    /// will not be called for descendants of those commits.
+    pub fn transform_descendants(
+        &mut self,
+        settings: &UserSettings,
+        roots: Vec<CommitId>,
+        mut callback: impl FnMut(CommitRewriter) -> BackendResult<()>,
+    ) -> BackendResult<()> {
+        let mut to_visit = self.find_descendants_to_rebase(roots)?;
+        while let Some(old_commit) = to_visit.pop() {
+            let new_parent_ids = self.new_parents(old_commit.parent_ids());
+            let rewriter = CommitRewriter::new(self, old_commit, new_parent_ids);
+            callback(rewriter)?;
+        }
+        self.update_rewritten_references(settings)?;
+        // Since we didn't necessarily visit all descendants of rewritten commits (e.g.
+        // if they were rewritten in the callback), there can still be commits left to
+        // rebase, so we don't clear `parent_mapping` here.
+        // TODO: Should we make this stricter? We could check that there were no
+        // rewrites before this function was called, and we can check that only
+        // commits in the `to_visit` set were added by the callback. Then we
+        // could clear `parent_mapping` here and not have to scan it again at
+        // the end of the transaction when we call `rebase_descendants()`.
+
+        Ok(())
+    }
+
     /// After the rebaser returned by this function is dropped,
     /// self.parent_mapping needs to be cleared.
     fn rebase_descendants_return_rebaser<'settings, 'repo>(
@@ -1202,6 +1238,7 @@ impl MutableRepo {
     /// **its parent**. One can tell this case apart since the change ids of the
     /// key and the value will not match. The parent will inherit the
     /// descendants and the branches of the abandoned commit.
+    // TODO: Rewrite this using `transform_descendants()`
     pub fn rebase_descendants_with_options_return_map(
         &mut self,
         settings: &UserSettings,
@@ -1218,7 +1255,18 @@ impl MutableRepo {
     }
 
     pub fn rebase_descendants(&mut self, settings: &UserSettings) -> BackendResult<usize> {
-        self.rebase_descendants_with_options(settings, Default::default())
+        let roots = self.parent_mapping.keys().cloned().collect_vec();
+        let mut num_rebased = 0;
+        self.transform_descendants(settings, roots, |rewriter| {
+            if rewriter.parents_changed() {
+                let builder = rewriter.rebase(settings)?;
+                builder.write()?;
+                num_rebased += 1;
+            }
+            Ok(())
+        })?;
+        self.parent_mapping.clear();
+        Ok(num_rebased)
     }
 
     pub fn rebase_descendants_return_map(
