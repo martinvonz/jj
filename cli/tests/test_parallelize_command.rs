@@ -47,7 +47,7 @@ fn test_parallelize_no_descendants() {
     ├─╯
     │ ◉  3a7b37ebe843 2
     ├─╯
-    │ ◉  761e67df44b7 1
+    │ ◉  dc0e5d6135ce 1
     ├─╯
     ◉  000000000000
     "###);
@@ -79,15 +79,15 @@ fn test_parallelize_with_descendants_simple() {
         &["parallelize", "description(1)::description(4)"],
     );
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  f28f986c7134 6
-    ◉        21e9963ac5ff 5
+    @  259d624373d7 6
+    ◉        60d419591c77 5
     ├─┬─┬─╮
     │ │ │ ◉  524062469789 4
     │ │ ◉ │  a9334ecaa379 3
     │ │ ├─╯
     │ ◉ │  3a7b37ebe843 2
     │ ├─╯
-    ◉ │  761e67df44b7 1
+    ◉ │  dc0e5d6135ce 1
     ├─╯
     ◉  000000000000
     "###);
@@ -121,17 +121,17 @@ fn test_parallelize_where_interior_has_non_target_children() {
 
     test_env.jj_cmd_ok(&workspace_path, &["parallelize", "dc0::9df"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  9f1bec0d6c46 6
-    ◉        7dd2f5648395 5
+    @  a42de3959cae 6
+    ◉        d907c901bad0 5
     ├─┬─┬─╮
     │ │ │ ◉  b8f977c12383 4
     │ │ ◉ │  7be8374575b9 3
     │ │ ├─╯
-    │ │ │ ◉  679fc870858c 2c
+    │ │ │ ◉  2a4c3dab2a50 2c
     ╭─┬───╯
     │ ◉ │  96ce11389312 2
     │ ├─╯
-    ◉ │  2bfe3fe3e472 1
+    ◉ │  dc0e5d6135ce 1
     ├─╯
     ◉  000000000000
     "###);
@@ -162,14 +162,14 @@ fn test_parallelize_where_root_has_non_target_children() {
         &["parallelize", "description(1)::description(3)"],
     );
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @      6ee674074e23 4
+    @      d024344469c3 4
     ├─┬─╮
     │ │ ◉  5bd049136a7c 3
     │ ◉ │  60f737a5a4a7 2
     │ ├─╯
-    │ │ ◉  ad35c9caf4fb 1c
+    │ │ ◉  50e2ced81124 1c
     ├───╯
-    ◉ │  79ebcd81a1ee 1
+    ◉ │  dc0e5d6135ce 1
     ├─╯
     ◉  000000000000
     "###);
@@ -210,16 +210,16 @@ fn test_parallelize_with_merge_commit_child() {
         &["parallelize", "description(1)::description(3)"],
     );
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @      5a0dd49510d1 4
+    @      6107429ab54b 4
     ├─┬─╮
     │ │ ◉  a9334ecaa379 3
-    │ │ │ ◉  605371712469 2a-c
+    │ │ │ ◉  a386386b94bc 2a-c
     ╭─┬───┤
     │ │ │ ◉  1eb902150bb9 a
     │ │ ├─╯
     │ ◉ │  3a7b37ebe843 2
     │ ├─╯
-    ◉ │  761e67df44b7 1
+    ◉ │  dc0e5d6135ce 1
     ├─╯
     ◉  000000000000
     "###);
@@ -336,11 +336,11 @@ fn test_parallelize_root_is_a_merge() {
         &["parallelize", "description(1)::description(2)"],
     );
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @    4e81469adb0d 3
+    @    d6df04b236b0 3
     ├─╮
     │ ◉    38945baf55f4 2
     │ ├─╮
-    ◉ │ │  9b1a1927720c 1
+    ◉ │ │  4b4941342e06 1
     ╰─┬─╮
       │ ◉  4035b23c8f72 x
       ◉ │  f3ec359cf9ff y
@@ -370,7 +370,7 @@ fn test_parallelize_multiple_heads() {
     @  e84481c26195 2
     │ ◉  2047527ade93 1
     ├─╯
-    │ ◉  9d0c0750973c 0
+    │ ◉  a56846756248 0
     ├─╯
     ◉  000000000000
     "###);
@@ -400,9 +400,9 @@ fn test_parallelize_multiple_heads_with_and_without_children() {
         &["parallelize", "description(0)", "description(1)"],
     );
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  49fe9e130d15 2
-    ◉  9d0c0750973c 0
-    │ ◉  2047527ade93 1
+    ◉  2047527ade93 1
+    │ @  8314addde180 2
+    │ ◉  a56846756248 0
     ├─╯
     ◉  000000000000
     "###);
@@ -436,9 +436,9 @@ fn test_parallelize_multiple_roots() {
     @  3c90598481cd 3
     │ ◉  b96aa55582e5 2
     ├─╯
-    │ ◉  3178394e33e7 a
+    │ ◉  6d37472c632c a
     ├─╯
-    │ ◉  1d9a0895e7d6 1
+    │ ◉  dc0e5d6135ce 1
     ├─╯
     ◉  000000000000
     "###);
@@ -550,23 +550,23 @@ fn test_parallelize_complex_nonlinear_target() {
         &["parallelize", "description(0)::description(4)"],
     );
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: yostqsxw d193f3b7 (empty) 3c
-    Parent commit      : rlvkpnrz cbb4e169 (empty) 0
+    Working copy now at: yostqsxw 59a216e5 (empty) 3c
+    Parent commit      : rlvkpnrz 745bea80 (empty) 0
     Parent commit      : mzvwutvl cb944786 (empty) 3
     "###);
     insta::assert_snapshot!(get_log_output_with_parents(&test_env, &workspace_path), @r###"
-    @    d193f3b72495 3c parents: 0 3
+    @    59a216e537c4 3c parents: 0 3
     ├─╮
     │ ◉  cb9447869bf0 3 parents:
-    │ │ ◉  80fbafb56917 2c parents: 0 2
+    │ │ ◉  248ce1ffd76b 2c parents: 0 2
     ╭───┤
     │ │ ◉  8f4b8ef68676 2 parents:
     │ ├─╯
-    │ │ ◉  1985e0427139 1c parents: 0 1
+    │ │ ◉  55c626d090e2 1c parents: 0 1
     ╭───┤
     │ │ ◉  82918d78c984 1 parents:
     │ ├─╯
-    ◉ │  cbb4e1692ef4 0 parents:
+    ◉ │  745bea8029c1 0 parents:
     ├─╯
     │ ◉  14ca4df576b3 4 parents:
     ├─╯
