@@ -581,9 +581,20 @@ fn test_simplify_conflict_after_resolving_parent() {
         .write()
         .unwrap();
 
-    let commit_b2 = rebase_commit(&settings, tx.mut_repo(), commit_b, vec![commit_d]).unwrap();
-    let commit_c2 =
-        rebase_commit(&settings, tx.mut_repo(), commit_c, vec![commit_b2.clone()]).unwrap();
+    let commit_b2 = rebase_commit(
+        &settings,
+        tx.mut_repo(),
+        commit_b,
+        vec![commit_d.id().clone()],
+    )
+    .unwrap();
+    let commit_c2 = rebase_commit(
+        &settings,
+        tx.mut_repo(),
+        commit_c,
+        vec![commit_b2.id().clone()],
+    )
+    .unwrap();
 
     // Test the setup: Both B and C should have conflicts.
     let tree_b2 = commit_b2.tree().unwrap();
@@ -599,7 +610,13 @@ fn test_simplify_conflict_after_resolving_parent() {
         .set_tree_id(tree_b3.id())
         .write()
         .unwrap();
-    let commit_c3 = rebase_commit(&settings, tx.mut_repo(), commit_c2, vec![commit_b3]).unwrap();
+    let commit_c3 = rebase_commit(
+        &settings,
+        tx.mut_repo(),
+        commit_c2,
+        vec![commit_b3.id().clone()],
+    )
+    .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     let repo = tx.commit("test");
 

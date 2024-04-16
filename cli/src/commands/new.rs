@@ -140,7 +140,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
                 command.settings(),
                 tx.mut_repo(),
                 child_commit,
-                vec![new_commit.clone()],
+                vec![new_commit.id().clone()],
             )?;
         }
     } else {
@@ -170,17 +170,16 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         for child_commit in commits_to_rebase {
             let commit_parents = RevsetExpression::commits(child_commit.parent_ids().to_owned());
             let new_parents = commit_parents.minus(&old_parents);
-            let mut new_parent_commits: Vec<Commit> = new_parents
+            let mut new_parent_ids = new_parents
                 .evaluate_programmatic(tx.base_repo().as_ref())?
                 .iter()
-                .commits(tx.base_repo().store())
-                .try_collect()?;
-            new_parent_commits.push(new_commit.clone());
+                .collect_vec();
+            new_parent_ids.push(new_commit.id().clone());
             rebase_commit(
                 command.settings(),
                 tx.mut_repo(),
                 child_commit,
-                new_parent_commits,
+                new_parent_ids,
             )?;
         }
     }

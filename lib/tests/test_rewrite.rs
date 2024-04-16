@@ -1730,7 +1730,7 @@ fn test_rebase_abandoning_empty() {
         &settings,
         tx.mut_repo(),
         commit_b,
-        vec![commit_b2.clone()],
+        vec![commit_b2.id().clone()],
         &rebase_options,
     )
     .unwrap();

@@ -296,7 +296,10 @@ pub fn rebase_descendants(
             settings,
             tx.mut_repo(),
             old_commit.borrow().clone(),
-            new_parents.to_vec(),
+            new_parents
+                .iter()
+                .map(|parent| parent.id().clone())
+                .collect(),
             &rebase_options,
         )?;
     }
@@ -402,12 +405,11 @@ fn rebase_revision(
                     .parents()
                     .ancestors(),
             );
-        let new_child_parents: Vec<Commit> = new_child_parents_expression
+        let new_child_parents = new_child_parents_expression
             .evaluate_programmatic(tx.base_repo().as_ref())
             .unwrap()
             .iter()
-            .commits(tx.base_repo().store())
-            .try_collect()?;
+            .collect_vec();
 
         rebased_commit_ids.insert(
             child_commit.id().clone(),
@@ -447,23 +449,22 @@ fn rebase_revision(
     // above, and then the result would be rebased again by
     // `rebase_descendants_return_map`. Then, if we were trying to rebase
     // `old_commit` onto `Q`, new_parents would only account for one of these.
-    let new_parents: Vec<_> = new_parents
+    let new_parents = new_parents
         .iter()
         .map(|new_parent| {
             rebased_commit_ids
                 .get(new_parent.id())
-                .map_or(Ok(new_parent.clone()), |rebased_new_parent_id| {
-                    tx.repo().store().get_commit(rebased_new_parent_id)
-                })
+                .unwrap_or(new_parent.id())
+                .clone()
         })
-        .try_collect()?;
+        .collect();
 
     let tx_description = format!("rebase commit {}", old_commit.id().hex());
     // Finally, it's safe to rebase `old_commit`. We can skip rebasing if it is
     // already a child of `new_parents`. Otherwise, at this point, it should no
     // longer have any children; they have all been rebased and the originals
     // have been abandoned.
-    let skipped_commit_rebase = if old_commit.parents() == new_parents {
+    let skipped_commit_rebase = if old_commit.parent_ids() == new_parents {
         if let Some(mut formatter) = ui.status_formatter() {
             write!(formatter, "Skipping rebase of commit ")?;
             tx.write_commit_summary(formatter.as_mut(), &old_commit)?;
