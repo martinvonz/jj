@@ -496,7 +496,8 @@ impl From<RevsetResolutionError> for CommandError {
             | RevsetResolutionError::WorkspaceMissingWorkingCopy { .. }
             | RevsetResolutionError::AmbiguousCommitIdPrefix(_)
             | RevsetResolutionError::AmbiguousChangeIdPrefix(_)
-            | RevsetResolutionError::StoreError(_) => None,
+            | RevsetResolutionError::StoreError(_)
+            | RevsetResolutionError::Other(_) => None,
         };
         let mut cmd_err = user_error(err);
         cmd_err.extend_hints(hint);
