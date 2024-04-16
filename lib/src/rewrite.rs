@@ -145,6 +145,15 @@ impl<'repo> CommitRewriter<'repo> {
         self.new_parents = new_parents;
     }
 
+    /// Update the intended new parents by replacing any occurrence of
+    /// `old_parent` by `new_parents`
+    pub fn replace_parent(&mut self, old_parent: &CommitId, new_parents: &[CommitId]) {
+        if let Some(i) = self.new_parents.iter().position(|p| p == old_parent) {
+            self.new_parents
+                .splice(i..i + 1, new_parents.iter().cloned());
+        }
+    }
+
     /// Checks if the intended new parents are different from the old commit's
     /// parents.
     pub fn parents_changed(&self) -> bool {
