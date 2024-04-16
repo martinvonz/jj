@@ -253,6 +253,7 @@ fn test_parallelize_head_is_a_merge() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let workspace_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=0"]);
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=1"]);
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=2"]);
     test_env.jj_cmd_ok(&workspace_path, &["new", "root()"]);
@@ -263,12 +264,13 @@ fn test_parallelize_head_is_a_merge() {
         &["new", "description(2)", "description(b)", "-m=merged-head"],
     );
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @    1a8db14a8cf0 merged-head
+    @    f2087b66e475 merged-head
     ├─╮
-    │ ◉  401e43e9461f b
-    │ ◉  66ea2ab19a70 a
-    ◉ │  d826910d21fb 2
-    ◉ │  dc0e5d6135ce 1
+    │ ◉  5164ab888473 b
+    │ ◉  f16fe8ac5ce9 a
+    ◉ │  fe79412860e8 2
+    ◉ │  a915696cf0ad 1
+    ◉ │  a56846756248 0
     ├─╯
     ◉  000000000000
     "###);
@@ -284,6 +286,7 @@ fn test_parallelize_interior_target_is_a_merge() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let workspace_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=0"]);
     test_env.jj_cmd_ok(&workspace_path, &["describe", "-m=1"]);
     test_env.jj_cmd_ok(&workspace_path, &["new", "root()", "-m=a"]);
     test_env.jj_cmd_ok(
@@ -292,11 +295,12 @@ fn test_parallelize_interior_target_is_a_merge() {
     );
     test_env.jj_cmd_ok(&workspace_path, &["new", "-m=3"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  299099c22761 3
-    ◉    0c4da981fc0a 2
+    @  a6321093e3d3 3
+    ◉    705c32f67ce1 2
     ├─╮
-    │ ◉  6d37472c632c a
-    ◉ │  dc0e5d6135ce 1
+    │ ◉  427890ea3f2b a
+    ◉ │  a915696cf0ad 1
+    ◉ │  a56846756248 0
     ├─╯
     ◉  000000000000
     "###);
