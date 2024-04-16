@@ -124,11 +124,13 @@ pub(crate) fn cmd_log(
             &template_string,
             CommitTemplateLanguage::wrap_commit,
         )?;
-        node_template = workspace_command.parse_template(
-            &language,
-            &command.settings().commit_node_template(),
-            CommitTemplateLanguage::wrap_commit_opt,
-        )?;
+        node_template = workspace_command
+            .parse_template(
+                &language,
+                &command.settings().commit_node_template(),
+                CommitTemplateLanguage::wrap_commit_opt,
+            )?
+            .labeled("node");
     }
 
     {

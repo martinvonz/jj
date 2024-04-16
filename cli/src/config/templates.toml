@@ -167,63 +167,55 @@ if(hidden,
 '''
 
 builtin_log_node = '''
-label("node", 
-  coalesce(
-    if(!self, label("elided", "~")),
-    label(
-      separate(" ",
-        if(current_working_copy, "working_copy"),
-        if(immutable, "immutable"),
-        if(conflict, "conflict"),
-      ),
-      coalesce(
-        if(!self, "~"),
-        if(current_working_copy, "@"),
-        if(immutable, "◆"),
-        if(conflict, "×"),
-        "○",
-      )
+coalesce(
+  if(!self, label("elided", "~")),
+  label(
+    separate(" ",
+      if(current_working_copy, "working_copy"),
+      if(immutable, "immutable"),
+      if(conflict, "conflict"),
+    ),
+    coalesce(
+      if(!self, "~"),
+      if(current_working_copy, "@"),
+      if(immutable, "◆"),
+      if(conflict, "×"),
+      "○",
     )
   )
 )
 '''
 
 builtin_log_node_ascii = '''
-label("node", 
-  coalesce(
-    if(!self, label("elided", "~")),
-    label(
-      separate(" ",
-        if(current_working_copy, "working_copy"),
-        if(immutable, "immutable"),
-        if(conflict, "conflict"),
-      ),
-      coalesce(
-        if(!self, "~"),
-        if(current_working_copy, "@"),
-        if(immutable, "#"),
-        if(conflict, "x"),
-        "o",
-      )
+coalesce(
+  if(!self, label("elided", "~")),
+  label(
+    separate(" ",
+      if(current_working_copy, "working_copy"),
+      if(immutable, "immutable"),
+      if(conflict, "conflict"),
+    ),
+    coalesce(
+      if(!self, "~"),
+      if(current_working_copy, "@"),
+      if(immutable, "#"),
+      if(conflict, "x"),
+      "o",
     )
   )
 )
 '''
 
 builtin_op_log_node = '''
-label("node",
-  coalesce(
-    if(current_operation, label("current_operation", "@")),
-    "○",
-  )
+coalesce(
+  if(current_operation, label("current_operation", "@")),
+  "○",
 )
 '''
 
 builtin_op_log_node_ascii = '''
-label("node",
-  coalesce(
-    if(current_operation, label("current_operation", "@")),
-    "o",
-  )
+coalesce(
+  if(current_operation, label("current_operation", "@")),
+  "o",
 )
 '''
