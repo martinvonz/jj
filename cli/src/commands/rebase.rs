@@ -25,7 +25,9 @@ use jj_lib::commit::{Commit, CommitIteratorExt};
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
-use jj_lib::rewrite::{rebase_commit, rebase_commit_with_options, EmptyBehaviour, RebaseOptions};
+use jj_lib::rewrite::{
+    rebase_commit, rebase_commit_with_options, CommitRewriter, EmptyBehaviour, RebaseOptions,
+};
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
@@ -292,16 +294,15 @@ pub fn rebase_descendants(
     rebase_options: RebaseOptions,
 ) -> Result<usize, CommandError> {
     for old_commit in old_commits.iter() {
-        rebase_commit_with_options(
-            settings,
+        let rewriter = CommitRewriter::new(
             tx.mut_repo(),
             old_commit.borrow().clone(),
             new_parents
                 .iter()
                 .map(|parent| parent.id().clone())
                 .collect(),
-            &rebase_options,
-        )?;
+        );
+        rebase_commit_with_options(settings, rewriter, &rebase_options)?;
     }
     let num_rebased = old_commits.len()
         + tx.mut_repo()
