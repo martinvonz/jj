@@ -145,6 +145,12 @@ impl<'repo> CommitRewriter<'repo> {
         self.new_parents = new_parents;
     }
 
+    /// Set the old commit's intended new parents to be the rewritten versions
+    /// of the given parents.
+    pub fn set_new_rewritten_parents(&mut self, unrewritten_parents: Vec<CommitId>) {
+        self.new_parents = self.mut_repo.new_parents(unrewritten_parents);
+    }
+
     /// Update the intended new parents by replacing any occurrence of
     /// `old_parent` by `new_parents`.
     pub fn replace_parent(&mut self, old_parent: &CommitId, new_parents: &[CommitId]) {

@@ -162,12 +162,13 @@ fn test_parallelize_where_root_has_non_target_children() {
         &["parallelize", "description(1)::description(3)"],
     );
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    ◉  ad35c9caf4fb 1c
-    │ @    6ee674074e23 4
-    ╭─┼─╮
+    @      6ee674074e23 4
+    ├─┬─╮
     │ │ ◉  5bd049136a7c 3
     │ ◉ │  60f737a5a4a7 2
     │ ├─╯
+    │ │ ◉  ad35c9caf4fb 1c
+    ├───╯
     ◉ │  79ebcd81a1ee 1
     ├─╯
     ◉  000000000000
