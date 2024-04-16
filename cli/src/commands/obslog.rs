@@ -79,11 +79,13 @@ pub(crate) fn cmd_obslog(
             Some(value) => value.to_string(),
             None => command.settings().config().get_string("templates.log")?,
         };
-        template = workspace_command.parse_template(
-            &language,
-            &template_string,
-            CommitTemplateLanguage::wrap_commit,
-        )?;
+        template = workspace_command
+            .parse_template(
+                &language,
+                &template_string,
+                CommitTemplateLanguage::wrap_commit,
+            )?
+            .labeled("log");
         node_template = workspace_command
             .parse_template(
                 &language,
@@ -96,7 +98,6 @@ pub(crate) fn cmd_obslog(
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
-    formatter.push_label("log")?;
 
     let mut commits = topo_order_reverse(
         vec![start_commit],
