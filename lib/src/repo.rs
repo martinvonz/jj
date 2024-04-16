@@ -1130,7 +1130,7 @@ impl MutableRepo {
         // Calculate an order where we rebase parents first, but if the parents were
         // rewritten, make sure we rebase the rewritten parent first.
         dag_walk::topo_order_reverse_ok(
-            to_visit.into_iter().map(|commit| Ok(commit)),
+            to_visit.into_iter().map(Ok),
             |commit| commit.id().clone(),
             |commit| -> Vec<BackendResult<Commit>> {
                 visited.insert(commit.id().clone());

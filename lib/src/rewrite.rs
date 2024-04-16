@@ -96,7 +96,7 @@ pub fn rebase_commit(
     settings: &UserSettings,
     mut_repo: &mut MutableRepo,
     old_commit: Commit,
-    new_parents: Vec<Commit>,
+    new_parents: Vec<CommitId>,
 ) -> BackendResult<Commit> {
     let rebased_commit = rebase_commit_with_options(
         settings,
@@ -120,27 +120,22 @@ pub fn rebase_commit_with_options(
     settings: &UserSettings,
     mut_repo: &mut MutableRepo,
     old_commit: Commit,
-    new_parents: Vec<Commit>,
+    mut new_parent_ids: Vec<CommitId>,
     options: &RebaseOptions,
 ) -> BackendResult<RebasedCommit> {
     // If specified, don't create commit where one parent is an ancestor of another.
-    let simplified_new_parents;
-    let new_parents = if options.simplify_ancestor_merge {
-        let mut new_parent_ids = new_parents.iter().map(|commit| commit.id());
+    if options.simplify_ancestor_merge {
         let head_set: HashSet<_> = mut_repo
             .index()
-            .heads(&mut new_parent_ids)
+            .heads(&mut new_parent_ids.iter())
             .into_iter()
             .collect();
-        simplified_new_parents = new_parents
-            .iter()
-            .filter(|commit| head_set.contains(commit.id()))
-            .cloned()
-            .collect_vec();
-        &simplified_new_parents[..]
-    } else {
-        &new_parents
+        new_parent_ids.retain(|id| head_set.contains(id))
     };
+    let new_parents: Vec<Commit> = new_parent_ids
+        .iter()
+        .map(|id| mut_repo.store().get_commit(id))
+        .try_collect()?;
 
     let old_parents = old_commit.parents();
     let old_parent_trees = old_parents
@@ -162,7 +157,7 @@ pub fn rebase_commit_with_options(
         )
     } else {
         let old_base_tree = merge_commit_trees(mut_repo, &old_parents)?;
-        let new_base_tree = merge_commit_trees(mut_repo, new_parents)?;
+        let new_base_tree = merge_commit_trees(mut_repo, &new_parents)?;
         let old_tree = old_commit.tree()?;
         (
             Some(old_base_tree.id()),
@@ -171,7 +166,7 @@ pub fn rebase_commit_with_options(
     };
     // Ensure we don't abandon commits with multiple parents (merge commits), even
     // if they're empty.
-    if let [parent] = new_parents {
+    if let [parent] = &new_parents[..] {
         let should_abandon = match options.empty {
             EmptyBehaviour::Keep => false,
             EmptyBehaviour::AbandonNewlyEmpty => {
@@ -320,15 +315,11 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             return Ok(());
         }
 
-        let new_parents: Vec<_> = new_parent_ids
-            .iter()
-            .map(|new_parent_id| self.mut_repo.store().get_commit(new_parent_id))
-            .try_collect()?;
         let rebased_commit: RebasedCommit = rebase_commit_with_options(
             self.settings,
             self.mut_repo,
             old_commit,
-            new_parents,
+            new_parent_ids,
             &self.options,
         )?;
         let new_commit = match rebased_commit {
