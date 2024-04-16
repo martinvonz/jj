@@ -141,8 +141,10 @@ pub(crate) fn cmd_parallelize(
                 }
                 rewriter.set_new_rewritten_parents(new_parents);
             }
-            let builder = rewriter.rebase(command.settings())?;
-            builder.write()?;
+            if rewriter.parents_changed() {
+                let builder = rewriter.rebase(command.settings())?;
+                builder.write()?;
+            }
             Ok(())
         },
     )?;
