@@ -176,7 +176,6 @@ coalesce(
       if(conflict, "conflict"),
     ),
     coalesce(
-      if(!self, "~"),
       if(current_working_copy, "@"),
       if(immutable, "◆"),
       if(conflict, "×"),
@@ -196,7 +195,6 @@ coalesce(
       if(conflict, "conflict"),
     ),
     coalesce(
-      if(!self, "~"),
       if(current_working_copy, "@"),
       if(immutable, "#"),
       if(conflict, "x"),
