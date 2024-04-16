@@ -62,6 +62,8 @@ pub enum RevsetResolutionError {
     AmbiguousChangeIdPrefix(String),
     #[error("Unexpected error from store")]
     StoreError(#[source] BackendError),
+    #[error(transparent)]
+    Other(#[from] Box<dyn std::error::Error + Send + Sync>),
 }
 
 /// Error occurred during revset evaluation.
@@ -2283,7 +2285,8 @@ fn resolve_symbols(
                         | RevsetResolutionError::EmptyString
                         | RevsetResolutionError::AmbiguousCommitIdPrefix(_)
                         | RevsetResolutionError::AmbiguousChangeIdPrefix(_)
-                        | RevsetResolutionError::StoreError(_) => Err(err),
+                        | RevsetResolutionError::StoreError(_)
+                        | RevsetResolutionError::Other(_) => Err(err),
                     })
                     .map(Some) // Always rewrite subtree
             }
