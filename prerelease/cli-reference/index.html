@@ -5643,7 +5643,7 @@ does not match the <code>jj help</code> output exactly.</p>
 <li><code>abandon</code> — Abandon a revision</li>
 <li><code>backout</code> — Apply the reverse of a revision on top of another revision</li>
 <li><code>branch</code> — Manage branches</li>
-<li><code>cat</code> — Print contents of a file in a revision</li>
+<li><code>cat</code> — Print contents of files in a revision</li>
 <li><code>chmod</code> — Sets or removes the executable bit for paths in the repo</li>
 <li><code>commit</code> — Update the description and create a new change on top</li>
 <li><code>config</code> — Manage config options</li>
@@ -5864,11 +5864,12 @@ does not match the <code>jj help</code> output exactly.</p>
 <li><code>&lt;BRANCH@REMOTE&gt;</code> — Remote branches to untrack</li>
 </ul>
 <h2 id="jj-cat"><code>jj cat</code><a class="headerlink" href="#jj-cat" title="Permanent link">&para;</a></h2>
-<p>Print contents of a file in a revision</p>
-<p><strong>Usage:</strong> <code>jj cat [OPTIONS] &lt;PATH&gt;</code></p>
+<p>Print contents of files in a revision</p>
+<p>If the given path is a directory, files in the directory will be visited recursively.</p>
+<p><strong>Usage:</strong> <code>jj cat [OPTIONS] &lt;PATHS&gt;...</code></p>
 <h6 id="arguments_9"><strong>Arguments:</strong><a class="headerlink" href="#arguments_9" title="Permanent link">&para;</a></h6>
 <ul>
-<li><code>&lt;PATH&gt;</code> — The file to print</li>
+<li><code>&lt;PATHS&gt;</code> — Paths to print</li>
 </ul>
 <h6 id="options_8"><strong>Options:</strong><a class="headerlink" href="#options_8" title="Permanent link">&para;</a></h6>
 <ul>
