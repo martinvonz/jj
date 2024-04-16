@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::rc::Rc;
 
@@ -26,7 +26,6 @@ use tracing::instrument;
 
 use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::{user_error, CommandError};
-use crate::commands::rebase::rebase_descendants;
 use crate::ui::Ui;
 
 /// Parallelize revisions by making them siblings
@@ -69,7 +68,7 @@ pub(crate) fn cmd_parallelize(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     // The target commits are the commits being parallelized. They are ordered
-    // here with parents before children.
+    // here with children before parents.
     let target_commits: Vec<Commit> = workspace_command
         .parse_union_revsets(&args.revisions)?
         .evaluate_to_commits()?
@@ -83,61 +82,69 @@ pub(crate) fn cmd_parallelize(
     let mut tx = workspace_command.start_transaction();
     let target_revset =
         RevsetExpression::commits(target_commits.iter().ids().cloned().collect_vec());
-    let new_parents =
+    // TODO: The checks are now unnecessary, so drop them
+    let _new_parents =
         check_preconditions_and_get_new_parents(&target_revset, &target_commits, tx.repo())?;
 
-    // Rebase the non-target children of each target commit onto its new
-    // parents. A child which had a target commit as an ancestor before
-    // parallelize ran will have the target commit as a parent afterward.
-    for target_commit in target_commits.iter() {
-        // Children of the target commit, excluding other target commits.
-        let children: Vec<Commit> = RevsetExpression::commit(target_commit.id().clone())
-            .children()
-            .minus(&target_revset)
-            .evaluate_programmatic(tx.repo())?
-            .iter()
-            .commits(tx.repo().store())
-            .try_collect()?;
-        // These parents are shared by all children of the target commit and
-        // include the target commit itself plus any of its ancestors which are
-        // being parallelized.
-        let common_parents: IndexSet<Commit> = RevsetExpression::commit(target_commit.id().clone())
-            .ancestors()
-            .intersection(&target_revset)
-            .evaluate_programmatic(tx.repo())?
-            .iter()
-            .commits(tx.repo().store())
-            .try_collect()?;
-        for child in children {
-            let mut new_parents = common_parents.clone();
-            new_parents.extend(child.parents().into_iter());
-            rebase_descendants(
-                &mut tx,
-                command.settings(),
-                new_parents.into_iter().collect_vec(),
-                &[child],
-                Default::default(),
-            )?;
+    // New parents for commits in the target set. Since commits in the set are now
+    // supposed to be independent, they inherit the parent's non-target parents,
+    // recursively.
+    let mut new_target_parents: HashMap<CommitId, Vec<CommitId>> = HashMap::new();
+    for commit in target_commits.iter().rev() {
+        let mut new_parents = vec![];
+        for old_parent in commit.parent_ids() {
+            if let Some(grand_parents) = new_target_parents.get(old_parent) {
+                new_parents.extend_from_slice(grand_parents);
+            } else {
+                new_parents.push(old_parent.clone());
+            }
         }
+        new_target_parents.insert(commit.id().clone(), new_parents);
     }
 
-    // Rebase the target commits onto the parents of the root commit.
-    // We already checked that the roots have the same parents, so we can just
-    // use the first one.
-    let target_commits = target_commits
-        .into_iter()
-        // We need to reverse the iterator so that when we rebase the target
-        // commits they will appear in the same relative order in `jj log` that
-        // they were in before being parallelized. After reversing, the commits
-        // are ordered with children before parents.
-        .rev()
-        .collect_vec();
-    rebase_descendants(
-        &mut tx,
+    // If a commit outside the target set has a commit in the target set as parent,
+    // then - after the transformation - it should also have that commit's
+    // parents as direct parents, if those commits are also in the target set.
+    let mut new_child_parents: HashMap<CommitId, IndexSet<CommitId>> = HashMap::new();
+    for commit in target_commits.iter().rev() {
+        let mut new_parents = IndexSet::new();
+        for old_parent in commit.parent_ids() {
+            if let Some(parents) = new_child_parents.get(old_parent) {
+                new_parents.extend(parents.iter().cloned());
+            }
+        }
+        new_parents.insert(commit.id().clone());
+        new_child_parents.insert(commit.id().clone(), new_parents);
+    }
+
+    tx.mut_repo().transform_descendants(
         command.settings(),
-        new_parents,
-        &target_commits,
-        Default::default(),
+        target_commits.iter().ids().cloned().collect_vec(),
+        |mut rewriter| {
+            // Commits in the target set do not depend on each other but they still depend
+            // on other parents
+            if let Some(new_parents) = new_target_parents.get(rewriter.old_commit().id()) {
+                rewriter.set_new_rewritten_parents(new_parents.clone());
+            } else if rewriter
+                .old_commit()
+                .parent_ids()
+                .iter()
+                .any(|id| new_child_parents.contains_key(id))
+            {
+                let mut new_parents = vec![];
+                for parent in rewriter.old_commit().parent_ids() {
+                    if let Some(parents) = new_child_parents.get(parent) {
+                        new_parents.extend(parents.iter().cloned());
+                    } else {
+                        new_parents.push(parent.clone());
+                    }
+                }
+                rewriter.set_new_rewritten_parents(new_parents);
+            }
+            let builder = rewriter.rebase(command.settings())?;
+            builder.write()?;
+            Ok(())
+        },
     )?;
 
     tx.finish(ui, format!("parallelize {} commits", target_commits.len()))
