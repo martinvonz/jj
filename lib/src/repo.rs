@@ -1106,16 +1106,18 @@ impl MutableRepo {
         self.set_view(view);
     }
 
-    /// Find descendants of commits in `parent_mapping` and then return them in
+    /// Find descendants of `root`, unless they've already been rewritten
+    /// (according to `parent_mapping`), and then return them in
     /// an order they should be rebased in. The result is in reverse order
     /// so the next value can be removed from the end.
-    fn find_descendants_to_rebase(&self) -> BackendResult<Vec<Commit>> {
+    fn find_descendants_to_rebase(&self, roots: Vec<CommitId>) -> BackendResult<Vec<Commit>> {
         let store = self.store();
-        let old_commits_expression =
-            RevsetExpression::commits(self.parent_mapping.keys().cloned().collect());
-        let to_visit_expression = old_commits_expression
-            .descendants()
-            .minus(&old_commits_expression);
+        let to_visit_expression =
+            RevsetExpression::commits(roots)
+                .descendants()
+                .minus(&RevsetExpression::commits(
+                    self.parent_mapping.keys().cloned().collect(),
+                ));
         let to_visit_revset = to_visit_expression
             .evaluate_programmatic(self)
             .map_err(|err| match err {
@@ -1164,7 +1166,8 @@ impl MutableRepo {
             return Ok(None);
         }
 
-        let to_visit = self.find_descendants_to_rebase()?;
+        let to_visit =
+            self.find_descendants_to_rebase(self.parent_mapping.keys().cloned().collect())?;
         let mut rebaser = DescendantRebaser::new(settings, self, to_visit);
         *rebaser.mut_options() = options;
         rebaser.rebase_all()?;
