@@ -19,7 +19,9 @@ use jj_lib::merged_tree::MergedTree;
 use jj_lib::op_store::{RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
-use jj_lib::rewrite::{rebase_commit_with_options, restore_tree, EmptyBehaviour, RebaseOptions};
+use jj_lib::rewrite::{
+    rebase_commit_with_options, restore_tree, CommitRewriter, EmptyBehaviour, RebaseOptions,
+};
 use maplit::{hashmap, hashset};
 use test_case::test_case;
 use testutils::{
@@ -1726,14 +1728,8 @@ fn test_rebase_abandoning_empty() {
         empty: EmptyBehaviour::AbandonAllEmpty,
         simplify_ancestor_merge: true,
     };
-    rebase_commit_with_options(
-        &settings,
-        tx.mut_repo(),
-        commit_b,
-        vec![commit_b2.id().clone()],
-        &rebase_options,
-    )
-    .unwrap();
+    let rewriter = CommitRewriter::new(tx.mut_repo(), commit_b, vec![commit_b2.id().clone()]);
+    rebase_commit_with_options(&settings, rewriter, &rebase_options).unwrap();
     let rebase_map = tx
         .mut_repo()
         .rebase_descendants_with_options_return_map(&settings, rebase_options)

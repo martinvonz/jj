@@ -99,13 +99,8 @@ pub fn rebase_commit(
     old_commit: Commit,
     new_parents: Vec<CommitId>,
 ) -> BackendResult<Commit> {
-    let rebased_commit = rebase_commit_with_options(
-        settings,
-        mut_repo,
-        old_commit,
-        new_parents,
-        &Default::default(),
-    )?;
+    let rewriter = CommitRewriter::new(mut_repo, old_commit, new_parents);
+    let rebased_commit = rebase_commit_with_options(settings, rewriter, &Default::default())?;
     match rebased_commit {
         RebasedCommit::Rewritten(new_commit) => Ok(new_commit),
         RebasedCommit::Abandoned { parent: _ } => panic!("Commit was unexpectedly abandoned"),
@@ -247,13 +242,9 @@ pub enum RebasedCommit {
 
 pub fn rebase_commit_with_options(
     settings: &UserSettings,
-    mut_repo: &mut MutableRepo,
-    old_commit: Commit,
-    new_parents: Vec<CommitId>,
+    mut rewriter: CommitRewriter<'_>,
     options: &RebaseOptions,
 ) -> BackendResult<RebasedCommit> {
-    let mut rewriter = CommitRewriter::new(mut_repo, old_commit, new_parents);
-
     // If specified, don't create commit where one parent is an ancestor of another.
     if options.simplify_ancestor_merge {
         rewriter.simplify_ancestor_merge();
@@ -396,13 +387,9 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
             return Ok(());
         }
 
-        let rebased_commit: RebasedCommit = rebase_commit_with_options(
-            self.settings,
-            self.mut_repo,
-            old_commit,
-            new_parent_ids,
-            &self.options,
-        )?;
+        let rewriter = CommitRewriter::new(self.mut_repo, old_commit, new_parent_ids);
+        let rebased_commit: RebasedCommit =
+            rebase_commit_with_options(self.settings, rewriter, &self.options)?;
         let new_commit = match rebased_commit {
             RebasedCommit::Rewritten(new_commit) => new_commit,
             RebasedCommit::Abandoned { parent } => parent,
