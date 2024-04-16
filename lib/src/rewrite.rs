@@ -100,11 +100,8 @@ pub fn rebase_commit(
     new_parents: Vec<CommitId>,
 ) -> BackendResult<Commit> {
     let rewriter = CommitRewriter::new(mut_repo, old_commit, new_parents);
-    let rebased_commit = rebase_commit_with_options(settings, rewriter, &Default::default())?;
-    match rebased_commit {
-        RebasedCommit::Rewritten(new_commit) => Ok(new_commit),
-        RebasedCommit::Abandoned { parent: _ } => panic!("Commit was unexpectedly abandoned"),
-    }
+    let builder = rewriter.rebase(settings)?;
+    builder.write()
 }
 
 /// Helps rewrite a commit.
