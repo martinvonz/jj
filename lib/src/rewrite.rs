@@ -145,6 +145,12 @@ impl<'repo> CommitRewriter<'repo> {
         self.new_parents = new_parents;
     }
 
+    /// Checks if the intended new parents are different from the old commit's
+    /// parents.
+    pub fn parents_changed(&self) -> bool {
+        self.new_parents != self.old_commit.parent_ids()
+    }
+
     /// If a merge commit would end up with one parent being an ancestor of the
     /// other, then filter out the ancestor.
     pub fn simplify_ancestor_merge(&mut self) {
@@ -379,12 +385,12 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
         let old_commit_id = old_commit.id().clone();
         let old_parent_ids = old_commit.parent_ids();
         let new_parent_ids = self.mut_repo.new_parents(old_parent_ids);
-        if new_parent_ids == old_parent_ids {
+        let rewriter = CommitRewriter::new(self.mut_repo, old_commit, new_parent_ids);
+        if !rewriter.parents_changed() {
             // The commit is already in place.
             return Ok(());
         }
 
-        let rewriter = CommitRewriter::new(self.mut_repo, old_commit, new_parent_ids);
         let rebased_commit: RebasedCommit =
             rebase_commit_with_options(self.settings, rewriter, &self.options)?;
         let new_commit = match rebased_commit {
