@@ -108,6 +108,8 @@ impl Rule {
             Rule::string_content_char => None,
             Rule::string_content => None,
             Rule::string_literal => None,
+            Rule::raw_string_content => None,
+            Rule::raw_string_literal => None,
             Rule::at_op => Some("@"),
             Rule::pattern_kind_op => Some(":"),
             Rule::parents_op => Some("-"),
@@ -1114,6 +1116,11 @@ fn parse_symbol_rule_as_literal(mut pairs: Pairs<Rule>) -> String {
     match first.as_rule() {
         Rule::identifier => first.as_str().to_owned(),
         Rule::string_literal => STRING_LITERAL_PARSER.parse(first.into_inner()),
+        Rule::raw_string_literal => {
+            let (content,) = first.into_inner().collect_tuple().unwrap();
+            assert_eq!(content.as_rule(), Rule::raw_string_content);
+            content.as_str().to_owned()
+        }
         _ => {
             panic!("unexpected symbol parse rule: {:?}", first.as_str());
         }
@@ -2839,6 +2846,13 @@ mod tests {
                 "foo bar".to_string()
             ))
         );
+        assert_eq!(
+            parse(r#"'foo bar'@'bar baz'"#),
+            Ok(RevsetExpression::remote_symbol(
+                "foo bar".to_string(),
+                "bar baz".to_string()
+            ))
+        );
         // Quoted "@" is not interpreted as a working copy or remote symbol
         assert_eq!(
             parse(r#""@""#),
@@ -2895,6 +2909,7 @@ mod tests {
         assert_eq!(parse("(foo)"), Ok(foo_symbol.clone()));
         // Parse a quoted symbol
         assert_eq!(parse("\"foo\""), Ok(foo_symbol.clone()));
+        assert_eq!(parse("'foo'"), Ok(foo_symbol.clone()));
         // Parse the "parents" operator
         assert_eq!(parse("foo-"), Ok(foo_symbol.parents()));
         // Parse the "children" operator
@@ -3070,12 +3085,13 @@ mod tests {
 
     #[test]
     fn test_parse_string_literal() {
+        let branches_expr =
+            |s: &str| RevsetExpression::branches(StringPattern::Substring(s.to_owned()));
+
         // "\<char>" escapes
         assert_eq!(
             parse(r#"branches("\t\r\n\"\\\0")"#),
-            Ok(RevsetExpression::branches(StringPattern::Substring(
-                "\t\r\n\"\\\0".to_owned()
-            )))
+            Ok(branches_expr("\t\r\n\"\\\0"))
         );
 
         // Invalid "\<char>" escape
@@ -3083,6 +3099,12 @@ mod tests {
             parse(r#"branches("\y")"#),
             Err(RevsetParseErrorKind::SyntaxError)
         );
+
+        // Single-quoted raw string
+        assert_eq!(parse(r#"branches('')"#), Ok(branches_expr("")));
+        assert_eq!(parse(r#"branches('a\n')"#), Ok(branches_expr(r"a\n")));
+        assert_eq!(parse(r#"branches('\')"#), Ok(branches_expr(r"\")));
+        assert_eq!(parse(r#"branches('"')"#), Ok(branches_expr(r#"""#)));
     }
 
     #[test]
@@ -3115,6 +3137,12 @@ mod tests {
             parse(r#"branches((exact:"foo"))"#),
             Ok(RevsetExpression::branches(StringPattern::Exact(
                 "foo".to_owned()
+            )))
+        );
+        assert_eq!(
+            parse(r#"branches(exact:'\')"#),
+            Ok(RevsetExpression::branches(StringPattern::Exact(
+                r"\".to_owned()
             )))
         );
         assert_eq!(
@@ -3426,8 +3454,8 @@ mod tests {
 
         // String literal should not be substituted with alias.
         assert_eq!(
-            parse_with_aliases(r#"A|"A""#, [("A", "a")]).unwrap(),
-            parse("a|A").unwrap()
+            parse_with_aliases(r#"A|"A"|'A'"#, [("A", "a")]).unwrap(),
+            parse("a|A|A").unwrap()
         );
 
         // Alias can be substituted to string literal.

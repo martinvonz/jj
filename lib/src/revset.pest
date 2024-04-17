@@ -21,12 +21,16 @@ identifier = @{
 symbol = {
   identifier
   | string_literal
+  | raw_string_literal
 }
 
 string_escape = @{ "\\" ~ ("t" | "r" | "n" | "0" | "\"" | "\\") }
 string_content_char = @{ !("\"" | "\\") ~ ANY }
 string_content = @{ string_content_char+ }
 string_literal = ${ "\"" ~ (string_content | string_escape)* ~ "\"" }
+
+raw_string_content = @{ (!"'" ~ ANY)* }
+raw_string_literal = ${ "'" ~ raw_string_content ~ "'" }
 
 at_op = { "@" }
 pattern_kind_op = { ":" }

@@ -35,6 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   expressions](docs/filesets.md). Note that filesets are currently experimental,
   but will be enabled by default in a future release.
 
+* Revsets and templates now support single-quoted raw string literals.
+
 * `jj prev` and `jj next` now work when the working copy revision is a merge.
 
 * Operation objects in templates now have a `snapshot() -> Boolean` method that

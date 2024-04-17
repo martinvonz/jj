@@ -29,10 +29,12 @@ A full change ID refers to all visible commits with that change ID (there is
 typically only one visible commit with a given change ID). A unique prefix of
 the full change ID can also be used. It is an error to use a non-unique prefix.
 
-Use double quotes to prevent a symbol from being interpreted as an expression.
-For example, `"x-"` is the symbol `x-`, not the parents of symbol `x`.
-Taking shell quoting into account, you may need to use something like
-`jj log -r '"x-"'`.
+Use [single or double quotes][string-literals] to prevent a symbol from being
+interpreted as an expression. For example, `"x-"` is the symbol `x-`, not the
+parents of symbol `x`. Taking shell quoting into account, you may need to use
+something like `jj log -r '"x-"'`.
+
+[string-literals]: templates.md#string-literals
 
 ### Priority
 

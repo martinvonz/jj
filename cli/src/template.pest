@@ -24,6 +24,9 @@ string_content_char = @{ !("\"" | "\\") ~ ANY }
 string_content = @{ string_content_char+ }
 string_literal = ${ "\"" ~ (string_content | string_escape)* ~ "\"" }
 
+raw_string_content = @{ (!"'" ~ ANY)* }
+raw_string_literal = ${ "'" ~ raw_string_content ~ "'" }
+
 integer_literal = @{
   ASCII_NONZERO_DIGIT ~ ASCII_DIGIT*
   | "0"
@@ -59,6 +62,7 @@ primary = _{
   | lambda
   | identifier
   | string_literal
+  | raw_string_literal
   | integer_literal
 }
 
