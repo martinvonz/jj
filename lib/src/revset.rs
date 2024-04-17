@@ -1082,10 +1082,10 @@ fn parse_string_pattern_rule(
 
 /// Parses symbol to expression, expands aliases as needed.
 fn parse_symbol_rule(
-    mut pairs: Pairs<Rule>,
+    pairs: Pairs<Rule>,
     state: ParseState,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let first = pairs.next().unwrap();
+    let first = pairs.peek().unwrap();
     match first.as_rule() {
         Rule::identifier => {
             let name = first.as_str();
@@ -1101,11 +1101,9 @@ fn parse_symbol_rule(
                 Ok(RevsetExpression::symbol(name.to_owned()))
             }
         }
-        Rule::string_literal => Ok(RevsetExpression::symbol(
-            STRING_LITERAL_PARSER.parse(first.into_inner()),
-        )),
         _ => {
-            panic!("unexpected symbol parse rule: {:?}", first.as_str());
+            let text = parse_symbol_rule_as_literal(pairs);
+            Ok(RevsetExpression::symbol(text))
         }
     }
 }
