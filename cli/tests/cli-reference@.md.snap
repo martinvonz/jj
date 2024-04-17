@@ -1369,18 +1369,18 @@ Running `jj parallelize 1::2` will transform the history like this:
 0
 ```
 
-Each of the target revisions is rebased onto the parents of the root(s) of
-the target revset (not to be confused with the repo root). The children of
-the head(s) of the target revset are rebased onto the target revisions.
+The command effectively says "these revisions are actually independent",
+meaning that they should no longer be ancestors/descendants of each other.
+However, revisions outside the set that were previously ancestors of a
+revision in the set will remain ancestors of it. For example, revision 0
+above remains an ancestor of both 1 and 2. Similarly,
+revisions outside the set that were previously descendants of a revision
+in the set will remain descendants of it. For example, revision 3 above
+remains a descendant of both 1 and 2.
 
-The target revset is the union of the `revisions` arguments and must satisfy
-several conditions, otherwise the command will fail.
-
-1. The heads of the target revset must have either the same children as the
-   other heads or none.
-2. The roots of the target revset have the same parents.
-3. The parents of all target revisions except the roots must also be
-   parallelized. This means that the target revisions must be connected.
+Therefore, `jj parallelize '1 | 3'` is a no-op. That's because 2, which is
+not in the target set, was a descendant of 1 before, so it remains a
+descendant, and it was an ancestor of 3 before, so it remains an ancestor.
 
 **Usage:** `jj parallelize [REVISIONS]...`
 
