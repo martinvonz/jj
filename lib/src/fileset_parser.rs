@@ -229,6 +229,14 @@ fn parse_function_call_node(pair: Pair<Rule>) -> FilesetParseResult<FunctionCall
     })
 }
 
+fn parse_as_string_literal(pair: Pair<Rule>) -> String {
+    match pair.as_rule() {
+        Rule::identifier => pair.as_str().to_owned(),
+        Rule::string_literal => STRING_LITERAL_PARSER.parse(pair.into_inner()),
+        r => panic!("unexpected string literal rule: {r:?}"),
+    }
+}
+
 fn parse_primary_node(pair: Pair<Rule>) -> FilesetParseResult<ExpressionNode> {
     assert_eq!(pair.as_rule(), Rule::primary);
     let first = pair.into_inner().next().unwrap();
@@ -244,18 +252,11 @@ fn parse_primary_node(pair: Pair<Rule>) -> FilesetParseResult<ExpressionNode> {
             assert_eq!(lhs.as_rule(), Rule::strict_identifier);
             assert_eq!(op.as_rule(), Rule::pattern_kind_op);
             let kind = lhs.as_str();
-            let value = match rhs.as_rule() {
-                Rule::identifier => rhs.as_str().to_owned(),
-                Rule::string_literal => STRING_LITERAL_PARSER.parse(rhs.into_inner()),
-                r => panic!("unexpected string pattern rule: {r:?}"),
-            };
+            let value = parse_as_string_literal(rhs);
             ExpressionKind::StringPattern { kind, value }
         }
         Rule::identifier => ExpressionKind::Identifier(first.as_str()),
-        Rule::string_literal => {
-            let text = STRING_LITERAL_PARSER.parse(first.into_inner());
-            ExpressionKind::String(text)
-        }
+        Rule::string_literal => ExpressionKind::String(parse_as_string_literal(first)),
         r => panic!("unexpected primary rule: {r:?}"),
     };
     Ok(ExpressionNode::new(expr, span))
