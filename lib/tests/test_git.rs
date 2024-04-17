@@ -2589,7 +2589,6 @@ fn test_push_branches_success() {
                 new_target: Some(setup.child_of_main_commit.id().clone()),
             },
         )],
-        force_pushed_branches: hashset! {},
     };
     let result = git::push_branches(
         tx.mut_repo(),
@@ -2659,7 +2658,6 @@ fn test_push_branches_deletion() {
                 new_target: None,
             },
         )],
-        force_pushed_branches: hashset! {},
     };
     let result = git::push_branches(
         tx.mut_repo(),
@@ -2717,7 +2715,6 @@ fn test_push_branches_mixed_deletion_and_addition() {
                 },
             ),
         ],
-        force_pushed_branches: hashset! {},
     };
     let result = git::push_branches(
         tx.mut_repo(),
@@ -2777,7 +2774,6 @@ fn test_push_branches_not_fast_forward() {
                 new_target: Some(setup.sideways_commit.id().clone()),
             },
         )],
-        force_pushed_branches: hashset! {},
     };
     let result = git::push_branches(
         tx.mut_repo(),
@@ -2786,7 +2782,9 @@ fn test_push_branches_not_fast_forward() {
         &targets,
         git::RemoteCallbacks::default(),
     );
-    assert_eq!(result, Err(GitPushError::NotFastForward));
+    // Short-term TODO: This test is now equivalent to the following one, and
+    // will be removed in a follow-up commit.
+    assert_eq!(result, Ok(()));
 }
 
 #[test]
@@ -2804,9 +2802,6 @@ fn test_push_branches_not_fast_forward_with_force() {
                 new_target: Some(setup.sideways_commit.id().clone()),
             },
         )],
-        force_pushed_branches: hashset! {
-            "main".to_owned(),
-        },
     };
     let result = git::push_branches(
         tx.mut_repo(),
@@ -2850,7 +2845,6 @@ fn test_push_updates_unexpectedly_moved_sideways_on_remote() {
     let attempt_push_expecting_sideways = |target: Option<CommitId>| {
         let targets = [GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),
-            force: true,
             expected_current_target: Some(setup.sideways_commit.id().clone()),
             new_target: target,
         }];
@@ -2918,7 +2912,6 @@ fn test_push_updates_unexpectedly_moved_forward_on_remote() {
     let attempt_push_expecting_parent = |target: Option<CommitId>| {
         let targets = [GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),
-            force: true,
             expected_current_target: Some(setup.parent_of_main_commit.id().clone()),
             new_target: target,
         }];
@@ -2977,7 +2970,6 @@ fn test_push_updates_unexpectedly_exists_on_remote() {
     let attempt_push_expecting_absence = |target: Option<CommitId>| {
         let targets = [GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),
-            force: true,
             expected_current_target: None,
             new_target: target,
         }];
@@ -3014,7 +3006,6 @@ fn test_push_updates_success() {
         "origin",
         &[GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),
-            force: false,
             expected_current_target: Some(setup.main_commit.id().clone()),
             new_target: Some(setup.child_of_main_commit.id().clone()),
         }],
@@ -3052,7 +3043,6 @@ fn test_push_updates_no_such_remote() {
         "invalid-remote",
         &[GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),
-            force: false,
             expected_current_target: Some(setup.main_commit.id().clone()),
             new_target: Some(setup.child_of_main_commit.id().clone()),
         }],
@@ -3072,7 +3062,6 @@ fn test_push_updates_invalid_remote() {
         "http://invalid-remote",
         &[GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),
-            force: false,
             expected_current_target: Some(setup.main_commit.id().clone()),
             new_target: Some(setup.child_of_main_commit.id().clone()),
         }],
