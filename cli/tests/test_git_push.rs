@@ -222,12 +222,8 @@ fn test_git_push_not_fast_forward() {
     test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "branch1"]);
 
     // Pushing should fail
-    let assert = test_env
-        .jj_cmd(&workspace_root, &["git", "push"])
-        .assert()
-        .code(1);
-    insta::assert_snapshot!(get_stdout_string(&assert), @"");
-    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
       Move branch branch1 from 45a3aa29e907 to c35839cb8e8c
     Error: The push conflicts with changes made on the remote (it is not fast-forwardable).
@@ -322,6 +318,32 @@ fn test_git_push_deletion_unexpectedly_moved() {
     insta::assert_snapshot!(get_stderr_string(&assert), @r###"
     Branch changes to push to origin:
       Delete branch branch1 from 45a3aa29e907
+    "###);
+}
+
+#[test]
+fn test_git_push_creation_unexpectedly_already_exists() {
+    let (test_env, workspace_root) = set_up();
+
+    // Forget branch1 locally
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "forget", "branch1"]);
+
+    // Create a new branh1
+    test_env.jj_cmd_ok(&workspace_root, &["new", "root()", "-m=new branch1"]);
+    std::fs::write(workspace_root.join("local"), "local").unwrap();
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "branch1"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
+    branch1: yostqsxw 4c595cf9 new branch1
+    branch2: rlzusymt 8476341e (empty) description 2
+      @origin: rlzusymt 8476341e (empty) description 2
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Branch changes to push to origin:
+      Add branch branch1 to 4c595cf9ac0a
+    Error: The push conflicts with changes made on the remote (it is not fast-forwardable).
+    Hint: Try fetching from the remote, then make the branch point to where you want it to be, and push again.
     "###);
 }
 
