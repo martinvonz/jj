@@ -226,7 +226,7 @@ fn test_parallelize_with_merge_commit_child() {
 }
 
 #[test]
-fn test_parallelize_failure_disconnected_target_commits() {
+fn test_parallelize_disconnected_target_commits() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let workspace_path = test_env.env_root().join("repo");
@@ -242,9 +242,19 @@ fn test_parallelize_failure_disconnected_target_commits() {
     ◉  000000000000 parents:
     "###);
 
-    insta::assert_snapshot!(test_env.jj_cmd_failure(
-        &workspace_path, &["parallelize", "description(1)", "description(3)"]),@r###"
-    Error: Cannot parallelize since the target revisions are not connected.
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &workspace_path,
+        &["parallelize", "description(1)", "description(3)"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Nothing changed.
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    @  9f5b59fa4622 3 parents: 2
+    ◉  d826910d21fb 2 parents: 1
+    ◉  dc0e5d6135ce 1 parents:
+    ◉  000000000000 parents:
     "###);
 }
 
@@ -275,9 +285,19 @@ fn test_parallelize_head_is_a_merge() {
     ◉  000000000000 parents:
     "###);
 
-    insta::assert_snapshot!(test_env.jj_cmd_failure(&workspace_path,&["parallelize", "description(1)::"]),
-        @r###"
-    Error: Only the roots of the target revset are allowed to have parents which are not being parallelized.
+    test_env.jj_cmd_ok(&workspace_path, &["parallelize", "description(1)::"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    @    babb4191912d merged-head parents: 0 b
+    ├─╮
+    │ ◉  5164ab888473 b parents: a
+    │ ◉  f16fe8ac5ce9 a parents:
+    │ │ ◉  36b2f866a798 2 parents: 0
+    ├───╯
+    │ │ ◉  a915696cf0ad 1 parents: 0
+    ├───╯
+    ◉ │  a56846756248 0 parents:
+    ├─╯
+    ◉  000000000000 parents:
     "###);
 }
 
@@ -305,9 +325,18 @@ fn test_parallelize_interior_target_is_a_merge() {
     ◉  000000000000 parents:
     "###);
 
-    insta::assert_snapshot!(test_env.jj_cmd_failure(&workspace_path,&["parallelize", "description(1)::"]),
-        @r###"
-    Error: Only the roots of the target revset are allowed to have parents which are not being parallelized.
+    test_env.jj_cmd_ok(&workspace_path, &["parallelize", "description(1)::"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    @    cd0ac6ad1415 3 parents: 0 a
+    ├─╮
+    │ │ ◉  1c240e875670 2 parents: 0 a
+    ╭─┬─╯
+    │ ◉  427890ea3f2b a parents:
+    │ │ ◉  a915696cf0ad 1 parents: 0
+    ├───╯
+    ◉ │  a56846756248 0 parents:
+    ├─╯
+    ◉  000000000000 parents:
     "###);
 }
 
@@ -449,7 +478,7 @@ fn test_parallelize_multiple_roots() {
 }
 
 #[test]
-fn test_parallelize_failure_multiple_heads_with_different_children() {
+fn test_parallelize_multiple_heads_with_different_children() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let workspace_path = test_env.env_root().join("repo");
@@ -472,21 +501,33 @@ fn test_parallelize_failure_multiple_heads_with_different_children() {
     ◉  000000000000 parents:
     "###);
 
-    insta::assert_snapshot!(
-    test_env.jj_cmd_failure(
+    test_env.jj_cmd_ok(
         &workspace_path,
         &[
             "parallelize",
             "description(1)::description(2)",
             "description(a)::description(b)",
         ],
-    ),@r###"
-    Error: All heads of the target revisions must have the same children.
+    );
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    @  582c6bd1e1fd parents: c
+    ◉    dd2db8b60a69 c parents: a b
+    ├─╮
+    │ ◉  190b857f6cdd b parents:
+    ◉ │  f16fe8ac5ce9 a parents:
+    ├─╯
+    │ ◉    bbc313370f45 3 parents: 1 2
+    │ ├─╮
+    │ │ ◉  96ce11389312 2 parents:
+    ├───╯
+    │ ◉  dc0e5d6135ce 1 parents:
+    ├─╯
+    ◉  000000000000 parents:
     "###);
 }
 
 #[test]
-fn test_parallelize_failure_multiple_roots_with_different_parents() {
+fn test_parallelize_multiple_roots_with_different_parents() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let workspace_path = test_env.env_root().join("repo");
@@ -510,12 +551,21 @@ fn test_parallelize_failure_multiple_roots_with_different_parents() {
     ◉  000000000000 parents:
     "###);
 
-    insta::assert_snapshot!(
-    test_env.jj_cmd_failure(
+    test_env.jj_cmd_ok(
         &workspace_path,
         &["parallelize", "description(2)::", "description(b)::"],
-    ),@r###"
-    Error: All roots of the target revisions must have the same parents.
+    );
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    @    4224f9c9e598 merged-head parents: 1 a
+    ├─╮
+    │ │ ◉  401e43e9461f b parents: a
+    │ ├─╯
+    │ ◉  66ea2ab19a70 a parents:
+    │ │ ◉  d826910d21fb 2 parents: 1
+    ├───╯
+    ◉ │  dc0e5d6135ce 1 parents:
+    ├─╯
+    ◉  000000000000 parents:
     "###);
 }
 
