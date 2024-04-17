@@ -194,11 +194,22 @@ defined.
 
 #### String literals
 
-String literals must be surrounded by double quotes (`"`). The following escape
-sequences starting with a backslash have their usual meaning: `\"`, `\\`, `\n`,
-`\r`, `\t`, `\0`. Other escape sequences are not supported. Any UTF-8 characters
-are allowed inside a string literal, with two exceptions: unescaped `"`-s and
-uses of `\` that don't form a valid escape sequence.
+String literals must be surrounded by single or double quotes (`'` or `"`).
+A double-quoted string literal supports the following escape sequences:
+
+* `\"`: double quote
+* `\\`: backslash
+* `\t`: horizontal tab
+* `\r`: carriage return
+* `\n`: new line
+* `\0`: null
+
+Other escape sequences are not supported. Any UTF-8 characters are allowed
+inside a string literal, with two exceptions: unescaped `"`-s and uses of `\`
+that don't form a valid escape sequence.
+
+A single-quoted string literal has no escape syntax. `'` can't be expressed
+inside a single-quoted string literal.
 
 ### Template type
 

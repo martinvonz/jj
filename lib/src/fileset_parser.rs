@@ -48,6 +48,8 @@ impl Rule {
             Rule::string_content_char => None,
             Rule::string_content => None,
             Rule::string_literal => None,
+            Rule::raw_string_content => None,
+            Rule::raw_string_literal => None,
             Rule::pattern_kind_op => Some(":"),
             Rule::negate_op => Some("~"),
             Rule::union_op => Some("|"),
@@ -233,6 +235,11 @@ fn parse_as_string_literal(pair: Pair<Rule>) -> String {
     match pair.as_rule() {
         Rule::identifier => pair.as_str().to_owned(),
         Rule::string_literal => STRING_LITERAL_PARSER.parse(pair.into_inner()),
+        Rule::raw_string_literal => {
+            let (content,) = pair.into_inner().collect_tuple().unwrap();
+            assert_eq!(content.as_rule(), Rule::raw_string_content);
+            content.as_str().to_owned()
+        }
         r => panic!("unexpected string literal rule: {r:?}"),
     }
 }
@@ -256,7 +263,9 @@ fn parse_primary_node(pair: Pair<Rule>) -> FilesetParseResult<ExpressionNode> {
             ExpressionKind::StringPattern { kind, value }
         }
         Rule::identifier => ExpressionKind::Identifier(first.as_str()),
-        Rule::string_literal => ExpressionKind::String(parse_as_string_literal(first)),
+        Rule::string_literal | Rule::raw_string_literal => {
+            ExpressionKind::String(parse_as_string_literal(first))
+        }
         r => panic!("unexpected primary rule: {r:?}"),
     };
     Ok(ExpressionNode::new(expr, span))
@@ -468,6 +477,24 @@ mod tests {
             parse_into_kind(r#" "\y" "#),
             Err(FilesetParseErrorKind::SyntaxError)
         );
+
+        // Single-quoted raw string
+        assert_eq!(
+            parse_into_kind(r#" '' "#),
+            Ok(ExpressionKind::String("".to_owned())),
+        );
+        assert_eq!(
+            parse_into_kind(r#" 'a\n' "#),
+            Ok(ExpressionKind::String(r"a\n".to_owned())),
+        );
+        assert_eq!(
+            parse_into_kind(r#" '\' "#),
+            Ok(ExpressionKind::String(r"\".to_owned())),
+        );
+        assert_eq!(
+            parse_into_kind(r#" '"' "#),
+            Ok(ExpressionKind::String(r#"""#.to_owned())),
+        );
     }
 
     #[test]
@@ -491,6 +518,13 @@ mod tests {
             Ok(ExpressionKind::StringPattern {
                 kind: "foo",
                 value: "".to_owned()
+            })
+        );
+        assert_eq!(
+            parse_into_kind(r#" foo:'\' "#),
+            Ok(ExpressionKind::StringPattern {
+                kind: "foo",
+                value: r"\".to_owned()
             })
         );
         assert_eq!(

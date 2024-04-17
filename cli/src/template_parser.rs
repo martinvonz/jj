@@ -42,6 +42,8 @@ impl Rule {
             Rule::string_content_char => None,
             Rule::string_content => None,
             Rule::string_literal => None,
+            Rule::raw_string_content => None,
+            Rule::raw_string_literal => None,
             Rule::integer_literal => None,
             Rule::identifier => None,
             Rule::concat_op => Some("++"),
@@ -381,6 +383,12 @@ fn parse_term_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
     let primary = match expr.as_rule() {
         Rule::string_literal => {
             let text = STRING_LITERAL_PARSER.parse(expr.into_inner());
+            ExpressionNode::new(ExpressionKind::String(text), span)
+        }
+        Rule::raw_string_literal => {
+            let (content,) = expr.into_inner().collect_tuple().unwrap();
+            assert_eq!(content.as_rule(), Rule::raw_string_content);
+            let text = content.as_str().to_owned();
             ExpressionNode::new(ExpressionKind::String(text), span)
         }
         Rule::integer_literal => {
@@ -1177,6 +1185,24 @@ mod tests {
         assert_eq!(
             parse_into_kind(r#" "\y" "#),
             Err(TemplateParseErrorKind::SyntaxError),
+        );
+
+        // Single-quoted raw string
+        assert_eq!(
+            parse_into_kind(r#" '' "#),
+            Ok(ExpressionKind::String("".to_owned())),
+        );
+        assert_eq!(
+            parse_into_kind(r#" 'a\n' "#),
+            Ok(ExpressionKind::String(r"a\n".to_owned())),
+        );
+        assert_eq!(
+            parse_into_kind(r#" '\' "#),
+            Ok(ExpressionKind::String(r"\".to_owned())),
+        );
+        assert_eq!(
+            parse_into_kind(r#" '"' "#),
+            Ok(ExpressionKind::String(r#"""#.to_owned())),
         );
     }
 

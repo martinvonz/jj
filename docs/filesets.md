@@ -13,13 +13,15 @@ ui.allow-filesets = true
 ```
 
 Many `jj` commands accept fileset expressions as positional arguments. File
-names passed to these commands must be quoted if they contain whitespace or meta
-characters. However, as a special case, quotes can be omitted if the expression
-has no operators nor function calls. For example:
+names passed to these commands [must be quoted][string-literals] if they contain
+whitespace or meta characters. However, as a special case, quotes can be omitted
+if the expression has no operators nor function calls. For example:
 
 * `jj diff 'Foo Bar'` (shell quotes are required, but inner quotes are optional)
 * `jj diff '~"Foo Bar"'` (both shell and inner quotes are required)
 * `jj diff '"Foo(1)"'` (both shell and inner quotes are required)
+
+[string-literals]: templates.md#string-literals
 
 ## File patterns
 

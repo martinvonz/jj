@@ -40,6 +40,9 @@ string_content_char = @{ !("\"" | "\\") ~ ANY }
 string_content = @{ string_content_char+ }
 string_literal = ${ "\"" ~ (string_content | string_escape)* ~ "\"" }
 
+raw_string_content = @{ (!"'" ~ ANY)* }
+raw_string_literal = ${ "'" ~ raw_string_content ~ "'" }
+
 pattern_kind_op = { ":" }
 
 negate_op = { "~" }
@@ -57,7 +60,11 @@ function_arguments = {
 }
 
 // TODO: change rhs to string_literal to require quoting? #2101
-string_pattern = { strict_identifier ~ pattern_kind_op ~ (identifier | string_literal) }
+string_pattern = {
+  strict_identifier
+  ~ pattern_kind_op
+  ~ (identifier | string_literal | raw_string_literal)
+}
 bare_string_pattern = { strict_identifier ~ pattern_kind_op ~ bare_string }
 
 primary = {
@@ -66,6 +73,7 @@ primary = {
   | string_pattern
   | identifier
   | string_literal
+  | raw_string_literal
 }
 
 expression = {
