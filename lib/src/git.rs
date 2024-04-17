@@ -1223,6 +1223,7 @@ pub enum GitPushError {
         name = REMOTE_NAME_FOR_LOCAL_GIT_REPO
     )]
     RemoteReservedForLocalGitRepo,
+    // Short-term TODO: Delete this; it should never trigger
     #[error("Push is not fast-forwardable")]
     NotFastForward,
     #[error("Refs in unexpected location: {0:?}")]
@@ -1238,7 +1239,6 @@ pub enum GitPushError {
 #[derive(Clone, Debug)]
 pub struct GitBranchPushTargets {
     pub branch_updates: Vec<(String, BranchPushUpdate)>,
-    pub force_pushed_branches: HashSet<String>,
 }
 
 pub struct GitRefUpdate {
@@ -1248,8 +1248,6 @@ pub struct GitRefUpdate {
     ///
     /// This is sourced from the local remote-tracking branch.
     pub expected_current_target: Option<CommitId>,
-    // Short-term TODO: Delete `force`
-    pub force: bool,
     pub new_target: Option<CommitId>,
 }
 
@@ -1266,7 +1264,6 @@ pub fn push_branches(
         .iter()
         .map(|(branch_name, update)| GitRefUpdate {
             qualified_name: format!("refs/heads/{branch_name}"),
-            force: targets.force_pushed_branches.contains(branch_name),
             expected_current_target: update.old_target.clone(),
             new_target: update.new_target.clone(),
         })
@@ -1305,13 +1302,14 @@ pub fn push_updates(
             update.expected_current_target.as_ref(),
         );
         if let Some(new_target) = &update.new_target {
-            refspecs.push(format!(
-                "{}{}:{}",
-                (if update.force { "+" } else { "" }),
-                new_target.hex(),
-                update.qualified_name
-            ));
+            // We always force-push. We use the push_negotiation callback in
+            // `push_refs` to check that the refs did not unexpectedly move on
+            // the remote.
+            refspecs.push(format!("+{}:{}", new_target.hex(), update.qualified_name));
         } else {
+            // Prefixing this with `+` to force-push or not should make no
+            // difference. The push negotiation happens regardless, and wouldn't
+            // allow creating a branch if it's not a fast-forward.
             refspecs.push(format!(":{}", update.qualified_name));
         }
     }
@@ -1506,22 +1504,12 @@ fn allow_push(
             // https://github.com/martinvonz/jj/blob/c9b44f382824301e6c0fdd6f4cbc52bb00c50995/lib/src/merge.rs#L92.
             PushAllowReason::UnexpectedNoop
         } else {
-            // The assertions follow from our ref merge rules:
+            // Due to our ref merge rules, this case should happen if an only
+            // if:
             //
             // 1. This is a fast-forward.
-            debug_assert!(index.is_ancestor(
-                actual_remote_location.as_ref().unwrap(),
-                destination_location.as_ref().unwrap()
-            ));
             // 2. The expected location is an ancestor of both the actual location and the
             //    destination (local position).
-            debug_assert!(
-                expected_remote_location.is_none()
-                    || index.is_ancestor(
-                        expected_remote_location.unwrap(),
-                        actual_remote_location.as_ref().unwrap()
-                    )
-            );
             PushAllowReason::ExceptionalFastforward
         })
     } else {

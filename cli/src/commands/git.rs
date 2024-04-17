@@ -899,6 +899,10 @@ fn cmd_git_push(
     }
 
     let mut new_heads = vec![];
+    // Short-term TODO: `force_pushed_branches` no longer has an effect on how
+    // branches are actually pushed. Messages about "Moving" vs "Forcing"
+    // branches are now misleading. Change this logic so that we print whether
+    // the branch moved forward, backward, or sideways.
     let mut force_pushed_branches = hashset! {};
     for (branch_name, update) in &branch_updates {
         if let Some(new_target) = &update.new_target {
@@ -1001,10 +1005,7 @@ fn cmd_git_push(
         return Ok(());
     }
 
-    let targets = GitBranchPushTargets {
-        branch_updates,
-        force_pushed_branches,
-    };
+    let targets = GitBranchPushTargets { branch_updates };
     let mut writer = GitSidebandProgressMessageWriter::new(ui);
     let mut sideband_progress_callback = |progress_message: &[u8]| {
         _ = writer.write(ui, progress_message);
