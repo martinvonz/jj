@@ -19,6 +19,7 @@ use std::process::Command;
 use std::{env, fmt};
 
 use config::Source;
+use etcetera::BaseStrategy;
 use itertools::Itertools;
 use jj_lib::settings::ConfigResultExt as _;
 use thiserror::Error;
@@ -250,9 +251,19 @@ struct ConfigEnv {
 
 impl ConfigEnv {
     fn new() -> Self {
+        // get the current platform's config dir. On MacOS that's actually the data_dir
+        #[cfg(not(target_os = "macos"))]
+        let platform_config_dir = etcetera::choose_base_strategy()
+            .ok()
+            .map(|c| c.config_dir());
+        #[cfg(target_os = "macos")]
+        let platform_config_dir = etcetera::base_strategy::Apple::new()
+            .ok()
+            .map(|c| c.data_dir());
+
         ConfigEnv {
-            config_dir: dirs::config_dir(),
-            home_dir: dirs::home_dir(),
+            config_dir: platform_config_dir,
+            home_dir: etcetera::home_dir().ok(),
             jj_config: env::var("JJ_CONFIG").ok(),
         }
     }
