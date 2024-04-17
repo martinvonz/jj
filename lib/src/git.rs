@@ -1275,50 +1275,31 @@ pub fn push_updates(
     updates: &[GitRefUpdate],
     callbacks: RemoteCallbacks<'_>,
 ) -> Result<(), GitPushError> {
-    let mut temp_refs = vec![];
     let mut qualified_remote_refs = vec![];
     let mut refspecs = vec![];
     for update in updates {
         qualified_remote_refs.push(update.qualified_name.as_str());
         if let Some(new_target) = &update.new_target {
-            // Create a temporary ref to work around https://github.com/libgit2/libgit2/issues/3178
-            let temp_ref_name = format!("refs/jj/git-push/{}", new_target.hex());
-            temp_refs.push(git_repo.reference(
-                &temp_ref_name,
-                git2::Oid::from_bytes(new_target.as_bytes()).unwrap(),
-                true,
-                "temporary reference for git push",
-            )?);
             refspecs.push(format!(
                 "{}{}:{}",
                 (if update.force { "+" } else { "" }),
-                temp_ref_name,
+                git2::Oid::from_bytes(new_target.as_bytes()).unwrap(),
                 update.qualified_name
             ));
         } else {
             refspecs.push(format!(":{}", update.qualified_name));
         }
     }
-    let result = push_refs(
+    // TODO(ilyagr): this function will be reused to implement force-with-lease, so
+    // don't inline for now. If it's after 2024-06-01 or so, ilyagr may have
+    // forgotten to delete this comment.
+    push_refs(
         git_repo,
         remote_name,
         &qualified_remote_refs,
         &refspecs,
         callbacks,
-    );
-    for mut temp_ref in temp_refs {
-        // TODO: Figure out how to do the equivalent of absl::Cleanup for
-        // temp_ref.delete().
-        if let Err(err) = temp_ref.delete() {
-            // Propagate error only if we don't already have an error to return and it's not
-            // NotFound (there may be duplicates if the list if multiple branches moved to
-            // the same commit).
-            if result.is_ok() && err.code() != git2::ErrorCode::NotFound {
-                return Err(GitPushError::InternalGitError(err));
-            }
-        }
-    }
-    result
+    )
 }
 
 fn push_refs(
