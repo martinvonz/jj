@@ -15,6 +15,7 @@
 use itertools::Itertools as _;
 use jj_lib::commit::{Commit, CommitIteratorExt};
 use jj_lib::matchers::Matcher;
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use jj_lib::revset;
@@ -181,9 +182,14 @@ pub fn move_diff(
 ) -> Result<(), CommandError> {
     tx.base_workspace_helper()
         .check_rewritable(sources.iter().chain(std::iter::once(destination)).ids())?;
-    // Tree diffs to apply to the destination
-    let mut tree_diffs = vec![];
-    let mut abandoned_commits = vec![];
+
+    struct SourceCommit<'a> {
+        commit: &'a Commit,
+        parent_tree: MergedTree,
+        selected_tree: MergedTree,
+        abandon: bool,
+    }
+    let mut source_commits = vec![];
     for source in sources {
         let parent_tree = merge_commit_trees(tx.repo(), &source.parents())?;
         let source_tree = source.tree()?;
@@ -206,26 +212,20 @@ from the source will be moved into the destination.
         let selected_tree_id =
             diff_selector.select(&parent_tree, &source_tree, matcher, Some(&instructions))?;
         let selected_tree = tx.repo().store().get_root_tree(&selected_tree_id)?;
-        let abandon_source = selected_tree.id() == source_tree.id();
+        let abandon = selected_tree.id() == source_tree.id();
         // TODO: Do we want to optimize the case of moving to the parent commit (`jj
         // squash -r`)? The source tree will be unchanged in that case.
-
-        // Apply the reverse of the selected changes onto the source
-        let new_source_tree = source_tree.merge(&selected_tree, &parent_tree)?;
-        if abandon_source {
-            abandoned_commits.push(source);
-            tx.mut_repo().record_abandoned_commit(source.id().clone());
-        } else {
-            tx.mut_repo()
-                .rewrite_commit(settings, source)
-                .set_tree_id(new_source_tree.id().clone())
-                .write()?;
-        }
-        if selected_tree_id != parent_tree.id() {
-            tree_diffs.push((parent_tree, selected_tree));
-        }
+        source_commits.push(SourceCommit {
+            commit: source,
+            parent_tree,
+            selected_tree,
+            abandon,
+        });
     }
-    if tree_diffs.is_empty() {
+    if source_commits
+        .iter()
+        .all(|source| source.selected_tree == source.parent_tree)
+    {
         if diff_selector.is_interactive() {
             return Err(user_error("No changes selected"));
         }
@@ -246,6 +246,22 @@ from the source will be moved into the destination.
             }
         }
     }
+
+    for source in &source_commits {
+        if source.abandon {
+            tx.mut_repo()
+                .record_abandoned_commit(source.commit.id().clone());
+        } else {
+            let source_tree = source.commit.tree()?;
+            // Apply the reverse of the selected changes onto the source
+            let new_source_tree = source_tree.merge(&source.selected_tree, &source.parent_tree)?;
+            tx.mut_repo()
+                .rewrite_commit(settings, source.commit)
+                .set_tree_id(new_source_tree.id().clone())
+                .write()?;
+        }
+    }
+
     let mut rewritten_destination = destination.clone();
     if sources
         .iter()
@@ -261,13 +277,17 @@ from the source will be moved into the destination.
     }
     // Apply the selected changes onto the destination
     let mut destination_tree = rewritten_destination.tree()?;
-    for (tree1, tree2) in tree_diffs {
-        destination_tree = destination_tree.merge(&tree1, &tree2)?;
+    for source in &source_commits {
+        destination_tree = destination_tree.merge(&source.parent_tree, &source.selected_tree)?;
     }
     let description = match description {
         SquashedDescription::Exact(description) => description,
         SquashedDescription::UseDestination => destination.description().to_owned(),
         SquashedDescription::Combine => {
+            let abandoned_commits = source_commits
+                .iter()
+                .filter_map(|source| source.abandon.then_some(source.commit))
+                .collect_vec();
             combine_messages(tx.base_repo(), &abandoned_commits, destination, settings)?
         }
     };
