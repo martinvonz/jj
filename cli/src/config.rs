@@ -31,6 +31,8 @@ pub enum ConfigError {
     ConfigReadError(#[from] config::ConfigError),
     #[error("Both {0} and {1} exist. Please consolidate your configs in one of them.")]
     AmbiguousSource(PathBuf, PathBuf),
+    #[error("Configs found in {0}, {1}, and {2}. Please consolidate your configs in one of them.")]
+    AmbiguousSource3(PathBuf, PathBuf, PathBuf),
     #[error(transparent)]
     ConfigCreateError(#[from] std::io::Error),
 }
@@ -233,13 +235,19 @@ enum HandleMissingConfig {
 // The struct exists so that we can mock certain global values in unit tests.
 #[derive(Clone, Default, Debug)]
 struct ConfigEnv {
-    config_dir: Option<PathBuf>,
+    xdg_config_dir: Option<PathBuf>,
+    platform_config_dir: Option<PathBuf>,
     home_dir: Option<PathBuf>,
     jj_config: Option<String>,
 }
 
 impl ConfigEnv {
     fn new() -> Self {
+        // get XDG_CONFIG_HOME
+        let xdg_config_dir = etcetera::base_strategy::Xdg::new()
+            .ok()
+            .map(|c| c.config_dir());
+
         // get the current platform's config dir. On MacOS that's actually the data_dir
         #[cfg(not(target_os = "macos"))]
         let platform_config_dir = etcetera::choose_base_strategy()
@@ -251,7 +259,8 @@ impl ConfigEnv {
             .map(|c| c.data_dir());
 
         ConfigEnv {
-            config_dir: platform_config_dir,
+            xdg_config_dir,
+            platform_config_dir,
             home_dir: etcetera::home_dir().ok(),
             jj_config: env::var("JJ_CONFIG").ok(),
         }
@@ -274,8 +283,13 @@ impl ConfigEnv {
             return Ok(Some(path));
         }
         // look for existing configs first
-        // cloning `self.config_dir` because we need it again below
-        let platform_config = self.config_dir.clone().map(|mut config_dir| {
+        // cloning `self.platform_config_dir` because we need it again below
+        let platform_config = self.platform_config_dir.clone().map(|mut config_dir| {
+            config_dir.push("jj");
+            config_dir.push("config.toml");
+            config_dir
+        });
+        let xdg_config = self.xdg_config_dir.map(|mut config_dir| {
             config_dir.push("jj");
             config_dir.push("config.toml");
             config_dir
@@ -284,7 +298,7 @@ impl ConfigEnv {
             config_dir.push(".jjconfig.toml");
             config_dir
         });
-        let paths: Vec<PathBuf> = vec![&platform_config, &home_config]
+        let paths: Vec<PathBuf> = vec![&platform_config, &xdg_config, &home_config]
             .into_iter()
             .unique()
             .flatten() // pops all T out of Some<T>
@@ -299,6 +313,11 @@ impl ConfigEnv {
                 paths[0].clone(),
                 paths[1].clone(),
             )),
+            3 => Err(ConfigError::AmbiguousSource3(
+                paths[0].clone(),
+                paths[1].clone(),
+                paths[2].clone(),
+            )),
             _ => unreachable!(),
         };
 
@@ -308,7 +327,7 @@ impl ConfigEnv {
         // otherwise, create one and then return it
         } else if handle_missing == HandleMissingConfig::Create {
             // we use the platform_config by default
-            if let Some(mut path) = self.config_dir {
+            if let Some(mut path) = self.platform_config_dir {
                 path.push("jj");
                 path.push("config.toml");
                 create_config_file(&path)?;
@@ -798,7 +817,7 @@ mod tests {
         TestCase {
             files: vec![],
             cfg: ConfigEnv {
-                config_dir: Some("config".into()),
+                platform_config_dir: Some("config".into()),
                 home_dir: Some("home".into()),
                 ..Default::default()
             },
@@ -812,7 +831,7 @@ mod tests {
         TestCase {
             files: vec!["config/jj/config.toml"],
             cfg: ConfigEnv {
-                config_dir: Some("config".into()),
+                platform_config_dir: Some("config".into()),
                 ..Default::default()
             },
             want: Want::Existing("config/jj/config.toml"),
@@ -821,16 +840,30 @@ mod tests {
     }
 
     #[test]
-    // if no config exists, make one in the config dir location
-    fn test_config_path_new_default_to_config_dir() -> anyhow::Result<()> {
+    // if no config exists, make one in the platform_config dir location
+    fn test_config_path_new_default_to_platform_config_dir() -> anyhow::Result<()> {
         TestCase {
             files: vec![],
             cfg: ConfigEnv {
-                config_dir: Some("config".into()),
+                platform_config_dir: Some("config".into()),
                 home_dir: Some("home".into()),
                 ..Default::default()
             },
             want: Want::ExistingOrNew("config/jj/config.toml"),
+        }
+        .run()
+    }
+    #[test]
+    fn test_config_path_platform_equals_xdg_is_ok() -> anyhow::Result<()> {
+        TestCase {
+            files: vec!["config/jj/config.toml"],
+            cfg: ConfigEnv {
+                platform_config_dir: Some("config".into()),
+                xdg_config_dir: Some("config".into()),
+                home_dir: Some("home".into()),
+                ..Default::default()
+            },
+            want: Want::Existing("config/jj/config.toml"),
         }
         .run()
     }
@@ -867,7 +900,7 @@ mod tests {
             files: vec!["config/jj/config.toml"],
             cfg: ConfigEnv {
                 home_dir: Some("home".into()),
-                config_dir: Some("config".into()),
+                platform_config_dir: Some("config".into()),
                 ..Default::default()
             },
             want: Want::Existing("config/jj/config.toml"),
@@ -881,7 +914,7 @@ mod tests {
             files: vec!["home/.jjconfig.toml"],
             cfg: ConfigEnv {
                 home_dir: Some("home".into()),
-                config_dir: Some("config".into()),
+                platform_config_dir: Some("config".into()),
                 ..Default::default()
             },
             want: Want::Existing("home/.jjconfig.toml"),
@@ -904,7 +937,7 @@ mod tests {
         let tmp = setup_config_fs(&vec!["home/.jjconfig.toml", "config/jj/config.toml"])?;
         let cfg = ConfigEnv {
             home_dir: Some(tmp.path().join("home")),
-            config_dir: Some(tmp.path().join("config")),
+            platform_config_dir: Some(tmp.path().join("config")),
             ..Default::default()
         };
         use assert_matches::assert_matches;
@@ -917,6 +950,33 @@ mod tests {
             cfg.clone()
                 .new_or_existing_config_path(HandleMissingConfig::Create),
             Err(ConfigError::AmbiguousSource(_, _))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_config_path_ambiguous3() -> anyhow::Result<()> {
+        let tmp = setup_config_fs(&vec![
+            "home/.jjconfig.toml",
+            "config/jj/config.toml",
+            "bar/jj/config.toml",
+        ])?;
+        let cfg = ConfigEnv {
+            home_dir: Some(tmp.path().join("home")),
+            platform_config_dir: Some(tmp.path().join("config")),
+            xdg_config_dir: Some(tmp.path().join("bar")),
+            ..Default::default()
+        };
+        use assert_matches::assert_matches;
+        assert_matches!(
+            cfg.clone()
+                .new_or_existing_config_path(HandleMissingConfig::Ignore),
+            Err(ConfigError::AmbiguousSource3(_, _, _))
+        );
+        assert_matches!(
+            cfg.clone()
+                .new_or_existing_config_path(HandleMissingConfig::Create),
+            Err(ConfigError::AmbiguousSource3(_, _, _))
         );
         Ok(())
     }
@@ -948,7 +1008,8 @@ mod tests {
     impl TestCase {
         fn config(&self, root: &Path) -> ConfigEnv {
             ConfigEnv {
-                config_dir: self.cfg.config_dir.as_ref().map(|p| root.join(p)),
+                xdg_config_dir: self.cfg.xdg_config_dir.as_ref().map(|p| root.join(p)),
+                platform_config_dir: self.cfg.platform_config_dir.as_ref().map(|p| root.join(p)),
                 home_dir: self.cfg.home_dir.as_ref().map(|p| root.join(p)),
                 jj_config: self
                     .cfg
