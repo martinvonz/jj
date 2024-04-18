@@ -926,7 +926,7 @@ impl MutableRepo {
     /// rewritten and abandoned.
     ///
     /// Panics if `parent_mapping` contains cycles
-    pub fn new_parents(&self, old_ids: &[CommitId]) -> Vec<CommitId> {
+    pub fn new_parents(&self, old_ids: Vec<CommitId>) -> Vec<CommitId> {
         fn single_substitution_round(
             parent_mapping: &HashMap<CommitId, (RewriteType, Vec<CommitId>)>,
             ids: Vec<CommitId>,
@@ -958,7 +958,7 @@ impl MutableRepo {
             (new_ids, made_replacements)
         }
 
-        let mut new_ids: Vec<CommitId> = old_ids.to_vec();
+        let mut new_ids = old_ids;
         // The longest possible non-cycle substitution sequence goes through each key of
         // parent_mapping once.
         let mut allowed_iterations = 0..self.parent_mapping.len();
@@ -995,7 +995,7 @@ impl MutableRepo {
             // mappings, not transitive ones.
             // TODO: keep parent_mapping updated with transitive mappings so we don't need
             // to call `new_parents()` here.
-            let new_parent_ids = self.new_parents(&new_parent_ids);
+            let new_parent_ids = self.new_parents(new_parent_ids);
             self.update_references(settings, old_parent_id, new_parent_ids)?;
         }
         Ok(())
@@ -1173,7 +1173,7 @@ impl MutableRepo {
     ) -> BackendResult<()> {
         let mut to_visit = self.find_descendants_to_rebase(roots)?;
         while let Some(old_commit) = to_visit.pop() {
-            let new_parent_ids = self.new_parents(old_commit.parent_ids());
+            let new_parent_ids = self.new_parents(old_commit.parent_ids().to_vec());
             let rewriter = CommitRewriter::new(self, old_commit, new_parent_ids);
             callback(rewriter)?;
         }

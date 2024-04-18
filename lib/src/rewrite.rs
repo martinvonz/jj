@@ -395,7 +395,7 @@ impl<'settings, 'repo> DescendantRebaser<'settings, 'repo> {
     fn rebase_one(&mut self, old_commit: Commit) -> BackendResult<()> {
         let old_commit_id = old_commit.id().clone();
         let old_parent_ids = old_commit.parent_ids();
-        let new_parent_ids = self.mut_repo.new_parents(old_parent_ids);
+        let new_parent_ids = self.mut_repo.new_parents(old_parent_ids.to_vec());
         let rewriter = CommitRewriter::new(self.mut_repo, old_commit, new_parent_ids);
         if !rewriter.parents_changed() {
             // The commit is already in place.
