@@ -1361,9 +1361,14 @@ consists of file patterns, operators, and functions.</p>
 <li><code>"path"</code>, <code>path</code> (the quotes are optional), or <code>cwd:"path"</code>: Matches
   cwd-relative path prefix (file or files under directory recursively.)</li>
 <li><code>cwd-file:"path"</code> or <code>file:"path"</code>: Matches cwd-relative file (or exact) path.</li>
+<li><code>cwd-glob:"pattern"</code> or <code>glob:"pattern"</code>: Matches file paths with cwd-relative
+  Unix-style shell <a href="https://docs.rs/glob/latest/glob/struct.Pattern.html">wildcard <code>pattern</code></a>. For example, <code>glob:"*.c"</code> will
+  match all <code>.c</code> files in the current working directory non-recursively.</li>
 <li><code>root:"path"</code>: Matches workspace-relative path prefix (file or files under
   directory recursively.)</li>
 <li><code>root-file:"path"</code>: Matches workspace-relative file (or exact) path.</li>
+<li><code>root-glob:"pattern"</code>: Matches file paths with workspace-relative Unix-style
+  shell <a href="https://docs.rs/glob/latest/glob/struct.Pattern.html">wildcard <code>pattern</code></a>.</li>
 </ul>
 <h2 id="operators">Operators<a class="headerlink" href="#operators" title="Permanent link">&para;</a></h2>
 <p>The following operators are supported. <code>x</code> and <code>y</code> below can be any fileset
@@ -1385,6 +1390,9 @@ expressions.</p>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>Show diff excluding <code>Cargo.lock</code>.</p>
 <div class="highlight"><pre><span></span><code>jj diff &#39;~Cargo.lock&#39;
+</code></pre></div>
+<p>List files in <code>src</code> excluding Rust sources.</p>
+<div class="highlight"><pre><span></span><code>jj files &#39;src ~ glob:&quot;**/*.rs&quot;&#39;
 </code></pre></div>
 <p>Split a revision in two, putting <code>foo</code> into the second commit.</p>
 <div class="highlight"><pre><span></span><code>jj split &#39;~foo&#39;
