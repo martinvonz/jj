@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::collections::HashMap;
-use std::io::Write;
 
 use indexmap::IndexSet;
 use itertools::Itertools;
@@ -70,10 +69,6 @@ pub(crate) fn cmd_parallelize(
         .parse_union_revsets(&args.revisions)?
         .evaluate_to_commits()?
         .try_collect()?;
-    if target_commits.len() < 2 {
-        writeln!(ui.status(), "Nothing changed.")?;
-        return Ok(());
-    }
     workspace_command.check_rewritable(target_commits.iter().ids())?;
 
     let mut tx = workspace_command.start_transaction();
