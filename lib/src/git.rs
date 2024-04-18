@@ -1223,9 +1223,6 @@ pub enum GitPushError {
         name = REMOTE_NAME_FOR_LOCAL_GIT_REPO
     )]
     RemoteReservedForLocalGitRepo,
-    // Short-term TODO: Delete this; it should never trigger
-    #[error("Push is not fast-forwardable")]
-    NotFastForward,
     #[error("Refs in unexpected location: {0:?}")]
     RefInUnexpectedLocation(Vec<String>),
     #[error("Remote rejected the update of some refs (do you have permission to push to {0:?}?)")]
@@ -1422,14 +1419,7 @@ fn push_refs(
             Ok(())
         });
         push_options.remote_callbacks(callbacks);
-        remote
-            .push(refspecs, Some(&mut push_options))
-            .map_err(|err| match (err.class(), err.code()) {
-                (git2::ErrorClass::Reference, git2::ErrorCode::NotFastForward) => {
-                    GitPushError::NotFastForward
-                }
-                _ => GitPushError::InternalGitError(err),
-            })
+        remote.push(refspecs, Some(&mut push_options))
     };
     if !failed_push_negotiations.is_empty() {
         // If the push negotiation returned an error, `remote.push` would not
