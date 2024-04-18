@@ -59,7 +59,7 @@ pub struct CommitTemplateLanguage<'repo> {
     revset_parse_context: RevsetParseContext<'repo>,
     id_prefix_context: &'repo IdPrefixContext,
     build_fn_table: CommitTemplateBuildFnTable<'repo>,
-    keyword_cache: CommitKeywordCache,
+    keyword_cache: CommitKeywordCache<'repo>,
     cache_extensions: ExtensionsMap,
 }
 
@@ -191,7 +191,7 @@ impl<'repo> CommitTemplateLanguage<'repo> {
         &self.workspace_id
     }
 
-    pub fn keyword_cache(&self) -> &CommitKeywordCache {
+    pub fn keyword_cache(&self) -> &CommitKeywordCache<'repo> {
         &self.keyword_cache
     }
 
@@ -377,15 +377,16 @@ impl<'repo> CommitTemplateBuildFnTable<'repo> {
     }
 }
 
-#[derive(Debug, Default)]
-pub struct CommitKeywordCache {
+#[derive(Default)]
+pub struct CommitKeywordCache<'repo> {
     // Build index lazily, and Rc to get away from &self lifetime.
     branches_index: OnceCell<Rc<RefNamesIndex>>,
     tags_index: OnceCell<Rc<RefNamesIndex>>,
     git_refs_index: OnceCell<Rc<RefNamesIndex>>,
+    is_immutable_fn: OnceCell<Rc<RevsetContainingFn<'repo>>>,
 }
 
-impl CommitKeywordCache {
+impl<'repo> CommitKeywordCache<'repo> {
     pub fn branches_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
         self.branches_index
             .get_or_init(|| Rc::new(build_branches_index(repo)))
@@ -399,6 +400,17 @@ impl CommitKeywordCache {
     pub fn git_refs_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
         self.git_refs_index
             .get_or_init(|| Rc::new(build_ref_names_index(repo.view().git_refs())))
+    }
+
+    pub fn is_immutable_fn(
+        &self,
+        language: &CommitTemplateLanguage<'repo>,
+        span: pest::Span<'_>,
+    ) -> TemplateParseResult<&Rc<RevsetContainingFn<'repo>>> {
+        self.is_immutable_fn.get_or_try_init(|| {
+            let revset = evaluate_immutable_revset(language, span)?;
+            Ok(revset.containing_fn().into())
+        })
     }
 }
 
@@ -583,8 +595,10 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         "immutable",
         |language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let revset = evaluate_immutable_revset(language, function.name_span)?;
-            let is_immutable = revset.containing_fn();
+            let is_immutable = language
+                .keyword_cache
+                .is_immutable_fn(language, function.name_span)?
+                .clone();
             let out_property = self_property.map(move |commit| is_immutable(commit.id()));
             Ok(L::wrap_boolean(out_property))
         },
@@ -632,6 +646,8 @@ fn extract_working_copies(repo: &dyn Repo, commit: &Commit) -> String {
     }
     names.join(" ")
 }
+
+type RevsetContainingFn<'repo> = dyn Fn(&CommitId) -> bool + 'repo;
 
 fn evaluate_immutable_revset<'repo>(
     language: &CommitTemplateLanguage<'repo>,
