@@ -302,7 +302,7 @@ impl ConfigEnv {
         }
     }
 
-    fn new_config_path(self) -> Result<Option<PathBuf>, ConfigError> {
+    fn new_or_existing_config_path(self) -> Result<Option<PathBuf>, ConfigError> {
         match self.config_path()? {
             ConfigPath::Existing(path) => Ok(Some(path)),
             ConfigPath::New(path) => {
@@ -322,8 +322,8 @@ pub fn existing_config_path() -> Result<Option<PathBuf>, ConfigError> {
 /// tries to guess a reasonable new location for it. If a path to a new config
 /// file is returned, the parent directory may be created as a result of this
 /// call.
-pub fn new_config_path() -> Result<Option<PathBuf>, ConfigError> {
-    ConfigEnv::new().new_config_path()
+pub fn new_or_existing_config_path() -> Result<Option<PathBuf>, ConfigError> {
+    ConfigEnv::new().new_or_existing_config_path()
 }
 
 /// Environment variables that should be overridden by config values
@@ -765,20 +765,34 @@ mod tests {
                 home_dir: Some("home".into()),
                 ..Default::default()
             },
-            want: Want::ExistingAndNew("home/.jjconfig.toml"),
+            want: Want::Existing("home/.jjconfig.toml"),
         }
         .run()
     }
 
     #[test]
-    fn test_config_path_home_dir_new() -> anyhow::Result<()> {
+    fn test_config_path_home_dir_doesnt_create_new() -> anyhow::Result<()> {
         TestCase {
             files: vec![],
             cfg: ConfigEnv {
                 home_dir: Some("home".into()),
                 ..Default::default()
             },
-            want: Want::New("home/.jjconfig.toml"),
+            want: Want::None,
+        }
+        .run()
+    }
+
+    #[test]
+    fn test_config_path_config_dir_new() -> anyhow::Result<()> {
+        TestCase {
+            files: vec![],
+            cfg: ConfigEnv {
+                config_dir: Some("config".into()),
+                home_dir: Some("home".into()),
+                ..Default::default()
+            },
+            want: Want::ExistingOrNew("config/jj/config.toml"),
         }
         .run()
     }
@@ -791,26 +805,14 @@ mod tests {
                 config_dir: Some("config".into()),
                 ..Default::default()
             },
-            want: Want::ExistingAndNew("config/jj/config.toml"),
+            want: Want::Existing("config/jj/config.toml"),
         }
         .run()
     }
 
     #[test]
-    fn test_config_path_config_dir_new() -> anyhow::Result<()> {
-        TestCase {
-            files: vec![],
-            cfg: ConfigEnv {
-                config_dir: Some("config".into()),
-                ..Default::default()
-            },
-            want: Want::New("config/jj/config.toml"),
-        }
-        .run()
-    }
-
-    #[test]
-    fn test_config_path_new_prefer_config_dir() -> anyhow::Result<()> {
+    // if no config exists, make one in the config dir location
+    fn test_config_path_new_default_to_config_dir() -> anyhow::Result<()> {
         TestCase {
             files: vec![],
             cfg: ConfigEnv {
@@ -818,7 +820,7 @@ mod tests {
                 home_dir: Some("home".into()),
                 ..Default::default()
             },
-            want: Want::New("config/jj/config.toml"),
+            want: Want::ExistingOrNew("config/jj/config.toml"),
         }
         .run()
     }
@@ -831,20 +833,20 @@ mod tests {
                 jj_config: Some("custom.toml".into()),
                 ..Default::default()
             },
-            want: Want::ExistingAndNew("custom.toml"),
+            want: Want::Existing("custom.toml"),
         }
         .run()
     }
 
     #[test]
-    fn test_config_path_jj_config_new() -> anyhow::Result<()> {
+    fn test_config_path_jj_config_doesnt_create_new() -> anyhow::Result<()> {
         TestCase {
             files: vec![],
             cfg: ConfigEnv {
                 jj_config: Some("custom.toml".into()),
                 ..Default::default()
             },
-            want: Want::New("custom.toml"),
+            want: Want::None,
         }
         .run()
     }
@@ -858,7 +860,7 @@ mod tests {
                 config_dir: Some("config".into()),
                 ..Default::default()
             },
-            want: Want::ExistingAndNew("config/jj/config.toml"),
+            want: Want::Existing("config/jj/config.toml"),
         }
         .run()
     }
@@ -872,7 +874,7 @@ mod tests {
                 config_dir: Some("config".into()),
                 ..Default::default()
             },
-            want: Want::ExistingAndNew("home/.jjconfig.toml"),
+            want: Want::Existing("home/.jjconfig.toml"),
         }
         .run()
     }
@@ -901,7 +903,7 @@ mod tests {
             Err(ConfigError::AmbiguousSource(_, _))
         );
         assert_matches!(
-            cfg.clone().new_config_path(),
+            cfg.clone().new_or_existing_config_path(),
             Err(ConfigError::AmbiguousSource(_, _))
         );
         Ok(())
@@ -921,8 +923,8 @@ mod tests {
 
     enum Want {
         None,
-        New(&'static str),
-        ExistingAndNew(&'static str),
+        Existing(&'static str),
+        ExistingOrNew(&'static str),
     }
 
     struct TestCase {
@@ -958,25 +960,31 @@ mod tests {
                 }
             };
 
-            let (want_existing, want_new) = match self.want {
-                Want::None => (None, None),
-                Want::New(want) => (None, Some(want)),
-                Want::ExistingAndNew(want) => (Some(want), Some(want)),
+            match self.want {
+                Want::None => {}
+                Want::Existing(want) => {
+                    check(
+                        "existing_config_path",
+                        ConfigEnv::existing_config_path,
+                        Some(want),
+                    )?;
+                }
+                Want::ExistingOrNew(want) => {
+                    let got = check(
+                        "new_or_existing_config_path",
+                        ConfigEnv::new_or_existing_config_path,
+                        Some(want),
+                    )?;
+                    if let Some(path) = got {
+                        if !Path::new(&path).is_file() {
+                            return Err(anyhow!(
+                                "new_config_path returned {path:?} which is not a file"
+                            ));
+                        }
+                    }
+                }
             };
 
-            check(
-                "existing_config_path",
-                ConfigEnv::existing_config_path,
-                want_existing,
-            )?;
-            let got = check("new_config_path", ConfigEnv::new_config_path, want_new)?;
-            if let Some(path) = got {
-                if !Path::new(&path).is_file() {
-                    return Err(anyhow!(
-                        "new_config_path returned {path:?} which is not a file"
-                    ));
-                }
-            }
             Ok(())
         }
     }
