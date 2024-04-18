@@ -27,29 +27,29 @@ fn test_parallelize_no_descendants() {
     }
     test_env.jj_cmd_ok(&workspace_path, &["describe", "-m=6"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  b911505e443e 6
-    ◉  2e00cb15c7b6 5
-    ◉  9df3c87db1a2 4
-    ◉  9f5b59fa4622 3
-    ◉  d826910d21fb 2
-    ◉  dc0e5d6135ce 1
-    ◉  000000000000
+    @  b911505e443e 6 parents: 5
+    ◉  2e00cb15c7b6 5 parents: 4
+    ◉  9df3c87db1a2 4 parents: 3
+    ◉  9f5b59fa4622 3 parents: 2
+    ◉  d826910d21fb 2 parents: 1
+    ◉  dc0e5d6135ce 1 parents:
+    ◉  000000000000 parents:
     "###);
 
     test_env.jj_cmd_ok(&workspace_path, &["parallelize", "description(1)::"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  6c7b60a45eb6 6
-    │ ◉  296f48966777 5
+    @  6c7b60a45eb6 6 parents:
+    │ ◉  296f48966777 5 parents:
     ├─╯
-    │ ◉  524062469789 4
+    │ ◉  524062469789 4 parents:
     ├─╯
-    │ ◉  a9334ecaa379 3
+    │ ◉  a9334ecaa379 3 parents:
     ├─╯
-    │ ◉  3a7b37ebe843 2
+    │ ◉  3a7b37ebe843 2 parents:
     ├─╯
-    │ ◉  dc0e5d6135ce 1
+    │ ◉  dc0e5d6135ce 1 parents:
     ├─╯
-    ◉  000000000000
+    ◉  000000000000 parents:
     "###);
 }
 
@@ -65,13 +65,13 @@ fn test_parallelize_with_descendants_simple() {
     }
     test_env.jj_cmd_ok(&workspace_path, &["describe", "-m=6"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  b911505e443e 6
-    ◉  2e00cb15c7b6 5
-    ◉  9df3c87db1a2 4
-    ◉  9f5b59fa4622 3
-    ◉  d826910d21fb 2
-    ◉  dc0e5d6135ce 1
-    ◉  000000000000
+    @  b911505e443e 6 parents: 5
+    ◉  2e00cb15c7b6 5 parents: 4
+    ◉  9df3c87db1a2 4 parents: 3
+    ◉  9f5b59fa4622 3 parents: 2
+    ◉  d826910d21fb 2 parents: 1
+    ◉  dc0e5d6135ce 1 parents:
+    ◉  000000000000 parents:
     "###);
 
     test_env.jj_cmd_ok(
@@ -79,17 +79,17 @@ fn test_parallelize_with_descendants_simple() {
         &["parallelize", "description(1)::description(4)"],
     );
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  259d624373d7 6
-    ◉        60d419591c77 5
+    @  259d624373d7 6 parents: 5
+    ◉        60d419591c77 5 parents: 1 2 3 4
     ├─┬─┬─╮
-    │ │ │ ◉  524062469789 4
-    │ │ ◉ │  a9334ecaa379 3
+    │ │ │ ◉  524062469789 4 parents:
+    │ │ ◉ │  a9334ecaa379 3 parents:
     │ │ ├─╯
-    │ ◉ │  3a7b37ebe843 2
+    │ ◉ │  3a7b37ebe843 2 parents:
     │ ├─╯
-    ◉ │  dc0e5d6135ce 1
+    ◉ │  dc0e5d6135ce 1 parents:
     ├─╯
-    ◉  000000000000
+    ◉  000000000000 parents:
     "###);
 }
 
@@ -108,32 +108,32 @@ fn test_parallelize_where_interior_has_non_target_children() {
     test_env.jj_cmd_ok(&workspace_path, &["new", "description(2)", "-m=2c"]);
     test_env.jj_cmd_ok(&workspace_path, &["new", "description(5)", "-m=6"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  d27ee705f7a9 6
-    ◉  2e00cb15c7b6 5
-    ◉  9df3c87db1a2 4
-    ◉  9f5b59fa4622 3
-    │ ◉  9c8865930f3c 2c
+    @  d27ee705f7a9 6 parents: 5
+    ◉  2e00cb15c7b6 5 parents: 4
+    ◉  9df3c87db1a2 4 parents: 3
+    ◉  9f5b59fa4622 3 parents: 2
+    │ ◉  9c8865930f3c 2c parents: 2
     ├─╯
-    ◉  d826910d21fb 2
-    ◉  dc0e5d6135ce 1
-    ◉  000000000000
+    ◉  d826910d21fb 2 parents: 1
+    ◉  dc0e5d6135ce 1 parents:
+    ◉  000000000000 parents:
     "###);
 
     test_env.jj_cmd_ok(&workspace_path, &["parallelize", "dc0::9df"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  a42de3959cae 6
-    ◉        d907c901bad0 5
+    @  a42de3959cae 6 parents: 5
+    ◉        d907c901bad0 5 parents: 1 2 3 4
     ├─┬─┬─╮
-    │ │ │ ◉  b8f977c12383 4
-    │ │ ◉ │  7be8374575b9 3
+    │ │ │ ◉  b8f977c12383 4 parents:
+    │ │ ◉ │  7be8374575b9 3 parents:
     │ │ ├─╯
-    │ │ │ ◉  2a4c3dab2a50 2c
+    │ │ │ ◉  2a4c3dab2a50 2c parents: 1 2
     ╭─┬───╯
-    │ ◉ │  96ce11389312 2
+    │ ◉ │  96ce11389312 2 parents:
     │ ├─╯
-    ◉ │  dc0e5d6135ce 1
+    ◉ │  dc0e5d6135ce 1 parents:
     ├─╯
-    ◉  000000000000
+    ◉  000000000000 parents:
     "###);
 }
 
@@ -149,29 +149,29 @@ fn test_parallelize_where_root_has_non_target_children() {
     test_env.jj_cmd_ok(&workspace_path, &["new", "description(1)", "-m=1c"]);
     test_env.jj_cmd_ok(&workspace_path, &["new", "description(3)", "-m=4"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  7636b3f489f4 4
-    ◉  9f5b59fa4622 3
-    ◉  d826910d21fb 2
-    │ ◉  50e2ced81124 1c
+    @  7636b3f489f4 4 parents: 3
+    ◉  9f5b59fa4622 3 parents: 2
+    ◉  d826910d21fb 2 parents: 1
+    │ ◉  50e2ced81124 1c parents: 1
     ├─╯
-    ◉  dc0e5d6135ce 1
-    ◉  000000000000
+    ◉  dc0e5d6135ce 1 parents:
+    ◉  000000000000 parents:
     "###);
     test_env.jj_cmd_ok(
         &workspace_path,
         &["parallelize", "description(1)::description(3)"],
     );
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @      d024344469c3 4
+    @      d024344469c3 4 parents: 1 2 3
     ├─┬─╮
-    │ │ ◉  5bd049136a7c 3
-    │ ◉ │  60f737a5a4a7 2
+    │ │ ◉  5bd049136a7c 3 parents:
+    │ ◉ │  60f737a5a4a7 2 parents:
     │ ├─╯
-    │ │ ◉  50e2ced81124 1c
+    │ │ ◉  50e2ced81124 1c parents: 1
     ├───╯
-    ◉ │  dc0e5d6135ce 1
+    ◉ │  dc0e5d6135ce 1 parents:
     ├─╯
-    ◉  000000000000
+    ◉  000000000000 parents:
     "###);
 }
 
@@ -193,15 +193,15 @@ fn test_parallelize_with_merge_commit_child() {
     );
     test_env.jj_cmd_ok(&workspace_path, &["new", "description(3)", "-m", "4"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  90a65779e2ec 4
-    ◉  9f5b59fa4622 3
-    │ ◉  a01c1fad8506 2a-c
+    @  90a65779e2ec 4 parents: 3
+    ◉  9f5b59fa4622 3 parents: 2
+    │ ◉  a01c1fad8506 2a-c parents: 2 a
     ╭─┤
-    │ ◉  1eb902150bb9 a
-    ◉ │  d826910d21fb 2
-    ◉ │  dc0e5d6135ce 1
+    │ ◉  1eb902150bb9 a parents:
+    ◉ │  d826910d21fb 2 parents: 1
+    ◉ │  dc0e5d6135ce 1 parents:
     ├─╯
-    ◉  000000000000
+    ◉  000000000000 parents:
     "###);
 
     // After this finishes, child-2a will have three parents: "1", "2", and "a".
@@ -210,18 +210,18 @@ fn test_parallelize_with_merge_commit_child() {
         &["parallelize", "description(1)::description(3)"],
     );
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @      6107429ab54b 4
+    @      6107429ab54b 4 parents: 1 2 3
     ├─┬─╮
-    │ │ ◉  a9334ecaa379 3
-    │ │ │ ◉  a386386b94bc 2a-c
+    │ │ ◉  a9334ecaa379 3 parents:
+    │ │ │ ◉  a386386b94bc 2a-c parents: 1 2 a
     ╭─┬───┤
-    │ │ │ ◉  1eb902150bb9 a
+    │ │ │ ◉  1eb902150bb9 a parents:
     │ │ ├─╯
-    │ ◉ │  3a7b37ebe843 2
+    │ ◉ │  3a7b37ebe843 2 parents:
     │ ├─╯
-    ◉ │  dc0e5d6135ce 1
+    ◉ │  dc0e5d6135ce 1 parents:
     ├─╯
-    ◉  000000000000
+    ◉  000000000000 parents:
     "###);
 }
 
@@ -236,10 +236,10 @@ fn test_parallelize_failure_disconnected_target_commits() {
     }
     test_env.jj_cmd_ok(&workspace_path, &["describe", "-m=3"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  9f5b59fa4622 3
-    ◉  d826910d21fb 2
-    ◉  dc0e5d6135ce 1
-    ◉  000000000000
+    @  9f5b59fa4622 3 parents: 2
+    ◉  d826910d21fb 2 parents: 1
+    ◉  dc0e5d6135ce 1 parents:
+    ◉  000000000000 parents:
     "###);
 
     insta::assert_snapshot!(test_env.jj_cmd_failure(
@@ -264,15 +264,15 @@ fn test_parallelize_head_is_a_merge() {
         &["new", "description(2)", "description(b)", "-m=merged-head"],
     );
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @    f2087b66e475 merged-head
+    @    f2087b66e475 merged-head parents: 2 b
     ├─╮
-    │ ◉  5164ab888473 b
-    │ ◉  f16fe8ac5ce9 a
-    ◉ │  fe79412860e8 2
-    ◉ │  a915696cf0ad 1
-    ◉ │  a56846756248 0
+    │ ◉  5164ab888473 b parents: a
+    │ ◉  f16fe8ac5ce9 a parents:
+    ◉ │  fe79412860e8 2 parents: 1
+    ◉ │  a915696cf0ad 1 parents: 0
+    ◉ │  a56846756248 0 parents:
     ├─╯
-    ◉  000000000000
+    ◉  000000000000 parents:
     "###);
 
     insta::assert_snapshot!(test_env.jj_cmd_failure(&workspace_path,&["parallelize", "description(1)::"]),
@@ -295,14 +295,14 @@ fn test_parallelize_interior_target_is_a_merge() {
     );
     test_env.jj_cmd_ok(&workspace_path, &["new", "-m=3"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  a6321093e3d3 3
-    ◉    705c32f67ce1 2
+    @  a6321093e3d3 3 parents: 2
+    ◉    705c32f67ce1 2 parents: 1 a
     ├─╮
-    │ ◉  427890ea3f2b a
-    ◉ │  a915696cf0ad 1
-    ◉ │  a56846756248 0
+    │ ◉  427890ea3f2b a parents:
+    ◉ │  a915696cf0ad 1 parents: 0
+    ◉ │  a56846756248 0 parents:
     ├─╯
-    ◉  000000000000
+    ◉  000000000000 parents:
     "###);
 
     insta::assert_snapshot!(test_env.jj_cmd_failure(&workspace_path,&["parallelize", "description(1)::"]),
@@ -325,14 +325,14 @@ fn test_parallelize_root_is_a_merge() {
     test_env.jj_cmd_ok(&workspace_path, &["new", "-m=2"]);
     test_env.jj_cmd_ok(&workspace_path, &["new", "-m=3"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  9f66b50aa1f2 3
-    ◉  dd995ce87f21 2
-    ◉    4b4941342e06 1
+    @  9f66b50aa1f2 3 parents: 2
+    ◉  dd995ce87f21 2 parents: 1
+    ◉    4b4941342e06 1 parents: y x
     ├─╮
-    │ ◉  4035b23c8f72 x
-    ◉ │  f3ec359cf9ff y
+    │ ◉  4035b23c8f72 x parents:
+    ◉ │  f3ec359cf9ff y parents:
     ├─╯
-    ◉  000000000000
+    ◉  000000000000 parents:
     "###);
 
     test_env.jj_cmd_ok(
@@ -340,16 +340,16 @@ fn test_parallelize_root_is_a_merge() {
         &["parallelize", "description(1)::description(2)"],
     );
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @    d6df04b236b0 3
+    @    d6df04b236b0 3 parents: 1 2
     ├─╮
-    │ ◉    38945baf55f4 2
+    │ ◉    38945baf55f4 2 parents: y x
     │ ├─╮
-    ◉ │ │  4b4941342e06 1
+    ◉ │ │  4b4941342e06 1 parents: y x
     ╰─┬─╮
-      │ ◉  4035b23c8f72 x
-      ◉ │  f3ec359cf9ff y
+      │ ◉  4035b23c8f72 x parents:
+      ◉ │  f3ec359cf9ff y parents:
       ├─╯
-      ◉  000000000000
+      ◉  000000000000 parents:
     "###);
 }
 
@@ -362,21 +362,21 @@ fn test_parallelize_multiple_heads() {
     test_env.jj_cmd_ok(&workspace_path, &["describe", "-m=1"]);
     test_env.jj_cmd_ok(&workspace_path, &["new", "description(0)", "-m=2"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  8314addde180 2
-    │ ◉  a915696cf0ad 1
+    @  8314addde180 2 parents: 0
+    │ ◉  a915696cf0ad 1 parents: 0
     ├─╯
-    ◉  a56846756248 0
-    ◉  000000000000
+    ◉  a56846756248 0 parents:
+    ◉  000000000000 parents:
     "###);
 
     test_env.jj_cmd_ok(&workspace_path, &["parallelize", "description(0)::"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  e84481c26195 2
-    │ ◉  2047527ade93 1
+    @  e84481c26195 2 parents:
+    │ ◉  2047527ade93 1 parents:
     ├─╯
-    │ ◉  a56846756248 0
+    │ ◉  a56846756248 0 parents:
     ├─╯
-    ◉  000000000000
+    ◉  000000000000 parents:
     "###);
 }
 
@@ -392,11 +392,11 @@ fn test_parallelize_multiple_heads_with_and_without_children() {
     test_env.jj_cmd_ok(&workspace_path, &["describe", "-m=1"]);
     test_env.jj_cmd_ok(&workspace_path, &["new", "description(0)", "-m=2"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  8314addde180 2
-    │ ◉  a915696cf0ad 1
+    @  8314addde180 2 parents: 0
+    │ ◉  a915696cf0ad 1 parents: 0
     ├─╯
-    ◉  a56846756248 0
-    ◉  000000000000
+    ◉  a56846756248 0 parents:
+    ◉  000000000000 parents:
     "###);
 
     test_env.jj_cmd_ok(
@@ -404,11 +404,11 @@ fn test_parallelize_multiple_heads_with_and_without_children() {
         &["parallelize", "description(0)", "description(1)"],
     );
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    ◉  2047527ade93 1
-    │ @  8314addde180 2
-    │ ◉  a56846756248 0
+    ◉  2047527ade93 1 parents:
+    │ @  8314addde180 2 parents: 0
+    │ ◉  a56846756248 0 parents:
     ├─╯
-    ◉  000000000000
+    ◉  000000000000 parents:
     "###);
 }
 
@@ -425,26 +425,26 @@ fn test_parallelize_multiple_roots() {
     );
     test_env.jj_cmd_ok(&workspace_path, &["new", "-m=3"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  299099c22761 3
-    ◉    0c4da981fc0a 2
+    @  299099c22761 3 parents: 2
+    ◉    0c4da981fc0a 2 parents: 1 a
     ├─╮
-    │ ◉  6d37472c632c a
-    ◉ │  dc0e5d6135ce 1
+    │ ◉  6d37472c632c a parents:
+    ◉ │  dc0e5d6135ce 1 parents:
     ├─╯
-    ◉  000000000000
+    ◉  000000000000 parents:
     "###);
 
     // Succeeds because the roots have the same parents.
     test_env.jj_cmd_ok(&workspace_path, &["parallelize", "root().."]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  3c90598481cd 3
-    │ ◉  b96aa55582e5 2
+    @  3c90598481cd 3 parents:
+    │ ◉  b96aa55582e5 2 parents:
     ├─╯
-    │ ◉  6d37472c632c a
+    │ ◉  6d37472c632c a parents:
     ├─╯
-    │ ◉  dc0e5d6135ce 1
+    │ ◉  dc0e5d6135ce 1 parents:
     ├─╯
-    ◉  000000000000
+    ◉  000000000000 parents:
     "###);
 }
 
@@ -461,15 +461,15 @@ fn test_parallelize_failure_multiple_heads_with_different_children() {
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=b"]);
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=c"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  9b5fa4b364d4
-    ◉  7b095ae9b21f c
-    ◉  5164ab888473 b
-    ◉  f16fe8ac5ce9 a
-    │ ◉  9f5b59fa4622 3
-    │ ◉  d826910d21fb 2
-    │ ◉  dc0e5d6135ce 1
+    @  9b5fa4b364d4 parents: c
+    ◉  7b095ae9b21f c parents: b
+    ◉  5164ab888473 b parents: a
+    ◉  f16fe8ac5ce9 a parents:
+    │ ◉  9f5b59fa4622 3 parents: 2
+    │ ◉  d826910d21fb 2 parents: 1
+    │ ◉  dc0e5d6135ce 1 parents:
     ├─╯
-    ◉  000000000000
+    ◉  000000000000 parents:
     "###);
 
     insta::assert_snapshot!(
@@ -500,14 +500,14 @@ fn test_parallelize_failure_multiple_roots_with_different_parents() {
         &["new", "description(2)", "description(b)", "-m=merged-head"],
     );
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @    1a8db14a8cf0 merged-head
+    @    1a8db14a8cf0 merged-head parents: 2 b
     ├─╮
-    │ ◉  401e43e9461f b
-    │ ◉  66ea2ab19a70 a
-    ◉ │  d826910d21fb 2
-    ◉ │  dc0e5d6135ce 1
+    │ ◉  401e43e9461f b parents: a
+    │ ◉  66ea2ab19a70 a parents:
+    ◉ │  d826910d21fb 2 parents: 1
+    ◉ │  dc0e5d6135ce 1 parents:
     ├─╯
-    ◉  000000000000
+    ◉  000000000000 parents:
     "###);
 
     insta::assert_snapshot!(
@@ -532,7 +532,7 @@ fn test_parallelize_complex_nonlinear_target() {
     test_env.jj_cmd_ok(&workspace_path, &["new", "-m=1c", "description(1)"]);
     test_env.jj_cmd_ok(&workspace_path, &["new", "-m=2c", "description(2)"]);
     test_env.jj_cmd_ok(&workspace_path, &["new", "-m=3c", "description(3)"]);
-    insta::assert_snapshot!(get_log_output_with_parents(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @  b043eb81416c 3c parents: 3
     │ ◉    48277ee9afe0 4 parents: 3 2 1
     ╭─┼─╮
@@ -558,7 +558,7 @@ fn test_parallelize_complex_nonlinear_target() {
     Parent commit      : rlvkpnrz 745bea80 (empty) 0
     Parent commit      : mzvwutvl cb944786 (empty) 3
     "###);
-    insta::assert_snapshot!(get_log_output_with_parents(&test_env, &workspace_path), @r###"
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @    59a216e537c4 3c parents: 0 3
     ├─╮
     │ ◉  cb9447869bf0 3 parents:
@@ -578,7 +578,7 @@ fn test_parallelize_complex_nonlinear_target() {
     "###)
 }
 
-fn get_log_output_with_parents(test_env: &TestEnvironment, cwd: &Path) -> String {
+fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"
     separate(" ",
         commit_id.short(),
@@ -586,10 +586,5 @@ fn get_log_output_with_parents(test_env: &TestEnvironment, cwd: &Path) -> String
         "parents:",
         parents.map(|c|c.description().first_line())
     )"#;
-    test_env.jj_cmd_success(cwd, &["log", "-T", template])
-}
-
-fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
-    let template = r#"separate(" ", commit_id.short(), local_branches, description)"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }
