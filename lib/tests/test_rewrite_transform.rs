@@ -82,3 +82,46 @@ fn test_transform_descendants_sync() {
     assert_eq!(new_commit_e.parent_ids(), vec![new_commit_d.id().clone()]);
     assert_eq!(new_commit_f.parent_ids(), vec![new_commit_b.id().clone()]);
 }
+
+// Transform just commit C replacing parent A by parent B. The parents should be
+// deduplicated.
+//
+//   C
+//  /|
+// B |
+// |/
+// A
+#[test]
+fn test_transform_descendants_sync_linearize_merge() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut graph_builder = CommitGraphBuilder::new(&settings, tx.mut_repo());
+    let commit_a = graph_builder.initial_commit();
+    let commit_b = graph_builder.commit_with_parents(&[&commit_a]);
+    let commit_c = graph_builder.commit_with_parents(&[&commit_a, &commit_b]);
+
+    let mut rebased = HashMap::new();
+    tx.mut_repo()
+        .transform_descendants(&settings, vec![commit_c.id().clone()], |mut rewriter| {
+            rewriter.replace_parent(commit_a.id(), &[commit_b.id().clone()]);
+            let old_commit_id = rewriter.old_commit().id().clone();
+            let new_commit = rewriter.rebase(&settings)?.write()?;
+            rebased.insert(old_commit_id, new_commit);
+            Ok(())
+        })
+        .unwrap();
+    assert_eq!(rebased.len(), 1);
+    let new_commit_c = rebased.get(commit_c.id()).unwrap();
+
+    assert_eq!(
+        *tx.mut_repo().view().heads(),
+        hashset! {
+            new_commit_c.id().clone(),
+        }
+    );
+
+    assert_eq!(new_commit_c.parent_ids(), vec![commit_b.id().clone()]);
+}
