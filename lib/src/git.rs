@@ -1283,7 +1283,7 @@ pub fn push_updates(
             refspecs.push(format!(
                 "{}{}:{}",
                 (if update.force { "+" } else { "" }),
-                git2::Oid::from_bytes(new_target.as_bytes()).unwrap(),
+                new_target.hex(),
                 update.qualified_name
             ));
         } else {
