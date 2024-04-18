@@ -196,7 +196,7 @@ coalesce(
     ),
     coalesce(
       if(current_working_copy, "@"),
-      if(immutable, "#"),
+      if(immutable, "+"),
       if(conflict, "x"),
       "o",
     )
