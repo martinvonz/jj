@@ -7,7 +7,7 @@ Branches are named pointers to revisions (just like they are in Git). You can
 move them without affecting the target revision's identity. Branches
 automatically move when revisions are rewritten (e.g. by `jj rebase`). You can
 pass a branch's name to commands that want a revision as argument. For example,
-`jj co main` will check out the revision pointed to by the "main" branch. Use
+`jj new main` will create a new revision on top of the "main" branch. Use
 `jj branch list` to list branches and `jj branch` to create, move, or delete
 branches. There is currently no concept of an active/current/checked-out branch.
 
@@ -159,7 +159,7 @@ include information about the conflicted branches (and instructions for how to
 mitigate it). `jj branch list` will have details. `jj log` will show the branch
 name with a question mark suffix (e.g. `main?`) on each of the conflicted
 branch's potential target revisions. Using the branch name to look up a revision
-will resolve to all potential targets. That means that `jj co main` will error
+will resolve to all potential targets. That means that `jj new main` will error
 out, complaining that the revset resolved to multiple revisions.
 
 Both local branches (e.g. `main`) and the remote branch (e.g. `main@origin`) can
