@@ -1454,7 +1454,7 @@
 move them without affecting the target revision's identity. Branches
 automatically move when revisions are rewritten (e.g. by <code>jj rebase</code>). You can
 pass a branch's name to commands that want a revision as argument. For example,
-<code>jj co main</code> will check out the revision pointed to by the "main" branch. Use
+<code>jj new main</code> will create a new revision on top of the "main" branch. Use
 <code>jj branch list</code> to list branches and <code>jj branch</code> to create, move, or delete
 branches. There is currently no concept of an active/current/checked-out branch.</p>
 <h2 id="remotes-and-tracked-branches">Remotes and tracked branches<a class="headerlink" href="#remotes-and-tracked-branches" title="Permanent link">&para;</a></h2>
@@ -1577,7 +1577,7 @@ include information about the conflicted branches (and instructions for how to
 mitigate it). <code>jj branch list</code> will have details. <code>jj log</code> will show the branch
 name with a question mark suffix (e.g. <code>main?</code>) on each of the conflicted
 branch's potential target revisions. Using the branch name to look up a revision
-will resolve to all potential targets. That means that <code>jj co main</code> will error
+will resolve to all potential targets. That means that <code>jj new main</code> will error
 out, complaining that the revset resolved to multiple revisions.</p>
 <p>Both local branches (e.g. <code>main</code>) and the remote branch (e.g. <code>main@origin</code>) can
 have conflicts. Both can end up in that state if concurrent operations were run
