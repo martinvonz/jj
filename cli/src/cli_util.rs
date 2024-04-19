@@ -1504,6 +1504,7 @@ jj git init --colocate",
             err @ SignInitError::UnknownBackend(_),
         )) => user_error(err),
         WorkspaceLoadError::StoreLoadError(err) => internal_error(err),
+        WorkspaceLoadError::WorkingCopyState(err) => internal_error(err),
         WorkspaceLoadError::NonUnicodePath | WorkspaceLoadError::Path(_) => user_error(err),
     }
 }
