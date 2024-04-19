@@ -72,6 +72,8 @@ pub enum WorkspaceLoadError {
     #[error("Repo path could not be interpreted as Unicode text")]
     NonUnicodePath,
     #[error(transparent)]
+    WorkingCopyState(#[from] WorkingCopyStateError),
+    #[error(transparent)]
     Path(#[from] PathError),
 }
 
@@ -503,13 +505,14 @@ impl WorkspaceLoader {
         &self,
         store: &Arc<Store>,
         working_copy_factories: &WorkingCopyFactories,
-    ) -> Result<Box<dyn WorkingCopy>, StoreLoadError> {
+    ) -> Result<Box<dyn WorkingCopy>, WorkspaceLoadError> {
         let working_copy_factory = self.get_working_copy_factory(working_copy_factories)?;
-        Ok(working_copy_factory.load_working_copy(
+        let working_copy = working_copy_factory.load_working_copy(
             store.clone(),
             self.workspace_root.to_owned(),
             self.working_copy_state_path.to_owned(),
-        ))
+        )?;
+        Ok(working_copy)
     }
 }
 

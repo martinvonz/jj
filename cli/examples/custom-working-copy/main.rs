@@ -191,12 +191,12 @@ impl WorkingCopyFactory for ConflictsWorkingCopyFactory {
         store: Arc<Store>,
         working_copy_path: PathBuf,
         state_path: PathBuf,
-    ) -> Box<dyn WorkingCopy> {
-        Box::new(ConflictsWorkingCopy::load(
+    ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError> {
+        Ok(Box::new(ConflictsWorkingCopy::load(
             store,
             working_copy_path,
             state_path,
-        ))
+        )))
     }
 }
 

@@ -81,7 +81,7 @@ pub trait WorkingCopyFactory {
         store: Arc<Store>,
         working_copy_path: PathBuf,
         state_path: PathBuf,
-    ) -> Box<dyn WorkingCopy>;
+    ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError>;
 }
 
 /// A working copy that's being modified.

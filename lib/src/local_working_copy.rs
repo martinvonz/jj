@@ -1706,8 +1706,12 @@ impl WorkingCopyFactory for LocalWorkingCopyFactory {
         store: Arc<Store>,
         working_copy_path: PathBuf,
         state_path: PathBuf,
-    ) -> Box<dyn WorkingCopy> {
-        Box::new(LocalWorkingCopy::load(store, working_copy_path, state_path))
+    ) -> Result<Box<dyn WorkingCopy>, WorkingCopyStateError> {
+        Ok(Box::new(LocalWorkingCopy::load(
+            store,
+            working_copy_path,
+            state_path,
+        )))
     }
 }
 
