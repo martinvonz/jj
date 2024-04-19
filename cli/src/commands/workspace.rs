@@ -19,6 +19,7 @@ use std::sync::Arc;
 
 use clap::Subcommand;
 use itertools::Itertools;
+use jj_lib::commit::CommitIteratorExt;
 use jj_lib::file_util;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::{OpStoreError, WorkspaceId};
@@ -209,7 +210,7 @@ fn cmd_workspace_add(
     };
 
     let tree = merge_commit_trees(tx.repo(), &parents)?;
-    let parent_ids = parents.iter().map(|c| c.id().clone()).collect_vec();
+    let parent_ids = parents.iter().ids().cloned().collect_vec();
     let new_wc_commit = tx
         .mut_repo()
         .new_commit(command.settings(), parent_ids, tree.id())

@@ -98,7 +98,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         .resolve_some_revsets_default_single(&args.revisions)?
         .into_iter()
         .collect_vec();
-    let target_ids = target_commits.iter().map(|c| c.id().clone()).collect_vec();
+    let target_ids = target_commits.iter().ids().cloned().collect_vec();
     let mut tx = workspace_command.start_transaction();
     let mut num_rebased;
     let new_commit;
@@ -128,10 +128,10 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             .commits(tx.repo().store())
             .try_collect()?;
         let merged_tree = merge_commit_trees(tx.repo(), &new_parents_commits)?;
-        let new_parents_commit_id = new_parents_commits.iter().map(|c| c.id().clone()).collect();
+        let new_parents_commit_ids = new_parents_commits.iter().ids().cloned().collect();
         new_commit = tx
             .mut_repo()
-            .new_commit(command.settings(), new_parents_commit_id, merged_tree.id())
+            .new_commit(command.settings(), new_parents_commit_ids, merged_tree.id())
             .set_description(join_message_paragraphs(&args.message_paragraphs))
             .write()?;
         num_rebased = target_ids.len();

@@ -387,11 +387,7 @@ fn rebase_revision(
             .iter()
             .flat_map(|c| {
                 if c == &old_commit {
-                    old_commit
-                        .parents()
-                        .iter()
-                        .map(|c| c.id().clone())
-                        .collect()
+                    old_commit.parent_ids().to_vec()
                 } else {
                     [c.id().clone()].to_vec()
                 }
