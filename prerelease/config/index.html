@@ -1099,6 +1099,30 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#snapshot-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Snapshot settings
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Snapshot settings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#maximum-size-for-new-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Maximum size for new files
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ways-to-specify-jj-config-details" class="md-nav__link">
     <span class="md-ellipsis">
       Ways to specify jj config: details
@@ -2121,6 +2145,30 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#snapshot-settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      Snapshot settings
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Snapshot settings">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#maximum-size-for-new-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      Maximum size for new files
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#ways-to-specify-jj-config-details" class="md-nav__link">
     <span class="md-ellipsis">
       Ways to specify jj config: details
@@ -2675,6 +2723,21 @@ snapshots without having to rescan the entire working copy.</p>
 executable on your system</a>.</p>
 <p>You can check whether Watchman is enabled and whether it is installed correctly
 using <code>jj debug watchman status</code>.</p>
+<h2 id="snapshot-settings">Snapshot settings<a class="headerlink" href="#snapshot-settings" title="Permanent link">&para;</a></h2>
+<h3 id="maximum-size-for-new-files">Maximum size for new files<a class="headerlink" href="#maximum-size-for-new-files" title="Permanent link">&para;</a></h3>
+<p>By default, as an anti-footgun measure, <code>jj</code> will refuse to add new files to the
+snapshot that are larger than a certain size; the default is 1MiB. This can be
+changed by setting <code>snapshot.max-new-file-size</code> to a different value. For
+example:</p>
+<div class="highlight"><pre><span></span><code><span class="n">snapshot</span><span class="p">.</span><span class="n">max-new-file-size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;10MiB&quot;</span>
+<span class="c1"># the following is equivalent</span>
+<span class="n">snapshot</span><span class="p">.</span><span class="n">max-new-file-size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10485760</span>
+</code></pre></div>
+<p>The value can be specified using a human readable string with typical suffixes;
+<code>B</code>, <code>MiB</code>, <code>GB</code>, etc. By default, if no suffix is provided, or the value is a
+raw integer literal, the value is interpreted as if it were specified in bytes.</p>
+<p>Files that already exist in the working copy are not subject to this limit.</p>
+<p>Setting this value to zero will disable the limit entirely.</p>
 <h2 id="ways-to-specify-jj-config-details">Ways to specify <code>jj</code> config: details<a class="headerlink" href="#ways-to-specify-jj-config-details" title="Permanent link">&para;</a></h2>
 <h3 id="user-config-file">User config file<a class="headerlink" href="#user-config-file" title="Permanent link">&para;</a></h3>
 <p>An easy way to find the user config file is:</p>
