@@ -15,7 +15,7 @@
 use std::collections::HashSet;
 use std::process::Command;
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 
 use jj_lib::backend::CommitId;
 use jj_lib::git_backend::GitBackend;
@@ -126,9 +126,12 @@ fn test_gc() {
         },
     );
 
+    // Don't rely on the exact system time because file modification time might
+    // have lower precision for example.
+    let now = || SystemTime::now() + Duration::from_secs(1);
+
     // All reachable: redundant no-gc refs will be removed
-    let now = SystemTime::now();
-    repo.store().gc(repo.index(), now).unwrap();
+    repo.store().gc(repo.index(), now()).unwrap();
     assert_eq!(
         collect_no_gc_refs(&git_repo),
         hashset! {
@@ -147,7 +150,7 @@ fn test_gc() {
     mut_index.add_commit(&commit_e);
     mut_index.add_commit(&commit_f);
     mut_index.add_commit(&commit_h);
-    repo.store().gc(mut_index.as_index(), now).unwrap();
+    repo.store().gc(mut_index.as_index(), now()).unwrap();
     assert_eq!(
         collect_no_gc_refs(&git_repo),
         hashset! {
@@ -163,7 +166,7 @@ fn test_gc() {
     mut_index.add_commit(&commit_b);
     mut_index.add_commit(&commit_c);
     mut_index.add_commit(&commit_f);
-    repo.store().gc(mut_index.as_index(), now).unwrap();
+    repo.store().gc(mut_index.as_index(), now()).unwrap();
     assert_eq!(
         collect_no_gc_refs(&git_repo),
         hashset! {
@@ -175,7 +178,7 @@ fn test_gc() {
     // B|C|F are no longer reachable
     let mut mut_index = base_index.start_modification();
     mut_index.add_commit(&commit_a);
-    repo.store().gc(mut_index.as_index(), now).unwrap();
+    repo.store().gc(mut_index.as_index(), now()).unwrap();
     assert_eq!(
         collect_no_gc_refs(&git_repo),
         hashset! {
@@ -184,6 +187,6 @@ fn test_gc() {
     );
 
     // All unreachable
-    repo.store().gc(base_index.as_index(), now).unwrap();
+    repo.store().gc(base_index.as_index(), now()).unwrap();
     assert_eq!(collect_no_gc_refs(&git_repo), hashset! {});
 }
