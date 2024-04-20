@@ -183,6 +183,11 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             )?;
         }
     }
+
+    tx.base_repo()
+        .store()
+        .set_local_change(new_commit.change_id(), true)?;
+
     num_rebased += tx.mut_repo().rebase_descendants(command.settings())?;
     if args.no_edit {
         if let Some(mut formatter) = ui.status_formatter() {

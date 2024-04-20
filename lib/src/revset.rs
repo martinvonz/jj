@@ -331,6 +331,8 @@ pub enum RevsetFilterPredicate {
     File(FilesetExpression),
     /// Commits with conflicts
     HasConflict,
+    /// Local change
+    Local,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -1358,6 +1360,10 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         let arg = expect_one_argument(name, arguments_pair)?;
         let expression = parse_expression_rule(arg.into_inner(), state)?;
         Ok(Rc::new(RevsetExpression::Present(expression)))
+    });
+    map.insert("local", |name, arguments_pair, _state| {
+        expect_no_arguments(name, arguments_pair)?;
+        Ok(RevsetExpression::filter(RevsetFilterPredicate::Local))
     });
     map
 });

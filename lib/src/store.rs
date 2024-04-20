@@ -15,22 +15,24 @@
 #![allow(missing_docs)]
 
 use std::any::Any;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
-use std::io::Read;
+use std::io::{Read, Write};
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
 
 use pollster::FutureExt;
 
 use crate::backend::{
-    self, Backend, BackendResult, ChangeId, CommitId, ConflictId, FileId, MergedTreeId, SigningFn,
-    SymlinkId, TreeId,
+    self, Backend, BackendError, BackendResult, ChangeId, CommitId, ConflictId, FileId,
+    MergedTreeId, SigningFn, SymlinkId, TreeId,
 };
 use crate::commit::Commit;
 use crate::index::Index;
 use crate::merge::{Merge, MergedTreeValue};
 use crate::merged_tree::MergedTree;
+use crate::object_id::ObjectId;
 use crate::repo_path::{RepoPath, RepoPathBuf};
 use crate::signing::Signer;
 use crate::tree::Tree;
@@ -39,10 +41,14 @@ use crate::tree_builder::TreeBuilder;
 /// Wraps the low-level backend and makes it return more convenient types. Also
 /// adds caching.
 pub struct Store {
+    repo_path: PathBuf,
     backend: Box<dyn Backend>,
     signer: Signer,
     commit_cache: RwLock<HashMap<CommitId, Arc<backend::Commit>>>,
     tree_cache: RwLock<HashMap<(RepoPathBuf, TreeId), Arc<backend::Tree>>>,
+    /// In memory copy of all local change ids, lazy loaded (`None` - not loaded
+    /// yet)
+    local_changes_cache: RwLock<Option<HashSet<ChangeId>>>,
     use_tree_conflict_format: bool,
 }
 
@@ -56,15 +62,18 @@ impl Debug for Store {
 
 impl Store {
     pub fn new(
+        repo_path: PathBuf,
         backend: Box<dyn Backend>,
         signer: Signer,
         use_tree_conflict_format: bool,
     ) -> Arc<Self> {
         Arc::new(Store {
+            repo_path,
             backend,
             signer,
             commit_cache: Default::default(),
             tree_cache: Default::default(),
+            local_changes_cache: Default::default(),
             use_tree_conflict_format,
         })
     }
@@ -116,6 +125,75 @@ impl Store {
 
     pub fn get_commit(self: &Arc<Self>, id: &CommitId) -> BackendResult<Commit> {
         self.get_commit_async(id).block_on()
+    }
+
+    pub fn is_local_change(self: &Arc<Self>, id: &ChangeId) -> BackendResult<bool> {
+        if let Some(cached) = self.local_changes_cache.read().unwrap().as_ref() {
+            return Ok(cached.contains(id));
+        }
+
+        let mut write = self.local_changes_cache.write().unwrap();
+        *write = Some(self.load_local_changes()?);
+        Ok(write.as_ref().unwrap().contains(id))
+    }
+
+    pub fn set_local_change(self: &Arc<Self>, id: &ChangeId, local: bool) -> BackendResult<()> {
+        let mut write = self.local_changes_cache.write().unwrap();
+        if write.is_none() {
+            *write = Some(self.load_local_changes()?);
+        }
+        if local {
+            write.as_mut().unwrap().insert(id.clone());
+        } else {
+            write.as_mut().unwrap().remove(id);
+        }
+
+        self.store_local_changes(write.as_ref().unwrap())?;
+
+        Ok(())
+    }
+
+    fn load_local_changes(self: &Arc<Self>) -> BackendResult<HashSet<ChangeId>> {
+        let path = self.repo_path.join("local_changes.json");
+
+        if !path.exists() {
+            return Ok(Default::default());
+        }
+
+        let locals: HashSet<String> = serde_json::from_reader(
+            &std::fs::File::open(&path).map_err(|e| BackendError::Other(Box::new(e)))?,
+        )
+        .map_err(|e| BackendError::Other(Box::new(e)))?;
+
+        locals
+            .into_iter()
+            .map(|s| ChangeId::try_from_hex(&s).map_err(|e| BackendError::Other(Box::new(e))))
+            .collect()
+    }
+
+    // TODO: move this somewhere else, doesn't need to be on a Backend.
+    // In fact maybe loading and checking can be moved out as well...
+    fn store_local_changes(
+        self: &Arc<Self>,
+        local_changes: &HashSet<ChangeId>,
+    ) -> BackendResult<()> {
+        let path = self.repo_path.join("local_changes.json");
+
+        let local_changes: HashSet<String> = local_changes
+            .iter()
+            .map(|change_id| change_id.hex())
+            .collect();
+        // TODO: write to a tmp file, fsync, rename, fsync
+        let mut file = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(path)
+            .map_err(|e| BackendError::Other(Box::new(e)))?;
+        serde_json::to_writer(&mut file, &local_changes)
+            .map_err(|e| BackendError::Other(Box::new(e)))?;
+        file.flush().map_err(|e| BackendError::Other(Box::new(e)))?;
+        Ok(())
     }
 
     pub async fn get_commit_async(self: &Arc<Self>, id: &CommitId) -> BackendResult<Commit> {
