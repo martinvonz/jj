@@ -316,6 +316,61 @@ fn test_git_push_deletion_unexpectedly_moved() {
 }
 
 #[test]
+fn test_git_push_unexpectedly_deleted() {
+    let (test_env, workspace_root) = set_up();
+
+    // Delete branch1 forward on the remote
+    let origin_path = test_env.env_root().join("origin");
+    test_env.jj_cmd_ok(&origin_path, &["branch", "delete", "branch1"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &origin_path), @r###"
+    branch1 (deleted)
+      @git: qpvuntsm 45a3aa29 (empty) description 1
+    branch2: zsuskuln 8476341e (empty) description 2
+      @git: zsuskuln 8476341e (empty) description 2
+    "###);
+    test_env.jj_cmd_ok(&origin_path, &["git", "export"]);
+
+    // Move branch1 sideways to another commit locally
+    test_env.jj_cmd_ok(&workspace_root, &["new", "root()", "-m=local"]);
+    std::fs::write(workspace_root.join("local"), "local").unwrap();
+    test_env.jj_cmd_ok(
+        &workspace_root,
+        &["branch", "set", "branch1", "--allow-backwards"],
+    );
+    insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
+    branch1: kpqxywon 1ebe27ba local
+      @origin (ahead by 1 commits, behind by 1 commits): lzmmnrxq 45a3aa29 (empty) description 1
+    branch2: rlzusymt 8476341e (empty) description 2
+      @origin: rlzusymt 8476341e (empty) description 2
+    "###);
+
+    // Pushing a moved branch fails if deleted on remote
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Branch changes to push to origin:
+      Force branch branch1 from 45a3aa29e907 to 1ebe27ba04bf
+    Error: Refusing to push a branch that unexpectedly moved on the remote. Affected refs: refs/heads/branch1
+    Hint: Try fetching from the remote, then make the branch point to where you want it to be, and push again.
+    "###);
+
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "delete", "branch1"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
+    branch1 (deleted)
+      @origin: lzmmnrxq 45a3aa29 (empty) description 1
+    branch2: rlzusymt 8476341e (empty) description 2
+      @origin: rlzusymt 8476341e (empty) description 2
+    "###);
+    // Pushing a *deleted* branch succeeds if deleted on remote, even if we expect
+    // branch1@origin to exist and point somewhere.
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-bbranch1"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Branch changes to push to origin:
+      Delete branch branch1 from 45a3aa29e907
+    "###);
+}
+
+#[test]
 fn test_git_push_creation_unexpectedly_already_exists() {
     let (test_env, workspace_root) = set_up();
 
