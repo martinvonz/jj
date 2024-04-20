@@ -124,7 +124,7 @@ new working-copy commit.
             .write()?;
 
         // Does nothing if there's no branches to advance.
-        tx.advance_branches(advanceable_branches, new_commit.id());
+        tx.advance_branches(ui, advanceable_branches, new_commit.id());
 
         for workspace_id in workspace_ids {
             tx.mut_repo().edit(workspace_id, &new_wc_commit).unwrap();
