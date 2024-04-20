@@ -203,15 +203,15 @@ from the source will be moved into the destination.
             tx.format_commit_summary(source),
             tx.format_commit_summary(destination)
         );
-        let new_parent_tree_id =
+        let selected_tree_id =
             diff_selector.select(&parent_tree, &source_tree, matcher, Some(&instructions))?;
-        let new_parent_tree = tx.repo().store().get_root_tree(&new_parent_tree_id)?;
+        let selected_tree = tx.repo().store().get_root_tree(&selected_tree_id)?;
+        let abandon_source = selected_tree.id() == source_tree.id();
         // TODO: Do we want to optimize the case of moving to the parent commit (`jj
         // squash -r`)? The source tree will be unchanged in that case.
 
         // Apply the reverse of the selected changes onto the source
-        let new_source_tree = source_tree.merge(&new_parent_tree, &parent_tree)?;
-        let abandon_source = new_source_tree.id() == parent_tree.id();
+        let new_source_tree = source_tree.merge(&selected_tree, &parent_tree)?;
         if abandon_source {
             abandoned_commits.push(source);
             tx.mut_repo().record_abandoned_commit(source.id().clone());
@@ -221,8 +221,8 @@ from the source will be moved into the destination.
                 .set_tree_id(new_source_tree.id().clone())
                 .write()?;
         }
-        if new_parent_tree_id != parent_tree.id() {
-            tree_diffs.push((parent_tree, new_parent_tree));
+        if selected_tree_id != parent_tree.id() {
+            tree_diffs.push((parent_tree, selected_tree));
         }
     }
     if tree_diffs.is_empty() {
