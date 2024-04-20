@@ -346,8 +346,8 @@ fn test_split_siblings_no_descendants() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["split", "--siblings", "file1"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    First part: qpvuntsm?? 8d2b7558 TESTED=TODO
-    Second part: zsuskuln acd41528 (no description set)
+    First part: qpvuntsm 8d2b7558 TESTED=TODO
+    Second part: zsuskuln acd41528 test_branch | (no description set)
     Working copy now at: zsuskuln acd41528 test_branch | (no description set)
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 0 files, modified 0 files, removed 1 files

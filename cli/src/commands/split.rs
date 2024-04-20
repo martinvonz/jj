@@ -13,18 +13,13 @@
 // limitations under the License.
 use std::io::Write;
 
-use itertools::Itertools;
-use jj_lib::commit::Commit;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
-use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 use jj_lib::rewrite::merge_commit_trees;
-use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
-use crate::cli_util::{CommandHelper, RevisionArg, WorkspaceCommandTransaction};
+use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::CommandError;
-use crate::commands::rebase::rebase_descendants;
 use crate::description_util::{description_template_for_commit, edit_description};
 use crate::ui::Ui;
 
@@ -179,16 +174,24 @@ the operation will be aborted.
     // commit.
     tx.mut_repo()
         .set_rewritten_commit(commit.id().clone(), second_commit.id().clone());
-    let num_rebased = if args.siblings {
-        rebase_children_for_siblings_split(
-            &mut tx,
-            command.settings(),
-            &commit,
-            vec![first_commit.clone(), second_commit.clone()],
-        )?
-    } else {
-        tx.mut_repo().rebase_descendants(command.settings())?
-    };
+    let mut num_rebased = 0;
+    tx.mut_repo().transform_descendants(
+        command.settings(),
+        vec![commit.id().clone()],
+        |mut rewriter| {
+            num_rebased += 1;
+            if args.siblings {
+                rewriter.replace_parent(
+                    second_commit.id(),
+                    &[first_commit.id().clone(), second_commit.id().clone()],
+                );
+            }
+            // We don't need to do anything special for the non-siblings case
+            // since we already marked the original commit as rewritten.
+            rewriter.rebase(command.settings())?.write()?;
+            Ok(())
+        },
+    )?;
 
     if let Some(mut formatter) = ui.status_formatter() {
         if num_rebased > 0 {
@@ -202,37 +205,4 @@ the operation will be aborted.
     }
     tx.finish(ui, format!("split commit {}", commit.id().hex()))?;
     Ok(())
-}
-
-// Rebases the children of `original_commit` by replacing `original_commit` with
-// `new_siblings`. Any parents other than `original_commit` will remain after
-// the rebase.
-fn rebase_children_for_siblings_split(
-    tx: &mut WorkspaceCommandTransaction,
-    settings: &UserSettings,
-    original_commit: &Commit,
-    new_siblings: Vec<Commit>,
-) -> Result<usize, CommandError> {
-    let children: Vec<Commit> = RevsetExpression::commit(original_commit.id().clone())
-        .children()
-        .evaluate_programmatic(tx.base_repo().as_ref())?
-        .iter()
-        .commits(tx.base_repo().store())
-        .try_collect()?;
-    let mut num_rebased = 0;
-    for child in children {
-        let new_parents = child
-            .parents()
-            .into_iter()
-            .flat_map(|c| {
-                if c.id() == original_commit.id() {
-                    new_siblings.clone()
-                } else {
-                    vec![c]
-                }
-            })
-            .collect_vec();
-        num_rebased += rebase_descendants(tx, settings, new_parents, &[child], Default::default())?;
-    }
-    Ok(num_rebased)
 }
