@@ -63,7 +63,7 @@ pub(crate) struct NextArgs {
     /// Instead of creating a new working-copy commit on top of the target
     /// commit (like `jj new`), edit the target commit directly (like `jj
     /// edit`).
-    #[arg(long)]
+    #[arg(long, short)]
     edit: bool,
 }
 
