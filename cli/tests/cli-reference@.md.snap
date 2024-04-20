@@ -1191,7 +1191,7 @@ implied.
 
 ###### **Options:**
 
-* `--edit` — Instead of creating a new working-copy commit on top of the target commit (like `jj new`), edit the target commit directly (like `jj edit`)
+* `-e`, `--edit` — Instead of creating a new working-copy commit on top of the target commit (like `jj new`), edit the target commit directly (like `jj edit`)
 
   Possible values: `true`, `false`
 
@@ -1433,7 +1433,7 @@ implied.
 
 ###### **Options:**
 
-* `--edit` — Edit the parent directly, instead of moving the working-copy commit
+* `-e`, `--edit` — Edit the parent directly, instead of moving the working-copy commit
 
   Possible values: `true`, `false`
 

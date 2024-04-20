@@ -57,7 +57,7 @@ pub(crate) struct PrevArgs {
     #[arg(default_value = "1")]
     offset: u64,
     /// Edit the parent directly, instead of moving the working-copy commit.
-    #[arg(long)]
+    #[arg(long, short)]
     edit: bool,
 }
 
