@@ -286,7 +286,7 @@ fn rebase_branch(
 }
 
 /// Rebases `old_commits` onto `new_parents`.
-pub fn rebase_descendants(
+fn rebase_descendants(
     tx: &mut WorkspaceCommandTransaction,
     settings: &UserSettings,
     new_parents: Vec<Commit>,
