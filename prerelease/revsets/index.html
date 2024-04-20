@@ -802,6 +802,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-all-modifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      The all: modifier
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#examples" class="md-nav__link">
     <span class="md-ellipsis">
       Examples
@@ -1419,6 +1428,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#the-all-modifier" class="md-nav__link">
+    <span class="md-ellipsis">
+      The all: modifier
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#examples" class="md-nav__link">
     <span class="md-ellipsis">
       Examples
@@ -1665,6 +1683,30 @@ always resolves to exactly one commit. For example:</p>
   <a href="../config/#set-of-immutable-commits">here</a> for details.</p>
 </li>
 </ul>
+<h2 id="the-all-modifier">The <code>all:</code> modifier<a class="headerlink" href="#the-all-modifier" title="Permanent link">&para;</a></h2>
+<p>Certain commands (such as <code>jj rebase</code>) can take multiple revset arguments, and
+each of these may resolve to one-or-many revisions. By default, <code>jj</code> will not
+allow revsets that resolve to more than one revision &mdash; a so-called "large
+revset" &mdash; and will ask you to confirm that you want to proceed by
+prefixing it with the <code>all:</code> modifier.</p>
+<p>If you set the <code>ui.always-allow-large-revsets</code> option to <code>true</code>, <code>jj</code> will
+behave as though the <code>all:</code> modifier was used every time it would matter.</p>
+<p>An <code>all:</code> modifier before a revset expression does not otherwise change its
+meaning. Strictly speaking, it is not part of the revset language. The notation
+is similar to the modifiers like <code>glob:</code> allowed before <a href="#string-patterns">string
+patterms</a>.</p>
+<p>For example, <code>jj rebase -r w -d xyz+</code> will rebase <code>w</code> on top of the child of
+<code>xyz</code> as long as <code>xyz</code> has exactly one child.</p>
+<p>If <code>xyz</code> has more than one child, the <code>all:</code> modifier is <em>not</em> specified, and
+<code>ui.always-allow-large-revsets</code> is <code>false</code> (the default), <code>jj rebase -r w -d
+xyz+</code> will return an error.</p>
+<p>If <code>ui.always-allow-large-revsets</code> was <code>true</code>, the above command would act as if
+<code>all:</code> was set (see the next paragraph).</p>
+<p>With the <code>all:</code> modifier, <code>jj rebase -r w -d all:xyz+</code> will make <code>w</code> into a merge
+commit if <code>xyz</code> has more than one child. The <code>all:</code> modifier confirms that the
+user expected <code>xyz</code> to have more than one child.</p>
+<p>A more useful example: if <code>w</code> is a merge commit, <code>jj rebase -s w -d all:w- -d
+xyz</code> will add <code>xyz</code> to the list of <code>w</code>'s parents.</p>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <p>Show the parent(s) of the working-copy commit (like <code>git log -1 HEAD</code>):</p>
 <div class="highlight"><pre><span></span><code>jj log -r @-
