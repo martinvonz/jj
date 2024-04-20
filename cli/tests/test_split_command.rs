@@ -173,7 +173,14 @@ fn test_split_with_non_empty_description() {
         .join("\0"),
     )
     .unwrap();
-    test_env.jj_cmd_ok(&workspace_path, &["split", "file1"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["split", "file1"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    First part: qpvuntsm 41e04d04 part 1
+    Second part: kkmpptxz 093b6c0d part 2
+    Working copy now at: kkmpptxz 093b6c0d part 2
+    Parent commit      : qpvuntsm 41e04d04 part 1
+    "###);
 
     assert_eq!(
         std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(),
@@ -224,7 +231,14 @@ fn test_split_with_default_description() {
         ["dump editor1", "next invocation\n", "dump editor2"].join("\0"),
     )
     .unwrap();
-    test_env.jj_cmd_ok(&workspace_path, &["split", "file1"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["split", "file1"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    First part: qpvuntsm 5afe936c TESTED=TODO
+    Second part: kkmpptxz 0e09a2df test_branch | (no description set)
+    Working copy now at: kkmpptxz 0e09a2df test_branch | (no description set)
+    Parent commit      : qpvuntsm 5afe936c TESTED=TODO
+    "###);
 
     // Since the commit being split has no description, the user will only be
     // prompted to add a description to the first commit, which will use the
@@ -281,7 +295,17 @@ fn test_split_with_merge_child() {
         ["write\nAdd file1", "next invocation\n", "write\nAdd file2"].join("\0"),
     )
     .unwrap();
-    test_env.jj_cmd_ok(&workspace_path, &["split", "-r", "description(a)", "file1"]);
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&workspace_path, &["split", "-r", "description(a)", "file1"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 1 descendant commits
+    First part: kkmpptxz e8006b47 Add file1
+    Second part: royxmykx 5e1b793d Add file2
+    Working copy now at: zsuskuln 0315e471 (empty) 2
+    Parent commit      : qpvuntsm dc0e5d61 (empty) 1
+    Parent commit      : royxmykx 5e1b793d Add file2
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @    zsuskulnrvyr true 2
     ├─╮
@@ -319,7 +343,21 @@ fn test_split_siblings_no_descendants() {
         ["dump editor1", "next invocation\n", "dump editor2"].join("\0"),
     )
     .unwrap();
-    test_env.jj_cmd_ok(&workspace_path, &["split", "--siblings", "file1"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["split", "--siblings", "file1"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    First part: qpvuntsm?? 8d2b7558 TESTED=TODO
+    Second part: zsuskuln acd41528 (no description set)
+    Working copy now at: zsuskuln acd41528 test_branch | (no description set)
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    Added 0 files, modified 0 files, removed 1 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    @  zsuskulnrvyr false test_branch
+    │ ◉  qpvuntsmwlqt false TESTED=TODO
+    ├─╯
+    ◉  zzzzzzzzzzzz true
+    "###);
 
     // Since the commit being split has no description, the user will only be
     // prompted to add a description to the first commit, which will use the
@@ -338,12 +376,6 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
 "#
     );
     assert!(!test_env.env_root().join("editor2").exists());
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    @  zsuskulnrvyr false test_branch
-    │ ◉  qpvuntsmwlqt false TESTED=TODO
-    ├─╯
-    ◉  zzzzzzzzzzzz true
-    "###);
 }
 
 #[test]
@@ -368,6 +400,12 @@ fn test_split_siblings_with_descendants() {
     // to the split command.
     test_env.jj_cmd_ok(&workspace_path, &["prev", "--edit"]);
     test_env.jj_cmd_ok(&workspace_path, &["prev", "--edit"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    ◉  kkmpptxzrspx false Add file4
+    ◉  rlvkpnrzqnoo false Add file3
+    @  qpvuntsmwlqt false Add file1 & file2
+    ◉  zzzzzzzzzzzz true
+    "###);
 
     // Set up the editor and do the split.
     let edit_script = test_env.set_up_fake_editor();
@@ -383,7 +421,25 @@ fn test_split_siblings_with_descendants() {
         .join("\0"),
     )
     .unwrap();
-    test_env.jj_cmd_ok(&workspace_path, &["split", "--siblings", "file1"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["split", "--siblings", "file1"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 2 descendant commits
+    First part: qpvuntsm 27b151c3 Add file1
+    Second part: vruxwmqv c0857cfb Add file2
+    Working copy now at: vruxwmqv c0857cfb Add file2
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    Added 0 files, modified 0 files, removed 1 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
+    ◉  kkmpptxzrspx false Add file4
+    ◉    rlvkpnrzqnoo false Add file3
+    ├─╮
+    │ @  vruxwmqvtpmx false Add file2
+    ◉ │  qpvuntsmwlqt false Add file1
+    ├─╯
+    ◉  zzzzzzzzzzzz true
+    "###);
 
     // The commit we're splitting has a description, so the user will be
     // prompted to enter a description for each of the sibling commits.
@@ -409,16 +465,6 @@ JJ:     A file2
 JJ: Lines starting with "JJ: " (like this one) will be removed.
 "#
     );
-
-    insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    ◉  kkmpptxzrspx false Add file4
-    ◉    rlvkpnrzqnoo false Add file3
-    ├─╮
-    │ @  yqosqzytrlsw false Add file2
-    ◉ │  qpvuntsmwlqt false Add file1
-    ├─╯
-    ◉  zzzzzzzzzzzz true
-    "###);
 }
 
 // This test makes sure that the children of the commit being split retain any
@@ -452,10 +498,20 @@ fn test_split_siblings_with_merge_child() {
         ["write\nAdd file1", "next invocation\n", "write\nAdd file2"].join("\0"),
     )
     .unwrap();
-    test_env.jj_cmd_ok(
+    let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_path,
         &["split", "-r", "description(a)", "--siblings", "file1"],
     );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 1 descendant commits
+    First part: kkmpptxz e8006b47 Add file1
+    Second part: royxmykx 2cc60f3d Add file2
+    Working copy now at: zsuskuln 2f04d1d1 (empty) 2
+    Parent commit      : qpvuntsm dc0e5d61 (empty) 1
+    Parent commit      : kkmpptxz e8006b47 Add file1
+    Parent commit      : royxmykx 2cc60f3d Add file2
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @      zsuskulnrvyr true 2
     ├─┬─╮
