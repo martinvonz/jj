@@ -43,18 +43,33 @@ fn set_advance_branches(test_env: &TestEnvironment, enabled: bool) {
 
 // Runs a command in the specified test environment and workspace path that
 // describes the current commit with `commit_message` and creates a new commit
-// on top of it.
-type CommitFn = fn(env: &TestEnvironment, workspace_path: &Path, commit_message: &str);
+// on top of it. Returns the stdout and stderr of the command the creates the
+// commit.
+type CommitFn =
+    fn(env: &TestEnvironment, workspace_path: &Path, commit_message: &str) -> (String, String);
+
+enum CommitFnType {
+    Commit,
+    DescribeNew,
+}
 
 // Implements CommitFn using the `jj commit` command.
-fn commit_cmd(env: &TestEnvironment, workspace_path: &Path, commit_message: &str) {
-    env.jj_cmd_ok(workspace_path, &["commit", "-m", commit_message]);
+fn commit_cmd(
+    env: &TestEnvironment,
+    workspace_path: &Path,
+    commit_message: &str,
+) -> (String, String) {
+    env.jj_cmd_ok(workspace_path, &["commit", "-m", commit_message])
 }
 
 // Implements CommitFn using the `jj describe` and `jj new`.
-fn describe_new_cmd(env: &TestEnvironment, workspace_path: &Path, commit_message: &str) {
+fn describe_new_cmd(
+    env: &TestEnvironment,
+    workspace_path: &Path,
+    commit_message: &str,
+) -> (String, String) {
     env.jj_cmd_ok(workspace_path, &["describe", "-m", commit_message]);
-    env.jj_cmd_ok(workspace_path, &["new"]);
+    env.jj_cmd_ok(workspace_path, &["new"])
 }
 
 // Check that enabling and disabling advance-branches works as expected.
@@ -128,19 +143,6 @@ fn test_advance_branches_at_minus(make_commit: CommitFn) {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
     ◉  branches{test_branch} desc: first
-    ◉  branches{} desc:
-    "###);
-    }
-
-    // Create a second branch pointing to @. On the next commit, only the first
-    // branch, which points to @-, will advance.
-    test_env.jj_cmd_ok(&workspace_path, &["branch", "create", "test_branch2"]);
-    make_commit(&test_env, &workspace_path, "second");
-    insta::allow_duplicates! {
-    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    @  branches{} desc:
-    ◉  branches{test_branch test_branch2} desc: second
-    ◉  branches{} desc: first
     ◉  branches{} desc:
     "###);
     }
@@ -291,6 +293,57 @@ fn test_advance_branches_multiple_branches(make_commit: CommitFn) {
     @  branches{} desc:
     ◉  branches{first_branch second_branch} desc: first
     ◉  branches{} desc:
+    "###);
+    }
+}
+
+// Branches will not be advanced to a target commit that already has a branch.
+#[test_case(commit_cmd, CommitFnType::Commit; "commit")]
+#[test_case(describe_new_cmd, CommitFnType::DescribeNew; "new")]
+fn test_advance_branches_no_branch_on_target(make_commit: CommitFn, cmd_type: CommitFnType) {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let workspace_path = test_env.env_root().join("repo");
+
+    set_advance_branches(&test_env, true);
+    test_env.jj_cmd_ok(&workspace_path, &["branch", "create", "-r", "@-", "b1"]);
+    test_env.jj_cmd_ok(&workspace_path, &["branch", "create", "-r", "@", "b2"]);
+
+    insta::allow_duplicates! {
+    // Check the initial state of the repo.
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    @  branches{b2} desc:
+    ◉  branches{b1} desc:
+    "###);
+    }
+
+    // Both branches are eligible and both will advance.
+    let (stdout, stderr) = make_commit(&test_env, &workspace_path, "first");
+    insta::allow_duplicates! {
+    insta::assert_snapshot!(stdout, @"");
+    }
+    match cmd_type {
+        CommitFnType::Commit => {
+            insta::allow_duplicates! {
+            insta::assert_snapshot!(stderr, @r###"
+            Working copy now at: mzvwutvl 24bb7f9d (empty) (no description set)
+            Parent commit      : qpvuntsm 95f2456c b1 b2 | (empty) first
+            "###);
+            }
+        }
+        _ => {
+            insta::assert_snapshot!(stderr, @r###"
+            Warning: Refusing to advance branches to a destination with a branch.
+            Working copy now at: royxmykx 2e6f2cdd (empty) (no description set)
+            Parent commit      : qpvuntsm 95f2456c b2 | (empty) first
+            "###);
+        }
+    }
+    insta::allow_duplicates! {
+    insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
+    @  branches{} desc:
+    ◉  branches{b2} desc: first
+    ◉  branches{b1} desc:
     "###);
     }
 }

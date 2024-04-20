@@ -1576,7 +1576,25 @@ impl WorkspaceCommandTransaction<'_> {
     /// the branch is conflicted before the update, it will remain conflicted
     /// after the update, but the conflict will involve the `move_to` commit
     /// instead of the old commit.
-    pub fn advance_branches(&mut self, branches: Vec<AdvanceableBranch>, move_to: &CommitId) {
+    pub fn advance_branches(
+        &mut self,
+        ui: &Ui,
+        branches: Vec<AdvanceableBranch>,
+        move_to: &CommitId,
+    ) {
+        let current_branches = self
+            .base_repo()
+            .view()
+            .local_branches_for_commit(move_to)
+            .count();
+        if current_branches != 0 {
+            writeln!(
+                ui.warning_default(),
+                "Refusing to advance branches to a destination with a branch."
+            )
+            .ok();
+            return;
+        }
         for branch in branches {
             // This removes the old commit ID from the branch's RefTarget and
             // replaces it with the `move_to` ID.

@@ -212,7 +212,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
 
     // Does nothing if there's no branches to advance.
     if let Some(target) = advance_branches_target {
-        tx.advance_branches(advanceable_branches, &target);
+        tx.advance_branches(ui, advanceable_branches, &target);
     }
 
     tx.finish(ui, "new empty commit")?;
