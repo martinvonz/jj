@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::collections::HashSet;
+use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -30,11 +31,11 @@ fn get_git_backend(repo: &Arc<ReadonlyRepo>) -> &GitBackend {
         .unwrap()
 }
 
-fn get_git_repo(repo: &Arc<ReadonlyRepo>) -> gix::Repository {
-    get_git_backend(repo).git_repo()
-}
-
-fn collect_no_gc_refs(git_repo: &gix::Repository) -> HashSet<CommitId> {
+fn collect_no_gc_refs(git_repo_path: &Path) -> HashSet<CommitId> {
+    // Load fresh git repo to isolate from false caching issue. Here we want to
+    // ensure that the underlying data is correct. We could test the in-memory
+    // data as well, but we don't have any special handling in our code.
+    let git_repo = gix::open(git_repo_path).unwrap();
     let git_refs = git_repo.references().unwrap();
     let no_gc_refs_iter = git_refs.prefixed("refs/jj/keep/").unwrap();
     no_gc_refs_iter
@@ -53,7 +54,7 @@ fn test_gc() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
     let repo = test_repo.repo;
-    let git_repo = get_git_repo(&repo);
+    let git_repo_path = get_git_backend(&repo).git_repo_path();
     let base_index = repo.readonly_index();
 
     // Set up commits:
@@ -94,7 +95,7 @@ fn test_gc() {
 
     // At first, all commits have no-gc refs
     assert_eq!(
-        collect_no_gc_refs(&git_repo),
+        collect_no_gc_refs(git_repo_path),
         hashset! {
             commit_a.id().clone(),
             commit_b.id().clone(),
@@ -113,7 +114,7 @@ fn test_gc() {
         .gc(base_index.as_index(), SystemTime::UNIX_EPOCH)
         .unwrap();
     assert_eq!(
-        collect_no_gc_refs(&git_repo),
+        collect_no_gc_refs(git_repo_path),
         hashset! {
             commit_a.id().clone(),
             commit_b.id().clone(),
@@ -133,7 +134,7 @@ fn test_gc() {
     // All reachable: redundant no-gc refs will be removed
     repo.store().gc(repo.index(), now()).unwrap();
     assert_eq!(
-        collect_no_gc_refs(&git_repo),
+        collect_no_gc_refs(git_repo_path),
         hashset! {
             commit_d.id().clone(),
             commit_g.id().clone(),
@@ -152,7 +153,7 @@ fn test_gc() {
     mut_index.add_commit(&commit_h);
     repo.store().gc(mut_index.as_index(), now()).unwrap();
     assert_eq!(
-        collect_no_gc_refs(&git_repo),
+        collect_no_gc_refs(git_repo_path),
         hashset! {
             commit_d.id().clone(),
             commit_e.id().clone(),
@@ -168,7 +169,7 @@ fn test_gc() {
     mut_index.add_commit(&commit_f);
     repo.store().gc(mut_index.as_index(), now()).unwrap();
     assert_eq!(
-        collect_no_gc_refs(&git_repo),
+        collect_no_gc_refs(git_repo_path),
         hashset! {
             commit_c.id().clone(),
             commit_f.id().clone(),
@@ -180,7 +181,7 @@ fn test_gc() {
     mut_index.add_commit(&commit_a);
     repo.store().gc(mut_index.as_index(), now()).unwrap();
     assert_eq!(
-        collect_no_gc_refs(&git_repo),
+        collect_no_gc_refs(git_repo_path),
         hashset! {
             commit_a.id().clone(),
         },
@@ -188,5 +189,5 @@ fn test_gc() {
 
     // All unreachable
     repo.store().gc(base_index.as_index(), now()).unwrap();
-    assert_eq!(collect_no_gc_refs(&git_repo), hashset! {});
+    assert_eq!(collect_no_gc_refs(git_repo_path), hashset! {});
 }
