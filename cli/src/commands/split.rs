@@ -181,10 +181,8 @@ the operation will be aborted.
         |mut rewriter| {
             num_rebased += 1;
             if args.siblings {
-                rewriter.replace_parent(
-                    second_commit.id(),
-                    &[first_commit.id().clone(), second_commit.id().clone()],
-                );
+                rewriter
+                    .replace_parent(second_commit.id(), [first_commit.id(), second_commit.id()]);
             }
             // We don't need to do anything special for the non-siblings case
             // since we already marked the original commit as rewritten.
