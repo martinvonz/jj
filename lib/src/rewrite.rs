@@ -153,10 +153,14 @@ impl<'repo> CommitRewriter<'repo> {
 
     /// Update the intended new parents by replacing any occurrence of
     /// `old_parent` by `new_parents`.
-    pub fn replace_parent(&mut self, old_parent: &CommitId, new_parents: &[CommitId]) {
+    pub fn replace_parent<'a>(
+        &mut self,
+        old_parent: &CommitId,
+        new_parents: impl IntoIterator<Item = &'a CommitId>,
+    ) {
         if let Some(i) = self.new_parents.iter().position(|p| p == old_parent) {
             self.new_parents
-                .splice(i..i + 1, new_parents.iter().cloned());
+                .splice(i..i + 1, new_parents.into_iter().cloned());
             let mut unique = HashSet::new();
             self.new_parents.retain(|p| unique.insert(p.clone()));
         }
