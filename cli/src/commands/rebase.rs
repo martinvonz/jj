@@ -378,10 +378,7 @@ fn rebase_revision(
             let old_commit_id = old_commit.id().clone();
 
             // Replace references to `to_rebase_commit` with its parents.
-            if old_commit.parent_ids().contains(to_rebase_commit.id()) {
-                rewriter.replace_parent(to_rebase_commit.id(), to_rebase_commit.parent_ids());
-                rewriter.simplify_ancestor_merge();
-            }
+            rewriter.replace_parent(to_rebase_commit.id(), to_rebase_commit.parent_ids());
             if rewriter.parents_changed() {
                 let builder = rewriter.rebase(settings)?;
                 let commit = builder.write()?;
