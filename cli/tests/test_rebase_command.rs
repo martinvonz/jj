@@ -266,63 +266,67 @@ fn test_rebase_single_revision() {
     let repo_path = test_env.env_root().join("repo");
 
     create_commit(&test_env, &repo_path, "a", &[]);
-    create_commit(&test_env, &repo_path, "b", &[]);
-    create_commit(&test_env, &repo_path, "c", &["a", "b"]);
-    create_commit(&test_env, &repo_path, "d", &["c"]);
+    create_commit(&test_env, &repo_path, "b", &["a"]);
+    create_commit(&test_env, &repo_path, "c", &["a"]);
+    create_commit(&test_env, &repo_path, "d", &["b", "c"]);
+    create_commit(&test_env, &repo_path, "e", &["d"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  d
-    ◉    c
+    @  e
+    ◉    d
     ├─╮
-    │ ◉  b
-    ◉ │  a
+    │ ◉  c
+    ◉ │  b
     ├─╯
+    ◉  a
     ◉
     "###);
 
-    // Descendants of the rebased commit "b" should be rebased onto parents. First
-    // we test with a non-merge commit. Normally, the descendant "c" would still
-    // have 2 parents afterwards: the parent of "b" -- the root commit -- and
-    // "a". However, since the root commit is an ancestor of "a", we don't
-    // actually want both to be parents of the same commit. So, only "a" becomes
+    // Descendants of the rebased commit "c" should be rebased onto parents. First
+    // we test with a non-merge commit. Normally, the descendant "d" would still
+    // have 2 parents afterwards: the parent of "c" -- the root commit -- and
+    // "b". However, since the root commit is an ancestor of "b", we don't
+    // actually want both to be parents of the same commit. So, only "b" becomes
     // a parent.
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "b", "-d", "a"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "c", "-d", "b"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 2 descendant commits onto parent of rebased commit
-    Working copy now at: vruxwmqv 7e15b97a d | d
-    Parent commit      : royxmykx 934236c8 c | c
+    Working copy now at: znkkpsqq 147710be e | e
+    Parent commit      : vruxwmqv 01e39f11 d | d
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  b
-    │ @  d
-    │ ◉  c
+    ◉  c
+    │ @  e
+    │ ◉  d
     ├─╯
+    ◉  b
     ◉  a
     ◉
     "###);
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
 
-    // Now, let's try moving the merge commit. After, both parents of "c" ("a" and
-    // "b") should become parents of "d".
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "c", "-d", "root()"]);
+    // Now, let's try moving the merge commit. After, both parents of "d" ("b" and
+    // "c") should become parents of "e".
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "d", "-d", "a"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
-    Working copy now at: vruxwmqv ad122686 d | d
-    Parent commit      : rlvkpnrz 2443ea76 a | a
-    Parent commit      : zsuskuln d370aee1 b | b
+    Working copy now at: znkkpsqq ed210c15 e | e
+    Parent commit      : zsuskuln 1394f625 b | b
+    Parent commit      : royxmykx c0cb3a0b c | c
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  c
-    │ @    d
+    ◉  d
+    │ @    e
     │ ├─╮
-    │ │ ◉  b
+    │ │ ◉  c
     ├───╯
-    │ ◉  a
+    │ ◉  b
     ├─╯
+    ◉  a
     ◉
     "###);
 }
@@ -694,7 +698,8 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
 
-    create_commit(&test_env, &repo_path, "base", &[]);
+    create_commit(&test_env, &repo_path, "notroot", &[]);
+    create_commit(&test_env, &repo_path, "base", &["notroot"]);
     create_commit(&test_env, &repo_path, "a", &["base"]);
     create_commit(&test_env, &repo_path, "b", &["base", "a"]);
     create_commit(&test_env, &repo_path, "c", &["b"]);
@@ -708,16 +713,17 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     │ ◉  a
     ├─╯
     ◉  base
+    ◉  notroot
     ◉
     "###);
 
     // ===================== rebase -s tests =================
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["rebase", "-s", "base", "-d", "root()"]);
+        test_env.jj_cmd_ok(&repo_path, &["rebase", "-s", "base", "-d", "notroot"]);
     insta::assert_snapshot!(stdout, @"");
     // This should be a no-op
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commit rlvkpnrz 0c61db1b base | base
+    Skipping rebase of commit zsuskuln 0a7fb8f6 base | base
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
@@ -726,6 +732,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     │ ◉  a
     ├─╯
     ◉  base
+    ◉  notroot
     ◉
     "###);
 
@@ -734,7 +741,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     // This should be a no-op
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commit zsuskuln 2c5b7858 a | a
+    Skipping rebase of commit royxmykx 86a06598 a | a
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
@@ -743,6 +750,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     │ ◉  a
     ├─╯
     ◉  base
+    ◉  notroot
     ◉
     "###);
 
@@ -751,8 +759,8 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
-    Working copy now at: vruxwmqv 2b10f149 c | c
-    Parent commit      : royxmykx 3b233bd8 b | b
+    Working copy now at: znkkpsqq cf8ecff5 c | c
+    Parent commit      : vruxwmqv 24e1a270 b | b
     "###);
     // Commit "a" should be rebased onto the root commit. Commit "b" should have
     // "base" and "a" as parents as before.
@@ -762,6 +770,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     ├─╮
     │ ◉  a
     ◉ │  base
+    ◉ │  notroot
     ├─╯
     ◉
     "###);
@@ -776,6 +785,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     │ ◉  a
     ├─╯
     ◉  base
+    ◉  notroot
     ◉
     "###);
 
@@ -784,7 +794,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     // The commits in roots(base..c), i.e. commit "a" should be rebased onto "base",
     // which is a no-op
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commit zsuskuln 2c5b7858 a | a
+    Skipping rebase of commit royxmykx 86a06598 a | a
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
@@ -793,6 +803,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     │ ◉  a
     ├─╯
     ◉  base
+    ◉  notroot
     ◉
     "###);
 
@@ -801,8 +812,8 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 2 commits
-    Working copy now at: vruxwmqv 2fc4ef73 c | c
-    Parent commit      : royxmykx 9912ef4b b | b
+    Working copy now at: znkkpsqq 76914dcc c | c
+    Parent commit      : vruxwmqv f73f03c7 b | b
     "###);
     // The commits in roots(a..c), i.e. commit "b" should be rebased onto "a",
     // which means "b" loses its "base" parent
@@ -811,6 +822,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     ◉  b
     ◉  a
     ◉  base
+    ◉  notroot
     ◉
     "###);
 
@@ -819,7 +831,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     // This should be a no-op
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commit rlvkpnrz 0c61db1b base | base
+    Skipping rebase of commit rlvkpnrz 39f28e63 notroot | notroot
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
@@ -828,6 +840,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     │ ◉  a
     ├─╯
     ◉  base
+    ◉  notroot
     ◉
     "###);
 
@@ -841,6 +854,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     │ ◉  a
     ├─╯
     ◉  base
+    ◉  notroot
     ◉
     "###);
 
@@ -848,10 +862,9 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
         test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "base", "-d", "root()"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commit rlvkpnrz 0c61db1b base | base
-    Rebased 3 descendant commits onto parent of commit
-    Working copy now at: vruxwmqv 57aaa944 c | c
-    Parent commit      : royxmykx c8495a71 b | b
+    Also rebased 3 descendant commits onto parent of rebased commit
+    Working copy now at: znkkpsqq c1c67bb6 c | c
+    Parent commit      : vruxwmqv 3b2f92d4 b | b
     Added 0 files, modified 0 files, removed 1 files
     "###);
     // The user would expect unsimplified ancestry here.
@@ -864,10 +877,11 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     // ├─╯
     // ◉
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  c
-    ◉  b
-    ◉  a
-    │ ◉  base
+    ◉  base
+    │ @  c
+    │ ◉  b
+    │ ◉  a
+    │ ◉  notroot
     ├─╯
     ◉
     "###);
@@ -879,8 +893,8 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 3 descendant commits onto parent of rebased commit
-    Working copy now at: vruxwmqv a72f0141 c | c
-    Parent commit      : royxmykx 7033e775 b | b
+    Working copy now at: znkkpsqq 452e1ed1 c | c
+    Parent commit      : vruxwmqv fe65c22c b | b
     Added 0 files, modified 0 files, removed 1 files
     "###);
     // Unsimlified ancestry would look like
@@ -898,6 +912,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     ├─╯
     ◉  b
     ◉  a
+    ◉  notroot
     ◉
     "###);
 
@@ -908,8 +923,8 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 3 descendant commits onto parent of rebased commit
-    Working copy now at: vruxwmqv 0b91d0eb c | c
-    Parent commit      : royxmykx fb944989 b | b
+    Working copy now at: znkkpsqq 8da82da4 c | c
+    Parent commit      : vruxwmqv 44ff6d25 b | b
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -918,6 +933,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     │ ◉  b
     ├─╯
     ◉  a
+    ◉  notroot
     ◉
     "###);
 
@@ -930,6 +946,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     │ ◉  a
     ├─╯
     ◉  base
+    ◉  notroot
     ◉
     "###);
 
@@ -937,8 +954,8 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 2 descendant commits onto parent of rebased commit
-    Working copy now at: vruxwmqv f366e099 c | c
-    Parent commit      : royxmykx bfc7c538 b | b
+    Working copy now at: znkkpsqq 7210b05e c | c
+    Parent commit      : vruxwmqv da3f7511 b | b
     Added 0 files, modified 0 files, removed 1 files
     "###);
     // In this case, it is unclear whether the user would always prefer unsimplified
@@ -948,6 +965,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     │ @  c
     │ ◉  b
     │ ◉  base
+    │ ◉  notroot
     ├─╯
     ◉
     "###);
@@ -957,8 +975,8 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
-    Working copy now at: vruxwmqv 4d1fd267 c | c
-    Parent commit      : zsuskuln 2c5b7858 a | a
+    Working copy now at: znkkpsqq a646b0c4 c | c
+    Parent commit      : royxmykx 86a06598 a | a
     Added 0 files, modified 0 files, removed 1 files
     "###);
     // The user would expect unsimplified ancestry here.
@@ -975,6 +993,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     │ @  c
     │ ◉  a
     │ ◉  base
+    │ ◉  notroot
     ├─╯
     ◉
     "###);
@@ -986,8 +1005,8 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
-    Working copy now at: vruxwmqv 0bacac66 c | c
-    Parent commit      : zsuskuln 2c5b7858 a | a
+    Working copy now at: znkkpsqq 82356675 c | c
+    Parent commit      : royxmykx 86a06598 a | a
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -995,6 +1014,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     @  c
     ◉  a
     ◉  base
+    ◉  notroot
     ◉
     "###);
 
@@ -1004,8 +1024,8 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "c", "-d", "a"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: vruxwmqv e64d4b0d c | c
-    Parent commit      : zsuskuln 2c5b7858 a | a
+    Working copy now at: znkkpsqq 7a3bc050 c | c
+    Parent commit      : royxmykx 86a06598 a | a
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -1015,6 +1035,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     ◉ │  a
     ├─╯
     ◉  base
+    ◉  notroot
     ◉
     "###);
 }
