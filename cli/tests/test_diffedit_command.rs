@@ -379,10 +379,10 @@ fn test_diffedit_merge() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["diffedit", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Created royxmykx b90654a0 (conflict) merge
+    Created royxmykx b9539d6e (conflict) merge
     Rebased 1 descendant commits
-    Working copy now at: yqosqzyt 1de824f2 (conflict) (empty) (no description set)
-    Parent commit      : royxmykx b90654a0 (conflict) merge
+    Working copy now at: yqosqzyt 0a24ed24 (conflict) (empty) (no description set)
+    Parent commit      : royxmykx b9539d6e (conflict) merge
     Added 0 files, modified 0 files, removed 1 files
     There are unresolved conflicts at these paths:
     file2    2-sided conflict

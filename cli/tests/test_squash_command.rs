@@ -635,20 +635,20 @@ fn test_squash_from_multiple() {
     insta::assert_snapshot!(stderr, @r###"
     Rebased 2 descendant commits
     New conflicts appeared in these commits:
-      yqosqzyt d5401742 d | (conflict) (no description set)
+      yqosqzyt 50bd7d24 d | (conflict) (no description set)
     To resolve the conflicts, start by updating to it:
       jj new yqosqzytrlsw
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    Working copy now at: kpqxywon cc9f4cad f | (no description set)
-    Parent commit      : yostqsxw 9f25b62d e | (no description set)
+    Working copy now at: kpqxywon dd653e49 f | (no description set)
+    Parent commit      : yostqsxw e40f2544 e | (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  cc9f4cad1a29 f
-    ◉    9f25b62ddffc e
+    @  dd653e494199 f
+    ◉    e40f2544ad31 e
     ├─╮
-    ◉ │  d54017421f3f d
+    ◉ │  50bd7d246d8e d
     ├─╯
     ◉  37941ee54ace a b c
     ◉  000000000000
@@ -761,23 +761,23 @@ fn test_squash_from_multiple_partial() {
     insta::assert_snapshot!(stderr, @r###"
     Rebased 2 descendant commits
     New conflicts appeared in these commits:
-      yqosqzyt 13468b54 d | (conflict) (no description set)
+      yqosqzyt 85d3ae29 d | (conflict) (no description set)
     To resolve the conflicts, start by updating to it:
       jj new yqosqzytrlsw
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    Working copy now at: kpqxywon 8aaa7910 f | (no description set)
-    Parent commit      : yostqsxw 5aad25ea e | (no description set)
+    Working copy now at: kpqxywon 97861bbf f | (no description set)
+    Parent commit      : yostqsxw 2dbaf4e8 e | (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  8aaa79109163 f
-    ◉      5aad25eae5aa e
+    @  97861bbf7ae5 f
+    ◉      2dbaf4e8c7f7 e
     ├─┬─╮
     │ │ ◉  ba60ddff2d41 b
     │ ◉ │  8ef5a315bf7d c
     │ ├─╯
-    ◉ │  13468b546ba3 d
+    ◉ │  85d3ae290b9b d
     ├─╯
     ◉  47a1e795d146 a
     ◉  000000000000

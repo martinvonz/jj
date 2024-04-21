@@ -62,13 +62,13 @@ fn test_restore() {
     Created rlvkpnrz e25100af (empty) (no description set)
     Rebased 1 descendant commits
     New conflicts appeared in these commits:
-      kkmpptxz 761deaef (conflict) (no description set)
+      kkmpptxz 4906178a (conflict) (no description set)
     To resolve the conflicts, start by updating to it:
       jj new kkmpptxzrspx
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    Working copy now at: kkmpptxz 761deaef (conflict) (no description set)
+    Working copy now at: kkmpptxz 4906178a (conflict) (no description set)
     Parent commit      : rlvkpnrz e25100af (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
@@ -199,8 +199,8 @@ fn test_restore_conflicted_merge() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore", "file"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Created vruxwmqv 0817af7e conflict | (conflict) (empty) conflict
-    Working copy now at: vruxwmqv 0817af7e conflict | (conflict) (empty) conflict
+    Created vruxwmqv 126facb5 conflict | (conflict) (empty) conflict
+    Working copy now at: vruxwmqv 126facb5 conflict | (conflict) (empty) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files
@@ -240,8 +240,8 @@ fn test_restore_conflicted_merge() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Created vruxwmqv da925083 conflict | (conflict) (empty) conflict
-    Working copy now at: vruxwmqv da925083 conflict | (conflict) (empty) conflict
+    Created vruxwmqv b553ebcf conflict | (conflict) (empty) conflict
+    Working copy now at: vruxwmqv b553ebcf conflict | (conflict) (empty) conflict
     Parent commit      : zsuskuln aa493daf a | a
     Parent commit      : royxmykx db6a4daf b | b
     Added 0 files, modified 1 files, removed 0 files

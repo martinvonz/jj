@@ -120,7 +120,7 @@ fn test_chmod_regular_conflict() {
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["chmod", "x", "nonexistent", "file"]);
     insta::assert_snapshot!(stderr, @r###"
     Warning: No matching entries for paths: nonexistent
-    Working copy now at: yostqsxw cbc43289 conflict | (conflict) conflict
+    Working copy now at: yostqsxw e5912d62 conflict | (conflict) conflict
     Parent commit      : royxmykx 427fbd2f x | x
     Parent commit      : zsuskuln 3f83a26d n | n
     Added 0 files, modified 1 files, removed 0 files
@@ -213,13 +213,13 @@ fn test_chmod_file_dir_deletion_conflicts() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     New conflicts appeared in these commits:
-      kmkuslsw b4c38719 file_deletion | (conflict) file_deletion
+      kmkuslsw 1b2ef84c file_deletion | (conflict) file_deletion
     To resolve the conflicts, start by updating to it:
       jj new kmkuslswpqwq
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    Working copy now at: kmkuslsw b4c38719 file_deletion | (conflict) file_deletion
+    Working copy now at: kmkuslsw 1b2ef84c file_deletion | (conflict) file_deletion
     Parent commit      : zsuskuln c51c9c55 file | file
     Parent commit      : royxmykx 6b18b3c1 deletion | deletion
     Added 0 files, modified 1 files, removed 0 files
