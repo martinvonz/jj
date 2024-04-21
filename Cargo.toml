@@ -60,6 +60,7 @@ indoc = "2.0.4"
 insta = { version = "1.38.0", features = ["filters"] }
 itertools = "0.12.1"
 libc = { version = "0.2.154" }
+libssh2-sys = { version = "0.3.0" }
 maplit = "1.0.2"
 minus = { version = "5.6.1", features = ["dynamic_output", "search"] }
 num_cpus = "1.16.0"
