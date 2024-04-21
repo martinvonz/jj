@@ -124,10 +124,10 @@ commit_summary_separator = 'label("separator", " | ")'
 'format_short_change_id(id)' = 'format_short_id(id)'
 'format_short_commit_id(id)' = 'format_short_id(id)'
 'format_short_signature(signature)' = '''
-  if(signature.email(), signature.email(), email_placeholder)'''
+  coalesce(signature.email(), email_placeholder)'''
 'format_detailed_signature(signature)' = '''
-  if(signature.name(), signature.name(), name_placeholder)
-  ++ " <" ++ if(signature.email(), signature.email(), email_placeholder) ++ ">"
+  coalesce(signature.name(), name_placeholder)
+  ++ " <" ++ coalesce(signature.email(), email_placeholder) ++ ">"
   ++ " (" ++ format_timestamp(signature.timestamp()) ++ ")"'''
 'format_time_range(time_range)' = '''
   time_range.start().ago() ++ label("time", ", lasted ") ++ time_range.duration()'''
@@ -161,7 +161,7 @@ if(hidden,
     format_short_change_id(change_id) ++ " hidden"
   ),
   label(if(divergent, "divergent"),
-    format_short_change_id(change_id) ++ if(divergent,"??")
+    format_short_change_id(change_id) ++ if(divergent, "??")
   )
 )
 '''
