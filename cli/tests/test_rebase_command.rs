@@ -283,25 +283,22 @@ fn test_rebase_single_revision() {
     "###);
 
     // Descendants of the rebased commit "c" should be rebased onto parents. First
-    // we test with a non-merge commit. Normally, the descendant "d" would still
-    // have 2 parents afterwards: the parent of "c" -- the root commit -- and
-    // "b". However, since the root commit is an ancestor of "b", we don't
-    // actually want both to be parents of the same commit. So, only "b" becomes
-    // a parent.
+    // we test with a non-merge commit.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "c", "-d", "b"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 2 descendant commits onto parent of rebased commit
-    Working copy now at: znkkpsqq 147710be e | e
-    Parent commit      : vruxwmqv 01e39f11 d | d
+    Working copy now at: znkkpsqq 2668ffbe e | e
+    Parent commit      : vruxwmqv 7b370c85 d | d
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  c
     │ @  e
     │ ◉  d
+    ╭─┤
+    ◉ │  b
     ├─╯
-    ◉  b
     ◉  a
     ◉
     "###);
@@ -863,76 +860,64 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 3 descendant commits onto parent of rebased commit
-    Working copy now at: znkkpsqq c1c67bb6 c | c
-    Parent commit      : vruxwmqv 3b2f92d4 b | b
+    Working copy now at: znkkpsqq 45371aaf c | c
+    Parent commit      : vruxwmqv c0a76bf4 b | b
     Added 0 files, modified 0 files, removed 1 files
     "###);
     // The user would expect unsimplified ancestry here.
-    // ◉  base
-    // │ @  c
-    // │ ◉    b
-    // │ ├─╮
-    // │ │ ◉  a
-    // │ ├─╯
-    // ├─╯
-    // ◉
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  base
     │ @  c
-    │ ◉  b
-    │ ◉  a
+    │ ◉    b
+    │ ├─╮
+    │ │ ◉  a
+    │ ├─╯
     │ ◉  notroot
     ├─╯
     ◉
     "###);
 
-    // This tests the algorithm for rebasing onto descendants. The result should be
-    // simplified if and only if it's simplified in the above case.
+    // This tests the algorithm for rebasing onto descendants. The result should
+    // have unsimplified ancestry.
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "base", "-d", "b"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 3 descendant commits onto parent of rebased commit
-    Working copy now at: znkkpsqq 452e1ed1 c | c
-    Parent commit      : vruxwmqv fe65c22c b | b
+    Working copy now at: znkkpsqq e28fa972 c | c
+    Parent commit      : vruxwmqv 8d0eeb6a b | b
     Added 0 files, modified 0 files, removed 1 files
     "###);
-    // Unsimlified ancestry would look like
-    // @  c
-    // │ ◉  base
-    // ├─╯
-    // ◉    b
-    // ├─╮
-    // │ ◉  a
-    // ├─╯
-    // ◉
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  base
     │ @  c
     ├─╯
-    ◉  b
-    ◉  a
+    ◉    b
+    ├─╮
+    │ ◉  a
+    ├─╯
     ◉  notroot
     ◉
     "###);
 
-    // This tests the algorithm for rebasing onto descendants. The result should be
-    // simplified if and only if it's simplified in the above case.
+    // This tests the algorithm for rebasing onto descendants. The result should
+    // have unsimplified ancestry.
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "base", "-d", "a"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 3 descendant commits onto parent of rebased commit
-    Working copy now at: znkkpsqq 8da82da4 c | c
-    Parent commit      : vruxwmqv 44ff6d25 b | b
+    Working copy now at: znkkpsqq a9da974c c | c
+    Parent commit      : vruxwmqv 0072139c b | b
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  base
     │ @  c
     │ ◉  b
+    ╭─┤
+    ◉ │  a
     ├─╯
-    ◉  a
     ◉  notroot
     ◉
     "###);
@@ -975,44 +960,42 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
-    Working copy now at: znkkpsqq a646b0c4 c | c
+    Working copy now at: znkkpsqq f280545e c | c
+    Parent commit      : zsuskuln 0a7fb8f6 base | base
     Parent commit      : royxmykx 86a06598 a | a
     Added 0 files, modified 0 files, removed 1 files
     "###);
     // The user would expect unsimplified ancestry here.
-    // ◉  b
-    // │ @  c
-    // │ ├─╮
-    // │ │ ◉  a
-    // │ ├─╯
-    // │ ◉  base
-    // ├─╯
-    // ◉
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  b
-    │ @  c
-    │ ◉  a
+    │ @    c
+    │ ├─╮
+    │ │ ◉  a
+    │ ├─╯
     │ ◉  base
     │ ◉  notroot
     ├─╯
     ◉
     "###);
 
-    // This tests the algorithm for rebasing onto descendants. The result should be
-    // simplified if and only if it's simplified in the above case.
+    // This tests the algorithm for rebasing onto descendants. The result should
+    // have unsimplified ancestry.
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "b", "-d", "c"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Also rebased 1 descendant commits onto parent of rebased commit
-    Working copy now at: znkkpsqq 82356675 c | c
+    Working copy now at: znkkpsqq c0a7cd80 c | c
+    Parent commit      : zsuskuln 0a7fb8f6 base | base
     Parent commit      : royxmykx 86a06598 a | a
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     ◉  b
-    @  c
-    ◉  a
+    @    c
+    ├─╮
+    │ ◉  a
+    ├─╯
     ◉  base
     ◉  notroot
     ◉
