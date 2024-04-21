@@ -1239,7 +1239,7 @@ fn write_tree_conflict(
     conflict: &Merge<TreeId>,
 ) -> Result<gix::ObjectId, BackendError> {
     // Tree entries to be written must be sorted by Entry::filename().
-    let entries = itertools::chain(
+    let mut entries = itertools::chain(
         conflict
             .removes()
             .enumerate()
@@ -1254,8 +1254,32 @@ fn write_tree_conflict(
         filename: name.into(),
         oid: tree_id.as_bytes().try_into().unwrap(),
     })
-    .sorted_unstable()
-    .collect();
+    .collect_vec();
+    let readme_id = repo
+        .write_blob(
+            r#"This commit was made by jj, https://github.com/martinvonz/jj.
+The commit contains file conflicts, and therefore looks wrong when used with plain
+Git or other tools that are unfamiliar with jj.
+
+The .jjconflict-* directories represent the different inputs to the conflict.
+For details, see
+https://martinvonz.github.io/jj/prerelease/git-compatibility/#format-mapping-details
+
+If you see this file in your working copy, it probably means that you used a
+regular `git` command to check out a conflicted commit. Use `jj abandon` to
+recover.
+"#,
+        )
+        .map_err(|err| {
+            BackendError::Other(format!("Failed to write README for conflict tree: {err}").into())
+        })?
+        .detach();
+    entries.push(gix::objs::tree::Entry {
+        mode: gix::object::tree::EntryKind::Blob.into(),
+        filename: "README".into(),
+        oid: readme_id,
+    });
+    entries.sort_unstable();
     let id = repo
         .write_object(gix::objs::Tree { entries })
         .map_err(|err| BackendError::WriteObject {
@@ -1754,7 +1778,10 @@ mod tests {
             .find_commit(Oid::from_bytes(read_commit_id.as_bytes()).unwrap())
             .unwrap();
         let git_tree = git_repo.find_tree(git_commit.tree_id()).unwrap();
-        assert!(git_tree.iter().all(|entry| entry.filemode() == 0o040000));
+        assert!(git_tree
+            .iter()
+            .filter(|entry| entry.name() != Some("README"))
+            .all(|entry| entry.filemode() == 0o040000));
         let mut iter = git_tree.iter();
         let entry = iter.next().unwrap();
         assert_eq!(entry.name(), Some(".jjconflict-base-0"));
@@ -1786,6 +1813,9 @@ mod tests {
             entry.id().as_bytes(),
             root_tree.get_add(2).unwrap().as_bytes()
         );
+        let entry = iter.next().unwrap();
+        assert_eq!(entry.name(), Some("README"));
+        assert_eq!(entry.filemode(), 0o100644);
         assert!(iter.next().is_none());
 
         // When writing a single tree using the new format, it's represented by a

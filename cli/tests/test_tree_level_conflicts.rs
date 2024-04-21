@@ -56,7 +56,7 @@ fn test_enable_tree_level_conflicts() {
     // non-empty
     let stdout = test_env.jj_cmd_success(&repo_path, &["log"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  mzvwutvl test.user@example.com 2001-02-03 08:05:13 51f1748d conflict
+    @  mzvwutvl test.user@example.com 2001-02-03 08:05:13 ada1f5f1 conflict
     │  (no description set)
     ◉    zsuskuln test.user@example.com 2001-02-03 08:05:10 5100e4e1 conflict
     ├─╮  (empty) merge
