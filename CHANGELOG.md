@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * `builtin_change_id_with_hidden_and_divergent_info` ->
     `format_short_change_id_with_hidden_and_divergent_info(commit: Commit)`
 
+* The `--revision` option of `jj rebase` is renamed to `--revisions`. The short
+  alias `-r` is still supported.
+
 ### New features
 
 * The list of conflicted paths is printed whenever the working copy changes.
@@ -55,6 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `jj debug watchman status` command.
 
 * A new global flag `--ignore-immutable` lets you rewrite immutable commits.
+
+* `jj rebase` now accepts revsets resolving to multiple revisions with the
+   `--revisions`/`-r` option.
 
 ### Fixed bugs
 

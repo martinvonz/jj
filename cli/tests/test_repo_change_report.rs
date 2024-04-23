@@ -64,7 +64,8 @@ fn test_report_conflicts() {
         test_env.jj_cmd_ok(&repo_path, &["rebase", "-r=description(B)", "-d=root()"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Also rebased 2 descendant commits onto parent of rebased commit
+    Rebased 1 commits onto destination
+    Rebased 2 descendant commits onto parents of rebased commits
     New conflicts appeared in these commits:
       rlvkpnrz 262c4c38 (conflict) B
       kkmpptxz d1edf578 (conflict) C
