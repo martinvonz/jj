@@ -23,7 +23,7 @@ use criterion::measurement::Measurement;
 use criterion::{BatchSize, BenchmarkGroup, BenchmarkId, Criterion};
 use jj_lib::object_id::HexPrefix;
 use jj_lib::repo::Repo;
-use jj_lib::revset::{self, DefaultSymbolResolver, RevsetExpression};
+use jj_lib::revset::{self, DefaultSymbolResolver, RevsetExpression, SymbolResolverExtension};
 
 use crate::cli_util::{CommandHelper, RevisionArg, WorkspaceCommandHelper};
 use crate::command_error::CommandError;
@@ -210,7 +210,8 @@ fn bench_revset<M: Measurement>(
     let routine = |workspace_command: &WorkspaceCommandHelper, expression: Rc<RevsetExpression>| {
         // Evaluate the expression without parsing/evaluating short-prefixes.
         let repo = workspace_command.repo().as_ref();
-        let symbol_resolver = DefaultSymbolResolver::new(repo);
+        let symbol_resolver =
+            DefaultSymbolResolver::new(repo, &([] as [Box<dyn SymbolResolverExtension>; 0]));
         let resolved = expression
             .resolve_user_expression(repo, &symbol_resolver)
             .unwrap();

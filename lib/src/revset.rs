@@ -2209,20 +2209,38 @@ impl PartialSymbolResolver for ChangePrefixResolver<'_> {
     }
 }
 
+/// An extension of the DefaultSymbolResolver.
+///
+/// Each PartialSymbolResolver will be invoked in order, its result used if one
+/// is provided. Native resolvers are always invoked first. In the future, we
+/// may provide a way for extensions to override native resolvers like tags and
+/// branches.
+pub trait SymbolResolverExtension {
+    /// PartialSymbolResolvers can capture `repo` for caching purposes if
+    /// desired, but they do not have to since `repo` is passed into
+    /// `resolve_symbol()` as well.
+    fn new_resolvers<'a>(&self, repo: &'a dyn Repo) -> Vec<Box<dyn PartialSymbolResolver + 'a>>;
+}
+
 /// Resolves branches, remote branches, tags, git refs, and full and abbreviated
 /// commit and change ids.
 pub struct DefaultSymbolResolver<'a> {
     repo: &'a dyn Repo,
     commit_id_resolver: CommitPrefixResolver<'a>,
     change_id_resolver: ChangePrefixResolver<'a>,
+    extensions: Vec<Box<dyn PartialSymbolResolver + 'a>>,
 }
 
 impl<'a> DefaultSymbolResolver<'a> {
-    pub fn new(repo: &'a dyn Repo) -> Self {
+    pub fn new(repo: &'a dyn Repo, extensions: &[impl AsRef<dyn SymbolResolverExtension>]) -> Self {
         DefaultSymbolResolver {
             repo,
             commit_id_resolver: Default::default(),
             change_id_resolver: Default::default(),
+            extensions: extensions
+                .iter()
+                .flat_map(|ext| ext.as_ref().new_resolvers(repo))
+                .collect(),
         }
     }
 
@@ -2232,10 +2250,14 @@ impl<'a> DefaultSymbolResolver<'a> {
         self
     }
 
-    fn partial_resolvers(&self) -> impl Iterator<Item = &dyn PartialSymbolResolver> {
+    fn partial_resolvers(&self) -> impl Iterator<Item = &(dyn PartialSymbolResolver + 'a)> {
         let prefix_resolvers: [&dyn PartialSymbolResolver; 2] =
             [&self.commit_id_resolver, &self.change_id_resolver];
-        itertools::chain!(DEFAULT_RESOLVERS.iter().copied(), prefix_resolvers)
+        itertools::chain!(
+            DEFAULT_RESOLVERS.iter().copied(),
+            prefix_resolvers,
+            self.extensions.iter().map(|e| e.as_ref())
+        )
     }
 }
 
@@ -2614,11 +2636,29 @@ impl Iterator for ReverseRevsetIterator {
     }
 }
 
+/// A set of extensions for revset evaluation.
+#[derive(Default)]
+pub struct RevsetExtensions {
+    symbol_resolvers: Vec<Box<dyn SymbolResolverExtension>>,
+    // TODO: Add more fields for extending the revset language
+}
+
+impl RevsetExtensions {
+    pub fn symbol_resolvers(&self) -> &[impl AsRef<dyn SymbolResolverExtension>] {
+        &self.symbol_resolvers
+    }
+
+    pub fn add_symbol_resolver(&mut self, symbol_resolver: Box<dyn SymbolResolverExtension>) {
+        self.symbol_resolvers.push(symbol_resolver);
+    }
+}
+
 /// Information needed to parse revset expression.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct RevsetParseContext<'a> {
     pub aliases_map: &'a RevsetAliasesMap,
     pub user_email: String,
+    pub extensions: &'a RevsetExtensions,
     pub workspace: Option<RevsetWorkspaceContext<'a>>,
 }
 
@@ -2656,9 +2696,11 @@ mod tests {
         for (decl, defn) in aliases {
             aliases_map.insert(decl, defn).unwrap();
         }
+        let extensions: RevsetExtensions = Default::default();
         let context = RevsetParseContext {
             aliases_map: &aliases_map,
             user_email: "test.user@example.com".to_string(),
+            extensions: &extensions,
             workspace: None,
         };
         // Map error to comparable object
@@ -2680,9 +2722,11 @@ mod tests {
         for (decl, defn) in aliases {
             aliases_map.insert(decl, defn).unwrap();
         }
+        let extensions: RevsetExtensions = Default::default();
         let context = RevsetParseContext {
             aliases_map: &aliases_map,
             user_email: "test.user@example.com".to_string(),
+            extensions: &extensions,
             workspace: Some(workspace_ctx),
         };
         // Map error to comparable object
@@ -2703,9 +2747,11 @@ mod tests {
         for (decl, defn) in aliases {
             aliases_map.insert(decl, defn).unwrap();
         }
+        let extensions: RevsetExtensions = Default::default();
         let context = RevsetParseContext {
             aliases_map: &aliases_map,
             user_email: "test.user@example.com".to_string(),
+            extensions: &extensions,
             workspace: None,
         };
         // Map error to comparable object

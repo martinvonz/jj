@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools;
 use jj_cli::cli_util::CliRunner;
 use jj_cli::commit_templater::{
     CommitTemplateBuildFnTable, CommitTemplateLanguage, CommitTemplateLanguageExtension,
@@ -24,7 +25,9 @@ use jj_lib::commit::Commit;
 use jj_lib::extensions_map::ExtensionsMap;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
-use jj_lib::revset::RevsetExpression;
+use jj_lib::revset::{
+    PartialSymbolResolver, RevsetExpression, RevsetResolutionError, SymbolResolverExtension,
+};
 use once_cell::sync::OnceCell;
 
 struct HexCounter;
@@ -65,6 +68,40 @@ impl MostDigitsInId {
                 .max()
                 .unwrap_or(0)
         })
+    }
+}
+
+#[derive(Default)]
+struct TheDigitestResolver {
+    cache: MostDigitsInId,
+}
+
+impl PartialSymbolResolver for TheDigitestResolver {
+    fn resolve_symbol(
+        &self,
+        repo: &dyn Repo,
+        symbol: &str,
+    ) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
+        if symbol != "thedigitest" {
+            return Ok(None);
+        }
+
+        Ok(Some(
+            RevsetExpression::all()
+                .evaluate_programmatic(repo)
+                .map_err(|err| RevsetResolutionError::Other(err.into()))?
+                .iter()
+                .filter(|id| num_digits_in_id(id) == self.cache.count(repo))
+                .collect_vec(),
+        ))
+    }
+}
+
+struct TheDigitest;
+
+impl SymbolResolverExtension for TheDigitest {
+    fn new_resolvers<'a>(&self, _repo: &'a dyn Repo) -> Vec<Box<dyn PartialSymbolResolver + 'a>> {
+        vec![Box::<TheDigitestResolver>::default()]
     }
 }
 
@@ -126,6 +163,7 @@ impl CommitTemplateLanguageExtension for HexCounter {
 
 fn main() -> std::process::ExitCode {
     CliRunner::init()
+        .add_symbol_resolver_extension(Box::new(TheDigitest))
         .add_commit_template_extension(Box::new(HexCounter))
         .run()
 }

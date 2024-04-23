@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::path::Path;
+use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use itertools::Itertools;
@@ -27,8 +28,8 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::revset::{
     optimize, parse, DefaultSymbolResolver, FailingSymbolResolver, ResolvedExpression, Revset,
-    RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetParseContext,
-    RevsetResolutionError, RevsetWorkspaceContext,
+    RevsetAliasesMap, RevsetExpression, RevsetExtensions, RevsetFilterPredicate,
+    RevsetParseContext, RevsetResolutionError, RevsetWorkspaceContext, SymbolResolverExtension,
 };
 use jj_lib::revset_graph::{ReverseRevsetGraphIterator, RevsetGraphEdge};
 use jj_lib::settings::GitSettings;
@@ -39,26 +40,37 @@ use testutils::{
     TestRepoBackend, TestWorkspace,
 };
 
-fn resolve_symbol(repo: &dyn Repo, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError> {
+fn resolve_symbol_with_extensions(
+    repo: &dyn Repo,
+    extensions: &Arc<RevsetExtensions>,
+    symbol: &str,
+) -> Result<Vec<CommitId>, RevsetResolutionError> {
     let context = RevsetParseContext {
         aliases_map: &RevsetAliasesMap::new(),
         user_email: String::new(),
+        extensions,
         workspace: None,
     };
     let expression = parse(symbol, &context).unwrap();
     assert_matches!(*expression, RevsetExpression::CommitRef(_));
-    let symbol_resolver = DefaultSymbolResolver::new(repo);
+    let symbol_resolver = DefaultSymbolResolver::new(repo, extensions.symbol_resolvers());
     match expression.resolve_user_expression(repo, &symbol_resolver)? {
         ResolvedExpression::Commits(commits) => Ok(commits),
         expression => panic!("symbol resolved to compound expression: {expression:?}"),
     }
 }
 
+fn resolve_symbol(repo: &dyn Repo, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError> {
+    let extensions: Arc<RevsetExtensions> = Default::default();
+    resolve_symbol_with_extensions(repo, &extensions, symbol)
+}
+
 fn revset_for_commits<'index>(
     repo: &'index dyn Repo,
     commits: &[&Commit],
 ) -> Box<dyn Revset + 'index> {
-    let symbol_resolver = DefaultSymbolResolver::new(repo);
+    let symbol_resolver =
+        DefaultSymbolResolver::new(repo, &([] as [&Box<dyn SymbolResolverExtension>; 0]));
     RevsetExpression::commits(commits.iter().map(|commit| commit.id().clone()).collect())
         .resolve_user_expression(repo, &symbol_resolver)
         .unwrap()
@@ -167,10 +179,15 @@ fn test_resolve_symbol_commit_id() {
 
     // Test present() suppresses only NoSuchRevision error
     assert_eq!(resolve_commit_ids(repo.as_ref(), "present(foo)"), []);
-    let symbol_resolver = DefaultSymbolResolver::new(repo.as_ref());
+    let symbol_resolver = DefaultSymbolResolver::new(
+        repo.as_ref(),
+        &([] as [&Box<dyn SymbolResolverExtension>; 0]),
+    );
+    let extensions: Arc<RevsetExtensions> = Default::default();
     let context = RevsetParseContext {
         aliases_map: &RevsetAliasesMap::new(),
         user_email: settings.user_email(),
+        extensions: &extensions,
         workspace: None,
     };
     assert_matches!(
@@ -825,13 +842,15 @@ fn test_resolve_symbol_git_refs() {
 
 fn resolve_commit_ids(repo: &dyn Repo, revset_str: &str) -> Vec<CommitId> {
     let settings = testutils::user_settings();
+    let revset_extensions: Arc<RevsetExtensions> = Default::default();
     let context = RevsetParseContext {
         aliases_map: &RevsetAliasesMap::new(),
         user_email: settings.user_email(),
+        extensions: &revset_extensions,
         workspace: None,
     };
     let expression = optimize(parse(revset_str, &context).unwrap());
-    let symbol_resolver = DefaultSymbolResolver::new(repo);
+    let symbol_resolver = DefaultSymbolResolver::new(repo, revset_extensions.symbol_resolvers());
     let expression = expression
         .resolve_user_expression(repo, &symbol_resolver)
         .unwrap();
@@ -850,13 +869,16 @@ fn resolve_commit_ids_in_workspace(
         workspace_id: workspace.workspace_id(),
         workspace_root: workspace.workspace_root(),
     };
+    let extensions: Arc<RevsetExtensions> = Default::default();
     let context = RevsetParseContext {
         aliases_map: &RevsetAliasesMap::new(),
         user_email: settings.user_email(),
+        extensions: &extensions,
         workspace: Some(workspace_ctx),
     };
     let expression = optimize(parse(revset_str, &context).unwrap());
-    let symbol_resolver = DefaultSymbolResolver::new(repo);
+    let symbol_resolver =
+        DefaultSymbolResolver::new(repo, &([] as [&Box<dyn SymbolResolverExtension>; 0]));
     let expression = expression
         .resolve_user_expression(repo, &symbol_resolver)
         .unwrap();

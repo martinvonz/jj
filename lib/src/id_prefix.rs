@@ -17,6 +17,7 @@
 use std::iter;
 use std::marker::PhantomData;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use itertools::Itertools as _;
 use once_cell::unsync::OnceCell;
@@ -25,7 +26,9 @@ use crate::backend::{ChangeId, CommitId};
 use crate::hex_util;
 use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
 use crate::repo::Repo;
-use crate::revset::{DefaultSymbolResolver, RevsetExpression};
+use crate::revset::{
+    DefaultSymbolResolver, RevsetExpression, RevsetExtensions, SymbolResolverExtension,
+};
 
 struct PrefixDisambiguationError;
 
@@ -41,9 +44,13 @@ struct Indexes {
 }
 
 impl DisambiguationData {
-    fn indexes(&self, repo: &dyn Repo) -> Result<&Indexes, PrefixDisambiguationError> {
+    fn indexes(
+        &self,
+        repo: &dyn Repo,
+        extensions: &[impl AsRef<dyn SymbolResolverExtension>],
+    ) -> Result<&Indexes, PrefixDisambiguationError> {
         self.indexes.get_or_try_init(|| {
-            let symbol_resolver = DefaultSymbolResolver::new(repo);
+            let symbol_resolver = DefaultSymbolResolver::new(repo, extensions);
             let resolved_expression = self
                 .expression
                 .clone()
@@ -95,9 +102,17 @@ impl IdIndexSourceEntry<ChangeId> for &'_ (CommitId, ChangeId) {
 #[derive(Default)]
 pub struct IdPrefixContext {
     disambiguation: Option<DisambiguationData>,
+    extensions: Arc<RevsetExtensions>,
 }
 
 impl IdPrefixContext {
+    pub fn new(extensions: Arc<RevsetExtensions>) -> Self {
+        Self {
+            disambiguation: None,
+            extensions,
+        }
+    }
+
     pub fn disambiguate_within(mut self, expression: Rc<RevsetExpression>) -> Self {
         self.disambiguation = Some(DisambiguationData {
             expression,
@@ -108,9 +123,11 @@ impl IdPrefixContext {
 
     fn disambiguation_indexes(&self, repo: &dyn Repo) -> Option<&Indexes> {
         // TODO: propagate errors instead of treating them as if no revset was specified
-        self.disambiguation
-            .as_ref()
-            .and_then(|disambiguation| disambiguation.indexes(repo).ok())
+        self.disambiguation.as_ref().and_then(|disambiguation| {
+            disambiguation
+                .indexes(repo, self.extensions.symbol_resolvers())
+                .ok()
+        })
     }
 
     /// Resolve an unambiguous commit ID prefix.

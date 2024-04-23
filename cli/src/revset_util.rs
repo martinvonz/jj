@@ -15,6 +15,7 @@
 //! Utility for parsing and evaluating user-provided revset expressions.
 
 use std::rc::Rc;
+use std::sync::Arc;
 
 use itertools::Itertools as _;
 use jj_lib::backend::{BackendResult, CommitId};
@@ -23,8 +24,8 @@ use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{
     self, DefaultSymbolResolver, Revset, RevsetAliasesMap, RevsetCommitRef, RevsetEvaluationError,
-    RevsetExpression, RevsetIteratorExt as _, RevsetParseContext, RevsetParseError,
-    RevsetResolutionError,
+    RevsetExpression, RevsetExtensions, RevsetIteratorExt as _, RevsetParseContext,
+    RevsetParseError, RevsetResolutionError, SymbolResolverExtension,
 };
 use jj_lib::settings::ConfigResultExt as _;
 use thiserror::Error;
@@ -48,6 +49,7 @@ pub enum UserRevsetEvaluationError {
 /// Wrapper around `RevsetExpression` to provide convenient methods.
 pub struct RevsetExpressionEvaluator<'repo> {
     repo: &'repo dyn Repo,
+    extensions: Arc<RevsetExtensions>,
     id_prefix_context: &'repo IdPrefixContext,
     expression: Rc<RevsetExpression>,
 }
@@ -55,11 +57,13 @@ pub struct RevsetExpressionEvaluator<'repo> {
 impl<'repo> RevsetExpressionEvaluator<'repo> {
     pub fn new(
         repo: &'repo dyn Repo,
+        extensions: Arc<RevsetExtensions>,
         id_prefix_context: &'repo IdPrefixContext,
         expression: Rc<RevsetExpression>,
     ) -> Self {
         RevsetExpressionEvaluator {
             repo,
+            extensions,
             id_prefix_context,
             expression,
         }
@@ -77,7 +81,11 @@ impl<'repo> RevsetExpressionEvaluator<'repo> {
 
     /// Evaluates the expression.
     pub fn evaluate(&self) -> Result<Box<dyn Revset + 'repo>, UserRevsetEvaluationError> {
-        let symbol_resolver = default_symbol_resolver(self.repo, self.id_prefix_context);
+        let symbol_resolver = default_symbol_resolver(
+            self.repo,
+            self.extensions.symbol_resolvers(),
+            self.id_prefix_context,
+        );
         evaluate(self.repo, &symbol_resolver, self.expression.clone())
     }
 
@@ -157,9 +165,10 @@ pub fn evaluate<'a>(
 /// `evaluate()`.
 pub fn default_symbol_resolver<'a>(
     repo: &'a dyn Repo,
+    extensions: &[impl AsRef<dyn SymbolResolverExtension>],
     id_prefix_context: &'a IdPrefixContext,
 ) -> DefaultSymbolResolver<'a> {
-    DefaultSymbolResolver::new(repo).with_id_prefix_context(id_prefix_context)
+    DefaultSymbolResolver::new(repo, extensions).with_id_prefix_context(id_prefix_context)
 }
 
 /// Parses user-configured expression defining the immutable set.
