@@ -2022,25 +2022,6 @@ pub fn walk_revs<'index>(
         .evaluate_programmatic(repo)
 }
 
-fn resolve_git_ref(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
-    let view = repo.view();
-    for git_ref_prefix in &["", "refs/"] {
-        let target = view.get_git_ref(&(git_ref_prefix.to_string() + symbol));
-        if target.is_present() {
-            return Some(target.added_ids().cloned().collect());
-        }
-    }
-    None
-}
-
-fn resolve_local_branch(repo: &dyn Repo, symbol: &str) -> Option<Vec<CommitId>> {
-    let view = repo.view();
-    let target = view.get_local_branch(symbol);
-    target
-        .is_present()
-        .then(|| target.added_ids().cloned().collect())
-}
-
 fn resolve_remote_branch(repo: &dyn Repo, name: &str, remote: &str) -> Option<Vec<CommitId>> {
     let view = repo.view();
     let target = match (name, remote) {
@@ -2103,6 +2084,70 @@ impl SymbolResolver for FailingSymbolResolver {
     }
 }
 
+/// A symbol resolver for a specific namespace of labels.
+///
+/// Returns None if it cannot handle the symbol.
+pub trait PartialSymbolResolver {
+    fn resolve_symbol(
+        &self,
+        repo: &dyn Repo,
+        symbol: &str,
+    ) -> Result<Option<Vec<CommitId>>, RevsetResolutionError>;
+}
+
+struct TagResolver;
+
+impl PartialSymbolResolver for TagResolver {
+    fn resolve_symbol(
+        &self,
+        repo: &dyn Repo,
+        symbol: &str,
+    ) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
+        let target = repo.view().get_tag(symbol);
+        Ok(target
+            .is_present()
+            .then(|| target.added_ids().cloned().collect()))
+    }
+}
+
+struct BranchResolver;
+
+impl PartialSymbolResolver for BranchResolver {
+    fn resolve_symbol(
+        &self,
+        repo: &dyn Repo,
+        symbol: &str,
+    ) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
+        let target = repo.view().get_local_branch(symbol);
+        Ok(target
+            .is_present()
+            .then(|| target.added_ids().cloned().collect()))
+    }
+}
+
+struct GitRefResolver;
+
+impl PartialSymbolResolver for GitRefResolver {
+    fn resolve_symbol(
+        &self,
+        repo: &dyn Repo,
+        symbol: &str,
+    ) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
+        let view = repo.view();
+        for git_ref_prefix in &["", "refs/"] {
+            let target = view.get_git_ref(&(git_ref_prefix.to_string() + symbol));
+            if target.is_present() {
+                return Ok(Some(target.added_ids().cloned().collect()));
+            }
+        }
+
+        Ok(None)
+    }
+}
+
+const DEFAULT_RESOLVERS: &[&'static dyn PartialSymbolResolver] =
+    &[&TagResolver, &BranchResolver, &GitRefResolver];
+
 pub type PrefixResolver<'a, T> = Box<dyn Fn(&dyn Repo, &HexPrefix) -> PrefixResolution<T> + 'a>;
 
 /// Resolves branches, remote branches, tags, git refs, and full and abbreviated
@@ -2139,6 +2184,10 @@ impl<'a> DefaultSymbolResolver<'a> {
         self.change_id_resolver = change_id_resolver;
         self
     }
+
+    fn partial_resolvers(&self) -> impl Iterator<Item = &dyn PartialSymbolResolver> {
+        DEFAULT_RESOLVERS.iter().copied()
+    }
 }
 
 impl SymbolResolver for DefaultSymbolResolver<'_> {
@@ -2147,21 +2196,12 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
             return Err(RevsetResolutionError::EmptyString);
         }
 
-        // Try to resolve as a tag
-        let target = self.repo.view().get_tag(symbol);
-        if target.is_present() {
-            return Ok(target.added_ids().cloned().collect());
+        for partial_resolver in self.partial_resolvers() {
+            if let Some(ids) = partial_resolver.resolve_symbol(self.repo, symbol)? {
+                return Ok(ids);
+            }
         }
-
-        // Try to resolve as a branch
-        if let Some(ids) = resolve_local_branch(self.repo, symbol) {
-            return Ok(ids);
-        }
-
-        // Try to resolve as a git ref
-        if let Some(ids) = resolve_git_ref(self.repo, symbol) {
-            return Ok(ids);
-        }
+        // TODO: Convert prefix resolvers
 
         // Try to resolve as a commit id.
         if let Some(prefix) = HexPrefix::new(symbol) {
