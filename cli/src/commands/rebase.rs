@@ -13,20 +13,19 @@
 // limitations under the License.
 
 use std::borrow::Borrow;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::sync::Arc;
 
 use clap::ArgGroup;
 use indexmap::IndexSet;
 use itertools::Itertools;
+use jj_lib::backend::CommitId;
 use jj_lib::commit::{Commit, CommitIteratorExt};
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
-use jj_lib::rewrite::{
-    rebase_commit, rebase_commit_with_options, CommitRewriter, EmptyBehaviour, RebaseOptions,
-};
+use jj_lib::rewrite::{rebase_commit_with_options, CommitRewriter, EmptyBehaviour, RebaseOptions};
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
@@ -91,7 +90,7 @@ use crate::ui::Ui;
 /// J           J
 /// ```
 ///
-/// With `-r`, the command rebases only the specified revision onto the
+/// With `-r`, the command rebases only the specified revisions onto the
 /// destination. Any "hole" left behind will be filled by rebasing descendants
 /// onto the specified revision's parent(s). For example, `jj rebase -r K -d M`
 /// would transform your history like this:
@@ -125,7 +124,7 @@ use crate::ui::Ui;
 /// commit. This is true in general; it is not specific to this command.
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
-#[command(group(ArgGroup::new("to_rebase").args(&["branch", "source", "revision"])))]
+#[command(group(ArgGroup::new("to_rebase").args(&["branch", "source", "revisions"])))]
 pub(crate) struct RebaseArgs {
     /// Rebase the whole branch relative to destination's ancestors (can be
     /// repeated)
@@ -147,7 +146,7 @@ pub(crate) struct RebaseArgs {
     /// If none of `-b`, `-s`, or `-r` is provided, then the default is `-b @`.
     #[arg(long, short)]
     source: Vec<RevisionArg>,
-    /// Rebase only this revision, rebasing descendants onto this revision's
+    /// Rebase the given revisions, rebasing descendants onto this revision's
     /// parent(s)
     ///
     /// Unlike `-s` or `-b`, you may `jj rebase -r` a revision `A` onto a
@@ -155,7 +154,7 @@ pub(crate) struct RebaseArgs {
     ///
     /// If none of `-b`, `-s`, or `-r` is provided, then the default is `-b @`.
     #[arg(long, short)]
-    revision: Option<RevisionArg>,
+    revisions: Vec<RevisionArg>,
     /// The revision(s) to rebase onto (can be repeated to create a merge
     /// commit)
     #[arg(long, short, required = true)]
@@ -165,7 +164,7 @@ pub(crate) struct RebaseArgs {
     /// abandoned. It will not be abandoned if it was already empty before the
     /// rebase. Will never skip merge commits with multiple non-empty
     /// parents.
-    #[arg(long, conflicts_with = "revision")]
+    #[arg(long, conflicts_with = "revisions")]
     skip_empty: bool,
 
     /// Deprecated. Please prefix the revset with `all:` instead.
@@ -198,7 +197,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
         .resolve_some_revsets_default_single(&args.destination)?
         .into_iter()
         .collect_vec();
-    if let Some(rev_arg) = &args.revision {
+    if !args.revisions.is_empty() {
         assert_eq!(
             // In principle, `-r --skip-empty` could mean to abandon the `-r`
             // commit if it becomes empty. This seems internally consistent with
@@ -214,12 +213,16 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
             EmptyBehaviour::Keep,
             "clap should forbid `-r --skip-empty`"
         );
-        rebase_revision(
+        let target_commits: Vec<_> = workspace_command
+            .parse_union_revsets(&args.revisions)?
+            .evaluate_to_commits()?
+            .try_collect()?; // in reverse topological order
+        rebase_revisions(
             ui,
             command.settings(),
             &mut workspace_command,
             &new_parents,
-            rev_arg,
+            &target_commits,
         )?;
     } else if !args.source.is_empty() {
         let source_commits = workspace_command.resolve_some_revsets_default_single(&args.source)?;
@@ -323,7 +326,11 @@ fn rebase_descendants_transaction(
         .partition::<Vec<_>, _>(|commit| commit.parents() == new_parents);
     if !skipped_commits.is_empty() {
         if let Some(mut fmt) = ui.status_formatter() {
-            log_skipped_rebase_commits_message(fmt.as_mut(), workspace_command, &skipped_commits)?;
+            log_skipped_rebase_commits_message(
+                fmt.as_mut(),
+                workspace_command,
+                skipped_commits.into_iter(),
+            )?;
         }
     }
     if old_commits.is_empty() {
@@ -348,91 +355,99 @@ fn rebase_descendants_transaction(
     Ok(())
 }
 
-fn rebase_revision(
+fn rebase_revisions(
     ui: &mut Ui,
     settings: &UserSettings,
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: &[Commit],
-    rev_arg: &RevisionArg,
+    target_commits: &[Commit],
 ) -> Result<(), CommandError> {
-    let to_rebase_commit = workspace_command.resolve_single_rev(rev_arg)?;
-    workspace_command.check_rewritable([to_rebase_commit.id()])?;
-    if new_parents.contains(&to_rebase_commit) {
-        return Err(user_error(format!(
-            "Cannot rebase {} onto itself",
-            short_commit_hash(to_rebase_commit.id()),
-        )));
+    if target_commits.is_empty() {
+        return Ok(());
+    }
+
+    workspace_command.check_rewritable(target_commits.iter().ids())?;
+    for commit in target_commits.iter() {
+        if new_parents.contains(commit) {
+            return Err(user_error(format!(
+                "Cannot rebase {} onto itself",
+                short_commit_hash(commit.id()),
+            )));
+        }
     }
 
     let mut tx = workspace_command.start_transaction();
-    let mut rebased_commit_ids = HashMap::new();
+    let tx_description = if target_commits.len() == 1 {
+        format!("rebase commit {}", target_commits[0].id().hex())
+    } else {
+        format!(
+            "rebase commit {} and {} more",
+            target_commits[0].id().hex(),
+            target_commits.len() - 1
+        )
+    };
 
-    // First, rebase the descendants of `to_rebase_commit`.
-    // TODO(ilyagr): Consider making it possible for these descendants to become
-    // emptied, like --skip_empty. This would require writing careful tests.
+    let target_commit_ids: HashSet<_> = target_commits.iter().ids().cloned().collect();
+
+    // First, rebase the descendants of `target_commits`.
+    let (target_roots, num_rebased_descendants) =
+        extract_commits(&mut tx, settings, target_commits, &target_commit_ids)?;
+
+    // We now update `new_parents` to account for the rebase of all of
+    // `target_commits`'s descendants. Even if some of the original `new_parents`
+    // were descendants of `target_commits`, this will no longer be the case after
+    // the update.
+    let new_parents = tx
+        .mut_repo()
+        .new_parents(new_parents.iter().ids().cloned().collect_vec());
+    let mut skipped_commits = Vec::new();
+
+    // At this point, all commits in the target set will only have other commits in
+    // the set as their ancestors. We can now safely rebase `target_commits` onto
+    // the `new_parents`, by updating the roots' parents and rebasing its
+    // descendants.
     tx.mut_repo().transform_descendants(
         settings,
-        vec![to_rebase_commit.id().clone()],
+        target_roots.iter().cloned().collect_vec(),
         |mut rewriter| {
             let old_commit = rewriter.old_commit();
             let old_commit_id = old_commit.id().clone();
 
-            // Replace references to `to_rebase_commit` with its parents.
-            rewriter.replace_parent(to_rebase_commit.id(), to_rebase_commit.parent_ids());
+            if target_roots.contains(&old_commit_id) {
+                rewriter.set_new_parents(new_parents.clone());
+            }
             if rewriter.parents_changed() {
-                let builder = rewriter.rebase(settings)?;
-                let commit = builder.write()?;
-                rebased_commit_ids.insert(old_commit_id, commit.id().clone());
+                rewriter.rebase(settings)?.write()?;
+            } else {
+                // Only include the commit in the list of skipped commits if it wasn't
+                // previously rewritten. Commits in the target set could have previously been
+                // rewritten in `extract_commits` if they are not a root, and some of its
+                // parents are not part of the target set.
+                if target_commit_ids.contains(&old_commit_id) {
+                    skipped_commits.push(rewriter.old_commit().clone());
+                }
             }
             Ok(())
         },
     )?;
 
-    let num_rebased_descendants = rebased_commit_ids.len();
-
-    // We now update `new_parents` to account for the rebase of all of
-    // `to_rebase_commit`'s descendants. Even if some of the original `new_parents`
-    // were descendants of `to_rebase_commit`, this will no longer be the case after
-    // the update.
-    let new_parents = new_parents
-        .iter()
-        .map(|new_parent| {
-            rebased_commit_ids
-                .get(new_parent.id())
-                .unwrap_or(new_parent.id())
-                .clone()
-        })
-        .collect();
-
-    let tx_description = format!("rebase commit {}", to_rebase_commit.id().hex());
-    // Finally, it's safe to rebase `to_rebase_commit`. We can skip rebasing if it
-    // is already a child of `new_parents`. Otherwise, at this point, it should
-    // no longer have any children; they have all been rebased and the originals
-    // have been abandoned.
-    let skipped_commit_rebase = if to_rebase_commit.parent_ids() == new_parents {
-        if let Some(mut formatter) = ui.status_formatter() {
-            write!(formatter, "Skipping rebase of commit ")?;
-            tx.write_commit_summary(formatter.as_mut(), &to_rebase_commit)?;
-            writeln!(formatter)?;
-        }
-        true
-    } else {
-        rebase_commit(settings, tx.mut_repo(), to_rebase_commit, new_parents)?;
-        debug_assert_eq!(tx.mut_repo().rebase_descendants(settings)?, 0);
-        false
-    };
-
-    if num_rebased_descendants > 0 {
-        if skipped_commit_rebase {
-            writeln!(
-                ui.status(),
-                "Rebased {num_rebased_descendants} descendant commits onto parent of commit"
+    if let Some(mut fmt) = ui.status_formatter() {
+        if !skipped_commits.is_empty() {
+            log_skipped_rebase_commits_message(
+                fmt.as_mut(),
+                tx.base_workspace_helper(),
+                skipped_commits.iter(),
             )?;
-        } else {
+        }
+        let num_rebased = target_commits.len() - skipped_commits.len();
+        if num_rebased > 0 {
+            writeln!(fmt, "Rebased {num_rebased} commits onto destination")?;
+        }
+        if num_rebased_descendants > 0 {
             writeln!(
-                ui.status(),
-                "Also rebased {num_rebased_descendants} descendant commits onto parent of rebased \
-                 commit"
+                fmt,
+                "Rebased {num_rebased_descendants} descendant commits onto parents of rebased \
+                 commits"
             )?;
         }
     }
@@ -441,6 +456,122 @@ fn rebase_revision(
     } else {
         Ok(()) // Do not print "Nothing changed."
     }
+}
+
+/// Extracts `target_commits` from the graph by rebasing its descendants onto
+/// its parents. This assumes that `target_commits` can be rewritten.
+/// `target_commits` should be in reverse topological order.
+/// Returns a tuple of the commit IDs of the roots of the `target_commits` set
+/// and the number of rebased descendants which were not in the set.
+fn extract_commits(
+    tx: &mut WorkspaceCommandTransaction,
+    settings: &UserSettings,
+    target_commits: &[Commit],
+    target_commit_ids: &HashSet<CommitId>,
+) -> Result<(HashSet<CommitId>, usize), CommandError> {
+    let connected_target_commits: Vec<_> =
+        RevsetExpression::commits(target_commits.iter().ids().cloned().collect_vec())
+            .connected()
+            .evaluate_programmatic(tx.base_repo().as_ref())?
+            .iter()
+            .commits(tx.base_repo().store())
+            .try_collect()?;
+
+    // Commits in the target set should only have other commits in the set as
+    // parents, except the roots of the set, which persist their original
+    // parents.
+    // If a commit in the set has a parent which is not in the set, but has
+    // an ancestor which is in the set, then the commit will have that ancestor
+    // as a parent.
+    let mut new_target_parents: HashMap<CommitId, Vec<CommitId>> = HashMap::new();
+    for commit in connected_target_commits.iter().rev() {
+        // The roots of the set will not have any parents found in `new_target_parents`,
+        // and will be stored in `new_target_parents` as an empty vector.
+        let mut new_parents = vec![];
+        for old_parent in commit.parent_ids() {
+            if target_commit_ids.contains(old_parent) {
+                new_parents.push(old_parent.clone());
+            } else if let Some(parents) = new_target_parents.get(old_parent) {
+                new_parents.extend(parents.iter().cloned());
+            }
+        }
+        new_target_parents.insert(commit.id().clone(), new_parents);
+    }
+    new_target_parents.retain(|id, _| target_commit_ids.contains(id));
+
+    // Compute the roots of `target_commits`.
+    let target_roots: HashSet<_> = new_target_parents
+        .iter()
+        .filter(|(_, parents)| parents.is_empty())
+        .map(|(commit_id, _)| commit_id.clone())
+        .collect();
+
+    // If a commit outside the target set has a commit in the target set as a
+    // parent, then - after the transformation - it should have that commit's
+    // ancestors which are not in the target set as parents.
+    let mut new_child_parents: HashMap<CommitId, IndexSet<CommitId>> = HashMap::new();
+    for commit in target_commits.iter().rev() {
+        let mut new_parents = IndexSet::new();
+        for old_parent in commit.parent_ids() {
+            if let Some(parents) = new_child_parents.get(old_parent) {
+                new_parents.extend(parents.iter().cloned());
+            } else {
+                new_parents.insert(old_parent.clone());
+            }
+        }
+        new_child_parents.insert(commit.id().clone(), new_parents);
+    }
+
+    let mut num_rebased_descendants = 0;
+
+    // TODO(ilyagr): Consider making it possible for these descendants
+    // to become emptied, like --skip-empty. This would require writing careful
+    // tests.
+    tx.mut_repo().transform_descendants(
+        settings,
+        target_commits.iter().ids().cloned().collect_vec(),
+        |mut rewriter| {
+            let old_commit = rewriter.old_commit();
+            let old_commit_id = old_commit.id().clone();
+
+            // Commits in the target set should persist only rebased parents from the target
+            // sets.
+            if let Some(new_parents) = new_target_parents.get(&old_commit_id) {
+                // If the commit does not have any parents in the target set, its parents
+                // will be persisted since it is one of the roots of the set.
+                if !new_parents.is_empty() {
+                    rewriter.set_new_rewritten_parents(new_parents.clone());
+                }
+            }
+            // Commits outside the target set should have references to commits inside the set
+            // replaced.
+            else if rewriter
+                .old_commit()
+                .parent_ids()
+                .iter()
+                .any(|id| new_child_parents.contains_key(id))
+            {
+                let mut new_parents = vec![];
+                for parent in rewriter.old_commit().parent_ids() {
+                    if let Some(parents) = new_child_parents.get(parent) {
+                        new_parents.extend(parents.iter().cloned());
+                    } else {
+                        new_parents.push(parent.clone());
+                    }
+                }
+                rewriter.set_new_rewritten_parents(new_parents);
+            }
+            if rewriter.parents_changed() {
+                rewriter.rebase(settings)?.write()?;
+                if !target_commit_ids.contains(&old_commit_id) {
+                    num_rebased_descendants += 1;
+                }
+            }
+            Ok(())
+        },
+    )?;
+
+    Ok((target_roots, num_rebased_descendants))
 }
 
 fn check_rebase_destinations(
@@ -460,15 +591,15 @@ fn check_rebase_destinations(
     Ok(())
 }
 
-fn log_skipped_rebase_commits_message(
+fn log_skipped_rebase_commits_message<'a>(
     fmt: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
-    commits: &[&Commit],
+    commits: impl ExactSizeIterator<Item = &'a Commit>,
 ) -> Result<(), CommandError> {
     let template = workspace_command.commit_summary_template();
     if commits.len() == 1 {
         write!(fmt, "Skipping rebase of commit ")?;
-        template.format(commits[0], fmt)?;
+        template.format(commits.into_iter().next().unwrap(), fmt)?;
         writeln!(fmt)?;
     } else {
         writeln!(fmt, "Skipping rebase of commits:")?;

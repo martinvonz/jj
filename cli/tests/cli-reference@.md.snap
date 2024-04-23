@@ -1499,7 +1499,7 @@ O           N'
 J           J
 ```
 
-With `-r`, the command rebases only the specified revision onto the
+With `-r`, the command rebases only the specified revisions onto the
 destination. Any "hole" left behind will be filled by rebasing descendants
 onto the specified revision's parent(s). For example, `jj rebase -r K -d M`
 would transform your history like this:
@@ -1538,7 +1538,7 @@ commit. This is true in general; it is not specific to this command.
 
 * `-b`, `--branch <BRANCH>` — Rebase the whole branch relative to destination's ancestors (can be repeated)
 * `-s`, `--source <SOURCE>` — Rebase specified revision(s) together with their trees of descendants (can be repeated)
-* `-r`, `--revision <REVISION>` — Rebase only this revision, rebasing descendants onto this revision's parent(s)
+* `-r`, `--revisions <REVISIONS>` — Rebase the given revisions, rebasing descendants onto this revision's parent(s)
 * `-d`, `--destination <DESTINATION>` — The revision(s) to rebase onto (can be repeated to create a merge commit)
 * `--skip-empty` — If true, when rebasing would produce an empty commit, the commit is abandoned. It will not be abandoned if it was already empty before the rebase. Will never skip merge commits with multiple non-empty parents
 
