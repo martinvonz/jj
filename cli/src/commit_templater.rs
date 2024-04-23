@@ -678,7 +678,11 @@ fn evaluate_immutable_revset<'repo>(
         .map_err(|err| {
             TemplateParseError::expression("Failed to parse revset", span).with_source(err)
         })?;
-    let symbol_resolver = revset_util::default_symbol_resolver(repo, language.id_prefix_context);
+    let symbol_resolver = revset_util::default_symbol_resolver(
+        repo,
+        language.revset_parse_context.extensions.symbol_resolvers(),
+        language.id_prefix_context,
+    );
     let revset = revset_util::evaluate(repo, &symbol_resolver, expression).map_err(|err| {
         TemplateParseError::expression("Failed to evaluate revset", span).with_source(err)
     })?;

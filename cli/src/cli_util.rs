@@ -54,8 +54,8 @@ use jj_lib::repo::{
 };
 use jj_lib::repo_path::{FsPathParseError, RepoPath, RepoPathBuf};
 use jj_lib::revset::{
-    RevsetAliasesMap, RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt, RevsetModifier,
-    RevsetParseContext, RevsetWorkspaceContext,
+    RevsetAliasesMap, RevsetExpression, RevsetExtensions, RevsetFilterPredicate, RevsetIteratorExt,
+    RevsetModifier, RevsetParseContext, RevsetWorkspaceContext, SymbolResolverExtension,
 };
 use jj_lib::rewrite::restore_tree;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
@@ -193,6 +193,7 @@ pub struct CommandHelper {
     global_args: GlobalArgs,
     settings: UserSettings,
     layered_configs: LayeredConfigs,
+    revset_extensions: Arc<RevsetExtensions>,
     commit_template_extensions: Vec<Arc<dyn CommitTemplateLanguageExtension>>,
     operation_template_extensions: Vec<Arc<dyn OperationTemplateLanguageExtension>>,
     maybe_workspace_loader: Result<WorkspaceLoader, CommandError>,
@@ -234,6 +235,10 @@ impl CommandHelper {
         prefix: &[&str],
     ) -> Result<Vec<AnnotatedValue>, crate::config::ConfigError> {
         self.layered_configs.resolved_config_values(prefix)
+    }
+
+    pub fn revset_extensions(&self) -> &Arc<RevsetExtensions> {
+        &self.revset_extensions
     }
 
     /// Loads template aliases from the configs.
@@ -473,6 +478,7 @@ pub struct WorkspaceCommandHelper {
     settings: UserSettings,
     workspace: Workspace,
     user_repo: ReadonlyUserRepo,
+    revset_extensions: Arc<RevsetExtensions>,
     // TODO: Parsed template can be cached if it doesn't capture 'repo lifetime
     commit_summary_template_text: String,
     commit_template_extensions: Vec<Arc<dyn CommitTemplateLanguageExtension>>,
@@ -505,6 +511,7 @@ impl WorkspaceCommandHelper {
             settings,
             workspace,
             user_repo: ReadonlyUserRepo::new(repo),
+            revset_extensions: command.revset_extensions.clone(),
             commit_summary_template_text,
             commit_template_extensions: command.commit_template_extensions.clone(),
             revset_aliases_map,
@@ -948,6 +955,7 @@ impl WorkspaceCommandHelper {
     ) -> Result<RevsetExpressionEvaluator<'_>, CommandError> {
         Ok(RevsetExpressionEvaluator::new(
             self.repo().as_ref(),
+            self.revset_extensions.clone(),
             self.id_prefix_context()?,
             expression,
         ))
@@ -962,13 +970,14 @@ impl WorkspaceCommandHelper {
         RevsetParseContext {
             aliases_map: &self.revset_aliases_map,
             user_email: self.settings.user_email(),
+            extensions: &self.revset_extensions,
             workspace: Some(workspace_context),
         }
     }
 
     pub fn id_prefix_context(&self) -> Result<&IdPrefixContext, CommandError> {
         self.user_repo.id_prefix_context.get_or_try_init(|| {
-            let mut context: IdPrefixContext = IdPrefixContext::default();
+            let mut context: IdPrefixContext = IdPrefixContext::new(self.revset_extensions.clone());
             let revset_string: String = self
                 .settings
                 .config()
@@ -1551,7 +1560,7 @@ impl WorkspaceCommandTransaction<'_> {
         commit: &Commit,
     ) -> std::io::Result<()> {
         // TODO: Use the disambiguation revset
-        let id_prefix_context = IdPrefixContext::default();
+        let id_prefix_context = IdPrefixContext::new(self.helper.revset_extensions.clone());
         let language = CommitTemplateLanguage::new(
             self.tx.repo(),
             self.helper.workspace_id(),
@@ -2654,6 +2663,7 @@ pub struct CliRunner {
     extra_configs: Vec<config::Config>,
     store_factories: StoreFactories,
     working_copy_factories: WorkingCopyFactories,
+    revset_extensions: RevsetExtensions,
     commit_template_extensions: Vec<Arc<dyn CommitTemplateLanguageExtension>>,
     operation_template_extensions: Vec<Arc<dyn OperationTemplateLanguageExtension>>,
     dispatch_fn: CliDispatchFn,
@@ -2677,6 +2687,7 @@ impl CliRunner {
             extra_configs: vec![],
             store_factories: StoreFactories::default(),
             working_copy_factories: default_working_copy_factories(),
+            revset_extensions: Default::default(),
             commit_template_extensions: vec![],
             operation_template_extensions: vec![],
             dispatch_fn: Box::new(crate::commands::run_command),
@@ -2709,6 +2720,14 @@ impl CliRunner {
         working_copy_factories: WorkingCopyFactories,
     ) -> Self {
         merge_factories_map(&mut self.working_copy_factories, working_copy_factories);
+        self
+    }
+
+    pub fn add_symbol_resolver_extension(
+        mut self,
+        symbol_resolver: Box<dyn SymbolResolverExtension>,
+    ) -> Self {
+        self.revset_extensions.add_symbol_resolver(symbol_resolver);
         self
     }
 
@@ -2846,6 +2865,7 @@ impl CliRunner {
             global_args: args.global_args,
             settings,
             layered_configs,
+            revset_extensions: self.revset_extensions.into(),
             commit_template_extensions: self.commit_template_extensions,
             operation_template_extensions: self.operation_template_extensions,
             maybe_workspace_loader,

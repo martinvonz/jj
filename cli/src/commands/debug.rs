@@ -181,8 +181,11 @@ fn cmd_debug_revset(
     writeln!(ui.stdout(), "{expression:#?}")?;
     writeln!(ui.stdout())?;
 
-    let symbol_resolver =
-        revset_util::default_symbol_resolver(repo, workspace_command.id_prefix_context()?);
+    let symbol_resolver = revset_util::default_symbol_resolver(
+        repo,
+        command.revset_extensions().symbol_resolvers(),
+        workspace_command.id_prefix_context()?,
+    );
     let expression = expression.resolve_user_expression(repo, &symbol_resolver)?;
     writeln!(ui.stdout(), "-- Resolved:")?;
     writeln!(ui.stdout(), "{expression:#?}")?;
