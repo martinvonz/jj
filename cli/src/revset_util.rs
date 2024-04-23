@@ -159,13 +159,7 @@ pub fn default_symbol_resolver<'a>(
     repo: &'a dyn Repo,
     id_prefix_context: &'a IdPrefixContext,
 ) -> DefaultSymbolResolver<'a> {
-    let commit_id_resolver: revset::PrefixResolver<CommitId> =
-        Box::new(|repo, prefix| id_prefix_context.resolve_commit_prefix(repo, prefix));
-    let change_id_resolver: revset::PrefixResolver<Vec<CommitId>> =
-        Box::new(|repo, prefix| id_prefix_context.resolve_change_prefix(repo, prefix));
-    DefaultSymbolResolver::new(repo)
-        .with_commit_id_resolver(commit_id_resolver)
-        .with_change_id_resolver(change_id_resolver)
+    DefaultSymbolResolver::new(repo).with_id_prefix_context(id_prefix_context)
 }
 
 /// Parses user-configured expression defining the immutable set.

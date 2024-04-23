@@ -37,6 +37,7 @@ use crate::dsl_util::{collect_similar, StringLiteralParser};
 use crate::fileset::{FilePattern, FilesetExpression, FilesetParseContext};
 use crate::git;
 use crate::hex_util::to_forward_hex;
+use crate::id_prefix::IdPrefixContext;
 use crate::object_id::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
@@ -2148,45 +2149,93 @@ impl PartialSymbolResolver for GitRefResolver {
 const DEFAULT_RESOLVERS: &[&'static dyn PartialSymbolResolver] =
     &[&TagResolver, &BranchResolver, &GitRefResolver];
 
-pub type PrefixResolver<'a, T> = Box<dyn Fn(&dyn Repo, &HexPrefix) -> PrefixResolution<T> + 'a>;
+#[derive(Default)]
+struct CommitPrefixResolver<'a> {
+    context: Option<&'a IdPrefixContext>,
+}
+
+impl PartialSymbolResolver for CommitPrefixResolver<'_> {
+    fn resolve_symbol(
+        &self,
+        repo: &dyn Repo,
+        symbol: &str,
+    ) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
+        if let Some(prefix) = HexPrefix::new(symbol) {
+            let resolution = self
+                .context
+                .as_ref()
+                .map(|ctx| ctx.resolve_commit_prefix(repo, &prefix))
+                .unwrap_or_else(|| repo.index().resolve_commit_id_prefix(&prefix));
+            match resolution {
+                PrefixResolution::AmbiguousMatch => Err(
+                    RevsetResolutionError::AmbiguousCommitIdPrefix(symbol.to_owned()),
+                ),
+                PrefixResolution::SingleMatch(id) => Ok(Some(vec![id])),
+                PrefixResolution::NoMatch => Ok(None),
+            }
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+#[derive(Default)]
+struct ChangePrefixResolver<'a> {
+    context: Option<&'a IdPrefixContext>,
+}
+
+impl PartialSymbolResolver for ChangePrefixResolver<'_> {
+    fn resolve_symbol(
+        &self,
+        repo: &dyn Repo,
+        symbol: &str,
+    ) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
+        if let Some(prefix) = to_forward_hex(symbol).as_deref().and_then(HexPrefix::new) {
+            let resolution = self
+                .context
+                .as_ref()
+                .map(|ctx| ctx.resolve_change_prefix(repo, &prefix))
+                .unwrap_or_else(|| repo.resolve_change_id_prefix(&prefix));
+            match resolution {
+                PrefixResolution::AmbiguousMatch => Err(
+                    RevsetResolutionError::AmbiguousChangeIdPrefix(symbol.to_owned()),
+                ),
+                PrefixResolution::SingleMatch(ids) => Ok(Some(ids)),
+                PrefixResolution::NoMatch => Ok(None),
+            }
+        } else {
+            Ok(None)
+        }
+    }
+}
 
 /// Resolves branches, remote branches, tags, git refs, and full and abbreviated
 /// commit and change ids.
 pub struct DefaultSymbolResolver<'a> {
     repo: &'a dyn Repo,
-    commit_id_resolver: PrefixResolver<'a, CommitId>,
-    change_id_resolver: PrefixResolver<'a, Vec<CommitId>>,
+    commit_id_resolver: CommitPrefixResolver<'a>,
+    change_id_resolver: ChangePrefixResolver<'a>,
 }
 
 impl<'a> DefaultSymbolResolver<'a> {
     pub fn new(repo: &'a dyn Repo) -> Self {
         DefaultSymbolResolver {
             repo,
-            commit_id_resolver: Box::new(|repo, prefix| {
-                repo.index().resolve_commit_id_prefix(prefix)
-            }),
-            change_id_resolver: Box::new(|repo, prefix| repo.resolve_change_id_prefix(prefix)),
+            commit_id_resolver: Default::default(),
+            change_id_resolver: Default::default(),
         }
     }
 
-    pub fn with_commit_id_resolver(
-        mut self,
-        commit_id_resolver: PrefixResolver<'a, CommitId>,
-    ) -> Self {
-        self.commit_id_resolver = commit_id_resolver;
-        self
-    }
-
-    pub fn with_change_id_resolver(
-        mut self,
-        change_id_resolver: PrefixResolver<'a, Vec<CommitId>>,
-    ) -> Self {
-        self.change_id_resolver = change_id_resolver;
+    pub fn with_id_prefix_context(mut self, id_prefix_context: &'a IdPrefixContext) -> Self {
+        self.commit_id_resolver.context = Some(id_prefix_context);
+        self.change_id_resolver.context = Some(id_prefix_context);
         self
     }
 
     fn partial_resolvers(&self) -> impl Iterator<Item = &dyn PartialSymbolResolver> {
-        DEFAULT_RESOLVERS.iter().copied()
+        let prefix_resolvers: [&dyn PartialSymbolResolver; 2] =
+            [&self.commit_id_resolver, &self.change_id_resolver];
+        itertools::chain!(DEFAULT_RESOLVERS.iter().copied(), prefix_resolvers)
     }
 }
 
@@ -2199,41 +2248,6 @@ impl SymbolResolver for DefaultSymbolResolver<'_> {
         for partial_resolver in self.partial_resolvers() {
             if let Some(ids) = partial_resolver.resolve_symbol(self.repo, symbol)? {
                 return Ok(ids);
-            }
-        }
-        // TODO: Convert prefix resolvers
-
-        // Try to resolve as a commit id.
-        if let Some(prefix) = HexPrefix::new(symbol) {
-            match (self.commit_id_resolver)(self.repo, &prefix) {
-                PrefixResolution::AmbiguousMatch => {
-                    return Err(RevsetResolutionError::AmbiguousCommitIdPrefix(
-                        symbol.to_owned(),
-                    ));
-                }
-                PrefixResolution::SingleMatch(id) => {
-                    return Ok(vec![id]);
-                }
-                PrefixResolution::NoMatch => {
-                    // Fall through
-                }
-            }
-        }
-
-        // Try to resolve as a change id.
-        if let Some(prefix) = to_forward_hex(symbol).as_deref().and_then(HexPrefix::new) {
-            match (self.change_id_resolver)(self.repo, &prefix) {
-                PrefixResolution::AmbiguousMatch => {
-                    return Err(RevsetResolutionError::AmbiguousChangeIdPrefix(
-                        symbol.to_owned(),
-                    ));
-                }
-                PrefixResolution::SingleMatch(ids) => {
-                    return Ok(ids);
-                }
-                PrefixResolution::NoMatch => {
-                    // Fall through
-                }
             }
         }
 
