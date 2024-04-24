@@ -1769,7 +1769,7 @@ which are available as command options.</p>
 <h2 id="execution-orderparallelism">Execution order/parallelism<a class="headerlink" href="#execution-orderparallelism" title="Permanent link">&para;</a></h2>
 <p>It may be useful to execute commands in topological order. For example, 
 commands with costs proportional to incremental changes, like build systems. 
-There may also be other revelant heuristics, but topological order is an easy
+There may also be other relevant heuristics, but topological order is an easy
 and effective way to start. </p>
 <p>Parallel execution of commands on different commits may choose to schedule 
 commits to still reduce incremental changes in the working copy used by each
@@ -1796,7 +1796,7 @@ subprocess. </p>
 running processes. Notify the user that we failed to apply the command to the 
 specific revision. </p>
 <p>We will leave any affected commit in its current state, if any subprocess fails.
-This allows us provide a better user experience, as leaving revisions in an 
+This allows us to provide a better user experience, as leaving revisions in an 
 undesirable state, e.g partially formatted, may confuse users.</p>
 <h2 id="resource-constraints">Resource constraints<a class="headerlink" href="#resource-constraints" title="Permanent link">&para;</a></h2>
 <p>It will be useful to constrain the execution to prevent resource exhaustion. 
