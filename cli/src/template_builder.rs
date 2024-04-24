@@ -1094,9 +1094,11 @@ pub fn expect_boolean_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     build_ctx: &BuildContext<L::Property>,
     node: &ExpressionNode,
 ) -> TemplateParseResult<Box<dyn TemplateProperty<Output = bool> + 'a>> {
-    build_expression(language, build_ctx, node)?
+    let expression = build_expression(language, build_ctx, node)?;
+    let actual_type = expression.type_name();
+    expression
         .try_into_boolean()
-        .ok_or_else(|| TemplateParseError::expected_type("Boolean", node.span))
+        .ok_or_else(|| TemplateParseError::expected_type("Boolean", actual_type, node.span))
 }
 
 pub fn expect_integer_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
@@ -1104,9 +1106,11 @@ pub fn expect_integer_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     build_ctx: &BuildContext<L::Property>,
     node: &ExpressionNode,
 ) -> TemplateParseResult<Box<dyn TemplateProperty<Output = i64> + 'a>> {
-    build_expression(language, build_ctx, node)?
+    let expression = build_expression(language, build_ctx, node)?;
+    let actual_type = expression.type_name();
+    expression
         .try_into_integer()
-        .ok_or_else(|| TemplateParseError::expected_type("Integer", node.span))
+        .ok_or_else(|| TemplateParseError::expected_type("Integer", actual_type, node.span))
 }
 
 /// If the given expression `node` is of `Integer` type, converts it to `isize`.
@@ -1138,9 +1142,11 @@ pub fn expect_plain_text_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
 ) -> TemplateParseResult<Box<dyn TemplateProperty<Output = String> + 'a>> {
     // Since any formattable type can be converted to a string property,
     // the expected type is not a String, but a Template.
-    build_expression(language, build_ctx, node)?
+    let expression = build_expression(language, build_ctx, node)?;
+    let actual_type = expression.type_name();
+    expression
         .try_into_plain_text()
-        .ok_or_else(|| TemplateParseError::expected_type("Template", node.span))
+        .ok_or_else(|| TemplateParseError::expected_type("Template", actual_type, node.span))
 }
 
 pub fn expect_template_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
@@ -1148,9 +1154,11 @@ pub fn expect_template_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     build_ctx: &BuildContext<L::Property>,
     node: &ExpressionNode,
 ) -> TemplateParseResult<Box<dyn Template + 'a>> {
-    build_expression(language, build_ctx, node)?
+    let expression = build_expression(language, build_ctx, node)?;
+    let actual_type = expression.type_name();
+    expression
         .try_into_template()
-        .ok_or_else(|| TemplateParseError::expected_type("Template", node.span))
+        .ok_or_else(|| TemplateParseError::expected_type("Template", actual_type, node.span))
 }
 
 #[cfg(test)]
@@ -1326,7 +1334,7 @@ mod tests {
         1 | true && 123
           |         ^-^
           |
-          = Expected expression of type "Boolean"
+          = Expected expression of type "Boolean", but actual type is "Integer"
         "###);
 
         insta::assert_snapshot!(env.parse_err(r#"description.first_line().foo()"#), @r###"
@@ -1360,7 +1368,7 @@ mod tests {
         1 | (-empty)
           |   ^---^
           |
-          = Expected expression of type "Integer"
+          = Expected expression of type "Integer", but actual type is "Boolean"
         "###);
 
         insta::assert_snapshot!(env.parse_err(r#"("foo" ++ "bar").baz()"#), @r###"
@@ -1430,7 +1438,7 @@ mod tests {
         1 | if(label("foo", "bar"), "baz")
           |    ^-----------------^
           |
-          = Expected expression of type "Boolean"
+          = Expected expression of type "Boolean", but actual type is "Template"
         "###);
 
         insta::assert_snapshot!(env.parse_err(r#"|x| description"#), @r###"
@@ -1455,7 +1463,7 @@ mod tests {
         1 | self
           | ^--^
           |
-          = Expected expression of type "Template"
+          = Expected expression of type "Template", but actual type is "Self"
         "###);
     }
 
@@ -1480,7 +1488,7 @@ mod tests {
         1 | if(0, true, false)
           |    ^
           |
-          = Expected expression of type "Boolean"
+          = Expected expression of type "Boolean", but actual type is "Integer"
         "###);
 
         insta::assert_snapshot!(env.parse_err(r#"if(label("", ""), true, false)"#), @r###"
@@ -1489,7 +1497,7 @@ mod tests {
         1 | if(label("", ""), true, false)
           |    ^-----------^
           |
-          = Expected expression of type "Boolean"
+          = Expected expression of type "Boolean", but actual type is "Template"
         "###);
         insta::assert_snapshot!(env.parse_err(r#"if(sl0.map(|x| x), true, false)"#), @r###"
          --> 1:4
@@ -1497,7 +1505,7 @@ mod tests {
         1 | if(sl0.map(|x| x), true, false)
           |    ^------------^
           |
-          = Expected expression of type "Boolean"
+          = Expected expression of type "Boolean", but actual type is "ListTemplate"
         "###);
     }
 
