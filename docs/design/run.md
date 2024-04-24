@@ -159,7 +159,7 @@ which are available as command options.
 
 It may be useful to execute commands in topological order. For example, 
 commands with costs proportional to incremental changes, like build systems. 
-There may also be other revelant heuristics, but topological order is an easy
+There may also be other relevant heuristics, but topological order is an easy
 and effective way to start. 
 
 Parallel execution of commands on different commits may choose to schedule 
