@@ -54,13 +54,13 @@ fn test_log_parents() {
     // Commit object isn't printable
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-T", "parents"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse template: Expected expression of type "Template"
+    Error: Failed to parse template: Expected expression of type "Template", but actual type is "List<Commit>"
     Caused by:  --> 1:1
       |
     1 | parents
       | ^-----^
       |
-      = Expected expression of type "Template"
+      = Expected expression of type "Template", but actual type is "List<Commit>"
     "###);
 
     // Redundant argument passed to keyword method

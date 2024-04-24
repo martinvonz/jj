@@ -208,7 +208,7 @@ fn test_templater_alias() {
     1 | identity(identity(commit_id.short("")))
       |                                   ^^
       |
-      = Expected expression of type "Integer"
+      = Expected expression of type "Integer", but actual type is "String"
     "###);
 
     insta::assert_snapshot!(render_err("commit_id ++ recurse"), @r###"
@@ -273,7 +273,7 @@ fn test_templater_alias() {
     1 | coalesce(label("x", "not boolean"), "")
       |          ^-----------------------^
       |
-      = Expected expression of type "Boolean"
+      = Expected expression of type "Boolean", but actual type is "Template"
     "###);
 }
 

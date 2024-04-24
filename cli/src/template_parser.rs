@@ -154,8 +154,9 @@ impl TemplateParseError {
         )
     }
 
-    pub fn expected_type(type_name: &str, span: pest::Span<'_>) -> Self {
-        let message = format!(r#"Expected expression of type "{type_name}""#);
+    pub fn expected_type(expected: &str, actual: &str, span: pest::Span<'_>) -> Self {
+        let message =
+            format!(r#"Expected expression of type "{expected}", but actual type is "{actual}""#);
         TemplateParseError::expression(message, span)
     }
 
