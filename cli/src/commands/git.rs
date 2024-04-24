@@ -115,7 +115,7 @@ pub struct GitRemoteListArgs {}
 pub struct GitInitArgs {
     /// The destination directory where the `jj` repo will be created.
     /// If the directory does not exist, it will be created.
-    /// If no directory is diven, the current directory is used.
+    /// If no directory is given, the current directory is used.
     ///
     /// By default the `git` repo is under `$destination/.jj`
     #[arg(default_value = ".", value_hint = clap::ValueHint::DirPath)]
