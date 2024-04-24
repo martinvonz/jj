@@ -846,7 +846,7 @@ Create a new Git backed repo
 
 ###### **Arguments:**
 
-* `<DESTINATION>` — The destination directory where the `jj` repo will be created. If the directory does not exist, it will be created. If no directory is diven, the current directory is used
+* `<DESTINATION>` — The destination directory where the `jj` repo will be created. If the directory does not exist, it will be created. If no directory is given, the current directory is used
 
   Default value: `.`
 
