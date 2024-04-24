@@ -118,6 +118,9 @@ pub(crate) use {impl_core_wrap_property_fns, impl_wrap_property_fns};
 
 /// Provides access to basic template property types.
 pub trait IntoTemplateProperty<'a> {
+    /// Type name of the property output.
+    fn type_name(&self) -> &'static str;
+
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Output = bool> + 'a>>;
     fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<Output = i64> + 'a>>;
 
@@ -149,6 +152,20 @@ pub enum CoreTemplatePropertyKind<'a> {
 }
 
 impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
+    fn type_name(&self) -> &'static str {
+        match self {
+            CoreTemplatePropertyKind::String(_) => "String",
+            CoreTemplatePropertyKind::StringList(_) => "List<String>",
+            CoreTemplatePropertyKind::Boolean(_) => "Boolean",
+            CoreTemplatePropertyKind::Integer(_) => "Integer",
+            CoreTemplatePropertyKind::Signature(_) => "Signature",
+            CoreTemplatePropertyKind::Timestamp(_) => "Timestamp",
+            CoreTemplatePropertyKind::TimestampRange(_) => "TimestampRange",
+            CoreTemplatePropertyKind::Template(_) => "Template",
+            CoreTemplatePropertyKind::ListTemplate(_) => "ListTemplate",
+        }
+    }
+
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Output = bool> + 'a>> {
         match self {
             CoreTemplatePropertyKind::String(property) => {
@@ -317,10 +334,11 @@ impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
         property: CoreTemplatePropertyKind<'a>,
         function: &FunctionCallNode,
     ) -> TemplateParseResult<L::Property> {
+        let type_name = property.type_name();
         match property {
             CoreTemplatePropertyKind::String(property) => {
                 let table = &self.string_methods;
-                let build = template_parser::lookup_method("String", table, function)?;
+                let build = template_parser::lookup_method(type_name, table, function)?;
                 build(language, build_ctx, property, function)
             }
             CoreTemplatePropertyKind::StringList(property) => {
@@ -331,32 +349,32 @@ impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
             }
             CoreTemplatePropertyKind::Boolean(property) => {
                 let table = &self.boolean_methods;
-                let build = template_parser::lookup_method("Boolean", table, function)?;
+                let build = template_parser::lookup_method(type_name, table, function)?;
                 build(language, build_ctx, property, function)
             }
             CoreTemplatePropertyKind::Integer(property) => {
                 let table = &self.integer_methods;
-                let build = template_parser::lookup_method("Integer", table, function)?;
+                let build = template_parser::lookup_method(type_name, table, function)?;
                 build(language, build_ctx, property, function)
             }
             CoreTemplatePropertyKind::Signature(property) => {
                 let table = &self.signature_methods;
-                let build = template_parser::lookup_method("Signature", table, function)?;
+                let build = template_parser::lookup_method(type_name, table, function)?;
                 build(language, build_ctx, property, function)
             }
             CoreTemplatePropertyKind::Timestamp(property) => {
                 let table = &self.timestamp_methods;
-                let build = template_parser::lookup_method("Timestamp", table, function)?;
+                let build = template_parser::lookup_method(type_name, table, function)?;
                 build(language, build_ctx, property, function)
             }
             CoreTemplatePropertyKind::TimestampRange(property) => {
                 let table = &self.timestamp_range_methods;
-                let build = template_parser::lookup_method("TimestampRange", table, function)?;
+                let build = template_parser::lookup_method(type_name, table, function)?;
                 build(language, build_ctx, property, function)
             }
             CoreTemplatePropertyKind::Template(_) => {
                 // TODO: migrate to table?
-                Err(TemplateParseError::no_such_method("Template", function))
+                Err(TemplateParseError::no_such_method(type_name, function))
             }
             CoreTemplatePropertyKind::ListTemplate(template) => {
                 // TODO: migrate to table?
@@ -385,6 +403,10 @@ impl<P> Expression<P> {
 }
 
 impl<'a, P: IntoTemplateProperty<'a>> Expression<P> {
+    pub fn type_name(&self) -> &'static str {
+        self.property.type_name()
+    }
+
     pub fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Output = bool> + 'a>> {
         self.property.try_into_boolean()
     }

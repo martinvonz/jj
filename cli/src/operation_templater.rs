@@ -92,6 +92,7 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage {
         property: Self::Property,
         function: &FunctionCallNode,
     ) -> TemplateParseResult<Self::Property> {
+        let type_name = property.type_name();
         match property {
             OperationTemplatePropertyKind::Core(property) => {
                 let table = &self.build_fn_table.core;
@@ -99,12 +100,12 @@ impl TemplateLanguage<'static> for OperationTemplateLanguage {
             }
             OperationTemplatePropertyKind::Operation(property) => {
                 let table = &self.build_fn_table.operation_methods;
-                let build = template_parser::lookup_method("Operation", table, function)?;
+                let build = template_parser::lookup_method(type_name, table, function)?;
                 build(self, build_ctx, property, function)
             }
             OperationTemplatePropertyKind::OperationId(property) => {
                 let table = &self.build_fn_table.operation_id_methods;
-                let build = template_parser::lookup_method("OperationId", table, function)?;
+                let build = template_parser::lookup_method(type_name, table, function)?;
                 build(self, build_ctx, property, function)
             }
         }
@@ -136,6 +137,14 @@ pub enum OperationTemplatePropertyKind {
 }
 
 impl IntoTemplateProperty<'static> for OperationTemplatePropertyKind {
+    fn type_name(&self) -> &'static str {
+        match self {
+            OperationTemplatePropertyKind::Core(property) => property.type_name(),
+            OperationTemplatePropertyKind::Operation(_) => "Operation",
+            OperationTemplatePropertyKind::OperationId(_) => "OperationId",
+        }
+    }
+
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Output = bool>>> {
         match self {
             OperationTemplatePropertyKind::Core(property) => property.try_into_boolean(),

@@ -115,6 +115,7 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
         property: Self::Property,
         function: &FunctionCallNode,
     ) -> TemplateParseResult<Self::Property> {
+        let type_name = property.type_name();
         match property {
             CommitTemplatePropertyKind::Core(property) => {
                 let table = &self.build_fn_table.core;
@@ -122,12 +123,13 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
             }
             CommitTemplatePropertyKind::Commit(property) => {
                 let table = &self.build_fn_table.commit_methods;
-                let build = template_parser::lookup_method("Commit", table, function)?;
+                let build = template_parser::lookup_method(type_name, table, function)?;
                 build(self, build_ctx, property, function)
             }
             CommitTemplatePropertyKind::CommitOpt(property) => {
+                let type_name = "Commit";
                 let table = &self.build_fn_table.commit_methods;
-                let build = template_parser::lookup_method("Commit", table, function)?;
+                let build = template_parser::lookup_method(type_name, table, function)?;
                 let inner_property = property.and_then(|opt| {
                     opt.ok_or_else(|| TemplatePropertyError("No commit available".into()))
                 });
@@ -145,12 +147,13 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
             }
             CommitTemplatePropertyKind::RefName(property) => {
                 let table = &self.build_fn_table.ref_name_methods;
-                let build = template_parser::lookup_method("RefName", table, function)?;
+                let build = template_parser::lookup_method(type_name, table, function)?;
                 build(self, build_ctx, property, function)
             }
             CommitTemplatePropertyKind::RefNameOpt(property) => {
+                let type_name = "RefName";
                 let table = &self.build_fn_table.ref_name_methods;
-                let build = template_parser::lookup_method("RefName", table, function)?;
+                let build = template_parser::lookup_method(type_name, table, function)?;
                 let inner_property = property.and_then(|opt| {
                     opt.ok_or_else(|| TemplatePropertyError("No RefName available".into()))
                 });
@@ -168,12 +171,12 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
             }
             CommitTemplatePropertyKind::CommitOrChangeId(property) => {
                 let table = &self.build_fn_table.commit_or_change_id_methods;
-                let build = template_parser::lookup_method("CommitOrChangeId", table, function)?;
+                let build = template_parser::lookup_method(type_name, table, function)?;
                 build(self, build_ctx, property, function)
             }
             CommitTemplatePropertyKind::ShortestIdPrefix(property) => {
                 let table = &self.build_fn_table.shortest_id_prefix_methods;
-                let build = template_parser::lookup_method("ShortestIdPrefix", table, function)?;
+                let build = template_parser::lookup_method(type_name, table, function)?;
                 build(self, build_ctx, property, function)
             }
         }
@@ -261,6 +264,20 @@ pub enum CommitTemplatePropertyKind<'repo> {
 }
 
 impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
+    fn type_name(&self) -> &'static str {
+        match self {
+            CommitTemplatePropertyKind::Core(property) => property.type_name(),
+            CommitTemplatePropertyKind::Commit(_) => "Commit",
+            CommitTemplatePropertyKind::CommitOpt(_) => "Option<Commit>",
+            CommitTemplatePropertyKind::CommitList(_) => "List<Commit>",
+            CommitTemplatePropertyKind::RefName(_) => "RefName",
+            CommitTemplatePropertyKind::RefNameOpt(_) => "Option<RefName>",
+            CommitTemplatePropertyKind::RefNameList(_) => "List<RefName>",
+            CommitTemplatePropertyKind::CommitOrChangeId(_) => "CommitOrChangeId",
+            CommitTemplatePropertyKind::ShortestIdPrefix(_) => "ShortestIdPrefix",
+        }
+    }
+
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Output = bool> + 'repo>> {
         match self {
             CommitTemplatePropertyKind::Core(property) => property.try_into_boolean(),
