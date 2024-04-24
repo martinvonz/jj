@@ -28,7 +28,7 @@ be compiled from the same source code.
 
 ### Linux
 
-### Arch Linux
+#### Arch Linux
 You can install the `jujutsu` package from the [official extra repository](https://archlinux.org/packages/extra/x86_64/jujutsu/):
 
 ```
