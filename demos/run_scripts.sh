@@ -14,7 +14,7 @@ set -euo pipefail
 # inkscape`. It's unclear to me whether `convert` used Inkscape or one of its
 # dependencies. Inkscape can be also used manually for SVG -> PNG conversion.
 which term-transcript > /dev/null \
-  || (echo '`term-transcipt` must be installed with e.g.'\
+  || (echo '`term-transcript` must be installed with e.g.'\
            '`cargo binstall term-transcript-cli`.' \
            'See also https://github.com/slowli/term-transcript' >&2;
       false)
