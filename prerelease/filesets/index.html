@@ -1355,6 +1355,15 @@ consists of file patterns, operators, and functions.</p>
 <code>ui.allow-filesets</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">allow-filesets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 </code></pre></div>
+<p>Many <code>jj</code> commands accept fileset expressions as positional arguments. File
+names passed to these commands must be quoted if they contain whitespace or meta
+characters. However, as a special case, quotes can be omitted if the expression
+has no operators nor function calls. For example:</p>
+<ul>
+<li><code>jj diff 'Foo Bar'</code> (shell quotes are required, but inner quotes are optional)</li>
+<li><code>jj diff '~"Foo Bar"'</code> (both shell and inner quotes are required)</li>
+<li><code>jj diff '"Foo(1)"'</code> (both shell and inner quotes are required)</li>
+</ul>
 <h2 id="file-patterns">File patterns<a class="headerlink" href="#file-patterns" title="Permanent link">&para;</a></h2>
 <p>The following patterns are supported:</p>
 <ul>
