@@ -42,8 +42,9 @@ message.
 
 When you address comments on a PR, don't make the changes in a commit on top (as
 is typical on GitHub). Instead, please make the changes in the appropriate
-commit. You can do that by checking out the commit (`jj checkout/new <commit>`)
-and then squash in the changes when you're done (`jj squash`). `jj git push`
+commit. You can do that by creating a new commit on top of the initial commit 
+ (`jj new <commit>`) and then squash in the changes when you're done (`jj squash`). 
+`jj git push`
 will automatically force-push the branch.
 
 When your first PR has been approved, we typically give you contributor access,
