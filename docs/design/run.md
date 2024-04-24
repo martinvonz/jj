@@ -194,7 +194,7 @@ running processes. Notify the user that we failed to apply the command to the
 specific revision. 
 
 We will leave any affected commit in its current state, if any subprocess fails.
-This allows us provide a better user experience, as leaving revisions in an 
+This allows us to provide a better user experience, as leaving revisions in an 
 undesirable state, e.g partially formatted, may confuse users.
 
 ## Resource constraints
