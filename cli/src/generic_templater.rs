@@ -94,6 +94,7 @@ impl<'a, C: 'a> TemplateLanguage<'a> for GenericTemplateLanguage<'a, C> {
         property: Self::Property,
         function: &FunctionCallNode,
     ) -> TemplateParseResult<Self::Property> {
+        let type_name = property.type_name();
         match property {
             GenericTemplatePropertyKind::Core(property) => {
                 let table = &self.build_fn_table.core;
@@ -101,7 +102,7 @@ impl<'a, C: 'a> TemplateLanguage<'a> for GenericTemplateLanguage<'a, C> {
             }
             GenericTemplatePropertyKind::Self_(property) => {
                 let table = &self.build_fn_table.keywords;
-                let build = template_parser::lookup_method("Self", table, function)?;
+                let build = template_parser::lookup_method(type_name, table, function)?;
                 // For simplicity, only 0-ary method is supported.
                 template_parser::expect_no_arguments(function)?;
                 build(property)
@@ -124,6 +125,13 @@ pub enum GenericTemplatePropertyKind<'a, C> {
 }
 
 impl<'a, C: 'a> IntoTemplateProperty<'a> for GenericTemplatePropertyKind<'a, C> {
+    fn type_name(&self) -> &'static str {
+        match self {
+            GenericTemplatePropertyKind::Core(property) => property.type_name(),
+            GenericTemplatePropertyKind::Self_(_) => "Self",
+        }
+    }
+
     fn try_into_boolean(self) -> Option<Box<dyn TemplateProperty<Output = bool> + 'a>> {
         match self {
             GenericTemplatePropertyKind::Core(property) => property.try_into_boolean(),
