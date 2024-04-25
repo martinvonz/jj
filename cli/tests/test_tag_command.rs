@@ -35,44 +35,79 @@ fn test_tag_list() {
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "branch1"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-mcommit2"]);
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "branch2"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-mcommit3"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "branch3"]);
     test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
 
     copy_ref("refs/heads/branch1", "refs/tags/test_tag");
     copy_ref("refs/heads/branch2", "refs/tags/test_tag2");
+    copy_ref("refs/heads/branch1", "refs/tags/conflicted_tag");
     test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
+    copy_ref("refs/heads/branch2", "refs/tags/conflicted_tag");
+    test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
+    copy_ref("refs/heads/branch3", "refs/tags/conflicted_tag");
+    test_env.jj_cmd_ok(&repo_path, &["git", "import", "--at-op=@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["status"]); // resolve concurrent ops
 
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["tag", "list"]),
         @r###"
-        test_tag
-        test_tag2
-         "###);
+    conflicted_tag
+    test_tag
+    test_tag2
+    "###);
 
-     insta::assert_snapshot!(
-         test_env.jj_cmd_success(&repo_path, &["tag", "list", "--color=always"]),
-         @r###"
-     [38;5;5mtest_tag[39m
-     [38;5;5mtest_tag2[39m
-     "###);
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["tag", "list", "--color=always"]),
+        @r###"
+    [38;5;5mconflicted_tag[39m
+    [38;5;5mtest_tag[39m
+    [38;5;5mtest_tag2[39m
+    "###);
 
     // Test pattern matching.
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["tag", "list", "test_tag2"]),
         @r###"
-        test_tag2
-         "###);
+    test_tag2
+    "###);
 
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["tag", "list", "glob:test_tag?"]),
         @r###"
-        test_tag2
-         "###);
+    test_tag2
+    "###);
 
-    let template = r#"'name: ' ++ name ++ "\n""#;
+    let template = r#"
+    concat(
+      "[" ++ name ++ "]\n",
+      separate(" ", "present:", present) ++ "\n",
+      separate(" ", "conflict:", conflict) ++ "\n",
+      separate(" ", "normal_target:", normal_target.description().first_line()) ++ "\n",
+      separate(" ", "removed_targets:", removed_targets.map(|c| c.description().first_line())) ++ "\n",
+      separate(" ", "added_targets:", added_targets.map(|c| c.description().first_line())) ++ "\n",
+    )
+    "#;
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["tag", "list", "-T", template]),
         @r###"
-    name: test_tag
-    name: test_tag2
+    [conflicted_tag]
+    present: true
+    conflict: true
+    normal_target: <Error: No commit available>
+    removed_targets: commit1
+    added_targets: commit2 commit3
+    [test_tag]
+    present: true
+    conflict: false
+    normal_target: commit1
+    removed_targets:
+    added_targets: commit1
+    [test_tag2]
+    present: true
+    conflict: false
+    normal_target: commit2
+    removed_targets:
+    added_targets: commit2
     "###);
 }

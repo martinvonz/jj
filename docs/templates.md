@@ -155,6 +155,14 @@ The following methods are defined.
 
 * `.name() -> String`: Local branch or tag name.
 * `.remote() -> String`: Remote name or empty if this is a local ref.
+* `.present() -> Boolean`: True if the ref points to any commit.
+* `.conflict() -> Boolean`: True if [the branch or tag is
+  conflicted](branches.md#conflicts).
+* `.normal_target() -> Option<Commit>`: Target commit if the ref is not
+  conflicted and points to a commit.
+* `.removed_targets() -> List<Commit>`: Old target commits if conflicted.
+* `.added_targets() -> List<Commit>`: New target commits. The list usually
+  contains one "normal" target.
 
 ### ShortestIdPrefix type
 
