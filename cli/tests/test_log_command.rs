@@ -40,7 +40,6 @@ fn test_log_with_no_template() {
 
     For more information, try '--help'.
     Hint: The following template aliases are defined:
-    - builtin_change_id_with_hidden_and_divergent_info
     - builtin_log_comfortable
     - builtin_log_compact
     - builtin_log_detailed
