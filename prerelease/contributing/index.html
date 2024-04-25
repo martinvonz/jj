@@ -1661,8 +1661,9 @@ the PR description can even be empty, but feel free to include a personal
 message.</p>
 <p>When you address comments on a PR, don't make the changes in a commit on top (as
 is typical on GitHub). Instead, please make the changes in the appropriate
-commit. You can do that by checking out the commit (<code>jj checkout/new &lt;commit&gt;</code>)
-and then squash in the changes when you're done (<code>jj squash</code>). <code>jj git push</code>
+commit. You can do that by creating a new commit on top of the initial commit 
+ (<code>jj new &lt;commit&gt;</code>) and then squash in the changes when you're done (<code>jj squash</code>). 
+<code>jj git push</code>
 will automatically force-push the branch.</p>
 <p>When your first PR has been approved, we typically give you contributor access,
 so you can address any remaining minor comments and then merge the PR yourself
