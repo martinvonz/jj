@@ -1482,10 +1482,10 @@ ID can also be used. It is an error to use a non-unique prefix.</p>
 <p>A full change ID refers to all visible commits with that change ID (there is
 typically only one visible commit with a given change ID). A unique prefix of
 the full change ID can also be used. It is an error to use a non-unique prefix.</p>
-<p>Use double quotes to prevent a symbol from being interpreted as an expression.
-For example, <code>"x-"</code> is the symbol <code>x-</code>, not the parents of symbol <code>x</code>.
-Taking shell quoting into account, you may need to use something like
-<code>jj log -r '"x-"'</code>.</p>
+<p>Use <a href="../templates/#string-literals">single or double quotes</a> to prevent a symbol from being
+interpreted as an expression. For example, <code>"x-"</code> is the symbol <code>x-</code>, not the
+parents of symbol <code>x</code>. Taking shell quoting into account, you may need to use
+something like <code>jj log -r '"x-"'</code>.</p>
 <h3 id="priority">Priority<a class="headerlink" href="#priority" title="Permanent link">&para;</a></h3>
 <p>Jujutsu attempts to resolve a symbol in the following order:</p>
 <ol>
