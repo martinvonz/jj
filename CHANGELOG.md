@@ -54,6 +54,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * You can check whether Watchman fsmonitor is enabled or installed with the new
   `jj debug watchman status` command.
 
+* A new global flag `--ignore-immutable` lets you rewrite immutable commits.
+
 ### Fixed bugs
 
 * Revsets now support `\`-escapes in string literal.

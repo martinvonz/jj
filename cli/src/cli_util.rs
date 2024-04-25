@@ -1065,6 +1065,17 @@ impl WorkspaceCommandHelper {
         &self,
         commits: impl IntoIterator<Item = &'a CommitId>,
     ) -> Result<(), CommandError> {
+        if self.global_args.ignore_immutable {
+            let root_id = self.repo().store().root_commit_id();
+            return if commits.into_iter().contains(root_id) {
+                Err(user_error(format!(
+                    "The root commit {} is immutable",
+                    short_commit_hash(root_id),
+                )))
+            } else {
+                Ok(())
+            };
+        }
         let to_rewrite_revset =
             RevsetExpression::commits(commits.into_iter().cloned().collect_vec());
         let immutable = revset_util::parse_immutable_expression(&self.revset_parse_context())
@@ -1087,7 +1098,7 @@ impl WorkspaceCommandHelper {
             } else {
                 user_error_with_hint(
                     format!("Commit {} is immutable", short_commit_hash(&commit_id)),
-                    "Configure the set of immutable commits via \
+                    "Pass `--ignore-immutable` or configure the set of immutable commits via \
                      `revset-aliases.immutable_heads()`.",
                 )
             };
@@ -2330,6 +2341,16 @@ pub struct GlobalArgs {
     /// implies `--ignore-working-copy`.
     #[arg(long, global = true)]
     pub ignore_working_copy: bool,
+    /// Don't prevent rewriting immutable commits
+    ///
+    /// By default, Jujutsu prevents rewriting commits in the configured set of
+    /// immutable commits. This option disables that check and lets you rewrite
+    /// any commit but the root commit.
+    ///
+    /// This option only affects the check. It does not affect the
+    /// `immutable_heads()` revset or the `immutable` template keyword.
+    #[arg(long, global = true)]
+    pub ignore_immutable: bool,
     /// Operation to load the repo at
     ///
     /// Operation to load the repo at. By default, Jujutsu loads the repo at the
