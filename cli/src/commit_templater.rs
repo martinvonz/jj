@@ -757,6 +757,10 @@ impl RefName {
         self.remote.is_some()
     }
 
+    fn is_present(&self) -> bool {
+        self.target.is_present()
+    }
+
     /// Whether the ref target has conflicts.
     fn has_conflict(&self) -> bool {
         self.target.has_conflict()
@@ -803,6 +807,58 @@ fn builtin_ref_name_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Re
             template_parser::expect_no_arguments(function)?;
             let out_property = self_property.map(|ref_name| ref_name.remote.unwrap_or_default());
             Ok(L::wrap_string(out_property))
+        },
+    );
+    map.insert(
+        "present",
+        |_language, _build_ctx, self_property, function| {
+            template_parser::expect_no_arguments(function)?;
+            let out_property = self_property.map(|ref_name| ref_name.is_present());
+            Ok(L::wrap_boolean(out_property))
+        },
+    );
+    map.insert(
+        "conflict",
+        |_language, _build_ctx, self_property, function| {
+            template_parser::expect_no_arguments(function)?;
+            let out_property = self_property.map(|ref_name| ref_name.has_conflict());
+            Ok(L::wrap_boolean(out_property))
+        },
+    );
+    map.insert(
+        "normal_target",
+        |language, _build_ctx, self_property, function| {
+            template_parser::expect_no_arguments(function)?;
+            let repo = language.repo;
+            let out_property = self_property.and_then(|ref_name| {
+                let maybe_id = ref_name.target.as_normal();
+                Ok(maybe_id.map(|id| repo.store().get_commit(id)).transpose()?)
+            });
+            Ok(L::wrap_commit_opt(out_property))
+        },
+    );
+    map.insert(
+        "removed_targets",
+        |language, _build_ctx, self_property, function| {
+            template_parser::expect_no_arguments(function)?;
+            let repo = language.repo;
+            let out_property = self_property.and_then(|ref_name| {
+                let ids = ref_name.target.removed_ids();
+                Ok(ids.map(|id| repo.store().get_commit(id)).try_collect()?)
+            });
+            Ok(L::wrap_commit_list(out_property))
+        },
+    );
+    map.insert(
+        "added_targets",
+        |language, _build_ctx, self_property, function| {
+            template_parser::expect_no_arguments(function)?;
+            let repo = language.repo;
+            let out_property = self_property.and_then(|ref_name| {
+                let ids = ref_name.target.added_ids();
+                Ok(ids.map(|id| repo.store().get_commit(id)).try_collect()?)
+            });
+            Ok(L::wrap_commit_list(out_property))
         },
     );
     map
