@@ -34,7 +34,10 @@ if(root,
         format_short_commit_id(commit_id),
         if(conflict, label("conflict", "conflict")),
         if(empty, label("empty", "(empty)")),
-        if(description, description.first_line(), description_placeholder),
+        if(description,
+          description.first_line(),
+          label(if(empty, "empty"), description_placeholder),
+        ),
       ) ++ "\n",
     ),
   )
@@ -58,7 +61,10 @@ if(root,
       ) ++ "\n",
       separate(" ",
         if(empty, label("empty", "(empty)")),
-        if(description, description.first_line(), description_placeholder),
+        if(description,
+          description.first_line(),
+          label(if(empty, "empty"), description_placeholder),
+        ),
       ) ++ "\n",
     ),
   )
@@ -74,7 +80,8 @@ concat(
   "Author: " ++ format_detailed_signature(author) ++ "\n",
   "Committer: " ++ format_detailed_signature(committer)  ++ "\n",
   "\n",
-  indent("    ", coalesce(description, description_placeholder ++ "\n")),
+  indent("    ",
+    coalesce(description, label(if(empty, "empty"), description_placeholder) ++ "\n")),
   "\n",
 )
 '''
@@ -90,9 +97,7 @@ label(if(current_operation, "current_operation"),
 '''
 builtin_op_log_comfortable = 'builtin_op_log_compact ++ "\n"'
 
-
-description_placeholder = '''
-  label(if(empty, "empty ") ++ "description placeholder", "(no description set)")'''
+description_placeholder = 'label("description placeholder", "(no description set)")'
 email_placeholder = 'label("email placeholder", "(no email set)")'
 name_placeholder = 'label("name placeholder", "(no name set)")'
 commit_summary_separator = 'label("separator", " | ")'
@@ -120,7 +125,10 @@ separate(" ",
     separate(" ",
       if(commit.conflict(), label("conflict", "(conflict)")),
       if(commit.empty(), label("empty", "(empty)")),
-      if(commit.description(), commit.description().first_line(), description_placeholder),
+      if(commit.description(),
+        commit.description().first_line(),
+        label(if(commit.empty(), "empty"), description_placeholder),
+      ),
     ),
   ),
 )
