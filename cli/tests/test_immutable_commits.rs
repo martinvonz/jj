@@ -42,13 +42,13 @@ fn test_rewrite_immutable_generic() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["edit", "main"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit c8d4c7ca95d0 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // Cannot rewrite an ancestor of the configured set
     let stderr = test_env.jj_cmd_failure(&repo_path, &["edit", "main-"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 46a8dc5175be is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // Cannot rewrite the root commit even with an empty set of immutable commits
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
@@ -67,6 +67,22 @@ fn test_rewrite_immutable_generic() {
     For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
     "###);
 
+    // Can use --ignore-immutable to override
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "main""#);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["--ignore-immutable", "edit", "main"]);
+    insta::assert_snapshot!(stdout, @r###"
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: kkmpptxz c8d4c7ca main | b
+    Parent commit      : qpvuntsm 46a8dc51 a
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
+    // ... but not the root commit
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["--ignore-immutable", "edit", "root()"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: The root commit 000000000000 is immutable
+    "###);
+
     // Mutating the repo works if ref is wrapped in present()
     test_env.add_config(
         r#"revset-aliases."immutable_heads()" = "present(branch_that_does_not_exist)""#,
@@ -75,9 +91,8 @@ fn test_rewrite_immutable_generic() {
     insta::assert_snapshot!(stdout, @r###"
     "###);
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: kpqxywon dbce15b4 (empty) (no description set)
+    Working copy now at: wqnwkozp de8b93b4 (empty) (no description set)
     Parent commit      : kkmpptxz c8d4c7ca main | b
-    Added 0 files, modified 1 files, removed 0 files
     "###);
 
     // Error if we redefine immutable_heads() with an argument
@@ -130,31 +145,31 @@ fn test_rewrite_immutable_commands() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["abandon", "main"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // chmod
     let stderr = test_env.jj_cmd_failure(&repo_path, &["chmod", "-r=main", "x", "file"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // describe
     let stderr = test_env.jj_cmd_failure(&repo_path, &["describe", "main"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // diffedit
     let stderr = test_env.jj_cmd_failure(&repo_path, &["diffedit", "-r=main"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // edit
     let stderr = test_env.jj_cmd_failure(&repo_path, &["edit", "main"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // move --from
     let stderr = test_env.jj_cmd_failure(&repo_path, &["move", "--from=main"]);
@@ -162,7 +177,7 @@ fn test_rewrite_immutable_commands() {
     Warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
     Warning: `jj move` will be removed in a future version, and this will be a hard error
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // move --to
     let stderr = test_env.jj_cmd_failure(&repo_path, &["move", "--to=main"]);
@@ -170,78 +185,78 @@ fn test_rewrite_immutable_commands() {
     Warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
     Warning: `jj move` will be removed in a future version, and this will be a hard error
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // new --insert-before
     let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "--insert-before", "main"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // new --insert-after parent_of_main
     let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "--insert-after", "description(b)"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // parallelize
     let stderr = test_env.jj_cmd_failure(&repo_path, &["parallelize", "description(b)", "main"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // rebase -s
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-s=main", "-d=@"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // rebase -b
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-b=main", "-d=@"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 6e11f430f297 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // rebase -r
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r=main", "-d=@"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // resolve
     let stderr = test_env.jj_cmd_failure(&repo_path, &["resolve", "-r=description(merge)", "file"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // restore -c
     let stderr = test_env.jj_cmd_failure(&repo_path, &["restore", "-c=main"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // restore --to
     let stderr = test_env.jj_cmd_failure(&repo_path, &["restore", "--to=main"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // split
     let stderr = test_env.jj_cmd_failure(&repo_path, &["split", "-r=main"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // squash
     let stderr = test_env.jj_cmd_failure(&repo_path, &["squash", "-r=description(b)"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit c8d4c7ca95d0 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // unsquash
     let stderr = test_env.jj_cmd_failure(&repo_path, &["unsquash", "-r=main"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 406c181c04d8 is immutable
-    Hint: Configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
 }

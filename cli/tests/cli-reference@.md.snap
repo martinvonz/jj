@@ -153,6 +153,10 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 
   Possible values: `true`, `false`
 
+* `--ignore-immutable` — Don't prevent rewriting immutable commits
+
+  Possible values: `true`, `false`
+
 * `--at-operation <AT_OPERATION>` — Operation to load the repo at
 
   Default value: `@`
