@@ -16,6 +16,7 @@ use jj_lib::str_util::StringPattern;
 
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
+use crate::commit_templater::{CommitTemplateLanguage, RefName};
 use crate::ui::Ui;
 
 /// Manage tags.
@@ -35,6 +36,13 @@ pub struct TagListArgs {
     /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
     #[arg(value_parser = StringPattern::parse)]
     pub names: Vec<StringPattern>,
+    /// Render each tag using the given template
+    ///
+    /// All 0-argument methods of the `RefName` type are available as keywords.
+    ///
+    /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+    #[arg(long, short = 'T')]
+    template: Option<String>,
 }
 
 pub fn cmd_tag(
@@ -56,16 +64,26 @@ fn cmd_tag_list(
     let repo = workspace_command.repo();
     let view = repo.view();
 
+    let template = {
+        let language = workspace_command.commit_template_language()?;
+        let text = match &args.template {
+            Some(value) => value.to_owned(),
+            None => command.settings().config().get("templates.tag_list")?,
+        };
+        workspace_command
+            .parse_template(&language, &text, CommitTemplateLanguage::wrap_ref_name)?
+            .labeled("tag_list")
+    };
+
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
-    let formatter = formatter.as_mut();
 
-    for name in view.tags().keys() {
+    for (name, target) in view.tags() {
         if !args.names.is_empty() && !args.names.iter().any(|pattern| pattern.matches(name)) {
             continue;
         }
-
-        writeln!(formatter.labeled("tag"), "{name}")?;
+        let ref_name = RefName::local_only(name, target.clone());
+        template.format(&ref_name, formatter.as_mut())?;
     }
 
     Ok(())

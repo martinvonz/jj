@@ -17,6 +17,10 @@ log = 'builtin_log_compact'
 op_log = 'builtin_op_log_compact'
 show = 'builtin_log_detailed'
 
+tag_list = '''
+label("tag", name) ++ "\n"
+'''
+
 [template-aliases]
 builtin_log_oneline = '''
 if(root,
