@@ -52,30 +52,36 @@ fn test_tag_list() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["tag", "list"]),
         @r###"
-    conflicted_tag
-    test_tag
-    test_tag2
+    conflicted_tag (conflicted):
+      - rlvkpnrz caf975d0 (empty) commit1
+      + zsuskuln 3db783e0 (empty) commit2
+      + royxmykx 68d950ce (empty) commit3
+    test_tag: rlvkpnrz caf975d0 (empty) commit1
+    test_tag2: zsuskuln 3db783e0 (empty) commit2
     "###);
 
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["tag", "list", "--color=always"]),
         @r###"
-    [38;5;5mconflicted_tag[39m
-    [38;5;5mtest_tag[39m
-    [38;5;5mtest_tag2[39m
+    [38;5;5mconflicted_tag[39m [38;5;1m(conflicted)[39m:
+      - [1m[38;5;5mrl[0m[38;5;8mvkpnrz[39m [1m[38;5;4mc[0m[38;5;8maf975d0[39m [38;5;2m(empty)[39m commit1
+      + [1m[38;5;5mzs[0m[38;5;8muskuln[39m [1m[38;5;4m3[0m[38;5;8mdb783e0[39m [38;5;2m(empty)[39m commit2
+      + [1m[38;5;5mr[0m[38;5;8moyxmykx[39m [1m[38;5;4m6[0m[38;5;8m8d950ce[39m [38;5;2m(empty)[39m commit3
+    [38;5;5mtest_tag[39m: [1m[38;5;5mrl[0m[38;5;8mvkpnrz[39m [1m[38;5;4mc[0m[38;5;8maf975d0[39m [38;5;2m(empty)[39m commit1
+    [38;5;5mtest_tag2[39m: [1m[38;5;5mzs[0m[38;5;8muskuln[39m [1m[38;5;4m3[0m[38;5;8mdb783e0[39m [38;5;2m(empty)[39m commit2
     "###);
 
     // Test pattern matching.
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["tag", "list", "test_tag2"]),
         @r###"
-    test_tag2
+    test_tag2: zsuskuln 3db783e0 (empty) commit2
     "###);
 
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["tag", "list", "glob:test_tag?"]),
         @r###"
-    test_tag2
+    test_tag2: zsuskuln 3db783e0 (empty) commit2
     "###);
 
     let template = r#"

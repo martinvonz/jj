@@ -18,7 +18,7 @@ op_log = 'builtin_op_log_compact'
 show = 'builtin_log_detailed'
 
 tag_list = '''
-label("tag", name) ++ "\n"
+label("tag", name) ++ format_ref_targets(self) ++ "\n"
 '''
 
 [template-aliases]
@@ -145,6 +145,17 @@ separate(" ",
   format_short_commit_id(root.commit_id()),
   root.branches()
 ) ++ "\n"
+'''
+
+'format_ref_targets(ref)' = '''
+if(ref.conflict(),
+  separate("\n",
+    " " ++ label("conflict", "(conflicted)") ++ ":",
+    ref.removed_targets().map(|c| "  - " ++ format_commit_summary_with_refs(c, "")).join("\n"),
+    ref.added_targets().map(|c| "  + " ++ format_commit_summary_with_refs(c, "")).join("\n"),
+  ),
+  ": " ++ format_commit_summary_with_refs(ref.normal_target(), ""),
+)
 '''
 
 'format_operation(op)' = '''
