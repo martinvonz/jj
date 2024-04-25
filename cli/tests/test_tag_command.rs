@@ -60,4 +60,12 @@ fn test_tag_list() {
         @r###"
         test_tag2
          "###);
+
+    let template = r#"'name: ' ++ name ++ "\n""#;
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["tag", "list", "-T", template]),
+        @r###"
+    name: test_tag
+    name: test_tag2
+    "###);
 }

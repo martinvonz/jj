@@ -1824,11 +1824,15 @@ Manage tags
 
 List tags
 
-**Usage:** `jj tag list [NAMES]...`
+**Usage:** `jj tag list [OPTIONS] [NAMES]...`
 
 ###### **Arguments:**
 
 * `<NAMES>` — Show tags whose local name matches
+
+###### **Options:**
+
+* `-T`, `--template <TEMPLATE>` — Render each tag using the given template
 
 
 
