@@ -725,14 +725,14 @@ fn evaluate_user_revset<'repo>(
 }
 
 /// Branch or tag name with metadata.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct RefName {
     /// Local name.
     name: String,
     /// Remote name if this is a remote or Git-tracking ref.
     remote: Option<String>,
-    /// Ref target has conflicts.
-    conflict: bool,
+    /// Target commit ids.
+    target: RefTarget,
     /// Local ref is synchronized with all tracking remotes, or tracking remote
     /// ref is synchronized with the local.
     synced: bool,
@@ -746,6 +746,11 @@ impl RefName {
     fn is_remote(&self) -> bool {
         self.remote.is_some()
     }
+
+    /// Whether the ref target has conflicts.
+    fn has_conflict(&self) -> bool {
+        self.target.has_conflict()
+    }
 }
 
 impl Template for RefName {
@@ -757,7 +762,7 @@ impl Template for RefName {
         }
         // Don't show both conflict and unsynced sigils as conflicted ref wouldn't
         // be pushed.
-        if self.conflict {
+        if self.has_conflict() {
             write!(formatter, "??")?;
         } else if self.is_local() && !self.synced {
             write!(formatter, "*")?;
@@ -827,7 +832,7 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
             let ref_name = RefName {
                 name: branch_name.to_owned(),
                 remote: None,
-                conflict: local_target.has_conflict(),
+                target: local_target.clone(),
                 synced: remote_refs.iter().all(|&(_, remote_ref)| {
                     !remote_ref.is_tracking() || remote_ref.target == *local_target
                 }),
@@ -838,7 +843,7 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
             let ref_name = RefName {
                 name: branch_name.to_owned(),
                 remote: Some(remote_name.to_owned()),
-                conflict: remote_ref.target.has_conflict(),
+                target: remote_ref.target.clone(),
                 synced: remote_ref.is_tracking() && remote_ref.target == *local_target,
             };
             index.insert(remote_ref.target.added_ids(), ref_name);
@@ -855,7 +860,7 @@ fn build_ref_names_index<'a>(
         let ref_name = RefName {
             name: name.to_owned(),
             remote: None,
-            conflict: target.has_conflict(),
+            target: target.clone(),
             synced: true, // has no tracking remotes
         };
         index.insert(target.added_ids(), ref_name);
@@ -869,7 +874,7 @@ fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> Option<RefName> {
         RefName {
             name: "HEAD".to_owned(),
             remote: Some(git::REMOTE_NAME_FOR_LOCAL_GIT_REPO.to_owned()),
-            conflict: target.has_conflict(),
+            target: target.clone(),
             synced: false, // has no local counterpart
         }
     })
