@@ -49,17 +49,12 @@ fn num_char_in_id(commit: Commit, ch_match: char) -> i64 {
     count
 }
 
+#[derive(Default)]
 struct MostDigitsInId {
     count: OnceCell<i64>,
 }
 
 impl MostDigitsInId {
-    fn new() -> Self {
-        Self {
-            count: OnceCell::new(),
-        }
-    }
-
     fn count(&self, repo: &dyn Repo) -> i64 {
         *self.count.get_or_init(|| {
             RevsetExpression::all()
@@ -125,7 +120,7 @@ impl CommitTemplateLanguageExtension for HexCounter {
     }
 
     fn build_cache_extensions(&self, extensions: &mut ExtensionsMap) {
-        extensions.insert(MostDigitsInId::new());
+        extensions.insert(MostDigitsInId::default());
     }
 }
 
