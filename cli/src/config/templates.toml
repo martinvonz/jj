@@ -1,28 +1,6 @@
 [templates]
-commit_summary = '''
-separate(" ",
-  format_short_change_id_with_hidden_and_divergent_info(self),
-  format_short_commit_id(commit_id),
-  separate(commit_summary_separator,
-    branches,
-    separate(" ",
-      if(conflict, label("conflict", "(conflict)")),
-      if(empty, label("empty", "(empty)")),
-      if(description, description.first_line(), description_placeholder),
-    )
-  )
-)
-'''
-
-commit_summary_no_branches = '''
-separate(" ",
-  format_short_change_id_with_hidden_and_divergent_info(self),
-  format_short_commit_id(commit_id),
-  if(conflict, label("conflict", "(conflict)")),
-  if(empty, label("empty", "(empty)")),
-  if(description, description.first_line(), description_placeholder),
-)
-'''
+commit_summary = 'format_commit_summary_with_refs(self, branches)'
+commit_summary_no_branches = 'format_commit_summary_with_refs(self, "")'
 
 config_list = '''
 label(if(overridden, "overridden"),
@@ -132,6 +110,21 @@ commit_summary_separator = 'label("separator", " | ")'
 'format_time_range(time_range)' = '''
   time_range.start().ago() ++ label("time", ", lasted ") ++ time_range.duration()'''
 'format_timestamp(timestamp)' = 'timestamp.local().format("%Y-%m-%d %H:%M:%S")'
+
+'format_commit_summary_with_refs(commit, refs)' = '''
+separate(" ",
+  format_short_change_id_with_hidden_and_divergent_info(commit),
+  format_short_commit_id(commit.commit_id()),
+  separate(commit_summary_separator,
+    refs,
+    separate(" ",
+      if(commit.conflict(), label("conflict", "(conflict)")),
+      if(commit.empty(), label("empty", "(empty)")),
+      if(commit.description(), commit.description().first_line(), description_placeholder),
+    ),
+  ),
+)
+'''
 
 'format_root_commit(root)' = '''
 separate(" ",
