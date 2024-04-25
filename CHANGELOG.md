@@ -11,9 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
-* The default template alias `builtin_op_log_root(op_id: OperationId)` was replaced by `format_root_operation(root: Operation)`.
-
-* The default template alias `builtin_log_root(change_id: ChangeId, commit_id: CommitId)` was replaced by `format_root_commit(root: Commit)`.
+* The default template aliases were replaced as follows:
+  * `builtin_op_log_root(op_id: OperationId)` ->
+    `format_root_operation(root: Operation)`
+  * `builtin_log_root(change_id: ChangeId, commit_id: CommitId)` ->
+    `format_root_commit(root: Commit)`
+  * `builtin_change_id_with_hidden_and_divergent_info` ->
+    `format_short_change_id_with_hidden_and_divergent_info(commit: Commit)`
 
 ### New features
 
