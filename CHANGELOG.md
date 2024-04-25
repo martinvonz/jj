@@ -50,6 +50,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * You can check whether Watchman fsmonitor is enabled or installed with the new
   `jj debug watchman status` command.
 
+* On MacOS, jj will now look for its config in `$XDG_CONFIG_HOME` in addition
+  to  `~/Library/Application Support/jj/`
+
 ### Fixed bugs
 
 * Revsets now support `\`-escapes in string literal.

@@ -55,8 +55,8 @@ clap_mangen = { workspace = true }
 config = { workspace = true }
 criterion = { workspace = true, optional = true }
 crossterm = { workspace = true }
-dirs = { workspace = true }
 esl01-renderdag = { workspace = true }
+etcetera = { workspace = true }
 futures = { workspace = true }
 git2 = { workspace = true }
 gix = { workspace = true }

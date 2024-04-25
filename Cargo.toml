@@ -43,8 +43,8 @@ config = { version = "0.13.4", default-features = false, features = ["toml"] }
 criterion = "0.5.1"
 crossterm = { version = "0.27", default-features = false }
 digest = "0.10.7"
-dirs = "5.0.1"
 either = "1.11.0"
+etcetera = "0.8"
 esl01-renderdag = "0.3.0"
 futures = "0.3.30"
 git2 = "0.18.3"

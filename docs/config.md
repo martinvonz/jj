@@ -752,7 +752,7 @@ Setting this value to zero will disable the limit entirely.
 
 ### User config file
 
-An easy way to find the user config file is:
+An easy way to find the user config file (if one exists) is:
 
 ```bash
 jj config path --user
@@ -760,17 +760,18 @@ jj config path --user
 
 The rest of this section covers the details of where this file can be located.
 
-On all platforms, the user's global `jj` configuration file is located at either
-`~/.jjconfig.toml` (where `~` represents `$HOME` on Unix-likes, or
-`%USERPROFILE%` on Windows) or in a platform-specific directory. The
-platform-specific location is recommended for better integration with platform
-services. It is an error for both of these files to exist.
+On all platforms, the user's global `jj` configuration file is located at
+either `~/.jjconfig.toml` (where `~` represents `$HOME` on Unix-likes, or
+`%USERPROFILE%` on Windows), in a platform-specific directory, or
+`$XDG_CONFIG_HOME` (if different from the platform-specific directory, like on
+MacOS). The platform-specific location is recommended for better integration
+with platform services. It is an error for more than one of these files to exist.
 
-| Platform | Value                                              | Example                                                   |
-| :------- | :------------------------------------------------- | :-------------------------------------------------------- |
-| Linux    | `$XDG_CONFIG_HOME/jj/config.toml`                  | `/home/alice/.config/jj/config.toml`                      |
-| macOS    | `$HOME/Library/Application Support/jj/config.toml` | `/Users/Alice/Library/Application Support/jj/config.toml` |
-| Windows  | `{FOLDERID_RoamingAppData}\jj\config.toml`         | `C:\Users\Alice\AppData\Roaming\jj\config.toml`           |
+| Platform | Value                                    | Example                                       |
+| :------- | ---------------------------------------- | --------------------------------------------- |
+| Linux    | `$XDG_CONFIG_HOME/jj/config.toml`          | `/home/alice/.config/jj/config.toml`            |
+| macOS    | `~/Library/Application Support/jj/config.toml` or `$XDG_CONFIG_HOME/jj/config.toml`          | `/Users/alice/Library/Application Support/jj/config.toml` or `/Users/Alice/.config/jj/config.toml`           |
+| Windows  | `{FOLDERID_RoamingAppData}\jj\config.toml` | `C:\Users\Alice\AppData\Roaming\jj\config.toml` |
 
 The location of the `jj` config file can also be overridden with the
 `JJ_CONFIG` environment variable. If it is not empty, it should contain the path
