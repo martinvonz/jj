@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use jj_lib::object_id::ObjectId;
-use jj_lib::rewrite::back_out_commit;
+use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
 use crate::cli_util::{CommandHelper, RevisionArg};
@@ -47,12 +47,18 @@ pub(crate) fn cmd_backout(
         parents.push(destination);
     }
     let mut tx = workspace_command.start_transaction();
-    back_out_commit(
-        command.settings(),
-        tx.mut_repo(),
-        &commit_to_back_out,
-        &parents,
-    )?;
+    let old_base_tree = commit_to_back_out.parent_tree(tx.mut_repo())?;
+    let new_base_tree = merge_commit_trees(tx.mut_repo(), &parents)?;
+    let old_tree = commit_to_back_out.tree()?;
+    let new_tree = new_base_tree.merge(&old_tree, &old_base_tree)?;
+    let new_parent_ids = parents.iter().map(|commit| commit.id().clone()).collect();
+    tx.mut_repo()
+        .new_commit(command.settings(), new_parent_ids, new_tree.id())
+        .set_description(format!(
+            "backout of commit {}",
+            &commit_to_back_out.id().hex()
+        ))
+        .write()?;
     tx.finish(
         ui,
         format!("back out commit {}", commit_to_back_out.id().hex()),
