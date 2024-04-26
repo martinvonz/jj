@@ -48,6 +48,13 @@ fn test_tag_list() {
         test_tag2
          "###);
 
+     insta::assert_snapshot!(
+         test_env.jj_cmd_success(&repo_path, &["tag", "list", "--color=always"]),
+         @r###"
+     [38;5;5mtest_tag[39m
+     [38;5;5mtest_tag2[39m
+     "###);
+
     // Test pattern matching.
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["tag", "list", "test_tag2"]),
