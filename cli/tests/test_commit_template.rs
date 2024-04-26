@@ -658,3 +658,101 @@ fn test_log_immutable() {
     2: Revision "unknown_symbol" doesn't exist
     "###);
 }
+
+#[test]
+fn test_log_contained_in() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&repo_path, &["new", "-mA", "root()"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-mB"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-mC"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-mD", "root()"]);
+
+    let template_for_revset = |revset: &str| {
+        format!(
+            r#"
+    separate(" ",
+      description.first_line(),
+      branches,
+      if(self.contained_in("{revset}"), "[contained_in]"),
+    ) ++ "\n"
+    "#
+        )
+    };
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-r::",
+            "-T",
+            &template_for_revset(r#"description(A)::"#),
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @  D
+    │ ◉  C [contained_in]
+    │ ◉  B main [contained_in]
+    │ ◉  A [contained_in]
+    ├─╯
+    ◉
+    "###);
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-r::",
+            "-T",
+            &template_for_revset(r#"visible_heads()"#),
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @  D [contained_in]
+    │ ◉  C [contained_in]
+    │ ◉  B main
+    │ ◉  A
+    ├─╯
+    ◉
+    "###);
+
+    // Suppress error that could be detected earlier
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &["log", "-r::", "-T", &template_for_revset("unknown_fn()")],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse template: Failed to parse revset
+    Caused by:
+    1:  --> 5:28
+      |
+    5 |       if(self.contained_in("unknown_fn()"), "[contained_in]"),
+      |                            ^------------^
+      |
+      = Failed to parse revset
+    2:  --> 1:1
+      |
+    1 | unknown_fn()
+      | ^--------^
+      |
+      = Function "unknown_fn" doesn't exist
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &["log", "-r::", "-T", &template_for_revset("unknown_symbol")],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse template: Failed to evaluate revset
+    Caused by:
+    1:  --> 5:28
+      |
+    5 |       if(self.contained_in("unknown_symbol"), "[contained_in]"),
+      |                            ^--------------^
+      |
+      = Failed to evaluate revset
+    2: Revision "unknown_symbol" doesn't exist
+    "###);
+}
