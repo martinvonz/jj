@@ -26,6 +26,7 @@ use crate::ui::Ui;
 
 /// Create a new change with the same content as an existing one
 #[derive(clap::Args, Clone, Debug)]
+#[command(visible_aliases = &["dup"])]
 pub(crate) struct DuplicateArgs {
     /// The revision(s) to duplicate
     #[arg(default_value = "@")]

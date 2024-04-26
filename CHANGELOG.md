@@ -56,6 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * A new global flag `--ignore-immutable` lets you rewrite immutable commits.
 
+* `jj duplicate` now has a shortened alias `jj dup`. 
+
 ### Fixed bugs
 
 * Revsets now support `\`-escapes in string literal.
