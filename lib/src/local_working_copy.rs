@@ -1152,10 +1152,15 @@ impl TreeState {
             .block_on()?;
             match new_file_ids.into_resolved() {
                 Ok(file_id) => {
+                    // On Windows, we preserve the executable bit from the merged trees.
                     #[cfg(windows)]
                     let executable = {
                         let () = executable; // use the variable
-                        false
+                        if let Some(merge) = current_tree_values.to_executable_merge() {
+                            merge.resolve_trivial().copied().unwrap_or_default()
+                        } else {
+                            false
+                        }
                     };
                     Ok(Merge::normal(TreeValue::File {
                         id: file_id.unwrap(),
@@ -1224,6 +1229,7 @@ impl TreeState {
         &self,
         disk_path: &Path,
         conflict_data: Vec<u8>,
+        executable: bool,
     ) -> Result<FileState, CheckoutError> {
         let mut file = OpenOptions::new()
             .write(true)
@@ -1239,12 +1245,11 @@ impl TreeState {
                 err: err.into(),
             })?;
         let size = conflict_data.len() as u64;
-        // TODO: Set the executable bit correctly (when possible) and preserve that on
-        // Windows like we do with the executable bit for regular files.
+        self.set_executable(disk_path, executable)?;
         let metadata = file
             .metadata()
             .map_err(|err| checkout_error_for_stat_error(err, disk_path))?;
-        Ok(FileState::for_file(false, size, &metadata))
+        Ok(FileState::for_file(executable, size, &metadata))
     }
 
     #[cfg_attr(windows, allow(unused_variables))]
@@ -1393,8 +1398,13 @@ impl TreeState {
                 MaterializedTreeValue::Tree(_) => {
                     panic!("unexpected tree entry in diff at {path:?}");
                 }
-                MaterializedTreeValue::Conflict { id: _, contents } => {
-                    self.write_conflict(&disk_path, contents)?
+                MaterializedTreeValue::Conflict { id, contents } => {
+                    let executable = if let Some(merge) = id.to_executable_merge() {
+                        merge.resolve_trivial().copied().unwrap_or_default()
+                    } else {
+                        false
+                    };
+                    self.write_conflict(&disk_path, contents, executable)?
                 }
             };
             changed_file_states.push((path, file_state));
