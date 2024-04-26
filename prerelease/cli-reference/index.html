@@ -6758,7 +6758,7 @@ same "branch", relative to the destination):</p>
 |/          |
 J           J
 </code></pre></div>
-<p>With <code>-r</code>, the command rebases only the specified revision onto the
+<p>With <code>-r</code>, the command rebases only the specified revisions onto the
 destination. Any "hole" left behind will be filled by rebasing descendants
 onto the specified revision's parent(s). For example, <code>jj rebase -r K -d M</code>
 would transform your history like this:</p>
@@ -6789,7 +6789,7 @@ commit. This is true in general; it is not specific to this command.</p>
 <ul>
 <li><code>-b</code>, <code>--branch &lt;BRANCH&gt;</code> — Rebase the whole branch relative to destination's ancestors (can be repeated)</li>
 <li><code>-s</code>, <code>--source &lt;SOURCE&gt;</code> — Rebase specified revision(s) together with their trees of descendants (can be repeated)</li>
-<li><code>-r</code>, <code>--revision &lt;REVISION&gt;</code> — Rebase only this revision, rebasing descendants onto this revision's parent(s)</li>
+<li><code>-r</code>, <code>--revisions &lt;REVISIONS&gt;</code> — Rebase the given revisions, rebasing descendants onto this revision's parent(s)</li>
 <li><code>-d</code>, <code>--destination &lt;DESTINATION&gt;</code> — The revision(s) to rebase onto (can be repeated to create a merge commit)</li>
 <li>
 <p><code>--skip-empty</code> — If true, when rebasing would produce an empty commit, the commit is abandoned. It will not be abandoned if it was already empty before the rebase. Will never skip merge commits with multiple non-empty parents</p>
