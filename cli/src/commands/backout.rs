@@ -18,6 +18,8 @@ use tracing::instrument;
 
 use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::CommandError;
+use crate::commit_templater::CommitTemplateLanguage;
+use crate::formatter::PlainTextFormatter;
 use crate::ui::Ui;
 
 /// Apply the reverse of a revision on top of another revision
@@ -31,6 +33,11 @@ pub(crate) struct BackoutArgs {
     // copy should be rebased on top?
     #[arg(long, short, default_value = "@")]
     destination: Vec<RevisionArg>,
+    /// Template used to generate the commit message
+    ///
+    /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+    #[arg(long, short = 'T')]
+    template: Option<String>,
 }
 
 #[instrument(skip_all)]
@@ -47,11 +54,31 @@ pub(crate) fn cmd_backout(
         parents.push(destination);
     }
     let mut tx = workspace_command.start_transaction();
+    let commit_description = {
+        let language = tx.base_workspace_helper().commit_template_language()?;
+        let template_string = match &args.template {
+            Some(value) => value.to_string(),
+            None => command
+                .settings()
+                .config()
+                .get_string("templates.backout")?,
+        };
+        let template = tx.base_workspace_helper().parse_template(
+            &language,
+            &template_string,
+            CommitTemplateLanguage::wrap_commit,
+        )?;
+        let mut output = Vec::new();
+        let mut formatter = PlainTextFormatter::new(&mut output);
+        template.format(&commit_to_back_out, &mut formatter)?;
+        String::from_utf8(output).expect("template output should be utf-8 bytes")
+    };
     back_out_commit(
         command.settings(),
         tx.mut_repo(),
         &commit_to_back_out,
         &parents,
+        Some(commit_description),
     )?;
     tx.finish(
         ui,

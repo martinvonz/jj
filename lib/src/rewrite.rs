@@ -314,6 +314,7 @@ pub fn back_out_commit(
     mut_repo: &mut MutableRepo,
     old_commit: &Commit,
     new_parents: &[Commit],
+    commit_description: Option<String>,
 ) -> BackendResult<Commit> {
     let old_base_tree = merge_commit_trees(mut_repo, &old_commit.parents())?;
     let new_base_tree = merge_commit_trees(mut_repo, new_parents)?;
@@ -326,7 +327,10 @@ pub fn back_out_commit(
     // TODO: i18n the description based on repo language
     mut_repo
         .new_commit(settings, new_parent_ids, new_tree.id())
-        .set_description(format!("backout of commit {}", &old_commit.id().hex()))
+        .set_description(
+            commit_description
+                .unwrap_or_else(|| format!("backout of commit {}", &old_commit.id().hex())),
+        )
         .write()
 }
 

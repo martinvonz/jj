@@ -217,6 +217,7 @@ Apply the reverse of a revision on top of another revision
 * `-d`, `--destination <DESTINATION>` — The revision to apply the reverse changes on top of
 
   Default value: `@`
+* `-T`, `--template <TEMPLATE>` — Template used to generate the commit message
 
 
 

@@ -1,4 +1,6 @@
 [templates]
+backout = '"backout of commit " ++ commit_id'
+
 commit_summary = 'format_commit_summary_with_refs(self, branches)'
 commit_summary_no_branches = 'format_commit_summary_with_refs(self, "")'
 

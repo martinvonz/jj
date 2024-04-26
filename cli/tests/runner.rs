@@ -11,6 +11,7 @@ fn test_no_forgotten_test_files() {
 mod test_abandon_command;
 mod test_advance_branches;
 mod test_alias;
+mod test_backout_command;
 mod test_branch_command;
 mod test_builtin_aliases;
 mod test_cat_command;
