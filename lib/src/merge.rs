@@ -512,6 +512,16 @@ impl MergedTreeValue {
         })
     }
 
+    /// If this merge contains only files or absent entries, returns a merge of
+    /// the files' executable bits.
+    pub fn to_executable_merge(&self) -> Option<Merge<bool>> {
+        self.maybe_map(|term| match term {
+            None => Some(false),
+            Some(TreeValue::File { id: _, executable }) => Some(*executable),
+            _ => None,
+        })
+    }
+
     /// Creates a new merge with the file ids from the given merge. In other
     /// words, only the executable bits from `self` will be preserved.
     pub fn with_new_file_ids(&self, file_ids: &Merge<Option<FileId>>) -> Self {

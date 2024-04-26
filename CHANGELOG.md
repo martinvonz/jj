@@ -40,6 +40,9 @@ to avoid letting the user edit the immutable one.
 
 * `jj config list` now properly escapes TOML keys (#1322).
 
+* Files with conflicts are now checked out as executable if all sides of the 
+  conflict are executable.
+
 ## [0.17.1] - 2024-05-07
 
 ### Fixed bugs

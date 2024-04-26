@@ -87,6 +87,8 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
         // Executable, but same content as Normal, to test transition where only the bit changed
         ExecutableNormalContent,
         Conflict,
+        // Same content as Executable, to test that transition preserves the executable bit
+        ConflictedExecutableContent,
         Symlink,
         Tree,
         GitSubmodule,
@@ -110,7 +112,8 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
                 })
             }
             Kind::Executable => {
-                let id = testutils::write_file(store, path, "executable file contents");
+                let id: jj_lib::backend::FileId =
+                    testutils::write_file(store, path, "executable file contents");
                 Merge::normal(TreeValue::File {
                     id,
                     executable: true,
@@ -140,6 +143,29 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
                         Some(TreeValue::File {
                             id: right_file_id,
                             executable: false,
+                        }),
+                    ],
+                )
+            }
+            Kind::ConflictedExecutableContent => {
+                let base_file_id = testutils::write_file(store, path, "executable file contents");
+                let left_file_id =
+                    testutils::write_file(store, path, "left executable file contents");
+                let right_file_id =
+                    testutils::write_file(store, path, "right executable file contents");
+                Merge::from_removes_adds(
+                    vec![Some(TreeValue::File {
+                        id: base_file_id,
+                        executable: true,
+                    })],
+                    vec![
+                        Some(TreeValue::File {
+                            id: left_file_id,
+                            executable: true,
+                        }),
+                        Some(TreeValue::File {
+                            id: right_file_id,
+                            executable: true,
                         }),
                     ],
                 )
@@ -174,6 +200,7 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
         Kind::Executable,
         Kind::ExecutableNormalContent,
         Kind::Conflict,
+        Kind::ConflictedExecutableContent,
         Kind::Tree,
     ];
     kinds.push(Kind::Symlink);
@@ -244,6 +271,17 @@ fn test_checkout_file_transitions(backend: TestRepoBackend) {
                     metadata.permissions().mode() & 0o111,
                     0,
                     "{path:?} should not be executable"
+                );
+            }
+            Kind::ConflictedExecutableContent => {
+                assert!(maybe_metadata.is_ok(), "{path:?} should exist");
+                let metadata = maybe_metadata.unwrap();
+                assert!(metadata.is_file(), "{path:?} should be a file");
+                #[cfg(unix)]
+                assert_ne!(
+                    metadata.permissions().mode() & 0o111,
+                    0,
+                    "{path:?} should be executable"
                 );
             }
             Kind::Symlink => {
