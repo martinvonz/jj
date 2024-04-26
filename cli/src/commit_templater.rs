@@ -739,6 +739,16 @@ pub struct RefName {
 }
 
 impl RefName {
+    /// Creates local ref representation which doesn't track any remote refs.
+    pub fn local_only(name: impl Into<String>, target: RefTarget) -> Self {
+        RefName {
+            name: name.into(),
+            remote: None,
+            target,
+            synced: true, // has no tracking remotes
+        }
+    }
+
     fn is_local(&self) -> bool {
         self.remote.is_none()
     }
@@ -857,12 +867,7 @@ fn build_ref_names_index<'a>(
 ) -> RefNamesIndex {
     let mut index = RefNamesIndex::default();
     for (name, target) in ref_pairs {
-        let ref_name = RefName {
-            name: name.to_owned(),
-            remote: None,
-            target: target.clone(),
-            synced: true, // has no tracking remotes
-        };
+        let ref_name = RefName::local_only(name, target.clone());
         index.insert(target.added_ids(), ref_name);
     }
     index
