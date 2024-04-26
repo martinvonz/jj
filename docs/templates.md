@@ -91,6 +91,7 @@ This type cannot be printed. The following methods are defined.
 * `hidden() -> Boolean`: True if the commit is not visible (a.k.a. abandoned).
 * `immutable() -> Boolean`: True if the commit is included in [the set of
   immutable commits](config.md#set-of-immutable-commits).
+* `contained_in(revset: String) -> Boolean`: True if the commit is included in [the provided revset](revsets.md).
 * `conflict() -> Boolean`: True if the commit contains merge conflicts.
 * `empty() -> Boolean`: True if the commit modifies no files.
 * `root() -> Boolean`: True if the commit is the root commit.

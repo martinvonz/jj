@@ -27,7 +27,7 @@ use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::{RefTarget, WorkspaceId};
 use jj_lib::repo::Repo;
-use jj_lib::revset::{Revset, RevsetParseContext};
+use jj_lib::revset::{self, Revset, RevsetExpression, RevsetParseContext};
 use jj_lib::{git, rewrite};
 use once_cell::unsync::OnceCell;
 
@@ -621,6 +621,20 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         },
     );
     map.insert(
+        "contained_in",
+        |language, _build_ctx, self_property, function| {
+            let [revset_node] = template_parser::expect_exact_arguments(function)?;
+
+            let is_contained =
+                template_parser::expect_string_literal_with(revset_node, |revset, span| {
+                    Ok(evaluate_user_revset(language, span, revset)?.containing_fn())
+                })?;
+
+            let out_property = self_property.map(move |commit| is_contained(commit.id()));
+            Ok(L::wrap_boolean(out_property))
+        },
+    );
+    map.insert(
         "conflict",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
@@ -666,11 +680,27 @@ fn extract_working_copies(repo: &dyn Repo, commit: &Commit) -> String {
 
 type RevsetContainingFn<'repo> = dyn Fn(&CommitId) -> bool + 'repo;
 
+fn evaluate_revset_expression<'repo>(
+    language: &CommitTemplateLanguage<'repo>,
+    span: pest::Span<'_>,
+    expression: Rc<RevsetExpression>,
+) -> Result<Box<dyn Revset + 'repo>, TemplateParseError> {
+    let symbol_resolver = revset_util::default_symbol_resolver(
+        language.repo,
+        language.revset_parse_context.extensions.symbol_resolvers(),
+        language.id_prefix_context,
+    );
+    let revset =
+        revset_util::evaluate(language.repo, &symbol_resolver, expression).map_err(|err| {
+            TemplateParseError::expression("Failed to evaluate revset", span).with_source(err)
+        })?;
+    Ok(revset)
+}
+
 fn evaluate_immutable_revset<'repo>(
     language: &CommitTemplateLanguage<'repo>,
     span: pest::Span<'_>,
 ) -> Result<Box<dyn Revset + 'repo>, TemplateParseError> {
-    let repo = language.repo;
     // Alternatively, a negated (i.e. visible mutable) set could be computed.
     // It's usually smaller than the immutable set. The revset engine can also
     // optimize "::<recent_heads>" query to use bitset-based implementation.
@@ -678,15 +708,20 @@ fn evaluate_immutable_revset<'repo>(
         .map_err(|err| {
             TemplateParseError::expression("Failed to parse revset", span).with_source(err)
         })?;
-    let symbol_resolver = revset_util::default_symbol_resolver(
-        repo,
-        language.revset_parse_context.extensions.symbol_resolvers(),
-        language.id_prefix_context,
-    );
-    let revset = revset_util::evaluate(repo, &symbol_resolver, expression).map_err(|err| {
-        TemplateParseError::expression("Failed to evaluate revset", span).with_source(err)
+
+    evaluate_revset_expression(language, span, expression)
+}
+
+fn evaluate_user_revset<'repo>(
+    language: &CommitTemplateLanguage<'repo>,
+    span: pest::Span<'_>,
+    revset: &str,
+) -> Result<Box<dyn Revset + 'repo>, TemplateParseError> {
+    let expression = revset::parse(revset, &language.revset_parse_context).map_err(|err| {
+        TemplateParseError::expression("Failed to parse revset", span).with_source(err)
     })?;
-    Ok(revset)
+
+    evaluate_revset_expression(language, span, expression)
 }
 
 /// Branch or tag name with metadata.

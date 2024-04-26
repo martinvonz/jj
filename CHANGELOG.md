@@ -65,6 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj rebase -r` now accepts `--insert-after` and `--insert-before` options to
   customize the location of the rebased revisions.
 
+* Commit objects in templates now have a `containted_in(revset: String) -> Boolean` method.
+
 ### Fixed bugs
 
 * Revsets now support `\`-escapes in string literal.
