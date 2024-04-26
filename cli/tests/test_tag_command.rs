@@ -14,51 +14,35 @@
 
 use crate::common::TestEnvironment;
 
-fn set_up_tagged_git_repo(git_repo: &git2::Repository) {
-    let signature =
-        git2::Signature::new("Some One", "some.one@example.com", &git2::Time::new(0, 0)).unwrap();
-    let mut tree_builder = git_repo.treebuilder(None).unwrap();
-    let file_oid = git_repo.blob(b"content").unwrap();
-    tree_builder
-        .insert("file", file_oid, git2::FileMode::Blob.into())
-        .unwrap();
-    let tree_oid = tree_builder.write().unwrap();
-    let tree = git_repo.find_tree(tree_oid).unwrap();
-    git_repo
-        .commit(
-            Some("refs/heads/main"),
-            &signature,
-            &signature,
-            "message",
-            &tree,
-            &[],
-        )
-        .unwrap();
-    git_repo.set_head("refs/heads/main").unwrap();
-
-    let obj = git_repo.revparse_single("HEAD").unwrap();
-    git_repo
-        .tag("test_tag", &obj, &signature, "test tag message", false)
-        .unwrap();
-    git_repo
-        .tag("test_tag2", &obj, &signature, "test tag message", false)
-        .unwrap();
-}
-
 #[test]
 fn test_tag_list() {
     let test_env = TestEnvironment::default();
-    test_env.add_config("git.auto-local-branch = true");
-    let git_repo_path = test_env.env_root().join("source");
-    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    let git_repo = {
+        let mut git_repo_path = repo_path.clone();
+        git_repo_path.extend([".jj", "repo", "store", "git"]);
+        git2::Repository::open(git_repo_path).unwrap()
+    };
 
-    set_up_tagged_git_repo(&git_repo);
+    let copy_ref = |src_name: &str, dest_name: &str| {
+        let src = git_repo.find_reference(src_name).unwrap();
+        let oid = src.target().unwrap();
+        git_repo.reference(dest_name, oid, true, "").unwrap();
+    };
 
-    test_env.jj_cmd_ok(test_env.env_root(), &["git", "clone", "source", "tagged"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-mcommit1"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "branch1"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-mcommit2"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "branch2"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
 
-    let local_path = test_env.env_root().join("tagged");
+    copy_ref("refs/heads/branch1", "refs/tags/test_tag");
+    copy_ref("refs/heads/branch2", "refs/tags/test_tag2");
+    test_env.jj_cmd_ok(&repo_path, &["git", "import"]);
+
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&local_path, &["tag", "list"]),
+        test_env.jj_cmd_success(&repo_path, &["tag", "list"]),
         @r###"
         test_tag
         test_tag2
@@ -66,13 +50,13 @@ fn test_tag_list() {
 
     // Test pattern matching.
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&local_path, &["tag", "list", "test_tag2"]),
+        test_env.jj_cmd_success(&repo_path, &["tag", "list", "test_tag2"]),
         @r###"
         test_tag2
          "###);
 
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&local_path, &["tag", "list", "glob:test_tag?"]),
+        test_env.jj_cmd_success(&repo_path, &["tag", "list", "glob:test_tag?"]),
         @r###"
         test_tag2
          "###);
