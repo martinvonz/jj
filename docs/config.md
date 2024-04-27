@@ -165,24 +165,23 @@ useful reminder to fill in things like BUG=, TESTED= etc.
 ui.default-description = "\n\nTESTED=TODO"
 ```
 
-### Diff format
+### Generating diffs with built-in and external formatters
+
+Different diff formatters can be chosen with the `ui.diff-viewer` setting. `jj` provides three built-in formatters, `:color-words` (the default), `:git`, and `:summary`.
 
 ```toml
-# Possible values: "color-words" (default), "git", "summary"
-ui.diff.format = "git"
+[ui]
+diff-viewer = ":git"
 ```
 
-### Generating diffs by external command
-
-If `ui.diff.tool` is set, the specified diff command will be called instead of
-the internal diff function.
+An external diff command can be used instead of a built-in formatter, specifying the command and its arguments.
 
 ```toml
 [ui]
 # Use Difftastic by default
-diff.tool = ["difft", "--color=always", "$left", "$right"]
+diff-viewer = ["difft", "--color=always", "$left", "$right"]
 # Use tool named "<name>" (see below)
-diff.tool = "<name>"
+diff-viewer = "<name>"
 ```
 
 The external diff tool can also be enabled by `diff --tool <name>` argument.

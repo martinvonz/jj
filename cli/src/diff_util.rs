@@ -98,7 +98,7 @@ pub fn diff_formats_for(
 ) -> Result<Vec<DiffFormat>, config::ConfigError> {
     let formats = diff_formats_from_args(settings, args)?;
     if formats.is_empty() {
-        Ok(vec![default_diff_format(settings, args.context)?])
+        Ok(vec![diff_format_from_settings(settings, args.context)?])
     } else {
         Ok(formats)
     }
@@ -114,7 +114,7 @@ pub fn diff_formats_for_log(
     let mut formats = diff_formats_from_args(settings, args)?;
     // --patch implies default if no format other than --summary is specified
     if patch && matches!(formats.as_slice(), [] | [DiffFormat::Summary]) {
-        formats.push(default_diff_format(settings, args.context)?);
+        formats.push(diff_format_from_settings(settings, args.context)?);
         formats.dedup();
     }
     Ok(formats)
@@ -152,10 +152,70 @@ fn diff_formats_from_args(
     Ok(formats)
 }
 
-fn default_diff_format(
+fn builtin_diff_format(name: &str, num_context_lines: Option<usize>) -> Option<DiffFormat> {
+    match name {
+        "summary" => Some(DiffFormat::Summary),
+        "types" => Some(DiffFormat::Types),
+        "git" => Some(DiffFormat::Git {
+            context: num_context_lines.unwrap_or(DEFAULT_CONTEXT_LINES),
+        }),
+        "color-words" => Some(DiffFormat::ColorWords {
+            context: num_context_lines.unwrap_or(DEFAULT_CONTEXT_LINES),
+        }),
+        "stat" => Some(DiffFormat::Stat),
+        _ => None,
+    }
+}
+
+fn diff_format_from_settings(
     settings: &UserSettings,
     num_context_lines: Option<usize>,
 ) -> Result<DiffFormat, config::ConfigError> {
+    let config = settings.config();
+    if let Some(args) = config.get("ui.diff-viewer").optional()? {
+        if let CommandNameAndArgs::String(name) = &args {
+            // If setting is a single name starting with a colon it's treated as a built-in
+            // format. It is still possible to use an external tool starting
+            // with a colon passing it as an array rather than a string.
+            if let Some(tool_name) = name.strip_prefix("tool:") {
+                let tool = merge_tools::get_external_tool_config(settings, tool_name)?;
+                tool.map(|tool| DiffFormat::Tool(Box::new(tool)))
+                    .ok_or_else(|| {
+                        config::ConfigError::Message(format!(
+                            "Unknown external tool '{}'",
+                            tool_name
+                        ))
+                    })
+            } else {
+                builtin_diff_format(name, num_context_lines).ok_or_else(|| {
+                    config::ConfigError::Message(
+                        "Unknown format setting for 'ui.diff-viewer', built-in formats are \
+                         ':summary', ':types', ':git', ':color-words', and ':stat', or use an \
+                         external tool"
+                            .to_string(),
+                    )
+                })
+            }
+        } else {
+            Ok(DiffFormat::Tool(Box::new(
+                ExternalMergeTool::with_diff_args(&args),
+            )))
+        }
+    } else {
+        diff_format_from_deprecated_settings(settings, num_context_lines).map(|format| {
+            format.unwrap_or_else(|| DiffFormat::ColorWords {
+                context: num_context_lines.unwrap_or(DEFAULT_CONTEXT_LINES),
+            })
+        })
+    }
+}
+
+fn diff_format_from_deprecated_settings(
+    settings: &UserSettings,
+    num_context_lines: Option<usize>,
+) -> Result<Option<DiffFormat>, config::ConfigError> {
+    // ui.diff.tool and ui.diff.format are deprecated in favour of the combined
+    // ui.diff-viewer
     let config = settings.config();
     if let Some(args) = config.get("ui.diff.tool").optional()? {
         // External "tool" overrides the internal "format" option.
@@ -165,28 +225,22 @@ fn default_diff_format(
             None
         }
         .unwrap_or_else(|| ExternalMergeTool::with_diff_args(&args));
-        return Ok(DiffFormat::Tool(Box::new(tool)));
+        return Ok(Some(DiffFormat::Tool(Box::new(tool))));
     }
-    let name = if let Some(name) = config.get_string("ui.diff.format").optional()? {
-        name
-    } else if let Some(name) = config.get_string("diff.format").optional()? {
-        name // old config name
+
+    let name = config
+        .get_string("ui.diff.format")
+        .optional()
+        .or(config.get_string("diff.format").optional())?;
+
+    if let Some(format_name) = name {
+        builtin_diff_format(&format_name, num_context_lines)
+            .ok_or_else(|| {
+                config::ConfigError::Message(format!("invalid diff format: {format_name}"))
+            })
+            .map(Some)
     } else {
-        "color-words".to_owned()
-    };
-    match name.as_ref() {
-        "summary" => Ok(DiffFormat::Summary),
-        "types" => Ok(DiffFormat::Types),
-        "git" => Ok(DiffFormat::Git {
-            context: num_context_lines.unwrap_or(DEFAULT_CONTEXT_LINES),
-        }),
-        "color-words" => Ok(DiffFormat::ColorWords {
-            context: num_context_lines.unwrap_or(DEFAULT_CONTEXT_LINES),
-        }),
-        "stat" => Ok(DiffFormat::Stat),
-        _ => Err(config::ConfigError::Message(format!(
-            "invalid diff format: {name}"
-        ))),
+        Ok(None)
     }
 }
 

@@ -783,6 +783,99 @@ fn test_diff_skipped_context_nondefault() {
 }
 
 #[test]
+fn test_diff_formatter_setting() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
+
+    insta::assert_snapshot!(
+      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer='summary'"]), @r###"
+    A file1
+    "###);
+
+    insta::assert_snapshot!(
+      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer='types'"]), @r###"
+    -F file1
+    "###);
+
+    insta::assert_snapshot!(
+      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer='git'"]), @r###"
+    diff --git a/file1 b/file1
+    new file mode 100644
+    index 0000000000..257cc5642c
+    --- /dev/null
+    +++ b/file1
+    @@ -1,0 +1,1 @@
+    +foo
+    "###);
+
+    insta::assert_snapshot!(
+      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer='color-words'"]), @r###"
+    Added regular file file1:
+            1: foo
+    "###);
+
+    insta::assert_snapshot!(
+      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer='stat'"]), @r###"
+    file1 | 1 +
+    1 file changed, 1 insertion(+), 0 deletions(-)
+    "###);
+
+    insta::assert_snapshot!(
+      test_env.jj_cmd_failure(&repo_path, &["diff", "--config-toml=ui.diff-viewer='unknown'"]), @r###"
+    Config error: Unknown format setting for 'ui.diff-viewer', built-in formats are ':summary', ':types', ':git', ':color-words', and ':stat', or use an external tool
+    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    "###);
+
+    let edit_script = test_env.set_up_fake_diff_editor();
+    std::fs::write(
+        edit_script,
+        "print-files-before\0print --\0print-files-after",
+    )
+    .unwrap();
+
+    let command = escaped_fake_diff_editor_path();
+
+    insta::assert_snapshot!(
+      test_env.jj_cmd_success(&repo_path, &["diff", "--config-toml=ui.diff-viewer='tool:fake-diff-editor'"]), @r###"
+    --
+    file1
+    "###);
+
+    insta::assert_snapshot!(
+      test_env.jj_cmd_failure(&repo_path, &["diff", "--config-toml=ui.diff-viewer='tool:unknown-diff-tool'"]), @r###"
+    Config error: Unknown external tool 'unknown-diff-tool'
+    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    "###);
+
+    insta::assert_snapshot!(
+      test_env.jj_cmd_success(&repo_path, &["diff", &format!(r#"--config-toml=ui.diff-viewer=["{command}"]"#)]), @r###"
+    --
+    file1
+    "###);
+
+    if cfg!(windows) {
+        insta::assert_snapshot!(
+      test_env.jj_cmd_failure(&repo_path, &["diff", r#"--config-toml=ui.diff-viewer=["unknown-diff-binary"]"#]), @r###"
+    Error: Failed to generate diff
+    Caused by:
+    1: Error executing 'unknown-diff-binary' (run with --debug to see the exact invocation)
+    2: program not found
+    "###);
+    } else {
+        insta::assert_snapshot!(
+      test_env.jj_cmd_failure(&repo_path, &["diff", r#"--config-toml=ui.diff-viewer=["unknown-diff-binary"]"#]), @r###"
+    Error: Failed to generate diff
+    Caused by:
+    1: Error executing 'unknown-diff-binary' (run with --debug to see the exact invocation)
+    2: No such file or directory (os error 2)
+    "###);
+    }
+}
+
+#[test]
 fn test_diff_external_tool() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
@@ -854,7 +947,7 @@ fn test_diff_external_tool() {
     "###);
 
     // Enabled by default, looks up the merge-tools table
-    let config = "--config-toml=ui.diff.tool='fake-diff-editor'";
+    let config = "--config-toml=ui.diff-viewer='tool:fake-diff-editor'";
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", config]), @r###"
     file1
     file2
@@ -865,7 +958,7 @@ fn test_diff_external_tool() {
 
     // Inlined command arguments
     let command = escaped_fake_diff_editor_path();
-    let config = format!(r#"--config-toml=ui.diff.tool=["{command}", "$right", "$left"]"#);
+    let config = format!(r#"--config-toml=ui.diff-viewer=["{command}", "$right", "$left"]"#);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", &config]), @r###"
     file2
     file3
