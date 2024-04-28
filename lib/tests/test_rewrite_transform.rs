@@ -50,11 +50,7 @@ fn test_transform_descendants_sync() {
         .transform_descendants(&settings, vec![commit_b.id().clone()], |mut rewriter| {
             rewriter.replace_parent(commit_a.id(), [commit_g.id()]);
             if *rewriter.old_commit() == commit_c {
-                let old_id = rewriter.old_commit().id().clone();
-                let new_parent_ids = rewriter.new_parents().to_vec();
-                rewriter
-                    .mut_repo()
-                    .record_abandoned_commit_with_parents(old_id, new_parent_ids);
+                rewriter.abandon();
             } else {
                 let old_commit_id = rewriter.old_commit().id().clone();
                 let new_commit = rewriter.rebase(&settings)?.write()?;
