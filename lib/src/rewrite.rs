@@ -184,6 +184,14 @@ impl<'repo> CommitRewriter<'repo> {
         self.new_parents.retain(|parent| head_set.contains(parent));
     }
 
+    /// Records the old commit as abandoned with the new parents.
+    pub fn abandon(self) {
+        let old_commit_id = self.old_commit.id().clone();
+        let new_parents = self.new_parents;
+        self.mut_repo
+            .record_abandoned_commit_with_parents(old_commit_id, new_parents);
+    }
+
     /// Rebase the old commit onto the new parents. Returns a `CommitBuilder`
     /// for the new commit. Returns `None` if the commit was abandoned.
     pub fn rebase_with_empty_behavior(
@@ -235,10 +243,7 @@ impl<'repo> CommitRewriter<'repo> {
                 EmptyBehaviour::AbandonAllEmpty => *parent.tree_id() == new_tree_id,
             };
             if should_abandon {
-                self.mut_repo.record_abandoned_commit_with_parents(
-                    self.old_commit.id().clone(),
-                    std::iter::once(parent.id().clone()),
-                );
+                self.abandon();
                 return Ok(None);
             }
         }
