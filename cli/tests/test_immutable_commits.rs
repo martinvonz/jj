@@ -247,10 +247,22 @@ fn test_rewrite_immutable_commands() {
     Error: Commit 406c181c04d8 is immutable
     Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
-    // squash
+    // squash -r
     let stderr = test_env.jj_cmd_failure(&repo_path, &["squash", "-r=description(b)"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit c8d4c7ca95d0 is immutable
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    "###);
+    // squash --from
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["squash", "--from=main"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Commit 406c181c04d8 is immutable
+    Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
+    "###);
+    // squash --into
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["squash", "--into=main"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Commit 406c181c04d8 is immutable
     Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // unsquash
