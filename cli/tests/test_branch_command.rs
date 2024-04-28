@@ -99,7 +99,7 @@ fn test_branch_move() {
     let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "set", "foo"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: No such branch: foo
-    Hint: Use `jj branch create` to create it.
+    Hint: Use `jj branch create` or `jj branch set --create` to create it.
     "###);
 
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
@@ -125,6 +125,22 @@ fn test_branch_move() {
         &repo_path,
         &["branch", "set", "-r@-", "--allow-backwards", "foo"],
     );
+    insta::assert_snapshot!(stderr, @"");
+}
+
+#[test]
+fn test_branch_set_create() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "set", "foo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No such branch: foo
+    Hint: Use `jj branch create` or `jj branch set --create` to create it.
+    "###);
+
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo", "--create"]);
     insta::assert_snapshot!(stderr, @"");
 }
 
