@@ -241,7 +241,7 @@ fn test_diff_types() {
     std::fs::write(&file_path, "foo").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["new", "root()"]);
     std::fs::write(&file_path, "bar").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["move", r#"--to=description("conflict")"#]);
+    test_env.jj_cmd_ok(&repo_path, &["squash", r#"--into=description("conflict")"#]);
 
     #[cfg(unix)]
     {
