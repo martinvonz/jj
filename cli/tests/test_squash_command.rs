@@ -859,8 +859,103 @@ fn test_squash_from_multiple_partial() {
     "###);
 }
 
+#[test]
+fn test_squash_from_multiple_partial_no_op() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Create history like this:
+    // B C D
+    //  \|/
+    //   A
+    let file_a = repo_path.join("a");
+    let file_b = repo_path.join("b");
+    let file_c = repo_path.join("c");
+    let file_d = repo_path.join("d");
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m=a"]);
+    std::fs::write(file_a, "a\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m=b"]);
+    std::fs::write(file_b, "b\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-", "-m=c"]);
+    std::fs::write(file_c, "c\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "@-", "-m=d"]);
+    std::fs::write(file_d, "d\n").unwrap();
+    // Test the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  09441f0a6266 d
+    │ ◉  5ad3ca4090a7 c
+    ├─╯
+    │ ◉  285201979c90 b
+    ├─╯
+    ◉  3df52ee1f8a9 a
+    ◉  000000000000
+    "###);
+
+    // Source commits that didn't match the paths are not rewritten
+    // TODO: Comit c should be unchanged
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["squash", "--from=@-+ ~ @", "--into=@", "-m=d", "b"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: mzvwutvl 9227d0d7 d
+    Parent commit      : qpvuntsm 3df52ee1 a
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  9227d0d780fa d
+    │ ◉  8907be4aab96 c
+    ├─╯
+    ◉  3df52ee1f8a9 a
+    ◉  000000000000
+    "###);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "obslog",
+            "-T",
+            r#"separate(" ", commit_id.short(), description)"#,
+        ],
+    );
+    // TODO: Commit c should not be a predecessor
+    insta::assert_snapshot!(stdout, @r###"
+    @      9227d0d780fa d
+    ├─┬─╮
+    ◉ │ │  09441f0a6266 d
+    ◉ │ │  cba0f0aa472b d
+      ◉ │  285201979c90 b
+      ◉ │  81187418277d b
+        ◉  5ad3ca4090a7 c
+        ◉  7cfbaf71a279 c
+    "###);
+
+    // If no source commits match the paths, then the whole operation is a no-op
+    // TODO: All commits should be unchanged
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["squash", "--from=@-+ ~ @", "--into=@", "-m=d", "a"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: mzvwutvl 17f5bc7a d
+    Parent commit      : qpvuntsm 3df52ee1 a
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  17f5bc7ab82a d
+    │ ◉  6eba26a0b46d c
+    ├─╯
+    │ ◉  88c573358ed5 b
+    ├─╯
+    ◉  3df52ee1f8a9 a
+    ◉  000000000000
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    let template = r#"commit_id.short() ++ " " ++ branches"#;
+    let template = r#"separate(" ", commit_id.short(), branches, description)"#;
     test_env.jj_cmd_success(repo_path, &["log", "-T", template])
 }
 
