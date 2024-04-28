@@ -241,15 +241,12 @@ fn test_squash_partial() {
     b
     "###);
 
-    // If we specify only a non-existent file, then the squash still succeeds and
-    // creates unchanged commits.
+    // If we specify only a non-existent file, then nothing changes.
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "-r", "b", "nonexistent"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Rebased 2 descendant commits
-    Working copy now at: mzvwutvl 5e297967 c | (no description set)
-    Parent commit      : kkmpptxz ac258609 b | (no description set)
+    Nothing changed.
     "###);
 
     // We get a warning if we pass a positional argument that looks like a revset
@@ -257,9 +254,7 @@ fn test_squash_partial() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "b"]);
     insta::assert_snapshot!(stderr, @r###"
     Warning: The argument "b" is being interpreted as a path. To specify a revset, pass -r "b" instead.
-    Rebased 1 descendant commits
-    Working copy now at: mzvwutvl 1c4e5596 c | (no description set)
-    Parent commit      : kkmpptxz 16cc94b4 b | (no description set)
+    Nothing changed.
     "###);
     insta::assert_snapshot!(stdout, @"");
 }
@@ -570,15 +565,13 @@ fn test_squash_from_to_partial() {
     a
     "###);
 
-    // If we specify only a non-existent file, then the move still succeeds and
-    // creates unchanged commits.
+    // If we specify only a non-existent file, then nothing changes.
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["squash", "--from", "c", "nonexistent"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: vruxwmqv b670567d d | (no description set)
-    Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
+    Nothing changed.
     "###);
 }
 
@@ -692,12 +685,11 @@ fn test_squash_from_multiple() {
     f
     "###);
 
-    // Empty squash shouldn't crash (could be noop)
+    // Empty squash shouldn't crash
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "--from=none()"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: xznxytkn 68d54010 (empty) (no description set)
-    Parent commit      : yostqsxw b7bc1dda e f | (no description set)
+    Nothing changed.
     "###);
 }
 
@@ -893,7 +885,6 @@ fn test_squash_from_multiple_partial_no_op() {
     "###);
 
     // Source commits that didn't match the paths are not rewritten
-    // TODO: Comit c should be unchanged
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
         &["squash", "--from=@-+ ~ @", "--into=@", "-m=d", "b"],
@@ -906,7 +897,7 @@ fn test_squash_from_multiple_partial_no_op() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  9227d0d780fa d
-    │ ◉  8907be4aab96 c
+    │ ◉  5ad3ca4090a7 c
     ├─╯
     ◉  3df52ee1f8a9 a
     ◉  000000000000
@@ -932,7 +923,6 @@ fn test_squash_from_multiple_partial_no_op() {
     "###);
 
     // If no source commits match the paths, then the whole operation is a no-op
-    // TODO: All commits should be unchanged
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
@@ -940,14 +930,13 @@ fn test_squash_from_multiple_partial_no_op() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: mzvwutvl 17f5bc7a d
-    Parent commit      : qpvuntsm 3df52ee1 a
+    Nothing changed.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  17f5bc7ab82a d
-    │ ◉  6eba26a0b46d c
+    @  09441f0a6266 d
+    │ ◉  5ad3ca4090a7 c
     ├─╯
-    │ ◉  88c573358ed5 b
+    │ ◉  285201979c90 b
     ├─╯
     ◉  3df52ee1f8a9 a
     ◉  000000000000

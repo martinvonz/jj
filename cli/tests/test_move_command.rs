@@ -345,16 +345,14 @@ fn test_move_partial() {
     a
     "###);
 
-    // If we specify only a non-existent file, then the move still succeeds and
-    // creates unchanged commits.
+    // If we specify only a non-existent file, then nothing changes.
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["move", "--from", "c", "nonexistent"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
     Warning: `jj move` will be removed in a future version, and this will be a hard error
-    Working copy now at: vruxwmqv b670567d d | (no description set)
-    Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
+    Nothing changed.
     "###);
 }
 
