@@ -84,6 +84,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   literals. This means that `snapshot.max-new-file-size="1"` and
   `snapshot.max-new-file-size=1` are now equivalent.
 
+* `jj squash <path>` is now a no-op if the path argument didn't match any paths
+  (it used to create new commits with bumped timestamp).
+  [#3334](https://github.com/martinvonz/jj/issues/3334)
+
 ## [0.16.0] - 2024-04-03
 
 ### Deprecations

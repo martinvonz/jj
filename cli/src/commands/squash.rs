@@ -213,6 +213,12 @@ from the source will be moved into the destination.
             diff_selector.select(&parent_tree, &source_tree, matcher, Some(&instructions))?;
         let selected_tree = tx.repo().store().get_root_tree(&selected_tree_id)?;
         let abandon = selected_tree.id() == source_tree.id();
+        if !abandon && selected_tree_id == parent_tree.id() {
+            // Nothing selected from this commit. If it's abandoned (i.e. already empty), we
+            // still include it so `jj squash` can be used for abandoning an empty commit in
+            // the middle of a stack.
+            continue;
+        }
         // TODO: Do we want to optimize the case of moving to the parent commit (`jj
         // squash -r`)? The source tree will be unchanged in that case.
         source_commits.push(SourceCommit {
@@ -222,10 +228,7 @@ from the source will be moved into the destination.
             abandon,
         });
     }
-    if source_commits
-        .iter()
-        .all(|source| source.selected_tree == source.parent_tree)
-    {
+    if source_commits.is_empty() {
         if diff_selector.is_interactive() {
             return Err(user_error("No changes selected"));
         }
@@ -245,6 +248,8 @@ from the source will be moved into the destination.
                 )?;
             }
         }
+
+        return Ok(());
     }
 
     for source in &source_commits {
