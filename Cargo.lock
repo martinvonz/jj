@@ -1888,6 +1888,7 @@ dependencies = [
  "indoc",
  "insta",
  "itertools 0.12.1",
+ "jj-api",
  "jj-cli",
  "jj-lib",
  "libc",
