@@ -48,6 +48,7 @@ glob = { workspace = true }
 hex = { workspace = true }
 ignore = { workspace = true }
 itertools = { workspace = true }
+jj-api = { workspace = true }
 jj-lib-proc-macros = { workspace = true }
 maplit = { workspace = true }
 once_cell = { workspace = true }
@@ -66,7 +67,10 @@ smallvec = { workspace = true }
 strsim = { workspace = true }
 tempfile = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, optional = true }
+tokio = { workspace = true }
+tonic = { workspace = true }
+tonic-web = { workspace = true }
+prost-types = { workspace = true }
 tracing = { workspace = true }
 watchman_client = { workspace = true, optional = true }
 whoami = { workspace = true }
@@ -93,5 +97,5 @@ tokio = { workspace = true, features = ["full"] }
 [features]
 default = []
 vendored-openssl = ["git2/vendored-openssl"]
-watchman = ["dep:tokio", "dep:watchman_client"]
+watchman = ["dep:watchman_client"]
 testing = []
