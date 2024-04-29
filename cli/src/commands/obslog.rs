@@ -28,9 +28,10 @@ use crate::formatter::Formatter;
 use crate::graphlog::{get_graphlog, Edge};
 use crate::ui::Ui;
 
-/// Show how a change has evolved
+/// Show how a change has evolved over time
 ///
-/// Show how a change has evolved as it's been updated, rebased, etc.
+/// Lists the previous commits which a change has pointed to. The current commit
+/// of a change evolves when the change is updated, rebased, etc.
 ///
 /// Name is derived from Merciual's obsolescence markers.
 #[derive(clap::Args, Clone, Debug)]
