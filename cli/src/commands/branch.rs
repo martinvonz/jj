@@ -694,6 +694,9 @@ fn cmd_branch_list(
         if args.tracked {
             tracking_remote_refs
                 .retain(|&(remote, _)| remote != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
+        } else if !args.all_remotes {
+            tracking_remote_refs
+                .retain(|&(_, remote_ref)| remote_ref.target != *branch_target.local_target);
         }
 
         if !args.tracked && branch_target.local_target.is_present()
@@ -709,10 +712,6 @@ fn cmd_branch_list(
 
         for &(remote, remote_ref) in &tracking_remote_refs {
             let synced = remote_ref.target == *branch_target.local_target;
-
-            if !args.all_remotes && !args.tracked && synced {
-                continue;
-            }
             write!(formatter, "  ")?;
             write!(formatter.labeled("branch"), "@{remote}")?;
             let local_target = branch_target.local_target;
