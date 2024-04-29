@@ -6784,13 +6784,15 @@ J          J
 </code></pre></div>
 <p>If a working-copy commit gets abandoned, it will be given a new, empty
 commit. This is true in general; it is not specific to this command.</p>
-<p><strong>Usage:</strong> <code>jj rebase [OPTIONS] --destination &lt;DESTINATION&gt;</code></p>
+<p><strong>Usage:</strong> <code>jj rebase [OPTIONS] &lt;--destination &lt;DESTINATION&gt;|--insert-after &lt;INSERT_AFTER&gt;|--insert-before &lt;INSERT_BEFORE&gt;&gt;</code></p>
 <h6 id="options_36"><strong>Options:</strong><a class="headerlink" href="#options_36" title="Permanent link">&para;</a></h6>
 <ul>
 <li><code>-b</code>, <code>--branch &lt;BRANCH&gt;</code> — Rebase the whole branch relative to destination's ancestors (can be repeated)</li>
 <li><code>-s</code>, <code>--source &lt;SOURCE&gt;</code> — Rebase specified revision(s) together with their trees of descendants (can be repeated)</li>
 <li><code>-r</code>, <code>--revisions &lt;REVISIONS&gt;</code> — Rebase the given revisions, rebasing descendants onto this revision's parent(s)</li>
 <li><code>-d</code>, <code>--destination &lt;DESTINATION&gt;</code> — The revision(s) to rebase onto (can be repeated to create a merge commit)</li>
+<li><code>-A</code>, <code>--insert-after &lt;INSERT_AFTER&gt;</code> — The revision(s) to insert after (can be repeated to create a merge commit)</li>
+<li><code>-B</code>, <code>--insert-before &lt;INSERT_BEFORE&gt;</code> — The revision(s) to insert before (can be repeated to create a merge commit)</li>
 <li>
 <p><code>--skip-empty</code> — If true, when rebasing would produce an empty commit, the commit is abandoned. It will not be abandoned if it was already empty before the rebase. Will never skip merge commits with multiple non-empty parents</p>
 <p>Possible values: <code>true</code>, <code>false</code></p>
