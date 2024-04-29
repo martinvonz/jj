@@ -538,6 +538,8 @@ fn test_rebase_multiple_revisions() {
     // Test with a subgraph containing a merge commit. Since the merge commit "f"
     // was extracted, its descendants which are not part of the subgraph will
     // inherit its descendants which are not in the subtree ("c" and "d").
+    // "f" will retain its parent "c" since "c" is outside the target set, and not
+    // a descendant of any new children.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "e::g", "-d", "a"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -554,12 +556,13 @@ fn test_rebase_multiple_revisions() {
     │ │ ○  h: c d
     ╭─┬─╯
     │ ○  d: a
+    │ │ ○  g: f
+    │ │ ○  f: c e
+    ╭───┤
+    │ │ ○  e: a
+    │ ├─╯
     ○ │  c: b
     ○ │  b: a
-    ├─╯
-    │ ○  g: f
-    │ ○  f: e
-    │ ○  e: a
     ├─╯
     ○  a
     ◆
@@ -569,7 +572,8 @@ fn test_rebase_multiple_revisions() {
     // Test with commits in a disconnected subgraph. The subgraph has the
     // relationship d->e->f->g->h, but only "d", "f" and "h" are in the set of
     // rebased commits. "d" should be a new parent of "f", and "f" should be a
-    // new parent of "g".
+    // new parent of "h". "f" will retain its parent "c" since "c" is outside the
+    // target set, and not a descendant of any new children.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
         &["rebase", "-r", "d", "-r", "f", "-r", "h", "-d", "b"],
@@ -589,10 +593,11 @@ fn test_rebase_multiple_revisions() {
     │ │ ○  g: c e
     ╭─┬─╯
     │ ○  e: a
-    ○ │  c: b
     │ │ ○  h: f
-    │ │ ○  f: d
+    │ │ ○  f: c d
+    ╭───┤
     │ │ ○  d: b
+    ○ │ │  c: b
     ├───╯
     ○ │  b: a
     ├─╯
@@ -1612,22 +1617,52 @@ fn test_rebase_revisions_after() {
     insta::assert_snapshot!(stderr, @r###"
     Rebased 4 commits onto destination
     Rebased 2 descendant commits
-    Working copy now at: xznxytkn 084e0629 f | f
-    Parent commit      : nkmrtpmo 563d78c6 e | e
+    Working copy now at: xznxytkn 9bc7e54c f | f
+    Parent commit      : nkmrtpmo 0f80251b e | e
     Added 1 files, modified 0 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  f: e
     ○  e: d
     ○  d: c
-    ○  c: b2
-    ○  b2: b1
-    ○    b1: a b4
+    ○    c: b2 b4
+    ├─╮
+    ○ │  b2: b1
+    ○ │  b1: a b4
     ├─╮
     │ ○  b4: b3
     │ ○  b3: a
     ├─╯
     ○  a
+    ◆
+    "###);
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+
+    // Rebase a subgraph before the parents of one of the commits in the subgraph.
+    // "c" had parents "b2" and "b4", but no longer has "b4" as a parent since
+    // "b4" would be a descendant of "c" after the rebase.
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "b2::d", "--after", "root()"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 3 commits onto destination
+    Rebased 6 descendant commits
+    Working copy now at: xznxytkn 0875aabc f | f
+    Parent commit      : nkmrtpmo d429661b e | e
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  f: e
+    ○    e: b1 b4
+    ├─╮
+    │ ○  b4: b3
+    │ ○  b3: a
+    ○ │  b1: a
+    ├─╯
+    ○  a: d
+    ○  d: c
+    ○  c: b2
+    ○  b2
     ◆
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
@@ -1642,8 +1677,8 @@ fn test_rebase_revisions_after() {
     insta::assert_snapshot!(stderr, @r###"
     Rebased 2 commits onto destination
     Rebased 3 descendant commits
-    Working copy now at: xznxytkn 4fb2bb60 f | f
-    Parent commit      : kmkuslsw cebde86a c | c
+    Working copy now at: xznxytkn 3238a418 f | f
+    Parent commit      : kmkuslsw 6a51bd41 c | c
     Added 0 files, modified 0 files, removed 2 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -2051,6 +2086,35 @@ fn test_rebase_revisions_before() {
     ○  a: e
     ○  e: b1
     ○  b1
+    ◆
+    "###);
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+
+    // Rebase a subgraph before the parents of one of the commits in the subgraph.
+    // "c" had parents "b2" and "b4", but no longer has "b4" as a parent since
+    // "b4" would be a descendant of "c" after the rebase.
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "b2::d", "--before", "a"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 3 commits onto destination
+    Rebased 6 descendant commits
+    Working copy now at: xznxytkn f5991dc7 f | f
+    Parent commit      : nkmrtpmo 37894e3c e | e
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  f: e
+    ○    e: b1 b4
+    ├─╮
+    │ ○  b4: b3
+    │ ○  b3: a
+    ○ │  b1: a
+    ├─╯
+    ○  a: d
+    ○  d: c
+    ○  c: b2
+    ○  b2
     ◆
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);

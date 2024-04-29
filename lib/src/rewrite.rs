@@ -487,33 +487,33 @@ pub fn move_commits(
             .commits(mut_repo.store())
             .try_collect()?;
 
-    // Commits in the target set should only have other commits in the set as
-    // parents, except the roots of the set, which persist their original
-    // parents.
-    // If a commit in the set has a parent which is not in the set, but has
-    // an ancestor which is in the set, then the commit will have that ancestor
-    // as a parent.
-    let mut target_commits_internal_parents: HashMap<CommitId, Vec<CommitId>> = HashMap::new();
+    // Compute the parents of all commits in the connected target set, allowing only
+    // commits in the target set as parents. The parents of each commit are
+    // identical to the ones found using a preorder DFS of the node's ancestors,
+    // starting from the node itself, and avoiding traversing an edge if the
+    // parent is in the target set.
+    let mut connected_target_commits_internal_parents: HashMap<CommitId, Vec<CommitId>> =
+        HashMap::new();
     for commit in connected_target_commits.iter().rev() {
         // The roots of the set will not have any parents found in
-        // `target_commits_internal_parents`, and will be stored in
-        // `target_commits_internal_parents` as an empty vector.
+        // `connected_target_commits_internal_parents`, and will be stored as an empty
+        // vector.
         let mut new_parents = vec![];
         for old_parent in commit.parent_ids() {
             if target_commit_ids.contains(old_parent) {
                 new_parents.push(old_parent.clone());
-            } else if let Some(parents) = target_commits_internal_parents.get(old_parent) {
+            } else if let Some(parents) = connected_target_commits_internal_parents.get(old_parent)
+            {
                 new_parents.extend(parents.iter().cloned());
             }
         }
-        target_commits_internal_parents.insert(commit.id().clone(), new_parents);
+        connected_target_commits_internal_parents.insert(commit.id().clone(), new_parents);
     }
-    target_commits_internal_parents.retain(|id, _| target_commit_ids.contains(id));
 
     // Compute the roots of `target_commits`.
-    let target_roots: HashSet<_> = target_commits_internal_parents
+    let target_roots: HashSet<_> = connected_target_commits_internal_parents
         .iter()
-        .filter(|(_, parents)| parents.is_empty())
+        .filter(|(commit_id, parents)| target_commit_ids.contains(commit_id) && parents.is_empty())
         .map(|(commit_id, _)| commit_id.clone())
         .collect();
 
@@ -710,17 +710,33 @@ pub fn move_commits(
             if let Some(new_child_parents) = new_children_parents.get(commit_id) {
                 new_child_parents.clone()
             }
-            // Commits in the target set should persist only rebased parents from the target
-            // sets.
-            else if let Some(target_commit_parents) =
-                target_commits_internal_parents.get(commit_id)
-            {
-                // If the commit does not have any parents in the target set, it is one of the
-                // commits in the root set, and should be rebased onto the new destination.
-                if target_commit_parents.is_empty() {
+            // Commit is in the target set.
+            else if target_commit_ids.contains(commit_id) {
+                // If the commit is a root of the target set, it should be rebased onto the new destination.
+                if target_roots.contains(commit_id) {
                     new_parent_ids.clone()
-                } else {
-                    target_commit_parents.clone()
+                }
+                // Otherwise:
+                // 1. Keep parents which are within the target set.
+                // 2. Replace parents which are outside the target set but are part of the
+                //    connected target set with their ancestor commits which are in the target
+                //    set.
+                // 3. Keep other parents outside the target set if they are not descendants of the
+                //    new children of the target set.
+                else {
+                    let mut new_parents = vec![];
+                    for parent_id in commit.parent_ids() {
+                        if target_commit_ids.contains(parent_id) {
+                            new_parents.push(parent_id.clone());
+                        } else if let Some(parents) =
+                                connected_target_commits_internal_parents.get(parent_id) {
+                            new_parents.extend(parents.iter().cloned());
+                        } else if !new_children.iter().any(|new_child| {
+                                mut_repo.index().is_ancestor(new_child.id(), parent_id) }) {
+                            new_parents.push(parent_id.clone());
+                        }
+                    }
+                   new_parents
                 }
             }
             // Commits outside the target set should have references to commits inside the set
