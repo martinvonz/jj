@@ -110,6 +110,65 @@ fn test_rewrite_immutable_generic() {
 }
 
 #[test]
+fn test_new_wc_commit_when_wc_immutable() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["branch", "create", "main"]);
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "main""#);
+    test_env.jj_cmd_ok(test_env.env_root(), &["new", "-m=a"]);
+    let (_, stderr) = test_env.jj_cmd_ok(test_env.env_root(), &["branch", "set", "main"]);
+    insta::assert_snapshot!(stderr, @r###"
+Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
+Working copy now at: zsuskuln 87e33403 (empty) (no description set)
+Parent commit      : kkmpptxz 7272528e main | (empty) a
+    "###);
+}
+
+#[test]
+fn test_immutable_heads_set_to_working_copy() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["branch", "create", "main"]);
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "@""#);
+    let (_, stderr) = test_env.jj_cmd_ok(test_env.env_root(), &["new", "-m=a"]);
+    insta::assert_snapshot!(stderr, @r###"
+Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
+Working copy now at: pmmvwywv 09dafa31 (empty) (no description set)
+Parent commit      : kkmpptxz 4963e243 (empty) a
+    "###);
+}
+
+#[test]
+fn test_new_wc_commit_when_wc_immutable_multi_workspace() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["branch", "create", "main"]);
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "main""#);
+    test_env.jj_cmd_ok(test_env.env_root(), &["new", "-m=a"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["workspace", "add", "workspace1"]);
+    let workspace1_envroot = test_env.env_root().join("workspace1");
+    test_env.jj_cmd_ok(workspace1_envroot.as_path(), &["edit", "default@"]);
+    let (_, stderr) = test_env.jj_cmd_ok(test_env.env_root(), &["branch", "set", "main"]);
+    insta::assert_snapshot!(stderr, @r###"
+Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
+Warning: The working-copy commit in workspace 'workspace1' became immutable, so a new commit has been created on top of it.
+Working copy now at: royxmykx c37fd624 (empty) (no description set)
+Parent commit      : kkmpptxz ada0ee19 main | a
+    "###);
+    test_env.jj_cmd_ok(workspace1_envroot.as_path(), &["workspace", "update-stale"]);
+    let (stdout, _) = test_env.jj_cmd_ok(workspace1_envroot.as_path(), &["log", "--no-graph"]);
+    insta::assert_snapshot!(stdout, @r###"
+nppvrztz test.user@example.com 2001-02-03 08:05:11 workspace1@ f5e1b845
+(empty) (no description set)
+royxmykx test.user@example.com 2001-02-03 08:05:12 default@ c37fd624
+(empty) (no description set)
+kkmpptxz test.user@example.com 2001-02-03 08:05:12 main ada0ee19
+a
+zzzzzzzz root() 00000000
+        "###);
+}
+
+#[test]
 fn test_rewrite_immutable_commands() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);

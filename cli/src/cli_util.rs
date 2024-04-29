@@ -1070,8 +1070,9 @@ impl WorkspaceCommandHelper {
         self.commit_summary_template().format(commit, formatter)
     }
 
-    pub fn check_rewritable<'a>(
+    fn check_repo_rewritable<'a>(
         &self,
+        repo: &dyn Repo,
         commits: impl IntoIterator<Item = &'a CommitId>,
     ) -> Result<(), CommandError> {
         if self.global_args.ignore_immutable {
@@ -1091,7 +1092,12 @@ impl WorkspaceCommandHelper {
             .map_err(|e| {
                 config_error_with_message("Invalid `revset-aliases.immutable_heads()`", e)
             })?;
-        let mut expression = self.attach_revset_evaluator(immutable)?;
+        let mut expression = RevsetExpressionEvaluator::new(
+            repo,
+            self.revset_extensions.clone(),
+            self.id_prefix_context()?,
+            immutable,
+        );
         expression.intersect_with(&to_rewrite_revset);
 
         let mut commit_id_iter = expression.evaluate_to_commit_ids().map_err(|e| {
@@ -1115,6 +1121,13 @@ impl WorkspaceCommandHelper {
         }
 
         Ok(())
+    }
+
+    pub fn check_rewritable<'a>(
+        &'a self,
+        commits: impl IntoIterator<Item = &'a CommitId>,
+    ) -> Result<(), CommandError> {
+        self.check_repo_rewritable(self.repo().as_ref(), commits)
     }
 
     #[instrument(skip_all)]
@@ -1281,6 +1294,26 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             writeln!(ui.status(), "Rebased {num_rebased} descendant commits")?;
         }
 
+        for (workspace_id, wc_commit_id) in
+            tx.mut_repo().view().wc_commit_ids().clone().iter().sorted()
+        //sorting otherwise non deterministic order (bad for tests)
+        {
+            if self
+                .check_repo_rewritable(tx.repo(), [wc_commit_id])
+                .is_err()
+            {
+                let wc_commit = tx.repo().store().get_commit(wc_commit_id)?;
+                tx.mut_repo()
+                    .check_out(workspace_id.clone(), &self.settings, &wc_commit)?;
+                writeln!(
+                    ui.warning_default(),
+                    "The working-copy commit in workspace '{}' became immutable, so a new commit \
+                     has been created on top of it.",
+                    workspace_id.as_str()
+                )?;
+            }
+        }
+
         let old_repo = tx.base_repo().clone();
 
         let maybe_old_wc_commit = old_repo
@@ -1294,6 +1327,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             .get_wc_commit_id(self.workspace_id())
             .map(|commit_id| tx.repo().store().get_commit(commit_id))
             .transpose()?;
+
         if self.working_copy_shared_with_git {
             let git_repo = self.git_backend().unwrap().open_git_repo()?;
             if let Some(wc_commit) = &maybe_new_wc_commit {
@@ -1302,6 +1336,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             let failed_branches = git::export_refs(tx.mut_repo())?;
             print_failed_git_export(ui, &failed_branches)?;
         }
+
         self.user_repo = ReadonlyUserRepo::new(tx.commit(description));
         self.report_repo_changes(ui, &old_repo)?;
 
@@ -1313,6 +1348,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                 // update it.
             }
         }
+
         let settings = &self.settings;
         if settings.user_name().is_empty() || settings.user_email().is_empty() {
             writeln!(

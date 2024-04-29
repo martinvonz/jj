@@ -79,6 +79,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rebase the children of the revision being split if they had other parents
   (i.e. if the child was a merge).
 
+* When the working copy commit becomes immutable, a new one is automatically created on top of it 
+to avoid letting the user edit the immutable one.
+
 * The `snapshot.max-new-file-size` option can now handle raw integer literals,
   interpreted as a number of bytes, where previously it could only handle string
   literals. This means that `snapshot.max-new-file-size="1"` and
