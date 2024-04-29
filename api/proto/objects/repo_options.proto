@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package jj_api.objects;
+
+message RepoOptions {
+  string repo_path = 1;
+  string at_operation = 2;
+}

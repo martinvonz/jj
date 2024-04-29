@@ -1,0 +1,24 @@
+# This crate contains the proto files that correspond to the API for jj.
+[package]
+name = "jj-api"
+version.workspace = true
+license.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+documentation.workspace = true
+categories.workspace = true
+keywords.workspace = true
+
+[dependencies]
+hex.workspace = true
+prost.workspace = true
+prost-types.workspace = true
+tonic.workspace = true
+
+[build-dependencies]
+prost-build.workspace = true
+protoc-bin-vendored.workspace = true
+tonic-build.workspace = true

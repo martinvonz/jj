@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+import "objects/change.proto";
+
+package jj_api.objects;
+
+
+message Workspace {
+  string workspace_id = 1;
+  
+  jj_api.objects.Change change = 2;
+}

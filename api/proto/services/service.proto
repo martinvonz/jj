@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+import "rpc/ListWorkspacesRequest.proto";
+import "rpc/ListWorkspacesResponse.proto";
+
+package jj_api.services;
+
+// Handles things that operate on a given workspace.
+// Most commands will be contained within here, but commands such as `jj init`
+// will not.
+service JjService {
+  rpc ListWorkspaces(jj_api.rpc.ListWorkspacesRequest) returns (jj_api.rpc.ListWorkspacesResponse) {}
+}
