@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package jj_api.rpc;
+
+import "objects/options.proto";
+import "objects/revset.proto";
+import "objects/revision.proto";
+
+message RevisionsRequest {
+  // Since this is a read-only request, we don't want to require the user to
+  // start a transaction.
+  oneof state {
+    string transaction_id = 1;
+    jj_api.objects.GlobalOptions repo_state = 2;
+  }
+  
+  jj_api.objects.RevisionMask revision_mask = 3;
+
+  jj_api.objects.Revset revisions = 4;
+
+  int32 limit = 5;
+  // TODO: We have three options here:
+  // 1) Make this a string, and return the string
+  // 2) Make this similar to Revset, where we can construct it
+  // 3) Remove this from the API and put it in jj-cli entirely. Templates would,
+  //    instead of formatting a Commit object, format a Revision proto.
+  // I don't really like option 2, since it seems that the caller of this could
+  // always just do that themselves in whatever the language is calling this
+  // API.
+  // Option 1 and Option 3 both seem reasonable, and mainly depend on whether we
+  // think that jj-cli will be the only user of templates.
+  // I personally am leaning towards option 3, because I think that an extension
+  // may quite reasonably want to, for example, take advantage of a user's
+  // jj config file containing custom templates or template aliases.
+  string template = 6;
+}
+
+message ListRevisionsResponse {
+  repeated jj_api.objects.Revision revisions = 1;
+  
+  // This is useful if you want to perform, for example, `jj diff` between two
+  // revisions.
+  string operation_id = 2;
+}
+
+message GetRevisionResponse {
+  jj_api.objects.Revision revision = 1;
+
+  // This is useful if you want to perform, for example, `jj diff` between two
+  // revisions.
+  string operation_id = 2;
+}

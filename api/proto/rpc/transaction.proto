@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package jj_api.rpc;
+
+import "objects/options.proto";
+
+message BeginTransactionRequest {
+  jj_api.objects.GlobalOptions state = 1;
+  
+  // If EndTransaction is not called within timeout_seconds, then the daemon
+  // will abandon the transaction.
+  uint32 timeout_seconds = 2;
+}
+
+message BeginTransactionResponse {
+  string transaction_id = 1;
+}
+
+message EndTransactionRequest {
+  string transaction_id = 1;
+}
+
+message EndTransactionResponse {
+  string operation_id = 1;
+}

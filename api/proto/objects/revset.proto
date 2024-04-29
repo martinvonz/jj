@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package jj_api.objects;
+
+message Revset {
+  oneof kind {
+    // Should ideally only be used when the user types in their own revset.
+    // Otherwise, construct it using this proto.
+    string revset = 1;
+
+    // Primitives that we can look up directly.
+    string change_id = 2;
+    string commit_id = 3;
+
+    // Operators
+    Union union = 4;
+    Intersection intersection = 5;
+    Revset not = 6;
+    Between between = 7;
+
+    // Functions
+    Revset parents = 8;
+    Revset children = 9;
+    Ancestors ancestors = 10;
+    // Descendants is skipped (use Between(from=x, to=None, inclusive=True)
+    Reachable reachable = 12;
+    // Connected is skipped (use Between(from=x, to=x, inclusive=True)
+    bool all = 13; // Use bool for a function with no parameters
+    bool none = 14; // Use bool for a function with no parameters
+    Branches branches = 15;
+    RemoteBranches remote_branches = 16;
+
+    // You get the point. Each builtin function is implemented as a oneof in 
+    // this message.
+  }
+}
+
+message Union {
+  repeated Revset srcs = 1;
+}
+
+message Intersection {
+  repeated Revset srcs = 1;
+}
+
+// Equivalent to from::to when inclusive is set, or from..to when not set.
+message Between {
+  optional Revset from = 1;
+  optional Revset to = 2;
+  // If false, equivalent to ..
+  // If true, equivalent to ::
+  bool inclusive = 3;
+}
+
+message Ancestors {
+  Revset srcs = 1;
+  int32 depth = 2;
+}
+
+message Reachable {
+  Revset srcs = 1;
+  Revset domain = 2;
+}
+
+message Branches {
+  string pattern = 1;
+}
+
+message RemoteBranches {
+  string branch_pattern = 1;
+  string remote_pattern = 2;
+}

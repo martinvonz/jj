@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+import "rpc/read_revisions.proto";
+import "rpc/transaction.proto";
+
+package jj_api.services;
+
+// All jj things will go into this service.
+service JjService {
+  rpc BeginTransaction(jj_api.rpc.BeginTransactionRequest) returns (jj_api.rpc.BeginTransactionResponse) {}
+  rpc EndTransaction(jj_api.rpc.EndTransactionRequest) returns (jj_api.rpc.EndTransactionResponse) {}
+  
+  // This RPC will be used by `jj log`
+  rpc ListRevisions(jj_api.rpc.RevisionsRequest) returns (jj_api.rpc.ListRevisionsResponse) {}
+  
+  // This RPC will be used by:
+  // * cat
+  // * diff
+  // * files
+  // * show
+  // * status
+  // It only differs from `ListRevisions` in that it throws an error if there
+  // isn't exactly one match.
+  rpc GetRevision(jj_api.rpc.RevisionsRequest) returns (jj_api.rpc.GetRevisionResponse) {}
+}
