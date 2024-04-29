@@ -36,7 +36,6 @@ use crate::cli_util::{
     WorkspaceCommandTransaction,
 };
 use crate::command_error::{user_error, CommandError};
-use crate::formatter::Formatter;
 use crate::ui::Ui;
 
 /// Move revisions to different parent(s)
@@ -396,14 +395,12 @@ fn rebase_descendants_transaction(
     let (skipped_commits, old_commits) = old_commits
         .iter()
         .partition::<Vec<_>, _>(|commit| commit.parents() == new_parents);
-    if !skipped_commits.is_empty() {
-        if let Some(mut fmt) = ui.status_formatter() {
-            log_skipped_rebase_commits_message(
-                fmt.as_mut(),
-                workspace_command,
-                skipped_commits.into_iter(),
-            )?;
-        }
+    let num_skipped_rebases = skipped_commits.len();
+    if num_skipped_rebases > 0 {
+        writeln!(
+            ui.status(),
+            "Skipped rebase of {num_skipped_rebases} commits that were already in place"
+        )?;
     }
     if old_commits.is_empty() {
         return Ok(());
@@ -593,7 +590,11 @@ fn move_commits_transaction(
         )
     };
 
-    let (num_rebased_targets, num_rebased_descendants, skipped_commits) = move_commits(
+    let MoveCommitsStats {
+        num_rebased_targets,
+        num_rebased_descendants,
+        num_skipped_rebases,
+    } = move_commits(
         settings,
         tx.mut_repo(),
         new_parent_ids,
@@ -602,11 +603,10 @@ fn move_commits_transaction(
     )?;
 
     if let Some(mut fmt) = ui.status_formatter() {
-        if !skipped_commits.is_empty() {
-            log_skipped_rebase_commits_message(
-                fmt.as_mut(),
-                tx.base_workspace_helper(),
-                skipped_commits.iter(),
+        if num_skipped_rebases > 0 {
+            writeln!(
+                fmt,
+                "Skipped rebase of {num_skipped_rebases} commits that were already in place"
             )?;
         }
         if num_rebased_targets > 0 {
@@ -623,6 +623,16 @@ fn move_commits_transaction(
     tx.finish(ui, tx_description)
 }
 
+struct MoveCommitsStats {
+    /// The number of commits in the target set which were rebased.
+    num_rebased_targets: u32,
+    /// The number of descendant commits which were rebased.
+    num_rebased_descendants: u32,
+    /// The number of commits for which rebase was skipped, due to the commit
+    /// already being in place.
+    num_skipped_rebases: u32,
+}
+
 /// Moves `target_commits` from their current location to a new location in the
 /// graph, given by the set of `new_parent_ids` and `new_children`.
 /// The roots of `target_commits` are rebased onto the new parents, while the
@@ -636,9 +646,13 @@ fn move_commits(
     new_parent_ids: &[CommitId],
     new_children: &[Commit],
     target_commits: &[Commit],
-) -> Result<(usize, usize, Vec<Commit>), CommandError> {
+) -> Result<MoveCommitsStats, CommandError> {
     if target_commits.is_empty() {
-        return Ok((0, 0, vec![]));
+        return Ok(MoveCommitsStats {
+            num_rebased_targets: 0,
+            num_rebased_descendants: 0,
+            num_skipped_rebases: 0,
+        });
     }
 
     let target_commit_ids: HashSet<_> = target_commits.iter().ids().cloned().collect();
@@ -917,9 +931,9 @@ fn move_commits(
         },
     );
 
-    let mut skipped_commits: Vec<Commit> = vec![];
     let mut num_rebased_targets = 0;
     let mut num_rebased_descendants = 0;
+    let mut num_skipped_rebases = 0;
 
     // Rebase each commit onto its new parents in the reverse topological order
     // computed above.
@@ -942,16 +956,16 @@ fn move_commits(
                 num_rebased_descendants += 1;
             }
         } else {
-            skipped_commits.push(old_commit.clone());
+            num_skipped_rebases += 1;
         }
     }
     mut_repo.update_rewritten_references(settings)?;
 
-    Ok((
+    Ok(MoveCommitsStats {
         num_rebased_targets,
         num_rebased_descendants,
-        skipped_commits,
-    ))
+        num_skipped_rebases,
+    })
 }
 
 /// Ensure that there is no possible cycle between the potential children and
@@ -988,27 +1002,6 @@ fn check_rebase_destinations(
                 short_commit_hash(commit.id()),
                 short_commit_hash(parent.id())
             )));
-        }
-    }
-    Ok(())
-}
-
-fn log_skipped_rebase_commits_message<'a>(
-    fmt: &mut dyn Formatter,
-    workspace_command: &WorkspaceCommandHelper,
-    commits: impl ExactSizeIterator<Item = &'a Commit>,
-) -> Result<(), CommandError> {
-    let template = workspace_command.commit_summary_template();
-    if commits.len() == 1 {
-        write!(fmt, "Skipping rebase of commit ")?;
-        template.format(commits.into_iter().next().unwrap(), fmt)?;
-        writeln!(fmt)?;
-    } else {
-        writeln!(fmt, "Skipping rebase of commits:")?;
-        for commit in commits {
-            write!(fmt, "  ")?;
-            template.format(commit, fmt)?;
-            writeln!(fmt)?;
         }
     }
     Ok(())
