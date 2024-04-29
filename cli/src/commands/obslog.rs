@@ -31,6 +31,8 @@ use crate::ui::Ui;
 /// Show how a change has evolved
 ///
 /// Show how a change has evolved as it's been updated, rebased, etc.
+///
+/// Name is derived from Merciual's obsolescence markers.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct ObslogArgs {
     #[arg(long, short, default_value = "@")]
