@@ -119,6 +119,10 @@ typically depends on how done you are with the change; if the change is almost
 done, it makes sense to use `jj new` so you can easily review your adjustments
 with `jj diff` before running `jj squash`. 
 
+To view how a change has evolved over time, we can use `jj obslog` to see each
+recorded change for the current commit. This records changes to the working
+copy, message, squashes, rebases, etc.
+
 ## The log command and "revsets"
 
 You're probably familiar with `git log`. Jujutsu has very similar functionality
