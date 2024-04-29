@@ -1491,6 +1491,9 @@ commit. Whether you choose to create a new change and squash, or to edit,
 typically depends on how done you are with the change; if the change is almost
 done, it makes sense to use <code>jj new</code> so you can easily review your adjustments
 with <code>jj diff</code> before running <code>jj squash</code>. </p>
+<p>To view how a change has evolved over time, we can use <code>jj obslog</code> to see each
+recorded change for the current commit. This records changes to the working
+copy, message, squashes, rebases, etc.</p>
 <h2 id="the-log-command-and-revsets">The log command and "revsets"<a class="headerlink" href="#the-log-command-and-revsets" title="Permanent link">&para;</a></h2>
 <p>You're probably familiar with <code>git log</code>. Jujutsu has very similar functionality
 in its <code>jj log</code> command:</p>
