@@ -1208,6 +1208,8 @@ Show how a change has evolved
 
 Show how a change has evolved as it's been updated, rebased, etc.
 
+Name is derived from Merciual's obsolescence markers.
+
 **Usage:** `jj obslog [OPTIONS]`
 
 ###### **Options:**
