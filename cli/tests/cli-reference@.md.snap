@@ -125,7 +125,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `move` — Move changes from one revision into another
 * `new` — Create a new, empty change and (by default) edit it in the working copy
 * `next` — Move the working-copy commit to the child revision
-* `obslog` — Show how a change has evolved
+* `obslog` — Show how a change has evolved over time
 * `operation` — Commands for working with the operation log
 * `parallelize` — Parallelize revisions by making them siblings
 * `prev` — Change the working copy revision relative to the parent revision
@@ -1204,9 +1204,9 @@ implied.
 
 ## `jj obslog`
 
-Show how a change has evolved
+Show how a change has evolved over time
 
-Show how a change has evolved as it's been updated, rebased, etc.
+Lists the previous commits which a change has pointed to. The current commit of a change evolves when the change is updated, rebased, etc.
 
 Name is derived from Merciual's obsolescence markers.
 
