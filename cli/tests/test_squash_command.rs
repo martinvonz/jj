@@ -910,16 +910,13 @@ fn test_squash_from_multiple_partial_no_op() {
             r#"separate(" ", commit_id.short(), description)"#,
         ],
     );
-    // TODO: Commit c should not be a predecessor
     insta::assert_snapshot!(stdout, @r###"
-    @      9227d0d780fa d
-    ├─┬─╮
-    ◉ │ │  09441f0a6266 d
-    ◉ │ │  cba0f0aa472b d
-      ◉ │  285201979c90 b
-      ◉ │  81187418277d b
-        ◉  5ad3ca4090a7 c
-        ◉  7cfbaf71a279 c
+    @    9227d0d780fa d
+    ├─╮
+    ◉ │  09441f0a6266 d
+    ◉ │  cba0f0aa472b d
+      ◉  285201979c90 b
+      ◉  81187418277d b
     "###);
 
     // If no source commits match the paths, then the whole operation is a no-op

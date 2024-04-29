@@ -297,7 +297,11 @@ from the source will be moved into the destination.
         }
     };
     let mut predecessors = vec![destination.id().clone()];
-    predecessors.extend(sources.iter().map(|source| source.id().clone()));
+    predecessors.extend(
+        source_commits
+            .iter()
+            .map(|source| source.commit.id().clone()),
+    );
     tx.mut_repo()
         .rewrite_commit(settings, &rewritten_destination)
         .set_tree_id(destination_tree.id().clone())
