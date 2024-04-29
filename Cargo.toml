@@ -2,7 +2,7 @@ cargo-features = []
 
 [workspace]
 resolver = "2"
-members = [ "api", "cli", "lib", "lib/gen-protos", "lib/proc-macros", "lib/testutils"]
+members = [ "api", "api_client","cli", "lib", "lib/gen-protos", "lib/proc-macros", "lib/testutils"]
 
 [workspace.package]
 version = "0.16.0"
@@ -102,6 +102,7 @@ tokio = { version = "1.37.0", features = ["rt", "macros"] }
 toml_edit = { version = "0.19.15", features = ["serde"] }
 tonic = "0.11.0"
 tonic-build = "0.11.0"
+tonic-reflection = "0.11.0"
 tonic-web = "0.11.0"
 tracing = "0.1.40"
 tracing-chrome = "0.7.2"
