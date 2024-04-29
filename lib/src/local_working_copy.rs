@@ -93,25 +93,28 @@ impl FileState {
     /// re-stat'ed on the next snapshot.
     fn placeholder() -> Self {
         #[cfg(unix)]
-        let executable = false;
+        let file_type = FileType::Normal { executable: false };
         #[cfg(windows)]
-        let executable = ();
+        let file_type = FileType::Normal { executable: () };
         FileState {
-            file_type: FileType::Normal { executable },
+            file_type,
             mtime: MillisSinceEpoch(0),
             size: 0,
         }
     }
 
     fn for_file(executable: bool, size: u64, metadata: &Metadata) -> Self {
+        #[cfg(unix)]
+        let file_type = FileType::Normal { executable };
         #[cfg(windows)]
-        let executable = {
-            // Windows doesn't support executable bit.
-            let _ = executable;
-            ()
+        let file_type = FileType::Normal {
+            executable: {
+                // Windows doesn't support executable bit.
+                let _ = executable; // Avoid unused variable warning.
+            },
         };
         FileState {
-            file_type: FileType::Normal { executable },
+            file_type,
             mtime: mtime_from_metadata(metadata),
             size,
         }
