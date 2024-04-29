@@ -211,7 +211,7 @@ fn test_rebase_branch() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b=e", "-b=d", "-d=b"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commit vruxwmqv 514fa6b2 d | d
+    Skipped rebase of 1 commits that were already in place
     Rebased 1 commits
     Working copy now at: znkkpsqq 9ca2a154 e | e
     Parent commit      : zsuskuln 1394f625 b | b
@@ -241,7 +241,7 @@ fn test_rebase_branch() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b=all:e|d", "-d=b"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commit vruxwmqv 514fa6b2 d | d
+    Skipped rebase of 1 commits that were already in place
     Rebased 1 commits
     Working copy now at: znkkpsqq 817e3fb0 e | e
     Parent commit      : zsuskuln 1394f625 b | b
@@ -984,7 +984,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     // This should be a no-op
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commit zsuskuln 0a7fb8f6 base | base
+    Skipped rebase of 1 commits that were already in place
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
@@ -1002,7 +1002,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     // This should be a no-op
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commit royxmykx 86a06598 a | a
+    Skipped rebase of 1 commits that were already in place
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
@@ -1055,7 +1055,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     // The commits in roots(base..c), i.e. commit "a" should be rebased onto "base",
     // which is a no-op
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commit royxmykx 86a06598 a | a
+    Skipped rebase of 1 commits that were already in place
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
@@ -1092,7 +1092,7 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(stdout, @"");
     // This should be a no-op
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commit rlvkpnrz 39f28e63 notroot | notroot
+    Skipped rebase of 1 commits that were already in place
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
@@ -1335,11 +1335,7 @@ fn test_rebase_revisions_after() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commits:
-      kmkuslsw cd86b3e4 c | c
-      lylxulpl 7d0512e5 d | d
-      nkmrtpmo 858693f7 e | e
-      xznxytkn e4a00798 f | f
+    Skipped rebase of 4 commits that were already in place
     Nothing changed.
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
@@ -1362,11 +1358,7 @@ fn test_rebase_revisions_after() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "c", "--after", "c"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commits:
-      kmkuslsw cd86b3e4 c | c
-      lylxulpl 7d0512e5 d | d
-      nkmrtpmo 858693f7 e | e
-      xznxytkn e4a00798 f | f
+    Skipped rebase of 4 commits that were already in place
     Nothing changed.
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
@@ -1725,11 +1717,7 @@ fn test_rebase_revisions_before() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commits:
-      kmkuslsw cd86b3e4 c | c
-      lylxulpl 7d0512e5 d | d
-      nkmrtpmo 858693f7 e | e
-      xznxytkn e4a00798 f | f
+    Skipped rebase of 4 commits that were already in place
     Nothing changed.
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
@@ -1752,11 +1740,7 @@ fn test_rebase_revisions_before() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "c", "--before", "c"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commits:
-      kmkuslsw cd86b3e4 c | c
-      lylxulpl 7d0512e5 d | d
-      nkmrtpmo 858693f7 e | e
-      xznxytkn e4a00798 f | f
+    Skipped rebase of 4 commits that were already in place
     Nothing changed.
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
@@ -2326,9 +2310,7 @@ fn test_rebase_skip_if_on_destination() {
     insta::assert_snapshot!(stdout, @"");
     // Skip rebase with -b
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commits:
-      royxmykx 903ab0d6 b2 | b2
-      zsuskuln 072d5ae1 b1 | b1
+    Skipped rebase of 2 commits that were already in place
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  lylxulpl  88f778c5
@@ -2349,7 +2331,7 @@ fn test_rebase_skip_if_on_destination() {
     insta::assert_snapshot!(stdout, @"");
     // Skip rebase with -s
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commit vruxwmqv c41e416e c | c
+    Skipped rebase of 1 commits that were already in place
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  lylxulpl  88f778c5
@@ -2369,7 +2351,7 @@ fn test_rebase_skip_if_on_destination() {
     insta::assert_snapshot!(stdout, @"");
     // Skip rebase with -r since commit has no children
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commit znkkpsqq 92438fc9 d | d
+    Skipped rebase of 1 commits that were already in place
     Nothing changed.
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
@@ -2390,7 +2372,7 @@ fn test_rebase_skip_if_on_destination() {
     insta::assert_snapshot!(stdout, @"");
     // Skip rebase of commit, but rebases children onto destination with -r
     insta::assert_snapshot!(stderr, @r###"
-    Skipping rebase of commit kmkuslsw 48dd9e3f e | e
+    Skipped rebase of 1 commits that were already in place
     Rebased 1 descendant commits
     Working copy now at: lylxulpl 77cb229f f | f
     Parent commit      : vruxwmqv c41e416e c | c
