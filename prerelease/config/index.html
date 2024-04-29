@@ -2484,6 +2484,15 @@ through a pager you must do it using a subshell as, unlike <code>git</code> or <
 command will be executed directly. For example:</p>
 <div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">pager</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;sh&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-c&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;diff-so-fancy | less -RFX&quot;</span><span class="p">]</span>
 </code></pre></div>
+<p>Some formatters (like <a href="https://github.com/dandavison/delta"><code>delta</code></a>) require
+git style diffs for formatting. You can configure this style of
+diff as the default with the <code>ui.diff</code> setting. For example:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="n">pager</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;delta&quot;</span>
+
+<span class="k">[ui.diff]</span>
+<span class="n">format</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;git&quot;</span>
+</code></pre></div>
 <h2 id="aliases">Aliases<a class="headerlink" href="#aliases" title="Permanent link">&para;</a></h2>
 <p>You can define aliases for commands, including their arguments. For example:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># `jj l` shows commits on the working-copy commit&#39;s (anonymous) branch</span>
