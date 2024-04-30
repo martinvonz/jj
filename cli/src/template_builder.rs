@@ -39,6 +39,9 @@ pub trait TemplateLanguage<'a> {
     ) -> Self::Property;
     fn wrap_boolean(property: impl TemplateProperty<Output = bool> + 'a) -> Self::Property;
     fn wrap_integer(property: impl TemplateProperty<Output = i64> + 'a) -> Self::Property;
+    fn wrap_integer_opt(
+        property: impl TemplateProperty<Output = Option<i64>> + 'a,
+    ) -> Self::Property;
     fn wrap_signature(property: impl TemplateProperty<Output = Signature> + 'a) -> Self::Property;
     fn wrap_timestamp(property: impl TemplateProperty<Output = Timestamp> + 'a) -> Self::Property;
     fn wrap_timestamp_range(
@@ -81,6 +84,7 @@ macro_rules! impl_core_wrap_property_fns {
                 wrap_string_list(Vec<String>) => StringList,
                 wrap_boolean(bool) => Boolean,
                 wrap_integer(i64) => Integer,
+                wrap_integer_opt(Option<i64>) => IntegerOpt,
                 wrap_signature(jj_lib::backend::Signature) => Signature,
                 wrap_timestamp(jj_lib::backend::Timestamp) => Timestamp,
                 wrap_timestamp_range($crate::templater::TimestampRange) => TimestampRange,
@@ -133,6 +137,7 @@ pub enum CoreTemplatePropertyKind<'a> {
     StringList(Box<dyn TemplateProperty<Output = Vec<String>> + 'a>),
     Boolean(Box<dyn TemplateProperty<Output = bool> + 'a>),
     Integer(Box<dyn TemplateProperty<Output = i64> + 'a>),
+    IntegerOpt(Box<dyn TemplateProperty<Output = Option<i64>> + 'a>),
     Signature(Box<dyn TemplateProperty<Output = Signature> + 'a>),
     Timestamp(Box<dyn TemplateProperty<Output = Timestamp> + 'a>),
     TimestampRange(Box<dyn TemplateProperty<Output = TimestampRange> + 'a>),
@@ -158,6 +163,7 @@ impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
             CoreTemplatePropertyKind::StringList(_) => "List<String>",
             CoreTemplatePropertyKind::Boolean(_) => "Boolean",
             CoreTemplatePropertyKind::Integer(_) => "Integer",
+            CoreTemplatePropertyKind::IntegerOpt(_) => "Option<Integer>",
             CoreTemplatePropertyKind::Signature(_) => "Signature",
             CoreTemplatePropertyKind::Timestamp(_) => "Timestamp",
             CoreTemplatePropertyKind::TimestampRange(_) => "TimestampRange",
@@ -176,6 +182,9 @@ impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
             }
             CoreTemplatePropertyKind::Boolean(property) => Some(property),
             CoreTemplatePropertyKind::Integer(_) => None,
+            CoreTemplatePropertyKind::IntegerOpt(property) => {
+                Some(Box::new(property.map(|opt| opt.is_some())))
+            }
             CoreTemplatePropertyKind::Signature(_) => None,
             CoreTemplatePropertyKind::Timestamp(_) => None,
             CoreTemplatePropertyKind::TimestampRange(_) => None,
@@ -190,6 +199,9 @@ impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
     fn try_into_integer(self) -> Option<Box<dyn TemplateProperty<Output = i64> + 'a>> {
         match self {
             CoreTemplatePropertyKind::Integer(property) => Some(property),
+            CoreTemplatePropertyKind::IntegerOpt(property) => {
+                Some(Box::new(property.try_unwrap("Integer")))
+            }
             _ => None,
         }
     }
@@ -210,6 +222,7 @@ impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
             CoreTemplatePropertyKind::StringList(property) => Some(property.into_template()),
             CoreTemplatePropertyKind::Boolean(property) => Some(property.into_template()),
             CoreTemplatePropertyKind::Integer(property) => Some(property.into_template()),
+            CoreTemplatePropertyKind::IntegerOpt(property) => Some(property.into_template()),
             CoreTemplatePropertyKind::Signature(property) => Some(property.into_template()),
             CoreTemplatePropertyKind::Timestamp(property) => Some(property.into_template()),
             CoreTemplatePropertyKind::TimestampRange(property) => Some(property.into_template()),
@@ -356,6 +369,13 @@ impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
                 let table = &self.integer_methods;
                 let build = template_parser::lookup_method(type_name, table, function)?;
                 build(language, build_ctx, property, function)
+            }
+            CoreTemplatePropertyKind::IntegerOpt(property) => {
+                let type_name = "Integer";
+                let table = &self.integer_methods;
+                let build = template_parser::lookup_method(type_name, table, function)?;
+                let inner_property = property.try_unwrap(type_name);
+                build(language, build_ctx, Box::new(inner_property), function)
             }
             CoreTemplatePropertyKind::Signature(property) => {
                 let table = &self.signature_methods;
@@ -1491,6 +1511,12 @@ mod tests {
           = Expected expression of type "Boolean", but actual type is "Integer"
         "###);
 
+        // Optional integer can be converted to boolean, and Some(0) is truthy.
+        env.add_keyword("none_i64", || L::wrap_integer_opt(Literal(None)));
+        env.add_keyword("some_i64", || L::wrap_integer_opt(Literal(Some(0))));
+        insta::assert_snapshot!(env.render_ok(r#"if(none_i64, true, false)"#), @"false");
+        insta::assert_snapshot!(env.render_ok(r#"if(some_i64, true, false)"#), @"true");
+
         insta::assert_snapshot!(env.parse_err(r#"if(label("", ""), true, false)"#), @r###"
          --> 1:4
           |
@@ -1512,11 +1538,18 @@ mod tests {
     #[test]
     fn test_arithmetic_operation() {
         let mut env = TestTemplateEnv::new();
+        env.add_keyword("none_i64", || L::wrap_integer_opt(Literal(None)));
+        env.add_keyword("some_i64", || L::wrap_integer_opt(Literal(Some(1))));
         env.add_keyword("i64_min", || L::wrap_integer(Literal(i64::MIN)));
 
         insta::assert_snapshot!(env.render_ok(r#"-1"#), @"-1");
         insta::assert_snapshot!(env.render_ok(r#"--2"#), @"2");
         insta::assert_snapshot!(env.render_ok(r#"-(3)"#), @"-3");
+
+        // Since methods of the contained value can be invoked, it makes sense
+        // to apply operators to optional integers as well.
+        insta::assert_snapshot!(env.render_ok(r#"-none_i64"#), @"<Error: No Integer available>");
+        insta::assert_snapshot!(env.render_ok(r#"-some_i64"#), @"-1");
 
         // No panic on integer overflow.
         insta::assert_snapshot!(
