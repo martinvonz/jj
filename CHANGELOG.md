@@ -12,11 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Dropped support for `ui.default-revset` config (replaced by `revsets.log` in
   0.8.0).
 
+* The `commit_summary_no_branches` template is superseded by
+  `templates.branch_list`.
+
 ### Deprecations
 
 ### New features
 
-* `jj tag list` now prints commit summary along with the tag name.
+* `jj branch list`/`tag list` now accept `-T`/`--template` option. The tag list
+  prints commit summary along with the tag name by default.
 
 * Conflict markers now include an explanation of what each part of the conflict
   represents.

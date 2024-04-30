@@ -1,6 +1,18 @@
 [templates]
+branch_list = '''
+if(remote,
+  if(tracked,
+    "  " ++ separate(" ",
+      label("branch", "@" ++ remote),
+      format_tracked_remote_ref_distances(self),
+    ) ++ format_ref_targets(self),
+    label("branch", name ++ "@" ++ remote) ++ format_ref_targets(self),
+  ),
+  label("branch", name) ++ if(present, format_ref_targets(self), " (deleted)"),
+) ++ "\n"
+'''
+
 commit_summary = 'format_commit_summary_with_refs(self, branches)'
-commit_summary_no_branches = 'format_commit_summary_with_refs(self, "")'
 
 config_list = '''
 label(if(overridden, "overridden"),
@@ -156,6 +168,19 @@ if(ref.conflict(),
   ),
   ": " ++ format_commit_summary_with_refs(ref.normal_target(), ""),
 )
+'''
+
+'format_tracked_remote_ref_distances(ref)' = '''
+if(ref.tracking_present(), surround("(", ")", separate(", ",
+  if(!ref.tracking_ahead_count().zero(),
+    if(ref.tracking_ahead_count().exact(),
+      "ahead by " ++ ref.tracking_ahead_count().exact() ++ " commits",
+      "ahead by at least " ++ ref.tracking_ahead_count().lower() ++ " commits")),
+  if(!ref.tracking_behind_count().zero(),
+    if(ref.tracking_behind_count().exact(),
+      "behind by " ++ ref.tracking_behind_count().exact() ++ " commits",
+      "behind by at least " ++ ref.tracking_behind_count().lower() ++ " commits")),
+)))
 '''
 
 'format_operation(op)' = '''

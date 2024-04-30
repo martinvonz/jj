@@ -320,6 +320,7 @@ For information about branches, see https://github.com/martinvonz/jj/blob/main/d
   Possible values: `true`, `false`
 
 * `-r`, `--revisions <REVISIONS>` — Show branches whose local targets are in the given revisions
+* `-T`, `--template <TEMPLATE>` — Render each branch using the given template
 
 
 
