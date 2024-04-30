@@ -217,19 +217,19 @@ impl<'repo> CommitTemplateLanguage<'repo> {
     }
 
     pub fn wrap_ref_name(
-        property: impl TemplateProperty<Output = RefName> + 'repo,
+        property: impl TemplateProperty<Output = Rc<RefName>> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::RefName(Box::new(property))
     }
 
     pub fn wrap_ref_name_opt(
-        property: impl TemplateProperty<Output = Option<RefName>> + 'repo,
+        property: impl TemplateProperty<Output = Option<Rc<RefName>>> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::RefNameOpt(Box::new(property))
     }
 
     pub fn wrap_ref_name_list(
-        property: impl TemplateProperty<Output = Vec<RefName>> + 'repo,
+        property: impl TemplateProperty<Output = Vec<Rc<RefName>>> + 'repo,
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::RefNameList(Box::new(property))
     }
@@ -252,9 +252,9 @@ pub enum CommitTemplatePropertyKind<'repo> {
     Commit(Box<dyn TemplateProperty<Output = Commit> + 'repo>),
     CommitOpt(Box<dyn TemplateProperty<Output = Option<Commit>> + 'repo>),
     CommitList(Box<dyn TemplateProperty<Output = Vec<Commit>> + 'repo>),
-    RefName(Box<dyn TemplateProperty<Output = RefName> + 'repo>),
-    RefNameOpt(Box<dyn TemplateProperty<Output = Option<RefName>> + 'repo>),
-    RefNameList(Box<dyn TemplateProperty<Output = Vec<RefName>> + 'repo>),
+    RefName(Box<dyn TemplateProperty<Output = Rc<RefName>> + 'repo>),
+    RefNameOpt(Box<dyn TemplateProperty<Output = Option<Rc<RefName>>> + 'repo>),
+    RefNameList(Box<dyn TemplateProperty<Output = Vec<Rc<RefName>>> + 'repo>),
     CommitOrChangeId(Box<dyn TemplateProperty<Output = CommitOrChangeId> + 'repo>),
     ShortestIdPrefix(Box<dyn TemplateProperty<Output = ShortestIdPrefix> + 'repo>),
 }
@@ -340,7 +340,7 @@ pub type CommitTemplateBuildMethodFnMap<'repo, T> =
 pub struct CommitTemplateBuildFnTable<'repo> {
     pub core: CoreTemplateBuildFnTable<'repo, CommitTemplateLanguage<'repo>>,
     pub commit_methods: CommitTemplateBuildMethodFnMap<'repo, Commit>,
-    pub ref_name_methods: CommitTemplateBuildMethodFnMap<'repo, RefName>,
+    pub ref_name_methods: CommitTemplateBuildMethodFnMap<'repo, Rc<RefName>>,
     pub commit_or_change_id_methods: CommitTemplateBuildMethodFnMap<'repo, CommitOrChangeId>,
     pub shortest_id_prefix_methods: CommitTemplateBuildMethodFnMap<'repo, ShortestIdPrefix>,
 }
@@ -721,7 +721,7 @@ fn evaluate_user_revset<'repo>(
 }
 
 /// Branch or tag name with metadata.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct RefName {
     /// Local name.
     name: String,
@@ -735,26 +735,29 @@ pub struct RefName {
 }
 
 impl RefName {
+    // RefName is wrapped by Rc<T> to make it cheaply cloned and share
+    // lazy-evaluation results across clones.
+
     /// Creates local ref representation which might track some of the
     /// `remote_refs`.
     pub fn local<'a>(
         name: impl Into<String>,
         target: RefTarget,
         remote_refs: impl IntoIterator<Item = &'a RemoteRef>,
-    ) -> Self {
+    ) -> Rc<Self> {
         let synced = remote_refs
             .into_iter()
             .all(|remote_ref| !remote_ref.is_tracking() || remote_ref.target == target);
-        RefName {
+        Rc::new(RefName {
             name: name.into(),
             remote: None,
             target,
             synced,
-        }
+        })
     }
 
     /// Creates local ref representation which doesn't track any remote refs.
-    pub fn local_only(name: impl Into<String>, target: RefTarget) -> Self {
+    pub fn local_only(name: impl Into<String>, target: RefTarget) -> Rc<Self> {
         Self::local(name, target, [])
     }
 
@@ -765,14 +768,14 @@ impl RefName {
         remote_name: impl Into<String>,
         remote_ref: RemoteRef,
         local_target: &RefTarget,
-    ) -> Self {
+    ) -> Rc<Self> {
         let synced = remote_ref.is_tracking() && remote_ref.target == *local_target;
-        RefName {
+        Rc::new(RefName {
             name: name.into(),
             remote: Some(remote_name.into()),
             target: remote_ref.target,
             synced,
-        }
+        })
     }
 
     /// Creates remote ref representation which isn't tracked by a local ref.
@@ -780,13 +783,13 @@ impl RefName {
         name: impl Into<String>,
         remote_name: impl Into<String>,
         target: RefTarget,
-    ) -> Self {
-        RefName {
+    ) -> Rc<Self> {
+        Rc::new(RefName {
             name: name.into(),
             remote: Some(remote_name.into()),
             target,
             synced: false, // has no local counterpart
-        }
+        })
     }
 
     fn is_local(&self) -> bool {
@@ -807,7 +810,8 @@ impl RefName {
     }
 }
 
-impl Template for RefName {
+// If wrapping with Rc<T> becomes common, add generic impl for Rc<T>.
+impl Template for Rc<RefName> {
     fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         write!(formatter.labeled("name"), "{}", self.name)?;
         if let Some(remote) = &self.remote {
@@ -825,27 +829,28 @@ impl Template for RefName {
     }
 }
 
-impl Template for Vec<RefName> {
+impl Template for Vec<Rc<RefName>> {
     fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         templater::format_joined(formatter, self, " ")
     }
 }
 
-fn builtin_ref_name_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, RefName> {
+fn builtin_ref_name_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Rc<RefName>> {
     type L<'repo> = CommitTemplateLanguage<'repo>;
     // Not using maplit::hashmap!{} or custom declarative macro here because
     // code completion inside macro is quite restricted.
-    let mut map = CommitTemplateBuildMethodFnMap::<RefName>::new();
+    let mut map = CommitTemplateBuildMethodFnMap::<Rc<RefName>>::new();
     map.insert("name", |_language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let out_property = self_property.map(|ref_name| ref_name.name);
+        let out_property = self_property.map(|ref_name| ref_name.name.clone());
         Ok(L::wrap_string(out_property))
     });
     map.insert(
         "remote",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let out_property = self_property.map(|ref_name| ref_name.remote.unwrap_or_default());
+            let out_property =
+                self_property.map(|ref_name| ref_name.remote.clone().unwrap_or_default());
             Ok(L::wrap_string(out_property))
         },
     );
@@ -907,11 +912,11 @@ fn builtin_ref_name_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Re
 /// Cache for reverse lookup refs.
 #[derive(Clone, Debug, Default)]
 pub struct RefNamesIndex {
-    index: HashMap<CommitId, Vec<RefName>>,
+    index: HashMap<CommitId, Vec<Rc<RefName>>>,
 }
 
 impl RefNamesIndex {
-    fn insert<'a>(&mut self, ids: impl IntoIterator<Item = &'a CommitId>, name: RefName) {
+    fn insert<'a>(&mut self, ids: impl IntoIterator<Item = &'a CommitId>, name: Rc<RefName>) {
         for id in ids {
             let ref_names = self.index.entry(id.clone()).or_default();
             ref_names.push(name.clone());
@@ -920,7 +925,7 @@ impl RefNamesIndex {
 
     #[allow(unknown_lints)] // XXX FIXME (aseipp): nightly bogons; re-test this occasionally
     #[allow(clippy::manual_unwrap_or_default)]
-    pub fn get(&self, id: &CommitId) -> &[RefName] {
+    pub fn get(&self, id: &CommitId) -> &[Rc<RefName>] {
         if let Some(names) = self.index.get(id) {
             names
         } else {
@@ -962,7 +967,7 @@ fn build_ref_names_index<'a>(
     index
 }
 
-fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> Option<RefName> {
+fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> Option<Rc<RefName>> {
     let target = repo.view().git_head();
     target
         .added_ids()
