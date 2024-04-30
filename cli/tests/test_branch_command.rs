@@ -1032,6 +1032,106 @@ fn test_branch_list() {
       @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
     remote-untrack@origin: vmortlor 71a16b05 (empty) remote-untrack
     "###);
+
+    let template = r#"
+    concat(
+      "[" ++ name ++ if(remote, "@" ++ remote) ++ "]\n",
+      separate(" ", "present:", present) ++ "\n",
+      separate(" ", "conflict:", conflict) ++ "\n",
+      separate(" ", "normal_target:", normal_target.description().first_line()) ++ "\n",
+      separate(" ", "removed_targets:", removed_targets.map(|c| c.description().first_line())) ++ "\n",
+      separate(" ", "added_targets:", added_targets.map(|c| c.description().first_line())) ++ "\n",
+      separate(" ", "tracked:", tracked) ++ "\n",
+      separate(" ", "tracking_present:", tracking_present) ++ "\n",
+      separate(" ", "tracking_ahead_count:", tracking_ahead_count.lower()) ++ "\n",
+      separate(" ", "tracking_behind_count:", tracking_behind_count.lower()) ++ "\n",
+    )
+    "#;
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&local_path, &["branch", "list", "--all-remotes", "-T", template]),
+        @r###"
+    [local-only]
+    present: true
+    conflict: false
+    normal_target: local-only
+    removed_targets:
+    added_targets: local-only
+    tracked: false
+    tracking_present: false
+    tracking_ahead_count: <Error: Not a tracked remote ref>
+    tracking_behind_count: <Error: Not a tracked remote ref>
+    [remote-delete]
+    present: false
+    conflict: false
+    normal_target: <Error: No Commit available>
+    removed_targets:
+    added_targets:
+    tracked: false
+    tracking_present: false
+    tracking_ahead_count: <Error: Not a tracked remote ref>
+    tracking_behind_count: <Error: Not a tracked remote ref>
+    [remote-delete@origin]
+    present: true
+    conflict: false
+    normal_target: remote-delete
+    removed_targets:
+    added_targets: remote-delete
+    tracked: true
+    tracking_present: false
+    tracking_ahead_count: 2
+    tracking_behind_count: 0
+      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
+    [remote-sync]
+    present: true
+    conflict: false
+    normal_target: remote-sync
+    removed_targets:
+    added_targets: remote-sync
+    tracked: false
+    tracking_present: false
+    tracking_ahead_count: <Error: Not a tracked remote ref>
+    tracking_behind_count: <Error: Not a tracked remote ref>
+    [remote-sync@origin]
+    present: true
+    conflict: false
+    normal_target: remote-sync
+    removed_targets:
+    added_targets: remote-sync
+    tracked: true
+    tracking_present: true
+    tracking_ahead_count: 0
+    tracking_behind_count: 0
+    [remote-unsync]
+    present: true
+    conflict: false
+    normal_target: local-only
+    removed_targets:
+    added_targets: local-only
+    tracked: false
+    tracking_present: false
+    tracking_ahead_count: <Error: Not a tracked remote ref>
+    tracking_behind_count: <Error: Not a tracked remote ref>
+    [remote-unsync@origin]
+    present: true
+    conflict: false
+    normal_target: remote-unsync
+    removed_targets:
+    added_targets: remote-unsync
+    tracked: true
+    tracking_present: true
+    tracking_ahead_count: 1
+    tracking_behind_count: 1
+    [remote-untrack@origin]
+    present: true
+    conflict: false
+    normal_target: remote-untrack
+    removed_targets:
+    added_targets: remote-untrack
+    tracked: false
+    tracking_present: false
+    tracking_ahead_count: <Error: Not a tracked remote ref>
+    tracking_behind_count: <Error: Not a tracked remote ref>
+    "###);
 }
 
 #[test]

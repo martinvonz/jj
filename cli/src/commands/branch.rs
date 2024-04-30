@@ -22,13 +22,13 @@ use jj_lib::git;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::{RefTarget, RemoteRef};
 use jj_lib::repo::Repo;
-use jj_lib::revset::{self, RevsetExpression};
+use jj_lib::revset::RevsetExpression;
 use jj_lib::str_util::StringPattern;
 use jj_lib::view::View;
 
 use crate::cli_util::{CommandHelper, RemoteBranchName, RemoteBranchNamePattern, RevisionArg};
 use crate::command_error::{user_error, user_error_with_hint, CommandError};
-use crate::formatter::Formatter;
+use crate::commit_templater::{CommitTemplateLanguage, RefName};
 use crate::ui::Ui;
 
 /// Manage branches.
@@ -123,6 +123,14 @@ pub struct BranchListArgs {
     /// wouldn't have a local target.
     #[arg(long, short)]
     revisions: Vec<RevisionArg>,
+
+    /// Render each branch using the given template
+    ///
+    /// All 0-argument methods of the `RefName` type are available as keywords.
+    ///
+    /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+    #[arg(long, short = 'T')]
+    template: Option<String>,
 }
 
 /// Forget everything about a branch, including its local and remote
@@ -642,42 +650,19 @@ fn cmd_branch_list(
         None
     };
 
-    let no_branches_template = workspace_command.parse_commit_template(
-        &command
-            .settings()
-            .config()
-            .get_string("templates.commit_summary_no_branches")?,
-    )?;
-    let print_branch_target =
-        |formatter: &mut dyn Formatter, target: &RefTarget| -> Result<(), CommandError> {
-            if let Some(id) = target.as_normal() {
-                write!(formatter, ": ")?;
-                let commit = repo.store().get_commit(id)?;
-                no_branches_template.format(&commit, formatter)?;
-                writeln!(formatter)?;
-            } else {
-                write!(formatter, " ")?;
-                write!(formatter.labeled("conflict"), "(conflicted)")?;
-                writeln!(formatter, ":")?;
-                for id in target.removed_ids() {
-                    let commit = repo.store().get_commit(id)?;
-                    write!(formatter, "  - ")?;
-                    no_branches_template.format(&commit, formatter)?;
-                    writeln!(formatter)?;
-                }
-                for id in target.added_ids() {
-                    let commit = repo.store().get_commit(id)?;
-                    write!(formatter, "  + ")?;
-                    no_branches_template.format(&commit, formatter)?;
-                    writeln!(formatter)?;
-                }
-            }
-            Ok(())
+    let template = {
+        let language = workspace_command.commit_template_language()?;
+        let text = match &args.template {
+            Some(value) => value.to_owned(),
+            None => command.settings().config().get("templates.branch_list")?,
         };
+        workspace_command
+            .parse_template(&language, &text, CommitTemplateLanguage::wrap_ref_name)?
+            .labeled("branch_list")
+    };
 
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
-    let formatter = formatter.as_mut();
 
     let branches_to_list = view.branches().filter(|(name, target)| {
         branch_names_to_list
@@ -686,72 +671,36 @@ fn cmd_branch_list(
             && (!args.conflicted || target.local_target.has_conflict())
     });
     for (name, branch_target) in branches_to_list {
-        let (mut tracking_remote_refs, untracked_remote_refs) = branch_target
-            .remote_refs
-            .into_iter()
+        let local_target = branch_target.local_target;
+        let remote_refs = branch_target.remote_refs;
+        let (mut tracking_remote_refs, untracked_remote_refs) = remote_refs
+            .iter()
+            .copied()
             .partition::<Vec<_>, _>(|&(_, remote_ref)| remote_ref.is_tracking());
 
         if args.tracked {
             tracking_remote_refs
                 .retain(|&(remote, _)| remote != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
         } else if !args.all_remotes {
-            tracking_remote_refs
-                .retain(|&(_, remote_ref)| remote_ref.target != *branch_target.local_target);
+            tracking_remote_refs.retain(|&(_, remote_ref)| remote_ref.target != *local_target);
         }
 
-        if !args.tracked && branch_target.local_target.is_present()
-            || !tracking_remote_refs.is_empty()
-        {
-            write!(formatter.labeled("branch"), "{name}")?;
-            if branch_target.local_target.is_present() {
-                print_branch_target(formatter, branch_target.local_target)?;
-            } else {
-                writeln!(formatter, " (deleted)")?;
-            }
+        if !args.tracked && local_target.is_present() || !tracking_remote_refs.is_empty() {
+            let ref_name = RefName::local(
+                name,
+                local_target.clone(),
+                remote_refs.iter().map(|&(_, remote_ref)| remote_ref),
+            );
+            template.format(&ref_name, formatter.as_mut())?;
         }
 
         for &(remote, remote_ref) in &tracking_remote_refs {
-            let synced = remote_ref.target == *branch_target.local_target;
-            write!(formatter, "  ")?;
-            write!(formatter.labeled("branch"), "@{remote}")?;
-            let local_target = branch_target.local_target;
-            if local_target.is_present() && !synced {
-                let remote_added_ids = remote_ref.target.added_ids().cloned().collect_vec();
-                let local_added_ids = local_target.added_ids().cloned().collect_vec();
-                let (remote_ahead_lower, remote_ahead_upper) =
-                    revset::walk_revs(repo.as_ref(), &remote_added_ids, &local_added_ids)?
-                        .count_estimate();
-                let (local_ahead_lower, local_ahead_upper) =
-                    revset::walk_revs(repo.as_ref(), &local_added_ids, &remote_added_ids)?
-                        .count_estimate();
-                let remote_ahead_message = match remote_ahead_upper {
-                    Some(0) => None,
-                    Some(upper) if upper == remote_ahead_lower => {
-                        Some(format!("ahead by {remote_ahead_lower} commits"))
-                    }
-                    _ => Some(format!("ahead by at least {remote_ahead_lower} commits")),
-                };
-                let local_ahead_message = match local_ahead_upper {
-                    Some(0) => None,
-                    Some(upper) if upper == local_ahead_lower => {
-                        Some(format!("behind by {local_ahead_lower} commits"))
-                    }
-                    _ => Some(format!("behind by at least {local_ahead_lower} commits")),
-                };
-                match (remote_ahead_message, local_ahead_message) {
-                    (Some(rm), Some(lm)) => {
-                        write!(formatter, " ({rm}, {lm})")?;
-                    }
-                    (Some(m), None) | (None, Some(m)) => {
-                        write!(formatter, " ({m})")?;
-                    }
-                    (None, None) => { /* do nothing */ }
-                }
-            }
-            print_branch_target(formatter, &remote_ref.target)?;
+            let ref_name = RefName::remote(name, remote, remote_ref.clone(), local_target);
+            template.format(&ref_name, formatter.as_mut())?;
         }
 
-        if branch_target.local_target.is_absent() && !tracking_remote_refs.is_empty() {
+        // TODO: move out of the loop and render as "Hint: .." ?
+        if local_target.is_absent() && !tracking_remote_refs.is_empty() {
             let found_non_git_remote = tracking_remote_refs
                 .iter()
                 .any(|&(remote, _)| remote != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
@@ -772,8 +721,8 @@ fn cmd_branch_list(
 
         if args.all_remotes {
             for &(remote, remote_ref) in &untracked_remote_refs {
-                write!(formatter.labeled("branch"), "{name}@{remote}")?;
-                print_branch_target(formatter, &remote_ref.target)?;
+                let ref_name = RefName::remote_only(name, remote, remote_ref.target.clone());
+                template.format(&ref_name, formatter.as_mut())?;
             }
         }
     }
