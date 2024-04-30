@@ -460,6 +460,8 @@ pub struct MoveCommitsStats {
     /// The number of commits for which rebase was skipped, due to the commit
     /// already being in place.
     pub num_skipped_rebases: u32,
+    /// The number of commits which were abandoned.
+    pub num_abandoned: u32,
 }
 
 /// Moves `target_commits` from their current location to a new location in the
@@ -477,12 +479,14 @@ pub fn move_commits(
     new_parent_ids: &[CommitId],
     new_children: &[Commit],
     target_commits: &[Commit],
+    options: &RebaseOptions,
 ) -> BackendResult<MoveCommitsStats> {
     if target_commits.is_empty() {
         return Ok(MoveCommitsStats {
             num_rebased_targets: 0,
             num_rebased_descendants: 0,
             num_skipped_rebases: 0,
+            num_abandoned: 0,
         });
     }
 
@@ -800,20 +804,20 @@ pub fn move_commits(
     let mut num_rebased_targets = 0;
     let mut num_rebased_descendants = 0;
     let mut num_skipped_rebases = 0;
+    let mut num_abandoned = 0;
 
     // Rebase each commit onto its new parents in the reverse topological order
     // computed above.
-    // TODO(ilyagr): Consider making it possible for descendants of the target set
-    // to become emptied, like --skip-empty. This would require writing careful
-    // tests.
     while let Some(old_commit_id) = to_visit.pop() {
         let old_commit = to_visit_commits.get(&old_commit_id).unwrap();
         let parent_ids = to_visit_commits_new_parents.get(&old_commit_id).unwrap();
         let new_parent_ids = mut_repo.new_parents(parent_ids);
         let rewriter = CommitRewriter::new(mut_repo, old_commit.clone(), new_parent_ids);
         if rewriter.parents_changed() {
-            rewriter.rebase(settings)?.write()?;
-            if target_commit_ids.contains(&old_commit_id) {
+            let rebased_commit = rebase_commit_with_options(settings, rewriter, options)?;
+            if let RebasedCommit::Abandoned { .. } = rebased_commit {
+                num_abandoned += 1;
+            } else if target_commit_ids.contains(&old_commit_id) {
                 num_rebased_targets += 1;
             } else {
                 num_rebased_descendants += 1;
@@ -828,6 +832,7 @@ pub fn move_commits(
         num_rebased_targets,
         num_rebased_descendants,
         num_skipped_rebases,
+        num_abandoned,
     })
 }
 
