@@ -24,6 +24,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * New command `jj util exec` that can be used for arbitrary aliases.
 
+* `jj rebase -b` can now be used with the `--insert-after` and `--insert-before`
+  options, like `jj rebase -r` and `jj rebase -s`.
+
 * A preview of improved shell completions was added. Please refer to the
   [documentation](https://martinvonz.github.io/jj/latest/install-and-setup/#command-line-completion)
   to activate them.

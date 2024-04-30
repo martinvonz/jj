@@ -48,14 +48,6 @@ fn test_rebase_invalid() {
     For more information, try '--help'.
     "###);
 
-    // --after with implicit -b
-    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["rebase", "--after", "a"]);
-    insta::assert_snapshot!(stderr, @"Error: The argument `--destination <DESTINATION>` is required to rebase a whole branch");
-
-    // --before with implicit -b
-    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["rebase", "--before", "a"]);
-    insta::assert_snapshot!(stderr, @"Error: The argument `--destination <DESTINATION>` is required to rebase a whole branch");
-
     // Both -r and -s
     let stderr =
         test_env.jj_cmd_cli_error(&repo_path, &["rebase", "-r", "a", "-s", "a", "-d", "b"]);
@@ -91,10 +83,6 @@ fn test_rebase_invalid() {
     For more information, try '--help'.
     "###);
 
-    // -b with --after
-    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["rebase", "-b", "a", "--after", "b"]);
-    insta::assert_snapshot!(stderr, @"Error: The argument `--destination <DESTINATION>` is required to rebase a whole branch");
-
     // Both -d and --before
     let stderr = test_env.jj_cmd_cli_error(
         &repo_path,
@@ -107,10 +95,6 @@ fn test_rebase_invalid() {
 
     For more information, try '--help'.
     "###);
-
-    // -b with --before
-    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["rebase", "-b", "a", "--before", "b"]);
-    insta::assert_snapshot!(stderr, @"Error: The argument `--destination <DESTINATION>` is required to rebase a whole branch");
 
     // Rebase onto self with -r
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "a"]);
@@ -1718,6 +1702,34 @@ fn test_rebase_after() {
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
+    // `rebase -b` of commit "b3" after "b1" moves its descendants which are not
+    // already descendants of "b1" (just "b3" and "b4") in between "b1" and its
+    // child "b2".
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "b3", "--after", "b1"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 6 commits onto destination
+    Rebased 1 descendant commits
+    Working copy now at: xznxytkn b4078b57 f | f
+    Parent commit      : nkmrtpmo 1b95558f e | e
+    Added 0 files, modified 0 files, removed 1 files
+    "#);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
+    ○    b2: d f
+    ├─╮
+    │ @  f: e
+    │ ○  e: c
+    ○ │  d: c
+    ├─╯
+    ○  c: b4
+    ○  b4: b3
+    ○  b3: b1
+    ○  b1: a
+    ○  a
+    ◆
+    "#);
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+
     // Should error if a loop will be created.
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
@@ -2225,6 +2237,36 @@ fn test_rebase_before() {
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
+    // `rebase -b` of commit "b3" before "b2" moves its descendants which are not
+    // already descendants of its parent "b1" (just "b3" and "b4") in between "b1"
+    // and its child "b2".
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "b3", "--before", "b1"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Skipped rebase of 2 commits that were already in place
+    Rebased 4 commits onto destination
+    Rebased 2 descendant commits
+    Working copy now at: xznxytkn 16422f85 f | f
+    Parent commit      : nkmrtpmo ef9dea83 e | e
+    Added 0 files, modified 0 files, removed 2 files
+    "#);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
+    ○  b2: b1
+    ○    b1: d f
+    ├─╮
+    │ @  f: e
+    │ ○  e: c
+    ○ │  d: c
+    ├─╯
+    ○  c: b4
+    ○  b4: b3
+    ○  b3: a
+    ○  a
+    ◆
+    "#);
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+
     // Should error if a loop will be created.
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
@@ -2442,6 +2484,40 @@ fn test_rebase_after_before() {
     │ ○  y: x
     │ ○  x
     ├─╯
+    ◆
+    "#);
+    test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
+
+    // `rebase -b` of a commit "y" to a destination after "a" will rebase all
+    // commits in "roots(a..y)" and their descendants, corresponding to "x", "y"
+    // and "z". They will be inserted in a new branch after "a" and before "c".
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["rebase", "-b", "y", "--after", "a", "--before", "c"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r#"
+    Rebased 3 commits onto destination
+    Rebased 4 descendant commits
+    Working copy now at: nmzmmopx 4496f88e f | f
+    Parent commit      : xznxytkn a85404a6 e | e
+    Added 3 files, modified 0 files, removed 0 files
+    "#);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r#"
+    @  f: e
+    ○  e: c
+    │ ○  d: c
+    ├─╯
+    ○      c: b1 b2 z
+    ├─┬─╮
+    │ │ ○  z: y
+    │ │ ○  y: x
+    │ │ ○  x: a
+    │ ○ │  b2: a
+    │ ├─╯
+    ○ │  b1: a
+    ├─╯
+    ○  a
     ◆
     "#);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
