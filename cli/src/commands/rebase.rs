@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::borrow::Borrow;
 use std::io::Write;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -29,8 +28,6 @@ use jj_lib::repo::Repo;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetIteratorExt;
 use jj_lib::rewrite::move_commits;
-use jj_lib::rewrite::rebase_commit_with_options;
-use jj_lib::rewrite::CommitRewriter;
 use jj_lib::rewrite::EmptyBehaviour;
 use jj_lib::rewrite::MoveCommitsStats;
 use jj_lib::rewrite::RebaseOptions;
@@ -41,7 +38,6 @@ use crate::cli_util::short_commit_hash;
 use crate::cli_util::CommandHelper;
 use crate::cli_util::RevisionArg;
 use crate::cli_util::WorkspaceCommandHelper;
-use crate::cli_util::WorkspaceCommandTransaction;
 use crate::command_error::cli_error;
 use crate::command_error::user_error;
 use crate::command_error::CommandError;
@@ -312,7 +308,7 @@ pub(crate) fn cmd_rebase(
             &mut workspace_command,
             new_parents,
             &source_commits,
-            rebase_options,
+            &rebase_options,
         )?;
     } else {
         let new_parents = workspace_command
@@ -367,33 +363,8 @@ fn rebase_branch(
         workspace_command,
         new_parents,
         &root_commits,
-        rebase_options,
+        &rebase_options,
     )
-}
-
-/// Rebases `old_commits` onto `new_parents`.
-fn rebase_descendants(
-    tx: &mut WorkspaceCommandTransaction,
-    settings: &UserSettings,
-    new_parents: Vec<Commit>,
-    old_commits: &[impl Borrow<Commit>],
-    rebase_options: RebaseOptions,
-) -> Result<usize, CommandError> {
-    for old_commit in old_commits {
-        let rewriter = CommitRewriter::new(
-            tx.repo_mut(),
-            old_commit.borrow().clone(),
-            new_parents
-                .iter()
-                .map(|parent| parent.id().clone())
-                .collect(),
-        );
-        rebase_commit_with_options(settings, rewriter, &rebase_options)?;
-    }
-    let num_rebased = old_commits.len()
-        + tx.repo_mut()
-            .rebase_descendants_with_options(settings, rebase_options)?;
-    Ok(num_rebased)
 }
 
 fn rebase_descendants_transaction(
@@ -401,40 +372,83 @@ fn rebase_descendants_transaction(
     settings: &UserSettings,
     workspace_command: &mut WorkspaceCommandHelper,
     new_parents: Vec<Commit>,
-    old_commits: &IndexSet<Commit>,
-    rebase_options: RebaseOptions,
+    target_roots: &IndexSet<Commit>,
+    rebase_options: &RebaseOptions,
 ) -> Result<(), CommandError> {
-    workspace_command.check_rewritable(old_commits.iter().ids())?;
-    let (skipped_commits, old_commits) = old_commits
-        .iter()
-        .partition::<Vec<_>, _>(|commit| commit.parent_ids().iter().eq(new_parents.iter().ids()));
-    let num_skipped_rebases = skipped_commits.len();
+    if target_roots.is_empty() {
+        return Ok(());
+    }
+
+    workspace_command.check_rewritable(target_roots.iter().ids())?;
+    for commit in target_roots.iter() {
+        check_rebase_destinations(workspace_command.repo(), &new_parents, commit)?;
+    }
+
+    let mut tx = workspace_command.start_transaction();
+    let tx_description = if target_roots.len() == 1 {
+        format!(
+            "rebase commit {} and descendants",
+            target_roots.first().unwrap().id().hex()
+        )
+    } else {
+        format!(
+            "rebase {} commits and their descendants",
+            target_roots.len()
+        )
+    };
+
+    let target_commits: Vec<_> =
+        RevsetExpression::commits(target_roots.iter().ids().cloned().collect_vec())
+            .descendants()
+            .evaluate_programmatic(tx.repo())?
+            .iter()
+            .commits(tx.repo().store())
+            .try_collect()?;
+    let new_parent_ids = new_parents.iter().ids().cloned().collect_vec();
+    let new_children: [Commit; 0] = [];
+    let target_roots = target_roots.iter().ids().cloned().collect_vec();
+
+    let MoveCommitsStats {
+        num_rebased_targets,
+        num_rebased_descendants,
+        num_skipped_rebases,
+        num_abandoned,
+    } = move_commits(
+        settings,
+        tx.repo_mut(),
+        &new_parent_ids,
+        &new_children,
+        &target_commits,
+        Some(&target_roots),
+        rebase_options,
+    )?;
+    // All the descendants of the roots should be part of `target_commits`, so
+    // `num_rebased_descendants` should be 0.
+    assert_eq!(num_rebased_descendants, 0);
+
     if num_skipped_rebases > 0 {
         writeln!(
             ui.status(),
             "Skipped rebase of {num_skipped_rebases} commits that were already in place"
         )?;
     }
-    if old_commits.is_empty() {
-        return Ok(());
+    if num_rebased_targets > 0 {
+        writeln!(ui.status(), "Rebased {num_rebased_targets} commits")?;
     }
-    for old_commit in &old_commits {
-        check_rebase_destinations(workspace_command.repo(), &new_parents, old_commit)?;
+    if num_rebased_descendants > 0 {
+        writeln!(
+            ui.status(),
+            "Rebased {num_rebased_descendants} descendant commits"
+        )?;
     }
-    let mut tx = workspace_command.start_transaction();
-    let num_rebased =
-        rebase_descendants(&mut tx, settings, new_parents, &old_commits, rebase_options)?;
-    writeln!(ui.status(), "Rebased {num_rebased} commits")?;
-    let tx_message = if old_commits.len() == 1 {
-        format!(
-            "rebase commit {} and descendants",
-            old_commits.first().unwrap().id().hex()
-        )
-    } else {
-        format!("rebase {} commits and their descendants", old_commits.len())
-    };
-    tx.finish(ui, tx_message)?;
-    Ok(())
+    if num_abandoned > 0 {
+        writeln!(
+            ui.status(),
+            "Abandoned {num_abandoned} newly emptied commits"
+        )?;
+    }
+
+    tx.finish(ui, tx_description)
 }
 
 fn rebase_revisions(
