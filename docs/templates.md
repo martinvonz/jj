@@ -182,6 +182,16 @@ The following methods are defined.
 * `.username() -> String`
 * `.timestamp() -> Timestamp`
 
+### SizeHint type
+
+This type cannot be printed. The following methods are defined.
+
+* `.lower() -> Integer`: Lower bound.
+* `.upper() -> Option<Integer>`: Upper bound if known.
+* `.exact() -> Option<Integer>`: Exact value if upper bound is known and it
+  equals to the lower bound.
+* `.zero() -> Boolean`: True if upper bound is known and is `0`.
+
 ### String type
 
 A string can be implicitly converted to `Boolean`. The following methods are

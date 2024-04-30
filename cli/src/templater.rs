@@ -74,6 +74,11 @@ impl Template for Signature {
     }
 }
 
+// In template language, an integer value is represented as i64. However, we use
+// usize here because it's more convenient to guarantee that the lower value is
+// bounded to 0.
+pub type SizeHint = (usize, Option<usize>);
+
 impl Template for String {
     fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
         write!(formatter, "{self}")
