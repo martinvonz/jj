@@ -441,12 +441,17 @@ Working copy now at: mrxqplyk 52a6c7fd ABCD
 Parent commit      : kwtuwqnm 643061ac ABC
 ```
 
-That will bring up the built-in diff editor with a diff of the changes in
-the "ABCD" commit. If you prefer another diff editor, you can configure
-[`ui.diff-editor`](config.md#editing-diffs) instead. Modify the right side of
-the diff to have the desired end state in "ABC" by removing the "D" line. Then
-save the changes and close Meld. If we look at the diff of the second commit, we
-now see that all three lines got capitalized:
+That will bring up the built-in diff editor with a diff of the changes in the
+"ABCD" commit. If you prefer another diff editor, such as
+[Meld](https://meldmerge.org), you can configure
+[`ui.diff-editor`](config.md#editing-diffs) instead. Expand the file by
+clicking on `(+)` or with right arrow, then select the sections/line to include
+by clicking or using space. Once complete, press `c` to confirm changes, or `q`
+to exit without saving. We can also click on the menu items to see more
+options.
+
+If we look at the diff of the second commit, we now see
+that all three lines got capitalized:
 
 ```shell
 $ jj diff -r @-
