@@ -514,6 +514,27 @@ fn test_log_branches() {
     ├─╯
     ◉  L: R:
     "###);
+
+    let template = r#"
+    remote_branches.map(|ref| concat(
+      ref,
+      if(ref.tracked(),
+        "(+" ++ ref.tracking_ahead_count().lower()
+        ++ "/-" ++ ref.tracking_behind_count().lower() ++ ")"),
+    ))
+    "#;
+    let output = test_env.jj_cmd_success(
+        &workspace_root,
+        &["log", "-r::remote_branches()", "-T", template],
+    );
+    insta::assert_snapshot!(output, @r###"
+    ◉  branch3@origin(+0/-1)
+    │ ◉  branch2@origin(+0/-1) unchanged@origin(+0/-0)
+    ├─╯
+    │ ◉  branch1@origin(+1/-1)
+    ├─╯
+    ◉
+    "###);
 }
 
 #[test]

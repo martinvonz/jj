@@ -163,6 +163,14 @@ The following methods are defined.
 * `.removed_targets() -> List<Commit>`: Old target commits if conflicted.
 * `.added_targets() -> List<Commit>`: New target commits. The list usually
   contains one "normal" target.
+* `.tracked() -> Boolean`: True if the ref is tracked by a local ref. The local
+  ref might have been deleted (but not pushed yet.)
+* `.tracking_present() -> Boolean`: True if the ref is tracked by a local ref,
+    and if the local ref points to any commit.
+* `.tracking_ahead_count() -> SizeHint`: Number of commits ahead of the tracking
+  local ref.
+* `.tracking_behind_count() -> SizeHint`: Number of commits behind of the
+  tracking local ref.
 
 ### ShortestIdPrefix type
 

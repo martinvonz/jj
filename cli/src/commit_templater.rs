@@ -37,8 +37,8 @@ use crate::template_builder::{
 };
 use crate::template_parser::{self, FunctionCallNode, TemplateParseError, TemplateParseResult};
 use crate::templater::{
-    self, PlainTextFormattedProperty, Template, TemplateFormatter, TemplateProperty,
-    TemplatePropertyExt as _,
+    self, PlainTextFormattedProperty, SizeHint, Template, TemplateFormatter, TemplateProperty,
+    TemplatePropertyError, TemplatePropertyExt as _,
 };
 use crate::{revset_util, text_util};
 
@@ -729,9 +729,21 @@ pub struct RefName {
     remote: Option<String>,
     /// Target commit ids.
     target: RefTarget,
+    /// Local ref metadata which tracks this remote ref.
+    tracking_ref: Option<TrackingRef>,
     /// Local ref is synchronized with all tracking remotes, or tracking remote
     /// ref is synchronized with the local.
     synced: bool,
+}
+
+#[derive(Debug)]
+struct TrackingRef {
+    /// Local ref target which tracks the other remote ref.
+    target: RefTarget,
+    /// Number of commits ahead of the tracking `target`.
+    ahead_count: OnceCell<SizeHint>,
+    /// Number of commits behind of the tracking `target`.
+    behind_count: OnceCell<SizeHint>,
 }
 
 impl RefName {
@@ -752,6 +764,7 @@ impl RefName {
             name: name.into(),
             remote: None,
             target,
+            tracking_ref: None,
             synced,
         })
     }
@@ -770,10 +783,23 @@ impl RefName {
         local_target: &RefTarget,
     ) -> Rc<Self> {
         let synced = remote_ref.is_tracking() && remote_ref.target == *local_target;
+        let tracking_ref = remote_ref.is_tracking().then(|| {
+            let count = if synced {
+                OnceCell::from((0, Some(0))) // fast path for synced remotes
+            } else {
+                OnceCell::new()
+            };
+            TrackingRef {
+                target: local_target.clone(),
+                ahead_count: count.clone(),
+                behind_count: count,
+            }
+        });
         Rc::new(RefName {
             name: name.into(),
             remote: Some(remote_name.into()),
             target: remote_ref.target,
+            tracking_ref,
             synced,
         })
     }
@@ -788,6 +814,7 @@ impl RefName {
             name: name.into(),
             remote: Some(remote_name.into()),
             target,
+            tracking_ref: None,
             synced: false, // has no local counterpart
         })
     }
@@ -807,6 +834,50 @@ impl RefName {
     /// Whether the ref target has conflicts.
     fn has_conflict(&self) -> bool {
         self.target.has_conflict()
+    }
+
+    /// Returns true if this ref is tracked by a local ref. The local ref might
+    /// have been deleted (but not pushed yet.)
+    fn is_tracked(&self) -> bool {
+        self.tracking_ref.is_some()
+    }
+
+    /// Returns true if this ref is tracked by a local ref, and if the local ref
+    /// is present.
+    fn is_tracking_present(&self) -> bool {
+        self.tracking_ref
+            .as_ref()
+            .map_or(false, |tracking| tracking.target.is_present())
+    }
+
+    /// Number of commits ahead of the tracking local ref.
+    fn tracking_ahead_count(&self, repo: &dyn Repo) -> Result<SizeHint, TemplatePropertyError> {
+        let Some(tracking) = &self.tracking_ref else {
+            return Err(TemplatePropertyError("Not a tracked remote ref".into()));
+        };
+        tracking
+            .ahead_count
+            .get_or_try_init(|| {
+                let self_ids = self.target.added_ids().cloned().collect_vec();
+                let other_ids = tracking.target.added_ids().cloned().collect_vec();
+                Ok(revset::walk_revs(repo, &self_ids, &other_ids)?.count_estimate())
+            })
+            .copied()
+    }
+
+    /// Number of commits behind of the tracking local ref.
+    fn tracking_behind_count(&self, repo: &dyn Repo) -> Result<SizeHint, TemplatePropertyError> {
+        let Some(tracking) = &self.tracking_ref else {
+            return Err(TemplatePropertyError("Not a tracked remote ref".into()));
+        };
+        tracking
+            .behind_count
+            .get_or_try_init(|| {
+                let self_ids = self.target.added_ids().cloned().collect_vec();
+                let other_ids = tracking.target.added_ids().cloned().collect_vec();
+                Ok(revset::walk_revs(repo, &other_ids, &self_ids)?.count_estimate())
+            })
+            .copied()
     }
 }
 
@@ -904,6 +975,42 @@ fn builtin_ref_name_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Rc
                 Ok(ids.map(|id| repo.store().get_commit(id)).try_collect()?)
             });
             Ok(L::wrap_commit_list(out_property))
+        },
+    );
+    map.insert(
+        "tracked",
+        |_language, _build_ctx, self_property, function| {
+            template_parser::expect_no_arguments(function)?;
+            let out_property = self_property.map(|ref_name| ref_name.is_tracked());
+            Ok(L::wrap_boolean(out_property))
+        },
+    );
+    map.insert(
+        "tracking_present",
+        |_language, _build_ctx, self_property, function| {
+            template_parser::expect_no_arguments(function)?;
+            let out_property = self_property.map(|ref_name| ref_name.is_tracking_present());
+            Ok(L::wrap_boolean(out_property))
+        },
+    );
+    map.insert(
+        "tracking_ahead_count",
+        |language, _build_ctx, self_property, function| {
+            template_parser::expect_no_arguments(function)?;
+            let repo = language.repo;
+            let out_property =
+                self_property.and_then(|ref_name| ref_name.tracking_ahead_count(repo));
+            Ok(L::wrap_size_hint(out_property))
+        },
+    );
+    map.insert(
+        "tracking_behind_count",
+        |language, _build_ctx, self_property, function| {
+            template_parser::expect_no_arguments(function)?;
+            let repo = language.repo;
+            let out_property =
+                self_property.and_then(|ref_name| ref_name.tracking_behind_count(repo));
+            Ok(L::wrap_size_hint(out_property))
         },
     );
     map
