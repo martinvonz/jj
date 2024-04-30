@@ -775,6 +775,20 @@ impl RefName {
         }
     }
 
+    /// Creates remote ref representation which isn't tracked by a local ref.
+    pub fn remote_only(
+        name: impl Into<String>,
+        remote_name: impl Into<String>,
+        target: RefTarget,
+    ) -> Self {
+        RefName {
+            name: name.into(),
+            remote: Some(remote_name.into()),
+            target,
+            synced: false, // has no local counterpart
+        }
+    }
+
     fn is_local(&self) -> bool {
         self.remote.is_none()
     }
@@ -950,14 +964,10 @@ fn build_ref_names_index<'a>(
 
 fn extract_git_head(repo: &dyn Repo, commit: &Commit) -> Option<RefName> {
     let target = repo.view().git_head();
-    target.added_ids().contains(commit.id()).then(|| {
-        RefName {
-            name: "HEAD".to_owned(),
-            remote: Some(git::REMOTE_NAME_FOR_LOCAL_GIT_REPO.to_owned()),
-            target: target.clone(),
-            synced: false, // has no local counterpart
-        }
-    })
+    target
+        .added_ids()
+        .contains(commit.id())
+        .then(|| RefName::remote_only("HEAD", git::REMOTE_NAME_FOR_LOCAL_GIT_REPO, target.clone()))
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
