@@ -623,6 +623,7 @@ fn move_commits_transaction(
         new_parent_ids,
         new_children,
         target_commits,
+        None,
         rebase_options,
     )?;
     // TODO(ilyagr): Consider making it possible for descendants of the target set

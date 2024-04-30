@@ -467,18 +467,22 @@ pub struct MoveCommitsStats {
 /// Moves `target_commits` from their current location to a new location in the
 /// graph.
 ///
-/// The roots of `target_commits` are rebased onto the new parents
+/// Commits in `target_roots` are rebased onto the new parents
 /// given by `new_parent_ids`, while the `new_children` commits are
-/// rebased onto the heads of `target_commits`. This assumes that
-/// `target_commits` and `new_children` can be rewritten, and there
-/// will be no cycles in the resulting graph. `target_commits` should
-/// be in reverse topological order.
+/// rebased onto the heads of `target_commits`. If `target_roots` is
+/// `None`, it will be computed as the roots of the connected set of
+/// target commits. This assumes that `target_commits` and
+/// `new_children` can be rewritten, and there will be no cycles in
+/// the resulting graph. `target_commits` should be in reverse
+/// topological order. `target_roots`, if provided, should be a subset
+/// of `target_commits`.
 pub fn move_commits(
     settings: &UserSettings,
     mut_repo: &mut MutableRepo,
     new_parent_ids: &[CommitId],
     new_children: &[Commit],
     target_commits: &[Commit],
+    target_roots: Option<&[CommitId]>,
     options: &RebaseOptions,
 ) -> BackendResult<MoveCommitsStats> {
     if target_commits.is_empty() {
@@ -527,12 +531,18 @@ pub fn move_commits(
         connected_target_commits_internal_parents.insert(commit.id().clone(), new_parents);
     }
 
-    // Compute the roots of `target_commits`.
-    let target_roots: HashSet<_> = connected_target_commits_internal_parents
-        .iter()
-        .filter(|(commit_id, parents)| target_commit_ids.contains(commit_id) && parents.is_empty())
-        .map(|(commit_id, _)| commit_id.clone())
-        .collect();
+    // Compute the roots of `target_commits` if not provided.
+    let target_roots: HashSet<_> = if let Some(target_roots) = target_roots {
+        target_roots.iter().cloned().collect()
+    } else {
+        connected_target_commits_internal_parents
+            .iter()
+            .filter(|(commit_id, parents)| {
+                target_commit_ids.contains(commit_id) && parents.is_empty()
+            })
+            .map(|(commit_id, _)| commit_id.clone())
+            .collect()
+    };
 
     // If a commit outside the target set has a commit in the target set as a
     // parent, then - after the transformation - it should have that commit's
