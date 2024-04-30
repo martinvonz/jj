@@ -24,8 +24,8 @@ use crate::template_parser::{
 use crate::templater::{
     CoalesceTemplate, ConcatTemplate, ConditionalTemplate, LabelTemplate, ListPropertyTemplate,
     ListTemplate, Literal, PlainTextFormattedProperty, PropertyPlaceholder, ReformatTemplate,
-    SeparateTemplate, Template, TemplateProperty, TemplatePropertyError, TemplatePropertyExt as _,
-    TemplateRenderer, TimestampRange,
+    SeparateTemplate, SizeHint, Template, TemplateProperty, TemplatePropertyError,
+    TemplatePropertyExt as _, TemplateRenderer, TimestampRange,
 };
 use crate::{text_util, time_util};
 
@@ -43,6 +43,7 @@ pub trait TemplateLanguage<'a> {
         property: impl TemplateProperty<Output = Option<i64>> + 'a,
     ) -> Self::Property;
     fn wrap_signature(property: impl TemplateProperty<Output = Signature> + 'a) -> Self::Property;
+    fn wrap_size_hint(property: impl TemplateProperty<Output = SizeHint> + 'a) -> Self::Property;
     fn wrap_timestamp(property: impl TemplateProperty<Output = Timestamp> + 'a) -> Self::Property;
     fn wrap_timestamp_range(
         property: impl TemplateProperty<Output = TimestampRange> + 'a,
@@ -86,6 +87,7 @@ macro_rules! impl_core_wrap_property_fns {
                 wrap_integer(i64) => Integer,
                 wrap_integer_opt(Option<i64>) => IntegerOpt,
                 wrap_signature(jj_lib::backend::Signature) => Signature,
+                wrap_size_hint($crate::templater::SizeHint) => SizeHint,
                 wrap_timestamp(jj_lib::backend::Timestamp) => Timestamp,
                 wrap_timestamp_range($crate::templater::TimestampRange) => TimestampRange,
             }
@@ -139,6 +141,7 @@ pub enum CoreTemplatePropertyKind<'a> {
     Integer(Box<dyn TemplateProperty<Output = i64> + 'a>),
     IntegerOpt(Box<dyn TemplateProperty<Output = Option<i64>> + 'a>),
     Signature(Box<dyn TemplateProperty<Output = Signature> + 'a>),
+    SizeHint(Box<dyn TemplateProperty<Output = SizeHint> + 'a>),
     Timestamp(Box<dyn TemplateProperty<Output = Timestamp> + 'a>),
     TimestampRange(Box<dyn TemplateProperty<Output = TimestampRange> + 'a>),
 
@@ -165,6 +168,7 @@ impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
             CoreTemplatePropertyKind::Integer(_) => "Integer",
             CoreTemplatePropertyKind::IntegerOpt(_) => "Option<Integer>",
             CoreTemplatePropertyKind::Signature(_) => "Signature",
+            CoreTemplatePropertyKind::SizeHint(_) => "SizeHint",
             CoreTemplatePropertyKind::Timestamp(_) => "Timestamp",
             CoreTemplatePropertyKind::TimestampRange(_) => "TimestampRange",
             CoreTemplatePropertyKind::Template(_) => "Template",
@@ -186,6 +190,7 @@ impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
                 Some(Box::new(property.map(|opt| opt.is_some())))
             }
             CoreTemplatePropertyKind::Signature(_) => None,
+            CoreTemplatePropertyKind::SizeHint(_) => None,
             CoreTemplatePropertyKind::Timestamp(_) => None,
             CoreTemplatePropertyKind::TimestampRange(_) => None,
             // Template types could also be evaluated to boolean, but it's less likely
@@ -224,6 +229,7 @@ impl<'a> IntoTemplateProperty<'a> for CoreTemplatePropertyKind<'a> {
             CoreTemplatePropertyKind::Integer(property) => Some(property.into_template()),
             CoreTemplatePropertyKind::IntegerOpt(property) => Some(property.into_template()),
             CoreTemplatePropertyKind::Signature(property) => Some(property.into_template()),
+            CoreTemplatePropertyKind::SizeHint(_) => None,
             CoreTemplatePropertyKind::Timestamp(property) => Some(property.into_template()),
             CoreTemplatePropertyKind::TimestampRange(property) => Some(property.into_template()),
             CoreTemplatePropertyKind::Template(template) => Some(template),
@@ -268,6 +274,7 @@ pub struct CoreTemplateBuildFnTable<'a, L: TemplateLanguage<'a> + ?Sized> {
     pub boolean_methods: TemplateBuildMethodFnMap<'a, L, bool>,
     pub integer_methods: TemplateBuildMethodFnMap<'a, L, i64>,
     pub signature_methods: TemplateBuildMethodFnMap<'a, L, Signature>,
+    pub size_hint_methods: TemplateBuildMethodFnMap<'a, L, SizeHint>,
     pub timestamp_methods: TemplateBuildMethodFnMap<'a, L, Timestamp>,
     pub timestamp_range_methods: TemplateBuildMethodFnMap<'a, L, TimestampRange>,
 }
@@ -289,6 +296,7 @@ impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
             boolean_methods: HashMap::new(),
             integer_methods: HashMap::new(),
             signature_methods: builtin_signature_methods(),
+            size_hint_methods: builtin_size_hint_methods(),
             timestamp_methods: builtin_timestamp_methods(),
             timestamp_range_methods: builtin_timestamp_range_methods(),
         }
@@ -301,6 +309,7 @@ impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
             boolean_methods: HashMap::new(),
             integer_methods: HashMap::new(),
             signature_methods: HashMap::new(),
+            size_hint_methods: HashMap::new(),
             timestamp_methods: HashMap::new(),
             timestamp_range_methods: HashMap::new(),
         }
@@ -313,6 +322,7 @@ impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
             boolean_methods,
             integer_methods,
             signature_methods,
+            size_hint_methods,
             timestamp_methods,
             timestamp_range_methods,
         } = extension;
@@ -322,6 +332,7 @@ impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
         merge_fn_map(&mut self.boolean_methods, boolean_methods);
         merge_fn_map(&mut self.integer_methods, integer_methods);
         merge_fn_map(&mut self.signature_methods, signature_methods);
+        merge_fn_map(&mut self.size_hint_methods, size_hint_methods);
         merge_fn_map(&mut self.timestamp_methods, timestamp_methods);
         merge_fn_map(&mut self.timestamp_range_methods, timestamp_range_methods);
     }
@@ -379,6 +390,11 @@ impl<'a, L: TemplateLanguage<'a> + ?Sized> CoreTemplateBuildFnTable<'a, L> {
             }
             CoreTemplatePropertyKind::Signature(property) => {
                 let table = &self.signature_methods;
+                let build = template_parser::lookup_method(type_name, table, function)?;
+                build(language, build_ctx, property, function)
+            }
+            CoreTemplatePropertyKind::SizeHint(property) => {
+                let table = &self.size_hint_methods;
                 let build = template_parser::lookup_method(type_name, table, function)?;
                 build(language, build_ctx, property, function)
             }
@@ -701,6 +717,38 @@ fn builtin_signature_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
             Ok(L::wrap_timestamp(out_property))
         },
     );
+    map
+}
+
+fn builtin_size_hint_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
+) -> TemplateBuildMethodFnMap<'a, L, SizeHint> {
+    // Not using maplit::hashmap!{} or custom declarative macro here because
+    // code completion inside macro is quite restricted.
+    let mut map = TemplateBuildMethodFnMap::<L, SizeHint>::new();
+    map.insert("lower", |_language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = self_property.and_then(|(lower, _)| Ok(i64::try_from(lower)?));
+        Ok(L::wrap_integer(out_property))
+    });
+    map.insert("upper", |_language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property =
+            self_property.and_then(|(_, upper)| Ok(upper.map(i64::try_from).transpose()?));
+        Ok(L::wrap_integer_opt(out_property))
+    });
+    map.insert("exact", |_language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = self_property.and_then(|(lower, upper)| {
+            let exact = (Some(lower) == upper).then_some(lower);
+            Ok(exact.map(i64::try_from).transpose()?)
+        });
+        Ok(L::wrap_integer_opt(out_property))
+    });
+    map.insert("zero", |_language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let out_property = self_property.map(|(_, upper)| upper == Some(0));
+        Ok(L::wrap_boolean(out_property))
+    });
     map
 }
 
@@ -1845,6 +1893,29 @@ mod tests {
         insta::assert_snapshot!(env.render_ok(r#"author.name()"#), @"");
         insta::assert_snapshot!(env.render_ok(r#"author.email()"#), @"");
         insta::assert_snapshot!(env.render_ok(r#"author.username()"#), @"");
+    }
+
+    #[test]
+    fn test_size_hint_method() {
+        let mut env = TestTemplateEnv::new();
+
+        env.add_keyword("unbounded", || L::wrap_size_hint(Literal((5, None))));
+        insta::assert_snapshot!(env.render_ok(r#"unbounded.lower()"#), @"5");
+        insta::assert_snapshot!(env.render_ok(r#"unbounded.upper()"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"unbounded.exact()"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"unbounded.zero()"#), @"false");
+
+        env.add_keyword("bounded", || L::wrap_size_hint(Literal((0, Some(10)))));
+        insta::assert_snapshot!(env.render_ok(r#"bounded.lower()"#), @"0");
+        insta::assert_snapshot!(env.render_ok(r#"bounded.upper()"#), @"10");
+        insta::assert_snapshot!(env.render_ok(r#"bounded.exact()"#), @"");
+        insta::assert_snapshot!(env.render_ok(r#"bounded.zero()"#), @"false");
+
+        env.add_keyword("zero", || L::wrap_size_hint(Literal((0, Some(0)))));
+        insta::assert_snapshot!(env.render_ok(r#"zero.lower()"#), @"0");
+        insta::assert_snapshot!(env.render_ok(r#"zero.upper()"#), @"0");
+        insta::assert_snapshot!(env.render_ok(r#"zero.exact()"#), @"0");
+        insta::assert_snapshot!(env.render_ok(r#"zero.zero()"#), @"true");
     }
 
     #[test]
