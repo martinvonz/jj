@@ -17,7 +17,6 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use clap::ArgGroup;
-use indexmap::IndexSet;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
@@ -188,8 +187,6 @@ pub struct RebaseDestinationArgs {
     destination: Option<Vec<RevisionArg>>,
     /// The revision(s) to insert after (can be repeated to create a merge
     /// commit)
-    ///
-    /// Only works with `-r` and `-s`.
     #[arg(
         long,
         short = 'A',
@@ -199,8 +196,6 @@ pub struct RebaseDestinationArgs {
     insert_after: Option<Vec<RevisionArg>>,
     /// The revision(s) to insert before (can be repeated to create a merge
     /// commit)
-    ///
-    /// Only works with `-r` and `-s`.
     #[arg(
         long,
         short = 'B',
@@ -249,26 +244,12 @@ pub(crate) fn cmd_rebase(
             &rebase_options,
         )?;
     } else {
-        let Some(destination) = args.destination.destination.as_ref() else {
-            return Err(cli_error(
-                "The argument `--destination <DESTINATION>` is required to rebase a whole branch",
-            ));
-        };
-        let new_parents = workspace_command
-            .resolve_some_revsets_default_single(ui, destination)?
-            .into_iter()
-            .collect_vec();
-        let branch_commits = if args.branch.is_empty() {
-            IndexSet::from([workspace_command.resolve_single_rev(ui, &RevisionArg::AT)?])
-        } else {
-            workspace_command.resolve_some_revsets_default_single(ui, &args.branch)?
-        };
         rebase_branch(
             ui,
             command.settings(),
             &mut workspace_command,
-            new_parents,
-            &branch_commits,
+            &args.branch,
+            &args.destination,
             rebase_options,
         )?;
     }
@@ -349,16 +330,25 @@ fn rebase_branch(
     ui: &mut Ui,
     settings: &UserSettings,
     workspace_command: &mut WorkspaceCommandHelper,
-    new_parents: Vec<Commit>,
-    branch_commits: &IndexSet<Commit>,
+    branch: &[RevisionArg],
+    rebase_destination: &RebaseDestinationArgs,
     rebase_options: RebaseOptions,
 ) -> Result<(), CommandError> {
-    let parent_ids = new_parents.iter().ids().cloned().collect_vec();
-    let branch_commit_ids = branch_commits
-        .iter()
-        .map(|commit| commit.id().clone())
-        .collect_vec();
-    let roots_expression = RevsetExpression::commits(parent_ids.clone())
+    let branch_commits: Vec<_> = if branch.is_empty() {
+        vec![workspace_command.resolve_single_rev(ui, &RevisionArg::AT)?]
+    } else {
+        workspace_command
+            .resolve_some_revsets_default_single(ui, branch)?
+            .iter()
+            .cloned()
+            .collect_vec()
+    };
+
+    let (new_parents, new_children) =
+        compute_rebase_destination(ui, workspace_command, rebase_destination)?;
+    let new_parent_ids = new_parents.iter().ids().cloned().collect_vec();
+    let branch_commit_ids = branch_commits.iter().ids().cloned().collect_vec();
+    let roots_expression = RevsetExpression::commits(new_parent_ids.clone())
         .range(&RevsetExpression::commits(branch_commit_ids))
         .roots();
     let root_commits: Vec<_> = roots_expression
@@ -368,16 +358,18 @@ fn rebase_branch(
         .commits(workspace_command.repo().store())
         .try_collect()?;
     workspace_command.check_rewritable(root_commits.iter().ids())?;
-    for commit in &root_commits {
-        check_rebase_destinations(workspace_command.repo(), &new_parents, commit)?;
+    if rebase_destination.destination.is_some() && new_children.is_empty() {
+        for commit in &root_commits {
+            check_rebase_destinations(workspace_command.repo(), &new_parents, commit)?;
+        }
     }
 
     rebase_descendants_transaction(
         ui,
         settings,
         workspace_command,
-        &parent_ids,
-        &[],
+        &new_parent_ids,
+        &new_children,
         root_commits,
         &rebase_options,
     )
