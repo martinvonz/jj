@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Breaking changes
+
 ### Deprecations
+
+### New features
+
+### Fixed bugs
+
+## [0.17.0] - 2024-05-01
 
 ### Breaking changes
 
@@ -27,29 +35,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The list of conflicted paths is printed whenever the working copy changes.
   This can be disabled with the `--quiet` option.
 
-* Commit objects in templates now have a `mine() -> Boolean` method analog to the same function in revsets.
-  It evaluates to true if the email of the commit author matches the current `user.email`.
+* Commit objects in templates now have a `mine() -> Boolean` method analog to
+  the same function in revsets. It evaluates to true if the email of the commit
+  author matches the current `user.email`.
+
+* Commit objects in templates now have a `contained_in(revset: String) ->
+  Boolean` method.
+
+* Operation objects in templates now have a `snapshot() -> Boolean` method that
+  evaluates to true if the operation was a snapshot created by a non-mutating
+  command (e.g. `jj log`).
+
+* Revsets and templates now support single-quoted raw string literals.
 
 * A new config option `ui.always-allow-large-revsets` has been added to
   allow large revsets expressions in some commands, without the `all:` prefix.
+
+* A new config option `ui.allow-filesets` has been added to enable ["fileset"
+  expressions](docs/filesets.md). Note that filesets are currently experimental,
+  but will be enabled by default in a future release.
+
+* A new global flag `--ignore-immutable` lets you rewrite immutable commits.
 
 * New command `jj parallelize` that rebases a set of revisions into siblings.
 
 * `jj status` now supports filtering by paths. For example, `jj status .` will
   only list changed files that are descendants of the current directory.
 
-* A new config option `ui.allow-filesets` has been added to enable ["fileset"
-  expressions](docs/filesets.md). Note that filesets are currently experimental,
-  but will be enabled by default in a future release.
-
-* Revsets and templates now support single-quoted raw string literals.
-
 * `jj prev` and `jj next` now work when the working copy revision is a merge.
 
-* Operation objects in templates now have a `snapshot() -> Boolean` method that
-  evaluates to true if the operation was a snapshot created by a non-mutating
-  command (e.g. `jj log`).
- 
 * `jj squash` now accepts a `--use-destination-message/-u` option that uses the
   description of the destination for the new squashed revision and discards the
   descriptions of the source revisions.
@@ -57,16 +71,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * You can check whether Watchman fsmonitor is enabled or installed with the new
   `jj debug watchman status` command.
 
-* A new global flag `--ignore-immutable` lets you rewrite immutable commits.
-
 * `jj rebase` now accepts revsets resolving to multiple revisions with the
    `--revisions`/`-r` option.
 
 * `jj rebase -r` now accepts `--insert-after` and `--insert-before` options to
   customize the location of the rebased revisions.
-
-* Commit objects in templates now have a `contained_in(revset: String) ->
-  Boolean` method.
 
 ### Fixed bugs
 
@@ -87,6 +96,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj squash <path>` is now a no-op if the path argument didn't match any paths
   (it used to create new commits with bumped timestamp).
   [#3334](https://github.com/martinvonz/jj/issues/3334)
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+* Anton Älgmyr (@algmyr)
+* Anton Bulakh (@necauqua)
+* Austin Seipp (@thoughtpolice)
+* Benjamin Tan (@bnjmnt4n)
+* Cretezy (@Cretezy)
+* Daniel Ploch (@torquestomp)
+* Evan Mesterhazy (@emesterhazy)
+* Ilya Grigoriev (@ilyagr)
+* Martin von Zweigbergk (@martinvonz)
+* Noah Mayr (@noahmayr)
+* Jeremy O'Brien (@neutralinsomniac)
+* Jonathan Lorimer (@JonathanLorimer)
+* Philip Metzger (@PhilipMetzger)
+* Poliorcetics (@poliorcetics)
+* Rowan Walsh (@rowan-walsh)
+* Scott Olson (@solson)
+* Théo Daron (@Kaporos)
+* Yuya Nishihara (@yuja)
+
 
 ## [0.16.0] - 2024-04-03
 
@@ -149,7 +182,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj split` now supports a `--siblings/-s` option that splits the target
   revision into siblings with the same parents and children.
 
-* new function `working_copies()` for revsets to show the working copy commits of all workspaces.
+* New function `working_copies()` for revsets to show the working copy commits of all workspaces.
 
 ### Fixed bugs
 
