@@ -14,7 +14,7 @@
 
 use std::any::Any;
 use std::cmp::max;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io;
 use std::rc::Rc;
 
@@ -399,6 +399,7 @@ pub struct CommitKeywordCache<'repo> {
     // Build index lazily, and Rc to get away from &self lifetime.
     branches_index: OnceCell<Rc<RefNamesIndex>>,
     tags_index: OnceCell<Rc<RefNamesIndex>>,
+    topics_index: OnceCell<Rc<RefNamesIndex>>,
     git_refs_index: OnceCell<Rc<RefNamesIndex>>,
     is_immutable_fn: OnceCell<Rc<RevsetContainingFn<'repo>>>,
 }
@@ -412,6 +413,11 @@ impl<'repo> CommitKeywordCache<'repo> {
     pub fn tags_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
         self.tags_index
             .get_or_init(|| Rc::new(build_ref_names_index(repo.view().tags())))
+    }
+
+    pub fn topics_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
+        self.topics_index
+            .get_or_init(|| Rc::new(build_topic_index(repo.view().topics().iter())))
     }
 
     pub fn git_refs_index(&self, repo: &dyn Repo) -> &Rc<RefNamesIndex> {
@@ -565,6 +571,12 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
     map.insert("tags", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
         let index = language.keyword_cache.tags_index(language.repo).clone();
+        let out_property = self_property.map(move |commit| index.get(commit.id()).to_vec());
+        Ok(L::wrap_ref_name_list(out_property))
+    });
+    map.insert("topics", |language, _build_ctx, self_property, function| {
+        template_parser::expect_no_arguments(function)?;
+        let index = language.keyword_cache.topics_index(language.repo).clone();
         let out_property = self_property.map(move |commit| index.get(commit.id()).to_vec());
         Ok(L::wrap_ref_name_list(out_property))
     });
@@ -913,6 +925,21 @@ fn build_branches_index(repo: &dyn Repo) -> RefNamesIndex {
                 synced: remote_ref.is_tracking() && remote_ref.target == *local_target,
             };
             index.insert(remote_ref.target.added_ids(), ref_name);
+        }
+    }
+    index
+}
+
+fn build_topic_index<'a, T>(topics: T) -> RefNamesIndex
+where
+    T: Iterator<Item = (&'a String, &'a HashSet<CommitId>)>,
+{
+    let mut index = RefNamesIndex::default();
+    for (topic, commits) in topics {
+        // TODO: single refname for all commits
+        for id in commits {
+            let ref_name = RefName::local_only(topic, RefTarget::normal(id.clone()));
+            index.insert([id], ref_name);
         }
     }
     index
