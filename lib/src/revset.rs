@@ -318,6 +318,7 @@ pub enum RevsetCommitRef {
         remote_pattern: StringPattern,
     },
     Tags,
+    Topics(StringPattern),
     GitRefs,
     GitHead,
 }
@@ -450,6 +451,12 @@ impl RevsetExpression {
 
     pub fn tags() -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::Tags))
+    }
+
+    pub fn topics(pattern: StringPattern) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::Topics(
+            pattern,
+        )))
     }
 
     pub fn git_refs() -> Rc<RevsetExpression> {
@@ -1270,6 +1277,15 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     map.insert("tags", |name, arguments_pair, _state| {
         expect_no_arguments(name, arguments_pair)?;
         Ok(RevsetExpression::tags())
+    });
+    map.insert("topics", |name, arguments_pair, state| {
+        let ([], [opt_arg]) = expect_arguments(name, arguments_pair)?;
+        let pattern = if let Some(arg) = opt_arg {
+            parse_function_argument_to_string_pattern(name, arg, state)?
+        } else {
+            StringPattern::everything()
+        };
+        Ok(RevsetExpression::topics(pattern))
     });
     map.insert("git_refs", |name, arguments_pair, _state| {
         expect_no_arguments(name, arguments_pair)?;
@@ -2111,6 +2127,21 @@ impl PartialSymbolResolver for TagResolver {
     }
 }
 
+struct TopicResolver;
+
+impl PartialSymbolResolver for TopicResolver {
+    fn resolve_symbol(
+        &self,
+        repo: &dyn Repo,
+        symbol: &str,
+    ) -> Result<Option<Vec<CommitId>>, RevsetResolutionError> {
+        Ok(repo
+            .view()
+            .get_topic_commits(symbol)
+            .map(|set| set.iter().cloned().collect_vec()))
+    }
+}
+
 struct BranchResolver;
 
 impl PartialSymbolResolver for BranchResolver {
@@ -2146,8 +2177,12 @@ impl PartialSymbolResolver for GitRefResolver {
     }
 }
 
-const DEFAULT_RESOLVERS: &[&'static dyn PartialSymbolResolver] =
-    &[&TagResolver, &BranchResolver, &GitRefResolver];
+const DEFAULT_RESOLVERS: &[&'static dyn PartialSymbolResolver] = &[
+    &TagResolver,
+    &BranchResolver,
+    &TopicResolver,
+    &GitRefResolver,
+];
 
 #[derive(Default)]
 struct CommitPrefixResolver<'a> {
@@ -2329,6 +2364,15 @@ fn resolve_commit_ref(
             for ref_target in repo.view().tags().values() {
                 commit_ids.extend(ref_target.added_ids().cloned());
             }
+            Ok(commit_ids)
+        }
+        RevsetCommitRef::Topics(pattern) => {
+            let commit_ids = repo
+                .view()
+                .topics_matching(pattern)
+                .flat_map(|(_, ids)| ids)
+                .cloned()
+                .collect();
             Ok(commit_ids)
         }
         RevsetCommitRef::GitRefs => {
