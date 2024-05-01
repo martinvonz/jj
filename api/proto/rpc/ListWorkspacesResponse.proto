@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+import "objects/workspace.proto";
+
+package jj_api.rpc;
+
+message ListWorkspacesResponse {
+  repeated jj_api.objects.Workspace workspace = 1;
+}

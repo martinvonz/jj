@@ -13,6 +13,7 @@
 // limitations under the License.
 
 mod abandon;
+mod api;
 mod backout;
 #[cfg(feature = "bench")]
 mod bench;
@@ -69,6 +70,8 @@ use crate::ui::Ui;
 
 #[derive(clap::Parser, Clone, Debug)]
 enum Command {
+    #[command(subcommand)]
+    Api(api::ApiCommand),
     Abandon(abandon::AbandonArgs),
     Backout(backout::BackoutArgs),
     #[cfg(feature = "bench")]
@@ -203,6 +206,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Branch(sub_args) => branch::cmd_branch(ui, command_helper, sub_args),
         Command::Undo(sub_args) => operation::cmd_op_undo(ui, command_helper, sub_args),
         Command::Operation(sub_args) => operation::cmd_operation(ui, command_helper, sub_args),
+        Command::Api(sub_args) => api::cmd_api(ui, command_helper, sub_args),
         Command::Workspace(sub_args) => workspace::cmd_workspace(ui, command_helper, sub_args),
         Command::Sparse(sub_args) => sparse::cmd_sparse(ui, command_helper, sub_args),
         Command::Tag(sub_args) => tag::cmd_tag(ui, command_helper, sub_args),

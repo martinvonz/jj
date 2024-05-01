@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+import "objects/repo_options.proto";
+import "google/protobuf/field_mask.proto";
+
+package jj_api.rpc;
+
+message ListWorkspacesRequest {
+  jj_api.objects.RepoOptions repo = 1;
+  google.protobuf.FieldMask field_mask = 2;
+}

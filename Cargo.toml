@@ -2,7 +2,7 @@ cargo-features = []
 
 [workspace]
 resolver = "2"
-members = ["cli", "lib", "lib/gen-protos", "lib/proc-macros", "lib/testutils"]
+members = [ "api", "api_client","cli", "lib", "lib/gen-protos", "lib/proc-macros", "lib/testutils"]
 
 [workspace.package]
 version = "0.16.0"
@@ -70,8 +70,10 @@ pest_derive = "2.7.10"
 pollster = "0.3.0"
 pretty_assertions = "1.4.0"
 proc-macro2 = "1.0.81"
+protoc-bin-vendored = "3.0.0"
 prost = "0.12.3"
 prost-build = "0.12.3"
+prost-types = "0.12.3"
 quote = "1.0.36"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
@@ -96,8 +98,12 @@ test-case = "3.3.1"
 textwrap = "0.16.1"
 thiserror = "1.0.59"
 timeago = { version = "0.4.2", default-features = false }
-tokio = { version = "1.37.0" }
+tokio = { version = "1.37.0", features = ["rt", "macros"] }
 toml_edit = { version = "0.19.15", features = ["serde"] }
+tonic = "0.11.0"
+tonic-build = "0.11.0"
+tonic-reflection = "0.11.0"
+tonic-web = "0.11.0"
 tracing = "0.1.40"
 tracing-chrome = "0.7.2"
 tracing-subscriber = { version = "0.3.18", default-features = false, features = [
@@ -117,6 +123,7 @@ zstd = "0.12.4"
 # their own (alphabetically sorted) block
 
 jj-lib = { path = "lib", version = "0.16.0" }
+jj-api = { path = "api", version = "0.16.0" }
 jj-lib-proc-macros = { path = "lib/proc-macros", version = "0.16.0" }
 testutils = { path = "lib/testutils" }
 

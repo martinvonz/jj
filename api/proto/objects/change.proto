@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package jj_api.objects;
+
+message Change {
+  string change_id = 1;
+  string commit_id = 2;
+  // TODO: add more fields.
+}
