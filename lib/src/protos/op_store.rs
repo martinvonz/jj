@@ -96,6 +96,14 @@ pub struct Tag {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Topic {
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(bytes = "vec", repeated, tag = "2")]
+    pub commit_ids: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct View {
     #[prost(bytes = "vec", repeated, tag = "1")]
     pub head_ids: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
@@ -111,6 +119,8 @@ pub struct View {
     pub branches: ::prost::alloc::vec::Vec<Branch>,
     #[prost(message, repeated, tag = "6")]
     pub tags: ::prost::alloc::vec::Vec<Tag>,
+    #[prost(message, repeated, tag = "11")]
+    pub topics: ::prost::alloc::vec::Vec<Topic>,
     /// Only a subset of the refs. For example, does not include refs/notes/.
     #[prost(message, repeated, tag = "3")]
     pub git_refs: ::prost::alloc::vec::Vec<GitRef>,

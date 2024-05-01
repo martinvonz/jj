@@ -424,6 +424,13 @@ fn view_to_proto(view: &View) -> crate::protos::op_store::View {
         });
     }
 
+    for (name, commit_ids) in &view.topics {
+        proto.topics.push(crate::protos::op_store::Topic {
+            name: name.clone(),
+            commit_ids: commit_ids.iter().map(|id| id.to_bytes()).collect(),
+        });
+    }
+
     for (git_ref_name, target) in &view.git_refs {
         proto.git_refs.push(crate::protos::op_store::GitRef {
             name: git_ref_name.clone(),
@@ -461,6 +468,18 @@ fn view_from_proto(proto: crate::protos::op_store::View) -> View {
     for tag_proto in proto.tags {
         view.tags
             .insert(tag_proto.name, ref_target_from_proto(tag_proto.target));
+    }
+
+    for topic_proto in proto.topics {
+        view.topics.insert(
+            topic_proto.name,
+            topic_proto
+                .commit_ids
+                .iter()
+                .cloned()
+                .map(CommitId::new)
+                .collect(),
+        );
     }
 
     for git_ref in proto.git_refs {
@@ -715,6 +734,9 @@ mod tests {
             },
             tags: btreemap! {
                 "v1.0".to_string() => tag_v1_target,
+            },
+            topics: btreemap! {
+                "topic".to_string() => hashset![CommitId::from_hex("ccc111"), CommitId::from_hex("ccc222")],
             },
             remote_views: btreemap! {
                 "origin".to_string() => RemoteView {

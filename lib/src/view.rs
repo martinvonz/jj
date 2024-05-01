@@ -344,6 +344,7 @@ impl View {
             head_ids,
             local_branches,
             tags,
+            topics,
             remote_views,
             git_refs,
             git_head,
@@ -352,6 +353,7 @@ impl View {
         itertools::chain!(
             head_ids,
             local_branches.values().flat_map(ref_target_ids),
+            topics.values().flatten(),
             tags.values().flat_map(ref_target_ids),
             remote_views.values().flat_map(|remote_view| {
                 let op_store::RemoteView { branches } = remote_view;
