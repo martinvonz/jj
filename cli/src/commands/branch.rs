@@ -169,6 +169,10 @@ pub struct BranchSetArgs {
     #[arg(long, short = 'B')]
     pub allow_backwards: bool,
 
+    /// Allow creating the branch if it does not exist.
+    #[arg(long, short = 'c')]
+    pub create: bool,
+
     /// The branches to update.
     #[arg(required = true)]
     pub names: Vec<String>,
@@ -353,13 +357,13 @@ fn cmd_branch_set(
     let branch_names = &args.names;
     for name in branch_names {
         let old_target = repo.view().get_local_branch(name);
-        if old_target.is_absent() {
+        if !args.create && old_target.is_absent() {
             return Err(user_error_with_hint(
                 format!("No such branch: {name}"),
-                "Use `jj branch create` to create it.",
+                "Use `jj branch create` or `jj branch set --create` to create it.",
             ));
         }
-        if !args.allow_backwards && !is_fast_forward(old_target) {
+        if !args.allow_backwards && !old_target.is_absent() && !is_fast_forward(old_target) {
             return Err(user_error_with_hint(
                 format!("Refusing to move branch backwards or sideways: {name}"),
                 "Use --allow-backwards to allow it.",

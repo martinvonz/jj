@@ -68,6 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Commit objects in templates now have a `contained_in(revset: String) ->
   Boolean` method.
 
+* `jj branch set` now accepts `-c`/`--create` option to create the branch if it does not exist.
+
 ### Fixed bugs
 
 * Revsets now support `\`-escapes in string literal.
