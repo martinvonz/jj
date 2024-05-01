@@ -14,7 +14,9 @@
 
 #![allow(missing_docs)]
 
+use std::collections::hash_map::IntoIter;
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::ops::{AddAssign, Deref, DerefMut};
 
 use itertools::Itertools;
 
@@ -303,6 +305,108 @@ impl View {
         }
     }
 
+    #[must_use]
+    pub fn has_topic(&self, name: &str) -> bool {
+        self.data.topics.contains_key(name)
+    }
+
+    pub fn remove_topic(&mut self, name: &str) {
+        self.data.topics.remove(name);
+    }
+
+    /// Iterates local topics `(name, commit_ids)`s in lexicographical order.
+    pub fn topics(&self) -> &BTreeMap<String, HashSet<CommitId>> {
+        &self.data.topics
+    }
+
+    /// Iterates topics `(name, commit_ids)`s containing the given commit id in
+    /// lexicographical order
+    pub fn topics_containing_commit<'a: 'b, 'b>(
+        &'a self,
+        commit_id: &'b CommitId,
+    ) -> impl Iterator<Item = &String> + 'b {
+        self.topics().iter().filter_map(|(topic, commit_ids)| {
+            if commit_ids.contains(commit_id) {
+                Some(topic)
+            } else {
+                None
+            }
+        })
+    }
+
+    /// Iterates topic `(name, commit_ids)`s matching the given pattern.
+    /// Entries are sorted by `name`.
+    pub fn topics_matching<'a: 'b, 'b>(
+        &'a self,
+        pattern: &'b StringPattern,
+    ) -> impl Iterator<Item = (&'a String, &'a HashSet<CommitId>)> + 'b {
+        pattern.filter_btree_map(&self.data.topics)
+    }
+
+    pub fn get_topic_commits(&self, name: &str) -> Option<&HashSet<CommitId>> {
+        self.data.topics.get(name)
+    }
+
+    pub fn update_topics<S, I, F>(&mut self, topics: I, update: F) -> ViewTopicsDiff
+    where
+        S: AsRef<str> + ToString,
+        I: IntoIterator<Item = S>,
+        F: Fn(&str, &HashSet<CommitId>) -> Option<HashSet<CommitId>>,
+    {
+        let mut stats = ViewTopicsDiff::default();
+
+        for topic in topics {
+            let Some(changes) = self.update_topic(topic.as_ref(), &update) else {
+                continue;
+            };
+
+            stats.insert(topic.to_string(), changes);
+        }
+        stats
+    }
+
+    pub fn update_existing_topics<F>(&mut self, update: F) -> ViewTopicsDiff
+    where
+        F: Fn(&str, &HashSet<CommitId>) -> Option<HashSet<CommitId>>,
+    {
+        let mut stats = ViewTopicsDiff::default();
+
+        for topic in self.data.topics.keys().cloned().collect_vec() {
+            let Some(changes) = self.update_topic(&topic, &update) else {
+                continue;
+            };
+
+            stats.insert(topic.to_string(), changes);
+        }
+        stats
+    }
+
+    fn update_topic<S, F>(&mut self, name: S, update: &F) -> Option<TopicDiff>
+    where
+        S: AsRef<str> + ToString,
+        F: Fn(&str, &HashSet<CommitId>) -> Option<HashSet<CommitId>>,
+    {
+        let before = self.data.topics.get(name.as_ref());
+        let after = update(name.as_ref(), before.unwrap_or(&HashSet::new()))?;
+        let changes = TopicDiff::new(before.unwrap_or(&Default::default()), &after);
+        if changes.is_empty() {
+            return None;
+        }
+
+        self.set_topic_commits(name.to_string(), after);
+        Some(changes)
+    }
+
+    /// Sets topic to contain to the given commit ids.
+    /// If empty the topic will be removed.
+    fn set_topic_commits(&mut self, name: String, commit_ids: HashSet<CommitId>) {
+        if commit_ids.is_empty() {
+            self.data.topics.remove(&name);
+        } else {
+            self.data.topics.insert(name.to_string(), commit_ids);
+        }
+    }
+
     pub fn get_git_ref(&self, name: &str) -> &RefTarget {
         self.data.git_refs.get(name).flatten()
     }
@@ -377,5 +481,94 @@ impl View {
 
     pub fn store_view_mut(&mut self) -> &mut op_store::View {
         &mut self.data
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct ViewTopicsDiff(pub HashMap<String, TopicDiff>);
+
+impl ViewTopicsDiff {
+    pub fn affected(&self) -> HashSet<&CommitId> {
+        self.iter().fold(HashSet::new(), |mut acc, (_, diff)| {
+            acc.extend(&diff.added);
+            acc.extend(&diff.removed);
+            acc
+        })
+    }
+}
+
+impl AddAssign for ViewTopicsDiff {
+    fn add_assign(&mut self, rhs: Self) {
+        for (topic, stats) in rhs.0 {
+            *self.0.entry(topic).or_default() += stats;
+        }
+    }
+}
+
+impl Deref for ViewTopicsDiff {
+    type Target = HashMap<String, TopicDiff>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ViewTopicsDiff {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl IntoIterator for ViewTopicsDiff {
+    type Item = (String, TopicDiff);
+
+    type IntoIter = IntoIter<String, TopicDiff>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct TopicDiff {
+    added: HashSet<CommitId>,
+    removed: HashSet<CommitId>,
+}
+
+impl TopicDiff {
+    pub fn len(&self) -> usize {
+        self.added.len() + self.removed.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.added.is_empty() && self.removed.is_empty()
+    }
+
+    pub fn new(before: &HashSet<CommitId>, after: &HashSet<CommitId>) -> Self {
+        Self {
+            added: HashSet::from_iter(after.difference(before).cloned()),
+            removed: HashSet::from_iter(before.difference(after).cloned()),
+        }
+    }
+
+    pub fn added(&self) -> &HashSet<CommitId> {
+        &self.added
+    }
+
+    pub fn removed(&self) -> &HashSet<CommitId> {
+        &self.removed
+    }
+}
+
+impl AddAssign for TopicDiff {
+    fn add_assign(&mut self, rhs: Self) {
+        for removed in &rhs.removed {
+            self.added.remove(removed);
+        }
+        for added in &rhs.added {
+            self.removed.remove(added);
+        }
+        self.added.extend(rhs.added);
+        self.removed.extend(rhs.removed);
     }
 }

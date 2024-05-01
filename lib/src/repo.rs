@@ -57,9 +57,10 @@ use crate::signing::{SignInitError, Signer};
 use crate::simple_op_heads_store::SimpleOpHeadsStore;
 use crate::simple_op_store::SimpleOpStore;
 use crate::store::Store;
+use crate::str_util::StringPattern;
 use crate::submodule_store::SubmoduleStore;
 use crate::transaction::Transaction;
-use crate::view::View;
+use crate::view::{View, ViewTopicsDiff};
 use crate::{backend, dag_walk, op_store, revset};
 
 pub trait Repo {
@@ -1520,6 +1521,88 @@ impl MutableRepo {
         let self_target = view.get_tag(name);
         let new_target = merge_ref_targets(index, self_target, base_target, other_target);
         view.set_tag_target(name, new_target);
+    }
+
+    pub fn remove_topics(&mut self, topics: Vec<StringPattern>) -> ViewTopicsDiff {
+        self.update_topics_by_patterns(topics, |_, _| Some(HashSet::new()))
+    }
+
+    /// Sets topic to contain to the given commit ids.
+    /// If empty the topic will be removed.
+    pub fn set_topic_commits(
+        &mut self,
+        topics: HashSet<String>,
+        commit_ids: &HashSet<CommitId>,
+        exclusive_topics: bool,
+        exclusive_commits: bool,
+    ) -> ViewTopicsDiff {
+        let mut stats = self.update_topics(&topics, |_, old| {
+            Some(if exclusive_commits {
+                commit_ids.clone()
+            } else {
+                HashSet::from_iter(commit_ids.union(old).cloned())
+            })
+        });
+        if exclusive_topics {
+            let topics = self
+                .view()
+                .topics()
+                .keys()
+                .filter(|topic| !topics.contains(*topic))
+                .cloned()
+                .collect_vec();
+            stats += self.update_topics(topics, |_, old| {
+                Some(HashSet::from_iter(old.difference(commit_ids).cloned()))
+            });
+        }
+        stats
+    }
+
+    /// Dissssociates the given topics from the given commit ids.
+    /// Empty topics will be removed.
+    pub fn disassociate_topics_from_commits(
+        &mut self,
+        topics: Vec<StringPattern>,
+        commit_ids: &HashSet<CommitId>,
+    ) -> ViewTopicsDiff {
+        self.update_topics_by_patterns(topics, |_, old| {
+            Some(HashSet::from_iter(old.difference(commit_ids).cloned()))
+        })
+    }
+
+    fn update_topics_by_patterns<F>(
+        &mut self,
+        topics: Vec<StringPattern>,
+        update: F,
+    ) -> ViewTopicsDiff
+    where
+        F: Fn(&str, &HashSet<CommitId>) -> Option<HashSet<CommitId>>,
+    {
+        self.update_topics(
+            self.view()
+                .topics()
+                .keys()
+                .filter(|topic| topics.iter().any(|pattern| pattern.matches(topic)))
+                .cloned()
+                .collect_vec(),
+            update,
+        )
+    }
+
+    pub fn update_topics<S, I, F>(&mut self, topics: I, update: F) -> ViewTopicsDiff
+    where
+        S: AsRef<str> + ToString,
+        I: IntoIterator<Item = S>,
+        F: Fn(&str, &HashSet<CommitId>) -> Option<HashSet<CommitId>>,
+    {
+        self.view_mut().update_topics(topics, update)
+    }
+
+    pub fn update_existing_topics<F>(&mut self, update: F) -> ViewTopicsDiff
+    where
+        F: Fn(&str, &HashSet<CommitId>) -> Option<HashSet<CommitId>>,
+    {
+        self.view_mut().update_existing_topics(update)
     }
 
     pub fn get_git_ref(&self, name: &str) -> RefTarget {
