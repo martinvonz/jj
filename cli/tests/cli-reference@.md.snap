@@ -64,6 +64,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj operation diff`↴](#jj-operation-diff)
 * [`jj operation log`↴](#jj-operation-log)
 * [`jj operation restore`↴](#jj-operation-restore)
+* [`jj operation show`↴](#jj-operation-show)
 * [`jj operation undo`↴](#jj-operation-undo)
 * [`jj parallelize`↴](#jj-parallelize)
 * [`jj prev`↴](#jj-prev)
@@ -1242,6 +1243,7 @@ For information about the operation log, see https://github.com/martinvonz/jj/bl
 * `diff` — Compare changes to the repository between two operations
 * `log` — Show the operation log
 * `restore` — Create a new operation that restores the repo to an earlier state
+* `show` — Show changes to the repository in an operation
 * `undo` — Create a new operation that undoes an earlier operation
 
 
@@ -1338,6 +1340,39 @@ This restores the repo to the state at the specified operation, effectively undo
   - `remote-tracking`:
     The remote-tracking branches. Do not restore these if you'd like to push after the undo
 
+
+
+
+## `jj operation show`
+
+Show changes to the repository in an operation
+
+**Usage:** `jj operation show [OPTIONS] [OPERATION]`
+
+###### **Arguments:**
+
+* `<OPERATION>` — Show repository changes in this operation, compared to its parent(s)
+
+  Default value: `@`
+
+###### **Options:**
+
+* `--no-graph` — Don't show the graph, show a flat list of modified changes
+* `-p`, `--patch` — Show patch of modifications to changes
+
+   If the previous version has different parents, it will be temporarily rebased to the parents of the new version, so the diff is not contaminated by unrelated changes.
+* `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
+* `--stat` — Show a histogram of the changes
+* `--types` — For each path, show only its type before and after
+
+   The diff is shown as two letters. The first letter indicates the type before and the second letter indicates the type after. '-' indicates that the path was not present, 'F' represents a regular file, `L' represents a symlink, 'C' represents a conflict, and 'G' represents a Git submodule.
+* `--name-only` — For each path, show only its path
+
+   Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
+* `--git` — Show a Git-format diff
+* `--color-words` — Show a word-level diff with changes indicated only by color
+* `--tool <TOOL>` — Generate diff by external command
+* `--context <CONTEXT>` — Number of lines of context to show
 
 
 
