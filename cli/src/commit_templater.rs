@@ -38,7 +38,7 @@ use crate::template_builder::{
 use crate::template_parser::{self, FunctionCallNode, TemplateParseError, TemplateParseResult};
 use crate::templater::{
     self, PlainTextFormattedProperty, Template, TemplateFormatter, TemplateProperty,
-    TemplatePropertyError, TemplatePropertyExt as _,
+    TemplatePropertyExt as _,
 };
 use crate::{revset_util, text_util};
 
@@ -130,9 +130,7 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
                 let type_name = "Commit";
                 let table = &self.build_fn_table.commit_methods;
                 let build = template_parser::lookup_method(type_name, table, function)?;
-                let inner_property = property.and_then(|opt| {
-                    opt.ok_or_else(|| TemplatePropertyError("No commit available".into()))
-                });
+                let inner_property = property.try_unwrap(type_name);
                 build(self, build_ctx, Box::new(inner_property), function)
             }
             CommitTemplatePropertyKind::CommitList(property) => {
@@ -154,9 +152,7 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
                 let type_name = "RefName";
                 let table = &self.build_fn_table.ref_name_methods;
                 let build = template_parser::lookup_method(type_name, table, function)?;
-                let inner_property = property.and_then(|opt| {
-                    opt.ok_or_else(|| TemplatePropertyError("No RefName available".into()))
-                });
+                let inner_property = property.try_unwrap(type_name);
                 build(self, build_ctx, Box::new(inner_property), function)
             }
             CommitTemplatePropertyKind::RefNameList(property) => {

@@ -100,7 +100,7 @@ fn test_tag_list() {
     [conflicted_tag]
     present: true
     conflict: true
-    normal_target: <Error: No commit available>
+    normal_target: <Error: No Commit available>
     removed_targets: commit1
     added_targets: commit2 commit3
     [test_tag]

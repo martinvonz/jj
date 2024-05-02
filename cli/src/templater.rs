@@ -349,6 +349,17 @@ pub trait TemplatePropertyExt: TemplateProperty {
         TemplateFunction::new(self, move |value| Ok(function(value)))
     }
 
+    /// Translates to a property that will unwrap an extracted `Option` value
+    /// of the specified `type_name`, mapping `None` to `Err`.
+    fn try_unwrap<O>(self, type_name: &str) -> impl TemplateProperty<Output = O>
+    where
+        Self: TemplateProperty<Output = Option<O>> + Sized,
+    {
+        self.and_then(move |opt| {
+            opt.ok_or_else(|| TemplatePropertyError(format!("No {type_name} available").into()))
+        })
+    }
+
     /// Converts this property into `Template`.
     fn into_template<'a>(self) -> Box<dyn Template + 'a>
     where
