@@ -1564,6 +1564,10 @@ impl MutableRepo {
         self.view.mark_dirty();
     }
 
+    pub fn merge_index(&mut self, other_repo: &ReadonlyRepo) {
+        self.index.merge_in(other_repo.readonly_index());
+    }
+
     fn merge_view(&mut self, base: &View, other: &View) {
         // Merge working-copy commits. If there's a conflict, we keep the self side.
         for (workspace_id, base_wc_commit) in base.wc_commit_ids() {
