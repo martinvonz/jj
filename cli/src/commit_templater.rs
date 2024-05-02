@@ -489,7 +489,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
     );
     map.insert("mine", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let user_email = language.revset_parse_context.user_email().clone();
+        let user_email = language.revset_parse_context.user_email().to_owned();
         let out_property = self_property.map(move |commit| commit.author().email == user_email);
         Ok(L::wrap_boolean(out_property))
     });

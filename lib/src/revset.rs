@@ -14,7 +14,7 @@
 
 #![allow(missing_docs)]
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{hash_map, HashMap, HashSet};
 use std::convert::Infallible;
 use std::ops::Range;
 use std::path::Path;
@@ -806,6 +806,7 @@ impl fmt::Display for RevsetAliasId<'_> {
 
 #[derive(Clone, Copy, Debug)]
 pub struct ParseState<'a> {
+    function_map: &'a HashMap<&'static str, &'a RevsetFunction>,
     aliases_map: &'a RevsetAliasesMap,
     aliases_expanding: &'a [RevsetAliasId<'a>],
     locals: &'a HashMap<&'a str, Rc<RevsetExpression>>,
@@ -821,6 +822,7 @@ impl<'a> ParseState<'a> {
         locals: &'a HashMap<&str, Rc<RevsetExpression>>,
     ) -> Self {
         ParseState {
+            function_map: &context.function_map,
             aliases_map: context.aliases_map,
             aliases_expanding: &[],
             locals,
@@ -847,6 +849,7 @@ impl<'a> ParseState<'a> {
         let mut aliases_expanding = self.aliases_expanding.to_vec();
         aliases_expanding.push(id);
         let expanding_state = ParseState {
+            function_map: self.function_map,
             aliases_map: self.aliases_map,
             aliases_expanding: &aliases_expanding,
             locals,
@@ -1152,22 +1155,28 @@ fn parse_function_expression(
         state.with_alias_expanding(id, &locals, primary_span, |state| {
             parse_program(defn, state)
         })
-    } else if let Some(func) = BUILTIN_FUNCTION_MAP.get(name) {
+    } else if let Some(func) = state.function_map.get(name) {
         func(name, arguments_pair, state)
     } else {
         Err(RevsetParseError::with_span(
             RevsetParseErrorKind::NoSuchFunction {
                 name: name.to_owned(),
-                candidates: collect_similar(name, all_function_names(state.aliases_map)),
+                candidates: collect_similar(
+                    name,
+                    all_function_names(state.function_map.keys().copied(), state.aliases_map),
+                ),
             },
             name_pair.as_span(),
         ))
     }
 }
 
-fn all_function_names(aliases_map: &RevsetAliasesMap) -> impl Iterator<Item = &str> {
+fn all_function_names<'a>(
+    function_keys: impl Iterator<Item = &'a str>,
+    aliases_map: &'a RevsetAliasesMap,
+) -> impl Iterator<Item = &'a str> {
     itertools::chain(
-        BUILTIN_FUNCTION_MAP.keys().copied(),
+        function_keys,
         aliases_map.function_aliases.keys().map(|n| n.as_ref()),
     )
 }
@@ -2640,7 +2649,7 @@ impl Iterator for ReverseRevsetIterator {
 #[derive(Default)]
 pub struct RevsetExtensions {
     symbol_resolvers: Vec<Box<dyn SymbolResolverExtension>>,
-    // TODO: Add more fields for extending the revset language
+    custom_functions: HashMap<&'static str, RevsetFunction>,
 }
 
 impl RevsetExtensions {
@@ -2651,6 +2660,15 @@ impl RevsetExtensions {
     pub fn add_symbol_resolver(&mut self, symbol_resolver: Box<dyn SymbolResolverExtension>) {
         self.symbol_resolvers.push(symbol_resolver);
     }
+
+    pub fn add_custom_function(&mut self, name: &'static str, func: RevsetFunction) {
+        match self.custom_functions.entry(name) {
+            hash_map::Entry::Occupied(_) => {
+                panic!("Multiple extensions tried to register revset function '{name}'")
+            }
+            hash_map::Entry::Vacant(v) => v.insert(func),
+        };
+    }
 }
 
 /// Information needed to parse revset expression.
@@ -2660,6 +2678,7 @@ pub struct RevsetParseContext<'a> {
     user_email: String,
     extensions: &'a RevsetExtensions,
     workspace: Option<RevsetWorkspaceContext<'a>>,
+    function_map: HashMap<&'static str, &'a RevsetFunction>,
 }
 
 impl<'a> RevsetParseContext<'a> {
@@ -2669,11 +2688,23 @@ impl<'a> RevsetParseContext<'a> {
         extensions: &'a RevsetExtensions,
         workspace: Option<RevsetWorkspaceContext<'a>>,
     ) -> Self {
+        let mut function_map = HashMap::<&'static str, &'a RevsetFunction>::new();
+        for (name, func) in BUILTIN_FUNCTION_MAP.iter() {
+            function_map.insert(name, func);
+        }
+        for (name, func) in &extensions.custom_functions {
+            match function_map.entry(name) {
+                hash_map::Entry::Occupied(_) => panic!("Cannot override builtin function '{name}'"),
+                hash_map::Entry::Vacant(v) => v.insert(func),
+            };
+        }
+
         Self {
             aliases_map,
             user_email,
             extensions,
             workspace,
+            function_map,
         }
     }
 
@@ -2681,7 +2712,7 @@ impl<'a> RevsetParseContext<'a> {
         self.aliases_map
     }
 
-    pub fn user_email(&self) -> &String {
+    pub fn user_email(&self) -> &str {
         &self.user_email
     }
 
