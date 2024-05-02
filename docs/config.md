@@ -547,6 +547,10 @@ merge-tools.vimdiff.merge-args = ["-f", "-d", "$output", "-M",
     "-c", "set write"]
 merge-tools.vimdiff.program = "vim"
 merge-tools.vimdiff.merge-tool-edits-conflict-markers = true    # See below for an explanation
+
+# For IntelliJ IDEA or other JetBrains products on macOS
+merge-tools.idea.program = "/Applications/IntelliJ IDEA.app/Contents/MacOS/idea"
+merge-tools.idea.merge-args = ["merge", "$left", "$right", "$base", "$output"]
 ```
 
 `jj` makes the following substitutions:
