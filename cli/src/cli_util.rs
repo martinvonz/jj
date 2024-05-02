@@ -2366,7 +2366,7 @@ pub struct GlobalArgs {
     /// implies `--ignore-working-copy`.
     #[arg(long, global = true)]
     pub ignore_working_copy: bool,
-    /// Don't prevent rewriting immutable commits
+    /// Allow rewriting immutable commits
     ///
     /// By default, Jujutsu prevents rewriting commits in the configured set of
     /// immutable commits. This option disables that check and lets you rewrite
