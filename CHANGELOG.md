@@ -67,6 +67,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * New `diff_contains()` revset function can be used to search diffs.
 
+* New command `jj operation diff` that can compare changes made between two
+  operations.
+
 ### Fixed bugs
 
 * `jj diff --git` no longer shows the contents of binary files.
