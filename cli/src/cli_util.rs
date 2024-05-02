@@ -54,8 +54,9 @@ use jj_lib::repo::{
 };
 use jj_lib::repo_path::{FsPathParseError, RepoPath, RepoPathBuf};
 use jj_lib::revset::{
-    RevsetAliasesMap, RevsetExpression, RevsetExtensions, RevsetFilterPredicate, RevsetIteratorExt,
-    RevsetModifier, RevsetParseContext, RevsetWorkspaceContext, SymbolResolverExtension,
+    RevsetAliasesMap, RevsetExpression, RevsetExtensions, RevsetFilterPredicate, RevsetFunction,
+    RevsetIteratorExt, RevsetModifier, RevsetParseContext, RevsetWorkspaceContext,
+    SymbolResolverExtension,
 };
 use jj_lib::rewrite::restore_tree;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
@@ -2744,6 +2745,15 @@ impl CliRunner {
         symbol_resolver: Box<dyn SymbolResolverExtension>,
     ) -> Self {
         self.revset_extensions.add_symbol_resolver(symbol_resolver);
+        self
+    }
+
+    pub fn add_revset_function_extension(
+        mut self,
+        name: &'static str,
+        func: RevsetFunction,
+    ) -> Self {
+        self.revset_extensions.add_custom_function(name, func);
         self
     }
 
