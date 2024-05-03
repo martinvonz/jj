@@ -13,11 +13,9 @@
 // limitations under the License.
 
 use jj_lib::backend::CommitId;
+use jj_lib::graph::{GraphEdgeType, ReverseGraphIterator, TopoGroupedGraphIterator};
 use jj_lib::repo::Repo;
 use jj_lib::revset::{RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt};
-use jj_lib::revset_graph::{
-    ReverseRevsetGraphIterator, RevsetGraphEdgeType, TopoGroupedRevsetGraphIterator,
-};
 use tracing::instrument;
 
 use crate::cli_util::{format_template, CommandHelper, LogContentFormat, RevisionArg};
@@ -141,9 +139,9 @@ pub(crate) fn cmd_log(
 
         if !args.no_graph {
             let mut graph = get_graphlog(command.settings(), formatter.raw());
-            let forward_iter = TopoGroupedRevsetGraphIterator::new(revset.iter_graph());
+            let forward_iter = TopoGroupedGraphIterator::new(revset.iter_graph());
             let iter: Box<dyn Iterator<Item = _>> = if args.reversed {
-                Box::new(ReverseRevsetGraphIterator::new(forward_iter))
+                Box::new(ReverseGraphIterator::new(forward_iter))
             } else {
                 Box::new(forward_iter)
             };
@@ -157,13 +155,13 @@ pub(crate) fn cmd_log(
                 let mut elided_targets = vec![];
                 for edge in edges {
                     match edge.edge_type {
-                        RevsetGraphEdgeType::Missing => {
+                        GraphEdgeType::Missing => {
                             has_missing = true;
                         }
-                        RevsetGraphEdgeType::Direct => {
+                        GraphEdgeType::Direct => {
                             graphlog_edges.push(Edge::Direct((edge.target, false)));
                         }
-                        RevsetGraphEdgeType::Indirect => {
+                        GraphEdgeType::Indirect => {
                             if use_elided_nodes {
                                 elided_targets.push(edge.target.clone());
                                 graphlog_edges.push(Edge::Direct((edge.target, true)));

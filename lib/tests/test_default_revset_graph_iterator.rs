@@ -13,12 +13,13 @@
 // limitations under the License.
 
 use itertools::Itertools;
+use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
 use jj_lib::default_index::revset_engine::{evaluate, RevsetImpl};
 use jj_lib::default_index::DefaultReadonlyIndex;
+use jj_lib::graph::GraphEdge;
 use jj_lib::repo::{ReadonlyRepo, Repo as _};
 use jj_lib::revset::ResolvedExpression;
-use jj_lib::revset_graph::RevsetGraphEdge;
 use test_case::test_case;
 use testutils::{CommitGraphBuilder, TestRepo};
 
@@ -36,16 +37,16 @@ fn revset_for_commits(
     evaluate(&expression, repo.store(), index.clone()).unwrap()
 }
 
-fn direct(commit: &Commit) -> RevsetGraphEdge {
-    RevsetGraphEdge::direct(commit.id().clone())
+fn direct(commit: &Commit) -> GraphEdge<CommitId> {
+    GraphEdge::direct(commit.id().clone())
 }
 
-fn indirect(commit: &Commit) -> RevsetGraphEdge {
-    RevsetGraphEdge::indirect(commit.id().clone())
+fn indirect(commit: &Commit) -> GraphEdge<CommitId> {
+    GraphEdge::indirect(commit.id().clone())
 }
 
-fn missing(commit: &Commit) -> RevsetGraphEdge {
-    RevsetGraphEdge::missing(commit.id().clone())
+fn missing(commit: &Commit) -> GraphEdge<CommitId> {
+    GraphEdge::missing(commit.id().clone())
 }
 
 #[test_case(false ; "keep transitive edges")]
