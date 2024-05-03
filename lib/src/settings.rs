@@ -150,7 +150,7 @@ impl UserSettings {
     pub fn use_tree_conflict_format(&self) -> bool {
         self.config
             .get_bool("format.tree-level-conflicts")
-            .unwrap_or(false)
+            .unwrap_or(true)
     }
 
     pub fn user_name(&self) -> String {

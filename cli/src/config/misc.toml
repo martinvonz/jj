@@ -5,9 +5,6 @@ amend = ["squash"]
 co = ["checkout"]
 unamend = ["unsquash"]
 
-[format]
-tree-level-conflicts = true
-
 [ui]
 allow-filesets = false
 always-allow-large-revsets = false

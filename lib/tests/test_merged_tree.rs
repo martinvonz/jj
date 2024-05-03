@@ -26,7 +26,7 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
 use jj_lib::tree::merge_trees;
 use pretty_assertions::assert_eq;
-use testutils::{create_single_tree, write_file, TestRepo};
+use testutils::{create_single_tree, user_settings_with_extra_config, write_file, TestRepo};
 
 fn file_value(file_id: &FileId) -> TreeValue {
     TreeValue::File {
@@ -50,7 +50,12 @@ fn diff_stream_equals_iter(tree1: &MergedTree, tree2: &MergedTree, matcher: &dyn
 
 #[test]
 fn test_from_legacy_tree() {
-    let test_repo = TestRepo::init();
+    // TODO: Find out why this test does not works with tree-level conflicts
+    let test_repo =
+        TestRepo::init_with_settings(&user_settings_with_extra_config(config::File::from_str(
+            "format.tree-level-conflicts=false",
+            config::FileFormat::Toml,
+        )));
     let repo = &test_repo.repo;
     let store = repo.store();
 
@@ -211,6 +216,7 @@ fn test_from_legacy_tree() {
         MergedTreeVal::Resolved(tree.value(dir1_basename))
     );
 
+    // TODO FIXME
     // Create the merged tree by starting from an empty merged tree and adding
     // entries from the merged tree we created before
     let empty_merged_id_builder: MergeBuilder<_> = std::iter::repeat(store.empty_tree_id())

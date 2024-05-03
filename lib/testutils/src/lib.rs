@@ -101,6 +101,13 @@ pub fn user_settings() -> UserSettings {
     UserSettings::from_config(config)
 }
 
+pub fn user_settings_with_extra_config(
+    extra_source: impl config::Source + Send + Sync + 'static,
+) -> UserSettings {
+    let config = base_config().add_source(extra_source).build().unwrap();
+    UserSettings::from_config(config)
+}
+
 pub struct TestRepo {
     _temp_dir: TempDir,
     pub repo: Arc<ReadonlyRepo>,
