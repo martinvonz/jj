@@ -805,7 +805,7 @@ impl fmt::Display for RevsetAliasId<'_> {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct ParseState<'a> {
+pub struct ParseState<'a> {
     aliases_map: &'a RevsetAliasesMap,
     aliases_expanding: &'a [RevsetAliasId<'a>],
     locals: &'a HashMap<&'a str, Rc<RevsetExpression>>,
@@ -906,7 +906,7 @@ fn parse_program_with_modifier(
     }
 }
 
-fn parse_expression_rule(
+pub fn parse_expression_rule(
     pairs: Pairs<Rule>,
     state: ParseState,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
@@ -1172,7 +1172,7 @@ fn all_function_names(aliases_map: &RevsetAliasesMap) -> impl Iterator<Item = &s
     )
 }
 
-type RevsetFunction =
+pub type RevsetFunction =
     fn(&str, Pair<Rule>, ParseState) -> Result<Rc<RevsetExpression>, RevsetParseError>;
 
 static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy::new(|| {
@@ -1372,7 +1372,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
 
 type OptionalArg<'i> = Option<Pair<'i, Rule>>;
 
-fn expect_no_arguments(
+pub fn expect_no_arguments(
     function_name: &str,
     arguments_pair: Pair<Rule>,
 ) -> Result<(), RevsetParseError> {
@@ -1380,7 +1380,7 @@ fn expect_no_arguments(
     Ok(())
 }
 
-fn expect_one_argument<'i>(
+pub fn expect_one_argument<'i>(
     function_name: &str,
     arguments_pair: Pair<'i, Rule>,
 ) -> Result<Pair<'i, Rule>, RevsetParseError> {
@@ -1388,7 +1388,7 @@ fn expect_one_argument<'i>(
     Ok(arg)
 }
 
-fn expect_arguments<'i, const N: usize, const M: usize>(
+pub fn expect_arguments<'i, const N: usize, const M: usize>(
     function_name: &str,
     arguments_pair: Pair<'i, Rule>,
 ) -> Result<([Pair<'i, Rule>; N], [OptionalArg<'i>; M]), RevsetParseError> {
@@ -1399,7 +1399,7 @@ fn expect_arguments<'i, const N: usize, const M: usize>(
 ///
 /// `argument_names` is a list of argument names. Unnamed positional arguments
 /// should be padded with `""`.
-fn expect_named_arguments<'i, const N: usize, const M: usize>(
+pub fn expect_named_arguments<'i, const N: usize, const M: usize>(
     function_name: &str,
     argument_names: &[&str],
     arguments_pair: Pair<'i, Rule>,
@@ -1409,7 +1409,7 @@ fn expect_named_arguments<'i, const N: usize, const M: usize>(
     Ok((required.try_into().unwrap(), optional.try_into().unwrap()))
 }
 
-fn expect_named_arguments_vec<'i>(
+pub fn expect_named_arguments_vec<'i>(
     function_name: &str,
     argument_names: &[&str],
     arguments_pair: Pair<'i, Rule>,
@@ -1486,7 +1486,7 @@ fn expect_named_arguments_vec<'i>(
     Ok((required, optional))
 }
 
-fn parse_function_argument_to_file_pattern(
+pub fn parse_function_argument_to_file_pattern(
     name: &str,
     pair: Pair<Rule>,
     state: ParseState,
@@ -1499,7 +1499,7 @@ fn parse_function_argument_to_file_pattern(
     parse_function_argument_as_pattern("file pattern", name, pair, state, parse_pattern)
 }
 
-fn parse_function_argument_to_string_pattern(
+pub fn parse_function_argument_to_string_pattern(
     name: &str,
     pair: Pair<Rule>,
     state: ParseState,
@@ -1543,7 +1543,7 @@ fn parse_function_argument_as_pattern<T, E: Into<Box<dyn error::Error + Send + S
     }
 }
 
-fn parse_function_argument_as_literal<T: FromStr>(
+pub fn parse_function_argument_as_literal<T: FromStr>(
     type_name: &str,
     name: &str,
     pair: Pair<Rule>,
