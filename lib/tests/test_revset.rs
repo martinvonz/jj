@@ -21,6 +21,7 @@ use jj_lib::commit::Commit;
 use jj_lib::fileset::FilesetExpression;
 use jj_lib::git;
 use jj_lib::git_backend::GitBackend;
+use jj_lib::graph::{GraphEdge, ReverseGraphIterator};
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::{RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
 use jj_lib::repo::Repo;
@@ -30,7 +31,6 @@ use jj_lib::revset::{
     RevsetAliasesMap, RevsetExpression, RevsetExtensions, RevsetFilterPredicate,
     RevsetParseContext, RevsetResolutionError, RevsetWorkspaceContext, SymbolResolverExtension,
 };
-use jj_lib::revset_graph::{ReverseRevsetGraphIterator, RevsetGraphEdge};
 use jj_lib::settings::GitSettings;
 use jj_lib::workspace::Workspace;
 use test_case::test_case;
@@ -2966,7 +2966,7 @@ fn test_reverse_graph_iterator() {
         repo.as_ref(),
         &[&commit_a, &commit_c, &commit_d, &commit_e, &commit_f],
     );
-    let commits = ReverseRevsetGraphIterator::new(revset.iter_graph()).collect_vec();
+    let commits = ReverseGraphIterator::new(revset.iter_graph()).collect_vec();
     assert_eq!(commits.len(), 5);
     assert_eq!(commits[0].0, *commit_a.id());
     assert_eq!(commits[1].0, *commit_c.id());
@@ -2975,23 +2975,17 @@ fn test_reverse_graph_iterator() {
     assert_eq!(commits[4].0, *commit_f.id());
     assert_eq!(
         commits[0].1,
-        vec![RevsetGraphEdge::indirect(commit_c.id().clone())]
+        vec![GraphEdge::indirect(commit_c.id().clone())]
     );
     assert_eq!(
         commits[1].1,
         vec![
-            RevsetGraphEdge::direct(commit_e.id().clone()),
-            RevsetGraphEdge::direct(commit_d.id().clone()),
+            GraphEdge::direct(commit_e.id().clone()),
+            GraphEdge::direct(commit_d.id().clone()),
         ]
     );
-    assert_eq!(
-        commits[2].1,
-        vec![RevsetGraphEdge::direct(commit_f.id().clone())]
-    );
-    assert_eq!(
-        commits[3].1,
-        vec![RevsetGraphEdge::direct(commit_f.id().clone())]
-    );
+    assert_eq!(commits[2].1, vec![GraphEdge::direct(commit_f.id().clone())]);
+    assert_eq!(commits[3].1, vec![GraphEdge::direct(commit_f.id().clone())]);
     assert_eq!(commits[4].1, vec![]);
 }
 

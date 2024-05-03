@@ -28,13 +28,13 @@ use super::rev_walk::{EagerRevWalk, PeekableRevWalk, RevWalk, RevWalkBuilder};
 use super::revset_graph_iterator::RevsetGraphWalk;
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexEntry, IndexPosition};
+use crate::graph::GraphEdge;
 use crate::matchers::{Matcher, Visit};
 use crate::repo_path::RepoPath;
 use crate::revset::{
     ResolvedExpression, ResolvedPredicateExpression, Revset, RevsetEvaluationError,
     RevsetFilterExtensionWrapper, RevsetFilterPredicate, GENERATION_RANGE_FULL,
 };
-use crate::revset_graph::RevsetGraphEdge;
 use crate::store::Store;
 use crate::{rewrite, union_find};
 
@@ -103,7 +103,7 @@ impl<I: AsCompositeIndex + Clone> RevsetImpl<I> {
     pub fn iter_graph_impl(
         &self,
         skip_transitive_edges: bool,
-    ) -> impl Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> {
+    ) -> impl Iterator<Item = (CommitId, Vec<GraphEdge<CommitId>>)> {
         let index = self.index.clone();
         let walk = self.inner.positions();
         let mut graph_walk = RevsetGraphWalk::new(walk, skip_transitive_edges);
@@ -147,7 +147,7 @@ impl<I: AsCompositeIndex + Clone> Revset for RevsetImpl<I> {
         }))
     }
 
-    fn iter_graph<'a>(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + 'a>
+    fn iter_graph<'a>(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<GraphEdge<CommitId>>)> + 'a>
     where
         Self: 'a,
     {

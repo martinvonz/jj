@@ -22,7 +22,7 @@ use super::entry::{IndexEntry, IndexPosition};
 use super::rev_walk::RevWalk;
 use super::revset_engine::BoxedRevWalk;
 use crate::backend::CommitId;
-use crate::revset_graph::{RevsetGraphEdge, RevsetGraphEdgeType};
+use crate::graph::{GraphEdge, GraphEdgeType};
 
 /// Like `RevsetGraphEdge`, but stores `IndexPosition` instead.
 ///
@@ -30,27 +30,27 @@ use crate::revset_graph::{RevsetGraphEdge, RevsetGraphEdgeType};
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 struct IndexGraphEdge {
     target: IndexPosition,
-    edge_type: RevsetGraphEdgeType,
+    edge_type: GraphEdgeType,
 }
 
 impl IndexGraphEdge {
     fn missing(target: IndexPosition) -> Self {
-        let edge_type = RevsetGraphEdgeType::Missing;
+        let edge_type = GraphEdgeType::Missing;
         IndexGraphEdge { target, edge_type }
     }
 
     fn direct(target: IndexPosition) -> Self {
-        let edge_type = RevsetGraphEdgeType::Direct;
+        let edge_type = GraphEdgeType::Direct;
         IndexGraphEdge { target, edge_type }
     }
 
     fn indirect(target: IndexPosition) -> Self {
-        let edge_type = RevsetGraphEdgeType::Indirect;
+        let edge_type = GraphEdgeType::Indirect;
         IndexGraphEdge { target, edge_type }
     }
 
-    fn to_revset_edge(self, index: &CompositeIndex) -> RevsetGraphEdge {
-        RevsetGraphEdge {
+    fn to_revset_edge(self, index: &CompositeIndex) -> GraphEdge<CommitId> {
+        GraphEdge {
             target: index.entry_by_pos(self.target).commit_id(),
             edge_type: self.edge_type,
         }
@@ -200,7 +200,7 @@ impl<'a> RevsetGraphWalk<'a> {
                 let parent_edges = self.edges_from_external_commit(index, parent);
                 if parent_edges
                     .iter()
-                    .all(|edge| edge.edge_type == RevsetGraphEdgeType::Missing)
+                    .all(|edge| edge.edge_type == GraphEdgeType::Missing)
                 {
                     edges.push(IndexGraphEdge::missing(parent_position));
                 } else {
@@ -240,7 +240,7 @@ impl<'a> RevsetGraphWalk<'a> {
                 } else if let Some(parent_edges) = self.edges.get(&parent_position) {
                     if parent_edges
                         .iter()
-                        .all(|edge| edge.edge_type == RevsetGraphEdgeType::Missing)
+                        .all(|edge| edge.edge_type == GraphEdgeType::Missing)
                     {
                         edges.push(IndexGraphEdge::missing(parent_position));
                     } else {
@@ -275,7 +275,7 @@ impl<'a> RevsetGraphWalk<'a> {
     ) -> Vec<IndexGraphEdge> {
         if !edges
             .iter()
-            .any(|edge| edge.edge_type == RevsetGraphEdgeType::Indirect)
+            .any(|edge| edge.edge_type == GraphEdgeType::Indirect)
         {
             return edges;
         }
@@ -285,7 +285,7 @@ impl<'a> RevsetGraphWalk<'a> {
         // To start with, add the edges one step after the input edges.
         for edge in &edges {
             initial_targets.insert(edge.target);
-            if edge.edge_type != RevsetGraphEdgeType::Missing {
+            if edge.edge_type != GraphEdgeType::Missing {
                 assert!(self.look_ahead.contains(&edge.target));
                 let entry = index.entry_by_pos(edge.target);
                 min_generation = min(min_generation, entry.generation_number());
@@ -295,7 +295,7 @@ impl<'a> RevsetGraphWalk<'a> {
         // Find commits reachable transitively and add them to the `unwanted` set.
         let mut unwanted = HashSet::new();
         while let Some(edge) = work.pop() {
-            if edge.edge_type == RevsetGraphEdgeType::Missing || edge.target < self.min_position {
+            if edge.edge_type == GraphEdgeType::Missing || edge.target < self.min_position {
                 continue;
             }
             if !unwanted.insert(edge.target) {
@@ -333,7 +333,7 @@ impl<'a> RevsetGraphWalk<'a> {
 }
 
 impl RevWalk<CompositeIndex> for RevsetGraphWalk<'_> {
-    type Item = (CommitId, Vec<RevsetGraphEdge>);
+    type Item = (CommitId, Vec<GraphEdge<CommitId>>);
 
     fn next(&mut self, index: &CompositeIndex) -> Option<Self::Item> {
         let position = self.next_index_position(index)?;

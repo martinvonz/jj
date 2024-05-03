@@ -33,13 +33,13 @@ use crate::commit::Commit;
 use crate::dsl_util::{collect_similar, AliasId};
 use crate::fileset::{FilePattern, FilesetExpression};
 use crate::git;
+use crate::graph::GraphEdge;
 use crate::hex_util::to_forward_hex;
 use crate::id_prefix::IdPrefixContext;
 use crate::object_id::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
 use crate::repo_path::RepoPathUiConverter;
-use crate::revset_graph::RevsetGraphEdge;
 // TODO: introduce AST types and remove parse_expression_rule, Rule from the
 // re-exports
 pub use crate::revset_parser::{
@@ -1908,7 +1908,7 @@ pub trait Revset: fmt::Debug {
     where
         Self: 'a;
 
-    fn iter_graph<'a>(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<RevsetGraphEdge>)> + 'a>
+    fn iter_graph<'a>(&self) -> Box<dyn Iterator<Item = (CommitId, Vec<GraphEdge<CommitId>>)> + 'a>
     where
         Self: 'a;
 
