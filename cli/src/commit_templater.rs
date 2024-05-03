@@ -489,7 +489,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
     );
     map.insert("mine", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
-        let user_email = language.revset_parse_context.user_email.clone();
+        let user_email = language.revset_parse_context.user_email().clone();
         let out_property = self_property.map(move |commit| commit.author().email == user_email);
         Ok(L::wrap_boolean(out_property))
     });
@@ -687,7 +687,7 @@ fn evaluate_revset_expression<'repo>(
 ) -> Result<Box<dyn Revset + 'repo>, TemplateParseError> {
     let symbol_resolver = revset_util::default_symbol_resolver(
         language.repo,
-        language.revset_parse_context.extensions.symbol_resolvers(),
+        language.revset_parse_context.symbol_resolvers(),
         language.id_prefix_context,
     );
     let revset =

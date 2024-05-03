@@ -2656,10 +2656,38 @@ impl RevsetExtensions {
 /// Information needed to parse revset expression.
 #[derive(Clone)]
 pub struct RevsetParseContext<'a> {
-    pub aliases_map: &'a RevsetAliasesMap,
-    pub user_email: String,
-    pub extensions: &'a RevsetExtensions,
-    pub workspace: Option<RevsetWorkspaceContext<'a>>,
+    aliases_map: &'a RevsetAliasesMap,
+    user_email: String,
+    extensions: &'a RevsetExtensions,
+    workspace: Option<RevsetWorkspaceContext<'a>>,
+}
+
+impl<'a> RevsetParseContext<'a> {
+    pub fn new(
+        aliases_map: &'a RevsetAliasesMap,
+        user_email: String,
+        extensions: &'a RevsetExtensions,
+        workspace: Option<RevsetWorkspaceContext<'a>>,
+    ) -> Self {
+        Self {
+            aliases_map,
+            user_email,
+            extensions,
+            workspace,
+        }
+    }
+
+    pub fn aliases_map(&self) -> &'a RevsetAliasesMap {
+        self.aliases_map
+    }
+
+    pub fn user_email(&self) -> &String {
+        &self.user_email
+    }
+
+    pub fn symbol_resolvers(&self) -> &[impl AsRef<dyn SymbolResolverExtension>] {
+        self.extensions.symbol_resolvers()
+    }
 }
 
 /// Workspace information needed to parse revset expression.
@@ -2696,13 +2724,13 @@ mod tests {
         for (decl, defn) in aliases {
             aliases_map.insert(decl, defn).unwrap();
         }
-        let extensions: RevsetExtensions = Default::default();
-        let context = RevsetParseContext {
-            aliases_map: &aliases_map,
-            user_email: "test.user@example.com".to_string(),
-            extensions: &extensions,
-            workspace: None,
-        };
+        let extensions = RevsetExtensions::default();
+        let context = RevsetParseContext::new(
+            &aliases_map,
+            "test.user@example.com".to_string(),
+            &extensions,
+            None,
+        );
         // Map error to comparable object
         super::parse(revset_str, &context).map_err(|e| e.kind)
     }
@@ -2722,13 +2750,13 @@ mod tests {
         for (decl, defn) in aliases {
             aliases_map.insert(decl, defn).unwrap();
         }
-        let extensions: RevsetExtensions = Default::default();
-        let context = RevsetParseContext {
-            aliases_map: &aliases_map,
-            user_email: "test.user@example.com".to_string(),
-            extensions: &extensions,
-            workspace: Some(workspace_ctx),
-        };
+        let extensions = RevsetExtensions::default();
+        let context = RevsetParseContext::new(
+            &aliases_map,
+            "test.user@example.com".to_string(),
+            &extensions,
+            Some(workspace_ctx),
+        );
         // Map error to comparable object
         super::parse(revset_str, &context).map_err(|e| e.kind)
     }
@@ -2747,13 +2775,13 @@ mod tests {
         for (decl, defn) in aliases {
             aliases_map.insert(decl, defn).unwrap();
         }
-        let extensions: RevsetExtensions = Default::default();
-        let context = RevsetParseContext {
-            aliases_map: &aliases_map,
-            user_email: "test.user@example.com".to_string(),
-            extensions: &extensions,
-            workspace: None,
-        };
+        let extensions = RevsetExtensions::default();
+        let context = RevsetParseContext::new(
+            &aliases_map,
+            "test.user@example.com".to_string(),
+            &extensions,
+            None,
+        );
         // Map error to comparable object
         super::parse_with_modifier(revset_str, &context).map_err(|e| e.kind)
     }

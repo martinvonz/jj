@@ -176,7 +176,7 @@ pub fn parse_immutable_expression(
     context: &RevsetParseContext,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let (params, immutable_heads_str) = context
-        .aliases_map
+        .aliases_map()
         .get_function(BUILTIN_IMMUTABLE_HEADS)
         .unwrap();
     assert!(
