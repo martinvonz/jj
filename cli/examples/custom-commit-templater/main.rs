@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::any::Any;
+use std::rc::Rc;
+
 use itertools::Itertools;
 use jj_cli::cli_util::CliRunner;
 use jj_cli::commit_templater::{
@@ -26,7 +29,9 @@ use jj_lib::extensions_map::ExtensionsMap;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{
-    PartialSymbolResolver, RevsetExpression, RevsetResolutionError, SymbolResolverExtension,
+    self, PartialSymbolResolver, RevsetExpression, RevsetFilterExtension,
+    RevsetFilterExtensionWrapper, RevsetFilterPredicate, RevsetParseError, RevsetResolutionError,
+    SymbolResolverExtension,
 };
 use once_cell::sync::OnceCell;
 
@@ -161,9 +166,34 @@ impl CommitTemplateLanguageExtension for HexCounter {
     }
 }
 
+#[derive(Debug)]
+struct EvenDigitsFilter;
+
+impl RevsetFilterExtension for EvenDigitsFilter {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn matches_commit(&self, commit: &Commit) -> bool {
+        num_digits_in_id(commit.id()) % 2 == 0
+    }
+}
+
+fn even_digits(
+    name: &str,
+    arguments_pair: pest::iterators::Pair<revset::Rule>,
+    _state: revset::ParseState,
+) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    revset::expect_no_arguments(name, arguments_pair)?;
+    Ok(RevsetExpression::filter(RevsetFilterPredicate::Extension(
+        RevsetFilterExtensionWrapper(Rc::new(EvenDigitsFilter)),
+    )))
+}
+
 fn main() -> std::process::ExitCode {
     CliRunner::init()
         .add_symbol_resolver_extension(Box::new(TheDigitest))
+        .add_revset_function_extension("even_digits", even_digits)
         .add_commit_template_extension(Box::new(HexCounter))
         .run()
 }
