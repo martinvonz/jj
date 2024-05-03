@@ -967,12 +967,12 @@ impl WorkspaceCommandHelper {
             workspace_id: self.workspace_id(),
             workspace_root: self.workspace.workspace_root(),
         };
-        RevsetParseContext {
-            aliases_map: &self.revset_aliases_map,
-            user_email: self.settings.user_email(),
-            extensions: &self.revset_extensions,
-            workspace: Some(workspace_context),
-        }
+        RevsetParseContext::new(
+            &self.revset_aliases_map,
+            self.settings.user_email(),
+            &self.revset_extensions,
+            Some(workspace_context),
+        )
     }
 
     pub fn id_prefix_context(&self) -> Result<&IdPrefixContext, CommandError> {

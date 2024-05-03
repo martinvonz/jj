@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use std::path::Path;
-use std::sync::Arc;
 
 use assert_matches::assert_matches;
 use itertools::Itertools;
@@ -42,15 +41,11 @@ use testutils::{
 
 fn resolve_symbol_with_extensions(
     repo: &dyn Repo,
-    extensions: &Arc<RevsetExtensions>,
+    extensions: &RevsetExtensions,
     symbol: &str,
 ) -> Result<Vec<CommitId>, RevsetResolutionError> {
-    let context = RevsetParseContext {
-        aliases_map: &RevsetAliasesMap::new(),
-        user_email: String::new(),
-        extensions,
-        workspace: None,
-    };
+    let aliases_map = RevsetAliasesMap::default();
+    let context = RevsetParseContext::new(&aliases_map, String::new(), extensions, None);
     let expression = parse(symbol, &context).unwrap();
     assert_matches!(*expression, RevsetExpression::CommitRef(_));
     let symbol_resolver = DefaultSymbolResolver::new(repo, extensions.symbol_resolvers());
@@ -61,8 +56,7 @@ fn resolve_symbol_with_extensions(
 }
 
 fn resolve_symbol(repo: &dyn Repo, symbol: &str) -> Result<Vec<CommitId>, RevsetResolutionError> {
-    let extensions: Arc<RevsetExtensions> = Default::default();
-    resolve_symbol_with_extensions(repo, &extensions, symbol)
+    resolve_symbol_with_extensions(repo, &RevsetExtensions::default(), symbol)
 }
 
 fn revset_for_commits<'index>(
@@ -183,13 +177,9 @@ fn test_resolve_symbol_commit_id() {
         repo.as_ref(),
         &([] as [&Box<dyn SymbolResolverExtension>; 0]),
     );
-    let extensions: Arc<RevsetExtensions> = Default::default();
-    let context = RevsetParseContext {
-        aliases_map: &RevsetAliasesMap::new(),
-        user_email: settings.user_email(),
-        extensions: &extensions,
-        workspace: None,
-    };
+    let aliases_map = RevsetAliasesMap::default();
+    let extensions = RevsetExtensions::default();
+    let context = RevsetParseContext::new(&aliases_map, settings.user_email(), &extensions, None);
     assert_matches!(
         optimize(parse("present(04)", &context).unwrap()).resolve_user_expression(repo.as_ref(), &symbol_resolver),
         Err(RevsetResolutionError::AmbiguousCommitIdPrefix(s)) if s == "04"
@@ -842,13 +832,14 @@ fn test_resolve_symbol_git_refs() {
 
 fn resolve_commit_ids(repo: &dyn Repo, revset_str: &str) -> Vec<CommitId> {
     let settings = testutils::user_settings();
-    let revset_extensions: Arc<RevsetExtensions> = Default::default();
-    let context = RevsetParseContext {
-        aliases_map: &RevsetAliasesMap::new(),
-        user_email: settings.user_email(),
-        extensions: &revset_extensions,
-        workspace: None,
-    };
+    let aliases_map = RevsetAliasesMap::default();
+    let revset_extensions = RevsetExtensions::default();
+    let context = RevsetParseContext::new(
+        &aliases_map,
+        settings.user_email(),
+        &revset_extensions,
+        None,
+    );
     let expression = optimize(parse(revset_str, &context).unwrap());
     let symbol_resolver = DefaultSymbolResolver::new(repo, revset_extensions.symbol_resolvers());
     let expression = expression
@@ -869,13 +860,14 @@ fn resolve_commit_ids_in_workspace(
         workspace_id: workspace.workspace_id(),
         workspace_root: workspace.workspace_root(),
     };
-    let extensions: Arc<RevsetExtensions> = Default::default();
-    let context = RevsetParseContext {
-        aliases_map: &RevsetAliasesMap::new(),
-        user_email: settings.user_email(),
-        extensions: &extensions,
-        workspace: Some(workspace_ctx),
-    };
+    let aliases_map = RevsetAliasesMap::default();
+    let extensions = RevsetExtensions::default();
+    let context = RevsetParseContext::new(
+        &aliases_map,
+        settings.user_email(),
+        &extensions,
+        Some(workspace_ctx),
+    );
     let expression = optimize(parse(revset_str, &context).unwrap());
     let symbol_resolver =
         DefaultSymbolResolver::new(repo, &([] as [&Box<dyn SymbolResolverExtension>; 0]));
