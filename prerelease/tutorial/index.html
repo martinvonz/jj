@@ -1772,12 +1772,16 @@ Using<span class="w"> </span>default<span class="w"> </span>editor<span class="w
 Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>mrxqplyk<span class="w"> </span>52a6c7fd<span class="w"> </span>ABCD
 Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>kwtuwqnm<span class="w"> </span>643061ac<span class="w"> </span>ABC
 </code></pre></div>
-<p>That will bring up the built-in diff editor with a diff of the changes in
-the "ABCD" commit. If you prefer another diff editor, you can configure
-<a href="../config/#editing-diffs"><code>ui.diff-editor</code></a> instead. Modify the right side of
-the diff to have the desired end state in "ABC" by removing the "D" line. Then
-save the changes and close Meld. If we look at the diff of the second commit, we
-now see that all three lines got capitalized:</p>
+<p>That will bring up the built-in diff editor with a diff of the changes in the
+"ABCD" commit. If you prefer another diff editor, such as
+<a href="https://meldmerge.org">Meld</a>, you can configure
+<a href="../config/#editing-diffs"><code>ui.diff-editor</code></a> instead. Expand the file by
+clicking on <code>(+)</code> or with right arrow, then select the sections/line to include
+by clicking or using space. Once complete, press <code>c</code> to confirm changes, or <code>q</code>
+to exit without saving. We can also click on the menu items to see more
+options.</p>
+<p>If we look at the diff of the second commit, we now see
+that all three lines got capitalized:</p>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>diff<span class="w"> </span>-r<span class="w"> </span>@-
 Modified<span class="w"> </span>regular<span class="w"> </span>file<span class="w"> </span>file:
 <span class="w">   </span><span class="m">1</span><span class="w">    </span><span class="m">1</span>:<span class="w"> </span>aA
