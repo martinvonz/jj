@@ -1874,6 +1874,14 @@ invoked. If not set, an error will be reported inline on method call.</p>
 <ul>
 <li><code>.name() -&gt; String</code>: Local branch or tag name.</li>
 <li><code>.remote() -&gt; String</code>: Remote name or empty if this is a local ref.</li>
+<li><code>.present() -&gt; Boolean</code>: True if the ref points to any commit.</li>
+<li><code>.conflict() -&gt; Boolean</code>: True if <a href="../branches/#conflicts">the branch or tag is
+  conflicted</a>.</li>
+<li><code>.normal_target() -&gt; Option&lt;Commit&gt;</code>: Target commit if the ref is not
+  conflicted and points to a commit.</li>
+<li><code>.removed_targets() -&gt; List&lt;Commit&gt;</code>: Old target commits if conflicted.</li>
+<li><code>.added_targets() -&gt; List&lt;Commit&gt;</code>: New target commits. The list usually
+  contains one "normal" target.</li>
 </ul>
 <h3 id="shortestidprefix-type">ShortestIdPrefix type<a class="headerlink" href="#shortestidprefix-type" title="Permanent link">&para;</a></h3>
 <p>The following methods are defined.</p>
