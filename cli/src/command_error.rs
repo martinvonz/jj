@@ -517,7 +517,17 @@ fn find_source_parse_error_hint(err: &dyn error::Error) -> Option<String> {
     if let Some(source) = source.downcast_ref() {
         file_pattern_parse_error_hint(source)
     } else if let Some(source) = source.downcast_ref() {
+        fileset_parse_error_hint(source)
+    } else if let Some(source) = source.downcast_ref() {
+        revset_parse_error_hint(source)
+    } else if let Some(source) = source.downcast_ref() {
+        revset_resolution_error_hint(source)
+    } else if let Some(UserRevsetEvaluationError::Resolution(source)) = source.downcast_ref() {
+        revset_resolution_error_hint(source)
+    } else if let Some(source) = source.downcast_ref() {
         string_pattern_parse_error_hint(source)
+    } else if let Some(source) = source.downcast_ref() {
+        template_parse_error_hint(source)
     } else {
         None
     }

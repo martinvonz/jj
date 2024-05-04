@@ -742,17 +742,41 @@ fn test_log_contained_in() {
 
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
-        &["log", "-r::", "-T", &template_for_revset("unknown_symbol")],
+        &["log", "-r::", "-T", &template_for_revset("author(x:'y')")],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse template: Failed to parse revset
+    Caused by:
+    1:  --> 5:28
+      |
+    5 |       if(self.contained_in("author(x:'y')"), "[contained_in]"),
+      |                            ^-------------^
+      |
+      = Failed to parse revset
+    2:  --> 1:8
+      |
+    1 | author(x:'y')
+      |        ^---^
+      |
+      = Function "author": Invalid string pattern
+    3: Invalid string pattern kind "x:"
+    Hint: Try prefixing with one of `exact:`, `glob:` or `substring:`
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &["log", "-r::", "-T", &template_for_revset("maine")],
     );
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to parse template: Failed to evaluate revset
     Caused by:
     1:  --> 5:28
       |
-    5 |       if(self.contained_in("unknown_symbol"), "[contained_in]"),
-      |                            ^--------------^
+    5 |       if(self.contained_in("maine"), "[contained_in]"),
+      |                            ^-----^
       |
       = Failed to evaluate revset
-    2: Revision "unknown_symbol" doesn't exist
+    2: Revision "maine" doesn't exist
+    Hint: Did you mean "main"?
     "###);
 }
