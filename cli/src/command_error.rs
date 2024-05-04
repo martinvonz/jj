@@ -433,15 +433,7 @@ impl From<RevsetEvaluationError> for CommandError {
 
 impl From<FilesetParseError> for CommandError {
     fn from(err: FilesetParseError) -> Self {
-        let hint = match err.kind() {
-            FilesetParseErrorKind::NoSuchFunction {
-                name: _,
-                candidates,
-            } => format_similarity_hint(candidates),
-            FilesetParseErrorKind::InvalidArguments { .. }
-            | FilesetParseErrorKind::Expression(_) => find_source_parse_error_hint(&err),
-            _ => None,
-        };
+        let hint = fileset_parse_error_hint(&err);
         let mut cmd_err =
             user_error_with_message(format!("Failed to parse fileset: {}", err.kind()), err);
         cmd_err.extend_hints(hint);
@@ -451,33 +443,7 @@ impl From<FilesetParseError> for CommandError {
 
 impl From<RevsetParseError> for CommandError {
     fn from(err: RevsetParseError) -> Self {
-        // Only for the bottom error, which is usually the root cause
-        let bottom_err = iter::successors(Some(&err), |e| e.origin()).last().unwrap();
-        let hint = match bottom_err.kind() {
-            RevsetParseErrorKind::NotPrefixOperator {
-                op: _,
-                similar_op,
-                description,
-            }
-            | RevsetParseErrorKind::NotPostfixOperator {
-                op: _,
-                similar_op,
-                description,
-            }
-            | RevsetParseErrorKind::NotInfixOperator {
-                op: _,
-                similar_op,
-                description,
-            } => Some(format!("Did you mean '{similar_op}' for {description}?")),
-            RevsetParseErrorKind::NoSuchFunction {
-                name: _,
-                candidates,
-            } => format_similarity_hint(candidates),
-            RevsetParseErrorKind::InvalidFunctionArguments { .. } => {
-                find_source_parse_error_hint(bottom_err)
-            }
-            _ => None,
-        };
+        let hint = revset_parse_error_hint(&err);
         let mut cmd_err =
             user_error_with_message(format!("Failed to parse revset: {}", err.kind()), err);
         cmd_err.extend_hints(hint);
@@ -487,18 +453,7 @@ impl From<RevsetParseError> for CommandError {
 
 impl From<RevsetResolutionError> for CommandError {
     fn from(err: RevsetResolutionError) -> Self {
-        let hint = match &err {
-            RevsetResolutionError::NoSuchRevision {
-                name: _,
-                candidates,
-            } => format_similarity_hint(candidates),
-            RevsetResolutionError::EmptyString
-            | RevsetResolutionError::WorkspaceMissingWorkingCopy { .. }
-            | RevsetResolutionError::AmbiguousCommitIdPrefix(_)
-            | RevsetResolutionError::AmbiguousChangeIdPrefix(_)
-            | RevsetResolutionError::StoreError(_)
-            | RevsetResolutionError::Other(_) => None,
-        };
+        let hint = revset_resolution_error_hint(&err);
         let mut cmd_err = user_error(err);
         cmd_err.extend_hints(hint);
         cmd_err
@@ -516,18 +471,7 @@ impl From<UserRevsetEvaluationError> for CommandError {
 
 impl From<TemplateParseError> for CommandError {
     fn from(err: TemplateParseError) -> Self {
-        // Only for the bottom error, which is usually the root cause
-        let bottom_err = iter::successors(Some(&err), |e| e.origin()).last().unwrap();
-        let hint = match bottom_err.kind() {
-            TemplateParseErrorKind::NoSuchKeyword { candidates, .. }
-            | TemplateParseErrorKind::NoSuchFunction { candidates, .. }
-            | TemplateParseErrorKind::NoSuchMethod { candidates, .. } => {
-                format_similarity_hint(candidates)
-            }
-            TemplateParseErrorKind::InvalidArguments { .. }
-            | TemplateParseErrorKind::Expression(_) => find_source_parse_error_hint(bottom_err),
-            _ => None,
-        };
+        let hint = template_parse_error_hint(&err);
         let mut cmd_err =
             user_error_with_message(format!("Failed to parse template: {}", err.kind()), err);
         cmd_err.extend_hints(hint);
@@ -591,12 +535,86 @@ fn file_pattern_parse_error_hint(err: &FilePatternParseError) -> Option<String> 
     }
 }
 
+fn fileset_parse_error_hint(err: &FilesetParseError) -> Option<String> {
+    match err.kind() {
+        FilesetParseErrorKind::NoSuchFunction {
+            name: _,
+            candidates,
+        } => format_similarity_hint(candidates),
+        FilesetParseErrorKind::InvalidArguments { .. } | FilesetParseErrorKind::Expression(_) => {
+            find_source_parse_error_hint(&err)
+        }
+        _ => None,
+    }
+}
+
+fn revset_parse_error_hint(err: &RevsetParseError) -> Option<String> {
+    // Only for the bottom error, which is usually the root cause
+    let bottom_err = iter::successors(Some(err), |e| e.origin()).last().unwrap();
+    match bottom_err.kind() {
+        RevsetParseErrorKind::NotPrefixOperator {
+            op: _,
+            similar_op,
+            description,
+        }
+        | RevsetParseErrorKind::NotPostfixOperator {
+            op: _,
+            similar_op,
+            description,
+        }
+        | RevsetParseErrorKind::NotInfixOperator {
+            op: _,
+            similar_op,
+            description,
+        } => Some(format!("Did you mean '{similar_op}' for {description}?")),
+        RevsetParseErrorKind::NoSuchFunction {
+            name: _,
+            candidates,
+        } => format_similarity_hint(candidates),
+        RevsetParseErrorKind::InvalidFunctionArguments { .. } => {
+            find_source_parse_error_hint(bottom_err)
+        }
+        _ => None,
+    }
+}
+
+fn revset_resolution_error_hint(err: &RevsetResolutionError) -> Option<String> {
+    match err {
+        RevsetResolutionError::NoSuchRevision {
+            name: _,
+            candidates,
+        } => format_similarity_hint(candidates),
+        RevsetResolutionError::EmptyString
+        | RevsetResolutionError::WorkspaceMissingWorkingCopy { .. }
+        | RevsetResolutionError::AmbiguousCommitIdPrefix(_)
+        | RevsetResolutionError::AmbiguousChangeIdPrefix(_)
+        | RevsetResolutionError::StoreError(_)
+        | RevsetResolutionError::Other(_) => None,
+    }
+}
+
 fn string_pattern_parse_error_hint(err: &StringPatternParseError) -> Option<String> {
     match err {
         StringPatternParseError::InvalidKind(_) => {
             Some("Try prefixing with one of `exact:`, `glob:` or `substring:`".into())
         }
         StringPatternParseError::GlobPattern(_) => None,
+    }
+}
+
+fn template_parse_error_hint(err: &TemplateParseError) -> Option<String> {
+    // Only for the bottom error, which is usually the root cause
+    let bottom_err = iter::successors(Some(err), |e| e.origin()).last().unwrap();
+    match bottom_err.kind() {
+        TemplateParseErrorKind::NoSuchKeyword { candidates, .. }
+        | TemplateParseErrorKind::NoSuchFunction { candidates, .. }
+        | TemplateParseErrorKind::NoSuchMethod { candidates, .. } => {
+            format_similarity_hint(candidates)
+        }
+        TemplateParseErrorKind::InvalidArguments { .. } | TemplateParseErrorKind::Expression(_) => {
+            find_source_parse_error_hint(bottom_err)
+        }
+        _ => None,
     }
 }
 
