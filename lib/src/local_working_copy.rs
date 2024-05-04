@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #![allow(missing_docs)]
+#![allow(clippy::let_unit_value)]
 
 use std::any::Any;
 use std::collections::HashSet;
@@ -109,7 +110,6 @@ impl FileState {
         let executable = {
             // Windows doesn't support executable bit.
             let _ = executable;
-            ()
         };
         FileState {
             file_type: FileType::Normal { executable },
