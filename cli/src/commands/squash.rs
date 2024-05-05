@@ -106,7 +106,7 @@ pub(crate) fn cmd_squash(
     } else {
         let source = workspace_command
             .resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
-        let mut parents = source.parents();
+        let mut parents: Vec<_> = source.parents().try_collect()?;
         if parents.len() != 1 {
             return Err(user_error("Cannot squash merge commits"));
         }

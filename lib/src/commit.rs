@@ -19,6 +19,8 @@ use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
+use itertools::Itertools;
+
 use crate::backend::{self, BackendResult, ChangeId, CommitId, MergedTreeId, Signature};
 use crate::merged_tree::MergedTree;
 use crate::repo::Repo;
@@ -82,12 +84,8 @@ impl Commit {
         &self.data.parents
     }
 
-    pub fn parents(&self) -> Vec<Commit> {
-        self.data
-            .parents
-            .iter()
-            .map(|id| self.store.get_commit(id).unwrap())
-            .collect()
+    pub fn parents(&self) -> impl Iterator<Item = BackendResult<Commit>> + '_ {
+        self.data.parents.iter().map(|id| self.store.get_commit(id))
     }
 
     pub fn predecessor_ids(&self) -> &[CommitId] {
@@ -113,16 +111,18 @@ impl Commit {
     /// Return the parent tree, merging the parent trees if there are multiple
     /// parents.
     pub fn parent_tree(&self, repo: &dyn Repo) -> BackendResult<MergedTree> {
-        merge_commit_trees(repo, &self.parents())
+        let parents: Vec<_> = self.parents().try_collect()?;
+        merge_commit_trees(repo, &parents)
     }
 
     /// Returns whether commit's content is empty. Commit description is not
     /// taken into consideration.
     pub fn is_empty(&self, repo: &dyn Repo) -> BackendResult<bool> {
-        if let [parent] = &self.parents()[..] {
+        let parents: Vec<_> = self.parents().try_collect()?;
+        if let [parent] = &parents[..] {
             return Ok(parent.tree_id() == self.tree_id());
         }
-        let parent_tree = self.parent_tree(repo)?;
+        let parent_tree = merge_commit_trees(repo, &parents)?;
         Ok(*self.tree_id() == parent_tree.id())
     }
 
@@ -156,13 +156,14 @@ impl Commit {
 
     /// A commit is discardable if it has one parent, no change from its
     /// parent, and an empty description.
-    pub fn is_discardable(&self) -> bool {
+    pub fn is_discardable(&self) -> BackendResult<bool> {
         if self.description().is_empty() {
-            if let [parent_commit] = &*self.parents() {
-                return self.tree_id() == parent_commit.tree_id();
+            let parents: Vec<_> = self.parents().try_collect()?;
+            if let [parent_commit] = &*parents {
+                return Ok(self.tree_id() == parent_commit.tree_id());
             }
         }
-        false
+        Ok(false)
     }
 
     /// A quick way to just check if a signature is present.

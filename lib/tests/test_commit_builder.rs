@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools;
 use jj_lib::backend::{ChangeId, MillisSinceEpoch, Signature, Timestamp};
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::merged_tree::DiffSummary;
@@ -77,7 +78,8 @@ fn test_initial(backend: TestRepoBackend) {
     let commit = builder.write().unwrap();
     tx.commit("test");
 
-    assert_eq!(commit.parents(), vec![store.root_commit()]);
+    let parents: Vec<_> = commit.parents().try_collect().unwrap();
+    assert_eq!(parents, vec![store.root_commit()]);
     assert_eq!(commit.predecessors(), vec![]);
     assert_eq!(commit.description(), "description");
     assert_eq!(commit.author(), &author_signature);
@@ -152,7 +154,8 @@ fn test_rewrite(backend: TestRepoBackend) {
         .unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
     tx.commit("test");
-    assert_eq!(rewritten_commit.parents(), vec![store.root_commit()]);
+    let parents: Vec<_> = rewritten_commit.parents().try_collect().unwrap();
+    assert_eq!(parents, vec![store.root_commit()]);
     assert_eq!(
         rewritten_commit.predecessors(),
         vec![initial_commit.clone()]

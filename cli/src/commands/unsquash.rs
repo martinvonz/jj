@@ -60,7 +60,7 @@ pub(crate) fn cmd_unsquash(
     if commit.parent_ids().len() > 1 {
         return Err(user_error("Cannot unsquash merge commits"));
     }
-    let parent = commit.parents().pop().unwrap();
+    let parent = commit.parents().next().unwrap()?;
     workspace_command.check_rewritable([parent.id()])?;
     let interactive_editor = if args.tool.is_some() || args.interactive {
         Some(workspace_command.diff_editor(ui, args.tool.as_deref())?)

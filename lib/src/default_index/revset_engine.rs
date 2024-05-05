@@ -1068,7 +1068,7 @@ fn has_diff_from_parent(
     matcher: &dyn Matcher,
 ) -> bool {
     let commit = store.get_commit(&entry.commit_id()).unwrap();
-    let parents = commit.parents();
+    let parents: Vec<_> = commit.parents().try_collect().unwrap();
     if let [parent] = parents.as_slice() {
         // Fast path: no need to load the root tree
         let unchanged = commit.tree_id() == parent.tree_id();

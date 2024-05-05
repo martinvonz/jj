@@ -87,6 +87,7 @@ pub(crate) fn cmd_status(
         formatter.with_label("working_copy", |fmt| template.format(wc_commit, fmt))?;
         writeln!(formatter)?;
         for parent in wc_commit.parents() {
+            let parent = parent?;
             write!(formatter, "Parent commit: ")?;
             template.format(&parent, formatter)?;
             writeln!(formatter)?;
