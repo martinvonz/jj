@@ -205,9 +205,7 @@ impl UserSettings {
     }
 
     pub fn default_revset(&self) -> String {
-        self.config
-            .get_string("revsets.log")
-            .unwrap_or_else(|_| "@ | ancestors(immutable_heads().., 2) | trunk()".to_string())
+        self.config.get_string("revsets.log").unwrap_or_default()
     }
 
     pub fn signature(&self) -> Signature {
