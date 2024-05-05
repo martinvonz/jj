@@ -1,6 +1,9 @@
 # NOTE: ensure you update docs/revsets.md with documentation when
 # adding/updating any of these aliases
 
+[revsets]
+log = "@ | ancestors(immutable_heads().., 2) | trunk()"
+
 [revset-aliases]
 'trunk()' = '''
 latest(
