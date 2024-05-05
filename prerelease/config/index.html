@@ -2373,6 +2373,7 @@ immutable even if the set is empty.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Show commits that are not in `main@origin`</span>
 <span class="n">revsets</span><span class="p">.</span><span class="n">log</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;main@origin..&quot;</span>
 </code></pre></div>
+<p>The default value for <code>revsets.log</code> is <code>'@ | ancestors(immutable_heads().., 2) | trunk()'</code>.</p>
 <h3 id="graph-style">Graph style<a class="headerlink" href="#graph-style" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="c1"># Possible values: &quot;curved&quot; (default), &quot;square&quot;, &quot;ascii&quot;, &quot;ascii-large&quot;</span>
 <span class="n">ui</span><span class="p">.</span><span class="n">graph</span><span class="p">.</span><span class="n">style</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;square&quot;</span>
