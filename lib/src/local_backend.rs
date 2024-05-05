@@ -184,13 +184,13 @@ impl Backend for LocalBackend {
         Ok(id)
     }
 
-    async fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> Result<String, BackendError> {
+    async fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> BackendResult<String> {
         let path = self.symlink_path(id);
         let target = fs::read_to_string(path).map_err(|err| map_not_found_err(err, id))?;
         Ok(target)
     }
 
-    fn write_symlink(&self, _path: &RepoPath, target: &str) -> Result<SymlinkId, BackendError> {
+    fn write_symlink(&self, _path: &RepoPath, target: &str) -> BackendResult<SymlinkId> {
         let mut temp_file = NamedTempFile::new_in(&self.path).map_err(to_other_err)?;
         temp_file
             .write_all(target.as_bytes())

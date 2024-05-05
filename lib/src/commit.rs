@@ -19,8 +19,7 @@ use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use crate::backend;
-use crate::backend::{BackendError, ChangeId, CommitId, MergedTreeId, Signature};
+use crate::backend::{self, BackendResult, ChangeId, CommitId, MergedTreeId, Signature};
 use crate::merged_tree::MergedTree;
 use crate::signing::{SignResult, Verification};
 use crate::store::Store;
@@ -101,7 +100,7 @@ impl Commit {
             .collect()
     }
 
-    pub fn tree(&self) -> Result<MergedTree, BackendError> {
+    pub fn tree(&self) -> BackendResult<MergedTree> {
         self.store.get_root_tree(&self.data.root_tree)
     }
 
@@ -109,7 +108,7 @@ impl Commit {
         &self.data.root_tree
     }
 
-    pub fn has_conflict(&self) -> Result<bool, BackendError> {
+    pub fn has_conflict(&self) -> BackendResult<bool> {
         if let MergedTreeId::Merge(tree_ids) = self.tree_id() {
             Ok(!tree_ids.is_resolved())
         } else {
