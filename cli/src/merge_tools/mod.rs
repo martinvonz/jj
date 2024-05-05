@@ -91,10 +91,7 @@ pub enum ConflictResolveError {
 pub enum MergeToolConfigError {
     #[error(transparent)]
     Config(#[from] ConfigError),
-    #[error(
-        "To use `{tool_name}` as a merge tool, the config `merge-tools.{tool_name}.merge-args` \
-         must be defined (see docs for details)"
-    )]
+    #[error("The tool `{tool_name}` cannot be used as a merge tool with `jj resolve`")]
     MergeArgsNotConfigured { tool_name: String },
 }
 

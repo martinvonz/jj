@@ -375,7 +375,20 @@ impl From<ConflictResolveError> for CommandError {
 
 impl From<MergeToolConfigError> for CommandError {
     fn from(err: MergeToolConfigError) -> Self {
-        user_error_with_message("Failed to load tool configuration", err)
+        match &err {
+            MergeToolConfigError::MergeArgsNotConfigured { tool_name } => {
+                let tool_name = tool_name.clone();
+                user_error_with_hint(
+                    err,
+                    format!(
+                        "To use `{tool_name}` as a merge tool, the config \
+                         `merge-tools.{tool_name}.merge-args` must be defined (see docs for \
+                         details)"
+                    ),
+                )
+            }
+            _ => user_error_with_message("Failed to load tool configuration", err),
+        }
     }
 }
 
