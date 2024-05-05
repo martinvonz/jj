@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+* Dropped support for `ui.default-revset` config (replaced by `revsets.log` in
+  0.8.0).
+
 ### Deprecations
 
 ### New features
