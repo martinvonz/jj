@@ -55,6 +55,11 @@ impl Default for ExternalMergeTool {
     fn default() -> Self {
         Self {
             program: String::new(),
+            // TODO(ilyagr): There should be a way to explicitly specify that a
+            // certain tool (e.g. vscode as of this writing) cannot be used as a
+            // diff editor (or a diff tool). A possible TOML syntax would be
+            // `edit-args = false`, or `edit-args = []`, or `edit = { disabled =
+            // true }` to go with `edit = { args = [...] }`.
             diff_args: ["$left", "$right"].map(ToOwned::to_owned).to_vec(),
             edit_args: ["$left", "$right"].map(ToOwned::to_owned).to_vec(),
             merge_args: vec![],
