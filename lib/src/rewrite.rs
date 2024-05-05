@@ -199,7 +199,7 @@ impl<'repo> CommitRewriter<'repo> {
         settings: &UserSettings,
         empty: EmptyBehaviour,
     ) -> BackendResult<Option<CommitBuilder<'repo>>> {
-        let old_parents = self.old_commit.parents();
+        let old_parents: Vec<_> = self.old_commit.parents().try_collect()?;
         let old_parent_trees = old_parents
             .iter()
             .map(|parent| parent.tree_id().clone())

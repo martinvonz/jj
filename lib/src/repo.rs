@@ -1158,6 +1158,10 @@ impl MutableRepo {
                 visited.insert(commit.id().clone());
                 let mut dependents = vec![];
                 for parent in commit.parents() {
+                    let Ok(parent) = parent else {
+                        dependents.push(parent);
+                        continue;
+                    };
                     if let Some(rewrite) = self.parent_mapping.get(parent.id()) {
                         for target in rewrite.new_parent_ids() {
                             if to_visit_set.contains(target) && !visited.contains(target) {
@@ -1347,7 +1351,7 @@ impl MutableRepo {
                 .store()
                 .get_commit(&wc_commit_id)
                 .map_err(EditCommitError::WorkingCopyCommitNotFound)?;
-            if wc_commit.is_discardable()
+            if wc_commit.is_discardable()?
                 && self
                     .view
                     .with_ref(|v| local_branch_target_ids(v).all(|id| id != wc_commit.id()))
@@ -1762,6 +1766,8 @@ pub enum EditCommitError {
     WorkingCopyCommitNotFound(#[source] BackendError),
     #[error("Cannot rewrite the root commit")]
     RewriteRootCommit,
+    #[error(transparent)]
+    BackendError(#[from] BackendError),
 }
 
 /// Error from attempts to check out a commit

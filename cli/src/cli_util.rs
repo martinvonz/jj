@@ -1244,6 +1244,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
                 formatter.with_label("working_copy", |fmt| template.format(new_commit, fmt))?;
                 writeln!(formatter)?;
                 for parent in new_commit.parents() {
+                    let parent = parent?;
                     //                "Working copy now at: "
                     write!(formatter, "Parent commit      : ")?;
                     template.format(&parent, formatter.as_mut())?;

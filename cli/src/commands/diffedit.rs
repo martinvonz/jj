@@ -14,6 +14,7 @@
 
 use std::io::Write;
 
+use itertools::Itertools;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::object_id::ObjectId;
 use jj_lib::rewrite::merge_commit_trees;
@@ -81,7 +82,7 @@ pub(crate) fn cmd_diffedit(
     } else {
         target_commit = workspace_command
             .resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
-        base_commits = target_commit.parents();
+        base_commits = target_commit.parents().try_collect()?;
         diff_description = "The diff initially shows the commit's changes.".to_string();
     };
     workspace_command.check_rewritable([target_commit.id()])?;

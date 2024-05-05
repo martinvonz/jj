@@ -198,7 +198,11 @@ fn cmd_workspace_add(
             .view()
             .get_wc_commit_id(old_workspace_command.workspace_id())
         {
-            tx.repo().store().get_commit(old_wc_commit_id)?.parents()
+            tx.repo()
+                .store()
+                .get_commit(old_wc_commit_id)?
+                .parents()
+                .try_collect()?
         } else {
             vec![tx.repo().store().root_commit()]
         }
