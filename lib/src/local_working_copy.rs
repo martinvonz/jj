@@ -40,7 +40,8 @@ use thiserror::Error;
 use tracing::{instrument, trace_span};
 
 use crate::backend::{
-    BackendError, FileId, MergedTreeId, MillisSinceEpoch, SymlinkId, TreeId, TreeValue,
+    BackendError, BackendResult, FileId, MergedTreeId, MillisSinceEpoch, SymlinkId, TreeId,
+    TreeValue,
 };
 use crate::commit::Commit;
 use crate::conflicts::{self, materialize_tree_value, MaterializedTreeValue};
@@ -663,7 +664,7 @@ impl TreeState {
         Ok(())
     }
 
-    fn current_tree(&self) -> Result<MergedTree, BackendError> {
+    fn current_tree(&self) -> BackendResult<MergedTree> {
         self.store.get_root_tree(&self.tree_id)
     }
 

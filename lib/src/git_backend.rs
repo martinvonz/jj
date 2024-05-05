@@ -448,7 +448,7 @@ fn commit_from_git_without_root_parent(
     id: &CommitId,
     git_object: &gix::Object,
     uses_tree_conflict_format: bool,
-) -> Result<Commit, BackendError> {
+) -> BackendResult<Commit> {
     let commit = git_object
         .try_to_commit_ref()
         .map_err(|err| to_read_object_err(err, id))?;
@@ -659,7 +659,7 @@ fn recreate_no_gc_refs(
     git_repo: &gix::Repository,
     new_heads: impl IntoIterator<Item = CommitId>,
     keep_newer: SystemTime,
-) -> Result<(), BackendError> {
+) -> BackendResult<()> {
     // Calculate diff between existing no-gc refs and new heads.
     let new_heads: HashSet<CommitId> = new_heads.into_iter().collect();
     let mut no_gc_refs_to_keep_count: usize = 0;
@@ -738,7 +738,7 @@ fn run_git_gc(git_dir: &Path) -> Result<(), GitGcError> {
     Ok(())
 }
 
-fn validate_git_object_id(id: &impl ObjectId) -> Result<gix::ObjectId, BackendError> {
+fn validate_git_object_id(id: &impl ObjectId) -> BackendResult<gix::ObjectId> {
     if id.as_bytes().len() != HASH_LENGTH {
         return Err(BackendError::InvalidHashLength {
             expected: HASH_LENGTH,
@@ -872,7 +872,7 @@ impl Backend for GitBackend {
         Ok(FileId::new(oid.as_bytes().to_vec()))
     }
 
-    async fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> Result<String, BackendError> {
+    async fn read_symlink(&self, _path: &RepoPath, id: &SymlinkId) -> BackendResult<String> {
         let git_blob_id = validate_git_object_id(id)?;
         let locked_repo = self.lock_git_repo();
         let mut blob = locked_repo
@@ -886,7 +886,7 @@ impl Backend for GitBackend {
         Ok(target)
     }
 
-    fn write_symlink(&self, _path: &RepoPath, target: &str) -> Result<SymlinkId, BackendError> {
+    fn write_symlink(&self, _path: &RepoPath, target: &str) -> BackendResult<SymlinkId> {
         let locked_repo = self.lock_git_repo();
         let oid =
             locked_repo
@@ -1237,7 +1237,7 @@ impl Backend for GitBackend {
 fn write_tree_conflict(
     repo: &gix::Repository,
     conflict: &Merge<TreeId>,
-) -> Result<gix::ObjectId, BackendError> {
+) -> BackendResult<gix::ObjectId> {
     // Tree entries to be written must be sorted by Entry::filename().
     let mut entries = itertools::chain(
         conflict

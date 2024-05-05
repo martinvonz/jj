@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use futures::{StreamExt, TryFutureExt, TryStreamExt};
 use itertools::Itertools;
-use jj_lib::backend::{BackendError, FileId, MergedTreeId, TreeValue};
+use jj_lib::backend::{BackendError, BackendResult, FileId, MergedTreeId, TreeValue};
 use jj_lib::conflicts::{materialize_tree_value, MaterializedTreeValue};
 use jj_lib::diff::{find_line_ranges, Diff, DiffHunk};
 use jj_lib::files::{self, ContentHunk, MergeResult};
@@ -412,7 +412,7 @@ pub fn apply_diff_builtin(
     right_tree: &MergedTree,
     changed_files: Vec<RepoPathBuf>,
     files: &[scm_record::File],
-) -> Result<MergedTreeId, BackendError> {
+) -> BackendResult<MergedTreeId> {
     let mut tree_builder = MergedTreeBuilder::new(left_tree.id().clone());
     assert_eq!(
         changed_files.len(),

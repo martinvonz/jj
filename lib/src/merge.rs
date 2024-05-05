@@ -27,8 +27,7 @@ use std::sync::Arc;
 use itertools::Itertools;
 use smallvec::{smallvec_inline, SmallVec};
 
-use crate::backend;
-use crate::backend::{BackendError, FileId, TreeId, TreeValue};
+use crate::backend::{self, BackendResult, FileId, TreeId, TreeValue};
 use crate::content_hash::{ContentHash, DigestUpdate};
 use crate::object_id::ObjectId;
 use crate::repo_path::RepoPath;
@@ -559,7 +558,7 @@ where
         &self,
         store: &Arc<Store>,
         dir: &RepoPath,
-    ) -> Result<Option<Merge<Tree>>, BackendError> {
+    ) -> BackendResult<Option<Merge<Tree>>> {
         let tree_id_merge = self.maybe_map(|term| match term {
             None => Some(None),
             Some(value) => {
@@ -571,7 +570,7 @@ where
             }
         });
         if let Some(tree_id_merge) = tree_id_merge {
-            let get_tree = |id: &Option<&TreeId>| -> Result<Tree, BackendError> {
+            let get_tree = |id: &Option<&TreeId>| -> BackendResult<Tree> {
                 if let Some(id) = id {
                     store.get_tree(dir, id)
                 } else {

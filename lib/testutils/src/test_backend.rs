@@ -179,7 +179,7 @@ impl Backend for TestBackend {
         Ok(id)
     }
 
-    async fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> Result<String, BackendError> {
+    async fn read_symlink(&self, path: &RepoPath, id: &SymlinkId) -> BackendResult<String> {
         match self
             .locked_data()
             .symlinks
@@ -196,7 +196,7 @@ impl Backend for TestBackend {
         }
     }
 
-    fn write_symlink(&self, path: &RepoPath, target: &str) -> Result<SymlinkId, BackendError> {
+    fn write_symlink(&self, path: &RepoPath, target: &str) -> BackendResult<SymlinkId> {
         let id = SymlinkId::new(get_hash(target.as_bytes()));
         self.locked_data()
             .symlinks

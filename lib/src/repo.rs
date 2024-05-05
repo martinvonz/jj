@@ -1009,7 +1009,7 @@ impl MutableRepo {
         Ok(())
     }
 
-    fn update_all_references(&mut self, settings: &UserSettings) -> Result<(), BackendError> {
+    fn update_all_references(&mut self, settings: &UserSettings) -> BackendResult<()> {
         for (old_parent_id, rewrite) in self.parent_mapping.clone() {
             // Call `new_parents()` here since `parent_mapping` only contains direct
             // mappings, not transitive ones.
@@ -1026,7 +1026,7 @@ impl MutableRepo {
         settings: &UserSettings,
         old_commit_id: CommitId,
         new_commit_ids: Vec<CommitId>,
-    ) -> Result<(), BackendError> {
+    ) -> BackendResult<()> {
         // We arbitrarily pick a new working-copy commit among the candidates.
         let abandoned_old_commit = matches!(
             self.parent_mapping.get(&old_commit_id),
@@ -1084,7 +1084,7 @@ impl MutableRepo {
         old_commit_id: &CommitId,
         new_commit_id: &CommitId,
         abandoned_old_commit: bool,
-    ) -> Result<(), BackendError> {
+    ) -> BackendResult<()> {
         let workspaces_to_update = self.view().workspaces_for_wc_commit_id(old_commit_id);
         if workspaces_to_update.is_empty() {
             return Ok(());

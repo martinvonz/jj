@@ -26,7 +26,7 @@ use futures::stream::StreamExt;
 use futures::{Future, Stream, TryStreamExt};
 use itertools::Itertools;
 
-use crate::backend::{BackendError, BackendResult, ConflictId, MergedTreeId, TreeId, TreeValue};
+use crate::backend::{BackendResult, ConflictId, MergedTreeId, TreeId, TreeValue};
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
 use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent, RepoPathComponentsIter};
@@ -1226,7 +1226,7 @@ impl MergedTreeBuilder {
         self,
         mut base_tree_ids: Merge<TreeId>,
         store: &Arc<Store>,
-    ) -> Result<Merge<TreeId>, BackendError> {
+    ) -> BackendResult<Merge<TreeId>> {
         let num_sides = self
             .overrides
             .values()
