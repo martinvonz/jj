@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools;
 use jj_lib::commit::Commit;
-use jj_lib::dag_walk::topo_order_reverse;
+use jj_lib::dag_walk::topo_order_reverse_ok;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::rewrite::rebase_to_dest_parent;
 use tracing::instrument;
@@ -102,11 +103,11 @@ pub(crate) fn cmd_obslog(
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
 
-    let mut commits = topo_order_reverse(
-        vec![start_commit],
+    let mut commits = topo_order_reverse_ok(
+        vec![Ok(start_commit)],
         |commit: &Commit| commit.id().clone(),
-        |commit: &Commit| commit.predecessors(),
-    );
+        |commit: &Commit| commit.predecessors().collect_vec(),
+    )?;
     if let Some(n) = args.limit {
         commits.truncate(n);
     }
@@ -114,8 +115,8 @@ pub(crate) fn cmd_obslog(
         let mut graph = get_graphlog(command.settings(), formatter.raw());
         for commit in commits {
             let mut edges = vec![];
-            for predecessor in &commit.predecessors() {
-                edges.push(Edge::Direct(predecessor.id().clone()));
+            for predecessor in commit.predecessors() {
+                edges.push(Edge::Direct(predecessor?.id().clone()));
             }
             let mut buffer = vec![];
             with_content_format.write_graph_text(
@@ -164,13 +165,13 @@ fn show_predecessor_patch(
     commit: &Commit,
     diff_formats: &[DiffFormat],
 ) -> Result<(), CommandError> {
-    let predecessors = commit.predecessors();
-    let predecessor = match predecessors.first() {
-        Some(predecessor) => predecessor,
+    let mut predecessors = commit.predecessors();
+    let predecessor = match predecessors.next() {
+        Some(predecessor) => predecessor?,
         None => return Ok(()),
     };
     let predecessor_tree =
-        rebase_to_dest_parent(workspace_command.repo().as_ref(), predecessor, commit)?;
+        rebase_to_dest_parent(workspace_command.repo().as_ref(), &predecessor, commit)?;
     let tree = commit.tree()?;
     diff_util::show_diff(
         ui,

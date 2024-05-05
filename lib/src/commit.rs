@@ -92,12 +92,11 @@ impl Commit {
         &self.data.predecessors
     }
 
-    pub fn predecessors(&self) -> Vec<Commit> {
+    pub fn predecessors(&self) -> impl Iterator<Item = BackendResult<Commit>> + '_ {
         self.data
             .predecessors
             .iter()
-            .map(|id| self.store.get_commit(id).unwrap())
-            .collect()
+            .map(|id| self.store.get_commit(id))
     }
 
     pub fn tree(&self) -> BackendResult<MergedTree> {
