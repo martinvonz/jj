@@ -441,14 +441,19 @@ Working copy now at: mrxqplyk 52a6c7fd ABCD
 Parent commit      : kwtuwqnm 643061ac ABC
 ```
 
-That will bring up the built-in diff editor with a diff of the changes in the
-"ABCD" commit. If you prefer another diff editor, such as
-[Meld](https://meldmerge.org), you can configure
-[`ui.diff-editor`](config.md#editing-diffs) instead. Expand the file by
-clicking on `(+)` or with right arrow, then select the sections/line to include
-by clicking or using space. Once complete, press `c` to confirm changes, or `q`
-to exit without saving. We can also click on the menu items to see more
-options.
+That will bring up the built-in diff editor[^alternative_diff_editors] with a
+diff of the changes in the "ABCD" commit. Expand the file by clicking on `(+)`
+or with right arrow, then select the sections/line to include by clicking or
+using space. Once complete, press `c` to confirm changes, or `q` to exit without
+saving. You can also use the mouse to click on the menu items to see more
+options (keyboard navigation is currently limited).
+
+[^alternative_diff_editors]: There are many other diff editors you could use.
+For example, if you have [Meld](https://meldmerge.org) installed and in the
+PATH, you can use it via `jj squash -i --tool meld` or a fancier config with `jj
+squash -i --tool meld-3`. You can configure the default with the
+[`ui.diff-editor` option](config.md#editing-diffs); those docs also explain how
+to specify a path to an executable if it is not in the PATH.
 
 If we look at the diff of the second commit, we now see
 that all three lines got capitalized:
