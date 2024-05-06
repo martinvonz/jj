@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Show paths to config files when configuration errors occur
 
+* `jj version` now takes a `--numeric-only` flag to print only the version
+  number.
+
 ### Fixed bugs
 
 ## [0.18.0] - 2024-06-05

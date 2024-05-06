@@ -22,14 +22,24 @@ use crate::ui::Ui;
 
 /// Display version information
 #[derive(clap::Args, Clone, Debug)]
-pub(crate) struct VersionArgs {}
+pub(crate) struct VersionArgs {
+    /// Display only the version number and nothing else.
+    #[arg(long)]
+    pub(crate) numeric_only: bool,
+}
 
 #[instrument(skip_all)]
 pub(crate) fn cmd_version(
     ui: &mut Ui,
     command: &CommandHelper,
-    _args: &VersionArgs,
+    args: &VersionArgs,
 ) -> Result<(), CommandError> {
+    let version = command.app().get_version().unwrap();
+    if args.numeric_only {
+        writeln!(ui.stdout(), "{}", version)?;
+        return Ok(());
+    }
+
     write!(ui.stdout(), "{}", command.app().render_version())?;
     Ok(())
 }
