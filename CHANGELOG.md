@@ -25,6 +25,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj version` now takes a `--numeric-only` flag to print only the version
   number.
 
+* `jj version` now takes a `--build-info` flag to print information about
+  how the binary was built.
+
 ### Fixed bugs
 
 ## [0.18.0] - 2024-06-05

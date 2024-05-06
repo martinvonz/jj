@@ -26,6 +26,10 @@ pub(crate) struct VersionArgs {
     /// Display only the version number and nothing else.
     #[arg(long)]
     pub(crate) numeric_only: bool,
+
+    /// Display build information.
+    #[arg(long, conflicts_with = "numeric_only")]
+    pub(crate) details: bool,
 }
 
 #[instrument(skip_all)]
@@ -40,6 +44,27 @@ pub(crate) fn cmd_version(
         return Ok(());
     }
 
-    write!(ui.stdout(), "{}", command.app().render_version())?;
+    writeln!(
+        ui.stdout(),
+        "Jujutsu version control system; jj {}",
+        version
+    )?;
+
+    if !args.details {
+        writeln!(ui.stdout(), "For more details: run `jj version --details`",)?;
+    } else {
+        write!(
+            ui.stdout(),
+            r#"Copyright (C) 2019-2024 The Jujutsu Authors
+
+License: Apache License, Version 2.0
+Homepage: <https://martinvonz.github.io/jj>
+Report bugs: <https://github.com/martinvonz/jj/issues>
+"#,
+        )?;
+
+        writeln!(ui.stdout())?;
+        writeln!(ui.stdout(), "Target: {}", env!("JJ_CARGO_TARGET"))?;
+    }
     Ok(())
 }

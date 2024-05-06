@@ -2033,6 +2033,10 @@ Display version information
 
   Possible values: `true`, `false`
 
+* `--details` — Display build information
+
+  Possible values: `true`, `false`
+
 
 
 
