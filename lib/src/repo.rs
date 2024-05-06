@@ -761,11 +761,27 @@ impl RepoLoader {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum RewriteType {
-    Rewritten,
-    Divergent,
-    Abandoned,
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Rewrite {
+    /// The old commit was rewritten as this new commit. Children should be
+    /// rebased onto the new commit.
+    Rewritten(CommitId),
+    /// The old commit was rewritten as multiple other commits. Children should
+    /// not be rebased.
+    Divergent(Vec<CommitId>),
+    /// The old commit was abandoned. Children should be rebased onto the given
+    /// commits (typically the parents of the old commit).
+    Abandoned(Vec<CommitId>),
+}
+
+impl Rewrite {
+    fn new_parent_ids(&self) -> &[CommitId] {
+        match self {
+            Rewrite::Rewritten(new_parent_id) => std::slice::from_ref(new_parent_id),
+            Rewrite::Divergent(new_parent_ids) => new_parent_ids.as_slice(),
+            Rewrite::Abandoned(new_parent_ids) => new_parent_ids.as_slice(),
+        }
+    }
 }
 
 pub struct MutableRepo {
@@ -780,7 +796,7 @@ pub struct MutableRepo {
     // * Working copies pointing to the old commit should be updated to the first of the new
     //   commits. However, if the type is `Abandoned`, a new working-copy commit should be created
     //   on top of all of the new commits instead.
-    parent_mapping: HashMap<CommitId, (RewriteType, Vec<CommitId>)>,
+    parent_mapping: HashMap<CommitId, Rewrite>,
 }
 
 impl MutableRepo {
@@ -861,7 +877,7 @@ impl MutableRepo {
     pub fn set_rewritten_commit(&mut self, old_id: CommitId, new_id: CommitId) {
         assert_ne!(old_id, *self.store().root_commit_id());
         self.parent_mapping
-            .insert(old_id, (RewriteType::Rewritten, vec![new_id]));
+            .insert(old_id, Rewrite::Rewritten(new_id));
     }
 
     /// Record a commit as being rewritten into multiple other commits in this
@@ -879,7 +895,7 @@ impl MutableRepo {
         assert_ne!(old_id, *self.store().root_commit_id());
         self.parent_mapping.insert(
             old_id.clone(),
-            (RewriteType::Divergent, new_ids.into_iter().collect()),
+            Rewrite::Divergent(new_ids.into_iter().collect()),
         );
     }
 
@@ -913,7 +929,7 @@ impl MutableRepo {
         assert_ne!(old_id, *self.store().root_commit_id());
         self.parent_mapping.insert(
             old_id,
-            (RewriteType::Abandoned, new_parent_ids.into_iter().collect()),
+            Rewrite::Abandoned(new_parent_ids.into_iter().collect()),
         );
     }
 
@@ -928,7 +944,7 @@ impl MutableRepo {
     /// Panics if `parent_mapping` contains cycles
     pub fn new_parents(&self, old_ids: Vec<CommitId>) -> Vec<CommitId> {
         fn single_substitution_round(
-            parent_mapping: &HashMap<CommitId, (RewriteType, Vec<CommitId>)>,
+            parent_mapping: &HashMap<CommitId, Rewrite>,
             ids: Vec<CommitId>,
         ) -> (Vec<CommitId>, bool) {
             let mut made_replacements = false;
@@ -938,10 +954,14 @@ impl MutableRepo {
             // that case, but it probably doesn't matter much while they are Vec<u8>-s.
             for id in ids.into_iter() {
                 match parent_mapping.get(&id) {
-                    None | Some((RewriteType::Divergent, _)) => {
+                    None | Some(Rewrite::Divergent(_)) => {
                         new_ids.push(id);
                     }
-                    Some((_, replacements)) => {
+                    Some(Rewrite::Rewritten(replacement)) => {
+                        made_replacements = true;
+                        new_ids.push(replacement.clone())
+                    }
+                    Some(Rewrite::Abandoned(replacements)) => {
                         assert!(
                             // Each commit must have a parent, so a parent can
                             // not just be mapped to nothing. This assertion
@@ -990,12 +1010,12 @@ impl MutableRepo {
     }
 
     fn update_all_references(&mut self, settings: &UserSettings) -> Result<(), BackendError> {
-        for (old_parent_id, (_, new_parent_ids)) in self.parent_mapping.clone() {
+        for (old_parent_id, rewrite) in self.parent_mapping.clone() {
             // Call `new_parents()` here since `parent_mapping` only contains direct
             // mappings, not transitive ones.
             // TODO: keep parent_mapping updated with transitive mappings so we don't need
             // to call `new_parents()` here.
-            let new_parent_ids = self.new_parents(new_parent_ids);
+            let new_parent_ids = self.new_parents(rewrite.new_parent_ids().to_vec());
             self.update_references(settings, old_parent_id, new_parent_ids)?;
         }
         Ok(())
@@ -1010,7 +1030,7 @@ impl MutableRepo {
         // We arbitrarily pick a new working-copy commit among the candidates.
         let abandoned_old_commit = matches!(
             self.parent_mapping.get(&old_commit_id),
-            Some((RewriteType::Abandoned, _))
+            Some(Rewrite::Abandoned(_))
         );
         self.update_wc_commits(
             settings,
@@ -1138,8 +1158,8 @@ impl MutableRepo {
                 visited.insert(commit.id().clone());
                 let mut dependents = vec![];
                 for parent in commit.parents() {
-                    if let Some((_, targets)) = self.parent_mapping.get(parent.id()) {
-                        for target in targets {
+                    if let Some(rewrite) = self.parent_mapping.get(parent.id()) {
+                        for target in rewrite.new_parent_ids() {
                             if to_visit_set.contains(target) && !visited.contains(target) {
                                 dependents.push(store.get_commit(target));
                             }
