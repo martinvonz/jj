@@ -32,6 +32,9 @@ extra:
   version:
     provider: mike
 
+validation:
+  anchors: warn
+
 # IMPORTANT: any changes to plugins have to be duplicated in
 # `mkdocs-offline.yml`. See that file for more details.
 plugins:

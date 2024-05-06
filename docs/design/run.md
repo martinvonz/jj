@@ -9,7 +9,7 @@ Initial Version, 10.12.2022 (view full history [here](https://docs.google.com/do
 Jujutsu which will be used to seamlessly integrate with build systems, linters
 and formatters. This is achieved by running a user-provided command or script 
 across multiple revisions. For more details, read the 
-[Use-Cases of jj run](#Use-Cases-of-jj-run).
+[Use-Cases of jj run](#use-cases-of-jj-run).
 
 ## Preface
 
@@ -229,7 +229,7 @@ command)
 (may alias another command)
 * --clean, remove existing workspaces and remove the ignored files
 * --readonly, ignore changes across multiple run invocations
-* --error-strategy=`continue|stop|fatal`, see [Dealing with failure](#Dealing-with-failure)
+* --error-strategy=`continue|stop|fatal`, see [Dealing with failure](#dealing-with-failure)
 
 ### Integrating with other commands
 
