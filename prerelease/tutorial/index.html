@@ -1772,14 +1772,12 @@ Using<span class="w"> </span>default<span class="w"> </span>editor<span class="w
 Working<span class="w"> </span>copy<span class="w"> </span>now<span class="w"> </span>at:<span class="w"> </span>mrxqplyk<span class="w"> </span>52a6c7fd<span class="w"> </span>ABCD
 Parent<span class="w"> </span>commit<span class="w">      </span>:<span class="w"> </span>kwtuwqnm<span class="w"> </span>643061ac<span class="w"> </span>ABC
 </code></pre></div>
-<p>That will bring up the built-in diff editor with a diff of the changes in the
-"ABCD" commit. If you prefer another diff editor, such as
-<a href="https://meldmerge.org">Meld</a>, you can configure
-<a href="../config/#editing-diffs"><code>ui.diff-editor</code></a> instead. Expand the file by
-clicking on <code>(+)</code> or with right arrow, then select the sections/line to include
-by clicking or using space. Once complete, press <code>c</code> to confirm changes, or <code>q</code>
-to exit without saving. We can also click on the menu items to see more
-options.</p>
+<p>That will bring up the built-in diff editor<sup id="fnref:alternative_diff_editors"><a class="footnote-ref" href="#fn:alternative_diff_editors">1</a></sup> with a
+diff of the changes in the "ABCD" commit. Expand the file by clicking on <code>(+)</code>
+or with right arrow, then select the sections/line to include by clicking or
+using space. Once complete, press <code>c</code> to confirm changes, or <code>q</code> to exit without
+saving. You can also use the mouse to click on the menu items to see more
+options (keyboard navigation is currently limited).</p>
 <p>If we look at the diff of the second commit, we now see
 that all three lines got capitalized:</p>
 <div class="highlight"><pre><span></span><code>$<span class="w"> </span>jj<span class="w"> </span>diff<span class="w"> </span>-r<span class="w"> </span>@-
@@ -1820,6 +1818,19 @@ that descendant commits may have conflicts.</p>
 unsquash -i</code>. Now that you've seen how <code>jj squash -i</code> and <code>jj diffedit</code> work,
 you can hopefully figure out how those work (with the help of the instructions
 in the diff).</p>
+<div class="footnote">
+<hr />
+<ol>
+<li id="fn:alternative_diff_editors">
+<p>There are many other diff editors you could use.
+For example, if you have <a href="https://meldmerge.org">Meld</a> installed and in the
+PATH, you can use it via <code>jj squash -i --tool meld</code> or a fancier config with <code>jj
+squash -i --tool meld-3</code>. You can configure the default with the
+<a href="../config/#editing-diffs"><code>ui.diff-editor</code> option</a>; those docs also explain how
+to specify a path to an executable if it is not in the PATH.&#160;<a class="footnote-backref" href="#fnref:alternative_diff_editors" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+</li>
+</ol>
+</div>
 
 
 
