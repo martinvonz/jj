@@ -40,8 +40,14 @@ pub(crate) fn cmd_version(
 ) -> Result<(), CommandError> {
     let base_version = command.app().get_version().unwrap();
     let (version, git_commit) = if let Some(git_commit) = option_env!("JJ_GIT_COMMIT") {
-        let short_commit = &git_commit[..12];
-        (format!("{}-{}", base_version, short_commit), git_commit)
+        // in a release build, don't include the commit hash in the
+        // `--numeric-version` or normal output. GH-3629
+        if option_env!("JJ_RELEASE_BUILD").is_some() {
+            (String::from(base_version), git_commit)
+        } else {
+            let short_commit = &git_commit[..12];
+            (format!("{}-{}", base_version, short_commit), git_commit)
+        }
     } else {
         (String::from(base_version), "unknown")
     };
@@ -73,6 +79,11 @@ Report bugs: <https://github.com/martinvonz/jj/issues>
         writeln!(ui.stdout())?;
         writeln!(ui.stdout(), "Target: {}", env!("JJ_CARGO_TARGET"))?;
         writeln!(ui.stdout(), "Commit: {}", git_commit)?;
+        writeln!(
+            ui.stdout(),
+            "Release: {}",
+            option_env!("JJ_RELEASE_BUILD").is_some()
+        )?;
     }
     Ok(())
 }

@@ -54,6 +54,11 @@ fn main() -> std::io::Result<()> {
         println!("cargo:rustc-env=JJ_GIT_COMMIT=g{}", git_hash);
     }
 
+    // if JJ_RELEASE_BUILD, propagate
+    if std::env::var("JJ_RELEASE_BUILD").is_ok() {
+        println!("cargo:rustc-env=JJ_RELEASE_BUILD=1");
+    }
+
     Ok(())
 }
 
