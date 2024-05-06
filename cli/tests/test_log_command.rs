@@ -1161,6 +1161,14 @@ fn test_graph_template_color() {
     │  [38;5;1mthird line[39m
     ◉
     "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--color=debug", "log", "-T", template]);
+    insta::assert_snapshot!(stdout, @r###"
+    <<node::@>>  [1m[38;5;2m<<log working_copy description::single line>>[0m
+    <<node::◉>>  [38;5;1m<<log description::first line>>[39m
+    │  [38;5;1m<<log description::second line>>[39m
+    │  [38;5;1m<<log description::third line>>[39m
+    <<node::◉>>
+    "###);
 }
 
 #[test]

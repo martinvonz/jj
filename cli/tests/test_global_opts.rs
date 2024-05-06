@@ -486,6 +486,14 @@ fn test_color_ui_messages() {
     [39m  [1m[38;5;5mq[0m[38;5;8mpvuntsm[39m [1m[38;5;4m2[0m[38;5;8m30dd059[39m [38;5;2m(empty)[39m [38;5;2m(no description set)[39m[39m
     [1m[38;5;6mHint: [0m[39mPrefix the expression with 'all:' to allow any number of revisions (i.e. 'all:..').[39m
     "###);
+
+    // debugging colors
+    let (stdout, _stderr) = test_env.jj_cmd_ok(&repo_path, &["st", "--color", "debug"]);
+    insta::assert_snapshot!(stdout, @r###"
+    <<::The working copy is clean>>
+    <<::Working copy : >>[1m[38;5;13m<<working_copy change_id shortest prefix::m>>[38;5;8m<<working_copy change_id shortest rest::zvwutvl>>[39m<<working_copy:: >>[38;5;12m<<working_copy commit_id shortest prefix::1>>[38;5;8m<<working_copy commit_id shortest rest::67f90e7>>[39m<<working_copy:: >>[38;5;10m<<working_copy empty::(empty)>>[39m<<working_copy:: >>[38;5;10m<<working_copy empty description placeholder::(no description set)>>[0m<<::>>
+    <<::Parent commit: >>[1m[38;5;5m<<change_id shortest prefix::q>>[0m[38;5;8m<<change_id shortest rest::pvuntsm>>[39m<<:: >>[1m[38;5;4m<<commit_id shortest prefix::2>>[0m[38;5;8m<<commit_id shortest rest::30dd059>>[39m<<:: >>[38;5;2m<<empty::(empty)>>[39m<<:: >>[38;5;2m<<empty description placeholder::(no description set)>>[39m<<::>>
+    "###);
 }
 
 #[test]
@@ -595,7 +603,7 @@ fn test_help() {
           --ignore-immutable             Allow rewriting immutable commits
           --at-operation <AT_OPERATION>  Operation to load the repo at [default: @] [aliases: at-op]
           --debug                        Enable debug logging
-          --color <WHEN>                 When to colorize output (always, never, auto)
+          --color <WHEN>                 When to colorize output (always, never, debug, auto)
           --quiet                        Silence non-primary command output
           --no-pager                     Disable the pager
           --config-toml <TOML>           Additional configuration options (can be repeated)

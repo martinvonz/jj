@@ -2407,7 +2407,7 @@ pub struct GlobalArgs {
 
 #[derive(clap::Args, Clone, Debug)]
 pub struct EarlyArgs {
-    /// When to colorize output (always, never, auto)
+    /// When to colorize output (always, never, debug, auto)
     #[arg(long, value_name = "WHEN", global = true)]
     pub color: Option<ColorChoice>,
     /// Silence non-primary command output

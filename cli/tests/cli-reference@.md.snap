@@ -164,7 +164,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 
   Possible values: `true`, `false`
 
-* `--color <WHEN>` — When to colorize output (always, never, auto)
+* `--color <WHEN>` — When to colorize output (always, never, debug, auto)
 * `--quiet` — Silence non-primary command output
 
   Possible values: `true`, `false`

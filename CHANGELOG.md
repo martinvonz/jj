@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Conflict markers now include an explanation of what each part of the conflict
   represents.
 
+* `ui.color = "debug"` prints active labels alongside the regular colored output.
+
 ### Fixed bugs
 
 ## [0.17.0] - 2024-05-01
