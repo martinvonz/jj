@@ -762,7 +762,7 @@ impl RepoLoader {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum RewriteType {
+enum RewriteType {
     Rewritten,
     Divergent,
     Abandoned,
