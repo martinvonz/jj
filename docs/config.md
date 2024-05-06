@@ -80,8 +80,9 @@ Don't forget to change these to your own details!
 
 ### Colorizing output
 
-Possible values are `always`, `never` and `auto` (default: `auto`).
-`auto` will use color only when writing to a terminal.
+Possible values are `always`, `never`, `debug` and `auto` (default: `auto`).
+`auto` will use color only when writing to a terminal. `debug` will print the
+active labels alongside the regular colorized output.
 
 This setting overrides the `NO_COLOR` environment variable (if set).
 

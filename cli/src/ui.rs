@@ -179,6 +179,7 @@ fn progress_indicator_setting(config: &config::Config) -> bool {
 pub enum ColorChoice {
     Always,
     Never,
+    Debug,
     #[default]
     Auto,
 }
@@ -190,6 +191,7 @@ impl FromStr for ColorChoice {
         match s {
             "always" => Ok(ColorChoice::Always),
             "never" => Ok(ColorChoice::Never),
+            "debug" => Ok(ColorChoice::Debug),
             "auto" => Ok(ColorChoice::Auto),
             _ => Err("must be one of always, never, or auto"),
         }
@@ -201,6 +203,7 @@ impl fmt::Display for ColorChoice {
         let s = match self {
             ColorChoice::Always => "always",
             ColorChoice::Never => "never",
+            ColorChoice::Debug => "debug",
             ColorChoice::Auto => "auto",
         };
         write!(f, "{s}")
@@ -215,10 +218,15 @@ fn color_setting(config: &config::Config) -> ColorChoice {
         .unwrap_or_default()
 }
 
+fn debug_color(choice: ColorChoice) -> bool {
+    matches!(choice, ColorChoice::Debug)
+}
+
 fn use_color(choice: ColorChoice) -> bool {
     match choice {
         ColorChoice::Always => true,
         ColorChoice::Never => false,
+        ColorChoice::Debug => true,
         ColorChoice::Auto => io::stdout().is_terminal(),
     }
 }
@@ -249,12 +257,14 @@ fn pager_setting(config: &config::Config) -> Result<CommandNameAndArgs, CommandE
 
 impl Ui {
     pub fn with_config(config: &config::Config) -> Result<Ui, CommandError> {
-        let color = use_color(color_setting(config));
+        let color = color_setting(config);
+        let debug = debug_color(color);
+        let color = use_color(color);
         let quiet = be_quiet(config);
         // Sanitize ANSI escape codes if we're printing to a terminal. Doesn't affect
         // ANSI escape codes that originate from the formatter itself.
         let sanitize = io::stdout().is_terminal();
-        let formatter_factory = FormatterFactory::prepare(config, color, sanitize)?;
+        let formatter_factory = FormatterFactory::prepare(config, debug, color, sanitize)?;
         let progress_indicator = progress_indicator_setting(config);
         Ok(Ui {
             color,
@@ -268,13 +278,15 @@ impl Ui {
     }
 
     pub fn reset(&mut self, config: &config::Config) -> Result<(), CommandError> {
-        self.color = use_color(color_setting(config));
+        let color = color_setting(config);
+        let debug = debug_color(color);
+        self.color = use_color(color);
         self.quiet = be_quiet(config);
         self.paginate = pagination_setting(config)?;
         self.pager_cmd = pager_setting(config)?;
         self.progress_indicator = progress_indicator_setting(config);
         let sanitize = io::stdout().is_terminal();
-        self.formatter_factory = FormatterFactory::prepare(config, self.color, sanitize)?;
+        self.formatter_factory = FormatterFactory::prepare(config, debug, self.color, sanitize)?;
         Ok(())
     }
 

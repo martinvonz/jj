@@ -275,7 +275,7 @@ mod tests {
             .build()
             .unwrap();
         let mut output = Vec::new();
-        let mut formatter = ColorFormatter::for_config(&mut output, &config).unwrap();
+        let mut formatter = ColorFormatter::for_config(&mut output, &config, false).unwrap();
         write(&mut formatter).unwrap();
         drop(formatter);
         String::from_utf8(output).unwrap()

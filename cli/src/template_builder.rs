@@ -1292,7 +1292,8 @@ mod tests {
         fn render_ok(&self, template: &str) -> String {
             let template = self.parse(template).unwrap();
             let mut output = Vec::new();
-            let mut formatter = ColorFormatter::new(&mut output, self.color_rules.clone().into());
+            let mut formatter =
+                ColorFormatter::new(&mut output, self.color_rules.clone().into(), false);
             template.format(&(), &mut formatter).unwrap();
             drop(formatter);
             String::from_utf8(output).unwrap()
