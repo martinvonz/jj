@@ -48,10 +48,10 @@ fn main() -> std::io::Result<()> {
         std::env::var("TARGET").unwrap()
     );
 
+    println!("cargo:rustc-env=JJ_VERSION={}", version);
+
     if let Some(git_hash) = get_git_hash() {
-        println!("cargo:rustc-env=JJ_VERSION={}-{}", version, git_hash);
-    } else {
-        println!("cargo:rustc-env=JJ_VERSION={}", version);
+        println!("cargo:rustc-env=JJ_GIT_COMMIT=g{}", git_hash);
     }
 
     Ok(())

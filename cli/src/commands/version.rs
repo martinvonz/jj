@@ -38,7 +38,14 @@ pub(crate) fn cmd_version(
     command: &CommandHelper,
     args: &VersionArgs,
 ) -> Result<(), CommandError> {
-    let version = command.app().get_version().unwrap();
+    let base_version = command.app().get_version().unwrap();
+    let (version, git_commit) = if let Some(git_commit) = option_env!("JJ_GIT_COMMIT") {
+        let short_commit = &git_commit[..12];
+        (format!("{}-{}", base_version, short_commit), git_commit)
+    } else {
+        (String::from(base_version), "unknown")
+    };
+
     if args.numeric_only {
         writeln!(ui.stdout(), "{}", version)?;
         return Ok(());
@@ -65,6 +72,7 @@ Report bugs: <https://github.com/martinvonz/jj/issues>
 
         writeln!(ui.stdout())?;
         writeln!(ui.stdout(), "Target: {}", env!("JJ_CARGO_TARGET"))?;
+        writeln!(ui.stdout(), "Commit: {}", git_commit)?;
     }
     Ok(())
 }
