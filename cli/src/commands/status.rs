@@ -21,6 +21,7 @@ use tracing::instrument;
 use crate::cli_util::{print_conflicted_paths, CommandHelper};
 use crate::command_error::CommandError;
 use crate::diff_util;
+use crate::revset_util;
 use crate::ui::Ui;
 
 /// Show high-level repo status
@@ -98,6 +99,9 @@ pub(crate) fn cmd_status(
         let ancestors_conflicts = RevsetExpression::filter(RevsetFilterPredicate::HasConflict)
             .intersection(&wc_revset.ancestors())
             .minus(&wc_revset)
+            .minus(&revset_util::parse_immutable_expression(
+                &workspace_command.revset_parse_context(),
+            )?)
             .evaluate_programmatic(repo.as_ref())?
             .iter()
             .collect();
