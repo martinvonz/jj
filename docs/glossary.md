@@ -115,7 +115,7 @@ See [visible commits](#visible-commits).
 
 ## Operation
 
-A snapshot of the [visible commits](#visible-commits) and [branches](#branches)
+A snapshot of the [visible commits](#visible-commits) and [branches](#branch)
 at a given point in time (technically a [view object](#view)), together with
 some metadata. The metadata includes the username, hostname, timestamps, and
 pointers to the operation's parents.
