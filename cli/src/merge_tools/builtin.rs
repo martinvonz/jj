@@ -17,6 +17,8 @@ use jj_lib::store::Store;
 use pollster::FutureExt;
 use thiserror::Error;
 
+// TODO(ilyagr): Rename this file and types to use BuiltinTUI instead of
+// Builtin, for symmetry with BuiltinWeb
 #[derive(Debug, Error)]
 pub enum BuiltinToolError {
     #[error("Failed to record changes")]

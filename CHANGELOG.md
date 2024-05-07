@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* New web-based `:builtin-web` diff editor. Try it with `jj split --tool
+  :builtin-web`.
+
+* The `:builtin` diff editor now has an alias `:builtin-tui`.
+
 * `jj tag list` now prints commit summary along with the tag name.
 
 * Conflict markers now include an explanation of what each part of the conflict
