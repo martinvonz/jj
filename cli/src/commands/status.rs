@@ -20,9 +20,8 @@ use tracing::instrument;
 
 use crate::cli_util::{print_conflicted_paths, CommandHelper};
 use crate::command_error::CommandError;
-use crate::diff_util;
-use crate::revset_util;
 use crate::ui::Ui;
+use crate::{diff_util, revset_util};
 
 /// Show high-level repo status
 ///
