@@ -32,7 +32,7 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::store::Store;
-use jj_lib::{diff, files, rewrite};
+use jj_lib::{diff, files};
 use pollster::FutureExt;
 use tracing::instrument;
 use unicode_width::UnicodeWidthStr as _;
@@ -237,8 +237,7 @@ pub fn show_patch(
     matcher: &dyn Matcher,
     formats: &[DiffFormat],
 ) -> Result<(), CommandError> {
-    let parents = commit.parents();
-    let from_tree = rewrite::merge_commit_trees(workspace_command.repo().as_ref(), &parents)?;
+    let from_tree = commit.parent_tree(workspace_command.repo().as_ref())?;
     let to_tree = commit.tree()?;
     show_diff(
         ui,

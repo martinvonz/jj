@@ -22,13 +22,13 @@ use itertools::Itertools as _;
 use jj_lib::backend::{ChangeId, CommitId};
 use jj_lib::commit::Commit;
 use jj_lib::extensions_map::ExtensionsMap;
+use jj_lib::git;
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::{RefTarget, WorkspaceId};
 use jj_lib::repo::Repo;
 use jj_lib::revset::{self, Revset, RevsetExpression, RevsetParseContext};
-use jj_lib::{git, rewrite};
 use once_cell::unsync::OnceCell;
 
 use crate::template_builder::{
@@ -649,7 +649,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
             if let [parent] = &commit.parents()[..] {
                 return Ok(parent.tree_id() == commit.tree_id());
             }
-            let parent_tree = rewrite::merge_commit_trees(repo, &commit.parents())?;
+            let parent_tree = commit.parent_tree(repo)?;
             Ok(*commit.tree_id() == parent_tree.id())
         });
         Ok(L::wrap_boolean(out_property))

@@ -14,7 +14,6 @@
 
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::object_id::ObjectId;
-use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
 use crate::cli_util::{CommandHelper, RevisionArg};
@@ -69,7 +68,7 @@ pub(crate) fn cmd_unsquash(
         None
     };
     let mut tx = workspace_command.start_transaction();
-    let parent_base_tree = merge_commit_trees(tx.repo(), &parent.parents())?;
+    let parent_base_tree = parent.parent_tree(tx.repo())?;
     let new_parent_tree_id;
     if let Some(diff_editor) = &interactive_editor {
         let instructions = format!(

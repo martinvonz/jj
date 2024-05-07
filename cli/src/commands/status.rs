@@ -15,7 +15,6 @@
 use itertools::Itertools;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{RevsetExpression, RevsetFilterPredicate};
-use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
 use crate::cli_util::{print_conflicted_paths, CommandHelper};
@@ -59,7 +58,7 @@ pub(crate) fn cmd_status(
     let formatter = formatter.as_mut();
 
     if let Some(wc_commit) = &maybe_wc_commit {
-        let parent_tree = merge_commit_trees(repo.as_ref(), &wc_commit.parents())?;
+        let parent_tree = wc_commit.parent_tree(repo.as_ref())?;
         let tree = wc_commit.tree()?;
         if tree.id() == parent_tree.id() {
             writeln!(formatter, "The working copy is clean")?;

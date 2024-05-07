@@ -15,7 +15,6 @@ use std::io::Write;
 
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
-use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
 use crate::cli_util::{CommandHelper, RevisionArg};
@@ -76,7 +75,7 @@ pub(crate) fn cmd_split(
     )?;
     let mut tx = workspace_command.start_transaction();
     let end_tree = commit.tree()?;
-    let base_tree = merge_commit_trees(tx.repo(), &commit.parents())?;
+    let base_tree = commit.parent_tree(tx.repo())?;
     let instructions = format!(
         "\
 You are splitting a commit into two: {}
