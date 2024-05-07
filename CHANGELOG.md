@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+## [0.17.1] - 2024-05-07
+
+### Fixed bugs
+
 * `jj status` no longer scans through the entire history to look for ancestors with conflicts.
 
 ## [0.17.0] - 2024-05-01
