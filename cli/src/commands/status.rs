@@ -98,8 +98,7 @@ pub(crate) fn cmd_status(
         let ancestors_conflicts = workspace_command
             .attach_revset_evaluator(
                 RevsetExpression::filter(RevsetFilterPredicate::HasConflict)
-                    .intersection(&wc_revset.ancestors())
-                    .minus(&wc_revset)
+                    .intersection(&wc_revset.parents().ancestors())
                     .minus(&revset_util::parse_immutable_expression(
                         &workspace_command.revset_parse_context(),
                     )?),
