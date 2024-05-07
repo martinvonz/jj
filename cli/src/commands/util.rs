@@ -40,14 +40,14 @@ pub(crate) enum UtilCommand {
 
 Apply it by running one of these:
 
-- **bash**: `source <(jj util completion bash)`
-- **fish**: `jj util completion fish | source`
-- **nushell**:
+- Bash: `source <(jj util completion bash)`
+- Fish: `jj util completion fish | source`
+- Nushell:
      ```nu
      jj util completion nushell | save "completions-jj.nu"
      use "completions-jj.nu" *  # Or `source "completions-jj.nu"`
      ```
-- **zsh**:
+- Zsh:
      ```shell
      autoload -U compinit
      compinit
