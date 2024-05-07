@@ -17,7 +17,7 @@ categories = ["version-control", "development-tools"]
 keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 
 [workspace.dependencies]
-anyhow = "1.0.82"
+anyhow = "1.0.83"
 assert_cmd = "2.0.8"
 assert_matches = "1.5.0"
 async-trait = "0.1.80"
@@ -69,14 +69,14 @@ pest = "2.7.10"
 pest_derive = "2.7.10"
 pollster = "0.3.0"
 pretty_assertions = "1.4.0"
-proc-macro2 = "1.0.81"
+proc-macro2 = "1.0.82"
 prost = "0.12.3"
 prost-build = "0.12.3"
 quote = "1.0.36"
 rand = "0.8.5"
 rand_chacha = "0.3.1"
 rayon = "1.10.0"
-ref-cast = "1.0.22"
+ref-cast = "1.0.23"
 regex = "1.10.3"
 rpassword = "7.3.1"
 rustix = { version = "0.38.34", features = ["fs"] }
@@ -90,11 +90,11 @@ smallvec = { version = "1.13.2", features = [
     "union",
 ] }
 strsim = "0.11.1"
-syn = "2.0.60"
+syn = "2.0.61"
 tempfile = "3.10.1"
 test-case = "3.3.1"
 textwrap = "0.16.1"
-thiserror = "1.0.59"
+thiserror = "1.0.60"
 timeago = { version = "0.4.2", default-features = false }
 tokio = { version = "1.37.0" }
 toml_edit = { version = "0.19.15", features = ["serde"] }
