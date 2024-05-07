@@ -19,7 +19,6 @@ use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use jj_lib::revset;
-use jj_lib::rewrite::merge_commit_trees;
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
@@ -191,7 +190,7 @@ pub fn move_diff(
     }
     let mut source_commits = vec![];
     for source in sources {
-        let parent_tree = merge_commit_trees(tx.repo(), &source.parents())?;
+        let parent_tree = source.parent_tree(tx.repo())?;
         let source_tree = source.tree()?;
         let instructions = format!(
             "\

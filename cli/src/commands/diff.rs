@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
 use crate::cli_util::{print_unmatched_explicit_paths, CommandHelper, RevisionArg};
@@ -72,8 +71,7 @@ pub(crate) fn cmd_diff(
     } else {
         let commit = workspace_command
             .resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
-        let parents = commit.parents();
-        from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &parents)?;
+        from_tree = commit.parent_tree(workspace_command.repo().as_ref())?;
         to_tree = commit.tree()?
     }
     let fileset_expression = workspace_command.parse_file_patterns(&args.paths)?;

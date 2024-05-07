@@ -306,8 +306,8 @@ pub fn rebase_to_dest_parent(
     if source.parent_ids() == destination.parent_ids() {
         Ok(source.tree()?)
     } else {
-        let destination_parent_tree = merge_commit_trees(repo, &destination.parents())?;
-        let source_parent_tree = merge_commit_trees(repo, &source.parents())?;
+        let destination_parent_tree = destination.parent_tree(repo)?;
+        let source_parent_tree = source.parent_tree(repo)?;
         let source_tree = source.tree()?;
         let rebased_tree = destination_parent_tree.merge(&source_parent_tree, &source_tree)?;
         Ok(rebased_tree)
@@ -320,7 +320,7 @@ pub fn back_out_commit(
     old_commit: &Commit,
     new_parents: &[Commit],
 ) -> BackendResult<Commit> {
-    let old_base_tree = merge_commit_trees(mut_repo, &old_commit.parents())?;
+    let old_base_tree = old_commit.parent_tree(mut_repo)?;
     let new_base_tree = merge_commit_trees(mut_repo, new_parents)?;
     let old_tree = old_commit.tree()?;
     let new_tree = new_base_tree.merge(&old_tree, &old_base_tree)?;

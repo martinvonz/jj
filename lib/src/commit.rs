@@ -21,6 +21,8 @@ use std::sync::Arc;
 
 use crate::backend::{self, BackendResult, ChangeId, CommitId, MergedTreeId, Signature};
 use crate::merged_tree::MergedTree;
+use crate::repo::Repo;
+use crate::rewrite::merge_commit_trees;
 use crate::signing::{SignResult, Verification};
 use crate::store::Store;
 
@@ -106,6 +108,12 @@ impl Commit {
 
     pub fn tree_id(&self) -> &MergedTreeId {
         &self.data.root_tree
+    }
+
+    /// Return the parent tree, merging the parent trees if there are multiple
+    /// parents.
+    pub fn parent_tree(&self, repo: &dyn Repo) -> BackendResult<MergedTree> {
+        merge_commit_trees(repo, &self.parents())
     }
 
     pub fn has_conflict(&self) -> BackendResult<bool> {

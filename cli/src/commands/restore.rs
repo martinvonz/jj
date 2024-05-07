@@ -15,7 +15,7 @@
 use std::io::Write;
 
 use jj_lib::object_id::ObjectId;
-use jj_lib::rewrite::{merge_commit_trees, restore_tree};
+use jj_lib::rewrite::restore_tree;
 use tracing::instrument;
 
 use crate::cli_util::{CommandHelper, RevisionArg};
@@ -94,7 +94,7 @@ pub(crate) fn cmd_restore(
     } else {
         to_commit = workspace_command
             .resolve_single_rev(args.changes_in.as_ref().unwrap_or(&RevisionArg::AT))?;
-        from_tree = merge_commit_trees(workspace_command.repo().as_ref(), &to_commit.parents())?;
+        from_tree = to_commit.parent_tree(workspace_command.repo().as_ref())?;
     }
     workspace_command.check_rewritable([to_commit.id()])?;
 

@@ -14,7 +14,6 @@
 
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
-use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
 use crate::cli_util::CommandHelper;
@@ -61,7 +60,7 @@ pub(crate) fn cmd_commit(
     let diff_selector =
         workspace_command.diff_selector(ui, args.tool.as_deref(), args.interactive)?;
     let mut tx = workspace_command.start_transaction();
-    let base_tree = merge_commit_trees(tx.repo(), &commit.parents())?;
+    let base_tree = commit.parent_tree(tx.repo())?;
     let instructions = format!(
         "\
 You are splitting the working-copy commit: {}
