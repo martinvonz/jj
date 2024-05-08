@@ -7048,13 +7048,13 @@ commit. This is true in general; it is not specific to this command.</p>
 <p>Print a command-line-completion script</p>
 <p>Apply it by running one of these:</p>
 <ul>
-<li><strong>bash</strong>: <code>source &lt;(jj util completion bash)</code></li>
-<li><strong>fish</strong>: <code>jj util completion fish | source</code></li>
-<li><strong>nushell</strong>:
+<li>Bash: <code>source &lt;(jj util completion bash)</code></li>
+<li>Fish: <code>jj util completion fish | source</code></li>
+<li>Nushell:
     <div class="highlight"><pre><span></span><code>jj util completion nushell | save &quot;completions-jj.nu&quot;
 use &quot;completions-jj.nu&quot; *  # Or `source &quot;completions-jj.nu&quot;`
 </code></pre></div></li>
-<li><strong>zsh</strong>:
+<li>Zsh:
     <div class="highlight"><pre><span></span><code>autoload<span class="w"> </span>-U<span class="w"> </span>compinit
 compinit
 <span class="nb">source</span><span class="w"> </span>&lt;<span class="o">(</span>jj<span class="w"> </span>util<span class="w"> </span>completion<span class="w"> </span>zsh<span class="o">)</span>
