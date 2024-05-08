@@ -917,6 +917,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#sizehint-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      SizeHint type
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#string-type" class="md-nav__link">
     <span class="md-ellipsis">
       String type
@@ -1663,6 +1672,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#sizehint-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      SizeHint type
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#string-type" class="md-nav__link">
     <span class="md-ellipsis">
       String type
@@ -1898,6 +1916,15 @@ invoked. If not set, an error will be reported inline on method call.</p>
 <li><code>.email() -&gt; String</code></li>
 <li><code>.username() -&gt; String</code></li>
 <li><code>.timestamp() -&gt; Timestamp</code></li>
+</ul>
+<h3 id="sizehint-type">SizeHint type<a class="headerlink" href="#sizehint-type" title="Permanent link">&para;</a></h3>
+<p>This type cannot be printed. The following methods are defined.</p>
+<ul>
+<li><code>.lower() -&gt; Integer</code>: Lower bound.</li>
+<li><code>.upper() -&gt; Option&lt;Integer&gt;</code>: Upper bound if known.</li>
+<li><code>.exact() -&gt; Option&lt;Integer&gt;</code>: Exact value if upper bound is known and it
+  equals to the lower bound.</li>
+<li><code>.zero() -&gt; Boolean</code>: True if upper bound is known and is <code>0</code>.</li>
 </ul>
 <h3 id="string-type">String type<a class="headerlink" href="#string-type" title="Permanent link">&para;</a></h3>
 <p>A string can be implicitly converted to <code>Boolean</code>. The following methods are
