@@ -2546,16 +2546,67 @@ will be read from the following config keys.</p>
 <span class="w">    </span><span class="s2">&quot;--merge&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--cs&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;CreateBakFiles=0&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$left&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;$right&quot;</span><span class="p">]</span>
 </code></pre></div>
 <h3 id="experimental-3-pane-diff-editing">Experimental 3-pane diff editing<a class="headerlink" href="#experimental-3-pane-diff-editing" title="Permanent link">&para;</a></h3>
-<p>The special <code>"meld-3"</code> diff editor sets up Meld to show 3 panes: the sides of
-the diff on the left and right, and an editing pane in the middle. This allow
-you to see both sides of the original diff while editing. If you use
-<code>ui.diff-editor = "meld-3"</code>, note that you can still get the 2-pane Meld view
-using <code>jj diff --tool meld</code>.</p>
-<p>To configure other diff editors, you can include <code>$output</code> together with <code>$left</code>
-and <code>$right</code> in <code>merge-tools.TOOL.edit-args</code>. <code>jj</code> will replace <code>$output</code> with
-the directory where the diff editor will be expected to put the result of the
-user's edits. Initially, the contents of <code>$output</code> will be the same as the
-contents of <code>$right</code>.</p>
+<p>We offer two special "3-pane" diff editor configs:</p>
+<ul>
+<li><code>meld-3</code>, which requires installing <a href="https://meldmerge.org/">Meld</a>, and</li>
+<li><code>diffedit3</code>, which requires installing <a href="https://github.com/ilyagr/diffedit3/releases"><code>diffedit3</code></a>.</li>
+</ul>
+<p><code>Meld</code> is a graphical application that is recommended, but can be difficult to
+install in some situations. <code>diffedit3</code> is designed to be easy to install and to
+be usable in environments where Meld is difficult to use (e.g. over SSH via port
+forwarding). <code>diffedit3</code> starts a local server that can be accessed via a web
+browser, similarly to <a href="https://jupyter.org/">Jupyter</a>.</p>
+<p>There is also the <code>diffedit3-ssh</code> which is similar to <code>diffedit3</code> but does not
+try to open the web browser pointing to the local server (the URL
+printed to the terminal) automatically. <code>diffedit3-ssh</code> also always uses ports in between
+17376-17380 and fails if they are all busy. This can be useful when working
+over SSH. Open the fold below for more details of how to set that up.</p>
+<details>
+<summary> Tips for using `diffedit3-ssh` over SSH </summary>
+
+To use `diffedit3` over SSH, you need to set up port forwarding. One way to do
+this is to start SSH as follows (copy-paste the relevant lines):
+
+<div class="highlight"><pre><span></span><code>ssh<span class="w"> </span>-L<span class="w"> </span><span class="m">17376</span>:localhost:17376<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-L<span class="w"> </span><span class="m">17377</span>:localhost:17377<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-L<span class="w"> </span><span class="m">17378</span>:localhost:17378<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-L<span class="w"> </span><span class="m">17379</span>:localhost:17379<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-L<span class="w"> </span><span class="m">17380</span>:localhost:17380<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>myhost.example.com
+</code></pre></div>
+
+`diffedit3-ssh` is set up to use these 5 ports by default. Usually, only the
+first of them will be used. The rest are used if another program happens to use
+one of them, or if you run multiple instances of `diffedit3` at the same time.
+
+Another way is to add a snippet to `~/.ssh/config`:
+
+<div class="highlight"><pre><span></span><code>Host myhost
+    User     myself
+    Hostname myhost.example.com
+    LocalForward 17376 localhost:17376
+    LocalForward 17377 localhost:17377
+    LocalForward 17378 localhost:17378
+    LocalForward 17379 localhost:17379
+    LocalForward 17380 localhost:17380
+</code></pre></div>
+
+With that configuration, you should be able to simply `ssh myhost`.
+
+</details>
+
+<p>Setting either <code>ui.diff-editor = "meld-3"</code> or <code>ui.diff-editor = "diffedit3"</code>
+will result in the diff editor showing 3 panes: the diff on the left and right,
+and an editing pane in the middle. This allow you to see both sides of the
+original diff while editing.</p>
+<p>If you use <code>ui.diff-editor = "meld-3"</code>, note that you can still get the 2-pane
+Meld view using <code>jj diff --tool meld</code>. <code>diffedit3</code> has a button you can use to
+switch to a 2-pane view.</p>
+<p>To configure other diff editors in this way, you can include <code>$output</code> together
+with <code>$left</code> and <code>$right</code> in <code>merge-tools.TOOL.edit-args</code>. <code>jj</code> will replace
+<code>$output</code> with the directory where the diff editor will be expected to put the
+result of the user's edits. Initially, the contents of <code>$output</code> will be the
+same as the contents of <code>$right</code>.</p>
 <h3 id="jj-instructions"><code>JJ-INSTRUCTIONS</code><a class="headerlink" href="#jj-instructions" title="Permanent link">&para;</a></h3>
 <p>When editing a diff, jj will include a synthetic file called <code>JJ-INSTRUCTIONS</code>
 in the diff with instructions on how to edit the diff. Any changes you make to
