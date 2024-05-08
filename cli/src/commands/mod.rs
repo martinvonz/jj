@@ -29,6 +29,7 @@ mod diffedit;
 mod duplicate;
 mod edit;
 mod files;
+mod fix;
 mod git;
 mod init;
 mod interdiff;
@@ -92,6 +93,8 @@ enum Command {
     Duplicate(duplicate::DuplicateArgs),
     Edit(edit::EditArgs),
     Files(files::FilesArgs),
+    #[command(hide = true)]
+    Fix(fix::FixArgs),
     #[command(subcommand)]
     Git(git::GitCommand),
     Init(init::InitArgs),
@@ -199,6 +202,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Merge(sub_args) => merge::cmd_merge(ui, command_helper, sub_args),
         Command::Rebase(sub_args) => rebase::cmd_rebase(ui, command_helper, sub_args),
         Command::Backout(sub_args) => backout::cmd_backout(ui, command_helper, sub_args),
+        Command::Fix(sub_args) => fix::cmd_fix(ui, command_helper, sub_args),
         Command::Resolve(sub_args) => resolve::cmd_resolve(ui, command_helper, sub_args),
         Command::Branch(sub_args) => branch::cmd_branch(ui, command_helper, sub_args),
         Command::Undo(sub_args) => operation::cmd_op_undo(ui, command_helper, sub_args),
