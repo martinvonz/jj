@@ -342,7 +342,6 @@ fn test_branch_track_untrack_undo() {
       @origin: qpvuntsm 270721f5 (empty) commit
     feature2 (deleted)
       @origin: qpvuntsm 270721f5 (empty) commit
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     "###);
 
     // Track/untrack can be undone so long as states can be trivially merged.
@@ -362,7 +361,6 @@ fn test_branch_track_untrack_undo() {
       @origin: qpvuntsm 270721f5 (empty) commit
     feature2 (deleted)
       @origin: qpvuntsm 270721f5 (empty) commit
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -388,5 +386,6 @@ fn test_branch_track_untrack_undo() {
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes"])
+    // --quiet to suppress deleted branches hint
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes", "--quiet"])
 }

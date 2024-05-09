@@ -664,6 +664,8 @@ fn cmd_branch_list(
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
 
+    let mut found_deleted_local_branch = false;
+    let mut found_deleted_tracking_local_branch = false;
     let branches_to_list = view.branches().filter(|(name, target)| {
         branch_names_to_list
             .as_ref()
@@ -699,24 +701,11 @@ fn cmd_branch_list(
             template.format(&ref_name, formatter.as_mut())?;
         }
 
-        // TODO: move out of the loop and render as "Hint: .." ?
         if local_target.is_absent() && !tracking_remote_refs.is_empty() {
-            let found_non_git_remote = tracking_remote_refs
+            found_deleted_local_branch = true;
+            found_deleted_tracking_local_branch |= tracking_remote_refs
                 .iter()
                 .any(|&(remote, _)| remote != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
-            if found_non_git_remote {
-                writeln!(
-                    formatter.labeled("hint"),
-                    "  (this branch will be *deleted permanently* on the remote on the next `jj \
-                     git push`. Use `jj branch forget` to prevent this)"
-                )?;
-            } else {
-                writeln!(
-                    formatter.labeled("hint"),
-                    "  (this branch will be deleted from the underlying Git repo on the next `jj \
-                     git export`)"
-                )?;
-            }
         }
 
         if args.all_remotes {
@@ -724,6 +713,28 @@ fn cmd_branch_list(
                 let ref_name = RefName::remote_only(name, remote, remote_ref.target.clone());
                 template.format(&ref_name, formatter.as_mut())?;
             }
+        }
+    }
+
+    drop(formatter);
+
+    // Print only one of these hints. It's not important to mention unexported
+    // branches, but user might wonder why deleted branches are still listed.
+    if found_deleted_tracking_local_branch {
+        if let Some(mut writer) = ui.hint_default() {
+            writeln!(
+                writer,
+                "Branches marked as deleted will be *deleted permanently* on the remote on the \
+                 next `jj git push`. Use `jj branch forget` to prevent this."
+            )?;
+        }
+    } else if found_deleted_local_branch {
+        if let Some(mut writer) = ui.hint_default() {
+            writeln!(
+                writer,
+                "Branches marked as deleted will be deleted from the underlying Git repo on the \
+                 next `jj git export`."
+            )?;
         }
     }
 

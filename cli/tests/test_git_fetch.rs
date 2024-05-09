@@ -50,7 +50,8 @@ fn add_git_remote(test_env: &TestEnvironment, repo_path: &Path, remote: &str) {
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes"])
+    // --quiet to suppress deleted branches hint
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes", "--quiet"])
 }
 
 fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, parents: &[&str]) {
@@ -931,7 +932,6 @@ fn test_fetch_undo_what() {
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     b (deleted)
       @origin: vpupmnsl hidden c7d4bdcb descr_for_b
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     "###);
 
     // Now, let's demo restoring just the remote-tracking branch. First, let's
@@ -940,7 +940,6 @@ fn test_fetch_undo_what() {
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     b (deleted)
       @origin: vpupmnsl hidden c7d4bdcb descr_for_b
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     newbranch: qpvuntsm 230dd059 (empty) (no description set)
     "###);
     // Restoring just the remote-tracking state will not affect `newbranch`, but
