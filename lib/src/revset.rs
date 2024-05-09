@@ -79,7 +79,7 @@ pub enum RevsetEvaluationError {
 
 #[derive(Parser)]
 #[grammar = "revset.pest"]
-pub struct RevsetParser;
+struct RevsetParser;
 
 const STRING_LITERAL_PARSER: StringLiteralParser<Rule> = StringLiteralParser {
     content_rule: Rule::string_content,
