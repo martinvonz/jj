@@ -14,9 +14,11 @@
 
 #![allow(missing_docs)]
 
-use std::collections::HashSet;
-use std::error;
+use std::collections::{HashMap, HashSet};
+use std::{error, fmt};
 
+use itertools::Itertools as _;
+use pest::Parser;
 use pest_derive::Parser;
 use thiserror::Error;
 
@@ -235,4 +237,101 @@ fn rename_rules_in_pest_error(mut err: pest::error::Error<Rule>) -> pest::error:
             .map(|sym| format!("`{sym}`"))
             .unwrap_or_else(|| format!("<{rule:?}>"))
     })
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct RevsetAliasesMap {
+    symbol_aliases: HashMap<String, String>,
+    // TODO: remove pub(super)
+    pub(super) function_aliases: HashMap<String, (Vec<String>, String)>,
+}
+
+impl RevsetAliasesMap {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Adds new substitution rule `decl = defn`.
+    ///
+    /// Returns error if `decl` is invalid. The `defn` part isn't checked. A bad
+    /// `defn` will be reported when the alias is substituted.
+    pub fn insert(
+        &mut self,
+        decl: impl AsRef<str>,
+        defn: impl Into<String>,
+    ) -> Result<(), RevsetParseError> {
+        match RevsetAliasDeclaration::parse(decl.as_ref())? {
+            RevsetAliasDeclaration::Symbol(name) => {
+                self.symbol_aliases.insert(name, defn.into());
+            }
+            RevsetAliasDeclaration::Function(name, params) => {
+                self.function_aliases.insert(name, (params, defn.into()));
+            }
+        }
+        Ok(())
+    }
+
+    pub fn get_symbol(&self, name: &str) -> Option<&str> {
+        self.symbol_aliases.get(name).map(|defn| defn.as_ref())
+    }
+
+    pub fn get_function(&self, name: &str) -> Option<(&[String], &str)> {
+        self.function_aliases
+            .get(name)
+            .map(|(params, defn)| (params.as_ref(), defn.as_ref()))
+    }
+}
+
+/// Parsed declaration part of alias rule.
+#[derive(Clone, Debug)]
+enum RevsetAliasDeclaration {
+    Symbol(String),
+    Function(String, Vec<String>),
+}
+
+impl RevsetAliasDeclaration {
+    fn parse(source: &str) -> Result<Self, RevsetParseError> {
+        let mut pairs = RevsetParser::parse(Rule::alias_declaration, source)?;
+        let first = pairs.next().unwrap();
+        match first.as_rule() {
+            Rule::identifier => Ok(RevsetAliasDeclaration::Symbol(first.as_str().to_owned())),
+            Rule::function_name => {
+                let name = first.as_str().to_owned();
+                let params_pair = pairs.next().unwrap();
+                let params_span = params_pair.as_span();
+                let params = params_pair
+                    .into_inner()
+                    .map(|pair| match pair.as_rule() {
+                        Rule::identifier => pair.as_str().to_owned(),
+                        r => panic!("unexpected formal parameter rule {r:?}"),
+                    })
+                    .collect_vec();
+                if params.iter().all_unique() {
+                    Ok(RevsetAliasDeclaration::Function(name, params))
+                } else {
+                    Err(RevsetParseError::with_span(
+                        RevsetParseErrorKind::RedefinedFunctionParameter,
+                        params_span,
+                    ))
+                }
+            }
+            r => panic!("unexpected alias declaration rule {r:?}"),
+        }
+    }
+}
+
+/// Borrowed reference to identify alias expression.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum RevsetAliasId<'a> {
+    Symbol(&'a str),
+    Function(&'a str),
+}
+
+impl fmt::Display for RevsetAliasId<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RevsetAliasId::Symbol(name) => write!(f, "{name}"),
+            RevsetAliasId::Function(name) => write!(f, "{name}()"),
+        }
+    }
 }
