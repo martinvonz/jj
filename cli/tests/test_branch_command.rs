@@ -422,8 +422,7 @@ fn test_branch_delete_export() {
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all-remotes"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     "###);
 }
 
@@ -435,8 +434,7 @@ fn test_branch_forget_export() {
 
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all-remotes"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     foo: rlvkpnrz 65b6b74e (empty) (no description set)
     "###);
 
@@ -449,8 +447,7 @@ fn test_branch_forget_export() {
     insta::assert_snapshot!(stderr, @"");
     // Forgetting a branch deletes local and remote-tracking branches including
     // the corresponding git-tracking branch.
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all-remotes"]);
-    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r=foo", "--no-graph"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Revision "foo" doesn't exist
@@ -463,8 +460,7 @@ fn test_branch_forget_export() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all-remotes"]);
-    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
 }
 
 #[test]
