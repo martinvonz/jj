@@ -1900,6 +1900,14 @@ invoked. If not set, an error will be reported inline on method call.</p>
 <li><code>.removed_targets() -&gt; List&lt;Commit&gt;</code>: Old target commits if conflicted.</li>
 <li><code>.added_targets() -&gt; List&lt;Commit&gt;</code>: New target commits. The list usually
   contains one "normal" target.</li>
+<li><code>.tracked() -&gt; Boolean</code>: True if the ref is tracked by a local ref. The local
+  ref might have been deleted (but not pushed yet.)</li>
+<li><code>.tracking_present() -&gt; Boolean</code>: True if the ref is tracked by a local ref,
+    and if the local ref points to any commit.</li>
+<li><code>.tracking_ahead_count() -&gt; SizeHint</code>: Number of commits ahead of the tracking
+  local ref.</li>
+<li><code>.tracking_behind_count() -&gt; SizeHint</code>: Number of commits behind of the
+  tracking local ref.</li>
 </ul>
 <h3 id="shortestidprefix-type">ShortestIdPrefix type<a class="headerlink" href="#shortestidprefix-type" title="Permanent link">&para;</a></h3>
 <p>The following methods are defined.</p>
