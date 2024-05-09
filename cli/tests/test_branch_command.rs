@@ -376,13 +376,10 @@ fn test_branch_delete_glob() {
       @origin: qpvuntsm 6fbf398c (empty) commit
     foo-1 (deleted)
       @origin: qpvuntsm 6fbf398c (empty) commit
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     foo-3 (deleted)
       @origin: qpvuntsm 6fbf398c (empty) commit
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     foo-4 (deleted)
       @origin: qpvuntsm 6fbf398c (empty) commit
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     "###);
 
     // Malformed glob
@@ -418,9 +415,10 @@ fn test_branch_delete_export() {
     insta::assert_snapshot!(stdout, @r###"
     foo (deleted)
       @git: rlvkpnrz 65b6b74e (empty) (no description set)
-      (this branch will be deleted from the underlying Git repo on the next `jj git export`)
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Hint: Branches marked as deleted will be deleted from the underlying Git repo on the next `jj git export`.
+    "###);
 
     test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
@@ -629,7 +627,6 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1 (deleted)
       @origin: mzyxwzks 9f01a0e0 message
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     "###);
 
     // ============ End of test setup ============
@@ -1011,26 +1008,28 @@ fn test_branch_list() {
     local-only: wqnwkozp 4e887f78 (empty) local-only
     remote-delete (deleted)
       @origin: mnmymoky 203e60eb (empty) remote-delete
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     remote-sync: zwtyzrop c761c7ea (empty) remote-sync
     remote-unsync: wqnwkozp 4e887f78 (empty) local-only
       @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Hint: Branches marked as deleted will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this.
+    "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["branch", "list", "--all-remotes"]);
     insta::assert_snapshot!(stdout, @r###"
     local-only: wqnwkozp 4e887f78 (empty) local-only
     remote-delete (deleted)
       @origin: mnmymoky 203e60eb (empty) remote-delete
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     remote-sync: zwtyzrop c761c7ea (empty) remote-sync
       @origin: zwtyzrop c761c7ea (empty) remote-sync
     remote-unsync: wqnwkozp 4e887f78 (empty) local-only
       @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
     remote-untrack@origin: vmortlor 71a16b05 (empty) remote-untrack
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Hint: Branches marked as deleted will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this.
+    "###);
 
     let template = r#"
     concat(
@@ -1081,7 +1080,6 @@ fn test_branch_list() {
     tracking_present: false
     tracking_ahead_count: 2
     tracking_behind_count: 0
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     [remote-sync]
     present: true
     conflict: false
@@ -1133,7 +1131,9 @@ fn test_branch_list() {
     tracking_ahead_count: <Error: Not a tracked remote ref>
     tracking_behind_count: <Error: Not a tracked remote ref>
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Hint: Branches marked as deleted will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this.
+    "###);
 }
 
 #[test]
@@ -1192,12 +1192,13 @@ fn test_branch_list_filtered() {
     local-keep: kpqxywon c7b4c09c (empty) local-keep
     remote-delete (deleted)
       @origin: yxusvupt dad5f298 (empty) remote-delete
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     remote-keep: nlwprzpn 911e9120 (empty) remote-keep
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
       @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Hint: Branches marked as deleted will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this.
+    "###);
 
     let query =
         |args: &[&str]| test_env.jj_cmd_ok(&local_path, &[&["branch", "list"], args].concat());
@@ -1262,9 +1263,10 @@ fn test_branch_list_filtered() {
     insta::assert_snapshot!(stdout, @r###"
     remote-delete (deleted)
       @origin: yxusvupt dad5f298 (empty) remote-delete
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Hint: Branches marked as deleted will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this.
+    "###);
     let (stdout, stderr) = query(&["-rbranches(remote-delete)"]);
     insta::assert_snapshot!(stdout, @r###"
     "###);
@@ -1280,10 +1282,11 @@ fn test_branch_list_filtered() {
     local-keep: kpqxywon c7b4c09c (empty) local-keep
     remote-delete (deleted)
       @origin: yxusvupt dad5f298 (empty) remote-delete
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     remote-keep: nlwprzpn 911e9120 (empty) remote-keep
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Hint: Branches marked as deleted will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this.
+    "###);
 
     // Unmatched name pattern shouldn't be an error. A warning can be added later.
     let (stdout, stderr) = query(&["local-keep", "glob:push-*"]);
@@ -1438,7 +1441,6 @@ fn test_branch_list_tracked() {
       @git: nmzmmopx e1da745b (empty) local-only
     remote-delete (deleted)
       @origin: mnmymoky 203e60eb (empty) remote-delete
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     remote-sync: zwtyzrop c761c7ea (empty) remote-sync
       @git: zwtyzrop c761c7ea (empty) remote-sync
       @origin: zwtyzrop c761c7ea (empty) remote-sync
@@ -1451,13 +1453,14 @@ fn test_branch_list_tracked() {
       @git: lolpmnqw 32fa6da0 (empty) upstream-sync
       @upstream: lolpmnqw 32fa6da0 (empty) upstream-sync
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Hint: Branches marked as deleted will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this.
+    "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["branch", "list", "--tracked"]);
     insta::assert_snapshot!(stdout, @r###"
     remote-delete (deleted)
       @origin: mnmymoky 203e60eb (empty) remote-delete
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     remote-sync: zwtyzrop c761c7ea (empty) remote-sync
       @origin: zwtyzrop c761c7ea (empty) remote-sync
     remote-unsync: nmzmmopx e1da745b (empty) local-only
@@ -1467,7 +1470,9 @@ fn test_branch_list_tracked() {
       @upstream: lolpmnqw 32fa6da0 (empty) upstream-sync
     "###
     );
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Hint: Branches marked as deleted will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this.
+    "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &local_path,
@@ -1548,5 +1553,6 @@ fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
 }
 
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
-    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes"])
+    // --quiet to suppress deleted branches hint
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes", "--quiet"])
 }

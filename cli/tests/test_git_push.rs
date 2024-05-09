@@ -283,11 +283,14 @@ fn test_git_push_multiple() {
     test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "my-branch"]);
     test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "foo"]);
     // Check the setup
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all-remotes"]);
+    let stdout = test_env.jj_cmd_success(
+        &workspace_root,
+        // --quiet to suppress deleted branches hint
+        &["branch", "list", "--all-remotes", "--quiet"],
+    );
     insta::assert_snapshot!(stdout, @r###"
     branch1 (deleted)
       @origin: lzmmnrxq 45a3aa29 (empty) description 1
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     branch2: yqosqzyt 15dcdaa4 (empty) foo
       @origin (ahead by 1 commits, behind by 1 commits): rlzusymt 8476341e (empty) description 2
     my-branch: yqosqzyt 15dcdaa4 (empty) foo
@@ -837,13 +840,16 @@ fn test_git_push_tracked_vs_all() {
     test_env.jj_cmd_ok(&workspace_root, &["branch", "delete", "branch2"]);
     test_env.jj_cmd_ok(&workspace_root, &["branch", "untrack", "branch1@origin"]);
     test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "branch3"]);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all-remotes"]);
+    let stdout = test_env.jj_cmd_success(
+        &workspace_root,
+        // --quiet to suppress deleted branches hint
+        &["branch", "list", "--all-remotes", "--quiet"],
+    );
     insta::assert_snapshot!(stdout, @r###"
     branch1: vruxwmqv a25f24af (empty) moved branch1
     branch1@origin: lzmmnrxq 45a3aa29 (empty) description 1
     branch2 (deleted)
       @origin: rlzusymt 8476341e (empty) description 2
-      (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     branch3: znkkpsqq 998d6a78 (empty) moved branch2
     "###);
 
