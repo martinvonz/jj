@@ -231,6 +231,9 @@ pub struct GitPushArgs {
     /// correspond to missing local branches.
     #[arg(long)]
     deleted: bool,
+    /// Allow pushing commits with empty descriptions
+    #[arg(long)]
+    allow_empty_description: bool,
     /// Push branches pointing to these commits (can be repeated)
     #[arg(long, short)]
     revisions: Vec<RevisionArg>,
@@ -959,7 +962,7 @@ fn cmd_git_push(
     {
         let commit = commit?;
         let mut reasons = vec![];
-        if commit.description().is_empty() {
+        if commit.description().is_empty() && !args.allow_empty_description {
             reasons.push("it has no description");
         }
         if commit.author().name.is_empty()
