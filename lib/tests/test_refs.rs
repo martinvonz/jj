@@ -89,10 +89,27 @@ fn test_merge_ref_targets() {
         target4
     );
 
-    // Both added same target
+    // Both moved sideways ("A - B + A" - type conflict)
+    assert_eq!(
+        merge_ref_targets(index, &target4, &target3, &target4),
+        target4
+    );
+
+    // Both added same target ("A - B + A" - type conflict)
     assert_eq!(
         merge_ref_targets(index, &target3, RefTarget::absent_ref(), &target3),
         target3
+    );
+
+    // Both removed ("A - B + A" - type conflict)
+    assert_eq!(
+        merge_ref_targets(
+            index,
+            RefTarget::absent_ref(),
+            &target3,
+            RefTarget::absent_ref()
+        ),
+        RefTarget::absent()
     );
 
     // Left added target, right added descendant target
