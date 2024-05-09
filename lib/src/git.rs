@@ -29,9 +29,10 @@ use thiserror::Error;
 use crate::backend::{BackendError, CommitId};
 use crate::commit::Commit;
 use crate::git_backend::GitBackend;
+use crate::index::Index;
 use crate::object_id::ObjectId;
 use crate::op_store::{RefTarget, RefTargetOptionExt, RemoteRef, RemoteRefState};
-use crate::refs::BranchPushUpdate;
+use crate::refs::{self, BranchPushUpdate};
 use crate::repo::{MutableRepo, Repo};
 use crate::revset::RevsetExpression;
 use crate::settings::GitSettings;
@@ -1224,6 +1225,8 @@ pub enum GitPushError {
     RemoteReservedForLocalGitRepo,
     #[error("Push is not fast-forwardable")]
     NotFastForward,
+    #[error("Refs in unexpected location: {0:?}")]
+    RefInUnexpectedLocation(Vec<String>),
     #[error("Remote rejected the update of some refs (do you have permission to push to {0:?}?)")]
     RefUpdateRejected(Vec<String>),
     // TODO: I'm sure there are other errors possible, such as transport-level errors,
@@ -1268,7 +1271,7 @@ pub fn push_branches(
             new_target: update.new_target.clone(),
         })
         .collect_vec();
-    push_updates(git_repo, remote_name, &ref_updates, callbacks)?;
+    push_updates(mut_repo, git_repo, remote_name, &ref_updates, callbacks)?;
 
     // TODO: add support for partially pushed refs? we could update the view
     // excluding rejected refs, but the transaction would be aborted anyway
@@ -1288,6 +1291,7 @@ pub fn push_branches(
 
 /// Pushes the specified Git refs without updating the repo view.
 pub fn push_updates(
+    repo: &dyn Repo,
     git_repo: &git2::Repository,
     remote_name: &str,
     updates: &[GitRefUpdate],
@@ -1311,10 +1315,10 @@ pub fn push_updates(
             refspecs.push(format!(":{}", update.qualified_name));
         }
     }
-    // TODO(ilyagr): this function will be reused to implement force-with-lease, so
-    // don't inline for now. If it's after 2024-06-01 or so, ilyagr may have
-    // forgotten to delete this comment.
+    // TODO(ilyagr): `push_refs`, or parts of it, should probably be inlined. This
+    // requires adjusting some tests.
     push_refs(
+        repo,
         git_repo,
         remote_name,
         &qualified_remote_refs_expected_locations,
@@ -1324,6 +1328,7 @@ pub fn push_updates(
 }
 
 fn push_refs(
+    repo: &dyn Repo,
     git_repo: &git2::Repository,
     remote_name: &str,
     qualified_remote_refs_expected_locations: &HashMap<&str, Option<&CommitId>>,
@@ -1344,67 +1349,183 @@ fn push_refs(
         .keys()
         .copied()
         .collect();
-    let mut push_options = git2::PushOptions::new();
-    let mut proxy_options = git2::ProxyOptions::new();
-    proxy_options.auto();
-    push_options.proxy_options(proxy_options);
-    let mut callbacks = callbacks.into_git();
-    callbacks.push_negotiation(|updates| {
-        for update in updates {
-            let dst_refname = update
-                .dst_refname()
-                .expect("Expect reference name to be valid UTF-8");
-            let expected_remote_location = *qualified_remote_refs_expected_locations
-                .get(dst_refname)
-                .expect("Push is trying to move a ref it wasn't asked to move");
+    let mut failed_push_negotiations = vec![];
+    let push_result = {
+        let mut push_options = git2::PushOptions::new();
+        let mut proxy_options = git2::ProxyOptions::new();
+        proxy_options.auto();
+        push_options.proxy_options(proxy_options);
+        let mut callbacks = callbacks.into_git();
+        callbacks.push_negotiation(|updates| {
+            for update in updates {
+                let dst_refname = update
+                    .dst_refname()
+                    .expect("Expect reference name to be valid UTF-8");
+                let expected_remote_location = *qualified_remote_refs_expected_locations
+                    .get(dst_refname)
+                    .expect("Push is trying to move a ref it wasn't asked to move");
+                let oid_to_maybe_commitid =
+                    |oid: git2::Oid| (!oid.is_zero()).then(|| CommitId::from_bytes(oid.as_bytes()));
+                let actual_remote_location = oid_to_maybe_commitid(update.src());
+                let local_location = oid_to_maybe_commitid(update.dst());
 
-            // `update.src()` is the current actual position of the branch
-            // `dst_refname` on the remote. `update.dst()` is the position
-            // we are trying to push the branch to (AKA our local branch
-            // location). 0000000000 is a valid value for either, indicating
-            // branch creation or deletion.
-            let oid_to_maybe_commitid =
-                |oid: git2::Oid| (!oid.is_zero()).then(|| CommitId::from_bytes(oid.as_bytes()));
-            let actual_remote_location = oid_to_maybe_commitid(update.src());
-            let local_location = oid_to_maybe_commitid(update.dst());
+                match allow_push(
+                    repo.index(),
+                    actual_remote_location.as_ref(),
+                    expected_remote_location,
+                    local_location.as_ref(),
+                ) {
+                    Ok(PushAllowReason::NormalMatch) => {}
+                    Ok(PushAllowReason::UnexpectedNoop) => {
+                        tracing::info!(
+                            "The push of {dst_refname} is unexpectedly a no-op, the remote branch \
+                             is already at {actual_remote_location:?}. We expected it to be at \
+                             {expected_remote_location:?}. We don't consider this an error.",
+                        );
+                    }
+                    Ok(PushAllowReason::ExceptionalFastforward) => {
+                        // TODO(ilyagr): We could consider printing a user-facing message at
+                        // this point.
+                        tracing::info!(
+                            "We allow the push of {dst_refname} to {local_location:?}, even \
+                             though it is unexpectedly at {actual_remote_location:?} on the \
+                             server rather than the expected {expected_remote_location:?}. The \
+                             desired location is a descendant of the actual location, and the \
+                             actual location is a descendant of the expected location.",
+                        );
+                    }
+                    Err(()) => {
+                        // While we show debug info in the message with `--debug`,
+                        // there's probably no need to show the detailed commit
+                        // locations to the user normally. They should do a `jj git
+                        // fetch`, and the resulting branch conflicts should contain
+                        // all the information they need.
+                        tracing::info!(
+                            "Cannot push {dst_refname} to {local_location:?}; it is at \
+                             unexpectedly at {actual_remote_location:?} on the server as opposed \
+                             to the expected {expected_remote_location:?}",
+                        );
 
-            // Short-term TODO: Replace this with actual rules of when to permit the push
-            tracing::info!(
-                "Forcing {dst_refname} to {dst:?}. It was at {src:?} at the server. We expected \
-                 it to be at {expected_remote_location:?}.",
-                src = actual_remote_location,
-                dst = local_location
-            );
-        }
-        Ok(())
-    });
-    callbacks.push_update_reference(|refname, status| {
-        // The status is Some if the ref update was rejected
-        if status.is_none() {
-            remaining_remote_refs.remove(refname);
-        }
-        Ok(())
-    });
-    push_options.remote_callbacks(callbacks);
-    remote
-        .push(refspecs, Some(&mut push_options))
-        .map_err(|err| match (err.class(), err.code()) {
-            (git2::ErrorClass::Reference, git2::ErrorCode::NotFastForward) => {
-                GitPushError::NotFastForward
+                        failed_push_negotiations.push(dst_refname.to_string());
+                    }
+                }
             }
-            _ => GitPushError::InternalGitError(err),
-        })?;
-    drop(push_options);
-    if remaining_remote_refs.is_empty() {
-        Ok(())
-    } else {
-        Err(GitPushError::RefUpdateRejected(
-            remaining_remote_refs
-                .iter()
-                .sorted()
-                .map(|name| name.to_string())
-                .collect(),
+            if failed_push_negotiations.is_empty() {
+                Ok(())
+            } else {
+                Err(git2::Error::from_str("failed push negotiation"))
+            }
+        });
+        callbacks.push_update_reference(|refname, status| {
+            // The status is Some if the ref update was rejected
+            if status.is_none() {
+                remaining_remote_refs.remove(refname);
+            }
+            Ok(())
+        });
+        push_options.remote_callbacks(callbacks);
+        remote
+            .push(refspecs, Some(&mut push_options))
+            .map_err(|err| match (err.class(), err.code()) {
+                (git2::ErrorClass::Reference, git2::ErrorCode::NotFastForward) => {
+                    GitPushError::NotFastForward
+                }
+                _ => GitPushError::InternalGitError(err),
+            })
+    };
+    if !failed_push_negotiations.is_empty() {
+        // If the push negotiation returned an error, `remote.push` would not
+        // have pushed anything and would have returned an error, as expected.
+        // However, the error it returns is not necessarily the error we'd
+        // expect. It also depends on the exact versions of `libgit2` and
+        // `git2.rs`. So, we cannot rely on it containing any useful
+        // information. See https://github.com/rust-lang/git2-rs/issues/1042.
+        assert!(push_result.is_err());
+        failed_push_negotiations.sort();
+        Err(GitPushError::RefInUnexpectedLocation(
+            failed_push_negotiations,
         ))
+    } else {
+        push_result?;
+        if remaining_remote_refs.is_empty() {
+            Ok(())
+        } else {
+            Err(GitPushError::RefUpdateRejected(
+                remaining_remote_refs
+                    .iter()
+                    .sorted()
+                    .map(|name| name.to_string())
+                    .collect(),
+            ))
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum PushAllowReason {
+    NormalMatch,
+    ExceptionalFastforward,
+    UnexpectedNoop,
+}
+
+fn allow_push(
+    index: &dyn Index,
+    actual_remote_location: Option<&CommitId>,
+    expected_remote_location: Option<&CommitId>,
+    destination_location: Option<&CommitId>,
+) -> Result<PushAllowReason, ()> {
+    if actual_remote_location == expected_remote_location {
+        return Ok(PushAllowReason::NormalMatch);
+    }
+
+    // If the remote ref is in an unexpected location, we still allow some
+    // pushes, based on whether `jj git fetch` would result in a conflicted ref.
+    //
+    // For `merge_ref_targets` to work correctly, `actual_remote_location` must
+    // be a commit that we locally know about.
+    //
+    // This does not lose any generality since for `merge_ref_targets` to
+    // resolve to `local_target` below, it is conceptually necessary (but not
+    // sufficient) for the destination_location to be either a descendant of
+    // actual_remote_location or equal to it. Either way, we would know about that
+    // commit locally.
+    if !actual_remote_location.map_or(true, |id| index.has_id(id)) {
+        return Err(());
+    }
+    let remote_target = RefTarget::resolved(actual_remote_location.cloned());
+    let base_target = RefTarget::resolved(expected_remote_location.cloned());
+    // The push destination is the local position of the ref
+    let local_target = RefTarget::resolved(destination_location.cloned());
+    if refs::merge_ref_targets(index, &remote_target, &base_target, &local_target) == local_target {
+        // Fetch would not change the local branch, so the push is OK in spite of
+        // the discrepancy with the expected location. We return some debug info and
+        // verify some invariants before OKing the push.
+        Ok(if actual_remote_location == destination_location {
+            // This is the situation of what we call "A - B + A = A"
+            // conflicts, see also test_refs.rs and
+            // https://github.com/martinvonz/jj/blob/c9b44f382824301e6c0fdd6f4cbc52bb00c50995/lib/src/merge.rs#L92.
+            PushAllowReason::UnexpectedNoop
+        } else {
+            // The assertions follow from our ref merge rules:
+            //
+            // 1. This is a fast-forward.
+            debug_assert!(index.is_ancestor(
+                actual_remote_location.as_ref().unwrap(),
+                destination_location.as_ref().unwrap()
+            ));
+            // 2. The expected location is an ancestor of both the actual location and the
+            //    destination (local position).
+            debug_assert!(
+                expected_remote_location.is_none()
+                    || index.is_ancestor(
+                        expected_remote_location.unwrap(),
+                        actual_remote_location.as_ref().unwrap()
+                    )
+            );
+            PushAllowReason::ExceptionalFastforward
+        })
+    } else {
+        Err(())
     }
 }
 

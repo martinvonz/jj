@@ -1019,6 +1019,15 @@ fn cmd_git_push(
             "Try fetching from the remote, then make the branch point to where you want it to be, \
              and push again.",
         ),
+        GitPushError::RefInUnexpectedLocation(refs) => user_error_with_hint(
+            format!(
+                "Refusing to push a branch that unexpectedly moved on the remote. Affected refs: \
+                 {}",
+                refs.join(", ")
+            ),
+            "Try fetching from the remote, then make the branch point to where you want it to be, \
+             and push again.",
+        ),
         _ => user_error(err),
     })?;
     writer.flush(ui)?;

@@ -14,7 +14,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
+use crate::common::TestEnvironment;
 
 fn set_up() -> (TestEnvironment, PathBuf) {
     let test_env = TestEnvironment::default();
@@ -196,7 +196,14 @@ fn test_git_push_other_remote_has_branch() {
     Warning: No branches found in the default push revset: remote_branches(remote=origin)..@
     Nothing changed.
     "###);
-    // But it will still get pushed to another remote
+    // The branch was moved on the "other" remote as well (since it's actually the
+    // same remote), but `jj` is not aware of that since it thinks this is a
+    // different remote. So, the push should fail.
+    //
+    // But it succeeds! That's because the branch is created at the same location as
+    // it is on the remote. This would also work for a descendant.
+    //
+    // TODO: Saner test?
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--remote=other"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -206,7 +213,7 @@ fn test_git_push_other_remote_has_branch() {
 }
 
 #[test]
-fn test_git_push_not_fast_forward() {
+fn test_git_push_forward_unexpectedly_moved() {
     let (test_env, workspace_root) = set_up();
 
     // Move branch1 forward on the remote
@@ -226,15 +233,11 @@ fn test_git_push_not_fast_forward() {
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
       Move branch branch1 from 45a3aa29e907 to c35839cb8e8c
-    Error: The push conflicts with changes made on the remote (it is not fast-forwardable).
+    Error: Refusing to push a branch that unexpectedly moved on the remote. Affected refs: refs/heads/branch1
     Hint: Try fetching from the remote, then make the branch point to where you want it to be, and push again.
     "###);
 }
 
-// Short-term TODO: implement this.
-// This tests whether the push checks that the remote branches are in expected
-// positions. Once this is implemented, `jj git push` will be similar to `git
-// push --force-with-lease`
 #[test]
 fn test_git_push_sideways_unexpectedly_moved() {
     let (test_env, workspace_root) = set_up();
@@ -266,23 +269,17 @@ fn test_git_push_sideways_unexpectedly_moved() {
       @origin: rlzusymt 8476341e (empty) description 2
     "###);
 
-    // BUG: Pushing should fail. Currently, it succeeds because moving the branch
-    // sideways causes `jj` to use the analogue of `git push --force` when pushing.
-    let assert = test_env
-        .jj_cmd(&workspace_root, &["git", "push"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"");
-    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
+    insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
       Force branch branch1 from 45a3aa29e907 to 0f8bf988588e
+    Error: Refusing to push a branch that unexpectedly moved on the remote. Affected refs: refs/heads/branch1
+    Hint: Try fetching from the remote, then make the branch point to where you want it to be, and push again.
     "###);
 }
 
-// Short-term TODO: implement this.
 // This tests whether the push checks that the remote branches are in expected
-// positions. Once this is implemented, `jj git push` will be similar to `git
-// push --force-with-lease`
+// positions.
 #[test]
 fn test_git_push_deletion_unexpectedly_moved() {
     let (test_env, workspace_root) = set_up();
@@ -309,15 +306,12 @@ fn test_git_push_deletion_unexpectedly_moved() {
       @origin: rlzusymt 8476341e (empty) description 2
     "###);
 
-    // BUG: Pushing should fail because the branch was moved on the remote
-    let assert = test_env
-        .jj_cmd(&workspace_root, &["git", "push", "--branch", "branch1"])
-        .assert()
-        .success();
-    insta::assert_snapshot!(get_stdout_string(&assert), @"");
-    insta::assert_snapshot!(get_stderr_string(&assert), @r###"
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch", "branch1"]);
+    insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
       Delete branch branch1 from 45a3aa29e907
+    Error: Refusing to push a branch that unexpectedly moved on the remote. Affected refs: refs/heads/branch1
+    Hint: Try fetching from the remote, then make the branch point to where you want it to be, and push again.
     "###);
 }
 
@@ -342,7 +336,7 @@ fn test_git_push_creation_unexpectedly_already_exists() {
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
       Add branch branch1 to 4c595cf9ac0a
-    Error: The push conflicts with changes made on the remote (it is not fast-forwardable).
+    Error: Refusing to push a branch that unexpectedly moved on the remote. Affected refs: refs/heads/branch1
     Hint: Try fetching from the remote, then make the branch point to where you want it to be, and push again.
     "###);
 }

@@ -51,6 +51,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+* Previously, `jj git push` only made sure that the branch is in the expected
+  location on the remote server when pushing a branch forward (as opposed to
+  sideways or backwards). Now, `jj git push` makes a safety check in all cases
+  and fails whenever `jj git fetch` would have introduced a conflict.
+
+  In other words, previously branches that moved sideways or backward were
+  pushed similarly to Git's `git push --force`; now they have protections
+  similar to `git push --force-with-lease` (though not identical to it, to match
+  the behavior of `jj git fetch`). Note also that because of the way `jj git
+  fetch` works, `jj` does not suffer from the same problems as Git's `git push
+  --force-with-lease` in situations when `git fetch` is run in the background.
+
 * When the working copy commit becomes immutable, a new one is automatically created on top of it 
 to avoid letting the user edit the immutable one.
 

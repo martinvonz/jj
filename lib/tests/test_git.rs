@@ -2485,7 +2485,7 @@ struct PushTestSetup {
     jj_repo: Arc<ReadonlyRepo>,
     main_commit: Commit,
     child_of_main_commit: Commit,
-    _parent_of_main_commit: Commit,
+    parent_of_main_commit: Commit,
     sideways_commit: Commit,
 }
 
@@ -2568,7 +2568,7 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
         jj_repo,
         main_commit,
         child_of_main_commit,
-        _parent_of_main_commit: parent_of_main_commit,
+        parent_of_main_commit,
         sideways_commit,
     }
 }
@@ -2826,6 +2826,182 @@ fn test_push_branches_not_fast_forward_with_force() {
     assert_eq!(new_target, Some(git_id(&setup.sideways_commit)));
 }
 
+// TODO(ilyagr): More tests for push safety checks were originally planned. We
+// may want to add tests for when a branch unexpectedly moved backwards or
+// unexpectedly does not exist for branch deletion.
+
+#[test]
+fn test_push_updates_unexpectedly_moved_sideways_on_remote() {
+    let settings = testutils::user_settings();
+    let temp_dir = testutils::new_temp_dir();
+    let setup = set_up_push_repos(&settings, &temp_dir);
+
+    // The main branch is actually at `main_commit` on the remote. If we expect
+    // it to be at `sideways_commit`, it unexpectedly moved sideways from our
+    // perspective.
+    //
+    // We cannot delete it or move it anywhere else. However, "moving" it to the
+    // same place it already is is OK, following the behavior in
+    // `test_merge_ref_targets`.
+    //
+    // For each test, we check that the push succeeds if and only if the branch
+    // conflict `jj git fetch` would generate resolves to the push destination.
+
+    let attempt_push_expecting_sideways = |target: Option<CommitId>| {
+        let targets = [GitRefUpdate {
+            qualified_name: "refs/heads/main".to_string(),
+            force: true,
+            expected_current_target: Some(setup.sideways_commit.id().clone()),
+            new_target: target,
+        }];
+        git::push_updates(
+            setup.jj_repo.as_ref(),
+            &get_git_repo(&setup.jj_repo),
+            "origin",
+            &targets,
+            git::RemoteCallbacks::default(),
+        )
+    };
+
+    assert_matches!(
+        attempt_push_expecting_sideways(None),
+        Err(GitPushError::RefInUnexpectedLocation(_))
+    );
+
+    assert_matches!(
+        attempt_push_expecting_sideways(Some(setup.child_of_main_commit.id().clone())),
+        Err(GitPushError::RefInUnexpectedLocation(_))
+    );
+
+    // Here, the local branch hasn't moved from `sideways_commit` from our
+    // perspective, but it moved to `main` on the remote. So, the conflict
+    // resolves to `main`.
+    //
+    // `jj` should not actually attempt a push in this case, but if it did, the
+    // push should fail.
+    assert_matches!(
+        attempt_push_expecting_sideways(Some(setup.sideways_commit.id().clone())),
+        Err(GitPushError::RefInUnexpectedLocation(_))
+    );
+
+    assert_matches!(
+        attempt_push_expecting_sideways(Some(setup.parent_of_main_commit.id().clone())),
+        Err(GitPushError::RefInUnexpectedLocation(_))
+    );
+
+    // Moving the branch to the same place it already is is OK.
+    assert_eq!(
+        attempt_push_expecting_sideways(Some(setup.main_commit.id().clone())),
+        Ok(())
+    );
+}
+
+#[test]
+fn test_push_updates_unexpectedly_moved_forward_on_remote() {
+    let settings = testutils::user_settings();
+    let temp_dir = testutils::new_temp_dir();
+    let setup = set_up_push_repos(&settings, &temp_dir);
+
+    // The main branch is actually at `main_commit` on the remote. If we
+    // expected it to be at `parent_of_commit`, it unexpectedly moved forward
+    // from our perspective.
+    //
+    // We cannot delete it or move it sideways. (TODO: Moving it backwards is
+    // also disallowed; there is currently no test for this). However, "moving"
+    // it *forwards* is OK. This is allowed *only* in this test, i.e. if the
+    // actual location is the descendant of the expected location, and the new
+    // location is the descendant of that.
+    //
+    // For each test, we check that the push succeeds if and only if the branch
+    // conflict `jj git fetch` would generate resolves to the push destination.
+
+    let attempt_push_expecting_parent = |target: Option<CommitId>| {
+        let targets = [GitRefUpdate {
+            qualified_name: "refs/heads/main".to_string(),
+            force: true,
+            expected_current_target: Some(setup.parent_of_main_commit.id().clone()),
+            new_target: target,
+        }];
+        git::push_updates(
+            setup.jj_repo.as_ref(),
+            &get_git_repo(&setup.jj_repo),
+            "origin",
+            &targets,
+            git::RemoteCallbacks::default(),
+        )
+    };
+
+    assert_matches!(
+        attempt_push_expecting_parent(None),
+        Err(GitPushError::RefInUnexpectedLocation(_))
+    );
+
+    assert_matches!(
+        attempt_push_expecting_parent(Some(setup.sideways_commit.id().clone())),
+        Err(GitPushError::RefInUnexpectedLocation(_))
+    );
+
+    // Here, the local branch hasn't moved from `parent_of_main_commit`, but it
+    // moved to `main` on the remote. So, the conflict resolves to `main`.
+    //
+    // `jj` should not actually attempt a push in this case, but if it did, the push
+    // should fail.
+    assert_matches!(
+        attempt_push_expecting_parent(Some(setup.parent_of_main_commit.id().clone())),
+        Err(GitPushError::RefInUnexpectedLocation(_))
+    );
+
+    // Moving the branch *forwards* is OK, as an exception matching our branch
+    // conflict resolution rules
+    assert_eq!(
+        attempt_push_expecting_parent(Some(setup.child_of_main_commit.id().clone())),
+        Ok(())
+    );
+}
+
+#[test]
+fn test_push_updates_unexpectedly_exists_on_remote() {
+    let settings = testutils::user_settings();
+    let temp_dir = testutils::new_temp_dir();
+    let setup = set_up_push_repos(&settings, &temp_dir);
+
+    // The main branch is actually at `main_commit` on the remote. In this test, we
+    // expect it to not exist on the remote at all.
+    //
+    // We cannot move the branch backwards or sideways, but we *can* move it forward
+    // (as a special case).
+    //
+    // For each test, we check that the push succeeds if and only if the branch
+    // conflict `jj git fetch` would generate resolves to the push destination.
+
+    let attempt_push_expecting_absence = |target: Option<CommitId>| {
+        let targets = [GitRefUpdate {
+            qualified_name: "refs/heads/main".to_string(),
+            force: true,
+            expected_current_target: None,
+            new_target: target,
+        }];
+        git::push_updates(
+            setup.jj_repo.as_ref(),
+            &get_git_repo(&setup.jj_repo),
+            "origin",
+            &targets,
+            git::RemoteCallbacks::default(),
+        )
+    };
+
+    assert_matches!(
+        attempt_push_expecting_absence(Some(setup.parent_of_main_commit.id().clone())),
+        Err(GitPushError::RefInUnexpectedLocation(_))
+    );
+
+    // We *can* move the branch forward even if we didn't expect it to exist
+    assert_eq!(
+        attempt_push_expecting_absence(Some(setup.child_of_main_commit.id().clone())),
+        Ok(())
+    );
+}
+
 #[test]
 fn test_push_updates_success() {
     let settings = testutils::user_settings();
@@ -2833,6 +3009,7 @@ fn test_push_updates_success() {
     let setup = set_up_push_repos(&settings, &temp_dir);
     let clone_repo = get_git_repo(&setup.jj_repo);
     let result = git::push_updates(
+        setup.jj_repo.as_ref(),
         &clone_repo,
         "origin",
         &[GitRefUpdate {
@@ -2870,6 +3047,7 @@ fn test_push_updates_no_such_remote() {
     let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let result = git::push_updates(
+        setup.jj_repo.as_ref(),
         &get_git_repo(&setup.jj_repo),
         "invalid-remote",
         &[GitRefUpdate {
@@ -2889,6 +3067,7 @@ fn test_push_updates_invalid_remote() {
     let temp_dir = testutils::new_temp_dir();
     let setup = set_up_push_repos(&settings, &temp_dir);
     let result = git::push_updates(
+        setup.jj_repo.as_ref(),
         &get_git_repo(&setup.jj_repo),
         "http://invalid-remote",
         &[GitRefUpdate {
