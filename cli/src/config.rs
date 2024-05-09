@@ -324,7 +324,18 @@ fn env_base() -> config::Config {
         builder = builder.set_override("ui.color", "never").unwrap();
     }
     if let Ok(value) = env::var("PAGER") {
-        builder = builder.set_override("ui.pager", value).unwrap();
+        builder = builder
+            .set_override(
+                "ui.pager.command",
+                config::Value::new(
+                    None,
+                    config::ValueKind::Array(vec![config::Value::new(
+                        None,
+                        config::ValueKind::String(value),
+                    )]),
+                ),
+            )
+            .unwrap();
     }
     if let Ok(value) = env::var("VISUAL") {
         builder = builder.set_override("ui.editor", value).unwrap();
