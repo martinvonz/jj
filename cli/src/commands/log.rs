@@ -14,7 +14,7 @@
 
 use jj_lib::backend::CommitId;
 use jj_lib::repo::Repo;
-use jj_lib::revset::{self, RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt};
+use jj_lib::revset::{RevsetExpression, RevsetFilterPredicate, RevsetIteratorExt};
 use jj_lib::revset_graph::{
     ReverseRevsetGraphIterator, RevsetGraphEdgeType, TopoGroupedRevsetGraphIterator,
 };
@@ -262,7 +262,9 @@ pub(crate) fn cmd_log(
                  working copy commit, pass -r '@' instead."
             )?;
         } else if revset.is_empty()
-            && revset::parse(only_path, &workspace_command.revset_parse_context()).is_ok()
+            && workspace_command
+                .parse_revset(&RevisionArg::from(only_path.to_owned()))
+                .is_ok()
         {
             writeln!(
                 ui.warning_default(),

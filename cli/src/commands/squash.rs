@@ -18,7 +18,6 @@ use jj_lib::matchers::Matcher;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
-use jj_lib::revset;
 use jj_lib::settings::UserSettings;
 use tracing::instrument;
 
@@ -234,11 +233,10 @@ from the source will be moved into the destination.
 
         if let [only_path] = path_arg {
             if no_rev_arg
-                && revset::parse(
-                    only_path,
-                    &tx.base_workspace_helper().revset_parse_context(),
-                )
-                .is_ok()
+                && tx
+                    .base_workspace_helper()
+                    .parse_revset(&RevisionArg::from(only_path.to_owned()))
+                    .is_ok()
             {
                 writeln!(
                     ui.warning_default(),
