@@ -2483,16 +2483,34 @@ fn test_fetch_no_such_remote() {
 struct PushTestSetup {
     source_repo_dir: PathBuf,
     jj_repo: Arc<ReadonlyRepo>,
-    initial_commit: Commit,
-    new_commit: Commit,
+    main_commit: Commit,
+    child_of_main_commit: Commit,
+    _parent_of_main_commit: Commit,
+    sideways_commit: Commit,
 }
 
+/// Set up a situation where `main` is at `main_commit`, the child of
+/// `parent_of_main_commit`, both in the source repo and in jj's clone of the
+/// repo. In jj's clone, there are also two more commits, `child_of_main_commit`
+/// and `sideways_commit`, arranged as follows:
+///
+/// o    child_of_main_commit
+/// o    main_commit
+/// o    parent_of_main_commit
+/// | o  sideways_commit
+/// |/
+/// ~    root
 fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSetup {
     let source_repo_dir = temp_dir.path().join("source");
     let clone_repo_dir = temp_dir.path().join("clone");
     let jj_repo_dir = temp_dir.path().join("jj");
     let source_repo = git2::Repository::init_bare(&source_repo_dir).unwrap();
-    let initial_git_commit = empty_git_commit(&source_repo, "refs/heads/main", &[]);
+    let parent_of_initial_git_commit = empty_git_commit(&source_repo, "refs/heads/main", &[]);
+    let initial_git_commit = empty_git_commit(
+        &source_repo,
+        "refs/heads/main",
+        &[&parent_of_initial_git_commit],
+    );
     let clone_repo =
         git2::Repository::clone(source_repo_dir.to_str().unwrap(), clone_repo_dir).unwrap();
     std::fs::create_dir(&jj_repo_dir).unwrap();
@@ -2516,24 +2534,29 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     get_git_backend(&jj_repo)
         .import_head_commits(&[jj_id(&initial_git_commit)])
         .unwrap();
-    let initial_commit = jj_repo
+    let main_commit = jj_repo
         .store()
         .get_commit(&jj_id(&initial_git_commit))
         .unwrap();
+    let parent_of_main_commit = jj_repo
+        .store()
+        .get_commit(&jj_id(&parent_of_initial_git_commit))
+        .unwrap();
     let mut tx = jj_repo.start_transaction(settings);
-    let new_commit = create_random_commit(tx.mut_repo(), settings)
-        .set_parents(vec![initial_commit.id().clone()])
+    let sideways_commit = write_random_commit(tx.mut_repo(), settings);
+    let child_of_main_commit = create_random_commit(tx.mut_repo(), settings)
+        .set_parents(vec![main_commit.id().clone()])
         .write()
         .unwrap();
     tx.mut_repo().set_git_ref_target(
         "refs/remotes/origin/main",
-        RefTarget::normal(initial_commit.id().clone()),
+        RefTarget::normal(main_commit.id().clone()),
     );
     tx.mut_repo().set_remote_branch(
         "main",
         "origin",
         RemoteRef {
-            target: RefTarget::normal(initial_commit.id().clone()),
+            target: RefTarget::normal(main_commit.id().clone()),
             // Caller expects the main branch is tracked. The corresponding local branch will
             // be created (or left as deleted) by caller.
             state: RemoteRefState::Tracking,
@@ -2543,8 +2566,10 @@ fn set_up_push_repos(settings: &UserSettings, temp_dir: &TempDir) -> PushTestSet
     PushTestSetup {
         source_repo_dir,
         jj_repo,
-        initial_commit,
-        new_commit,
+        main_commit,
+        child_of_main_commit,
+        _parent_of_main_commit: parent_of_main_commit,
+        sideways_commit,
     }
 }
 
@@ -2560,8 +2585,8 @@ fn test_push_branches_success() {
         branch_updates: vec![(
             "main".to_owned(),
             BranchPushUpdate {
-                old_target: Some(setup.initial_commit.id().clone()),
-                new_target: Some(setup.new_commit.id().clone()),
+                old_target: Some(setup.main_commit.id().clone()),
+                new_target: Some(setup.child_of_main_commit.id().clone()),
             },
         )],
         force_pushed_branches: hashset! {},
@@ -2581,7 +2606,7 @@ fn test_push_branches_success() {
         .find_reference("refs/heads/main")
         .unwrap()
         .target();
-    let new_oid = git_id(&setup.new_commit);
+    let new_oid = git_id(&setup.child_of_main_commit);
     assert_eq!(new_target, Some(new_oid));
 
     // Check that the ref got updated in the cloned repo. This just tests our
@@ -2597,12 +2622,12 @@ fn test_push_branches_success() {
     let view = tx.mut_repo().view();
     assert_eq!(
         *view.get_git_ref("refs/remotes/origin/main"),
-        RefTarget::normal(setup.new_commit.id().clone()),
+        RefTarget::normal(setup.child_of_main_commit.id().clone()),
     );
     assert_eq!(
         *view.get_remote_branch("main", "origin"),
         RemoteRef {
-            target: RefTarget::normal(setup.new_commit.id().clone()),
+            target: RefTarget::normal(setup.child_of_main_commit.id().clone()),
             state: RemoteRefState::Tracking,
         },
     );
@@ -2630,7 +2655,7 @@ fn test_push_branches_deletion() {
         branch_updates: vec![(
             "main".to_owned(),
             BranchPushUpdate {
-                old_target: Some(setup.initial_commit.id().clone()),
+                old_target: Some(setup.main_commit.id().clone()),
                 new_target: None,
             },
         )],
@@ -2680,7 +2705,7 @@ fn test_push_branches_mixed_deletion_and_addition() {
             (
                 "main".to_owned(),
                 BranchPushUpdate {
-                    old_target: Some(setup.initial_commit.id().clone()),
+                    old_target: Some(setup.main_commit.id().clone()),
                     new_target: None,
                 },
             ),
@@ -2688,7 +2713,7 @@ fn test_push_branches_mixed_deletion_and_addition() {
                 "topic".to_owned(),
                 BranchPushUpdate {
                     old_target: None,
-                    new_target: Some(setup.new_commit.id().clone()),
+                    new_target: Some(setup.child_of_main_commit.id().clone()),
                 },
             ),
         ],
@@ -2709,7 +2734,7 @@ fn test_push_branches_mixed_deletion_and_addition() {
         .find_reference("refs/heads/topic")
         .unwrap()
         .target();
-    assert_eq!(new_target, Some(git_id(&setup.new_commit)));
+    assert_eq!(new_target, Some(git_id(&setup.child_of_main_commit)));
 
     // Check that the main ref got deleted in the source repo
     assert!(source_repo.find_reference("refs/heads/main").is_err());
@@ -2720,12 +2745,12 @@ fn test_push_branches_mixed_deletion_and_addition() {
     assert!(view.get_remote_branch("main", "origin").is_absent());
     assert_eq!(
         *view.get_git_ref("refs/remotes/origin/topic"),
-        RefTarget::normal(setup.new_commit.id().clone()),
+        RefTarget::normal(setup.child_of_main_commit.id().clone()),
     );
     assert_eq!(
         *view.get_remote_branch("topic", "origin"),
         RemoteRef {
-            target: RefTarget::normal(setup.new_commit.id().clone()),
+            target: RefTarget::normal(setup.child_of_main_commit.id().clone()),
             state: RemoteRefState::Tracking,
         },
     );
@@ -2741,18 +2766,15 @@ fn test_push_branches_mixed_deletion_and_addition() {
 fn test_push_branches_not_fast_forward() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
-    let mut setup = set_up_push_repos(&settings, &temp_dir);
-    let mut tx = setup.jj_repo.start_transaction(&settings);
-    let new_commit = write_random_commit(tx.mut_repo(), &settings);
-    setup.jj_repo = tx.commit("test");
+    let setup = set_up_push_repos(&settings, &temp_dir);
     let mut tx = setup.jj_repo.start_transaction(&settings);
 
     let targets = GitBranchPushTargets {
         branch_updates: vec![(
             "main".to_owned(),
             BranchPushUpdate {
-                old_target: Some(setup.initial_commit.id().clone()),
-                new_target: Some(new_commit.id().clone()),
+                old_target: Some(setup.main_commit.id().clone()),
+                new_target: Some(setup.sideways_commit.id().clone()),
             },
         )],
         force_pushed_branches: hashset! {},
@@ -2771,18 +2793,15 @@ fn test_push_branches_not_fast_forward() {
 fn test_push_branches_not_fast_forward_with_force() {
     let settings = testutils::user_settings();
     let temp_dir = testutils::new_temp_dir();
-    let mut setup = set_up_push_repos(&settings, &temp_dir);
-    let mut tx = setup.jj_repo.start_transaction(&settings);
-    let new_commit = write_random_commit(tx.mut_repo(), &settings);
-    setup.jj_repo = tx.commit("test");
+    let setup = set_up_push_repos(&settings, &temp_dir);
     let mut tx = setup.jj_repo.start_transaction(&settings);
 
     let targets = GitBranchPushTargets {
         branch_updates: vec![(
             "main".to_owned(),
             BranchPushUpdate {
-                old_target: Some(setup.initial_commit.id().clone()),
-                new_target: Some(new_commit.id().clone()),
+                old_target: Some(setup.main_commit.id().clone()),
+                new_target: Some(setup.sideways_commit.id().clone()),
             },
         )],
         force_pushed_branches: hashset! {
@@ -2804,7 +2823,7 @@ fn test_push_branches_not_fast_forward_with_force() {
         .find_reference("refs/heads/main")
         .unwrap()
         .target();
-    assert_eq!(new_target, Some(git_id(&new_commit)));
+    assert_eq!(new_target, Some(git_id(&setup.sideways_commit)));
 }
 
 #[test]
@@ -2819,7 +2838,7 @@ fn test_push_updates_success() {
         &[GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),
             force: false,
-            new_target: Some(setup.new_commit.id().clone()),
+            new_target: Some(setup.child_of_main_commit.id().clone()),
         }],
         git::RemoteCallbacks::default(),
     );
@@ -2831,7 +2850,7 @@ fn test_push_updates_success() {
         .find_reference("refs/heads/main")
         .unwrap()
         .target();
-    let new_oid = git_id(&setup.new_commit);
+    let new_oid = git_id(&setup.child_of_main_commit);
     assert_eq!(new_target, Some(new_oid));
 
     // Check that the ref got updated in the cloned repo. This just tests our
@@ -2855,7 +2874,7 @@ fn test_push_updates_no_such_remote() {
         &[GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),
             force: false,
-            new_target: Some(setup.new_commit.id().clone()),
+            new_target: Some(setup.child_of_main_commit.id().clone()),
         }],
         git::RemoteCallbacks::default(),
     );
@@ -2873,7 +2892,7 @@ fn test_push_updates_invalid_remote() {
         &[GitRefUpdate {
             qualified_name: "refs/heads/main".to_string(),
             force: false,
-            new_target: Some(setup.new_commit.id().clone()),
+            new_target: Some(setup.child_of_main_commit.id().clone()),
         }],
         git::RemoteCallbacks::default(),
     );
