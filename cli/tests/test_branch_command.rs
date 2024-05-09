@@ -414,12 +414,13 @@ fn test_branch_delete_export() {
     test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
 
     test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "foo"]);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["branch", "list", "--all-remotes"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "list", "--all-remotes"]);
     insta::assert_snapshot!(stdout, @r###"
     foo (deleted)
       @git: rlvkpnrz 65b6b74e (empty) (no description set)
       (this branch will be deleted from the underlying Git repo on the next `jj git export`)
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
@@ -1005,8 +1006,8 @@ fn test_branch_list() {
 
     // Synchronized tracking remotes and non-tracking remotes aren't listed by
     // default
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(&local_path, &["branch", "list"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
     local-only: wqnwkozp 4e887f78 (empty) local-only
     remote-delete (deleted)
       @origin: mnmymoky 203e60eb (empty) remote-delete
@@ -1015,9 +1016,10 @@ fn test_branch_list() {
     remote-unsync: wqnwkozp 4e887f78 (empty) local-only
       @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(&local_path, &["branch", "list", "--all-remotes"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["branch", "list", "--all-remotes"]);
+    insta::assert_snapshot!(stdout, @r###"
     local-only: wqnwkozp 4e887f78 (empty) local-only
     remote-delete (deleted)
       @origin: mnmymoky 203e60eb (empty) remote-delete
@@ -1028,6 +1030,7 @@ fn test_branch_list() {
       @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
     remote-untrack@origin: vmortlor 71a16b05 (empty) remote-untrack
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     let template = r#"
     concat(
@@ -1043,9 +1046,11 @@ fn test_branch_list() {
       separate(" ", "tracking_behind_count:", tracking_behind_count.lower()) ++ "\n",
     )
     "#;
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(&local_path, &["branch", "list", "--all-remotes", "-T", template]),
-        @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &local_path,
+        &["branch", "list", "--all-remotes", "-T", template],
+    );
+    insta::assert_snapshot!(stdout, @r###"
     [local-only]
     present: true
     conflict: false
@@ -1128,6 +1133,7 @@ fn test_branch_list() {
     tracking_ahead_count: <Error: Not a tracked remote ref>
     tracking_behind_count: <Error: Not a tracked remote ref>
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
@@ -1181,7 +1187,8 @@ fn test_branch_list_filtered() {
     "###);
 
     // All branches are listed by default.
-    insta::assert_snapshot!(test_env.jj_cmd_success(&local_path, &["branch", "list"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
     local-keep: kpqxywon c7b4c09c (empty) local-keep
     remote-delete (deleted)
       @origin: yxusvupt dad5f298 (empty) remote-delete
@@ -1190,86 +1197,109 @@ fn test_branch_list_filtered() {
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
       @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     let query =
-        |args: &[&str]| test_env.jj_cmd_success(&local_path, &[&["branch", "list"], args].concat());
+        |args: &[&str]| test_env.jj_cmd_ok(&local_path, &[&["branch", "list"], args].concat());
     let query_error =
         |args: &[&str]| test_env.jj_cmd_failure(&local_path, &[&["branch", "list"], args].concat());
 
     // "all()" doesn't include deleted branches since they have no local targets.
     // So "all()" is identical to "branches()".
-    insta::assert_snapshot!(query(&["-rall()"]), @r###"
+    let (stdout, stderr) = query(&["-rall()"]);
+    insta::assert_snapshot!(stdout, @r###"
     local-keep: kpqxywon c7b4c09c (empty) local-keep
     remote-keep: nlwprzpn 911e9120 (empty) remote-keep
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
       @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // Exclude remote-only branches. "remote-rewrite@origin" is included since
     // local "remote-rewrite" target matches.
-    insta::assert_snapshot!(query(&["-rbranches()"]), @r###"
+    let (stdout, stderr) = query(&["-rbranches()"]);
+    insta::assert_snapshot!(stdout, @r###"
     local-keep: kpqxywon c7b4c09c (empty) local-keep
     remote-keep: nlwprzpn 911e9120 (empty) remote-keep
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
       @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // Select branches by name.
-    insta::assert_snapshot!(query(&["remote-rewrite"]), @r###"
+    let (stdout, stderr) = query(&["remote-rewrite"]);
+    insta::assert_snapshot!(stdout, @r###"
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
       @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
-    insta::assert_snapshot!(query(&["-rbranches(remote-rewrite)"]), @r###"
+    insta::assert_snapshot!(stderr, @"");
+    let (stdout, stderr) = query(&["-rbranches(remote-rewrite)"]);
+    insta::assert_snapshot!(stdout, @r###"
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
       @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // Select branches by name, combined with --all-remotes
     test_env.jj_cmd_ok(&local_path, &["git", "export"]);
-    insta::assert_snapshot!(query(&["--all-remotes", "remote-rewrite"]), @r###"
+    let (stdout, stderr) = query(&["--all-remotes", "remote-rewrite"]);
+    insta::assert_snapshot!(stdout, @r###"
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
       @git: xyxluytn e31634b6 (empty) rewritten
       @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
-    insta::assert_snapshot!(query(&["--all-remotes", "-rbranches(remote-rewrite)"]), @r###"
+    insta::assert_snapshot!(stderr, @"");
+    let (stdout, stderr) = query(&["--all-remotes", "-rbranches(remote-rewrite)"]);
+    insta::assert_snapshot!(stdout, @r###"
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
       @git: xyxluytn e31634b6 (empty) rewritten
       @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // Can select deleted branch by name pattern, but not by revset.
-    insta::assert_snapshot!(query(&["remote-delete"]), @r###"
+    let (stdout, stderr) = query(&["remote-delete"]);
+    insta::assert_snapshot!(stdout, @r###"
     remote-delete (deleted)
       @origin: yxusvupt dad5f298 (empty) remote-delete
       (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     "###);
-    insta::assert_snapshot!(query(&["-rbranches(remote-delete)"]), @r###"
+    insta::assert_snapshot!(stderr, @"");
+    let (stdout, stderr) = query(&["-rbranches(remote-delete)"]);
+    insta::assert_snapshot!(stdout, @r###"
     "###);
     insta::assert_snapshot!(query_error(&["-rremote-delete"]), @r###"
     Error: Revision "remote-delete" doesn't exist
     Hint: Did you mean "remote-delete@origin", "remote-keep", "remote-rewrite", "remote-rewrite@origin"?
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // Name patterns are OR-ed.
-    insta::assert_snapshot!(query(&["glob:*-keep", "remote-delete"]), @r###"
+    let (stdout, stderr) = query(&["glob:*-keep", "remote-delete"]);
+    insta::assert_snapshot!(stdout, @r###"
     local-keep: kpqxywon c7b4c09c (empty) local-keep
     remote-delete (deleted)
       @origin: yxusvupt dad5f298 (empty) remote-delete
       (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
     remote-keep: nlwprzpn 911e9120 (empty) remote-keep
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // Unmatched name pattern shouldn't be an error. A warning can be added later.
-    insta::assert_snapshot!(query(&["local-keep", "glob:push-*"]), @r###"
+    let (stdout, stderr) = query(&["local-keep", "glob:push-*"]);
+    insta::assert_snapshot!(stdout, @r###"
     local-keep: kpqxywon c7b4c09c (empty) local-keep
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
     // Name pattern and revset are OR-ed.
-    insta::assert_snapshot!(query(&["local-keep", "-rbranches(remote-rewrite)"]), @r###"
+    let (stdout, stderr) = query(&["local-keep", "-rbranches(remote-rewrite)"]);
+    insta::assert_snapshot!(stdout, @r###"
     local-keep: kpqxywon c7b4c09c (empty) local-keep
     remote-rewrite: xyxluytn e31634b6 (empty) rewritten
       @origin (ahead by 1 commits, behind by 1 commits): xyxluytn hidden 3e9a5af6 (empty) remote-rewrite
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
@@ -1308,12 +1338,13 @@ fn test_branch_list_much_remote_divergence() {
         &["branch", "set", "--allow-backwards", "remote-unsync"],
     );
 
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(&local_path, &["branch", "list"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["branch", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
     local-only: zkyosouw 4ab3f751 (empty) local-only
     remote-unsync: zkyosouw 4ab3f751 (empty) local-only
       @origin (ahead by at least 10 commits, behind by at least 10 commits): lxyktnks 19582022 (empty) remote-unsync
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
@@ -1401,8 +1432,8 @@ fn test_branch_list_tracked() {
         &["branch", "set", "--allow-backwards", "remote-unsync"],
     );
 
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(&local_path, &["branch", "list", "--all-remotes"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["branch", "list", "--all-remotes"]);
+    insta::assert_snapshot!(stdout, @r###"
     local-only: nmzmmopx e1da745b (empty) local-only
       @git: nmzmmopx e1da745b (empty) local-only
     remote-delete (deleted)
@@ -1420,9 +1451,10 @@ fn test_branch_list_tracked() {
       @git: lolpmnqw 32fa6da0 (empty) upstream-sync
       @upstream: lolpmnqw 32fa6da0 (empty) upstream-sync
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(&local_path, &["branch", "list", "--tracked"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(&local_path, &["branch", "list", "--tracked"]);
+    insta::assert_snapshot!(stdout, @r###"
     remote-delete (deleted)
       @origin: mnmymoky 203e60eb (empty) remote-delete
       (this branch will be *deleted permanently* on the remote on the next `jj git push`. Use `jj branch forget` to prevent this)
@@ -1435,27 +1467,40 @@ fn test_branch_list_tracked() {
       @upstream: lolpmnqw 32fa6da0 (empty) upstream-sync
     "###
     );
+    insta::assert_snapshot!(stderr, @"");
 
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(&local_path, &["branch", "list", "--tracked", "remote-unsync"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &local_path,
+        &["branch", "list", "--tracked", "remote-unsync"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
     remote-unsync: nmzmmopx e1da745b (empty) local-only
       @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
       @upstream (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
     "###);
+    insta::assert_snapshot!(stderr, @"");
 
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(&local_path, &["branch", "list", "--tracked", "remote-untrack"]), @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &local_path,
+        &["branch", "list", "--tracked", "remote-untrack"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
 
     test_env.jj_cmd_ok(
         &local_path,
         &["branch", "untrack", "remote-unsync@upstream"],
     );
 
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(&local_path, &["branch", "list", "--tracked", "remote-unsync"]), @r###"
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &local_path,
+        &["branch", "list", "--tracked", "remote-unsync"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
     remote-unsync: nmzmmopx e1da745b (empty) local-only
       @origin (ahead by 1 commits, behind by 1 commits): qpsqxpyq 38ef8af7 (empty) remote-unsync
     "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
