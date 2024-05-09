@@ -23,7 +23,6 @@ use thiserror::Error;
 use crate::backend::{ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::object_id::{HexPrefix, PrefixResolution};
-use crate::op_store::OperationId;
 use crate::operation::Operation;
 use crate::revset::{ResolvedExpression, Revset, RevsetEvaluationError};
 use crate::store::Store;
@@ -67,7 +66,7 @@ pub trait IndexStore: Send + Sync + Debug {
     fn write_index(
         &self,
         index: Box<dyn MutableIndex>,
-        op_id: &OperationId,
+        op: &Operation,
     ) -> Result<Box<dyn ReadonlyIndex>, IndexWriteError>;
 }
 
