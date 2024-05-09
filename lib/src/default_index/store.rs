@@ -359,14 +359,14 @@ impl IndexStore for DefaultIndexStore {
     fn write_index(
         &self,
         index: Box<dyn MutableIndex>,
-        op_id: &OperationId,
+        op: &Operation,
     ) -> Result<Box<dyn ReadonlyIndex>, IndexWriteError> {
         let index = index
             .into_any()
             .downcast::<DefaultMutableIndex>()
             .expect("index to merge in must be a DefaultMutableIndex");
         let index_segment = self
-            .save_mutable_index(*index, op_id)
+            .save_mutable_index(*index, op.id())
             .map_err(|err| IndexWriteError(err.into()))?;
         Ok(Box::new(DefaultReadonlyIndex::from_segment(index_segment)))
     }
