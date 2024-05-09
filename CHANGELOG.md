@@ -72,6 +72,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj new`'s `--insert-before` and `--insert-after` options can now be used
   simultaneously.
 
+* `jj git push` now can push commits with empty descriptions with the
+  `--allow-empty-description` flag
+
 ### Fixed bugs
 
 * Previously, `jj git push` only made sure that the branch is in the expected

@@ -976,6 +976,10 @@ Before the command actually moves, creates, or deletes a remote branch, it makes
 
   Possible values: `true`, `false`
 
+* `--allow-empty-description` — Allow pushing commits with empty descriptions
+
+  Possible values: `true`, `false`
+
 * `-r`, `--revisions <REVISIONS>` — Push branches pointing to these commits (can be repeated)
 * `-c`, `--change <CHANGE>` — Push this commit by creating a branch based on its change ID (can be repeated)
 * `--dry-run` — Only display what will change on the remote

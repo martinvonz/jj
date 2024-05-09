@@ -823,6 +823,16 @@ fn test_git_push_no_description() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit 5b36783cd11c since it has no description
     "###);
+    test_env.jj_cmd_ok(
+        &workspace_root,
+        &[
+            "git",
+            "push",
+            "--branch",
+            "my-branch",
+            "--allow-empty-description",
+        ],
+    );
 }
 
 #[test]
