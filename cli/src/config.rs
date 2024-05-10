@@ -441,6 +441,7 @@ pub enum CommandNameAndArgs {
     String(String),
     Vec(NonEmptyCommandArgsVec),
     Structured {
+        #[serde(default)]
         env: HashMap<String, String>,
         command: NonEmptyCommandArgsVec,
     },
@@ -538,7 +539,8 @@ empty_array = []
 empty_string = ""
 "array" = ["emacs", "-nw"]
 "string" = "emacs -nw"
-structured = { env = { KEY1 = "value1", KEY2 = "value2" }, command = ["emacs", "-nw"] }
+structured = { command = ["emacs", "-nw"] }
+with_env = { env = { KEY1 = "value1", KEY2 = "value2" }, command = ["emacs", "-nw"] }
 "#;
         let config = config::Config::builder()
             .add_source(config::File::from_str(
@@ -580,6 +582,18 @@ structured = { env = { KEY1 = "value1", KEY2 = "value2" }, command = ["emacs", "
         assert_eq!(
             command_args,
             CommandNameAndArgs::Structured {
+                env: hashmap! {},
+                command: NonEmptyCommandArgsVec(["emacs", "-nw",].map(|s| s.to_owned()).to_vec())
+            }
+        );
+        let (name, args) = command_args.split_name_and_args();
+        assert_eq!(name, "emacs");
+        assert_eq!(args, ["-nw"].as_ref());
+
+        let command_args: CommandNameAndArgs = config.get("with_env").unwrap();
+        assert_eq!(
+            command_args,
+            CommandNameAndArgs::Structured {
                 env: hashmap! {
                     "KEY1".to_string() => "value1".to_string(),
                     "KEY2".to_string() => "value2".to_string(),
@@ -587,9 +601,6 @@ structured = { env = { KEY1 = "value1", KEY2 = "value2" }, command = ["emacs", "
                 command: NonEmptyCommandArgsVec(["emacs", "-nw",].map(|s| s.to_owned()).to_vec())
             }
         );
-        let (name, args) = command_args.split_name_and_args();
-        assert_eq!(name, "emacs");
-        assert_eq!(args, ["-nw"].as_ref());
     }
 
     #[test]
