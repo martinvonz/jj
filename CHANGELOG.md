@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `commit_summary_no_branches` template is superseded by
   `templates.branch_list`.
 
+* `jj split` will now refuse to split an empty commit.
+
 ### Deprecations
 
 ### New features

@@ -18,7 +18,7 @@ use jj_lib::repo::Repo;
 use tracing::instrument;
 
 use crate::cli_util::{CommandHelper, RevisionArg};
-use crate::command_error::CommandError;
+use crate::command_error::{user_error_with_hint, CommandError};
 use crate::description_util::{description_template_for_commit, edit_description};
 use crate::ui::Ui;
 
@@ -36,6 +36,9 @@ use crate::ui::Ui;
 /// change description for each commit. If the change did not have a
 /// description, the second part will not get a description, and you will be
 /// asked for a description only for the first part.
+///
+/// Splitting an empty commit is not supported because the same effect can be
+/// achieved with `jj new`.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct SplitArgs {
     /// Interactively choose which parts to split. This is the default if no
@@ -64,6 +67,13 @@ pub(crate) fn cmd_split(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    if commit.is_empty(workspace_command.repo().as_ref())? {
+        return Err(user_error_with_hint(
+            format!("Refusing to split empty commit {}.", commit.id().hex()),
+            "Use `jj new` if you want to create another empty commit.",
+        ));
+    }
+
     workspace_command.check_rewritable([commit.id()])?;
     let matcher = workspace_command
         .parse_file_patterns(&args.paths)?

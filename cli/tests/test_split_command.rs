@@ -523,3 +523,18 @@ fn test_split_siblings_with_merge_child() {
     ◉  zzzzzzzzzzzz true
     "###);
 }
+
+// Make sure `jj split` would refuse to split an empty commit.
+#[test]
+fn test_split_empty() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let workspace_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&workspace_path, &["describe", "--message", "abc"]);
+
+    let stderr = test_env.jj_cmd_failure(&workspace_path, &["split"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Refusing to split empty commit 82b6292b775dc4e5c5e6f402faa599dad02d02a0.
+    Hint: Use `jj new` if you want to create another empty commit.
+    "###);
+}

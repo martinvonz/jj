@@ -641,13 +641,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
     map.insert("empty", |language, _build_ctx, self_property, function| {
         template_parser::expect_no_arguments(function)?;
         let repo = language.repo;
-        let out_property = self_property.and_then(|commit| {
-            if let [parent] = &commit.parents()[..] {
-                return Ok(parent.tree_id() == commit.tree_id());
-            }
-            let parent_tree = commit.parent_tree(repo)?;
-            Ok(*commit.tree_id() == parent_tree.id())
-        });
+        let out_property = self_property.and_then(|commit| Ok(commit.is_empty(repo)?));
         Ok(L::wrap_boolean(out_property))
     });
     map.insert("root", |language, _build_ctx, self_property, function| {

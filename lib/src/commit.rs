@@ -116,6 +116,16 @@ impl Commit {
         merge_commit_trees(repo, &self.parents())
     }
 
+    /// Returns whether commit's content is empty. Commit description is not
+    /// taken into consideration.
+    pub fn is_empty(&self, repo: &dyn Repo) -> BackendResult<bool> {
+        if let [parent] = &self.parents()[..] {
+            return Ok(parent.tree_id() == self.tree_id());
+        }
+        let parent_tree = self.parent_tree(repo)?;
+        Ok(*self.tree_id() == parent_tree.id())
+    }
+
     pub fn has_conflict(&self) -> BackendResult<bool> {
         if let MergedTreeId::Merge(tree_ids) = self.tree_id() {
             Ok(!tree_ids.is_resolved())
