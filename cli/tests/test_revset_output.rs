@@ -66,18 +66,6 @@ fn test_syntax_error() {
       = '^' is not a postfix operator
     Hint: Did you mean '-' for parents?
     "###);
-
-    // "jj new" supports "all:" prefix
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "ale:x"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Modifier "ale" doesn't exist
-    Caused by:  --> 1:1
-      |
-    1 | ale:x
-      | ^-^
-      |
-      = Modifier "ale" doesn't exist
-    "###);
 }
 
 #[test]
@@ -494,5 +482,110 @@ fn test_bad_alias_decl() {
       |       ^--^
       |
       = Redefinition of function parameter
+    "###);
+}
+
+#[test]
+fn test_all_modifier() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Command that accepts single revision by default
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "all()"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revset "all()" resolved to more than one revision
+    Hint: The revset "all()" resolved to these revisions:
+      qpvuntsm 230dd059 (empty) (no description set)
+      zzzzzzzz 00000000 (empty) (no description set)
+    Hint: Prefix the expression with 'all:' to allow any number of revisions (i.e. 'all:all()').
+    "###);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "all:all()"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: The Git backend does not support creating merge commits with the root commit as one of the parents.
+    "###);
+
+    // Command that accepts multiple revisions by default
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-rall:all()"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  qpvuntsm test.user@example.com 2001-02-03 08:05:07 230dd059
+    │  (empty) (no description set)
+    ◉  zzzzzzzz root() 00000000
+    "###);
+
+    // Command that accepts only single revision
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "create", "-rall:@", "x"]);
+    insta::assert_snapshot!(stderr, @"");
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "set", "-rall:all()", "x"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revset "all:all()" resolved to more than one revision
+    Hint: The revset "all:all()" resolved to these revisions:
+      qpvuntsm 230dd059 x | (empty) (no description set)
+      zzzzzzzz 00000000 (empty) (no description set)
+    "###);
+
+    // Template expression that accepts multiple revisions by default
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-Tself.contained_in('all:all()')"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  true
+    ◉  true
+    "###);
+
+    // Typo
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "ale:x"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset: Modifier "ale" doesn't exist
+    Caused by:  --> 1:1
+      |
+    1 | ale:x
+      | ^-^
+      |
+      = Modifier "ale" doesn't exist
+    "###);
+
+    // Modifier shouldn't be allowed in aliases (This restriction might be
+    // lifted later. "all:" in alias could be allowed if it is expanded to the
+    // top-level expression.)
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &["new", "x", "--config-toml=revset-aliases.x='all:@'"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset: Alias "x" cannot be expanded
+    Caused by:
+    1:  --> 1:1
+      |
+    1 | x
+      | ^
+      |
+      = Alias "x" cannot be expanded
+    2:  --> 1:4
+      |
+    1 | all:@
+      |    ^
+      |
+      = ':' is not an infix operator
+    Hint: Did you mean '::' for DAG range?
+    "###);
+
+    // immutable_heads() alias may be parsed as a top-level expression, but
+    // still, modifier shouldn't be allowed there.
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &[
+            "new",
+            "--config-toml=revset-aliases.'immutable_heads()'='all:@'",
+            "--config-toml=revsets.short-prefixes='none()'",
+        ],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Config error: Invalid `revset-aliases.immutable_heads()`
+    Caused by:  --> 1:4
+      |
+    1 | all:@
+      |    ^
+      |
+      = ':' is not an infix operator
+    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
     "###);
 }
