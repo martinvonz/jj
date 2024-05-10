@@ -13,7 +13,7 @@ allow-filesets = false
 always-allow-large-revsets = false
 diff-instructions = true
 paginate = "auto"
-pager = { command = ["less", "-FRX"], env = { LESSCHARSET = "utf-8" } }
+pager = { command = ["less"], env_default = { LESS="-FRX", LESSCHARSET = "utf-8" } }
 log-word-wrap = false
 log-synthetic-elided-nodes = true
 

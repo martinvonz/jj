@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `commit_summary_no_branches` template is superseded by
   `templates.branch_list`.
 
+* The `$LESS` and `$LESSCHARSET` environment variables are now respected, unless
+  you have configured a pager (via `ui.pager` or `$PAGER`).
+
 ### Deprecations
 
 ### New features

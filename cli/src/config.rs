@@ -324,7 +324,18 @@ fn env_base() -> config::Config {
         builder = builder.set_override("ui.color", "never").unwrap();
     }
     if let Ok(value) = env::var("PAGER") {
-        builder = builder.set_override("ui.pager", value).unwrap();
+        builder = builder
+            .set_override(
+                "ui.pager.command",
+                config::Value::new(
+                    None,
+                    config::ValueKind::Array(vec![config::Value::new(
+                        None,
+                        config::ValueKind::String(value),
+                    )]),
+                ),
+            )
+            .unwrap();
     }
     if let Ok(value) = env::var("VISUAL") {
         builder = builder.set_override("ui.editor", value).unwrap();
@@ -441,7 +452,10 @@ pub enum CommandNameAndArgs {
     String(String),
     Vec(NonEmptyCommandArgsVec),
     Structured {
+        #[serde(default)]
         env: HashMap<String, String>,
+        #[serde(default)]
+        env_default: HashMap<String, String>,
         command: NonEmptyCommandArgsVec,
     },
 }
@@ -468,6 +482,7 @@ impl CommandNameAndArgs {
             }
             CommandNameAndArgs::Structured {
                 env: _,
+                env_default: _,
                 command: cmd,
             } => (Cow::Borrowed(&cmd.0[0]), Cow::Borrowed(&cmd.0[1..])),
         }
@@ -477,7 +492,15 @@ impl CommandNameAndArgs {
     pub fn to_command(&self) -> Command {
         let (name, args) = self.split_name_and_args();
         let mut cmd = Command::new(name.as_ref());
-        if let CommandNameAndArgs::Structured { env, .. } = self {
+        if let CommandNameAndArgs::Structured {
+            env_default, env, ..
+        } = self
+        {
+            for (key, val) in env_default {
+                if std::env::var(key).is_err() {
+                    cmd.env(key, val);
+                }
+            }
             cmd.envs(env);
         }
         cmd.args(args.as_ref());
@@ -497,8 +520,15 @@ impl fmt::Display for CommandNameAndArgs {
             CommandNameAndArgs::String(s) => write!(f, "{s}"),
             // TODO: format with shell escapes
             CommandNameAndArgs::Vec(a) => write!(f, "{}", a.0.join(" ")),
-            CommandNameAndArgs::Structured { env, command } => {
-                for (k, v) in env.iter() {
+            CommandNameAndArgs::Structured {
+                env_default,
+                env,
+                command,
+            } => {
+                for (k, v) in env_default {
+                    write!(f, "{k}={v} ")?;
+                }
+                for (k, v) in env {
                     write!(f, "{k}={v} ")?;
                 }
                 write!(f, "{}", command.0.join(" "))
@@ -533,21 +563,20 @@ mod tests {
 
     #[test]
     fn test_command_args() {
+        let config_text = r#"
+empty_array = []
+empty_string = ""
+"array" = ["emacs", "-nw"]
+"string" = "emacs -nw"
+structured = { command = ["emacs", "-nw"] }
+with_env_default = { env_default = { KEY1 = "value1", KEY2 = "value2" }, command = ["emacs", "-nw"] }
+with_env = { env = { KEY1 = "value1", KEY2 = "value2" }, command = ["emacs", "-nw"] }
+"#;
         let config = config::Config::builder()
-            .set_override("empty_array", Vec::<String>::new())
-            .unwrap()
-            .set_override("empty_string", "")
-            .unwrap()
-            .set_override("array", vec!["emacs", "-nw"])
-            .unwrap()
-            .set_override("string", "emacs -nw")
-            .unwrap()
-            .set_override("structured.env.KEY1", "value1")
-            .unwrap()
-            .set_override("structured.env.KEY2", "value2")
-            .unwrap()
-            .set_override("structured.command", vec!["emacs", "-nw"])
-            .unwrap()
+            .add_source(config::File::from_str(
+                config_text,
+                config::FileFormat::Toml,
+            ))
             .build()
             .unwrap();
 
@@ -583,6 +612,33 @@ mod tests {
         assert_eq!(
             command_args,
             CommandNameAndArgs::Structured {
+                env_default: hashmap! {},
+                env: hashmap! {},
+                command: NonEmptyCommandArgsVec(["emacs", "-nw",].map(|s| s.to_owned()).to_vec())
+            }
+        );
+        let (name, args) = command_args.split_name_and_args();
+        assert_eq!(name, "emacs");
+        assert_eq!(args, ["-nw"].as_ref());
+
+        let command_args: CommandNameAndArgs = config.get("with_env_default").unwrap();
+        assert_eq!(
+            command_args,
+            CommandNameAndArgs::Structured {
+                env_default: hashmap! {
+                    "KEY1".to_string() => "value1".to_string(),
+                    "KEY2".to_string() => "value2".to_string(),
+                },
+                env: hashmap! {},
+                command: NonEmptyCommandArgsVec(["emacs", "-nw",].map(|s| s.to_owned()).to_vec())
+            }
+        );
+
+        let command_args: CommandNameAndArgs = config.get("with_env").unwrap();
+        assert_eq!(
+            command_args,
+            CommandNameAndArgs::Structured {
+                env_default: hashmap! {},
                 env: hashmap! {
                     "KEY1".to_string() => "value1".to_string(),
                     "KEY2".to_string() => "value2".to_string(),
@@ -590,9 +646,6 @@ mod tests {
                 command: NonEmptyCommandArgsVec(["emacs", "-nw",].map(|s| s.to_owned()).to_vec())
             }
         );
-        let (name, args) = command_args.split_name_and_args();
-        assert_eq!(name, "emacs");
-        assert_eq!(args, ["-nw"].as_ref());
     }
 
     #[test]
