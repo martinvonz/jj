@@ -533,21 +533,18 @@ mod tests {
 
     #[test]
     fn test_command_args() {
+        let config_text = r#"
+empty_array = []
+empty_string = ""
+"array" = ["emacs", "-nw"]
+"string" = "emacs -nw"
+structured = { env = { KEY1 = "value1", KEY2 = "value2" }, command = ["emacs", "-nw"] }
+"#;
         let config = config::Config::builder()
-            .set_override("empty_array", Vec::<String>::new())
-            .unwrap()
-            .set_override("empty_string", "")
-            .unwrap()
-            .set_override("array", vec!["emacs", "-nw"])
-            .unwrap()
-            .set_override("string", "emacs -nw")
-            .unwrap()
-            .set_override("structured.env.KEY1", "value1")
-            .unwrap()
-            .set_override("structured.env.KEY2", "value2")
-            .unwrap()
-            .set_override("structured.command", vec!["emacs", "-nw"])
-            .unwrap()
+            .add_source(config::File::from_str(
+                config_text,
+                config::FileFormat::Toml,
+            ))
             .build()
             .unwrap();
 
