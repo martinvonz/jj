@@ -454,7 +454,7 @@ fn test_log_bad_short_prefixes() {
     1 | !nval!d
       | ^---
       |
-      = expected <expression>
+      = expected <identifier> or <expression>
     For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
     "###);
 }

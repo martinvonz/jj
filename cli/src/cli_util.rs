@@ -921,12 +921,13 @@ impl WorkspaceCommandHelper {
         &self,
         revision_arg: &RevisionArg,
     ) -> Result<RevsetExpressionEvaluator<'_>, CommandError> {
-        let expression = revset::parse(revision_arg.as_ref(), &self.revset_parse_context())?;
-        self.attach_revset_evaluator(expression)
+        let (expression, modifier) = self.parse_revset_with_modifier(revision_arg)?;
+        // Whether the caller accepts multiple revisions or not, "all:" should
+        // be valid. For example, "all:@" is a valid single-rev expression.
+        let (None | Some(RevsetModifier::All)) = modifier;
+        Ok(expression)
     }
 
-    // TODO: maybe better to parse all: prefix even if it is the default? It
-    // shouldn't be allowed in aliases, though.
     fn parse_revset_with_modifier(
         &self,
         revision_arg: &RevisionArg,
@@ -944,7 +945,8 @@ impl WorkspaceCommandHelper {
         let context = self.revset_parse_context();
         let expressions: Vec<_> = revision_args
             .iter()
-            .map(|arg| revset::parse(arg.as_ref(), &context))
+            .map(|arg| revset::parse_with_modifier(arg.as_ref(), &context))
+            .map_ok(|(expression, None | Some(RevsetModifier::All))| expression)
             .try_collect()?;
         let expression = RevsetExpression::union_all(&expressions);
         self.attach_revset_evaluator(expression)
@@ -985,11 +987,13 @@ impl WorkspaceCommandHelper {
                 .get_string("revsets.short-prefixes")
                 .unwrap_or_else(|_| self.settings.default_revset());
             if !revset_string.is_empty() {
-                let disambiguation_revset =
-                    revset::parse(&revset_string, &self.revset_parse_context()).map_err(|err| {
-                        config_error_with_message("Invalid `revsets.short-prefixes`", err)
-                    })?;
-                context = context.disambiguate_within(revset::optimize(disambiguation_revset));
+                let (expression, modifier) =
+                    revset::parse_with_modifier(&revset_string, &self.revset_parse_context())
+                        .map_err(|err| {
+                            config_error_with_message("Invalid `revsets.short-prefixes`", err)
+                        })?;
+                let (None | Some(RevsetModifier::All)) = modifier;
+                context = context.disambiguate_within(revset::optimize(expression));
             }
             Ok(context)
         })
