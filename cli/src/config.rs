@@ -443,6 +443,8 @@ pub enum CommandNameAndArgs {
     Structured {
         #[serde(default)]
         env: HashMap<String, String>,
+        #[serde(default)]
+        env_default: HashMap<String, String>,
         command: NonEmptyCommandArgsVec,
     },
 }
@@ -469,6 +471,7 @@ impl CommandNameAndArgs {
             }
             CommandNameAndArgs::Structured {
                 env: _,
+                env_default: _,
                 command: cmd,
             } => (Cow::Borrowed(&cmd.0[0]), Cow::Borrowed(&cmd.0[1..])),
         }
@@ -478,7 +481,15 @@ impl CommandNameAndArgs {
     pub fn to_command(&self) -> Command {
         let (name, args) = self.split_name_and_args();
         let mut cmd = Command::new(name.as_ref());
-        if let CommandNameAndArgs::Structured { env, .. } = self {
+        if let CommandNameAndArgs::Structured {
+            env_default, env, ..
+        } = self
+        {
+            for (key, val) in env_default {
+                if std::env::var(key).is_err() {
+                    cmd.env(key, val);
+                }
+            }
             cmd.envs(env);
         }
         cmd.args(args.as_ref());
@@ -498,8 +509,15 @@ impl fmt::Display for CommandNameAndArgs {
             CommandNameAndArgs::String(s) => write!(f, "{s}"),
             // TODO: format with shell escapes
             CommandNameAndArgs::Vec(a) => write!(f, "{}", a.0.join(" ")),
-            CommandNameAndArgs::Structured { env, command } => {
-                for (k, v) in env.iter() {
+            CommandNameAndArgs::Structured {
+                env_default,
+                env,
+                command,
+            } => {
+                for (k, v) in env_default {
+                    write!(f, "{k}={v} ")?;
+                }
+                for (k, v) in env {
                     write!(f, "{k}={v} ")?;
                 }
                 write!(f, "{}", command.0.join(" "))
@@ -540,6 +558,7 @@ empty_string = ""
 "array" = ["emacs", "-nw"]
 "string" = "emacs -nw"
 structured = { command = ["emacs", "-nw"] }
+with_env_default = { env_default = { KEY1 = "value1", KEY2 = "value2" }, command = ["emacs", "-nw"] }
 with_env = { env = { KEY1 = "value1", KEY2 = "value2" }, command = ["emacs", "-nw"] }
 "#;
         let config = config::Config::builder()
@@ -582,6 +601,7 @@ with_env = { env = { KEY1 = "value1", KEY2 = "value2" }, command = ["emacs", "-n
         assert_eq!(
             command_args,
             CommandNameAndArgs::Structured {
+                env_default: hashmap! {},
                 env: hashmap! {},
                 command: NonEmptyCommandArgsVec(["emacs", "-nw",].map(|s| s.to_owned()).to_vec())
             }
@@ -590,10 +610,24 @@ with_env = { env = { KEY1 = "value1", KEY2 = "value2" }, command = ["emacs", "-n
         assert_eq!(name, "emacs");
         assert_eq!(args, ["-nw"].as_ref());
 
+        let command_args: CommandNameAndArgs = config.get("with_env_default").unwrap();
+        assert_eq!(
+            command_args,
+            CommandNameAndArgs::Structured {
+                env_default: hashmap! {
+                    "KEY1".to_string() => "value1".to_string(),
+                    "KEY2".to_string() => "value2".to_string(),
+                },
+                env: hashmap! {},
+                command: NonEmptyCommandArgsVec(["emacs", "-nw",].map(|s| s.to_owned()).to_vec())
+            }
+        );
+
         let command_args: CommandNameAndArgs = config.get("with_env").unwrap();
         assert_eq!(
             command_args,
             CommandNameAndArgs::Structured {
+                env_default: hashmap! {},
                 env: hashmap! {
                     "KEY1".to_string() => "value1".to_string(),
                     "KEY2".to_string() => "value2".to_string(),
