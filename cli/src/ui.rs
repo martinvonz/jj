@@ -217,29 +217,20 @@ fn color_setting(config: &config::Config) -> ColorChoice {
         .unwrap_or_default()
 }
 
-fn debug_color(choice: ColorChoice) -> bool {
-    matches!(choice, ColorChoice::Debug)
-}
-
-fn use_color(choice: ColorChoice) -> bool {
-    match choice {
-        ColorChoice::Always => true,
-        ColorChoice::Never => false,
-        ColorChoice::Debug => true,
-        ColorChoice::Auto => io::stdout().is_terminal(),
-    }
-}
-
 fn prepare_formatter_factory(
     config: &config::Config,
     stdout: &Stdout,
 ) -> Result<FormatterFactory, config::ConfigError> {
-    let color = color_setting(config);
-    let debug = debug_color(color);
-    let color = use_color(color);
+    let terminal = stdout.is_terminal();
+    let (color, debug) = match color_setting(config) {
+        ColorChoice::Always => (true, false),
+        ColorChoice::Never => (false, false),
+        ColorChoice::Debug => (true, true),
+        ColorChoice::Auto => (terminal, false),
+    };
     // Sanitize ANSI escape codes if we're printing to a terminal. Doesn't affect
     // ANSI escape codes that originate from the formatter itself.
-    let sanitize = stdout.is_terminal();
+    let sanitize = terminal;
     FormatterFactory::prepare(config, debug, color, sanitize)
 }
 
