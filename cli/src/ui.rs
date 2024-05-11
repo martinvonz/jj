@@ -228,10 +228,15 @@ fn prepare_formatter_factory(
         ColorChoice::Debug => (true, true),
         ColorChoice::Auto => (terminal, false),
     };
-    // Sanitize ANSI escape codes if we're printing to a terminal. Doesn't affect
-    // ANSI escape codes that originate from the formatter itself.
-    let sanitize = terminal;
-    FormatterFactory::prepare(config, debug, color, sanitize)
+    if color {
+        FormatterFactory::color(config, debug)
+    } else if terminal {
+        // Sanitize ANSI escape codes if we're printing to a terminal. Doesn't
+        // affect ANSI escape codes that originate from the formatter itself.
+        Ok(FormatterFactory::sanitized())
+    } else {
+        Ok(FormatterFactory::plain_text())
+    }
 }
 
 fn be_quiet(config: &config::Config) -> bool {
