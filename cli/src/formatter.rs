@@ -136,20 +136,19 @@ enum FormatterFactoryKind {
 }
 
 impl FormatterFactory {
-    pub fn prepare(
-        config: &config::Config,
-        debug: bool,
-        color: bool,
-        sanitized: bool,
-    ) -> Result<Self, config::ConfigError> {
-        let kind = if color {
-            let rules = Arc::new(rules_from_config(config)?);
-            FormatterFactoryKind::Color { rules, debug }
-        } else if sanitized {
-            FormatterFactoryKind::Sanitized
-        } else {
-            FormatterFactoryKind::PlainText
-        };
+    pub fn plain_text() -> Self {
+        let kind = FormatterFactoryKind::PlainText;
+        FormatterFactory { kind }
+    }
+
+    pub fn sanitized() -> Self {
+        let kind = FormatterFactoryKind::Sanitized;
+        FormatterFactory { kind }
+    }
+
+    pub fn color(config: &config::Config, debug: bool) -> Result<Self, config::ConfigError> {
+        let rules = Arc::new(rules_from_config(config)?);
+        let kind = FormatterFactoryKind::Color { rules, debug };
         Ok(FormatterFactory { kind })
     }
 
