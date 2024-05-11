@@ -35,7 +35,7 @@ use crate::backend::{
 };
 use crate::commit::{Commit, CommitByCommitterTimestamp};
 use crate::commit_builder::CommitBuilder;
-use crate::default_index::DefaultIndexStore;
+use crate::default_index::{DefaultIndexStore, DefaultMutableIndex};
 use crate::default_submodule_store::DefaultSubmoduleStore;
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::git_backend::GitBackend;
@@ -1612,12 +1612,20 @@ impl MutableRepo {
                     .set_wc_commit(workspace_id.clone(), other_wc_commit.clone());
             }
         }
-
         let base_heads = base.heads().iter().cloned().collect_vec();
         let own_heads = self.view().heads().iter().cloned().collect_vec();
         let other_heads = other.heads().iter().cloned().collect_vec();
-        self.record_rewrites(&base_heads, &own_heads);
-        self.record_rewrites(&base_heads, &other_heads);
+
+        // HACK: Don't walk long ranges of commits to find rewrites when using other
+        // custom implementations. The only custom index implementation we're currently
+        // aware of is Google's. That repo has too high commit rate for it to be
+        // feasible to walk all added and removed commits.
+        // TODO: Fix this somehow. Maybe a method on `Index` to find rewritten commits
+        // given `base_heads`, `own_heads` and `other_heads`?
+        if self.index.as_any().is::<DefaultMutableIndex>() {
+            self.record_rewrites(&base_heads, &own_heads);
+            self.record_rewrites(&base_heads, &other_heads);
+        }
         // No need to remove heads removed by `other` because we already marked them
         // abandoned or rewritten.
         for added_head in other.heads().difference(base.heads()) {
