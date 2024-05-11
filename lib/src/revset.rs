@@ -43,7 +43,9 @@ use crate::revset_graph::RevsetGraphEdge;
 // TODO: introduce AST types and remove parse_expression_rule, Rule from the
 // re-exports
 pub use crate::revset_parser::{
-    parse_expression_rule, RevsetAliasesMap, RevsetParseError, RevsetParseErrorKind, Rule,
+    expect_arguments, expect_named_arguments, expect_named_arguments_vec, expect_no_arguments,
+    expect_one_argument, parse_expression_rule, RevsetAliasesMap, RevsetParseError,
+    RevsetParseErrorKind, Rule,
 };
 use crate::revset_parser::{parse_program, parse_program_with_modifier, RevsetAliasId};
 use crate::store::Store;
@@ -787,122 +789,6 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     });
     map
 });
-
-type OptionalArg<'i> = Option<Pair<'i, Rule>>;
-
-pub fn expect_no_arguments(
-    function_name: &str,
-    arguments_pair: Pair<Rule>,
-) -> Result<(), RevsetParseError> {
-    let ([], []) = expect_arguments(function_name, arguments_pair)?;
-    Ok(())
-}
-
-pub fn expect_one_argument<'i>(
-    function_name: &str,
-    arguments_pair: Pair<'i, Rule>,
-) -> Result<Pair<'i, Rule>, RevsetParseError> {
-    let ([arg], []) = expect_arguments(function_name, arguments_pair)?;
-    Ok(arg)
-}
-
-pub fn expect_arguments<'i, const N: usize, const M: usize>(
-    function_name: &str,
-    arguments_pair: Pair<'i, Rule>,
-) -> Result<([Pair<'i, Rule>; N], [OptionalArg<'i>; M]), RevsetParseError> {
-    expect_named_arguments(function_name, &[], arguments_pair)
-}
-
-/// Extracts N required arguments and M optional arguments.
-///
-/// `argument_names` is a list of argument names. Unnamed positional arguments
-/// should be padded with `""`.
-pub fn expect_named_arguments<'i, const N: usize, const M: usize>(
-    function_name: &str,
-    argument_names: &[&str],
-    arguments_pair: Pair<'i, Rule>,
-) -> Result<([Pair<'i, Rule>; N], [OptionalArg<'i>; M]), RevsetParseError> {
-    let (required, optional) =
-        expect_named_arguments_vec(function_name, argument_names, arguments_pair, N, N + M)?;
-    Ok((required.try_into().unwrap(), optional.try_into().unwrap()))
-}
-
-pub fn expect_named_arguments_vec<'i>(
-    function_name: &str,
-    argument_names: &[&str],
-    arguments_pair: Pair<'i, Rule>,
-    min_arg_count: usize,
-    max_arg_count: usize,
-) -> Result<(Vec<Pair<'i, Rule>>, Vec<OptionalArg<'i>>), RevsetParseError> {
-    assert!(argument_names.len() <= max_arg_count);
-    let arguments_span = arguments_pair.as_span();
-    let make_count_error = || {
-        let message = if min_arg_count == max_arg_count {
-            format!("Expected {min_arg_count} arguments")
-        } else {
-            format!("Expected {min_arg_count} to {max_arg_count} arguments")
-        };
-        RevsetParseError::invalid_arguments(function_name, message, arguments_span)
-    };
-
-    let mut pos_iter = Some(0..max_arg_count);
-    let mut extracted_pairs = vec![None; max_arg_count];
-    for pair in arguments_pair.into_inner() {
-        let span = pair.as_span();
-        match pair.as_rule() {
-            Rule::expression => {
-                let pos = pos_iter
-                    .as_mut()
-                    .ok_or_else(|| {
-                        RevsetParseError::invalid_arguments(
-                            function_name,
-                            "Positional argument follows keyword argument",
-                            span,
-                        )
-                    })?
-                    .next()
-                    .ok_or_else(make_count_error)?;
-                assert!(extracted_pairs[pos].is_none());
-                extracted_pairs[pos] = Some(pair);
-            }
-            Rule::keyword_argument => {
-                pos_iter = None; // No more positional arguments
-                let mut pairs = pair.into_inner();
-                let name = pairs.next().unwrap();
-                let expr = pairs.next().unwrap();
-                assert_eq!(name.as_rule(), Rule::identifier);
-                assert_eq!(expr.as_rule(), Rule::expression);
-                let pos = argument_names
-                    .iter()
-                    .position(|&n| n == name.as_str())
-                    .ok_or_else(|| {
-                        RevsetParseError::invalid_arguments(
-                            function_name,
-                            format!(r#"Unexpected keyword argument "{}""#, name.as_str()),
-                            span,
-                        )
-                    })?;
-                if extracted_pairs[pos].is_some() {
-                    return Err(RevsetParseError::invalid_arguments(
-                        function_name,
-                        format!(r#"Got multiple values for keyword "{}""#, name.as_str()),
-                        span,
-                    ));
-                }
-                extracted_pairs[pos] = Some(expr);
-            }
-            r => panic!("unexpected argument rule {r:?}"),
-        }
-    }
-
-    assert_eq!(extracted_pairs.len(), max_arg_count);
-    let optional = extracted_pairs.split_off(min_arg_count);
-    let required = extracted_pairs.into_iter().flatten().collect_vec();
-    if required.len() != min_arg_count {
-        return Err(make_count_error());
-    }
-    Ok((required, optional))
-}
 
 pub fn parse_function_argument_to_file_pattern(
     name: &str,
