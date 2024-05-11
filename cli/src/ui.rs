@@ -231,6 +231,19 @@ fn use_color(choice: ColorChoice) -> bool {
     }
 }
 
+fn prepare_formatter_factory(
+    config: &config::Config,
+    stdout: &Stdout,
+) -> Result<FormatterFactory, config::ConfigError> {
+    let color = color_setting(config);
+    let debug = debug_color(color);
+    let color = use_color(color);
+    // Sanitize ANSI escape codes if we're printing to a terminal. Doesn't affect
+    // ANSI escape codes that originate from the formatter itself.
+    let sanitize = stdout.is_terminal();
+    FormatterFactory::prepare(config, debug, color, sanitize)
+}
+
 fn be_quiet(config: &config::Config) -> bool {
     config.get_bool("ui.quiet").unwrap_or_default()
 }
@@ -258,13 +271,9 @@ fn pager_setting(config: &config::Config) -> Result<CommandNameAndArgs, CommandE
 impl Ui {
     pub fn with_config(config: &config::Config) -> Result<Ui, CommandError> {
         let color = color_setting(config);
-        let debug = debug_color(color);
         let color = use_color(color);
         let quiet = be_quiet(config);
-        // Sanitize ANSI escape codes if we're printing to a terminal. Doesn't affect
-        // ANSI escape codes that originate from the formatter itself.
-        let sanitize = io::stdout().is_terminal();
-        let formatter_factory = FormatterFactory::prepare(config, debug, color, sanitize)?;
+        let formatter_factory = prepare_formatter_factory(config, &io::stdout())?;
         let progress_indicator = progress_indicator_setting(config);
         Ok(Ui {
             color,
@@ -279,14 +288,12 @@ impl Ui {
 
     pub fn reset(&mut self, config: &config::Config) -> Result<(), CommandError> {
         let color = color_setting(config);
-        let debug = debug_color(color);
         self.color = use_color(color);
         self.quiet = be_quiet(config);
         self.paginate = pagination_setting(config)?;
         self.pager_cmd = pager_setting(config)?;
         self.progress_indicator = progress_indicator_setting(config);
-        let sanitize = io::stdout().is_terminal();
-        self.formatter_factory = FormatterFactory::prepare(config, debug, self.color, sanitize)?;
+        self.formatter_factory = prepare_formatter_factory(config, &io::stdout())?;
         Ok(())
     }
 
