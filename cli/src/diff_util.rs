@@ -217,7 +217,9 @@ pub fn show_diff(
             }
             DiffFormat::Stat => {
                 let tree_diff = from_tree.diff_stream(to_tree, matcher);
-                show_diff_stat(ui, formatter, workspace_command, tree_diff)?;
+                // TODO: In graph log, graph width should be subtracted
+                let width = usize::from(ui.term_width().unwrap_or(80));
+                show_diff_stat(formatter, workspace_command, tree_diff, width)?;
             }
             DiffFormat::Types => {
                 let tree_diff = from_tree.diff_stream(to_tree, matcher);
@@ -939,10 +941,10 @@ fn get_diff_stat(
 }
 
 pub fn show_diff_stat(
-    ui: &Ui,
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
     tree_diff: TreeDiffStream,
+    display_width: usize,
 ) -> Result<(), DiffRenderError> {
     let mut stats: Vec<DiffStat> = vec![];
     let mut max_path_width = 0;
@@ -966,8 +968,7 @@ pub fn show_diff_stat(
 
     let number_padding = max_diffs.to_string().len();
     // 4 characters padding for the graph
-    let available_width =
-        usize::from(ui.term_width().unwrap_or(80)).saturating_sub(4 + " | ".len() + number_padding);
+    let available_width = display_width.saturating_sub(4 + " | ".len() + number_padding);
     // Always give at least a tiny bit of room
     let available_width = max(available_width, 5);
     let max_path_width = max_path_width.clamp(3, (0.7 * available_width as f64) as usize);
