@@ -16,6 +16,7 @@ use std::cmp::max;
 use std::collections::VecDeque;
 use std::io;
 use std::ops::Range;
+use std::path::Path;
 
 use futures::{try_join, Stream, StreamExt};
 use itertools::Itertools;
@@ -32,7 +33,7 @@ use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::store::Store;
-use jj_lib::{diff, files};
+use jj_lib::{diff, file_util, files};
 use pollster::FutureExt;
 use thiserror::Error;
 use tracing::instrument;
@@ -200,6 +201,22 @@ pub enum DiffRenderError {
     Io(#[from] io::Error),
 }
 
+/// Workspace information needed to render textual diff.
+#[derive(Clone, Debug)]
+pub struct DiffWorkspaceContext<'a> {
+    pub cwd: &'a Path,
+    pub workspace_root: &'a Path,
+}
+
+impl DiffWorkspaceContext<'_> {
+    fn format_file_path(&self, file: &RepoPath) -> String {
+        file_util::relative_path(self.cwd, &file.to_fs_path(self.workspace_root))
+            .to_str()
+            .unwrap()
+            .to_owned()
+    }
+}
+
 pub fn show_diff(
     ui: &Ui,
     formatter: &mut dyn Formatter,
@@ -210,21 +227,22 @@ pub fn show_diff(
     formats: &[DiffFormat],
 ) -> Result<(), DiffRenderError> {
     let repo = workspace_command.repo().as_ref();
+    let workspace_ctx = workspace_command.diff_context();
     for format in formats {
         match format {
             DiffFormat::Summary => {
                 let tree_diff = from_tree.diff_stream(to_tree, matcher);
-                show_diff_summary(formatter, workspace_command, tree_diff)?;
+                show_diff_summary(formatter, tree_diff, &workspace_ctx)?;
             }
             DiffFormat::Stat => {
                 let tree_diff = from_tree.diff_stream(to_tree, matcher);
                 // TODO: In graph log, graph width should be subtracted
                 let width = usize::from(ui.term_width().unwrap_or(80));
-                show_diff_stat(repo, formatter, workspace_command, tree_diff, width)?;
+                show_diff_stat(repo, formatter, tree_diff, &workspace_ctx, width)?;
             }
             DiffFormat::Types => {
                 let tree_diff = from_tree.diff_stream(to_tree, matcher);
-                show_types(formatter, workspace_command, tree_diff)?;
+                show_types(formatter, tree_diff, &workspace_ctx)?;
             }
             DiffFormat::Git { context } => {
                 let tree_diff = from_tree.diff_stream(to_tree, matcher);
@@ -232,7 +250,7 @@ pub fn show_diff(
             }
             DiffFormat::ColorWords { context } => {
                 let tree_diff = from_tree.diff_stream(to_tree, matcher);
-                show_color_words_diff(repo, formatter, workspace_command, *context, tree_diff)?;
+                show_color_words_diff(repo, formatter, *context, tree_diff, &workspace_ctx)?;
             }
             DiffFormat::Tool(tool) => {
                 merge_tools::generate_diff(ui, formatter.raw(), from_tree, to_tree, matcher, tool)
@@ -462,15 +480,15 @@ fn basic_diff_file_type(value: &MaterializedTreeValue) -> &'static str {
 pub fn show_color_words_diff(
     repo: &dyn Repo,
     formatter: &mut dyn Formatter,
-    workspace_command: &WorkspaceCommandHelper,
     num_context_lines: usize,
     tree_diff: TreeDiffStream,
+    workspace_ctx: &DiffWorkspaceContext,
 ) -> Result<(), DiffRenderError> {
     formatter.push_label("diff")?;
     let mut diff_stream = materialized_diff_stream(repo.store(), tree_diff);
     async {
         while let Some((path, diff)) = diff_stream.next().await {
-            let ui_path = workspace_command.format_file_path(&path);
+            let ui_path = workspace_ctx.format_file_path(&path);
             let (left_value, right_value) = diff?;
             if left_value.is_absent() {
                 let description = basic_diff_file_type(&right_value);
@@ -876,31 +894,21 @@ pub fn show_git_diff(
 #[instrument(skip_all)]
 pub fn show_diff_summary(
     formatter: &mut dyn Formatter,
-    workspace_command: &WorkspaceCommandHelper,
     mut tree_diff: TreeDiffStream,
+    workspace_ctx: &DiffWorkspaceContext,
 ) -> io::Result<()> {
     formatter.with_label("diff", |formatter| -> io::Result<()> {
         async {
             while let Some((repo_path, diff)) = tree_diff.next().await {
                 let (before, after) = diff.unwrap();
+                let ui_path = workspace_ctx.format_file_path(&repo_path);
                 if before.is_present() && after.is_present() {
-                    writeln!(
-                        formatter.labeled("modified"),
-                        "M {}",
-                        workspace_command.format_file_path(&repo_path)
-                    )?;
+                    writeln!(formatter.labeled("modified"), "M {ui_path}")?;
                 } else if before.is_absent() {
-                    writeln!(
-                        formatter.labeled("added"),
-                        "A {}",
-                        workspace_command.format_file_path(&repo_path)
-                    )?;
+                    writeln!(formatter.labeled("added"), "A {ui_path}")?;
                 } else {
-                    writeln!(
-                        formatter.labeled("removed"),
-                        "D {}", // `R` could be interpreted as "renamed"
-                        workspace_command.format_file_path(&repo_path)
-                    )?;
+                    // `R` could be interpreted as "renamed"
+                    writeln!(formatter.labeled("removed"), "D {ui_path}")?;
                 }
             }
             Ok(())
@@ -945,8 +953,8 @@ fn get_diff_stat(
 pub fn show_diff_stat(
     repo: &dyn Repo,
     formatter: &mut dyn Formatter,
-    workspace_command: &WorkspaceCommandHelper,
     tree_diff: TreeDiffStream,
+    workspace_ctx: &DiffWorkspaceContext,
     display_width: usize,
 ) -> Result<(), DiffRenderError> {
     let mut stats: Vec<DiffStat> = vec![];
@@ -957,7 +965,7 @@ pub fn show_diff_stat(
     async {
         while let Some((repo_path, diff)) = diff_stream.next().await {
             let (left, right) = diff?;
-            let path = workspace_command.format_file_path(&repo_path);
+            let path = workspace_ctx.format_file_path(&repo_path);
             let left_content = diff_content(&repo_path, left)?;
             let right_content = diff_content(&repo_path, right)?;
             max_path_width = max(max_path_width, path.width());
@@ -1021,8 +1029,8 @@ pub fn show_diff_stat(
 
 pub fn show_types(
     formatter: &mut dyn Formatter,
-    workspace_command: &WorkspaceCommandHelper,
     mut tree_diff: TreeDiffStream,
+    workspace_ctx: &DiffWorkspaceContext,
 ) -> io::Result<()> {
     formatter.with_label("diff", |formatter| {
         async {
@@ -1033,7 +1041,7 @@ pub fn show_types(
                     "{}{} {}",
                     diff_summary_char(&before),
                     diff_summary_char(&after),
-                    workspace_command.format_file_path(&repo_path)
+                    workspace_ctx.format_file_path(&repo_path)
                 )?;
             }
             Ok(())
