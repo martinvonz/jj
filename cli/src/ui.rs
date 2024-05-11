@@ -162,7 +162,6 @@ impl Write for UiStderr<'_> {
 }
 
 pub struct Ui {
-    color: bool,
     quiet: bool,
     pager_cmd: CommandNameAndArgs,
     paginate: PaginationChoice,
@@ -270,13 +269,10 @@ fn pager_setting(config: &config::Config) -> Result<CommandNameAndArgs, CommandE
 
 impl Ui {
     pub fn with_config(config: &config::Config) -> Result<Ui, CommandError> {
-        let color = color_setting(config);
-        let color = use_color(color);
         let quiet = be_quiet(config);
         let formatter_factory = prepare_formatter_factory(config, &io::stdout())?;
         let progress_indicator = progress_indicator_setting(config);
         Ok(Ui {
-            color,
             quiet,
             formatter_factory,
             pager_cmd: pager_setting(config)?,
@@ -287,8 +283,6 @@ impl Ui {
     }
 
     pub fn reset(&mut self, config: &config::Config) -> Result<(), CommandError> {
-        let color = color_setting(config);
-        self.color = use_color(color);
         self.quiet = be_quiet(config);
         self.paginate = pagination_setting(config)?;
         self.pager_cmd = pager_setting(config)?;
@@ -333,7 +327,7 @@ impl Ui {
     }
 
     pub fn color(&self) -> bool {
-        self.color
+        self.formatter_factory.is_color()
     }
 
     pub fn new_formatter<'output, W: Write + 'output>(
