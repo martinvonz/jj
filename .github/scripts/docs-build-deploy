@@ -16,7 +16,7 @@ export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct docs/ mkdocs.yml)
 # https://github.com/python-poetry/poetry/issues/1917 and
 # https://github.com/python-poetry/poetry/issues/8623
 export PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring
-poetry install --no-root # Only really needed once per environment unless there are updates
+poetry install  # Only really needed once per environment unless there are updates
 # TODO: `--alias-type symlink` is the
 # default, and may be nicer in some ways. However,
 # this requires deploying to GH Pages via a "custom GitHub Action", as in

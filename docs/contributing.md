@@ -217,12 +217,13 @@ result will look as expected when published to the website.
 
 ### Setting up the prerequisites
 
-To build the website, you must have Python and `poetry` installed. If
-your distribution packages `poetry`, something like `apt install
-python3-poetry` is likely the best way to install it. Otherwise, you
-can download Python from <https://python.org> or follow the [Python
-installation instructions]. Finally, follow the [Poetry installation
-instructions].
+To build the website, you must have Python and `poetry 1.8+` installed (the
+latest version is recommended). It is easiest to install `poetry` via `pipx`, as
+explained in the [Poetry installation instructions]. A few helpful points from
+the instructions: `pipx` can often be installed from your distribution, e.g.
+`sudo apt install pipx`; this will usually also install Python for you if
+necessary. Any version of `pipx` will do. If you are installing `pipx` manually,
+you may first need to follow the [Python installation instructions].
 
 [Python installation instructions]: https://docs.python.org/3/using/index.html
 [Poetry installation instructions]: https://python-poetry.org/docs/#installation 
@@ -231,16 +232,14 @@ Once you have `poetry` installed, you should ask it to install the rest
 of the required tools into a virtual environment as follows:
 
 ```shell
-# --no-root avoids a harmless error message starting with Poetry 1.7
-poetry install --no-root
+poetry install
 ```
 
 You may get requests to "unlock a keyring", [an error messages about failing to
-do so](https://github.com/python-poetry/poetry/issues/1917), or, in the case of
-Poetry 1.7, it may [simply hang
-indefinitely](https://github.com/python-poetry/poetry/issues/8623). The
-workaround is to either to unlock the keyring or to run the following, and then
-to try `poetry install --no-root` again:
+do so](https://github.com/python-poetry/poetry/issues/1917), or Poetry may
+[simply hang indefinitely](https://github.com/python-poetry/poetry/issues/8623).
+The workaround is to either to unlock the keyring or to run the following, and
+then to try `poetry install` again:
 
 ```shell
 # For sh-compatible shells or recent versions of `fish`
