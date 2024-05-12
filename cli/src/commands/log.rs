@@ -23,7 +23,7 @@ use tracing::instrument;
 use crate::cli_util::{format_template, CommandHelper, LogContentFormat, RevisionArg};
 use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
-use crate::diff_util::{self, DiffFormatArgs};
+use crate::diff_util::DiffFormatArgs;
 use crate::graphlog::{get_graphlog, Edge};
 use crate::ui::Ui;
 
@@ -102,10 +102,7 @@ pub(crate) fn cmd_log(
     let revset = revset_expression.evaluate()?;
 
     let store = repo.store();
-    let diff_formats =
-        diff_util::diff_formats_for_log(command.settings(), &args.diff_format, args.patch)?;
-    let diff_renderer =
-        (!diff_formats.is_empty()).then(|| workspace_command.diff_renderer(diff_formats));
+    let diff_renderer = workspace_command.diff_renderer_for_log(&args.diff_format, args.patch)?;
 
     let use_elided_nodes = command
         .settings()

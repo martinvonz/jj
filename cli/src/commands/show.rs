@@ -17,7 +17,7 @@ use tracing::instrument;
 
 use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::CommandError;
-use crate::diff_util::{self, DiffFormatArgs};
+use crate::diff_util::DiffFormatArgs;
 use crate::ui::Ui;
 
 /// Show commit description and changes in a revision
@@ -51,8 +51,7 @@ pub(crate) fn cmd_show(
         None => command.settings().config().get_string("templates.show")?,
     };
     let template = workspace_command.parse_commit_template(&template_string)?;
-    let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
-    let diff_renderer = workspace_command.diff_renderer(diff_formats);
+    let diff_renderer = workspace_command.diff_renderer_for(&args.format)?;
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();

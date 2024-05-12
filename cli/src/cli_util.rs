@@ -86,7 +86,7 @@ use crate::commit_templater::{CommitTemplateLanguage, CommitTemplateLanguageExte
 use crate::config::{
     new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigSource, LayeredConfigs,
 };
-use crate::diff_util::{DiffFormat, DiffRenderer, DiffWorkspaceContext};
+use crate::diff_util::{self, DiffFormat, DiffFormatArgs, DiffRenderer, DiffWorkspaceContext};
 use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
 use crate::git_util::{
     is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
@@ -815,6 +815,27 @@ impl WorkspaceCommandHelper {
             workspace_root: self.workspace.workspace_root(),
         };
         DiffRenderer::new(self.repo().as_ref(), workspace_ctx, formats)
+    }
+
+    /// Loads textual diff renderer from the settings and command arguments.
+    pub fn diff_renderer_for(
+        &self,
+        args: &DiffFormatArgs,
+    ) -> Result<DiffRenderer<'_>, CommandError> {
+        let formats = diff_util::diff_formats_for(&self.settings, args)?;
+        Ok(self.diff_renderer(formats))
+    }
+
+    /// Loads textual diff renderer from the settings and log-like command
+    /// arguments. Returns `Ok(None)` if there are no command arguments that
+    /// enable patch output.
+    pub fn diff_renderer_for_log(
+        &self,
+        args: &DiffFormatArgs,
+        patch: bool,
+    ) -> Result<Option<DiffRenderer<'_>>, CommandError> {
+        let formats = diff_util::diff_formats_for_log(&self.settings, args, patch)?;
+        Ok((!formats.is_empty()).then(|| self.diff_renderer(formats)))
     }
 
     /// Loads diff editor from the settings.
