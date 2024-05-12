@@ -36,10 +36,9 @@ use jj_lib::working_copy::{ResetError, SnapshotError, WorkingCopyStateError};
 use jj_lib::workspace::WorkspaceInitError;
 use thiserror::Error;
 
+use crate::diff_util::DiffRenderError;
 use crate::formatter::{FormatRecorder, Formatter};
-use crate::merge_tools::{
-    ConflictResolveError, DiffEditError, DiffGenerateError, MergeToolConfigError,
-};
+use crate::merge_tools::{ConflictResolveError, DiffEditError, MergeToolConfigError};
 use crate::revset_util::UserRevsetEvaluationError;
 use crate::template_parser::{TemplateParseError, TemplateParseErrorKind};
 use crate::ui::Ui;
@@ -361,9 +360,13 @@ impl From<DiffEditError> for CommandError {
     }
 }
 
-impl From<DiffGenerateError> for CommandError {
-    fn from(err: DiffGenerateError) -> Self {
-        user_error_with_message("Failed to generate diff", err)
+impl From<DiffRenderError> for CommandError {
+    fn from(err: DiffRenderError) -> Self {
+        match err {
+            DiffRenderError::DiffGenerate(_) => user_error(err),
+            DiffRenderError::Backend(err) => err.into(),
+            DiffRenderError::Io(err) => err.into(),
+        }
     }
 }
 

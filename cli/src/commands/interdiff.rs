@@ -68,5 +68,6 @@ pub(crate) fn cmd_interdiff(
         &to_tree,
         matcher.as_ref(),
         &diff_formats,
-    )
+    )?;
+    Ok(())
 }
