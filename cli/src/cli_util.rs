@@ -2170,7 +2170,10 @@ pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(),
         .config()
         .get("ui.editor")
         .map_err(|err| config_error_with_message("Invalid `ui.editor`", err))?;
-    let exit_status = editor.to_command().arg(edit_path).status().map_err(|err| {
+    let mut cmd = editor.to_command();
+    cmd.arg(edit_path);
+    tracing::info!(?cmd, "running editor");
+    let exit_status = cmd.status().map_err(|err| {
         user_error_with_message(
             format!(
                 // The executable couldn't be found or run; command-line arguments are not relevant
