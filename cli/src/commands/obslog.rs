@@ -181,5 +181,6 @@ fn show_predecessor_patch(
         &tree,
         &EverythingMatcher,
         diff_formats,
-    )
+    )?;
+    Ok(())
 }

@@ -19,7 +19,7 @@ use std::ops::Range;
 
 use futures::{try_join, Stream, StreamExt};
 use itertools::Itertools;
-use jj_lib::backend::{BackendResult, TreeValue};
+use jj_lib::backend::{BackendError, BackendResult, TreeValue};
 use jj_lib::commit::Commit;
 use jj_lib::conflicts::{materialize_tree_value, MaterializedTreeValue};
 use jj_lib::diff::{Diff, DiffHunk};
@@ -34,14 +34,14 @@ use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::store::Store;
 use jj_lib::{diff, files};
 use pollster::FutureExt;
+use thiserror::Error;
 use tracing::instrument;
 use unicode_width::UnicodeWidthStr as _;
 
 use crate::cli_util::WorkspaceCommandHelper;
-use crate::command_error::CommandError;
 use crate::config::CommandNameAndArgs;
 use crate::formatter::Formatter;
-use crate::merge_tools::{self, ExternalMergeTool};
+use crate::merge_tools::{self, DiffGenerateError, ExternalMergeTool};
 use crate::text_util;
 use crate::ui::Ui;
 
@@ -190,6 +190,16 @@ fn default_diff_format(
     }
 }
 
+#[derive(Debug, Error)]
+pub enum DiffRenderError {
+    #[error("Failed to generate diff")]
+    DiffGenerate(#[source] DiffGenerateError),
+    #[error(transparent)]
+    Backend(#[from] BackendError),
+    #[error(transparent)]
+    Io(#[from] io::Error),
+}
+
 pub fn show_diff(
     ui: &Ui,
     formatter: &mut dyn Formatter,
@@ -198,7 +208,7 @@ pub fn show_diff(
     to_tree: &MergedTree,
     matcher: &dyn Matcher,
     formats: &[DiffFormat],
-) -> Result<(), CommandError> {
+) -> Result<(), DiffRenderError> {
     for format in formats {
         match format {
             DiffFormat::Summary => {
@@ -222,7 +232,8 @@ pub fn show_diff(
                 show_color_words_diff(formatter, workspace_command, *context, tree_diff)?;
             }
             DiffFormat::Tool(tool) => {
-                merge_tools::generate_diff(ui, formatter.raw(), from_tree, to_tree, matcher, tool)?;
+                merge_tools::generate_diff(ui, formatter.raw(), from_tree, to_tree, matcher, tool)
+                    .map_err(DiffRenderError::DiffGenerate)?;
             }
         }
     }
@@ -236,7 +247,7 @@ pub fn show_patch(
     commit: &Commit,
     matcher: &dyn Matcher,
     formats: &[DiffFormat],
-) -> Result<(), CommandError> {
+) -> Result<(), DiffRenderError> {
     let from_tree = commit.parent_tree(workspace_command.repo().as_ref())?;
     let to_tree = commit.tree()?;
     show_diff(
@@ -400,10 +411,7 @@ fn file_content_for_diff(reader: &mut dyn io::Read) -> io::Result<FileContent> {
     })
 }
 
-fn diff_content(
-    path: &RepoPath,
-    value: MaterializedTreeValue,
-) -> Result<FileContent, CommandError> {
+fn diff_content(path: &RepoPath, value: MaterializedTreeValue) -> io::Result<FileContent> {
     match value {
         MaterializedTreeValue::Absent => Ok(FileContent::empty()),
         MaterializedTreeValue::File { mut reader, .. } => {
@@ -453,7 +461,7 @@ pub fn show_color_words_diff(
     workspace_command: &WorkspaceCommandHelper,
     num_context_lines: usize,
     tree_diff: TreeDiffStream,
-) -> Result<(), CommandError> {
+) -> Result<(), DiffRenderError> {
     formatter.push_label("diff")?;
     let mut diff_stream = materialized_diff_stream(workspace_command.repo().store(), tree_diff);
     async {
@@ -561,7 +569,7 @@ pub fn show_color_words_diff(
                 }
             }
         }
-        Ok::<(), CommandError>(())
+        Ok::<(), DiffRenderError>(())
     }
     .block_on()?;
     formatter.pop_label()?;
@@ -574,10 +582,7 @@ struct GitDiffPart {
     content: Vec<u8>,
 }
 
-fn git_diff_part(
-    path: &RepoPath,
-    value: MaterializedTreeValue,
-) -> Result<GitDiffPart, CommandError> {
+fn git_diff_part(path: &RepoPath, value: MaterializedTreeValue) -> io::Result<GitDiffPart> {
     let mode;
     let hash;
     let mut contents: Vec<u8>;
@@ -729,7 +734,7 @@ fn show_unified_diff_hunks(
     left_content: &[u8],
     right_content: &[u8],
     num_context_lines: usize,
-) -> Result<(), CommandError> {
+) -> io::Result<()> {
     for hunk in unified_diff_hunks(left_content, right_content, num_context_lines) {
         writeln!(
             formatter.labeled("hunk_header"),
@@ -797,7 +802,7 @@ pub fn show_git_diff(
     workspace_command: &WorkspaceCommandHelper,
     num_context_lines: usize,
     tree_diff: TreeDiffStream,
-) -> Result<(), CommandError> {
+) -> Result<(), DiffRenderError> {
     formatter.push_label("diff")?;
 
     let mut diff_stream = materialized_diff_stream(workspace_command.repo().store(), tree_diff);
@@ -857,7 +862,7 @@ pub fn show_git_diff(
                 show_unified_diff_hunks(formatter, &left_part.content, &[], num_context_lines)?;
             }
         }
-        Ok::<(), CommandError>(())
+        Ok::<(), DiffRenderError>(())
     }
     .block_on()?;
     formatter.pop_label()?;
@@ -938,7 +943,7 @@ pub fn show_diff_stat(
     formatter: &mut dyn Formatter,
     workspace_command: &WorkspaceCommandHelper,
     tree_diff: TreeDiffStream,
-) -> Result<(), CommandError> {
+) -> Result<(), DiffRenderError> {
     let mut stats: Vec<DiffStat> = vec![];
     let mut max_path_width = 0;
     let mut max_diffs = 0;
@@ -955,7 +960,7 @@ pub fn show_diff_stat(
             max_diffs = max(max_diffs, stat.added + stat.removed);
             stats.push(stat);
         }
-        Ok::<(), CommandError>(())
+        Ok::<(), DiffRenderError>(())
     }
     .block_on()?;
 
