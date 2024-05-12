@@ -12,15 +12,16 @@ python = "^3.8"
 
 [tool.poetry.group.dev.dependencies]
 # These can be updated with `poetry add`.
-mkdocs = "^1.5.2"
+mkdocs = ">=1.6,<1.7"
 mkdocs-material = ">=9.5.22,<9.6"
+# Versioning of documentation
+mike = ">=2.1.1,<3"
 # (Py)Markdown extensions
 mdx-truly-sane-lists = "^1.3"
 mdx-breakless-lists = "^1.0.1"
 # Allows setting up redirects when renaming docs files
 mkdocs-redirects = "^1.2.1"
-# Versioning of documentation
-mike = "^2.0.0"
+# Used for the CLI reference
 mkdocs-include-markdown-plugin = "^6.0.4"
 
 [build-system]
