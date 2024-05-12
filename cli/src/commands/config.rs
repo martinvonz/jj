@@ -144,7 +144,7 @@ pub(crate) struct ConfigSetArgs {
     name: String,
     #[arg(required = true)]
     value: String,
-    #[clap(flatten)]
+    #[command(flatten)]
     config_args: ConfigArgs,
 }
 
@@ -154,7 +154,7 @@ pub(crate) struct ConfigSetArgs {
 /// does.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct ConfigEditArgs {
-    #[clap(flatten)]
+    #[command(flatten)]
     pub config_args: ConfigArgs,
 }
 
@@ -165,7 +165,7 @@ pub(crate) struct ConfigEditArgs {
 /// See `jj config edit` if you'd like to immediately edit the file.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct ConfigPathArgs {
-    #[clap(flatten)]
+    #[command(flatten)]
     pub config_args: ConfigArgs,
 }
 
