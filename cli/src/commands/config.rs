@@ -42,14 +42,17 @@ pub(crate) struct ConfigLevelArgs {
 }
 
 impl ConfigLevelArgs {
-    fn get_source_kind(&self) -> ConfigSource {
+    fn expect_source_kind(&self) -> ConfigSource {
+        self.get_source_kind().expect("No config_level provided")
+    }
+
+    fn get_source_kind(&self) -> Option<ConfigSource> {
         if self.user {
-            ConfigSource::User
+            Some(ConfigSource::User)
         } else if self.repo {
-            ConfigSource::Repo
+            Some(ConfigSource::Repo)
         } else {
-            // Shouldn't be reachable unless clap ArgGroup is broken.
-            panic!("No config_level provided");
+            None
         }
     }
 }
@@ -77,23 +80,19 @@ pub(crate) enum ConfigCommand {
 
 /// List variables set in config file, along with their values.
 #[derive(clap::Args, Clone, Debug)]
-#[command(group(clap::ArgGroup::new("specific").args(&["repo", "user"])))]
+#[command(mut_group("config_level", |g| g.required(false)))]
 pub(crate) struct ConfigListArgs {
     /// An optional name of a specific config option to look up.
     #[arg(value_parser = NonEmptyStringValueParser::new())]
     pub name: Option<String>,
     /// Whether to explicitly include built-in default values in the list.
-    #[arg(long, conflicts_with = "specific")]
+    #[arg(long, conflicts_with = "config_level")]
     pub include_defaults: bool,
     /// Allow printing overridden values.
     #[arg(long)]
     pub include_overridden: bool,
-    /// Target the user-level config
-    #[arg(long)]
-    user: bool,
-    /// Target the repo-level config
-    #[arg(long)]
-    repo: bool,
+    #[command(flatten)]
+    pub level: ConfigLevelArgs,
     // TODO(#1047): Support --show-origin using LayeredConfigs.
     /// Render each variable using the given template
     ///
@@ -106,19 +105,6 @@ pub(crate) struct ConfigListArgs {
     /// For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
     #[arg(long, short = 'T', verbatim_doc_comment)]
     template: Option<String>,
-}
-
-impl ConfigListArgs {
-    fn get_source_kind(&self) -> Option<ConfigSource> {
-        if self.user {
-            Some(ConfigSource::User)
-        } else if self.repo {
-            Some(ConfigSource::Repo)
-        } else {
-            //List all variables
-            None
-        }
-    }
 }
 
 /// Get the value of a given config option.
@@ -239,7 +225,7 @@ pub(crate) fn cmd_config_list(
             continue;
         }
 
-        if let Some(target_source) = args.get_source_kind() {
+        if let Some(target_source) = args.level.get_source_kind() {
             if target_source != annotated.source {
                 continue;
             }
@@ -309,7 +295,7 @@ pub(crate) fn cmd_config_set(
     command: &CommandHelper,
     args: &ConfigSetArgs,
 ) -> Result<(), CommandError> {
-    let config_path = get_new_config_file_path(&args.level.get_source_kind(), command)?;
+    let config_path = get_new_config_file_path(&args.level.expect_source_kind(), command)?;
     if config_path.is_dir() {
         return Err(user_error(format!(
             "Can't set config in path {path} (dirs not supported)",
@@ -325,7 +311,7 @@ pub(crate) fn cmd_config_edit(
     command: &CommandHelper,
     args: &ConfigEditArgs,
 ) -> Result<(), CommandError> {
-    let config_path = get_new_config_file_path(&args.level.get_source_kind(), command)?;
+    let config_path = get_new_config_file_path(&args.level.expect_source_kind(), command)?;
     run_ui_editor(command.settings(), &config_path)
 }
 
@@ -335,7 +321,7 @@ pub(crate) fn cmd_config_path(
     command: &CommandHelper,
     args: &ConfigPathArgs,
 ) -> Result<(), CommandError> {
-    let config_path = get_new_config_file_path(&args.level.get_source_kind(), command)?;
+    let config_path = get_new_config_file_path(&args.level.expect_source_kind(), command)?;
     writeln!(
         ui.stdout(),
         "{}",
