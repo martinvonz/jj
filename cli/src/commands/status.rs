@@ -19,6 +19,7 @@ use tracing::instrument;
 
 use crate::cli_util::{print_conflicted_paths, CommandHelper};
 use crate::command_error::CommandError;
+use crate::diff_util::DiffFormat;
 use crate::ui::Ui;
 use crate::{diff_util, revset_util};
 
@@ -64,10 +65,14 @@ pub(crate) fn cmd_status(
             writeln!(formatter, "The working copy is clean")?;
         } else {
             writeln!(formatter, "Working copy changes:")?;
-            diff_util::show_diff_summary(
+            diff_util::show_diff(
+                ui,
                 formatter,
                 &workspace_command,
-                parent_tree.diff_stream(&tree, matcher.as_ref()),
+                &parent_tree,
+                &tree,
+                &matcher,
+                &[DiffFormat::Summary],
             )?;
         }
 
