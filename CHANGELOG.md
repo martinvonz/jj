@@ -46,6 +46,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   address unconditionally. Only ASCII case folding is currently implemented,
   but this will likely change in the future.
 
+* Workspaces may have an additional layered configuration, located at
+  `.jj/config.toml`. `jj config` subcommands which took layer options like
+  `--repo` now also support `--workspace`.
+
 ### Fixed bugs
 
 ## [0.19.0] - 2024-07-03
