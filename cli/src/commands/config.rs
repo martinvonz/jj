@@ -31,7 +31,7 @@ use crate::ui::Ui;
 
 #[derive(clap::Args, Clone, Debug)]
 #[command(group = clap::ArgGroup::new("config_level").multiple(false).required(true))]
-pub(crate) struct ConfigArgs {
+pub(crate) struct ConfigLevelArgs {
     /// Target the user-level config
     #[arg(long, group = "config_level")]
     user: bool,
@@ -41,7 +41,7 @@ pub(crate) struct ConfigArgs {
     repo: bool,
 }
 
-impl ConfigArgs {
+impl ConfigLevelArgs {
     fn get_source_kind(&self) -> ConfigSource {
         if self.user {
             ConfigSource::User
@@ -145,7 +145,7 @@ pub(crate) struct ConfigSetArgs {
     #[arg(required = true)]
     value: String,
     #[command(flatten)]
-    config_args: ConfigArgs,
+    level: ConfigLevelArgs,
 }
 
 /// Start an editor on a jj config file.
@@ -155,7 +155,7 @@ pub(crate) struct ConfigSetArgs {
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct ConfigEditArgs {
     #[command(flatten)]
-    pub config_args: ConfigArgs,
+    pub level: ConfigLevelArgs,
 }
 
 /// Print the path to the config file
@@ -166,7 +166,7 @@ pub(crate) struct ConfigEditArgs {
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct ConfigPathArgs {
     #[command(flatten)]
-    pub config_args: ConfigArgs,
+    pub level: ConfigLevelArgs,
 }
 
 #[instrument(skip_all)]
@@ -309,7 +309,7 @@ pub(crate) fn cmd_config_set(
     command: &CommandHelper,
     args: &ConfigSetArgs,
 ) -> Result<(), CommandError> {
-    let config_path = get_new_config_file_path(&args.config_args.get_source_kind(), command)?;
+    let config_path = get_new_config_file_path(&args.level.get_source_kind(), command)?;
     if config_path.is_dir() {
         return Err(user_error(format!(
             "Can't set config in path {path} (dirs not supported)",
@@ -325,7 +325,7 @@ pub(crate) fn cmd_config_edit(
     command: &CommandHelper,
     args: &ConfigEditArgs,
 ) -> Result<(), CommandError> {
-    let config_path = get_new_config_file_path(&args.config_args.get_source_kind(), command)?;
+    let config_path = get_new_config_file_path(&args.level.get_source_kind(), command)?;
     run_ui_editor(command.settings(), &config_path)
 }
 
@@ -335,7 +335,7 @@ pub(crate) fn cmd_config_path(
     command: &CommandHelper,
     args: &ConfigPathArgs,
 ) -> Result<(), CommandError> {
-    let config_path = get_new_config_file_path(&args.config_args.get_source_kind(), command)?;
+    let config_path = get_new_config_file_path(&args.level.get_source_kind(), command)?;
     writeln!(
         ui.stdout(),
         "{}",
