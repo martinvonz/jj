@@ -104,6 +104,8 @@ pub(crate) fn cmd_log(
     let store = repo.store();
     let diff_formats =
         diff_util::diff_formats_for_log(command.settings(), &args.diff_format, args.patch)?;
+    let diff_renderer =
+        (!diff_formats.is_empty()).then(|| workspace_command.diff_renderer(diff_formats));
 
     let use_elided_nodes = command
         .settings()
@@ -188,16 +190,9 @@ pub(crate) fn cmd_log(
                 if !buffer.ends_with(b"\n") {
                     buffer.push(b'\n');
                 }
-                if !diff_formats.is_empty() {
+                if let Some(renderer) = &diff_renderer {
                     let mut formatter = ui.new_formatter(&mut buffer);
-                    diff_util::show_patch(
-                        ui,
-                        formatter.as_mut(),
-                        &workspace_command,
-                        &commit,
-                        matcher.as_ref(),
-                        &diff_formats,
-                    )?;
+                    renderer.show_patch(ui, formatter.as_mut(), &commit, matcher.as_ref())?;
                 }
 
                 let node_symbol = format_template(ui, &Some(commit), &node_template);
@@ -236,15 +231,8 @@ pub(crate) fn cmd_log(
                 let commit = commit_or_error?;
                 with_content_format
                     .write(formatter, |formatter| template.format(&commit, formatter))?;
-                if !diff_formats.is_empty() {
-                    diff_util::show_patch(
-                        ui,
-                        formatter,
-                        &workspace_command,
-                        &commit,
-                        matcher.as_ref(),
-                        &diff_formats,
-                    )?;
+                if let Some(renderer) = &diff_renderer {
+                    renderer.show_patch(ui, formatter, &commit, matcher.as_ref())?;
                 }
             }
         }

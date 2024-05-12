@@ -59,15 +59,14 @@ pub(crate) fn cmd_interdiff(
         .parse_file_patterns(&args.paths)?
         .to_matcher();
     let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
+    let diff_renderer = workspace_command.diff_renderer(diff_formats);
     ui.request_pager();
-    diff_util::show_diff(
+    diff_renderer.show_diff(
         ui,
         ui.stdout_formatter().as_mut(),
-        &workspace_command,
         &from_tree,
         &to_tree,
         matcher.as_ref(),
-        &diff_formats,
     )?;
     Ok(())
 }

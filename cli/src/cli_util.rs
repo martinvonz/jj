@@ -86,7 +86,7 @@ use crate::commit_templater::{CommitTemplateLanguage, CommitTemplateLanguageExte
 use crate::config::{
     new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigSource, LayeredConfigs,
 };
-use crate::diff_util::DiffWorkspaceContext;
+use crate::diff_util::{DiffFormat, DiffRenderer, DiffWorkspaceContext};
 use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
 use crate::git_util::{
     is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
@@ -808,12 +808,13 @@ impl WorkspaceCommandHelper {
         Ok(git_ignores)
     }
 
-    // TODO: make it private
-    pub(crate) fn diff_context(&self) -> DiffWorkspaceContext<'_> {
-        DiffWorkspaceContext {
+    /// Creates textual diff renderer of the specified `formats`.
+    pub fn diff_renderer(&self, formats: Vec<DiffFormat>) -> DiffRenderer<'_> {
+        let workspace_ctx = DiffWorkspaceContext {
             cwd: &self.cwd,
             workspace_root: self.workspace.workspace_root(),
-        }
+        };
+        DiffRenderer::new(self.repo().as_ref(), workspace_ctx, formats)
     }
 
     /// Loads diff editor from the settings.

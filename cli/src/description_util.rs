@@ -7,7 +7,7 @@ use jj_lib::settings::UserSettings;
 
 use crate::cli_util::{edit_temp_file, WorkspaceCommandHelper};
 use crate::command_error::CommandError;
-use crate::diff_util::{self, DiffFormat};
+use crate::diff_util::DiffFormat;
 use crate::formatter::PlainTextFormatter;
 use crate::text_util;
 use crate::ui::Ui;
@@ -97,13 +97,12 @@ pub fn description_template_for_describe(
     commit: &Commit,
 ) -> Result<String, CommandError> {
     let mut diff_summary_bytes = Vec::new();
-    diff_util::show_patch(
+    let diff_renderer = workspace_command.diff_renderer(vec![DiffFormat::Summary]);
+    diff_renderer.show_patch(
         ui,
         &mut PlainTextFormatter::new(&mut diff_summary_bytes),
-        workspace_command,
         commit,
         &EverythingMatcher,
-        &[DiffFormat::Summary],
     )?;
     let description = if commit.description().is_empty() {
         settings.default_description()
@@ -127,14 +126,13 @@ pub fn description_template_for_commit(
     to_tree: &MergedTree,
 ) -> Result<String, CommandError> {
     let mut diff_summary_bytes = Vec::new();
-    diff_util::show_diff(
+    let diff_renderer = workspace_command.diff_renderer(vec![DiffFormat::Summary]);
+    diff_renderer.show_diff(
         ui,
         &mut PlainTextFormatter::new(&mut diff_summary_bytes),
-        workspace_command,
         from_tree,
         to_tree,
         &EverythingMatcher,
-        &[DiffFormat::Summary],
     )?;
     let mut template_chunks = Vec::new();
     if !intro.is_empty() {

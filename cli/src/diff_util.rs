@@ -39,7 +39,6 @@ use thiserror::Error;
 use tracing::instrument;
 use unicode_width::UnicodeWidthStr as _;
 
-use crate::cli_util::WorkspaceCommandHelper;
 use crate::config::CommandNameAndArgs;
 use crate::formatter::Formatter;
 use crate::merge_tools::{self, DiffGenerateError, ExternalMergeTool};
@@ -217,69 +216,89 @@ impl DiffWorkspaceContext<'_> {
     }
 }
 
-pub fn show_diff(
-    ui: &Ui,
-    formatter: &mut dyn Formatter,
-    workspace_command: &WorkspaceCommandHelper,
-    from_tree: &MergedTree,
-    to_tree: &MergedTree,
-    matcher: &dyn Matcher,
-    formats: &[DiffFormat],
-) -> Result<(), DiffRenderError> {
-    let repo = workspace_command.repo().as_ref();
-    let workspace_ctx = workspace_command.diff_context();
-    for format in formats {
-        match format {
-            DiffFormat::Summary => {
-                let tree_diff = from_tree.diff_stream(to_tree, matcher);
-                show_diff_summary(formatter, tree_diff, &workspace_ctx)?;
-            }
-            DiffFormat::Stat => {
-                let tree_diff = from_tree.diff_stream(to_tree, matcher);
-                // TODO: In graph log, graph width should be subtracted
-                let width = usize::from(ui.term_width().unwrap_or(80));
-                show_diff_stat(repo, formatter, tree_diff, &workspace_ctx, width)?;
-            }
-            DiffFormat::Types => {
-                let tree_diff = from_tree.diff_stream(to_tree, matcher);
-                show_types(formatter, tree_diff, &workspace_ctx)?;
-            }
-            DiffFormat::Git { context } => {
-                let tree_diff = from_tree.diff_stream(to_tree, matcher);
-                show_git_diff(repo, formatter, *context, tree_diff)?;
-            }
-            DiffFormat::ColorWords { context } => {
-                let tree_diff = from_tree.diff_stream(to_tree, matcher);
-                show_color_words_diff(repo, formatter, *context, tree_diff, &workspace_ctx)?;
-            }
-            DiffFormat::Tool(tool) => {
-                merge_tools::generate_diff(ui, formatter.raw(), from_tree, to_tree, matcher, tool)
-                    .map_err(DiffRenderError::DiffGenerate)?;
-            }
-        }
-    }
-    Ok(())
+/// Configuration and environment to render textual diff.
+pub struct DiffRenderer<'a> {
+    repo: &'a dyn Repo,
+    workspace_ctx: DiffWorkspaceContext<'a>,
+    formats: Vec<DiffFormat>,
 }
 
-pub fn show_patch(
-    ui: &Ui,
-    formatter: &mut dyn Formatter,
-    workspace_command: &WorkspaceCommandHelper,
-    commit: &Commit,
-    matcher: &dyn Matcher,
-    formats: &[DiffFormat],
-) -> Result<(), DiffRenderError> {
-    let from_tree = commit.parent_tree(workspace_command.repo().as_ref())?;
-    let to_tree = commit.tree()?;
-    show_diff(
-        ui,
-        formatter,
-        workspace_command,
-        &from_tree,
-        &to_tree,
-        matcher,
-        formats,
-    )
+impl<'a> DiffRenderer<'a> {
+    pub fn new(
+        repo: &'a dyn Repo,
+        workspace_ctx: DiffWorkspaceContext<'a>,
+        formats: Vec<DiffFormat>,
+    ) -> Self {
+        DiffRenderer {
+            repo,
+            formats,
+            workspace_ctx,
+        }
+    }
+
+    /// Generates diff between `from_tree` and `to_tree`.
+    pub fn show_diff(
+        &self,
+        ui: &Ui, // TODO: remove Ui dependency if possible
+        formatter: &mut dyn Formatter,
+        from_tree: &MergedTree,
+        to_tree: &MergedTree,
+        matcher: &dyn Matcher,
+    ) -> Result<(), DiffRenderError> {
+        let repo = self.repo;
+        let workspace_ctx = &self.workspace_ctx;
+        for format in &self.formats {
+            match format {
+                DiffFormat::Summary => {
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    show_diff_summary(formatter, tree_diff, workspace_ctx)?;
+                }
+                DiffFormat::Stat => {
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    // TODO: In graph log, graph width should be subtracted
+                    let width = usize::from(ui.term_width().unwrap_or(80));
+                    show_diff_stat(repo, formatter, tree_diff, workspace_ctx, width)?;
+                }
+                DiffFormat::Types => {
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    show_types(formatter, tree_diff, workspace_ctx)?;
+                }
+                DiffFormat::Git { context } => {
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    show_git_diff(repo, formatter, *context, tree_diff)?;
+                }
+                DiffFormat::ColorWords { context } => {
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    show_color_words_diff(repo, formatter, *context, tree_diff, workspace_ctx)?;
+                }
+                DiffFormat::Tool(tool) => {
+                    merge_tools::generate_diff(
+                        ui,
+                        formatter.raw(),
+                        from_tree,
+                        to_tree,
+                        matcher,
+                        tool,
+                    )
+                    .map_err(DiffRenderError::DiffGenerate)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Generates diff of the given `commit` compared to its parents.
+    pub fn show_patch(
+        &self,
+        ui: &Ui,
+        formatter: &mut dyn Formatter,
+        commit: &Commit,
+        matcher: &dyn Matcher,
+    ) -> Result<(), DiffRenderError> {
+        let from_tree = commit.parent_tree(self.repo)?;
+        let to_tree = commit.tree()?;
+        self.show_diff(ui, formatter, &from_tree, &to_tree, matcher)
+    }
 }
 
 fn show_color_words_diff_hunks(
