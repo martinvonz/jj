@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `ui.color = "debug"` prints active labels alongside the regular colored output.
 
+* Workspaces may have an additional layered configuration, located at
+  `.jj/config.toml`. `jj config` subcommands which took layer options like
+  `--repo` now also support `--workspace`.
+
 ### Fixed bugs
 
 ## [0.17.1] - 2024-05-07

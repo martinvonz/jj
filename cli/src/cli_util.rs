@@ -2156,6 +2156,11 @@ pub fn get_new_config_file_path(
             new_config_path()?.ok_or_else(|| user_error("No repo config path found to edit"))?
         }
         ConfigSource::Repo => command.workspace_loader()?.repo_path().join("config.toml"),
+        ConfigSource::Workspace => command
+            .workspace_loader()?
+            .workspace_root()
+            .join(".jj")
+            .join("config.toml"),
         _ => {
             return Err(user_error(format!(
                 "Can't get path for config source {config_source:?}"
@@ -2846,6 +2851,7 @@ impl CliRunner {
         layered_configs.read_user_config()?;
         if let Ok(loader) = &maybe_cwd_workspace_loader {
             layered_configs.read_repo_config(loader.repo_path())?;
+            layered_configs.read_workspace_config(&loader.workspace_root().join(".jj"))?;
         }
         let config = layered_configs.merge();
         ui.reset(&config)?;
@@ -2868,6 +2874,7 @@ impl CliRunner {
             let loader = WorkspaceLoader::init(&cwd.join(path))
                 .map_err(|err| map_workspace_load_error(err, Some(path)))?;
             layered_configs.read_repo_config(loader.repo_path())?;
+            layered_configs.read_workspace_config(&loader.workspace_root().join(".jj"))?;
             Ok(loader)
         } else {
             maybe_cwd_workspace_loader
