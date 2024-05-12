@@ -291,6 +291,11 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Filter(predicate))
     }
 
+    /// Find any empty commits.
+    pub fn is_empty() -> Rc<RevsetExpression> {
+        Self::filter(RevsetFilterPredicate::File(FilesetExpression::all())).negated()
+    }
+
     /// Commits in `self` that don't have descendants in `self`.
     pub fn heads(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::Heads(self.clone()))
@@ -744,10 +749,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     });
     map.insert("empty", |name, arguments_pair, _state| {
         expect_no_arguments(name, arguments_pair)?;
-        Ok(
-            RevsetExpression::filter(RevsetFilterPredicate::File(FilesetExpression::all()))
-                .negated(),
-        )
+        Ok(RevsetExpression::is_empty())
     });
     map.insert("file", |name, arguments_pair, state| {
         let arguments_span = arguments_pair.as_span();
