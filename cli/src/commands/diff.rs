@@ -16,7 +16,7 @@ use tracing::instrument;
 
 use crate::cli_util::{print_unmatched_explicit_paths, CommandHelper, RevisionArg};
 use crate::command_error::CommandError;
-use crate::diff_util::{diff_formats_for, DiffFormatArgs};
+use crate::diff_util::DiffFormatArgs;
 use crate::ui::Ui;
 
 /// Compare file contents between two revisions
@@ -76,8 +76,7 @@ pub(crate) fn cmd_diff(
     }
     let fileset_expression = workspace_command.parse_file_patterns(&args.paths)?;
     let matcher = fileset_expression.to_matcher();
-    let diff_formats = diff_formats_for(command.settings(), &args.format)?;
-    let diff_renderer = workspace_command.diff_renderer(diff_formats);
+    let diff_renderer = workspace_command.diff_renderer_for(&args.format)?;
     ui.request_pager();
     diff_renderer.show_diff(
         ui,

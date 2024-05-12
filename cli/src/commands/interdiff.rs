@@ -18,7 +18,7 @@ use tracing::instrument;
 
 use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::CommandError;
-use crate::diff_util::{self, DiffFormatArgs};
+use crate::diff_util::DiffFormatArgs;
 use crate::ui::Ui;
 
 /// Compare the changes of two commits
@@ -58,8 +58,7 @@ pub(crate) fn cmd_interdiff(
     let matcher = workspace_command
         .parse_file_patterns(&args.paths)?
         .to_matcher();
-    let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
-    let diff_renderer = workspace_command.diff_renderer(diff_formats);
+    let diff_renderer = workspace_command.diff_renderer_for(&args.format)?;
     ui.request_pager();
     diff_renderer.show_diff(
         ui,
