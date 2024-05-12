@@ -7,7 +7,7 @@ use jj_lib::settings::UserSettings;
 
 use crate::cli_util::{edit_temp_file, WorkspaceCommandHelper};
 use crate::command_error::CommandError;
-use crate::diff_util::{self, DiffFormat};
+use crate::diff_util::{self, diff_formats_for_describe, DiffFormatArgs};
 use crate::formatter::PlainTextFormatter;
 use crate::text_util;
 use crate::ui::Ui;
@@ -95,6 +95,7 @@ pub fn description_template_for_describe(
     settings: &UserSettings,
     workspace_command: &WorkspaceCommandHelper,
     commit: &Commit,
+    diff_format: &DiffFormatArgs,
 ) -> Result<String, CommandError> {
     let mut diff_summary_bytes = Vec::new();
     diff_util::show_patch(
@@ -103,7 +104,7 @@ pub fn description_template_for_describe(
         workspace_command,
         commit,
         &EverythingMatcher,
-        &[DiffFormat::Summary],
+        &diff_formats_for_describe(settings, diff_format)?,
     )?;
     let description = if commit.description().is_empty() {
         settings.default_description()
@@ -117,6 +118,7 @@ pub fn description_template_for_describe(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn description_template_for_commit(
     ui: &Ui,
     settings: &UserSettings,
@@ -125,6 +127,7 @@ pub fn description_template_for_commit(
     overall_commit_description: &str,
     from_tree: &MergedTree,
     to_tree: &MergedTree,
+    diff_format: &DiffFormatArgs,
 ) -> Result<String, CommandError> {
     let mut diff_summary_bytes = Vec::new();
     diff_util::show_diff(
@@ -134,7 +137,7 @@ pub fn description_template_for_commit(
         from_tree,
         to_tree,
         &EverythingMatcher,
-        &[DiffFormat::Summary],
+        &diff_formats_for_describe(settings, diff_format)?,
     )?;
     let mut template_chunks = Vec::new();
     if !intro.is_empty() {

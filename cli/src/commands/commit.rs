@@ -21,6 +21,7 @@ use crate::command_error::{user_error, CommandError};
 use crate::description_util::{
     description_template_for_commit, edit_description, join_message_paragraphs,
 };
+use crate::diff_util::DiffFormatArgs;
 use crate::ui::Ui;
 
 /// Update the description and create a new change on top.
@@ -39,6 +40,8 @@ pub(crate) struct CommitArgs {
     /// Put these paths in the first commit
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
+    #[command(flatten)]
+    diff_format: DiffFormatArgs,
 }
 
 #[instrument(skip_all)]
@@ -94,6 +97,7 @@ new working-copy commit.
         commit.description(),
         &base_tree,
         &middle_tree,
+        &args.diff_format,
     )?;
 
     let description = if !args.message_paragraphs.is_empty() {

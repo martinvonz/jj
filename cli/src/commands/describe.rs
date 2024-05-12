@@ -22,6 +22,7 @@ use crate::command_error::CommandError;
 use crate::description_util::{
     description_template_for_describe, edit_description, join_message_paragraphs,
 };
+use crate::diff_util::DiffFormatArgs;
 use crate::ui::Ui;
 
 /// Update the change description or other metadata
@@ -58,6 +59,8 @@ pub(crate) struct DescribeArgs {
     /// $ JJ_USER='Foo Bar' JJ_EMAIL=foo@bar.com jj describe --reset-author
     #[arg(long)]
     reset_author: bool,
+    #[command(flatten)]
+    diff_format: DiffFormatArgs,
 }
 
 #[instrument(skip_all)]
@@ -78,8 +81,13 @@ pub(crate) fn cmd_describe(
     } else if args.no_edit {
         commit.description().to_owned()
     } else {
-        let template =
-            description_template_for_describe(ui, command.settings(), &workspace_command, &commit)?;
+        let template = description_template_for_describe(
+            ui,
+            command.settings(),
+            &workspace_command,
+            &commit,
+            &args.diff_format,
+        )?;
         edit_description(workspace_command.repo(), &template, command.settings())?
     };
     if description == *commit.description() && !args.reset_author {
