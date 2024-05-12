@@ -52,17 +52,11 @@ pub(crate) fn cmd_show(
     };
     let template = workspace_command.parse_commit_template(&template_string)?;
     let diff_formats = diff_util::diff_formats_for(command.settings(), &args.format)?;
+    let diff_renderer = workspace_command.diff_renderer(diff_formats);
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
     template.format(&commit, formatter)?;
-    diff_util::show_patch(
-        ui,
-        formatter,
-        &workspace_command,
-        &commit,
-        &EverythingMatcher,
-        &diff_formats,
-    )?;
+    diff_renderer.show_patch(ui, formatter, &commit, &EverythingMatcher)?;
     Ok(())
 }

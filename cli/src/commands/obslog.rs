@@ -16,15 +16,14 @@ use itertools::Itertools;
 use jj_lib::commit::Commit;
 use jj_lib::dag_walk::topo_order_reverse_ok;
 use jj_lib::matchers::EverythingMatcher;
+use jj_lib::repo::Repo;
 use jj_lib::rewrite::rebase_to_dest_parent;
 use tracing::instrument;
 
-use crate::cli_util::{
-    format_template, CommandHelper, LogContentFormat, RevisionArg, WorkspaceCommandHelper,
-};
+use crate::cli_util::{format_template, CommandHelper, LogContentFormat, RevisionArg};
 use crate::command_error::CommandError;
 use crate::commit_templater::CommitTemplateLanguage;
-use crate::diff_util::{self, DiffFormat, DiffFormatArgs};
+use crate::diff_util::{self, DiffFormatArgs, DiffRenderer};
 use crate::formatter::Formatter;
 use crate::graphlog::{get_graphlog, Edge};
 use crate::ui::Ui;
@@ -68,11 +67,14 @@ pub(crate) fn cmd_obslog(
     args: &ObslogArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
+    let repo = workspace_command.repo().as_ref();
 
     let start_commit = workspace_command.resolve_single_rev(&args.revision)?;
 
     let diff_formats =
         diff_util::diff_formats_for_log(command.settings(), &args.diff_format, args.patch)?;
+    let diff_renderer =
+        (!diff_formats.is_empty()).then(|| workspace_command.diff_renderer(diff_formats));
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
     let template;
@@ -127,15 +129,9 @@ pub(crate) fn cmd_obslog(
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
-            if !diff_formats.is_empty() {
+            if let Some(renderer) = &diff_renderer {
                 let mut formatter = ui.new_formatter(&mut buffer);
-                show_predecessor_patch(
-                    ui,
-                    formatter.as_mut(),
-                    &workspace_command,
-                    &commit,
-                    &diff_formats,
-                )?;
+                show_predecessor_patch(ui, repo, renderer, formatter.as_mut(), &commit)?;
             }
             let node_symbol = format_template(ui, &Some(commit.clone()), &node_template);
             graph.add_node(
@@ -149,8 +145,8 @@ pub(crate) fn cmd_obslog(
         for commit in commits {
             with_content_format
                 .write(formatter, |formatter| template.format(&commit, formatter))?;
-            if !diff_formats.is_empty() {
-                show_predecessor_patch(ui, formatter, &workspace_command, &commit, &diff_formats)?;
+            if let Some(renderer) = &diff_renderer {
+                show_predecessor_patch(ui, repo, renderer, formatter, &commit)?;
             }
         }
     }
@@ -160,27 +156,18 @@ pub(crate) fn cmd_obslog(
 
 fn show_predecessor_patch(
     ui: &Ui,
+    repo: &dyn Repo,
+    renderer: &DiffRenderer,
     formatter: &mut dyn Formatter,
-    workspace_command: &WorkspaceCommandHelper,
     commit: &Commit,
-    diff_formats: &[DiffFormat],
 ) -> Result<(), CommandError> {
     let mut predecessors = commit.predecessors();
     let predecessor = match predecessors.next() {
         Some(predecessor) => predecessor?,
         None => return Ok(()),
     };
-    let predecessor_tree =
-        rebase_to_dest_parent(workspace_command.repo().as_ref(), &predecessor, commit)?;
+    let predecessor_tree = rebase_to_dest_parent(repo, &predecessor, commit)?;
     let tree = commit.tree()?;
-    diff_util::show_diff(
-        ui,
-        formatter,
-        workspace_command,
-        &predecessor_tree,
-        &tree,
-        &EverythingMatcher,
-        diff_formats,
-    )?;
+    renderer.show_diff(ui, formatter, &predecessor_tree, &tree, &EverythingMatcher)?;
     Ok(())
 }

@@ -20,8 +20,8 @@ use tracing::instrument;
 use crate::cli_util::{print_conflicted_paths, CommandHelper};
 use crate::command_error::CommandError;
 use crate::diff_util::DiffFormat;
+use crate::revset_util;
 use crate::ui::Ui;
-use crate::{diff_util, revset_util};
 
 /// Show high-level repo status
 ///
@@ -65,15 +65,8 @@ pub(crate) fn cmd_status(
             writeln!(formatter, "The working copy is clean")?;
         } else {
             writeln!(formatter, "Working copy changes:")?;
-            diff_util::show_diff(
-                ui,
-                formatter,
-                &workspace_command,
-                &parent_tree,
-                &tree,
-                &matcher,
-                &[DiffFormat::Summary],
-            )?;
+            let diff_renderer = workspace_command.diff_renderer(vec![DiffFormat::Summary]);
+            diff_renderer.show_diff(ui, formatter, &parent_tree, &tree, &matcher)?;
         }
 
         // TODO: Conflicts should also be filtered by the `matcher`. See the related
