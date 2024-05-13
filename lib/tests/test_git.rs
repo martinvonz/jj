@@ -2782,34 +2782,6 @@ fn test_push_branches_not_fast_forward() {
         &targets,
         git::RemoteCallbacks::default(),
     );
-    // Short-term TODO: This test is now equivalent to the following one, and
-    // will be removed in a follow-up commit.
-    assert_eq!(result, Ok(()));
-}
-
-#[test]
-fn test_push_branches_not_fast_forward_with_force() {
-    let settings = testutils::user_settings();
-    let temp_dir = testutils::new_temp_dir();
-    let setup = set_up_push_repos(&settings, &temp_dir);
-    let mut tx = setup.jj_repo.start_transaction(&settings);
-
-    let targets = GitBranchPushTargets {
-        branch_updates: vec![(
-            "main".to_owned(),
-            BranchPushUpdate {
-                old_target: Some(setup.main_commit.id().clone()),
-                new_target: Some(setup.sideways_commit.id().clone()),
-            },
-        )],
-    };
-    let result = git::push_branches(
-        tx.mut_repo(),
-        &get_git_repo(&setup.jj_repo),
-        "origin",
-        &targets,
-        git::RemoteCallbacks::default(),
-    );
     assert_eq!(result, Ok(()));
 
     // Check that the ref got updated in the source repo
