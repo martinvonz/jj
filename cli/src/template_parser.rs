@@ -17,7 +17,7 @@ use std::{error, mem};
 
 use itertools::Itertools as _;
 use jj_lib::dsl_util::{
-    collect_similar, AliasDeclaration, AliasDeclarationParser, AliasId, AliasesMap,
+    self, collect_similar, AliasDeclaration, AliasDeclarationParser, AliasId, AliasesMap,
     InvalidArguments, StringLiteralParser,
 };
 use once_cell::sync::Lazy;
@@ -246,19 +246,6 @@ fn rename_rules_in_pest_error(err: pest::error::Error<Rule>) -> pest::error::Err
     })
 }
 
-/// AST node without type or name checking.
-#[derive(Clone, Debug, PartialEq)]
-pub struct ExpressionNode<'i> {
-    pub kind: ExpressionKind<'i>,
-    pub span: pest::Span<'i>,
-}
-
-impl<'i> ExpressionNode<'i> {
-    fn new(kind: ExpressionKind<'i>, span: pest::Span<'i>) -> Self {
-        ExpressionNode { kind, span }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum ExpressionKind<'i> {
     Identifier(&'i str),
@@ -291,13 +278,8 @@ pub enum BinaryOp {
     LogicalAnd,
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct FunctionCallNode<'i> {
-    pub name: &'i str,
-    pub name_span: pest::Span<'i>,
-    pub args: Vec<ExpressionNode<'i>>,
-    pub args_span: pest::Span<'i>,
-}
+pub type ExpressionNode<'i> = dsl_util::ExpressionNode<'i, ExpressionKind<'i>>;
+pub type FunctionCallNode<'i> = dsl_util::FunctionCallNode<'i, ExpressionKind<'i>>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct MethodCallNode<'i> {
@@ -681,59 +663,6 @@ pub fn parse<'i>(
 ) -> TemplateParseResult<ExpressionNode<'i>> {
     let node = parse_template(template_text)?;
     expand_aliases(node, aliases_map)
-}
-
-impl<'i> FunctionCallNode<'i> {
-    pub fn expect_no_arguments(&self) -> TemplateParseResult<()> {
-        let [] = self.expect_exact_arguments()?;
-        Ok(())
-    }
-
-    /// Extracts exactly N required arguments.
-    pub fn expect_exact_arguments<const N: usize>(
-        &self,
-    ) -> TemplateParseResult<&[ExpressionNode<'i>; N]> {
-        self.args
-            .as_slice()
-            .try_into()
-            .map_err(|_| self.invalid_arguments(format!("Expected {N} arguments")))
-    }
-
-    /// Extracts N required arguments and remainders.
-    pub fn expect_some_arguments<const N: usize>(
-        &self,
-    ) -> TemplateParseResult<(&[ExpressionNode<'i>; N], &[ExpressionNode<'i>])> {
-        if self.args.len() >= N {
-            let (required, rest) = self.args.split_at(N);
-            Ok((required.try_into().unwrap(), rest))
-        } else {
-            Err(self.invalid_arguments(format!("Expected at least {N} arguments")))
-        }
-    }
-
-    /// Extracts N required arguments and M optional arguments.
-    pub fn expect_arguments<const N: usize, const M: usize>(
-        &self,
-    ) -> TemplateParseResult<(&[ExpressionNode<'i>; N], [Option<&ExpressionNode<'i>>; M])> {
-        let count_range = N..=(N + M);
-        if count_range.contains(&self.args.len()) {
-            let (required, rest) = self.args.split_at(N);
-            let mut optional = rest.iter().map(Some).collect_vec();
-            optional.resize(M, None);
-            Ok((required.try_into().unwrap(), optional.try_into().unwrap()))
-        } else {
-            let (min, max) = count_range.into_inner();
-            Err(self.invalid_arguments(format!("Expected {min} to {max} arguments")))
-        }
-    }
-
-    fn invalid_arguments(&self, message: String) -> TemplateParseError {
-        InvalidArguments {
-            name: self.name,
-            message,
-            span: self.args_span,
-        }.into()
-    }
 }
 
 /// Applies the given function if the `node` is a string literal.
