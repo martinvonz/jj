@@ -542,11 +542,7 @@ fn parse_function_expression(
                     name,
                     itertools::chain(
                         state.function_map.keys().copied(),
-                        state
-                            .aliases_map
-                            .function_aliases
-                            .keys()
-                            .map(|n| n.as_ref()),
+                        state.aliases_map.function_names(),
                     ),
                 ),
             },
@@ -584,6 +580,11 @@ impl RevsetAliasesMap {
             }
         }
         Ok(())
+    }
+
+    /// Iterates function names in arbitrary order.
+    pub fn function_names(&self) -> impl Iterator<Item = &str> {
+        self.function_aliases.keys().map(|n| n.as_ref())
     }
 
     pub fn get_symbol(&self, name: &str) -> Option<&str> {
