@@ -84,6 +84,21 @@ Report bugs: <https://github.com/martinvonz/jj/issues>
             "Release: {}",
             option_env!("JJ_RELEASE_BUILD").is_some()
         )?;
+
+        let git2_ver = git2::Version::get();
+        let (git2_maj, git2_min, git2_patch) = git2_ver.libgit2_version();
+        writeln!(
+            ui.stdout(),
+            "libgit2: ver={}.{}.{}, rs={}, vendored={}, tls={}, libssh2={}, nsec={}",
+            git2_maj,
+            git2_min,
+            git2_patch,
+            git2_ver.crate_version(),
+            git2_ver.vendored(),
+            git2_ver.https(),
+            git2_ver.ssh(),
+            git2_ver.nsec(),
+        )?;
     }
     Ok(())
 }
