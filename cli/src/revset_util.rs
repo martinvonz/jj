@@ -137,7 +137,7 @@ pub fn load_revset_aliases(
 
     // TODO: If we add support for function overloading (#2966), this check can
     // be removed.
-    let (params, _) = aliases_map.get_function(BUILTIN_IMMUTABLE_HEADS).unwrap();
+    let (_, params, _) = aliases_map.get_function(BUILTIN_IMMUTABLE_HEADS).unwrap();
     if !params.is_empty() {
         return Err(user_error(format!(
             "The `revset-aliases.{name}()` function must be declared without arguments",
@@ -175,7 +175,7 @@ pub fn default_symbol_resolver<'a>(
 pub fn parse_immutable_expression(
     context: &RevsetParseContext,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let (params, immutable_heads_str) = context
+    let (_, params, immutable_heads_str) = context
         .aliases_map()
         .get_function(BUILTIN_IMMUTABLE_HEADS)
         .unwrap();
