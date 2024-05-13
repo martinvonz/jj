@@ -394,7 +394,7 @@ fn rebase_descendants_transaction(
     workspace_command.check_rewritable(old_commits.iter().ids())?;
     let (skipped_commits, old_commits) = old_commits
         .iter()
-        .partition::<Vec<_>, _>(|commit| commit.parents() == new_parents);
+        .partition::<Vec<_>, _>(|commit| commit.parent_ids().iter().eq(new_parents.iter().ids()));
     let num_skipped_rebases = skipped_commits.len();
     if num_skipped_rebases > 0 {
         writeln!(
