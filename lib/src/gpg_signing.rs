@@ -107,7 +107,7 @@ pub struct GpgBackend {
 
 #[derive(Debug, Error)]
 pub enum GpgError {
-    #[error("GPG failed with exit status {exit_status}:\n{stderr}")]
+    #[error("GPG failed with {exit_status}:\n{stderr}")]
     Command {
         exit_status: ExitStatus,
         stderr: String,
