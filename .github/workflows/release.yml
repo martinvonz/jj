@@ -46,7 +46,7 @@ jobs:
         toolchain: stable
         target: ${{ matrix.target }}
     - name: Build release binary
-      run: cargo build --target ${{ matrix.target }} --verbose --release --features packaging,vendored-openssl
+      run: cargo build --target ${{ matrix.target }} --verbose --release --features packaging,openssl-on-win32,vendored-openssl
     - name: Build archive
       shell: bash
       run: |

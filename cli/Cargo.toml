@@ -89,6 +89,9 @@ unicode-width = { workspace = true }
 [target.'cfg(unix)'.dependencies]
 libc = { workspace = true }
 
+[target.'cfg(windows)'.dependencies]
+libssh2-sys = { workspace = true }
+
 [dev-dependencies]
 anyhow = { workspace = true }
 assert_cmd = { workspace = true }
@@ -104,6 +107,7 @@ jj-cli = { path = ".", features = ["test-fakes"], default-features = false }
 [features]
 default = ["watchman"]
 bench = ["dep:criterion"]
+openssl-on-win32 = ["libssh2-sys/openssl-on-win32", "jj-lib/openssl-on-win32"]
 packaging = []
 test-fakes = ["jj-lib/testing"]
 vendored-openssl = ["git2/vendored-openssl", "jj-lib/vendored-openssl"]

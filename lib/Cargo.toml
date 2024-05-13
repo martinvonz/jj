@@ -49,6 +49,7 @@ hex = { workspace = true }
 ignore = { workspace = true }
 itertools = { workspace = true }
 jj-lib-proc-macros = { workspace = true }
+libssh2-sys = { workspace = true }
 maplit = { workspace = true }
 once_cell = { workspace = true }
 pest = { workspace = true }
@@ -92,6 +93,7 @@ tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = []
-vendored-openssl = ["git2/vendored-openssl"]
+openssl-on-win32 = ["libssh2-sys/openssl-on-win32"]
+vendored-openssl = ["git2/vendored-openssl", "libssh2-sys/openssl-on-win32"]
 watchman = ["dep:tokio", "dep:watchman_client"]
 testing = []

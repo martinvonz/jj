@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+* When built with the `openssl-on-win32` feature, ED25519 host keys are supported
+  when connecting to Git+SSH remotes on Windows.
+
 ## [0.17.1] - 2024-05-07
 
 ### Fixed bugs
