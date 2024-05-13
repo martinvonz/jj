@@ -21,6 +21,101 @@ use itertools::Itertools as _;
 use pest::iterators::Pairs;
 use pest::RuleType;
 
+/// AST node without type or name checking.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExpressionNode<'i, T> {
+    /// Expression item such as identifier, literal, function call, etc.
+    pub kind: T,
+    /// Span of the node.
+    pub span: pest::Span<'i>,
+}
+
+impl<'i, T> ExpressionNode<'i, T> {
+    /// Wraps the given expression and span.
+    pub fn new(kind: T, span: pest::Span<'i>) -> Self {
+        ExpressionNode { kind, span }
+    }
+}
+
+/// Function call in AST.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FunctionCallNode<'i, T> {
+    /// Function name.
+    pub name: &'i str,
+    /// Span of the function name.
+    pub name_span: pest::Span<'i>,
+    /// List of positional arguments.
+    pub args: Vec<ExpressionNode<'i, T>>,
+    // TODO: revset supports keyword args
+    /// Span of the arguments list.
+    pub args_span: pest::Span<'i>,
+}
+
+impl<'i, T> FunctionCallNode<'i, T> {
+    /// Ensures that no arguments passed.
+    pub fn expect_no_arguments(&self) -> Result<(), InvalidArguments<'i>> {
+        let [] = self.expect_exact_arguments()?;
+        Ok(())
+    }
+
+    /// Extracts exactly N required arguments.
+    pub fn expect_exact_arguments<const N: usize>(
+        &self,
+    ) -> Result<&[ExpressionNode<'i, T>; N], InvalidArguments<'i>> {
+        self.args
+            .as_slice()
+            .try_into()
+            .map_err(|_| self.invalid_arguments(format!("Expected {N} arguments")))
+    }
+
+    /// Extracts N required arguments and remainders.
+    #[allow(clippy::type_complexity)]
+    pub fn expect_some_arguments<const N: usize>(
+        &self,
+    ) -> Result<(&[ExpressionNode<'i, T>; N], &[ExpressionNode<'i, T>]), InvalidArguments<'i>> {
+        if self.args.len() >= N {
+            let (required, rest) = self.args.split_at(N);
+            Ok((required.try_into().unwrap(), rest))
+        } else {
+            Err(self.invalid_arguments(format!("Expected at least {N} arguments")))
+        }
+    }
+
+    /// Extracts N required arguments and M optional arguments.
+    #[allow(clippy::type_complexity)]
+    pub fn expect_arguments<const N: usize, const M: usize>(
+        &self,
+    ) -> Result<
+        (
+            &[ExpressionNode<'i, T>; N],
+            [Option<&ExpressionNode<'i, T>>; M],
+        ),
+        InvalidArguments<'i>,
+    > {
+        let count_range = N..=(N + M);
+        if count_range.contains(&self.args.len()) {
+            let (required, rest) = self.args.split_at(N);
+            let mut optional = rest.iter().map(Some).collect_vec();
+            optional.resize(M, None);
+            Ok((
+                required.try_into().unwrap(),
+                optional.try_into().map_err(|_: Vec<_>| ()).unwrap(),
+            ))
+        } else {
+            let (min, max) = count_range.into_inner();
+            Err(self.invalid_arguments(format!("Expected {min} to {max} arguments")))
+        }
+    }
+
+    fn invalid_arguments(&self, message: String) -> InvalidArguments<'i> {
+        InvalidArguments {
+            name: self.name,
+            message,
+            span: self.args_span,
+        }
+    }
+}
+
 /// Unexpected number of arguments, or invalid combination of arguments.
 ///
 /// This error is supposed to be converted to language-specific parse error

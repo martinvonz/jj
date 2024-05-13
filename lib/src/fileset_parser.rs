@@ -24,7 +24,7 @@ use pest::Parser;
 use pest_derive::Parser;
 use thiserror::Error;
 
-use crate::dsl_util::{InvalidArguments, StringLiteralParser};
+use crate::dsl_util::{self, InvalidArguments, StringLiteralParser};
 
 #[derive(Parser)]
 #[grammar = "fileset.pest"]
@@ -159,19 +159,6 @@ fn rename_rules_in_pest_error(err: pest::error::Error<Rule>) -> pest::error::Err
     })
 }
 
-/// Parsed node without name resolution.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ExpressionNode<'i> {
-    pub kind: ExpressionKind<'i>,
-    pub span: pest::Span<'i>,
-}
-
-impl<'i> ExpressionNode<'i> {
-    fn new(kind: ExpressionKind<'i>, span: pest::Span<'i>) -> Self {
-        ExpressionNode { kind, span }
-    }
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ExpressionKind<'i> {
     Identifier(&'i str),
@@ -198,13 +185,8 @@ pub enum BinaryOp {
     Difference,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct FunctionCallNode<'i> {
-    pub name: &'i str,
-    pub name_span: pest::Span<'i>,
-    pub args: Vec<ExpressionNode<'i>>,
-    pub args_span: pest::Span<'i>,
-}
+pub type ExpressionNode<'i> = dsl_util::ExpressionNode<'i, ExpressionKind<'i>>;
+pub type FunctionCallNode<'i> = dsl_util::FunctionCallNode<'i, ExpressionKind<'i>>;
 
 fn parse_function_call_node(pair: Pair<Rule>) -> FilesetParseResult<FunctionCallNode> {
     assert_eq!(pair.as_rule(), Rule::function);
@@ -335,25 +317,6 @@ pub fn parse_program_or_bare_string(text: &str) -> FilesetParseResult<Expression
         r => panic!("unexpected program or bare string rule: {r:?}"),
     };
     Ok(ExpressionNode::new(expr, span))
-}
-
-impl<'i> FunctionCallNode<'i> {
-    pub fn expect_no_arguments(&self) -> FilesetParseResult<()> {
-        if self.args.is_empty() {
-            Ok(())
-        } else {
-            Err(self.invalid_arguments("Expected 0 arguments".to_owned()))
-        }
-    }
-
-    fn invalid_arguments(&self, message: String) -> FilesetParseError {
-        InvalidArguments {
-            name: self.name,
-            message,
-            span: self.args_span,
-        }
-        .into()
-    }
 }
 
 #[cfg(test)]
