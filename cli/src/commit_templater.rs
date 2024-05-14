@@ -463,7 +463,8 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         "parents",
         |_language, _build_ctx, self_property, function| {
             template_parser::expect_no_arguments(function)?;
-            let out_property = self_property.map(|commit| commit.parents().try_collect().unwrap());
+            let out_property =
+                self_property.and_then(|commit| Ok(commit.parents().try_collect()?));
             Ok(L::wrap_commit_list(out_property))
         },
     );
