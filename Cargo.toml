@@ -59,7 +59,7 @@ indexmap = "2.2.5"
 indoc = "2.0.4"
 insta = { version = "1.39.0", features = ["filters"] }
 itertools = "0.12.1"
-libc = { version = "0.2.154" }
+libc = { version = "0.2.153" }
 maplit = "1.0.2"
 minus = { version = "5.6.1", features = ["dynamic_output", "search"] }
 num_cpus = "1.16.0"
