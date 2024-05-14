@@ -1595,6 +1595,38 @@ Then run `jj squash` to move the resolution into the conflicted commit."#,
     }
 }
 
+pub fn choose_commit<'a>(
+    ui: &mut Ui,
+    workspace_command: &WorkspaceCommandHelper,
+    msg: &str,
+    commits: &'a [Commit],
+) -> Result<&'a Commit, CommandError> {
+    writeln!(ui.stdout(), "{}", msg)?;
+    let mut formatter = ui.stdout_formatter();
+    let template = workspace_command.commit_summary_template();
+    let mut choices: Vec<String> = Default::default();
+    for (i, commit) in commits.iter().enumerate() {
+        write!(formatter, "{}: ", i + 1)?;
+        template.format(commit, formatter.as_mut())?;
+        writeln!(formatter)?;
+        choices.push(format!("{}", i + 1));
+    }
+    writeln!(formatter, "q: quit the prompt")?;
+    choices.push("q".to_string());
+    drop(formatter);
+
+    let choice = ui.prompt_choice(
+        "enter the index of the commit you want to target",
+        &choices,
+        None,
+    )?;
+    if choice == "q" {
+        return Err(user_error("ambiguous target commit"));
+    }
+
+    Ok(&commits[choice.parse::<usize>().unwrap() - 1])
+}
+
 /// A [`Transaction`] tied to a particular workspace.
 /// `WorkspaceCommandTransaction`s are created with
 /// [`WorkspaceCommandHelper::start_transaction`] and committed with
