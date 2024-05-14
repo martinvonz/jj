@@ -1160,7 +1160,7 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn check_rewritable<'a>(
-        &'a self,
+        &self,
         commits: impl IntoIterator<Item = &'a CommitId>,
     ) -> Result<(), CommandError> {
         self.check_repo_rewritable(self.repo().as_ref(), commits)
