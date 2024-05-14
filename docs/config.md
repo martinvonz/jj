@@ -214,7 +214,9 @@ revset-aliases."immutable_heads()" = "main@origin | (main@origin.. & ~mine())"
 Ancestors of the configured set are also immutable. The root commit is always
 immutable even if the set is empty.
 
-### Default revisions to log
+## Log
+
+### Default revisions
 
 You can configure the revisions `jj log` would show when neither `-r` nor any paths are specified.
 
