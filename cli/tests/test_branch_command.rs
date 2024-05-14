@@ -828,6 +828,35 @@ fn test_branch_track_untrack() {
 }
 
 #[test]
+fn test_branch_track_conflict() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let git_repo_path = test_env.env_root().join("git-repo");
+    git2::Repository::init_bare(git_repo_path).unwrap();
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["git", "remote", "add", "origin", "../git-repo"],
+    );
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "a"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "push", "-b", "main"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "untrack", "main@origin"]);
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["describe", "-m", "b", "-r", "main", "--ignore-immutable"],
+    );
+    let (_, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "track", "main@origin"]);
+    insta::assert_snapshot!(stderr, @r###"
+main (conflicted):
+  + qpvuntsm b4a6b8c5 (empty) b
+  + qpvuntsm hidden 4bfd80cd (empty) a
+  @origin (behind by 1 commits): qpvuntsm hidden 4bfd80cd (empty) a
+"###);
+}
+
+#[test]
 fn test_branch_track_untrack_patterns() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);

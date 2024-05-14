@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::io::Write as _;
 
@@ -568,6 +568,55 @@ fn cmd_branch_track(
             "Started tracking {} remote branches.",
             names.len()
         )?;
+    }
+
+    //show conflicted branches if there are some
+
+    if let Some(mut formatter) = ui.status_formatter() {
+        let template = {
+            let language = workspace_command.commit_template_language()?;
+            let text = command
+                .settings()
+                .config()
+                .get::<String>("templates.branch_list")?;
+            workspace_command
+                .parse_template(&language, &text, CommitTemplateLanguage::wrap_ref_name)?
+                .labeled("branch_list")
+        };
+
+        let mut remote_per_branch: HashMap<&str, Vec<&str>> = HashMap::new();
+        for n in names.iter() {
+            remote_per_branch
+                .entry(&n.branch)
+                .or_default()
+                .push(&n.remote);
+        }
+        let branches_to_list =
+            workspace_command
+                .repo()
+                .view()
+                .branches()
+                .filter(|(name, target)| {
+                    remote_per_branch.contains_key(name) && target.local_target.has_conflict()
+                });
+
+        for (name, branch_target) in branches_to_list {
+            let local_target = branch_target.local_target;
+            let ref_name = RefName::local(
+                name,
+                local_target.clone(),
+                branch_target.remote_refs.iter().map(|x| x.1),
+            );
+            template.format(&ref_name, formatter.as_mut())?;
+
+            for (remote_name, remote_ref) in branch_target.remote_refs {
+                if remote_per_branch[name].contains(&remote_name) {
+                    let ref_name =
+                        RefName::remote(name, remote_name, remote_ref.clone(), local_target);
+                    template.format(&ref_name, formatter.as_mut())?;
+                }
+            }
+        }
     }
     Ok(())
 }
