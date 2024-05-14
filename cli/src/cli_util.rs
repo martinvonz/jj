@@ -891,13 +891,21 @@ impl WorkspaceCommandHelper {
 
     /// Resolve a revset to a single revision. Return an error if the revset is
     /// empty or has multiple revisions.
-    pub fn resolve_single_rev(&self, revision_arg: &RevisionArg) -> Result<Commit, CommandError> {
-        let expression = self.parse_revset(revision_arg)?;
+    ///
+    /// If an input expression is prefixed with `prompt:`, the user will be
+    /// prompted if it evaluates to more than one revision
+    pub fn resolve_single_rev(
+        &self,
+        ui: &mut Ui,
+        revision_arg: &RevisionArg,
+    ) -> Result<Commit, CommandError> {
+        let (expression, modifier) = self.parse_revset_with_modifier(revision_arg)?;
         let should_hint_about_all_prefix = false;
-        revset_util::evaluate_revset_to_single_commit(
-            revision_arg.as_ref(),
+        self.evaluate_revset_with_modifier_to_single_commit(
+            ui,
+            revision_arg,
+            modifier,
             &expression,
-            || self.commit_summary_template(),
             should_hint_about_all_prefix,
         )
     }
@@ -907,8 +915,12 @@ impl WorkspaceCommandHelper {
     ///
     /// If an input expression is prefixed with `all:`, it may be evaluated to
     /// any number of revisions (including 0.)
+    ///
+    /// If an input expression is prefixed with `prompt:`, the user will be
+    /// prompted if it evaluates to more than one revision
     pub fn resolve_some_revsets_default_single(
         &self,
+        ui: &mut Ui,
         revision_args: &[RevisionArg],
     ) -> Result<IndexSet<Commit>, CommandError> {
         let mut all_commits = IndexSet::new();
@@ -928,10 +940,11 @@ impl WorkspaceCommandHelper {
                 }
             } else {
                 let should_hint_about_all_prefix = true;
-                let commit = revset_util::evaluate_revset_to_single_commit(
-                    revision_arg.as_ref(),
+                let commit = self.evaluate_revset_with_modifier_to_single_commit(
+                    ui,
+                    revision_arg,
+                    modifier,
                     &expression,
-                    || self.commit_summary_template(),
                     should_hint_about_all_prefix,
                 )?;
                 let commit_hash = short_commit_hash(commit.id());

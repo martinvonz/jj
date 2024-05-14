@@ -51,7 +51,7 @@ pub(crate) fn cmd_checkout(
         "`jj checkout` will be removed in a future version, and this will be a hard error"
     )?;
     let mut workspace_command = command.workspace_helper(ui)?;
-    let target = workspace_command.resolve_single_rev(&args.revision)?;
+    let target = workspace_command.resolve_single_rev(ui, &args.revision)?;
     let mut tx = workspace_command.start_transaction();
     let commit_builder = tx
         .mut_repo()

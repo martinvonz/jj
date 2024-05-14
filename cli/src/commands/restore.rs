@@ -86,14 +86,14 @@ pub(crate) fn cmd_restore(
         ));
     }
     if args.from.is_some() || args.to.is_some() {
-        to_commit =
-            workspace_command.resolve_single_rev(args.to.as_ref().unwrap_or(&RevisionArg::AT))?;
+        to_commit = workspace_command
+            .resolve_single_rev(ui, args.to.as_ref().unwrap_or(&RevisionArg::AT))?;
         from_tree = workspace_command
-            .resolve_single_rev(args.from.as_ref().unwrap_or(&RevisionArg::AT))?
+            .resolve_single_rev(ui, args.from.as_ref().unwrap_or(&RevisionArg::AT))?
             .tree()?;
     } else {
         to_commit = workspace_command
-            .resolve_single_rev(args.changes_in.as_ref().unwrap_or(&RevisionArg::AT))?;
+            .resolve_single_rev(ui, args.changes_in.as_ref().unwrap_or(&RevisionArg::AT))?;
         from_tree = to_commit.parent_tree(workspace_command.repo().as_ref())?;
     }
     workspace_command.check_rewritable([to_commit.id()])?;

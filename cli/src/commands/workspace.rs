@@ -208,7 +208,7 @@ fn cmd_workspace_add(
         }
     } else {
         old_workspace_command
-            .resolve_some_revsets_default_single(&args.revision)?
+            .resolve_some_revsets_default_single(ui, &args.revision)?
             .into_iter()
             .collect_vec()
     };

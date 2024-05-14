@@ -66,7 +66,7 @@ pub(crate) fn cmd_split(
     args: &SplitArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
     if commit.is_empty(workspace_command.repo().as_ref())? {
         return Err(user_error_with_hint(
             format!("Refusing to split empty commit {}.", commit.id().hex()),

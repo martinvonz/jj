@@ -69,7 +69,7 @@ pub(crate) fn cmd_obslog(
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo().as_ref();
 
-    let start_commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let start_commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
 
     let diff_renderer = workspace_command.diff_renderer_for_log(&args.diff_format, args.patch)?;
     let with_content_format = LogContentFormat::new(ui, command.settings())?;

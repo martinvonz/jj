@@ -67,7 +67,7 @@ pub(crate) fn cmd_resolve(
     let matcher = workspace_command
         .parse_file_patterns(&args.paths)?
         .to_matcher();
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
     let tree = commit.tree()?;
     let conflicts = tree
         .conflicts()

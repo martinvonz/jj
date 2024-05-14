@@ -40,10 +40,10 @@ pub(crate) fn cmd_backout(
     args: &BackoutArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit_to_back_out = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit_to_back_out = workspace_command.resolve_single_rev(ui, &args.revision)?;
     let mut parents = vec![];
     for revision_str in &args.destination {
-        let destination = workspace_command.resolve_single_rev(revision_str)?;
+        let destination = workspace_command.resolve_single_rev(ui, revision_str)?;
         parents.push(destination);
     }
     let mut tx = workspace_command.start_transaction();

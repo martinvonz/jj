@@ -95,7 +95,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
     }
     let mut workspace_command = command.workspace_helper(ui)?;
     let target_commits = workspace_command
-        .resolve_some_revsets_default_single(&args.revisions)?
+        .resolve_some_revsets_default_single(ui, &args.revisions)?
         .into_iter()
         .collect_vec();
     let target_ids = target_commits.iter().ids().cloned().collect_vec();
