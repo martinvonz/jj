@@ -916,6 +916,7 @@ impl WorkspaceCommandHelper {
             let (expression, modifier) = self.parse_revset_with_modifier(revision_arg)?;
             let all = match modifier {
                 Some(RevsetModifier::All) => true,
+                Some(RevsetModifier::Prompt) => false,
                 None => self
                     .settings
                     .config()
@@ -946,6 +947,41 @@ impl WorkspaceCommandHelper {
         } else {
             Ok(all_commits)
         }
+    }
+
+    fn evaluate_revset_with_modifier_to_single_commit(
+        &self,
+        ui: &mut Ui,
+        revision_arg: &RevisionArg,
+        modifier: Option<RevsetModifier>,
+        expression: &RevsetExpressionEvaluator<'_>,
+        should_hint_about_all_prefix: bool,
+    ) -> Result<Commit, CommandError> {
+        Ok(if modifier == Some(RevsetModifier::Prompt) {
+            let targets: Vec<Commit> = expression.evaluate_to_commits()?.try_collect()?;
+            let target = match targets.as_slice() {
+                [target] => target,
+                [] => {
+                    return Err(user_error("Empty revision set"));
+                }
+                commits => choose_commit(
+                    ui,
+                    self,
+                    &format!(
+                        r#"ambiguous commit from revset "{revision_arg}", choose one to target"#
+                    ),
+                    commits,
+                )?,
+            };
+            target.to_owned()
+        } else {
+            revset_util::evaluate_revset_to_single_commit(
+                revision_arg.as_ref(),
+                expression,
+                || self.commit_summary_template(),
+                should_hint_about_all_prefix,
+            )?
+        })
     }
 
     pub fn parse_revset(

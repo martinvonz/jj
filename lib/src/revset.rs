@@ -95,6 +95,7 @@ pub enum RevsetModifier {
     /// Expression can be evaluated to multiple revisions even if a single
     /// revision is expected by default.
     All,
+    Prompt,
 }
 
 /// Symbol or function to be resolved to `CommitId`s.
