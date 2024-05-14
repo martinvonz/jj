@@ -190,6 +190,11 @@ pub enum RevsetExpression {
         heads: Rc<RevsetExpression>,
         // TODO: maybe add generation_from_roots/heads?
     },
+    // Commits reachable from "sources" within "domain"
+    Reachable {
+        sources: Rc<RevsetExpression>,
+        domain: Rc<RevsetExpression>,
+    },
     Heads(Rc<RevsetExpression>),
     Roots(Rc<RevsetExpression>),
     Latest {
@@ -379,6 +384,18 @@ impl RevsetExpression {
         self.dag_range_to(self)
     }
 
+    /// All commits within `domain` reachable from this set of commits, by
+    /// traversing either parent or child edges.
+    pub fn reachable(
+        self: &Rc<RevsetExpression>,
+        domain: &Rc<RevsetExpression>,
+    ) -> Rc<RevsetExpression> {
+        Rc::new(RevsetExpression::Reachable {
+            sources: self.clone(),
+            domain: domain.clone(),
+        })
+    }
+
     /// Commits reachable from `heads` but not from `self`.
     pub fn range(
         self: &Rc<RevsetExpression>,
@@ -507,6 +524,11 @@ pub enum ResolvedExpression {
         heads: Box<ResolvedExpression>,
         generation_from_roots: Range<u64>,
     },
+    /// Commits reachable from `sources` within `domain`.
+    Reachable {
+        sources: Box<ResolvedExpression>,
+        domain: Box<ResolvedExpression>,
+    },
     Heads(Box<ResolvedExpression>),
     Roots(Box<ResolvedExpression>),
     Latest {
@@ -634,6 +656,12 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         let arg = expect_one_argument(name, arguments_pair)?;
         let candidates = parse_expression_rule(arg.into_inner(), state)?;
         Ok(candidates.connected())
+    });
+    map.insert("reachable", |name, arguments_pair, state| {
+        let ([source_arg, domain_arg], []) = expect_arguments(name, arguments_pair)?;
+        let sources = parse_expression_rule(source_arg.into_inner(), state)?;
+        let domain = parse_expression_rule(domain_arg.into_inner(), state)?;
+        Ok(sources.reachable(&domain))
     });
     map.insert("none", |name, arguments_pair, _state| {
         expect_no_arguments(name, arguments_pair)?;
@@ -959,6 +987,10 @@ fn try_transform_expression<E>(
             RevsetExpression::DagRange { roots, heads } => {
                 transform_rec_pair((roots, heads), pre, post)?
                     .map(|(roots, heads)| RevsetExpression::DagRange { roots, heads })
+            }
+            RevsetExpression::Reachable { sources, domain } => {
+                transform_rec_pair((sources, domain), pre, post)?
+                    .map(|(sources, domain)| RevsetExpression::Reachable { sources, domain })
             }
             RevsetExpression::Heads(candidates) => {
                 transform_rec(candidates, pre, post)?.map(RevsetExpression::Heads)
@@ -1748,6 +1780,10 @@ impl VisibilityResolutionContext<'_> {
                 heads: self.resolve(heads).into(),
                 generation_from_roots: GENERATION_RANGE_FULL,
             },
+            RevsetExpression::Reachable { sources, domain } => ResolvedExpression::Reachable {
+                sources: self.resolve(sources).into(),
+                domain: self.resolve(domain).into(),
+            },
             RevsetExpression::Heads(candidates) => {
                 ResolvedExpression::Heads(self.resolve(candidates).into())
             }
@@ -1833,6 +1869,7 @@ impl VisibilityResolutionContext<'_> {
             | RevsetExpression::Descendants { .. }
             | RevsetExpression::Range { .. }
             | RevsetExpression::DagRange { .. }
+            | RevsetExpression::Reachable { .. }
             | RevsetExpression::Heads(_)
             | RevsetExpression::Roots(_)
             | RevsetExpression::Latest { .. } => {

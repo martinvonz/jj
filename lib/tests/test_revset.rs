@@ -1557,6 +1557,164 @@ fn test_evaluate_expression_connected() {
 }
 
 #[test]
+fn test_evaluate_expression_reachable() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+
+    // Construct 3 separate subgraphs off the root commit.
+    // 1 is a chain, 2 is a merge, 3 is a pyramidal monstrosity
+    let graph1commit1 = write_random_commit(mut_repo, &settings);
+    let graph1commit2 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![graph1commit1.id().clone()])
+        .write()
+        .unwrap();
+    let graph1commit3 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![graph1commit2.id().clone()])
+        .write()
+        .unwrap();
+    let graph2commit1 = write_random_commit(mut_repo, &settings);
+    let graph2commit2 = write_random_commit(mut_repo, &settings);
+    let graph2commit3 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![graph2commit1.id().clone(), graph2commit2.id().clone()])
+        .write()
+        .unwrap();
+    let graph3commit1 = write_random_commit(mut_repo, &settings);
+    let graph3commit2 = write_random_commit(mut_repo, &settings);
+    let graph3commit3 = write_random_commit(mut_repo, &settings);
+    let graph3commit4 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![graph3commit1.id().clone(), graph3commit2.id().clone()])
+        .write()
+        .unwrap();
+    let graph3commit5 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![graph3commit2.id().clone(), graph3commit3.id().clone()])
+        .write()
+        .unwrap();
+    let graph3commit6 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![graph3commit3.id().clone()])
+        .write()
+        .unwrap();
+    let graph3commit7 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![graph3commit4.id().clone(), graph3commit5.id().clone()])
+        .write()
+        .unwrap();
+
+    // Domain is respected.
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!(
+                "reachable({}, all() ~ ::{})",
+                graph1commit2.id().hex(),
+                graph1commit1.id().hex()
+            )
+        ),
+        vec![graph1commit3.id().clone(), graph1commit2.id().clone(),]
+    );
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!(
+                "reachable({}, all() ~ ::{})",
+                graph1commit2.id().hex(),
+                graph1commit3.id().hex()
+            )
+        ),
+        vec![]
+    );
+
+    // Each graph is identifiable from any node in it.
+    for (i, commit) in [&graph1commit1, &graph1commit2, &graph1commit3]
+        .iter()
+        .enumerate()
+    {
+        assert_eq!(
+            resolve_commit_ids(
+                mut_repo,
+                &format!("reachable({}, all() ~ root())", commit.id().hex())
+            ),
+            vec![
+                graph1commit3.id().clone(),
+                graph1commit2.id().clone(),
+                graph1commit1.id().clone(),
+            ],
+            "commit {}",
+            i + 1
+        );
+    }
+
+    for (i, commit) in [&graph2commit1, &graph2commit2, &graph2commit3]
+        .iter()
+        .enumerate()
+    {
+        assert_eq!(
+            resolve_commit_ids(
+                mut_repo,
+                &format!("reachable({}, all() ~ root())", commit.id().hex())
+            ),
+            vec![
+                graph2commit3.id().clone(),
+                graph2commit2.id().clone(),
+                graph2commit1.id().clone(),
+            ],
+            "commit {}",
+            i + 1
+        );
+    }
+
+    for (i, commit) in [
+        &graph3commit1,
+        &graph3commit2,
+        &graph3commit3,
+        &graph3commit4,
+        &graph3commit5,
+        &graph3commit6,
+        &graph3commit7,
+    ]
+    .iter()
+    .enumerate()
+    {
+        assert_eq!(
+            resolve_commit_ids(
+                mut_repo,
+                &format!("reachable({}, all() ~ root())", commit.id().hex())
+            ),
+            vec![
+                graph3commit7.id().clone(),
+                graph3commit6.id().clone(),
+                graph3commit5.id().clone(),
+                graph3commit4.id().clone(),
+                graph3commit3.id().clone(),
+                graph3commit2.id().clone(),
+                graph3commit1.id().clone(),
+            ],
+            "commit {}",
+            i + 1
+        );
+    }
+
+    // Test a split of the pyramidal monstrosity.
+    assert_eq!(
+        resolve_commit_ids(
+            mut_repo,
+            &format!(
+                "reachable({}, all() ~ ::{})",
+                graph3commit4.id().hex(),
+                graph3commit5.id().hex()
+            )
+        ),
+        vec![
+            graph3commit7.id().clone(),
+            graph3commit4.id().clone(),
+            graph3commit1.id().clone(),
+        ]
+    );
+}
+
+#[test]
 fn test_evaluate_expression_descendants() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
