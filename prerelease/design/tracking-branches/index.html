@@ -1745,21 +1745,21 @@ git_refs                                    # last imported/exported refs
 <h3 id="tracking-state">Tracking state<a class="headerlink" href="#tracking-state" title="Permanent link">&para;</a></h3>
 <p>The <code>git.auto-local-branch</code> config knob is applied when importing new remote
 branch. <code>jj branch</code> sub commands will be added to change the tracking state.</p>
-<div class="highlight"><pre><span></span><code><span class="k">fn</span> <span class="nf">default_state_for_newly_imported_branch</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">remote</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<div class="highlight"><pre><span></span><code><span class="k">fn</span><span class="w"> </span><span class="nf">default_state_for_newly_imported_branch</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">remote</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">remote</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&quot;git&quot;</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">State</span>::<span class="n">Tracking</span>
+<span class="w">        </span><span class="n">State</span><span class="p">::</span><span class="n">Tracking</span>
 <span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">config</span><span class="p">[</span><span class="s">&quot;git.auto-local-branch&quot;</span><span class="p">]</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">State</span>::<span class="n">Tracking</span>
+<span class="w">        </span><span class="n">State</span><span class="p">::</span><span class="n">Tracking</span>
 <span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">State</span>::<span class="n">New</span>
+<span class="w">        </span><span class="n">State</span><span class="p">::</span><span class="n">New</span>
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
 <p>A branch target to be merged is calculated based on the <code>state</code>.</p>
-<div class="highlight"><pre><span></span><code><span class="k">fn</span> <span class="nf">target_in_merge_context</span><span class="p">(</span><span class="n">known_target</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<div class="highlight"><pre><span></span><code><span class="k">fn</span><span class="w"> </span><span class="nf">target_in_merge_context</span><span class="p">(</span><span class="n">known_target</span><span class="p">,</span><span class="w"> </span><span class="n">state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">state</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="n">State</span>::<span class="n">New</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">RefTarget</span>::<span class="n">absent</span><span class="p">(),</span>
-<span class="w">        </span><span class="n">State</span>::<span class="n">Tracking</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">known_target</span><span class="p">,</span>
+<span class="w">        </span><span class="n">State</span><span class="p">::</span><span class="n">New</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">RefTarget</span><span class="p">::</span><span class="n">absent</span><span class="p">(),</span>
+<span class="w">        </span><span class="n">State</span><span class="p">::</span><span class="n">Tracking</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">known_target</span><span class="p">,</span>
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>

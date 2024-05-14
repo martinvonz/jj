@@ -1567,47 +1567,47 @@ path remappings.</p>
 by a <code>WorkingCopyPatternsId</code> from the active <code>View</code>. They will have a new,
 ordered structure which can fully represent previous patterns.</p>
 <div class="highlight"><pre><span></span><code><span class="sd">/// Analogues of RepoPath, specifically describing paths in the working copy.</span>
-<span class="k">struct</span> <span class="nc">WorkingCopyPathBuf</span><span class="w"> </span><span class="p">{</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">WorkingCopyPathBuf</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nb">String</span>
 <span class="p">}</span>
-<span class="k">struct</span> <span class="nc">WorkingCopyPath</span><span class="w"> </span><span class="p">{</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">WorkingCopyPath</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">str</span>
 <span class="p">}</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">enum</span> <span class="nc">SparsePatternsPathType</span><span class="w"> </span><span class="p">{</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">SparsePatternsPathType</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="n">Dir</span><span class="p">,</span><span class="w">    </span><span class="c1">// Everything under &lt;path&gt;/...</span>
 <span class="w">    </span><span class="n">Files</span><span class="p">,</span><span class="w">  </span><span class="c1">// Files under &lt;path&gt;/*</span>
 <span class="w">    </span><span class="n">Exact</span><span class="p">,</span><span class="w">  </span><span class="c1">// &lt;path&gt; exactly</span>
 <span class="p">}</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">SparsePatternsPath</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">path_type</span>: <span class="nc">SparsePatternsPathType</span><span class="p">,</span>
-<span class="w">    </span><span class="n">include</span>: <span class="kt">bool</span><span class="p">,</span><span class="w">  </span><span class="c1">// True if included, false if excluded.</span>
-<span class="w">    </span><span class="n">path</span>: <span class="nc">RepoPathBuf</span><span class="p">,</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">SparsePatternsPath</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">path_type</span><span class="p">:</span><span class="w"> </span><span class="nc">SparsePatternsPathType</span><span class="p">,</span>
+<span class="w">    </span><span class="n">include</span><span class="p">:</span><span class="w"> </span><span class="kt">bool</span><span class="p">,</span><span class="w">  </span><span class="c1">// True if included, false if excluded.</span>
+<span class="w">    </span><span class="n">path</span><span class="p">:</span><span class="w"> </span><span class="nc">RepoPathBuf</span><span class="p">,</span>
 <span class="p">}</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">WorkingCopyMapping</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">src_path</span>: <span class="nc">RepoPathBuf</span><span class="p">,</span>
-<span class="w">    </span><span class="n">dst_path</span>: <span class="nc">WorkingCopyPathBuf</span><span class="p">,</span>
-<span class="w">    </span><span class="n">recursive</span>: <span class="kt">bool</span><span class="p">,</span><span class="w">  </span><span class="c1">// If false, only immediate children of src_path (files) are renamed.</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">WorkingCopyMapping</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">src_path</span><span class="p">:</span><span class="w"> </span><span class="nc">RepoPathBuf</span><span class="p">,</span>
+<span class="w">    </span><span class="n">dst_path</span><span class="p">:</span><span class="w"> </span><span class="nc">WorkingCopyPathBuf</span><span class="p">,</span>
+<span class="w">    </span><span class="n">recursive</span><span class="p">:</span><span class="w"> </span><span class="kt">bool</span><span class="p">,</span><span class="w">  </span><span class="c1">// If false, only immediate children of src_path (files) are renamed.</span>
 <span class="p">}</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">WorkingCopyPatterns</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">sparse_paths</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">SparsePatternsPath</span><span class="o">&gt;</span><span class="p">,</span>
-<span class="w">    </span><span class="n">mappings</span>: <span class="nb">Vec</span><span class="o">&lt;</span><span class="n">WorkingCopyMapping</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">WorkingCopyPatterns</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">sparse_paths</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">SparsePatternsPath</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">mappings</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">WorkingCopyMapping</span><span class="o">&gt;</span><span class="p">,</span>
 <span class="p">}</span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">OpStore</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="o">..</span><span class="p">.</span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">read_working_copy_patterns</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">id</span>: <span class="kp">&amp;</span><span class="nc">WorkingCopyPatternsId</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">OpStoreResult</span><span class="o">&lt;</span><span class="n">WorkingCopyPatterns</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">..</span><span class="p">.</span><span class="w"> </span><span class="p">}</span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">write_working_copy_patterns</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">sparse_patterns</span>: <span class="kp">&amp;</span><span class="nc">WorkingCopyPatterns</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nc">OpStoreResult</span><span class="o">&lt;</span><span class="n">WorkingCopyPatternsId</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">read_working_copy_patterns</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">id</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">WorkingCopyPatternsId</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">OpStoreResult</span><span class="o">&lt;</span><span class="n">WorkingCopyPatterns</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">..</span><span class="p">.</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">write_working_copy_patterns</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">sparse_patterns</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">WorkingCopyPatterns</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">OpStoreResult</span><span class="o">&lt;</span><span class="n">WorkingCopyPatternsId</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
 <p>To support these more complex behaviors, a new <code>WorkingCopyPatterns</code> trait will
 be introduced, initially only as a thin wrapper around the existing prefix
 format, but soon to be expanded with richer types and functionality.</p>
 <div class="highlight"><pre><span></span><code><span class="k">impl</span><span class="w"> </span><span class="n">WorkingCopyPatterns</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span> <span class="nf">to_matcher</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span>-&gt; <span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">Matcher</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">to_matcher</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">Matcher</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="o">..</span><span class="p">.</span>
 <span class="w">    </span><span class="p">}</span>
 
@@ -1690,9 +1690,9 @@ form of a <code>WorkingCopyPatterns</code> is defined as the form such that:</p>
 <p>All <code>WorkingCopyPatterns</code> will come equipped with a default no-op mapping.
 These mappings are inspired by and similar to <a href="https://www.perforce.com/manuals/cmdref/Content/CmdRef/views.html">Perforce client views</a>.</p>
 <div class="highlight"><pre><span></span><code><span class="fm">vec!</span><span class="p">[</span><span class="n">WorkingCopyMapping</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="n">src_path</span>: <span class="nc">RepoPathBuf</span>::<span class="n">root</span><span class="p">(),</span>
-<span class="w">    </span><span class="n">dst_path</span>: <span class="nc">WorkingCopyPathBuf</span>::<span class="n">root</span><span class="p">(),</span>
-<span class="w">    </span><span class="n">recursive</span>: <span class="nc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="n">src_path</span><span class="p">:</span><span class="w"> </span><span class="nc">RepoPathBuf</span><span class="p">::</span><span class="n">root</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">dst_path</span><span class="p">:</span><span class="w"> </span><span class="nc">WorkingCopyPathBuf</span><span class="p">::</span><span class="n">root</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">recursive</span><span class="p">:</span><span class="w"> </span><span class="nc">true</span><span class="p">,</span>
 <span class="p">}]</span>
 </code></pre></div>
 <p><code>WorkingCopyPatterns</code> will provide an interface to map working copy paths into
@@ -1753,15 +1753,15 @@ if desired.</p>
 indirection will save on storage since working copy patterns are not expected to
 change very frequently.</p>
 <div class="highlight"><pre><span></span><code><span class="c1">// Before:</span>
-<span class="k">pub</span><span class="w"> </span><span class="n">wc_commit_ids</span>: <span class="nc">HashMap</span><span class="o">&lt;</span><span class="n">WorkspaceId</span><span class="p">,</span><span class="w"> </span><span class="n">CommitId</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="k">pub</span><span class="w"> </span><span class="n">wc_commit_ids</span><span class="p">:</span><span class="w"> </span><span class="nc">HashMap</span><span class="o">&lt;</span><span class="n">WorkspaceId</span><span class="p">,</span><span class="w"> </span><span class="n">CommitId</span><span class="o">&gt;</span><span class="p">,</span>
 
 <span class="c1">// After:</span>
-<span class="k">pub</span><span class="w"> </span><span class="k">struct</span> <span class="nc">WorkingCopyInfo</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">commit_id</span>: <span class="nc">CommitId</span><span class="p">,</span>
-<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">wc_patterns_id</span>: <span class="nc">WorkingCopyPatternsId</span><span class="p">,</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">WorkingCopyInfo</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">commit_id</span><span class="p">:</span><span class="w"> </span><span class="nc">CommitId</span><span class="p">,</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="n">wc_patterns_id</span><span class="p">:</span><span class="w"> </span><span class="nc">WorkingCopyPatternsId</span><span class="p">,</span>
 <span class="p">}</span>
 <span class="o">..</span><span class="p">.</span>
-<span class="k">pub</span><span class="w"> </span><span class="n">wc_info</span>: <span class="nc">HashMap</span><span class="o">&lt;</span><span class="n">WorkspaceId</span><span class="p">,</span><span class="w"> </span><span class="n">WorkingCopyInfo</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="k">pub</span><span class="w"> </span><span class="n">wc_info</span><span class="p">:</span><span class="w"> </span><span class="nc">HashMap</span><span class="o">&lt;</span><span class="n">WorkspaceId</span><span class="p">,</span><span class="w"> </span><span class="n">WorkingCopyInfo</span><span class="o">&gt;</span><span class="p">,</span>
 </code></pre></div>
 <p>A View object with no stored working copy patterns will be modified at read
 time to include the current working copy patterns, thus all <code>read_view</code>
