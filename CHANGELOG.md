@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+* When the working copy commit becomes immutable, a new one is automatically created on top of it 
+to avoid letting the user edit the immutable one.
+
 ## [0.17.1] - 2024-05-07
 
 ### Fixed bugs
@@ -109,9 +112,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed a bug with `jj split` introduced in 0.16.0 that caused it to incorrectly
   rebase the children of the revision being split if they had other parents
   (i.e. if the child was a merge).
-
-* When the working copy commit becomes immutable, a new one is automatically created on top of it 
-to avoid letting the user edit the immutable one.
 
 * The `snapshot.max-new-file-size` option can now handle raw integer literals,
   interpreted as a number of bytes, where previously it could only handle string
