@@ -35,8 +35,8 @@ use crate::revset::{
     RevsetFilterExtensionWrapper, RevsetFilterPredicate, GENERATION_RANGE_FULL,
 };
 use crate::revset_graph::RevsetGraphEdge;
-use crate::rewrite;
 use crate::store::Store;
+use crate::{rewrite, union_find};
 
 type BoxedPredicateFn<'a> = Box<dyn FnMut(&CompositeIndex, IndexPosition) -> bool + 'a>;
 pub(super) type BoxedRevWalk<'a> = Box<dyn RevWalk<CompositeIndex, Item = IndexPosition> + 'a>;
@@ -828,6 +828,37 @@ impl<'index> EvaluationContext<'index> {
                     positions.reverse();
                     Ok(Box::new(EagerRevset { positions }))
                 }
+            }
+            ResolvedExpression::Reachable { sources, domain } => {
+                let mut sets = union_find::UnionFind::<IndexPosition>::new();
+
+                // Compute all reachable subgraphs.
+                let domain_revset = self.evaluate(domain)?;
+                let domain_vec = domain_revset.positions().attach(index).collect_vec();
+                let domain_set: HashSet<_> = domain_vec.iter().copied().collect();
+                for pos in &domain_set {
+                    for parent_pos in index.entry_by_pos(*pos).parent_positions() {
+                        if domain_set.contains(&parent_pos) {
+                            sets.union(*pos, parent_pos);
+                        }
+                    }
+                }
+
+                // Identify disjoint sets reachable from sources.
+                let set_reps: HashSet<_> = intersection_by(
+                    self.evaluate(sources)?.positions(),
+                    EagerRevWalk::new(domain_vec.iter().copied()),
+                    |pos1, pos2| pos1.cmp(pos2).reverse(),
+                )
+                .attach(index)
+                .map(|pos| sets.find(pos))
+                .collect();
+
+                let positions = domain_vec
+                    .into_iter()
+                    .filter(|pos| set_reps.contains(&sets.find(*pos)))
+                    .collect_vec();
+                Ok(Box::new(EagerRevset { positions }))
             }
             ResolvedExpression::Heads(candidates) => {
                 let candidate_set = self.evaluate(candidates)?;

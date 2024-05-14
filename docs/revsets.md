@@ -87,6 +87,9 @@ revsets (expressions) as arguments.
 
 * `descendants(x)`: Same as `x::`.
 
+* `reachable(srcs, domain)`: All commits reachable from `srcs` within
+  `domain`, traversing all parent and child edges.
+
 * `connected(x)`: Same as `x::x`. Useful when `x` includes several commits.
 
 * `all()`: All visible commits in the repo.

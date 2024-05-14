@@ -278,7 +278,7 @@ fn test_function_name_hint() {
       | ^----^
       |
       = Function "branch" doesn't exist
-    Hint: Did you mean "branches"?
+    Hint: Did you mean "branches", "reachable"?
     "###);
 
     // Both builtin function and function alias should be suggested
@@ -308,7 +308,7 @@ fn test_function_name_hint() {
       | ^----^
       |
       = Function "branch" doesn't exist
-    Hint: Did you mean "branches"?
+    Hint: Did you mean "branches", "reachable"?
     "###);
 }
 
