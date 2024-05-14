@@ -33,7 +33,7 @@ pub struct SshBackend {
 
 #[derive(Debug, Error)]
 pub enum SshError {
-    #[error("SSH sign failed with exit status {exit_status}:\n{stderr}")]
+    #[error("SSH sign failed with {exit_status}:\n{stderr}")]
     Command {
         exit_status: ExitStatus,
         stderr: String,
