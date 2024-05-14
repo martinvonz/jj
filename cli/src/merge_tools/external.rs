@@ -116,7 +116,7 @@ pub enum ExternalToolError {
         #[source]
         source: std::io::Error,
     },
-    #[error("{}", format_tool_aborted(.exit_status))]
+    #[error("Tool exited with {exit_status} (run with --debug to see the exact invocation)")]
     ToolAborted { exit_status: ExitStatus },
     #[error("I/O error")]
     Io(#[source] std::io::Error),
@@ -331,24 +331,12 @@ pub fn generate_diff(
     if !exit_status.success() {
         writeln!(
             ui.warning_default(),
-            "{}",
-            format_tool_aborted(&exit_status)
+            "Tool exited with {exit_status} (run with --debug to see the exact invocation)",
         )
         .ok();
     }
     copy_result.map_err(ExternalToolError::Io)?;
     Ok(())
-}
-
-fn format_tool_aborted(exit_status: &ExitStatus) -> String {
-    let code = exit_status
-        .code()
-        .map(|c| c.to_string())
-        .unwrap_or_else(|| "<unknown>".to_string());
-    format!(
-        "Tool exited with a non-zero code (run with --debug to see the exact invocation). Exit \
-         code: {code}."
-    )
 }
 
 #[cfg(test)]
