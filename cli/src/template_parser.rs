@@ -106,6 +106,8 @@ pub enum TemplateParseErrorKind {
     Expression(String),
     #[error(r#"Alias "{0}" cannot be expanded"#)]
     BadAliasExpansion(String),
+    #[error(r#"Function parameter "{0}" cannot be expanded"#)]
+    BadParameterExpansion(String),
     #[error(r#"Alias "{0}" expanded recursively"#)]
     RecursiveAlias(String),
 }
@@ -166,11 +168,15 @@ impl TemplateParseError {
     }
 
     pub fn within_alias_expansion(self, id: TemplateAliasId<'_>, span: pest::Span<'_>) -> Self {
-        TemplateParseError::with_span(
-            TemplateParseErrorKind::BadAliasExpansion(id.to_string()),
-            span,
-        )
-        .with_source(self)
+        let kind = match id {
+            TemplateAliasId::Symbol(_) | TemplateAliasId::Function(_) => {
+                TemplateParseErrorKind::BadAliasExpansion(id.to_string())
+            }
+            TemplateAliasId::Parameter(_) => {
+                TemplateParseErrorKind::BadParameterExpansion(id.to_string())
+            }
+        };
+        TemplateParseError::with_span(kind, span).with_source(self)
     }
 
     /// If this is a `NoSuchKeyword` error, expands the candidates list with the
@@ -581,6 +587,7 @@ impl TemplateAliasDeclaration {
 pub enum TemplateAliasId<'a> {
     Symbol(&'a str),
     Function(&'a str),
+    Parameter(&'a str),
 }
 
 impl fmt::Display for TemplateAliasId<'_> {
@@ -588,6 +595,7 @@ impl fmt::Display for TemplateAliasId<'_> {
         match self {
             TemplateAliasId::Symbol(name) => write!(f, "{name}"),
             TemplateAliasId::Function(name) => write!(f, "{name}()"),
+            TemplateAliasId::Parameter(name) => write!(f, "{name}"),
         }
     }
 }
@@ -662,8 +670,12 @@ pub fn expand_aliases<'i>(
     ) -> TemplateParseResult<ExpressionNode<'i>> {
         match node.kind {
             ExpressionKind::Identifier(name) => {
-                if let Some(node) = state.locals.get(name) {
-                    Ok(node.clone())
+                if let Some(subst) = state.locals.get(name) {
+                    node.kind = ExpressionKind::AliasExpanded(
+                        TemplateAliasId::Parameter(name),
+                        Box::new(subst.clone()),
+                    );
+                    Ok(node)
                 } else if let Some((id, defn)) = state.aliases_map.get_symbol(name) {
                     let locals = HashMap::new(); // Don't spill out the current scope
                     expand_defn(id, defn, &locals, node.span, state)
