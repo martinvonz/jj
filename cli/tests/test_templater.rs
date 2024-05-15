@@ -197,13 +197,25 @@ fn test_templater_alias() {
       | ^-------------------------------------^
       |
       = Alias "identity()" cannot be expanded
-    2:  --> 1:10
+    2:  --> 1:1
+      |
+    1 | x
+      | ^
+      |
+      = Function parameter "x" cannot be expanded
+    3:  --> 1:10
       |
     1 | identity(identity(commit_id.short("")))
       |          ^---------------------------^
       |
       = Alias "identity()" cannot be expanded
-    3:  --> 1:35
+    4:  --> 1:1
+      |
+    1 | x
+      | ^
+      |
+      = Function parameter "x" cannot be expanded
+    5:  --> 1:35
       |
     1 | identity(identity(commit_id.short("")))
       |                                   ^^
@@ -268,7 +280,13 @@ fn test_templater_alias() {
       | ^-------------------------------------^
       |
       = Alias "coalesce()" cannot be expanded
-    2:  --> 1:10
+    2:  --> 1:4
+      |
+    1 | if(x, x, y)
+      |    ^
+      |
+      = Function parameter "x" cannot be expanded
+    3:  --> 1:10
       |
     1 | coalesce(label("x", "not boolean"), "")
       |          ^-----------------------^
