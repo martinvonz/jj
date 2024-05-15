@@ -30,6 +30,8 @@ fn test_util_config_schema() {
             "description": "User configuration for Jujutsu VCS. See https://github.com/martinvonz/jj/blob/main/docs/config.md for details",
             "properties": {
                 [...]
+        	"fix": {
+                [...]
             }
         }
         "###)

@@ -58,6 +58,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Upgraded `scm-record` from v0.2.0 to v0.3.0. See release notes at https://github.com/arxanas/scm-record/releases/tag/v0.3.0
 
+* New command `jj fix` that can be configured to update commits by running code
+  formatters (or similar tools) on changed files. The configuration schema and
+  flags are minimal for now, with a number of improvements planned (for example,
+  [#3800](https://github.com/martinvonz/jj/issues/3800) and
+  [#3801](https://github.com/martinvonz/jj/issues/3801)).
+
 ### Fixed bugs
 
 * Previously, `jj git push` only made sure that the branch is in the expected

@@ -93,7 +93,6 @@ enum Command {
     Duplicate(duplicate::DuplicateArgs),
     Edit(edit::EditArgs),
     Files(files::FilesArgs),
-    #[command(hide = true)]
     Fix(fix::FixArgs),
     #[command(subcommand)]
     Git(git::GitCommand),

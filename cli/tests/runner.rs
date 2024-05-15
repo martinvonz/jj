@@ -27,6 +27,7 @@ mod test_diff_command;
 mod test_diffedit_command;
 mod test_duplicate_command;
 mod test_edit_command;
+mod test_fix_command;
 mod test_generate_md_cli_help;
 mod test_git_clone;
 mod test_git_colocated;
