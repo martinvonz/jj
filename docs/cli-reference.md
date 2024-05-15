@@ -8,7 +8,13 @@
     This CLI reference is experimental. It is automatically generated, but
     does not match the `jj help` output exactly.
 
-    <!-- See also https://github.com/ConnorGray/clap-markdown/issues -->
+    Run `jj help <COMMAND>` for more authoritative documentation.
+
+    For example, each argument for each command will show only one
+    paragraph of documentation on this page, even if `jj help` would
+    show multiple paragraphs with additional details.
+
+    <!-- https://github.com/ConnorGray/clap-markdown/issues/20 -->
 
 
 {%
