@@ -57,7 +57,7 @@ hex = "0.4.3"
 ignore = "0.4.20"
 indexmap = "2.2.5"
 indoc = "2.0.4"
-insta = { version = "1.38.0", features = ["filters"] }
+insta = { version = "1.39.0", features = ["filters"] }
 itertools = "0.12.1"
 libc = { version = "0.2.154" }
 maplit = "1.0.2"
