@@ -1715,6 +1715,7 @@ dependencies = [
  "pest",
  "pest_derive",
  "pollster",
+ "rayon",
  "regex",
  "rpassword",
  "scm-record",

@@ -37,6 +37,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj duplicate`↴](#jj-duplicate)
 * [`jj edit`↴](#jj-edit)
 * [`jj files`↴](#jj-files)
+* [`jj fix`↴](#jj-fix)
 * [`jj git`↴](#jj-git)
 * [`jj git remote`↴](#jj-git-remote)
 * [`jj git remote add`↴](#jj-git-remote-add)
@@ -117,6 +118,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `duplicate` — Create a new change with the same content as an existing one
 * `edit` — Sets the specified revision as the working-copy revision
 * `files` — List files in a revision
+* `fix` — Update files with formatting fixes or other changes
 * `git` — Commands for working with Git remotes and the underlying Git repo
 * `init` — Create a new repo in the given directory
 * `interdiff` — Compare the changes of two commits
@@ -755,6 +757,44 @@ List files in a revision
 * `-r`, `--revision <REVISION>` — The revision to list files in
 
   Default value: `@`
+
+
+
+## `jj fix`
+
+Update files with formatting fixes or other changes
+
+The primary use case for this command is to apply the results of automatic
+code formatting tools to revisions that may not be properly formatted yet.
+It can also be used to modify files with other tools like `sed` or `sort`.
+
+The changed files in the given revisions will be updated with any fixes
+determined by passing their file content through the external tool.
+Descendants will also be updated by passing their versions of the same files
+through the same external tool, which will never result in new conflicts.
+Files with existing conflicts will be updated on all sides of the conflict,
+which can potentially increase or decrease the number of conflict markers.
+
+The external tool must accept the current file content on standard input,
+and return the updated file content on standard output. The output will not
+be used unless the tool exits with a successful exit code. Output on
+standard error will be passed through to the terminal.
+
+The configuration schema is expected to change in the future. For now, it
+defines a single command that will affect all changed files in the specified
+revisions. For example, to format some Rust code changed in the working copy
+revision, you could write this configuration:
+
+[fix]
+tool-command = ["rustfmt", "--emit", "stdout"]
+
+And then run the command `jj fix -s @`.
+
+**Usage:** `jj fix [OPTIONS]`
+
+###### **Options:**
+
+* `-s`, `--source <SOURCE>` — Fix files in the specified revision(s) and their descendants
 
 
 
