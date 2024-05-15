@@ -618,7 +618,7 @@ pub fn expand_aliases<'i>(
         locals: &HashMap<&str, ExpressionNode<'i>>,
         span: pest::Span<'i>,
         state: State<'_, 'i>,
-    ) -> TemplateParseResult<ExpressionNode<'i>> {
+    ) -> TemplateParseResult<ExpressionKind<'i>> {
         // The stack should be short, so let's simply do linear search and duplicate.
         if state.aliases_expanding.contains(&id) {
             return Err(TemplateParseError::with_span(
@@ -636,9 +636,7 @@ pub fn expand_aliases<'i>(
         // Parsed defn could be cached if needed.
         parse_template(defn)
             .and_then(|node| expand_node(node, expanding_state))
-            .map(|node| {
-                ExpressionNode::new(ExpressionKind::AliasExpanded(id, Box::new(node)), span)
-            })
+            .map(|node| ExpressionKind::AliasExpanded(id, Box::new(node)))
             .map_err(|e| e.within_alias_expansion(id, span))
     }
 
@@ -665,42 +663,37 @@ pub fn expand_aliases<'i>(
     }
 
     fn expand_node<'i>(
-        mut node: ExpressionNode<'i>,
+        node: ExpressionNode<'i>,
         state: State<'_, 'i>,
     ) -> TemplateParseResult<ExpressionNode<'i>> {
-        match node.kind {
+        let ExpressionNode { kind, span } = node;
+        let kind = match kind {
             ExpressionKind::Identifier(name) => {
                 if let Some(subst) = state.locals.get(name) {
-                    node.kind = ExpressionKind::AliasExpanded(
+                    ExpressionKind::AliasExpanded(
                         TemplateAliasId::Parameter(name),
                         Box::new(subst.clone()),
-                    );
-                    Ok(node)
+                    )
                 } else if let Some((id, defn)) = state.aliases_map.get_symbol(name) {
                     let locals = HashMap::new(); // Don't spill out the current scope
-                    expand_defn(id, defn, &locals, node.span, state)
+                    expand_defn(id, defn, &locals, span, state)?
                 } else {
-                    Ok(node)
+                    kind
                 }
             }
             ExpressionKind::Boolean(_) | ExpressionKind::Integer(_) | ExpressionKind::String(_) => {
-                Ok(node)
+                kind
             }
             ExpressionKind::Unary(op, arg) => {
                 let arg = Box::new(expand_node(*arg, state)?);
-                node.kind = ExpressionKind::Unary(op, arg);
-                Ok(node)
+                ExpressionKind::Unary(op, arg)
             }
             ExpressionKind::Binary(op, lhs, rhs) => {
                 let lhs = Box::new(expand_node(*lhs, state)?);
                 let rhs = Box::new(expand_node(*rhs, state)?);
-                node.kind = ExpressionKind::Binary(op, lhs, rhs);
-                Ok(node)
+                ExpressionKind::Binary(op, lhs, rhs)
             }
-            ExpressionKind::Concat(nodes) => {
-                node.kind = ExpressionKind::Concat(expand_list(nodes, state)?);
-                Ok(node)
-            }
+            ExpressionKind::Concat(nodes) => ExpressionKind::Concat(expand_list(nodes, state)?),
             ExpressionKind::FunctionCall(function) => {
                 if let Some((id, params, defn)) = state.aliases_map.get_function(function.name) {
                     if function.args.len() != params.len() {
@@ -713,11 +706,10 @@ pub fn expand_aliases<'i>(
                     // expansion scope.
                     let args = expand_list(function.args, state)?;
                     let locals = params.iter().map(|s| s.as_str()).zip(args).collect();
-                    expand_defn(id, defn, &locals, node.span, state)
+                    expand_defn(id, defn, &locals, span, state)?
                 } else {
                     let function = Box::new(expand_function_call(*function, state)?);
-                    node.kind = ExpressionKind::FunctionCall(function);
-                    Ok(node)
+                    ExpressionKind::FunctionCall(function)
                 }
             }
             ExpressionKind::MethodCall(method) => {
@@ -725,8 +717,7 @@ pub fn expand_aliases<'i>(
                     object: expand_node(method.object, state)?,
                     function: expand_function_call(method.function, state)?,
                 });
-                node.kind = ExpressionKind::MethodCall(method);
-                Ok(node)
+                ExpressionKind::MethodCall(method)
             }
             ExpressionKind::Lambda(lambda) => {
                 let lambda = Box::new(LambdaNode {
@@ -734,16 +725,15 @@ pub fn expand_aliases<'i>(
                     params_span: lambda.params_span,
                     body: expand_node(lambda.body, state)?,
                 });
-                node.kind = ExpressionKind::Lambda(lambda);
-                Ok(node)
+                ExpressionKind::Lambda(lambda)
             }
             ExpressionKind::AliasExpanded(id, subst) => {
                 // Just in case the original tree contained AliasExpanded node.
                 let subst = Box::new(expand_node(*subst, state)?);
-                node.kind = ExpressionKind::AliasExpanded(id, subst);
-                Ok(node)
+                ExpressionKind::AliasExpanded(id, subst)
             }
-        }
+        };
+        Ok(ExpressionNode { kind, span })
     }
 
     let state = State {
