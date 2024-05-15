@@ -39,6 +39,11 @@ name = "fake-diff-editor"
 path = "testing/fake-diff-editor.rs"
 required-features = ["test-fakes"]
 
+[[bin]]
+name = "fake-formatter"
+path = "testing/fake-formatter.rs"
+required-features = ["test-fakes"]
+
 [[test]]
 name = "runner"
 
