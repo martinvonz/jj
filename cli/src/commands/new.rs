@@ -17,6 +17,7 @@ use std::io::Write;
 use clap::ArgGroup;
 use itertools::Itertools;
 use jj_lib::commit::{Commit, CommitIteratorExt};
+use jj_lib::op_store::RefTarget;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 use jj_lib::rewrite::{merge_commit_trees, rebase_commit};
@@ -50,6 +51,9 @@ pub(crate) struct NewArgs {
     /// The change description to use
     #[arg(long = "message", short, value_name = "MESSAGE")]
     message_paragraphs: Vec<String>,
+    /// Create a new branch or set an existing branch to the new commit
+    #[arg(long = "branch", short, value_name = "BRANCH")]
+    branch_name: Option<String>,
     /// Deprecated. Please prefix the revset with `all:` instead.
     #[arg(long, short = 'L', hide = true)]
     allow_large_revsets: bool,
@@ -213,6 +217,19 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
     // Does nothing if there's no branches to advance.
     if let Some(target) = advance_branches_target {
         tx.advance_branches(advanceable_branches, &target);
+    }
+
+    if let Some(branch_name) = &args.branch_name {
+        let view = tx.repo().view();
+        if view.get_local_branch(branch_name).is_present() {
+            writeln!(
+                ui.warning_default(),
+                "setting existing branch: {}",
+                branch_name,
+            )?;
+        }
+        tx.mut_repo()
+            .set_local_branch_target(branch_name, RefTarget::normal(new_commit.id().clone()));
     }
 
     tx.finish(ui, "new empty commit")?;
