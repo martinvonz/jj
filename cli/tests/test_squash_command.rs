@@ -658,7 +658,7 @@ fn test_squash_from_multiple() {
     +b
     +++++++ Contents of side #3
     c
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
 
     // Squash a few commits up an down
@@ -795,7 +795,7 @@ fn test_squash_from_multiple_partial() {
     +b
     +++++++ Contents of side #3
     c
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
     // The unselected change from the sources have not been applied to the
     // destination

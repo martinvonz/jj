@@ -75,7 +75,7 @@ fn test_resolution() {
     +a
     +++++++ Contents of side #2
     b
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
 
     let editor_script = test_env.set_up_fake_editor();
@@ -110,7 +110,7 @@ fn test_resolution() {
     -+a
     -+++++++ Contents of side #2
     -b
-    ->>>>>>>
+    ->>>>>>> Conflict 1 of 1 ends
     +resolution
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_cli_error(&repo_path, &["resolve", "--list"]), 
@@ -150,7 +150,7 @@ fn test_resolution() {
     -+a
     -+++++++ Contents of side #2
     -b
-    ->>>>>>>
+    ->>>>>>> Conflict 1 of 1 ends
     +resolution
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_cli_error(&repo_path, &["resolve", "--list"]),
@@ -184,7 +184,7 @@ fn test_resolution() {
     +a
     +++++++ Contents of side #2
     b
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @r###"
@@ -199,7 +199,7 @@ fn test_resolution() {
     -+a
     -+++++++ Contents of side #2
     -b
-    ->>>>>>>
+    ->>>>>>> Conflict 1 of 1 ends
     +resolution
     "###);
 
@@ -259,7 +259,7 @@ fn test_resolution() {
     +a
     +++++++ Contents of side #2
     b
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
     // Note the "Modified" below
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
@@ -277,7 +277,7 @@ fn test_resolution() {
      +++++++ Contents of side #2
     -b
     +conflict
-     >>>>>>>
+     >>>>>>> Conflict 1 of 1 ends
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
@@ -334,13 +334,14 @@ fn test_resolution() {
     -+a
     -+++++++ Contents of side #2
     -b
+    ->>>>>>> Conflict 1 of 1 ends
     +<<<<<<<
     +%%%%%%%
     +-some
     ++fake
     ++++++++
     +conflict
-     >>>>>>>
+    +>>>>>>>
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_cli_error(&repo_path, &["resolve", "--list"]), 
     @r###"
@@ -407,7 +408,7 @@ fn test_normal_conflict_input_files() {
     +a
     +++++++ Contents of side #2
     b
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
 
     check_resolve_produces_input_file(&mut test_env, &repo_path, "base", "base\n");
@@ -447,7 +448,7 @@ fn test_baseless_conflict_input_files() {
     +a
     +++++++ Contents of side #2
     b
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
 
     check_resolve_produces_input_file(&mut test_env, &repo_path, "base", "");
@@ -518,7 +519,7 @@ fn test_edit_delete_conflict_input_files() {
     a
     %%%%%%% Changes from base to side #2
     -base
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
 
     check_resolve_produces_input_file(&mut test_env, &repo_path, "base", "base\n");
@@ -691,7 +692,7 @@ fn test_multiple_conflicts() {
     +first a
     +++++++ Contents of side #2
     first b
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("another_file")).unwrap()
@@ -702,7 +703,7 @@ fn test_multiple_conflicts() {
     +second a
     +++++++ Contents of side #2
     second b
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
     @r###"
@@ -751,7 +752,7 @@ fn test_multiple_conflicts() {
     -+second a
     -+++++++ Contents of side #2
     -second b
-    ->>>>>>>
+    ->>>>>>> Conflict 1 of 1 ends
     +resolution another_file
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
@@ -790,7 +791,7 @@ fn test_multiple_conflicts() {
     -+second a
     -+++++++ Contents of side #2
     -second b
-    ->>>>>>>
+    ->>>>>>> Conflict 1 of 1 ends
     +first resolution for auto-chosen file
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]), 
@@ -817,7 +818,7 @@ fn test_multiple_conflicts() {
     -+second a
     -+++++++ Contents of side #2
     -second b
-    ->>>>>>>
+    ->>>>>>> Conflict 1 of 1 ends
     +first resolution for auto-chosen file
     diff --git a/this_file_has_a_very_long_name_to_test_padding b/this_file_has_a_very_long_name_to_test_padding
     index 0000000000...f8c72adf17 100644
@@ -830,7 +831,7 @@ fn test_multiple_conflicts() {
     -+first a
     -+++++++ Contents of side #2
     -first b
-    ->>>>>>>
+    ->>>>>>> Conflict 1 of 1 ends
     +second resolution for auto-chosen file
     "###);
 

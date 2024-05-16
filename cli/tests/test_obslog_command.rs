@@ -65,7 +65,7 @@ fn test_obslog_with_or_without_diff() {
     │     4     : +++++++ Contents of side #2
     │     5     : foo
     │     6     : bar
-    │     7     : >>>>>>>
+    │     7     : >>>>>>> Conflict 1 of 1 ends
     ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 cf73917d conflict
     │  my description
     ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 6fbba7bc
@@ -117,7 +117,7 @@ fn test_obslog_with_or_without_diff() {
     -+++++++ Contents of side #2
     -foo
     -bar
-    ->>>>>>>
+    ->>>>>>> Conflict 1 of 1 ends
     +resolved
     rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 cf73917d conflict
     my description
