@@ -184,7 +184,7 @@ pub enum ExpressionKind<'i> {
     StringPattern { kind: &'i str, value: String },
     Unary(UnaryOp, Box<ExpressionNode<'i>>),
     Binary(BinaryOp, Box<ExpressionNode<'i>>, Box<ExpressionNode<'i>>),
-    FunctionCall(FunctionCallNode<'i>),
+    FunctionCall(Box<FunctionCallNode<'i>>),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -251,7 +251,7 @@ fn parse_primary_node(pair: Pair<Rule>) -> FilesetParseResult<ExpressionNode> {
     let expr = match first.as_rule() {
         Rule::expression => return parse_expression_node(first),
         Rule::function => {
-            let function = parse_function_call_node(first)?;
+            let function = Box::new(parse_function_call_node(first)?);
             ExpressionKind::FunctionCall(function)
         }
         Rule::string_pattern => {
@@ -412,7 +412,8 @@ mod tests {
                 ExpressionKind::Binary(op, lhs, rhs)
             }
             ExpressionKind::FunctionCall(function) => {
-                ExpressionKind::FunctionCall(normalize_function_call(function))
+                let function = Box::new(normalize_function_call(*function));
+                ExpressionKind::FunctionCall(function)
             }
         };
         ExpressionNode {
