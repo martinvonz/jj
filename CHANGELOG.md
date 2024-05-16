@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Note, these are cross compiled and currently untested.
   We plan on providing fully tested builds later once our CI system allows it.
 
+* Added new revsets `mutable()` and `immutable()`.
+
 ### Fixed bugs
 
 * When the working copy commit becomes immutable, a new one is automatically created on top of it 
