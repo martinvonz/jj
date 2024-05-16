@@ -223,6 +223,16 @@ for a comprehensive list.
 * `immutable_heads()`: Resolves to `trunk() | tags()` by default. See
   [here](config.md#set-of-immutable-commits) for details.
 
+* `immutable()`: The set of commits that `jj` treats as immutable. This is
+  equivalent to `::(immutable_heads() | root())`. Note that modifying this will
+  *not* change whether a commit is immutable. To do that, edit
+  `immutable_heads()`.
+
+* `mutable()`: The set of commits that `jj` treats as mutable. This is
+  equivalent to `~immutable()`. Note that modifying this will
+  *not* change whether a commit is immutable. To do that, edit
+  `immutable_heads()`.
+
 
 ## The `all:` modifier
 
