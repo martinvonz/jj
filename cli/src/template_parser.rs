@@ -261,9 +261,9 @@ pub enum ExpressionKind<'i> {
     Unary(UnaryOp, Box<ExpressionNode<'i>>),
     Binary(BinaryOp, Box<ExpressionNode<'i>>, Box<ExpressionNode<'i>>),
     Concat(Vec<ExpressionNode<'i>>),
-    FunctionCall(FunctionCallNode<'i>),
-    MethodCall(MethodCallNode<'i>),
-    Lambda(LambdaNode<'i>),
+    FunctionCall(Box<FunctionCallNode<'i>>),
+    MethodCall(Box<MethodCallNode<'i>>),
+    Lambda(Box<LambdaNode<'i>>),
     /// Identity node to preserve the span in the source template text.
     AliasExpanded(TemplateAliasId<'i>, Box<ExpressionNode<'i>>),
 }
@@ -294,7 +294,7 @@ pub struct FunctionCallNode<'i> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct MethodCallNode<'i> {
-    pub object: Box<ExpressionNode<'i>>,
+    pub object: ExpressionNode<'i>,
     pub function: FunctionCallNode<'i>,
 }
 
@@ -302,7 +302,7 @@ pub struct MethodCallNode<'i> {
 pub struct LambdaNode<'i> {
     pub params: Vec<&'i str>,
     pub params_span: pest::Span<'i>,
-    pub body: Box<ExpressionNode<'i>>,
+    pub body: ExpressionNode<'i>,
 }
 
 fn parse_identifier_or_literal(pair: Pair<Rule>) -> ExpressionKind {
@@ -372,7 +372,7 @@ fn parse_lambda_node(pair: Pair<Rule>) -> TemplateParseResult<LambdaNode> {
     Ok(LambdaNode {
         params,
         params_span,
-        body: Box::new(body),
+        body,
     })
 }
 
@@ -400,11 +400,11 @@ fn parse_term_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
         }
         Rule::identifier => ExpressionNode::new(parse_identifier_or_literal(expr), span),
         Rule::function => {
-            let function = parse_function_call_node(expr)?;
+            let function = Box::new(parse_function_call_node(expr)?);
             ExpressionNode::new(ExpressionKind::FunctionCall(function), span)
         }
         Rule::lambda => {
-            let lambda = parse_lambda_node(expr)?;
+            let lambda = Box::new(parse_lambda_node(expr)?);
             ExpressionNode::new(ExpressionKind::Lambda(lambda), span)
         }
         Rule::template => parse_template_node(expr)?,
@@ -413,10 +413,10 @@ fn parse_term_node(pair: Pair<Rule>) -> TemplateParseResult<ExpressionNode> {
     inner.try_fold(primary, |object, chain| {
         assert_eq!(chain.as_rule(), Rule::function);
         let span = object.span.start_pos().span(&chain.as_span().end_pos());
-        let method = MethodCallNode {
-            object: Box::new(object),
+        let method = Box::new(MethodCallNode {
+            object,
             function: parse_function_call_node(chain)?,
-        };
+        });
         Ok(ExpressionNode::new(
             ExpressionKind::MethodCall(method),
             span,
@@ -703,24 +703,26 @@ pub fn expand_aliases<'i>(
                     let locals = params.iter().map(|s| s.as_str()).zip(args).collect();
                     expand_defn(id, defn, &locals, node.span, state)
                 } else {
-                    node.kind =
-                        ExpressionKind::FunctionCall(expand_function_call(function, state)?);
+                    let function = Box::new(expand_function_call(*function, state)?);
+                    node.kind = ExpressionKind::FunctionCall(function);
                     Ok(node)
                 }
             }
             ExpressionKind::MethodCall(method) => {
-                node.kind = ExpressionKind::MethodCall(MethodCallNode {
-                    object: Box::new(expand_node(*method.object, state)?),
+                let method = Box::new(MethodCallNode {
+                    object: expand_node(method.object, state)?,
                     function: expand_function_call(method.function, state)?,
                 });
+                node.kind = ExpressionKind::MethodCall(method);
                 Ok(node)
             }
             ExpressionKind::Lambda(lambda) => {
-                node.kind = ExpressionKind::Lambda(LambdaNode {
+                let lambda = Box::new(LambdaNode {
                     params: lambda.params,
                     params_span: lambda.params_span,
-                    body: Box::new(expand_node(*lambda.body, state)?),
+                    body: expand_node(lambda.body, state)?,
                 });
+                node.kind = ExpressionKind::Lambda(lambda);
                 Ok(node)
             }
             ExpressionKind::AliasExpanded(id, subst) => {
@@ -973,20 +975,23 @@ mod tests {
             }
             ExpressionKind::Concat(nodes) => ExpressionKind::Concat(normalize_list(nodes)),
             ExpressionKind::FunctionCall(function) => {
-                ExpressionKind::FunctionCall(normalize_function_call(function))
+                let function = Box::new(normalize_function_call(*function));
+                ExpressionKind::FunctionCall(function)
             }
             ExpressionKind::MethodCall(method) => {
-                let object = Box::new(normalize_tree(*method.object));
-                let function = normalize_function_call(method.function);
-                ExpressionKind::MethodCall(MethodCallNode { object, function })
+                let method = Box::new(MethodCallNode {
+                    object: normalize_tree(method.object),
+                    function: normalize_function_call(method.function),
+                });
+                ExpressionKind::MethodCall(method)
             }
             ExpressionKind::Lambda(lambda) => {
-                let body = Box::new(normalize_tree(*lambda.body));
-                ExpressionKind::Lambda(LambdaNode {
+                let lambda = Box::new(LambdaNode {
                     params: lambda.params,
                     params_span: empty_span(),
-                    body,
-                })
+                    body: normalize_tree(lambda.body),
+                });
+                ExpressionKind::Lambda(lambda)
             }
             ExpressionKind::AliasExpanded(_, subst) => normalize_tree(*subst).kind,
         };
@@ -1099,7 +1104,7 @@ mod tests {
 
     #[test]
     fn test_lambda_syntax() {
-        fn unwrap_lambda(node: ExpressionNode<'_>) -> LambdaNode<'_> {
+        fn unwrap_lambda(node: ExpressionNode<'_>) -> Box<LambdaNode<'_>> {
             match node.kind {
                 ExpressionKind::Lambda(lambda) => lambda,
                 _ => panic!("unexpected expression: {node:?}"),
