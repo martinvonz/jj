@@ -275,6 +275,23 @@ fn test_templater_alias() {
       |
       = Expected expression of type "Boolean", but actual type is "Template"
     "###);
+
+    insta::assert_snapshot!(render_err("(-my_commit_id)"), @r###"
+    Error: Failed to parse template: Alias "my_commit_id" cannot be expanded
+    Caused by:
+    1:  --> 1:3
+      |
+    1 | (-my_commit_id)
+      |   ^----------^
+      |
+      = Alias "my_commit_id" cannot be expanded
+    2:  --> 1:1
+      |
+    1 | commit_id.short()
+      | ^---------------^
+      |
+      = Expected expression of type "Integer", but actual type is "String"
+    "###);
 }
 
 #[test]

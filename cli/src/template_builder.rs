@@ -1162,11 +1162,9 @@ pub fn expect_boolean_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     build_ctx: &BuildContext<L::Property>,
     node: &ExpressionNode,
 ) -> TemplateParseResult<Box<dyn TemplateProperty<Output = bool> + 'a>> {
-    let expression = build_expression(language, build_ctx, node)?;
-    let actual_type = expression.type_name();
-    expression
-        .try_into_boolean()
-        .ok_or_else(|| TemplateParseError::expected_type("Boolean", actual_type, node.span))
+    expect_expression_of_type(language, build_ctx, node, "Boolean", |expression| {
+        expression.try_into_boolean()
+    })
 }
 
 pub fn expect_integer_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
@@ -1174,11 +1172,9 @@ pub fn expect_integer_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     build_ctx: &BuildContext<L::Property>,
     node: &ExpressionNode,
 ) -> TemplateParseResult<Box<dyn TemplateProperty<Output = i64> + 'a>> {
-    let expression = build_expression(language, build_ctx, node)?;
-    let actual_type = expression.type_name();
-    expression
-        .try_into_integer()
-        .ok_or_else(|| TemplateParseError::expected_type("Integer", actual_type, node.span))
+    expect_expression_of_type(language, build_ctx, node, "Integer", |expression| {
+        expression.try_into_integer()
+    })
 }
 
 /// If the given expression `node` is of `Integer` type, converts it to `isize`.
@@ -1210,11 +1206,9 @@ pub fn expect_plain_text_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
 ) -> TemplateParseResult<Box<dyn TemplateProperty<Output = String> + 'a>> {
     // Since any formattable type can be converted to a string property,
     // the expected type is not a String, but a Template.
-    let expression = build_expression(language, build_ctx, node)?;
-    let actual_type = expression.type_name();
-    expression
-        .try_into_plain_text()
-        .ok_or_else(|| TemplateParseError::expected_type("Template", actual_type, node.span))
+    expect_expression_of_type(language, build_ctx, node, "Template", |expression| {
+        expression.try_into_plain_text()
+    })
 }
 
 pub fn expect_template_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
@@ -1222,11 +1216,27 @@ pub fn expect_template_expression<'a, L: TemplateLanguage<'a> + ?Sized>(
     build_ctx: &BuildContext<L::Property>,
     node: &ExpressionNode,
 ) -> TemplateParseResult<Box<dyn Template + 'a>> {
-    let expression = build_expression(language, build_ctx, node)?;
-    let actual_type = expression.type_name();
-    expression
-        .try_into_template()
-        .ok_or_else(|| TemplateParseError::expected_type("Template", actual_type, node.span))
+    expect_expression_of_type(language, build_ctx, node, "Template", |expression| {
+        expression.try_into_template()
+    })
+}
+
+fn expect_expression_of_type<'a, L: TemplateLanguage<'a> + ?Sized, T>(
+    language: &L,
+    build_ctx: &BuildContext<L::Property>,
+    node: &ExpressionNode,
+    expected_type: &str,
+    f: impl FnOnce(Expression<L::Property>) -> Option<T>,
+) -> TemplateParseResult<T> {
+    if let ExpressionKind::AliasExpanded(id, subst) = &node.kind {
+        expect_expression_of_type(language, build_ctx, subst, expected_type, f)
+            .map_err(|e| e.within_alias_expansion(*id, node.span))
+    } else {
+        let expression = build_expression(language, build_ctx, node)?;
+        let actual_type = expression.type_name();
+        f(expression)
+            .ok_or_else(|| TemplateParseError::expected_type(expected_type, actual_type, node.span))
+    }
 }
 
 #[cfg(test)]
