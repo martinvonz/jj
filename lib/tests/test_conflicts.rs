@@ -85,7 +85,7 @@ fn test_materialize_conflict_basic() {
     %%%%%%% Changes from base to side #2
     -line 3
     +right 3.1
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     line 4
     line 5
     "###
@@ -109,7 +109,7 @@ fn test_materialize_conflict_basic() {
     left 3.1
     left 3.2
     left 3.3
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     line 4
     line 5
     "###
@@ -185,7 +185,7 @@ fn test_materialize_conflict_multi_rebase_conflicts() {
     %%%%%%% Changes from base #2 to side #3
     -line 2 base
     +line 2 c.1
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     line 3
     "###
     );
@@ -209,7 +209,7 @@ fn test_materialize_conflict_multi_rebase_conflicts() {
     line 2 a.1
     line 2 a.2
     line 2 a.3
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     line 3
     "###
     );
@@ -233,7 +233,7 @@ fn test_materialize_conflict_multi_rebase_conflicts() {
     -line 2 base
     +line 2 b.1
     +line 2 b.2
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     line 3
     "###
     );
@@ -296,7 +296,7 @@ fn test_materialize_parse_roundtrip() {
     -line 1
     +line 1 right
      line 2
-    >>>>>>>
+    >>>>>>> Conflict 1 of 2 ends
     line 3
     <<<<<<< Conflict 2 of 2
     %%%%%%% Changes from base to side #1
@@ -306,7 +306,7 @@ fn test_materialize_parse_roundtrip() {
     +++++++ Contents of side #2
     line 4 right
     line 5 right
-    >>>>>>>
+    >>>>>>> Conflict 2 of 2 ends
     "###
     );
 
@@ -390,7 +390,7 @@ fn test_materialize_conflict_modify_delete() {
     modified
     %%%%%%% Changes from base to side #2
     -line 3
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     line 4
     line 5
     "###
@@ -409,7 +409,7 @@ fn test_materialize_conflict_modify_delete() {
     -line 3
     +++++++ Contents of side #2
     modified
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     line 4
     line 5
     "###
@@ -430,7 +430,7 @@ fn test_materialize_conflict_modify_delete() {
      line 4
      line 5
     +++++++ Contents of side #2
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###
     );
 }
@@ -485,7 +485,7 @@ fn test_materialize_conflict_two_forward_diffs() {
      C
     ------- Contents of base #3
     E
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###
     );
 }

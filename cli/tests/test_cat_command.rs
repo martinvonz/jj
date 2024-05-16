@@ -95,7 +95,7 @@ fn test_cat() {
     +a
     +++++++ Contents of side #2
     c
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
 }
 

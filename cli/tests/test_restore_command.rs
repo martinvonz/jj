@@ -177,7 +177,7 @@ fn test_restore_conflicted_merge() {
     +a
     +++++++ Contents of side #2
     b
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
 
     // Overwrite the file...
@@ -191,7 +191,7 @@ fn test_restore_conflicted_merge() {
        4     : +a
        5     : +++++++ Contents of side #2
        6     : b
-       7     : >>>>>>>
+       7     : >>>>>>> Conflict 1 of 1 ends
             1: resolution
     "###);
 
@@ -216,7 +216,7 @@ fn test_restore_conflicted_merge() {
     +a
     +++++++ Contents of side #2
     b
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff"]);
     insta::assert_snapshot!(stdout, @"");
@@ -232,7 +232,7 @@ fn test_restore_conflicted_merge() {
        4     : +a
        5     : +++++++ Contents of side #2
        6     : b
-       7     : >>>>>>>
+       7     : >>>>>>> Conflict 1 of 1 ends
             1: resolution
     "###);
 
@@ -257,7 +257,7 @@ fn test_restore_conflicted_merge() {
     +a
     +++++++ Contents of side #2
     b
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
 }
 

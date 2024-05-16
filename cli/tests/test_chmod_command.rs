@@ -77,7 +77,7 @@ fn test_chmod_regular_conflict() {
     +x
     +++++++ Contents of side #2
     n
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
 
     // Test chmodding a conflict
@@ -96,7 +96,7 @@ fn test_chmod_regular_conflict() {
     +x
     +++++++ Contents of side #2
     n
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
     test_env.jj_cmd_ok(&repo_path, &["chmod", "n", "file"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["debug", "tree"]);
@@ -113,7 +113,7 @@ fn test_chmod_regular_conflict() {
     +x
     +++++++ Contents of side #2
     n
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
 
     // Unmatched paths should generate warnings
@@ -206,7 +206,7 @@ fn test_chmod_file_dir_deletion_conflicts() {
     a
     %%%%%%% Changes from base to side #2
     -base
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["chmod", "x", "file", "-r=file_deletion"]);
@@ -239,6 +239,6 @@ fn test_chmod_file_dir_deletion_conflicts() {
     a
     %%%%%%% Changes from base to side #2
     -base
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
 }

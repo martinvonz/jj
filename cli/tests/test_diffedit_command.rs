@@ -402,7 +402,7 @@ fn test_diffedit_merge() {
     +c
     +++++++ Contents of side #2
     b
-    >>>>>>>
+    >>>>>>> Conflict 1 of 1 ends
     "###);
 }
 

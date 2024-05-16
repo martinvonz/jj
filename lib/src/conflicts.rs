@@ -290,7 +290,9 @@ pub fn materialize_merge_result(
                         output.write_all(&slice.0)?;
                     }
                     output.write_all(CONFLICT_END_LINE)?;
-                    output.write_all(b"\n")?;
+                    output.write_all(
+                        format!(" Conflict {conflict_index} of {num_conflicts} ends\n").as_bytes(),
+                    )?;
                 }
             }
         }

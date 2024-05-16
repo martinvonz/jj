@@ -159,7 +159,7 @@ fn test_interdiff_conflicting() {
     -+abc
     -+++++++ Contents of side #2
     -bar
-    ->>>>>>>
+    ->>>>>>> Conflict 1 of 1 ends
     +def
     "###);
 }
