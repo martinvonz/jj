@@ -83,6 +83,7 @@ pub mod submodule_store;
 pub mod transaction;
 pub mod tree;
 pub mod tree_builder;
+pub mod union_find;
 pub mod view;
 pub mod working_copy;
 pub mod workspace;
