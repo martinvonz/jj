@@ -41,6 +41,7 @@ pub enum ConfigSource {
     // TODO: Track explicit file paths, especially for when user config is a dir.
     User,
     Repo,
+    Workspace,
     CommandArg,
 }
 
@@ -59,7 +60,7 @@ pub struct AnnotatedValue {
 /// 2. Base environment variables
 /// 3. [User config](https://github.com/martinvonz/jj/blob/main/docs/config.md#configuration)
 /// 4. Repo config `.jj/repo/config.toml`
-/// 5. TODO: Workspace config `.jj/config.toml`
+/// 5. Workspace config `.jj/config.toml`
 /// 6. Override environment variables
 /// 7. Command-line arguments `--config-toml`
 #[derive(Clone, Debug)]
@@ -68,6 +69,7 @@ pub struct LayeredConfigs {
     env_base: config::Config,
     user: Option<config::Config>,
     repo: Option<config::Config>,
+    workspace: Option<config::Config>,
     env_overrides: config::Config,
     arg_overrides: Option<config::Config>,
 }
@@ -80,6 +82,7 @@ impl LayeredConfigs {
             env_base: env_base(),
             user: None,
             repo: None,
+            workspace: None,
             env_overrides: env_overrides(),
             arg_overrides: None,
         }
@@ -96,6 +99,12 @@ impl LayeredConfigs {
     #[instrument]
     pub fn read_repo_config(&mut self, repo_path: &Path) -> Result<(), ConfigError> {
         self.repo = Some(read_config_file(&repo_path.join("config.toml"))?);
+        Ok(())
+    }
+
+    #[instrument]
+    pub fn read_workspace_config(&mut self, workspace_path: &Path) -> Result<(), ConfigError> {
+        self.workspace = Some(read_config_file(&workspace_path.join("config.toml"))?);
         Ok(())
     }
 
@@ -128,6 +137,7 @@ impl LayeredConfigs {
             (ConfigSource::Env, Some(&self.env_base)),
             (ConfigSource::User, self.user.as_ref()),
             (ConfigSource::Repo, self.repo.as_ref()),
+            (ConfigSource::Workspace, self.workspace.as_ref()),
             (ConfigSource::Env, Some(&self.env_overrides)),
             (ConfigSource::CommandArg, self.arg_overrides.as_ref()),
         ];
@@ -603,6 +613,7 @@ mod tests {
             env_base: empty_config.to_owned(),
             user: None,
             repo: None,
+            workspace: None,
             env_overrides: empty_config,
             arg_overrides: None,
         };
@@ -629,6 +640,7 @@ mod tests {
             env_base: env_base_config,
             user: None,
             repo: Some(repo_config),
+            workspace: None,
             env_overrides: empty_config,
             arg_overrides: None,
         };
@@ -704,6 +716,7 @@ mod tests {
             env_base: empty_config.to_owned(),
             user: Some(user_config),
             repo: Some(repo_config),
+            workspace: None,
             env_overrides: empty_config,
             arg_overrides: None,
         };
