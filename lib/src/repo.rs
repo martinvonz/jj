@@ -1629,9 +1629,13 @@ impl MutableRepo {
         if self.index.as_any().is::<DefaultMutableIndex>() {
             self.record_rewrites(&base_heads, &own_heads);
             self.record_rewrites(&base_heads, &other_heads);
+            // No need to remove heads removed by `other` because we already
+            // marked them abandoned or rewritten.
+        } else {
+            for removed_head in base.heads().difference(other.heads()) {
+                self.view_mut().remove_head(removed_head);
+            }
         }
-        // No need to remove heads removed by `other` because we already marked them
-        // abandoned or rewritten.
         for added_head in other.heads().difference(base.heads()) {
             self.view_mut().add_head(added_head);
         }
