@@ -19,7 +19,7 @@ use crate::common::TestEnvironment;
 #[test]
 fn test_templater_parse_error() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let render_err = |template| test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
 
@@ -118,7 +118,7 @@ fn test_templater_parse_error() {
 #[test]
 fn test_templater_upper_lower() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| get_colored_template_output(&test_env, &repo_path, "@-", template);
 
@@ -132,7 +132,7 @@ fn test_templater_upper_lower() {
 #[test]
 fn test_templater_alias() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| get_template_output(&test_env, &repo_path, "@-", template);
     let render_err = |template| test_env.jj_cmd_failure(&repo_path, &["log", "-T", template]);
@@ -280,7 +280,7 @@ fn test_templater_alias() {
 #[test]
 fn test_templater_alias_override() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(
@@ -310,7 +310,7 @@ fn test_templater_alias_override() {
 #[test]
 fn test_templater_bad_alias_decl() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(

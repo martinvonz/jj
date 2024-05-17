@@ -20,7 +20,7 @@ fn test_undo_rewrite_with_child() {
     // Test that if we undo an operation that rewrote some commit, any descendants
     // after that will be rebased on top of the un-rewritten commit.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "initial"]);
@@ -206,7 +206,7 @@ fn test_git_push_undo_colocated() {
     git2::Repository::init_bare(git_repo_path.clone()).unwrap();
     let repo_path = test_env.env_root().join("clone");
     git2::Repository::clone(git_repo_path.to_str().unwrap(), &repo_path).unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "init", "--git-repo=."]);
 
     test_env.advance_test_rng_seed_to_multiple_of(100_000);
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);

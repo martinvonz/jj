@@ -21,7 +21,7 @@ use crate::common::TestEnvironment;
 #[test]
 fn test_resolution_of_git_tracking_branches() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
     test_env.jj_cmd_ok(&repo_path, &["describe", "-r", "main", "-m", "old_message"]);
@@ -58,7 +58,7 @@ fn test_resolution_of_git_tracking_branches() {
 #[test]
 fn test_git_export_conflicting_git_refs() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
@@ -79,7 +79,7 @@ fn test_git_export_conflicting_git_refs() {
 #[test]
 fn test_git_export_undo() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let git_repo = git2::Repository::open(repo_path.join(".jj/repo/store/git")).unwrap();
 
@@ -130,7 +130,7 @@ fn test_git_export_undo() {
 #[test]
 fn test_git_import_undo() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let git_repo = git2::Repository::open(repo_path.join(".jj/repo/store/git")).unwrap();
 
@@ -176,7 +176,7 @@ fn test_git_import_undo() {
 #[test]
 fn test_git_import_move_export_with_default_undo() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let git_repo = git2::Repository::open(repo_path.join(".jj/repo/store/git")).unwrap();
 

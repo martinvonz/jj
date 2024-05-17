@@ -21,7 +21,7 @@ use crate::common::TestEnvironment;
 #[test]
 fn test_alias_basic() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(r#"aliases.b = ["log", "-r", "@", "-T", "branches"]"#);
@@ -37,7 +37,7 @@ fn test_alias_basic() {
 #[test]
 fn test_alias_legacy_section() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Can define aliases in [alias] section
@@ -62,7 +62,7 @@ fn test_alias_legacy_section() {
 #[test]
 fn test_alias_bad_name() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["foo."]);
@@ -78,7 +78,7 @@ fn test_alias_bad_name() {
 #[test]
 fn test_alias_calls_empty_command() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(
@@ -106,7 +106,7 @@ fn test_alias_calls_empty_command() {
 #[test]
 fn test_alias_calls_unknown_command() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(r#"aliases.foo = ["nonexistent"]"#);
@@ -125,7 +125,7 @@ fn test_alias_calls_unknown_command() {
 #[test]
 fn test_alias_calls_command_with_invalid_option() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(r#"aliases.foo = ["log", "--nonexistent"]"#);
@@ -144,7 +144,7 @@ fn test_alias_calls_command_with_invalid_option() {
 #[test]
 fn test_alias_calls_help() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.add_config(r#"aliases.h = ["--help"]"#);
     let stdout = test_env.jj_cmd_success(&repo_path, &["h"]);
@@ -160,7 +160,7 @@ fn test_alias_calls_help() {
 #[test]
 fn test_alias_cannot_override_builtin() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(r#"aliases.log = ["rebase"]"#);
@@ -173,7 +173,7 @@ fn test_alias_cannot_override_builtin() {
 #[test]
 fn test_alias_recursive() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_config(
@@ -198,7 +198,7 @@ fn test_alias_recursive() {
 #[test]
 fn test_alias_global_args_before_and_after() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.add_config(r#"aliases.l = ["log", "-T", "commit_id", "-r", "all()"]"#);
     // Test the setup
@@ -233,7 +233,7 @@ fn test_alias_global_args_before_and_after() {
 #[test]
 fn test_alias_global_args_in_definition() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.add_config(
         r#"aliases.l = ["log", "-T", "commit_id", "--at-op", "@-", "-r", "all()", "--color=always"]"#,
@@ -269,10 +269,10 @@ fn test_alias_invalid_definition() {
 #[test]
 fn test_alias_in_repo_config() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo1", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo1"]);
     let repo1_path = test_env.env_root().join("repo1");
     fs::create_dir(repo1_path.join("sub")).unwrap();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo2", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo2"]);
     let repo2_path = test_env.env_root().join("repo2");
     fs::create_dir(repo2_path.join("sub")).unwrap();
 

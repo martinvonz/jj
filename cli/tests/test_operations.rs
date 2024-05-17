@@ -22,7 +22,7 @@ use crate::common::{get_stdout_string, TestEnvironment};
 #[test]
 fn test_op_log() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 0"]);
 
@@ -96,7 +96,7 @@ fn test_op_log() {
 #[test]
 fn test_op_log_with_custom_symbols() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 0"]);
 
@@ -127,7 +127,7 @@ fn test_op_log_with_custom_symbols() {
 #[test]
 fn test_op_log_with_no_template() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["op", "log", "-T"]);
@@ -156,7 +156,7 @@ fn test_op_log_with_no_template() {
 #[test]
 fn test_op_log_limit() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "-Tdescription", "--limit=1"]);
@@ -168,7 +168,7 @@ fn test_op_log_limit() {
 #[test]
 fn test_op_log_no_graph() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stdout =
@@ -185,7 +185,7 @@ fn test_op_log_no_graph() {
 #[test]
 fn test_op_log_no_graph_null_terminated() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "message1"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "message2"]);
@@ -206,7 +206,7 @@ fn test_op_log_no_graph_null_terminated() {
 #[test]
 fn test_op_log_template() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |template| test_env.jj_cmd_success(&repo_path, &["op", "log", "-T", template]);
 
@@ -253,7 +253,7 @@ fn test_op_log_template() {
 #[test]
 fn test_op_log_builtin_templates() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     // Render without graph and append "[EOF]" marker to test line ending
     let render = |template| {
@@ -294,7 +294,7 @@ fn test_op_log_builtin_templates() {
 #[test]
 fn test_op_log_word_wrap() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let render = |args: &[&str], columns: u32, word_wrap: bool| {
         let mut args = args.to_vec();
@@ -342,7 +342,7 @@ fn test_op_log_configurable() {
         "#,
     );
     test_env
-        .jj_cmd(test_env.env_root(), &["init", "repo", "--git"])
+        .jj_cmd(test_env.env_root(), &["git", "init", "repo"])
         .env_remove("JJ_OP_HOSTNAME")
         .env_remove("JJ_OP_USERNAME")
         .assert()
@@ -356,7 +356,7 @@ fn test_op_log_configurable() {
 #[test]
 fn test_op_abandon_ancestors() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 1"]);
@@ -459,7 +459,7 @@ fn test_op_abandon_ancestors() {
 #[test]
 fn test_op_abandon_without_updating_working_copy() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 1"]);

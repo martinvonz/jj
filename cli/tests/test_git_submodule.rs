@@ -19,7 +19,7 @@ fn test_gitsubmodule_print_gitmodules() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");
     git2::Repository::init(&workspace_root).unwrap();
-    test_env.jj_cmd_ok(&workspace_root, &["init", "--git-repo", "."]);
+    test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--git-repo", "."]);
 
     std::fs::write(
         workspace_root.join(".gitmodules"),
