@@ -50,7 +50,7 @@ fn test_debug_fileset() {
 #[test]
 fn test_debug_revset() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
 
     let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "revset", "root()"]);
@@ -87,7 +87,7 @@ fn test_debug_revset() {
 #[test]
 fn test_debug_index() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
     let stdout = test_env.jj_cmd_success(&workspace_path, &["debug", "index"]);
     assert_snapshot!(filter_index_stats(&stdout), @r###"
@@ -107,7 +107,7 @@ fn test_debug_index() {
 #[test]
 fn test_debug_reindex() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&workspace_path, &["new"]);
     test_env.jj_cmd_ok(&workspace_path, &["new"]);
@@ -150,7 +150,7 @@ fn test_debug_reindex() {
 #[test]
 fn test_debug_tree() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
     let subdir = workspace_path.join("dir").join("subdir");
     std::fs::create_dir_all(&subdir).unwrap();
@@ -231,7 +231,7 @@ fn test_debug_tree() {
 #[test]
 fn test_debug_operation_id() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
     let stdout =
         test_env.jj_cmd_success(&workspace_path, &["debug", "operation", "--display", "id"]);

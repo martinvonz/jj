@@ -29,7 +29,7 @@ fn get_recorded_dates(test_env: &TestEnvironment, cwd: &Path, revset: &str) -> S
 #[test]
 fn test_split_by_paths() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "foo").unwrap();
@@ -153,7 +153,7 @@ fn test_split_by_paths() {
 #[test]
 fn test_split_with_non_empty_description() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     test_env.add_config(r#"ui.default-description = "\n\nTESTED=TODO""#);
     let workspace_path = test_env.env_root().join("repo");
 
@@ -214,7 +214,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
 #[test]
 fn test_split_with_default_description() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     test_env.add_config(r#"ui.default-description = "\n\nTESTED=TODO""#);
     let workspace_path = test_env.env_root().join("repo");
 
@@ -269,7 +269,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
 #[test]
 fn test_split_with_merge_child() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&workspace_path, &["describe", "-m=1"]);
     test_env.jj_cmd_ok(&workspace_path, &["new", "root()", "-m=a"]);
@@ -322,7 +322,7 @@ fn test_split_with_merge_child() {
 // description is set correctly on the first commit.
 fn test_split_siblings_no_descendants() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     test_env.add_config(r#"ui.default-description = "\n\nTESTED=TODO""#);
     let workspace_path = test_env.env_root().join("repo");
 
@@ -382,7 +382,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
 fn test_split_siblings_with_descendants() {
     // Configure the environment and make the initial commits.
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     // test_env.add_config(r#"ui.default-description = "\n\nTESTED=TODO""#);
     let workspace_path = test_env.env_root().join("repo");
 
@@ -472,7 +472,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
 #[test]
 fn test_split_siblings_with_merge_child() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&workspace_path, &["describe", "-m=1"]);
     test_env.jj_cmd_ok(&workspace_path, &["new", "root()", "-m=a"]);
@@ -528,7 +528,7 @@ fn test_split_siblings_with_merge_child() {
 #[test]
 fn test_split_empty() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&workspace_path, &["describe", "--message", "abc"]);
 

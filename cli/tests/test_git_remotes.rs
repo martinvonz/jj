@@ -20,7 +20,7 @@ use crate::common::TestEnvironment;
 fn test_git_remotes() {
     let test_env = TestEnvironment::default();
 
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "repo"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["git", "remote", "list"]);
@@ -58,7 +58,7 @@ fn test_git_remotes() {
 fn test_git_remote_add() {
     let test_env = TestEnvironment::default();
 
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "repo"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(
         &repo_path,
@@ -94,7 +94,7 @@ fn test_git_remote_add() {
 fn test_git_remote_rename() {
     let test_env = TestEnvironment::default();
 
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "repo"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(
         &repo_path,
@@ -137,7 +137,7 @@ fn test_git_remote_named_git() {
     git_repo
         .remote("git", "http://example.com/repo/repo")
         .unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "init", "--git-repo=."]);
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
 
     // The remote can be renamed.
@@ -166,7 +166,7 @@ fn test_git_remote_named_git() {
     // Reinitialize the repo with remote named 'git'.
     fs::remove_dir_all(repo_path.join(".jj")).unwrap();
     git_repo.remote_rename("bar", "git").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "init", "--git-repo=."]);
 
     // The remote can also be removed.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "remote", "remove", "git"]);

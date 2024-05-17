@@ -75,7 +75,7 @@ fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
 #[test]
 fn test_git_fetch_with_default_config() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "origin");
 
@@ -89,7 +89,7 @@ fn test_git_fetch_with_default_config() {
 fn test_git_fetch_default_remote() {
     let test_env = TestEnvironment::default();
     test_env.add_config("git.auto-local-branch = true");
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "origin");
 
@@ -104,7 +104,7 @@ fn test_git_fetch_default_remote() {
 fn test_git_fetch_single_remote() {
     let test_env = TestEnvironment::default();
     test_env.add_config("git.auto-local-branch = true");
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
 
@@ -123,7 +123,7 @@ fn test_git_fetch_single_remote() {
 fn test_git_fetch_single_remote_all_remotes_flag() {
     let test_env = TestEnvironment::default();
     test_env.add_config("git.auto-local-branch = true");
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
 
@@ -141,7 +141,7 @@ fn test_git_fetch_single_remote_all_remotes_flag() {
 fn test_git_fetch_single_remote_from_arg() {
     let test_env = TestEnvironment::default();
     test_env.add_config("git.auto-local-branch = true");
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
 
@@ -156,7 +156,7 @@ fn test_git_fetch_single_remote_from_arg() {
 fn test_git_fetch_single_remote_from_config() {
     let test_env = TestEnvironment::default();
     test_env.add_config("git.auto-local-branch = true");
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
     test_env.add_config(r#"git.fetch = "rem1""#);
@@ -172,7 +172,7 @@ fn test_git_fetch_single_remote_from_config() {
 fn test_git_fetch_multiple_remotes() {
     let test_env = TestEnvironment::default();
     test_env.add_config("git.auto-local-branch = true");
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
     add_git_remote(&test_env, &repo_path, "rem2");
@@ -193,7 +193,7 @@ fn test_git_fetch_multiple_remotes() {
 fn test_git_fetch_all_remotes() {
     let test_env = TestEnvironment::default();
     test_env.add_config("git.auto-local-branch = true");
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
     add_git_remote(&test_env, &repo_path, "rem2");
@@ -211,7 +211,7 @@ fn test_git_fetch_all_remotes() {
 fn test_git_fetch_multiple_remotes_from_config() {
     let test_env = TestEnvironment::default();
     test_env.add_config("git.auto-local-branch = true");
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
     add_git_remote(&test_env, &repo_path, "rem2");
@@ -229,7 +229,7 @@ fn test_git_fetch_multiple_remotes_from_config() {
 #[test]
 fn test_git_fetch_nonexistent_remote() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
 
@@ -248,7 +248,7 @@ fn test_git_fetch_nonexistent_remote() {
 #[test]
 fn test_git_fetch_nonexistent_remote_from_config() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
     test_env.add_config(r#"git.fetch = ["rem1", "rem2"]"#);
@@ -272,7 +272,7 @@ fn test_git_fetch_from_remote_named_git() {
     git_repo.remote("git", "../git").unwrap();
 
     // Existing remote named 'git' shouldn't block the repo initialization.
-    test_env.jj_cmd_ok(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "init", "--git-repo=."]);
 
     // Try fetching from the remote named 'git'.
     let stderr = &test_env.jj_cmd_failure(&repo_path, &["git", "fetch", "--remote=git"]);
@@ -312,7 +312,7 @@ fn test_git_fetch_from_remote_named_git() {
 fn test_git_fetch_prune_before_updating_tips() {
     let test_env = TestEnvironment::default();
     test_env.add_config("git.auto-local-branch = true");
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "origin");
     test_env.jj_cmd_ok(&repo_path, &["git", "fetch"]);
@@ -340,7 +340,7 @@ fn test_git_fetch_prune_before_updating_tips() {
 fn test_git_fetch_conflicting_branches() {
     let test_env = TestEnvironment::default();
     test_env.add_config("git.auto-local-branch = true");
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "rem1");
 
@@ -371,7 +371,7 @@ fn test_git_fetch_conflicting_branches_colocated() {
     let repo_path = test_env.env_root().join("repo");
     let _git_repo = git2::Repository::init(&repo_path).unwrap();
     // create_colocated_repo_and_branches_from_trunk1(&test_env, &repo_path);
-    test_env.jj_cmd_ok(&repo_path, &["init", "--git-repo", "."]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "init", "--git-repo", "."]);
     add_git_remote(&test_env, &repo_path, "rem1");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
 
@@ -405,7 +405,7 @@ fn create_colocated_repo_and_branches_from_trunk1(
     repo_path: &Path,
 ) -> String {
     // Create a colocated repo in `source` to populate it more easily
-    test_env.jj_cmd_ok(repo_path, &["init", "--git-repo", "."]);
+    test_env.jj_cmd_ok(repo_path, &["git", "init", "--git-repo", "."]);
     create_commit(test_env, repo_path, "trunk1", &[]);
     create_commit(test_env, repo_path, "a1", &["trunk1"]);
     create_commit(test_env, repo_path, "a2", &["trunk1"]);
@@ -965,7 +965,7 @@ fn test_fetch_undo_what() {
 fn test_git_fetch_remove_fetch() {
     let test_env = TestEnvironment::default();
     test_env.add_config("git.auto-local-branch = true");
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "origin");
 
@@ -1009,7 +1009,7 @@ fn test_git_fetch_remove_fetch() {
 fn test_git_fetch_rename_fetch() {
     let test_env = TestEnvironment::default();
     test_env.add_config("git.auto-local-branch = true");
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     add_git_remote(&test_env, &repo_path, "origin");
 
@@ -1221,7 +1221,7 @@ fn test_git_fetch_removed_parent_branch() {
 #[test]
 fn test_git_fetch_remote_only_branch() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Create non-empty git repo to add as a remote

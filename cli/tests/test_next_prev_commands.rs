@@ -27,7 +27,7 @@ fn test_next_simple() {
     // third
     //
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     // Create a simple linear history, which we'll traverse.
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
@@ -47,7 +47,7 @@ fn test_next_simple() {
 fn test_next_multiple() {
     // Move from first => fourth.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
@@ -67,7 +67,7 @@ fn test_next_multiple() {
 fn test_prev_simple() {
     // Move @- from third to second.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
@@ -92,7 +92,7 @@ fn test_prev_simple() {
 fn test_prev_multiple_without_root() {
     // Move @- from fourth to second.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
@@ -119,7 +119,7 @@ fn test_prev_multiple_without_root() {
 fn test_next_exceeding_history() {
     // Try to step beyond the current repos history.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
@@ -137,7 +137,7 @@ fn test_next_exceeding_history() {
 #[test]
 fn test_next_parent_has_multiple_descendants() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     // Setup.
     test_env.jj_cmd_ok(&repo_path, &["desc", "-m", "1"]);
@@ -174,7 +174,7 @@ fn test_next_parent_has_multiple_descendants() {
 #[test]
 fn test_next_with_merge_commit_parent() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     // Setup.
     test_env.jj_cmd_ok(&repo_path, &["desc", "-m", "1"]);
@@ -218,7 +218,7 @@ fn test_next_with_merge_commit_parent() {
 #[test]
 fn test_next_on_merge_commit() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     // Setup.
     test_env.jj_cmd_ok(&repo_path, &["desc", "-m", "1"]);
@@ -260,7 +260,7 @@ fn test_next_on_merge_commit() {
 #[test]
 fn test_next_fails_on_branching_children_no_stdin() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
@@ -279,7 +279,7 @@ fn test_next_fails_on_branching_children_no_stdin() {
 #[test]
 fn test_next_fails_on_branching_children_quit_prompt() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
@@ -309,7 +309,7 @@ fn test_next_fails_on_branching_children_quit_prompt() {
 #[test]
 fn test_next_choose_branching_child() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
@@ -337,7 +337,7 @@ fn test_next_choose_branching_child() {
 #[test]
 fn test_prev_on_merge_commit() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["desc", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["branch", "c", "left"]);
@@ -380,7 +380,7 @@ fn test_prev_on_merge_commit() {
 #[test]
 fn test_prev_on_merge_commit_with_parent_merge() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["desc", "-m", "x"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "root()", "-m", "y"]);
@@ -441,7 +441,7 @@ fn test_prev_on_merge_commit_with_parent_merge() {
 #[test]
 fn test_prev_prompts_on_multiple_parents() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "@--"]);
@@ -484,7 +484,7 @@ fn test_prev_prompts_on_multiple_parents() {
 #[test]
 fn test_prev_beyond_root_fails() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
@@ -509,7 +509,7 @@ fn test_prev_beyond_root_fails() {
 fn test_prev_editing() {
     // Edit the third commit.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
@@ -545,7 +545,7 @@ fn test_prev_editing() {
 fn test_next_editing() {
     // Edit the second commit.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);

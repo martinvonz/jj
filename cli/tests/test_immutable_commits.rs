@@ -17,7 +17,7 @@ use crate::common::TestEnvironment;
 #[test]
 fn test_rewrite_immutable_generic() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     std::fs::write(repo_path.join("file"), "a").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m=a"]);
@@ -171,7 +171,7 @@ zzzzzzzz root() 00000000
 #[test]
 fn test_rewrite_immutable_commands() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     std::fs::write(repo_path.join("file"), "a").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m=a"]);

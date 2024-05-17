@@ -19,7 +19,7 @@ use crate::common::TestEnvironment;
 #[test]
 fn test_branch_multiple_names() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo", "bar"]);
@@ -60,7 +60,7 @@ fn test_branch_multiple_names() {
 #[test]
 fn test_branch_at_root() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     let (stdout, stderr) =
@@ -79,7 +79,7 @@ fn test_branch_at_root() {
 #[test]
 fn test_branch_empty_name() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["branch", "create", ""]);
@@ -93,7 +93,7 @@ fn test_branch_empty_name() {
 #[test]
 fn test_branch_move() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "set", "foo"]);
@@ -131,7 +131,7 @@ fn test_branch_move() {
 #[test]
 fn test_branch_move_conflicting() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let get_log = || {
         let template = r#"separate(" ", description.first_line(), branches)"#;
@@ -190,7 +190,7 @@ fn test_branch_move_conflicting() {
 #[test]
 fn test_branch_rename() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Set up remote
@@ -235,7 +235,7 @@ fn test_branch_rename() {
 #[test]
 fn test_branch_forget_glob() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo-1"]);
@@ -303,7 +303,7 @@ fn test_branch_forget_glob() {
 fn test_branch_delete_glob() {
     // Set up a git repo with a branch and a jj repo that has it as a remote.
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let git_repo_path = test_env.env_root().join("git-repo");
     let git_repo = git2::Repository::init_bare(git_repo_path).unwrap();
@@ -403,7 +403,7 @@ fn test_branch_delete_glob() {
 #[test]
 fn test_branch_delete_export() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["new"]);
@@ -428,7 +428,7 @@ fn test_branch_delete_export() {
 #[test]
 fn test_branch_forget_export() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["new"]);
@@ -470,7 +470,7 @@ fn test_branch_forget_fetched_branch() {
     // Set up a git repo with a branch and a jj repo that has it as a remote.
     let test_env = TestEnvironment::default();
     test_env.add_config("git.auto-local-branch = true");
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let git_repo_path = test_env.env_root().join("git-repo");
     let git_repo = git2::Repository::init_bare(git_repo_path).unwrap();
@@ -592,7 +592,7 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
     // Set up a git repo with a branch and a jj repo that has it as a remote.
     let test_env = TestEnvironment::default();
     test_env.add_config("git.auto-local-branch = true");
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let git_repo_path = test_env.env_root().join("git-repo");
     let git_repo = git2::Repository::init_bare(git_repo_path).unwrap();
@@ -645,7 +645,7 @@ fn test_branch_forget_deleted_or_nonexistent_branch() {
 #[test]
 fn test_branch_track_untrack() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Set up remote
@@ -830,7 +830,7 @@ fn test_branch_track_untrack() {
 #[test]
 fn test_branch_track_conflict() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     let git_repo_path = test_env.env_root().join("git-repo");
@@ -859,7 +859,7 @@ main (conflicted):
 #[test]
 fn test_branch_track_untrack_patterns() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Set up remote
@@ -996,7 +996,7 @@ fn test_branch_list() {
     test_env.add_config("git.auto-local-branch = true");
 
     // Initialize remote refs
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "remote", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "remote"]);
     let remote_path = test_env.env_root().join("remote");
     for branch in [
         "remote-sync",
@@ -1172,7 +1172,7 @@ fn test_branch_list_filtered() {
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
 
     // Initialize remote refs
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "remote", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "remote"]);
     let remote_path = test_env.env_root().join("remote");
     for branch in ["remote-keep", "remote-delete", "remote-rewrite"] {
         test_env.jj_cmd_ok(&remote_path, &["new", "root()", "-m", branch]);
@@ -1340,7 +1340,7 @@ fn test_branch_list_much_remote_divergence() {
     test_env.add_config("git.auto-local-branch = true");
 
     // Initialize remote refs
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "remote", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "remote"]);
     let remote_path = test_env.env_root().join("remote");
     test_env.jj_cmd_ok(&remote_path, &["new", "root()", "-m", "remote-unsync"]);
     for _ in 0..15 {
@@ -1385,7 +1385,7 @@ fn test_branch_list_tracked() {
     test_env.add_config("git.auto-local-branch = true");
 
     // Initialize remote refs
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "remote", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "remote"]);
     let remote_path = test_env.env_root().join("remote");
     for branch in [
         "remote-sync",
@@ -1413,7 +1413,7 @@ fn test_branch_list_tracked() {
         ],
     );
 
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "upstream", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "upstream"]);
 
     // Initialize a second remote
     let mut upstream_git_path = test_env.env_root().join("upstream");
@@ -1540,7 +1540,7 @@ fn test_branch_list_tracked() {
 #[test]
 fn test_branch_list_conflicted() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Track existing branch. Local branch should result in conflict.

@@ -19,7 +19,7 @@ use crate::common::TestEnvironment;
 #[test]
 fn test_log_parents() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["new"]);
@@ -80,7 +80,7 @@ fn test_log_parents() {
 #[test]
 fn test_log_author_timestamp() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "first"]);
@@ -97,7 +97,7 @@ fn test_log_author_timestamp() {
 #[test]
 fn test_log_author_timestamp_ago() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "first"]);
@@ -115,7 +115,7 @@ fn test_log_author_timestamp_ago() {
 #[test]
 fn test_log_author_timestamp_utc() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", "author.timestamp().utc()"]);
@@ -129,7 +129,7 @@ fn test_log_author_timestamp_utc() {
 #[test]
 fn test_log_author_timestamp_local() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.add_env_var("TZ", "UTC-05:30");
@@ -149,7 +149,7 @@ fn test_log_author_timestamp_local() {
 #[test]
 fn test_mine_is_true_when_author_is_user() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(
         &repo_path,
@@ -178,7 +178,7 @@ fn test_mine_is_true_when_author_is_user() {
 #[test]
 fn test_log_default() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
@@ -220,7 +220,7 @@ fn test_log_default() {
 #[test]
 fn test_log_builtin_templates() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     // Render without graph and append "[EOF]" marker to test line ending
     let render = |template| {
@@ -295,7 +295,7 @@ fn test_log_builtin_templates() {
 #[test]
 fn test_log_builtin_templates_colored() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let render =
         |template| test_env.jj_cmd_success(&repo_path, &["--color=always", "log", "-T", template]);
@@ -363,7 +363,7 @@ fn test_log_builtin_templates_colored() {
 #[test]
 fn test_log_builtin_templates_colored_debug() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let render =
         |template| test_env.jj_cmd_success(&repo_path, &["--color=debug", "log", "-T", template]);
@@ -432,7 +432,7 @@ fn test_log_builtin_templates_colored_debug() {
 #[test]
 fn test_log_obslog_divergence() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file"), "foo\n").unwrap();
@@ -501,7 +501,7 @@ fn test_log_branches() {
     test_env.add_config("git.auto-local-branch = true");
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "none()""#);
 
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "origin"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "origin"]);
     let origin_path = test_env.env_root().join("origin");
     let origin_git_repo_path = origin_path
         .join(".jj")
@@ -611,7 +611,7 @@ fn test_log_git_head() {
     let test_env = TestEnvironment::default();
     let repo_path = test_env.env_root().join("repo");
     git2::Repository::init(&repo_path).unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["init", "--git-repo=."]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "init", "--git-repo=."]);
 
     test_env.jj_cmd_ok(&repo_path, &["new", "-m=initial"]);
     std::fs::write(repo_path.join("file"), "foo\n").unwrap();
@@ -642,7 +642,7 @@ fn test_log_git_head() {
 #[test]
 fn test_log_customize_short_id() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "first"]);
@@ -685,7 +685,7 @@ fn test_log_customize_short_id() {
 #[test]
 fn test_log_immutable() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["new", "-mA", "root()"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "-mB"]);
@@ -752,7 +752,7 @@ fn test_log_immutable() {
 #[test]
 fn test_log_contained_in() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["new", "-mA", "root()"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "-mB"]);

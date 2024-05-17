@@ -17,7 +17,7 @@ use crate::common::TestEnvironment;
 #[test]
 fn test_status_merge() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file"), "base").unwrap();
@@ -42,7 +42,7 @@ fn test_status_merge() {
 #[test]
 fn test_status_ignored_gitignore() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::create_dir(repo_path.join("untracked")).unwrap();
@@ -66,7 +66,7 @@ fn test_status_ignored_gitignore() {
 #[test]
 fn test_status_filtered() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     std::fs::write(repo_path.join("file_1"), "file_1").unwrap();

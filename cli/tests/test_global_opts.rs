@@ -59,7 +59,7 @@ fn test_version() {
 #[test]
 fn test_no_subcommand() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Outside of a repo.
@@ -117,7 +117,7 @@ fn test_no_subcommand() {
 #[test]
 fn test_ignore_working_copy() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
 
     let repo_path = test_env.env_root().join("repo");
 
@@ -166,7 +166,7 @@ fn test_repo_arg_with_git_clone() {
 #[test]
 fn test_resolve_workspace_directory() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let subdir = repo_path.join("dir").join("subdir");
     std::fs::create_dir_all(&subdir).unwrap();
@@ -294,7 +294,7 @@ fn test_bad_path() {
 #[test]
 fn test_broken_repo_structure() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let store_path = repo_path.join(".jj").join("repo").join("store");
     let store_type_path = store_path.join("type");
@@ -345,7 +345,7 @@ fn test_broken_repo_structure() {
 fn test_color_config() {
     let mut test_env = TestEnvironment::default();
 
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Test that --color=always is respected.
@@ -549,7 +549,7 @@ fn test_invalid_config() {
 fn test_no_user_configured() {
     // Test that the user is reminded if they haven't configured their name or email
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     let assert = test_env

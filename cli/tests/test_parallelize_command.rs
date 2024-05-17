@@ -19,7 +19,7 @@ use crate::common::TestEnvironment;
 #[test]
 fn test_parallelize_no_descendants() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
 
     for n in 1..6 {
@@ -57,7 +57,7 @@ fn test_parallelize_no_descendants() {
 #[test]
 fn test_parallelize_with_descendants_simple() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
 
     for n in 1..6 {
@@ -99,7 +99,7 @@ fn test_parallelize_with_descendants_simple() {
 #[test]
 fn test_parallelize_where_interior_has_non_target_children() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
 
     for n in 1..6 {
@@ -140,7 +140,7 @@ fn test_parallelize_where_interior_has_non_target_children() {
 #[test]
 fn test_parallelize_where_root_has_non_target_children() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
 
     for n in 1..4 {
@@ -179,7 +179,7 @@ fn test_parallelize_where_root_has_non_target_children() {
 #[test]
 fn test_parallelize_with_merge_commit_child() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-m", "1"]);
@@ -228,7 +228,7 @@ fn test_parallelize_with_merge_commit_child() {
 #[test]
 fn test_parallelize_disconnected_target_commits() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
 
     for n in 1..3 {
@@ -261,7 +261,7 @@ fn test_parallelize_disconnected_target_commits() {
 #[test]
 fn test_parallelize_head_is_a_merge() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=0"]);
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=1"]);
@@ -304,7 +304,7 @@ fn test_parallelize_head_is_a_merge() {
 #[test]
 fn test_parallelize_interior_target_is_a_merge() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=0"]);
     test_env.jj_cmd_ok(&workspace_path, &["describe", "-m=1"]);
@@ -343,7 +343,7 @@ fn test_parallelize_interior_target_is_a_merge() {
 #[test]
 fn test_parallelize_root_is_a_merge() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&workspace_path, &["describe", "-m=y"]);
     test_env.jj_cmd_ok(&workspace_path, &["new", "root()", "-m=x"]);
@@ -385,7 +385,7 @@ fn test_parallelize_root_is_a_merge() {
 #[test]
 fn test_parallelize_multiple_heads() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=0"]);
     test_env.jj_cmd_ok(&workspace_path, &["describe", "-m=1"]);
@@ -415,7 +415,7 @@ fn test_parallelize_multiple_heads() {
 #[test]
 fn test_parallelize_multiple_heads_with_and_without_children() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=0"]);
     test_env.jj_cmd_ok(&workspace_path, &["describe", "-m=1"]);
@@ -444,7 +444,7 @@ fn test_parallelize_multiple_heads_with_and_without_children() {
 #[test]
 fn test_parallelize_multiple_roots() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&workspace_path, &["describe", "-m=1"]);
     test_env.jj_cmd_ok(&workspace_path, &["new", "root()", "-m=a"]);
@@ -480,7 +480,7 @@ fn test_parallelize_multiple_roots() {
 #[test]
 fn test_parallelize_multiple_heads_with_different_children() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=1"]);
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=2"]);
@@ -529,7 +529,7 @@ fn test_parallelize_multiple_heads_with_different_children() {
 #[test]
 fn test_parallelize_multiple_roots_with_different_parents() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=1"]);
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-m=2"]);
@@ -572,7 +572,7 @@ fn test_parallelize_multiple_roots_with_different_parents() {
 #[test]
 fn test_parallelize_complex_nonlinear_target() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let workspace_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&workspace_path, &["new", "-m=0", "root()"]);
     test_env.jj_cmd_ok(&workspace_path, &["new", "-m=1", "description(0)"]);

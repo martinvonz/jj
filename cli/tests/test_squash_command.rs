@@ -19,7 +19,7 @@ use crate::common::TestEnvironment;
 #[test]
 fn test_squash() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a"]);
@@ -132,7 +132,7 @@ fn test_squash() {
 #[test]
 fn test_squash_partial() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a"]);
@@ -262,7 +262,7 @@ fn test_squash_partial() {
 #[test]
 fn test_squash_from_to() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Create history like this:
@@ -399,7 +399,7 @@ fn test_squash_from_to() {
 #[test]
 fn test_squash_from_to_partial() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Create history like this:
@@ -578,7 +578,7 @@ fn test_squash_from_to_partial() {
 #[test]
 fn test_squash_from_multiple() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Create history like this:
@@ -696,7 +696,7 @@ fn test_squash_from_multiple() {
 #[test]
 fn test_squash_from_multiple_partial() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Create history like this:
@@ -854,7 +854,7 @@ fn test_squash_from_multiple_partial() {
 #[test]
 fn test_squash_from_multiple_partial_no_op() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     // Create history like this:
@@ -948,7 +948,7 @@ fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
 #[test]
 fn test_squash_description() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     let edit_script = test_env.set_up_fake_editor();
@@ -1033,7 +1033,7 @@ fn test_squash_description() {
 #[test]
 fn test_squash_empty() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "parent"]);
@@ -1061,7 +1061,7 @@ fn test_squash_empty() {
 #[test]
 fn test_squash_use_destination_message() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m=a"]);
@@ -1108,7 +1108,7 @@ fn test_squash_use_destination_message() {
 #[test]
 fn test_squash_use_destination_message_and_message_mutual_exclusion() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m=a"]);
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m=b"]);

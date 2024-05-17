@@ -137,7 +137,7 @@ fn test_config_list_all() {
 #[test]
 fn test_config_list_layer() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let user_config_path = test_env.config_path().join("config.toml");
     test_env.set_config_path(user_config_path.to_owned());
     let repo_path = test_env.env_root().join("repo");
@@ -191,7 +191,7 @@ fn test_config_list_layer() {
 #[test]
 fn test_config_layer_override_default() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let config_key = "merge-tools.vimdiff.program";
 
@@ -274,7 +274,7 @@ fn test_config_layer_override_default() {
 #[test]
 fn test_config_layer_override_env() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let config_key = "ui.editor";
 
@@ -349,7 +349,7 @@ fn test_config_layer_override_env() {
 #[test]
 fn test_config_layer_workspace() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "--git", "main"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "main"]);
     let main_path = test_env.env_root().join("main");
     let secondary_path = test_env.env_root().join("secondary");
     let config_key = "ui.editor";
@@ -396,7 +396,7 @@ fn test_config_set_missing_opts() {
 #[test]
 fn test_config_set_for_user() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     // Point to a config file since `config set` can't handle directories.
     let user_config_path = test_env.config_path().join("config.toml");
     test_env.set_config_path(user_config_path.to_owned());
@@ -425,7 +425,7 @@ fn test_config_set_for_user() {
 #[test]
 fn test_config_set_for_repo() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     test_env.jj_cmd_ok(
         &repo_path,
@@ -455,7 +455,7 @@ fn test_config_set_for_repo() {
 #[test]
 fn test_config_set_toml_types() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let user_config_path = test_env.config_path().join("config.toml");
     test_env.set_config_path(user_config_path.clone());
     let repo_path = test_env.env_root().join("repo");
@@ -483,7 +483,7 @@ fn test_config_set_toml_types() {
 #[test]
 fn test_config_set_type_mismatch() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let user_config_path = test_env.config_path().join("config.toml");
     test_env.set_config_path(user_config_path);
     let repo_path = test_env.env_root().join("repo");
@@ -522,7 +522,7 @@ fn test_config_set_type_mismatch() {
 #[test]
 fn test_config_set_nontable_parent() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let user_config_path = test_env.config_path().join("config.toml");
     test_env.set_config_path(user_config_path);
     let repo_path = test_env.env_root().join("repo");
@@ -557,7 +557,7 @@ fn test_config_edit_missing_opt() {
 #[test]
 fn test_config_edit_user() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let edit_script = test_env.set_up_fake_editor();
 
@@ -572,7 +572,7 @@ fn test_config_edit_user() {
 #[test]
 fn test_config_edit_repo() {
     let mut test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
     let edit_script = test_env.set_up_fake_editor();
 
@@ -590,7 +590,7 @@ fn test_config_edit_repo() {
 #[test]
 fn test_config_path() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
     assert_snapshot!(
