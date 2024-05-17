@@ -26,7 +26,9 @@ use pest::Parser;
 use pest_derive::Parser;
 use thiserror::Error;
 
-use crate::dsl_util::{collect_similar, StringLiteralParser};
+use crate::dsl_util::{
+    collect_similar, AliasDeclaration, AliasDeclarationParser, StringLiteralParser,
+};
 use crate::op_store::WorkspaceId;
 // TODO: remove reverse dependency on revset module
 use crate::revset::{ParseState, RevsetExpression, RevsetModifier};
@@ -569,11 +571,11 @@ impl RevsetAliasesMap {
         decl: impl AsRef<str>,
         defn: impl Into<String>,
     ) -> Result<(), RevsetParseError> {
-        match RevsetAliasDeclaration::parse(decl.as_ref())? {
-            RevsetAliasDeclaration::Symbol(name) => {
+        match RevsetAliasParser.parse_declaration(decl.as_ref())? {
+            AliasDeclaration::Symbol(name) => {
                 self.symbol_aliases.insert(name, defn.into());
             }
-            RevsetAliasDeclaration::Function(name, params) => {
+            AliasDeclaration::Function(name, params) => {
                 self.function_aliases.insert(name, (params, defn.into()));
             }
         }
@@ -607,19 +609,17 @@ impl RevsetAliasesMap {
     }
 }
 
-/// Parsed declaration part of alias rule.
 #[derive(Clone, Debug)]
-enum RevsetAliasDeclaration {
-    Symbol(String),
-    Function(String, Vec<String>),
-}
+struct RevsetAliasParser;
 
-impl RevsetAliasDeclaration {
-    fn parse(source: &str) -> Result<Self, RevsetParseError> {
+impl AliasDeclarationParser for RevsetAliasParser {
+    type Error = RevsetParseError;
+
+    fn parse_declaration(&self, source: &str) -> Result<AliasDeclaration, Self::Error> {
         let mut pairs = RevsetParser::parse(Rule::alias_declaration, source)?;
         let first = pairs.next().unwrap();
         match first.as_rule() {
-            Rule::identifier => Ok(RevsetAliasDeclaration::Symbol(first.as_str().to_owned())),
+            Rule::identifier => Ok(AliasDeclaration::Symbol(first.as_str().to_owned())),
             Rule::function_name => {
                 let name = first.as_str().to_owned();
                 let params_pair = pairs.next().unwrap();
@@ -632,7 +632,7 @@ impl RevsetAliasDeclaration {
                     })
                     .collect_vec();
                 if params.iter().all_unique() {
-                    Ok(RevsetAliasDeclaration::Function(name, params))
+                    Ok(AliasDeclaration::Function(name, params))
                 } else {
                     Err(RevsetParseError::with_span(
                         RevsetParseErrorKind::RedefinedFunctionParameter,

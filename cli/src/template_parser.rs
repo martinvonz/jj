@@ -16,7 +16,9 @@ use std::collections::HashMap;
 use std::{error, fmt, mem};
 
 use itertools::Itertools as _;
-use jj_lib::dsl_util::{collect_similar, StringLiteralParser};
+use jj_lib::dsl_util::{
+    collect_similar, AliasDeclaration, AliasDeclarationParser, StringLiteralParser,
+};
 use once_cell::sync::Lazy;
 use pest::iterators::{Pair, Pairs};
 use pest::pratt_parser::{Assoc, Op, PrattParser};
@@ -520,11 +522,11 @@ impl TemplateAliasesMap {
         decl: impl AsRef<str>,
         defn: impl Into<String>,
     ) -> TemplateParseResult<()> {
-        match TemplateAliasDeclaration::parse(decl.as_ref())? {
-            TemplateAliasDeclaration::Symbol(name) => {
+        match TemplateAliasParser.parse_declaration(decl.as_ref())? {
+            AliasDeclaration::Symbol(name) => {
                 self.symbol_aliases.insert(name, defn.into());
             }
-            TemplateAliasDeclaration::Function(name, params) => {
+            AliasDeclaration::Function(name, params) => {
                 self.function_aliases.insert(name, (params, defn.into()));
             }
         }
@@ -550,21 +552,19 @@ impl TemplateAliasesMap {
     }
 }
 
-/// Parsed declaration part of alias rule.
 #[derive(Clone, Debug)]
-enum TemplateAliasDeclaration {
-    Symbol(String),
-    Function(String, Vec<String>),
-}
+struct TemplateAliasParser;
 
-impl TemplateAliasDeclaration {
-    fn parse(source: &str) -> TemplateParseResult<Self> {
+impl AliasDeclarationParser for TemplateAliasParser {
+    type Error = TemplateParseError;
+
+    fn parse_declaration(&self, source: &str) -> Result<AliasDeclaration, Self::Error> {
         let mut pairs = TemplateParser::parse(Rule::alias_declaration, source)?;
         let first = pairs.next().unwrap();
         match first.as_rule() {
             Rule::identifier => {
                 let name = parse_identifier_name(first)?.to_owned();
-                Ok(TemplateAliasDeclaration::Symbol(name))
+                Ok(AliasDeclaration::Symbol(name))
             }
             Rule::function_alias_declaration => {
                 let mut inner = first.into_inner();
@@ -575,7 +575,7 @@ impl TemplateAliasDeclaration {
                     .into_iter()
                     .map(|s| s.to_owned())
                     .collect();
-                Ok(TemplateAliasDeclaration::Function(name, params))
+                Ok(AliasDeclaration::Function(name, params))
             }
             r => panic!("unexpected alias declaration rule {r:?}"),
         }
