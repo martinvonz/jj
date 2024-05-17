@@ -13,11 +13,12 @@
 // limitations under the License.
 
 use std::collections::HashMap;
-use std::{error, fmt, mem};
+use std::{error, mem};
 
 use itertools::Itertools as _;
 use jj_lib::dsl_util::{
-    collect_similar, AliasDeclaration, AliasDeclarationParser, StringLiteralParser,
+    collect_similar, AliasDeclaration, AliasDeclarationParser, AliasId, AliasesMap,
+    StringLiteralParser,
 };
 use once_cell::sync::Lazy;
 use pest::iterators::{Pair, Pairs};
@@ -169,14 +170,12 @@ impl TemplateParseError {
         TemplateParseError::with_span(TemplateParseErrorKind::Expression(message.into()), span)
     }
 
-    pub fn within_alias_expansion(self, id: TemplateAliasId<'_>, span: pest::Span<'_>) -> Self {
+    pub fn within_alias_expansion(self, id: AliasId<'_>, span: pest::Span<'_>) -> Self {
         let kind = match id {
-            TemplateAliasId::Symbol(_) | TemplateAliasId::Function(_) => {
+            AliasId::Symbol(_) | AliasId::Function(_) => {
                 TemplateParseErrorKind::BadAliasExpansion(id.to_string())
             }
-            TemplateAliasId::Parameter(_) => {
-                TemplateParseErrorKind::BadParameterExpansion(id.to_string())
-            }
+            AliasId::Parameter(_) => TemplateParseErrorKind::BadParameterExpansion(id.to_string()),
         };
         TemplateParseError::with_span(kind, span).with_source(self)
     }
@@ -215,8 +214,8 @@ impl TemplateParseError {
 
     /// Expands keyword/function candidates with the given aliases.
     pub fn extend_alias_candidates(self, aliases_map: &TemplateAliasesMap) -> Self {
-        self.extend_keyword_candidates(aliases_map.symbol_aliases.keys())
-            .extend_function_candidates(aliases_map.function_aliases.keys())
+        self.extend_keyword_candidates(aliases_map.symbol_names())
+            .extend_function_candidates(aliases_map.function_names())
     }
 
     pub fn kind(&self) -> &TemplateParseErrorKind {
@@ -273,7 +272,7 @@ pub enum ExpressionKind<'i> {
     MethodCall(Box<MethodCallNode<'i>>),
     Lambda(Box<LambdaNode<'i>>),
     /// Identity node to preserve the span in the source template text.
-    AliasExpanded(TemplateAliasId<'i>, Box<ExpressionNode<'i>>),
+    AliasExpanded(AliasId<'i>, Box<ExpressionNode<'i>>),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -498,62 +497,10 @@ pub fn parse_template(template_text: &str) -> TemplateParseResult<ExpressionNode
     }
 }
 
+pub type TemplateAliasesMap = AliasesMap<TemplateAliasParser>;
+
 #[derive(Clone, Debug, Default)]
-pub struct TemplateAliasesMap {
-    symbol_aliases: HashMap<String, String>,
-    function_aliases: HashMap<String, (Vec<String>, String)>,
-}
-
-impl TemplateAliasesMap {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn symbol_names(&self) -> impl Iterator<Item = &str> {
-        self.symbol_aliases.keys().map(|s| s.as_str())
-    }
-
-    /// Adds new substitution rule `decl = defn`.
-    ///
-    /// Returns error if `decl` is invalid. The `defn` part isn't checked. A bad
-    /// `defn` will be reported when the alias is substituted.
-    pub fn insert(
-        &mut self,
-        decl: impl AsRef<str>,
-        defn: impl Into<String>,
-    ) -> TemplateParseResult<()> {
-        match TemplateAliasParser.parse_declaration(decl.as_ref())? {
-            AliasDeclaration::Symbol(name) => {
-                self.symbol_aliases.insert(name, defn.into());
-            }
-            AliasDeclaration::Function(name, params) => {
-                self.function_aliases.insert(name, (params, defn.into()));
-            }
-        }
-        Ok(())
-    }
-
-    fn get_symbol(&self, name: &str) -> Option<(TemplateAliasId<'_>, &str)> {
-        self.symbol_aliases
-            .get_key_value(name)
-            .map(|(name, defn)| (TemplateAliasId::Symbol(name), defn.as_ref()))
-    }
-
-    fn get_function(&self, name: &str) -> Option<(TemplateAliasId<'_>, &[String], &str)> {
-        self.function_aliases
-            .get_key_value(name)
-            .map(|(name, (params, defn))| {
-                (
-                    TemplateAliasId::Function(name),
-                    params.as_ref(),
-                    defn.as_ref(),
-                )
-            })
-    }
-}
-
-#[derive(Clone, Debug)]
-struct TemplateAliasParser;
+pub struct TemplateAliasParser;
 
 impl AliasDeclarationParser for TemplateAliasParser {
     type Error = TemplateParseError;
@@ -582,24 +529,6 @@ impl AliasDeclarationParser for TemplateAliasParser {
     }
 }
 
-/// Borrowed reference to identify alias expression.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum TemplateAliasId<'a> {
-    Symbol(&'a str),
-    Function(&'a str),
-    Parameter(&'a str),
-}
-
-impl fmt::Display for TemplateAliasId<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            TemplateAliasId::Symbol(name) => write!(f, "{name}"),
-            TemplateAliasId::Function(name) => write!(f, "{name}()"),
-            TemplateAliasId::Parameter(name) => write!(f, "{name}"),
-        }
-    }
-}
-
 /// Expand aliases recursively.
 pub fn expand_aliases<'i>(
     node: ExpressionNode<'i>,
@@ -608,12 +537,12 @@ pub fn expand_aliases<'i>(
     #[derive(Clone, Copy, Debug)]
     struct State<'a, 'i> {
         aliases_map: &'i TemplateAliasesMap,
-        aliases_expanding: &'a [TemplateAliasId<'a>],
+        aliases_expanding: &'a [AliasId<'a>],
         locals: &'a HashMap<&'a str, ExpressionNode<'i>>,
     }
 
     fn expand_defn<'i>(
-        id: TemplateAliasId<'i>,
+        id: AliasId<'i>,
         defn: &'i str,
         locals: &HashMap<&str, ExpressionNode<'i>>,
         span: pest::Span<'i>,
@@ -670,10 +599,7 @@ pub fn expand_aliases<'i>(
         let kind = match kind {
             ExpressionKind::Identifier(name) => {
                 if let Some(subst) = state.locals.get(name) {
-                    ExpressionKind::AliasExpanded(
-                        TemplateAliasId::Parameter(name),
-                        Box::new(subst.clone()),
-                    )
+                    ExpressionKind::AliasExpanded(AliasId::Parameter(name), Box::new(subst.clone()))
                 } else if let Some((id, defn)) = state.aliases_map.get_symbol(name) {
                     let locals = HashMap::new(); // Don't spill out the current scope
                     expand_defn(id, defn, &locals, span, state)?
@@ -1240,11 +1166,11 @@ mod tests {
         aliases_map.insert("func(a)", r#""is function""#).unwrap();
 
         let (id, defn) = aliases_map.get_symbol("sym").unwrap();
-        assert_eq!(id, TemplateAliasId::Symbol("sym"));
+        assert_eq!(id, AliasId::Symbol("sym"));
         assert_eq!(defn, r#""is symbol""#);
 
         let (id, params, defn) = aliases_map.get_function("func").unwrap();
-        assert_eq!(id, TemplateAliasId::Function("func"));
+        assert_eq!(id, AliasId::Function("func"));
         assert_eq!(params, ["a"]);
         assert_eq!(defn, r#""is function""#);
 
