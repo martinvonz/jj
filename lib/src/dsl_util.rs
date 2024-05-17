@@ -14,6 +14,9 @@
 
 //! Domain-specific language helpers.
 
+use std::collections::HashMap;
+use std::fmt;
+
 use itertools::Itertools as _;
 use pest::iterators::Pairs;
 use pest::RuleType;
@@ -49,6 +52,82 @@ impl<R: RuleType> StringLiteralParser<R> {
             }
         }
         result
+    }
+}
+
+/// Map of symbol and function aliases.
+#[derive(Clone, Debug, Default)]
+pub struct AliasesMap<P> {
+    symbol_aliases: HashMap<String, String>,
+    function_aliases: HashMap<String, (Vec<String>, String)>,
+    // Parser type P helps prevent misuse of AliasesMap of different language.
+    parser: P,
+}
+
+impl<P> AliasesMap<P> {
+    /// Creates an empty aliases map with default-constructed parser.
+    pub fn new() -> Self
+    where
+        P: Default,
+    {
+        Self::default()
+    }
+
+    /// Adds new substitution rule `decl = defn`.
+    ///
+    /// Returns error if `decl` is invalid. The `defn` part isn't checked. A bad
+    /// `defn` will be reported when the alias is substituted.
+    pub fn insert(&mut self, decl: impl AsRef<str>, defn: impl Into<String>) -> Result<(), P::Error>
+    where
+        P: AliasDeclarationParser,
+    {
+        match self.parser.parse_declaration(decl.as_ref())? {
+            AliasDeclaration::Symbol(name) => {
+                self.symbol_aliases.insert(name, defn.into());
+            }
+            AliasDeclaration::Function(name, params) => {
+                self.function_aliases.insert(name, (params, defn.into()));
+            }
+        }
+        Ok(())
+    }
+
+    /// Iterates function names in arbitrary order.
+    pub fn function_names(&self) -> impl Iterator<Item = &str> {
+        self.function_aliases.keys().map(|n| n.as_ref())
+    }
+
+    /// Looks up symbol alias by name. Returns identifier and definition text.
+    pub fn get_symbol(&self, name: &str) -> Option<(AliasId<'_>, &str)> {
+        self.symbol_aliases
+            .get_key_value(name)
+            .map(|(name, defn)| (AliasId::Symbol(name), defn.as_ref()))
+    }
+
+    /// Looks up function alias by name. Returns identifier, list of parameter
+    /// names, and definition text.
+    pub fn get_function(&self, name: &str) -> Option<(AliasId<'_>, &[String], &str)> {
+        self.function_aliases
+            .get_key_value(name)
+            .map(|(name, (params, defn))| (AliasId::Function(name), params.as_ref(), defn.as_ref()))
+    }
+}
+
+/// Borrowed reference to identify alias expression.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AliasId<'a> {
+    /// Symbol name.
+    Symbol(&'a str),
+    /// Function name.
+    Function(&'a str),
+}
+
+impl fmt::Display for AliasId<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            AliasId::Symbol(name) => write!(f, "{name}"),
+            AliasId::Function(name) => write!(f, "{name}()"),
+        }
     }
 }
 

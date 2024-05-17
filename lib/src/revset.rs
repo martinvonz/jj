@@ -31,7 +31,7 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, ChangeId, CommitId};
 use crate::commit::Commit;
-use crate::dsl_util::collect_similar;
+use crate::dsl_util::{collect_similar, AliasId};
 use crate::fileset::{FilePattern, FilesetExpression, FilesetParseContext};
 use crate::git;
 use crate::hex_util::to_forward_hex;
@@ -47,7 +47,7 @@ pub use crate::revset_parser::{
     expect_one_argument, parse_expression_rule, RevsetAliasesMap, RevsetParseError,
     RevsetParseErrorKind, Rule,
 };
-use crate::revset_parser::{parse_program, parse_program_with_modifier, RevsetAliasId};
+use crate::revset_parser::{parse_program, parse_program_with_modifier};
 use crate::store::Store;
 use crate::str_util::StringPattern;
 
@@ -538,7 +538,7 @@ impl ResolvedExpression {
 pub struct ParseState<'a> {
     pub(super) function_map: &'a HashMap<&'static str, RevsetFunction>,
     pub(super) aliases_map: &'a RevsetAliasesMap,
-    aliases_expanding: &'a [RevsetAliasId<'a>],
+    aliases_expanding: &'a [AliasId<'a>],
     pub(super) locals: &'a HashMap<&'a str, Rc<RevsetExpression>>,
     user_email: &'a str,
     pub(super) workspace_ctx: &'a Option<RevsetWorkspaceContext<'a>>,
@@ -564,7 +564,7 @@ impl<'a> ParseState<'a> {
 
     pub(super) fn with_alias_expanding<T>(
         self,
-        id: RevsetAliasId<'_>,
+        id: AliasId<'_>,
         locals: &HashMap<&str, Rc<RevsetExpression>>,
         span: pest::Span<'_>,
         f: impl FnOnce(ParseState<'_>) -> Result<T, RevsetParseError>,
