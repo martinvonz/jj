@@ -52,6 +52,24 @@ impl<R: RuleType> StringLiteralParser<R> {
     }
 }
 
+/// Parsed declaration part of alias rule.
+#[derive(Clone, Debug)]
+pub enum AliasDeclaration {
+    /// Symbol name.
+    Symbol(String),
+    /// Function name and parameters.
+    Function(String, Vec<String>),
+}
+
+/// Parser for symbol and function alias declaration.
+pub trait AliasDeclarationParser {
+    /// Parse error type.
+    type Error;
+
+    /// Parses symbol or function name and parameters.
+    fn parse_declaration(&self, source: &str) -> Result<AliasDeclaration, Self::Error>;
+}
+
 /// Collects similar names from the `candidates` list.
 pub fn collect_similar<I>(name: &str, candidates: I) -> Vec<String>
 where
