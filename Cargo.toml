@@ -44,7 +44,7 @@ criterion = "0.5.1"
 crossterm = { version = "0.27", default-features = false }
 digest = "0.10.7"
 dirs = "5.0.1"
-either = "1.11.0"
+either = "1.12.0"
 esl01-renderdag = "0.3.0"
 futures = "0.3.30"
 git2 = "0.18.3"
@@ -90,7 +90,7 @@ smallvec = { version = "1.13.2", features = [
     "union",
 ] }
 strsim = "0.11.1"
-syn = "2.0.63"
+syn = "2.0.64"
 tempfile = "3.10.1"
 test-case = "3.3.1"
 textwrap = "0.16.1"
