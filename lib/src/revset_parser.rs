@@ -15,8 +15,8 @@
 #![allow(missing_docs)]
 
 use std::collections::{HashMap, HashSet};
+use std::error;
 use std::rc::Rc;
-use std::{error, fmt};
 
 use itertools::Itertools as _;
 use once_cell::sync::Lazy;
@@ -27,7 +27,7 @@ use pest_derive::Parser;
 use thiserror::Error;
 
 use crate::dsl_util::{
-    collect_similar, AliasDeclaration, AliasDeclarationParser, StringLiteralParser,
+    collect_similar, AliasDeclaration, AliasDeclarationParser, AliasesMap, StringLiteralParser,
 };
 use crate::op_store::WorkspaceId;
 // TODO: remove reverse dependency on revset module
@@ -551,66 +551,10 @@ fn parse_function_expression(
     }
 }
 
+pub type RevsetAliasesMap = AliasesMap<RevsetAliasParser>;
+
 #[derive(Clone, Debug, Default)]
-pub struct RevsetAliasesMap {
-    symbol_aliases: HashMap<String, String>,
-    function_aliases: HashMap<String, (Vec<String>, String)>,
-}
-
-impl RevsetAliasesMap {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Adds new substitution rule `decl = defn`.
-    ///
-    /// Returns error if `decl` is invalid. The `defn` part isn't checked. A bad
-    /// `defn` will be reported when the alias is substituted.
-    pub fn insert(
-        &mut self,
-        decl: impl AsRef<str>,
-        defn: impl Into<String>,
-    ) -> Result<(), RevsetParseError> {
-        match RevsetAliasParser.parse_declaration(decl.as_ref())? {
-            AliasDeclaration::Symbol(name) => {
-                self.symbol_aliases.insert(name, defn.into());
-            }
-            AliasDeclaration::Function(name, params) => {
-                self.function_aliases.insert(name, (params, defn.into()));
-            }
-        }
-        Ok(())
-    }
-
-    /// Iterates function names in arbitrary order.
-    pub fn function_names(&self) -> impl Iterator<Item = &str> {
-        self.function_aliases.keys().map(|n| n.as_ref())
-    }
-
-    /// Looks up symbol alias by name. Returns identifier and definition text.
-    pub fn get_symbol(&self, name: &str) -> Option<(RevsetAliasId<'_>, &str)> {
-        self.symbol_aliases
-            .get_key_value(name)
-            .map(|(name, defn)| (RevsetAliasId::Symbol(name), defn.as_ref()))
-    }
-
-    /// Looks up function alias by name. Returns identifier, list of parameter
-    /// names, and definition text.
-    pub fn get_function(&self, name: &str) -> Option<(RevsetAliasId<'_>, &[String], &str)> {
-        self.function_aliases
-            .get_key_value(name)
-            .map(|(name, (params, defn))| {
-                (
-                    RevsetAliasId::Function(name),
-                    params.as_ref(),
-                    defn.as_ref(),
-                )
-            })
-    }
-}
-
-#[derive(Clone, Debug)]
-struct RevsetAliasParser;
+pub struct RevsetAliasParser;
 
 impl AliasDeclarationParser for RevsetAliasParser {
     type Error = RevsetParseError;
@@ -641,22 +585,6 @@ impl AliasDeclarationParser for RevsetAliasParser {
                 }
             }
             r => panic!("unexpected alias declaration rule {r:?}"),
-        }
-    }
-}
-
-/// Borrowed reference to identify alias expression.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum RevsetAliasId<'a> {
-    Symbol(&'a str),
-    Function(&'a str),
-}
-
-impl fmt::Display for RevsetAliasId<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RevsetAliasId::Symbol(name) => write!(f, "{name}"),
-            RevsetAliasId::Function(name) => write!(f, "{name}()"),
         }
     }
 }
