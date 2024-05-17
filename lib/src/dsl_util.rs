@@ -92,6 +92,11 @@ impl<P> AliasesMap<P> {
         Ok(())
     }
 
+    /// Iterates symbol names in arbitrary order.
+    pub fn symbol_names(&self) -> impl Iterator<Item = &str> {
+        self.symbol_aliases.keys().map(|n| n.as_ref())
+    }
+
     /// Iterates function names in arbitrary order.
     pub fn function_names(&self) -> impl Iterator<Item = &str> {
         self.function_aliases.keys().map(|n| n.as_ref())
@@ -120,6 +125,8 @@ pub enum AliasId<'a> {
     Symbol(&'a str),
     /// Function name.
     Function(&'a str),
+    /// Function parameter name.
+    Parameter(&'a str),
 }
 
 impl fmt::Display for AliasId<'_> {
@@ -127,6 +134,7 @@ impl fmt::Display for AliasId<'_> {
         match self {
             AliasId::Symbol(name) => write!(f, "{name}"),
             AliasId::Function(name) => write!(f, "{name}()"),
+            AliasId::Parameter(name) => write!(f, "{name}"),
         }
     }
 }
