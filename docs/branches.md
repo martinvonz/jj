@@ -157,10 +157,10 @@ current branch commit, even if it isn't entirely accurate.
 Branches can end up in a conflicted state. When that happens, `jj status` will
 include information about the conflicted branches (and instructions for how to
 mitigate it). `jj branch list` will have details. `jj log` will show the branch
-name with a question mark suffix (e.g. `main?`) on each of the conflicted
-branch's potential target revisions. Using the branch name to look up a revision
-will resolve to all potential targets. That means that `jj new main` will error
-out, complaining that the revset resolved to multiple revisions.
+name with a double question mark suffix (e.g. `main??`) on each of the
+conflicted branch's potential target revisions. Using the branch name to look up
+a revision will resolve to all potential targets. That means that `jj new main`
+will error out, complaining that the revset resolved to multiple revisions.
 
 Both local branches (e.g. `main`) and the remote branch (e.g. `main@origin`) can
 have conflicts. Both can end up in that state if concurrent operations were run
