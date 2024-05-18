@@ -18,7 +18,8 @@ use std::{error, mem};
 use itertools::Itertools as _;
 use jj_lib::dsl_util::{
     self, collect_similar, AliasDeclaration, AliasDeclarationParser, AliasExpandError,
-    AliasExpandableExpression, AliasId, AliasesMap, InvalidArguments, StringLiteralParser,
+    AliasExpandableExpression, AliasId, AliasesMap, ExpressionFolder, FoldableExpression,
+    InvalidArguments, StringLiteralParser,
 };
 use once_cell::sync::Lazy;
 use pest::iterators::{Pair, Pairs};
@@ -270,6 +271,53 @@ pub enum ExpressionKind<'i> {
     Lambda(Box<LambdaNode<'i>>),
     /// Identity node to preserve the span in the source template text.
     AliasExpanded(AliasId<'i>, Box<ExpressionNode<'i>>),
+}
+
+impl<'i> FoldableExpression<'i> for ExpressionKind<'i> {
+    fn fold<F>(self, folder: &mut F, span: pest::Span<'i>) -> Result<Self, F::Error>
+    where
+        F: ExpressionFolder<'i, Self> + ?Sized,
+    {
+        match self {
+            ExpressionKind::Identifier(name) => folder.fold_identifier(name, span),
+            ExpressionKind::Boolean(_) | ExpressionKind::Integer(_) | ExpressionKind::String(_) => {
+                Ok(self)
+            }
+            ExpressionKind::Unary(op, arg) => {
+                let arg = Box::new(folder.fold_expression(*arg)?);
+                Ok(ExpressionKind::Unary(op, arg))
+            }
+            ExpressionKind::Binary(op, lhs, rhs) => {
+                let lhs = Box::new(folder.fold_expression(*lhs)?);
+                let rhs = Box::new(folder.fold_expression(*rhs)?);
+                Ok(ExpressionKind::Binary(op, lhs, rhs))
+            }
+            ExpressionKind::Concat(nodes) => Ok(ExpressionKind::Concat(
+                dsl_util::fold_expression_nodes(folder, nodes)?,
+            )),
+            ExpressionKind::FunctionCall(function) => folder.fold_function_call(function, span),
+            ExpressionKind::MethodCall(method) => {
+                // Method call is syntactically different from function call.
+                let method = Box::new(MethodCallNode {
+                    object: folder.fold_expression(method.object)?,
+                    function: dsl_util::fold_function_call_args(folder, method.function)?,
+                });
+                Ok(ExpressionKind::MethodCall(method))
+            }
+            ExpressionKind::Lambda(lambda) => {
+                let lambda = Box::new(LambdaNode {
+                    params: lambda.params,
+                    params_span: lambda.params_span,
+                    body: folder.fold_expression(lambda.body)?,
+                });
+                Ok(ExpressionKind::Lambda(lambda))
+            }
+            ExpressionKind::AliasExpanded(id, subst) => {
+                let subst = Box::new(folder.fold_expression(*subst)?);
+                Ok(ExpressionKind::AliasExpanded(id, subst))
+            }
+        }
+    }
 }
 
 impl<'i> AliasExpandableExpression<'i> for ExpressionKind<'i> {
