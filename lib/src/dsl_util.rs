@@ -130,6 +130,73 @@ pub struct InvalidArguments<'i> {
     pub span: pest::Span<'i>,
 }
 
+/// Expression item that can be transformed recursively by using `folder: F`.
+pub trait FoldableExpression<'i>: Sized {
+    /// Transforms `self` by applying the `folder` to inner items.
+    fn fold<F>(self, folder: &mut F, span: pest::Span<'i>) -> Result<Self, F::Error>
+    where
+        F: ExpressionFolder<'i, Self> + ?Sized;
+}
+
+/// Visitor-like interface to transform AST nodes recursively.
+pub trait ExpressionFolder<'i, T: FoldableExpression<'i>> {
+    /// Transform error.
+    type Error;
+
+    /// Transforms the expression `node`. By default, inner items are
+    /// transformed recursively.
+    fn fold_expression(
+        &mut self,
+        node: ExpressionNode<'i, T>,
+    ) -> Result<ExpressionNode<'i, T>, Self::Error> {
+        let ExpressionNode { kind, span } = node;
+        let kind = kind.fold(self, span)?;
+        Ok(ExpressionNode { kind, span })
+    }
+
+    /// Transforms identifier.
+    fn fold_identifier(&mut self, name: &'i str, span: pest::Span<'i>) -> Result<T, Self::Error>;
+
+    /// Transforms function call.
+    fn fold_function_call(
+        &mut self,
+        function: Box<FunctionCallNode<'i, T>>,
+        span: pest::Span<'i>,
+    ) -> Result<T, Self::Error>;
+}
+
+/// Transforms list of `nodes` by using `folder`.
+pub fn fold_expression_nodes<'i, F, T>(
+    folder: &mut F,
+    nodes: Vec<ExpressionNode<'i, T>>,
+) -> Result<Vec<ExpressionNode<'i, T>>, F::Error>
+where
+    F: ExpressionFolder<'i, T> + ?Sized,
+    T: FoldableExpression<'i>,
+{
+    nodes
+        .into_iter()
+        .map(|node| folder.fold_expression(node))
+        .try_collect()
+}
+
+/// Transforms function call arguments by using `folder`.
+pub fn fold_function_call_args<'i, F, T>(
+    folder: &mut F,
+    function: FunctionCallNode<'i, T>,
+) -> Result<FunctionCallNode<'i, T>, F::Error>
+where
+    F: ExpressionFolder<'i, T> + ?Sized,
+    T: FoldableExpression<'i>,
+{
+    Ok(FunctionCallNode {
+        name: function.name,
+        name_span: function.name_span,
+        args: fold_expression_nodes(folder, function.args)?,
+        args_span: function.args_span,
+    })
+}
+
 /// Helper to parse string literal.
 #[derive(Debug)]
 pub struct StringLiteralParser<R> {
@@ -267,7 +334,7 @@ pub trait AliasDeclarationParser {
 }
 
 /// Expression item that supports alias substitution.
-pub trait AliasExpandableExpression<'i>: Sized {
+pub trait AliasExpandableExpression<'i>: FoldableExpression<'i> {
     /// Wraps identifier.
     fn identifier(name: &'i str) -> Self;
     /// Wraps function call.
