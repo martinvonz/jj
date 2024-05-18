@@ -372,6 +372,114 @@ pub trait AliasExpandError: Sized {
     fn within_alias_expansion(self, id: AliasId<'_>, span: pest::Span<'_>) -> Self;
 }
 
+/// Expands aliases recursively in tree of `T`.
+#[derive(Debug)]
+struct AliasExpander<'i, T, P> {
+    /// Alias symbols and functions that are globally available.
+    aliases_map: &'i AliasesMap<P>,
+    /// Stack of aliases and local parameters currently expanding.
+    states: Vec<AliasExpandingState<'i, T>>,
+}
+
+#[derive(Debug)]
+struct AliasExpandingState<'i, T> {
+    id: AliasId<'i>,
+    locals: HashMap<&'i str, ExpressionNode<'i, T>>,
+}
+
+impl<'i, T, P, E> AliasExpander<'i, T, P>
+where
+    T: AliasExpandableExpression<'i> + Clone,
+    P: AliasDefinitionParser<Output<'i> = T, Error = E>,
+    E: AliasExpandError,
+{
+    fn expand_defn(
+        &mut self,
+        id: AliasId<'i>,
+        defn: &'i str,
+        locals: HashMap<&'i str, ExpressionNode<'i, T>>,
+        span: pest::Span<'i>,
+    ) -> Result<T, E> {
+        // The stack should be short, so let's simply do linear search.
+        if self.states.iter().any(|s| s.id == id) {
+            return Err(E::recursive_expansion(id, span));
+        }
+        self.states.push(AliasExpandingState { id, locals });
+        // Parsed defn could be cached if needed.
+        let result = self
+            .aliases_map
+            .parser
+            .parse_definition(defn)
+            .and_then(|node| self.fold_expression(node))
+            .map(|node| T::alias_expanded(id, Box::new(node)))
+            .map_err(|e| e.within_alias_expansion(id, span));
+        self.states.pop();
+        result
+    }
+}
+
+impl<'i, T, P, E> ExpressionFolder<'i, T> for AliasExpander<'i, T, P>
+where
+    T: AliasExpandableExpression<'i> + Clone,
+    P: AliasDefinitionParser<Output<'i> = T, Error = E>,
+    E: AliasExpandError,
+{
+    type Error = E;
+
+    fn fold_identifier(&mut self, name: &'i str, span: pest::Span<'i>) -> Result<T, Self::Error> {
+        if let Some(subst) = self.states.last().and_then(|s| s.locals.get(name)) {
+            let id = AliasId::Parameter(name);
+            Ok(T::alias_expanded(id, Box::new(subst.clone())))
+        } else if let Some((id, defn)) = self.aliases_map.get_symbol(name) {
+            let locals = HashMap::new(); // Don't spill out the current scope
+            self.expand_defn(id, defn, locals, span)
+        } else {
+            Ok(T::identifier(name))
+        }
+    }
+
+    fn fold_function_call(
+        &mut self,
+        function: Box<FunctionCallNode<'i, T>>,
+        span: pest::Span<'i>,
+    ) -> Result<T, Self::Error> {
+        if let Some((id, params, defn)) = self.aliases_map.get_function(function.name) {
+            if function.args.len() != params.len() {
+                return Err(E::invalid_arguments(InvalidArguments {
+                    name: function.name,
+                    message: format!("Expected {} arguments", params.len()),
+                    span: function.args_span,
+                }));
+            }
+            // Resolve arguments in the current scope, and pass them in to the alias
+            // expansion scope.
+            let args = fold_expression_nodes(self, function.args)?;
+            let locals = params.iter().map(|s| s.as_str()).zip(args).collect();
+            self.expand_defn(id, defn, locals, span)
+        } else {
+            let function = Box::new(fold_function_call_args(self, *function)?);
+            Ok(T::function_call(function))
+        }
+    }
+}
+
+/// Expands aliases recursively.
+pub fn expand_aliases<'i, T, P>(
+    node: ExpressionNode<'i, T>,
+    aliases_map: &'i AliasesMap<P>,
+) -> Result<ExpressionNode<'i, T>, P::Error>
+where
+    T: AliasExpandableExpression<'i> + Clone,
+    P: AliasDefinitionParser<Output<'i> = T>,
+    P::Error: AliasExpandError,
+{
+    let mut expander = AliasExpander {
+        aliases_map,
+        states: Vec::new(),
+    };
+    expander.fold_expression(node)
+}
+
 /// Collects similar names from the `candidates` list.
 pub fn collect_similar<I>(name: &str, candidates: I) -> Vec<String>
 where
