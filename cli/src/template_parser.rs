@@ -17,8 +17,8 @@ use std::{error, mem};
 
 use itertools::Itertools as _;
 use jj_lib::dsl_util::{
-    self, collect_similar, AliasDeclaration, AliasDeclarationParser, AliasId, AliasesMap,
-    InvalidArguments, StringLiteralParser,
+    self, collect_similar, AliasDeclaration, AliasDeclarationParser, AliasExpandableExpression,
+    AliasId, AliasesMap, InvalidArguments, StringLiteralParser,
 };
 use once_cell::sync::Lazy;
 use pest::iterators::{Pair, Pairs};
@@ -260,6 +260,20 @@ pub enum ExpressionKind<'i> {
     Lambda(Box<LambdaNode<'i>>),
     /// Identity node to preserve the span in the source template text.
     AliasExpanded(AliasId<'i>, Box<ExpressionNode<'i>>),
+}
+
+impl<'i> AliasExpandableExpression<'i> for ExpressionKind<'i> {
+    fn identifier(name: &'i str) -> Self {
+        ExpressionKind::Identifier(name)
+    }
+
+    fn function_call(function: Box<FunctionCallNode<'i>>) -> Self {
+        ExpressionKind::FunctionCall(function)
+    }
+
+    fn alias_expanded(id: AliasId<'i>, subst: Box<ExpressionNode<'i>>) -> Self {
+        ExpressionKind::AliasExpanded(id, subst)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -547,7 +561,7 @@ pub fn expand_aliases<'i>(
         // Parsed defn could be cached if needed.
         parse_template(defn)
             .and_then(|node| expand_node(node, expanding_state))
-            .map(|node| ExpressionKind::AliasExpanded(id, Box::new(node)))
+            .map(|node| ExpressionKind::alias_expanded(id, Box::new(node)))
             .map_err(|e| e.within_alias_expansion(id, span))
     }
 
@@ -581,12 +595,13 @@ pub fn expand_aliases<'i>(
         let kind = match kind {
             ExpressionKind::Identifier(name) => {
                 if let Some(subst) = state.locals.get(name) {
-                    ExpressionKind::AliasExpanded(AliasId::Parameter(name), Box::new(subst.clone()))
+                    let id = AliasId::Parameter(name);
+                    ExpressionKind::alias_expanded(id, Box::new(subst.clone()))
                 } else if let Some((id, defn)) = state.aliases_map.get_symbol(name) {
                     let locals = HashMap::new(); // Don't spill out the current scope
                     expand_defn(id, defn, &locals, span, state)?
                 } else {
-                    kind
+                    ExpressionKind::identifier(name)
                 }
             }
             ExpressionKind::Boolean(_) | ExpressionKind::Integer(_) | ExpressionKind::String(_) => {
@@ -619,7 +634,7 @@ pub fn expand_aliases<'i>(
                     expand_defn(id, defn, &locals, span, state)?
                 } else {
                     let function = Box::new(expand_function_call(*function, state)?);
-                    ExpressionKind::FunctionCall(function)
+                    ExpressionKind::function_call(function)
                 }
             }
             ExpressionKind::MethodCall(method) => {

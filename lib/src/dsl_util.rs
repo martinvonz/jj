@@ -266,6 +266,16 @@ pub trait AliasDeclarationParser {
     fn parse_declaration(&self, source: &str) -> Result<AliasDeclaration, Self::Error>;
 }
 
+/// Expression item that supports alias substitution.
+pub trait AliasExpandableExpression<'i>: Sized {
+    /// Wraps identifier.
+    fn identifier(name: &'i str) -> Self;
+    /// Wraps function call.
+    fn function_call(function: Box<FunctionCallNode<'i, Self>>) -> Self;
+    /// Wraps substituted expression.
+    fn alias_expanded(id: AliasId<'i>, subst: Box<ExpressionNode<'i, Self>>) -> Self;
+}
+
 /// Collects similar names from the `candidates` list.
 pub fn collect_similar<I>(name: &str, candidates: I) -> Vec<String>
 where
