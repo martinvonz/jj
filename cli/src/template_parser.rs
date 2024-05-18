@@ -17,8 +17,8 @@ use std::{error, mem};
 
 use itertools::Itertools as _;
 use jj_lib::dsl_util::{
-    self, collect_similar, AliasDeclaration, AliasDeclarationParser, AliasExpandableExpression,
-    AliasId, AliasesMap, InvalidArguments, StringLiteralParser,
+    self, collect_similar, AliasDeclaration, AliasDeclarationParser, AliasExpandError,
+    AliasExpandableExpression, AliasId, AliasesMap, InvalidArguments, StringLiteralParser,
 };
 use once_cell::sync::Lazy;
 use pest::iterators::{Pair, Pairs};
@@ -160,16 +160,6 @@ impl TemplateParseError {
         TemplateParseError::with_span(TemplateParseErrorKind::Expression(message.into()), span)
     }
 
-    pub fn within_alias_expansion(self, id: AliasId<'_>, span: pest::Span<'_>) -> Self {
-        let kind = match id {
-            AliasId::Symbol(_) | AliasId::Function(_) => {
-                TemplateParseErrorKind::BadAliasExpansion(id.to_string())
-            }
-            AliasId::Parameter(_) => TemplateParseErrorKind::BadParameterExpansion(id.to_string()),
-        };
-        TemplateParseError::with_span(kind, span).with_source(self)
-    }
-
     /// If this is a `NoSuchKeyword` error, expands the candidates list with the
     /// given `other_keywords`.
     pub fn extend_keyword_candidates<I>(mut self, other_keywords: I) -> Self
@@ -215,6 +205,26 @@ impl TemplateParseError {
     /// Original parsing error which typically occurred in an alias expression.
     pub fn origin(&self) -> Option<&Self> {
         self.source.as_ref().and_then(|e| e.downcast_ref())
+    }
+}
+
+impl AliasExpandError for TemplateParseError {
+    fn invalid_arguments(err: InvalidArguments<'_>) -> Self {
+        err.into()
+    }
+
+    fn recursive_expansion(id: AliasId<'_>, span: pest::Span<'_>) -> Self {
+        Self::with_span(TemplateParseErrorKind::RecursiveAlias(id.to_string()), span)
+    }
+
+    fn within_alias_expansion(self, id: AliasId<'_>, span: pest::Span<'_>) -> Self {
+        let kind = match id {
+            AliasId::Symbol(_) | AliasId::Function(_) => {
+                TemplateParseErrorKind::BadAliasExpansion(id.to_string())
+            }
+            AliasId::Parameter(_) => TemplateParseErrorKind::BadParameterExpansion(id.to_string()),
+        };
+        Self::with_span(kind, span).with_source(self)
     }
 }
 
@@ -546,10 +556,7 @@ pub fn expand_aliases<'i>(
     ) -> TemplateParseResult<ExpressionKind<'i>> {
         // The stack should be short, so let's simply do linear search and duplicate.
         if state.aliases_expanding.contains(&id) {
-            return Err(TemplateParseError::with_span(
-                TemplateParseErrorKind::RecursiveAlias(id.to_string()),
-                span,
-            ));
+            return Err(TemplateParseError::recursive_expansion(id, span));
         }
         let mut aliases_expanding = state.aliases_expanding.to_vec();
         aliases_expanding.push(id);
