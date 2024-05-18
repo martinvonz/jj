@@ -324,6 +324,11 @@ pub enum AliasDeclaration {
     Function(String, Vec<String>),
 }
 
+// AliasDeclarationParser and AliasDefinitionParser can be merged into a single
+// trait, but it's unclear whether doing that would simplify the abstraction.
+// For now, they have to be separate traits because revset isn't migrated to
+// ExpressionNode tree yet.
+
 /// Parser for symbol and function alias declaration.
 pub trait AliasDeclarationParser {
     /// Parse error type.
@@ -331,6 +336,20 @@ pub trait AliasDeclarationParser {
 
     /// Parses symbol or function name and parameters.
     fn parse_declaration(&self, source: &str) -> Result<AliasDeclaration, Self::Error>;
+}
+
+/// Parser for symbol and function alias definition.
+pub trait AliasDefinitionParser {
+    /// Expression item type.
+    type Output<'i>;
+    /// Parse error type.
+    type Error;
+
+    /// Parses alias body.
+    fn parse_definition<'i>(
+        &self,
+        source: &'i str,
+    ) -> Result<ExpressionNode<'i, Self::Output<'i>>, Self::Error>;
 }
 
 /// Expression item that supports alias substitution.
