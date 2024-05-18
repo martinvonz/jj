@@ -173,7 +173,7 @@ echo -n '../../../.git' > .jj/repo/store/git_target
 echo '/*' > .jj/.gitignore
 # Make the Git repository non-bare and set HEAD
 git config --unset core.bare
-jj st
+jj new @-
 ```
 
 We may officially support this in the future. If you try this, we would
