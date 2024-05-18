@@ -784,10 +784,25 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#default-revisions-to-log" class="md-nav__link">
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#log" class="md-nav__link">
     <span class="md-ellipsis">
-      Default revisions to log
+      Log
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Log">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-revisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Default revisions
     </span>
   </a>
   
@@ -1822,10 +1837,25 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#default-revisions-to-log" class="md-nav__link">
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#log" class="md-nav__link">
     <span class="md-ellipsis">
-      Default revisions to log
+      Log
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Log">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#default-revisions" class="md-nav__link">
+    <span class="md-ellipsis">
+      Default revisions
     </span>
   </a>
   
@@ -2355,7 +2385,8 @@ users:</p>
 </code></pre></div>
 <p>Ancestors of the configured set are also immutable. The root commit is always
 immutable even if the set is empty.</p>
-<h3 id="default-revisions-to-log">Default revisions to log<a class="headerlink" href="#default-revisions-to-log" title="Permanent link">&para;</a></h3>
+<h2 id="log">Log<a class="headerlink" href="#log" title="Permanent link">&para;</a></h2>
+<h3 id="default-revisions">Default revisions<a class="headerlink" href="#default-revisions" title="Permanent link">&para;</a></h3>
 <p>You can configure the revisions <code>jj log</code> would show when neither <code>-r</code> nor any paths are specified.</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># Show commits that are not in `main@origin`</span>
 <span class="n">revsets</span><span class="p">.</span><span class="n">log</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;main@origin..&quot;</span>
