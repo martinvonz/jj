@@ -17,9 +17,9 @@ use std::{error, mem};
 
 use itertools::Itertools as _;
 use jj_lib::dsl_util::{
-    self, collect_similar, AliasDeclaration, AliasDeclarationParser, AliasExpandError,
-    AliasExpandableExpression, AliasId, AliasesMap, ExpressionFolder, FoldableExpression,
-    InvalidArguments, StringLiteralParser,
+    self, collect_similar, AliasDeclaration, AliasDeclarationParser, AliasDefinitionParser,
+    AliasExpandError, AliasExpandableExpression, AliasId, AliasesMap, ExpressionFolder,
+    FoldableExpression, InvalidArguments, StringLiteralParser,
 };
 use once_cell::sync::Lazy;
 use pest::iterators::{Pair, Pairs};
@@ -583,6 +583,15 @@ impl AliasDeclarationParser for TemplateAliasParser {
     }
 }
 
+impl AliasDefinitionParser for TemplateAliasParser {
+    type Output<'i> = ExpressionKind<'i>;
+    type Error = TemplateParseError;
+
+    fn parse_definition<'i>(&self, source: &'i str) -> Result<ExpressionNode<'i>, Self::Error> {
+        parse_template(source)
+    }
+}
+
 /// Expand aliases recursively.
 pub fn expand_aliases<'i>(
     node: ExpressionNode<'i>,
@@ -614,7 +623,8 @@ pub fn expand_aliases<'i>(
             locals,
         };
         // Parsed defn could be cached if needed.
-        parse_template(defn)
+        TemplateAliasParser
+            .parse_definition(defn)
             .and_then(|node| expand_node(node, expanding_state))
             .map(|node| ExpressionKind::alias_expanded(id, Box::new(node)))
             .map_err(|e| e.within_alias_expansion(id, span))
