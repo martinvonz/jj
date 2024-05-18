@@ -99,6 +99,8 @@ nav:
 
 - Testimonials: 'testimonials.md'
 
+- "Community built tools": 'community_tools.md'
+
 - Concepts:
       - 'Working Copy': 'working-copy.md'
       - 'Branches': 'branches.md'
