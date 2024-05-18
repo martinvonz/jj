@@ -16,6 +16,7 @@ use std::collections::HashMap;
 
 use itertools::Itertools as _;
 use jj_lib::backend::{Signature, Timestamp};
+use jj_lib::dsl_util::AliasExpandError as _;
 
 use crate::template_parser::{
     self, BinaryOp, ExpressionKind, ExpressionNode, FunctionCallNode, TemplateAliasesMap,

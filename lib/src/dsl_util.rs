@@ -276,6 +276,16 @@ pub trait AliasExpandableExpression<'i>: Sized {
     fn alias_expanded(id: AliasId<'i>, subst: Box<ExpressionNode<'i, Self>>) -> Self;
 }
 
+/// Error that may occur during alias substitution.
+pub trait AliasExpandError: Sized {
+    /// Unexpected number of arguments, or invalid combination of arguments.
+    fn invalid_arguments(err: InvalidArguments<'_>) -> Self;
+    /// Recursion detected during alias substitution.
+    fn recursive_expansion(id: AliasId<'_>, span: pest::Span<'_>) -> Self;
+    /// Attaches alias trace to the current error.
+    fn within_alias_expansion(self, id: AliasId<'_>, span: pest::Span<'_>) -> Self;
+}
+
 /// Collects similar names from the `candidates` list.
 pub fn collect_similar<I>(name: &str, candidates: I) -> Vec<String>
 where
