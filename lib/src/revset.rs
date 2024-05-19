@@ -32,13 +32,14 @@ use thiserror::Error;
 use crate::backend::{BackendError, BackendResult, ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::dsl_util::{collect_similar, AliasId};
-use crate::fileset::{FilePattern, FilesetExpression, FilesetParseContext};
+use crate::fileset::{FilePattern, FilesetExpression};
 use crate::git;
 use crate::hex_util::to_forward_hex;
 use crate::id_prefix::IdPrefixContext;
 use crate::object_id::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
+use crate::repo_path::RepoPathUiConverter;
 use crate::revset_graph::RevsetGraphEdge;
 // TODO: introduce AST types and remove parse_expression_rule, Rule from the
 // re-exports
@@ -782,13 +783,15 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     map.insert("file", |name, arguments_pair, state| {
         let arguments_span = arguments_pair.as_span();
         if let Some(ctx) = state.workspace_ctx {
-            let ctx = FilesetParseContext {
-                cwd: ctx.cwd,
-                workspace_root: ctx.workspace_root,
+            let path_converter = RepoPathUiConverter::Fs {
+                cwd: ctx.cwd.to_owned(),
+                base: ctx.workspace_root.to_owned(),
             };
             let file_expressions: Vec<_> = arguments_pair
                 .into_inner()
-                .map(|arg| parse_function_argument_to_file_pattern(name, arg, state, &ctx))
+                .map(|arg| {
+                    parse_function_argument_to_file_pattern(name, arg, state, &path_converter)
+                })
                 .map_ok(FilesetExpression::pattern)
                 .try_collect()?;
             if file_expressions.is_empty() {
@@ -824,11 +827,11 @@ pub fn parse_function_argument_to_file_pattern(
     name: &str,
     pair: Pair<Rule>,
     state: ParseState,
-    ctx: &FilesetParseContext,
+    path_converter: &RepoPathUiConverter,
 ) -> Result<FilePattern, RevsetParseError> {
     let parse_pattern = |value: &str, kind: Option<&str>| match kind {
-        Some(kind) => FilePattern::from_str_kind(ctx, value, kind),
-        None => FilePattern::cwd_prefix_path(ctx, value),
+        Some(kind) => FilePattern::from_str_kind(path_converter, value, kind),
+        None => FilePattern::cwd_prefix_path(path_converter, value),
     };
     parse_function_argument_as_pattern("file pattern", name, pair, state, parse_pattern)
 }
