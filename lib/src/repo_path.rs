@@ -468,6 +468,53 @@ fn is_valid_repo_path_str(value: &str) -> bool {
     !value.starts_with('/') && !value.ends_with('/') && !value.contains("//")
 }
 
+/// An error from `RepoPathUiConverter::parse_file_path`.
+#[derive(Debug, Error)]
+pub enum UiPathParseError {
+    #[error(transparent)]
+    Fs(FsPathParseError),
+}
+
+/// Converts `RepoPath`s to and from plain strings as displayed to the user
+/// (e.g. relative to CWD).
+#[derive(Debug)]
+pub enum RepoPathUiConverter {
+    /// Variant for a local file system. Paths are interpreted relative to `cwd`
+    /// with the repo rooted in `base`.
+    ///
+    /// The `cwd` and `base` paths are supposed to be absolute and normalized in
+    /// the same manner.
+    Fs { cwd: PathBuf, base: PathBuf },
+    // TODO: Add a no-op variant that uses the internal `RepoPath` representation. Can be useful
+    // on a server.
+}
+
+impl RepoPathUiConverter {
+    /// Format a path for display in the UI.
+    pub fn format_file_path(&self, file: &RepoPath) -> String {
+        match self {
+            RepoPathUiConverter::Fs { cwd, base } => {
+                file_util::relative_path(cwd, &file.to_fs_path(base))
+                    .to_str()
+                    .unwrap()
+                    .to_owned()
+            }
+        }
+    }
+
+    /// Parses a path from the UI.
+    ///
+    /// It's up to the implementation whether absolute paths are allowed, and
+    /// where relative paths are interpreted as relative to.
+    pub fn parse_file_path(&self, input: &str) -> Result<RepoPathBuf, UiPathParseError> {
+        match self {
+            RepoPathUiConverter::Fs { cwd, base } => {
+                RepoPathBuf::parse_fs_path(cwd, base, input).map_err(UiPathParseError::Fs)
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::panic;
