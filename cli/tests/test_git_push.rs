@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::common::{get_stderr_string, get_stdout_string, TestEnvironment};
 
@@ -50,8 +50,7 @@ fn set_up() -> (TestEnvironment, PathBuf) {
 fn test_git_push_nothing() {
     let (test_env, workspace_root) = set_up();
     // Show the setup. `insta` has trouble if this is done inside `set_up()`
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all-remotes"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
     branch1: lzmmnrxq 45a3aa29 (empty) description 1
       @origin: lzmmnrxq 45a3aa29 (empty) description 1
     branch2: rlzusymt 8476341e (empty) description 2
@@ -80,8 +79,7 @@ fn test_git_push_current_branch() {
     test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "my-branch"]);
     test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "foo"]);
     // Check the setup
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all-remotes"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
     branch1: lzmmnrxq 19e00bf6 (empty) modified branch1 commit
       @origin (ahead by 1 commits, behind by 1 commits): lzmmnrxq hidden 45a3aa29 (empty) description 1
     branch2: yostqsxw 10ee3363 (empty) foo
@@ -104,8 +102,7 @@ fn test_git_push_current_branch() {
       Move branch branch2 from 8476341eb395 to 10ee3363b259
       Add branch my-branch to 10ee3363b259
     "###);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all-remotes"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
     branch1: lzmmnrxq 19e00bf6 (empty) modified branch1 commit
       @origin (ahead by 1 commits, behind by 1 commits): lzmmnrxq hidden 45a3aa29 (empty) description 1
     branch2: yostqsxw 10ee3363 (empty) foo
@@ -256,8 +253,7 @@ fn test_git_push_locally_created_and_rewritten() {
     // Rewrite it and push again, which would fail if the pushed branch weren't
     // set to "tracking"
     test_env.jj_cmd_ok(&workspace_root, &["describe", "-mlocal 2"]);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all-remotes"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
     branch1: lzmmnrxq 45a3aa29 (empty) description 1
       @origin: lzmmnrxq 45a3aa29 (empty) description 1
     branch2: rlzusymt 8476341e (empty) description 2
@@ -283,12 +279,7 @@ fn test_git_push_multiple() {
     test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "my-branch"]);
     test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "foo"]);
     // Check the setup
-    let stdout = test_env.jj_cmd_success(
-        &workspace_root,
-        // --quiet to suppress deleted branches hint
-        &["branch", "list", "--all-remotes", "--quiet"],
-    );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
     branch1 (deleted)
       @origin: lzmmnrxq 45a3aa29 (empty) description 1
     branch2: yqosqzyt 15dcdaa4 (empty) foo
@@ -372,8 +363,7 @@ fn test_git_push_multiple() {
       Force branch branch2 from 8476341eb395 to 15dcdaa4f12f
       Add branch my-branch to 15dcdaa4f12f
     "###);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all-remotes"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
     branch2: yqosqzyt 15dcdaa4 (empty) foo
       @origin: yqosqzyt 15dcdaa4 (empty) foo
     my-branch: yqosqzyt 15dcdaa4 (empty) foo
@@ -759,8 +749,7 @@ fn test_git_push_conflicting_branches() {
     test_env.jj_cmd_ok(&workspace_root, &["new", "root()", "-m=description 3"]);
     test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "branch2"]);
     test_env.jj_cmd_ok(&workspace_root, &["git", "fetch"]);
-    insta::assert_snapshot!(
-        test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all-remotes"]), @r###"
+    insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
     branch1: lzmmnrxq 45a3aa29 (empty) description 1
       @origin: lzmmnrxq 45a3aa29 (empty) description 1
     branch2 (conflicted):
@@ -840,12 +829,7 @@ fn test_git_push_tracked_vs_all() {
     test_env.jj_cmd_ok(&workspace_root, &["branch", "delete", "branch2"]);
     test_env.jj_cmd_ok(&workspace_root, &["branch", "untrack", "branch1@origin"]);
     test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "branch3"]);
-    let stdout = test_env.jj_cmd_success(
-        &workspace_root,
-        // --quiet to suppress deleted branches hint
-        &["branch", "list", "--all-remotes", "--quiet"],
-    );
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
     branch1: vruxwmqv a25f24af (empty) moved branch1
     branch1@origin: lzmmnrxq 45a3aa29 (empty) description 1
     branch2 (deleted)
@@ -865,8 +849,7 @@ fn test_git_push_tracked_vs_all() {
 
     // Untrack the last remaining tracked branch.
     test_env.jj_cmd_ok(&workspace_root, &["branch", "untrack", "branch2@origin"]);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all-remotes"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
     branch1: vruxwmqv a25f24af (empty) moved branch1
     branch1@origin: lzmmnrxq 45a3aa29 (empty) description 1
     branch2@origin: rlzusymt 8476341e (empty) description 2
@@ -955,4 +938,9 @@ fn test_git_push_to_remote_named_git() {
       Add branch branch2 to 8476341eb395
     Error: Git remote named 'git' is reserved for local Git repository
     "###);
+}
+
+fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    // --quiet to suppress deleted branches hint
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes", "--quiet"])
 }
