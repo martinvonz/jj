@@ -376,8 +376,7 @@ fn test_git_colocated_branch_forget() {
     ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22 HEAD@git
     ◉  0000000000000000000000000000000000000000
     "###);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all-remotes"]);
-    insta::assert_snapshot!(stdout, @r###"
+    insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
     foo: rlvkpnrz 65b6b74e (empty) (no description set)
       @git: rlvkpnrz 65b6b74e (empty) (no description set)
     "###);
@@ -387,8 +386,7 @@ fn test_git_colocated_branch_forget() {
     insta::assert_snapshot!(stderr, @"");
     // A forgotten branch is deleted in the git repo. For a detailed demo explaining
     // this, see `test_branch_forget_export` in `test_branch_command.rs`.
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["branch", "list", "--all-remotes"]);
-    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @"");
 }
 
 #[test]
@@ -799,4 +797,9 @@ fn test_git_colocated_unreachable_commits() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Revision "8e713ff77b54928dd4a82aaabeca44b1ae91722c" doesn't exist
     "###);
+}
+
+fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    // --quiet to suppress deleted branches hint
+    test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes", "--quiet"])
 }
