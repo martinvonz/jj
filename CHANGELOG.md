@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * A new revset `reachable(srcs, domain)` will return all commits that are
   reachable from `srcs` within `domain`.
 
+* There are now prebuilt binaries for `aarch64-linux-unknown-musl`.
+  Note, these are cross compiled and currently untested.
+  We plan on providing fully tested builds later once our CI system allows it.
+
 ### Fixed bugs
 
 * When the working copy commit becomes immutable, a new one is automatically created on top of it 
