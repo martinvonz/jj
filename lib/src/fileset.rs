@@ -15,7 +15,6 @@
 //! Functional language for selecting a set of paths.
 
 use std::collections::HashMap;
-use std::path::Path;
 use std::{iter, path, slice};
 
 use once_cell::sync::Lazy;
@@ -30,7 +29,9 @@ use crate::matchers::{
     DifferenceMatcher, EverythingMatcher, FileGlobsMatcher, FilesMatcher, IntersectionMatcher,
     Matcher, NothingMatcher, PrefixMatcher, UnionMatcher,
 };
-use crate::repo_path::{FsPathParseError, RelativePathParseError, RepoPath, RepoPathBuf};
+use crate::repo_path::{
+    RelativePathParseError, RepoPath, RepoPathBuf, RepoPathUiConverter, UiPathParseError,
+};
 
 /// Error occurred during file pattern parsing.
 #[derive(Debug, Error)]
@@ -38,9 +39,9 @@ pub enum FilePatternParseError {
     /// Unknown pattern kind is specified.
     #[error(r#"Invalid file pattern kind "{0}:""#)]
     InvalidKind(String),
-    /// Failed to parse input cwd-relative path.
+    /// Failed to parse input UI path.
     #[error(transparent)]
-    FsPath(#[from] FsPathParseError),
+    UiPath(#[from] UiPathParseError),
     /// Failed to parse input workspace-relative path.
     #[error(transparent)]
     RelativePath(#[from] RelativePathParseError),
@@ -71,7 +72,7 @@ pub enum FilePattern {
 impl FilePattern {
     /// Parses the given `input` string as pattern of the specified `kind`.
     pub fn from_str_kind(
-        ctx: &FilesetParseContext,
+        path_converter: &RepoPathUiConverter,
         input: &str,
         kind: &str,
     ) -> Result<Self, FilePatternParseError> {
@@ -90,9 +91,9 @@ impl FilePattern {
         //   * glob: glob pattern (default anchor: file)
         //   * regex?
         match kind {
-            "cwd" => Self::cwd_prefix_path(ctx, input),
-            "cwd-file" | "file" => Self::cwd_file_path(ctx, input),
-            "cwd-glob" | "glob" => Self::cwd_file_glob(ctx, input),
+            "cwd" => Self::cwd_prefix_path(path_converter, input),
+            "cwd-file" | "file" => Self::cwd_file_path(path_converter, input),
+            "cwd-glob" | "glob" => Self::cwd_file_glob(path_converter, input),
             "root" => Self::root_prefix_path(input),
             "root-file" => Self::root_file_path(input),
             "root-glob" => Self::root_file_glob(input),
@@ -102,41 +103,42 @@ impl FilePattern {
 
     /// Pattern that matches cwd-relative file (or exact) path.
     pub fn cwd_file_path(
-        ctx: &FilesetParseContext,
-        input: impl AsRef<Path>,
+        path_converter: &RepoPathUiConverter,
+        input: impl AsRef<str>,
     ) -> Result<Self, FilePatternParseError> {
-        let path = ctx.parse_cwd_path(input)?;
+        let path = path_converter.parse_file_path(input.as_ref())?;
         Ok(FilePattern::FilePath(path))
     }
 
     /// Pattern that matches cwd-relative path prefix.
     pub fn cwd_prefix_path(
-        ctx: &FilesetParseContext,
-        input: impl AsRef<Path>,
+        path_converter: &RepoPathUiConverter,
+        input: impl AsRef<str>,
     ) -> Result<Self, FilePatternParseError> {
-        let path = ctx.parse_cwd_path(input)?;
+        let path = path_converter.parse_file_path(input.as_ref())?;
         Ok(FilePattern::PrefixPath(path))
     }
 
     /// Pattern that matches cwd-relative file path glob.
     pub fn cwd_file_glob(
-        ctx: &FilesetParseContext,
+        path_converter: &RepoPathUiConverter,
         input: impl AsRef<str>,
     ) -> Result<Self, FilePatternParseError> {
         let (dir, pattern) = split_glob_path(input.as_ref());
-        let dir = ctx.parse_cwd_path(dir)?;
+        let dir = path_converter.parse_file_path(dir)?;
         Self::file_glob_at(dir, pattern)
     }
 
     /// Pattern that matches workspace-relative file (or exact) path.
-    pub fn root_file_path(input: impl AsRef<Path>) -> Result<Self, FilePatternParseError> {
-        let path = RepoPathBuf::from_relative_path(input)?;
+    pub fn root_file_path(input: impl AsRef<str>) -> Result<Self, FilePatternParseError> {
+        // TODO: Let caller pass in converter for root-relative paths too
+        let path = RepoPathBuf::from_relative_path(input.as_ref())?;
         Ok(FilePattern::FilePath(path))
     }
 
     /// Pattern that matches workspace-relative path prefix.
-    pub fn root_prefix_path(input: impl AsRef<Path>) -> Result<Self, FilePatternParseError> {
-        let path = RepoPathBuf::from_relative_path(input)?;
+    pub fn root_prefix_path(input: impl AsRef<str>) -> Result<Self, FilePatternParseError> {
+        let path = RepoPathBuf::from_relative_path(input.as_ref())?;
         Ok(FilePattern::PrefixPath(path))
     }
 
@@ -373,33 +375,18 @@ fn union_all_matchers(matchers: &mut [Option<Box<dyn Matcher>>]) -> Box<dyn Matc
     }
 }
 
-/// Environment where fileset expression is parsed.
-#[derive(Clone, Debug)]
-pub struct FilesetParseContext<'a> {
-    /// Normalized path to the current working directory.
-    pub cwd: &'a Path,
-    /// Normalized path to the workspace root.
-    pub workspace_root: &'a Path,
-}
-
-impl FilesetParseContext<'_> {
-    fn parse_cwd_path(&self, input: impl AsRef<Path>) -> Result<RepoPathBuf, FsPathParseError> {
-        RepoPathBuf::parse_fs_path(self.cwd, self.workspace_root, input)
-    }
-}
-
 type FilesetFunction =
-    fn(&FilesetParseContext, &FunctionCallNode) -> FilesetParseResult<FilesetExpression>;
+    fn(&RepoPathUiConverter, &FunctionCallNode) -> FilesetParseResult<FilesetExpression>;
 
 static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, FilesetFunction>> = Lazy::new(|| {
     // Not using maplit::hashmap!{} or custom declarative macro here because
     // code completion inside macro is quite restricted.
     let mut map: HashMap<&'static str, FilesetFunction> = HashMap::new();
-    map.insert("none", |_ctx, function| {
+    map.insert("none", |_path_converter, function| {
         function.expect_no_arguments()?;
         Ok(FilesetExpression::none())
     });
-    map.insert("all", |_ctx, function| {
+    map.insert("all", |_path_converter, function| {
         function.expect_no_arguments()?;
         Ok(FilesetExpression::all())
     });
@@ -407,11 +394,11 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, FilesetFunction>> = Lazy
 });
 
 fn resolve_function(
-    ctx: &FilesetParseContext,
+    path_converter: &RepoPathUiConverter,
     function: &FunctionCallNode,
 ) -> FilesetParseResult<FilesetExpression> {
     if let Some(func) = BUILTIN_FUNCTION_MAP.get(function.name) {
-        func(ctx, function)
+        func(path_converter, function)
     } else {
         Err(FilesetParseError::new(
             FilesetParseErrorKind::NoSuchFunction {
@@ -424,41 +411,43 @@ fn resolve_function(
 }
 
 fn resolve_expression(
-    ctx: &FilesetParseContext,
+    path_converter: &RepoPathUiConverter,
     node: &ExpressionNode,
 ) -> FilesetParseResult<FilesetExpression> {
     let wrap_pattern_error =
         |err| FilesetParseError::expression("Invalid file pattern", node.span).with_source(err);
     match &node.kind {
         ExpressionKind::Identifier(name) => {
-            let pattern = FilePattern::cwd_prefix_path(ctx, name).map_err(wrap_pattern_error)?;
+            let pattern =
+                FilePattern::cwd_prefix_path(path_converter, name).map_err(wrap_pattern_error)?;
             Ok(FilesetExpression::pattern(pattern))
         }
         ExpressionKind::String(name) => {
-            let pattern = FilePattern::cwd_prefix_path(ctx, name).map_err(wrap_pattern_error)?;
+            let pattern =
+                FilePattern::cwd_prefix_path(path_converter, name).map_err(wrap_pattern_error)?;
             Ok(FilesetExpression::pattern(pattern))
         }
         ExpressionKind::StringPattern { kind, value } => {
-            let pattern =
-                FilePattern::from_str_kind(ctx, value, kind).map_err(wrap_pattern_error)?;
+            let pattern = FilePattern::from_str_kind(path_converter, value, kind)
+                .map_err(wrap_pattern_error)?;
             Ok(FilesetExpression::pattern(pattern))
         }
         ExpressionKind::Unary(op, arg_node) => {
-            let arg = resolve_expression(ctx, arg_node)?;
+            let arg = resolve_expression(path_converter, arg_node)?;
             match op {
                 UnaryOp::Negate => Ok(FilesetExpression::all().difference(arg)),
             }
         }
         ExpressionKind::Binary(op, lhs_node, rhs_node) => {
-            let lhs = resolve_expression(ctx, lhs_node)?;
-            let rhs = resolve_expression(ctx, rhs_node)?;
+            let lhs = resolve_expression(path_converter, lhs_node)?;
+            let rhs = resolve_expression(path_converter, rhs_node)?;
             match op {
                 BinaryOp::Union => Ok(lhs.union(rhs)),
                 BinaryOp::Intersection => Ok(lhs.intersection(rhs)),
                 BinaryOp::Difference => Ok(lhs.difference(rhs)),
             }
         }
-        ExpressionKind::FunctionCall(function) => resolve_function(ctx, function),
+        ExpressionKind::FunctionCall(function) => resolve_function(path_converter, function),
     }
 }
 
@@ -468,15 +457,17 @@ fn resolve_expression(
 /// contain any operator-like characters, it will be parsed as a file path.
 pub fn parse_maybe_bare(
     text: &str,
-    ctx: &FilesetParseContext,
+    path_converter: &RepoPathUiConverter,
 ) -> FilesetParseResult<FilesetExpression> {
     let node = fileset_parser::parse_program_or_bare_string(text)?;
     // TODO: add basic tree substitution pass to eliminate redundant expressions
-    resolve_expression(ctx, &node)
+    resolve_expression(path_converter, &node)
 }
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
 
     fn repo_path_buf(value: impl Into<String>) -> RepoPathBuf {
@@ -485,11 +476,11 @@ mod tests {
 
     #[test]
     fn test_parse_file_pattern() {
-        let ctx = FilesetParseContext {
-            cwd: Path::new("/ws/cur"),
-            workspace_root: Path::new("/ws"),
+        let path_converter = RepoPathUiConverter::Fs {
+            cwd: PathBuf::from("/ws/cur"),
+            base: PathBuf::from("/ws"),
         };
-        let parse = |text| parse_maybe_bare(text, &ctx);
+        let parse = |text| parse_maybe_bare(text, &path_converter);
 
         // cwd-relative patterns
         assert_eq!(
@@ -536,12 +527,12 @@ mod tests {
 
     #[test]
     fn test_parse_glob_pattern() {
-        let ctx = FilesetParseContext {
+        let path_converter = RepoPathUiConverter::Fs {
             // meta character in cwd path shouldn't be expanded
-            cwd: Path::new("/ws/cur*"),
-            workspace_root: Path::new("/ws"),
+            cwd: PathBuf::from("/ws/cur*"),
+            base: PathBuf::from("/ws"),
         };
-        let parse = |text| parse_maybe_bare(text, &ctx);
+        let parse = |text| parse_maybe_bare(text, &path_converter);
         let glob_expr = |dir: &str, pattern: &str| {
             FilesetExpression::pattern(FilePattern::FileGlob {
                 dir: repo_path_buf(dir),
@@ -620,11 +611,11 @@ mod tests {
 
     #[test]
     fn test_parse_function() {
-        let ctx = FilesetParseContext {
-            cwd: Path::new("/ws/cur"),
-            workspace_root: Path::new("/ws"),
+        let path_converter = RepoPathUiConverter::Fs {
+            cwd: PathBuf::from("/ws/cur"),
+            base: PathBuf::from("/ws"),
         };
-        let parse = |text| parse_maybe_bare(text, &ctx);
+        let parse = |text| parse_maybe_bare(text, &path_converter);
 
         assert_eq!(parse("all()").unwrap(), FilesetExpression::all());
         assert_eq!(parse("none()").unwrap(), FilesetExpression::none());
@@ -646,11 +637,11 @@ mod tests {
 
     #[test]
     fn test_parse_compound_expression() {
-        let ctx = FilesetParseContext {
-            cwd: Path::new("/ws/cur"),
-            workspace_root: Path::new("/ws"),
+        let path_converter = RepoPathUiConverter::Fs {
+            cwd: PathBuf::from("/ws/cur"),
+            base: PathBuf::from("/ws"),
         };
-        let parse = |text| parse_maybe_bare(text, &ctx);
+        let parse = |text| parse_maybe_bare(text, &path_converter);
 
         insta::assert_debug_snapshot!(parse("~x").unwrap(), @r###"
         Difference(

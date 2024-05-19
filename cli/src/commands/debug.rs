@@ -149,9 +149,9 @@ fn cmd_debug_fileset(
     args: &DebugFilesetArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let ctx = workspace_command.fileset_parse_context();
+    let path_converter = workspace_command.path_converter();
 
-    let expression = fileset::parse_maybe_bare(&args.path, &ctx)?;
+    let expression = fileset::parse_maybe_bare(&args.path, path_converter)?;
     writeln!(ui.stdout(), "-- Parsed:")?;
     writeln!(ui.stdout(), "{expression:#?}")?;
     writeln!(ui.stdout())?;

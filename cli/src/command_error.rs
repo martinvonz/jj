@@ -553,9 +553,11 @@ fn file_pattern_parse_error_hint(err: &FilePatternParseError) -> Option<String> 
     match err {
         FilePatternParseError::InvalidKind(_) => None,
         // Suggest root:"<path>" if input can be parsed as repo-relative path
-        FilePatternParseError::FsPath(e) => RepoPathBuf::from_relative_path(&e.input)
-            .ok()
-            .map(|path| format!(r#"Consider using root:{path:?} to specify repo-relative path"#)),
+        FilePatternParseError::UiPath(UiPathParseError::Fs(e)) => {
+            RepoPathBuf::from_relative_path(&e.input).ok().map(|path| {
+                format!(r#"Consider using root:{path:?} to specify repo-relative path"#)
+            })
+        }
         FilePatternParseError::RelativePath(_) => None,
         FilePatternParseError::GlobPattern(_) => None,
     }

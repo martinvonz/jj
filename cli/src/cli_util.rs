@@ -36,7 +36,7 @@ use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use jj_lib::backend::{ChangeId, CommitId, MergedTreeId, TreeValue};
 use jj_lib::commit::Commit;
-use jj_lib::fileset::{FilesetExpression, FilesetParseContext};
+use jj_lib::fileset::FilesetExpression;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::{GitIgnoreError, GitIgnoreFile};
 use jj_lib::hex_util::to_reverse_hex;
@@ -755,19 +755,15 @@ impl WorkspaceCommandHelper {
         &self,
         file_args: &[String], // TODO: introduce FileArg newtype?
     ) -> Result<FilesetExpression, CommandError> {
-        let ctx = self.fileset_parse_context();
         let expressions: Vec<_> = file_args
             .iter()
-            .map(|arg| fileset::parse_maybe_bare(arg, &ctx))
+            .map(|arg| fileset::parse_maybe_bare(arg, &self.path_converter))
             .try_collect()?;
         Ok(FilesetExpression::union_all(expressions))
     }
 
-    pub(crate) fn fileset_parse_context(&self) -> FilesetParseContext<'_> {
-        FilesetParseContext {
-            cwd: &self.cwd,
-            workspace_root: self.workspace.workspace_root(),
-        }
+    pub(crate) fn path_converter(&self) -> &RepoPathUiConverter {
+        &self.path_converter
     }
 
     #[instrument(skip_all)]
