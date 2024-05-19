@@ -17,11 +17,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build: [linux-musl, macos-x86_64, macos-aarch64, win-msvc]
+        build: [linux-x86_64-musl, linux-aarch64-musl, macos-x86_64, macos-aarch64, win-msvc]
         include:
-        - build: linux-musl
-          os: ubuntu-20.04
+        - build: linux-x86_64-musl
+          os: ubuntu-24.04
           target: x86_64-unknown-linux-musl
+        - build: linux-aarch64-musl
+          os: ubuntu-24.04
+          target: aarch64-unknown-linux-musl
         - build: macos-x86_64
           os: macos-11
           target: x86_64-apple-darwin
@@ -36,7 +39,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
     - name: Install packages (Ubuntu)
-      if: matrix.os == 'ubuntu-20.04'
+      if: matrix.os == 'ubuntu-24.04'
       run: |
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends xz-utils liblz4-tool musl-tools
@@ -45,8 +48,17 @@ jobs:
       with:
         toolchain: stable
         target: ${{ matrix.target }}
+    - name: Download cross-compilation tool (linux-aarch64)
+      if: matrix.target == 'aarch64-unknown-linux-musl'
+      run: wget -c https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz -O - | tar -xz
     - name: Build release binary
-      run: cargo build --target ${{ matrix.target }} --verbose --release --features packaging,vendored-openssl
+      shell: bash
+      run: |
+        CARGO_CMD=cargo
+        if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ]; then
+          CARGO_CMD=$PWD/cross
+        fi
+        $CARGO_CMD build --target ${{ matrix.target }} --verbose --release --features packaging,vendored-openssl
     - name: Build archive
       shell: bash
       run: |
