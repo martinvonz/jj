@@ -52,7 +52,7 @@ use jj_lib::repo::{
     merge_factories_map, CheckOutCommitError, EditCommitError, MutableRepo, ReadonlyRepo, Repo,
     RepoLoader, StoreFactories, StoreLoadError,
 };
-use jj_lib::repo_path::{FsPathParseError, RepoPath, RepoPathBuf};
+use jj_lib::repo_path::{RepoPath, RepoPathBuf, RepoPathUiConverter, UiPathParseError};
 use jj_lib::revset::{
     RevsetAliasesMap, RevsetExpression, RevsetExtensions, RevsetFilterPredicate, RevsetFunction,
     RevsetIteratorExt, RevsetModifier, RevsetParseContext, RevsetWorkspaceContext,
@@ -71,7 +71,7 @@ use jj_lib::workspace::{
     default_working_copy_factories, LockedWorkspace, WorkingCopyFactories, Workspace,
     WorkspaceLoadError, WorkspaceLoader,
 };
-use jj_lib::{dag_walk, file_util, fileset, git, op_heads_store, op_walk, revset};
+use jj_lib::{dag_walk, fileset, git, op_heads_store, op_walk, revset};
 use once_cell::unsync::OnceCell;
 use tracing::instrument;
 use tracing_chrome::ChromeLayerBuilder;
@@ -489,6 +489,7 @@ pub struct WorkspaceCommandHelper {
     template_aliases_map: TemplateAliasesMap,
     may_update_working_copy: bool,
     working_copy_shared_with_git: bool,
+    path_converter: RepoPathUiConverter,
 }
 
 impl WorkspaceCommandHelper {
@@ -507,6 +508,10 @@ impl WorkspaceCommandHelper {
         let loaded_at_head = command.global_args.at_operation == "@";
         let may_update_working_copy = loaded_at_head && !command.global_args.ignore_working_copy;
         let working_copy_shared_with_git = is_colocated_git_workspace(&workspace, &repo);
+        let path_converter = RepoPathUiConverter::Fs {
+            cwd: command.cwd.clone(),
+            base: workspace.workspace_root().clone(),
+        };
         let helper = Self {
             cwd: command.cwd.clone(),
             string_args: command.string_args.clone(),
@@ -521,6 +526,7 @@ impl WorkspaceCommandHelper {
             template_aliases_map,
             may_update_working_copy,
             working_copy_shared_with_git,
+            path_converter,
         };
         // Parse commit_summary template (and short-prefixes revset) early to
         // report error before starting mutable operation.
@@ -713,16 +719,13 @@ impl WorkspaceCommandHelper {
     }
 
     pub fn format_file_path(&self, file: &RepoPath) -> String {
-        file_util::relative_path(&self.cwd, &file.to_fs_path(self.workspace_root()))
-            .to_str()
-            .unwrap()
-            .to_owned()
+        self.path_converter.format_file_path(file)
     }
 
     /// Parses a path relative to cwd into a RepoPath, which is relative to the
     /// workspace root.
-    pub fn parse_file_path(&self, input: &str) -> Result<RepoPathBuf, FsPathParseError> {
-        RepoPathBuf::parse_fs_path(&self.cwd, self.workspace_root(), input)
+    pub fn parse_file_path(&self, input: &str) -> Result<RepoPathBuf, UiPathParseError> {
+        self.path_converter.parse_file_path(input)
     }
 
     /// Parses the given strings as file patterns.

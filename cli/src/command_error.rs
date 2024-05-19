@@ -26,7 +26,7 @@ use jj_lib::op_heads_store::OpHeadResolutionError;
 use jj_lib::op_store::OpStoreError;
 use jj_lib::op_walk::OpsetEvaluationError;
 use jj_lib::repo::{CheckOutCommitError, EditCommitError, RepoLoaderError, RewriteRootCommit};
-use jj_lib::repo_path::{FsPathParseError, RepoPathBuf};
+use jj_lib::repo_path::{RepoPathBuf, UiPathParseError};
 use jj_lib::revset::{
     RevsetEvaluationError, RevsetParseError, RevsetParseErrorKind, RevsetResolutionError,
 };
@@ -495,8 +495,8 @@ impl From<TemplateParseError> for CommandError {
     }
 }
 
-impl From<FsPathParseError> for CommandError {
-    fn from(err: FsPathParseError) -> Self {
+impl From<UiPathParseError> for CommandError {
+    fn from(err: UiPathParseError) -> Self {
         user_error(err)
     }
 }
