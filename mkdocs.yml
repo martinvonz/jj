@@ -39,6 +39,11 @@ validation:
 # IMPORTANT: any changes to plugins have to be duplicated in
 # `mkdocs-offline.yml`. See that file for more details.
 plugins:
+    - mike:
+        # Should help search engines point to latest docs
+        # instead of (often obsolete) v?.??.? docs.
+        # TODO: Arguably, this could be `prerelease` when building prerelease docs.
+        canonical_version: latest
     - include-markdown # For the CLI reference
     - search
     - redirects:
