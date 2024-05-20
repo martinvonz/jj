@@ -18,7 +18,7 @@ use std::{error, mem};
 use itertools::Itertools as _;
 use jj_lib::dsl_util::{
     collect_similar, AliasDeclaration, AliasDeclarationParser, AliasId, AliasesMap,
-    StringLiteralParser,
+    InvalidArguments, StringLiteralParser,
 };
 use once_cell::sync::Lazy;
 use pest::iterators::{Pair, Pairs};
@@ -149,16 +149,6 @@ impl TemplateParseError {
         )
     }
 
-    pub fn invalid_arguments(name: &str, message: String, span: pest::Span<'_>) -> Self {
-        TemplateParseError::with_span(
-            TemplateParseErrorKind::InvalidArguments {
-                name: name.to_owned(),
-                message,
-            },
-            span,
-        )
-    }
-
     pub fn expected_type(expected: &str, actual: &str, span: pest::Span<'_>) -> Self {
         let message =
             format!(r#"Expected expression of type "{expected}", but actual type is "{actual}""#);
@@ -235,6 +225,16 @@ impl From<pest::error::Error<Rule>> for TemplateParseError {
             pest_error: Box::new(rename_rules_in_pest_error(err)),
             source: None,
         }
+    }
+}
+
+impl From<InvalidArguments<'_>> for TemplateParseError {
+    fn from(err: InvalidArguments<'_>) -> Self {
+        let kind = TemplateParseErrorKind::InvalidArguments {
+            name: err.name.to_owned(),
+            message: err.message,
+        };
+        Self::with_span(kind, err.span)
     }
 }
 
@@ -623,11 +623,12 @@ pub fn expand_aliases<'i>(
             ExpressionKind::FunctionCall(function) => {
                 if let Some((id, params, defn)) = state.aliases_map.get_function(function.name) {
                     if function.args.len() != params.len() {
-                        return Err(TemplateParseError::invalid_arguments(
-                            function.name,
-                            format!("Expected {} arguments", params.len()),
-                            function.args_span,
-                        ));
+                        return Err(InvalidArguments {
+                            name: function.name,
+                            message: format!("Expected {} arguments", params.len()),
+                            span: function.args_span,
+                        }
+                        .into());
                     }
                     // Resolve arguments in the current scope, and pass them in to the alias
                     // expansion scope.
@@ -727,7 +728,11 @@ impl<'i> FunctionCallNode<'i> {
     }
 
     fn invalid_arguments(&self, message: String) -> TemplateParseError {
-        TemplateParseError::invalid_arguments(self.name, message, self.args_span)
+        InvalidArguments {
+            name: self.name,
+            message,
+            span: self.args_span,
+        }.into()
     }
 }
 

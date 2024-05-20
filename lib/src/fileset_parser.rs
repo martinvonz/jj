@@ -24,7 +24,7 @@ use pest::Parser;
 use pest_derive::Parser;
 use thiserror::Error;
 
-use crate::dsl_util::StringLiteralParser;
+use crate::dsl_util::{InvalidArguments, StringLiteralParser};
 
 #[derive(Parser)]
 #[grammar = "fileset.pest"]
@@ -121,17 +121,6 @@ impl FilesetParseError {
         self
     }
 
-    /// Unexpected number of arguments, or invalid combination of arguments.
-    pub(super) fn invalid_arguments(name: &str, message: String, span: pest::Span<'_>) -> Self {
-        FilesetParseError::new(
-            FilesetParseErrorKind::InvalidArguments {
-                name: name.to_owned(),
-                message,
-            },
-            span,
-        )
-    }
-
     /// Some other expression error.
     pub(super) fn expression(message: impl Into<String>, span: pest::Span<'_>) -> Self {
         FilesetParseError::new(FilesetParseErrorKind::Expression(message.into()), span)
@@ -153,6 +142,15 @@ impl From<pest::error::Error<Rule>> for FilesetParseError {
     }
 }
 
+impl From<InvalidArguments<'_>> for FilesetParseError {
+    fn from(err: InvalidArguments<'_>) -> Self {
+        let kind = FilesetParseErrorKind::InvalidArguments {
+            name: err.name.to_owned(),
+            message: err.message,
+        };
+        Self::new(kind, err.span)
+    }
+}
 fn rename_rules_in_pest_error(err: pest::error::Error<Rule>) -> pest::error::Error<Rule> {
     err.renamed_rules(|rule| {
         rule.to_symbol()
@@ -349,7 +347,12 @@ impl<'i> FunctionCallNode<'i> {
     }
 
     fn invalid_arguments(&self, message: String) -> FilesetParseError {
-        FilesetParseError::invalid_arguments(self.name, message, self.args_span)
+        InvalidArguments {
+            name: self.name,
+            message,
+            span: self.args_span,
+        }
+        .into()
     }
 }
 
