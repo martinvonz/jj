@@ -17,6 +17,11 @@ export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct docs/ mkdocs.yml)
 # https://github.com/python-poetry/poetry/issues/8623
 export PYTHON_KEYRING_BACKEND=keyring.backends.fail.Keyring
 poetry install --no-root # Only really needed once per environment unless there are updates
-# TODO(ilyagr): The new default "alias-type" is symlink, we should consider
-# switching to it.
-poetry run -- mike deploy --alias-type redirect "$@"
+# TODO: `--alias-type symlink` is the
+# default, and may be nicer in some ways. However,
+# this requires deploying to GH Pages via a "custom GitHub Action", as in
+# https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site#publishing-with-a-custom-github-actions-workflow.
+# Otherwise, you get an error:
+# > Site contained a symlink that should be dereferenced: /main.
+# > For more information, see https://docs.github.com/github/working-with-github-pages/troubleshooting-jekyll-build-errors-for-github-pages-sites#config-file-error.
+poetry run -- mike deploy --alias-type copy "$@"
