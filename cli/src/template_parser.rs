@@ -418,6 +418,7 @@ fn parse_function_call_node(pair: Pair<Rule>) -> TemplateParseResult<FunctionCal
         name,
         name_span,
         args,
+        keyword_args: vec![], // unsupported
         args_span,
     })
 }
@@ -695,6 +696,7 @@ pub fn lookup_method<'a, V>(
 #[cfg(test)]
 mod tests {
     use assert_matches::assert_matches;
+    use jj_lib::dsl_util::KeywordArgument;
 
     use super::*;
 
@@ -749,6 +751,15 @@ mod tests {
                 name: function.name,
                 name_span: empty_span(),
                 args: normalize_list(function.args),
+                keyword_args: function
+                    .keyword_args
+                    .into_iter()
+                    .map(|arg| KeywordArgument {
+                        name: arg.name,
+                        name_span: empty_span(),
+                        value: normalize_tree(arg.value),
+                    })
+                    .collect(),
                 args_span: empty_span(),
             }
         }
