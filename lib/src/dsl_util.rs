@@ -21,6 +21,20 @@ use itertools::Itertools as _;
 use pest::iterators::Pairs;
 use pest::RuleType;
 
+/// Unexpected number of arguments, or invalid combination of arguments.
+///
+/// This error is supposed to be converted to language-specific parse error
+/// type, where lifetime `'i` will be eliminated.
+#[derive(Clone, Debug)]
+pub struct InvalidArguments<'i> {
+    /// Function name.
+    pub name: &'i str,
+    /// Error message.
+    pub message: String,
+    /// Span of the bad arguments.
+    pub span: pest::Span<'i>,
+}
+
 /// Helper to parse string literal.
 #[derive(Debug)]
 pub struct StringLiteralParser<R> {
