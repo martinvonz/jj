@@ -488,6 +488,7 @@ fn build_keyword<'a, L: TemplateLanguage<'a> + ?Sized>(
         name,
         name_span,
         args: vec![],
+        keyword_args: vec![],
         args_span: name_span.end_pos().span(&name_span.end_pos()),
     };
     language

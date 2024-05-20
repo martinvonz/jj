@@ -205,6 +205,7 @@ fn parse_function_call_node(pair: Pair<Rule>) -> FilesetParseResult<FunctionCall
         name,
         name_span,
         args,
+        keyword_args: vec![], // unsupported
         args_span,
     })
 }
@@ -325,6 +326,7 @@ mod tests {
     use assert_matches::assert_matches;
 
     use super::*;
+    use crate::dsl_util::KeywordArgument;
 
     fn parse_into_kind(text: &str) -> Result<ExpressionKind, FilesetParseErrorKind> {
         parse_program(text)
@@ -361,6 +363,15 @@ mod tests {
                 name: function.name,
                 name_span: empty_span(),
                 args: normalize_list(function.args),
+                keyword_args: function
+                    .keyword_args
+                    .into_iter()
+                    .map(|arg| KeywordArgument {
+                        name: arg.name,
+                        name_span: empty_span(),
+                        value: normalize_tree(arg.value),
+                    })
+                    .collect(),
                 args_span: empty_span(),
             }
         }
