@@ -244,6 +244,29 @@ impl ShellCompletion {
             Self::Zsh => generate(Shell::Zsh, cmd, bin_name, &mut buf),
         }
 
+        // Append custom completions. The main purpose of these is to support
+        // dynamic completions, like branch names. This may be removed in the
+        // future when clap has builtin support for dynamic completions, see:
+        // https://github.com/clap-rs/clap/issues/1232
+        match self {
+            Self::Bash => {}
+            Self::Elvish => {}
+            Self::Fish => buf.write_all(CUSTOM_FISH_COMPLETIONS).unwrap(),
+            Self::Nushell => {}
+            Self::PowerShell => {}
+            Self::Zsh => {}
+        }
+
         buf
     }
 }
+
+static CUSTOM_FISH_COMPLETIONS: &[u8] = r#"
+# dynamic branch name completions
+complete -c jj -n "__fish_seen_subcommand_from branch; and __fish_seen_subcommand_from delete" -f -a "(jj branch list -T 'name ++ \"\n\"')"
+complete -c jj -n "__fish_seen_subcommand_from branch; and __fish_seen_subcommand_from forget" -f -a "(jj branch list -T 'name ++ \"\n\"')"
+complete -c jj -n "__fish_seen_subcommand_from branch; and __fish_seen_subcommand_from rename" -f -a "(jj branch list -T 'name ++ \"\n\"')"
+complete -c jj -n "__fish_seen_subcommand_from branch; and __fish_seen_subcommand_from set" -f -a "(jj branch list -T 'name ++ \"\n\"')"
+complete -c jj -n "__fish_seen_subcommand_from branch; and __fish_seen_subcommand_from track" -f -a "(jj branch list -a -T 'if(remote && !tracked, name ++ \"@\" ++ remote ++ \"\n\")')"
+complete -c jj -n "__fish_seen_subcommand_from branch; and __fish_seen_subcommand_from untrack" -f -a "(jj branch list -a -T 'if(tracked && !\"git\".contains(remote), name ++ \"@\" ++ remote ++ \"\n\")')"
+"#.as_bytes();
