@@ -83,9 +83,7 @@ use crate::command_error::{
     CommandError,
 };
 use crate::commit_templater::{CommitTemplateLanguage, CommitTemplateLanguageExtension};
-use crate::config::{
-    new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigSource, LayeredConfigs,
-};
+use crate::config::{AnnotatedValue, CommandNameAndArgs, LayeredConfigs};
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs, DiffRenderer, DiffWorkspaceContext};
 use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
 use crate::git_util::{
@@ -2126,111 +2124,6 @@ impl LogContentFormat {
             }
         }
     }
-}
-
-// TODO: Use a proper TOML library to serialize instead.
-pub fn serialize_config_value(value: &config::Value) -> String {
-    match &value.kind {
-        config::ValueKind::Table(table) => format!(
-            "{{{}}}",
-            // TODO: Remove sorting when config crate maintains deterministic ordering.
-            table
-                .iter()
-                .sorted_by_key(|(k, _)| *k)
-                .map(|(k, v)| format!("{k}={}", serialize_config_value(v)))
-                .join(", ")
-        ),
-        config::ValueKind::Array(vals) => {
-            format!("[{}]", vals.iter().map(serialize_config_value).join(", "))
-        }
-        config::ValueKind::String(val) => format!("{val:?}"),
-        _ => value.to_string(),
-    }
-}
-
-pub fn write_config_value_to_file(
-    key: &str,
-    value_str: &str,
-    path: &Path,
-) -> Result<(), CommandError> {
-    // Read config
-    let config_toml = std::fs::read_to_string(path).or_else(|err| {
-        match err.kind() {
-            // If config doesn't exist yet, read as empty and we'll write one.
-            std::io::ErrorKind::NotFound => Ok("".to_string()),
-            _ => Err(user_error_with_message(
-                format!("Failed to read file {path}", path = path.display()),
-                err,
-            )),
-        }
-    })?;
-    let mut doc = toml_edit::Document::from_str(&config_toml).map_err(|err| {
-        user_error_with_message(
-            format!("Failed to parse file {path}", path = path.display()),
-            err,
-        )
-    })?;
-
-    // Apply config value
-    // Interpret value as string if it can't be parsed as a TOML value.
-    // TODO(#531): Infer types based on schema (w/ --type arg to override).
-    let item = match toml_edit::Value::from_str(value_str) {
-        Ok(value) => toml_edit::value(value),
-        _ => toml_edit::value(value_str),
-    };
-    let mut target_table = doc.as_table_mut();
-    let mut key_parts_iter = key.split('.');
-    // Note: split guarantees at least one item.
-    let last_key_part = key_parts_iter.next_back().unwrap();
-    for key_part in key_parts_iter {
-        target_table = target_table
-            .entry(key_part)
-            .or_insert_with(|| toml_edit::Item::Table(toml_edit::Table::new()))
-            .as_table_mut()
-            .ok_or_else(|| {
-                user_error(format!(
-                    "Failed to set {key}: would overwrite non-table value with parent table"
-                ))
-            })?;
-    }
-    // Error out if overwriting non-scalar value for key (table or array) with
-    // scalar.
-    match target_table.get(last_key_part) {
-        None | Some(toml_edit::Item::None | toml_edit::Item::Value(_)) => {}
-        Some(toml_edit::Item::Table(_) | toml_edit::Item::ArrayOfTables(_)) => {
-            return Err(user_error(format!(
-                "Failed to set {key}: would overwrite entire table"
-            )));
-        }
-    }
-    target_table[last_key_part] = item;
-
-    // Write config back
-    std::fs::write(path, doc.to_string()).map_err(|err| {
-        user_error_with_message(
-            format!("Failed to write file {path}", path = path.display()),
-            err,
-        )
-    })
-}
-
-pub fn get_new_config_file_path(
-    config_source: &ConfigSource,
-    command: &CommandHelper,
-) -> Result<PathBuf, CommandError> {
-    let edit_path = match config_source {
-        // TODO(#531): Special-case for editors that can't handle viewing directories?
-        ConfigSource::User => {
-            new_config_path()?.ok_or_else(|| user_error("No repo config path found to edit"))?
-        }
-        ConfigSource::Repo => command.workspace_loader()?.repo_path().join("config.toml"),
-        _ => {
-            return Err(user_error(format!(
-                "Can't get path for config source {config_source:?}"
-            )));
-        }
-    };
-    Ok(edit_path)
 }
 
 pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(), CommandError> {
