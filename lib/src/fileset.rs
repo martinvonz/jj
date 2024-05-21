@@ -396,11 +396,11 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, FilesetFunction>> = Lazy
     // code completion inside macro is quite restricted.
     let mut map: HashMap<&'static str, FilesetFunction> = HashMap::new();
     map.insert("none", |_ctx, function| {
-        fileset_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         Ok(FilesetExpression::none())
     });
     map.insert("all", |_ctx, function| {
-        fileset_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         Ok(FilesetExpression::all())
     });
     map
