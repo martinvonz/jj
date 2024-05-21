@@ -14,7 +14,6 @@
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::str::FromStr as _;
 
 use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
@@ -205,7 +204,7 @@ fn write_config_value_to_file(key: &str, value_str: &str, path: &Path) -> Result
             )),
         }
     })?;
-    let mut doc = toml_edit::Document::from_str(&config_toml).map_err(|err| {
+    let mut doc: toml_edit::Document = config_toml.parse().map_err(|err| {
         user_error_with_message(
             format!("Failed to parse file {path}", path = path.display()),
             err,
@@ -215,8 +214,8 @@ fn write_config_value_to_file(key: &str, value_str: &str, path: &Path) -> Result
     // Apply config value
     // Interpret value as string if it can't be parsed as a TOML value.
     // TODO(#531): Infer types based on schema (w/ --type arg to override).
-    let item = match toml_edit::Value::from_str(value_str) {
-        Ok(value) => toml_edit::value(value),
+    let item = match value_str.parse() {
+        Ok(value) => toml_edit::Item::Value(value),
         _ => toml_edit::value(value_str),
     };
     let mut target_table = doc.as_table_mut();
