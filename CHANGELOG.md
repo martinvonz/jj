@@ -38,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * When the working copy commit becomes immutable, a new one is automatically created on top of it 
 to avoid letting the user edit the immutable one.
 
+* `jj config list` now properly escapes TOML keys (#1322).
+
 ## [0.17.1] - 2024-05-07
 
 ### Fixed bugs
