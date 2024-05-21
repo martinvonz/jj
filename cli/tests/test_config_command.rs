@@ -67,6 +67,7 @@ fn test_config_list_table() {
     x = true
     y.foo = "abc"
     y.bar = 123
+    "z"."with space"."function()" = 5
     "#,
     );
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "test-table"]);
@@ -76,6 +77,7 @@ fn test_config_list_table() {
     test-table.x=true
     test-table.y.bar=123
     test-table.y.foo="abc"
+    test-table.z."with space"."function()"=5
     "###);
 }
 

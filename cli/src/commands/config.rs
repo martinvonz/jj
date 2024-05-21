@@ -170,6 +170,10 @@ pub(crate) fn cmd_config(
     }
 }
 
+fn toml_escape_key(key: String) -> String {
+    toml_edit::Key::from(key).to_string()
+}
+
 // AnnotatedValue will be cloned internally in the templater. If the cloning
 // cost matters, wrap it with Rc.
 fn config_template_language() -> GenericTemplateLanguage<'static, AnnotatedValue> {
@@ -177,7 +181,8 @@ fn config_template_language() -> GenericTemplateLanguage<'static, AnnotatedValue
     let mut language = L::new();
     // "name" instead of "path" to avoid confusion with the source file path
     language.add_keyword("name", |self_property| {
-        let out_property = self_property.map(|annotated| annotated.path.join("."));
+        let out_property = self_property
+            .map(|annotated| annotated.path.into_iter().map(toml_escape_key).join("."));
         Ok(L::wrap_string(out_property))
     });
     language.add_keyword("value", |self_property| {
