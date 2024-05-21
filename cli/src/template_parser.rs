@@ -149,13 +149,13 @@ impl TemplateParseError {
         )
     }
 
-    pub fn invalid_arguments(function: &FunctionCallNode, message: impl Into<String>) -> Self {
+    pub fn invalid_arguments(name: &str, message: String, span: pest::Span<'_>) -> Self {
         TemplateParseError::with_span(
             TemplateParseErrorKind::InvalidArguments {
-                name: function.name.to_owned(),
-                message: message.into(),
+                name: name.to_owned(),
+                message,
             },
-            function.args_span,
+            span,
         )
     }
 
@@ -624,8 +624,9 @@ pub fn expand_aliases<'i>(
                 if let Some((id, params, defn)) = state.aliases_map.get_function(function.name) {
                     if function.args.len() != params.len() {
                         return Err(TemplateParseError::invalid_arguments(
-                            &function,
+                            function.name,
                             format!("Expected {} arguments", params.len()),
+                            function.args_span,
                         ));
                     }
                     // Resolve arguments in the current scope, and pass them in to the alias
@@ -726,7 +727,7 @@ impl<'i> FunctionCallNode<'i> {
     }
 
     fn invalid_arguments(&self, message: String) -> TemplateParseError {
-        TemplateParseError::invalid_arguments(self, message)
+        TemplateParseError::invalid_arguments(self.name, message, self.args_span)
     }
 }
 
