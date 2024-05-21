@@ -58,7 +58,7 @@ pub(crate) fn cmd_cat(
 
     // Try fast path for single file entry
     if let Some(path) = get_single_path(&fileset_expression) {
-        let value = tree.path_value(path);
+        let value = tree.path_value(path)?;
         if value.is_absent() {
             let ui_path = workspace_command.format_file_path(path);
             return Err(user_error(format!("No such path: {ui_path}")));

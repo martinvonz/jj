@@ -1081,7 +1081,7 @@ impl TreeState {
         if clean {
             Ok(None)
         } else {
-            let current_tree_values = current_tree.path_value(repo_path);
+            let current_tree_values = current_tree.path_value(repo_path)?;
             let new_file_type = if !self.symlink_support {
                 let mut new_file_type = new_file_state.file_type.clone();
                 if matches!(new_file_type, FileType::Normal { .. })

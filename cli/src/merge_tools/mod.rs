@@ -283,7 +283,7 @@ impl MergeEditor {
         tree: &MergedTree,
         repo_path: &RepoPath,
     ) -> Result<MergedTreeId, ConflictResolveError> {
-        let conflict = match tree.path_value(repo_path).into_resolved() {
+        let conflict = match tree.path_value(repo_path)?.into_resolved() {
             Err(conflict) => conflict,
             Ok(Some(_)) => return Err(ConflictResolveError::NotAConflict(repo_path.to_owned())),
             Ok(None) => return Err(ConflictResolveError::PathNotFound(repo_path.to_owned())),
