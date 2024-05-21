@@ -139,6 +139,7 @@ pub enum MaterializedTreeValue {
     Conflict {
         id: MergedTreeValue,
         contents: Vec<u8>,
+        executable: bool,
     },
     GitSubmodule(CommitId),
     Tree(TreeId),
@@ -185,9 +186,15 @@ pub async fn materialize_tree_value(
             materialize(&conflict, store, path, &mut contents)
                 .await
                 .expect("Failed to materialize conflict to in-memory buffer");
+            let executable = if let Some(merge) = conflict.to_executable_merge() {
+                merge.resolve_trivial().copied().unwrap_or_default()
+            } else {
+                false
+            };
             Ok(MaterializedTreeValue::Conflict {
                 id: conflict,
                 contents,
+                executable,
             })
         }
     }

@@ -467,7 +467,11 @@ fn diff_content(path: &RepoPath, value: MaterializedTreeValue) -> io::Result<Fil
             contents: format!("Git submodule checked out at {}", id.hex()).into_bytes(),
         }),
         // TODO: are we sure this is never binary?
-        MaterializedTreeValue::Conflict { id: _, contents } => Ok(FileContent {
+        MaterializedTreeValue::Conflict {
+            id: _,
+            contents,
+            executable: _,
+        } => Ok(FileContent {
             is_binary: false,
             contents,
         }),
@@ -660,8 +664,13 @@ fn git_diff_part(path: &RepoPath, value: MaterializedTreeValue) -> io::Result<Gi
         MaterializedTreeValue::Conflict {
             id: _,
             contents: conflict_data,
+            executable,
         } => {
-            mode = "100644".to_string();
+            mode = if executable {
+                "100755".to_string()
+            } else {
+                "100644".to_string()
+            };
             hash = "0000000000".to_string();
             contents = conflict_data
         }
