@@ -156,6 +156,24 @@ bar
     bar
     """
     "###);
+
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &[
+            "config",
+            "list",
+            "multiline",
+            "--include-overridden",
+            "--config-toml=multiline='single'",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    # multiline="""
+    # foo
+    # bar
+    # """
+    multiline="single"
+    "###);
 }
 
 #[test]
