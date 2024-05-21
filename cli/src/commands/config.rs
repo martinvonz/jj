@@ -19,8 +19,7 @@ use itertools::Itertools;
 use tracing::instrument;
 
 use crate::cli_util::{
-    get_new_config_file_path, run_ui_editor, serialize_config_value, write_config_value_to_file,
-    CommandHelper,
+    get_new_config_file_path, run_ui_editor, write_config_value_to_file, CommandHelper,
 };
 use crate::command_error::{config_error, user_error, CommandError};
 use crate::config::{AnnotatedValue, ConfigSource};
@@ -174,6 +173,26 @@ fn toml_escape_key(key: String) -> String {
     toml_edit::Key::from(key).to_string()
 }
 
+// TODO: Use a proper TOML library to serialize instead.
+pub fn toml_serialize_value(value: &config::Value) -> String {
+    match &value.kind {
+        config::ValueKind::Table(table) => format!(
+            "{{{}}}",
+            // TODO: Remove sorting when config crate maintains deterministic ordering.
+            table
+                .iter()
+                .sorted_by_key(|(k, _)| *k)
+                .map(|(k, v)| format!("{k}={}", toml_serialize_value(v)))
+                .join(", ")
+        ),
+        config::ValueKind::Array(vals) => {
+            format!("[{}]", vals.iter().map(toml_serialize_value).join(", "))
+        }
+        config::ValueKind::String(val) => format!("{val:?}"),
+        _ => value.to_string(),
+    }
+}
+
 // AnnotatedValue will be cloned internally in the templater. If the cloning
 // cost matters, wrap it with Rc.
 fn config_template_language() -> GenericTemplateLanguage<'static, AnnotatedValue> {
@@ -187,7 +206,7 @@ fn config_template_language() -> GenericTemplateLanguage<'static, AnnotatedValue
     });
     language.add_keyword("value", |self_property| {
         // TODO: would be nice if we can provide raw dynamically-typed value
-        let out_property = self_property.map(|annotated| serialize_config_value(&annotated.value));
+        let out_property = self_property.map(|annotated| toml_serialize_value(&annotated.value));
         Ok(L::wrap_string(out_property))
     });
     language.add_keyword("overridden", |self_property| {

@@ -2128,26 +2128,6 @@ impl LogContentFormat {
     }
 }
 
-// TODO: Use a proper TOML library to serialize instead.
-pub fn serialize_config_value(value: &config::Value) -> String {
-    match &value.kind {
-        config::ValueKind::Table(table) => format!(
-            "{{{}}}",
-            // TODO: Remove sorting when config crate maintains deterministic ordering.
-            table
-                .iter()
-                .sorted_by_key(|(k, _)| *k)
-                .map(|(k, v)| format!("{k}={}", serialize_config_value(v)))
-                .join(", ")
-        ),
-        config::ValueKind::Array(vals) => {
-            format!("[{}]", vals.iter().map(serialize_config_value).join(", "))
-        }
-        config::ValueKind::String(val) => format!("{val:?}"),
-        _ => value.to_string(),
-    }
-}
-
 pub fn write_config_value_to_file(
     key: &str,
     value_str: &str,
