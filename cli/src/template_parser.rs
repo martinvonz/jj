@@ -691,9 +691,10 @@ impl<'i> FunctionCallNode<'i> {
     pub fn expect_exact_arguments<const N: usize>(
         &self,
     ) -> TemplateParseResult<&[ExpressionNode<'i>; N]> {
-        self.args.as_slice().try_into().map_err(|_| {
-            TemplateParseError::invalid_arguments(self, format!("Expected {N} arguments"))
-        })
+        self.args
+            .as_slice()
+            .try_into()
+            .map_err(|_| self.invalid_arguments(format!("Expected {N} arguments")))
     }
 
     /// Extracts N required arguments and remainders.
@@ -704,10 +705,7 @@ impl<'i> FunctionCallNode<'i> {
             let (required, rest) = self.args.split_at(N);
             Ok((required.try_into().unwrap(), rest))
         } else {
-            Err(TemplateParseError::invalid_arguments(
-                self,
-                format!("Expected at least {N} arguments"),
-            ))
+            Err(self.invalid_arguments(format!("Expected at least {N} arguments")))
         }
     }
 
@@ -722,11 +720,13 @@ impl<'i> FunctionCallNode<'i> {
             optional.resize(M, None);
             Ok((required.try_into().unwrap(), optional.try_into().unwrap()))
         } else {
-            Err(TemplateParseError::invalid_arguments(
-                self,
-                format!("Expected {min} to {max} arguments", min = N, max = N + M),
-            ))
+            let (min, max) = count_range.into_inner();
+            Err(self.invalid_arguments(format!("Expected {min} to {max} arguments")))
         }
+    }
+
+    fn invalid_arguments(&self, message: String) -> TemplateParseError {
+        TemplateParseError::invalid_arguments(self, message)
     }
 }
 
