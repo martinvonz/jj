@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj split` will now refuse to split an empty commit.
 
+* TOML type errors in alias definitions are now reported eagerly. Previously, they would not error unless you used the alias in a jj command.
+
 ### Deprecations
 
 - Attempting to alias a built-in command now gives a warning, rather than being silently ignored.
@@ -32,6 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `ui.color = "debug"` prints active labels alongside the regular colored output.
 
 * `jj branch track` now show conflicts if there are some.
+
+* `jj help` and `jj util completion` now support aliases.
+
 
 ### Fixed bugs
 
