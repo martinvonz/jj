@@ -681,59 +681,58 @@ pub fn parse<'i>(
     expand_aliases(node, aliases_map)
 }
 
-pub fn expect_no_arguments(function: &FunctionCallNode) -> TemplateParseResult<()> {
-    if function.args.is_empty() {
-        Ok(())
-    } else {
-        Err(TemplateParseError::invalid_arguments(
-            function,
-            "Expected 0 arguments",
-        ))
+impl<'i> FunctionCallNode<'i> {
+    pub fn expect_no_arguments(&self) -> TemplateParseResult<()> {
+        if self.args.is_empty() {
+            Ok(())
+        } else {
+            Err(TemplateParseError::invalid_arguments(
+                self,
+                "Expected 0 arguments",
+            ))
+        }
     }
-}
 
-/// Extracts exactly N required arguments.
-pub fn expect_exact_arguments<'a, 'i, const N: usize>(
-    function: &'a FunctionCallNode<'i>,
-) -> TemplateParseResult<&'a [ExpressionNode<'i>; N]> {
-    function.args.as_slice().try_into().map_err(|_| {
-        TemplateParseError::invalid_arguments(function, format!("Expected {N} arguments"))
-    })
-}
-
-/// Extracts N required arguments and remainders.
-pub fn expect_some_arguments<'a, 'i, const N: usize>(
-    function: &'a FunctionCallNode<'i>,
-) -> TemplateParseResult<(&'a [ExpressionNode<'i>; N], &'a [ExpressionNode<'i>])> {
-    if function.args.len() >= N {
-        let (required, rest) = function.args.split_at(N);
-        Ok((required.try_into().unwrap(), rest))
-    } else {
-        Err(TemplateParseError::invalid_arguments(
-            function,
-            format!("Expected at least {N} arguments"),
-        ))
+    /// Extracts exactly N required arguments.
+    pub fn expect_exact_arguments<const N: usize>(
+        &self,
+    ) -> TemplateParseResult<&[ExpressionNode<'i>; N]> {
+        self.args.as_slice().try_into().map_err(|_| {
+            TemplateParseError::invalid_arguments(self, format!("Expected {N} arguments"))
+        })
     }
-}
 
-/// Extracts N required arguments and M optional arguments.
-pub fn expect_arguments<'a, 'i, const N: usize, const M: usize>(
-    function: &'a FunctionCallNode<'i>,
-) -> TemplateParseResult<(
-    &'a [ExpressionNode<'i>; N],
-    [Option<&'a ExpressionNode<'i>>; M],
-)> {
-    let count_range = N..=(N + M);
-    if count_range.contains(&function.args.len()) {
-        let (required, rest) = function.args.split_at(N);
-        let mut optional = rest.iter().map(Some).collect_vec();
-        optional.resize(M, None);
-        Ok((required.try_into().unwrap(), optional.try_into().unwrap()))
-    } else {
-        Err(TemplateParseError::invalid_arguments(
-            function,
-            format!("Expected {min} to {max} arguments", min = N, max = N + M),
-        ))
+    /// Extracts N required arguments and remainders.
+    pub fn expect_some_arguments<const N: usize>(
+        &self,
+    ) -> TemplateParseResult<(&[ExpressionNode<'i>; N], &[ExpressionNode<'i>])> {
+        if self.args.len() >= N {
+            let (required, rest) = self.args.split_at(N);
+            Ok((required.try_into().unwrap(), rest))
+        } else {
+            Err(TemplateParseError::invalid_arguments(
+                self,
+                format!("Expected at least {N} arguments"),
+            ))
+        }
+    }
+
+    /// Extracts N required arguments and M optional arguments.
+    pub fn expect_arguments<const N: usize, const M: usize>(
+        &self,
+    ) -> TemplateParseResult<(&[ExpressionNode<'i>; N], [Option<&ExpressionNode<'i>>; M])> {
+        let count_range = N..=(N + M);
+        if count_range.contains(&self.args.len()) {
+            let (required, rest) = self.args.split_at(N);
+            let mut optional = rest.iter().map(Some).collect_vec();
+            optional.resize(M, None);
+            Ok((required.try_into().unwrap(), optional.try_into().unwrap()))
+        } else {
+            Err(TemplateParseError::invalid_arguments(
+                self,
+                format!("Expected {min} to {max} arguments", min = N, max = N + M),
+            ))
+        }
     }
 }
 
