@@ -3,6 +3,7 @@
     "version": "prerelease",
     "title": "prerelease",
     "aliases": [
+      "nightly",
       "main"
     ]
   },
