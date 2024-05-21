@@ -985,6 +985,8 @@ fn test_diff_dir_file() {
         vec![right_base],
         vec![right_side1, right_side2],
     ));
+    let left_value = |path: &RepoPath| left_merged.path_value(path);
+    let right_value = |path: &RepoPath| right_merged.path_value(path);
 
     // Test the forwards diff
     {
@@ -994,58 +996,37 @@ fn test_diff_dir_file() {
             .collect_vec();
         let expected_diff = vec![
             // path1: file1 -> directory1
-            (
-                path1.to_owned(),
-                (left_merged.path_value(path1), Merge::absent()),
-            ),
+            (path1.to_owned(), (left_value(path1), Merge::absent())),
             (
                 path1.join(file),
-                (Merge::absent(), right_merged.path_value(&path1.join(file))),
+                (Merge::absent(), right_value(&path1.join(file))),
             ),
             // path2: file1 -> directory1+(directory2-absent)
-            (
-                path2.to_owned(),
-                (left_merged.path_value(path2), Merge::absent()),
-            ),
+            (path2.to_owned(), (left_value(path2), Merge::absent())),
             (
                 path2.join(file),
-                (Merge::absent(), right_merged.path_value(&path2.join(file))),
+                (Merge::absent(), right_value(&path2.join(file))),
             ),
             // path3: file1 -> directory1+(file1-absent)
-            (
-                path3.to_owned(),
-                (
-                    left_merged.path_value(path3),
-                    right_merged.path_value(path3),
-                ),
-            ),
+            (path3.to_owned(), (left_value(path3), right_value(path3))),
             // path4: file1+(file2-file3) -> directory1+(directory2-directory3)
-            (
-                path4.to_owned(),
-                (left_merged.path_value(path4), Merge::absent()),
-            ),
+            (path4.to_owned(), (left_value(path4), Merge::absent())),
             (
                 path4.join(file),
-                (Merge::absent(), right_merged.path_value(&path4.join(file))),
+                (Merge::absent(), right_value(&path4.join(file))),
             ),
             // path5: directory1 -> file1+(file2-absent)
             (
                 path5.join(file),
-                (left_merged.path_value(&path5.join(file)), Merge::absent()),
+                (left_value(&path5.join(file)), Merge::absent()),
             ),
-            (
-                path5.to_owned(),
-                (Merge::absent(), right_merged.path_value(path5)),
-            ),
+            (path5.to_owned(), (Merge::absent(), right_value(path5))),
             // path6: directory1 -> file1+(directory1-absent)
             (
                 path6.join(file),
-                (left_merged.path_value(&path6.join(file)), Merge::absent()),
+                (left_value(&path6.join(file)), Merge::absent()),
             ),
-            (
-                path6.to_owned(),
-                (Merge::absent(), right_merged.path_value(path6)),
-            ),
+            (path6.to_owned(), (Merge::absent(), right_value(path6))),
         ];
         assert_eq!(actual_diff, expected_diff);
         diff_stream_equals_iter(&left_merged, &right_merged, &EverythingMatcher);
@@ -1061,55 +1042,34 @@ fn test_diff_dir_file() {
             // path1: file1 -> directory1
             (
                 path1.join(file),
-                (right_merged.path_value(&path1.join(file)), Merge::absent()),
+                (right_value(&path1.join(file)), Merge::absent()),
             ),
-            (
-                path1.to_owned(),
-                (Merge::absent(), left_merged.path_value(path1)),
-            ),
+            (path1.to_owned(), (Merge::absent(), left_value(path1))),
             // path2: file1 -> directory1+(directory2-absent)
             (
                 path2.join(file),
-                (right_merged.path_value(&path2.join(file)), Merge::absent()),
+                (right_value(&path2.join(file)), Merge::absent()),
             ),
-            (
-                path2.to_owned(),
-                (Merge::absent(), left_merged.path_value(path2)),
-            ),
+            (path2.to_owned(), (Merge::absent(), left_value(path2))),
             // path3: file1 -> directory1+(file1-absent)
-            (
-                path3.to_owned(),
-                (
-                    right_merged.path_value(path3),
-                    left_merged.path_value(path3),
-                ),
-            ),
+            (path3.to_owned(), (right_value(path3), left_value(path3))),
             // path4: file1+(file2-file3) -> directory1+(directory2-directory3)
             (
                 path4.join(file),
-                (right_merged.path_value(&path4.join(file)), Merge::absent()),
+                (right_value(&path4.join(file)), Merge::absent()),
             ),
-            (
-                path4.to_owned(),
-                (Merge::absent(), left_merged.path_value(path4)),
-            ),
+            (path4.to_owned(), (Merge::absent(), left_value(path4))),
             // path5: directory1 -> file1+(file2-absent)
-            (
-                path5.to_owned(),
-                (right_merged.path_value(path5), Merge::absent()),
-            ),
+            (path5.to_owned(), (right_value(path5), Merge::absent())),
             (
                 path5.join(file),
-                (Merge::absent(), left_merged.path_value(&path5.join(file))),
+                (Merge::absent(), left_value(&path5.join(file))),
             ),
             // path6: directory1 -> file1+(directory1-absent)
-            (
-                path6.to_owned(),
-                (right_merged.path_value(path6), Merge::absent()),
-            ),
+            (path6.to_owned(), (right_value(path6), Merge::absent())),
             (
                 path6.join(file),
-                (Merge::absent(), left_merged.path_value(&path6.join(file))),
+                (Merge::absent(), left_value(&path6.join(file))),
             ),
         ];
         assert_eq!(actual_diff, expected_diff);
@@ -1125,10 +1085,7 @@ fn test_diff_dir_file() {
             .collect_vec();
         let expected_diff = vec![
             // path1: file1 -> directory1
-            (
-                path1.to_owned(),
-                (left_merged.path_value(path1), Merge::absent()),
-            ),
+            (path1.to_owned(), (left_value(path1), Merge::absent())),
         ];
         assert_eq!(actual_diff, expected_diff);
         diff_stream_equals_iter(&left_merged, &right_merged, &matcher);
@@ -1145,7 +1102,7 @@ fn test_diff_dir_file() {
             // path1: file1 -> directory1
             (
                 path1.join(file),
-                (Merge::absent(), right_merged.path_value(&path1.join(file))),
+                (Merge::absent(), right_value(&path1.join(file))),
             ),
         ];
         assert_eq!(actual_diff, expected_diff);
@@ -1160,13 +1117,10 @@ fn test_diff_dir_file() {
             .map(|(path, diff)| (path, diff.unwrap()))
             .collect_vec();
         let expected_diff = vec![
-            (
-                path1.to_owned(),
-                (left_merged.path_value(path1), Merge::absent()),
-            ),
+            (path1.to_owned(), (left_value(path1), Merge::absent())),
             (
                 path1.join(file),
-                (Merge::absent(), right_merged.path_value(&path1.join(file))),
+                (Merge::absent(), right_value(&path1.join(file))),
             ),
         ];
         assert_eq!(actual_diff, expected_diff);
@@ -1183,10 +1137,7 @@ fn test_diff_dir_file() {
             .diff(&right_merged, &matcher)
             .map(|(path, diff)| (path, diff.unwrap()))
             .collect_vec();
-        let expected_diff = vec![(
-            path6.to_owned(),
-            (Merge::absent(), right_merged.path_value(path6)),
-        )];
+        let expected_diff = vec![(path6.to_owned(), (Merge::absent(), right_value(path6)))];
         assert_eq!(actual_diff, expected_diff);
         diff_stream_equals_iter(&left_merged, &right_merged, &matcher);
     }
