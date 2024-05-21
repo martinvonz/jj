@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj split` will now refuse to split an empty commit.
 
+* `jj config list` now uses multi-line strings and single-quoted strings in the
+  output when appropriate.
+
 ### Deprecations
 
 - Attempting to alias a built-in command now gives a warning, rather than being silently ignored.

@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::fmt;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -172,23 +173,29 @@ fn toml_escape_key(key: String) -> String {
     toml_edit::Key::from(key).to_string()
 }
 
-// TODO: Use a proper TOML library to serialize instead.
-fn serialize_config_value(value: &config::Value) -> String {
-    match &value.kind {
-        config::ValueKind::Table(table) => format!(
-            "{{{}}}",
-            // TODO: Remove sorting when config crate maintains deterministic ordering.
-            table
-                .iter()
-                .sorted_by_key(|(k, _)| *k)
-                .map(|(k, v)| format!("{k}={}", serialize_config_value(v)))
-                .join(", ")
-        ),
-        config::ValueKind::Array(vals) => {
-            format!("[{}]", vals.iter().map(serialize_config_value).join(", "))
-        }
-        config::ValueKind::String(val) => format!("{val:?}"),
-        _ => value.to_string(),
+fn to_toml_value(value: &config::Value) -> Result<toml_edit::Value, config::ConfigError> {
+    fn type_error<T: fmt::Display>(message: T) -> config::ConfigError {
+        config::ConfigError::Message(message.to_string())
+    }
+    // It's unlikely that the config object contained unsupported values, but
+    // there's no guarantee. For example, values coming from environment
+    // variables might be big int.
+    match value.kind {
+        config::ValueKind::Nil => Err(type_error(format!("Unexpected value: {value}"))),
+        config::ValueKind::Boolean(v) => Ok(v.into()),
+        config::ValueKind::I64(v) => Ok(v.into()),
+        config::ValueKind::I128(v) => Ok(i64::try_from(v).map_err(type_error)?.into()),
+        config::ValueKind::U64(v) => Ok(i64::try_from(v).map_err(type_error)?.into()),
+        config::ValueKind::U128(v) => Ok(i64::try_from(v).map_err(type_error)?.into()),
+        config::ValueKind::Float(v) => Ok(v.into()),
+        config::ValueKind::String(ref v) => Ok(v.into()),
+        // TODO: Remove sorting when config crate maintains deterministic ordering.
+        config::ValueKind::Table(ref table) => table
+            .iter()
+            .sorted_by_key(|(k, _)| *k)
+            .map(|(k, v)| Ok((k, to_toml_value(v)?)))
+            .collect(),
+        config::ValueKind::Array(ref array) => array.iter().map(to_toml_value).collect(),
     }
 }
 
@@ -286,7 +293,8 @@ fn config_template_language() -> GenericTemplateLanguage<'static, AnnotatedValue
     });
     language.add_keyword("value", |self_property| {
         // TODO: would be nice if we can provide raw dynamically-typed value
-        let out_property = self_property.map(|annotated| serialize_config_value(&annotated.value));
+        let out_property =
+            self_property.and_then(|annotated| Ok(to_toml_value(&annotated.value)?.to_string()));
         Ok(L::wrap_string(out_property))
     });
     language.add_keyword("overridden", |self_property| {
