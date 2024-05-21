@@ -565,14 +565,14 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
     // code completion inside macro is quite restricted.
     let mut map = TemplateBuildMethodFnMap::<L, String>::new();
     map.insert("len", |_language, _build_ctx, self_property, function| {
-        template_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         let out_property = self_property.and_then(|s| Ok(s.len().try_into()?));
         Ok(L::wrap_integer(out_property))
     });
     map.insert(
         "contains",
         |language, build_ctx, self_property, function| {
-            let [needle_node] = template_parser::expect_exact_arguments(function)?;
+            let [needle_node] = function.expect_exact_arguments()?;
             // TODO: or .try_into_string() to disable implicit type cast?
             let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
             let out_property = (self_property, needle_property)
@@ -583,7 +583,7 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
     map.insert(
         "starts_with",
         |language, build_ctx, self_property, function| {
-            let [needle_node] = template_parser::expect_exact_arguments(function)?;
+            let [needle_node] = function.expect_exact_arguments()?;
             let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
             let out_property = (self_property, needle_property)
                 .map(|(haystack, needle)| haystack.starts_with(&needle));
@@ -593,7 +593,7 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
     map.insert(
         "ends_with",
         |language, build_ctx, self_property, function| {
-            let [needle_node] = template_parser::expect_exact_arguments(function)?;
+            let [needle_node] = function.expect_exact_arguments()?;
             let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
             let out_property = (self_property, needle_property)
                 .map(|(haystack, needle)| haystack.ends_with(&needle));
@@ -603,7 +603,7 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
     map.insert(
         "remove_prefix",
         |language, build_ctx, self_property, function| {
-            let [needle_node] = template_parser::expect_exact_arguments(function)?;
+            let [needle_node] = function.expect_exact_arguments()?;
             let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
             let out_property = (self_property, needle_property).map(|(haystack, needle)| {
                 haystack
@@ -617,7 +617,7 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
     map.insert(
         "remove_suffix",
         |language, build_ctx, self_property, function| {
-            let [needle_node] = template_parser::expect_exact_arguments(function)?;
+            let [needle_node] = function.expect_exact_arguments()?;
             let needle_property = expect_plain_text_expression(language, build_ctx, needle_node)?;
             let out_property = (self_property, needle_property).map(|(haystack, needle)| {
                 haystack
@@ -629,7 +629,7 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
         },
     );
     map.insert("substr", |language, build_ctx, self_property, function| {
-        let [start_idx, end_idx] = template_parser::expect_exact_arguments(function)?;
+        let [start_idx, end_idx] = function.expect_exact_arguments()?;
         let start_idx_property = expect_isize_expression(language, build_ctx, start_idx)?;
         let end_idx_property = expect_isize_expression(language, build_ctx, end_idx)?;
         let out_property =
@@ -643,24 +643,24 @@ fn builtin_string_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
     map.insert(
         "first_line",
         |_language, _build_ctx, self_property, function| {
-            template_parser::expect_no_arguments(function)?;
+            function.expect_no_arguments()?;
             let out_property =
                 self_property.map(|s| s.lines().next().unwrap_or_default().to_string());
             Ok(L::wrap_string(out_property))
         },
     );
     map.insert("lines", |_language, _build_ctx, self_property, function| {
-        template_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         let out_property = self_property.map(|s| s.lines().map(|l| l.to_owned()).collect());
         Ok(L::wrap_string_list(out_property))
     });
     map.insert("upper", |_language, _build_ctx, self_property, function| {
-        template_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         let out_property = self_property.map(|s| s.to_uppercase());
         Ok(L::wrap_string(out_property))
     });
     map.insert("lower", |_language, _build_ctx, self_property, function| {
-        template_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         let out_property = self_property.map(|s| s.to_lowercase());
         Ok(L::wrap_string(out_property))
     });
@@ -689,19 +689,19 @@ fn builtin_signature_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
     // code completion inside macro is quite restricted.
     let mut map = TemplateBuildMethodFnMap::<L, Signature>::new();
     map.insert("name", |_language, _build_ctx, self_property, function| {
-        template_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         let out_property = self_property.map(|signature| signature.name);
         Ok(L::wrap_string(out_property))
     });
     map.insert("email", |_language, _build_ctx, self_property, function| {
-        template_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         let out_property = self_property.map(|signature| signature.email);
         Ok(L::wrap_string(out_property))
     });
     map.insert(
         "username",
         |_language, _build_ctx, self_property, function| {
-            template_parser::expect_no_arguments(function)?;
+            function.expect_no_arguments()?;
             let out_property = self_property.map(|signature| {
                 let (username, _) = text_util::split_email(&signature.email);
                 username.to_owned()
@@ -712,7 +712,7 @@ fn builtin_signature_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
     map.insert(
         "timestamp",
         |_language, _build_ctx, self_property, function| {
-            template_parser::expect_no_arguments(function)?;
+            function.expect_no_arguments()?;
             let out_property = self_property.map(|signature| signature.timestamp);
             Ok(L::wrap_timestamp(out_property))
         },
@@ -726,18 +726,18 @@ fn builtin_size_hint_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
     // code completion inside macro is quite restricted.
     let mut map = TemplateBuildMethodFnMap::<L, SizeHint>::new();
     map.insert("lower", |_language, _build_ctx, self_property, function| {
-        template_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         let out_property = self_property.and_then(|(lower, _)| Ok(i64::try_from(lower)?));
         Ok(L::wrap_integer(out_property))
     });
     map.insert("upper", |_language, _build_ctx, self_property, function| {
-        template_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         let out_property =
             self_property.and_then(|(_, upper)| Ok(upper.map(i64::try_from).transpose()?));
         Ok(L::wrap_integer_opt(out_property))
     });
     map.insert("exact", |_language, _build_ctx, self_property, function| {
-        template_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         let out_property = self_property.and_then(|(lower, upper)| {
             let exact = (Some(lower) == upper).then_some(lower);
             Ok(exact.map(i64::try_from).transpose()?)
@@ -745,7 +745,7 @@ fn builtin_size_hint_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
         Ok(L::wrap_integer_opt(out_property))
     });
     map.insert("zero", |_language, _build_ctx, self_property, function| {
-        template_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         let out_property = self_property.map(|(_, upper)| upper == Some(0));
         Ok(L::wrap_boolean(out_property))
     });
@@ -758,7 +758,7 @@ fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
     // code completion inside macro is quite restricted.
     let mut map = TemplateBuildMethodFnMap::<L, Timestamp>::new();
     map.insert("ago", |_language, _build_ctx, self_property, function| {
-        template_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         let now = Timestamp::now();
         let format = timeago::Formatter::new();
         let out_property = self_property
@@ -769,7 +769,7 @@ fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
         "format",
         |_language, _build_ctx, self_property, function| {
             // No dynamic string is allowed as the templater has no runtime error type.
-            let [format_node] = template_parser::expect_exact_arguments(function)?;
+            let [format_node] = function.expect_exact_arguments()?;
             let format =
                 template_parser::expect_string_literal_with(format_node, |format, span| {
                     time_util::FormattingItems::parse(format)
@@ -785,7 +785,7 @@ fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
         },
     );
     map.insert("utc", |_language, _build_ctx, self_property, function| {
-        template_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         let out_property = self_property.map(|mut timestamp| {
             timestamp.tz_offset = 0;
             timestamp
@@ -793,7 +793,7 @@ fn builtin_timestamp_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
         Ok(L::wrap_timestamp(out_property))
     });
     map.insert("local", |_language, _build_ctx, self_property, function| {
-        template_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         let tz_offset = std::env::var("JJ_TZ_OFFSET_MINS")
             .ok()
             .and_then(|tz_string| tz_string.parse::<i32>().ok())
@@ -813,19 +813,19 @@ fn builtin_timestamp_range_methods<'a, L: TemplateLanguage<'a> + ?Sized>(
     // code completion inside macro is quite restricted.
     let mut map = TemplateBuildMethodFnMap::<L, TimestampRange>::new();
     map.insert("start", |_language, _build_ctx, self_property, function| {
-        template_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         let out_property = self_property.map(|time_range| time_range.start);
         Ok(L::wrap_timestamp(out_property))
     });
     map.insert("end", |_language, _build_ctx, self_property, function| {
-        template_parser::expect_no_arguments(function)?;
+        function.expect_no_arguments()?;
         let out_property = self_property.map(|time_range| time_range.end);
         Ok(L::wrap_timestamp(out_property))
     });
     map.insert(
         "duration",
         |_language, _build_ctx, self_property, function| {
-            template_parser::expect_no_arguments(function)?;
+            function.expect_no_arguments()?;
             let out_property = self_property.and_then(|time_range| Ok(time_range.duration()?));
             Ok(L::wrap_string(out_property))
         },
@@ -841,7 +841,7 @@ fn build_list_template_method<'a, L: TemplateLanguage<'a> + ?Sized>(
 ) -> TemplateParseResult<L::Property> {
     let property = match function.name {
         "join" => {
-            let [separator_node] = template_parser::expect_exact_arguments(function)?;
+            let [separator_node] = function.expect_exact_arguments()?;
             let separator = expect_template_expression(language, build_ctx, separator_node)?;
             L::wrap_template(self_template.join(separator))
         }
@@ -866,12 +866,12 @@ where
 {
     let property = match function.name {
         "len" => {
-            template_parser::expect_no_arguments(function)?;
+            function.expect_no_arguments()?;
             let out_property = self_property.and_then(|items| Ok(items.len().try_into()?));
             L::wrap_integer(out_property)
         }
         "join" => {
-            let [separator_node] = template_parser::expect_exact_arguments(function)?;
+            let [separator_node] = function.expect_exact_arguments()?;
             let separator = expect_template_expression(language, build_ctx, separator_node)?;
             let template =
                 ListPropertyTemplate::new(self_property, separator, |formatter, item| {
@@ -898,7 +898,7 @@ where
 {
     let property = match function.name {
         "len" => {
-            template_parser::expect_no_arguments(function)?;
+            function.expect_no_arguments()?;
             let out_property = self_property.and_then(|items| Ok(items.len().try_into()?));
             L::wrap_integer(out_property)
         }
@@ -928,7 +928,7 @@ where
 {
     // Build an item template with placeholder property, then evaluate it
     // for each item.
-    let [lambda_node] = template_parser::expect_exact_arguments(function)?;
+    let [lambda_node] = function.expect_exact_arguments()?;
     let item_placeholder = PropertyPlaceholder::new();
     let item_template = template_parser::expect_lambda_with(lambda_node, |lambda, _span| {
         let item_fn = || wrap_item(item_placeholder.clone());
@@ -962,7 +962,7 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
     // code completion inside macro is quite restricted.
     let mut map = TemplateBuildFunctionFnMap::<L>::new();
     map.insert("fill", |language, build_ctx, function| {
-        let [width_node, content_node] = template_parser::expect_exact_arguments(function)?;
+        let [width_node, content_node] = function.expect_exact_arguments()?;
         let width = expect_usize_expression(language, build_ctx, width_node)?;
         let content = expect_template_expression(language, build_ctx, content_node)?;
         let template =
@@ -973,7 +973,7 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
         Ok(L::wrap_template(Box::new(template)))
     });
     map.insert("indent", |language, build_ctx, function| {
-        let [prefix_node, content_node] = template_parser::expect_exact_arguments(function)?;
+        let [prefix_node, content_node] = function.expect_exact_arguments()?;
         let prefix = expect_template_expression(language, build_ctx, prefix_node)?;
         let content = expect_template_expression(language, build_ctx, content_node)?;
         let template = ReformatTemplate::new(content, move |formatter, recorded| {
@@ -985,7 +985,7 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
         Ok(L::wrap_template(Box::new(template)))
     });
     map.insert("label", |language, build_ctx, function| {
-        let [label_node, content_node] = template_parser::expect_exact_arguments(function)?;
+        let [label_node, content_node] = function.expect_exact_arguments()?;
         let label_property = expect_plain_text_expression(language, build_ctx, label_node)?;
         let content = expect_template_expression(language, build_ctx, content_node)?;
         let labels =
@@ -995,8 +995,7 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
         ))))
     });
     map.insert("if", |language, build_ctx, function| {
-        let ([condition_node, true_node], [false_node]) =
-            template_parser::expect_arguments(function)?;
+        let ([condition_node, true_node], [false_node]) = function.expect_arguments()?;
         let condition = expect_boolean_expression(language, build_ctx, condition_node)?;
         let true_template = expect_template_expression(language, build_ctx, true_node)?;
         let false_template = false_node
@@ -1022,7 +1021,7 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
         Ok(L::wrap_template(Box::new(ConcatTemplate(contents))))
     });
     map.insert("separate", |language, build_ctx, function| {
-        let ([separator_node], content_nodes) = template_parser::expect_some_arguments(function)?;
+        let ([separator_node], content_nodes) = function.expect_some_arguments()?;
         let separator = expect_template_expression(language, build_ctx, separator_node)?;
         let contents = content_nodes
             .iter()
@@ -1033,8 +1032,7 @@ fn builtin_functions<'a, L: TemplateLanguage<'a> + ?Sized>() -> TemplateBuildFun
         ))))
     });
     map.insert("surround", |language, build_ctx, function| {
-        let [prefix_node, suffix_node, content_node] =
-            template_parser::expect_exact_arguments(function)?;
+        let [prefix_node, suffix_node, content_node] = function.expect_exact_arguments()?;
         let prefix = expect_template_expression(language, build_ctx, prefix_node)?;
         let suffix = expect_template_expression(language, build_ctx, suffix_node)?;
         let content = expect_template_expression(language, build_ctx, content_node)?;

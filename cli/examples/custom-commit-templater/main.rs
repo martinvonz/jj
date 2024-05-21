@@ -117,7 +117,7 @@ impl CommitTemplateLanguageExtension for HexCounter {
         table.commit_methods.insert(
             "has_most_digits",
             |language, _build_context, property, call| {
-                template_parser::expect_no_arguments(call)?;
+                call.expect_no_arguments()?;
                 let most_digits = language
                     .cache_extension::<MostDigitsInId>()
                     .unwrap()
@@ -130,7 +130,7 @@ impl CommitTemplateLanguageExtension for HexCounter {
         table.commit_methods.insert(
             "num_digits_in_id",
             |_language, _build_context, property, call| {
-                template_parser::expect_no_arguments(call)?;
+                call.expect_no_arguments()?;
                 Ok(L::wrap_integer(
                     property.map(|commit| num_digits_in_id(commit.id())),
                 ))
@@ -139,7 +139,7 @@ impl CommitTemplateLanguageExtension for HexCounter {
         table.commit_methods.insert(
             "num_char_in_id",
             |_language, _build_context, property, call| {
-                let [string_arg] = template_parser::expect_exact_arguments(call)?;
+                let [string_arg] = call.expect_exact_arguments()?;
                 let char_arg =
                     template_parser::expect_string_literal_with(string_arg, |string, span| {
                         let chars: Vec<_> = string.chars().collect();

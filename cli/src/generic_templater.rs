@@ -104,7 +104,7 @@ impl<'a, C: 'a> TemplateLanguage<'a> for GenericTemplateLanguage<'a, C> {
                 let table = &self.build_fn_table.keywords;
                 let build = template_parser::lookup_method(type_name, table, function)?;
                 // For simplicity, only 0-ary method is supported.
-                template_parser::expect_no_arguments(function)?;
+                function.expect_no_arguments()?;
                 build(property)
             }
         }
