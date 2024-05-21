@@ -1672,6 +1672,18 @@ always resolves to exactly one commit. For example:</p>
 <p><code>immutable_heads()</code>: Resolves to <code>trunk() | tags()</code> by default. See
   <a href="../config/#set-of-immutable-commits">here</a> for details.</p>
 </li>
+<li>
+<p><code>immutable()</code>: The set of commits that <code>jj</code> treats as immutable. This is
+  equivalent to <code>::(immutable_heads() | root())</code>. Note that modifying this will
+  <em>not</em> change whether a commit is immutable. To do that, edit
+  <code>immutable_heads()</code>.</p>
+</li>
+<li>
+<p><code>mutable()</code>: The set of commits that <code>jj</code> treats as mutable. This is
+  equivalent to <code>~immutable()</code>. Note that modifying this will
+  <em>not</em> change whether a commit is immutable. To do that, edit
+  <code>immutable_heads()</code>.</p>
+</li>
 </ul>
 <h2 id="the-all-modifier">The <code>all:</code> modifier<a class="headerlink" href="#the-all-modifier" title="Permanent link">&para;</a></h2>
 <p>Certain commands (such as <code>jj rebase</code>) can take multiple revset arguments, and
