@@ -342,14 +342,16 @@ pub fn parse_program_or_bare_string(text: &str) -> FilesetParseResult<Expression
     Ok(ExpressionNode::new(expr, span))
 }
 
-pub fn expect_no_arguments(function: &FunctionCallNode) -> FilesetParseResult<()> {
-    if function.args.is_empty() {
-        Ok(())
-    } else {
-        Err(FilesetParseError::invalid_arguments(
-            function,
-            "Expected 0 arguments",
-        ))
+impl<'i> FunctionCallNode<'i> {
+    pub fn expect_no_arguments(&self) -> FilesetParseResult<()> {
+        if self.args.is_empty() {
+            Ok(())
+        } else {
+            Err(FilesetParseError::invalid_arguments(
+                self,
+                "Expected 0 arguments",
+            ))
+        }
     }
 }
 
