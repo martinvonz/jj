@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj branch track` now show conflicts if there are some.
 
+* A new revset `reachable(srcs, domain)` will return all commits that are
+  reachable from `srcs` within `domain`.
+
 ### Fixed bugs
 
 * When the working copy commit becomes immutable, a new one is automatically created on top of it 
@@ -110,9 +113,6 @@ to avoid letting the user edit the immutable one.
 
 * `jj rebase -r` now accepts `--insert-after` and `--insert-before` options to
   customize the location of the rebased revisions.
-
-* A new revset `reahable(srcs, domain)` will return all commits that are
-  reachable from `srcs` within `domain`.
 
 ### Fixed bugs
 
