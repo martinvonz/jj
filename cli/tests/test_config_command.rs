@@ -104,11 +104,12 @@ fn test_config_list_inline_table() {
         x = 1
         [[test-table]]
         y = ["z"]
+        z."key=with whitespace" = []
     "#,
     );
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "test-table"]);
     insta::assert_snapshot!(stdout, @r###"
-    test-table=[{x=1}, {y=["z"]}]
+    test-table=[{ x = 1 }, { y = ["z"], z = { "key=with whitespace" = [] } }]
     "###);
 }
 
@@ -133,6 +134,27 @@ fn test_config_list_all() {
     test-table.y.bar=123
     test-table.y.foo="abc"
     test-val=[1, 2, 3]
+    "###);
+}
+
+#[test]
+fn test_config_list_multiline_string() {
+    let test_env = TestEnvironment::default();
+    test_env.add_config(
+        r#"
+    multiline = '''
+foo
+bar
+'''
+    "#,
+    );
+
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "multiline"]);
+    insta::assert_snapshot!(stdout, @r###"
+    multiline="""
+    foo
+    bar
+    """
     "###);
 }
 
