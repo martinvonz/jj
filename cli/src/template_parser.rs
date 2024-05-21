@@ -683,14 +683,8 @@ pub fn parse<'i>(
 
 impl<'i> FunctionCallNode<'i> {
     pub fn expect_no_arguments(&self) -> TemplateParseResult<()> {
-        if self.args.is_empty() {
-            Ok(())
-        } else {
-            Err(TemplateParseError::invalid_arguments(
-                self,
-                "Expected 0 arguments",
-            ))
-        }
+        let [] = self.expect_exact_arguments()?;
+        Ok(())
     }
 
     /// Extracts exactly N required arguments.
