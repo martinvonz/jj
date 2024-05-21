@@ -169,26 +169,27 @@ pub(crate) fn cmd_config(
     }
 }
 
-fn toml_escape_key(key: String) -> String {
+fn toml_escape_key(key: &str) -> String {
     toml_edit::Key::from(key).to_string()
 }
 
-// TODO: Use a proper TOML library to serialize instead.
+// TODO: If `config::Value` implemented Serialize, this would be much easier.
 pub fn toml_serialize_value(value: &config::Value) -> String {
     match &value.kind {
         config::ValueKind::Table(table) => format!(
             "{{{}}}",
-            // TODO: Remove sorting when config crate maintains deterministic ordering.
+            // TODO: `config` crate now has a `preserve_order` crate feature. We could use it
+            // instead of sorting.
             table
                 .iter()
                 .sorted_by_key(|(k, _)| *k)
-                .map(|(k, v)| format!("{k}={}", toml_serialize_value(v)))
+                .map(|(k, v)| format!("{}={}", toml_escape_key(k), toml_serialize_value(v)))
                 .join(", ")
         ),
         config::ValueKind::Array(vals) => {
             format!("[{}]", vals.iter().map(toml_serialize_value).join(", "))
         }
-        config::ValueKind::String(val) => format!("{val:?}"),
+        config::ValueKind::String(val) => toml_edit::value(val).to_string(),
         _ => value.to_string(),
     }
 }
@@ -200,8 +201,13 @@ fn config_template_language() -> GenericTemplateLanguage<'static, AnnotatedValue
     let mut language = L::new();
     // "name" instead of "path" to avoid confusion with the source file path
     language.add_keyword("name", |self_property| {
-        let out_property = self_property
-            .map(|annotated| annotated.path.into_iter().map(toml_escape_key).join("."));
+        let out_property = self_property.map(|annotated| {
+            annotated
+                .path
+                .into_iter()
+                .map(|s| toml_escape_key(&s))
+                .join(".")
+        });
         Ok(L::wrap_string(out_property))
     });
     language.add_keyword("value", |self_property| {

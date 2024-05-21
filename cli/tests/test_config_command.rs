@@ -104,11 +104,13 @@ fn test_config_list_inline_table() {
         x = 1
         [[test-table]]
         y = ["z"]
+        [[test-table]]
+        z."this=key is silly" = ["qq"]
     "#,
     );
     let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "test-table"]);
     insta::assert_snapshot!(stdout, @r###"
-    test-table=[{x=1}, {y=["z"]}]
+    test-table=[{x=1}, {y=["z"]}, {z={"this=key is silly"=["qq"]}}]
     "###);
 }
 
