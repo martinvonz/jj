@@ -122,16 +122,13 @@ impl FilesetParseError {
     }
 
     /// Unexpected number of arguments, or invalid combination of arguments.
-    pub(super) fn invalid_arguments(
-        function: &FunctionCallNode,
-        message: impl Into<String>,
-    ) -> Self {
+    pub(super) fn invalid_arguments(name: &str, message: String, span: pest::Span<'_>) -> Self {
         FilesetParseError::new(
             FilesetParseErrorKind::InvalidArguments {
-                name: function.name.to_owned(),
-                message: message.into(),
+                name: name.to_owned(),
+                message,
             },
-            function.args_span,
+            span,
         )
     }
 
@@ -347,11 +344,12 @@ impl<'i> FunctionCallNode<'i> {
         if self.args.is_empty() {
             Ok(())
         } else {
-            Err(FilesetParseError::invalid_arguments(
-                self,
-                "Expected 0 arguments",
-            ))
+            Err(self.invalid_arguments("Expected 0 arguments".to_owned()))
         }
+    }
+
+    fn invalid_arguments(&self, message: String) -> FilesetParseError {
+        FilesetParseError::invalid_arguments(self.name, message, self.args_span)
     }
 }
 
