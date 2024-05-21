@@ -1967,7 +1967,8 @@ pub fn print_unmatched_explicit_paths<'a>(
 ) -> io::Result<()> {
     let mut explicit_paths = expression.explicit_paths().collect_vec();
     for tree in trees {
-        explicit_paths.retain(|&path| tree.path_value(path).is_absent());
+        // TODO: propagate errors
+        explicit_paths.retain(|&path| tree.path_value(path).unwrap().is_absent());
         if explicit_paths.is_empty() {
             return Ok(());
         }

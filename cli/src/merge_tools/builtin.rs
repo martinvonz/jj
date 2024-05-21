@@ -128,7 +128,7 @@ fn read_file_contents(
     tree: &MergedTree,
     path: &RepoPath,
 ) -> Result<FileInfo, BuiltinToolError> {
-    let value = tree.path_value(path);
+    let value = tree.path_value(path)?;
     let materialized_value = materialize_tree_value(store, path, value)
         .map_err(BuiltinToolError::BackendError)
         .block_on()?;
@@ -444,7 +444,7 @@ pub fn apply_diff_builtin(
                 let file_deleted = file_existed_previously && !file_exists_now;
 
                 if new_empty_file {
-                    let value = right_tree.path_value(&path);
+                    let value = right_tree.path_value(&path)?;
                     tree_builder.set_or_remove(path, value);
                 } else if file_deleted {
                     tree_builder.set_or_remove(path, Merge::absent());
@@ -458,7 +458,7 @@ pub fn apply_diff_builtin(
                 old_description: _,
                 new_description: _,
             } => {
-                let value = right_tree.path_value(&path);
+                let value = right_tree.path_value(&path)?;
                 tree_builder.set_or_remove(path, value);
             }
             scm_record::SelectedContents::Present { contents } => {
@@ -1028,9 +1028,9 @@ mod tests {
             }
         }
         let merge = Merge::from_vec(vec![
-            to_file_id(left_tree.path_value(path)),
-            to_file_id(base_tree.path_value(path)),
-            to_file_id(right_tree.path_value(path)),
+            to_file_id(left_tree.path_value(path).unwrap()),
+            to_file_id(base_tree.path_value(path).unwrap()),
+            to_file_id(right_tree.path_value(path).unwrap()),
         ]);
         let content = extract_as_single_hunk(&merge, store, path).block_on();
         let slices = content.map(|ContentHunk(buf)| buf.as_slice());

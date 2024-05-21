@@ -211,30 +211,30 @@ impl MergedTree {
     /// Gets the `MergeTree` in a subdirectory of the current tree. If the path
     /// doesn't correspond to a tree in any of the inputs to the merge, then
     /// that entry will be replace by an empty tree in the result.
-    pub fn sub_tree(&self, name: &RepoPathComponent) -> Option<MergedTree> {
+    pub fn sub_tree(&self, name: &RepoPathComponent) -> BackendResult<Option<MergedTree>> {
         if let MergedTree::Legacy(tree) = self {
-            tree.sub_tree(name).map(MergedTree::Legacy)
+            Ok(tree.sub_tree(name)?.map(MergedTree::Legacy))
         } else {
             match self.value(name) {
                 MergedTreeVal::Resolved(Some(TreeValue::Tree(sub_tree_id))) => {
                     let subdir = self.dir().join(name);
-                    Some(MergedTree::resolved(
-                        self.store().get_tree(&subdir, sub_tree_id).unwrap(),
-                    ))
+                    Ok(Some(MergedTree::resolved(
+                        self.store().get_tree(&subdir, sub_tree_id)?,
+                    )))
                 }
-                MergedTreeVal::Resolved(_) => None,
+                MergedTreeVal::Resolved(_) => Ok(None),
                 MergedTreeVal::Conflict(merge) => {
-                    let merged_trees = merge.map(|value| match value {
+                    let merged_trees = merge.try_map(|value| match value {
                         Some(TreeValue::Tree(sub_tree_id)) => {
                             let subdir = self.dir().join(name);
-                            self.store().get_tree(&subdir, sub_tree_id).unwrap()
+                            self.store().get_tree(&subdir, sub_tree_id)
                         }
                         _ => {
                             let subdir = self.dir().join(name);
-                            Tree::null(self.store().clone(), subdir.clone())
+                            Ok(Tree::null(self.store().clone(), subdir.clone()))
                         }
-                    });
-                    Some(MergedTree::Merge(merged_trees))
+                    })?;
+                    Ok(Some(MergedTree::Merge(merged_trees)))
                 }
             }
         }
@@ -243,17 +243,17 @@ impl MergedTree {
     /// The value at the given path. The value can be `Resolved` even if
     /// `self` is a `Conflict`, which happens if the value at the path can be
     /// trivially merged.
-    pub fn path_value(&self, path: &RepoPath) -> MergedTreeValue {
+    pub fn path_value(&self, path: &RepoPath) -> BackendResult<MergedTreeValue> {
         assert_eq!(self.dir(), RepoPath::root());
         match path.split() {
-            Some((dir, basename)) => match self.sub_tree_recursive(dir.components()) {
-                None => Merge::absent(),
-                Some(tree) => tree.value(basename).to_merge(),
+            Some((dir, basename)) => match self.sub_tree_recursive(dir.components())? {
+                None => Ok(Merge::absent()),
+                Some(tree) => Ok(tree.value(basename).to_merge()),
             },
             None => match self {
-                MergedTree::Legacy(tree) => Merge::normal(TreeValue::Tree(tree.id().clone())),
+                MergedTree::Legacy(tree) => Ok(Merge::normal(TreeValue::Tree(tree.id().clone()))),
                 MergedTree::Merge(trees) => {
-                    trees.map(|tree| Some(TreeValue::Tree(tree.id().clone())))
+                    Ok(trees.map(|tree| Some(TreeValue::Tree(tree.id().clone()))))
                 }
             },
         }
@@ -267,12 +267,22 @@ impl MergedTree {
         }
     }
 
-    fn sub_tree_recursive(&self, mut components: RepoPathComponentsIter) -> Option<MergedTree> {
-        if let Some(first) = components.next() {
-            components.try_fold(self.sub_tree(first)?, |tree, name| tree.sub_tree(name))
-        } else {
-            Some(self.clone())
+    fn sub_tree_recursive(
+        &self,
+        components: RepoPathComponentsIter,
+    ) -> BackendResult<Option<MergedTree>> {
+        let mut current_tree = self.clone();
+        for name in components {
+            match current_tree.sub_tree(name)? {
+                None => {
+                    return Ok(None);
+                }
+                Some(sub_tree) => {
+                    current_tree = sub_tree;
+                }
+            }
         }
+        Ok(Some(current_tree))
     }
 
     /// Iterator over the entries matching the given matcher. Subtrees are

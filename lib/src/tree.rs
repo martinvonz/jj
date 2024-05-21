@@ -124,39 +124,55 @@ impl Tree {
         self.data.value(basename)
     }
 
-    pub fn path_value(&self, path: &RepoPath) -> Option<TreeValue> {
+    pub fn path_value(&self, path: &RepoPath) -> BackendResult<Option<TreeValue>> {
         assert_eq!(self.dir(), RepoPath::root());
         match path.split() {
-            Some((dir, basename)) => self
-                .sub_tree_recursive(dir.components())
-                .and_then(|tree| tree.data.value(basename).cloned()),
-            None => Some(TreeValue::Tree(self.id.clone())),
+            Some((dir, basename)) => {
+                let tree = self.sub_tree_recursive(dir.components())?;
+                Ok(tree.and_then(|tree| tree.data.value(basename).cloned()))
+            }
+            None => Ok(Some(TreeValue::Tree(self.id.clone()))),
         }
     }
 
-    pub fn sub_tree(&self, name: &RepoPathComponent) -> Option<Tree> {
-        self.data.value(name).and_then(|sub_tree| match sub_tree {
-            TreeValue::Tree(sub_tree_id) => {
-                let subdir = self.dir.join(name);
-                Some(self.store.get_tree(&subdir, sub_tree_id).unwrap())
+    pub fn sub_tree(&self, name: &RepoPathComponent) -> BackendResult<Option<Tree>> {
+        if let Some(sub_tree) = self.data.value(name) {
+            match sub_tree {
+                TreeValue::Tree(sub_tree_id) => {
+                    let subdir = self.dir.join(name);
+                    let sub_tree = self.store.get_tree(&subdir, sub_tree_id)?;
+                    Ok(Some(sub_tree))
+                }
+                _ => Ok(None),
             }
-            _ => None,
-        })
+        } else {
+            Ok(None)
+        }
     }
 
     fn known_sub_tree(&self, subdir: &RepoPath, id: &TreeId) -> Tree {
         self.store.get_tree(subdir, id).unwrap()
     }
 
-    fn sub_tree_recursive(&self, mut components: RepoPathComponentsIter) -> Option<Tree> {
-        if let Some(first) = components.next() {
-            components.try_fold(self.sub_tree(first)?, |tree, name| tree.sub_tree(name))
-        } else {
-            // TODO: It would be nice to be able to return a reference here, but
-            // then we would have to figure out how to share Tree instances
-            // across threads.
-            Some(self.clone())
+    fn sub_tree_recursive(
+        &self,
+        components: RepoPathComponentsIter,
+    ) -> BackendResult<Option<Tree>> {
+        let mut current_tree = self.clone();
+        for name in components {
+            match current_tree.sub_tree(name)? {
+                None => {
+                    return Ok(None);
+                }
+                Some(sub_tree) => {
+                    current_tree = sub_tree;
+                }
+            }
         }
+        // TODO: It would be nice to be able to return a reference here, but
+        // then we would have to figure out how to share Tree instances
+        // across threads.
+        Ok(Some(current_tree))
     }
 
     pub fn conflicts_matching(&self, matcher: &dyn Matcher) -> Vec<(RepoPathBuf, ConflictId)> {
