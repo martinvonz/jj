@@ -15,13 +15,9 @@ if(remote,
 commit_summary = 'format_commit_summary_with_refs(self, branches)'
 
 config_list = '''
-label(if(overridden, "overridden"),
-  concat(
-    if(overridden, "# "),
-    name,
-    "=",
-    value,
-  ),
+if(overridden,
+  label("overridden", indent("# ", name ++ "=" ++ value)),
+  name ++ "=" ++ value,
 ) ++ "\n"
 '''
 
