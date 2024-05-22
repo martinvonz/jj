@@ -60,7 +60,7 @@ fn test_same_type() {
                 );
             }
         }
-        let tree_id = tree_builder.write_tree();
+        let tree_id = tree_builder.write_tree().unwrap();
         store.get_tree(RepoPath::root(), &tree_id).unwrap()
     };
 
@@ -202,7 +202,7 @@ fn test_executable() {
                 testutils::write_normal_file(&mut tree_builder, repo_path, "contents");
             }
         }
-        let tree_id = tree_builder.write_tree();
+        let tree_id = tree_builder.write_tree().unwrap();
         store.get_tree(RepoPath::root(), &tree_id).unwrap()
     };
 
@@ -250,7 +250,7 @@ fn test_subtrees() {
                 &format!("contents of {path:?}"),
             );
         }
-        let tree_id = tree_builder.write_tree();
+        let tree_id = tree_builder.write_tree().unwrap();
         store.get_tree(RepoPath::root(), &tree_id).unwrap()
     };
 
@@ -304,7 +304,7 @@ fn test_subtree_becomes_empty() {
                 &format!("contents of {path:?}"),
             );
         }
-        let tree_id = tree_builder.write_tree();
+        let tree_id = tree_builder.write_tree().unwrap();
         store.get_tree(RepoPath::root(), &tree_id).unwrap()
     };
 
@@ -333,7 +333,7 @@ fn test_subtree_one_missing() {
                 &format!("contents of {path:?}"),
             );
         }
-        let tree_id = tree_builder.write_tree();
+        let tree_id = tree_builder.write_tree().unwrap();
         store.get_tree(RepoPath::root(), &tree_id).unwrap()
     };
 
@@ -400,11 +400,11 @@ fn test_types() {
         RepoPath::from_internal_string("tree_normal_symlink"),
         "contents",
     );
-    let base_tree_id = base_tree_builder.write_tree();
+    let base_tree_id = base_tree_builder.write_tree().unwrap();
     let base_tree = store.get_tree(RepoPath::root(), &base_tree_id).unwrap();
-    let side1_tree_id = side1_tree_builder.write_tree();
+    let side1_tree_id = side1_tree_builder.write_tree().unwrap();
     let side1_tree = store.get_tree(RepoPath::root(), &side1_tree_id).unwrap();
-    let side2_tree_id = side2_tree_builder.write_tree();
+    let side2_tree_id = side2_tree_builder.write_tree().unwrap();
     let side2_tree = store.get_tree(RepoPath::root(), &side2_tree_id).unwrap();
 
     // Created the merged tree
