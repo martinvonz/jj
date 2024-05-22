@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -37,7 +37,6 @@ use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::str_util::StringPattern;
 use jj_lib::view::View;
 use jj_lib::workspace::Workspace;
-use maplit::hashset;
 
 use crate::cli_util::{
     print_trackable_remote_branches, short_change_hash, short_commit_hash, start_repo_transaction,
@@ -779,6 +778,13 @@ fn do_git_clone(
     Ok((workspace_command, stats))
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum BranchMoveDirection {
+    Forward,
+    Backward,
+    Sideways,
+}
+
 fn cmd_git_push(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -899,20 +905,22 @@ fn cmd_git_push(
     }
 
     let mut new_heads = vec![];
-    // Short-term TODO: `force_pushed_branches` no longer has an effect on how
-    // branches are actually pushed. Messages about "Moving" vs "Forcing"
-    // branches are now misleading. Change this logic so that we print whether
-    // the branch moved forward, backward, or sideways.
-    let mut force_pushed_branches = hashset! {};
+    let mut branch_push_direction = HashMap::new();
     for (branch_name, update) in &branch_updates {
         if let Some(new_target) = &update.new_target {
             new_heads.push(new_target.clone());
-            let force = match &update.old_target {
-                None => false,
-                Some(old_target) => !repo.index().is_ancestor(old_target, new_target),
-            };
-            if force {
-                force_pushed_branches.insert(branch_name.to_string());
+            if let Some(old_target) = &update.old_target {
+                assert_ne!(old_target, new_target);
+                branch_push_direction.insert(
+                    branch_name.to_string(),
+                    if repo.index().is_ancestor(old_target, new_target) {
+                        BranchMoveDirection::Forward
+                    } else if repo.index().is_ancestor(new_target, old_target) {
+                        BranchMoveDirection::Backward
+                    } else {
+                        BranchMoveDirection::Sideways
+                    },
+                );
             }
         }
     }
@@ -964,21 +972,25 @@ fn cmd_git_push(
     for (branch_name, update) in &branch_updates {
         match (&update.old_target, &update.new_target) {
             (Some(old_target), Some(new_target)) => {
-                if force_pushed_branches.contains(branch_name) {
-                    writeln!(
-                        ui.status(),
-                        "  Force branch {branch_name} from {} to {}",
-                        short_commit_hash(old_target),
-                        short_commit_hash(new_target)
-                    )?;
-                } else {
-                    writeln!(
-                        ui.status(),
-                        "  Move branch {branch_name} from {} to {}",
-                        short_commit_hash(old_target),
-                        short_commit_hash(new_target)
-                    )?;
-                }
+                let old = short_commit_hash(old_target);
+                let new = short_commit_hash(new_target);
+                // TODO(ilyagr): Add color. Once there is color, "Move branch ... sideways" may
+                // read more naturally than "Move sideways branch ...". Without color, it's hard
+                // to see at a glance if one branch among many was moved sideways (say).
+                // TODO: People on Discord suggest "Move branch ... forward by n commits",
+                // possibly "Move branch ... sideways (X forward, Y back)".
+                let msg = match branch_push_direction.get(branch_name).unwrap() {
+                    BranchMoveDirection::Forward => {
+                        format!("Move forward branch {branch_name} from {old} to {new}")
+                    }
+                    BranchMoveDirection::Backward => {
+                        format!("Move backward branch {branch_name} from {old} to {new}")
+                    }
+                    BranchMoveDirection::Sideways => {
+                        format!("Move sideways branch {branch_name} from {old} to {new}")
+                    }
+                };
+                writeln!(ui.status(), "  {msg}")?;
             }
             (Some(old_target), None) => {
                 writeln!(
