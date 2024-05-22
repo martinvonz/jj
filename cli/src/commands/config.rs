@@ -14,15 +14,14 @@
 
 use std::fmt;
 use std::io::Write;
-use std::path::{Path, PathBuf};
 
 use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
 use tracing::instrument;
 
-use crate::cli_util::{run_ui_editor, CommandHelper};
-use crate::command_error::{config_error, user_error, user_error_with_message, CommandError};
-use crate::config::{new_config_path, AnnotatedValue, ConfigSource};
+use crate::cli_util::{get_new_config_file_path, run_ui_editor, CommandHelper};
+use crate::command_error::{config_error, user_error, CommandError};
+use crate::config::{write_config_value_to_file, AnnotatedValue, ConfigSource};
 use crate::generic_templater::GenericTemplateLanguage;
 use crate::template_builder::TemplateLanguage as _;
 use crate::templater::TemplatePropertyExt as _;
@@ -197,87 +196,6 @@ fn to_toml_value(value: &config::Value) -> Result<toml_edit::Value, config::Conf
             .collect(),
         config::ValueKind::Array(ref array) => array.iter().map(to_toml_value).collect(),
     }
-}
-
-fn write_config_value_to_file(key: &str, value_str: &str, path: &Path) -> Result<(), CommandError> {
-    // Read config
-    let config_toml = std::fs::read_to_string(path).or_else(|err| {
-        match err.kind() {
-            // If config doesn't exist yet, read as empty and we'll write one.
-            std::io::ErrorKind::NotFound => Ok("".to_string()),
-            _ => Err(user_error_with_message(
-                format!("Failed to read file {path}", path = path.display()),
-                err,
-            )),
-        }
-    })?;
-    let mut doc: toml_edit::Document = config_toml.parse().map_err(|err| {
-        user_error_with_message(
-            format!("Failed to parse file {path}", path = path.display()),
-            err,
-        )
-    })?;
-
-    // Apply config value
-    // Interpret value as string if it can't be parsed as a TOML value.
-    // TODO(#531): Infer types based on schema (w/ --type arg to override).
-    let item = match value_str.parse() {
-        Ok(value) => toml_edit::Item::Value(value),
-        _ => toml_edit::value(value_str),
-    };
-    let mut target_table = doc.as_table_mut();
-    let mut key_parts_iter = key.split('.');
-    // Note: split guarantees at least one item.
-    let last_key_part = key_parts_iter.next_back().unwrap();
-    for key_part in key_parts_iter {
-        target_table = target_table
-            .entry(key_part)
-            .or_insert_with(|| toml_edit::Item::Table(toml_edit::Table::new()))
-            .as_table_mut()
-            .ok_or_else(|| {
-                user_error(format!(
-                    "Failed to set {key}: would overwrite non-table value with parent table"
-                ))
-            })?;
-    }
-    // Error out if overwriting non-scalar value for key (table or array) with
-    // scalar.
-    match target_table.get(last_key_part) {
-        None | Some(toml_edit::Item::None | toml_edit::Item::Value(_)) => {}
-        Some(toml_edit::Item::Table(_) | toml_edit::Item::ArrayOfTables(_)) => {
-            return Err(user_error(format!(
-                "Failed to set {key}: would overwrite entire table"
-            )));
-        }
-    }
-    target_table[last_key_part] = item;
-
-    // Write config back
-    std::fs::write(path, doc.to_string()).map_err(|err| {
-        user_error_with_message(
-            format!("Failed to write file {path}", path = path.display()),
-            err,
-        )
-    })
-}
-
-fn get_new_config_file_path(
-    config_source: &ConfigSource,
-    command: &CommandHelper,
-) -> Result<PathBuf, CommandError> {
-    let edit_path = match config_source {
-        // TODO(#531): Special-case for editors that can't handle viewing directories?
-        ConfigSource::User => {
-            new_config_path()?.ok_or_else(|| user_error("No repo config path found to edit"))?
-        }
-        ConfigSource::Repo => command.workspace_loader()?.repo_path().join("config.toml"),
-        _ => {
-            return Err(user_error(format!(
-                "Can't get path for config source {config_source:?}"
-            )));
-        }
-    };
-    Ok(edit_path)
 }
 
 // AnnotatedValue will be cloned internally in the templater. If the cloning

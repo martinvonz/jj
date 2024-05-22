@@ -83,7 +83,9 @@ use crate::command_error::{
     CommandError,
 };
 use crate::commit_templater::{CommitTemplateLanguage, CommitTemplateLanguageExtension};
-use crate::config::{AnnotatedValue, CommandNameAndArgs, LayeredConfigs};
+use crate::config::{
+    new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigSource, LayeredConfigs,
+};
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs, DiffRenderer, DiffWorkspaceContext};
 use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
 use crate::git_util::{
@@ -2125,6 +2127,25 @@ impl LogContentFormat {
             }
         }
     }
+}
+
+pub fn get_new_config_file_path(
+    config_source: &ConfigSource,
+    command: &CommandHelper,
+) -> Result<PathBuf, CommandError> {
+    let edit_path = match config_source {
+        // TODO(#531): Special-case for editors that can't handle viewing directories?
+        ConfigSource::User => {
+            new_config_path()?.ok_or_else(|| user_error("No repo config path found to edit"))?
+        }
+        ConfigSource::Repo => command.workspace_loader()?.repo_path().join("config.toml"),
+        _ => {
+            return Err(user_error(format!(
+                "Can't get path for config source {config_source:?}"
+            )));
+        }
+    };
+    Ok(edit_path)
 }
 
 pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(), CommandError> {
