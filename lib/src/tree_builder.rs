@@ -17,8 +17,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use crate::backend;
-use crate::backend::{TreeId, TreeValue};
+use crate::backend::{self, BackendResult, TreeId, TreeValue};
 use crate::repo_path::{RepoPath, RepoPathBuf};
 use crate::store::Store;
 use crate::tree::Tree;
@@ -69,12 +68,12 @@ impl TreeBuilder {
         }
     }
 
-    pub fn write_tree(self) -> TreeId {
+    pub fn write_tree(self) -> BackendResult<TreeId> {
         if self.overrides.is_empty() {
-            return self.base_tree_id;
+            return Ok(self.base_tree_id);
         }
 
-        let mut trees_to_write = self.get_base_trees();
+        let mut trees_to_write = self.get_base_trees()?;
 
         // Update entries in parent trees for file overrides
         for (path, file_override) in self.overrides {
@@ -103,24 +102,25 @@ impl TreeBuilder {
                         // Entry would have been replaced with file (see above)
                     }
                 } else {
-                    let tree = store.write_tree(&dir, tree).unwrap();
+                    let tree = store.write_tree(&dir, tree)?;
                     parent_tree.set(basename.to_owned(), TreeValue::Tree(tree.id().clone()));
                 }
             } else {
                 // We're writing the root tree. Write it even if empty. Return its id.
                 assert!(trees_to_write.is_empty());
-                return store.write_tree(&dir, tree).unwrap().id().clone();
+                let written_tree = store.write_tree(&dir, tree)?;
+                return Ok(written_tree.id().clone());
             }
         }
 
         unreachable!("trees_to_write must contain the root tree");
     }
 
-    fn get_base_trees(&self) -> BTreeMap<RepoPathBuf, backend::Tree> {
+    fn get_base_trees(&self) -> BackendResult<BTreeMap<RepoPathBuf, backend::Tree>> {
         let store = &self.store;
         let mut tree_cache = {
             let dir = RepoPathBuf::root();
-            let tree = store.get_tree(&dir, &self.base_tree_id).unwrap();
+            let tree = store.get_tree(&dir, &self.base_tree_id)?;
             BTreeMap::from([(dir, tree)])
         };
 
@@ -128,28 +128,26 @@ impl TreeBuilder {
             tree_cache: &'a mut BTreeMap<RepoPathBuf, Tree>,
             store: &Arc<Store>,
             dir: &RepoPath,
-        ) -> &'a Tree {
+        ) -> BackendResult<&'a Tree> {
             // `if let Some(tree) = ...` doesn't pass lifetime check as of Rust 1.76.0
             if tree_cache.contains_key(dir) {
-                return tree_cache.get(dir).unwrap();
+                return Ok(tree_cache.get(dir).unwrap());
             }
             let (parent, basename) = dir.split().expect("root must be populated");
-            // TODO: Propagate errors
-            let tree = populate_trees(tree_cache, store, parent)
-                .sub_tree(basename)
-                .unwrap()
+            let tree = populate_trees(tree_cache, store, parent)?
+                .sub_tree(basename)?
                 .unwrap_or_else(|| Tree::null(store.clone(), dir.to_owned()));
-            tree_cache.entry(dir.to_owned()).or_insert(tree)
+            Ok(tree_cache.entry(dir.to_owned()).or_insert(tree))
         }
 
         for path in self.overrides.keys() {
             let parent = path.parent().unwrap();
-            populate_trees(&mut tree_cache, store, parent);
+            populate_trees(&mut tree_cache, store, parent)?;
         }
 
-        tree_cache
+        Ok(tree_cache
             .into_iter()
             .map(|(dir, tree)| (dir, tree.data().clone()))
-            .collect()
+            .collect())
     }
 }

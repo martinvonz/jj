@@ -131,7 +131,7 @@ impl MergedTree {
         let new_trees: Vec<_> = tree_builders
             .into_iter()
             .map(|builder| {
-                let tree_id = builder.write_tree();
+                let tree_id = builder.write_tree()?;
                 store.get_tree(RepoPath::root(), &tree_id)
             })
             .try_collect()?;
@@ -1216,7 +1216,7 @@ impl MergedTreeBuilder {
                         }
                     }
                 }
-                let legacy_id = tree_builder.write_tree();
+                let legacy_id = tree_builder.write_tree()?;
                 if store.use_tree_conflict_format() {
                     let legacy_tree = store.get_tree(RepoPath::root(), &legacy_id)?;
                     let merged_tree = MergedTree::from_legacy_tree(legacy_tree)?;
@@ -1272,7 +1272,7 @@ impl MergedTreeBuilder {
         let merge_builder: MergeBuilder<TreeId> = tree_builders
             .into_iter()
             .map(|builder| builder.write_tree())
-            .collect();
+            .try_collect()?;
         Ok(merge_builder.build())
     }
 }

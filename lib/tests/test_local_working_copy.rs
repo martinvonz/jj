@@ -348,7 +348,7 @@ fn test_tree_builder_file_directory_transition() {
     // Add file at parent_path
     let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
     testutils::write_normal_file(&mut tree_builder, parent_path, "");
-    let tree_id = tree_builder.write_tree();
+    let tree_id = tree_builder.write_tree().unwrap();
     check_out_tree(&tree_id);
     assert!(parent_path.to_fs_path(&workspace_root).is_file());
     assert!(!child_path.to_fs_path(&workspace_root).exists());
@@ -357,7 +357,7 @@ fn test_tree_builder_file_directory_transition() {
     let mut tree_builder = store.tree_builder(tree_id);
     tree_builder.remove(parent_path.to_owned());
     testutils::write_normal_file(&mut tree_builder, child_path, "");
-    let tree_id = tree_builder.write_tree();
+    let tree_id = tree_builder.write_tree().unwrap();
     check_out_tree(&tree_id);
     assert!(parent_path.to_fs_path(&workspace_root).is_dir());
     assert!(child_path.to_fs_path(&workspace_root).is_file());
@@ -366,7 +366,7 @@ fn test_tree_builder_file_directory_transition() {
     let mut tree_builder = store.tree_builder(tree_id);
     tree_builder.remove(child_path.to_owned());
     testutils::write_normal_file(&mut tree_builder, parent_path, "");
-    let tree_id = tree_builder.write_tree();
+    let tree_id = tree_builder.write_tree().unwrap();
     check_out_tree(&tree_id);
     assert!(parent_path.to_fs_path(&workspace_root).is_file());
     assert!(!child_path.to_fs_path(&workspace_root).exists());
@@ -799,7 +799,7 @@ fn test_gitignores_ignored_directory_already_tracked() {
                 }
             }
         }
-        let id = tree_builder.write_tree();
+        let id = tree_builder.write_tree().unwrap();
         MergedTree::legacy(store.get_tree(RepoPath::root(), &id).unwrap())
     };
 
@@ -930,7 +930,7 @@ fn test_gitsubmodule() {
         TreeValue::GitSubmodule(submodule_id),
     );
 
-    let tree_id = MergedTreeId::Legacy(tree_builder.write_tree());
+    let tree_id = MergedTreeId::Legacy(tree_builder.write_tree().unwrap());
     let tree = store.get_root_tree(&tree_id).unwrap();
     let commit = commit_with_tree(repo.store(), tree.id());
     let ws = &mut test_workspace.workspace;

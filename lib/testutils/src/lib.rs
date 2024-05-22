@@ -314,7 +314,7 @@ pub fn create_single_tree(repo: &Arc<ReadonlyRepo>, path_contents: &[(&RepoPath,
     for (path, contents) in path_contents {
         write_normal_file(&mut tree_builder, path, contents);
     }
-    let id = tree_builder.write_tree();
+    let id = tree_builder.write_tree().unwrap();
     store.get_tree(RepoPath::root(), &id).unwrap()
 }
 
