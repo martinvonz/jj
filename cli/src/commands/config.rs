@@ -15,13 +15,12 @@
 use std::fmt;
 use std::io::Write;
 
-use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
 use tracing::instrument;
 
 use crate::cli_util::{get_new_config_file_path, run_ui_editor, CommandHelper};
 use crate::command_error::{config_error, user_error, CommandError};
-use crate::config::{write_config_value_to_file, AnnotatedValue, ConfigSource};
+use crate::config::{write_config_value_to_file, AnnotatedValue, ConfigNamePathBuf, ConfigSource};
 use crate::generic_templater::GenericTemplateLanguage;
 use crate::template_builder::TemplateLanguage as _;
 use crate::templater::TemplatePropertyExt as _;
@@ -81,8 +80,7 @@ pub(crate) enum ConfigCommand {
 #[command(mut_group("config_level", |g| g.required(false)))]
 pub(crate) struct ConfigListArgs {
     /// An optional name of a specific config option to look up.
-    #[arg(value_parser = NonEmptyStringValueParser::new())]
-    pub name: Option<String>,
+    pub name: Option<ConfigNamePathBuf>,
     /// Whether to explicitly include built-in default values in the list.
     #[arg(long, conflicts_with = "config_level")]
     pub include_defaults: bool,
@@ -168,10 +166,6 @@ pub(crate) fn cmd_config(
     }
 }
 
-fn toml_escape_key(key: String) -> String {
-    toml_edit::Key::from(key).to_string()
-}
-
 fn to_toml_value(value: &config::Value) -> Result<toml_edit::Value, config::ConfigError> {
     fn type_error<T: fmt::Display>(message: T) -> config::ConfigError {
         config::ConfigError::Message(message.to_string())
@@ -205,8 +199,7 @@ fn config_template_language() -> GenericTemplateLanguage<'static, AnnotatedValue
     let mut language = L::new();
     // "name" instead of "path" to avoid confusion with the source file path
     language.add_keyword("name", |self_property| {
-        let out_property = self_property
-            .map(|annotated| annotated.path.into_iter().map(toml_escape_key).join("."));
+        let out_property = self_property.map(|annotated| annotated.path.to_string());
         Ok(L::wrap_string(out_property))
     });
     language.add_keyword("value", |self_property| {
@@ -244,10 +237,7 @@ pub(crate) fn cmd_config_list(
 
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
-    let name_path = args
-        .name
-        .as_ref()
-        .map_or(vec![], |name| name.split('.').collect_vec());
+    let name_path = args.name.clone().unwrap_or_else(ConfigNamePathBuf::root);
     let mut wrote_values = false;
     for annotated in command.resolved_config_values(&name_path)? {
         // Remove overridden values.

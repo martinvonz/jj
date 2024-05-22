@@ -16,6 +16,7 @@ use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::str::FromStr;
 use std::{env, fmt};
 
 use config::Source;
@@ -36,6 +37,61 @@ pub enum ConfigError {
     ConfigCreateError(#[from] std::io::Error),
 }
 
+/// Dotted config name path.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ConfigNamePathBuf(Vec<toml_edit::Key>);
+
+impl ConfigNamePathBuf {
+    /// Creates an empty path pointing to the root table.
+    ///
+    /// This isn't a valid TOML key expression, but provided for convenience.
+    pub fn root() -> Self {
+        ConfigNamePathBuf(vec![])
+    }
+
+    /// Returns true if the path is empty (i.e. pointing to the root table.)
+    pub fn is_root(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Appends the given `key` component.
+    pub fn push(&mut self, key: impl Into<toml_edit::Key>) {
+        self.0.push(key.into());
+    }
+}
+
+impl<K: Into<toml_edit::Key>> FromIterator<K> for ConfigNamePathBuf {
+    fn from_iter<I: IntoIterator<Item = K>>(iter: I) -> Self {
+        let keys = iter.into_iter().map(|k| k.into()).collect();
+        ConfigNamePathBuf(keys)
+    }
+}
+
+impl FromStr for ConfigNamePathBuf {
+    type Err = toml_edit::TomlError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // TOML parser ensures that the returned vec is not empty.
+        toml_edit::Key::parse(s).map(ConfigNamePathBuf)
+    }
+}
+
+impl AsRef<[toml_edit::Key]> for ConfigNamePathBuf {
+    fn as_ref(&self) -> &[toml_edit::Key] {
+        &self.0
+    }
+}
+
+impl fmt::Display for ConfigNamePathBuf {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut components = self.0.iter().fuse();
+        if let Some(key) = components.next() {
+            write!(f, "{key}")?;
+        }
+        components.try_for_each(|key| write!(f, ".{key}"))
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ConfigSource {
     Default,
@@ -48,7 +104,7 @@ pub enum ConfigSource {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct AnnotatedValue {
-    pub path: Vec<String>,
+    pub path: ConfigNamePathBuf,
     pub value: config::Value,
     pub source: ConfigSource,
     pub is_overridden: bool,
@@ -141,17 +197,18 @@ impl LayeredConfigs {
 
     pub fn resolved_config_values(
         &self,
-        filter_prefix: &[&str],
+        filter_prefix: &ConfigNamePathBuf,
     ) -> Result<Vec<AnnotatedValue>, ConfigError> {
         // Collect annotated values from each config.
         let mut config_vals = vec![];
 
-        let prefix_key = match filter_prefix {
+        // TODO: don't reinterpret TOML path as config path expression
+        let prefix_key = match filter_prefix.as_ref() {
             &[] => None,
-            _ => Some(filter_prefix.join(".")),
+            _ => Some(filter_prefix.to_string()),
         };
         for (source, config) in self.sources() {
-            let top_value = match prefix_key {
+            let top_value: config::Value = match prefix_key {
                 Some(ref key) => {
                     if let Some(val) = config.get(key).optional()? {
                         val
@@ -161,21 +218,20 @@ impl LayeredConfigs {
                 }
                 None => config.collect()?.into(),
             };
-            let mut config_stack: Vec<(Vec<&str>, &config::Value)> =
-                vec![(filter_prefix.to_vec(), &top_value)];
+            let mut config_stack = vec![(filter_prefix.clone(), &top_value)];
             while let Some((path, value)) = config_stack.pop() {
                 match &value.kind {
                     config::ValueKind::Table(table) => {
                         // TODO: Remove sorting when config crate maintains deterministic ordering.
                         for (k, v) in table.iter().sorted_by_key(|(k, _)| *k).rev() {
-                            let mut key_path = path.to_vec();
+                            let mut key_path = path.clone();
                             key_path.push(k);
                             config_stack.push((key_path, v));
                         }
                     }
                     _ => {
                         config_vals.push(AnnotatedValue {
-                            path: path.iter().map(|&s| s.to_owned()).collect_vec(),
+                            path,
                             value: value.to_owned(),
                             source: source.to_owned(),
                             // Note: Value updated below.
@@ -674,7 +730,12 @@ mod tests {
             env_overrides: empty_config,
             arg_overrides: None,
         };
-        assert_eq!(layered_configs.resolved_config_values(&[]).unwrap(), []);
+        assert_eq!(
+            layered_configs
+                .resolved_config_values(&ConfigNamePathBuf::root())
+                .unwrap(),
+            []
+        );
     }
 
     #[test]
@@ -702,14 +763,30 @@ mod tests {
         };
         // Note: "email" is alphabetized, before "name" from same layer.
         insta::assert_debug_snapshot!(
-            layered_configs.resolved_config_values(&[]).unwrap(),
+            layered_configs.resolved_config_values(&ConfigNamePathBuf::root()).unwrap(),
             @r###"
         [
             AnnotatedValue {
-                path: [
-                    "user",
-                    "email",
-                ],
+                path: ConfigNamePathBuf(
+                    [
+                        Key {
+                            key: "user",
+                            repr: None,
+                            decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                        },
+                        Key {
+                            key: "email",
+                            repr: None,
+                            decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                        },
+                    ],
+                ),
                 value: Value {
                     origin: None,
                     kind: String(
@@ -720,10 +797,26 @@ mod tests {
                 is_overridden: true,
             },
             AnnotatedValue {
-                path: [
-                    "user",
-                    "name",
-                ],
+                path: ConfigNamePathBuf(
+                    [
+                        Key {
+                            key: "user",
+                            repr: None,
+                            decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                        },
+                        Key {
+                            key: "name",
+                            repr: None,
+                            decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                        },
+                    ],
+                ),
                 value: Value {
                     origin: None,
                     kind: String(
@@ -734,10 +827,26 @@ mod tests {
                 is_overridden: false,
             },
             AnnotatedValue {
-                path: [
-                    "user",
-                    "email",
-                ],
+                path: ConfigNamePathBuf(
+                    [
+                        Key {
+                            key: "user",
+                            repr: None,
+                            decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                        },
+                        Key {
+                            key: "email",
+                            repr: None,
+                            decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                        },
+                    ],
+                ),
                 value: Value {
                     origin: None,
                     kind: String(
@@ -777,15 +886,31 @@ mod tests {
         };
         insta::assert_debug_snapshot!(
             layered_configs
-                .resolved_config_values(&["test-table1"])
+                .resolved_config_values(&ConfigNamePathBuf::from_iter(["test-table1"]))
                 .unwrap(),
             @r###"
         [
             AnnotatedValue {
-                path: [
-                    "test-table1",
-                    "foo",
-                ],
+                path: ConfigNamePathBuf(
+                    [
+                        Key {
+                            key: "test-table1",
+                            repr: None,
+                            decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                        },
+                        Key {
+                            key: "foo",
+                            repr: None,
+                            decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                        },
+                    ],
+                ),
                 value: Value {
                     origin: None,
                     kind: String(
@@ -796,10 +921,26 @@ mod tests {
                 is_overridden: false,
             },
             AnnotatedValue {
-                path: [
-                    "test-table1",
-                    "bar",
-                ],
+                path: ConfigNamePathBuf(
+                    [
+                        Key {
+                            key: "test-table1",
+                            repr: None,
+                            decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                        },
+                        Key {
+                            key: "bar",
+                            repr: None,
+                            decor: Decor {
+                                prefix: "default",
+                                suffix: "default",
+                            },
+                        },
+                    ],
+                ),
                 value: Value {
                     origin: None,
                     kind: String(
