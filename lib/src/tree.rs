@@ -154,7 +154,8 @@ impl Tree {
         self.store.get_tree(subdir, id).unwrap()
     }
 
-    fn sub_tree_recursive(
+    /// Look up the tree at the path indicated by `components`.
+    pub fn sub_tree_recursive(
         &self,
         components: RepoPathComponentsIter,
     ) -> BackendResult<Option<Tree>> {
