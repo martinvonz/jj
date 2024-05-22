@@ -29,7 +29,7 @@ use itertools::Itertools;
 use crate::backend::{BackendResult, ConflictId, MergedTreeId, TreeId, TreeValue};
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
-use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent, RepoPathComponentsIter};
+use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
 use crate::store::Store;
 use crate::tree::{try_resolve_file_conflict, Tree};
 use crate::tree_builder::TreeBuilder;
@@ -247,7 +247,7 @@ impl MergedTree {
     pub fn path_value(&self, path: &RepoPath) -> BackendResult<MergedTreeValue> {
         assert_eq!(self.dir(), RepoPath::root());
         match path.split() {
-            Some((dir, basename)) => match self.sub_tree_recursive(dir.components())? {
+            Some((dir, basename)) => match self.sub_tree_recursive(dir)? {
                 None => Ok(Merge::absent()),
                 Some(tree) => Ok(tree.value(basename).to_merge()),
             },
@@ -268,13 +268,10 @@ impl MergedTree {
         }
     }
 
-    /// Look up the tree at the path indicated by `components`.
-    pub fn sub_tree_recursive(
-        &self,
-        components: RepoPathComponentsIter,
-    ) -> BackendResult<Option<MergedTree>> {
+    /// Look up the tree at the given path.
+    pub fn sub_tree_recursive(&self, path: &RepoPath) -> BackendResult<Option<MergedTree>> {
         let mut current_tree = self.clone();
-        for name in components {
+        for name in path.components() {
             match current_tree.sub_tree(name)? {
                 None => {
                     return Ok(None);

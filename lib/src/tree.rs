@@ -30,7 +30,7 @@ use crate::files::MergeResult;
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{trivial_merge, Merge, MergedTreeValue};
 use crate::object_id::ObjectId;
-use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent, RepoPathComponentsIter};
+use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
 use crate::store::Store;
 use crate::{backend, files};
 
@@ -128,7 +128,7 @@ impl Tree {
         assert_eq!(self.dir(), RepoPath::root());
         match path.split() {
             Some((dir, basename)) => {
-                let tree = self.sub_tree_recursive(dir.components())?;
+                let tree = self.sub_tree_recursive(dir)?;
                 Ok(tree.and_then(|tree| tree.data.value(basename).cloned()))
             }
             None => Ok(Some(TreeValue::Tree(self.id.clone()))),
@@ -154,13 +154,10 @@ impl Tree {
         self.store.get_tree(subdir, id).unwrap()
     }
 
-    /// Look up the tree at the path indicated by `components`.
-    pub fn sub_tree_recursive(
-        &self,
-        components: RepoPathComponentsIter,
-    ) -> BackendResult<Option<Tree>> {
+    /// Look up the tree at the given path.
+    pub fn sub_tree_recursive(&self, path: &RepoPath) -> BackendResult<Option<Tree>> {
         let mut current_tree = self.clone();
-        for name in components {
+        for name in path.components() {
             match current_tree.sub_tree(name)? {
                 None => {
                     return Ok(None);
