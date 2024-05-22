@@ -84,7 +84,8 @@ use crate::command_error::{
 };
 use crate::commit_templater::{CommitTemplateLanguage, CommitTemplateLanguageExtension};
 use crate::config::{
-    new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigSource, LayeredConfigs,
+    new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigNamePathBuf, ConfigSource,
+    LayeredConfigs,
 };
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs, DiffRenderer, DiffWorkspaceContext};
 use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
@@ -234,7 +235,7 @@ impl CommandHelper {
 
     pub fn resolved_config_values(
         &self,
-        prefix: &[&str],
+        prefix: &ConfigNamePathBuf,
     ) -> Result<Vec<AnnotatedValue>, crate::config::ConfigError> {
         self.layered_configs.resolved_config_values(prefix)
     }

@@ -710,6 +710,23 @@ fn test_config_get() {
     insta::assert_snapshot!(stdout, @"bar");
 }
 
+#[test]
+fn test_config_path_syntax() {
+    let test_env = TestEnvironment::default();
+
+    let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["config", "list", ""]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: invalid value '' for '[NAME]': TOML parse error at line 1, column 1
+      |
+    1 | 
+      | ^
+    invalid key
+
+
+    For more information, try '--help'.
+    "###);
+}
+
 fn find_stdout_lines(keyname_pattern: &str, stdout: &str) -> String {
     let key_line_re = Regex::new(&format!(r"(?m)^{keyname_pattern}=.*$")).unwrap();
     key_line_re
