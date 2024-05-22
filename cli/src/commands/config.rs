@@ -116,14 +116,14 @@ pub(crate) struct ConfigListArgs {
 #[command(verbatim_doc_comment)]
 pub(crate) struct ConfigGetArgs {
     #[arg(required = true)]
-    name: String,
+    name: ConfigNamePathBuf,
 }
 
 /// Update config file to set the given option to a given value.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct ConfigSetArgs {
     #[arg(required = true)]
-    name: String,
+    name: ConfigNamePathBuf,
     #[arg(required = true)]
     value: String,
     #[command(flatten)]
@@ -277,10 +277,10 @@ pub(crate) fn cmd_config_get(
     command: &CommandHelper,
     args: &ConfigGetArgs,
 ) -> Result<(), CommandError> {
-    let value = command
-        .settings()
-        .config()
-        .get_string(&args.name)
+    let value = args
+        .name
+        .lookup_value(command.settings().config())
+        .and_then(|value| value.into_string())
         .map_err(|err| match err {
             config::ConfigError::Type {
                 origin,

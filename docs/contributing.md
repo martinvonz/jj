@@ -115,7 +115,7 @@ You will probably also want to make the `gh-pages` branch immutable (and thereby
 hidden from the default `jj log` output) by running the following in your repo:
 
 ```shell
-jj config set --repo "revset-aliases.immutable_heads()" 'remote_branches(exact:"main") | remote_branches(exact:"gh-pages")'
+jj config set --repo "revset-aliases.'immutable_heads()'" 'remote_branches(exact:"main") | remote_branches(exact:"gh-pages")'
 ```
 
 ### Summary
