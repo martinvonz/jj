@@ -713,7 +713,82 @@ fn test_config_get() {
 #[test]
 fn test_config_path_syntax() {
     let test_env = TestEnvironment::default();
+    test_env.add_config(
+        r#"
+    a.'b()' = 0
+    'b c'.d = 1
+    'b c'.e.'f[]' = 2
+    - = 3
+    _ = 4
+    '.' = 5
+    "#,
+    );
 
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "a.'b()'"]);
+    insta::assert_snapshot!(stdout, @r###"
+    a.'b()'=0
+    "###);
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "'b c'"]);
+    insta::assert_snapshot!(stdout, @r###"
+    'b c'.d=1
+    'b c'.e."f[]"=2
+    "###);
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "'b c'.d"]);
+    insta::assert_snapshot!(stdout, @r###"
+    'b c'.d=1
+    "###);
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "'b c'.e.'f[]'"]);
+    insta::assert_snapshot!(stdout, @r###"
+    'b c'.e.'f[]'=2
+    "###);
+
+    // Not a table
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(test_env.env_root(), &["config", "list", "a.'b()'.x"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Warning: No matching config key for a.'b()'.x
+    "###);
+
+    // "-" and "_" are valid TOML keys
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    -=3
+    "###);
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "_"]);
+    insta::assert_snapshot!(stdout, @r###"
+    _=4
+    "###);
+
+    // "." requires quoting
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "list", "'.'"]);
+    insta::assert_snapshot!(stdout, @r###"
+    '.'=5
+    "###);
+    let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["config", "list", "."]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: invalid value '.' for '[NAME]': TOML parse error at line 1, column 1
+      |
+    1 | .
+      | ^
+    invalid key
+
+
+    For more information, try '--help'.
+    "###);
+
+    // Invalid TOML keys
+    let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["config", "list", "b c"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: invalid value 'b c' for '[NAME]': TOML parse error at line 1, column 3
+      |
+    1 | b c
+      |   ^
+
+
+
+    For more information, try '--help'.
+    "###);
     let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["config", "list", ""]);
     insta::assert_snapshot!(stderr, @r###"
     error: invalid value '' for '[NAME]': TOML parse error at line 1, column 1
