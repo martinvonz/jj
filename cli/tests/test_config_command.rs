@@ -420,7 +420,7 @@ fn test_config_layer_workspace() {
 }
 
 #[test]
-fn test_config_set_missing_opts() {
+fn test_config_set_bad_opts() {
     let test_env = TestEnvironment::default();
     let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["config", "set"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -430,6 +430,19 @@ fn test_config_set_missing_opts() {
       <VALUE>
 
     Usage: jj config set <--user|--repo> <NAME> <VALUE>
+
+    For more information, try '--help'.
+    "###);
+
+    let stderr =
+        test_env.jj_cmd_cli_error(test_env.env_root(), &["config", "set", "--user", "", "x"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: invalid value '' for '<NAME>': TOML parse error at line 1, column 1
+      |
+    1 | 
+      | ^
+    invalid key
+
 
     For more information, try '--help'.
     "###);
@@ -452,6 +465,10 @@ fn test_config_set_for_user() {
         &repo_path,
         &["config", "set", "--user", "test-table.foo", "true"],
     );
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["config", "set", "--user", "test-table.'bar()'", "0"],
+    );
 
     // Ensure test-key successfully written to user config.
     let user_config_toml = std::fs::read_to_string(&user_config_path)
@@ -461,6 +478,7 @@ fn test_config_set_for_user() {
 
     [test-table]
     foo = true
+    "bar()" = 0
     "###);
 }
 
@@ -741,6 +759,10 @@ fn test_config_path_syntax() {
     insta::assert_snapshot!(stdout, @r###"
     'b c'.e.'f[]'=2
     "###);
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "get", "'b c'.e.'f[]'"]);
+    insta::assert_snapshot!(stdout, @r###"
+    2
+    "###);
 
     // Not a table
     let (stdout, stderr) =
@@ -748,6 +770,11 @@ fn test_config_path_syntax() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Warning: No matching config key for a.'b()'.x
+    "###);
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["config", "get", "a.'b()'.x"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Config error: configuration property "a.'b()'.x" not found
+    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
     "###);
 
     // "-" and "_" are valid TOML keys
@@ -765,9 +792,13 @@ fn test_config_path_syntax() {
     insta::assert_snapshot!(stdout, @r###"
     '.'=5
     "###);
-    let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["config", "list", "."]);
+    let stdout = test_env.jj_cmd_success(test_env.env_root(), &["config", "get", "'.'"]);
+    insta::assert_snapshot!(stdout, @r###"
+    5
+    "###);
+    let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["config", "get", "."]);
     insta::assert_snapshot!(stderr, @r###"
-    error: invalid value '.' for '[NAME]': TOML parse error at line 1, column 1
+    error: invalid value '.' for '<NAME>': TOML parse error at line 1, column 1
       |
     1 | .
       | ^

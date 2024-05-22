@@ -17,7 +17,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::str::FromStr;
-use std::{env, fmt};
+use std::{env, fmt, slice};
 
 use config::Source;
 use itertools::Itertools;
@@ -52,6 +52,11 @@ impl ConfigNamePathBuf {
     /// Returns true if the path is empty (i.e. pointing to the root table.)
     pub fn is_root(&self) -> bool {
         self.0.is_empty()
+    }
+
+    /// Returns iterator of path components (or keys.)
+    pub fn components(&self) -> slice::Iter<'_, toml_edit::Key> {
+        self.0.iter()
     }
 
     /// Appends the given `key` component.
@@ -525,7 +530,7 @@ fn read_config_path(config_path: &Path) -> Result<config::Config, config::Config
 }
 
 pub fn write_config_value_to_file(
-    key: &str,
+    key: &ConfigNamePathBuf,
     value_str: &str,
     path: &Path,
 ) -> Result<(), CommandError> {
@@ -555,9 +560,8 @@ pub fn write_config_value_to_file(
         _ => toml_edit::value(value_str),
     };
     let mut target_table = doc.as_table_mut();
-    let mut key_parts_iter = key.split('.');
-    // Note: split guarantees at least one item.
-    let last_key_part = key_parts_iter.next_back().unwrap();
+    let mut key_parts_iter = key.components();
+    let last_key_part = key_parts_iter.next_back().expect("key must not be empty");
     for key_part in key_parts_iter {
         target_table = target_table
             .entry(key_part)

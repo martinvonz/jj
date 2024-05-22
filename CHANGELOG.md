@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj config list` now uses multi-line strings and single-quoted strings in the
   output when appropriate.
 
+* `jj config get`/`list`/`set` now parse `name` argument as [TOML
+  key](https://toml.io/en/v1.0.0#keys). Quote meta characters as needed.
+  Example: `jj config get "revset-aliases.'trunk()'"`
+
 ### Deprecations
 
 - Attempting to alias a built-in command now gives a warning, rather than being silently ignored.
