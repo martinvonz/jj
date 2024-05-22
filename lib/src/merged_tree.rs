@@ -56,7 +56,8 @@ pub enum MergedTreeVal<'a> {
 }
 
 impl MergedTreeVal<'_> {
-    fn to_merge(&self) -> MergedTreeValue {
+    /// Converts to an owned value.
+    pub fn to_merge(&self) -> MergedTreeValue {
         match self {
             MergedTreeVal::Resolved(value) => Merge::resolved(value.cloned()),
             MergedTreeVal::Conflict(merge) => merge.clone(),
