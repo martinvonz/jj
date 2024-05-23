@@ -1222,13 +1222,11 @@ impl Backend for GitBackend {
         // preserved by the keep_newer timestamp though)
         // TODO: remove unreachable extras table segments
         // TODO: pass in keep_newer to "git gc" command
-        run_git_gc(self.git_repo_path()).map_err(|err| BackendError::Other(err.into()))
-        // TODO: Since "git gc" will move loose refs into packed refs, in-memory
-        // packed-refs cache should be invalidated here. If mtime accuracy is
-        // high or "git gc" is slow enough, gix::RefStore can notice the change,
-        // but it's not always the case. Upgrade gix to 0.63.0 and call
-        // force_refresh_packed_buffer().
-        // https://github.com/Byron/gitoxide/issues/1348
+        run_git_gc(self.git_repo_path()).map_err(|err| BackendError::Other(err.into()))?;
+        // Since "git gc" will move loose refs into packed refs, in-memory
+        // packed-refs cache should be invalidated without relying on mtime.
+        git_repo.refs.force_refresh_packed_buffer().ok();
+        Ok(())
     }
 }
 
