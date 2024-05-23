@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::collections::{BTreeMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc, Barrier};
 use std::{fs, iter, thread};
 
@@ -33,6 +33,7 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::{BranchTarget, RefTarget, RemoteRef, RemoteRefState};
 use jj_lib::refs::BranchPushUpdate;
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
+use jj_lib::repo_path::RepoPath;
 use jj_lib::settings::{GitSettings, UserSettings};
 use jj_lib::signing::Signer;
 use jj_lib::str_util::StringPattern;
@@ -2117,6 +2118,50 @@ fn test_reset_head_to_root() {
     assert!(tx.mut_repo().git_head().is_absent());
     // The placeholder ref should be deleted
     assert!(git_repo.find_reference("refs/jj/root").is_err());
+}
+
+#[test]
+fn test_reset_head_with_index() {
+    // Create colocated workspace
+    let settings = testutils::user_settings();
+    let temp_dir = testutils::new_temp_dir();
+    let workspace_root = temp_dir.path().join("repo");
+    let git_repo = git2::Repository::init(&workspace_root).unwrap();
+    let (_workspace, repo) =
+        Workspace::init_external_git(&settings, &workspace_root, &workspace_root.join(".git"))
+            .unwrap();
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+
+    let root_commit_id = repo.store().root_commit_id();
+    let tree_id = repo.store().empty_merged_tree_id();
+    let commit1 = mut_repo
+        .new_commit(&settings, vec![root_commit_id.clone()], tree_id.clone())
+        .write()
+        .unwrap();
+    let commit2 = mut_repo
+        .new_commit(&settings, vec![commit1.id().clone()], tree_id.clone())
+        .write()
+        .unwrap();
+
+    // Set Git HEAD to commit2's parent (i.e. commit1)
+    git::reset_head(tx.mut_repo(), &git_repo, &commit2).unwrap();
+    assert!(git_repo.index().unwrap().is_empty());
+
+    // Add "staged changes" to the Git index
+    let file_path = RepoPath::from_internal_string("file.txt");
+    testutils::write_working_copy_file(&workspace_root, file_path, "i am a file\n");
+    git_repo
+        .index()
+        .unwrap()
+        .add_path(&file_path.to_fs_path(Path::new("")))
+        .unwrap();
+    assert!(!git_repo.index().unwrap().is_empty());
+
+    // Reset head to and the Git index
+    git::reset_head(tx.mut_repo(), &git_repo, &commit2).unwrap();
+    assert!(git_repo.index().unwrap().is_empty());
 }
 
 #[test]
