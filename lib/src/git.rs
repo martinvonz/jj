@@ -933,7 +933,21 @@ pub fn reset_head(
         let git_head = mut_repo.view().git_head();
         let new_git_commit_id = Oid::from_bytes(first_parent_id.as_bytes()).unwrap();
         let new_git_commit = git_repo.find_commit(new_git_commit_id)?;
-        if git_head != &first_parent {
+        if git_head == &first_parent {
+            // `HEAD@git` already points to the correct commit, so we only need to reset
+            // the Git index. Only do so if it is non-empty (i.e. a user used `git add`).
+            // In large repositories, this is around 2x faster if the Git index is empty
+            // (~0.89s to check the diff, vs. ~1.72s to reset), and around 8% slower if
+            // it isn't (~1.86s to check the diff AND reset).
+            let diff = git_repo.diff_tree_to_index(
+                Some(&new_git_commit.tree()?),
+                None,
+                Some(git2::DiffOptions::new().skip_binary_check(true)),
+            )?;
+            if diff.deltas().len() == 0 {
+                return Ok(());
+            }
+        } else {
             git_repo.set_head_detached(new_git_commit_id)?;
             mut_repo.set_git_head_target(first_parent);
         }
