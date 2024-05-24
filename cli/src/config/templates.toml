@@ -16,8 +16,8 @@ commit_summary = 'format_commit_summary_with_refs(self, branches)'
 
 config_list = '''
 if(overridden,
-  label("overridden", indent("# ", name ++ "=" ++ value)),
-  name ++ "=" ++ value,
+  label("overridden", indent("# ", name ++ " = " ++ value)),
+  name ++ " = " ++ value,
 ) ++ "\n"
 '''
 
