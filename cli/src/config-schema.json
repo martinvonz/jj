@@ -74,21 +74,13 @@
                 },
                 "color": {
                     "description": "Whether to colorize command output",
-                    "enum": [
-                        "always",
-                        "never",
-                        "debug",
-                        "auto"
-                    ],
+                    "enum": ["always", "never", "debug", "auto"],
                     "default": "auto"
                 },
                 "paginate": {
                     "type": "string",
                     "description": "Whether or not to use a pager",
-                    "enum": [
-                        "never",
-                        "auto"
-                    ],
+                    "enum": ["never", "auto"],
                     "default": "auto"
                 },
                 "pager": {
@@ -102,11 +94,7 @@
                     "properties": {
                         "format": {
                             "description": "The diff format to use",
-                            "enum": [
-                                "color-words",
-                                "git",
-                                "summary"
-                            ],
+                            "enum": ["color-words", "git", "summary"],
                             "default": "color-words"
                         },
                         "tool": {
@@ -201,14 +189,14 @@
                     "pattern": "^#[0-9a-fA-F]{6}$"
                 },
                 "colors": {
-                  "oneOf": [
-                    {
-                        "$ref": "#/properties/colors/definitions/colorNames"
-                    },
-                    {
-                        "$ref": "#/properties/colors/definitions/hexColor"
-                    }
-                  ]
+                    "oneOf": [
+                        {
+                            "$ref": "#/properties/colors/definitions/colorNames"
+                        },
+                        {
+                            "$ref": "#/properties/colors/definitions/hexColor"
+                        }
+                    ]
                 },
                 "basicFormatterLabels": {
                     "enum": [
@@ -397,10 +385,7 @@
             "description": "Parameters governing automatic capture of files into the working copy commit",
             "properties": {
                 "max-new-file-size": {
-                    "type": [
-                        "integer",
-                        "string"
-                    ],
+                    "type": ["integer", "string"],
                     "description": "New files with a size in bytes above this threshold are not snapshotted, unless the threshold is 0",
                     "default": "1MiB"
                 }
