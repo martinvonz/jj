@@ -1,6 +1,5 @@
 # Installation and setup
 
-
 ## Installation
 
 ### Download pre-built binaries for a release
@@ -25,10 +24,10 @@ cargo binstall --strategies crate-meta-data jj-cli
 Without the `--strategies` option, you may get equivalent binaries that should
 be compiled from the same source code.
 
-
 ### Linux
 
 #### Arch Linux
+
 You can install the `jujutsu` package from the [official extra repository](https://archlinux.org/packages/extra/x86_64/jujutsu/):
 
 ```
@@ -120,7 +119,6 @@ or:
 cargo install --locked --bin jj jj-cli
 ```
 
-
 #### Homebrew
 
 If you use Homebrew, you can run:
@@ -155,7 +153,6 @@ or:
 # To install the latest release
 cargo install --locked --bin jj jj-cli --features vendored-openssl
 ```
-
 
 ## Initial configuration
 
@@ -196,7 +193,7 @@ jj util completion fish | source
 
 ```nu
 jj util completion nushell | save completions-jj.nu
-use completions-jj.nu *  # Or `source completions-jj.nu`
+use completions-jj.nu * # Or `source completions-jj.nu`
 ```
 
 ### Xonsh

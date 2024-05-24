@@ -29,7 +29,7 @@ experienced, working on brand new projects alone, or large scale software
 projects with large histories and teams.
 
 Jujutsu is unlike most other systems, because internally it abstracts the user
-interface and version control algorithms from the *storage systems* used to
+interface and version control algorithms from the _storage systems_ used to
 serve your content. This allows it to serve as a VCS with many possible physical
 backends, that may have their own data or networking models—like [Mercurial] or
 [Breezy], or hybrid systems like Google's cloud-based design, [Piper/CitC].
@@ -80,7 +80,7 @@ And it adds several innovative, useful features of its own:
 
 - **Operation log & undo**: Jujutsu records every operation that is performed on the
   repository, from commits, to pulls, to pushes. This makes debugging problems like
-  "what just happened?" or "how did I end up here?" easier, *especially* when
+  "what just happened?" or "how did I end up here?" easier, _especially_ when
   you're helping your coworker answer those questions about their repository!
   And because everything is recorded, you can undo that mistake you just made
   with ease. Version control has finally entered [the 1960s][undo-history]!
@@ -90,7 +90,7 @@ And it adds several innovative, useful features of its own:
   makes "patch-based" workflows a breeze. If you resolve a conflict in a commit,
   the _resolution_ of that conflict is also propagated through descendants as
   well. In effect, this is a completely transparent version of `git rebase
-  --update-refs` combined with `git rerere`, supported by design.
+--update-refs` combined with `git rerere`, supported by design.
 
 > [!WARNING]
 > The following features are available for use, but experimental; they may have
@@ -102,14 +102,14 @@ And it adds several innovative, useful features of its own:
 
   The fundamental problem with using filesystems like Dropbox and backup tools
   like `rsync` on your typical Git/Mercurial repositories is that they rely
-  on *local filesystem operations* being atomic, serialized, and non-concurrent
+  on _local filesystem operations_ being atomic, serialized, and non-concurrent
   with respect to other reads and writes—which is _not_ true when operating on
   distributed file systems, or when operations like concurrent file copies (for
   backup) happen while lock files are being held.
 
   Jujutsu is instead designed to be [safe under concurrent scenarios][conc-safety];
   simply using rsync or Dropbox and then using that resulting repository
-  should never result in a repository in a *corrupt state*. The worst that
+  should never result in a repository in a _corrupt state_. The worst that
   _should_ happen is that it will expose conflicts between the local and remote
   state, leaving you to resolve them.
 
@@ -130,30 +130,30 @@ developers monitor both channels.
 ### News and Updates 📣
 
 - **Feb 2024**: Version 0.14 is released, which deprecates ["jj checkout" and "jj merge"](CHANGELOG.md#deprecations-1),
-  as well as `jj init --git`, which is now just called `jj git init`. 
+  as well as `jj init --git`, which is now just called `jj git init`.
 - **Oct 2023**: Version 0.10.0 is released! Now includes a bundled merge and
   diff editor for all platforms, "immutable revsets" to avoid accidentally
   `edit`-ing the wrong revisions, and lots of polish.
 - **Jan 2023**: Martin gave a presentation about Google's plans for Jujutsu at
-  Git Merge 2022! 
+  Git Merge 2022!
   See the [slides][merge-slides] or the [recording][merge-talk].
 
 ### Related Media
 
 - **Mar 2024**: Chris Krycho started [a YouTube series about Jujutsu][krycho-yt].
 - **Feb 2024**: Chris Krycho published an article about Jujutsu called [jj init][krycho]
-  and Steve Klabnik followed up with the [Jujutsu Tutorial][klabnik]. 
-- **Jan 2024**: Jujutsu was featured in an LWN.net article called 
+  and Steve Klabnik followed up with the [Jujutsu Tutorial][klabnik].
+- **Jan 2024**: Jujutsu was featured in an LWN.net article called
   [Jujutsu: a new, Git-compatible version control system][lwn].
-- **Jan 2023**: Martin's Talk about Jujutsu at Git Merge 2022, [video][merge-talk] 
+- **Jan 2023**: Martin's Talk about Jujutsu at Git Merge 2022, [video][merge-talk]
   and the associated [slides][merge-slides].
 
 [krycho-yt]: https://www.youtube.com/playlist?list=PLelyiwKWHHAq01Pvmpf6x7J0y-yQpmtxp
 [krycho]: https://v5.chriskrycho.com/essays/jj-init/
 [klabnik]: https://steveklabnik.github.io/jujutsu-tutorial/
-[lwn]: https://lwn.net/Articles/958468/ 
+[lwn]: https://lwn.net/Articles/958468/
 [merge-talk]: https://www.youtube.com/watch?v=bx_LGilOuE4
-[merge-slides]: https://docs.google.com/presentation/d/1F8j9_UOOSGUN9MvHxPZX_L4bQ9NMcYOp1isn17kTC_M/view 
+[merge-slides]: https://docs.google.com/presentation/d/1F8j9_UOOSGUN9MvHxPZX_L4bQ9NMcYOp1isn17kTC_M/view
 
 ## Getting started
 
@@ -194,15 +194,15 @@ while the other is a native storage backend[^native-backend].
 
 [backends]: https://martinvonz.github.io/jj/latest/glossary#backend
 
-[^native-backend]: At this time, there's practically no reason to use the native
-backend. The backend exists mainly to make sure that it's possible to eventually
-add functionality that cannot easily be added to the Git backend.
+[^native-backend]:
+    At this time, there's practically no reason to use the native
+    backend. The backend exists mainly to make sure that it's possible to eventually
+    add functionality that cannot easily be added to the Git backend.
 
 The Git backend is fully featured and maintained, and allows you to use Jujutsu
 as an alternative interface to Git. The commits you create will look like
 regular Git commits. You can always switch back to Git. The Git support uses the
 [libgit2](https://libgit2.org/) C library.
-
 
 <img src="demos/git_compat.png" />
 
@@ -292,7 +292,7 @@ have almost exclusively used `jj` to develop the project itself since early
 January 2021. I haven't had to re-clone from source (I don't think I've even had
 to restore from backup).
 
-There *will* be changes to workflows and backward-incompatible changes to the
+There _will_ be changes to workflows and backward-incompatible changes to the
 on-disk formats before version 1.0.0. Even the binary's name may change (i.e.
 away from `jj`). For any format changes, we'll try to implement transparent
 upgrades (as we've done with recent changes), or provide upgrade commands or

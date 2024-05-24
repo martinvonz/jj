@@ -147,10 +147,10 @@ If your project prefers that you keep commits clean, you can do that by doing
 something like this:
 
 ```shell
-$ # Create a new commit on top of the second-to-last commit in `your-feature`,
-$ # as reviewers requested a fix there.
+$                      # Create a new commit on top of the second-to-last commit in `your-feature`,
+$                      # as reviewers requested a fix there.
 $ jj new your-feature- # NOTE: the trailing hyphen is not a typo!
-$ # Address the comments by updating the code. Then review the changes.
+$                      # Address the comments by updating the code. Then review the changes.
 $ jj diff
 $ # Squash the changes into the parent commit
 $ jj squash

@@ -1,6 +1,5 @@
 # Branches
 
-
 ## Introduction
 
 Branches are named pointers to revisions (just like they are in Git). You can
@@ -48,7 +47,7 @@ target there, `jj log` will show the branch name with an asterisk suffix (e.g.
 `main*`). That is meant to remind you that you may want to push the branch to
 some remote.
 
-If you want to know the internals of branch tracking, consult the 
+If you want to know the internals of branch tracking, consult the
 [Design Doc][design].
 
 ### Terminology summary
@@ -63,7 +62,7 @@ If you want to know the internals of branch tracking, consult the
   example.
 - A **tracking (local) branch** is the local branch that `jj` tries to keep in
   sync with the tracked remote branch. For example, after `jj branch track
-  mybranch@origin`, there will be a local branch `mybranch` that's tracking the
+mybranch@origin`, there will be a local branch `mybranch` that's tracking the
   remote `mybranch@origin` branch. A local branch can track a branch of the same
   name on 0 or more remotes.
 
@@ -74,9 +73,9 @@ must match.
 
 ### Manually tracking a branch
 
-To track a branch permanently use `jj branch track <branch name>@<remote name>`. 
+To track a branch permanently use `jj branch track <branch name>@<remote name>`.
 It will now be imported as a local branch until you untrack it or it is deleted
-on the remote. 
+on the remote.
 
 Example:
 
@@ -99,7 +98,7 @@ To stop following a remote branch, you can `jj branch untrack` it. After that,
 subsequent fetches of that remote will no longer move the local branch to match
 the position of the remote branch.
 
-Example: 
+Example:
 
 ```sh
 $ # List all local and remote branches.
@@ -120,7 +119,6 @@ This command omits local Git-tracking branches by default.
 
 You can see if a specific branch is tracked with `jj branch list --tracked <branch name>`.
 
-
 ### Automatic tracking of branches & `git.auto-local-branch` option
 
 There are two situations where `jj` tracks branches automatically. `jj git
@@ -130,10 +128,10 @@ marked as tracked.
 
 By default, every other remote branch is marked as "not tracked" when it's
 fetched. If desired, you need to manually `jj branch track` them. This works
-well for repositories where multiple people work on a large number of branches. 
+well for repositories where multiple people work on a large number of branches.
 
 The default can be changed by setting the config `git.auto-local-branch = true`.
-Then, `jj git fetch` tracks every *newly fetched* branch with a local branch.
+Then, `jj git fetch` tracks every _newly fetched_ branch with a local branch.
 Branches that already existed before the `jj git fetch` are not affected. This
 is similar to Mercurial, which fetches all its bookmarks (equivalent to Git
 branches) by default.
@@ -143,13 +141,13 @@ branches) by default.
 Currently Jujutsu automatically moves local branches when these conditions are
 met:
 
- * When a commit has been rewritten (e.g, when you rebase) branches and the  
-   working-copy will move along with it.
- * When a commit has been abandoned, all associated branches will be moved 
-   to its parent(s). If a working copy was pointing to the abandoned commit,
-   then a new working-copy commit will be created on top of the parent(s).
+- When a commit has been rewritten (e.g, when you rebase) branches and the  
+  working-copy will move along with it.
+- When a commit has been abandoned, all associated branches will be moved
+  to its parent(s). If a working copy was pointing to the abandoned commit,
+  then a new working-copy commit will be created on top of the parent(s).
 
-You could describe the movement as following along the change-id of the 
+You could describe the movement as following along the change-id of the
 current branch commit, even if it isn't entirely accurate.
 
 ## Conflicts

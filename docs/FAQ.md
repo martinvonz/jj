@@ -12,8 +12,8 @@ To move branches, use `jj branch set`.
 `jj git push --all` pushes all _branches_, not all revisions. You have two
 options:
 
-* Using `jj git push --change` will automatically create a branch and push it.
-* Using `jj branch` commands to create or move a branch to either the commit
+- Using `jj git push --change` will automatically create a branch and push it.
+- Using `jj branch` commands to create or move a branch to either the commit
   you want to push or a descendant on it. Unlike Git, Jujutsu doesn't do this
   automatically (see previous question).
 
@@ -37,12 +37,12 @@ See [revsets] and [templates] for further guidance.
 
 Use `jj log -r ..`. The `..` [operator] lists all visible commits in the repo, excluding the root (which is never interesting and is shared by all repos).
 
-### `jj` is said to record the working copy after `jj log` and every other command. Where can I see these automatic "saves"?  
+### `jj` is said to record the working copy after `jj log` and every other command. Where can I see these automatic "saves"?
 
-Indeed, every `jj` command updates the current "working-copy" revision, marked 
+Indeed, every `jj` command updates the current "working-copy" revision, marked
 with `@` in `jj log`. You can notice this by how the [commit ID] of the
 working copy revision changes when it's updated. Note that, unless you move to
-another revision (with `jj new` or `jj edit`, for example), the [change ID] will 
+another revision (with `jj new` or `jj edit`, for example), the [change ID] will
 not change.
 
 If you expected to see a historical view of your working copy changes in the
@@ -139,7 +139,7 @@ commit to the new state.
 ### How do I resume working on an existing change?
 
 There are two ways to resume working on an earlier change: `jj new` then `jj squash`,
-and `jj edit`. The first is generally recommended, but `jj edit` can be useful. When 
+and `jj edit`. The first is generally recommended, but `jj edit` can be useful. When
 you use `jj edit`, the revision is directly amended with your new changes, making it
 difficult to tell what exactly you change. You should avoid using `jj edit` when the
 revision has a conflict, as you may accidentally break the plain-text annotations on
@@ -147,7 +147,7 @@ your state without realising.
 
 To start, use `jj new <rev>` to create a change based on that earlier revision. Make
 your edits, then use `jj squash` to update the earlier revision with those edits.
-For when you would use git stashing, use `jj edit <rev>` for expected behaviour. 
+For when you would use git stashing, use `jj edit <rev>` for expected behaviour.
 Other workflows may prefer `jj edit` as well.
 
 ### How do I deal with divergent changes ('??' after the [change ID])?
@@ -193,21 +193,14 @@ directory.
 We hope to integrate with Gerrit natively in the future.
 
 [branches_conflicts]: branches.md#conflicts
-
 [change ID]: glossary.md#change-id
 [co-located]: glossary.md#co-located-repos
 [commit ID]: glossary.md#commit-id
 [config]: config.md
-
 [gerrit-integration]: https://gist.github.com/thoughtpolice/8f2fd36ae17cd11b8e7bd93a70e31ad6
 [gitignore]: https://git-scm.com/docs/gitignore
-
 [glossary_divergent_change]: glossary.md#divergent-change
-
 [operator]: revsets.md#operators
-
 [revsets]: revsets.md
-
 [templates]: templates.md
-
 [this issue]: https://github.com/martinvonz/jj/issues/1531

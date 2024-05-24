@@ -290,8 +290,8 @@ missing working copy infos with a default `WorkingCopyPatterns` as needed.
 #### Related Work
 
 [Perforce client maps](https://www.perforce.com/manuals/cmdref/Content/CmdRef/views.html)
- are very similar in concept to the entirety of `WorkingCopyPatterns`, and this
- design aims to achieve similar functionality.
+are very similar in concept to the entirety of `WorkingCopyPatterns`, and this
+design aims to achieve similar functionality.
 
 The [Josh Project](https://github.com/josh-project/josh) implements partial git
 clones in a way similar to how sparse patterns try to work.

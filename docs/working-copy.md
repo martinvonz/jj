@@ -1,6 +1,5 @@
 # Working copy
 
-
 ## Introduction
 
 The working copy is where the current working-copy commit's files are written so
@@ -18,7 +17,6 @@ once you run e.g. `jj st`. Similarly, if you remove a file from the working
 copy, it will implicitly be untracked. To untrack a file while keeping it in
 the working copy, first make sure it's [ignored](#ignored-files) and then run
 `jj untrack <path>`.
-
 
 ## Conflicts
 
@@ -43,12 +41,11 @@ main disadvantage of that is that it's harder to inspect the conflict
 resolutions.
 
 With the `jj resolve` command, you can use an external merge tool to resolve
-conflicts that have 2 sides and a base.  There is not yet a good way of
+conflicts that have 2 sides and a base. There is not yet a good way of
 resolving conflicts between directories, files, and symlinks
 (https://github.com/martinvonz/jj/issues/19). You can use `jj restore` to choose
 one side of the conflict, but there's no way to even see where the involved
 parts came from.
-
 
 ## Ignored files
 
@@ -59,10 +56,9 @@ See https://git-scm.com/docs/gitignore for details about the format.
 `.gitignore` files are supported in any directory in the working copy, as well
 as in `$HOME/.gitignore` and `$GIT_DIR/info/exclude`.
 
-
 ## Workspaces
 
-You can have multiple working copies backed by a single repo. Use 
+You can have multiple working copies backed by a single repo. Use
 `jj workspace add` to create a new working copy. The working copy will have a
 `.jj/` directory linked to the main repo. The working copy and the `.jj/`
 directory together is called a "workspace". Each workspace can have a different

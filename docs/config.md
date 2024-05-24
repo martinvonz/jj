@@ -2,7 +2,6 @@
 
 These are the config settings available to jj/Jujutsu.
 
-
 ## Config files and TOML
 
 `jj` loads several types of config settings:
@@ -11,11 +10,11 @@ These are the config settings available to jj/Jujutsu.
   `cli/src/config/` directory in `jj`'s source repo.
 
 - The user settings. These can be edited with `jj config edit --user`. User
-settings are located in [the user config file], which can be found with `jj
+  settings are located in [the user config file], which can be found with `jj
 config path --user`.
 
 - The repo settings. These can be edited with `jj config edit --repo` and are
-located in `.jj/repo/config.toml`.
+  located in `.jj/repo/config.toml`.
 
 - Settings [specified in the command-line](#specifying-config-on-the-command-line).
 
@@ -35,6 +34,7 @@ The first thing to remember is that the value of a setting (the part to the
 right of the `=` sign) should be surrounded in quotes if it's a string.
 
 ### Dotted style and headings
+
 In TOML, anything under a heading can be dotted instead. For example,
 `user.name = "YOUR NAME"` is equivalent to:
 
@@ -65,7 +65,6 @@ then use whichever suits you in your config. If you mix dotted keys and headings
 
 That's probably enough TOML to keep you out of trouble but the [syntax guide] is
 very short if you ever need to check.
-
 
 ## User settings
 
@@ -100,15 +99,15 @@ colors.commit_id = "green"
 
 The following colors are available:
 
-* black
-* red
-* green
-* yellow
-* blue
-* magenta
-* cyan
-* white
-* default
+- black
+- red
+- green
+- yellow
+- blue
+- magenta
+- cyan
+- white
+- default
 
 All of them but "default" come in a bright version too, e.g. "bright red". The
 "default" color can be used to override a color defined by a parent style
@@ -239,10 +238,11 @@ ui.graph.style = "square"
 The symbols used to represent commits or operations can be customized via
 templates.
 
-  * `templates.log_node` for commits (with `Option<Commit>` keywords)
-  * `templates.op_log_node` for operations (with `Operation` keywords)
+- `templates.log_node` for commits (with `Option<Commit>` keywords)
+- `templates.op_log_node` for operations (with `Operation` keywords)
 
 For example:
+
 ```toml
 [templates]
 log_node = '''
@@ -334,7 +334,7 @@ Can be customized by the `format_short_signature()` template alias.
 ### Allow "large" revsets by default
 
 Certain commands (such as `jj rebase`) can take multiple revset arguments, but
-default to requiring each of those revsets to expand to a *single* revision.
+default to requiring each of those revsets to expand to a _single_ revision.
 This restriction can be overridden by prefixing a revset that the user wants to
 be able to expand to more than one revision with the [`all:`
 modifier](revsets.md#the-all-modifier).
@@ -437,20 +437,25 @@ ui.editor = "nvim"
 For GUI editors you possibly need to use a `-w` or `--wait`. Some examples:
 
 ```toml
-ui.editor = "code -w"       # VS Code
-ui.editor = "bbedit -w"     # BBEdit
-ui.editor = "subl -n -w"    # Sublime Text
-ui.editor = "mate -w"       # TextMate
-ui.editor = ["C:/Program Files/Notepad++/notepad++.exe",
-    "-multiInst", "-notabbar", "-nosession", "-noPlugin"] # Notepad++
-ui.editor = "idea --temp-project --wait"   #IntelliJ
+ui.editor = "code -w" # VS Code
+ui.editor = "bbedit -w" # BBEdit
+ui.editor = "subl -n -w" # Sublime Text
+ui.editor = "mate -w" # TextMate
+ui.editor = [
+  "C:/Program Files/Notepad++/notepad++.exe",
+  "-multiInst",
+  "-notabbar",
+  "-nosession",
+  "-noPlugin",
+] # Notepad++
+ui.editor = "idea --temp-project --wait" #IntelliJ
 ```
 
 Obviously, you would only set one line, don't copy them all in!
 
 ## Editing diffs
 
-The `ui.diff-editor` setting affects the tool used for editing diffs (e.g.  `jj
+The `ui.diff-editor` setting affects the tool used for editing diffs (e.g. `jj
 split`, `jj squash -i`). The default is the special value `:builtin`, which
 launches a built-in TUI tool (known as [scm-diff-editor]) to edit the diff in
 your terminal.
@@ -479,7 +484,12 @@ will be read from the following config keys.
 ```toml
 # merge-tools.kdiff3.program = "kdiff3"      # Defaults to the name of the tool if not specified
 merge-tools.kdiff3.edit-args = [
-    "--merge", "--cs", "CreateBakFiles=0", "$left", "$right"]
+  "--merge",
+  "--cs",
+  "CreateBakFiles=0",
+  "$left",
+  "$right",
+]
 ```
 
 ### Experimental 3-pane diff editing
@@ -509,11 +519,11 @@ this is to start SSH as follows (copy-paste the relevant lines):
 
 ```shell
 ssh -L 17376:localhost:17376 \
-    -L 17377:localhost:17377 \
-    -L 17378:localhost:17378 \
-    -L 17379:localhost:17379 \
-    -L 17380:localhost:17380 \
-    myhost.example.com
+  -L 17377:localhost:17377 \
+  -L 17378:localhost:17378 \
+  -L 17379:localhost:17379 \
+  -L 17380:localhost:17380 \
+  myhost.example.com
 ```
 
 `diffedit3-ssh` is set up to use these 5 ports by default. Usually, only the
@@ -536,7 +546,6 @@ Host myhost
 With that configuration, you should be able to simply `ssh myhost`.
 
 </details>
-
 
 Setting either `ui.diff-editor = "meld-3"` or `ui.diff-editor = "diffedit3"`
 will result in the diff editor showing 3 panes: the diff on the left and right,
@@ -567,7 +576,6 @@ experience, you can follow [instructions from the Wiki] to configure the
 [DirDiff Vim plugin] and/or the [vimtabdiff Python script].
 
 [instructions from the Wiki]: https://github.com/martinvonz/jj/wiki/Vim#using-vim-as-a-diff-tool
-
 [DirDiff Vim plugin]: https://github.com/will133/vim-dirdiff
 [vimtabdiff Python script]: https://github.com/balki/vimtabdiff
 
@@ -578,7 +586,7 @@ by `jj resolve`. For example:
 
 ```toml
 # Use merge-tools.meld.merge-args
-ui.merge-editor = "meld"  # Or "vscode" or "kdiff3" or "vimdiff"
+ui.merge-editor = "meld" # Or "vscode" or "kdiff3" or "vimdiff"
 # Specify merge-args inline
 ui.merge-editor = ["meld", "$left", "$base", "$right", "-o", "$output"]
 ```
@@ -600,15 +608,40 @@ to copy it to your config file verbatim, but you are welcome to customize it.)
 
 ```toml
 # merge-tools.kdiff3.program  = "kdiff3"     # Defaults to the name of the tool if not specified
-merge-tools.kdiff3.merge-args = ["$base", "$left", "$right", "-o", "$output", "--auto"]
-merge-tools.meld.merge-args = ["$left", "$base", "$right", "-o", "$output", "--auto-merge"]
+merge-tools.kdiff3.merge-args = [
+  "$base",
+  "$left",
+  "$right",
+  "-o",
+  "$output",
+  "--auto",
+]
+merge-tools.meld.merge-args = [
+  "$left",
+  "$base",
+  "$right",
+  "-o",
+  "$output",
+  "--auto-merge",
+]
 
-merge-tools.vimdiff.merge-args = ["-f", "-d", "$output", "-M",
-    "$left", "$base", "$right",
-    "-c", "wincmd J", "-c", "set modifiable",
-    "-c", "set write"]
+merge-tools.vimdiff.merge-args = [
+  "-f",
+  "-d",
+  "$output",
+  "-M",
+  "$left",
+  "$base",
+  "$right",
+  "-c",
+  "wincmd J",
+  "-c",
+  "set modifiable",
+  "-c",
+  "set write",
+]
 merge-tools.vimdiff.program = "vim"
-merge-tools.vimdiff.merge-tool-edits-conflict-markers = true    # See below for an explanation
+merge-tools.vimdiff.merge-tool-edits-conflict-markers = true # See below for an explanation
 ```
 
 `jj` makes the following substitutions:
@@ -643,7 +676,7 @@ conflict is considered fully resolved when there are no conflict markers left.
 
 ## Commit Signing
 
-`jj` can be configured to sign and verify the commits it creates using either 
+`jj` can be configured to sign and verify the commits it creates using either
 GnuPG or SSH signing keys.
 
 To do this you need to configure a signing backend.
@@ -694,8 +727,8 @@ signing.backends.ssh.program = "/path/to/ssh-keygen"
 When verifying commit signatures the ssh backend needs to be provided with an allowed-signers
 file containing the public keys of authors whose signatures you want to be able to verify.
 
-You can find the format for this file in the 
-[ssh-keygen man page](https://man.openbsd.org/ssh-keygen#ALLOWED_SIGNERS). This can be provided 
+You can find the format for this file in the
+[ssh-keygen man page](https://man.openbsd.org/ssh-keygen#ALLOWED_SIGNERS). This can be provided
 as follows:
 
 ```toml
@@ -852,7 +885,7 @@ to a TOML file that will be used instead of any configuration file in the
 default locations. For example,
 
 ```shell
-env JJ_CONFIG=/dev/null jj log       # Ignores any settings specified in the config file.
+env JJ_CONFIG=/dev/null jj log # Ignores any settings specified in the config file.
 ```
 
 ### Specifying config on the command-line
