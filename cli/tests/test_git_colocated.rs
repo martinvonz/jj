@@ -573,6 +573,12 @@ fn test_git_colocated_external_checkout() {
     let test_env = TestEnvironment::default();
     let repo_path = test_env.env_root().join("repo");
     let git_repo = git2::Repository::init(&repo_path).unwrap();
+    let git_check_out_ref = |name| {
+        git_repo
+            .set_head_detached(git_repo.find_reference(name).unwrap().target().unwrap())
+            .unwrap()
+    };
+
     test_env.jj_cmd_ok(&repo_path, &["git", "init", "--git-repo=."]);
     test_env.jj_cmd_ok(&repo_path, &["ci", "-m=A"]);
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "-r@-", "master"]);
@@ -589,15 +595,7 @@ fn test_git_colocated_external_checkout() {
     "###);
 
     // Check out another branch by external command
-    git_repo
-        .set_head_detached(
-            git_repo
-                .find_reference("refs/heads/master")
-                .unwrap()
-                .target()
-                .unwrap(),
-        )
-        .unwrap();
+    git_check_out_ref("refs/heads/master");
 
     // The old working-copy commit gets abandoned, but the whole branch should not
     // be abandoned. (#1042)
@@ -605,6 +603,36 @@ fn test_git_colocated_external_checkout() {
     insta::assert_snapshot!(stdout, @r###"
     @  adadbd65a794e2294962b3c3da9aada09fe1b472
     ◉  a86754f975f953fa25da4265764adc0c62e9ce6b master HEAD@git A
+    │ ◉  eccedddfa5152d99fc8ddd1081b375387a8a382a B
+    ├─╯
+    ◉  0000000000000000000000000000000000000000
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Reset the working copy parent to the new Git HEAD.
+    "###);
+
+    // Edit non-head commit
+    test_env.jj_cmd_ok(&repo_path, &["new", "description(B)"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m=C", "--no-edit"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  99a813753d6db988d8fc436b0d6b30a54d6b2707 C
+    @  81e086b7f9b1dd7fde252e28bdcf4ba4abd86ce5
+    ◉  eccedddfa5152d99fc8ddd1081b375387a8a382a HEAD@git B
+    │ ◉  a86754f975f953fa25da4265764adc0c62e9ce6b master A
+    ├─╯
+    ◉  0000000000000000000000000000000000000000
+    "###);
+
+    // Check out another branch by external command
+    git_check_out_ref("refs/heads/master");
+
+    // The old working-copy commit shouldn't be abandoned. (#3747)
+    let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
+    insta::assert_snapshot!(stdout, @r###"
+    @  f9f6929eae811496820623f44199a9e04ee402e8
+    ◉  a86754f975f953fa25da4265764adc0c62e9ce6b master HEAD@git A
+    │ ◉  99a813753d6db988d8fc436b0d6b30a54d6b2707 C
+    │ ◉  81e086b7f9b1dd7fde252e28bdcf4ba4abd86ce5
     │ ◉  eccedddfa5152d99fc8ddd1081b375387a8a382a B
     ├─╯
     ◉  0000000000000000000000000000000000000000

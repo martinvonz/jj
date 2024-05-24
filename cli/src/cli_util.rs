@@ -571,9 +571,10 @@ impl WorkspaceCommandHelper {
 
     /// Imports new HEAD from the colocated Git repo.
     ///
-    /// If the Git HEAD has changed, this function abandons our old checkout and
-    /// checks out the new Git HEAD. The working-copy state will be reset to
-    /// point to the new Git HEAD. The working-copy contents won't be updated.
+    /// If the Git HEAD has changed, this function checks out the new Git HEAD.
+    /// The old working-copy commit will be abandoned if it's discardable. The
+    /// working-copy state will be reset to point to the new Git HEAD. The
+    /// working-copy contents won't be updated.
     #[instrument(skip_all)]
     fn import_git_head(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
         assert!(self.may_update_working_copy);
@@ -598,10 +599,6 @@ impl WorkspaceCommandHelper {
         let new_git_head = tx.mut_repo().view().git_head().clone();
         if let Some(new_git_head_id) = new_git_head.as_normal() {
             let workspace_id = self.workspace_id().to_owned();
-            if let Some(old_wc_commit_id) = self.repo().view().get_wc_commit_id(&workspace_id) {
-                tx.mut_repo()
-                    .record_abandoned_commit(old_wc_commit_id.clone());
-            }
             let new_git_head_commit = tx.mut_repo().store().get_commit(new_git_head_id)?;
             tx.mut_repo()
                 .check_out(workspace_id, &self.settings, &new_git_head_commit)?;
