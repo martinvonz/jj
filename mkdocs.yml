@@ -1,15 +1,15 @@
 site_name: Jujutsu docs
-site_dir:  'rendered-docs'
+site_dir: "rendered-docs"
 # Not having this (or viewing the site locally, or from any place other than the
 # site_url) leads to version switching failing to preserve the current path.
-site_url: !ENV [SITE_URL_FOR_MKDOCS, 'https://martinvonz.github.io/jj/']
+site_url: !ENV [SITE_URL_FOR_MKDOCS, "https://martinvonz.github.io/jj/"]
 theme:
-  name: 'material'
-  language: 'en'
+  name: "material"
+  language: "en"
   features:
     # - navigation.top
 
-  # Respect the users default settings and add a toggle for manually choosing 
+  # Respect the users default settings and add a toggle for manually choosing
   # automatic/light/dark palette.
   # taken from https://squidfunk.github.io/mkdocs-material/setup/changing-the-colors/#system-preference
   palette:
@@ -39,15 +39,15 @@ validation:
 # IMPORTANT: any changes to plugins have to be duplicated in
 # `mkdocs-offline.yml`. See that file for more details.
 plugins:
-    - mike:
-        # Should help search engines point to latest docs
-        # instead of (often obsolete) v?.??.? docs.
-        # TODO: Arguably, this could be `prerelease` when building prerelease docs.
-        canonical_version: latest
-    - include-markdown # For the CLI reference
-    - search
-    - redirects:
-        redirect_maps:
+  - mike:
+      # Should help search engines point to latest docs
+      # instead of (often obsolete) v?.??.? docs.
+      # TODO: Arguably, this could be `prerelease` when building prerelease docs.
+      canonical_version: latest
+  - include-markdown # For the CLI reference
+  - search
+  - redirects:
+      redirect_maps:
 
 # Not all of these may be necessary, especially since the material
 # theme substitutes for some of them
@@ -81,57 +81,56 @@ markdown_extensions:
   - pymdownx.snippets
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
-      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+      emoji_generator:
+        !!python/name:material.extensions.emoji.to_svg # This lists all the files that become part of the documentation
 
-# This lists all the files that become part of the documentation
+
 nav:
-- 'Home': 'index.md'
+  - "Home": "index.md"
 
-- 'Getting started':
-      - 'Installation and Setup': 'install-and-setup.md'
-      - 'Tutorial and Birds-Eye View': 'tutorial.md'
-      - 'Working with GitHub': 'github.md'
-      - 'Working on Windows': 'windows.md'
+  - "Getting started":
+      - "Installation and Setup": "install-and-setup.md"
+      - "Tutorial and Birds-Eye View": "tutorial.md"
+      - "Working with GitHub": "github.md"
+      - "Working on Windows": "windows.md"
 
-- FAQ: 'FAQ.md'
+  - FAQ: "FAQ.md"
 
-- "CLI Reference": 'cli-reference.md'
+  - "CLI Reference": "cli-reference.md"
 
-- Testimonials: 'testimonials.md'
+  - Testimonials: "testimonials.md"
 
-- Concepts:
-      - 'Working Copy': 'working-copy.md'
-      - 'Branches': 'branches.md'
-      - 'Conflicts': 'conflicts.md'
-      - 'Operation Log': 'operation-log.md'
-      - 'Glossary': 'glossary.md'
+  - Concepts:
+      - "Working Copy": "working-copy.md"
+      - "Branches": "branches.md"
+      - "Conflicts": "conflicts.md"
+      - "Operation Log": "operation-log.md"
+      - "Glossary": "glossary.md"
 
-- 'Configuration':
-      - 'Settings': 'config.md'
-      - 'Fileset language': 'filesets.md'
-      - 'Revset language': 'revsets.md'
-      - 'Templating language': 'templates.md'
+  - "Configuration":
+      - "Settings": "config.md"
+      - "Fileset language": "filesets.md"
+      - "Revset language": "revsets.md"
+      - "Templating language": "templates.md"
 
-- 'Comparisons':
-      - 'Git comparison': 'git-comparison.md'
-      - 'Git compatibility': 'git-compatibility.md'
-      - 'Sapling': 'sapling-comparison.md'
-      - 'Other related work': 'related-work.md'
+  - "Comparisons":
+      - "Git comparison": "git-comparison.md"
+      - "Git compatibility": "git-compatibility.md"
+      - "Sapling": "sapling-comparison.md"
+      - "Other related work": "related-work.md"
 
-- 'Technical details':
-      - 'Architecture': 'technical/architecture.md'
-      - 'Concurrency': 'technical/concurrency.md'
-      - 'Conflicts': 'technical/conflicts.md'
+  - "Technical details":
+      - "Architecture": "technical/architecture.md"
+      - "Concurrency": "technical/concurrency.md"
+      - "Conflicts": "technical/conflicts.md"
 
-- Contributing:
-      - 'Guidelines and "How to...?"': 'contributing.md'
-      - 'Code of conduct': 'code-of-conduct.md'
+  - Contributing:
+      - 'Guidelines and "How to...?"': "contributing.md"
+      - "Code of conduct": "code-of-conduct.md"
 
-- 'Design docs': 
-    - 'git-submodules': 'design/git-submodules.md'
-    - 'git-submodule-storage': 'design/git-submodule-storage.md'
-    - 'JJ run': 'design/run.md'
-    - 'Sparse Patterns v2': 'design/sparse-v2.md'
-    - 'Tracking branches': 'design/tracking-branches.md'
-
-
+  - "Design docs":
+      - "git-submodules": "design/git-submodules.md"
+      - "git-submodule-storage": "design/git-submodule-storage.md"
+      - "JJ run": "design/run.md"
+      - "Sparse Patterns v2": "design/sparse-v2.md"
+      - "Tracking branches": "design/tracking-branches.md"
