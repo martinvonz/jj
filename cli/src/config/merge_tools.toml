@@ -8,36 +8,64 @@ edit-args = ["$left", "$right"]
 merge-args = ["$left", "$base", "$right", "-o", "$output", "--auto-merge"]
 
 [merge-tools.meld-3]
-program="meld"
+program = "meld"
 # If using this as a template, note that `$output` is repeated twice below
 edit-args = ["$left", "$output", "$right", "-o", "$output"]
 
 [merge-tools.diffedit3]
-program="diffedit3"
+program = "diffedit3"
 # 17376 is a verified random number, as in https://xkcd.com/221/ :). I am trying
 # to avoid 8000 or 8080 in case those, more commonly used, port numbers are used
 # for something else.
 #
 # We use a random port as a fallback if all 5 of the preferred port numbers are
 # busy.
-edit-args = ["$left", "$right", "$output", "--port", "17376-17380", "--port", "0"]
+edit-args = [
+    "$left",
+    "$right",
+    "$output",
+    "--port",
+    "17376-17380",
+    "--port",
+    "0",
+]
 
 [merge-tools.diffedit3-ssh]
-program="diffedit3"
+program = "diffedit3"
 # 17376 is a verified random number, as in https://xkcd.com/221/ :). I am trying
 # to avoid 8000 or 8080 in case those, more commonly used, port numbers are used
 # for something else.
 #
 # We do NOT use a random port as a fallback since we recommend that the user
 # configure SSH to forward these 5 ports
-edit-args = ["$left", "$right", "$output", "--port", "17376-17380", "--no-browser"]
+edit-args = [
+    "$left",
+    "$right",
+    "$output",
+    "--port",
+    "17376-17380",
+    "--no-browser",
+]
 
 [merge-tools.vimdiff]
 program = "vim"
 # `-d` enables diff mode. `-f` makes vim run in foreground even if it starts a GUI.
 # The other options make sure that only the output file can be modified.
-merge-args = ["-f", "-d", "$output", "-M", "$left", "$base", "$right",
-              "-c", "wincmd J", "-c", "set modifiable", "-c", "set write"]
+merge-args = [
+    "-f",
+    "-d",
+    "$output",
+    "-M",
+    "$left",
+    "$base",
+    "$right",
+    "-c",
+    "wincmd J",
+    "-c",
+    "set modifiable",
+    "-c",
+    "set write",
+]
 merge-tool-edits-conflict-markers = true
 # Using vimdiff as a diff editor is not recommended. For instructions on configuring
 # the DirDiff Vim plugin for a better experience, see

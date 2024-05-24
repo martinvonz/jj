@@ -22,7 +22,7 @@ include = [
     "/tests/",
     "!*.pending-snap",
     "!*.snap*",
-    "/tests/cli-reference@.md.snap"
+    "/tests/cli-reference@.md.snap",
 ]
 
 [[bin]]
