@@ -91,7 +91,7 @@ jobs:
         run: git diff --exit-code
 
   rustfmt:
-    name: Check formatting
+    name: Check rustfmt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
@@ -100,6 +100,15 @@ jobs:
           toolchain: nightly
           components: rustfmt
       - run: cargo +nightly fmt --all -- --check
+
+  prettier:
+    name: Check prettier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+      - uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
+      - run: npm install
+      - run: npx prettier --check .
 
   mkdocs:
     name: Check that MkDocs can build the docs
