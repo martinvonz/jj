@@ -5,7 +5,12 @@ end_of_line = lf
 # Turned off because some editors otherwise remove trailing spaces within
 # multi-line string literals (intellij-rust/intellij-rust#5368).
 trim_trailing_whitespace = false
+insert_final_newline = true
 
-[*.rs]
+[*.{json,rs,toml}]
 indent_style = space
 indent_size = 4
+
+[*.{sh,yml}]
+indent_style = space
+indent_size = 2
