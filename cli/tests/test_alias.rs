@@ -334,6 +334,6 @@ fn test_alias_in_repo_config() {
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
-    aliases.l=["log", "-r@", "--no-graph", '-T"user alias\n"']
+    aliases.l = ["log", "-r@", "--no-graph", '-T"user alias\n"']
     "###);
 }
