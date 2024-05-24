@@ -8,7 +8,8 @@
 # creates a commit directly on the `gh-pages` branch.
 set -ev
 
-export "SITE_URL_FOR_MKDOCS=$1"; shift
+export "SITE_URL_FOR_MKDOCS=$1"
+shift
 # Affects the generation of `sitemap.xml.gz` by `mkdocs`. See
 # https://github.com/jimporter/mike/issues/103 and
 # https://reproducible-builds.org/docs/source-date-epoch/
