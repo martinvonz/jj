@@ -12,12 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt;
 use std::io::Write as _;
 
 use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
+use jj_lib::commit::Commit;
 use jj_lib::git;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::{RefTarget, RemoteRef};
@@ -167,6 +168,9 @@ pub struct BranchRenameArgs {
 }
 
 /// Update an existing branch to point to a certain commit.
+///
+/// Without any branch `NAMES`, Jujutsu will use the branch pointing to the
+/// closest ancestor of the target.
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchSetArgs {
     /// The branch's target revision.
@@ -178,7 +182,6 @@ pub struct BranchSetArgs {
     pub allow_backwards: bool,
 
     /// The branches to update.
-    #[arg(required = true)]
     pub names: Vec<String>,
 }
 
@@ -358,8 +361,18 @@ fn cmd_branch_set(
             .added_ids()
             .any(|old| repo.index().is_ancestor(old, target_commit.id()))
     };
-    let branch_names = &args.names;
-    for name in branch_names {
+
+    let branch_names = if !args.names.is_empty() {
+        args.names.clone()
+    } else {
+        find_closest_branches(&target_commit, repo.view())
+    };
+
+    if branch_names.is_empty() {
+        return Err(user_error("No branches found."));
+    }
+
+    for name in &branch_names {
         let old_target = repo.view().get_local_branch(name);
         if old_target.is_absent() {
             return Err(user_error_with_hint(
@@ -384,7 +397,7 @@ fn cmd_branch_set(
     }
 
     let mut tx = workspace_command.start_transaction();
-    for branch_name in branch_names {
+    for branch_name in &branch_names {
         tx.mut_repo()
             .set_local_branch_target(branch_name, RefTarget::normal(target_commit.id().clone()));
     }
@@ -392,11 +405,47 @@ fn cmd_branch_set(
         ui,
         format!(
             "point {} to commit {}",
-            make_branch_term(branch_names),
+            make_branch_term(&branch_names),
             target_commit.id().hex()
         ),
     )?;
     Ok(())
+}
+
+fn find_closest_branches(commit: &Commit, view: &View) -> Vec<String> {
+    let mut closest_branches = Vec::new();
+    let mut closest_distance = None;
+    let mut ancestor_queue: VecDeque<_> = commit
+        .parents()
+        .filter_map(|c| c.ok())
+        .map(|c| (c, 1u32))
+        .collect();
+
+    while let Some((commit, distance)) = ancestor_queue.pop_front() {
+        if closest_distance.is_some() && distance > closest_distance.unwrap() {
+            // A closer branch has already been found, abandon this path
+            break;
+        }
+
+        let branches_for_commit: Vec<_> = view
+            .local_branches_for_commit(commit.id())
+            .map(|(name, _)| name.to_string())
+            .collect();
+
+        if !branches_for_commit.is_empty() {
+            closest_branches.extend(branches_for_commit);
+            closest_distance = Some(distance);
+        } else {
+            ancestor_queue.extend(
+                commit
+                    .parents()
+                    .filter_map(|c| c.ok())
+                    .map(|c| (c, distance + 1)),
+            );
+        }
+    }
+
+    closest_branches
 }
 
 fn find_local_branches(
