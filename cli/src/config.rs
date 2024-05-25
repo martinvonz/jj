@@ -22,6 +22,7 @@ use std::{env, fmt, slice};
 use config::Source;
 use itertools::Itertools;
 use jj_lib::settings::ConfigResultExt as _;
+use regex::{Captures, Regex};
 use thiserror::Error;
 use tracing::instrument;
 
@@ -661,12 +662,22 @@ impl CommandNameAndArgs {
 
     /// Returns process builder configured with this.
     pub fn to_command(&self) -> Command {
+        let empty: HashMap<&str, &str> = HashMap::new();
+        self.to_command_with_variables(&empty)
+    }
+
+    /// Returns process builder configured with this after interpolating
+    /// variables into the arguments.
+    pub fn to_command_with_variables<V: AsRef<str>>(
+        &self,
+        variables: &HashMap<&str, V>,
+    ) -> Command {
         let (name, args) = self.split_name_and_args();
         let mut cmd = Command::new(name.as_ref());
         if let CommandNameAndArgs::Structured { env, .. } = self {
             cmd.envs(env);
         }
-        cmd.args(args.as_ref());
+        cmd.args(interpolate_variables(&args, variables));
         cmd
     }
 }
@@ -691,6 +702,41 @@ impl fmt::Display for CommandNameAndArgs {
             }
         }
     }
+}
+
+// Not interested in $UPPER_CASE_VARIABLES
+static VARIABLE_REGEX: once_cell::sync::Lazy<Regex> =
+    once_cell::sync::Lazy::new(|| Regex::new(r"\$([a-z0-9_]+)\b").unwrap());
+
+pub fn interpolate_variables<V: AsRef<str>>(
+    args: &[String],
+    variables: &HashMap<&str, V>,
+) -> Vec<String> {
+    args.iter()
+        .map(|arg| {
+            VARIABLE_REGEX
+                .replace_all(arg, |caps: &Captures| {
+                    let name = &caps[1];
+                    if let Some(subst) = variables.get(name) {
+                        subst.as_ref().to_owned()
+                    } else {
+                        caps[0].to_owned()
+                    }
+                })
+                .into_owned()
+        })
+        .collect()
+}
+
+/// Return all variable names found in the args, without the dollar sign
+pub fn find_all_variables(args: &[String]) -> impl Iterator<Item = &str> {
+    let regex = &*VARIABLE_REGEX;
+    args.iter()
+        .flat_map(|arg| regex.find_iter(arg))
+        .map(|single_match| {
+            let s = single_match.as_str();
+            &s[1..]
+        })
 }
 
 /// Wrapper to reject an array without command name.

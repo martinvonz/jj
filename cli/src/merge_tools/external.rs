@@ -12,14 +12,13 @@ use jj_lib::merge::{Merge, MergedTreeValue};
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
 use jj_lib::repo_path::RepoPath;
 use pollster::FutureExt;
-use regex::{Captures, Regex};
 use thiserror::Error;
 
 use super::diff_working_copies::{
     check_out_trees, new_utf8_temp_dir, set_readonly_recursively, DiffEditWorkingCopies, DiffSide,
 };
 use super::{ConflictResolveError, DiffEditError, DiffGenerateError};
-use crate::config::CommandNameAndArgs;
+use crate::config::{find_all_variables, interpolate_variables, CommandNameAndArgs};
 use crate::ui::Ui;
 
 /// Merge/diff tool loaded from the settings.
@@ -218,41 +217,6 @@ pub fn run_mergetool_external(
     tree_builder.set_or_remove(repo_path.to_owned(), new_tree_value);
     let new_tree = tree_builder.write_tree(tree.store())?;
     Ok(new_tree)
-}
-
-// Not interested in $UPPER_CASE_VARIABLES
-static VARIABLE_REGEX: once_cell::sync::Lazy<Regex> =
-    once_cell::sync::Lazy::new(|| Regex::new(r"\$([a-z0-9_]+)\b").unwrap());
-
-fn interpolate_variables<V: AsRef<str>>(
-    args: &[String],
-    variables: &HashMap<&str, V>,
-) -> Vec<String> {
-    args.iter()
-        .map(|arg| {
-            VARIABLE_REGEX
-                .replace_all(arg, |caps: &Captures| {
-                    let name = &caps[1];
-                    if let Some(subst) = variables.get(name) {
-                        subst.as_ref().to_owned()
-                    } else {
-                        caps[0].to_owned()
-                    }
-                })
-                .into_owned()
-        })
-        .collect()
-}
-
-/// Return all variable names found in the args, without the dollar sign
-fn find_all_variables(args: &[String]) -> impl Iterator<Item = &str> {
-    let regex = &*VARIABLE_REGEX;
-    args.iter()
-        .flat_map(|arg| regex.find_iter(arg))
-        .map(|single_match| {
-            let s = single_match.as_str();
-            &s[1..]
-        })
 }
 
 pub fn edit_diff_external(
