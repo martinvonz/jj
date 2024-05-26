@@ -151,6 +151,7 @@ impl From<InvalidArguments<'_>> for FilesetParseError {
         Self::new(kind, err.span)
     }
 }
+
 fn rename_rules_in_pest_error(err: pest::error::Error<Rule>) -> pest::error::Error<Rule> {
     err.renamed_rules(|rule| {
         rule.to_symbol()
