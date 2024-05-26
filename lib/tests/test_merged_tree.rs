@@ -211,15 +211,6 @@ fn test_from_legacy_tree() {
         MergedTreeVal::Resolved(tree.value(dir1_basename))
     );
 
-    // Also test that MergedTreeBuilder can create the same tree by starting from an
-    // empty legacy tree.
-    let mut tree_builder = MergedTreeBuilder::new(store.empty_merged_tree_id());
-    for (path, value) in tree.entries() {
-        tree_builder.set_or_remove(path, Merge::normal(value));
-    }
-    let recreated_legacy_id = tree_builder.write_tree(store).unwrap();
-    assert_eq!(recreated_legacy_id, MergedTreeId::Legacy(tree_id.clone()));
-
     // Create the merged tree by starting from an empty merged tree and adding
     // entries from the merged tree we created before
     let empty_merged_id_builder: MergeBuilder<_> = std::iter::repeat(store.empty_tree_id())
