@@ -49,6 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added new revsets `mutable()` and `immutable()`.
 
+* Upgraded `scm-record` from v0.2.0 to v0.3.0. See release notes at https://github.com/arxanas/scm-record/releases/tag/v0.3.0
+
 ### Fixed bugs
 
 * When the working copy commit becomes immutable, a new one is automatically created on top of it 
