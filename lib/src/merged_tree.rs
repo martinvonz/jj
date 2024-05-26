@@ -1184,44 +1184,17 @@ impl MergedTreeBuilder {
     }
 
     /// Create new tree(s) from the base tree(s) and overrides.
-    ///
-    /// When the base tree was a legacy tree and the
-    /// `format.tree-level-conflicts` config is disabled, then the result will
-    /// be another legacy tree. Overrides with conflicts will result in
-    /// conflict objects being written to the store. If
-    /// `format.tree-tree-level-conflicts` is enabled, then a legacy tree will
-    /// still be written and immediately converted and returned as a merged
-    /// tree.
     pub fn write_tree(self, store: &Arc<Store>) -> BackendResult<MergedTreeId> {
-        match self.base_tree_id.clone() {
+        let base_tree_ids = match self.base_tree_id.clone() {
             MergedTreeId::Legacy(base_tree_id) => {
-                let mut tree_builder = TreeBuilder::new(store.clone(), base_tree_id);
-                for (path, values) in self.overrides {
-                    let values = values.simplify();
-                    match values.into_resolved() {
-                        Ok(value) => {
-                            tree_builder.set_or_remove(path, value);
-                        }
-                        Err(values) => {
-                            let conflict_id = store.write_conflict(&path, &values)?;
-                            tree_builder.set(path, TreeValue::Conflict(conflict_id));
-                        }
-                    }
-                }
-                let legacy_id = tree_builder.write_tree()?;
-                if store.use_tree_conflict_format() {
-                    let legacy_tree = store.get_tree(RepoPath::root(), &legacy_id)?;
-                    let merged_tree = MergedTree::from_legacy_tree(legacy_tree)?;
-                    Ok(merged_tree.id())
-                } else {
-                    Ok(MergedTreeId::Legacy(legacy_id))
-                }
+                let legacy_base_tree = store.get_tree(RepoPath::root(), &base_tree_id)?;
+                let base_tree = MergedTree::from_legacy_tree(legacy_base_tree)?;
+                base_tree.id().to_merge()
             }
-            MergedTreeId::Merge(base_tree_ids) => {
-                let new_tree_ids = self.write_merged_trees(base_tree_ids, store)?;
-                Ok(MergedTreeId::Merge(new_tree_ids.simplify()))
-            }
-        }
+            MergedTreeId::Merge(base_tree_ids) => base_tree_ids,
+        };
+        let new_tree_ids = self.write_merged_trees(base_tree_ids, store)?;
+        Ok(MergedTreeId::Merge(new_tree_ids.simplify()))
     }
 
     fn write_merged_trees(
