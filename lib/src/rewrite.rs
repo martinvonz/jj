@@ -214,11 +214,11 @@ impl<'repo> CommitRewriter<'repo> {
             .map(|parent| parent.tree_id().clone())
             .collect_vec();
 
-        let (old_base_tree_id, new_tree_id) = if new_parent_trees == old_parent_trees {
+        let (was_empty, new_tree_id) = if new_parent_trees == old_parent_trees {
             (
-                // Optimization: old_base_tree_id is only used for newly empty, but when the
+                // Optimization: was_empty is only used for newly empty, but when the
                 // parents haven't changed it can't be newly empty.
-                None,
+                true,
                 // Optimization: Skip merging.
                 self.old_commit.tree_id().clone(),
             )
@@ -227,7 +227,7 @@ impl<'repo> CommitRewriter<'repo> {
             let new_base_tree = merge_commit_trees(self.mut_repo, &new_parents)?;
             let old_tree = self.old_commit.tree()?;
             (
-                Some(old_base_tree.id()),
+                old_base_tree.id() == *self.old_commit.tree_id(),
                 new_base_tree.merge(&old_base_tree, &old_tree)?.id(),
             )
         };
@@ -236,10 +236,7 @@ impl<'repo> CommitRewriter<'repo> {
         if let [parent] = &new_parents[..] {
             let should_abandon = match empty {
                 EmptyBehaviour::Keep => false,
-                EmptyBehaviour::AbandonNewlyEmpty => {
-                    *parent.tree_id() == new_tree_id
-                        && old_base_tree_id.map_or(false, |id| id != *self.old_commit.tree_id())
-                }
+                EmptyBehaviour::AbandonNewlyEmpty => *parent.tree_id() == new_tree_id && !was_empty,
                 EmptyBehaviour::AbandonAllEmpty => *parent.tree_id() == new_tree_id,
             };
             if should_abandon {
