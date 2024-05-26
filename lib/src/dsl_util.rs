@@ -54,7 +54,7 @@ pub struct FunctionCallNode<'i, T> {
 impl<'i, T> FunctionCallNode<'i, T> {
     /// Ensures that no arguments passed.
     pub fn expect_no_arguments(&self) -> Result<(), InvalidArguments<'i>> {
-        let [] = self.expect_exact_arguments()?;
+        let ([], []) = self.expect_arguments()?;
         Ok(())
     }
 
@@ -62,10 +62,8 @@ impl<'i, T> FunctionCallNode<'i, T> {
     pub fn expect_exact_arguments<const N: usize>(
         &self,
     ) -> Result<&[ExpressionNode<'i, T>; N], InvalidArguments<'i>> {
-        self.args
-            .as_slice()
-            .try_into()
-            .map_err(|_| self.invalid_arguments_count(N, Some(N)))
+        let (args, []) = self.expect_arguments()?;
+        Ok(args)
     }
 
     /// Extracts N required arguments and remainders.
