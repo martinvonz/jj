@@ -441,8 +441,6 @@ pub enum AliasDeclaration {
 
 // AliasDeclarationParser and AliasDefinitionParser can be merged into a single
 // trait, but it's unclear whether doing that would simplify the abstraction.
-// For now, they have to be separate traits because revset isn't migrated to
-// ExpressionNode tree yet.
 
 /// Parser for symbol and function alias declaration.
 pub trait AliasDeclarationParser {
