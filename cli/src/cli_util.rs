@@ -87,7 +87,7 @@ use crate::config::{
     new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigNamePathBuf, ConfigSource,
     LayeredConfigs,
 };
-use crate::diff_util::{self, DiffFormat, DiffFormatArgs, DiffRenderer, DiffWorkspaceContext};
+use crate::diff_util::{self, DiffFormat, DiffFormatArgs, DiffRenderer};
 use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
 use crate::git_util::{
     is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
@@ -475,7 +475,6 @@ impl AdvanceBranchesSettings {
 /// Provides utilities for writing a command that works on a [`Workspace`]
 /// (which most commands do).
 pub struct WorkspaceCommandHelper {
-    cwd: PathBuf,
     string_args: Vec<String>,
     global_args: GlobalArgs,
     settings: UserSettings,
@@ -513,7 +512,6 @@ impl WorkspaceCommandHelper {
             base: workspace.workspace_root().clone(),
         };
         let helper = Self {
-            cwd: command.cwd.clone(),
             string_args: command.string_args.clone(),
             global_args: command.global_args.clone(),
             settings,
@@ -807,11 +805,7 @@ impl WorkspaceCommandHelper {
 
     /// Creates textual diff renderer of the specified `formats`.
     pub fn diff_renderer(&self, formats: Vec<DiffFormat>) -> DiffRenderer<'_> {
-        let workspace_ctx = DiffWorkspaceContext {
-            cwd: &self.cwd,
-            workspace_root: self.workspace.workspace_root(),
-        };
-        DiffRenderer::new(self.repo().as_ref(), workspace_ctx, formats)
+        DiffRenderer::new(self.repo().as_ref(), &self.path_converter, formats)
     }
 
     /// Loads textual diff renderer from the settings and command arguments.
