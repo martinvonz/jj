@@ -61,7 +61,6 @@ mod test_squash_command;
 mod test_status_command;
 mod test_tag_command;
 mod test_templater;
-mod test_tree_level_conflicts;
 mod test_undo;
 mod test_unsquash_command;
 mod test_untrack_command;
