@@ -65,7 +65,7 @@ impl<'i, T> FunctionCallNode<'i, T> {
         self.args
             .as_slice()
             .try_into()
-            .map_err(|_| self.invalid_arguments(format!("Expected {N} arguments")))
+            .map_err(|_| self.invalid_arguments_count(N, Some(N)))
     }
 
     /// Extracts N required arguments and remainders.
@@ -77,7 +77,7 @@ impl<'i, T> FunctionCallNode<'i, T> {
             let (required, rest) = self.args.split_at(N);
             Ok((required.try_into().unwrap(), rest))
         } else {
-            Err(self.invalid_arguments(format!("Expected at least {N} arguments")))
+            Err(self.invalid_arguments_count(N, None))
         }
     }
 
@@ -103,7 +103,7 @@ impl<'i, T> FunctionCallNode<'i, T> {
             ))
         } else {
             let (min, max) = count_range.into_inner();
-            Err(self.invalid_arguments(format!("Expected {min} to {max} arguments")))
+            Err(self.invalid_arguments_count(min, Some(max)))
         }
     }
 
@@ -113,6 +113,15 @@ impl<'i, T> FunctionCallNode<'i, T> {
             message,
             span: self.args_span,
         }
+    }
+
+    fn invalid_arguments_count(&self, min: usize, max: Option<usize>) -> InvalidArguments<'i> {
+        let message = match (min, max) {
+            (min, Some(max)) if min == max => format!("Expected {min} arguments"),
+            (min, Some(max)) => format!("Expected {min} to {max} arguments"),
+            (min, None) => format!("Expected at least {min} arguments"),
+        };
+        self.invalid_arguments(message)
     }
 }
 
@@ -444,12 +453,11 @@ where
         span: pest::Span<'i>,
     ) -> Result<T, Self::Error> {
         if let Some((id, params, defn)) = self.aliases_map.get_function(function.name) {
-            if function.args.len() != params.len() {
-                return Err(E::invalid_arguments(InvalidArguments {
-                    name: function.name,
-                    message: format!("Expected {} arguments", params.len()),
-                    span: function.args_span,
-                }));
+            let arity = params.len();
+            if function.args.len() != arity {
+                return Err(E::invalid_arguments(
+                    function.invalid_arguments_count(arity, Some(arity)),
+                ));
             }
             // Resolve arguments in the current scope, and pass them in to the alias
             // expansion scope.
