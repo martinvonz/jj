@@ -107,7 +107,7 @@ impl Store {
     }
 
     pub fn empty_merged_tree_id(&self) -> MergedTreeId {
-        MergedTreeId::Legacy(self.backend.empty_tree_id().clone())
+        MergedTreeId::resolved(self.backend.empty_tree_id().clone())
     }
 
     pub fn root_commit(self: &Arc<Self>) -> Commit {
