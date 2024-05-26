@@ -15,8 +15,8 @@
 #![allow(missing_docs)]
 
 use std::collections::{HashMap, HashSet};
-use std::error;
 use std::rc::Rc;
+use std::{error, mem};
 
 use itertools::Itertools as _;
 use once_cell::sync::Lazy;
@@ -27,7 +27,9 @@ use pest_derive::Parser;
 use thiserror::Error;
 
 use crate::dsl_util::{
-    collect_similar, AliasDeclaration, AliasDeclarationParser, AliasesMap, StringLiteralParser,
+    self, collect_similar, AliasDeclaration, AliasDeclarationParser, AliasExpandError,
+    AliasExpandableExpression, AliasId, AliasesMap, ExpressionFolder, FoldableExpression,
+    InvalidArguments, StringLiteralParser,
 };
 use crate::op_store::WorkspaceId;
 // TODO: remove reverse dependency on revset module
@@ -162,6 +164,8 @@ pub enum RevsetParseErrorKind {
     RedefinedFunctionParameter,
     #[error(r#"Alias "{0}" cannot be expanded"#)]
     BadAliasExpansion(String),
+    #[error(r#"Function parameter "{0}" cannot be expanded"#)]
+    BadParameterExpansion(String),
     #[error(r#"Alias "{0}" expanded recursively"#)]
     RecursiveAlias(String),
 }
@@ -202,6 +206,23 @@ impl RevsetParseError {
         )
     }
 
+    /// If this is a `NoSuchFunction` error, expands the candidates list with
+    /// the given `other_functions`.
+    #[allow(unused)] // TODO: remove
+    pub(super) fn extend_function_candidates<I>(mut self, other_functions: I) -> Self
+    where
+        I: IntoIterator,
+        I::Item: AsRef<str>,
+    {
+        if let RevsetParseErrorKind::NoSuchFunction { name, candidates } = &mut self.kind {
+            let other_candidates = collect_similar(name, other_functions);
+            *candidates = itertools::merge(mem::take(candidates), other_candidates)
+                .dedup()
+                .collect();
+        }
+        self
+    }
+
     pub fn kind(&self) -> &RevsetParseErrorKind {
         &self.kind
     }
@@ -212,6 +233,26 @@ impl RevsetParseError {
     }
 }
 
+impl AliasExpandError for RevsetParseError {
+    fn invalid_arguments(err: InvalidArguments<'_>) -> Self {
+        err.into()
+    }
+
+    fn recursive_expansion(id: AliasId<'_>, span: pest::Span<'_>) -> Self {
+        Self::with_span(RevsetParseErrorKind::RecursiveAlias(id.to_string()), span)
+    }
+
+    fn within_alias_expansion(self, id: AliasId<'_>, span: pest::Span<'_>) -> Self {
+        let kind = match id {
+            AliasId::Symbol(_) | AliasId::Function(_) => {
+                RevsetParseErrorKind::BadAliasExpansion(id.to_string())
+            }
+            AliasId::Parameter(_) => RevsetParseErrorKind::BadParameterExpansion(id.to_string()),
+        };
+        Self::with_span(kind, span).with_source(self)
+    }
+}
+
 impl From<pest::error::Error<Rule>> for RevsetParseError {
     fn from(err: pest::error::Error<Rule>) -> Self {
         RevsetParseError {
@@ -219,6 +260,14 @@ impl From<pest::error::Error<Rule>> for RevsetParseError {
             pest_error: Box::new(rename_rules_in_pest_error(err)),
             source: None,
         }
+    }
+}
+
+impl From<InvalidArguments<'_>> for RevsetParseError {
+    fn from(err: InvalidArguments<'_>) -> Self {
+        // TODO: Perhaps, we can add generic Expression error for invalid
+        // pattern, etc., and Self::invalid_arguments() can be inlined.
+        Self::invalid_arguments(err.name, err.message, err.span)
     }
 }
 
@@ -245,6 +294,118 @@ fn rename_rules_in_pest_error(mut err: pest::error::Error<Rule>) -> pest::error:
             .unwrap_or_else(|| format!("<{rule:?}>"))
     })
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ExpressionKind<'i> {
+    /// Unquoted symbol.
+    Identifier(&'i str),
+    /// Quoted symbol or string.
+    String(String),
+    /// `<kind>:<value>`
+    StringPattern {
+        kind: &'i str,
+        value: String,
+    },
+    /// `<name>@<remote>`
+    RemoteSymbol {
+        name: String,
+        remote: String,
+    },
+    /// `<workspace_id>@`
+    AtWorkspace(String),
+    /// `@`
+    AtCurrentWorkspace,
+    /// `::`
+    DagRangeAll,
+    /// `..`
+    RangeAll,
+    Unary(UnaryOp, Box<ExpressionNode<'i>>),
+    Binary(BinaryOp, Box<ExpressionNode<'i>>, Box<ExpressionNode<'i>>),
+    FunctionCall(Box<FunctionCallNode<'i>>),
+    /// Identity node to preserve the span in the source text.
+    AliasExpanded(AliasId<'i>, Box<ExpressionNode<'i>>),
+}
+
+impl<'i> FoldableExpression<'i> for ExpressionKind<'i> {
+    fn fold<F>(self, folder: &mut F, span: pest::Span<'i>) -> Result<Self, F::Error>
+    where
+        F: ExpressionFolder<'i, Self> + ?Sized,
+    {
+        match self {
+            ExpressionKind::Identifier(name) => folder.fold_identifier(name, span),
+            ExpressionKind::String(_)
+            | ExpressionKind::StringPattern { .. }
+            | ExpressionKind::RemoteSymbol { .. }
+            | ExpressionKind::AtWorkspace(_)
+            | ExpressionKind::AtCurrentWorkspace
+            | ExpressionKind::DagRangeAll
+            | ExpressionKind::RangeAll => Ok(self),
+            ExpressionKind::Unary(op, arg) => {
+                let arg = Box::new(folder.fold_expression(*arg)?);
+                Ok(ExpressionKind::Unary(op, arg))
+            }
+            ExpressionKind::Binary(op, lhs, rhs) => {
+                let lhs = Box::new(folder.fold_expression(*lhs)?);
+                let rhs = Box::new(folder.fold_expression(*rhs)?);
+                Ok(ExpressionKind::Binary(op, lhs, rhs))
+            }
+            ExpressionKind::FunctionCall(function) => folder.fold_function_call(function, span),
+            ExpressionKind::AliasExpanded(id, subst) => {
+                let subst = Box::new(folder.fold_expression(*subst)?);
+                Ok(ExpressionKind::AliasExpanded(id, subst))
+            }
+        }
+    }
+}
+
+impl<'i> AliasExpandableExpression<'i> for ExpressionKind<'i> {
+    fn identifier(name: &'i str) -> Self {
+        ExpressionKind::Identifier(name)
+    }
+
+    fn function_call(function: Box<FunctionCallNode<'i>>) -> Self {
+        ExpressionKind::FunctionCall(function)
+    }
+
+    fn alias_expanded(id: AliasId<'i>, subst: Box<ExpressionNode<'i>>) -> Self {
+        ExpressionKind::AliasExpanded(id, subst)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum UnaryOp {
+    /// `~x`
+    Negate,
+    /// `::x`
+    DagRangePre,
+    /// `x::`
+    DagRangePost,
+    /// `..x`
+    RangePre,
+    /// `x..`
+    RangePost,
+    /// `x-`
+    Parents,
+    /// `x+`
+    Children,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum BinaryOp {
+    /// `|`
+    Union,
+    /// `&`
+    Intersection,
+    /// `~`
+    Difference,
+    /// `::`
+    DagRange,
+    /// `..`
+    Range,
+}
+
+pub type ExpressionNode<'i> = dsl_util::ExpressionNode<'i, ExpressionKind<'i>>;
+pub type FunctionCallNode<'i> = dsl_util::FunctionCallNode<'i, ExpressionKind<'i>>;
 
 pub(super) fn parse_program(
     revset_str: &str,
@@ -703,4 +864,18 @@ pub fn expect_named_arguments_vec<'i>(
         return Err(make_count_error());
     }
     Ok((required, optional))
+}
+
+/// Applies the give function to the innermost `node` by unwrapping alias
+/// expansion nodes.
+#[allow(unused)] // TODO: remove
+pub(super) fn expect_literal_with<T>(
+    node: &ExpressionNode,
+    f: impl FnOnce(&ExpressionNode) -> Result<T, RevsetParseError>,
+) -> Result<T, RevsetParseError> {
+    if let ExpressionKind::AliasExpanded(id, subst) = &node.kind {
+        expect_literal_with(subst, f).map_err(|e| e.within_alias_expansion(*id, node.span))
+    } else {
+        f(node)
+    }
 }
