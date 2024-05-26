@@ -994,9 +994,8 @@ impl WorkspaceCommandHelper {
 
     pub(crate) fn revset_parse_context(&self) -> RevsetParseContext {
         let workspace_context = RevsetWorkspaceContext {
-            cwd: &self.cwd,
+            path_converter: &self.path_converter,
             workspace_id: self.workspace_id(),
-            workspace_root: self.workspace.workspace_root(),
         };
         RevsetParseContext::new(
             &self.revset_aliases_map,
