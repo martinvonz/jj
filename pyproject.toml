@@ -20,3 +20,4 @@ mdx-breakless-lists = "^1.0.1"
 mkdocs-redirects = "^1.2.1"
 # Used for the CLI reference
 mkdocs-include-markdown-plugin = "^6.0.4"
+nodeenv = "^1.8.0"
