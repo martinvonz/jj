@@ -44,8 +44,8 @@ use crate::repo_path::RepoPathUiConverter;
 // re-exports
 pub use crate::revset_parser::{
     expect_arguments, expect_exact_arguments, expect_named_arguments, expect_named_arguments_vec,
-    expect_no_arguments, parse_expression_rule, RevsetAliasesMap, RevsetParseError,
-    RevsetParseErrorKind, Rule,
+    expect_no_arguments, parse_expression_rule, BinaryOp, ExpressionKind, ExpressionNode,
+    FunctionCallNode, RevsetAliasesMap, RevsetParseError, RevsetParseErrorKind, Rule, UnaryOp,
 };
 use crate::revset_parser::{parse_program, parse_program_with_modifier};
 use crate::store::Store;
