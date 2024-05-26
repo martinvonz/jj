@@ -131,13 +131,13 @@ fn test_bad_function_call() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Function "file": Expected at least 1 argument
+    Error: Failed to parse revset: Function "file": Expected at least 1 arguments
     Caused by:  --> 1:6
       |
     1 | file()
       |      ^
       |
-      = Function "file": Expected at least 1 argument
+      = Function "file": Expected at least 1 arguments
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file(a, not@a-string)"]);
@@ -384,6 +384,12 @@ fn test_alias() {
       |
     1 | author(x)
       |        ^
+      |
+      = Function parameter "x" cannot be expanded
+    3:  --> 1:11
+      |
+    1 | my_author(none())
+      |           ^----^
       |
       = Function "author": Expected function argument of string pattern
     "###);

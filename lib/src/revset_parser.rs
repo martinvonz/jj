@@ -14,8 +14,7 @@
 
 #![allow(missing_docs)]
 
-use std::collections::{HashMap, HashSet};
-use std::rc::Rc;
+use std::collections::HashSet;
 use std::{error, mem};
 
 use itertools::Itertools as _;
@@ -27,13 +26,12 @@ use pest_derive::Parser;
 use thiserror::Error;
 
 use crate::dsl_util::{
-    self, collect_similar, AliasDeclaration, AliasDeclarationParser, AliasExpandError,
-    AliasExpandableExpression, AliasId, AliasesMap, ExpressionFolder, FoldableExpression,
-    InvalidArguments, StringLiteralParser,
+    self, collect_similar, AliasDeclaration, AliasDeclarationParser, AliasDefinitionParser,
+    AliasExpandError, AliasExpandableExpression, AliasId, AliasesMap, ExpressionFolder,
+    FoldableExpression, InvalidArguments, KeywordArgument, StringLiteralParser,
 };
-use crate::op_store::WorkspaceId;
 // TODO: remove reverse dependency on revset module
-use crate::revset::{ParseState, RevsetExpression, RevsetModifier};
+use crate::revset::RevsetModifier;
 
 #[derive(Parser)]
 #[grammar = "revset.pest"]
@@ -208,7 +206,6 @@ impl RevsetParseError {
 
     /// If this is a `NoSuchFunction` error, expands the candidates list with
     /// the given `other_functions`.
-    #[allow(unused)] // TODO: remove
     pub(super) fn extend_function_candidates<I>(mut self, other_functions: I) -> Self
     where
         I: IntoIterator,
@@ -407,25 +404,21 @@ pub enum BinaryOp {
 pub type ExpressionNode<'i> = dsl_util::ExpressionNode<'i, ExpressionKind<'i>>;
 pub type FunctionCallNode<'i> = dsl_util::FunctionCallNode<'i, ExpressionKind<'i>>;
 
-pub(super) fn parse_program(
-    revset_str: &str,
-    state: ParseState,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+pub(super) fn parse_program(revset_str: &str) -> Result<ExpressionNode, RevsetParseError> {
     let mut pairs = RevsetParser::parse(Rule::program, revset_str)?;
     let first = pairs.next().unwrap();
-    parse_expression_rule(first.into_inner(), state)
+    parse_expression_node(first.into_inner())
 }
 
 pub(super) fn parse_program_with_modifier(
     revset_str: &str,
-    state: ParseState,
-) -> Result<(Rc<RevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
+) -> Result<(ExpressionNode, Option<RevsetModifier>), RevsetParseError> {
     let mut pairs = RevsetParser::parse(Rule::program_with_modifier, revset_str)?;
     let first = pairs.next().unwrap();
     match first.as_rule() {
         Rule::expression => {
-            let expression = parse_expression_rule(first.into_inner(), state)?;
-            Ok((expression, None))
+            let node = parse_expression_node(first.into_inner())?;
+            Ok((node, None))
         }
         Rule::program_modifier => {
             let (lhs, op) = first.into_inner().collect_tuple().unwrap();
@@ -442,17 +435,14 @@ pub(super) fn parse_program_with_modifier(
                     ));
                 }
             };
-            let expression = parse_expression_rule(rhs.into_inner(), state)?;
-            Ok((expression, Some(modififer)))
+            let node = parse_expression_node(rhs.into_inner())?;
+            Ok((node, Some(modififer)))
         }
         r => panic!("unexpected revset parse rule: {r:?}"),
     }
 }
 
-pub fn parse_expression_rule(
-    pairs: Pairs<Rule>,
-    state: ParseState,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+fn parse_expression_node(pairs: Pairs<Rule>) -> Result<ExpressionNode, RevsetParseError> {
     fn not_prefix_op(
         op: &Pair<Rule>,
         similar_op: impl Into<String>,
@@ -522,141 +512,122 @@ pub fn parse_expression_rule(
                 | Op::postfix(Rule::compat_parents_op))
     });
     PRATT
-        .map_primary(|primary| match primary.as_rule() {
-            Rule::primary => parse_primary_rule(primary, state),
-            Rule::dag_range_all_op => Ok(RevsetExpression::all()),
-            Rule::range_all_op => {
-                Ok(RevsetExpression::root().range(&RevsetExpression::visible_heads()))
-            }
-            r => panic!("unexpected primary rule {r:?}"),
+        .map_primary(|primary| {
+            let expr = match primary.as_rule() {
+                Rule::primary => return parse_primary_node(primary),
+                Rule::dag_range_all_op => ExpressionKind::DagRangeAll,
+                Rule::range_all_op => ExpressionKind::RangeAll,
+                r => panic!("unexpected primary rule {r:?}"),
+            };
+            Ok(ExpressionNode::new(expr, primary.as_span()))
         })
-        .map_prefix(|op, rhs| match op.as_rule() {
-            Rule::negate_op => Ok(rhs?.negated()),
-            Rule::dag_range_pre_op => Ok(rhs?.ancestors()),
-            Rule::compat_dag_range_pre_op => Err(not_prefix_op(&op, "::", "ancestors")),
-            Rule::range_pre_op => Ok(RevsetExpression::root().range(&rhs?)),
-            r => panic!("unexpected prefix operator rule {r:?}"),
+        .map_prefix(|op, rhs| {
+            let op_kind = match op.as_rule() {
+                Rule::negate_op => UnaryOp::Negate,
+                Rule::dag_range_pre_op => UnaryOp::DagRangePre,
+                Rule::compat_dag_range_pre_op => Err(not_prefix_op(&op, "::", "ancestors"))?,
+                Rule::range_pre_op => UnaryOp::RangePre,
+                r => panic!("unexpected prefix operator rule {r:?}"),
+            };
+            let rhs = Box::new(rhs?);
+            let span = op.as_span().start_pos().span(&rhs.span.end_pos());
+            let expr = ExpressionKind::Unary(op_kind, rhs);
+            Ok(ExpressionNode::new(expr, span))
         })
-        .map_postfix(|lhs, op| match op.as_rule() {
-            Rule::dag_range_post_op => Ok(lhs?.descendants()),
-            Rule::compat_dag_range_post_op => Err(not_postfix_op(&op, "::", "descendants")),
-            Rule::range_post_op => Ok(lhs?.range(&RevsetExpression::visible_heads())),
-            Rule::parents_op => Ok(lhs?.parents()),
-            Rule::children_op => Ok(lhs?.children()),
-            Rule::compat_parents_op => Err(not_postfix_op(&op, "-", "parents")),
-            r => panic!("unexpected postfix operator rule {r:?}"),
+        .map_postfix(|lhs, op| {
+            let op_kind = match op.as_rule() {
+                Rule::dag_range_post_op => UnaryOp::DagRangePost,
+                Rule::compat_dag_range_post_op => Err(not_postfix_op(&op, "::", "descendants"))?,
+                Rule::range_post_op => UnaryOp::RangePost,
+                Rule::parents_op => UnaryOp::Parents,
+                Rule::children_op => UnaryOp::Children,
+                Rule::compat_parents_op => Err(not_postfix_op(&op, "-", "parents"))?,
+                r => panic!("unexpected postfix operator rule {r:?}"),
+            };
+            let lhs = Box::new(lhs?);
+            let span = lhs.span.start_pos().span(&op.as_span().end_pos());
+            let expr = ExpressionKind::Unary(op_kind, lhs);
+            Ok(ExpressionNode::new(expr, span))
         })
-        .map_infix(|lhs, op, rhs| match op.as_rule() {
-            Rule::union_op => Ok(lhs?.union(&rhs?)),
-            Rule::compat_add_op => Err(not_infix_op(&op, "|", "union")),
-            Rule::intersection_op => Ok(lhs?.intersection(&rhs?)),
-            Rule::difference_op => Ok(lhs?.minus(&rhs?)),
-            Rule::compat_sub_op => Err(not_infix_op(&op, "~", "difference")),
-            Rule::dag_range_op => Ok(lhs?.dag_range_to(&rhs?)),
-            Rule::compat_dag_range_op => Err(not_infix_op(&op, "::", "DAG range")),
-            Rule::range_op => Ok(lhs?.range(&rhs?)),
-            r => panic!("unexpected infix operator rule {r:?}"),
+        .map_infix(|lhs, op, rhs| {
+            let op_kind = match op.as_rule() {
+                Rule::union_op => BinaryOp::Union,
+                Rule::compat_add_op => Err(not_infix_op(&op, "|", "union"))?,
+                Rule::intersection_op => BinaryOp::Intersection,
+                Rule::difference_op => BinaryOp::Difference,
+                Rule::compat_sub_op => Err(not_infix_op(&op, "~", "difference"))?,
+                Rule::dag_range_op => BinaryOp::DagRange,
+                Rule::compat_dag_range_op => Err(not_infix_op(&op, "::", "DAG range"))?,
+                Rule::range_op => BinaryOp::Range,
+                r => panic!("unexpected infix operator rule {r:?}"),
+            };
+            let lhs = Box::new(lhs?);
+            let rhs = Box::new(rhs?);
+            let span = lhs.span.start_pos().span(&rhs.span.end_pos());
+            let expr = ExpressionKind::Binary(op_kind, lhs, rhs);
+            Ok(ExpressionNode::new(expr, span))
         })
         .parse(pairs)
 }
 
-fn parse_primary_rule(
-    pair: Pair<Rule>,
-    state: ParseState,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+fn parse_primary_node(pair: Pair<Rule>) -> Result<ExpressionNode, RevsetParseError> {
     let span = pair.as_span();
     let mut pairs = pair.into_inner();
     let first = pairs.next().unwrap();
-    match first.as_rule() {
-        Rule::expression => parse_expression_rule(first.into_inner(), state),
+    let expr = match first.as_rule() {
+        Rule::expression => return parse_expression_node(first.into_inner()),
         Rule::function_name => {
             let arguments_pair = pairs.next().unwrap();
-            parse_function_expression(first, arguments_pair, state, span)
+            let function = Box::new(parse_function_call_node(first, arguments_pair)?);
+            ExpressionKind::FunctionCall(function)
         }
-        Rule::string_pattern => parse_string_pattern_rule(first, state),
+        Rule::string_pattern => parse_string_pattern(first),
         // Symbol without "@" may be substituted by aliases. Primary expression including "@"
         // is considered an indecomposable unit, and no alias substitution would be made.
-        Rule::symbol if pairs.peek().is_none() => parse_symbol_rule(first.into_inner(), state),
+        Rule::symbol if pairs.peek().is_none() => parse_symbol(first.into_inner()),
         Rule::symbol => {
-            let name = parse_symbol_rule_as_literal(first.into_inner());
+            let name = parse_as_string_literal(first.into_inner());
             assert_eq!(pairs.next().unwrap().as_rule(), Rule::at_op);
             if let Some(second) = pairs.next() {
                 // infix "<name>@<remote>"
                 assert_eq!(second.as_rule(), Rule::symbol);
-                let remote = parse_symbol_rule_as_literal(second.into_inner());
-                Ok(RevsetExpression::remote_symbol(name, remote))
+                let remote = parse_as_string_literal(second.into_inner());
+                ExpressionKind::RemoteSymbol { name, remote }
             } else {
                 // postfix "<workspace_id>@"
-                Ok(RevsetExpression::working_copy(WorkspaceId::new(name)))
+                ExpressionKind::AtWorkspace(name)
             }
         }
-        Rule::at_op => {
-            // nullary "@"
-            let ctx = state.workspace_ctx.as_ref().ok_or_else(|| {
-                RevsetParseError::with_span(RevsetParseErrorKind::WorkingCopyWithoutWorkspace, span)
-            })?;
-            Ok(RevsetExpression::working_copy(ctx.workspace_id.clone()))
-        }
-        _ => {
-            panic!("unexpected revset parse rule: {:?}", first.as_str());
-        }
-    }
+        // nullary "@"
+        Rule::at_op => ExpressionKind::AtCurrentWorkspace,
+        r => panic!("unexpected revset parse rule: {r:?}"),
+    };
+    Ok(ExpressionNode::new(expr, span))
 }
 
-fn parse_string_pattern_rule(
-    pair: Pair<Rule>,
-    state: ParseState,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+// TODO: inline
+fn parse_string_pattern(pair: Pair<Rule>) -> ExpressionKind {
     assert_eq!(pair.as_rule(), Rule::string_pattern);
     let (lhs, op, rhs) = pair.into_inner().collect_tuple().unwrap();
     assert_eq!(lhs.as_rule(), Rule::identifier);
     assert_eq!(op.as_rule(), Rule::pattern_kind_op);
     assert_eq!(rhs.as_rule(), Rule::symbol);
-    if state.allow_string_pattern {
-        let kind = lhs.as_str().to_owned();
-        let value = parse_symbol_rule_as_literal(rhs.into_inner());
-        Ok(Rc::new(RevsetExpression::StringPattern { kind, value }))
-    } else {
-        Err(RevsetParseError::with_span(
-            RevsetParseErrorKind::NotInfixOperator {
-                op: op.as_str().to_owned(),
-                similar_op: "::".to_owned(),
-                description: "DAG range".to_owned(),
-            },
-            op.as_span(),
-        ))
-    }
+    let kind = lhs.as_str();
+    let value = parse_as_string_literal(rhs.into_inner());
+    ExpressionKind::StringPattern { kind, value }
 }
 
-/// Parses symbol to expression, expands aliases as needed.
-fn parse_symbol_rule(
-    pairs: Pairs<Rule>,
-    state: ParseState,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+// TODO: inline
+fn parse_symbol(pairs: Pairs<Rule>) -> ExpressionKind {
     let first = pairs.peek().unwrap();
     match first.as_rule() {
-        Rule::identifier => {
-            let name = first.as_str();
-            if let Some(expr) = state.locals.get(name) {
-                Ok(expr.clone())
-            } else if let Some((id, defn)) = state.aliases_map.get_symbol(name) {
-                let locals = HashMap::new(); // Don't spill out the current scope
-                state.with_alias_expanding(id, &locals, first.as_span(), |state| {
-                    parse_program(defn, state)
-                })
-            } else {
-                Ok(RevsetExpression::symbol(name.to_owned()))
-            }
-        }
-        _ => {
-            let text = parse_symbol_rule_as_literal(pairs);
-            Ok(RevsetExpression::symbol(text))
-        }
+        Rule::identifier => ExpressionKind::Identifier(first.as_str()),
+        _ => ExpressionKind::String(parse_as_string_literal(pairs)),
     }
 }
 
-/// Parses part of compound symbol to string without alias substitution.
-fn parse_symbol_rule_as_literal(mut pairs: Pairs<Rule>) -> String {
+/// Parses part of compound symbol to string.
+fn parse_as_string_literal(mut pairs: Pairs<Rule>) -> String {
     let first = pairs.next().unwrap();
     match first.as_rule() {
         Rule::identifier => first.as_str().to_owned(),
@@ -672,44 +643,21 @@ fn parse_symbol_rule_as_literal(mut pairs: Pairs<Rule>) -> String {
     }
 }
 
-fn parse_function_expression(
-    name_pair: Pair<Rule>,
-    arguments_pair: Pair<Rule>,
-    state: ParseState,
-    primary_span: pest::Span<'_>,
-) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+fn parse_function_call_node<'i>(
+    name_pair: Pair<'i, Rule>,
+    args_pair: Pair<'i, Rule>,
+) -> Result<FunctionCallNode<'i>, RevsetParseError> {
+    let name_span = name_pair.as_span();
+    let args_span = args_pair.as_span();
     let name = name_pair.as_str();
-    if let Some((id, params, defn)) = state.aliases_map.get_function(name) {
-        // Resolve arguments in the current scope, and pass them in to the alias
-        // expansion scope.
-        let (required, optional) =
-            expect_named_arguments_vec(name, &[], arguments_pair, params.len(), params.len())?;
-        assert!(optional.is_empty());
-        let args: Vec<_> = required
-            .into_iter()
-            .map(|arg| parse_expression_rule(arg.into_inner(), state))
-            .try_collect()?;
-        let locals = params.iter().map(|s| s.as_str()).zip(args).collect();
-        state.with_alias_expanding(id, &locals, primary_span, |state| {
-            parse_program(defn, state)
-        })
-    } else if let Some(func) = state.function_map.get(name) {
-        func(name, arguments_pair, state)
-    } else {
-        Err(RevsetParseError::with_span(
-            RevsetParseErrorKind::NoSuchFunction {
-                name: name.to_owned(),
-                candidates: collect_similar(
-                    name,
-                    itertools::chain(
-                        state.function_map.keys().copied(),
-                        state.aliases_map.function_names(),
-                    ),
-                ),
-            },
-            name_pair.as_span(),
-        ))
-    }
+    let (args, keyword_args) = parse_function_call_args(name, args_pair)?;
+    Ok(FunctionCallNode {
+        name,
+        name_span,
+        args,
+        keyword_args,
+        args_span,
+    })
 }
 
 pub type RevsetAliasesMap = AliasesMap<RevsetAliasParser>;
@@ -750,125 +698,62 @@ impl AliasDeclarationParser for RevsetAliasParser {
     }
 }
 
-type OptionalArg<'i> = Option<Pair<'i, Rule>>;
+impl AliasDefinitionParser for RevsetAliasParser {
+    type Output<'i> = ExpressionKind<'i>;
+    type Error = RevsetParseError;
 
-pub fn expect_no_arguments(
-    function_name: &str,
-    arguments_pair: Pair<Rule>,
-) -> Result<(), RevsetParseError> {
-    let ([], []) = expect_arguments(function_name, arguments_pair)?;
-    Ok(())
+    fn parse_definition<'i>(&self, source: &'i str) -> Result<ExpressionNode<'i>, Self::Error> {
+        parse_program(source)
+    }
 }
 
-pub fn expect_exact_arguments<'i, const N: usize>(
+// TODO: inline
+fn parse_function_call_args<'i>(
     function_name: &str,
     arguments_pair: Pair<'i, Rule>,
-) -> Result<[Pair<'i, Rule>; N], RevsetParseError> {
-    let (args, []) = expect_arguments(function_name, arguments_pair)?;
-    Ok(args)
-}
-
-pub fn expect_arguments<'i, const N: usize, const M: usize>(
-    function_name: &str,
-    arguments_pair: Pair<'i, Rule>,
-) -> Result<([Pair<'i, Rule>; N], [OptionalArg<'i>; M]), RevsetParseError> {
-    expect_named_arguments(function_name, &[], arguments_pair)
-}
-
-/// Extracts N required arguments and M optional arguments.
-///
-/// `argument_names` is a list of argument names. Unnamed positional arguments
-/// should be padded with `""`.
-pub fn expect_named_arguments<'i, const N: usize, const M: usize>(
-    function_name: &str,
-    argument_names: &[&str],
-    arguments_pair: Pair<'i, Rule>,
-) -> Result<([Pair<'i, Rule>; N], [OptionalArg<'i>; M]), RevsetParseError> {
-    let (required, optional) =
-        expect_named_arguments_vec(function_name, argument_names, arguments_pair, N, N + M)?;
-    Ok((required.try_into().unwrap(), optional.try_into().unwrap()))
-}
-
-pub fn expect_named_arguments_vec<'i>(
-    function_name: &str,
-    argument_names: &[&str],
-    arguments_pair: Pair<'i, Rule>,
-    min_arg_count: usize,
-    max_arg_count: usize,
-) -> Result<(Vec<Pair<'i, Rule>>, Vec<OptionalArg<'i>>), RevsetParseError> {
-    assert!(argument_names.len() <= max_arg_count);
-    let arguments_span = arguments_pair.as_span();
-    let make_count_error = || {
-        let message = if min_arg_count == max_arg_count {
-            format!("Expected {min_arg_count} arguments")
-        } else {
-            format!("Expected {min_arg_count} to {max_arg_count} arguments")
-        };
-        RevsetParseError::invalid_arguments(function_name, message, arguments_span)
-    };
-
-    let mut pos_iter = Some(0..max_arg_count);
-    let mut extracted_pairs = vec![None; max_arg_count];
+) -> Result<
+    (
+        Vec<ExpressionNode<'i>>,
+        Vec<KeywordArgument<'i, ExpressionKind<'i>>>,
+    ),
+    RevsetParseError,
+> {
+    let mut args = Vec::new();
+    let mut keyword_args = Vec::new();
     for pair in arguments_pair.into_inner() {
         let span = pair.as_span();
         match pair.as_rule() {
             Rule::expression => {
-                let pos = pos_iter
-                    .as_mut()
-                    .ok_or_else(|| {
-                        RevsetParseError::invalid_arguments(
-                            function_name,
-                            "Positional argument follows keyword argument",
-                            span,
-                        )
-                    })?
-                    .next()
-                    .ok_or_else(make_count_error)?;
-                assert!(extracted_pairs[pos].is_none());
-                extracted_pairs[pos] = Some(pair);
+                if !keyword_args.is_empty() {
+                    return Err(RevsetParseError::invalid_arguments(
+                        function_name,
+                        "Positional argument follows keyword argument",
+                        span,
+                    ));
+                }
+                args.push(parse_expression_node(pair.into_inner())?);
             }
             Rule::keyword_argument => {
-                pos_iter = None; // No more positional arguments
                 let mut pairs = pair.into_inner();
                 let name = pairs.next().unwrap();
                 let expr = pairs.next().unwrap();
                 assert_eq!(name.as_rule(), Rule::identifier);
                 assert_eq!(expr.as_rule(), Rule::expression);
-                let pos = argument_names
-                    .iter()
-                    .position(|&n| n == name.as_str())
-                    .ok_or_else(|| {
-                        RevsetParseError::invalid_arguments(
-                            function_name,
-                            format!(r#"Unexpected keyword argument "{}""#, name.as_str()),
-                            span,
-                        )
-                    })?;
-                if extracted_pairs[pos].is_some() {
-                    return Err(RevsetParseError::invalid_arguments(
-                        function_name,
-                        format!(r#"Got multiple values for keyword "{}""#, name.as_str()),
-                        span,
-                    ));
-                }
-                extracted_pairs[pos] = Some(expr);
+                let arg = KeywordArgument {
+                    name: name.as_str(),
+                    name_span: name.as_span(),
+                    value: parse_expression_node(expr.into_inner())?,
+                };
+                keyword_args.push(arg);
             }
             r => panic!("unexpected argument rule {r:?}"),
         }
     }
-
-    assert_eq!(extracted_pairs.len(), max_arg_count);
-    let optional = extracted_pairs.split_off(min_arg_count);
-    let required = extracted_pairs.into_iter().flatten().collect_vec();
-    if required.len() != min_arg_count {
-        return Err(make_count_error());
-    }
-    Ok((required, optional))
+    Ok((args, keyword_args))
 }
 
 /// Applies the give function to the innermost `node` by unwrapping alias
 /// expansion nodes.
-#[allow(unused)] // TODO: remove
 pub(super) fn expect_literal_with<T>(
     node: &ExpressionNode,
     f: impl FnOnce(&ExpressionNode) -> Result<T, RevsetParseError>,
