@@ -26,6 +26,7 @@ use futures::stream::StreamExt;
 use futures::{Future, Stream, TryStreamExt};
 use itertools::Itertools;
 
+use crate::backend;
 use crate::backend::{BackendResult, ConflictId, MergedTreeId, TreeId, TreeValue};
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
@@ -33,7 +34,6 @@ use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
 use crate::store::Store;
 use crate::tree::{try_resolve_file_conflict, Tree};
 use crate::tree_builder::TreeBuilder;
-use crate::{backend, tree};
 
 /// Presents a view of a merged set of trees.
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -372,41 +372,34 @@ impl MergedTree {
 
     /// Merges this tree with `other`, using `base` as base.
     pub fn merge(&self, base: &MergedTree, other: &MergedTree) -> BackendResult<MergedTree> {
-        if let (MergedTree::Legacy(this), MergedTree::Legacy(base), MergedTree::Legacy(other)) =
-            (self, base, other)
-        {
-            let merged_tree = tree::merge_trees(this, base, other)?;
-            Ok(MergedTree::legacy(merged_tree))
-        } else {
-            // Convert legacy trees to merged trees and unwrap to `Merge<Tree>`
-            let to_merge = |tree: &MergedTree| -> BackendResult<Merge<Tree>> {
-                match tree {
-                    MergedTree::Legacy(tree) => {
-                        let MergedTree::Merge(tree) = MergedTree::from_legacy_tree(tree.clone())?
-                        else {
-                            unreachable!();
-                        };
-                        Ok(tree)
-                    }
-                    MergedTree::Merge(conflict) => Ok(conflict.clone()),
+        // Convert legacy trees to merged trees and unwrap to `Merge<Tree>`
+        let to_merge = |tree: &MergedTree| -> BackendResult<Merge<Tree>> {
+            match tree {
+                MergedTree::Legacy(tree) => {
+                    let MergedTree::Merge(tree) = MergedTree::from_legacy_tree(tree.clone())?
+                    else {
+                        unreachable!();
+                    };
+                    Ok(tree)
                 }
-            };
-            let nested = Merge::from_vec(vec![to_merge(self)?, to_merge(base)?, to_merge(other)?]);
-            let tree = merge_trees(&nested.flatten().simplify())?;
-            // If the result can be resolved, then `merge_trees()` above would have returned
-            // a resolved merge. However, that function will always preserve the arity of
-            // conflicts it cannot resolve. So we simplify the conflict again
-            // here to possibly reduce a complex conflict to a simpler one.
-            let tree = tree.simplify();
-            // If debug assertions are enabled, check that the merge was idempotent. In
-            // particular,  that this last simplification doesn't enable further automatic
-            // resolutions
-            if cfg!(debug_assertions) {
-                let re_merged = merge_trees(&tree).unwrap();
-                debug_assert_eq!(re_merged, tree);
+                MergedTree::Merge(conflict) => Ok(conflict.clone()),
             }
-            Ok(MergedTree::Merge(tree))
+        };
+        let nested = Merge::from_vec(vec![to_merge(self)?, to_merge(base)?, to_merge(other)?]);
+        let tree = merge_trees(&nested.flatten().simplify())?;
+        // If the result can be resolved, then `merge_trees()` above would have returned
+        // a resolved merge. However, that function will always preserve the arity of
+        // conflicts it cannot resolve. So we simplify the conflict again
+        // here to possibly reduce a complex conflict to a simpler one.
+        let tree = tree.simplify();
+        // If debug assertions are enabled, check that the merge was idempotent. In
+        // particular,  that this last simplification doesn't enable further automatic
+        // resolutions
+        if cfg!(debug_assertions) {
+            let re_merged = merge_trees(&tree).unwrap();
+            debug_assert_eq!(re_merged, tree);
         }
+        Ok(MergedTree::Merge(tree))
     }
 }
 
