@@ -43,8 +43,8 @@ use crate::repo_path::RepoPathUiConverter;
 // TODO: introduce AST types and remove parse_expression_rule, Rule from the
 // re-exports
 pub use crate::revset_parser::{
-    expect_arguments, expect_named_arguments, expect_named_arguments_vec, expect_no_arguments,
-    expect_one_argument, parse_expression_rule, RevsetAliasesMap, RevsetParseError,
+    expect_arguments, expect_exact_arguments, expect_named_arguments, expect_named_arguments_vec,
+    expect_no_arguments, parse_expression_rule, RevsetAliasesMap, RevsetParseError,
     RevsetParseErrorKind, Rule,
 };
 use crate::revset_parser::{parse_program, parse_program_with_modifier};
@@ -627,12 +627,12 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     // code completion inside macro is quite restricted.
     let mut map: HashMap<&'static str, RevsetFunction> = HashMap::new();
     map.insert("parents", |name, arguments_pair, state| {
-        let arg = expect_one_argument(name, arguments_pair)?;
+        let [arg] = expect_exact_arguments(name, arguments_pair)?;
         let expression = parse_expression_rule(arg.into_inner(), state)?;
         Ok(expression.parents())
     });
     map.insert("children", |name, arguments_pair, state| {
-        let arg = expect_one_argument(name, arguments_pair)?;
+        let [arg] = expect_exact_arguments(name, arguments_pair)?;
         let expression = parse_expression_rule(arg.into_inner(), state)?;
         Ok(expression.children())
     });
@@ -648,17 +648,17 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         Ok(heads.ancestors_range(generation))
     });
     map.insert("descendants", |name, arguments_pair, state| {
-        let arg = expect_one_argument(name, arguments_pair)?;
+        let [arg] = expect_exact_arguments(name, arguments_pair)?;
         let expression = parse_expression_rule(arg.into_inner(), state)?;
         Ok(expression.descendants())
     });
     map.insert("connected", |name, arguments_pair, state| {
-        let arg = expect_one_argument(name, arguments_pair)?;
+        let [arg] = expect_exact_arguments(name, arguments_pair)?;
         let candidates = parse_expression_rule(arg.into_inner(), state)?;
         Ok(candidates.connected())
     });
     map.insert("reachable", |name, arguments_pair, state| {
-        let ([source_arg, domain_arg], []) = expect_arguments(name, arguments_pair)?;
+        let [source_arg, domain_arg] = expect_exact_arguments(name, arguments_pair)?;
         let sources = parse_expression_rule(source_arg.into_inner(), state)?;
         let domain = parse_expression_rule(domain_arg.into_inner(), state)?;
         Ok(sources.reachable(&domain))
@@ -676,12 +676,12 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         Ok(RevsetExpression::working_copies())
     });
     map.insert("heads", |name, arguments_pair, state| {
-        let arg = expect_one_argument(name, arguments_pair)?;
+        let [arg] = expect_exact_arguments(name, arguments_pair)?;
         let candidates = parse_expression_rule(arg.into_inner(), state)?;
         Ok(candidates.heads())
     });
     map.insert("roots", |name, arguments_pair, state| {
-        let arg = expect_one_argument(name, arguments_pair)?;
+        let [arg] = expect_exact_arguments(name, arguments_pair)?;
         let candidates = parse_expression_rule(arg.into_inner(), state)?;
         Ok(candidates.roots())
     });
@@ -749,14 +749,14 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         ))
     });
     map.insert("description", |name, arguments_pair, state| {
-        let arg = expect_one_argument(name, arguments_pair)?;
+        let [arg] = expect_exact_arguments(name, arguments_pair)?;
         let pattern = parse_function_argument_to_string_pattern(name, arg, state)?;
         Ok(RevsetExpression::filter(
             RevsetFilterPredicate::Description(pattern),
         ))
     });
     map.insert("author", |name, arguments_pair, state| {
-        let arg = expect_one_argument(name, arguments_pair)?;
+        let [arg] = expect_exact_arguments(name, arguments_pair)?;
         let pattern = parse_function_argument_to_string_pattern(name, arg, state)?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
             pattern,
@@ -769,7 +769,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         )))
     });
     map.insert("committer", |name, arguments_pair, state| {
-        let arg = expect_one_argument(name, arguments_pair)?;
+        let [arg] = expect_exact_arguments(name, arguments_pair)?;
         let pattern = parse_function_argument_to_string_pattern(name, arg, state)?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Committer(
             pattern,
@@ -811,7 +811,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         Ok(RevsetExpression::filter(RevsetFilterPredicate::HasConflict))
     });
     map.insert("present", |name, arguments_pair, state| {
-        let arg = expect_one_argument(name, arguments_pair)?;
+        let [arg] = expect_exact_arguments(name, arguments_pair)?;
         let expression = parse_expression_rule(arg.into_inner(), state)?;
         Ok(Rc::new(RevsetExpression::Present(expression)))
     });

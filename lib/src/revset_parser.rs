@@ -599,12 +599,12 @@ pub fn expect_no_arguments(
     Ok(())
 }
 
-pub fn expect_one_argument<'i>(
+pub fn expect_exact_arguments<'i, const N: usize>(
     function_name: &str,
     arguments_pair: Pair<'i, Rule>,
-) -> Result<Pair<'i, Rule>, RevsetParseError> {
-    let ([arg], []) = expect_arguments(function_name, arguments_pair)?;
-    Ok(arg)
+) -> Result<[Pair<'i, Rule>; N], RevsetParseError> {
+    let (args, []) = expect_arguments(function_name, arguments_pair)?;
+    Ok(args)
 }
 
 pub fn expect_arguments<'i, const N: usize, const M: usize>(
