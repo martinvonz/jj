@@ -24,7 +24,7 @@ use jj_lib::git_backend::GitBackend;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::{RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::RepoPath;
+use jj_lib::repo_path::{RepoPath, RepoPathUiConverter};
 use jj_lib::revset::{
     optimize, parse, DefaultSymbolResolver, FailingSymbolResolver, ResolvedExpression, Revset,
     RevsetAliasesMap, RevsetExpression, RevsetExtensions, RevsetFilterPredicate,
@@ -855,10 +855,13 @@ fn resolve_commit_ids_in_workspace(
     cwd: Option<&Path>,
 ) -> Vec<CommitId> {
     let settings = testutils::user_settings();
+    let path_converter = RepoPathUiConverter::Fs {
+        cwd: cwd.unwrap_or_else(|| workspace.workspace_root()).to_owned(),
+        base: workspace.workspace_root().to_owned(),
+    };
     let workspace_ctx = RevsetWorkspaceContext {
-        cwd: cwd.unwrap_or_else(|| workspace.workspace_root()),
+        path_converter: &path_converter,
         workspace_id: workspace.workspace_id(),
-        workspace_root: workspace.workspace_root(),
     };
     let aliases_map = RevsetAliasesMap::default();
     let extensions = RevsetExtensions::default();

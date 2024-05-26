@@ -18,7 +18,6 @@ use std::any::Any;
 use std::collections::{hash_map, HashMap};
 use std::convert::Infallible;
 use std::ops::Range;
-use std::path::Path;
 use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -783,14 +782,10 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     map.insert("file", |name, arguments_pair, state| {
         let arguments_span = arguments_pair.as_span();
         if let Some(ctx) = state.workspace_ctx {
-            let path_converter = RepoPathUiConverter::Fs {
-                cwd: ctx.cwd.to_owned(),
-                base: ctx.workspace_root.to_owned(),
-            };
             let file_expressions: Vec<_> = arguments_pair
                 .into_inner()
                 .map(|arg| {
-                    parse_function_argument_to_file_pattern(name, arg, state, &path_converter)
+                    parse_function_argument_to_file_pattern(name, arg, state, ctx.path_converter)
                 })
                 .map_ok(FilesetExpression::pattern)
                 .try_collect()?;
@@ -2060,13 +2055,14 @@ impl<'a> RevsetParseContext<'a> {
 /// Workspace information needed to parse revset expression.
 #[derive(Clone, Debug)]
 pub struct RevsetWorkspaceContext<'a> {
-    pub cwd: &'a Path,
+    pub path_converter: &'a RepoPathUiConverter,
     pub workspace_id: &'a WorkspaceId,
-    pub workspace_root: &'a Path,
 }
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use assert_matches::assert_matches;
 
     use super::*;
@@ -2108,10 +2104,13 @@ mod tests {
         workspace_id: &WorkspaceId,
     ) -> Result<Rc<RevsetExpression>, RevsetParseErrorKind> {
         // Set up pseudo context to resolve `workspace_id@` and `file(path)`
+        let path_converter = RepoPathUiConverter::Fs {
+            cwd: PathBuf::from("/"),
+            base: PathBuf::from("/"),
+        };
         let workspace_ctx = RevsetWorkspaceContext {
-            cwd: Path::new("/"),
+            path_converter: &path_converter,
             workspace_id,
-            workspace_root: Path::new("/"),
         };
         let mut aliases_map = RevsetAliasesMap::new();
         for (decl, defn) in aliases {
