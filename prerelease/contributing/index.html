@@ -1791,23 +1791,22 @@ multi-threaded. It should use all the CPU cores without any configuration.</p>
 <p>When editing documentation, we'd appreciate it if you checked that the
 result will look as expected when published to the website.</p>
 <h3 id="setting-up-the-prerequisites">Setting up the prerequisites<a class="headerlink" href="#setting-up-the-prerequisites" title="Permanent link">&para;</a></h3>
-<p>To build the website, you must have Python and <code>poetry</code> installed. If
-your distribution packages <code>poetry</code>, something like <code>apt install
-python3-poetry</code> is likely the best way to install it. Otherwise, you
-can download Python from <a href="https://python.org">https://python.org</a> or follow the <a href="https://docs.python.org/3/using/index.html">Python
-installation instructions</a>. Finally, follow the <a href="https://python-poetry.org/docs/#installation">Poetry installation
-instructions</a>.</p>
+<p>To build the website, you must have Python and <code>poetry 1.8+</code> installed (the
+latest version is recommended). It is easiest to install <code>poetry</code> via <code>pipx</code>, as
+explained in the <a href="https://python-poetry.org/docs/#installation">Poetry installation instructions</a>. A few helpful points from
+the instructions: <code>pipx</code> can often be installed from your distribution, e.g.
+<code>sudo apt install pipx</code>; this will usually also install Python for you if
+necessary. Any version of <code>pipx</code> will do. If you are installing <code>pipx</code> manually,
+you may first need to follow the <a href="https://docs.python.org/3/using/index.html">Python installation instructions</a>.</p>
 <p>Once you have <code>poetry</code> installed, you should ask it to install the rest
 of the required tools into a virtual environment as follows:</p>
-<div class="highlight"><pre><span></span><code><span class="c1"># --no-root avoids a harmless error message starting with Poetry 1.7</span>
-poetry<span class="w"> </span>install<span class="w"> </span>--no-root
+<div class="highlight"><pre><span></span><code>poetry<span class="w"> </span>install
 </code></pre></div>
 <p>You may get requests to "unlock a keyring", <a href="https://github.com/python-poetry/poetry/issues/1917">an error messages about failing to
-do so</a>, or, in the case of
-Poetry 1.7, it may <a href="https://github.com/python-poetry/poetry/issues/8623">simply hang
-indefinitely</a>. The
-workaround is to either to unlock the keyring or to run the following, and then
-to try <code>poetry install --no-root</code> again:</p>
+do so</a>, or Poetry may
+<a href="https://github.com/python-poetry/poetry/issues/8623">simply hang indefinitely</a>.
+The workaround is to either to unlock the keyring or to run the following, and
+then to try <code>poetry install</code> again:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># For sh-compatible shells or recent versions of `fish`</span>
 <span class="nb">export</span><span class="w"> </span><span class="nv">PYTHON_KEYRING_BACKEND</span><span class="o">=</span>keyring.backends.fail.Keyring
 </code></pre></div>
