@@ -159,12 +159,6 @@ pub enum RevsetExpression {
     All,
     Commits(Vec<CommitId>),
     CommitRef(RevsetCommitRef),
-    // TODO: This shouldn't be of RevsetExpression type. Maybe better to
-    // introduce an intermediate AST tree where aliases will be substituted.
-    StringPattern {
-        kind: String,
-        value: String,
-    },
     Ancestors {
         heads: Rc<RevsetExpression>,
         generation: Range<u64>,
@@ -979,7 +973,6 @@ fn try_transform_expression<E>(
             RevsetExpression::All => None,
             RevsetExpression::Commits(_) => None,
             RevsetExpression::CommitRef(_) => None,
-            RevsetExpression::StringPattern { .. } => None,
             RevsetExpression::Ancestors { heads, generation } => transform_rec(heads, pre, post)?
                 .map(|heads| RevsetExpression::Ancestors {
                     heads,
@@ -1768,9 +1761,6 @@ impl VisibilityResolutionContext<'_> {
             RevsetExpression::Commits(commit_ids) => {
                 ResolvedExpression::Commits(commit_ids.clone())
             }
-            RevsetExpression::StringPattern { .. } => {
-                panic!("Expression '{expression:?}' should be rejected by parser");
-            }
             RevsetExpression::CommitRef(_) => {
                 panic!("Expression '{expression:?}' should have been resolved by caller");
             }
@@ -1881,7 +1871,6 @@ impl VisibilityResolutionContext<'_> {
             | RevsetExpression::All
             | RevsetExpression::Commits(_)
             | RevsetExpression::CommitRef(_)
-            | RevsetExpression::StringPattern { .. }
             | RevsetExpression::Ancestors { .. }
             | RevsetExpression::Descendants { .. }
             | RevsetExpression::Range { .. }
