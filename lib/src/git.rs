@@ -942,10 +942,19 @@ pub fn reset_head(
             git_repo.set_head_detached(new_git_commit_id)?;
         }
 
-        let skip_reset = if git_head == &first_parent {
-            // `HEAD@git` already points to the correct commit, so we only need to
-            // reset the Git index. We can skip the reset if the Git index is empty
-            // (i.e. `git add` was never used).
+        let is_same_tree = if git_head == &first_parent {
+            true
+        } else if let Some(git_head_id) = git_head.as_normal() {
+            let git_head_oid = Oid::from_bytes(git_head_id.as_bytes()).unwrap();
+            let git_head_commit = git_repo.find_commit(git_head_oid)?;
+            new_git_commit.tree_id() == git_head_commit.tree_id()
+        } else {
+            false
+        };
+        let skip_reset = if is_same_tree {
+            // `HEAD@git` already points to a commit with the correct tree contents,
+            // so we only need to reset the Git index. We can skip the reset if
+            // the Git index is empty (i.e. `git add` was never used).
             // In large repositories, this is around 2x faster if the Git index is empty
             // (~0.89s to check the diff, vs. ~1.72s to reset), and around 8% slower if
             // it isn't (~1.86s to check the diff AND reset).
