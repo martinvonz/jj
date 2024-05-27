@@ -1,6 +1,5 @@
 # How to Contribute
 
-
 ## Policies
 
 We'd love to accept your patches and contributions to this project. There are
@@ -42,8 +41,8 @@ message.
 
 When you address comments on a PR, don't make the changes in a commit on top (as
 is typical on GitHub). Instead, please make the changes in the appropriate
-commit. You can do that by creating a new commit on top of the initial commit 
- (`jj new <commit>`) and then squash in the changes when you're done (`jj squash`). 
+commit. You can do that by creating a new commit on top of the initial commit
+(`jj new <commit>`) and then squash in the changes when you're done (`jj squash`).
 `jj git push`
 will automatically force-push the branch.
 
@@ -63,7 +62,6 @@ your company's interests, do feel free to approve it.
 
 This project follows [Google's Open Source Community
 Guidelines](https://opensource.google/conduct/).
-
 
 ## Contributing to the documentation
 
@@ -92,7 +90,6 @@ sources, currently from the [`cli/src/commands`
 directory](https://github.com/martinvonz/jj/tree/main/cli/src/commands). Working
 on them requires setting up a Rust development environment, as described
 below, and may occasionally require adjusting a test.
-
 
 ## Learning Rust
 
@@ -154,7 +151,7 @@ These are listed roughly in order of decreasing importance.
    The `--workspace` flag is needed to run the tests on all crates; by default,
    only the crate in the current directory is tested.
 
-2. GitHub CI checks require that the code is formatted with the *nightly*
+2. GitHub CI checks require that the code is formatted with the _nightly_
    version of `rustfmt`. To do this on your computer, install the nightly
    toolchain and use `cargo +nightly fmt`.
 
@@ -172,7 +169,7 @@ These are listed roughly in order of decreasing importance.
 
 6. To run tests more quickly, use `cargo nextest run --workspace`. To
    use `nextest` with `insta`, use `cargo insta test --workspace
-   --test-runner nextest`.
+--test-runner nextest`.
 
    On Linux, you may be able to speed up `nextest` even further by using
    the `mold` linker, as explained below.
@@ -206,7 +203,6 @@ to use" instructions](https://github.com/rui314/mold#how-to-use).
 On recent versions of MacOS, the default linker Rust uses is already
 multi-threaded. It should use all the CPU cores without any configuration.
 
-
 ## Previewing the HTML documentation
 
 The documentation for `jj` is automatically published to the website at
@@ -226,7 +222,7 @@ necessary. Any version of `pipx` will do. If you are installing `pipx` manually,
 you may first need to follow the [Python installation instructions].
 
 [Python installation instructions]: https://docs.python.org/3/using/index.html
-[Poetry installation instructions]: https://python-poetry.org/docs/#installation 
+[Poetry installation instructions]: https://python-poetry.org/docs/#installation
 
 Once you have `poetry` installed, you should ask it to install the rest
 of the required tools into a virtual environment as follows:
@@ -281,54 +277,54 @@ The different versions of documentation are managed and deployed with
 On a POSIX system or WSL, one way to build the entire website is as follows (on
 Windows, you'll need to understand and adapt the shell script):
 
-1. Check out `jj` as a co-located `jj + git` repository (`jj clone --colocate`),
-cloned from your fork of `jj` (e.g. `jjfan.github.com/jj`). You can also use a
-pure Git repo if you prefer.
+1.  Check out `jj` as a co-located `jj + git` repository (`jj clone --colocate`),
+    cloned from your fork of `jj` (e.g. `jjfan.github.com/jj`). You can also use a
+    pure Git repo if you prefer.
 
-2. Make sure `jjfan.github.com/jj` includes the `gh-pages` branch of the jj repo
-and run `git fetch origin gh-pages`.
+2.  Make sure `jjfan.github.com/jj` includes the `gh-pages` branch of the jj repo
+    and run `git fetch origin gh-pages`.
 
-3. Go to the GitHub repository settings, enable GitHub Pages, and configure them
-to use the `gh-pages` branch (this is usually the default).
+3.  Go to the GitHub repository settings, enable GitHub Pages, and configure them
+    to use the `gh-pages` branch (this is usually the default).
 
-4. Run the same `sh` script that is used in GitHub CI (details below):
+4.  Run the same `sh` script that is used in GitHub CI (details below):
 
     ```shell
-    .github/scripts/docs-build-deploy 'https://jjfan.github.io/jj/'\
-        prerelease main --push
+    .github/scripts/docs-build-deploy 'https://jjfan.github.io/jj/' \
+      prerelease main --push
     ```
 
     This should build the version of the docs from the current commit,
     deploy it as a new commit to the `gh-pages` branch,
     and push the `gh-pages` branch to the origin.
 
-5. Now, you should be able to see the full website, including your latest changes
-to the `prerelease` version, at `https://jjfan.github.io/jj/prerelease/`.
+5.  Now, you should be able to see the full website, including your latest changes
+    to the `prerelease` version, at `https://jjfan.github.io/jj/prerelease/`.
 
-6. (Optional) The previous steps actually only rebuild
-`https://jjfan.github.io/jj/prerelease/` and its alias
-`https://jjfan.github.io/jj/main/`. If you'd like to test out version switching
-back and forth, you can also rebuild the docs for the latest release as follows.
+6.  (Optional) The previous steps actually only rebuild
+    `https://jjfan.github.io/jj/prerelease/` and its alias
+    `https://jjfan.github.io/jj/main/`. If you'd like to test out version switching
+    back and forth, you can also rebuild the docs for the latest release as follows.
 
-    ```shell
-    jj new v1.33.1  # Let's say `jj 1.33.1` is the currently the latest release
-    .github/scripts/docs-build-deploy 'https://jjfan.github.io/jj/'\
-        v1.33.1 latest --push
-    ```
+        ```shell
+        jj new v1.33.1  # Let's say `jj 1.33.1` is the currently the latest release
+        .github/scripts/docs-build-deploy 'https://jjfan.github.io/jj/'\
+            v1.33.1 latest --push
+        ```
 
-7. (Optional) When you are done, you may want to reset the `gh-branches` to the
-same spot as it is in the upstream. If you configured the `upstream` remote,
-this can be done with:
+7.  (Optional) When you are done, you may want to reset the `gh-branches` to the
+    same spot as it is in the upstream. If you configured the `upstream` remote,
+    this can be done with:
 
-    ```shell
-    # This will LOSE any changes you made to `gh-pages`
-    jj git fetch --remote upstream
-    jj branch set gh-pages -r gh-pages@upstream
-    jj git push --remote origin --branch gh-pages
-    ```
+        ```shell
+        # This will LOSE any changes you made to `gh-pages`
+        jj git fetch --remote upstream
+        jj branch set gh-pages -r gh-pages@upstream
+        jj git push --remote origin --branch gh-pages
+        ```
 
-    If you want to preserve some of the changes you made, you can do `jj branch
-    set my-changes -r gh-pages` BEFORE running the above commands.
+        If you want to preserve some of the changes you made, you can do `jj branch
+        set my-changes -r gh-pages` BEFORE running the above commands.
 
 #### Explanation of the `docs-build-deploy` script
 
@@ -347,43 +343,46 @@ to avoid files that will be overwritten by future invocations of `mike`. Then,
 you can submit a PR based on the `gh-pages` branch of
 <https://martinvonz.github.com/jj> (instead of the usual `main` branch).
 
-
 ## Modifying protobuffers (this is not common)
 
- Occasionally, you may need to change the `.proto` files that define jj's data
- storage format. In this case, you will need to add a few steps to the above
- workflow.
+Occasionally, you may need to change the `.proto` files that define jj's data
+storage format. In this case, you will need to add a few steps to the above
+workflow.
 
- - Install the `protoc` compiler. This usually means either `apt-get install
-   protobuf-compiler` or downloading [an official release]. The
-   `prost` [library docs] have additional advice.
- - Run `cargo run -p gen-protos` regularly (or after every edit to a `.proto`
-   file). This is the same as running `cargo run` from `lib/gen-protos`. The
-   `gen-protos` binary will use the `prost-build` library to compile the
-   `.proto` files into `.rs` files.
- - If you are adding a new `.proto` file, you will need to edit the list of
-   these files in `lib/gen-protos/src/main.rs`.
+- Install the `protoc` compiler. This usually means either `apt-get install
+protobuf-compiler` or downloading [an official release]. The
+  `prost` [library docs] have additional advice.
+- Run `cargo run -p gen-protos` regularly (or after every edit to a `.proto`
+  file). This is the same as running `cargo run` from `lib/gen-protos`. The
+  `gen-protos` binary will use the `prost-build` library to compile the
+  `.proto` files into `.rs` files.
+- If you are adding a new `.proto` file, you will need to edit the list of
+  these files in `lib/gen-protos/src/main.rs`.
 
 [an official release]: https://github.com/protocolbuffers/protobuf/releases
 [library docs]: https://docs.rs/prost-build/latest/prost_build/#sourcing-protoc
 
- The `.rs` files generated from `.proto` files are included in the repository,
- and there is a GitHub CI check that will complain if they do not match.
+The `.rs` files generated from `.proto` files are included in the repository,
+and there is a GitHub CI check that will complain if they do not match.
 
 ## Profiling
 
 One easy-to-use sampling profiler
 is [samply](https://github.com/mstange/samply). For example:
+
 ```shell
 cargo install samply
 samply record jj diff
 ```
+
 Then just open the link it prints.
 
 Another option is to use the instrumentation we've added manually (using
 `tracing::instrument`) in various places. For example:
+
 ```shell
 JJ_TRACE=/tmp/trace.json jj diff
 ```
+
 Then go to `https://ui.perfetto.dev/` in Chrome and load `/tmp/trace.json` from
 there.

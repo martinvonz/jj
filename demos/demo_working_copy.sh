@@ -4,13 +4,13 @@ set -euo pipefail
 
 new_tmp_dir
 {
-    jj git clone https://github.com/octocat/Hello-World
-    cd Hello-World
-    jj abandon test
-    jj branch forget test
-    jj abandon octocat-patch-1
-    jj branch forget octocat-patch-1
-}> /dev/null
+  jj git clone https://github.com/octocat/Hello-World
+  cd Hello-World
+  jj abandon test
+  jj branch forget test
+  jj abandon octocat-patch-1
+  jj branch forget octocat-patch-1
+} > /dev/null
 
 comment "We are in the octocat/Hello-World repo.
 We have an empty working copy on top of master:"

@@ -14,13 +14,15 @@ set -euo pipefail
 # inkscape`. It's unclear to me whether `convert` used Inkscape or one of its
 # dependencies. Inkscape can be also used manually for SVG -> PNG conversion.
 which term-transcript > /dev/null \
-  || (echo '`term-transcript` must be installed with e.g.'\
-           '`cargo binstall term-transcript-cli`.' \
-           'See also https://github.com/slowli/term-transcript' >&2;
-      false)
+  || (
+    echo '`term-transcript` must be installed with e.g.' \
+      '`cargo binstall term-transcript-cli`.' \
+      'See also https://github.com/slowli/term-transcript' >&2
+    false
+  )
 which convert > /dev/null \
   || echo '`convert` from ImageMagick needs to be installed to create pngs.' \
-          'Only svgs will be created.' >&2
+    'Only svgs will be created.' >&2
 
 echo "jj --version: (set PATH to change)"
 jj --version
@@ -41,12 +43,15 @@ run_script_through_term_transcript_and_pipe_result_to_stderr() {
   outfile=$(mktemp --tmpdir "$script_base"-output-XXXX.ansi)
   # We use `term-transcript capture` instead of `term-transcript exec` so that
   # we can show the output of the script via `tee`.
-  (bash "$script" || (echo "SCRIPT FAILED WITH EXIT CODE $?"; false)) 2>&1 | \
-    tee "$outfile"
+  (bash "$script" || (
+    echo "SCRIPT FAILED WITH EXIT CODE $?"
+    false
+  )) 2>&1 \
+    | tee "$outfile"
   term-transcript capture \
-      --no-inputs --pure-svg --palette powershell \
-      --font "Fira Code, Liberation Mono, SFMono-Regular, Consolas, Menlo" \
-      --out "$script_base".svg "$script_base" < "$outfile"
+    --no-inputs --pure-svg --palette powershell \
+    --font "Fira Code, Liberation Mono, SFMono-Regular, Consolas, Menlo" \
+    --out "$script_base".svg "$script_base" < "$outfile"
   # The default font choice term-transcript would make is:
   #     SFMono-Regular, Consolas, Liberation Mono, Menlo
   # We add the fonts that were checked and seem to contain all the relevant
@@ -66,7 +71,7 @@ for script in "$@"; do
   # `-resize 100%` is a no-op. `-resize 700x10000`` would make the width 700 px
   # and preserve aspect ratio.
   which convert > /dev/null \
-    && convert  -colors 63 -background black -resize 100%  \
-            "$script_base".svg "$script_base".png \
+    && convert -colors 63 -background black -resize 100% \
+      "$script_base".svg "$script_base".png \
     || true
 done

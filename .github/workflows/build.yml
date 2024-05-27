@@ -20,8 +20,8 @@ jobs:
         os: [ubuntu-latest, macos-14, windows-latest]
         cargo_flags: [""]
         include:
-        - os: ubuntu-latest
-          cargo_flags: "--all-features"
+          - os: ubuntu-latest
+            cargo_flags: "--all-features"
     runs-on: ${{ matrix.os }}
 
     # TODO FIXME (aseipp): keep the timeout limit to ~15 minutes. this is long
@@ -37,44 +37,44 @@ jobs:
     timeout-minutes: 15
 
     steps:
-    - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
 
-    # The default version of gpg installed on the runners is a version baked in with git
-    # which only contains the components needed by git and doesn't work for our test cases. 
-    #
-    # This installs the latest gpg4win version, which is a variation of GnuPG built for
-    # Windows.
-    #
-    # There is some issue with windows PATH max length which is what all the PATH wrangling
-    # below is for. Please see the below link for where this fix was derived from:
-    # https://github.com/orgs/community/discussions/24933
-    - name: Setup GnuPG [windows]
-      if: ${{ matrix.os == 'windows-latest' }}
-      run: |
-        $env:PATH = "C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\ProgramData\chocolatey\bin"
-        [Environment]::SetEnvironmentVariable("Path", $env:PATH, "Machine")
-        choco install --yes gpg4win
-        echo "C:\Program Files (x86)\Gpg4win\..\GnuPG\bin" >> $env:GITHUB_PATH
+      # The default version of gpg installed on the runners is a version baked in with git
+      # which only contains the components needed by git and doesn't work for our test cases.
+      #
+      # This installs the latest gpg4win version, which is a variation of GnuPG built for
+      # Windows.
+      #
+      # There is some issue with windows PATH max length which is what all the PATH wrangling
+      # below is for. Please see the below link for where this fix was derived from:
+      # https://github.com/orgs/community/discussions/24933
+      - name: Setup GnuPG [windows]
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          $env:PATH = "C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\ProgramData\chocolatey\bin"
+          [Environment]::SetEnvironmentVariable("Path", $env:PATH, "Machine")
+          choco install --yes gpg4win
+          echo "C:\Program Files (x86)\Gpg4win\..\GnuPG\bin" >> $env:GITHUB_PATH
 
-    # The default version of openssh on windows server is quite old (8.1) and doesn't have
-    # all the necessary signing/verification commands available (such as -Y find-principals)
-    - name: Setup ssh-agent [windows]
-      if: ${{ matrix.os == 'windows-latest' }}
-      run: |
-        Remove-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
-        Remove-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
-        choco install openssh --pre
+      # The default version of openssh on windows server is quite old (8.1) and doesn't have
+      # all the necessary signing/verification commands available (such as -Y find-principals)
+      - name: Setup ssh-agent [windows]
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          Remove-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+          Remove-WindowsCapability -Online -Name OpenSSH.Client~~~~0.0.1.0
+          choco install openssh --pre
 
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
-      with:
-        toolchain:  1.76
-    - name: Build
-      run: cargo build --workspace --all-targets --verbose ${{ matrix.cargo_flags }}
-    - name: Test
-      run: cargo test --workspace --all-targets --verbose ${{ matrix.cargo_flags }}
-      env:
-        RUST_BACKTRACE: 1
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
+        with:
+          toolchain: 1.76
+      - name: Build
+        run: cargo build --workspace --all-targets --verbose ${{ matrix.cargo_flags }}
+      - name: Test
+        run: cargo test --workspace --all-targets --verbose ${{ matrix.cargo_flags }}
+        env:
+          RUST_BACKTRACE: 1
 
   check-protos:
     name: Check protos
@@ -91,7 +91,7 @@ jobs:
         run: git diff --exit-code
 
   rustfmt:
-    name: Check formatting
+    name: Check rustfmt
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
@@ -100,6 +100,15 @@ jobs:
           toolchain: nightly
           components: rustfmt
       - run: cargo +nightly fmt --all -- --check
+
+  prettier:
+    name: Check prettier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+      - uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8
+      - run: npm install
+      - run: npx prettier --check .
 
   mkdocs:
     name: Check that MkDocs can build the docs
@@ -153,10 +162,10 @@ jobs:
     continue-on-error: ${{ matrix.checks == 'advisories' }}
 
     steps:
-    - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
-    - uses: EmbarkStudios/cargo-deny-action@3f4a782664881cf5725d0ffd23969fcce89fd868
-      with:
-        command: check ${{ matrix.checks }}
+      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+      - uses: EmbarkStudios/cargo-deny-action@3f4a782664881cf5725d0ffd23969fcce89fd868
+        with:
+          command: check ${{ matrix.checks }}
 
   clippy-check:
     name: Clippy check

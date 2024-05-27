@@ -21,7 +21,6 @@ include = [
     "!*.snap*",
 ]
 
-
 [[test]]
 name = "runner"
 

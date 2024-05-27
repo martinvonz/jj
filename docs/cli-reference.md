@@ -16,10 +16,8 @@
 
     <!-- https://github.com/ConnorGray/clap-markdown/issues/20 -->
 
-
 {%
   include-markdown "../cli/tests/cli-reference@.md.snap"
   rewrite-relative-urls=false
   start="<!-- BEGIN MARKDOWN-->"
 %}
-

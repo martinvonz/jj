@@ -1,6 +1,5 @@
 # Operation log
 
-
 ## Introduction
 
 Jujutsu records each operation that modifies the repo in the "operation log".
@@ -22,9 +21,8 @@ operation.
 
 The following operators are supported:
 
-* `x-`: Parents of `x` (e.g. `@-`)
-* `x+`: Children of `x`
-
+- `x-`: Parents of `x` (e.g. `@-`)
+- `x+`: Children of `x`
 
 ## Concurrent operations
 
@@ -42,7 +40,6 @@ As an example, let's say you had started editing the description of a change and
 then also update the contents of the change (maybe because you had forgotten the
 editor). When you eventually close your editor, the command will succeed and
 e.g. `jj log` will indicate that the change has diverged.
-
 
 ## Loading an old version of the repo
 

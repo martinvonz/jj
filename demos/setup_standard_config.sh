@@ -5,7 +5,7 @@ set -euo pipefail
 
 JJ_CONFIG=$(mktemp --tmpdir jjconfig-XXXX.toml)
 export JJ_CONFIG
-cat <<'EOF' > "$JJ_CONFIG"
+cat << 'EOF' > "$JJ_CONFIG"
 [user]
 name = "JJ Fan"
 email = "jjfan@example.com"
@@ -22,7 +22,7 @@ EOF
 
 GIT_CONFIG_GLOBAL=$(mktemp --tmpdir gitconfig-XXXX)
 export GIT_CONFIG_GLOBAL
-cat <<'EOF' > "$GIT_CONFIG_GLOBAL"
+cat << 'EOF' > "$GIT_CONFIG_GLOBAL"
 [color]
 ui=always
 EOF

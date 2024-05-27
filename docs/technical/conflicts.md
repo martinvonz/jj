@@ -20,10 +20,10 @@ always be an odd number of trees linked from the commit. You can think of the
 first tree as a start tree, and the subsequent pairs of trees to apply the diff
 between onto the start. Examples:
 
-* If the commit has trees A, B, C, D, and E it means that the contents should be
+- If the commit has trees A, B, C, D, and E it means that the contents should be
   calculated as A+(C-B)+(E-D).
-* A three-way merge between A and C with B as base can be represented as a
-commit with trees A, B, and C, also known as A+(C-B).
+- A three-way merge between A and C with B as base can be represented as a
+  commit with trees A, B, and C, also known as A+(C-B).
 
 The resulting tree contents is calculated on demand. Note that we often don't
 need to merge the entire tree. For example, when checking out a commit in the

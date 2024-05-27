@@ -26,7 +26,7 @@ One way to make all the images and check the output is:
 
 ```shell
 cd demos
-./run_scripts.sh demo_*.sh |less
+./run_scripts.sh demo_*.sh | less
 ```
 
 ### A note on fonts

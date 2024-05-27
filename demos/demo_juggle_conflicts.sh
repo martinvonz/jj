@@ -4,17 +4,17 @@ set -euo pipefail
 
 new_tmp_dir
 (
-    jj init --config-toml ui.allow-init-native=true
-    echo "first" > file
-    jj branch create first
-    jj commit -m 'first'
-    echo "second" > file
-    jj branch create second
-    jj commit -m 'second'
-    echo "third" > file
-    jj branch create third
-    jj commit -m 'third'
-) >/dev/null
+  jj init --config-toml ui.allow-init-native=true
+  echo "first" > file
+  jj branch create first
+  jj commit -m 'first'
+  echo "second" > file
+  jj branch create second
+  jj commit -m 'second'
+  echo "third" > file
+  jj branch create third
+  jj commit -m 'third'
+) > /dev/null
 
 comment "We are in a repo with three commits, all
 editing the same line:"

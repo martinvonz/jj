@@ -6,7 +6,6 @@ This document attempts to describe how Jujutsu is different from Git. See
 [the Git-compatibility doc](git-compatibility.md) for information about how
 the `jj` command interoperates with Git repos.
 
-
 ## Overview
 
 Here is a list of conceptual differences between Jujutsu and Git, along with
@@ -14,52 +13,51 @@ links to more details where applicable and available. There's a
 [table further down](#command-equivalence-table) explaining how to achieve
 various use cases.
 
-* **The working copy is automatically committed.** That results in a simpler and
+- **The working copy is automatically committed.** That results in a simpler and
   more consistent CLI because the working copy is now treated like any other
   commit. [Details](working-copy.md).
-* **There's no index (staging area).** Because the working copy is automatically
+- **There's no index (staging area).** Because the working copy is automatically
   committed, an index-like concept doesn't make sense. The index is very similar
   to an intermediate commit between `HEAD` and the working copy, so workflows
   that depend on it can be modeled using proper commits instead. Jujutsu has
   excellent support for moving changes between commits. [Details](#the-index).
-* **No need for branch names (but they are supported).** Git lets you check out
+- **No need for branch names (but they are supported).** Git lets you check out
   a commit without attaching a branch. It calls this state "detached HEAD". This
   is the normal state in Jujutsu (there's actually no way -- yet, at least -- to
   have an active branch). However, Jujutsu keeps track of all visible heads
   (leaves) of the commit graph, so the commits won't get lost or
   garbage-collected.
-* **No current branch.** Git lets you check out a branch, making it the 'current
+- **No current branch.** Git lets you check out a branch, making it the 'current
   branch', and new commits will automatically update the branch. This is
   necessary in Git because Git might otherwise lose track of the new commits.
   Jujutsu does not have a 'current branch'; instead, you update branches
   manually. For example, if you start work on top of a commit with a branch,
   new commits are created on top of the branch, then you issue a later command
   to update the branch.
-* **Conflicts can be committed.** No commands fail because of merge conflicts.
+- **Conflicts can be committed.** No commands fail because of merge conflicts.
   The conflicts are instead recorded in commits and you can resolve them later.
   [Details](conflicts.md).
-* **Descendant commits are automatically rebased.** Whenever you rewrite a
+- **Descendant commits are automatically rebased.** Whenever you rewrite a
   commit (e.g. by running `jj rebase`), all its descendants commits will
   automatically be rebased on top. Branches pointing to it will also get
   updated, and so will the working copy if it points to any of the rebased
   commits.
-* **Branches are identified by their names (across remotes).** For example, if
+- **Branches are identified by their names (across remotes).** For example, if
   you pull from a remote that has a `main` branch, you'll get a branch by that
   name in your local repo as well. If you then move it and push back to the
   remote, the `main` branch on the remote will be updated.
- [Details](branches.md).
-* **The operation log replaces reflogs.** The operation log is similar to
+  [Details](branches.md).
+- **The operation log replaces reflogs.** The operation log is similar to
   reflogs, but is much more powerful. It keeps track of atomic updates to all
   refs at once (Jujutsu thus improves on Git's per-ref history much in the same
   way that Subversion improved on RCS's per-file history). The operation log
   powers e.g. the undo functionality. [Details](operation-log.md)
-* **There's a single, virtual root commit.** Like Mercurial, Jujutsu has a
+- **There's a single, virtual root commit.** Like Mercurial, Jujutsu has a
   virtual commit (with a hash consisting of only zeros) called the "root commit"
   (called the "null revision" in Mercurial). This commit is a common ancestor of
   all commits. That removes the awkward state Git calls the "unborn branch"
   state (which is the state a newly initialized Git repo is in), and related
   command-line flags (e.g. `git rebase --root`, `git checkout --orphan`).
-
 
 ## The index
 
@@ -80,7 +78,6 @@ changes into the parent commit, which you might normally use
 `git add -p; git commit --amend` for, you can instead use `jj squash -i` to
 choose which changes to move into the parent commit, or `jj squash <file>` to
 move a specific file.
-
 
 ## Command equivalence table
 

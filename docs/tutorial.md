@@ -71,7 +71,7 @@ remove existing files. To untrack a path, add it to your `.gitignore` and run
 To see the diff, run `jj diff`:
 
 ```shell
-$ jj diff --git  # Feel free to skip the `--git` flag
+$ jj diff --git # Feel free to skip the `--git` flag
 diff --git a/README b/README
 index 980a0d5f19...1ce3f81130 100644
 --- a/README
@@ -117,7 +117,7 @@ working copy. Any further changes in the working copy will then amend the
 commit. Whether you choose to create a new change and squash, or to edit,
 typically depends on how done you are with the change; if the change is almost
 done, it makes sense to use `jj new` so you can easily review your adjustments
-with `jj diff` before running `jj squash`. 
+with `jj diff` before running `jj squash`.
 
 To view how a change has evolved over time, we can use `jj obslog` to see each
 recorded change for the current commit. This records changes to the working
@@ -151,7 +151,7 @@ to commands that take revisions as arguments. We will generally prefer change
 IDs because they stay the same when the commit is rewritten.
 
 By default, `jj log` lists your local commits, with some remote commits added
-for context.  The `~` indicates that the commit has parents that are not
+for context. The `~` indicates that the commit has parents that are not
 included in the graph. We can use the `--revisions`/`-r` flag to select a
 different set of revisions to list. The flag accepts a ["revset"](revsets.md),
 which is an expression in a simple language for specifying revisions. For
@@ -334,18 +334,18 @@ commands to interact with it. To list the operations, use `jj op log`:
 
 ```shell
 $ jj op log
-@  d3b77addea49 martinvonz@vonz.svl.corp.google.com 3 minutes ago, lasted 3 milliseconds
-│  squash commit 63874fe6c4fba405ffc38b0dd926f03b715cf7ef
-│  args: jj squash
-◉  6fc1873c1180 martinvonz@vonz.svl.corp.google.com 3 minutes ago, lasted 1 milliseconds
-│  snapshot working copy
-│  args: jj squash
-◉  ed91f7bcc1fb martinvonz@vonz.svl.corp.google.com 6 minutes ago, lasted 1 milliseconds
-│  new empty commit
-│  args: jj new puqltutt
-◉  367400773f87 martinvonz@vonz.svl.corp.google.com 12 minutes ago, lasted 3 milliseconds
-│  rebase commit daa6ffd5a09a8a7d09a65796194e69b7ed0a566d and descendants
-│  args: jj rebase -s puqltutt -d nuvyytnq
+@ d3b77addea49 martinvonz@vonz.svl.corp.google.com 3 minutes ago, lasted 3 milliseconds
+│ squash commit 63874fe6c4fba405ffc38b0dd926f03b715cf7ef
+│ args: jj squash
+◉ 6fc1873c1180 martinvonz@vonz.svl.corp.google.com 3 minutes ago, lasted 1 milliseconds
+│ snapshot working copy
+│ args: jj squash
+◉ ed91f7bcc1fb martinvonz@vonz.svl.corp.google.com 6 minutes ago, lasted 1 milliseconds
+│ new empty commit
+│ args: jj new puqltutt
+◉ 367400773f87 martinvonz@vonz.svl.corp.google.com 12 minutes ago, lasted 3 milliseconds
+│ rebase commit daa6ffd5a09a8a7d09a65796194e69b7ed0a566d and descendants
+│ args: jj rebase -s puqltutt -d nuvyytnq
 [many more lines]
 ```
 
@@ -436,9 +436,10 @@ Now try that:
 
 ```shell
 $ jj squash -i
-Using default editor ':builtin'; you can change this by setting ui.diff-editor
+Using default editor ':builtin'
+you can change this by setting ui.diff-editor
 Working copy now at: mrxqplyk 52a6c7fd ABCD
-Parent commit      : kwtuwqnm 643061ac ABC
+Parent commit : kwtuwqnm 643061ac ABC
 ```
 
 That will bring up the built-in diff editor[^alternative_diff_editors] with a
@@ -448,12 +449,13 @@ using space. Once complete, press `c` to confirm changes, or `q` to exit without
 saving. You can also use the mouse to click on the menu items to see more
 options (keyboard navigation is currently limited).
 
-[^alternative_diff_editors]: There are many other diff editors you could use.
-For example, if you have [Meld](https://meldmerge.org) installed and in the
-PATH, you can use it via `jj squash -i --tool meld` or a fancier config with `jj
+[^alternative_diff_editors]:
+    There are many other diff editors you could use.
+    For example, if you have [Meld](https://meldmerge.org) installed and in the
+    PATH, you can use it via `jj squash -i --tool meld` or a fancier config with `jj
 squash -i --tool meld-3`. You can configure the default with the
-[`ui.diff-editor` option](config.md#editing-diffs); those docs also explain how
-to specify a path to an executable if it is not in the PATH.
+    [`ui.diff-editor` option](config.md#editing-diffs); those docs also explain how
+    to specify a path to an executable if it is not in the PATH.
 
 If we look at the diff of the second commit, we now see
 that all three lines got capitalized:
@@ -461,12 +463,12 @@ that all three lines got capitalized:
 ```shell
 $ jj diff -r @-
 Modified regular file file:
-   1    1: aA
-   2    2: bB
-   3    3: cC
+1 1: aA
+2 2: bB
+3 3: cC
 ```
 
-The child change ("ABCD" in our case) will have the same content *state* after
+The child change ("ABCD" in our case) will have the same content _state_ after
 the `jj squash` command. That means that you can move any changes you want into
 the parent change, even if they touch the same word, and it won't cause any
 conflicts.

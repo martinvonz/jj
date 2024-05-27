@@ -8,64 +8,62 @@ See `jj help git` for help about the `jj git` family of commands, and e.g.
 `jj help git push` for help about a specific command (use `jj git push -h` for
 briefer help).
 
-
 ## Supported features
 
 The following list describes which Git features Jujutsu is compatible with. For
 a comparison with Git, including how workflows are different, see the
 [Git-comparison doc](git-comparison.md).
 
-* **Configuration: Partial.** The only configuration from Git (e.g. in
+- **Configuration: Partial.** The only configuration from Git (e.g. in
   `~/.gitconfig`) that's respected is the following. Feel free to file a bug if
   you miss any particular configuration options.
-  * The configuration of remotes (`[remote "<name>"]`).
-  * `core.excludesFile`
-* **Authentication: Partial.** Only `ssh-agent`, a password-less key (
+  - The configuration of remotes (`[remote "<name>"]`).
+  - `core.excludesFile`
+- **Authentication: Partial.** Only `ssh-agent`, a password-less key (
   only `~/.ssh/id_rsa`, `~/.ssh/id_ed25519` or `~/.ssh/id_ed25519_sk`), or
   a `credential.helper`.
-* **Branches: Yes.** You can read more about
+- **Branches: Yes.** You can read more about
   [how branches work in Jujutsu](branches.md)
   and [how they interoperate with Git](#branches).
-* **Tags: Partial.** You can check out tagged commits by name (pointed to be
+- **Tags: Partial.** You can check out tagged commits by name (pointed to be
   either annotated or lightweight tags), but you cannot create new tags.
-* **.gitignore: Yes.** Ignores in `.gitignore` files are supported. So are
+- **.gitignore: Yes.** Ignores in `.gitignore` files are supported. So are
   ignores in `.git/info/exclude` or configured via Git's `core.excludesfile`
   config. The `.gitignore` support uses a native implementation, so please
-  report a bug if you notice any difference compared to `git`.  
-* **.gitattributes: No.** There's [#53](https://github.com/martinvonz/jj/issues/53)
+  report a bug if you notice any difference compared to `git`.
+- **.gitattributes: No.** There's [#53](https://github.com/martinvonz/jj/issues/53)
   about adding support for at least the `eol` attribute.
-* **Hooks: No.** There's [#405](https://github.com/martinvonz/jj/issues/405)
+- **Hooks: No.** There's [#405](https://github.com/martinvonz/jj/issues/405)
   specifically for providing the checks from https://pre-commit.com.
-* **Merge commits: Yes.** Octopus merges (i.e. with more than 2 parents) are
+- **Merge commits: Yes.** Octopus merges (i.e. with more than 2 parents) are
   also supported.
-* **Detached HEAD: Yes.** Jujutsu supports anonymous branches, so this is a
+- **Detached HEAD: Yes.** Jujutsu supports anonymous branches, so this is a
   natural state.
-* **Orphan branch: Yes.** Jujutsu has a virtual root commit that appears as
+- **Orphan branch: Yes.** Jujutsu has a virtual root commit that appears as
   parent of all commits Git would call "root commits".
-* **Staging area: Kind of.** The staging area will be ignored. For example,
+- **Staging area: Kind of.** The staging area will be ignored. For example,
   `jj diff` will show a diff from the Git HEAD to the working copy. There are
   [ways of fulfilling your use cases without a staging
-  area](https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md#the-index).  
-* **Garbage collection: Yes.** It should be safe to run `git gc` in the Git
+  area](https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md#the-index).
+- **Garbage collection: Yes.** It should be safe to run `git gc` in the Git
   repo, but it's not tested, so it's probably a good idea to make a backup of
   the whole workspace first. There's [no garbage collection and repacking of
   Jujutsu's own data structures yet](https://github.com/martinvonz/jj/issues/12),
   however.
-* **Bare repositories: Yes.** You can use `jj git init --git-repo=<path>` to
+- **Bare repositories: Yes.** You can use `jj git init --git-repo=<path>` to
   create a repo backed by a bare Git repo.
-* **Submodules: No.** They will not show up in the working copy, but they will
+- **Submodules: No.** They will not show up in the working copy, but they will
   not be lost either.
-* **Partial clones: No.** We use the [libgit2](https://libgit2.org/) library,
+- **Partial clones: No.** We use the [libgit2](https://libgit2.org/) library,
   which [doesn't have support for partial clones](https://github.com/libgit2/libgit2/issues/5564).
-* **Shallow clones: No.** We use the [libgit2](https://libgit2.org/) library,
+- **Shallow clones: No.** We use the [libgit2](https://libgit2.org/) library,
   which [doesn't have support for shallow clones](https://github.com/libgit2/libgit2/issues/3058).
-* **git-worktree: No.** However, there's native support for multiple working
+- **git-worktree: No.** However, there's native support for multiple working
   copies backed by a single repo. See the `jj workspace` family of commands.
-* **Sparse checkouts: No.** However, there's native support for sparse
+- **Sparse checkouts: No.** However, there's native support for sparse
   checkouts. See the `jj sparse` command.
-* **Signed commits: No.** ([#58](https://github.com/martinvonz/jj/issues/58))
-* **Git LFS: No.** ([#80](https://github.com/martinvonz/jj/issues/80))
-
+- **Signed commits: No.** ([#58](https://github.com/martinvonz/jj/issues/58))
+- **Git LFS: No.** ([#80](https://github.com/martinvonz/jj/issues/80))
 
 ## Creating an empty repo
 
@@ -73,7 +71,6 @@ To create an empty repo using the Git backend, use `jj init --git <name>`. Since
 the command creates a Jujutsu repo, it will have a `.jj/` directory. The
 underlying Git repo will be inside of that directory (currently in
 `.jj/repo/store/git/`).
-
 
 ## Creating a repo backed by an existing Git repo
 
@@ -91,7 +88,6 @@ To create a Jujutsu repo from a remote Git URL, use `jj git clone <URL>
 [<destination>]`. For example, `jj git clone
 https://github.com/octocat/Hello-World` will clone GitHub's "Hello-World" repo
 into a directory by the same name.
-
 
 ## Co-located Jujutsu/Git repos
 
@@ -119,40 +115,40 @@ git refs" operation.
 There are a few downsides to this mode of operation. Generally, using co-located
 repos may require you to deal with more involved Jujutsu and Git concepts.
 
-* Interleaving `jj` and `git` commands increases the chance of confusing branch
+- Interleaving `jj` and `git` commands increases the chance of confusing branch
   conflicts or [conflicted (AKA divergent) change
   ids](glossary.md#divergent-change). These never lose data, but can be
   annoying.
 
-    Such interleaving can happen unknowingly. For example, some IDEs can cause
+  Such interleaving can happen unknowingly. For example, some IDEs can cause
   it because they automatically run `git fetch` in the background from time to
   time.
 
-* In co-located repos with a very large number of branches or other refs, `jj`
+- In co-located repos with a very large number of branches or other refs, `jj`
   commands can get noticeably slower because of the automatic `jj git import`
   executed on each command. This can be mitigated by occasionally running `jj util
-  gc` to speed up the import (that command includes packing the Git refs).
+gc` to speed up the import (that command includes packing the Git refs).
 
-* Git tools will have trouble with revisions that contain conflicted files. While
+- Git tools will have trouble with revisions that contain conflicted files. While
   `jj` renders these files with conflict markers in the working copy, they are
   stored in a non-human-readable fashion inside the repo. Git tools will often
   see this non-human-readable representation.
 
-* When a `jj` branch is conflicted, the position of the branch in the Git repo
+- When a `jj` branch is conflicted, the position of the branch in the Git repo
   will disagree with one or more of the conflicted positions. The state of that
   branch in git will be labeled as though it belongs to a remote named "git",
   e.g. `branch@git`.
 
-* Jujutsu will ignore Git's staging area. It will not understand merge conflicts
+- Jujutsu will ignore Git's staging area. It will not understand merge conflicts
   as Git represents them, unfinished `git rebase` states, as well as other less
   common states a Git repository can be in.
 
-* Colocated repositories are less resilient to
+- Colocated repositories are less resilient to
   [concurrency](technical/concurrency.md#syncing-with-rsync-nfs-dropbox-etc)
   issues if you share the repo using an NFS filesystem or Dropbox. In general,
   such use of Jujutsu is not currently thoroughly tested.
 
-* There may still be bugs when interleaving mutating `jj` and `git` commands,
+- There may still be bugs when interleaving mutating `jj` and `git` commands,
   usually having to do with a branch pointer ending up in the wrong place. We
   are working on the known ones, and are not aware of any major ones. Please
   report any new ones you find, or if any of the known bugs are less minor than
@@ -182,7 +178,6 @@ appreciate feedback and bug reports.
 ## Branches
 
 TODO: Describe how branches are mapped
-
 
 ## Format mapping details
 

@@ -1,24 +1,24 @@
 version: 2
 updates:
-- package-ecosystem: "cargo"
-  directory: "/"
-  schedule:
-    interval: "daily"
-  open-pull-requests-limit: 10
-  commit-message:
-    prefix: "cargo:"
-  groups:
-    cargo-dependencies:
-      patterns:
-      - "*"
-- package-ecosystem: "github-actions"
-  directory: "/"
-  schedule:
-    interval: "daily"
-  open-pull-requests-limit: 10
-  commit-message:
-    prefix: "github:"
-  groups:
-    github-dependencies:
-      patterns:
-      - "*"
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "cargo:"
+    groups:
+      cargo-dependencies:
+        patterns:
+          - "*"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "github:"
+    groups:
+      github-dependencies:
+        patterns:
+          - "*"

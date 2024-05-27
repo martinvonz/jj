@@ -17,74 +17,81 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        build: [linux-x86_64-musl, linux-aarch64-musl, macos-x86_64, macos-aarch64, win-msvc]
+        build:
+          [
+            linux-x86_64-musl,
+            linux-aarch64-musl,
+            macos-x86_64,
+            macos-aarch64,
+            win-msvc,
+          ]
         include:
-        - build: linux-x86_64-musl
-          os: ubuntu-24.04
-          target: x86_64-unknown-linux-musl
-        - build: linux-aarch64-musl
-          os: ubuntu-24.04
-          target: aarch64-unknown-linux-musl
-        - build: macos-x86_64
-          os: macos-11
-          target: x86_64-apple-darwin
-        - build: macos-aarch64
-          os: macos-14
-          target: aarch64-apple-darwin
-        - build: win-msvc
-          os: windows-2022
-          target: x86_64-pc-windows-msvc
+          - build: linux-x86_64-musl
+            os: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+          - build: linux-aarch64-musl
+            os: ubuntu-24.04
+            target: aarch64-unknown-linux-musl
+          - build: macos-x86_64
+            os: macos-11
+            target: x86_64-apple-darwin
+          - build: macos-aarch64
+            os: macos-14
+            target: aarch64-apple-darwin
+          - build: win-msvc
+            os: windows-2022
+            target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.os }}
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
-    - name: Install packages (Ubuntu)
-      if: matrix.os == 'ubuntu-24.04'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y --no-install-recommends xz-utils liblz4-tool musl-tools
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
-      with:
-        toolchain: stable
-        target: ${{ matrix.target }}
-    - name: Download cross-compilation tool (linux-aarch64)
-      if: matrix.target == 'aarch64-unknown-linux-musl'
-      run: wget -c https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz -O - | tar -xz
-    - name: Build release binary
-      shell: bash
-      run: |
-        CARGO_CMD=cargo
-        if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ]; then
-          CARGO_CMD=$PWD/cross
-        fi
-        $CARGO_CMD build --target ${{ matrix.target }} --verbose --release --features packaging,vendored-openssl
-    - name: Build archive
-      shell: bash
-      run: |
-        outdir="target/${{ matrix.target }}/release"
-        staging="jj-${{ github.event.release.tag_name }}-${{ matrix.target }}"
-        mkdir "$staging"
-        cp {README.md,LICENSE} "$staging/"
-        if [ "${{ matrix.os }}" = "windows-2022" ]; then
-          cp "$outdir/jj.exe" "$staging/"
-          cd "$staging"
-          7z a "../$staging.zip" .
-          echo "ASSET=$staging.zip" >> $GITHUB_ENV
-        else
-          cp "$outdir/jj" "$staging/"
-          tar czf "$staging.tar.gz" -C "$staging" .
-          echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
-        fi
-    - name: Upload release archive
-      uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ${{ env.ASSET }}
-        asset_name: ${{ env.ASSET }}
-        asset_content_type: application/octet-stream
+      - name: Checkout repository
+        uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+      - name: Install packages (Ubuntu)
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xz-utils liblz4-tool musl-tools
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+      - name: Download cross-compilation tool (linux-aarch64)
+        if: matrix.target == 'aarch64-unknown-linux-musl'
+        run: wget -c https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz -O - | tar -xz
+      - name: Build release binary
+        shell: bash
+        run: |
+          CARGO_CMD=cargo
+          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-musl" ]; then
+            CARGO_CMD=$PWD/cross
+          fi
+          $CARGO_CMD build --target ${{ matrix.target }} --verbose --release --features packaging,vendored-openssl
+      - name: Build archive
+        shell: bash
+        run: |
+          outdir="target/${{ matrix.target }}/release"
+          staging="jj-${{ github.event.release.tag_name }}-${{ matrix.target }}"
+          mkdir "$staging"
+          cp {README.md,LICENSE} "$staging/"
+          if [ "${{ matrix.os }}" = "windows-2022" ]; then
+            cp "$outdir/jj.exe" "$staging/"
+            cd "$staging"
+            7z a "../$staging.zip" .
+            echo "ASSET=$staging.zip" >> $GITHUB_ENV
+          else
+            cp "$outdir/jj" "$staging/"
+            tar czf "$staging.tar.gz" -C "$staging" .
+            echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
+          fi
+      - name: Upload release archive
+        uses: actions/upload-release-asset@e8f9f06c4b078e705bd2ea027f0926603fc9b4d5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ env.ASSET }}
+          asset_name: ${{ env.ASSET }}
+          asset_content_type: application/octet-stream
 
   docs-release-archive:
     runs-on: ubuntu-latest
@@ -128,7 +135,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
-      - run:  "git fetch origin gh-pages --depth=1"
+      - run: "git fetch origin gh-pages --depth=1"
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d
         with:
           python-version: 3.11
