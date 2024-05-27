@@ -49,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added new revsets `mutable()` and `immutable()`.
 
+* `jj branch set` automatically picks the closest branch on an ancestor if no
+  branch names are explicitly specified.
+
 ### Fixed bugs
 
 * When the working copy commit becomes immutable, a new one is automatically created on top of it 
