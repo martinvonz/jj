@@ -78,39 +78,44 @@ fn test_basics() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Abandoned commit znkkpsqq 5557ece3 e | e
-    Working copy now at: nkmrtpmo 6b527513 (empty) (no description set)
+    Working copy now at: nkmrtpmo d4f8ea73 (empty) (no description set)
     Parent commit      : rlvkpnrz 2443ea76 a e?? | a
-    Added 0 files, modified 0 files, removed 3 files
+    Parent commit      : vruxwmqv b7c62f28 d e?? | d
+    Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  [nkm]
-    │ ◉  [zsu] b
-    ├─╯
-    ◉  [rlv] a e??
+    @    [nkm]
+    ├─╮
     │ ◉  [vru] d e??
     │ ◉  [roy] c
+    │ │ ◉  [zsu] b
+    ├───╯
+    ◉ │  [rlv] a e??
     ├─╯
     ◉  [zzz]
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "descendants(c)"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "descendants(d)"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Abandoned the following commits:
       znkkpsqq 5557ece3 e | e
       vruxwmqv b7c62f28 d | d
-      royxmykx fe2e8e8b c | c
-    Working copy now at: xtnwkqum e7bb0612 (empty) (no description set)
+    Working copy now at: xtnwkqum fa4ee8e6 (empty) (no description set)
     Parent commit      : rlvkpnrz 2443ea76 a e?? | a
-    Added 0 files, modified 0 files, removed 3 files
+    Parent commit      : royxmykx fe2e8e8b c d e?? | c
+    Added 0 files, modified 0 files, removed 2 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  [xtn]
-    │ ◉  [zsu] b
+    @    [xtn]
+    ├─╮
+    │ ◉  [roy] c d e??
+    │ │ ◉  [zsu] b
+    ├───╯
+    ◉ │  [rlv] a e??
     ├─╯
-    ◉  [rlv] a e??
-    ◉  [zzz] c d e??
+    ◉  [zzz]
     "###);
 
     // Test abandoning the same commit twice directly
@@ -132,23 +137,26 @@ fn test_basics() {
 
     // Test abandoning the same commit twice indirectly
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "d::", "a::"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "d::", "e"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Abandoned the following commits:
       znkkpsqq 5557ece3 e | e
       vruxwmqv b7c62f28 d | d
-      zsuskuln 1394f625 b | b
-      rlvkpnrz 2443ea76 a | a
-    Working copy now at: xlzxqlsl af874bff (empty) (no description set)
-    Parent commit      : zzzzzzzz 00000000 a b e?? | (empty) (no description set)
-    Added 0 files, modified 0 files, removed 4 files
+    Working copy now at: xlzxqlsl 14991aec (empty) (no description set)
+    Parent commit      : rlvkpnrz 2443ea76 a e?? | a
+    Parent commit      : royxmykx fe2e8e8b c d e?? | c
+    Added 0 files, modified 0 files, removed 2 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  [xlz]
+    @    [xlz]
+    ├─╮
     │ ◉  [roy] c d e??
+    │ │ ◉  [zsu] b
+    ├───╯
+    ◉ │  [rlv] a e??
     ├─╯
-    ◉  [zzz] a b e??
+    ◉  [zzz]
     "###);
 
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "none()"]);
