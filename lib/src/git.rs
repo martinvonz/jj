@@ -929,14 +929,23 @@ pub fn reset_head(
     wc_commit: &Commit,
 ) -> Result<(), git2::Error> {
     let first_parent_id = &wc_commit.parent_ids()[0];
-    if first_parent_id != mut_repo.store().root_commit_id() {
-        let first_parent = RefTarget::normal(first_parent_id.clone());
+    let first_parent = if first_parent_id != mut_repo.store().root_commit_id() {
+        RefTarget::normal(first_parent_id.clone())
+    } else {
+        RefTarget::absent()
+    };
+    if first_parent.is_present() {
         let git_head = mut_repo.view().git_head();
         let new_git_commit_id = Oid::from_bytes(first_parent_id.as_bytes()).unwrap();
         let new_git_commit = git_repo.find_commit(new_git_commit_id)?;
-        if git_head == &first_parent {
-            // `HEAD@git` already points to the correct commit, so we only need to reset
-            // the Git index. Only do so if it is non-empty (i.e. a user used `git add`).
+        if git_head != &first_parent {
+            git_repo.set_head_detached(new_git_commit_id)?;
+        }
+
+        let skip_reset = if git_head == &first_parent {
+            // `HEAD@git` already points to the correct commit, so we only need to
+            // reset the Git index. We can skip the reset if the Git index is empty
+            // (i.e. `git add` was never used).
             // In large repositories, this is around 2x faster if the Git index is empty
             // (~0.89s to check the diff, vs. ~1.72s to reset), and around 8% slower if
             // it isn't (~1.86s to check the diff AND reset).
@@ -945,14 +954,13 @@ pub fn reset_head(
                 None,
                 Some(git2::DiffOptions::new().skip_binary_check(true)),
             )?;
-            if diff.deltas().len() == 0 {
-                return Ok(());
-            }
+            diff.deltas().len() == 0
         } else {
-            git_repo.set_head_detached(new_git_commit_id)?;
-            mut_repo.set_git_head_target(first_parent);
+            false
+        };
+        if !skip_reset {
+            git_repo.reset(new_git_commit.as_object(), git2::ResetType::Mixed, None)?;
         }
-        git_repo.reset(new_git_commit.as_object(), git2::ResetType::Mixed, None)?;
     } else {
         // Can't detach HEAD without a commit. Use placeholder ref to nullify the HEAD.
         // We can't set_head() an arbitrary unborn ref, so use reference_symbolic()
@@ -971,8 +979,8 @@ pub fn reset_head(
         index.clear()?; // or read empty tree
         index.write()?;
         git_repo.cleanup_state()?;
-        mut_repo.set_git_head_target(RefTarget::absent());
     }
+    mut_repo.set_git_head_target(first_parent);
     Ok(())
 }
 
