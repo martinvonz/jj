@@ -97,7 +97,7 @@ impl<'i, T> FunctionCallNode<'i, T> {
             optional.resize(M, None);
             Ok((
                 required.try_into().unwrap(),
-                optional.try_into().map_err(|_: Vec<_>| ()).unwrap(),
+                optional.try_into().ok().unwrap(),
             ))
         } else {
             let (min, max) = count_range.into_inner();
