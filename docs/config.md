@@ -438,6 +438,7 @@ For GUI editors you possibly need to use a `-w` or `--wait`. Some examples:
 
 ```toml
 ui.editor = "code -w"       # VS Code
+ui.editor = "code.cmd -w"   # VS Code on Windows
 ui.editor = "bbedit -w"     # BBEdit
 ui.editor = "subl -n -w"    # Sublime Text
 ui.editor = "mate -w"       # TextMate
