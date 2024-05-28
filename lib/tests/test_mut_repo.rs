@@ -151,8 +151,7 @@ fn test_edit_previous_empty_merge() {
     let new_wc_commit = write_random_commit(mut_repo, &settings);
     mut_repo.edit(ws_id, &new_wc_commit).unwrap();
     mut_repo.rebase_descendants(&settings).unwrap();
-    // TODO: The old commit should no longer be visible
-    assert!(mut_repo.view().heads().contains(old_wc_commit.id()));
+    assert!(!mut_repo.view().heads().contains(old_wc_commit.id()));
 }
 
 #[test]

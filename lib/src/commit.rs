@@ -153,16 +153,10 @@ impl Commit {
         &self.data.committer
     }
 
-    /// A commit is discardable if it has one parent, no change from its
-    /// parent, and an empty description.
-    pub fn is_discardable(&self) -> BackendResult<bool> {
-        if self.description().is_empty() {
-            let parents: Vec<_> = self.parents().try_collect()?;
-            if let [parent_commit] = &*parents {
-                return Ok(self.tree_id() == parent_commit.tree_id());
-            }
-        }
-        Ok(false)
+    /// A commit is discardable if it has no change from its parent, and an
+    /// empty description.
+    pub fn is_discardable(&self, repo: &dyn Repo) -> BackendResult<bool> {
+        Ok(self.description().is_empty() && self.is_empty(repo)?)
     }
 
     /// A quick way to just check if a signature is present.

@@ -1355,7 +1355,7 @@ impl MutableRepo {
                 .store()
                 .get_commit(&wc_commit_id)
                 .map_err(EditCommitError::WorkingCopyCommitNotFound)?;
-            if wc_commit.is_discardable()?
+            if wc_commit.is_discardable(self)?
                 && self
                     .view
                     .with_ref(|v| local_branch_target_ids(v).all(|id| id != wc_commit.id()))
