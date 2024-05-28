@@ -116,6 +116,46 @@ fn test_edit_previous_empty() {
 }
 
 #[test]
+fn test_edit_previous_empty_merge() {
+    // Test that MutableRepo::edit() abandons the previous commit if it was
+    // an empty merge commit.
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+    let old_parent1 = write_random_commit(mut_repo, &settings);
+    let old_parent2 = write_random_commit(mut_repo, &settings);
+    let empty_tree = repo.store().root_commit().tree().unwrap();
+    let old_parent_tree = old_parent1
+        .tree()
+        .unwrap()
+        .merge(&empty_tree, &old_parent2.tree().unwrap())
+        .unwrap();
+    let old_wc_commit = mut_repo
+        .new_commit(
+            &settings,
+            vec![old_parent1.id().clone(), old_parent2.id().clone()],
+            repo.store().empty_merged_tree_id(),
+        )
+        .set_tree_id(old_parent_tree.id())
+        .write()
+        .unwrap();
+    let ws_id = WorkspaceId::default();
+    mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
+    let repo = tx.commit("test");
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+    let new_wc_commit = write_random_commit(mut_repo, &settings);
+    mut_repo.edit(ws_id, &new_wc_commit).unwrap();
+    mut_repo.rebase_descendants(&settings).unwrap();
+    // TODO: The old commit should no longer be visible
+    assert!(mut_repo.view().heads().contains(old_wc_commit.id()));
+}
+
+#[test]
 fn test_edit_previous_empty_with_description() {
     // Test that MutableRepo::edit() does not abandon the previous commit if it
     // has a non-empty description.
