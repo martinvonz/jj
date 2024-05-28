@@ -51,7 +51,7 @@ use crate::refs::{
     diff_named_ref_targets, diff_named_remote_refs, merge_ref_targets, merge_remote_refs,
 };
 use crate::revset::{RevsetEvaluationError, RevsetExpression, RevsetIteratorExt};
-use crate::rewrite::{CommitRewriter, DescendantRebaser, RebaseOptions};
+use crate::rewrite::{merge_commit_trees, CommitRewriter, DescendantRebaser, RebaseOptions};
 use crate::settings::{RepoSettings, UserSettings};
 use crate::signing::{SignInitError, Signer};
 use crate::simple_op_heads_store::SimpleOpHeadsStore;
@@ -1027,7 +1027,6 @@ impl MutableRepo {
         old_commit_id: CommitId,
         new_commit_ids: Vec<CommitId>,
     ) -> BackendResult<()> {
-        // We arbitrarily pick a new working-copy commit among the candidates.
         let abandoned_old_commit = matches!(
             self.parent_mapping.get(&old_commit_id),
             Some(Rewrite::Abandoned(_))
@@ -1035,7 +1034,7 @@ impl MutableRepo {
         self.update_wc_commits(
             settings,
             &old_commit_id,
-            &new_commit_ids[0],
+            &new_commit_ids,
             abandoned_old_commit,
         )?;
 
@@ -1082,7 +1081,7 @@ impl MutableRepo {
         &mut self,
         settings: &UserSettings,
         old_commit_id: &CommitId,
-        new_commit_id: &CommitId,
+        new_commit_ids: &[CommitId],
         abandoned_old_commit: bool,
     ) -> BackendResult<()> {
         let workspaces_to_update = self.view().workspaces_for_wc_commit_id(old_commit_id);
@@ -1090,14 +1089,19 @@ impl MutableRepo {
             return Ok(());
         }
 
-        let new_commit = self.store().get_commit(new_commit_id)?;
         let new_wc_commit = if !abandoned_old_commit {
-            new_commit
+            // We arbitrarily pick a new working-copy commit among the candidates.
+            self.store().get_commit(&new_commit_ids[0])?
         } else {
+            let new_commits: Vec<_> = new_commit_ids
+                .iter()
+                .map(|id| self.store().get_commit(id))
+                .try_collect()?;
+            let merged_parents_tree = merge_commit_trees(self, &new_commits)?;
             self.new_commit(
                 settings,
-                vec![new_commit.id().clone()],
-                new_commit.tree_id().clone(),
+                new_commit_ids.to_vec(),
+                merged_parents_tree.id().clone(),
             )
             .write()?
         };

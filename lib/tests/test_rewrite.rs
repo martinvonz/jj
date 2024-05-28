@@ -1492,7 +1492,7 @@ fn test_rebase_descendants_update_checkout_abandoned_merge() {
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
-    // Checked-out merge commit D was abandoned. A parent commit should become
+    // Checked-out merge commit D was abandoned. A new merge commit should become
     // checked out.
     //
     // D
@@ -1527,7 +1527,10 @@ fn test_rebase_descendants_update_checkout_abandoned_merge() {
 
     let new_checkout_id = repo.view().get_wc_commit_id(&workspace_id).unwrap();
     let checkout = repo.store().get_commit(new_checkout_id).unwrap();
-    assert_eq!(checkout.parent_ids(), vec![commit_b.id().clone()]);
+    assert_eq!(
+        checkout.parent_ids(),
+        vec![commit_b.id().clone(), commit_c.id().clone()]
+    );
 }
 
 #[test_case(EmptyBehaviour::Keep; "keep all commits")]

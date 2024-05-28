@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   key](https://toml.io/en/v1.0.0#keys). Quote meta characters as needed.
   Example: `jj config get "revset-aliases.'trunk()'"`
 
+* If a new working-copy commit is created because the old one was abandoned, and
+  the old commit was merge, then the new commit will now also be.
+  [#2859](https://github.com/martinvonz/jj/issues/2859)
+
 ### Deprecations
 
 - Attempting to alias a built-in command now gives a warning, rather than being silently ignored.
