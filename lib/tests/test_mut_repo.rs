@@ -63,8 +63,8 @@ fn test_checkout() {
 }
 
 #[test]
-fn test_checkout_previous_not_empty() {
-    // Test that MutableRepo::check_out() does not usually abandon the previous
+fn test_edit_previous_not_empty() {
+    // Test that MutableRepo::edit() does not usually abandon the previous
     // commit.
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
@@ -86,8 +86,8 @@ fn test_checkout_previous_not_empty() {
 }
 
 #[test]
-fn test_checkout_previous_empty() {
-    // Test that MutableRepo::check_out() abandons the previous commit if it was
+fn test_edit_previous_empty() {
+    // Test that MutableRepo::edit() abandons the previous commit if it was
     // empty.
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
@@ -116,8 +116,8 @@ fn test_checkout_previous_empty() {
 }
 
 #[test]
-fn test_checkout_previous_empty_with_description() {
-    // Test that MutableRepo::check_out() does not abandon the previous commit if it
+fn test_edit_previous_empty_with_description() {
+    // Test that MutableRepo::edit() does not abandon the previous commit if it
     // has a non-empty description.
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
@@ -147,8 +147,8 @@ fn test_checkout_previous_empty_with_description() {
 }
 
 #[test]
-fn test_checkout_previous_empty_with_local_branch() {
-    // Test that MutableRepo::check_out() does not abandon the previous commit if it
+fn test_edit_previous_empty_with_local_branch() {
+    // Test that MutableRepo::edit() does not abandon the previous commit if it
     // is pointed by local branch.
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
@@ -178,8 +178,8 @@ fn test_checkout_previous_empty_with_local_branch() {
 }
 
 #[test]
-fn test_checkout_previous_empty_non_head() {
-    // Test that MutableRepo::check_out() does not abandon the previous commit if it
+fn test_edit_previous_empty_non_head() {
+    // Test that MutableRepo::edit() does not abandon the previous commit if it
     // was empty and is not a head
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
