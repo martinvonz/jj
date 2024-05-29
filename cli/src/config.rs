@@ -27,6 +27,32 @@ use tracing::instrument;
 
 use crate::command_error::{user_error, user_error_with_message, CommandError};
 
+pub fn to_toml_value(value: &config::Value) -> Result<toml_edit::Value, config::ConfigError> {
+    fn type_error<T: fmt::Display>(message: T) -> config::ConfigError {
+        config::ConfigError::Message(message.to_string())
+    }
+    // It's unlikely that the config object contained unsupported values, but
+    // there's no guarantee. For example, values coming from environment
+    // variables might be big int.
+    match value.kind {
+        config::ValueKind::Nil => Err(type_error(format!("Unexpected value: {value}"))),
+        config::ValueKind::Boolean(v) => Ok(v.into()),
+        config::ValueKind::I64(v) => Ok(v.into()),
+        config::ValueKind::I128(v) => Ok(i64::try_from(v).map_err(type_error)?.into()),
+        config::ValueKind::U64(v) => Ok(i64::try_from(v).map_err(type_error)?.into()),
+        config::ValueKind::U128(v) => Ok(i64::try_from(v).map_err(type_error)?.into()),
+        config::ValueKind::Float(v) => Ok(v.into()),
+        config::ValueKind::String(ref v) => Ok(v.into()),
+        // TODO: Remove sorting when config crate maintains deterministic ordering.
+        config::ValueKind::Table(ref table) => table
+            .iter()
+            .sorted_by_key(|(k, _)| *k)
+            .map(|(k, v)| Ok((k, to_toml_value(v)?)))
+            .collect(),
+        config::ValueKind::Array(ref array) => array.iter().map(to_toml_value).collect(),
+    }
+}
+
 #[derive(Error, Debug)]
 pub enum ConfigError {
     #[error(transparent)]
