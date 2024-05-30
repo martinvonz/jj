@@ -118,6 +118,6 @@ fn test_cat_symlink() {
     a
     "###);
     insta::assert_snapshot!(stderr, @r###"
-    Warning: Path exists but is not a file: symlink1
+    Warning: Path 'symlink1' exists but is not a file
     "###);
 }
