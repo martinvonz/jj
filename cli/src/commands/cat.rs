@@ -114,7 +114,7 @@ fn write_tree_entries<P: AsRef<RepoPath>>(
                 let ui_path = workspace_command.format_file_path(path.as_ref());
                 writeln!(
                     ui.warning_default(),
-                    "Path exists but is not a file: {ui_path}"
+                    "Path '{ui_path}' exists but is not a file"
                 )?;
             }
             MaterializedTreeValue::Tree(_) => panic!("entries should not contain trees"),
