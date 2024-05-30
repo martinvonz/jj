@@ -451,24 +451,40 @@ pub async fn update_from_content(
     path: &RepoPath,
     content: &[u8],
 ) -> BackendResult<Merge<Option<FileId>>> {
+    let simplified_file_ids = file_ids.clone().simplify();
+    let simplified_file_ids = &simplified_file_ids;
+
     // First check if the new content is unchanged compared to the old content. If
     // it is, we don't need parse the content or write any new objects to the
     // store. This is also a way of making sure that unchanged tree/file
     // conflicts (for example) are not converted to regular files in the working
     // copy.
     let mut old_content = Vec::with_capacity(content.len());
-    let merge_hunk = extract_as_single_hunk(file_ids, store, path).await;
+    let merge_hunk = extract_as_single_hunk(simplified_file_ids, store, path).await;
     materialize_merge_result(&merge_hunk, &mut old_content).unwrap();
     if content == old_content {
         return Ok(file_ids.clone());
     }
 
-    let Some(hunks) = parse_conflict(content, file_ids.num_sides()) else {
-        // Either there are no self markers of they don't have the expected arity
+    // Parse conflicts from the new content using the arity of the simplified
+    // conflicts initially. If unsuccessful, attempt to parse conflicts from with
+    // the arity of the unsimplified conflicts since such a conflict may be
+    // present in the working copy if written by an earlier version of jj.
+    let (used_file_ids, hunks) = 'hunks: {
+        if let Some(hunks) = parse_conflict(content, simplified_file_ids.num_sides()) {
+            break 'hunks (simplified_file_ids, hunks);
+        };
+        if simplified_file_ids.num_sides() != file_ids.num_sides() {
+            if let Some(hunks) = parse_conflict(content, file_ids.num_sides()) {
+                break 'hunks (file_ids, hunks);
+            };
+        };
+        // Either there are no markers or they don't have the expected arity
         let file_id = store.write_file(path, &mut &content[..])?;
         return Ok(Merge::normal(file_id));
     };
-    let mut contents = file_ids.map(|_| vec![]);
+
+    let mut contents = used_file_ids.map(|_| vec![]);
     for hunk in hunks {
         if let Some(slice) = hunk.as_resolved() {
             for content in contents.iter_mut() {
@@ -483,7 +499,7 @@ pub async fn update_from_content(
 
     // If the user edited the empty placeholder for an absent side, we consider the
     // conflict resolved.
-    if zip(contents.iter(), file_ids.iter())
+    if zip(contents.iter(), used_file_ids.iter())
         .any(|(content, file_id)| file_id.is_none() && !content.is_empty())
     {
         let file_id = store.write_file(path, &mut &content[..])?;
@@ -491,22 +507,31 @@ pub async fn update_from_content(
     }
 
     // Now write the new files contents we found by parsing the file with conflict
-    // markers. Update the Merge object with the new FileIds.
-    let builder: BackendResult<MergeBuilder<Option<FileId>>> =
-        zip(contents.iter(), file_ids.iter())
-            .map(|(content, file_id)| {
-                match file_id {
-                    Some(_) => {
-                        let file_id = store.write_file(path, &mut content.as_slice())?;
-                        Ok(Some(file_id))
-                    }
-                    None => {
-                        // The missing side of a conflict is still represented by
-                        // the empty string we materialized it as
-                        Ok(None)
-                    }
+    // markers.
+    let new_file_ids: Vec<Option<FileId>> = zip(contents.iter(), used_file_ids.iter())
+        .map(|(content, file_id)| -> BackendResult<Option<FileId>> {
+            match file_id {
+                Some(_) => {
+                    let file_id = store.write_file(path, &mut content.as_slice())?;
+                    Ok(Some(file_id))
                 }
-            })
-            .collect();
-    Ok(builder?.build())
+                None => {
+                    // The missing side of a conflict is still represented by
+                    // the empty string we materialized it as
+                    Ok(None)
+                }
+            }
+        })
+        .try_collect()?;
+
+    // If the conflict was simplified, expand the conflict to the original
+    // number of sides.
+    let new_file_ids = if new_file_ids.len() != file_ids.iter().len() {
+        file_ids
+            .clone()
+            .update_from_simplified(Merge::from_vec(new_file_ids))
+    } else {
+        Merge::from_vec(new_file_ids)
+    };
+    Ok(new_file_ids)
 }
