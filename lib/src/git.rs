@@ -969,6 +969,8 @@ pub fn reset_head(
         };
         if !skip_reset {
             git_repo.reset(new_git_commit.as_object(), git2::ResetType::Mixed, None)?;
+            // Refresh the index since some scripts expect that.
+            git_repo.index()?.update_all(["."], None)?;
         }
     } else {
         // Can't detach HEAD without a commit. Use placeholder ref to nullify the HEAD.
