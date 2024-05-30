@@ -40,6 +40,7 @@ use jj_lib::str_util::StringPattern;
 use jj_lib::workspace::Workspace;
 use maplit::{btreemap, hashset};
 use tempfile::TempDir;
+use test_case::test_case;
 use testutils::{
     commit_transactions, create_random_commit, load_repo_at_head, write_random_commit, TestRepo,
     TestRepoBackend,
@@ -1543,8 +1544,9 @@ fn test_export_refs_current_branch_changed() {
     assert!(git_repo.head_detached().unwrap());
 }
 
-#[test]
-fn test_export_refs_unborn_git_branch() {
+#[test_case(false; "without moved placeholder ref")]
+#[test_case(true; "with moved placeholder ref")]
+fn test_export_refs_unborn_git_branch(move_placeholder_ref: bool) {
     // Can export to an empty Git repo (we can handle Git's "unborn branch" state)
     let test_data = GitRepoData::create();
     let git_settings = GitSettings::default();
@@ -1556,9 +1558,15 @@ fn test_export_refs_unborn_git_branch() {
     git::import_refs(mut_repo, &git_settings).unwrap();
     mut_repo.rebase_descendants(&test_data.settings).unwrap();
     assert!(git::export_refs(mut_repo).unwrap().is_empty());
+    assert!(git_repo.head().is_err(), "HEAD is unborn");
 
     let new_commit = write_random_commit(mut_repo, &test_data.settings);
     mut_repo.set_local_branch_target("main", RefTarget::normal(new_commit.id().clone()));
+    if move_placeholder_ref {
+        git_repo
+            .reference("refs/jj/root", git_id(&new_commit), false, "")
+            .unwrap();
+    }
     assert!(git::export_refs(mut_repo).unwrap().is_empty());
     assert_eq!(
         mut_repo.get_git_ref("refs/heads/main"),
@@ -1573,10 +1581,10 @@ fn test_export_refs_unborn_git_branch() {
             .id(),
         git_id(&new_commit)
     );
-    // It's weird that the head is still pointing to refs/heads/main, but
-    // it doesn't seem that Git lets you be on an "unborn branch" while
-    // also being in a "detached HEAD" state.
-    assert!(!git_repo.head_detached().unwrap());
+    // HEAD should no longer point to refs/heads/main
+    assert!(git_repo.head().is_err(), "HEAD is unborn");
+    // The placeholder ref should be deleted if any
+    assert!(git_repo.find_reference("refs/jj/root").is_err());
 }
 
 #[test]
