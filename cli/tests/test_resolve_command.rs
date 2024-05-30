@@ -516,38 +516,36 @@ fn test_simplify_conflict_sides() {
         &[],
     );
 
+    // Even though the tree-level conflict is a 4-sided conflict, each file is
+    // materialized as a 2-sided conflict.
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["debug", "tree"]),
+    @r###"
+    fileA: Ok(Conflicted([Some(File { id: FileId("d00491fd7e5bb6fa28c517a0bb32b8b506539d4d"), executable: false }), Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false }), Some(File { id: FileId("0cfbf08886fca9a91cb753ec8734c84fcbe52c9f"), executable: false }), Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false }), Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false }), Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false }), Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false })]))
+    fileB: Ok(Conflicted([Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false }), Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false }), Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false }), Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false }), Some(File { id: FileId("d00491fd7e5bb6fa28c517a0bb32b8b506539d4d"), executable: false }), Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false }), Some(File { id: FileId("0cfbf08886fca9a91cb753ec8734c84fcbe52c9f"), executable: false })]))
+    "###);
     // TODO: The conflict should be simplified before being displayed.
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]),
     @r###"
     fileA    4-sided conflict
     fileB    4-sided conflict
     "###);
-    // TODO: The conflict should be simplified before being materialized.
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("fileA")).unwrap(), @r###"
     <<<<<<< Conflict 1 of 1
-    %%%%%%% Changes from base #1 to side #1
+    %%%%%%% Changes from base to side #1
     -base
     +1
     +++++++ Contents of side #2
     2
-    %%%%%%% Changes from base #2 to side #3
-     base
-    %%%%%%% Changes from base #3 to side #4
-     base
     >>>>>>> Conflict 1 of 1 ends
     "###);
     insta::assert_snapshot!(
     std::fs::read_to_string(repo_path.join("fileB")).unwrap(), @r###"
     <<<<<<< Conflict 1 of 1
-    %%%%%%% Changes from base #1 to side #1
-     base
-    %%%%%%% Changes from base #2 to side #2
-     base
-    %%%%%%% Changes from base #3 to side #3
+    %%%%%%% Changes from base to side #1
     -base
     +1
-    +++++++ Contents of side #4
+    +++++++ Contents of side #2
     2
     >>>>>>> Conflict 1 of 1 ends
     "###);

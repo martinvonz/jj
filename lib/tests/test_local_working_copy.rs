@@ -639,28 +639,28 @@ fn test_materialize_conflicted_files() {
         }
     );
 
-    // TODO: Materialized conflicted file should be simplified.
+    // Even though the tree-level conflict is a 3-sided conflict, each file is
+    // materialized as a 2-sided conflict.
+    let file1_value = merged_tree.path_value(file1_path).unwrap();
+    let file2_value = merged_tree.path_value(file2_path).unwrap();
+    assert_eq!(file1_value.num_sides(), 3);
+    assert_eq!(file2_value.num_sides(), 3);
     insta::assert_snapshot!(std::fs::read_to_string(file1_path.to_fs_path(&workspace_root)).ok().unwrap(), @r###"
     <<<<<<< Conflict 1 of 1
-    %%%%%%% Changes from base #1 to side #1
-     a
-    %%%%%%% Changes from base #2 to side #2
+    %%%%%%% Changes from base to side #1
     -b
     +a
-    +++++++ Contents of side #3
+    +++++++ Contents of side #2
     c
     >>>>>>> Conflict 1 of 1 ends
     "###);
-    // TODO: Materialized conflicted file should be simplified.
     insta::assert_snapshot!(std::fs::read_to_string(file2_path.to_fs_path(&workspace_root)).ok().unwrap(), @r###"
     <<<<<<< Conflict 1 of 1
-    %%%%%%% Changes from base #1 to side #1
+    %%%%%%% Changes from base to side #1
     -2
     +1
     +++++++ Contents of side #2
     4
-    %%%%%%% Changes from base #2 to side #3
-     3
     >>>>>>> Conflict 1 of 1 ends
     "###);
 }
