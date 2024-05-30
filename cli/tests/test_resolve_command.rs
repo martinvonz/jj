@@ -494,7 +494,7 @@ fn test_too_many_parents() {
 
 #[test]
 fn test_simplify_conflict_sides() {
-    let test_env = TestEnvironment::default();
+    let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
@@ -555,13 +555,71 @@ fn test_simplify_conflict_sides() {
     >>>>>>> Conflict 1 of 1 ends
     "###);
 
-    // TODO: The conflict should be simplified before being resolved.
-    let error = test_env.jj_cmd_failure(&repo_path, &["resolve", "fileB"]);
-    insta::assert_snapshot!(error, @r###"
-    Hint: Using default editor ':builtin'; run `jj config set --user ui.merge-editor :builtin` to disable this message.
+    // Conflict should be simplified before being handled by external merge tool.
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "fileA", "base", "base\n");
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "fileA", "left", "1\n");
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "fileA", "right", "2\n");
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "fileB", "base", "base\n");
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "fileB", "left", "1\n");
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "fileB", "right", "2\n");
+
+    // Check that simplified conflicts are still parsed as conflicts after editing
+    // when `merge-tool-edits-conflict-markers=true`.
+    let editor_script = test_env.set_up_fake_editor();
+    std::fs::write(
+        editor_script,
+        indoc! {"
+            write
+            <<<<<<< Conflict 1 of 1
+            %%%%%%% Changes from base to side #1
+            -base_edited
+            +1_edited
+            +++++++ Contents of side #2
+            2_edited
+            >>>>>>> Conflict 1 of 1 ends
+        "},
+    )
+    .unwrap();
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "resolve",
+            "--config-toml",
+            "merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
+            "fileB",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
     Resolving conflicts in: fileB
-    Error: Failed to resolve conflicts
-    Caused by: The conflict at "fileB" has 4 sides. At most 2 sides are supported.
+    New conflicts appeared in these commits:
+      nkmrtpmo 4b14662a conflict | (conflict) conflict
+    To resolve the conflicts, start by updating to it:
+      jj new nkmrtpmomlro
+    Then use `jj resolve`, or edit the conflict markers in the file directly.
+    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Then run `jj squash` to move the resolution into the conflicted commit.
+    Working copy now at: nkmrtpmo 4b14662a conflict | (conflict) conflict
+    Parent commit      : kmkuslsw 18c1fb00 conflictA | (conflict) (empty) conflictA
+    Parent commit      : lylxulpl d11c92eb conflictB | (conflict) (empty) conflictB
+    Added 0 files, modified 1 files, removed 0 files
+    There are unresolved conflicts at these paths:
+    fileA    2-sided conflict
+    fileB    2-sided conflict
+    "###);
+    insta::assert_snapshot!(std::fs::read_to_string(repo_path.join("fileB")).unwrap(), @r###"
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
+    -base_edited
+    +1_edited
+    +++++++ Contents of side #2
+    2_edited
+    >>>>>>> Conflict 1 of 1 ends
+    "###);
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]),
+    @r###"
+    fileA    2-sided conflict
+    fileB    2-sided conflict
     "###);
 }
 

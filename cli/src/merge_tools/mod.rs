@@ -298,14 +298,16 @@ impl MergeEditor {
                 String::from_utf8_lossy(summary_bytes.as_slice()).to_string(),
             )
         })?;
+        let simplified_file_merge = file_merge.clone().simplify();
         // We only support conflicts with 2 sides (3-way conflicts)
-        if file_merge.num_sides() > 2 {
+        if simplified_file_merge.num_sides() > 2 {
             return Err(ConflictResolveError::ConflictTooComplicated {
                 path: repo_path.to_owned(),
-                sides: file_merge.num_sides(),
+                sides: simplified_file_merge.num_sides(),
             });
         };
-        let content = extract_as_single_hunk(&file_merge, tree.store(), repo_path).block_on();
+        let content =
+            extract_as_single_hunk(&simplified_file_merge, tree.store(), repo_path).block_on();
 
         match &self.tool {
             MergeTool::Builtin => {
