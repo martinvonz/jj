@@ -1840,6 +1840,7 @@ pub fn print_conflicted_paths(
         .map(|p| format!("{:width$}", p, width = max_path_len.min(32) + 3));
 
     for ((_, conflict), formatted_path) in std::iter::zip(conflicts.iter(), formatted_paths) {
+        let conflict = conflict.clone().simplify();
         let sides = conflict.num_sides();
         let n_adds = conflict.adds().flatten().count();
         let deletions = sides - n_adds;
