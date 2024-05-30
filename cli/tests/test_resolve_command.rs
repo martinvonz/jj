@@ -355,6 +355,7 @@ fn test_resolution() {
 fn check_resolve_produces_input_file(
     test_env: &mut TestEnvironment,
     repo_path: &Path,
+    filename: &str,
     role: &str,
     expected_content: &str,
 ) {
@@ -368,10 +369,15 @@ fn check_resolve_produces_input_file(
     // https://github.com/mitsuhiko/insta/commit/745b45b. Hopefully, this will again become possible
     // in the future. See also https://github.com/mitsuhiko/insta/issues/313.
     assert_eq!(
-        &test_env.jj_cmd_failure(repo_path, &["resolve", "--config-toml", &merge_arg_config]),
-        "Resolving conflicts in: file\nError: Failed to resolve conflicts\nCaused by: The output \
-         file is either unchanged or empty after the editor quit (run with --debug to see the \
-         exact invocation).\n"
+        test_env.jj_cmd_failure(
+            repo_path,
+            &["resolve", "--config-toml", &merge_arg_config, filename]
+        ),
+        format!(
+            "Resolving conflicts in: {filename}\nError: Failed to resolve conflicts\nCaused by: \
+             The output file is either unchanged or empty after the editor quit (run with --debug \
+             to see the exact invocation).\n"
+        )
     );
 }
 
@@ -411,9 +417,9 @@ fn test_normal_conflict_input_files() {
     >>>>>>> Conflict 1 of 1 ends
     "###);
 
-    check_resolve_produces_input_file(&mut test_env, &repo_path, "base", "base\n");
-    check_resolve_produces_input_file(&mut test_env, &repo_path, "left", "a\n");
-    check_resolve_produces_input_file(&mut test_env, &repo_path, "right", "b\n");
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "file", "base", "base\n");
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "file", "left", "a\n");
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "file", "right", "b\n");
 }
 
 #[test]
@@ -451,9 +457,9 @@ fn test_baseless_conflict_input_files() {
     >>>>>>> Conflict 1 of 1 ends
     "###);
 
-    check_resolve_produces_input_file(&mut test_env, &repo_path, "base", "");
-    check_resolve_produces_input_file(&mut test_env, &repo_path, "left", "a\n");
-    check_resolve_produces_input_file(&mut test_env, &repo_path, "right", "b\n");
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "file", "base", "");
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "file", "left", "a\n");
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "file", "right", "b\n");
 }
 
 #[test]
@@ -595,9 +601,9 @@ fn test_edit_delete_conflict_input_files() {
     >>>>>>> Conflict 1 of 1 ends
     "###);
 
-    check_resolve_produces_input_file(&mut test_env, &repo_path, "base", "base\n");
-    check_resolve_produces_input_file(&mut test_env, &repo_path, "left", "a\n");
-    check_resolve_produces_input_file(&mut test_env, &repo_path, "right", "");
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "file", "base", "base\n");
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "file", "left", "a\n");
+    check_resolve_produces_input_file(&mut test_env, &repo_path, "file", "right", "");
 }
 
 #[test]
