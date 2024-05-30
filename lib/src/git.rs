@@ -670,23 +670,22 @@ pub fn export_some_refs(
             .and_then(parse_git_ref)
         {
             let old_target = head_ref.inner.target.clone();
-            if let Ok(current_git_commit_id) = head_ref.into_fully_peeled_id() {
-                let detach_head =
-                    if let Some((_old_oid, new_oid)) = branches_to_update.get(&parsed_ref) {
-                        *new_oid != current_git_commit_id
-                    } else {
-                        branches_to_delete.contains_key(&parsed_ref)
-                    };
-                if detach_head {
-                    git_repo
-                        .reference(
-                            "HEAD",
-                            current_git_commit_id,
-                            gix::refs::transaction::PreviousValue::MustExistAndMatch(old_target),
-                            "export from jj",
-                        )
-                        .map_err(GitExportError::from_git)?;
-                }
+            let current_oid = match head_ref.into_fully_peeled_id() {
+                Ok(id) => Some(id.detach()),
+                Err(gix::reference::peel::Error::ToId(gix::refs::peel::to_id::Error::Follow(
+                    gix::refs::file::find::existing::Error::NotFound { .. },
+                ))) => None, // Unborn ref should be considered absent
+                Err(err) => return Err(GitExportError::from_git(err)),
+            };
+            let new_oid = if let Some((_old_oid, new_oid)) = branches_to_update.get(&parsed_ref) {
+                Some(new_oid)
+            } else if branches_to_delete.contains_key(&parsed_ref) {
+                None
+            } else {
+                current_oid.as_ref()
+            };
+            if new_oid != current_oid.as_ref() {
+                update_git_head(&git_repo, old_target, current_oid)?;
             }
         }
     }
@@ -918,6 +917,49 @@ fn update_git_ref(
             }
         }
     }
+    Ok(())
+}
+
+/// Ensures `HEAD@git` is detached and pointing to the `new_oid`. If `new_oid`
+/// is `None` (meaning absent), dummy placeholder ref will be set.
+fn update_git_head(
+    git_repo: &gix::Repository,
+    old_target: gix::refs::Target,
+    new_oid: Option<gix::ObjectId>,
+) -> Result<(), GitExportError> {
+    let mut ref_edits = Vec::new();
+    let new_target = if let Some(oid) = new_oid {
+        gix::refs::Target::Peeled(oid)
+    } else {
+        // Can't detach HEAD without a commit. Use placeholder ref to nullify
+        // the HEAD. The placeholder ref isn't a normal branch ref. Git CLI
+        // appears to deal with that, and can move the placeholder ref. So we
+        // need to ensure that the ref doesn't exist.
+        ref_edits.push(gix::refs::transaction::RefEdit {
+            change: gix::refs::transaction::Change::Delete {
+                expected: gix::refs::transaction::PreviousValue::Any,
+                log: gix::refs::transaction::RefLog::AndReference,
+            },
+            name: UNBORN_ROOT_REF_NAME.try_into().unwrap(),
+            deref: false,
+        });
+        gix::refs::Target::Symbolic(UNBORN_ROOT_REF_NAME.try_into().unwrap())
+    };
+    ref_edits.push(gix::refs::transaction::RefEdit {
+        change: gix::refs::transaction::Change::Update {
+            log: gix::refs::transaction::LogChange {
+                message: "export from jj".into(),
+                ..Default::default()
+            },
+            expected: gix::refs::transaction::PreviousValue::MustExistAndMatch(old_target),
+            new: new_target,
+        },
+        name: "HEAD".try_into().unwrap(),
+        deref: false,
+    });
+    git_repo
+        .edit_references(ref_edits)
+        .map_err(GitExportError::from_git)?;
     Ok(())
 }
 

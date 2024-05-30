@@ -570,11 +570,27 @@ fn test_git_init_colocated_via_flag_git_dir_exists() {
 #[test]
 fn test_git_init_colocated_via_flag_git_dir_not_exists() {
     let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
     let (stdout, stderr) =
         test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Initialized repo in "repo"
+    "###);
+    // No HEAD@git ref is available yet
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  230dd059e1b0
+    ◉  000000000000
+    "###);
+
+    // Create the default branch (create both in case we change the default)
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "main", "master"]);
+
+    // If .git/HEAD pointed to the default branch, new working-copy commit would
+    // be created on top.
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  230dd059e1b0 main master
+    ◉  000000000000
     "###);
 }
 
