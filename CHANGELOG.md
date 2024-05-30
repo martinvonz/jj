@@ -30,6 +30,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `jj workspace forget` now abandons the workspace's working-copy commit if it
   was empty.
 
+* `jj backout` now includes the backed out commit's subject in the new commit
+  message.
+
 ### Fixed bugs
 
 ## [0.19.0] - 2024-07-03
@@ -177,7 +180,6 @@ Thanks to the people who made this release happen!
   commit the new commit will be inserted before/after. Previously, those options
   were global flags and specifying them once would insert the new commit before/
   after all the specified commits.
-
 
 ### Deprecations
 

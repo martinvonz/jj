@@ -47,6 +47,16 @@ pub(crate) fn cmd_backout(
         parents.push(destination);
     }
     let mut tx = workspace_command.start_transaction();
+    let commit_to_back_out_subject = commit_to_back_out
+        .description()
+        .lines()
+        .next()
+        .unwrap_or_default();
+    let new_commit_description = format!(
+        "Back out \"{}\"\n\nThis backs out commit {}.\n",
+        commit_to_back_out_subject,
+        &commit_to_back_out.id().hex()
+    );
     let old_base_tree = commit_to_back_out.parent_tree(tx.mut_repo())?;
     let new_base_tree = merge_commit_trees(tx.mut_repo(), &parents)?;
     let old_tree = commit_to_back_out.tree()?;
@@ -54,10 +64,7 @@ pub(crate) fn cmd_backout(
     let new_parent_ids = parents.iter().map(|commit| commit.id().clone()).collect();
     tx.mut_repo()
         .new_commit(command.settings(), new_parent_ids, new_tree.id())
-        .set_description(format!(
-            "backout of commit {}",
-            &commit_to_back_out.id().hex()
-        ))
+        .set_description(new_commit_description)
         .write()?;
     tx.finish(
         ui,
