@@ -487,6 +487,82 @@ fn test_too_many_parents() {
 }
 
 #[test]
+fn test_simplify_conflict_sides() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Creates a 4-sided conflict, with fileA and fileB having different conflicts:
+    // fileA: A - B + C - B + B - B + B
+    // fileB: A - A + A - A + B - C + D
+    create_commit(
+        &test_env,
+        &repo_path,
+        "base",
+        &[],
+        &[("fileA", "base\n"), ("fileB", "base\n")],
+    );
+    create_commit(&test_env, &repo_path, "a1", &["base"], &[("fileA", "1\n")]);
+    create_commit(&test_env, &repo_path, "a2", &["base"], &[("fileA", "2\n")]);
+    create_commit(&test_env, &repo_path, "b1", &["base"], &[("fileB", "1\n")]);
+    create_commit(&test_env, &repo_path, "b2", &["base"], &[("fileB", "2\n")]);
+    create_commit(&test_env, &repo_path, "conflictA", &["a1", "a2"], &[]);
+    create_commit(&test_env, &repo_path, "conflictB", &["b1", "b2"], &[]);
+    create_commit(
+        &test_env,
+        &repo_path,
+        "conflict",
+        &["conflictA", "conflictB"],
+        &[],
+    );
+
+    // TODO: The conflict should be simplified before being displayed.
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["resolve", "--list"]),
+    @r###"
+    fileA    4-sided conflict
+    fileB    4-sided conflict
+    "###);
+    // TODO: The conflict should be simplified before being materialized.
+    insta::assert_snapshot!(
+    std::fs::read_to_string(repo_path.join("fileA")).unwrap(), @r###"
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base #1 to side #1
+    -base
+    +1
+    +++++++ Contents of side #2
+    2
+    %%%%%%% Changes from base #2 to side #3
+     base
+    %%%%%%% Changes from base #3 to side #4
+     base
+    >>>>>>> Conflict 1 of 1 ends
+    "###);
+    insta::assert_snapshot!(
+    std::fs::read_to_string(repo_path.join("fileB")).unwrap(), @r###"
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base #1 to side #1
+     base
+    %%%%%%% Changes from base #2 to side #2
+     base
+    %%%%%%% Changes from base #3 to side #3
+    -base
+    +1
+    +++++++ Contents of side #4
+    2
+    >>>>>>> Conflict 1 of 1 ends
+    "###);
+
+    // TODO: The conflict should be simplified before being resolved.
+    let error = test_env.jj_cmd_failure(&repo_path, &["resolve", "fileB"]);
+    insta::assert_snapshot!(error, @r###"
+    Hint: Using default editor ':builtin'; run `jj config set --user ui.merge-editor :builtin` to disable this message.
+    Resolving conflicts in: fileB
+    Error: Failed to resolve conflicts
+    Caused by: The conflict at "fileB" has 4 sides. At most 2 sides are supported.
+    "###);
+}
+
+#[test]
 fn test_edit_delete_conflict_input_files() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);

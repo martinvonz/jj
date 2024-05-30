@@ -603,6 +603,69 @@ fn test_checkout_discard() {
 }
 
 #[test]
+fn test_materialize_conflicted_files() {
+    let settings = testutils::user_settings();
+    let mut test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo.clone();
+    let ws = &mut test_workspace.workspace;
+    let workspace_root = ws.workspace_root().clone();
+
+    // Create tree with 3-sided conflict, with file1 and file2 having different
+    // conflicts:
+    // file1: A - A + A - B + C
+    // file2: A - B + C - D + D
+    let file1_path = RepoPath::from_internal_string("file1");
+    let file2_path = RepoPath::from_internal_string("file2");
+    let side1_tree = create_tree(repo, &[(file1_path, "a\n"), (file2_path, "1\n")]);
+    let base1_tree = create_tree(repo, &[(file1_path, "a\n"), (file2_path, "2\n")]);
+    let side2_tree = create_tree(repo, &[(file1_path, "a\n"), (file2_path, "4\n")]);
+    let base2_tree = create_tree(repo, &[(file1_path, "b\n"), (file2_path, "3\n")]);
+    let side3_tree = create_tree(repo, &[(file1_path, "c\n"), (file2_path, "3\n")]);
+    let merged_tree = side1_tree
+        .merge(&base1_tree, &side2_tree)
+        .unwrap()
+        .merge(&base2_tree, &side3_tree)
+        .unwrap();
+    let commit = commit_with_tree(repo.store(), merged_tree.id());
+
+    let stats = ws.check_out(repo.op_id().clone(), None, &commit).unwrap();
+    assert_eq!(
+        stats,
+        CheckoutStats {
+            updated_files: 0,
+            added_files: 2,
+            removed_files: 0,
+            skipped_files: 0,
+        }
+    );
+
+    // TODO: Materialized conflicted file should be simplified.
+    insta::assert_snapshot!(std::fs::read_to_string(file1_path.to_fs_path(&workspace_root)).ok().unwrap(), @r###"
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base #1 to side #1
+     a
+    %%%%%%% Changes from base #2 to side #2
+    -b
+    +a
+    +++++++ Contents of side #3
+    c
+    >>>>>>> Conflict 1 of 1 ends
+    "###);
+    // TODO: Materialized conflicted file should be simplified.
+    insta::assert_snapshot!(std::fs::read_to_string(file2_path.to_fs_path(&workspace_root)).ok().unwrap(), @r###"
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base #1 to side #1
+    -2
+    +1
+    +++++++ Contents of side #2
+    4
+    %%%%%%% Changes from base #2 to side #3
+     3
+    >>>>>>> Conflict 1 of 1 ends
+    "###);
+}
+
+#[test]
 fn test_snapshot_racy_timestamps() {
     // Tests that file modifications are detected even if they happen the same
     // millisecond as the updated working copy state.

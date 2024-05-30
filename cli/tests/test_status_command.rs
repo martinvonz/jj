@@ -12,7 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
+
 use crate::common::TestEnvironment;
+
+fn create_commit(
+    test_env: &TestEnvironment,
+    repo_path: &Path,
+    name: &str,
+    parents: &[&str],
+    files: &[(&str, &str)],
+) {
+    if parents.is_empty() {
+        test_env.jj_cmd_ok(repo_path, &["new", "root()", "-m", name]);
+    } else {
+        let mut args = vec!["new", "-m", name];
+        args.extend(parents);
+        test_env.jj_cmd_ok(repo_path, &args);
+    }
+    for (name, content) in files {
+        std::fs::write(repo_path.join(name), content).unwrap();
+    }
+    test_env.jj_cmd_ok(repo_path, &["branch", "create", name]);
+}
 
 #[test]
 fn test_status_merge() {
@@ -149,6 +171,55 @@ fn test_status_display_rebase_instructions() {
     Parent commit: royxmykx ac5398e8 (conflict) (empty) boom-cont
     To resolve the conflicts, start by updating to the first one:
       jj new mzvwutvlkqwt
+    Then use `jj resolve`, or edit the conflict markers in the file directly.
+    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Then run `jj squash` to move the resolution into the conflicted commit.
+    "###);
+}
+
+#[test]
+fn test_status_simplify_conflict_sides() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Creates a 4-sided conflict, with fileA and fileB having different conflicts:
+    // fileA: A - B + C - B + B - B + B
+    // fileB: A - A + A - A + B - C + D
+    create_commit(
+        &test_env,
+        &repo_path,
+        "base",
+        &[],
+        &[("fileA", "base\n"), ("fileB", "base\n")],
+    );
+    create_commit(&test_env, &repo_path, "a1", &["base"], &[("fileA", "1\n")]);
+    create_commit(&test_env, &repo_path, "a2", &["base"], &[("fileA", "2\n")]);
+    create_commit(&test_env, &repo_path, "b1", &["base"], &[("fileB", "1\n")]);
+    create_commit(&test_env, &repo_path, "b2", &["base"], &[("fileB", "2\n")]);
+    create_commit(&test_env, &repo_path, "conflictA", &["a1", "a2"], &[]);
+    create_commit(&test_env, &repo_path, "conflictB", &["b1", "b2"], &[]);
+    create_commit(
+        &test_env,
+        &repo_path,
+        "conflict",
+        &["conflictA", "conflictB"],
+        &[],
+    );
+
+    // TODO: The conflict should be simplified before being displayed.
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["status"]),
+    @r###"
+    The working copy is clean
+    There are unresolved conflicts at these paths:
+    fileA    4-sided conflict
+    fileB    4-sided conflict
+    Working copy : nkmrtpmo 7b1cdcaa conflict | (conflict) (empty) conflict
+    Parent commit: kmkuslsw 18c1fb00 conflictA | (conflict) (empty) conflictA
+    Parent commit: lylxulpl d11c92eb conflictB | (conflict) (empty) conflictB
+    To resolve the conflicts, start by updating to one of the first ones:
+      jj new lylxulplsnyw
+      jj new kmkuslswpqwq
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
