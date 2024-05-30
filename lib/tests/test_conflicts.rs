@@ -839,6 +839,152 @@ fn test_update_conflict_from_content_modify_delete() {
     );
 }
 
+#[test]
+fn test_update_conflict_from_content_simplified_conflict() {
+    let test_repo = TestRepo::init();
+    let store = test_repo.repo.store();
+
+    let path = RepoPath::from_internal_string("dir/file");
+    let base_file_id = testutils::write_file(store, path, "line 1\nline 2\nline 3\n");
+    let left_file_id = testutils::write_file(store, path, "left 1\nline 2\nleft 3\n");
+    let right_file_id = testutils::write_file(store, path, "right 1\nline 2\nright 3\n");
+    // Conflict: left - base + base - base + right
+    let conflict = Merge::from_removes_adds(
+        vec![Some(base_file_id.clone()), Some(base_file_id.clone())],
+        vec![
+            Some(left_file_id.clone()),
+            Some(base_file_id.clone()),
+            Some(right_file_id.clone()),
+        ],
+    );
+    let simplified_conflict = conflict.clone().simplify();
+
+    // If the content is unchanged compared to the materialized value, we get the
+    // old conflict id back. Both the simplified and unsimplified materialized
+    // conflicts should return the old conflict id.
+    let materialized = materialize_conflict_string(store, path, &conflict);
+    let materialized_simplified = materialize_conflict_string(store, path, &simplified_conflict);
+    let parse = |content| {
+        update_from_content(&conflict, store, path, content)
+            .block_on()
+            .unwrap()
+    };
+    insta::assert_snapshot!(
+        materialized,
+        @r###"
+    <<<<<<< Conflict 1 of 2
+    +++++++ Contents of side #1
+    left 1
+    %%%%%%% Changes from base #1 to side #2
+     line 1
+    %%%%%%% Changes from base #2 to side #3
+    -line 1
+    +right 1
+    >>>>>>> Conflict 1 of 2 ends
+    line 2
+    <<<<<<< Conflict 2 of 2
+    +++++++ Contents of side #1
+    left 3
+    %%%%%%% Changes from base #1 to side #2
+     line 3
+    %%%%%%% Changes from base #2 to side #3
+    -line 3
+    +right 3
+    >>>>>>> Conflict 2 of 2 ends
+    "###
+    );
+    insta::assert_snapshot!(
+        materialized_simplified,
+        @r###"
+    <<<<<<< Conflict 1 of 2
+    %%%%%%% Changes from base to side #1
+    -line 1
+    +left 1
+    +++++++ Contents of side #2
+    right 1
+    >>>>>>> Conflict 1 of 2 ends
+    line 2
+    <<<<<<< Conflict 2 of 2
+    %%%%%%% Changes from base to side #1
+    -line 3
+    +left 3
+    +++++++ Contents of side #2
+    right 3
+    >>>>>>> Conflict 2 of 2 ends
+    "###
+    );
+    assert_eq!(parse(materialized.as_bytes()), conflict);
+    assert_eq!(parse(materialized_simplified.as_bytes()), conflict);
+
+    // If the conflict is resolved, we get a normal merge back to indicate that.
+    let expected_file_id = testutils::write_file(store, path, "resolved 1\nline 2\nresolved 3\n");
+    assert_eq!(
+        parse(b"resolved 1\nline 2\nresolved 3\n"),
+        Merge::normal(expected_file_id)
+    );
+
+    // If the conflict is partially resolved, we get a new conflict back.
+    // This should work with both the simplified and unsimplified conflict.
+    let new_conflict = parse(indoc! {b"
+        resolved 1
+        line 2
+        <<<<<<< Conflict 2 of 2
+        +++++++ Contents of side #1
+        edited left 3
+        %%%%%%% Changes from base #1 to side #2
+         edited line 3
+        %%%%%%% Changes from base #2 to side #3
+        -edited line 3
+        +edited right 3
+        >>>>>>> Conflict 2 of 2 ends
+    "});
+    let new_simplified_conflict = parse(indoc! {b"
+        resolved 1
+        line 2
+        <<<<<<< Conflict 2 of 2
+        %%%%%%% Changes from base to side #1
+        -edited line 3
+        +edited left 3
+        +++++++ Contents of side #2
+        edited right 3
+        >>>>>>> Conflict 2 of 2 ends
+    "});
+    assert_ne!(new_conflict, conflict);
+    assert_ne!(new_simplified_conflict, conflict);
+    // Calculate expected new FileIds
+    let new_base_file_id =
+        testutils::write_file(store, path, "resolved 1\nline 2\nedited line 3\n");
+    let new_left_file_id =
+        testutils::write_file(store, path, "resolved 1\nline 2\nedited left 3\n");
+    let new_right_file_id =
+        testutils::write_file(store, path, "resolved 1\nline 2\nedited right 3\n");
+    assert_eq!(
+        new_conflict,
+        Merge::from_removes_adds(
+            vec![
+                Some(new_base_file_id.clone()),
+                Some(new_base_file_id.clone())
+            ],
+            vec![
+                Some(new_left_file_id.clone()),
+                Some(new_base_file_id.clone()),
+                Some(new_right_file_id.clone())
+            ]
+        )
+    );
+    assert_eq!(
+        new_simplified_conflict,
+        Merge::from_removes_adds(
+            vec![Some(base_file_id.clone()), Some(new_base_file_id.clone())],
+            vec![
+                Some(new_left_file_id.clone()),
+                Some(base_file_id.clone()),
+                Some(new_right_file_id.clone())
+            ]
+        )
+    );
+}
+
 fn materialize_conflict_string(
     store: &Store,
     path: &RepoPath,
