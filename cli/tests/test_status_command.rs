@@ -207,13 +207,12 @@ fn test_status_simplify_conflict_sides() {
         &[],
     );
 
-    // TODO: The conflict should be simplified before being displayed.
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["status"]),
     @r###"
     The working copy is clean
     There are unresolved conflicts at these paths:
-    fileA    4-sided conflict
-    fileB    4-sided conflict
+    fileA    2-sided conflict
+    fileB    2-sided conflict
     Working copy : nkmrtpmo 7b1cdcaa conflict | (conflict) (empty) conflict
     Parent commit: kmkuslsw 18c1fb00 conflictA | (conflict) (empty) conflictA
     Parent commit: lylxulpl d11c92eb conflictB | (conflict) (empty) conflictB
