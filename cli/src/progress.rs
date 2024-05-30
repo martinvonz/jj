@@ -60,7 +60,7 @@ impl Progress {
         self.next_print = now.min(self.next_print + Duration::from_secs(1) / UPDATE_HZ);
 
         self.buffer.clear();
-        write!(self.buffer, "\r{}", Clear(ClearType::CurrentLine)).unwrap();
+        write!(self.buffer, "\r").unwrap();
         let control_chars = self.buffer.len();
         write!(self.buffer, "{: >3.0}% ", 100.0 * progress.overall).unwrap();
         if let Some(total) = progress.bytes_downloaded {
@@ -81,6 +81,7 @@ impl Progress {
         draw_progress(progress.overall, &mut self.buffer, bar_width);
         self.buffer.push(']');
 
+        write!(self.buffer, "{}", Clear(ClearType::UntilNewLine)).unwrap();
         write!(output, "{}", self.buffer)?;
         output.flush()?;
         Ok(())
