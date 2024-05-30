@@ -19,6 +19,7 @@ use std::os::unix::net::UnixListener;
 use std::path::Path;
 use std::sync::Arc;
 
+use indoc::indoc;
 use itertools::Itertools;
 use jj_lib::backend::{MergedTreeId, TreeId, TreeValue};
 use jj_lib::file_util::{check_symlink_support, try_symlink};
@@ -603,7 +604,7 @@ fn test_checkout_discard() {
 }
 
 #[test]
-fn test_materialize_conflicted_files() {
+fn test_materialize_snapshot_conflicted_files() {
     let settings = testutils::user_settings();
     let mut test_workspace = TestWorkspace::init(&settings);
     let repo = &test_workspace.repo.clone();
@@ -663,6 +664,55 @@ fn test_materialize_conflicted_files() {
     4
     >>>>>>> Conflict 1 of 1 ends
     "###);
+
+    // Editing a conflicted file should correctly propagate updates to each of
+    // the conflicting trees.
+    testutils::write_working_copy_file(
+        &workspace_root,
+        file1_path,
+        indoc! {"
+            <<<<<<< Conflict 1 of 1
+            %%%%%%% Changes from base to side #1
+            -b_edited
+            +a_edited
+            +++++++ Contents of side #2
+            c_edited
+            >>>>>>> Conflict 1 of 1 ends
+        "},
+    );
+
+    let edited_tree = test_workspace.snapshot().unwrap();
+    let edited_file_value = edited_tree.path_value(file1_path).unwrap();
+    let edited_file_values = edited_file_value.iter().flatten().collect_vec();
+    assert_eq!(edited_file_values.len(), 5);
+
+    let get_file_id = |value: &TreeValue| match value {
+        TreeValue::File { id, .. } => id.clone(),
+        _ => panic!("unexpected value: {value:#?}"),
+    };
+    // The file IDs with indices 0 and 1 are the original unedited file values
+    // which were simplified.
+    let edited_file_file_id_0 = get_file_id(edited_file_values[0]);
+    assert_eq!(
+        testutils::read_file(repo.store(), file1_path, &edited_file_file_id_0),
+        b"a\n"
+    );
+    assert_eq!(edited_file_values[0], edited_file_values[1]);
+    let edited_file_file_id_2 = get_file_id(edited_file_values[2]);
+    assert_eq!(
+        testutils::read_file(repo.store(), file1_path, &edited_file_file_id_2),
+        b"a_edited\n"
+    );
+    let edited_file_file_id_3 = get_file_id(edited_file_values[3]);
+    assert_eq!(
+        testutils::read_file(repo.store(), file1_path, &edited_file_file_id_3),
+        b"b_edited\n"
+    );
+    let edited_file_file_id_4 = get_file_id(edited_file_values[4]);
+    assert_eq!(
+        testutils::read_file(repo.store(), file1_path, &edited_file_file_id_4),
+        b"c_edited\n"
+    );
 }
 
 #[test]
