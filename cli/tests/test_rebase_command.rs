@@ -288,21 +288,20 @@ fn test_rebase_branch_with_merge() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "e", "-d", "b"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Rebased 3 commits
-    Working copy now at: kmkuslsw 29e82c87 f | f
-    Parent commit      : royxmykx c0cb3a0b c | c
+    Rebased 4 commits
+    Working copy now at: kmkuslsw 8e1bc220 f | f
+    Parent commit      : royxmykx e258dccc c | c
     Parent commit      : znkkpsqq 6b5a695a e | e
     Added 1 files, modified 0 files, removed 0 files
     "###);
-    // TODO: Commit c should also have been rebased
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    f
     ├─╮
     │ ◉  e
     │ ◉  d
-    │ ◉  b
     ◉ │  c
     ├─╯
+    ◉  b
     ◉  a
     ◉
     "###);
