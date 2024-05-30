@@ -80,6 +80,10 @@ to avoid letting the user edit the immutable one.
 * Files with conflicts are now checked out as executable if all sides of the 
   conflict are executable.
 
+* The progress bar (visible when using e.g. `jj git clone`) clears the
+  remainder of the cursor row after drawing rather than clearing the entire row
+  before drawing, eliminating the "flicker" effect seen on some terminals.
+
 ## [0.17.1] - 2024-05-07
 
 ### Fixed bugs
