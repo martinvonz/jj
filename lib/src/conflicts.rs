@@ -114,6 +114,7 @@ pub async fn materialize(
     output: &mut dyn Write,
 ) -> std::io::Result<()> {
     if let Some(file_merge) = conflict.to_file_merge() {
+        let file_merge = file_merge.simplify();
         let content = extract_as_single_hunk(&file_merge, store, path).await;
         materialize_merge_result(&content, output)
     } else {

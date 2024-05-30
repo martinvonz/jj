@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Revset/template aliases now support function overloading.
   [#2966](https://github.com/martinvonz/jj/issues/2966)
 
+* Conflicted files are individually simplified before being materialized.
+
 ### Fixed bugs
 
 ## [0.18.0] - 2024-06-05
