@@ -61,6 +61,11 @@ fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes"])
 }
 
+fn get_log_output(test_env: &TestEnvironment, workspace_root: &Path) -> String {
+    let template = r#"separate(" ", commit_id.short(), branches, git_head, description)"#;
+    test_env.jj_cmd_success(workspace_root, &["log", "-T", template, "-r=all()"])
+}
+
 fn read_git_target(workspace_root: &Path) -> String {
     let mut path = workspace_root.to_path_buf();
     path.extend([".jj", "repo", "store", "git_target"]);
@@ -134,12 +139,11 @@ fn test_git_init_external(bare: bool) {
     }
 
     // Check that the Git repo's HEAD got checked out
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "@-"]);
     insta::allow_duplicates! {
-        insta::assert_snapshot!(stdout, @r###"
-        ◉  mwrttmos git.user@example.com 1970-01-01 11:02:03 my-branch HEAD@git 8d698d4a
-        │  My commit message
-        ~
+        insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+        @  f6950fc115ae
+        ◉  8d698d4a8ee1 my-branch HEAD@git My commit message
+        ◉  000000000000
         "###);
     }
 }
@@ -203,20 +207,19 @@ fn test_git_init_colocated_via_git_repo_path() {
         .ends_with("../../../.git"));
 
     // Check that the Git repo's HEAD got checked out
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  mwrttmos git.user@example.com 1970-01-01 11:02:03 my-branch HEAD@git 8d698d4a
-    │  My commit message
-    ~
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  f61b77cd4bb5
+    ◉  8d698d4a8ee1 my-branch HEAD@git My commit message
+    ◉  000000000000
     "###);
 
     // Check that the Git repo's HEAD moves
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  sqpuoqvx test.user@example.com 2001-02-03 08:05:07 HEAD@git f61b77cd
-    │  (no description set)
-    ~
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  f1c7aa7c62d8
+    ◉  f61b77cd4bb5 HEAD@git
+    ◉  8d698d4a8ee1 my-branch My commit message
+    ◉  000000000000
     "###);
 }
 
@@ -240,20 +243,19 @@ fn test_git_init_colocated_via_git_repo_path_gitlink() {
     insta::assert_snapshot!(read_git_target(&workspace_root), @"../../../.git");
 
     // Check that the Git repo's HEAD got checked out
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  mwrttmos git.user@example.com 1970-01-01 11:02:03 my-branch HEAD@git 8d698d4a
-    │  My commit message
-    ~
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  f61b77cd4bb5
+    ◉  8d698d4a8ee1 my-branch HEAD@git My commit message
+    ◉  000000000000
     "###);
 
     // Check that the Git repo's HEAD moves
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  sqpuoqvx test.user@example.com 2001-02-03 08:05:07 HEAD@git f61b77cd
-    │  (no description set)
-    ~
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  f1c7aa7c62d8
+    ◉  f61b77cd4bb5 HEAD@git
+    ◉  8d698d4a8ee1 my-branch My commit message
+    ◉  000000000000
     "###);
 }
 
@@ -276,20 +278,19 @@ fn test_git_init_colocated_via_git_repo_path_symlink_directory() {
     insta::assert_snapshot!(read_git_target(&workspace_root), @"../../../.git");
 
     // Check that the Git repo's HEAD got checked out
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  mwrttmos git.user@example.com 1970-01-01 11:02:03 my-branch HEAD@git 8d698d4a
-    │  My commit message
-    ~
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  f61b77cd4bb5
+    ◉  8d698d4a8ee1 my-branch HEAD@git My commit message
+    ◉  000000000000
     "###);
 
     // Check that the Git repo's HEAD moves
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  sqpuoqvx test.user@example.com 2001-02-03 08:05:07 HEAD@git f61b77cd
-    │  (no description set)
-    ~
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  f1c7aa7c62d8
+    ◉  f61b77cd4bb5 HEAD@git
+    ◉  8d698d4a8ee1 my-branch My commit message
+    ◉  000000000000
     "###);
 }
 
@@ -315,20 +316,19 @@ fn test_git_init_colocated_via_git_repo_path_symlink_directory_without_bare_conf
     insta::assert_snapshot!(read_git_target(&workspace_root), @"../../../.git");
 
     // Check that the Git repo's HEAD got checked out
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  mwrttmos git.user@example.com 1970-01-01 11:02:03 my-branch HEAD@git 8d698d4a
-    │  My commit message
-    ~
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  f61b77cd4bb5
+    ◉  8d698d4a8ee1 my-branch HEAD@git My commit message
+    ◉  000000000000
     "###);
 
     // Check that the Git repo's HEAD moves
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  sqpuoqvx test.user@example.com 2001-02-03 08:05:07 HEAD@git f61b77cd
-    │  (no description set)
-    ~
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  f1c7aa7c62d8
+    ◉  f61b77cd4bb5 HEAD@git
+    ◉  8d698d4a8ee1 my-branch My commit message
+    ◉  000000000000
     "###);
 }
 
@@ -356,20 +356,19 @@ fn test_git_init_colocated_via_git_repo_path_symlink_gitlink() {
     insta::assert_snapshot!(read_git_target(&workspace_root), @"../../../.git");
 
     // Check that the Git repo's HEAD got checked out
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  mwrttmos git.user@example.com 1970-01-01 11:02:03 my-branch HEAD@git 8d698d4a
-    │  My commit message
-    ~
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  f61b77cd4bb5
+    ◉  8d698d4a8ee1 my-branch HEAD@git My commit message
+    ◉  000000000000
     "###);
 
     // Check that the Git repo's HEAD moves
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  sqpuoqvx test.user@example.com 2001-02-03 08:05:07 HEAD@git f61b77cd
-    │  (no description set)
-    ~
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  f1c7aa7c62d8
+    ◉  f61b77cd4bb5 HEAD@git
+    ◉  8d698d4a8ee1 my-branch My commit message
+    ◉  000000000000
     "###);
 }
 
@@ -523,18 +522,17 @@ fn test_git_init_external_but_git_dir_exists() {
     "###);
 
     // The local ".git" repository is unrelated, so no commits should be imported
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  zzzzzzzz root() 00000000
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  230dd059e1b0
+    ◉  000000000000
     "###);
 
     // Check that Git HEAD is not set because this isn't a colocated repo
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  qpvuntsm test.user@example.com 2001-02-03 08:05:07 230dd059
-    │  (empty) (no description set)
-    ~
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  4db490c88528
+    ◉  230dd059e1b0
+    ◉  000000000000
     "###);
 }
 
@@ -553,20 +551,19 @@ fn test_git_init_colocated_via_flag_git_dir_exists() {
     "###);
 
     // Check that the Git repo's HEAD got checked out
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  mwrttmos git.user@example.com 1970-01-01 11:02:03 my-branch HEAD@git 8d698d4a
-    │  My commit message
-    ~
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  f61b77cd4bb5
+    ◉  8d698d4a8ee1 my-branch HEAD@git My commit message
+    ◉  000000000000
     "###);
 
     // Check that the Git repo's HEAD moves
     test_env.jj_cmd_ok(&workspace_root, &["new"]);
-    let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "@-"]);
-    insta::assert_snapshot!(stdout, @r###"
-    ◉  sqpuoqvx test.user@example.com 2001-02-03 08:05:07 HEAD@git f61b77cd
-    │  (no description set)
-    ~
+    insta::assert_snapshot!(get_log_output(&test_env, &workspace_root), @r###"
+    @  f1c7aa7c62d8
+    ◉  f61b77cd4bb5 HEAD@git
+    ◉  8d698d4a8ee1 my-branch My commit message
+    ◉  000000000000
     "###);
 }
 
