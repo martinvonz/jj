@@ -23,7 +23,7 @@ use jj_lib::merged_tree::{
     MergedTree, MergedTreeBuilder, MergedTreeVal, TreeDiffIterator, TreeDiffStreamImpl,
 };
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::{RepoPath, RepoPathComponent};
+use jj_lib::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
 use jj_lib::tree::merge_trees;
 use pretty_assertions::assert_eq;
 use testutils::{create_single_tree, write_file, TestRepo};
@@ -243,6 +243,28 @@ fn test_from_legacy_tree() {
     );
     let recreated_merged_id = tree_builder.write_tree(store).unwrap();
     assert_eq!(recreated_merged_id, merged_tree.id());
+}
+
+/// Test that a tree built with no changes on top of an add/add conflict gets
+/// resolved.
+#[test]
+fn test_merged_tree_builder_resolves_conflict() {
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+    let store = repo.store();
+
+    let path1 = RepoPathBuf::from_internal_string("dir/file");
+    let tree1 = create_single_tree(repo, &[(&path1, "foo")]);
+    let tree2 = create_single_tree(repo, &[(&path1, "bar")]);
+    let tree3 = create_single_tree(repo, &[(&path1, "bar")]);
+
+    let base_tree_id = MergedTreeId::Merge(Merge::from_removes_adds(
+        [tree1.id().clone()],
+        [tree2.id().clone(), tree3.id().clone()],
+    ));
+    let tree_builder = MergedTreeBuilder::new(base_tree_id);
+    let tree_id = tree_builder.write_tree(store).unwrap();
+    assert_eq!(tree_id, MergedTreeId::resolved(tree2.id().clone()));
 }
 
 #[test]

@@ -512,7 +512,7 @@ fn test_fix_resolve_conflict() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Fixed 3 commits of 3 checked.
-    Working copy now at: mzvwutvl 98dec555 (conflict) (no description set)
+    Working copy now at: mzvwutvl 669396ce (empty) (no description set)
     Parent commit      : qpvuntsm 3c63716f a | (no description set)
     Parent commit      : kkmpptxz 82703f5e b | (no description set)
     Added 0 files, modified 1 files, removed 0 files

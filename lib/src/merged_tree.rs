@@ -1197,7 +1197,14 @@ impl MergedTreeBuilder {
             MergedTreeId::Merge(base_tree_ids) => base_tree_ids,
         };
         let new_tree_ids = self.write_merged_trees(base_tree_ids, store)?;
-        Ok(MergedTreeId::Merge(new_tree_ids.simplify()))
+        match new_tree_ids.simplify().into_resolved() {
+            Ok(single_tree_id) => Ok(MergedTreeId::resolved(single_tree_id)),
+            Err(tree_id) => {
+                let tree = store.get_root_tree(&MergedTreeId::Merge(tree_id))?;
+                let resolved = tree.resolve()?;
+                Ok(resolved.id())
+            }
+        }
     }
 
     fn write_merged_trees(
