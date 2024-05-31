@@ -16,6 +16,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use jj_lib::git::{parse_git_ref, RefName};
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::workspace::Workspace;
 use jj_lib::{file_util, git};
@@ -23,8 +24,9 @@ use jj_lib::{file_util, git};
 use crate::cli_util::{print_trackable_remote_branches, start_repo_transaction, CommandHelper};
 use crate::command_error::{user_error_with_hint, user_error_with_message, CommandError};
 use crate::commands::git::maybe_add_gitignore;
+use crate::config::{write_config_value_to_file, ConfigNamePathBuf};
 use crate::git_util::{
-    is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
+    get_git_repo, is_colocated_git_workspace, print_failed_git_export, print_git_import_stats,
 };
 use crate::ui::Ui;
 
@@ -152,6 +154,7 @@ pub fn do_init(
             let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
             maybe_add_gitignore(&workspace_command)?;
             workspace_command.maybe_snapshot(ui)?;
+            maybe_set_repository_level_trunk_alias(ui, workspace_command.repo())?;
             if !workspace_command.working_copy_shared_with_git() {
                 let mut tx = workspace_command.start_transaction();
                 jj_lib::git::import_head(tx.mut_repo())?;
@@ -209,4 +212,34 @@ fn init_git_refs(
         "Done importing changes from the underlying Git repo."
     )?;
     Ok(repo)
+}
+
+// Set repository level `trunk()` alias to the default branch for "origin".
+pub fn maybe_set_repository_level_trunk_alias(
+    ui: &Ui,
+    repo: &Arc<ReadonlyRepo>,
+) -> Result<(), CommandError> {
+    let git_repo = get_git_repo(repo.store())?;
+    if let Ok(reference) = git_repo.find_reference("refs/remotes/origin/HEAD") {
+        if let Some(reference_name) = reference.symbolic_target() {
+            if let Some(RefName::RemoteBranch {
+                branch: default_branch,
+                ..
+            }) = parse_git_ref(reference_name)
+            {
+                let config_path = repo.repo_path().join("config.toml");
+                write_config_value_to_file(
+                    &ConfigNamePathBuf::from_iter(["revset-aliases", "trunk()"]),
+                    &format!("{default_branch}@origin"),
+                    &config_path,
+                )?;
+                writeln!(
+                    ui.status(),
+                    "Setting the revset alias \"trunk()\" to \"{default_branch}@origin\"",
+                )?;
+            }
+        };
+    };
+
+    Ok(())
 }

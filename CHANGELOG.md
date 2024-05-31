@@ -18,8 +18,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   individually instead of being passed a directory by setting
   `merge-tools.$TOOL.diff-invocation-mode="file-by-file"` in config.toml.
 
-* `jj git clone` adds the default branch of the remote as repository
-  settings for `revset-aliases."trunk()"`.`
+* `jj git clone` and `jj git init` with an existing git repository adds the
+  default branch of the remote as repository settings for
+  `revset-aliases."trunk()"`.`
 
 ### Fixed bugs
 
