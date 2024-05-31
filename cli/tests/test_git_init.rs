@@ -148,6 +148,65 @@ fn test_git_init_external(bare: bool) {
     }
 }
 
+#[test_case(false; "full")]
+#[test_case(true; "bare")]
+fn test_git_init_external_import_trunk(bare: bool) {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("git-repo");
+    let git_repo = init_git_repo(&git_repo_path, bare);
+
+    // Add remote branch "trunk" for remote "origin", and set it as "origin/HEAD"
+    let oid = git_repo
+        .find_reference("refs/heads/my-branch")
+        .unwrap()
+        .target()
+        .unwrap();
+    git_repo
+        .reference("refs/remotes/origin/trunk", oid, false, "")
+        .unwrap();
+    git_repo
+        .reference_symbolic(
+            "refs/remotes/origin/HEAD",
+            "refs/remotes/origin/trunk",
+            false,
+            "",
+        )
+        .unwrap();
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &[
+            "git",
+            "init",
+            "repo",
+            "--git-repo",
+            git_repo_path.to_str().unwrap(),
+        ],
+    );
+    insta::allow_duplicates! {
+        insta::assert_snapshot!(stdout, @"");
+        insta::assert_snapshot!(stderr, @r###"
+        Done importing changes from the underlying Git repo.
+        Setting the revset alias "trunk()" to "trunk@origin"
+        Working copy now at: sqpuoqvx f6950fc1 (empty) (no description set)
+        Parent commit      : mwrttmos 8d698d4a my-branch trunk@origin | My commit message
+        Added 1 files, modified 0 files, removed 0 files
+        Initialized repo in "repo"
+        "###);
+    }
+
+    // "trunk()" alias should be set to remote "origin"'s default branch "trunk"
+    let stdout = test_env.jj_cmd_success(
+        &test_env.env_root().join("repo"),
+        &["config", "list", "--repo", "revset-aliases.\"trunk()\""],
+    );
+    insta::allow_duplicates! {
+    insta::assert_snapshot!(stdout, @r###"
+    revset-aliases."trunk()" = "trunk@origin"
+    "###);
+    }
+}
+
 #[test]
 fn test_git_init_external_non_existent_directory() {
     let test_env = TestEnvironment::default();
