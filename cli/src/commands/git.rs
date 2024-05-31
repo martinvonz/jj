@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -25,6 +25,7 @@ use jj_lib::file_util;
 use jj_lib::git::{
     self, parse_gitmodules, GitBranchPushTargets, GitFetchError, GitFetchStats, GitPushError,
 };
+use jj_lib::index::Index;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::RefTarget;
 use jj_lib::refs::{
@@ -790,11 +791,13 @@ fn do_git_clone(
     Ok((workspace_command, stats))
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum BranchMoveDirection {
-    Forward,
-    Backward,
-    Sideways,
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum BranchPushLabel {
+    MoveForward { old: String, new: String },
+    MoveBackward { old: String, new: String },
+    MoveSideways { old: String, new: String },
+    Add(String),
+    Delete { old: String },
 }
 
 fn cmd_git_push(
@@ -814,11 +817,11 @@ fn cmd_git_push(
     let repo = workspace_command.repo().clone();
     let mut tx = workspace_command.start_transaction();
     let tx_description;
-    let mut branch_updates = vec![];
+    let mut labeled_branch_updates = vec![];
     if args.all {
         for (branch_name, targets) in repo.view().local_remote_branches(&remote) {
-            match classify_branch_update(branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
+            match classify_branch_update(branch_name, &remote, targets, repo.index()) {
+                Ok(Some(update)) => labeled_branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
             }
@@ -829,8 +832,8 @@ fn cmd_git_push(
             if !targets.remote_ref.is_tracking() {
                 continue;
             }
-            match classify_branch_update(branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
+            match classify_branch_update(branch_name, &remote, targets, repo.index()) {
+                Ok(Some(update)) => labeled_branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
             }
@@ -841,8 +844,8 @@ fn cmd_git_push(
             if targets.local_target.is_present() {
                 continue;
             }
-            match classify_branch_update(branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
+            match classify_branch_update(branch_name, &remote, targets, repo.index()) {
+                Ok(Some(update)) => labeled_branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
             }
@@ -870,8 +873,8 @@ fn cmd_git_push(
             if !seen_branches.insert(branch_name) {
                 continue;
             }
-            match classify_branch_update(branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
+            match classify_branch_update(branch_name, &remote, targets, repo.index()) {
+                Ok(Some(update)) => labeled_branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => writeln!(
                     ui.status(),
                     "Branch {branch_name}@{remote} already matches {branch_name}",
@@ -893,8 +896,8 @@ fn cmd_git_push(
             if !seen_branches.insert(branch_name) {
                 continue;
             }
-            match classify_branch_update(branch_name, &remote, targets) {
-                Ok(Some(update)) => branch_updates.push((branch_name.to_owned(), update)),
+            match classify_branch_update(branch_name, &remote, targets, repo.index()) {
+                Ok(Some(update)) => labeled_branch_updates.push((branch_name.to_owned(), update)),
                 Ok(None) => {}
                 Err(reason) => reason.print(ui)?,
             }
@@ -903,7 +906,7 @@ fn cmd_git_push(
         tx_description = format!(
             "push {} to git remote {}",
             make_branch_term(
-                &branch_updates
+                &labeled_branch_updates
                     .iter()
                     .map(|(branch, _)| branch.as_str())
                     .collect_vec()
@@ -911,29 +914,15 @@ fn cmd_git_push(
             &remote
         );
     }
-    if branch_updates.is_empty() {
+    if labeled_branch_updates.is_empty() {
         writeln!(ui.status(), "Nothing changed.")?;
         return Ok(());
     }
 
     let mut new_heads = vec![];
-    let mut branch_push_direction = HashMap::new();
-    for (branch_name, update) in &branch_updates {
+    for (_branch_name, (update, _label)) in &labeled_branch_updates {
         if let Some(new_target) = &update.new_target {
             new_heads.push(new_target.clone());
-            if let Some(old_target) = &update.old_target {
-                assert_ne!(old_target, new_target);
-                branch_push_direction.insert(
-                    branch_name.to_string(),
-                    if repo.index().is_ancestor(old_target, new_target) {
-                        BranchMoveDirection::Forward
-                    } else if repo.index().is_ancestor(new_target, old_target) {
-                        BranchMoveDirection::Backward
-                    } else {
-                        BranchMoveDirection::Sideways
-                    },
-                );
-            }
         }
     }
 
@@ -981,47 +970,27 @@ fn cmd_git_push(
     }
 
     writeln!(ui.status(), "Branch changes to push to {}:", &remote)?;
-    for (branch_name, update) in &branch_updates {
-        match (&update.old_target, &update.new_target) {
-            (Some(old_target), Some(new_target)) => {
-                let old = short_commit_hash(old_target);
-                let new = short_commit_hash(new_target);
-                // TODO(ilyagr): Add color. Once there is color, "Move branch ... sideways" may
-                // read more naturally than "Move sideways branch ...". Without color, it's hard
-                // to see at a glance if one branch among many was moved sideways (say).
-                // TODO: People on Discord suggest "Move branch ... forward by n commits",
-                // possibly "Move branch ... sideways (X forward, Y back)".
-                let msg = match branch_push_direction.get(branch_name).unwrap() {
-                    BranchMoveDirection::Forward => {
-                        format!("Move forward branch {branch_name} from {old} to {new}")
-                    }
-                    BranchMoveDirection::Backward => {
-                        format!("Move backward branch {branch_name} from {old} to {new}")
-                    }
-                    BranchMoveDirection::Sideways => {
-                        format!("Move sideways branch {branch_name} from {old} to {new}")
-                    }
-                };
-                writeln!(ui.status(), "  {msg}")?;
+    let mut branch_updates = Vec::with_capacity(labeled_branch_updates.len());
+    for (branch_name, (update, label)) in labeled_branch_updates {
+        // TODO(ilyagr): Add color. Once there is color, "Move branch ...
+        // sideways" may read more naturally than "Move sideways branch
+        // ...". Without color, it's hard to see at a glance if one branch
+        // among many was moved sideways (say).
+        let message = match label {
+            BranchPushLabel::MoveForward { old, new } => {
+                format!("Move forward branch {branch_name} from {old} to {new}")
             }
-            (Some(old_target), None) => {
-                writeln!(
-                    ui.status(),
-                    "  Delete branch {branch_name} from {}",
-                    short_commit_hash(old_target)
-                )?;
+            BranchPushLabel::MoveBackward { old, new } => {
+                format!("Move backward branch {branch_name} from {old} to {new}")
             }
-            (None, Some(new_target)) => {
-                writeln!(
-                    ui.status(),
-                    "  Add branch {branch_name} to {}",
-                    short_commit_hash(new_target)
-                )?;
+            BranchPushLabel::MoveSideways { old, new } => {
+                format!("Move sideways branch {branch_name} from {old} to {new}")
             }
-            (None, None) => {
-                panic!("Not pushing any change to branch {branch_name}");
-            }
-        }
+            BranchPushLabel::Add(new) => format!("Add branch {branch_name} to {new}",),
+            BranchPushLabel::Delete { old } => format!("Delete branch {branch_name} from {old}",),
+        };
+        writeln!(ui.status(), "  {}", message)?;
+        branch_updates.push((branch_name, update));
     }
 
     if args.dry_run {
@@ -1106,7 +1075,8 @@ fn classify_branch_update(
     branch_name: &str,
     remote_name: &str,
     targets: LocalAndRemoteRef,
-) -> Result<Option<BranchPushUpdate>, RejectedBranchUpdateReason> {
+    index: &dyn Index,
+) -> Result<Option<(BranchPushUpdate, BranchPushLabel)>, RejectedBranchUpdateReason> {
     let push_action = classify_branch_push_action(targets);
     match push_action {
         BranchPushAction::AlreadyMatches => Ok(None),
@@ -1126,7 +1096,33 @@ fn classify_branch_update(
                 "Run `jj branch track {branch_name}@{remote_name}` to import the remote branch."
             )),
         }),
-        BranchPushAction::Update(update) => Ok(Some(update)),
+        BranchPushAction::Update(update) => {
+            assert_ne!(&update.old_target, &update.new_target);
+            let label = match (&update.old_target, &update.new_target) {
+                (Some(old_target), Some(new_target)) => {
+                    let old = short_commit_hash(old_target);
+                    let new = short_commit_hash(new_target);
+                    // TODO(ilyagr): This could become `BranchPushLabel::Move{
+                    // old, new, forward: usize, backward: usize }`. Then, we
+                    // could implement a Discord suggestion: "Move branch ...
+                    // forward by n commits", possibly "Move branch ... sideways
+                    // (X forward, Y back)".
+                    if index.is_ancestor(old_target, new_target) {
+                        BranchPushLabel::MoveForward { old, new }
+                    } else if index.is_ancestor(new_target, old_target) {
+                        BranchPushLabel::MoveBackward { old, new }
+                    } else {
+                        BranchPushLabel::MoveSideways { old, new }
+                    }
+                }
+                (Some(old_target), None) => BranchPushLabel::Delete {
+                    old: short_commit_hash(old_target),
+                },
+                (None, Some(new_target)) => BranchPushLabel::Add(short_commit_hash(new_target)),
+                (None, None) => unreachable!("Just checked these are not equal"),
+            };
+            Ok(Some((update, label)))
+        }
     }
 }
 
