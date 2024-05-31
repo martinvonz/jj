@@ -187,7 +187,7 @@ impl MergedTree {
     /// the input.
     pub fn resolve(&self) -> BackendResult<Merge<Tree>> {
         match self {
-            MergedTree::Legacy(tree) => Ok(Merge::resolved(tree.clone())),
+            MergedTree::Legacy(_) => panic!("Cannot resolve conflicts in legacy tree"),
             MergedTree::Merge(trees) => merge_trees(trees),
         }
     }
