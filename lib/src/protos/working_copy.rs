@@ -38,6 +38,8 @@ pub struct TreeState {
     pub tree_ids: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
     #[prost(message, repeated, tag = "2")]
     pub file_states: ::prost::alloc::vec::Vec<FileStateEntry>,
+    #[prost(bool, tag = "6")]
+    pub is_file_states_sorted: bool,
     #[prost(message, optional, tag = "3")]
     pub sparse_patterns: ::core::option::Option<SparsePatterns>,
     #[prost(message, optional, tag = "4")]

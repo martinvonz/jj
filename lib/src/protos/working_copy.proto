@@ -47,6 +47,7 @@ message TreeState {
   // single (positive) value
   repeated bytes tree_ids = 5;
   repeated FileStateEntry file_states = 2;
+  bool is_file_states_sorted = 6;
   SparsePatterns sparse_patterns = 3;
   WatchmanClock watchman_clock = 4;
 }

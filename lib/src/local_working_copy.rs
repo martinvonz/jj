@@ -149,13 +149,17 @@ impl FileStatesMap {
         FileStatesMap { data: Vec::new() }
     }
 
-    // TODO: skip sorting if the data is known to be sorted?
-    fn from_proto_unsorted(mut data: Vec<crate::protos::working_copy::FileStateEntry>) -> Self {
-        data.sort_unstable_by(|entry1, entry2| {
-            let path1 = RepoPath::from_internal_string(&entry1.path);
-            let path2 = RepoPath::from_internal_string(&entry2.path);
-            path1.cmp(path2)
-        });
+    fn from_proto(
+        mut data: Vec<crate::protos::working_copy::FileStateEntry>,
+        is_sorted: bool,
+    ) -> Self {
+        if !is_sorted {
+            data.sort_unstable_by(|entry1, entry2| {
+                let path1 = RepoPath::from_internal_string(&entry1.path);
+                let path2 = RepoPath::from_internal_string(&entry2.path);
+                path1.cmp(path2)
+            });
+        }
         debug_assert!(is_file_state_entries_proto_unique_and_sorted(&data));
         FileStatesMap { data }
     }
@@ -610,7 +614,8 @@ impl TreeState {
                 .collect();
             self.tree_id = MergedTreeId::Merge(tree_ids_builder.build());
         }
-        self.file_states = FileStatesMap::from_proto_unsorted(proto.file_states);
+        self.file_states =
+            FileStatesMap::from_proto(proto.file_states, proto.is_file_states_sorted);
         self.sparse_patterns = sparse_patterns_from_proto(proto.sparse_patterns.as_ref());
         self.watchman_clock = proto.watchman_clock;
         Ok(())
@@ -630,6 +635,8 @@ impl TreeState {
         }
 
         proto.file_states = self.file_states.data.clone();
+        // `FileStatesMap` is guaranteed to be sorted.
+        proto.is_file_states_sorted = true;
         let mut sparse_patterns = crate::protos::working_copy::SparsePatterns::default();
         for path in &self.sparse_patterns {
             sparse_patterns
@@ -1899,7 +1906,7 @@ mod tests {
             new_proto_entry("b/e", 3),
             new_proto_entry("bc", 5),
         ];
-        let mut file_states = FileStatesMap::from_proto_unsorted(data);
+        let mut file_states = FileStatesMap::from_proto(data, false);
 
         let changed_file_states = vec![
             new_owned_entry("aa", 10),    // change
