@@ -1158,14 +1158,8 @@ For more information, see https://github.com/martinvonz/jj/blob/main/docs/workin
 
   Possible values: `true`, `false`
 
-* `-A`, `--insert-after` — Insert the new change between the target commit(s) and their children
-
-  Possible values: `true`, `false`
-
-* `-B`, `--insert-before` — Insert the new change between the target commit(s) and their parents
-
-  Possible values: `true`, `false`
-
+* `-A`, `--insert-after <INSERT_AFTER>` — Insert the new change between the given commit(s) and their children
+* `-B`, `--insert-before <INSERT_BEFORE>` — Insert the new change between the given commit(s) and their parents
 
 
 

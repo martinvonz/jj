@@ -31,6 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the old commit was merge, then the new commit will now also be.
   [#2859](https://github.com/martinvonz/jj/issues/2859)
 
+* `jj new`'s `--insert-before`/`--insert-after` options must now be set for each
+  commit the new commit will be inserted before/after. Previously, those options
+  were global flags and specifying them once would insert the new commit before/
+  after all the specified commits.
+
 ### Deprecations
 
 - Attempting to alias a built-in command now gives a warning, rather than being silently ignored.

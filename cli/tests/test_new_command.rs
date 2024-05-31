@@ -171,20 +171,10 @@ fn test_new_insert_after() {
     ◉  root
     "###);
 
-    // --insert-after can be repeated (this does not affect the outcome); --after is
-    // an alias
+    // --insert-after can be repeated; --after is an alias
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &[
-            "new",
-            "--insert-after",
-            "-m",
-            "G",
-            "--after",
-            "B",
-            "--after",
-            "D",
-        ],
+        &["new", "-m", "G", "--insert-after", "B", "--after", "D"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -209,7 +199,7 @@ fn test_new_insert_after() {
     "###);
 
     let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["new", "--insert-after", "-m", "H", "D"]);
+        test_env.jj_cmd_ok(&repo_path, &["new", "-m", "H", "--insert-after", "D"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 3 descendant commits
@@ -232,12 +222,22 @@ fn test_new_insert_after() {
     ◉  root
     "###);
 
+    // --after cannot be used with revisions
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["new", "--after", "B", "D"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: the argument '--insert-after <INSERT_AFTER>' cannot be used with '[REVISIONS]...'
+
+    Usage: jj new --insert-after <INSERT_AFTER> [REVISIONS]...
+
+    For more information, try '--help'.
+    "###);
+
     // --after cannot be used with --before
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["new", "--after", "B", "--before", "D"]);
     insta::assert_snapshot!(stderr, @r###"
-    error: the argument '--insert-after' cannot be used with '--insert-before'
+    error: the argument '--insert-after <INSERT_AFTER>' cannot be used with '--insert-before <INSERT_BEFORE>'
 
-    Usage: jj new --insert-after <REVISIONS>...
+    Usage: jj new --insert-after <INSERT_AFTER> [REVISIONS]...
 
     For more information, try '--help'.
     "###);
@@ -265,8 +265,18 @@ fn test_new_insert_after_children() {
     // Check that inserting G after A and C doesn't try to rebase B (which is
     // initially a child of A) onto G as that would create a cycle since B is
     // a parent of C which is a parent G.
-    let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["new", "--insert-after", "-m", "G", "A", "C"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "new",
+            "-m",
+            "G",
+            "--insert-after",
+            "A",
+            "--insert-after",
+            "C",
+        ],
+    );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Working copy now at: kxryzmor b48d4d73 (empty) G
@@ -309,8 +319,18 @@ fn test_new_insert_before() {
     ◉  root
     "###);
 
-    let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["new", "--insert-before", "-m", "G", "C", "F"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "new",
+            "-m",
+            "G",
+            "--insert-before",
+            "C",
+            "--insert-before",
+            "F",
+        ],
+    );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 2 descendant commits
@@ -333,6 +353,16 @@ fn test_new_insert_before() {
     ├─╯
     ◉  root
     "###);
+
+    // --before cannot be used with revisions
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["new", "--before", "B", "D"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: the argument '--insert-before <INSERT_BEFORE>' cannot be used with '[REVISIONS]...'
+
+    Usage: jj new --insert-before <INSERT_BEFORE> [REVISIONS]...
+
+    For more information, try '--help'.
+    "###);
 }
 
 #[test]
@@ -354,8 +384,18 @@ fn test_new_insert_before_root_successors() {
     ◉  root
     "###);
 
-    let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["new", "--insert-before", "-m", "G", "A", "D"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "new",
+            "-m",
+            "G",
+            "--insert-before",
+            "A",
+            "--insert-before",
+            "D",
+        ],
+    );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 5 descendant commits
@@ -398,8 +438,18 @@ fn test_new_insert_before_no_loop() {
     ◉  000000000000 root
     "###);
 
-    let stderr =
-        test_env.jj_cmd_failure(&repo_path, &["new", "--insert-before", "-m", "G", "A", "C"]);
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &[
+            "new",
+            "-m",
+            "G",
+            "--insert-before",
+            "A",
+            "--insert-before",
+            "C",
+        ],
+    );
     insta::assert_snapshot!(stderr, @r###"
     Error: Refusing to create a loop: commit 6041917ceeb5 would be both an ancestor and a descendant of the new commit
     "###);
@@ -424,8 +474,18 @@ fn test_new_insert_before_no_root_merge() {
     ◉  root
     "###);
 
-    let stderr =
-        test_env.jj_cmd_failure(&repo_path, &["new", "--insert-before", "-m", "G", "B", "D"]);
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &[
+            "new",
+            "-m",
+            "G",
+            "--insert-before",
+            "B",
+            "--insert-before",
+            "D",
+        ],
+    );
     insta::assert_snapshot!(stderr, @r###"
     Error: The Git backend does not support creating merge commits with the root commit as one of the parents.
     "###);
@@ -451,7 +511,7 @@ fn test_new_insert_before_root() {
     "###);
 
     let stderr =
-        test_env.jj_cmd_failure(&repo_path, &["new", "--insert-before", "-m", "G", "root()"]);
+        test_env.jj_cmd_failure(&repo_path, &["new", "-m", "G", "--insert-before", "root()"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: The root commit 000000000000 is immutable
     "###);

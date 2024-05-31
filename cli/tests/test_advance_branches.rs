@@ -369,7 +369,7 @@ fn test_new_advance_branches_before() {
     ◉  branches{} desc:
     "###);
 
-    test_env.jj_cmd_ok(&workspace_path, &["new", "--before", "-r", "@-"]);
+    test_env.jj_cmd_ok(&workspace_path, &["new", "--before", "@-"]);
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     ◉  branches{} desc: third
     @  branches{} desc:
@@ -399,7 +399,7 @@ fn test_new_advance_branches_after() {
     "###);
 
     test_env.jj_cmd_ok(&workspace_path, &["describe", "-m", "first"]);
-    test_env.jj_cmd_ok(&workspace_path, &["new", "--after"]);
+    test_env.jj_cmd_ok(&workspace_path, &["new", "--after", "@"]);
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
     ◉  branches{} desc: first
