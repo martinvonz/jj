@@ -15,7 +15,6 @@
 use std::collections::HashSet;
 use std::io::Write;
 
-use clap::ArgGroup;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::CommitIteratorExt;
@@ -41,7 +40,6 @@ use crate::ui::Ui;
 /// For more information, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
 #[derive(clap::Args, Clone, Debug)]
-#[command(group(ArgGroup::new("order").args(&["insert_after", "insert_before"])))]
 pub(crate) struct NewArgs {
     /// Parent(s) of the new change
     #[arg(default_value = "@")]
@@ -61,26 +59,24 @@ pub(crate) struct NewArgs {
     /// No-op flag to pair with --no-edit
     #[arg(long, hide = true)]
     _edit: bool,
-    /// Insert the new change between the target commit(s) and their children
-    //
-    // Repeating this flag is allowed, but has no effect.
+    /// Insert the new change between the given commit(s) and their children
     #[arg(
         long,
         short = 'A',
         visible_alias = "after",
-        overrides_with = "insert_after"
+        conflicts_with = "revisions",
+        conflicts_with = "insert_before"
     )]
-    insert_after: bool,
-    /// Insert the new change between the target commit(s) and their parents
-    //
-    // Repeating this flag is allowed, but has no effect.
+    insert_after: Vec<RevisionArg>,
+    /// Insert the new change between the given commit(s) and their parents
     #[arg(
         long,
         short = 'B',
         visible_alias = "before",
-        overrides_with = "insert_before"
+        conflicts_with = "revisions",
+        conflicts_with = "insert_after"
     )]
-    insert_before: bool,
+    insert_before: Vec<RevisionArg>,
 }
 
 #[instrument(skip_all)]
@@ -96,33 +92,24 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         ));
     }
     let mut workspace_command = command.workspace_helper(ui)?;
-    let target_commits = workspace_command
-        .resolve_some_revsets_default_single(&args.revisions)?
-        .into_iter()
-        .collect_vec();
-    let target_ids = target_commits.iter().ids().cloned().collect_vec();
-
-    let should_advance_branches =
-        target_commits.len() == 1 && !args.insert_before && !args.insert_after;
-    let (advance_branches_target, advanceable_branches) = if should_advance_branches {
-        let ab_target = target_ids[0].clone();
-        let ab_branches =
-            workspace_command.get_advanceable_branches(target_commits[0].parent_ids())?;
-        (Some(ab_target), ab_branches)
-    } else {
-        (None, Vec::new())
-    };
 
     let parent_commits;
     let parent_commit_ids;
     let children_commits;
+    let mut advance_branches_target = None;
+    let mut advanceable_branches = vec![];
 
-    if args.insert_before {
+    if !args.insert_before.is_empty() {
         // Instead of having the new commit as a child of the changes given on the
         // command line, add it between the changes' parents and the changes.
         // The parents of the new commit will be the parents of the target commits
         // which are not descendants of other target commits.
-        let children_expression = RevsetExpression::commits(target_ids);
+        children_commits = workspace_command
+            .resolve_some_revsets_default_single(&args.insert_before)?
+            .into_iter()
+            .collect_vec();
+        let children_commit_ids = children_commits.iter().ids().cloned().collect();
+        let children_expression = RevsetExpression::commits(children_commit_ids);
         let parents_expression = children_expression.parents();
         if let Some(commit_id) = children_expression
             .dag_range_to(&parents_expression)
@@ -137,7 +124,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             )));
         }
         // Manually collect the parent commit IDs to preserve the order of parents.
-        parent_commit_ids = target_commits
+        parent_commit_ids = children_commits
             .iter()
             .flat_map(|commit| commit.parent_ids())
             .unique()
@@ -147,11 +134,13 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             .iter()
             .map(|commit_id| workspace_command.repo().store().get_commit(commit_id))
             .try_collect()?;
-        children_commits = target_commits;
-    } else if args.insert_after {
-        parent_commits = target_commits;
+    } else if !args.insert_after.is_empty() {
+        parent_commits = workspace_command
+            .resolve_some_revsets_default_single(&args.insert_after)?
+            .into_iter()
+            .collect_vec();
         parent_commit_ids = parent_commits.iter().ids().cloned().collect();
-        let parents_expression = RevsetExpression::commits(target_ids);
+        let parents_expression = RevsetExpression::commits(parent_commit_ids.clone());
         // Each child of the targets will be rebased: its set of parents will be updated
         // so that the targets are replaced by the new commit.
         // Exclude children that are ancestors of the new commit
@@ -164,9 +153,19 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             .commits(workspace_command.repo().store())
             .try_collect()?;
     } else {
-        parent_commits = target_commits;
+        parent_commits = workspace_command
+            .resolve_some_revsets_default_single(&args.revisions)?
+            .into_iter()
+            .collect_vec();
         parent_commit_ids = parent_commits.iter().ids().cloned().collect();
         children_commits = vec![];
+
+        let should_advance_branches = parent_commits.len() == 1;
+        if should_advance_branches {
+            advance_branches_target = Some(parent_commit_ids[0].clone());
+            advanceable_branches =
+                workspace_command.get_advanceable_branches(parent_commits[0].parent_ids())?;
+        }
     };
     workspace_command.check_rewritable(children_commits.iter().ids())?;
 
