@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::collections::HashSet;
 use std::io::Write;
 
 use clap::ArgGroup;
 use itertools::Itertools;
-use jj_lib::commit::{Commit, CommitIteratorExt};
+use jj_lib::backend::CommitId;
+use jj_lib::commit::CommitIteratorExt;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 use jj_lib::rewrite::{merge_commit_trees, rebase_commit};
@@ -111,20 +113,20 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         (None, Vec::new())
     };
 
-    let mut tx = workspace_command.start_transaction();
-    let mut num_rebased;
-    let new_commit;
+    let parent_commits;
+    let parent_commit_ids;
+    let children_commits;
+
     if args.insert_before {
         // Instead of having the new commit as a child of the changes given on the
         // command line, add it between the changes' parents and the changes.
         // The parents of the new commit will be the parents of the target commits
         // which are not descendants of other target commits.
-        tx.base_workspace_helper().check_rewritable(&target_ids)?;
-        let new_children = RevsetExpression::commits(target_ids.clone());
-        let new_parents = new_children.parents();
-        if let Some(commit_id) = new_children
-            .dag_range_to(&new_parents)
-            .evaluate_programmatic(tx.repo())?
+        let children_expression = RevsetExpression::commits(target_ids);
+        let parents_expression = children_expression.parents();
+        if let Some(commit_id) = children_expression
+            .dag_range_to(&parents_expression)
+            .evaluate_programmatic(workspace_command.repo().as_ref())?
             .iter()
             .next()
         {
@@ -134,68 +136,69 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
                 short_commit_hash(&commit_id),
             )));
         }
-        let new_parents_commits: Vec<Commit> = new_parents
-            .evaluate_programmatic(tx.repo())?
+        // Manually collect the parent commit IDs to preserve the order of parents.
+        parent_commit_ids = target_commits
             .iter()
-            .commits(tx.repo().store())
+            .flat_map(|commit| commit.parent_ids())
+            .unique()
+            .cloned()
+            .collect_vec();
+        parent_commits = parent_commit_ids
+            .iter()
+            .map(|commit_id| workspace_command.repo().store().get_commit(commit_id))
             .try_collect()?;
-        let merged_tree = merge_commit_trees(tx.repo(), &new_parents_commits)?;
-        let new_parents_commit_ids = new_parents_commits.iter().ids().cloned().collect();
-        new_commit = tx
-            .mut_repo()
-            .new_commit(command.settings(), new_parents_commit_ids, merged_tree.id())
-            .set_description(join_message_paragraphs(&args.message_paragraphs))
-            .write()?;
-        num_rebased = target_ids.len();
-        for child_commit in target_commits {
-            rebase_commit(
-                command.settings(),
-                tx.mut_repo(),
-                child_commit,
-                vec![new_commit.id().clone()],
-            )?;
-        }
+        children_commits = target_commits;
+    } else if args.insert_after {
+        parent_commits = target_commits;
+        parent_commit_ids = parent_commits.iter().ids().cloned().collect();
+        let parents_expression = RevsetExpression::commits(target_ids);
+        // Each child of the targets will be rebased: its set of parents will be updated
+        // so that the targets are replaced by the new commit.
+        // Exclude children that are ancestors of the new commit
+        let children_expression = parents_expression
+            .children()
+            .minus(&parents_expression.ancestors());
+        children_commits = children_expression
+            .evaluate_programmatic(workspace_command.repo().as_ref())?
+            .iter()
+            .commits(workspace_command.repo().store())
+            .try_collect()?;
     } else {
-        let old_parents = RevsetExpression::commits(target_ids.clone());
-        let commits_to_rebase: Vec<Commit> = if args.insert_after {
-            // Each child of the targets will be rebased: its set of parents will be updated
-            // so that the targets are replaced by the new commit.
-            // Exclude children that are ancestors of the new commit
-            let to_rebase = old_parents.children().minus(&old_parents.ancestors());
-            to_rebase
-                .evaluate_programmatic(tx.base_repo().as_ref())?
-                .iter()
-                .commits(tx.base_repo().store())
-                .try_collect()?
-        } else {
-            vec![]
-        };
-        tx.base_workspace_helper()
-            .check_rewritable(commits_to_rebase.iter().ids())?;
-        let merged_tree = merge_commit_trees(tx.repo(), &target_commits)?;
-        new_commit = tx
-            .mut_repo()
-            .new_commit(command.settings(), target_ids.clone(), merged_tree.id())
-            .set_description(join_message_paragraphs(&args.message_paragraphs))
-            .write()?;
-        num_rebased = commits_to_rebase.len();
-        for child_commit in commits_to_rebase {
-            let commit_parents = RevsetExpression::commits(child_commit.parent_ids().to_owned());
-            let new_parents = commit_parents.minus(&old_parents);
-            let mut new_parent_ids = new_parents
-                .evaluate_programmatic(tx.base_repo().as_ref())?
-                .iter()
-                .collect_vec();
-            new_parent_ids.push(new_commit.id().clone());
-            rebase_commit(
-                command.settings(),
-                tx.mut_repo(),
-                child_commit,
-                new_parent_ids,
-            )?;
-        }
+        parent_commits = target_commits;
+        parent_commit_ids = parent_commits.iter().ids().cloned().collect();
+        children_commits = vec![];
+    };
+    workspace_command.check_rewritable(children_commits.iter().ids())?;
+
+    let parent_commit_ids_set: HashSet<CommitId> = parent_commit_ids.iter().cloned().collect();
+
+    let mut tx = workspace_command.start_transaction();
+    let merged_tree = merge_commit_trees(tx.repo(), &parent_commits)?;
+    let new_commit = tx
+        .mut_repo()
+        .new_commit(command.settings(), parent_commit_ids, merged_tree.id())
+        .set_description(join_message_paragraphs(&args.message_paragraphs))
+        .write()?;
+
+    let mut num_rebased = 0;
+    for child_commit in children_commits {
+        let new_parent_ids = child_commit
+            .parent_ids()
+            .iter()
+            .filter(|id| !parent_commit_ids_set.contains(id))
+            .cloned()
+            .chain(std::iter::once(new_commit.id().clone()))
+            .collect_vec();
+        rebase_commit(
+            command.settings(),
+            tx.mut_repo(),
+            child_commit,
+            new_parent_ids,
+        )?;
+        num_rebased += 1;
     }
     num_rebased += tx.mut_repo().rebase_descendants(command.settings())?;
+
     if args.no_edit {
         if let Some(mut formatter) = ui.status_formatter() {
             write!(formatter, "Created new commit ")?;

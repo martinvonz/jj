@@ -314,10 +314,10 @@ fn test_new_insert_before() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 2 descendant commits
-    Working copy now at: kxryzmor ff6bbbc7 (empty) G
-    Parent commit      : znkkpsqq 41a89ffc E | (empty) E
-    Parent commit      : vruxwmqv c9257eff D | (empty) D
+    Working copy now at: kxryzmor 19e53931 (empty) G
     Parent commit      : kkmpptxz 6041917c B | (empty) B
+    Parent commit      : vruxwmqv c9257eff D | (empty) D
+    Parent commit      : znkkpsqq 41a89ffc E | (empty) E
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     ◉  F
@@ -325,11 +325,11 @@ fn test_new_insert_before() {
     ├─╯
     @      G
     ├─┬─╮
-    │ │ ◉  B
-    │ │ ◉  A
+    │ │ ◉  E
     │ ◉ │  D
     │ ├─╯
-    ◉ │  E
+    ◉ │  B
+    ◉ │  A
     ├─╯
     ◉  root
     "###);
