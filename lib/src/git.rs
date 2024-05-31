@@ -62,7 +62,7 @@ impl fmt::Display for RefName {
     }
 }
 
-fn parse_git_ref(ref_name: &str) -> Option<RefName> {
+pub fn parse_git_ref(ref_name: &str) -> Option<RefName> {
     if let Some(branch_name) = ref_name.strip_prefix("refs/heads/") {
         // Git CLI says 'HEAD' is not a valid branch name
         (branch_name != "HEAD").then(|| RefName::LocalBranch(branch_name.to_string()))

@@ -23,7 +23,8 @@ use itertools::Itertools;
 use jj_lib::backend::TreeValue;
 use jj_lib::file_util;
 use jj_lib::git::{
-    self, parse_gitmodules, GitBranchPushTargets, GitFetchError, GitFetchStats, GitPushError,
+    self, parse_git_ref, parse_gitmodules, GitBranchPushTargets, GitFetchError, GitFetchStats,
+    GitPushError, RefName,
 };
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::RefTarget;
@@ -315,6 +316,36 @@ pub fn maybe_add_gitignore(workspace_command: &WorkspaceCommandHelper) -> Result
     }
 }
 
+// Set repository level `trunk()` alias to the default branch for "origin".
+pub fn maybe_set_repository_level_trunk_alias(
+    ui: &Ui,
+    repo: &Arc<ReadonlyRepo>,
+) -> Result<(), CommandError> {
+    let git_repo = get_git_repo(repo.store())?;
+    if let Ok(reference) = git_repo.find_reference("refs/remotes/origin/HEAD") {
+        if let Some(reference_name) = reference.symbolic_target() {
+            if let Some(RefName::RemoteBranch {
+                branch: default_branch,
+                ..
+            }) = parse_git_ref(reference_name)
+            {
+                let config_path = repo.repo_path().join("config.toml");
+                write_config_value_to_file(
+                    &ConfigNamePathBuf::from_iter(["revset-aliases", "trunk()"]),
+                    &format!("{default_branch}@origin"),
+                    &config_path,
+                )?;
+                writeln!(
+                    ui.status(),
+                    "Setting the revset alias \"trunk()\" to \"{default_branch}@origin\"",
+                )?;
+            }
+        };
+    };
+
+    Ok(())
+}
+
 fn cmd_git_remote_add(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -443,6 +474,7 @@ pub fn git_init(
             let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
             maybe_add_gitignore(&workspace_command)?;
             workspace_command.maybe_snapshot(ui)?;
+            maybe_set_repository_level_trunk_alias(ui, workspace_command.repo())?;
             if !workspace_command.working_copy_shared_with_git() {
                 let mut tx = workspace_command.start_transaction();
                 jj_lib::git::import_head(tx.mut_repo())?;
