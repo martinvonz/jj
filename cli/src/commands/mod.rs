@@ -108,6 +108,7 @@ enum Command {
     /// arguments.
     #[command(hide = true)]
     Merge(new::NewArgs),
+    #[command(hide = true)]
     Move(r#move::MoveArgs),
     New(new::NewArgs),
     Next(next::NextArgs),
