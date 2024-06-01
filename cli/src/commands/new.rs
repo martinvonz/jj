@@ -60,22 +60,20 @@ pub(crate) struct NewArgs {
     /// No-op flag to pair with --no-edit
     #[arg(long, hide = true)]
     _edit: bool,
-    /// Insert the new change between the given commit(s) and their children
+    /// Insert the new change after the given commit(s)
     #[arg(
         long,
         short = 'A',
         visible_alias = "after",
-        conflicts_with = "revisions",
-        conflicts_with = "insert_before"
+        conflicts_with = "revisions"
     )]
     insert_after: Vec<RevisionArg>,
-    /// Insert the new change between the given commit(s) and their parents
+    /// Insert the new change before the given commit(s)
     #[arg(
         long,
         short = 'B',
         visible_alias = "before",
-        conflicts_with = "revisions",
-        conflicts_with = "insert_after"
+        conflicts_with = "revisions"
     )]
     insert_before: Vec<RevisionArg>,
 }
@@ -95,12 +93,30 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
     let mut workspace_command = command.workspace_helper(ui)?;
 
     let parent_commits;
-    let parent_commit_ids;
+    let parent_commit_ids: Vec<CommitId>;
     let children_commits;
     let mut advance_branches_target = None;
     let mut advanceable_branches = vec![];
 
-    if !args.insert_before.is_empty() {
+    if !args.insert_before.is_empty() && !args.insert_after.is_empty() {
+        parent_commits = workspace_command
+            .resolve_some_revsets_default_single(&args.insert_after)?
+            .into_iter()
+            .collect_vec();
+        parent_commit_ids = parent_commits.iter().ids().cloned().collect();
+        children_commits = workspace_command
+            .resolve_some_revsets_default_single(&args.insert_before)?
+            .into_iter()
+            .collect_vec();
+        let children_commit_ids = children_commits.iter().ids().cloned().collect();
+        let children_expression = RevsetExpression::commits(children_commit_ids);
+        let parents_expression = RevsetExpression::commits(parent_commit_ids.clone());
+        ensure_no_commit_loop(
+            workspace_command.repo(),
+            &children_expression,
+            &parents_expression,
+        )?;
+    } else if !args.insert_before.is_empty() {
         // Instead of having the new commit as a child of the changes given on the
         // command line, add it between the changes' parents and the changes.
         // The parents of the new commit will be the parents of the target commits
@@ -110,6 +126,7 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
             .into_iter()
             .collect_vec();
         let children_commit_ids = children_commits.iter().ids().cloned().collect();
+        workspace_command.check_rewritable(&children_commit_ids)?;
         let children_expression = RevsetExpression::commits(children_commit_ids);
         let parents_expression = children_expression.parents();
         ensure_no_commit_loop(

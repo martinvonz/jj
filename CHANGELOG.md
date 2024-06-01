@@ -69,6 +69,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [#3800](https://github.com/martinvonz/jj/issues/3800) and
   [#3801](https://github.com/martinvonz/jj/issues/3801)).
 
+* `jj new`'s `--insert-before` and `--insert-after` options can now be used
+  simultaneously.
+
 ### Fixed bugs
 
 * Previously, `jj git push` only made sure that the branch is in the expected

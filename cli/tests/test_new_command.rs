@@ -231,16 +231,6 @@ fn test_new_insert_after() {
 
     For more information, try '--help'.
     "###);
-
-    // --after cannot be used with --before
-    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["new", "--after", "B", "--before", "D"]);
-    insta::assert_snapshot!(stderr, @r###"
-    error: the argument '--insert-after <INSERT_AFTER>' cannot be used with '--insert-before <INSERT_BEFORE>'
-
-    Usage: jj new --insert-after <INSERT_AFTER> [REVISIONS]...
-
-    For more information, try '--help'.
-    "###);
 }
 
 #[test]
@@ -514,6 +504,115 @@ fn test_new_insert_before_root() {
         test_env.jj_cmd_failure(&repo_path, &["new", "-m", "G", "--insert-before", "root()"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: The root commit 000000000000 is immutable
+    "###);
+}
+
+#[test]
+fn test_new_insert_after_before() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    setup_before_insertion(&test_env, &repo_path);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    @    F
+    ├─╮
+    │ ◉  E
+    ◉ │  D
+    ├─╯
+    │ ◉  C
+    │ ◉  B
+    │ ◉  A
+    ├─╯
+    ◉  root
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["new", "-m", "G", "--after", "C", "--before", "F"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 1 descendant commits
+    Working copy now at: kxryzmor 33be1218 (empty) G
+    Parent commit      : mzvwutvl ec18c57d C | (empty) C
+    "###);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    ◉      F
+    ├─┬─╮
+    │ │ @  G
+    │ │ ◉  C
+    │ │ ◉  B
+    │ │ ◉  A
+    │ ◉ │  E
+    │ ├─╯
+    ◉ │  D
+    ├─╯
+    ◉  root
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["new", "-m", "H", "--after", "D", "--before", "B"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 4 descendant commits
+    Working copy now at: uyznsvlq fcf8281b (empty) H
+    Parent commit      : vruxwmqv c9257eff D | (empty) D
+    "###);
+    insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
+    ◉      F
+    ├─┬─╮
+    │ │ ◉  G
+    │ │ ◉  C
+    │ │ ◉    B
+    │ │ ├─╮
+    │ │ │ @  H
+    ├─────╯
+    ◉ │ │  D
+    │ │ ◉  A
+    ├───╯
+    │ ◉  E
+    ├─╯
+    ◉  root
+    "###);
+}
+
+#[test]
+fn test_new_insert_after_before_no_loop() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    setup_before_insertion(&test_env, &repo_path);
+    let template = r#"commit_id.short() ++ " " ++ if(description, description, "root")"#;
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template]);
+    insta::assert_snapshot!(stdout, @r###"
+    @    7705d353bf5d F
+    ├─╮
+    │ ◉  41a89ffcbba2 E
+    ◉ │  c9257eff5bf9 D
+    ├─╯
+    │ ◉  ec18c57d72d8 C
+    │ ◉  6041917ceeb5 B
+    │ ◉  65b1ef43c737 A
+    ├─╯
+    ◉  000000000000 root
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(
+        &repo_path,
+        &[
+            "new",
+            "-m",
+            "G",
+            "--insert-before",
+            "A",
+            "--insert-after",
+            "C",
+        ],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Refusing to create a loop: commit ec18c57d72d8 would be both an ancestor and a descendant of the new commit
     "###);
 }
 
