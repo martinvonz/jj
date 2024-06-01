@@ -62,6 +62,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Timestamp objects in templates now have `after(date) -> Boolean` and
   `before(date) -> Boolean` methods for comparing timestamps to other dates.
 
+* `jj duplicate` now accepts `--destination`, `--insert-after` and
+  `--insert-before` options to customize the location of the duplicated
+  revisions.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.
