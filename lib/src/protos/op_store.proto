@@ -75,6 +75,11 @@ message Tag {
   RefTarget target = 2;
 }
 
+message Topic {
+  string name = 1;
+  repeated bytes commit_ids = 2;
+}
+
 message View {
   repeated bytes head_ids = 1;
   reserved 4;
@@ -82,6 +87,7 @@ message View {
   map<string, bytes> wc_commit_ids = 8;
   repeated Branch branches = 5;
   repeated Tag tags = 6;
+  repeated Topic topics = 11;
   // Only a subset of the refs. For example, does not include refs/notes/.
   repeated GitRef git_refs = 3;
   // This field is just for historical reasons (before we had the RefTarget

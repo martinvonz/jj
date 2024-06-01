@@ -14,6 +14,7 @@
 
 #![allow(missing_docs)]
 
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use crate::backend::{self, BackendResult, ChangeId, CommitId, MergedTreeId, Signature, SigningFn};
@@ -202,6 +203,35 @@ impl CommitBuilder<'_> {
                 self.mut_repo
                     .set_rewritten_commit(rewrite_source.id().clone(), commit.id().clone());
             }
+            let base_repo = self.mut_repo.base_repo().clone();
+            let topics = base_repo
+                .view()
+                .topics_containing_commit(rewrite_source.id());
+            self.mut_repo.update_topics(topics, |_, commits| {
+                let mut commits = commits.clone();
+                commits.remove(rewrite_source.id());
+                commits.insert(commit.id().clone());
+                Some(commits)
+            });
+        } else {
+            let parent_set = HashSet::from_iter(commit.parent_ids().iter().cloned());
+            let base_repo = self.mut_repo.base_repo().clone();
+            let topics = base_repo
+                .view()
+                .topics()
+                .iter()
+                .filter_map(|(topic, commits)| {
+                    if commits.is_disjoint(&parent_set) {
+                        None
+                    } else {
+                        Some(topic)
+                    }
+                });
+            self.mut_repo.update_topics(topics, |_, commits| {
+                let mut commits = commits.clone();
+                commits.insert(commit.id().clone());
+                Some(commits)
+            });
         }
         Ok(commit)
     }

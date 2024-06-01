@@ -52,6 +52,7 @@ mod split;
 mod squash;
 mod status;
 mod tag;
+mod topic;
 mod unsquash;
 mod untrack;
 mod util;
@@ -138,6 +139,8 @@ enum Command {
     #[command(subcommand)]
     Tag(tag::TagCommand),
     #[command(subcommand)]
+    Topic(topic::TopicCommand),
+    #[command(subcommand)]
     Util(util::UtilCommand),
     /// Undo an operation (shortcut for `jj op undo`)
     Undo(operation::OperationUndoArgs),
@@ -206,6 +209,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Workspace(sub_args) => workspace::cmd_workspace(ui, command_helper, sub_args),
         Command::Sparse(sub_args) => sparse::cmd_sparse(ui, command_helper, sub_args),
         Command::Tag(sub_args) => tag::cmd_tag(ui, command_helper, sub_args),
+        Command::Topic(sub_args) => topic::cmd_topic(ui, command_helper, sub_args),
         Command::Chmod(sub_args) => chmod::cmd_chmod(ui, command_helper, sub_args),
         Command::Git(sub_args) => git::cmd_git(ui, command_helper, sub_args),
         Command::Util(sub_args) => util::cmd_util(ui, command_helper, sub_args),

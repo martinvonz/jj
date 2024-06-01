@@ -247,6 +247,7 @@ fn view_with_desired_portions_restored(
         head_ids: repo_source.head_ids.clone(),
         local_branches: repo_source.local_branches.clone(),
         tags: repo_source.tags.clone(),
+        topics: repo_source.topics.clone(),
         remote_views: remote_source.remote_views.clone(),
         git_refs: current_view.git_refs.clone(),
         git_head: current_view.git_head.clone(),

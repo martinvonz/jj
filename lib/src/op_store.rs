@@ -261,6 +261,7 @@ pub struct View {
     pub head_ids: HashSet<CommitId>,
     pub local_branches: BTreeMap<String, RefTarget>,
     pub tags: BTreeMap<String, RefTarget>,
+    pub topics: BTreeMap<String, HashSet<CommitId>>,
     pub remote_views: BTreeMap<String, RemoteView>,
     pub git_refs: BTreeMap<String, RefTarget>,
     /// The commit the Git HEAD points to.
