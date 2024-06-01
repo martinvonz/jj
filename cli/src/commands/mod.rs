@@ -97,7 +97,7 @@ enum Command {
     Init(init::InitArgs),
     Interdiff(interdiff::InterdiffArgs),
     Log(log::LogArgs),
-    /// Merge work from multiple branches
+    /// Merge work from multiple branches (DEPRECATED, use `jj new`)
     ///
     /// Unlike most other VCSs, `jj merge` does not implicitly include the
     /// working copy revision's parent as one of the parents of the merge;

@@ -21,7 +21,7 @@ use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
-/// Move changes from one revision into another
+/// Move changes from one revision into another (DEPRECATED, use `jj squash`)
 ///
 /// Use `--interactive` to move only part of the source revision into the
 /// destination. The selected changes (or all the changes in the source revision

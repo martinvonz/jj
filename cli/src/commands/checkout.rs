@@ -20,7 +20,8 @@ use crate::command_error::CommandError;
 use crate::description_util::join_message_paragraphs;
 use crate::ui::Ui;
 
-/// Create a new, empty change and edit it in the working copy
+/// Create a new, empty change and edit it in the working copy (DEPRECATED, use
+/// `jj new`)
 ///
 /// For more information, see
 /// https://github.com/martinvonz/jj/blob/main/docs/working-copy.md.
