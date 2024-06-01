@@ -14,11 +14,12 @@
 
 use std::collections::HashSet;
 use std::io::Write;
+use std::rc::Rc;
 
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::CommitIteratorExt;
-use jj_lib::repo::Repo;
+use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 use jj_lib::rewrite::{merge_commit_trees, rebase_commit};
 use tracing::instrument;
@@ -111,18 +112,11 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
         let children_commit_ids = children_commits.iter().ids().cloned().collect();
         let children_expression = RevsetExpression::commits(children_commit_ids);
         let parents_expression = children_expression.parents();
-        if let Some(commit_id) = children_expression
-            .dag_range_to(&parents_expression)
-            .evaluate_programmatic(workspace_command.repo().as_ref())?
-            .iter()
-            .next()
-        {
-            return Err(user_error(format!(
-                "Refusing to create a loop: commit {} would be both an ancestor and a descendant \
-                 of the new commit",
-                short_commit_hash(&commit_id),
-            )));
-        }
+        ensure_no_commit_loop(
+            workspace_command.repo(),
+            &children_expression,
+            &parents_expression,
+        )?;
         // Manually collect the parent commit IDs to preserve the order of parents.
         parent_commit_ids = children_commits
             .iter()
@@ -218,5 +212,27 @@ Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
     }
 
     tx.finish(ui, "new empty commit")?;
+    Ok(())
+}
+
+/// Ensure that there is no possible cycle between the potential children and
+/// parents of the new commit.
+fn ensure_no_commit_loop(
+    repo: &ReadonlyRepo,
+    children_expression: &Rc<RevsetExpression>,
+    parents_expression: &Rc<RevsetExpression>,
+) -> Result<(), CommandError> {
+    if let Some(commit_id) = children_expression
+        .dag_range_to(parents_expression)
+        .evaluate_programmatic(repo)?
+        .iter()
+        .next()
+    {
+        return Err(user_error(format!(
+            "Refusing to create a loop: commit {} would be both an ancestor and a descendant of \
+             the new commit",
+            short_commit_hash(&commit_id),
+        )));
+    }
     Ok(())
 }
