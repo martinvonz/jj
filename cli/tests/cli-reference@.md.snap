@@ -52,7 +52,6 @@ This document contains the help content for the `jj` command-line program.
 * [`jj init`↴](#jj-init)
 * [`jj interdiff`↴](#jj-interdiff)
 * [`jj log`↴](#jj-log)
-* [`jj move`↴](#jj-move)
 * [`jj new`↴](#jj-new)
 * [`jj next`↴](#jj-next)
 * [`jj obslog`↴](#jj-obslog)
@@ -122,7 +121,6 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `init` — Create a new repo in the given directory
 * `interdiff` — Compare the changes of two commits
 * `log` — Show revision history
-* `move` — Move changes from one revision into another
 * `new` — Create a new, empty change and (by default) edit it in the working copy
 * `next` — Move the working-copy commit to the child revision
 * `obslog` — Show how a change has evolved over time
@@ -1083,34 +1081,6 @@ Spans of revisions that are not included in the graph per `--revisions` are rend
 
 * `--tool <TOOL>` — Generate diff by external command
 * `--context <CONTEXT>` — Number of lines of context to show
-
-
-
-## `jj move`
-
-Move changes from one revision into another
-
-Use `--interactive` to move only part of the source revision into the destination. The selected changes (or all the changes in the source revision if not using `--interactive`) will be moved into the destination. The changes will be removed from the source. If that means that the source is now empty compared to its parent, it will be abandoned. Without `--interactive`, the source change will always be empty.
-
-If the source became empty and both the source and destination had a non-empty description, you will be asked for the combined description. If either was empty, then the other one will be used.
-
-If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.
-
-**Usage:** `jj move [OPTIONS] <--from <FROM>|--to <TO>> [PATHS]...`
-
-###### **Arguments:**
-
-* `<PATHS>` — Move only changes to these paths (instead of all paths)
-
-###### **Options:**
-
-* `-f`, `--from <FROM>` — Move part of this change into the destination
-* `-t`, `--to <TO>` — Move part of the source into this change
-* `-i`, `--interactive` — Interactively choose which parts to move
-
-  Possible values: `true`, `false`
-
-* `--tool <NAME>` — Specify diff editor to be used (implies --interactive)
 
 
 
