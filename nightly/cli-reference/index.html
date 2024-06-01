@@ -6279,6 +6279,7 @@ Martin von Zweigbergk</p>
 <h2 id="jj-git-push"><code>jj git push</code><a class="headerlink" href="#jj-git-push" title="Permanent link">&para;</a></h2>
 <p>Push to a Git remote</p>
 <p>By default, pushes any branches pointing to <code>remote_branches(remote=&lt;remote&gt;)..@</code>. Use <code>--branch</code> to push specific branches. Use <code>--all</code> to push all branches. Use <code>--change</code> to generate branch names based on the change IDs of specific commits.</p>
+<p>Before the command actually moves, creates, or deletes a remote branch, it makes several <a href="https://martinvonz.github.io/jj/latest/branches/#pushing-branches-safety-checks">safety checks</a>. If there is a problem, you may need to run <code>jj git fetch --remote &lt;remote name&gt;</code> and/or resolve some <a href="https://martinvonz.github.io/jj/latest/branches/#conflicts">branch conflicts</a>.</p>
 <p><strong>Usage:</strong> <code>jj git push [OPTIONS]</code></p>
 <h6 id="options_24"><strong>Options:</strong><a class="headerlink" href="#options_24" title="Permanent link">&para;</a></h6>
 <ul>

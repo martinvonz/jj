@@ -631,6 +631,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#pushing-branches-safety-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pushing branches: Safety checks
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#conflicts" class="md-nav__link">
     <span class="md-ellipsis">
       Conflicts
@@ -1411,6 +1420,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#pushing-branches-safety-checks" class="md-nav__link">
+    <span class="md-ellipsis">
+      Pushing branches: Safety checks
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#conflicts" class="md-nav__link">
     <span class="md-ellipsis">
       Conflicts
@@ -1557,6 +1575,40 @@ met:</p>
 </ul>
 <p>You could describe the movement as following along the change-id of the 
 current branch commit, even if it isn't entirely accurate.</p>
+<h2 id="pushing-branches-safety-checks">Pushing branches: Safety checks<a class="headerlink" href="#pushing-branches-safety-checks" title="Permanent link">&para;</a></h2>
+<p>Before <code>jj git push</code> actually moves, creates, or deletes a remote branch, it
+makes several safety checks.</p>
+<ol>
+<li>
+<p><code>jj</code> will contact the remote and check that the actual state of the remote
+   branch matches <code>jj</code>'s record of its last known position. If there is a
+   conflict, <code>jj</code> will refuse to push the branch. In this case, you need to run
+   <code>jj git fetch --remote &lt;remote name&gt;</code> and resolve the resulting branch
+   conflict. Then, you can try <code>jj git push</code> again.</p>
+<p>If you are familiar with Git, this makes <code>jj git push</code> similar to <code>git
+ push --force-with-lease</code>.</p>
+<p>There are a few cases where <code>jj git push</code> will succeed even though the remote
+ branch is in an unexpected location. These are the cases where <code>jj git fetch</code>
+ would not create a branch conflict and would not move the local branch, e.g.
+ if the unexpected location is identical to the local position of the branch.</p>
+</li>
+<li>
+<p>The local branch must not be <a href="#conflicts">conflicted</a>. If it is, you would
+   need to use <code>jj branch set</code>, for example, to resolve the conflict.</p>
+<p>This makes <code>jj git push</code> safe even if <code>jj git fetch</code> is performed on a timer
+ in the background (this situation is a known issue<sup id="fnref:known-issue"><a class="footnote-ref" href="#fn:known-issue">1</a></sup> with some
+ forms of <code>git push --force-with-lease</code>). If the branch moves on a remote in a
+ problematic way, <code>jj git fetch</code> will create a conflict. This should ensure
+ that the user becomes aware of the conflict before they can <code>jj git push</code> and
+ override the branch on the remote.</p>
+</li>
+<li>
+<p>If the remote branch already exists on the remote, it must be
+   <a href="#remotes-and-tracked-branches">tracked</a>. If the branch does not already
+   exist on the remote, there is no problem; <code>jj git push</code> will create the
+   remote branch and mark it as tracked.</p>
+</li>
+</ol>
 <h2 id="conflicts">Conflicts<a class="headerlink" href="#conflicts" title="Permanent link">&para;</a></h2>
 <p>Branches can end up in a conflicted state. When that happens, <code>jj status</code> will
 include information about the conflicted branches (and instructions for how to
@@ -1576,6 +1628,15 @@ on top of the other with <code>jj rebase</code>.</p>
 <p>To resolve a conflicted state in a remote branch (e.g. <code>main@origin</code>), simply
 pull from the remote (e.g. <code>jj git fetch</code>). The conflict resolution will also
 propagate to the local branch (which was presumably also conflicted).</p>
+<div class="footnote">
+<hr />
+<ol>
+<li id="fn:known-issue">
+<p>See "A general note on safety" in
+<a href="https://git-scm.com/docs/git-push#Documentation/git-push.txt---no-force-with-lease">https://git-scm.com/docs/git-push#Documentation/git-push.txt---no-force-with-lease</a>&#160;<a class="footnote-backref" href="#fnref:known-issue" title="Jump back to footnote 1 in the text">&#8617;</a></p>
+</li>
+</ol>
+</div>
 
 
 
