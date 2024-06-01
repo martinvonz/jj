@@ -34,6 +34,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Added the config setting `snapshot.auto-update-stale` for automatically
   running `jj workspace update-stale` when applicable.
 
+* `jj duplicate` now accepts `--destination`, `--insert-after` and
+  `--insert-before` options to customize the location of the duplicated
+  revisions.
+
 ### Fixed bugs
 
 ## [0.23.0] - 2024-11-06
