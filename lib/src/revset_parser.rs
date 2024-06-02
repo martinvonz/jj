@@ -797,3 +797,120 @@ fn expect_literal_with<T>(
         f(node)
     }
 }
+
+#[cfg(test)]
+#[allow(unused)] // TODO: remove
+mod tests {
+    use assert_matches::assert_matches;
+
+    use super::*;
+
+    #[derive(Debug)]
+    struct WithRevsetAliasesMap(RevsetAliasesMap);
+
+    impl WithRevsetAliasesMap {
+        fn parse<'i>(&'i self, text: &'i str) -> Result<ExpressionNode<'i>, RevsetParseError> {
+            let node = parse_program(text)?;
+            dsl_util::expand_aliases(node, &self.0)
+        }
+
+        fn parse_normalized<'i>(&'i self, text: &'i str) -> ExpressionNode<'i> {
+            normalize_tree(self.parse(text).unwrap())
+        }
+    }
+
+    fn with_aliases(
+        aliases: impl IntoIterator<Item = (impl AsRef<str>, impl Into<String>)>,
+    ) -> WithRevsetAliasesMap {
+        let mut aliases_map = RevsetAliasesMap::new();
+        for (decl, defn) in aliases {
+            aliases_map.insert(decl, defn).unwrap();
+        }
+        WithRevsetAliasesMap(aliases_map)
+    }
+
+    fn parse_into_kind(text: &str) -> Result<ExpressionKind, RevsetParseErrorKind> {
+        parse_program(text)
+            .map(|node| node.kind)
+            .map_err(|err| err.kind)
+    }
+
+    fn parse_normalized(text: &str) -> ExpressionNode {
+        normalize_tree(parse_program(text).unwrap())
+    }
+
+    /// Drops auxiliary data from parsed tree so it can be compared with other.
+    fn normalize_tree(node: ExpressionNode) -> ExpressionNode {
+        fn empty_span() -> pest::Span<'static> {
+            pest::Span::new("", 0, 0).unwrap()
+        }
+
+        fn normalize_list(nodes: Vec<ExpressionNode>) -> Vec<ExpressionNode> {
+            nodes.into_iter().map(normalize_tree).collect()
+        }
+
+        fn normalize_function_call(function: FunctionCallNode) -> FunctionCallNode {
+            FunctionCallNode {
+                name: function.name,
+                name_span: empty_span(),
+                args: normalize_list(function.args),
+                keyword_args: function
+                    .keyword_args
+                    .into_iter()
+                    .map(|arg| KeywordArgument {
+                        name: arg.name,
+                        name_span: empty_span(),
+                        value: normalize_tree(arg.value),
+                    })
+                    .collect(),
+                args_span: empty_span(),
+            }
+        }
+
+        let normalized_kind = match node.kind {
+            ExpressionKind::Identifier(_)
+            | ExpressionKind::String(_)
+            | ExpressionKind::StringPattern { .. }
+            | ExpressionKind::RemoteSymbol { .. }
+            | ExpressionKind::AtWorkspace(_)
+            | ExpressionKind::AtCurrentWorkspace
+            | ExpressionKind::DagRangeAll
+            | ExpressionKind::RangeAll => node.kind,
+            ExpressionKind::Unary(op, arg) => {
+                let arg = Box::new(normalize_tree(*arg));
+                ExpressionKind::Unary(op, arg)
+            }
+            ExpressionKind::Binary(op, lhs, rhs) => {
+                let lhs = Box::new(normalize_tree(*lhs));
+                let rhs = Box::new(normalize_tree(*rhs));
+                ExpressionKind::Binary(op, lhs, rhs)
+            }
+            ExpressionKind::FunctionCall(function) => {
+                let function = Box::new(normalize_function_call(*function));
+                ExpressionKind::FunctionCall(function)
+            }
+            ExpressionKind::Modifier(modifier) => {
+                let modifier = Box::new(ModifierNode {
+                    name: modifier.name,
+                    name_span: empty_span(),
+                    body: normalize_tree(modifier.body),
+                });
+                ExpressionKind::Modifier(modifier)
+            }
+            ExpressionKind::AliasExpanded(_, subst) => normalize_tree(*subst).kind,
+        };
+        ExpressionNode {
+            kind: normalized_kind,
+            span: empty_span(),
+        }
+    }
+
+    #[test]
+    fn test_parse_tree_eq() {
+        assert_eq!(
+            parse_normalized(r#" foo( x ) | ~bar:"baz" "#),
+            parse_normalized(r#"(foo(x))|(~(bar:"baz"))"#)
+        );
+        assert_ne!(parse_normalized(r#" foo "#), parse_normalized(r#" "foo" "#));
+    }
+}
