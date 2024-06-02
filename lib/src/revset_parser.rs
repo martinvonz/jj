@@ -585,32 +585,29 @@ fn parse_primary_node(pair: Pair<Rule>) -> Result<ExpressionNode, RevsetParseErr
             let (lhs, op, rhs) = first.into_inner().collect_tuple().unwrap();
             assert_eq!(lhs.as_rule(), Rule::identifier);
             assert_eq!(op.as_rule(), Rule::pattern_kind_op);
-            assert_eq!(rhs.as_rule(), Rule::symbol);
             let kind = lhs.as_str();
-            let value = parse_as_string_literal(rhs.into_inner());
+            let value = parse_as_string_literal(rhs);
             ExpressionKind::StringPattern { kind, value }
         }
-        // Symbol without "@" may be substituted by aliases. Primary expression including "@"
+        // Identifier without "@" may be substituted by aliases. Primary expression including "@"
         // is considered an indecomposable unit, and no alias substitution would be made.
-        Rule::symbol if pairs.peek().is_none() => {
-            let pairs = first.into_inner();
-            let first = pairs.peek().unwrap();
-            match first.as_rule() {
-                Rule::identifier => ExpressionKind::Identifier(first.as_str()),
-                _ => ExpressionKind::String(parse_as_string_literal(pairs)),
-            }
-        }
-        Rule::symbol => {
-            let name = parse_as_string_literal(first.into_inner());
-            assert_eq!(pairs.next().unwrap().as_rule(), Rule::at_op);
-            if let Some(second) = pairs.next() {
-                // infix "<name>@<remote>"
-                assert_eq!(second.as_rule(), Rule::symbol);
-                let remote = parse_as_string_literal(second.into_inner());
-                ExpressionKind::RemoteSymbol { name, remote }
-            } else {
-                // postfix "<workspace_id>@"
-                ExpressionKind::AtWorkspace(name)
+        Rule::identifier if pairs.peek().is_none() => ExpressionKind::Identifier(first.as_str()),
+        Rule::identifier | Rule::string_literal | Rule::raw_string_literal => {
+            let name = parse_as_string_literal(first);
+            match pairs.next() {
+                None => ExpressionKind::String(name),
+                Some(op) => {
+                    assert_eq!(op.as_rule(), Rule::at_op);
+                    match pairs.next() {
+                        // postfix "<workspace_id>@"
+                        None => ExpressionKind::AtWorkspace(name),
+                        // infix "<name>@<remote>"
+                        Some(second) => {
+                            let remote = parse_as_string_literal(second);
+                            ExpressionKind::RemoteSymbol { name, remote }
+                        }
+                    }
+                }
             }
         }
         // nullary "@"
@@ -621,18 +618,17 @@ fn parse_primary_node(pair: Pair<Rule>) -> Result<ExpressionNode, RevsetParseErr
 }
 
 /// Parses part of compound symbol to string.
-fn parse_as_string_literal(mut pairs: Pairs<Rule>) -> String {
-    let first = pairs.next().unwrap();
-    match first.as_rule() {
-        Rule::identifier => first.as_str().to_owned(),
-        Rule::string_literal => STRING_LITERAL_PARSER.parse(first.into_inner()),
+fn parse_as_string_literal(pair: Pair<Rule>) -> String {
+    match pair.as_rule() {
+        Rule::identifier => pair.as_str().to_owned(),
+        Rule::string_literal => STRING_LITERAL_PARSER.parse(pair.into_inner()),
         Rule::raw_string_literal => {
-            let (content,) = first.into_inner().collect_tuple().unwrap();
+            let (content,) = pair.into_inner().collect_tuple().unwrap();
             assert_eq!(content.as_rule(), Rule::raw_string_content);
             content.as_str().to_owned()
         }
         _ => {
-            panic!("unexpected symbol parse rule: {:?}", first.as_str());
+            panic!("unexpected string literal rule: {:?}", pair.as_str());
         }
     }
 }
