@@ -243,9 +243,9 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
             .try_collect()?; // in reverse topological order
         if !args.insert_after.is_empty() && !args.insert_before.is_empty() {
             let after_commits =
-                workspace_command.resolve_some_revsets_default_single(&args.insert_after)?;
+                workspace_command.resolve_some_revsets_default_single(ui, &args.insert_after)?;
             let before_commits =
-                workspace_command.resolve_some_revsets_default_single(&args.insert_before)?;
+                workspace_command.resolve_some_revsets_default_single(ui, &args.insert_before)?;
             rebase_revisions_after_before(
                 ui,
                 command.settings(),
@@ -256,7 +256,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
             )?;
         } else if !args.insert_after.is_empty() {
             let after_commits =
-                workspace_command.resolve_some_revsets_default_single(&args.insert_after)?;
+                workspace_command.resolve_some_revsets_default_single(ui, &args.insert_after)?;
             rebase_revisions_after(
                 ui,
                 command.settings(),
@@ -266,7 +266,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
             )?;
         } else if !args.insert_before.is_empty() {
             let before_commits =
-                workspace_command.resolve_some_revsets_default_single(&args.insert_before)?;
+                workspace_command.resolve_some_revsets_default_single(ui, &args.insert_before)?;
             rebase_revisions_before(
                 ui,
                 command.settings(),
@@ -276,7 +276,7 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
             )?;
         } else {
             let new_parents = workspace_command
-                .resolve_some_revsets_default_single(&args.destination)?
+                .resolve_some_revsets_default_single(ui, &args.destination)?
                 .into_iter()
                 .collect_vec();
             rebase_revisions(
@@ -289,10 +289,11 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
         }
     } else if !args.source.is_empty() {
         let new_parents = workspace_command
-            .resolve_some_revsets_default_single(&args.destination)?
+            .resolve_some_revsets_default_single(ui, &args.destination)?
             .into_iter()
             .collect_vec();
-        let source_commits = workspace_command.resolve_some_revsets_default_single(&args.source)?;
+        let source_commits =
+            workspace_command.resolve_some_revsets_default_single(ui, &args.source)?;
         rebase_descendants_transaction(
             ui,
             command.settings(),
@@ -303,13 +304,13 @@ Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets 
         )?;
     } else {
         let new_parents = workspace_command
-            .resolve_some_revsets_default_single(&args.destination)?
+            .resolve_some_revsets_default_single(ui, &args.destination)?
             .into_iter()
             .collect_vec();
         let branch_commits = if args.branch.is_empty() {
-            IndexSet::from([workspace_command.resolve_single_rev(&RevisionArg::AT)?])
+            IndexSet::from([workspace_command.resolve_single_rev(ui, &RevisionArg::AT)?])
         } else {
-            workspace_command.resolve_some_revsets_default_single(&args.branch)?
+            workspace_command.resolve_some_revsets_default_single(ui, &args.branch)?
         };
         rebase_branch(
             ui,

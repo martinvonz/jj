@@ -50,7 +50,7 @@ pub(crate) fn cmd_cat(
     args: &CatArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
     let tree = commit.tree()?;
     // TODO: No need to add special case for empty paths when switching to
     // parse_union_filesets(). paths = [] should be "none()" if supported.

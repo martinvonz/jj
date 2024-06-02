@@ -38,7 +38,7 @@ pub(crate) fn cmd_files(
     args: &FilesArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
+    let commit = workspace_command.resolve_single_rev(ui, &args.revision)?;
     let tree = commit.tree()?;
     let matcher = workspace_command
         .parse_file_patterns(&args.paths)?

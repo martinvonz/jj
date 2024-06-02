@@ -62,15 +62,15 @@ pub(crate) fn cmd_diff(
     let from_tree;
     let to_tree;
     if args.from.is_some() || args.to.is_some() {
-        let from =
-            workspace_command.resolve_single_rev(args.from.as_ref().unwrap_or(&RevisionArg::AT))?;
+        let from = workspace_command
+            .resolve_single_rev(ui, args.from.as_ref().unwrap_or(&RevisionArg::AT))?;
         from_tree = from.tree()?;
-        let to =
-            workspace_command.resolve_single_rev(args.to.as_ref().unwrap_or(&RevisionArg::AT))?;
+        let to = workspace_command
+            .resolve_single_rev(ui, args.to.as_ref().unwrap_or(&RevisionArg::AT))?;
         to_tree = to.tree()?;
     } else {
         let commit = workspace_command
-            .resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
+            .resolve_single_rev(ui, args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
         from_tree = commit.parent_tree(workspace_command.repo().as_ref())?;
         to_tree = commit.tree()?
     }

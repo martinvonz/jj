@@ -247,8 +247,8 @@ fn cmd_branch_create(
     args: &BranchCreateArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let target_commit =
-        workspace_command.resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
+    let target_commit = workspace_command
+        .resolve_single_rev(ui, args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
     let view = workspace_command.repo().view();
     let branch_names = &args.names;
     if let Some(branch_name) = branch_names
@@ -348,8 +348,8 @@ fn cmd_branch_set(
     args: &BranchSetArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let target_commit =
-        workspace_command.resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
+    let target_commit = workspace_command
+        .resolve_single_rev(ui, args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
     let repo = workspace_command.repo().as_ref();
     let is_fast_forward = |old_target: &RefTarget| {
         // Strictly speaking, "all" old targets should be ancestors, but we allow

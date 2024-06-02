@@ -882,13 +882,21 @@ impl WorkspaceCommandHelper {
 
     /// Resolve a revset to a single revision. Return an error if the revset is
     /// empty or has multiple revisions.
-    pub fn resolve_single_rev(&self, revision_arg: &RevisionArg) -> Result<Commit, CommandError> {
-        let expression = self.parse_revset(revision_arg)?;
+    ///
+    /// If an input expression is prefixed with `prompt:`, the user will be
+    /// prompted if it evaluates to more than one revision
+    pub fn resolve_single_rev(
+        &self,
+        ui: &mut Ui,
+        revision_arg: &RevisionArg,
+    ) -> Result<Commit, CommandError> {
+        let (expression, modifier) = self.parse_revset_with_modifier(revision_arg)?;
         let should_hint_about_all_prefix = false;
-        revset_util::evaluate_revset_to_single_commit(
-            revision_arg.as_ref(),
+        self.evaluate_revset_with_modifier_to_single_commit(
+            ui,
+            revision_arg,
+            modifier,
             &expression,
-            || self.commit_summary_template(),
             should_hint_about_all_prefix,
         )
     }
@@ -898,8 +906,12 @@ impl WorkspaceCommandHelper {
     ///
     /// If an input expression is prefixed with `all:`, it may be evaluated to
     /// any number of revisions (including 0.)
+    ///
+    /// If an input expression is prefixed with `prompt:`, the user will be
+    /// prompted if it evaluates to more than one revision
     pub fn resolve_some_revsets_default_single(
         &self,
+        ui: &mut Ui,
         revision_args: &[RevisionArg],
     ) -> Result<IndexSet<Commit>, CommandError> {
         let mut all_commits = IndexSet::new();
@@ -907,6 +919,7 @@ impl WorkspaceCommandHelper {
             let (expression, modifier) = self.parse_revset_with_modifier(revision_arg)?;
             let all = match modifier {
                 Some(RevsetModifier::All) => true,
+                Some(RevsetModifier::Prompt) => false,
                 None => self
                     .settings
                     .config()
@@ -918,10 +931,11 @@ impl WorkspaceCommandHelper {
                 }
             } else {
                 let should_hint_about_all_prefix = true;
-                let commit = revset_util::evaluate_revset_to_single_commit(
-                    revision_arg.as_ref(),
+                let commit = self.evaluate_revset_with_modifier_to_single_commit(
+                    ui,
+                    revision_arg,
+                    modifier,
                     &expression,
-                    || self.commit_summary_template(),
                     should_hint_about_all_prefix,
                 )?;
                 let commit_hash = short_commit_hash(commit.id());
@@ -937,6 +951,41 @@ impl WorkspaceCommandHelper {
         } else {
             Ok(all_commits)
         }
+    }
+
+    fn evaluate_revset_with_modifier_to_single_commit(
+        &self,
+        ui: &mut Ui,
+        revision_arg: &RevisionArg,
+        modifier: Option<RevsetModifier>,
+        expression: &RevsetExpressionEvaluator<'_>,
+        should_hint_about_all_prefix: bool,
+    ) -> Result<Commit, CommandError> {
+        Ok(if modifier == Some(RevsetModifier::Prompt) {
+            let targets: Vec<Commit> = expression.evaluate_to_commits()?.try_collect()?;
+            let target = match targets.as_slice() {
+                [target] => target,
+                [] => {
+                    return Err(user_error("Empty revision set"));
+                }
+                commits => choose_commit(
+                    ui,
+                    self,
+                    &format!(
+                        r#"ambiguous commit from revset "{revision_arg}", choose one to target"#
+                    ),
+                    commits,
+                )?,
+            };
+            target.to_owned()
+        } else {
+            revset_util::evaluate_revset_to_single_commit(
+                revision_arg.as_ref(),
+                expression,
+                || self.commit_summary_template(),
+                should_hint_about_all_prefix,
+            )?
+        })
     }
 
     pub fn parse_revset(
@@ -1583,6 +1632,38 @@ Then run `jj squash` to move the resolution into the conflicted commit."#,
 
         Ok(advanceable_branches)
     }
+}
+
+pub fn choose_commit<'a>(
+    ui: &mut Ui,
+    workspace_command: &WorkspaceCommandHelper,
+    msg: &str,
+    commits: &'a [Commit],
+) -> Result<&'a Commit, CommandError> {
+    writeln!(ui.stdout(), "{}", msg)?;
+    let mut formatter = ui.stdout_formatter();
+    let template = workspace_command.commit_summary_template();
+    let mut choices: Vec<String> = Default::default();
+    for (i, commit) in commits.iter().enumerate() {
+        write!(formatter, "{}: ", i + 1)?;
+        template.format(commit, formatter.as_mut())?;
+        writeln!(formatter)?;
+        choices.push(format!("{}", i + 1));
+    }
+    writeln!(formatter, "q: quit the prompt")?;
+    choices.push("q".to_string());
+    drop(formatter);
+
+    let choice = ui.prompt_choice(
+        "enter the index of the commit you want to target",
+        &choices,
+        None,
+    )?;
+    if choice == "q" {
+        return Err(user_error("ambiguous target commit"));
+    }
+
+    Ok(&commits[choice.parse::<usize>().unwrap() - 1])
 }
 
 /// A [`Transaction`] tied to a particular workspace.

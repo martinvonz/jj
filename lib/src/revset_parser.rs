@@ -428,6 +428,7 @@ pub(super) fn parse_program_with_modifier(
             assert_eq!(rhs.as_rule(), Rule::expression);
             let modififer = match lhs.as_str() {
                 "all" => RevsetModifier::All,
+                "prompt" => RevsetModifier::Prompt,
                 name => {
                     return Err(RevsetParseError::with_span(
                         RevsetParseErrorKind::NoSuchModifier(name.to_owned()),

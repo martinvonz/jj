@@ -12,14 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::Write;
-
 use itertools::Itertools;
 use jj_lib::commit::Commit;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 
-use crate::cli_util::{short_commit_hash, CommandHelper, WorkspaceCommandHelper};
+use crate::cli_util::{choose_commit, short_commit_hash, CommandHelper};
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
@@ -67,38 +65,6 @@ pub(crate) struct NextArgs {
     edit: bool,
 }
 
-pub fn choose_commit<'a>(
-    ui: &mut Ui,
-    workspace_command: &WorkspaceCommandHelper,
-    cmd: &str,
-    commits: &'a [Commit],
-) -> Result<&'a Commit, CommandError> {
-    writeln!(ui.stdout(), "ambiguous {cmd} commit, choose one to target:")?;
-    let mut formatter = ui.stdout_formatter();
-    let template = workspace_command.commit_summary_template();
-    let mut choices: Vec<String> = Default::default();
-    for (i, commit) in commits.iter().enumerate() {
-        write!(formatter, "{}: ", i + 1)?;
-        template.format(commit, formatter.as_mut())?;
-        writeln!(formatter)?;
-        choices.push(format!("{}", i + 1));
-    }
-    writeln!(formatter, "q: quit the prompt")?;
-    choices.push("q".to_string());
-    drop(formatter);
-
-    let choice = ui.prompt_choice(
-        "enter the index of the commit you want to target",
-        &choices,
-        None,
-    )?;
-    if choice == "q" {
-        return Err(user_error("ambiguous target commit"));
-    }
-
-    Ok(&commits[choice.parse::<usize>().unwrap() - 1])
-}
-
 pub(crate) fn cmd_next(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -142,7 +108,12 @@ pub(crate) fn cmd_next(
                 if args.offset > 1 { "s" } else { "" }
             )));
         }
-        commits => choose_commit(ui, &workspace_command, "next", commits)?,
+        commits => choose_commit(
+            ui,
+            &workspace_command,
+            "ambiguous next commit, choose one to target",
+            commits,
+        )?,
     };
     let current_short = short_commit_hash(current_wc_id);
     let target_short = short_commit_hash(target.id());

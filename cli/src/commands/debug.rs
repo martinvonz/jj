@@ -347,7 +347,7 @@ fn cmd_debug_tree(
         MergedTree::resolved(tree)
     } else {
         let commit = workspace_command
-            .resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
+            .resolve_single_rev(ui, args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
         commit.tree()?
     };
     let matcher = workspace_command

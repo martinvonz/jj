@@ -1132,7 +1132,7 @@ fn classify_branch_update(
 
 /// Creates or moves branches based on the change IDs.
 fn update_change_branches(
-    ui: &Ui,
+    ui: &mut Ui,
     tx: &mut WorkspaceCommandTransaction,
     changes: &[RevisionArg],
     branch_prefix: &str,
@@ -1140,7 +1140,7 @@ fn update_change_branches(
     let mut branch_names = Vec::new();
     for change_arg in changes {
         let workspace_command = tx.base_workspace_helper();
-        let commit = workspace_command.resolve_single_rev(change_arg)?;
+        let commit = workspace_command.resolve_single_rev(ui, change_arg)?;
         let mut branch_name = format!("{branch_prefix}{}", commit.change_id().hex());
         let view = tx.base_repo().view();
         if view.get_local_branch(&branch_name).is_absent() {
@@ -1148,7 +1148,7 @@ fn update_change_branches(
             // short ID if it's not ambiguous (which it shouldn't be most of the time).
             let short_change_id = short_change_hash(commit.change_id());
             if workspace_command
-                .resolve_single_rev(&RevisionArg::from(short_change_id.clone()))
+                .resolve_single_rev(ui, &RevisionArg::from(short_change_id.clone()))
                 .is_ok()
             {
                 // Short change ID is not ambiguous, so update the branch name to use it.
@@ -1288,7 +1288,7 @@ fn cmd_git_submodule_print_gitmodules(
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
-    let commit = workspace_command.resolve_single_rev(&args.revisions)?;
+    let commit = workspace_command.resolve_single_rev(ui, &args.revisions)?;
     let tree = commit.tree()?;
     let gitmodules_path = RepoPath::from_internal_string(".gitmodules");
     let mut gitmodules_file = match tree.path_value(gitmodules_path)?.into_resolved() {

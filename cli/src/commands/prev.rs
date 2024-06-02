@@ -16,9 +16,8 @@ use itertools::Itertools;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 
-use crate::cli_util::{short_commit_hash, CommandHelper};
+use crate::cli_util::{choose_commit, short_commit_hash, CommandHelper};
 use crate::command_error::{user_error, CommandError};
-use crate::commands::next::choose_commit;
 use crate::ui::Ui;
 /// Change the working copy revision relative to the parent revision
 ///
@@ -99,7 +98,12 @@ pub(crate) fn cmd_prev(
                 if args.offset > 1 { "s" } else { "" }
             )))
         }
-        commits => choose_commit(ui, &workspace_command, "prev", commits)?,
+        commits => choose_commit(
+            ui,
+            &workspace_command,
+            "ambiguous prev commit, choose one to target",
+            commits,
+        )?,
     };
 
     // Generate a short commit hash, to make it readable in the op log.
