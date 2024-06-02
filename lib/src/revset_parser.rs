@@ -640,10 +640,40 @@ fn parse_function_call_node(pair: Pair<Rule>) -> Result<FunctionCallNode, Revset
     assert_eq!(args_pair.as_rule(), Rule::function_arguments);
     let name_span = name_pair.as_span();
     let args_span = args_pair.as_span();
-    let name = name_pair.as_str();
-    let (args, keyword_args) = parse_function_call_args(name, args_pair)?;
+    let function_name = name_pair.as_str();
+    let mut args = Vec::new();
+    let mut keyword_args = Vec::new();
+    for pair in args_pair.into_inner() {
+        let span = pair.as_span();
+        match pair.as_rule() {
+            Rule::expression => {
+                if !keyword_args.is_empty() {
+                    return Err(RevsetParseError::invalid_arguments(
+                        function_name,
+                        "Positional argument follows keyword argument",
+                        span,
+                    ));
+                }
+                args.push(parse_expression_node(pair.into_inner())?);
+            }
+            Rule::keyword_argument => {
+                let mut pairs = pair.into_inner();
+                let name = pairs.next().unwrap();
+                let expr = pairs.next().unwrap();
+                assert_eq!(name.as_rule(), Rule::identifier);
+                assert_eq!(expr.as_rule(), Rule::expression);
+                let arg = KeywordArgument {
+                    name: name.as_str(),
+                    name_span: name.as_span(),
+                    value: parse_expression_node(expr.into_inner())?,
+                };
+                keyword_args.push(arg);
+            }
+            r => panic!("unexpected argument rule {r:?}"),
+        }
+    }
     Ok(FunctionCallNode {
-        name,
+        name: function_name,
         name_span,
         args,
         keyword_args,
@@ -698,51 +728,6 @@ impl AliasDefinitionParser for RevsetAliasParser {
     fn parse_definition<'i>(&self, source: &'i str) -> Result<ExpressionNode<'i>, Self::Error> {
         parse_program(source)
     }
-}
-
-// TODO: inline
-fn parse_function_call_args<'i>(
-    function_name: &str,
-    arguments_pair: Pair<'i, Rule>,
-) -> Result<
-    (
-        Vec<ExpressionNode<'i>>,
-        Vec<KeywordArgument<'i, ExpressionKind<'i>>>,
-    ),
-    RevsetParseError,
-> {
-    let mut args = Vec::new();
-    let mut keyword_args = Vec::new();
-    for pair in arguments_pair.into_inner() {
-        let span = pair.as_span();
-        match pair.as_rule() {
-            Rule::expression => {
-                if !keyword_args.is_empty() {
-                    return Err(RevsetParseError::invalid_arguments(
-                        function_name,
-                        "Positional argument follows keyword argument",
-                        span,
-                    ));
-                }
-                args.push(parse_expression_node(pair.into_inner())?);
-            }
-            Rule::keyword_argument => {
-                let mut pairs = pair.into_inner();
-                let name = pairs.next().unwrap();
-                let expr = pairs.next().unwrap();
-                assert_eq!(name.as_rule(), Rule::identifier);
-                assert_eq!(expr.as_rule(), Rule::expression);
-                let arg = KeywordArgument {
-                    name: name.as_str(),
-                    name_span: name.as_span(),
-                    value: parse_expression_node(expr.into_inner())?,
-                };
-                keyword_args.push(arg);
-            }
-            r => panic!("unexpected argument rule {r:?}"),
-        }
-    }
-    Ok((args, keyword_args))
 }
 
 /// Applies the give function to the innermost `node` by unwrapping alias
