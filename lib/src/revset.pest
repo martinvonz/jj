@@ -63,6 +63,7 @@ compat_add_op = { "+" }
 compat_sub_op = { "-" }
 infix_op = _{ union_op | intersection_op | difference_op | compat_add_op | compat_sub_op }
 
+function = { function_name ~ "(" ~ whitespace* ~ function_arguments ~ whitespace* ~ ")" }
 function_name = @{ (ASCII_ALPHANUMERIC | "_")+ }
 keyword_argument = { identifier ~ whitespace* ~ "=" ~ whitespace* ~ expression }
 argument = _{ keyword_argument | expression }
@@ -79,8 +80,8 @@ formal_parameters = {
 string_pattern = { identifier ~ pattern_kind_op ~ symbol }
 
 primary = {
-  function_name ~ "(" ~ whitespace* ~ function_arguments ~ whitespace* ~ ")"
-  | "(" ~ whitespace* ~ expression ~ whitespace* ~ ")"
+  "(" ~ whitespace* ~ expression ~ whitespace* ~ ")"
+  | function
   | string_pattern
   // "@" operator cannot be nested
   | symbol ~ at_op ~ symbol
@@ -110,10 +111,9 @@ program_with_modifier = _{
   SOI ~ whitespace* ~ (program_modifier ~ whitespace*)? ~ expression ~ whitespace* ~ EOI
 }
 
-alias_declaration_part = _{
+function_alias_declaration = {
   function_name ~ "(" ~ whitespace* ~ formal_parameters ~ whitespace* ~ ")"
-  | identifier
 }
 alias_declaration = _{
-  SOI ~ alias_declaration_part ~ EOI
+  SOI ~ (function_alias_declaration | identifier) ~ EOI
 }
