@@ -581,10 +581,25 @@ fn parse_primary_node(pair: Pair<Rule>) -> Result<ExpressionNode, RevsetParseErr
             let function = Box::new(parse_function_call_node(first, arguments_pair)?);
             ExpressionKind::FunctionCall(function)
         }
-        Rule::string_pattern => parse_string_pattern(first),
+        Rule::string_pattern => {
+            let (lhs, op, rhs) = first.into_inner().collect_tuple().unwrap();
+            assert_eq!(lhs.as_rule(), Rule::identifier);
+            assert_eq!(op.as_rule(), Rule::pattern_kind_op);
+            assert_eq!(rhs.as_rule(), Rule::symbol);
+            let kind = lhs.as_str();
+            let value = parse_as_string_literal(rhs.into_inner());
+            ExpressionKind::StringPattern { kind, value }
+        }
         // Symbol without "@" may be substituted by aliases. Primary expression including "@"
         // is considered an indecomposable unit, and no alias substitution would be made.
-        Rule::symbol if pairs.peek().is_none() => parse_symbol(first.into_inner()),
+        Rule::symbol if pairs.peek().is_none() => {
+            let pairs = first.into_inner();
+            let first = pairs.peek().unwrap();
+            match first.as_rule() {
+                Rule::identifier => ExpressionKind::Identifier(first.as_str()),
+                _ => ExpressionKind::String(parse_as_string_literal(pairs)),
+            }
+        }
         Rule::symbol => {
             let name = parse_as_string_literal(first.into_inner());
             assert_eq!(pairs.next().unwrap().as_rule(), Rule::at_op);
@@ -603,27 +618,6 @@ fn parse_primary_node(pair: Pair<Rule>) -> Result<ExpressionNode, RevsetParseErr
         r => panic!("unexpected revset parse rule: {r:?}"),
     };
     Ok(ExpressionNode::new(expr, span))
-}
-
-// TODO: inline
-fn parse_string_pattern(pair: Pair<Rule>) -> ExpressionKind {
-    assert_eq!(pair.as_rule(), Rule::string_pattern);
-    let (lhs, op, rhs) = pair.into_inner().collect_tuple().unwrap();
-    assert_eq!(lhs.as_rule(), Rule::identifier);
-    assert_eq!(op.as_rule(), Rule::pattern_kind_op);
-    assert_eq!(rhs.as_rule(), Rule::symbol);
-    let kind = lhs.as_str();
-    let value = parse_as_string_literal(rhs.into_inner());
-    ExpressionKind::StringPattern { kind, value }
-}
-
-// TODO: inline
-fn parse_symbol(pairs: Pairs<Rule>) -> ExpressionKind {
-    let first = pairs.peek().unwrap();
-    match first.as_rule() {
-        Rule::identifier => ExpressionKind::Identifier(first.as_str()),
-        _ => ExpressionKind::String(parse_as_string_literal(pairs)),
-    }
 }
 
 /// Parses part of compound symbol to string.
