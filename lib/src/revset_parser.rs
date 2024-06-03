@@ -193,20 +193,6 @@ impl RevsetParseError {
         self
     }
 
-    pub(super) fn invalid_arguments(
-        name: impl Into<String>,
-        message: impl Into<String>,
-        span: pest::Span<'_>,
-    ) -> Self {
-        Self::with_span(
-            RevsetParseErrorKind::InvalidFunctionArguments {
-                name: name.into(),
-                message: message.into(),
-            },
-            span,
-        )
-    }
-
     /// Some other expression error.
     pub fn expression(message: impl Into<String>, span: pest::Span<'_>) -> Self {
         Self::with_span(RevsetParseErrorKind::Expression(message.into()), span)
@@ -270,9 +256,11 @@ impl From<pest::error::Error<Rule>> for RevsetParseError {
 
 impl From<InvalidArguments<'_>> for RevsetParseError {
     fn from(err: InvalidArguments<'_>) -> Self {
-        // TODO: Perhaps, we can add generic Expression error for invalid
-        // pattern, etc., and Self::invalid_arguments() can be inlined.
-        Self::invalid_arguments(err.name, err.message, err.span)
+        let kind = RevsetParseErrorKind::InvalidFunctionArguments {
+            name: err.name.to_owned(),
+            message: err.message,
+        };
+        Self::with_span(kind, err.span)
     }
 }
 
@@ -655,11 +643,12 @@ fn parse_function_call_node(pair: Pair<Rule>) -> Result<FunctionCallNode, Revset
         match pair.as_rule() {
             Rule::expression => {
                 if !keyword_args.is_empty() {
-                    return Err(RevsetParseError::invalid_arguments(
-                        function_name,
-                        "Positional argument follows keyword argument",
+                    return Err(InvalidArguments {
+                        name: function_name,
+                        message: "Positional argument follows keyword argument".to_owned(),
                         span,
-                    ));
+                    }
+                    .into());
                 }
                 args.push(parse_expression_node(pair.into_inner())?);
             }
