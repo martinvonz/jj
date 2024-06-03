@@ -848,7 +848,7 @@ fn test_log_contained_in() {
     1 | author(x:'y')
       |        ^---^
       |
-      = Function "author": Invalid string pattern
+      = Invalid string pattern
     3: Invalid string pattern kind "x:"
     Hint: Try prefixing with one of `exact:`, `glob:` or `substring:`
     "###);

@@ -120,13 +120,13 @@ fn test_bad_function_call() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "latest(a, not_an_integer)"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Function "latest": Expected function argument of type integer
+    Error: Failed to parse revset: Expected expression of type integer
     Caused by:  --> 1:11
       |
     1 | latest(a, not_an_integer)
       |           ^------------^
       |
-      = Function "latest": Expected function argument of type integer
+      = Expected expression of type integer
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file()"]);
@@ -142,52 +142,52 @@ fn test_bad_function_call() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file(a, not@a-string)"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Function "file": Expected function argument of file pattern
+    Error: Failed to parse revset: Expected expression of file pattern
     Caused by:  --> 1:9
       |
     1 | file(a, not@a-string)
       |         ^----------^
       |
-      = Function "file": Expected function argument of file pattern
+      = Expected expression of file pattern
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"file(foo:"bar")"#]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Function "file": Invalid file pattern
+    Error: Failed to parse revset: Invalid file pattern
     Caused by:
     1:  --> 1:6
       |
     1 | file(foo:"bar")
       |      ^-------^
       |
-      = Function "file": Invalid file pattern
+      = Invalid file pattern
     2: Invalid file pattern kind "foo:"
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"file(a, "../out")"#]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
-    Error: Failed to parse revset: Function "file": Invalid file pattern
+    Error: Failed to parse revset: Invalid file pattern
     Caused by:
     1:  --> 1:9
       |
     1 | file(a, "../out")
       |         ^------^
       |
-      = Function "file": Invalid file pattern
+      = Invalid file pattern
     2: Path "../out" is not in the repo "."
     3: Invalid component ".." in repo-relative path "../out"
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "branches(bad:pattern)"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Function "branches": Invalid string pattern
+    Error: Failed to parse revset: Invalid string pattern
     Caused by:
     1:  --> 1:10
       |
     1 | branches(bad:pattern)
       |          ^---------^
       |
-      = Function "branches": Invalid string pattern
+      = Invalid string pattern
     2: Invalid string pattern kind "bad:"
     Hint: Try prefixing with one of `exact:`, `glob:` or `substring:`
     "###);
@@ -391,7 +391,7 @@ fn test_alias() {
     1 | my_author(none())
       |           ^----^
       |
-      = Function "author": Expected function argument of string pattern
+      = Expected expression of string pattern
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root() & recurse"]);

@@ -161,6 +161,8 @@ pub enum RevsetParseErrorKind {
     WorkingCopyWithoutWorkspace,
     #[error("Redefinition of function parameter")]
     RedefinedFunctionParameter,
+    #[error("{0}")]
+    Expression(String),
     #[error(r#"Alias "{0}" cannot be expanded"#)]
     BadAliasExpansion(String),
     #[error(r#"Function parameter "{0}" cannot be expanded"#)]
@@ -203,6 +205,11 @@ impl RevsetParseError {
             },
             span,
         )
+    }
+
+    /// Some other expression error.
+    pub fn expression(message: impl Into<String>, span: pest::Span<'_>) -> Self {
+        Self::with_span(RevsetParseErrorKind::Expression(message.into()), span)
     }
 
     /// If this is a `NoSuchFunction` error, expands the candidates list with
