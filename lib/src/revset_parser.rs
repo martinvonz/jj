@@ -31,8 +31,6 @@ use crate::dsl_util::{
     AliasExpandError, AliasExpandableExpression, AliasId, AliasesMap, ExpressionFolder,
     FoldableExpression, InvalidArguments, KeywordArgument, StringLiteralParser,
 };
-// TODO: remove reverse dependency on revset module
-use crate::revset::RevsetModifier;
 
 #[derive(Parser)]
 #[grammar = "revset.pest"]
@@ -401,6 +399,14 @@ pub enum BinaryOp {
 pub type ExpressionNode<'i> = dsl_util::ExpressionNode<'i, ExpressionKind<'i>>;
 pub type FunctionCallNode<'i> = dsl_util::FunctionCallNode<'i, ExpressionKind<'i>>;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ModifierNode<'i> {
+    /// Modifier name.
+    pub name: &'i str,
+    /// Span of the modifier name.
+    pub name_span: pest::Span<'i>,
+}
+
 pub(super) fn parse_program(revset_str: &str) -> Result<ExpressionNode, RevsetParseError> {
     let mut pairs = RevsetParser::parse(Rule::program, revset_str)?;
     let first = pairs.next().unwrap();
@@ -409,7 +415,7 @@ pub(super) fn parse_program(revset_str: &str) -> Result<ExpressionNode, RevsetPa
 
 pub(super) fn parse_program_with_modifier(
     revset_str: &str,
-) -> Result<(ExpressionNode, Option<RevsetModifier>), RevsetParseError> {
+) -> Result<(ExpressionNode, Option<ModifierNode>), RevsetParseError> {
     let mut pairs = RevsetParser::parse(Rule::program_with_modifier, revset_str)?;
     let first = pairs.next().unwrap();
     match first.as_rule() {
@@ -423,17 +429,12 @@ pub(super) fn parse_program_with_modifier(
             assert_eq!(lhs.as_rule(), Rule::identifier);
             assert_eq!(op.as_rule(), Rule::pattern_kind_op);
             assert_eq!(rhs.as_rule(), Rule::expression);
-            let modififer = match lhs.as_str() {
-                "all" => RevsetModifier::All,
-                name => {
-                    return Err(RevsetParseError::with_span(
-                        RevsetParseErrorKind::NoSuchModifier(name.to_owned()),
-                        lhs.as_span(),
-                    ));
-                }
+            let modifier = ModifierNode {
+                name: lhs.as_str(),
+                name_span: lhs.as_span(),
             };
             let node = parse_expression_node(rhs.into_inner())?;
-            Ok((node, Some(modififer)))
+            Ok((node, Some(modifier)))
         }
         r => panic!("unexpected revset parse rule: {r:?}"),
     }
