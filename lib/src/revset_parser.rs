@@ -799,7 +799,6 @@ fn expect_literal_with<T>(
 }
 
 #[cfg(test)]
-#[allow(unused)] // TODO: remove
 mod tests {
     use assert_matches::assert_matches;
 
@@ -912,5 +911,728 @@ mod tests {
             parse_normalized(r#"(foo(x))|(~(bar:"baz"))"#)
         );
         assert_ne!(parse_normalized(r#" foo "#), parse_normalized(r#" "foo" "#));
+    }
+
+    #[test]
+    fn test_parse_revset() {
+        // Parse "@" (the current working copy)
+        assert_eq!(parse_into_kind("@"), Ok(ExpressionKind::AtCurrentWorkspace));
+        assert_eq!(
+            parse_into_kind("main@"),
+            Ok(ExpressionKind::AtWorkspace("main".to_owned()))
+        );
+        assert_eq!(
+            parse_into_kind("main@origin"),
+            Ok(ExpressionKind::RemoteSymbol {
+                name: "main".to_owned(),
+                remote: "origin".to_owned()
+            })
+        );
+        // Quoted component in @ expression
+        assert_eq!(
+            parse_into_kind(r#""foo bar"@"#),
+            Ok(ExpressionKind::AtWorkspace("foo bar".to_owned()))
+        );
+        assert_eq!(
+            parse_into_kind(r#""foo bar"@origin"#),
+            Ok(ExpressionKind::RemoteSymbol {
+                name: "foo bar".to_owned(),
+                remote: "origin".to_owned()
+            })
+        );
+        assert_eq!(
+            parse_into_kind(r#"main@"foo bar""#),
+            Ok(ExpressionKind::RemoteSymbol {
+                name: "main".to_owned(),
+                remote: "foo bar".to_owned()
+            })
+        );
+        assert_eq!(
+            parse_into_kind(r#"'foo bar'@'bar baz'"#),
+            Ok(ExpressionKind::RemoteSymbol {
+                name: "foo bar".to_owned(),
+                remote: "bar baz".to_owned()
+            })
+        );
+        // Quoted "@" is not interpreted as a working copy or remote symbol
+        assert_eq!(
+            parse_into_kind(r#""@""#),
+            Ok(ExpressionKind::String("@".to_owned()))
+        );
+        assert_eq!(
+            parse_into_kind(r#""main@""#),
+            Ok(ExpressionKind::String("main@".to_owned()))
+        );
+        assert_eq!(
+            parse_into_kind(r#""main@origin""#),
+            Ok(ExpressionKind::String("main@origin".to_owned()))
+        );
+        // Internal '.', '-', and '+' are allowed
+        assert_eq!(
+            parse_into_kind("foo.bar-v1+7"),
+            Ok(ExpressionKind::Identifier("foo.bar-v1+7"))
+        );
+        assert_eq!(
+            parse_normalized("foo.bar-v1+7-"),
+            parse_normalized("(foo.bar-v1+7)-")
+        );
+        // '.' is not allowed at the beginning or end
+        assert_eq!(
+            parse_into_kind(".foo"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("foo."),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        // Multiple '.', '-', '+' are not allowed
+        assert_eq!(
+            parse_into_kind("foo.+bar"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("foo--bar"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("foo+-bar"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        // Parse a parenthesized symbol
+        assert_eq!(parse_normalized("(foo)"), parse_normalized("foo"));
+        // Parse a quoted symbol
+        assert_eq!(
+            parse_into_kind("\"foo\""),
+            Ok(ExpressionKind::String("foo".to_owned()))
+        );
+        assert_eq!(
+            parse_into_kind("'foo'"),
+            Ok(ExpressionKind::String("foo".to_owned()))
+        );
+        // Parse the "parents" operator
+        assert_matches!(
+            parse_into_kind("foo-"),
+            Ok(ExpressionKind::Unary(UnaryOp::Parents, _))
+        );
+        // Parse the "children" operator
+        assert_matches!(
+            parse_into_kind("foo+"),
+            Ok(ExpressionKind::Unary(UnaryOp::Children, _))
+        );
+        // Parse the "ancestors" operator
+        assert_matches!(
+            parse_into_kind("::foo"),
+            Ok(ExpressionKind::Unary(UnaryOp::DagRangePre, _))
+        );
+        // Parse the "descendants" operator
+        assert_matches!(
+            parse_into_kind("foo::"),
+            Ok(ExpressionKind::Unary(UnaryOp::DagRangePost, _))
+        );
+        // Parse the "dag range" operator
+        assert_matches!(
+            parse_into_kind("foo::bar"),
+            Ok(ExpressionKind::Binary(BinaryOp::DagRange, _, _))
+        );
+        // Parse the nullary "dag range" operator
+        assert_matches!(parse_into_kind("::"), Ok(ExpressionKind::DagRangeAll));
+        // Parse the "range" prefix operator
+        assert_matches!(
+            parse_into_kind("..foo"),
+            Ok(ExpressionKind::Unary(UnaryOp::RangePre, _))
+        );
+        assert_matches!(
+            parse_into_kind("foo.."),
+            Ok(ExpressionKind::Unary(UnaryOp::RangePost, _))
+        );
+        assert_matches!(
+            parse_into_kind("foo..bar"),
+            Ok(ExpressionKind::Binary(BinaryOp::Range, _, _))
+        );
+        // Parse the nullary "range" operator
+        assert_matches!(parse_into_kind(".."), Ok(ExpressionKind::RangeAll));
+        // Parse the "negate" operator
+        assert_matches!(
+            parse_into_kind("~ foo"),
+            Ok(ExpressionKind::Unary(UnaryOp::Negate, _))
+        );
+        assert_eq!(
+            parse_normalized("~ ~~ foo"),
+            parse_normalized("~(~(~(foo)))"),
+        );
+        // Parse the "intersection" operator
+        assert_matches!(
+            parse_into_kind("foo & bar"),
+            Ok(ExpressionKind::Binary(BinaryOp::Intersection, _, _))
+        );
+        // Parse the "union" operator
+        assert_matches!(
+            parse_into_kind("foo | bar"),
+            Ok(ExpressionKind::Binary(BinaryOp::Union, _, _))
+        );
+        // Parse the "difference" operator
+        assert_matches!(
+            parse_into_kind("foo ~ bar"),
+            Ok(ExpressionKind::Binary(BinaryOp::Difference, _, _))
+        );
+        // Parentheses are allowed before suffix operators
+        assert_eq!(parse_normalized("(foo)-"), parse_normalized("foo-"));
+        // Space is allowed around expressions
+        assert_eq!(parse_normalized(" ::foo "), parse_normalized("::foo"));
+        assert_eq!(parse_normalized("( ::foo )"), parse_normalized("::foo"));
+        // Space is not allowed around prefix operators
+        assert_eq!(
+            parse_into_kind(" :: foo "),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        // Incomplete parse
+        assert_eq!(
+            parse_into_kind("foo | -"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        // Space is allowed around infix operators and function arguments
+        assert_eq!(
+            parse_normalized(
+                "   description(  arg1 ) ~    file(  arg1 ,   arg2 )  ~ visible_heads(  )  ",
+            ),
+            parse_normalized("(description(arg1) ~ file(arg1, arg2)) ~ visible_heads()"),
+        );
+        // Space is allowed around keyword arguments
+        assert_eq!(
+            parse_normalized("remote_branches( remote  =   foo  )"),
+            parse_normalized("remote_branches(remote=foo)"),
+        );
+
+        // Trailing comma isn't allowed for empty argument
+        assert!(parse_into_kind("branches(,)").is_err());
+        // Trailing comma is allowed for the last argument
+        assert_eq!(
+            parse_normalized("branches(a,)"),
+            parse_normalized("branches(a)")
+        );
+        assert_eq!(
+            parse_normalized("branches(a ,  )"),
+            parse_normalized("branches(a)")
+        );
+        assert!(parse_into_kind("branches(,a)").is_err());
+        assert!(parse_into_kind("branches(a,,)").is_err());
+        assert!(parse_into_kind("branches(a  , , )").is_err());
+        assert_eq!(
+            parse_normalized("file(a,b,)"),
+            parse_normalized("file(a, b)")
+        );
+        assert!(parse_into_kind("file(a,,b)").is_err());
+        assert_eq!(
+            parse_normalized("remote_branches(a,remote=b  , )"),
+            parse_normalized("remote_branches(a, remote=b)"),
+        );
+        assert!(parse_into_kind("remote_branches(a,,remote=b)").is_err());
+    }
+
+    #[test]
+    fn test_parse_revset_with_modifier() {
+        // all: is a program modifier, but all:: isn't
+        assert_eq!(
+            parse_into_kind("all:"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_matches!(
+            parse_into_kind("all:foo"),
+            Ok(ExpressionKind::Modifier(modifier)) if modifier.name == "all"
+        );
+        assert_matches!(
+            parse_into_kind("all::"),
+            Ok(ExpressionKind::Unary(UnaryOp::DagRangePost, _))
+        );
+        assert_matches!(
+            parse_into_kind("all::foo"),
+            Ok(ExpressionKind::Binary(BinaryOp::DagRange, _, _))
+        );
+
+        // all::: could be parsed as all:(::), but rejected for simplicity
+        assert_eq!(
+            parse_into_kind("all:::"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("all:::foo"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+
+        assert_eq!(parse_normalized("all:(foo)"), parse_normalized("all:foo"));
+        assert_eq!(
+            parse_normalized("all:all::foo"),
+            parse_normalized("all:(all::foo)"),
+        );
+        assert_eq!(
+            parse_normalized("all:all | foo"),
+            parse_normalized("all:(all | foo)"),
+        );
+
+        assert_eq!(
+            parse_normalized("all: ::foo"),
+            parse_normalized("all:(::foo)"),
+        );
+        assert_eq!(parse_normalized(" all: foo"), parse_normalized("all:foo"));
+        assert_eq!(
+            parse_into_kind("(all:foo)"),
+            Ok(ExpressionKind::StringPattern {
+                kind: "all",
+                value: "foo".to_owned()
+            })
+        );
+        assert_matches!(
+            parse_into_kind("all :foo"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_normalized("all:all:all"),
+            parse_normalized("all:(all:all)"),
+        );
+    }
+
+    #[test]
+    fn test_parse_whitespace() {
+        let ascii_whitespaces: String = ('\x00'..='\x7f')
+            .filter(char::is_ascii_whitespace)
+            .collect();
+        assert_eq!(
+            parse_normalized(&format!("{ascii_whitespaces}all()")),
+            parse_normalized("all()"),
+        );
+    }
+
+    #[test]
+    fn test_parse_string_literal() {
+        // "\<char>" escapes
+        assert_eq!(
+            parse_into_kind(r#" "\t\r\n\"\\\0" "#),
+            Ok(ExpressionKind::String("\t\r\n\"\\\0".to_owned()))
+        );
+
+        // Invalid "\<char>" escape
+        assert_eq!(
+            parse_into_kind(r#" "\y" "#),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+
+        // Single-quoted raw string
+        assert_eq!(
+            parse_into_kind(r#" '' "#),
+            Ok(ExpressionKind::String("".to_owned()))
+        );
+        assert_eq!(
+            parse_into_kind(r#" 'a\n' "#),
+            Ok(ExpressionKind::String(r"a\n".to_owned()))
+        );
+        assert_eq!(
+            parse_into_kind(r#" '\' "#),
+            Ok(ExpressionKind::String(r"\".to_owned()))
+        );
+        assert_eq!(
+            parse_into_kind(r#" '"' "#),
+            Ok(ExpressionKind::String(r#"""#.to_owned()))
+        );
+    }
+
+    #[test]
+    fn test_parse_string_pattern() {
+        assert_eq!(
+            parse_into_kind(r#"(substring:"foo")"#),
+            Ok(ExpressionKind::StringPattern {
+                kind: "substring",
+                value: "foo".to_owned()
+            })
+        );
+        assert_eq!(
+            parse_into_kind(r#"("exact:foo")"#),
+            Ok(ExpressionKind::String("exact:foo".to_owned()))
+        );
+        assert_eq!(
+            parse_normalized(r#"(exact:"foo" )"#),
+            parse_normalized(r#"(exact:"foo")"#),
+        );
+        assert_eq!(
+            parse_into_kind(r#"(exact:'\')"#),
+            Ok(ExpressionKind::StringPattern {
+                kind: "exact",
+                value: r"\".to_owned()
+            })
+        );
+        assert_matches!(
+            parse_into_kind(r#"(exact:("foo" ))"#),
+            Err(RevsetParseErrorKind::NotInfixOperator { .. })
+        );
+    }
+
+    #[test]
+    fn test_parse_revset_alias_symbol_decl() {
+        let mut aliases_map = RevsetAliasesMap::new();
+        // Working copy or remote symbol cannot be used as an alias name.
+        assert!(aliases_map.insert("@", "none()").is_err());
+        assert!(aliases_map.insert("a@", "none()").is_err());
+        assert!(aliases_map.insert("a@b", "none()").is_err());
+    }
+
+    #[test]
+    fn test_parse_revset_alias_formal_parameter() {
+        let mut aliases_map = RevsetAliasesMap::new();
+        // Working copy or remote symbol cannot be used as an parameter name.
+        assert!(aliases_map.insert("f(@)", "none()").is_err());
+        assert!(aliases_map.insert("f(a@)", "none()").is_err());
+        assert!(aliases_map.insert("f(a@b)", "none()").is_err());
+        // Trailing comma isn't allowed for empty parameter
+        assert!(aliases_map.insert("f(,)", "none()").is_err());
+        // Trailing comma is allowed for the last parameter
+        assert!(aliases_map.insert("g(a,)", "none()").is_ok());
+        assert!(aliases_map.insert("h(a ,  )", "none()").is_ok());
+        assert!(aliases_map.insert("i(,a)", "none()").is_err());
+        assert!(aliases_map.insert("j(a,,)", "none()").is_err());
+        assert!(aliases_map.insert("k(a  , , )", "none()").is_err());
+        assert!(aliases_map.insert("l(a,b,)", "none()").is_ok());
+        assert!(aliases_map.insert("m(a,,b)", "none()").is_err());
+    }
+
+    #[test]
+    fn test_parse_revset_compat_operator() {
+        assert_eq!(
+            parse_into_kind(":foo"),
+            Err(RevsetParseErrorKind::NotPrefixOperator {
+                op: ":".to_owned(),
+                similar_op: "::".to_owned(),
+                description: "ancestors".to_owned(),
+            })
+        );
+        assert_eq!(
+            parse_into_kind("foo^"),
+            Err(RevsetParseErrorKind::NotPostfixOperator {
+                op: "^".to_owned(),
+                similar_op: "-".to_owned(),
+                description: "parents".to_owned(),
+            })
+        );
+        assert_eq!(
+            parse_into_kind("foo + bar"),
+            Err(RevsetParseErrorKind::NotInfixOperator {
+                op: "+".to_owned(),
+                similar_op: "|".to_owned(),
+                description: "union".to_owned(),
+            })
+        );
+        assert_eq!(
+            parse_into_kind("foo - bar"),
+            Err(RevsetParseErrorKind::NotInfixOperator {
+                op: "-".to_owned(),
+                similar_op: "~".to_owned(),
+                description: "difference".to_owned(),
+            })
+        );
+    }
+
+    #[test]
+    fn test_parse_revset_operator_combinations() {
+        // Parse repeated "parents" operator
+        assert_eq!(parse_normalized("foo---"), parse_normalized("((foo-)-)-"));
+        // Parse repeated "children" operator
+        assert_eq!(parse_normalized("foo+++"), parse_normalized("((foo+)+)+"));
+        // Set operator associativity/precedence
+        assert_eq!(parse_normalized("~x|y"), parse_normalized("(~x)|y"));
+        assert_eq!(parse_normalized("x&~y"), parse_normalized("x&(~y)"));
+        assert_eq!(parse_normalized("x~~y"), parse_normalized("x~(~y)"));
+        assert_eq!(parse_normalized("x~~~y"), parse_normalized("x~(~(~y))"));
+        assert_eq!(parse_normalized("~x::y"), parse_normalized("~(x::y)"));
+        assert_eq!(parse_normalized("x|y|z"), parse_normalized("(x|y)|z"));
+        assert_eq!(parse_normalized("x&y|z"), parse_normalized("(x&y)|z"));
+        assert_eq!(parse_normalized("x|y&z"), parse_normalized("x|(y&z)"));
+        assert_eq!(parse_normalized("x|y~z"), parse_normalized("x|(y~z)"));
+        assert_eq!(parse_normalized("::&.."), parse_normalized("(::)&(..)"));
+        // Parse repeated "ancestors"/"descendants"/"dag range"/"range" operators
+        assert_eq!(
+            parse_into_kind("::foo::"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind(":::foo"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("::::foo"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("foo:::"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("foo::::"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("foo:::bar"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("foo::::bar"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("::foo::bar"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("foo::bar::"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("::::"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("....foo"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("foo...."),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("foo.....bar"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("..foo..bar"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("foo..bar.."),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("...."),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("::.."),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        // Parse combinations of "parents"/"children" operators and the range operators.
+        // The former bind more strongly.
+        assert_eq!(parse_normalized("foo-+"), parse_normalized("(foo-)+"));
+        assert_eq!(parse_normalized("foo-::"), parse_normalized("(foo-)::"));
+        assert_eq!(parse_normalized("::foo+"), parse_normalized("::(foo+)"));
+        assert_eq!(
+            parse_into_kind("::-"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+        assert_eq!(
+            parse_into_kind("..+"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+    }
+
+    #[test]
+    fn test_parse_revset_function() {
+        assert_matches!(
+            parse_into_kind("parents(foo)"),
+            Ok(ExpressionKind::FunctionCall(_))
+        );
+        assert_eq!(
+            parse_normalized("parents((foo))"),
+            parse_normalized("parents(foo)"),
+        );
+        assert_eq!(
+            parse_into_kind("parents(foo"),
+            Err(RevsetParseErrorKind::SyntaxError)
+        );
+    }
+
+    #[test]
+    fn test_expand_symbol_alias() {
+        assert_eq!(
+            with_aliases([("AB", "a|b")]).parse_normalized("AB|c"),
+            parse_normalized("(a|b)|c")
+        );
+        assert_eq!(
+            with_aliases([("AB", "a|b")]).parse_normalized("AB::heads(AB)"),
+            parse_normalized("(a|b)::heads(a|b)")
+        );
+
+        // Not string substitution 'a&b|c', but tree substitution.
+        assert_eq!(
+            with_aliases([("BC", "b|c")]).parse_normalized("a&BC"),
+            parse_normalized("a&(b|c)")
+        );
+
+        // String literal should not be substituted with alias.
+        assert_eq!(
+            with_aliases([("A", "a")]).parse_normalized(r#"A|"A"|'A'"#),
+            parse_normalized("a|'A'|'A'")
+        );
+
+        // Part of string pattern cannot be substituted.
+        assert_eq!(
+            with_aliases([("A", "a")]).parse_normalized("author(exact:A)"),
+            parse_normalized("author(exact:A)")
+        );
+
+        // Part of @ symbol cannot be substituted.
+        assert_eq!(
+            with_aliases([("A", "a")]).parse_normalized("A@"),
+            parse_normalized("A@")
+        );
+        assert_eq!(
+            with_aliases([("A", "a")]).parse_normalized("A@b"),
+            parse_normalized("A@b")
+        );
+        assert_eq!(
+            with_aliases([("B", "b")]).parse_normalized("a@B"),
+            parse_normalized("a@B")
+        );
+
+        // Modifier cannot be substituted.
+        assert_eq!(
+            with_aliases([("all", "ALL")]).parse_normalized("all:all"),
+            parse_normalized("all:ALL")
+        );
+
+        // Top-level alias can be substituted to modifier expression.
+        assert_eq!(
+            with_aliases([("A", "all:a")]).parse_normalized("A"),
+            parse_normalized("all:a")
+        );
+
+        // Multi-level substitution.
+        assert_eq!(
+            with_aliases([("A", "BC"), ("BC", "b|C"), ("C", "c")]).parse_normalized("A"),
+            parse_normalized("b|c")
+        );
+
+        // Infinite recursion, where the top-level error isn't of RecursiveAlias kind.
+        assert_eq!(
+            with_aliases([("A", "A")]).parse("A").unwrap_err().kind,
+            RevsetParseErrorKind::BadAliasExpansion("A".to_owned())
+        );
+        assert_eq!(
+            with_aliases([("A", "B"), ("B", "b|C"), ("C", "c|B")])
+                .parse("A")
+                .unwrap_err()
+                .kind,
+            RevsetParseErrorKind::BadAliasExpansion("A".to_owned())
+        );
+
+        // Error in alias definition.
+        assert_eq!(
+            with_aliases([("A", "a(")]).parse("A").unwrap_err().kind,
+            RevsetParseErrorKind::BadAliasExpansion("A".to_owned())
+        );
+    }
+
+    #[test]
+    fn test_expand_function_alias() {
+        assert_eq!(
+            with_aliases([("F(  )", "a")]).parse_normalized("F()"),
+            parse_normalized("a")
+        );
+        assert_eq!(
+            with_aliases([("F( x  )", "x")]).parse_normalized("F(a)"),
+            parse_normalized("a")
+        );
+        assert_eq!(
+            with_aliases([("F( x,  y )", "x|y")]).parse_normalized("F(a, b)"),
+            parse_normalized("a|b")
+        );
+
+        // Arguments should be resolved in the current scope.
+        assert_eq!(
+            with_aliases([("F(x,y)", "x|y")]).parse_normalized("F(a::y,b::x)"),
+            parse_normalized("(a::y)|(b::x)")
+        );
+        // F(a) -> G(a)&y -> (x|a)&y
+        assert_eq!(
+            with_aliases([("F(x)", "G(x)&y"), ("G(y)", "x|y")]).parse_normalized("F(a)"),
+            parse_normalized("(x|a)&y")
+        );
+        // F(G(a)) -> F(x|a) -> G(x|a)&y -> (x|(x|a))&y
+        assert_eq!(
+            with_aliases([("F(x)", "G(x)&y"), ("G(y)", "x|y")]).parse_normalized("F(G(a))"),
+            parse_normalized("(x|(x|a))&y")
+        );
+
+        // Function parameter should precede the symbol alias.
+        assert_eq!(
+            with_aliases([("F(X)", "X"), ("X", "x")]).parse_normalized("F(a)|X"),
+            parse_normalized("a|x")
+        );
+
+        // Function parameter shouldn't be expanded in symbol alias.
+        assert_eq!(
+            with_aliases([("F(x)", "x|A"), ("A", "x")]).parse_normalized("F(a)"),
+            parse_normalized("a|x")
+        );
+
+        // String literal should not be substituted with function parameter.
+        assert_eq!(
+            with_aliases([("F(x)", r#"x|"x""#)]).parse_normalized("F(a)"),
+            parse_normalized("a|'x'")
+        );
+
+        // Modifier expression body as parameter.
+        assert_eq!(
+            with_aliases([("F(x)", "all:x")]).parse_normalized("F(a|b)"),
+            parse_normalized("all:(a|b)")
+        );
+
+        // Function and symbol aliases reside in separate namespaces.
+        assert_eq!(
+            with_aliases([("A()", "A"), ("A", "a")]).parse_normalized("A()"),
+            parse_normalized("a")
+        );
+
+        // Invalid number of arguments.
+        assert_eq!(
+            with_aliases([("F()", "x")]).parse("F(a)").unwrap_err().kind,
+            RevsetParseErrorKind::InvalidFunctionArguments {
+                name: "F".to_owned(),
+                message: "Expected 0 arguments".to_owned()
+            }
+        );
+        assert_eq!(
+            with_aliases([("F(x)", "x")]).parse("F()").unwrap_err().kind,
+            RevsetParseErrorKind::InvalidFunctionArguments {
+                name: "F".to_owned(),
+                message: "Expected 1 arguments".to_owned()
+            }
+        );
+        assert_eq!(
+            with_aliases([("F(x,y)", "x|y")])
+                .parse("F(a,b,c)")
+                .unwrap_err()
+                .kind,
+            RevsetParseErrorKind::InvalidFunctionArguments {
+                name: "F".to_owned(),
+                message: "Expected 2 arguments".to_owned()
+            }
+        );
+
+        // Keyword argument isn't supported for now.
+        assert_eq!(
+            with_aliases([("F(x)", "x")])
+                .parse("F(x=y)")
+                .unwrap_err()
+                .kind,
+            RevsetParseErrorKind::InvalidFunctionArguments {
+                name: "F".to_owned(),
+                message: "Unexpected keyword arguments".to_owned()
+            }
+        );
+
+        // Infinite recursion, where the top-level error isn't of RecursiveAlias kind.
+        assert_eq!(
+            with_aliases([("F(x)", "G(x)"), ("G(x)", "H(x)"), ("H(x)", "F(x)")])
+                .parse("F(a)")
+                .unwrap_err()
+                .kind,
+            RevsetParseErrorKind::BadAliasExpansion("F()".to_owned())
+        );
     }
 }

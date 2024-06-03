@@ -2262,54 +2262,6 @@ mod tests {
             parse_with_workspace("main@", &other_workspace_id),
             Ok(main_wc)
         );
-        assert_eq!(
-            parse("main@origin"),
-            Ok(RevsetExpression::remote_symbol(
-                "main".to_string(),
-                "origin".to_string()
-            ))
-        );
-        // Quoted component in @ expression
-        assert_eq!(
-            parse(r#""foo bar"@"#),
-            Ok(RevsetExpression::working_copy(WorkspaceId::new(
-                "foo bar".to_string()
-            )))
-        );
-        assert_eq!(
-            parse(r#""foo bar"@origin"#),
-            Ok(RevsetExpression::remote_symbol(
-                "foo bar".to_string(),
-                "origin".to_string()
-            ))
-        );
-        assert_eq!(
-            parse(r#"main@"foo bar""#),
-            Ok(RevsetExpression::remote_symbol(
-                "main".to_string(),
-                "foo bar".to_string()
-            ))
-        );
-        assert_eq!(
-            parse(r#"'foo bar'@'bar baz'"#),
-            Ok(RevsetExpression::remote_symbol(
-                "foo bar".to_string(),
-                "bar baz".to_string()
-            ))
-        );
-        // Quoted "@" is not interpreted as a working copy or remote symbol
-        assert_eq!(
-            parse(r#""@""#),
-            Ok(RevsetExpression::symbol("@".to_string()))
-        );
-        assert_eq!(
-            parse(r#""main@""#),
-            Ok(RevsetExpression::symbol("main@".to_string()))
-        );
-        assert_eq!(
-            parse(r#""main@origin""#),
-            Ok(RevsetExpression::symbol("main@origin".to_string()))
-        );
         // "@" in function argument must be quoted
         assert_eq!(
             parse("author(foo@)"),
@@ -2325,15 +2277,6 @@ mod tests {
         );
         // Parse a single symbol
         assert_eq!(parse("foo"), Ok(foo_symbol.clone()));
-        // Internal '.', '-', and '+' are allowed
-        assert_eq!(
-            parse("foo.bar-v1+7"),
-            Ok(RevsetExpression::symbol("foo.bar-v1+7".to_string()))
-        );
-        assert_eq!(
-            parse("foo.bar-v1+7-"),
-            Ok(RevsetExpression::symbol("foo.bar-v1+7".to_string()).parents())
-        );
         // Default arguments for *branches() are all ""
         assert_eq!(parse("branches()"), parse(r#"branches("")"#));
         assert_eq!(parse("remote_branches()"), parse(r#"remote_branches("")"#));
@@ -2341,17 +2284,7 @@ mod tests {
             parse("remote_branches()"),
             parse(r#"remote_branches("", "")"#)
         );
-        // '.' is not allowed at the beginning or end
-        assert_eq!(parse(".foo"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("foo."), Err(RevsetParseErrorKind::SyntaxError));
-        // Multiple '.', '-', '+' are not allowed
-        assert_eq!(parse("foo.+bar"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("foo--bar"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("foo+-bar"), Err(RevsetParseErrorKind::SyntaxError));
-        // Parse a parenthesized symbol
-        assert_eq!(parse("(foo)"), Ok(foo_symbol.clone()));
         // Parse a quoted symbol
-        assert_eq!(parse("\"foo\""), Ok(foo_symbol.clone()));
         assert_eq!(parse("'foo'"), Ok(foo_symbol.clone()));
         // Parse the "parents" operator
         assert_eq!(parse("foo-"), Ok(foo_symbol.parents()));
@@ -2382,130 +2315,20 @@ mod tests {
         );
         // Parse the "negate" operator
         assert_eq!(parse("~ foo"), Ok(foo_symbol.negated()));
-        assert_eq!(
-            parse("~ ~~ foo"),
-            Ok(foo_symbol.negated().negated().negated())
-        );
         // Parse the "intersection" operator
         assert_eq!(parse("foo & bar"), Ok(foo_symbol.intersection(&bar_symbol)));
         // Parse the "union" operator
         assert_eq!(parse("foo | bar"), Ok(foo_symbol.union(&bar_symbol)));
         // Parse the "difference" operator
         assert_eq!(parse("foo ~ bar"), Ok(foo_symbol.minus(&bar_symbol)));
-        // Parentheses are allowed before suffix operators
-        assert_eq!(parse("(foo)-"), Ok(foo_symbol.parents()));
-        // Space is allowed around expressions
-        assert_eq!(parse(" ::foo "), Ok(foo_symbol.ancestors()));
-        assert_eq!(parse("( ::foo )"), Ok(foo_symbol.ancestors()));
-        // Space is not allowed around prefix operators
-        assert_eq!(parse(" :: foo "), Err(RevsetParseErrorKind::SyntaxError));
-        // Incomplete parse
-        assert_eq!(parse("foo | -"), Err(RevsetParseErrorKind::SyntaxError));
-        // Space is allowed around infix operators and function arguments
-        assert_eq!(
-            parse_with_workspace(
-                "   description(  arg1 ) ~    file(  arg1 ,   arg2 )  ~ visible_heads(  )  ",
-                &main_workspace_id
-            ),
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::Description(
-                StringPattern::Substring("arg1".to_string())
-            ))
-            .minus(&RevsetExpression::filter(RevsetFilterPredicate::File(
-                FilesetExpression::union_all(vec![
-                    FilesetExpression::prefix_path(RepoPathBuf::from_internal_string("arg1")),
-                    FilesetExpression::prefix_path(RepoPathBuf::from_internal_string("arg2")),
-                ])
-            )))
-            .minus(&RevsetExpression::visible_heads()))
-        );
-        // Space is allowed around keyword arguments
-        assert_eq!(
-            parse("remote_branches( remote  =   foo  )").unwrap(),
-            parse("remote_branches(remote=foo)").unwrap(),
-        );
-
-        // Trailing comma isn't allowed for empty argument
-        assert!(parse("branches(,)").is_err());
-        // Trailing comma is allowed for the last argument
-        assert!(parse("branches(a,)").is_ok());
-        assert!(parse("branches(a ,  )").is_ok());
-        assert!(parse("branches(,a)").is_err());
-        assert!(parse("branches(a,,)").is_err());
-        assert!(parse("branches(a  , , )").is_err());
-        assert!(parse_with_workspace("file(a,b,)", &main_workspace_id).is_ok());
-        assert!(parse_with_workspace("file(a,,b)", &main_workspace_id).is_err());
-        assert!(parse("remote_branches(a,remote=b  , )").is_ok());
-        assert!(parse("remote_branches(a,,remote=b)").is_err());
     }
 
     #[test]
     fn test_parse_revset_with_modifier() {
-        let all_symbol = RevsetExpression::symbol("all".to_owned());
         let foo_symbol = RevsetExpression::symbol("foo".to_owned());
-
-        // all: is a program modifier, but all:: isn't
-        assert_eq!(
-            parse_with_modifier("all:"),
-            Err(RevsetParseErrorKind::SyntaxError)
-        );
         assert_eq!(
             parse_with_modifier("all:foo"),
             Ok((foo_symbol.clone(), Some(RevsetModifier::All)))
-        );
-        assert_eq!(
-            parse_with_modifier("all::"),
-            Ok((all_symbol.descendants(), None))
-        );
-        assert_eq!(
-            parse_with_modifier("all::foo"),
-            Ok((all_symbol.dag_range_to(&foo_symbol), None))
-        );
-
-        // all::: could be parsed as all:(::), but rejected for simplicity
-        assert_eq!(
-            parse_with_modifier("all:::"),
-            Err(RevsetParseErrorKind::SyntaxError)
-        );
-        assert_eq!(
-            parse_with_modifier("all:::foo"),
-            Err(RevsetParseErrorKind::SyntaxError)
-        );
-
-        assert_eq!(
-            parse_with_modifier("all:(foo)"),
-            Ok((foo_symbol.clone(), Some(RevsetModifier::All)))
-        );
-        assert_eq!(
-            parse_with_modifier("all:all::foo"),
-            Ok((
-                all_symbol.dag_range_to(&foo_symbol),
-                Some(RevsetModifier::All)
-            ))
-        );
-        assert_eq!(
-            parse_with_modifier("all:all | foo"),
-            Ok((all_symbol.union(&foo_symbol), Some(RevsetModifier::All)))
-        );
-
-        assert_eq!(
-            parse_with_modifier("all: ::foo"),
-            Ok((foo_symbol.ancestors(), Some(RevsetModifier::All)))
-        );
-        assert_eq!(
-            parse_with_modifier(" all: foo"),
-            Ok((foo_symbol.clone(), Some(RevsetModifier::All)))
-        );
-        assert_matches!(
-            parse_with_modifier("(all:foo)"),
-            Err(RevsetParseErrorKind::NotInfixOperator { .. })
-        );
-        assert_matches!(
-            parse_with_modifier("all :foo"),
-            Err(RevsetParseErrorKind::SyntaxError)
-        );
-        assert_matches!(
-            parse_with_modifier("all:all:all"),
-            Err(RevsetParseErrorKind::NotInfixOperator { .. })
         );
 
         // Top-level string pattern can't be parsed, which is an error anyway
@@ -2513,41 +2336,6 @@ mod tests {
             parse_with_modifier(r#"exact:"foo""#),
             Err(RevsetParseErrorKind::NoSuchModifier("exact".to_owned()))
         );
-    }
-
-    #[test]
-    fn test_parse_whitespace() {
-        let ascii_whitespaces: String = ('\x00'..='\x7f')
-            .filter(char::is_ascii_whitespace)
-            .collect();
-        assert_eq!(
-            parse(&format!("{ascii_whitespaces}all()")).unwrap(),
-            parse("all()").unwrap(),
-        );
-    }
-
-    #[test]
-    fn test_parse_string_literal() {
-        let branches_expr =
-            |s: &str| RevsetExpression::branches(StringPattern::Substring(s.to_owned()));
-
-        // "\<char>" escapes
-        assert_eq!(
-            parse(r#"branches("\t\r\n\"\\\0")"#),
-            Ok(branches_expr("\t\r\n\"\\\0"))
-        );
-
-        // Invalid "\<char>" escape
-        assert_eq!(
-            parse(r#"branches("\y")"#),
-            Err(RevsetParseErrorKind::SyntaxError)
-        );
-
-        // Single-quoted raw string
-        assert_eq!(parse(r#"branches('')"#), Ok(branches_expr("")));
-        assert_eq!(parse(r#"branches('a\n')"#), Ok(branches_expr(r"a\n")));
-        assert_eq!(parse(r#"branches('\')"#), Ok(branches_expr(r"\")));
-        assert_eq!(parse(r#"branches('"')"#), Ok(branches_expr(r#"""#)));
     }
 
     #[test]
@@ -2571,24 +2359,6 @@ mod tests {
             )))
         );
         assert_eq!(
-            parse(r#"branches("exact:foo")"#),
-            Ok(RevsetExpression::branches(StringPattern::Substring(
-                "exact:foo".to_owned()
-            )))
-        );
-        assert_eq!(
-            parse(r#"branches((exact:"foo"))"#),
-            Ok(RevsetExpression::branches(StringPattern::Exact(
-                "foo".to_owned()
-            )))
-        );
-        assert_eq!(
-            parse(r#"branches(exact:'\')"#),
-            Ok(RevsetExpression::branches(StringPattern::Exact(
-                r"\".to_owned()
-            )))
-        );
-        assert_eq!(
             parse(r#"branches(bad:"foo")"#),
             Err(RevsetParseErrorKind::Expression(
                 "Invalid string pattern".to_owned()
@@ -2606,10 +2376,6 @@ mod tests {
                 "Expected expression of string pattern".to_owned()
             ))
         );
-        assert_matches!(
-            parse(r#"branches(exact:("foo"))"#),
-            Err(RevsetParseErrorKind::NotInfixOperator { .. })
-        );
 
         // String pattern isn't allowed at top level.
         assert_matches!(
@@ -2619,131 +2385,14 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_revset_alias_symbol_decl() {
-        let mut aliases_map = RevsetAliasesMap::new();
-        // Working copy or remote symbol cannot be used as an alias name.
-        assert!(aliases_map.insert("@", "none()").is_err());
-        assert!(aliases_map.insert("a@", "none()").is_err());
-        assert!(aliases_map.insert("a@b", "none()").is_err());
-    }
-
-    #[test]
-    fn test_parse_revset_alias_formal_parameter() {
-        let mut aliases_map = RevsetAliasesMap::new();
-        // Working copy or remote symbol cannot be used as an parameter name.
-        assert!(aliases_map.insert("f(@)", "none()").is_err());
-        assert!(aliases_map.insert("f(a@)", "none()").is_err());
-        assert!(aliases_map.insert("f(a@b)", "none()").is_err());
-        // Trailing comma isn't allowed for empty parameter
-        assert!(aliases_map.insert("f(,)", "none()").is_err());
-        // Trailing comma is allowed for the last parameter
-        assert!(aliases_map.insert("g(a,)", "none()").is_ok());
-        assert!(aliases_map.insert("h(a ,  )", "none()").is_ok());
-        assert!(aliases_map.insert("i(,a)", "none()").is_err());
-        assert!(aliases_map.insert("j(a,,)", "none()").is_err());
-        assert!(aliases_map.insert("k(a  , , )", "none()").is_err());
-        assert!(aliases_map.insert("l(a,b,)", "none()").is_ok());
-        assert!(aliases_map.insert("m(a,,b)", "none()").is_err());
-    }
-
-    #[test]
-    fn test_parse_revset_compat_operator() {
-        assert_eq!(
-            parse(":foo"),
-            Err(RevsetParseErrorKind::NotPrefixOperator {
-                op: ":".to_owned(),
-                similar_op: "::".to_owned(),
-                description: "ancestors".to_owned(),
-            })
-        );
-        assert_eq!(
-            parse("foo^"),
-            Err(RevsetParseErrorKind::NotPostfixOperator {
-                op: "^".to_owned(),
-                similar_op: "-".to_owned(),
-                description: "parents".to_owned(),
-            })
-        );
-        assert_eq!(
-            parse("foo + bar"),
-            Err(RevsetParseErrorKind::NotInfixOperator {
-                op: "+".to_owned(),
-                similar_op: "|".to_owned(),
-                description: "union".to_owned(),
-            })
-        );
-        assert_eq!(
-            parse("foo - bar"),
-            Err(RevsetParseErrorKind::NotInfixOperator {
-                op: "-".to_owned(),
-                similar_op: "~".to_owned(),
-                description: "difference".to_owned(),
-            })
-        );
-    }
-
-    #[test]
-    fn test_parse_revset_operator_combinations() {
-        let foo_symbol = RevsetExpression::symbol("foo".to_string());
-        // Parse repeated "parents" operator
-        assert_eq!(
-            parse("foo---"),
-            Ok(foo_symbol.parents().parents().parents())
-        );
-        // Parse repeated "children" operator
-        assert_eq!(
-            parse("foo+++"),
-            Ok(foo_symbol.children().children().children())
-        );
-        // Set operator associativity/precedence
-        assert_eq!(parse("~x|y").unwrap(), parse("(~x)|y").unwrap());
-        assert_eq!(parse("x&~y").unwrap(), parse("x&(~y)").unwrap());
-        assert_eq!(parse("x~~y").unwrap(), parse("x~(~y)").unwrap());
-        assert_eq!(parse("x~~~y").unwrap(), parse("x~(~(~y))").unwrap());
-        assert_eq!(parse("~x::y").unwrap(), parse("~(x::y)").unwrap());
-        assert_eq!(parse("x|y|z").unwrap(), parse("(x|y)|z").unwrap());
-        assert_eq!(parse("x&y|z").unwrap(), parse("(x&y)|z").unwrap());
-        assert_eq!(parse("x|y&z").unwrap(), parse("x|(y&z)").unwrap());
-        assert_eq!(parse("x|y~z").unwrap(), parse("x|(y~z)").unwrap());
-        assert_eq!(parse("::&..").unwrap(), parse("(::)&(..)").unwrap());
-        // Parse repeated "ancestors"/"descendants"/"dag range"/"range" operators
-        assert_eq!(parse("::foo::"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse(":::foo"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("::::foo"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("foo:::"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("foo::::"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("foo:::bar"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("foo::::bar"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("::foo::bar"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("foo::bar::"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("::::"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("....foo"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("foo...."), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("foo.....bar"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("..foo..bar"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("foo..bar.."), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("...."), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("::.."), Err(RevsetParseErrorKind::SyntaxError));
-        // Parse combinations of "parents"/"children" operators and the range operators.
-        // The former bind more strongly.
-        assert_eq!(parse("foo-+"), Ok(foo_symbol.parents().children()));
-        assert_eq!(parse("foo-::"), Ok(foo_symbol.parents().descendants()));
-        assert_eq!(parse("::foo+"), Ok(foo_symbol.children().ancestors()));
-        assert_eq!(parse("::-"), Err(RevsetParseErrorKind::SyntaxError));
-        assert_eq!(parse("..+"), Err(RevsetParseErrorKind::SyntaxError));
-    }
-
-    #[test]
     fn test_parse_revset_function() {
         let foo_symbol = RevsetExpression::symbol("foo".to_string());
         assert_eq!(parse("parents(foo)"), Ok(foo_symbol.parents()));
-        assert_eq!(parse("parents((foo))"), Ok(foo_symbol.parents()));
         assert_eq!(parse("parents(\"foo\")"), Ok(foo_symbol.parents()));
         assert_eq!(
             parse("ancestors(parents(foo))"),
             Ok(foo_symbol.parents().ancestors())
         );
-        assert_eq!(parse("parents(foo"), Err(RevsetParseErrorKind::SyntaxError));
         assert_eq!(
             parse("parents(foo,foo)"),
             Err(RevsetParseErrorKind::InvalidFunctionArguments {
@@ -2772,12 +2421,6 @@ mod tests {
             parse("description(visible_heads())"),
             Err(RevsetParseErrorKind::Expression(
                 "Expected expression of string pattern".to_string()
-            ))
-        );
-        assert_eq!(
-            parse("description((foo))"),
-            Ok(RevsetExpression::filter(
-                RevsetFilterPredicate::Description(StringPattern::Substring("foo".to_string()))
             ))
         );
         assert_eq!(
@@ -2876,22 +2519,6 @@ mod tests {
             parse_with_aliases("AB|c", [("AB", "a|b")]).unwrap(),
             parse("(a|b)|c").unwrap()
         );
-        assert_eq!(
-            parse_with_aliases("AB::heads(AB)", [("AB", "a|b")]).unwrap(),
-            parse("(a|b)::heads(a|b)").unwrap()
-        );
-
-        // Not string substitution 'a&b|c', but tree substitution.
-        assert_eq!(
-            parse_with_aliases("a&BC", [("BC", "b|c")]).unwrap(),
-            parse("a&(b|c)").unwrap()
-        );
-
-        // String literal should not be substituted with alias.
-        assert_eq!(
-            parse_with_aliases(r#"A|"A"|'A'"#, [("A", "a")]).unwrap(),
-            parse("a|A|A").unwrap()
-        );
 
         // Alias can be substituted to string literal.
         assert_eq!(
@@ -2912,171 +2539,19 @@ mod tests {
             parse("author(exact:a)").unwrap()
         );
 
-        // Part of string pattern cannot be substituted.
-        assert_eq!(
-            parse_with_aliases("author(exact:A)", [("A", "a")]).unwrap(),
-            parse("author(exact:A)").unwrap()
-        );
-
-        // Part of @ symbol cannot be substituted.
-        assert_eq!(
-            parse_with_aliases("A@", [("A", "a")]).unwrap(),
-            parse("A@").unwrap()
-        );
-        assert_eq!(
-            parse_with_aliases("A@b", [("A", "a")]).unwrap(),
-            parse("A@b").unwrap()
-        );
-        assert_eq!(
-            parse_with_aliases("a@B", [("B", "b")]).unwrap(),
-            parse("a@B").unwrap()
-        );
-
-        // Modifier cannot be substituted.
-        assert_eq!(
-            parse_with_aliases_and_modifier("all:all", [("all", "ALL")]).unwrap(),
-            parse_with_modifier("all:ALL").unwrap()
-        );
-
-        // Top-level alias can be substituted to modifier expression.
-        assert_eq!(
-            parse_with_aliases_and_modifier("A", [("A", "all:a")]),
-            parse_with_modifier("all:a")
-        );
+        // Sub-expression alias cannot be substituted to modifier expression.
         assert_eq!(
             parse_with_aliases_and_modifier("A-", [("A", "all:a")]),
-            Err(RevsetParseErrorKind::BadAliasExpansion("A".to_owned()))
-        );
-
-        // Multi-level substitution.
-        assert_eq!(
-            parse_with_aliases("A", [("A", "BC"), ("BC", "b|C"), ("C", "c")]).unwrap(),
-            parse("b|c").unwrap()
-        );
-
-        // Infinite recursion, where the top-level error isn't of RecursiveAlias kind.
-        assert_eq!(
-            parse_with_aliases("A", [("A", "A")]),
-            Err(RevsetParseErrorKind::BadAliasExpansion("A".to_owned()))
-        );
-        assert_eq!(
-            parse_with_aliases("A", [("A", "B"), ("B", "b|C"), ("C", "c|B")]),
-            Err(RevsetParseErrorKind::BadAliasExpansion("A".to_owned()))
-        );
-
-        // Error in alias definition.
-        assert_eq!(
-            parse_with_aliases("A", [("A", "a(")]),
             Err(RevsetParseErrorKind::BadAliasExpansion("A".to_owned()))
         );
     }
 
     #[test]
     fn test_expand_function_alias() {
-        assert_eq!(
-            parse_with_aliases("F()", [("F(  )", "a")]).unwrap(),
-            parse("a").unwrap()
-        );
-        assert_eq!(
-            parse_with_aliases("F(a)", [("F( x  )", "x")]).unwrap(),
-            parse("a").unwrap()
-        );
-        assert_eq!(
-            parse_with_aliases("F(a, b)", [("F( x,  y )", "x|y")]).unwrap(),
-            parse("a|b").unwrap()
-        );
-
-        // Arguments should be resolved in the current scope.
-        assert_eq!(
-            parse_with_aliases("F(a::y,b::x)", [("F(x,y)", "x|y")]).unwrap(),
-            parse("(a::y)|(b::x)").unwrap()
-        );
-        // F(a) -> G(a)&y -> (x|a)&y
-        assert_eq!(
-            parse_with_aliases("F(a)", [("F(x)", "G(x)&y"), ("G(y)", "x|y")]).unwrap(),
-            parse("(x|a)&y").unwrap()
-        );
-        // F(G(a)) -> F(x|a) -> G(x|a)&y -> (x|(x|a))&y
-        assert_eq!(
-            parse_with_aliases("F(G(a))", [("F(x)", "G(x)&y"), ("G(y)", "x|y")]).unwrap(),
-            parse("(x|(x|a))&y").unwrap()
-        );
-
-        // Function parameter should precede the symbol alias.
-        assert_eq!(
-            parse_with_aliases("F(a)|X", [("F(X)", "X"), ("X", "x")]).unwrap(),
-            parse("a|x").unwrap()
-        );
-
-        // Function parameter shouldn't be expanded in symbol alias.
-        assert_eq!(
-            parse_with_aliases("F(a)", [("F(x)", "x|A"), ("A", "x")]).unwrap(),
-            parse("a|x").unwrap()
-        );
-
-        // String literal should not be substituted with function parameter.
-        assert_eq!(
-            parse_with_aliases("F(a)", [("F(x)", r#"x|"x""#)]).unwrap(),
-            parse("a|x").unwrap()
-        );
-
         // Pass string literal as parameter.
         assert_eq!(
             parse_with_aliases("F(a)", [("F(x)", "author(x)|committer(x)")]).unwrap(),
             parse("author(a)|committer(a)").unwrap()
-        );
-
-        // Modifier expression body as parameter.
-        assert_eq!(
-            parse_with_aliases_and_modifier("F(a|b)", [("F(x)", "all:x")]).unwrap(),
-            parse_with_modifier("all:(a|b)").unwrap()
-        );
-
-        // Function and symbol aliases reside in separate namespaces.
-        assert_eq!(
-            parse_with_aliases("A()", [("A()", "A"), ("A", "a")]).unwrap(),
-            parse("a").unwrap()
-        );
-
-        // Invalid number of arguments.
-        assert_eq!(
-            parse_with_aliases("F(a)", [("F()", "x")]),
-            Err(RevsetParseErrorKind::InvalidFunctionArguments {
-                name: "F".to_owned(),
-                message: "Expected 0 arguments".to_owned()
-            })
-        );
-        assert_eq!(
-            parse_with_aliases("F()", [("F(x)", "x")]),
-            Err(RevsetParseErrorKind::InvalidFunctionArguments {
-                name: "F".to_owned(),
-                message: "Expected 1 arguments".to_owned()
-            })
-        );
-        assert_eq!(
-            parse_with_aliases("F(a,b,c)", [("F(x,y)", "x|y")]),
-            Err(RevsetParseErrorKind::InvalidFunctionArguments {
-                name: "F".to_owned(),
-                message: "Expected 2 arguments".to_owned()
-            })
-        );
-
-        // Keyword argument isn't supported for now.
-        assert_eq!(
-            parse_with_aliases("F(x=y)", [("F(x)", "x")]),
-            Err(RevsetParseErrorKind::InvalidFunctionArguments {
-                name: "F".to_owned(),
-                message: "Unexpected keyword arguments".to_owned()
-            })
-        );
-
-        // Infinite recursion, where the top-level error isn't of RecursiveAlias kind.
-        assert_eq!(
-            parse_with_aliases(
-                "F(a)",
-                [("F(x)", "G(x)"), ("G(x)", "H(x)"), ("H(x)", "F(x)")]
-            ),
-            Err(RevsetParseErrorKind::BadAliasExpansion("F()".to_owned()))
         );
     }
 
