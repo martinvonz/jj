@@ -185,8 +185,7 @@ contributor (look for the `jj signoff` alias).
 After you have attached the `Change-Id:` footer to the commit series, you'll
 have to manually invoke `git push` of `HEAD` on the underlying git repository
 into the remote Gerrit branch `refs/for/$BRANCH`, where `$BRANCH` is the base
-branch you want your changes to go to (e.g., `git push origin
-HEAD:refs/for/main`). Using a [co-located][co-located] repo
+branch you want your changes to go to (e.g., `git push origin HEAD:refs/for/main`). Using a [co-located][co-located] repo
 will make the underlying git repo directly accessible from the working
 directory.
 

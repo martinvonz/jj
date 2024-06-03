@@ -89,8 +89,7 @@ And it adds several innovative, useful features of its own:
   descendent is automatically rebased on top of the freshly-modified one. This
   makes "patch-based" workflows a breeze. If you resolve a conflict in a commit,
   the _resolution_ of that conflict is also propagated through descendants as
-  well. In effect, this is a completely transparent version of `git rebase
---update-refs` combined with `git rerere`, supported by design.
+  well. In effect, this is a completely transparent version of `git rebase --update-refs` combined with `git rerere`, supported by design.
 
 > [!WARNING]
 > The following features are available for use, but experimental; they may have
@@ -163,13 +162,10 @@ developers monitor both channels.
 > still be work-in-progress features, suboptimal UX, and workflow gaps that make
 > it unusable for your particular use.
 
-Follow the [installation
-instructions](https://martinvonz.github.io/jj/latest/install-and-setup) to
+Follow the [installation instructions](https://martinvonz.github.io/jj/latest/install-and-setup) to
 obtain and configure `jj`.
 
-The best way to get started is probably to go through [the
-tutorial](https://martinvonz.github.io/jj/latest/tutorial). Also see the [Git
-comparison](https://martinvonz.github.io/jj/latest/git-comparison), which
+The best way to get started is probably to go through [the tutorial](https://martinvonz.github.io/jj/latest/tutorial). Also see the [Git comparison](https://martinvonz.github.io/jj/latest/git-comparison), which
 includes a table of `jj` vs. `git` commands.
 
 As you become more familiar with Jujutsu, the following resources may be helpful:
@@ -194,10 +190,9 @@ while the other is a native storage backend[^native-backend].
 
 [backends]: https://martinvonz.github.io/jj/latest/glossary#backend
 
-[^native-backend]:
-    At this time, there's practically no reason to use the native
-    backend. The backend exists mainly to make sure that it's possible to eventually
-    add functionality that cannot easily be added to the Git backend.
+[^native-backend]: At this time, there's practically no reason to use the native
+backend. The backend exists mainly to make sure that it's possible to eventually
+add functionality that cannot easily be added to the Git backend.
 
 The Git backend is fully featured and maintained, and allows you to use Jujutsu
 as an alternative interface to Git. The commits you create will look like
@@ -206,8 +201,7 @@ regular Git commits. You can always switch back to Git. The Git support uses the
 
 <img src="demos/git_compat.png" />
 
-You can even have a ["co-located" local
-repository](https://martinvonz.github.io/jj/latest/git-compatibility#co-located-jujutsugit-repos)
+You can even have a ["co-located" local repository](https://martinvonz.github.io/jj/latest/git-compatibility#co-located-jujutsugit-repos)
 where you can use both `jj` and `git` commands interchangeably.
 
 ### The working copy is automatically committed
@@ -309,8 +303,7 @@ We welcome outside contributions, and there's plenty of things to do, so
 don't be shy. Please ask if you want a pointer on something you can help with,
 and hopefully we can all figure something out.
 
-We do have [a few policies and
-suggestions](https://martinvonz.github.io/jj/prerelease/contributing/)
+We do have [a few policies and suggestions](https://martinvonz.github.io/jj/prerelease/contributing/)
 for contributors. The broad TL;DR:
 
 - Bug reports are very welcome!

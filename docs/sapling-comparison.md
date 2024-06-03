@@ -53,7 +53,7 @@ Here is a list of some differences between jj and Sapling.
   Sapling has `sl debugmetalog`, but that seems to show the history of a single
   commit, not the whole repo's history. Thanks to jj snapshotting the working
   copy, it's possible to undo changes to the working copy. For example, if
-  you `jj undo` a ` jj commit`, `jj diff` will show the same changes as
+  you `jj undo` a `jj commit`, `jj diff` will show the same changes as
   before `jj commit`, but if you `sl undo` a `sl commit`, the working copy will
   be clean.
 - **Git interop:** Sapling supports cloning, pushing, and pulling from a remote

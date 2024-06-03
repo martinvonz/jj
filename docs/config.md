@@ -10,8 +10,7 @@ These are the config settings available to jj/Jujutsu.
   `cli/src/config/` directory in `jj`'s source repo.
 
 - The user settings. These can be edited with `jj config edit --user`. User
-  settings are located in [the user config file], which can be found with `jj
-config path --user`.
+  settings are located in [the user config file], which can be found with `jj config path --user`.
 
 - The repo settings. These can be edited with `jj config edit --repo` and are
   located in `.jj/repo/config.toml`.
@@ -336,8 +335,7 @@ Can be customized by the `format_short_signature()` template alias.
 Certain commands (such as `jj rebase`) can take multiple revset arguments, but
 default to requiring each of those revsets to expand to a _single_ revision.
 This restriction can be overridden by prefixing a revset that the user wants to
-be able to expand to more than one revision with the [`all:`
-modifier](revsets.md#the-all-modifier).
+be able to expand to more than one revision with the [`all:` modifier](revsets.md#the-all-modifier).
 
 Another way you can override this check is by setting
 `ui.always-allow-large-revsets` to `true`. Then, `jj` will allow every one of
@@ -448,15 +446,14 @@ ui.editor = [
   "-nosession",
   "-noPlugin",
 ] # Notepad++
-ui.editor = "idea --temp-project --wait" #IntelliJ
+ui.editor = "idea --temp-project --wait" # IntelliJ
 ```
 
 Obviously, you would only set one line, don't copy them all in!
 
 ## Editing diffs
 
-The `ui.diff-editor` setting affects the tool used for editing diffs (e.g. `jj
-split`, `jj squash -i`). The default is the special value `:builtin`, which
+The `ui.diff-editor` setting affects the tool used for editing diffs (e.g. `jj split`, `jj squash -i`). The default is the special value `:builtin`, which
 launches a built-in TUI tool (known as [scm-diff-editor]) to edit the diff in
 your terminal.
 
@@ -594,8 +591,7 @@ ui.merge-editor = ["meld", "$left", "$base", "$right", "-o", "$output"]
 The "vscode", "meld", "kdiff3", and "vimdiff" tools can be used out of the box,
 as long as they are installed.
 
-Using VS Code as a merge tool works well with VS Code's [Remote
-Development](https://code.visualstudio.com/docs/remote/remote-overview)
+Using VS Code as a merge tool works well with VS Code's [Remote Development](https://code.visualstudio.com/docs/remote/remote-overview)
 functionality, as long as `jj` is called from VS Code's terminal.
 
 ### Setting up a custom merge tool
@@ -739,13 +735,11 @@ signing.backends.ssh.allowed-signers = "/path/to/allowed-signers"
 
 ### Default remotes for `jj git fetch` and `jj git push`
 
-By default, if a single remote exists it is used for `jj git fetch` and `jj git
-push`; however if multiple remotes exist, the default remote is assumed to be
+By default, if a single remote exists it is used for `jj git fetch` and `jj git push`; however if multiple remotes exist, the default remote is assumed to be
 named `"origin"`, just like in Git. Sometimes this is undesirable, e.g. when you
 want to fetch from a different remote than you push to, such as a GitHub fork.
 
-To change this behavior, you can modify the [repository
-configuration](#config-files-and-toml) variable `git.fetch`, which can be a
+To change this behavior, you can modify the [repository configuration](#config-files-and-toml) variable `git.fetch`, which can be a
 single remote, or a list of remotes to fetch from multiple places:
 
 ```sh

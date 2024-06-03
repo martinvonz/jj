@@ -322,8 +322,7 @@ $ jj log
 Note that commit C automatically got rebased on top of the resolved B2, and that
 C is also resolved (since it modified only a different file).
 
-By the way, if we want to get rid of B1 now, we can run `jj abandon
-ovknlmro`. That will hide the commit from the log output and will rebase any
+By the way, if we want to get rid of B1 now, we can run `jj abandon ovknlmro`. That will hide the commit from the log output and will rebase any
 descendants to its parent.
 
 ## The operation log
@@ -449,13 +448,12 @@ using space. Once complete, press `c` to confirm changes, or `q` to exit without
 saving. You can also use the mouse to click on the menu items to see more
 options (keyboard navigation is currently limited).
 
-[^alternative_diff_editors]:
-    There are many other diff editors you could use.
-    For example, if you have [Meld](https://meldmerge.org) installed and in the
-    PATH, you can use it via `jj squash -i --tool meld` or a fancier config with `jj
-squash -i --tool meld-3`. You can configure the default with the
-    [`ui.diff-editor` option](config.md#editing-diffs); those docs also explain how
-    to specify a path to an executable if it is not in the PATH.
+[^alternative_diff_editors]: There are many other diff editors you could use.
+For example, if you have [Meld](https://meldmerge.org) installed and in the
+PATH, you can use it via `jj squash -i --tool meld` or a fancier config with `jj
+
+squash -i --tool meld-3`. You can configure the default with the [`ui.diff-editor` option](config.md#editing-diffs); those docs also explain how
+to specify a path to an executable if it is not in the PATH.
 
 If we look at the diff of the second commit, we now see
 that all three lines got capitalized:
@@ -501,7 +499,6 @@ line. Unlike `jj squash -i`, which left the content state of the commit
 unchanged, `jj diffedit` (typically) results in a different state, which means
 that descendant commits may have conflicts.
 
-Other commands for rewriting contents of existing commits are `jj split`, `jj
-unsquash -i`. Now that you've seen how `jj squash -i` and `jj diffedit` work,
+Other commands for rewriting contents of existing commits are `jj split`, `jj unsquash -i`. Now that you've seen how `jj squash -i` and `jj diffedit` work,
 you can hopefully figure out how those work (with the help of the instructions
 in the diff).

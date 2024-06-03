@@ -14,14 +14,12 @@ object can be referenced as `self`.
 
 ### Commit keywords
 
-In `jj log`/`jj obslog` templates, all 0-argument methods of [the `Commit`
-type](#commit-type) are available as keywords. For example, `commit_id` is
+In `jj log`/`jj obslog` templates, all 0-argument methods of [the `Commit` type](#commit-type) are available as keywords. For example, `commit_id` is
 equivalent to `self.commit_id()`.
 
 ### Operation keywords
 
-In `jj op log` templates, all 0-argument methods of [the `Operation`
-type](#operation-type) are available as keywords. For example,
+In `jj op log` templates, all 0-argument methods of [the `Operation` type](#operation-type) are available as keywords. For example,
 `current_operation` is equivalent to `self.current_operation()`.
 
 ## Operators
@@ -89,8 +87,7 @@ This type cannot be printed. The following methods are defined.
 - `divergent() -> Boolean`: True if the commit's change id corresponds to multiple
   visible commits.
 - `hidden() -> Boolean`: True if the commit is not visible (a.k.a. abandoned).
-- `immutable() -> Boolean`: True if the commit is included in [the set of
-  immutable commits](config.md#set-of-immutable-commits).
+- `immutable() -> Boolean`: True if the commit is included in [the set of immutable commits](config.md#set-of-immutable-commits).
 - `contained_in(revset: String) -> Boolean`: True if the commit is included in [the provided revset](revsets.md).
 - `conflict() -> Boolean`: True if the commit contains merge conflicts.
 - `empty() -> Boolean`: True if the commit modifies no files.
@@ -156,8 +153,7 @@ The following methods are defined.
 - `.name() -> String`: Local branch or tag name.
 - `.remote() -> String`: Remote name or empty if this is a local ref.
 - `.present() -> Boolean`: True if the ref points to any commit.
-- `.conflict() -> Boolean`: True if [the branch or tag is
-  conflicted](branches.md#conflicts).
+- `.conflict() -> Boolean`: True if [the branch or tag is conflicted](branches.md#conflicts).
 - `.normal_target() -> Option<Commit>`: Target commit if the ref is not
   conflicted and points to a commit.
 - `.removed_targets() -> List<Commit>`: Old target commits if conflicted.

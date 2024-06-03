@@ -18,13 +18,15 @@
 # dependencies not shared by any other crates, would be ignored, as the target
 # list here is effectively saying which targets you are building for.
 targets = [
-    # The triple can be any string, but only the target triples built into
-    # rustc (as of 1.40) can be checked against actual config expressions
-    #{ triple = "x86_64-unknown-linux-musl" },
-    # You can also specify which target_features you promise are enabled for a
-    # particular target. target_features are currently not validated against
-    # the actual valid features supported by the target architecture.
-    #{ triple = "wasm32-unknown-unknown", features = ["atomics"] },
+
+
+  # The triple can be any string, but only the target triples built into
+  # rustc (as of 1.40) can be checked against actual config expressions
+  # { triple = "x86_64-unknown-linux-musl" },
+  # You can also specify which target_features you promise are enabled for a
+  # particular target. target_features are currently not validated against
+  # the actual valid features supported by the target architecture.
+  # { triple = "wasm32-unknown-unknown", features = ["atomics"] },
 ]
 
 # This section is considered when running `cargo deny check advisories`
@@ -50,9 +52,9 @@ notice = "warn"
 # A list of advisory IDs to ignore. Note that ignored advisories will still
 # output a note when they are encountered.
 ignore = [
-    #"RUSTSEC-0000-0000",
+  # "RUSTSEC-0000-0000",
 
-    "RUSTSEC-2021-0145",
+  "RUSTSEC-2021-0145",
 ]
 # Threshold for security vulnerabilities, any vulnerability with a CVSS score
 # lower than the range specified will be ignored. Note that ignored advisories
@@ -62,13 +64,13 @@ ignore = [
 # * Medium - CVSS Score 4.0 - 6.9
 # * High - CVSS Score 7.0 - 8.9
 # * Critical - CVSS Score 9.0 - 10.0
-#severity-threshold =
+# severity-threshold =
 
 # If this is true, then cargo deny will use the git executable to fetch advisory database.
 # If this is false, then it uses a built-in git library.
 # Setting this to true can be helpful if you have special authentication requirements that cargo-deny does not support.
 # See Git Authentication for more information about setting up git authentication.
-#git-fetch-with-cli = true
+# git-fetch-with-cli = true
 
 # This section is considered when running `cargo deny check licenses`
 # More documentation for the licenses section can be found here:
@@ -80,25 +82,25 @@ unlicensed = "deny"
 # See https://spdx.org/licenses/ for list of possible licenses
 # [possible values: any SPDX 3.11 short identifier (+ optional exception)].
 allow = [
-    "Apache-2.0 WITH LLVM-exception",
-    "Apache-2.0",
-    "BSD-3-Clause",
-    "ISC",
-    "MIT",
-    "Unicode-DFS-2016",
+  "Apache-2.0 WITH LLVM-exception",
+  "Apache-2.0",
+  "BSD-3-Clause",
+  "ISC",
+  "MIT",
+  "Unicode-DFS-2016",
 ]
 # List of explicitly disallowed licenses
 # See https://spdx.org/licenses/ for list of possible licenses
 # [possible values: any SPDX 3.11 short identifier (+ optional exception)].
 deny = [
-    "AGPL-1.0",
-    "AGPL-3.0",
-    "OSL-1.0",
-    "OSL-1.1",
-    "OSL-2.0",
-    "OSL-2.1",
-    "OSL-3.0",
-    "SSPL-1.0",
+  "AGPL-1.0",
+  "AGPL-3.0",
+  "OSL-1.0",
+  "OSL-1.1",
+  "OSL-2.0",
+  "OSL-2.1",
+  "OSL-3.0",
+  "SSPL-1.0",
 ]
 # Lint level for licenses considered copyleft
 copyleft = "warn"
@@ -122,9 +124,11 @@ confidence-threshold = 0.8
 # Allow 1 or more licenses on a per-crate basis, so that particular licenses
 # aren't accepted for every possible crate as with the normal allow list
 exceptions = [
-    # Each entry is the crate and version constraint, and its specific allow
-    # list
-    #{ allow = ["Zlib"], name = "adler32", version = "*" },
+
+
+  # Each entry is the crate and version constraint, and its specific allow
+  # list
+  # { allow = ["Zlib"], name = "adler32", version = "*" },
 ]
 
 # This section is considered when running `cargo deny check bans`.
@@ -143,25 +147,29 @@ wildcards = "allow"
 highlight = "all"
 # List of crates to deny
 deny = [
-    # Each entry the name of a crate and a version range. If version is
-    # not specified, all versions will be matched.
-    #{ name = "ansi_term", version = "=0.11.0" },
-    #
-    # Wrapper crates can optionally be specified to allow the crate when it
-    # is a direct dependency of the otherwise banned crate
-    #{ name = "ansi_term", version = "=0.11.0", wrappers = [] },
+
+
+  # Each entry the name of a crate and a version range. If version is
+  # not specified, all versions will be matched.
+  # { name = "ansi_term", version = "=0.11.0" },
+  #
+  # Wrapper crates can optionally be specified to allow the crate when it
+  # is a direct dependency of the otherwise banned crate
+  # { name = "ansi_term", version = "=0.11.0", wrappers = [] },
 ]
 # Certain crates/versions that will be skipped when doing duplicate detection.
 skip = [
-    { name = "hashbrown" }, # we pick up multiple hashbrown crates via config and clap, and that's fine
-    #{ name = "ansi_term", version = "=0.11.0" },
+  { name = "hashbrown" }, # we pick up multiple hashbrown crates via config and clap, and that's fine
+  # { name = "ansi_term", version = "=0.11.0" },
 ]
 # Similarly to `skip` allows you to skip certain crates during duplicate
 # detection. Unlike skip, it also includes the entire tree of transitive
 # dependencies starting at the specified crate, up to a certain depth, which is
 # by default infinite
 skip-tree = [
-    #{ name = "ansi_term", version = "=0.11.0", depth = 20 },
+
+
+  # { name = "ansi_term", version = "=0.11.0", depth = 20 },
 ]
 
 # This section is considered when running `cargo deny check sources`.

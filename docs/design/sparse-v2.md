@@ -12,9 +12,9 @@ end state.
 Redesign Sparse Patterns to accommodate more advanced features for native
 and custom implementations. This includes three main goals:
 
-1.  Sparse Patterns should be versioned with the working copy
-1.  Sparse Patterns should support more [flexible matching rules](https://github.com/martinvonz/jj/issues/1896)
-1.  Sparse Patterns should support [client path remapping](https://github.com/martinvonz/jj/issues/2288)
+1. Sparse Patterns should be versioned with the working copy
+1. Sparse Patterns should support more [flexible matching rules](https://github.com/martinvonz/jj/issues/1896)
+1. Sparse Patterns should support [client path remapping](https://github.com/martinvonz/jj/issues/2288)
 
 ## Current State (as of jj 0.13.0)
 

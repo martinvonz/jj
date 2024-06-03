@@ -243,8 +243,8 @@ on the `@` the current working copy.
 
 ## Open Points
 
-Should the command be working copy backend specific?  
-How do we manage the Processes which the command will spawn?  
+Should the command be working copy backend specific?\
+How do we manage the Processes which the command will spawn?\
 Configuration options, User and Repository Wide?
 
 ## Future possibilities

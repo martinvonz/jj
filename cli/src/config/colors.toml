@@ -87,7 +87,7 @@
 "op_log time" = "cyan"
 "op_log current_operation" = { bold = true }
 "op_log current_operation id" = "bright blue"
-"op_log current_operation user" = "yellow"      # No bright yellow, see comment above
+"op_log current_operation user" = "yellow" # No bright yellow, see comment above
 "op_log current_operation time" = "bright cyan"
 
 "node elided" = { fg = "bright black" }

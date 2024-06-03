@@ -86,8 +86,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the same function in revsets. It evaluates to true if the email of the commit
   author matches the current `user.email`.
 
-- Commit objects in templates now have a `contained_in(revset: String) ->
-Boolean` method.
+- Commit objects in templates now have a `contained_in(revset: String) -> Boolean` method.
 
 - Operation objects in templates now have a `snapshot() -> Boolean` method that
   evaluates to true if the operation was a snapshot created by a non-mutating
@@ -98,8 +97,7 @@ Boolean` method.
 - A new config option `ui.always-allow-large-revsets` has been added to
   allow large revsets expressions in some commands, without the `all:` prefix.
 
-- A new config option `ui.allow-filesets` has been added to enable ["fileset"
-  expressions](docs/filesets.md). Note that filesets are currently experimental,
+- A new config option `ui.allow-filesets` has been added to enable ["fileset" expressions](docs/filesets.md). Note that filesets are currently experimental,
   but will be enabled by default in a future release.
 
 - A new global flag `--ignore-immutable` lets you rewrite immutable commits.
@@ -178,8 +176,7 @@ Thanks to the people who made this release happen!
 - The `git_head` template keyword now returns an optional value instead of a
   list of 0 or 1 element.
 
-- The `jj sparse set --edit`/`--reset` flags were split up into `jj sparse
-edit`/`reset` subcommands respectively.
+- The `jj sparse set --edit`/`--reset` flags were split up into `jj sparse edit`/`reset` subcommands respectively.
 
 - The `jj sparse` subcommands now parse and print patterns as workspace-relative
   paths.
@@ -280,8 +277,7 @@ No code changes (fixing Rust `Cargo.toml` stuff).
 - Dropped support for the "legacy" graph-drawing style. Use "ascii" for a very
   similar result.
 
-- The default log output no longer lists all tagged heads. Set `revsets.log =
-"@ | ancestors(immutable_heads().., 2) | heads(immutable_heads())"` to restore
+- The default log output no longer lists all tagged heads. Set `revsets.log = "@ | ancestors(immutable_heads().., 2) | heads(immutable_heads())"` to restore
   the old behavior.
 
 - Dropped support for the deprecated `:` revset operator. Use `::` instead.
@@ -304,8 +300,7 @@ No code changes (fixing Rust `Cargo.toml` stuff).
 
 - Templates now support logical operators: `||`, `&&`, `!`
 
-- Templates now support the `self` keyword, which is the current commit in `jj
-log`/`obslog` templates.
+- Templates now support the `self` keyword, which is the current commit in `jj log`/`obslog` templates.
 
 - `jj show` now accepts `-T`/`--template` option to render its output using
   template
@@ -463,8 +458,7 @@ Thanks to the people who made this release happen!
 
 - `jj git push` gained a `--tracked` option, to push all the tracked branches.
 
-- There's now a virtual root operation, similar to the [virtual root
-  commit](docs/glossary.md#root-commit). It appears at the end of `jj op log`.
+- There's now a virtual root operation, similar to the [virtual root commit](docs/glossary.md#root-commit). It appears at the end of `jj op log`.
 
 - `jj config list` gained a `--include-overridden` option to allow
   printing overridden config values.
@@ -648,8 +642,7 @@ Thanks to the people who made this release happen!
   See [automatic local branch creation](docs/config.md#automatic-local-branch-creation)
   for details.
 
-- Non-tracking remote branches aren't listed by default. Use `jj branch list
---all` to show all local and remote branches.
+- Non-tracking remote branches aren't listed by default. Use `jj branch list --all` to show all local and remote branches.
 
 - It's not allowed to push branches if non-tracking remote branches of the same
   name exist.
@@ -727,8 +720,7 @@ Thanks to the people who made this release happen!
 ### New features
 
 - The `ancestors()` revset function now takes an optional `depth` argument
-  to limit the depth of the ancestor set. For example, use `jj log -r
-'ancestors(@, 5)` to view the last 5 commits.
+  to limit the depth of the ancestor set. For example, use `jj log -r 'ancestors(@, 5)` to view the last 5 commits.
 
 - Support for the Watchman filesystem monitor is now bundled by default. Set
   `core.fsmonitor = "watchman"` in your repo to enable.
@@ -825,8 +817,7 @@ Thanks to the people who made this release happen!
 - `jj git push` will now push all branches in the range `remote_branches()..@`
   instead of only branches pointing to `@` or `@-`.
 
-- It's no longer allowed to create a Git remote named "git". Use `jj git remote
-rename` to rename the existing remote.
+- It's no longer allowed to create a Git remote named "git". Use `jj git remote rename` to rename the existing remote.
   [#1690](https://github.com/martinvonz/jj/issues/1690)
 
 - Revset expression like `origin/main` will no longer resolve to a

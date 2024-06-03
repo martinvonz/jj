@@ -98,15 +98,13 @@ revsets (expressions) as arguments.
   completeness.
 
 - `branches([pattern])`: All local branch targets. If `pattern` is specified,
-  this selects the branches whose name match the given [string
-  pattern](#string-patterns). For example, `branches(push)` would match the
+  this selects the branches whose name match the given [string pattern](#string-patterns). For example, `branches(push)` would match the
   branches `push-123` and `repushed` but not the branch `main`. If a branch is
   in a conflicted state, all its possible targets are included.
 
 - `remote_branches([branch_pattern[, [remote=]remote_pattern]])`: All remote
   branch targets across all remotes. If just the `branch_pattern` is
-  specified, the branches whose names match the given [string
-  pattern](#string-patterns) across all remotes are selected. If both
+  specified, the branches whose names match the given [string pattern](#string-patterns) across all remotes are selected. If both
   `branch_pattern` and `remote_pattern` are specified, the selection is
   further restricted to just the remotes whose names match `remote_pattern`.
 
@@ -184,8 +182,7 @@ Functions that perform string matching support the following pattern syntax:
 - `"string"`, or `string` (the quotes are optional), or `substring:"string"`:
   Matches strings that contain `string`.
 - `exact:"string"`: Matches strings exactly equal to `string`.
-- `glob:"pattern"`: Matches strings with Unix-style shell [wildcard
-  `pattern`](https://docs.rs/glob/latest/glob/struct.Pattern.html).
+- `glob:"pattern"`: Matches strings with Unix-style shell [wildcard `pattern`](https://docs.rs/glob/latest/glob/struct.Pattern.html).
 
 ## Aliases
 
@@ -246,15 +243,13 @@ behave as though the `all:` modifier was used every time it would matter.
 
 An `all:` modifier before a revset expression does not otherwise change its
 meaning. Strictly speaking, it is not part of the revset language. The notation
-is similar to the modifiers like `glob:` allowed before [string
-patterms](#string-patterns).
+is similar to the modifiers like `glob:` allowed before [string patterms](#string-patterns).
 
 For example, `jj rebase -r w -d xyz+` will rebase `w` on top of the child of
 `xyz` as long as `xyz` has exactly one child.
 
 If `xyz` has more than one child, the `all:` modifier is _not_ specified, and
-`ui.always-allow-large-revsets` is `false` (the default), `jj rebase -r w -d
-xyz+` will return an error.
+`ui.always-allow-large-revsets` is `false` (the default), `jj rebase -r w -d xyz+` will return an error.
 
 If `ui.always-allow-large-revsets` was `true`, the above command would act as if
 `all:` was set (see the next paragraph).
@@ -263,8 +258,7 @@ With the `all:` modifier, `jj rebase -r w -d all:xyz+` will make `w` into a merg
 commit if `xyz` has more than one child. The `all:` modifier confirms that the
 user expected `xyz` to have more than one child.
 
-A more useful example: if `w` is a merge commit, `jj rebase -s w -d all:w- -d
-xyz` will add `xyz` to the list of `w`'s parents.
+A more useful example: if `w` is a merge commit, `jj rebase -s w -d all:w- -d xyz` will add `xyz` to the list of `w`'s parents.
 
 ## Examples
 

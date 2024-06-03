@@ -130,8 +130,7 @@ brew install jj
 
 #### MacPorts
 
-You can also install `jj` via [the MacPorts `jujutsu`
-port](https://ports.macports.org/port/jujutsu/):
+You can also install `jj` via [the MacPorts `jujutsu` port](https://ports.macports.org/port/jujutsu/):
 
 ```shell
 # Installs the latest release

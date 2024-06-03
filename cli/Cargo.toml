@@ -1,28 +1,28 @@
 [package]
 name = "jj-cli"
-description = "Jujutsu - an experimental version control system"
-default-run = "jj"
 autotests = false
+default-run = "jj"
+description = "Jujutsu - an experimental version control system"
 
 version = { workspace = true }
-edition = { workspace = true }
-rust-version = { workspace = true }
-license = { workspace = true }
-homepage = { workspace = true }
-repository = { workspace = true }
 documentation = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
 keywords = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
 
 include = [
-    "/LICENSE",
-    "/build.rs",
-    "/examples/",
-    "/src/",
-    "/testing/",
-    "/tests/",
-    "!*.pending-snap",
-    "!*.snap*",
-    "/tests/cli-reference@.md.snap",
+  "/LICENSE",
+  "/build.rs",
+  "/examples/",
+  "/src/",
+  "/testing/",
+  "/tests/",
+  "!*.pending-snap",
+  "!*.snap*",
+  "/tests/cli-reference@.md.snap",
 ]
 
 [[bin]]
@@ -96,10 +96,10 @@ assert_matches = { workspace = true }
 async-trait = { workspace = true }
 indoc = { workspace = true }
 insta = { workspace = true }
-test-case = { workspace = true }
-testutils = { workspace = true }
 # https://github.com/rust-lang/cargo/issues/2911#issuecomment-1483256987
 jj-cli = { path = ".", features = ["test-fakes"], default-features = false }
+test-case = { workspace = true }
+testutils = { workspace = true }
 
 [features]
 default = ["watchman"]

@@ -65,11 +65,8 @@ Guidelines](https://opensource.google/conduct/).
 
 ## Contributing to the documentation
 
-We appreciate [bug
-reports](https://github.com/martinvonz/jj/issues/new?template=bug_report.md)
-about any problems, however small, lurking in [our documentation
-website](https://martinvonz.github.io/jj/prerelease) or in the `jj help
-<command>` docs. If a part of the bug report template does not apply, you can
+We appreciate [bug reports](https://github.com/martinvonz/jj/issues/new?template=bug_report.md)
+about any problems, however small, lurking in [our documentation website](https://martinvonz.github.io/jj/prerelease) or in the `jj help <command>` docs. If a part of the bug report template does not apply, you can
 just delete it.
 
 Before reporting a problem with the documentation website, we'd appreciate it if
@@ -79,15 +76,13 @@ You can use the version switcher in the top-left of the website to do so.
 
 If you are willing to make a PR fixing a documentation problem, even better!
 
-The documentation website sources are Markdown files located in the [`docs/`
-directory](https://github.com/martinvonz/jj/tree/main/docs). You do not need to
+The documentation website sources are Markdown files located in the [`docs/` directory](https://github.com/martinvonz/jj/tree/main/docs). You do not need to
 know Rust to work with them. See below for [instructions on how to preview the
 HTML docs](#previewing-the-html-documentation) as you edit the Markdown files.
 Doing so is optional, but recommended.
 
 The `jj help` docs are sourced from the "docstring" comments inside the Rust
-sources, currently from the [`cli/src/commands`
-directory](https://github.com/martinvonz/jj/tree/main/cli/src/commands). Working
+sources, currently from the [`cli/src/commands` directory](https://github.com/martinvonz/jj/tree/main/cli/src/commands). Working
 on them requires setting up a Rust development environment, as described
 below, and may occasionally require adjusting a test.
 
@@ -168,8 +163,7 @@ These are listed roughly in order of decreasing importance.
    every `jj log`.
 
 6. To run tests more quickly, use `cargo nextest run --workspace`. To
-   use `nextest` with `insta`, use `cargo insta test --workspace
---test-runner nextest`.
+   use `nextest` with `insta`, use `cargo insta test --workspace --test-runner nextest`.
 
    On Linux, you may be able to speed up `nextest` even further by using
    the `mold` linker, as explained below.
@@ -177,8 +171,7 @@ These are listed roughly in order of decreasing importance.
 ### Using `mold` for faster tests on Linux
 
 On a machine with a multi-core CPU, one way to speed up
-`cargo nextest` on Linux is to use the multi-threaded [`mold`
-linker](https://github.com/rui314/mold). This linker may help
+`cargo nextest` on Linux is to use the multi-threaded [`mold` linker](https://github.com/rui314/mold). This linker may help
 if, currently, your CPU is underused while Rust is linking test
 binaries. Before proceeding with `mold`, you can check whether this is
 an issue worth solving using a system monitoring tool such as `htop`.
@@ -197,8 +190,7 @@ higher CPU usage while linking and, hopefully, faster completion. You
 can verify that `mold` was indeed used by running
 `readelf -p .comment target/debug/jj`.
 
-There are also ways of having Rust use `mold` by default, see the ["How
-to use" instructions](https://github.com/rui314/mold#how-to-use).
+There are also ways of having Rust use `mold` by default, see the ["How to use" instructions](https://github.com/rui314/mold#how-to-use).
 
 On recent versions of MacOS, the default linker Rust uses is already
 multi-threaded. It should use all the CPU cores without any configuration.
@@ -214,8 +206,7 @@ result will look as expected when published to the website.
 ### Setting up the prerequisites
 
 To build the website, you must have Python and `poetry` installed. If
-your distribution packages `poetry`, something like `apt install
-python3-poetry` is likely the best way to install it. Otherwise, you
+your distribution packages `poetry`, something like `apt install python3-poetry` is likely the best way to install it. Otherwise, you
 can download Python from <https://python.org> or follow the [Python
 installation instructions]. Finally, follow the [Poetry installation
 instructions].
@@ -233,8 +224,7 @@ poetry install --no-root
 
 You may get requests to "unlock a keyring", [an error messages about failing to
 do so](https://github.com/python-poetry/poetry/issues/1917), or, in the case of
-Poetry 1.7, it may [simply hang
-indefinitely](https://github.com/python-poetry/poetry/issues/8623). The
+Poetry 1.7, it may [simply hang indefinitely](https://github.com/python-poetry/poetry/issues/8623). The
 workaround is to either to unlock the keyring or to run the following, and then
 to try `poetry install --no-root` again:
 
@@ -260,8 +250,7 @@ As you edit the `md` files, the website should be rebuilt and reloaded in your
 browser automatically, unless build errors occur.
 
 You should occasionally check the terminal from which you ran `mkdocs serve` for
-any build errors or warnings. Warnings about `"GET /versions.json HTTP/1.1" code
-404` are expected and harmless.
+any build errors or warnings. Warnings about `"GET /versions.json HTTP/1.1" code 404` are expected and harmless.
 
 ### How to build the entire website (not usually necessary)
 
@@ -278,54 +267,54 @@ The different versions of documentation are managed and deployed with
 On a POSIX system or WSL, one way to build the entire website is as follows (on
 Windows, you'll need to understand and adapt the shell script):
 
-1.  Check out `jj` as a co-located `jj + git` repository (`jj clone --colocate`),
-    cloned from your fork of `jj` (e.g. `jjfan.github.com/jj`). You can also use a
-    pure Git repo if you prefer.
+1. Check out `jj` as a co-located `jj + git` repository (`jj clone --colocate`),
+   cloned from your fork of `jj` (e.g. `jjfan.github.com/jj`). You can also use a
+   pure Git repo if you prefer.
 
-2.  Make sure `jjfan.github.com/jj` includes the `gh-pages` branch of the jj repo
-    and run `git fetch origin gh-pages`.
+2. Make sure `jjfan.github.com/jj` includes the `gh-pages` branch of the jj repo
+   and run `git fetch origin gh-pages`.
 
-3.  Go to the GitHub repository settings, enable GitHub Pages, and configure them
-    to use the `gh-pages` branch (this is usually the default).
+3. Go to the GitHub repository settings, enable GitHub Pages, and configure them
+   to use the `gh-pages` branch (this is usually the default).
 
-4.  Run the same `sh` script that is used in GitHub CI (details below):
+4. Run the same `sh` script that is used in GitHub CI (details below):
 
-    ```shell
-    .github/scripts/docs-build-deploy 'https://jjfan.github.io/jj/' \
-      prerelease main --push
-    ```
+   ```shell
+   .github/scripts/docs-build-deploy 'https://jjfan.github.io/jj/' \
+     prerelease main --push
+   ```
 
-    This should build the version of the docs from the current commit,
-    deploy it as a new commit to the `gh-pages` branch,
-    and push the `gh-pages` branch to the origin.
+   This should build the version of the docs from the current commit,
+   deploy it as a new commit to the `gh-pages` branch,
+   and push the `gh-pages` branch to the origin.
 
-5.  Now, you should be able to see the full website, including your latest changes
-    to the `prerelease` version, at `https://jjfan.github.io/jj/prerelease/`.
+5. Now, you should be able to see the full website, including your latest changes
+   to the `prerelease` version, at `https://jjfan.github.io/jj/prerelease/`.
 
-6.  (Optional) The previous steps actually only rebuild
-    `https://jjfan.github.io/jj/prerelease/` and its alias
-    `https://jjfan.github.io/jj/main/`. If you'd like to test out version switching
-    back and forth, you can also rebuild the docs for the latest release as follows.
+6. (Optional) The previous steps actually only rebuild
+   `https://jjfan.github.io/jj/prerelease/` and its alias
+   `https://jjfan.github.io/jj/main/`. If you'd like to test out version switching
+   back and forth, you can also rebuild the docs for the latest release as follows.
 
-        ```shell
-        jj new v1.33.1  # Let's say `jj 1.33.1` is the currently the latest release
-        .github/scripts/docs-build-deploy 'https://jjfan.github.io/jj/'\
-            v1.33.1 latest --push
-        ```
+       ```shell
+       jj new v1.33.1  # Let's say `jj 1.33.1` is the currently the latest release
+       .github/scripts/docs-build-deploy 'https://jjfan.github.io/jj/'\
+           v1.33.1 latest --push
+       ```
 
-7.  (Optional) When you are done, you may want to reset the `gh-branches` to the
-    same spot as it is in the upstream. If you configured the `upstream` remote,
-    this can be done with:
+7. (Optional) When you are done, you may want to reset the `gh-branches` to the
+   same spot as it is in the upstream. If you configured the `upstream` remote,
+   this can be done with:
 
-        ```shell
-        # This will LOSE any changes you made to `gh-pages`
-        jj git fetch --remote upstream
-        jj branch set gh-pages -r gh-pages@upstream
-        jj git push --remote origin --branch gh-pages
-        ```
+       ```shell
+       # This will LOSE any changes you made to `gh-pages`
+       jj git fetch --remote upstream
+       jj branch set gh-pages -r gh-pages@upstream
+       jj git push --remote origin --branch gh-pages
+       ```
 
-        If you want to preserve some of the changes you made, you can do `jj branch
-        set my-changes -r gh-pages` BEFORE running the above commands.
+       If you want to preserve some of the changes you made, you can do `jj branch
+       set my-changes -r gh-pages` BEFORE running the above commands.
 
 #### Explanation of the `docs-build-deploy` script
 
@@ -334,12 +323,10 @@ The script sets up the `site_url` mkdocs config to
 where you loaded the website, some minor website features (like the
 version switching widget) will have reduced functionality.
 
-Then, the script passes the rest of its arguments to `potery run -- mike
-deploy`, which does the rest of the job. Run `poetry run -- mike help deploy` to
+Then, the script passes the rest of its arguments to `potery run -- mike deploy`, which does the rest of the job. Run `poetry run -- mike help deploy` to
 find out what the arguments do.
 
-If you need to do something more complicated, you can use `poetry run -- mike
-...` commands. You can also edit the `gh-pages` branch directly, but take care
+If you need to do something more complicated, you can use `poetry run -- mike ...` commands. You can also edit the `gh-pages` branch directly, but take care
 to avoid files that will be overwritten by future invocations of `mike`. Then,
 you can submit a PR based on the `gh-pages` branch of
 <https://martinvonz.github.com/jj> (instead of the usual `main` branch).
@@ -350,8 +337,7 @@ Occasionally, you may need to change the `.proto` files that define jj's data
 storage format. In this case, you will need to add a few steps to the above
 workflow.
 
-- Install the `protoc` compiler. This usually means either `apt-get install
-protobuf-compiler` or downloading [an official release]. The
+- Install the `protoc` compiler. This usually means either `apt-get install protobuf-compiler` or downloading [an official release]. The
   `prost` [library docs] have additional advice.
 - Run `cargo run -p gen-protos` regularly (or after every edit to a `.proto`
   file). This is the same as running `cargo run` from `lib/gen-protos`. The

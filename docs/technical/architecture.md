@@ -17,9 +17,8 @@ input/output is handled by the CLI crate [^1]. Since the library crate is meant
 to usable in a server, it also cannot read configuration from the user's home
 directory, or from user-specific environment variables.
 
-[^1]:
-    There are a few exceptions, such as for messages printed during automatic
-    upgrades of the repo format
+[^1]: There are a few exceptions, such as for messages printed during automatic
+upgrades of the repo format
 
 A lot of thought has gone into making the library crate's API easy to use, but
 not much has gone into "details" such as which collection types are used, or

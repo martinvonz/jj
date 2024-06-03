@@ -92,26 +92,26 @@ With the proposed data model, we can
 ### Import/export data flow
 
 ```
-       export flow                              import flow
-       -----------                              -----------
-                        +----------------+                   --.
-   +------------------->|backing Git repo|---+                 :
-   |                    +----------------+   |                 : unchanged
-   |[update]                                 |[copy]           : on "op restore"
-   |                      +----------+       |                 :
-   |      +-------------->| git_refs |<------+                 :
-   |      |               +----------+       |               --'
-   +--[compare]                            [diff]--+
-          |   .--       +---------------+    |     |         --.
-          |   :    +--->|remotes["git"] |    |     |           :
-          +---:    |    |               |<---+     |           :
-              :    |    |remotes[remote]|          |           : restored
-              '--  |    +---------------+          |[merge]    : on "op restore"
-                   |                               |           : by default
-             [copy]|    +---------------+          |           :
-                   +----| (local)       |<---------+           :
-                        | branches/tags |                      :
-                        +---------------+                    --'
+    export flow                              import flow
+    -----------                              -----------
+                     +----------------+                   --.
++------------------->|backing Git repo|---+                 :
+|                    +----------------+   |                 : unchanged
+|[update]                                 |[copy]           : on "op restore"
+|                      +----------+       |                 :
+|      +-------------->| git_refs |<------+                 :
+|      |               +----------+       |               --'
++--[compare]                            [diff]--+
+       |   .--       +---------------+    |     |         --.
+       |   :    +--->|remotes["git"] |    |     |           :
+       +---:    |    |               |<---+     |           :
+           :    |    |remotes[remote]|          |           : restored
+           '--  |    +---------------+          |[merge]    : on "op restore"
+                |                               |           : by default
+          [copy]|    +---------------+          |           :
+                +----| (local)       |<---------+           :
+                     | branches/tags |                      :
+                     +---------------+                    --'
 ```
 
 - `jj git import` applies diff between `git_refs` and `remotes[]`. `git_refs` is
@@ -198,7 +198,7 @@ In particular, a merge of local and remote targets is
          diff `[absent, remote] - absent` is noop. So it's not allowed to push
          deleted branch to untracked remote.
        - TODO: Copy Git's `--force-with-lease` behavior?
-     - ~`tags`~ (not implemented, but should be the same as `branches`)
+     - ~~`tags`~~ (not implemented, but should be the same as `branches`)
   2. Pushes diff to the remote Git repo (as well as remote tracking branches
      in the backing Git repo.)
   3. Updates `remotes[remote]` and `git_refs` reflecting the push.
@@ -210,7 +210,7 @@ In particular, a merge of local and remote targets is
        untracked. Untracked local branches won't be exported to Git.
      - If `remotes["git"].branches[name]` is `absent`, the default
        `state = tracking` applies. This also applies to forgotten branches.
-     - ~`tags`~ (not implemented, but should be the same as `branches`)
+     - ~~`tags`~~ (not implemented, but should be the same as `branches`)
   2. Calculates diff from the known `git_refs` to the new `remotes[remote]`.
   3. Applies diff to the backing Git repo.
   4. Updates `git_refs` reflecting the export.

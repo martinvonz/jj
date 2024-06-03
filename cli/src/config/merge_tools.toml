@@ -21,13 +21,13 @@ program = "diffedit3"
 # We use a random port as a fallback if all 5 of the preferred port numbers are
 # busy.
 edit-args = [
-    "$left",
-    "$right",
-    "$output",
-    "--port",
-    "17376-17380",
-    "--port",
-    "0",
+  "$left",
+  "$right",
+  "$output",
+  "--port",
+  "17376-17380",
+  "--port",
+  "0",
 ]
 
 [merge-tools.diffedit3-ssh]
@@ -39,12 +39,12 @@ program = "diffedit3"
 # We do NOT use a random port as a fallback since we recommend that the user
 # configure SSH to forward these 5 ports
 edit-args = [
-    "$left",
-    "$right",
-    "$output",
-    "--port",
-    "17376-17380",
-    "--no-browser",
+  "$left",
+  "$right",
+  "$output",
+  "--port",
+  "17376-17380",
+  "--no-browser",
 ]
 
 [merge-tools.vimdiff]
@@ -52,19 +52,19 @@ program = "vim"
 # `-d` enables diff mode. `-f` makes vim run in foreground even if it starts a GUI.
 # The other options make sure that only the output file can be modified.
 merge-args = [
-    "-f",
-    "-d",
-    "$output",
-    "-M",
-    "$left",
-    "$base",
-    "$right",
-    "-c",
-    "wincmd J",
-    "-c",
-    "set modifiable",
-    "-c",
-    "set write",
+  "-f",
+  "-d",
+  "$output",
+  "-M",
+  "$left",
+  "$base",
+  "$right",
+  "-c",
+  "wincmd J",
+  "-c",
+  "set modifiable",
+  "-c",
+  "set write",
 ]
 merge-tool-edits-conflict-markers = true
 # Using vimdiff as a diff editor is not recommended. For instructions on configuring

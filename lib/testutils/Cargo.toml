@@ -1,16 +1,16 @@
 [package]
 name = "testutils"
-description = "Integration test utils for the jj-lib crate"
 publish = false
+description = "Integration test utils for the jj-lib crate"
 
 version = { workspace = true }
-edition = { workspace = true }
-rust-version = { workspace = true }
-license = { workspace = true }
-homepage = { workspace = true }
-repository = { workspace = true }
 documentation = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
 readme = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

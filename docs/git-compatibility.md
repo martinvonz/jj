@@ -84,16 +84,13 @@ update the Git repo with changes made in the Jujutsu repo.
 
 ## Creating a repo by cloning a Git repo
 
-To create a Jujutsu repo from a remote Git URL, use `jj git clone <URL>
-[<destination>]`. For example, `jj git clone
-https://github.com/octocat/Hello-World` will clone GitHub's "Hello-World" repo
+To create a Jujutsu repo from a remote Git URL, use `jj git clone <URL> [<destination>]`. For example, `jj git clone https://github.com/octocat/Hello-World` will clone GitHub's "Hello-World" repo
 into a directory by the same name.
 
 ## Co-located Jujutsu/Git repos
 
 A "co-located" Jujutsu repo is a hybrid Jujutsu/Git repo. These can be created
-if you initialize the Jujutsu repo in an existing Git repo by running `jj git
-init --colocate` or with `jj git clone --colocate`. The Git repo and the Jujutsu
+if you initialize the Jujutsu repo in an existing Git repo by running `jj git init --colocate` or with `jj git clone --colocate`. The Git repo and the Jujutsu
 repo then share the same working copy. Jujutsu will import and export from and
 to the Git repo on every `jj` command automatically.
 
@@ -108,16 +105,14 @@ repo in a "detached HEAD" state, since in `jj` there is not concept of a
 "currently tracked branch". Before doing mutating Git commands, you may need to
 tell Git what the current branch should be with a `git switch` command.
 
-You can undo the results of mutating `git` commands using `jj undo` and `jj op
-restore`. Inside `jj op log`, changes by `git` will be represented as an "import
+You can undo the results of mutating `git` commands using `jj undo` and `jj op restore`. Inside `jj op log`, changes by `git` will be represented as an "import
 git refs" operation.
 
 There are a few downsides to this mode of operation. Generally, using co-located
 repos may require you to deal with more involved Jujutsu and Git concepts.
 
 - Interleaving `jj` and `git` commands increases the chance of confusing branch
-  conflicts or [conflicted (AKA divergent) change
-  ids](glossary.md#divergent-change). These never lose data, but can be
+  conflicts or [conflicted (AKA divergent) change ids](glossary.md#divergent-change). These never lose data, but can be
   annoying.
 
   Such interleaving can happen unknowingly. For example, some IDEs can cause
@@ -126,8 +121,7 @@ repos may require you to deal with more involved Jujutsu and Git concepts.
 
 - In co-located repos with a very large number of branches or other refs, `jj`
   commands can get noticeably slower because of the automatic `jj git import`
-  executed on each command. This can be mitigated by occasionally running `jj util
-gc` to speed up the import (that command includes packing the Git refs).
+  executed on each command. This can be mitigated by occasionally running `jj util gc` to speed up the import (that command includes packing the Git refs).
 
 - Git tools will have trouble with revisions that contain conflicted files. While
   `jj` renders these files with conflict markers in the working copy, they are

@@ -61,8 +61,7 @@ If you want to know the internals of branch tracking, consult the
   tracked with the [`jj branch track` command](#manually-tracking-a-branch), for
   example.
 - A **tracking (local) branch** is the local branch that `jj` tries to keep in
-  sync with the tracked remote branch. For example, after `jj branch track
-mybranch@origin`, there will be a local branch `mybranch` that's tracking the
+  sync with the tracked remote branch. For example, after `jj branch track mybranch@origin`, there will be a local branch `mybranch` that's tracking the
   remote `mybranch@origin` branch. A local branch can track a branch of the same
   name on 0 or more remotes.
 
@@ -121,8 +120,7 @@ You can see if a specific branch is tracked with `jj branch list --tracked <bran
 
 ### Automatic tracking of branches & `git.auto-local-branch` option
 
-There are two situations where `jj` tracks branches automatically. `jj git
-clone` automatically sets up the default remote branch (e.g. `main@origin`) as
+There are two situations where `jj` tracks branches automatically. `jj git clone` automatically sets up the default remote branch (e.g. `main@origin`) as
 tracked. When you push a local branch, the newly created branch on the remote is
 marked as tracked.
 
@@ -141,7 +139,7 @@ branches) by default.
 Currently Jujutsu automatically moves local branches when these conditions are
 met:
 
-- When a commit has been rewritten (e.g, when you rebase) branches and the  
+- When a commit has been rewritten (e.g, when you rebase) branches and the\
   working-copy will move along with it.
 - When a commit has been abandoned, all associated branches will be moved
   to its parent(s). If a working copy was pointing to the abandoned commit,

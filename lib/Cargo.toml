@@ -1,24 +1,24 @@
 [package]
 name = "jj-lib"
-description = "Library for Jujutsu - an experimental version control system"
 autotests = false
+description = "Library for Jujutsu - an experimental version control system"
 
 version = { workspace = true }
-edition = { workspace = true }
-rust-version = { workspace = true }
-license = { workspace = true }
-homepage = { workspace = true }
-repository = { workspace = true }
 documentation = { workspace = true }
+edition = { workspace = true }
+homepage = { workspace = true }
+license = { workspace = true }
 readme = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
 
 include = [
-    "/LICENSE",
-    "/benches/",
-    "/src/",
-    "/tests/",
-    "!*.pending-snap",
-    "!*.snap*",
+  "/LICENSE",
+  "/benches/",
+  "/src/",
+  "/tests/",
+  "!*.pending-snap",
+  "!*.snap*",
 ]
 
 [[test]]

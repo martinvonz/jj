@@ -114,12 +114,7 @@
                     "properties": {
                         "style": {
                             "description": "Style of connectors/markings used to render the graph. See https://github.com/martinvonz/jj/blob/main/docs/config.md#graph-style",
-                            "enum": [
-                                "curved",
-                                "square",
-                                "ascii",
-                                "ascii-large"
-                            ],
+                            "enum": ["curved", "square", "ascii", "ascii-large"],
                             "default": "curved"
                         }
                     }
