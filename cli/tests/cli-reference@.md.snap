@@ -117,7 +117,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `duplicate` — Create a new change with the same content as an existing one
 * `edit` — Sets the specified revision as the working-copy revision
 * `files` — List files in a revision
-* `git` — Commands for working with the underlying Git repo
+* `git` — Commands for working with Git remotes and the underlying Git repo
 * `init` — Create a new repo in the given directory
 * `interdiff` — Compare the changes of two commits
 * `log` — Show revision history
@@ -760,7 +760,7 @@ List files in a revision
 
 ## `jj git`
 
-Commands for working with the underlying Git repo
+Commands for working with Git remotes and the underlying Git repo
 
 For a comparison with Git, including a table of commands, see https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.
 
