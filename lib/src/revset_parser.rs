@@ -15,6 +15,7 @@
 #![allow(missing_docs)]
 
 use std::collections::HashSet;
+use std::str::FromStr;
 use std::{error, mem};
 
 use itertools::Itertools as _;
@@ -726,9 +727,47 @@ impl AliasDefinitionParser for RevsetAliasParser {
     }
 }
 
+pub(super) fn expect_pattern_with<T, E: Into<Box<dyn error::Error + Send + Sync>>>(
+    type_name: &str,
+    node: &ExpressionNode,
+    parse_pattern: impl FnOnce(&str, Option<&str>) -> Result<T, E>,
+) -> Result<T, RevsetParseError> {
+    let wrap_error = |err: E| {
+        RevsetParseError::expression(format!("Invalid {type_name}"), node.span).with_source(err)
+    };
+    expect_literal_with(node, |node| match &node.kind {
+        ExpressionKind::Identifier(name) => parse_pattern(name, None).map_err(wrap_error),
+        ExpressionKind::String(name) => parse_pattern(name, None).map_err(wrap_error),
+        ExpressionKind::StringPattern { kind, value } => {
+            parse_pattern(value, Some(kind)).map_err(wrap_error)
+        }
+        _ => Err(RevsetParseError::expression(
+            format!("Expected expression of {type_name}"),
+            node.span,
+        )),
+    })
+}
+
+pub fn expect_literal<T: FromStr>(
+    type_name: &str,
+    node: &ExpressionNode,
+) -> Result<T, RevsetParseError> {
+    let make_error = || {
+        RevsetParseError::expression(
+            format!("Expected expression of type {type_name}"),
+            node.span,
+        )
+    };
+    expect_literal_with(node, |node| match &node.kind {
+        ExpressionKind::Identifier(name) => name.parse().map_err(|_| make_error()),
+        ExpressionKind::String(name) => name.parse().map_err(|_| make_error()),
+        _ => Err(make_error()),
+    })
+}
+
 /// Applies the give function to the innermost `node` by unwrapping alias
 /// expansion nodes.
-pub(super) fn expect_literal_with<T>(
+fn expect_literal_with<T>(
     node: &ExpressionNode,
     f: impl FnOnce(&ExpressionNode) -> Result<T, RevsetParseError>,
 ) -> Result<T, RevsetParseError> {

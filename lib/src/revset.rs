@@ -17,11 +17,10 @@
 use std::any::Any;
 use std::collections::{hash_map, HashMap};
 use std::convert::Infallible;
+use std::fmt;
 use std::ops::Range;
 use std::rc::Rc;
-use std::str::FromStr;
 use std::sync::Arc;
-use std::{error, fmt};
 
 use itertools::Itertools;
 use once_cell::sync::Lazy;
@@ -39,8 +38,8 @@ use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
 use crate::repo_path::RepoPathUiConverter;
 pub use crate::revset_parser::{
-    BinaryOp, ExpressionKind, ExpressionNode, FunctionCallNode, RevsetAliasesMap, RevsetParseError,
-    RevsetParseErrorKind, UnaryOp,
+    expect_literal, BinaryOp, ExpressionKind, ExpressionNode, FunctionCallNode, RevsetAliasesMap,
+    RevsetParseError, RevsetParseErrorKind, UnaryOp,
 };
 use crate::store::Store;
 use crate::str_util::StringPattern;
@@ -758,7 +757,7 @@ pub fn expect_file_pattern(
         Some(kind) => FilePattern::from_str_kind(path_converter, value, kind),
         None => FilePattern::cwd_prefix_path(path_converter, value),
     };
-    expect_pattern_with("file pattern", node, parse_pattern)
+    revset_parser::expect_pattern_with("file pattern", node, parse_pattern)
 }
 
 pub fn expect_string_pattern(node: &ExpressionNode) -> Result<StringPattern, RevsetParseError> {
@@ -766,47 +765,7 @@ pub fn expect_string_pattern(node: &ExpressionNode) -> Result<StringPattern, Rev
         Some(kind) => StringPattern::from_str_kind(value, kind),
         None => Ok(StringPattern::Substring(value.to_owned())),
     };
-    expect_pattern_with("string pattern", node, parse_pattern)
-}
-
-// TODO: move to revset_parser module?
-fn expect_pattern_with<T, E: Into<Box<dyn error::Error + Send + Sync>>>(
-    type_name: &str,
-    node: &ExpressionNode,
-    parse_pattern: impl FnOnce(&str, Option<&str>) -> Result<T, E>,
-) -> Result<T, RevsetParseError> {
-    let wrap_error = |err: E| {
-        RevsetParseError::expression(format!("Invalid {type_name}"), node.span).with_source(err)
-    };
-    revset_parser::expect_literal_with(node, |node| match &node.kind {
-        ExpressionKind::Identifier(name) => parse_pattern(name, None).map_err(wrap_error),
-        ExpressionKind::String(name) => parse_pattern(name, None).map_err(wrap_error),
-        ExpressionKind::StringPattern { kind, value } => {
-            parse_pattern(value, Some(kind)).map_err(wrap_error)
-        }
-        _ => Err(RevsetParseError::expression(
-            format!("Expected expression of {type_name}"),
-            node.span,
-        )),
-    })
-}
-
-// TODO: move to revset_parser module?
-pub fn expect_literal<T: FromStr>(
-    type_name: &str,
-    node: &ExpressionNode,
-) -> Result<T, RevsetParseError> {
-    let make_error = || {
-        RevsetParseError::expression(
-            format!("Expected expression of type {type_name}"),
-            node.span,
-        )
-    };
-    revset_parser::expect_literal_with(node, |node| match &node.kind {
-        ExpressionKind::Identifier(name) => name.parse().map_err(|_| make_error()),
-        ExpressionKind::String(name) => name.parse().map_err(|_| make_error()),
-        _ => Err(make_error()),
-    })
+    revset_parser::expect_pattern_with("string pattern", node, parse_pattern)
 }
 
 /// Resolves function call by using the given function map.
