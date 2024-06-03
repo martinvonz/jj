@@ -51,7 +51,7 @@ use crate::git_util::{
 };
 use crate::ui::Ui;
 
-/// Commands for working with the underlying Git repo
+/// Commands for working with Git remotes and the underlying Git repo
 ///
 /// For a comparison with Git, including a table of commands, see
 /// https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.
