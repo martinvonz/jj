@@ -552,17 +552,17 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     let mut map: HashMap<&'static str, RevsetFunction> = HashMap::new();
     map.insert("parents", |function, context| {
         let [arg] = function.expect_exact_arguments()?;
-        let expression = parse_expression_rule(arg, context)?;
+        let expression = lower_expression(arg, context)?;
         Ok(expression.parents())
     });
     map.insert("children", |function, context| {
         let [arg] = function.expect_exact_arguments()?;
-        let expression = parse_expression_rule(arg, context)?;
+        let expression = lower_expression(arg, context)?;
         Ok(expression.children())
     });
     map.insert("ancestors", |function, context| {
         let ([heads_arg], [depth_opt_arg]) = function.expect_arguments()?;
-        let heads = parse_expression_rule(heads_arg, context)?;
+        let heads = lower_expression(heads_arg, context)?;
         let generation = if let Some(depth_arg) = depth_opt_arg {
             let depth = expect_literal("integer", depth_arg)?;
             0..depth
@@ -573,18 +573,18 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     });
     map.insert("descendants", |function, context| {
         let [arg] = function.expect_exact_arguments()?;
-        let expression = parse_expression_rule(arg, context)?;
+        let expression = lower_expression(arg, context)?;
         Ok(expression.descendants())
     });
     map.insert("connected", |function, context| {
         let [arg] = function.expect_exact_arguments()?;
-        let candidates = parse_expression_rule(arg, context)?;
+        let candidates = lower_expression(arg, context)?;
         Ok(candidates.connected())
     });
     map.insert("reachable", |function, context| {
         let [source_arg, domain_arg] = function.expect_exact_arguments()?;
-        let sources = parse_expression_rule(source_arg, context)?;
-        let domain = parse_expression_rule(domain_arg, context)?;
+        let sources = lower_expression(source_arg, context)?;
+        let domain = lower_expression(domain_arg, context)?;
         Ok(sources.reachable(&domain))
     });
     map.insert("none", |function, _context| {
@@ -601,12 +601,12 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     });
     map.insert("heads", |function, context| {
         let [arg] = function.expect_exact_arguments()?;
-        let candidates = parse_expression_rule(arg, context)?;
+        let candidates = lower_expression(arg, context)?;
         Ok(candidates.heads())
     });
     map.insert("roots", |function, context| {
         let [arg] = function.expect_exact_arguments()?;
-        let candidates = parse_expression_rule(arg, context)?;
+        let candidates = lower_expression(arg, context)?;
         Ok(candidates.roots())
     });
     map.insert("visible_heads", |function, _context| {
@@ -658,7 +658,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     });
     map.insert("latest", |function, context| {
         let ([candidates_arg], [count_opt_arg]) = function.expect_arguments()?;
-        let candidates = parse_expression_rule(candidates_arg, context)?;
+        let candidates = lower_expression(candidates_arg, context)?;
         let count = if let Some(count_arg) = count_opt_arg {
             expect_literal("integer", count_arg)?
         } else {
@@ -725,7 +725,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     });
     map.insert("present", |function, context| {
         let [arg] = function.expect_exact_arguments()?;
-        let expression = parse_expression_rule(arg, context)?;
+        let expression = lower_expression(arg, context)?;
         Ok(Rc::new(RevsetExpression::Present(expression)))
     });
     map
@@ -769,8 +769,9 @@ fn lower_function_call(
     }
 }
 
-// TODO: rename function to lower_expression()?:
-pub fn parse_expression_rule(
+/// Transforms the given AST `node` into expression that describes DAG
+/// operation. Function calls will be resolved at this stage.
+pub fn lower_expression(
     node: &ExpressionNode,
     context: &RevsetParseContext,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
@@ -806,7 +807,7 @@ pub fn parse_expression_rule(
             Ok(RevsetExpression::root().range(&RevsetExpression::visible_heads()))
         }
         ExpressionKind::Unary(op, arg_node) => {
-            let arg = parse_expression_rule(arg_node, context)?;
+            let arg = lower_expression(arg_node, context)?;
             match op {
                 UnaryOp::Negate => Ok(arg.negated()),
                 UnaryOp::DagRangePre => Ok(arg.ancestors()),
@@ -818,8 +819,8 @@ pub fn parse_expression_rule(
             }
         }
         ExpressionKind::Binary(op, lhs_node, rhs_node) => {
-            let lhs = parse_expression_rule(lhs_node, context)?;
-            let rhs = parse_expression_rule(rhs_node, context)?;
+            let lhs = lower_expression(lhs_node, context)?;
+            let rhs = lower_expression(rhs_node, context)?;
             match op {
                 BinaryOp::Union => Ok(lhs.union(&rhs)),
                 BinaryOp::Intersection => Ok(lhs.intersection(&rhs)),
@@ -829,8 +830,9 @@ pub fn parse_expression_rule(
             }
         }
         ExpressionKind::FunctionCall(function) => lower_function_call(function, context),
-        ExpressionKind::AliasExpanded(id, subst) => parse_expression_rule(subst, context)
-            .map_err(|e| e.within_alias_expansion(*id, node.span)),
+        ExpressionKind::AliasExpanded(id, subst) => {
+            lower_expression(subst, context).map_err(|e| e.within_alias_expansion(*id, node.span))
+        }
     }
 }
 
@@ -840,7 +842,7 @@ pub fn parse(
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let node = revset_parser::parse_program(revset_str)?;
     let node = dsl_util::expand_aliases(node, context.aliases_map)?;
-    parse_expression_rule(&node, context)
+    lower_expression(&node, context)
         .map_err(|err| err.extend_function_candidates(context.aliases_map.function_names()))
 }
 
@@ -850,7 +852,7 @@ pub fn parse_with_modifier(
 ) -> Result<(Rc<RevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
     let (node, modifier) = revset_parser::parse_program_with_modifier(revset_str)?;
     let node = dsl_util::expand_aliases(node, context.aliases_map)?;
-    let expression = parse_expression_rule(&node, context)
+    let expression = lower_expression(&node, context)
         .map_err(|err| err.extend_function_candidates(context.aliases_map.function_names()))?;
     Ok((expression, modifier))
 }
