@@ -29,9 +29,9 @@ use jj_lib::extensions_map::ExtensionsMap;
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{
-    self, FunctionCallNode, PartialSymbolResolver, RevsetExpression, RevsetFilterExtension,
-    RevsetFilterExtensionWrapper, RevsetFilterPredicate, RevsetParseError, RevsetResolutionError,
-    SymbolResolverExtension,
+    FunctionCallNode, PartialSymbolResolver, RevsetExpression, RevsetFilterExtension,
+    RevsetFilterExtensionWrapper, RevsetFilterPredicate, RevsetParseContext, RevsetParseError,
+    RevsetResolutionError, SymbolResolverExtension,
 };
 use once_cell::sync::OnceCell;
 
@@ -181,7 +181,7 @@ impl RevsetFilterExtension for EvenDigitsFilter {
 
 fn even_digits(
     function: &FunctionCallNode,
-    _state: revset::ParseState,
+    _context: &RevsetParseContext,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     function.expect_no_arguments()?;
     Ok(RevsetExpression::filter(RevsetFilterPredicate::Extension(
