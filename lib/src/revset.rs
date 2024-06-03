@@ -583,7 +583,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         let ([heads_arg], [depth_opt_arg]) = function.expect_arguments()?;
         let heads = parse_expression_rule(heads_arg, state)?;
         let generation = if let Some(depth_arg) = depth_opt_arg {
-            let depth = parse_function_argument_as_literal("integer", depth_arg)?;
+            let depth = expect_literal("integer", depth_arg)?;
             0..depth
         } else {
             GENERATION_RANGE_FULL
@@ -639,7 +639,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     map.insert("branches", |function, _state| {
         let ([], [opt_arg]) = function.expect_arguments()?;
         let pattern = if let Some(arg) = opt_arg {
-            parse_function_argument_to_string_pattern(arg)?
+            expect_string_pattern(arg)?
         } else {
             StringPattern::everything()
         };
@@ -649,12 +649,12 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         let ([], [branch_opt_arg, remote_opt_arg]) =
             function.expect_named_arguments(&["", "remote"])?;
         let branch_pattern = if let Some(branch_arg) = branch_opt_arg {
-            parse_function_argument_to_string_pattern(branch_arg)?
+            expect_string_pattern(branch_arg)?
         } else {
             StringPattern::everything()
         };
         let remote_pattern = if let Some(remote_arg) = remote_opt_arg {
-            parse_function_argument_to_string_pattern(remote_arg)?
+            expect_string_pattern(remote_arg)?
         } else {
             StringPattern::everything()
         };
@@ -679,7 +679,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         let ([candidates_arg], [count_opt_arg]) = function.expect_arguments()?;
         let candidates = parse_expression_rule(candidates_arg, state)?;
         let count = if let Some(count_arg) = count_opt_arg {
-            parse_function_argument_as_literal("integer", count_arg)?
+            expect_literal("integer", count_arg)?
         } else {
             1
         };
@@ -693,14 +693,14 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     });
     map.insert("description", |function, _state| {
         let [arg] = function.expect_exact_arguments()?;
-        let pattern = parse_function_argument_to_string_pattern(arg)?;
+        let pattern = expect_string_pattern(arg)?;
         Ok(RevsetExpression::filter(
             RevsetFilterPredicate::Description(pattern),
         ))
     });
     map.insert("author", |function, _state| {
         let [arg] = function.expect_exact_arguments()?;
-        let pattern = parse_function_argument_to_string_pattern(arg)?;
+        let pattern = expect_string_pattern(arg)?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
             pattern,
         )))
@@ -713,7 +713,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     });
     map.insert("committer", |function, _state| {
         let [arg] = function.expect_exact_arguments()?;
-        let pattern = parse_function_argument_to_string_pattern(arg)?;
+        let pattern = expect_string_pattern(arg)?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Committer(
             pattern,
         )))
@@ -726,7 +726,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         if let Some(ctx) = state.workspace_ctx {
             let ([arg], args) = function.expect_some_arguments()?;
             let file_expressions = itertools::chain([arg], args)
-                .map(|arg| parse_function_argument_to_file_pattern(arg, ctx.path_converter))
+                .map(|arg| expect_file_pattern(arg, ctx.path_converter))
                 .map_ok(FilesetExpression::pattern)
                 .try_collect()?;
             let expr = FilesetExpression::union_all(file_expressions);
@@ -750,8 +750,7 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     map
 });
 
-// TODO: rename function to expect_file_pattern()?
-pub fn parse_function_argument_to_file_pattern(
+pub fn expect_file_pattern(
     node: &ExpressionNode,
     path_converter: &RepoPathUiConverter,
 ) -> Result<FilePattern, RevsetParseError> {
@@ -759,23 +758,19 @@ pub fn parse_function_argument_to_file_pattern(
         Some(kind) => FilePattern::from_str_kind(path_converter, value, kind),
         None => FilePattern::cwd_prefix_path(path_converter, value),
     };
-    parse_function_argument_as_pattern("file pattern", node, parse_pattern)
+    expect_pattern_with("file pattern", node, parse_pattern)
 }
 
-// TODO: rename function to expect_string_pattern()?
-pub fn parse_function_argument_to_string_pattern(
-    node: &ExpressionNode,
-) -> Result<StringPattern, RevsetParseError> {
+pub fn expect_string_pattern(node: &ExpressionNode) -> Result<StringPattern, RevsetParseError> {
     let parse_pattern = |value: &str, kind: Option<&str>| match kind {
         Some(kind) => StringPattern::from_str_kind(value, kind),
         None => Ok(StringPattern::Substring(value.to_owned())),
     };
-    parse_function_argument_as_pattern("string pattern", node, parse_pattern)
+    expect_pattern_with("string pattern", node, parse_pattern)
 }
 
 // TODO: move to revset_parser module?
-// TODO: rename function to expect_pattern_with()?
-fn parse_function_argument_as_pattern<T, E: Into<Box<dyn error::Error + Send + Sync>>>(
+fn expect_pattern_with<T, E: Into<Box<dyn error::Error + Send + Sync>>>(
     type_name: &str,
     node: &ExpressionNode,
     parse_pattern: impl FnOnce(&str, Option<&str>) -> Result<T, E>,
@@ -797,8 +792,7 @@ fn parse_function_argument_as_pattern<T, E: Into<Box<dyn error::Error + Send + S
 }
 
 // TODO: move to revset_parser module?
-// TODO: rename function to something like expect_literal()?
-pub fn parse_function_argument_as_literal<T: FromStr>(
+pub fn expect_literal<T: FromStr>(
     type_name: &str,
     node: &ExpressionNode,
 ) -> Result<T, RevsetParseError> {
