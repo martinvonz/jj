@@ -851,6 +851,15 @@ pub fn parse_with_modifier(
     context: &RevsetParseContext,
 ) -> Result<(Rc<RevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
     let (node, modifier) = revset_parser::parse_program_with_modifier(revset_str)?;
+    let modifier = modifier
+        .map(|n| match n.name {
+            "all" => Ok(RevsetModifier::All),
+            name => Err(RevsetParseError::with_span(
+                RevsetParseErrorKind::NoSuchModifier(name.to_owned()),
+                n.name_span,
+            )),
+        })
+        .transpose()?;
     let node = dsl_util::expand_aliases(node, context.aliases_map)?;
     let expression = lower_expression(&node, context)
         .map_err(|err| err.extend_function_candidates(context.aliases_map.function_names()))?;
