@@ -830,6 +830,13 @@ pub fn lower_expression(
             }
         }
         ExpressionKind::FunctionCall(function) => lower_function_call(function, context),
+        ExpressionKind::Modifier(modifier) => {
+            let name = modifier.name;
+            Err(RevsetParseError::expression(
+                format!(r#"Modifier "{name}:" is not allowed in sub expression"#),
+                modifier.name_span,
+            ))
+        }
         ExpressionKind::AliasExpanded(id, subst) => {
             lower_expression(subst, context).map_err(|e| e.within_alias_expansion(*id, node.span))
         }
@@ -850,20 +857,20 @@ pub fn parse_with_modifier(
     revset_str: &str,
     context: &RevsetParseContext,
 ) -> Result<(Rc<RevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
-    let (node, modifier) = revset_parser::parse_program_with_modifier(revset_str)?;
-    let modifier = modifier
-        .map(|n| match n.name {
-            "all" => Ok(RevsetModifier::All),
-            name => Err(RevsetParseError::with_span(
-                RevsetParseErrorKind::NoSuchModifier(name.to_owned()),
-                n.name_span,
-            )),
-        })
-        .transpose()?;
+    let node = revset_parser::parse_program(revset_str)?;
     let node = dsl_util::expand_aliases(node, context.aliases_map)?;
-    let expression = lower_expression(&node, context)
-        .map_err(|err| err.extend_function_candidates(context.aliases_map.function_names()))?;
-    Ok((expression, modifier))
+    revset_parser::expect_program_with(
+        &node,
+        |node| lower_expression(node, context),
+        |name, span| match name {
+            "all" => Ok(RevsetModifier::All),
+            _ => Err(RevsetParseError::with_span(
+                RevsetParseErrorKind::NoSuchModifier(name.to_owned()),
+                span,
+            )),
+        },
+    )
+    .map_err(|err| err.extend_function_candidates(context.aliases_map.function_names()))
 }
 
 /// `Some` for rewritten expression, or `None` to reuse the original expression.
@@ -2606,10 +2613,6 @@ mod tests {
 
         // String pattern isn't allowed at top level.
         assert_matches!(
-            parse(r#"exact:"foo""#),
-            Err(RevsetParseErrorKind::NotInfixOperator { .. })
-        );
-        assert_matches!(
             parse(r#"(exact:"foo")"#),
             Err(RevsetParseErrorKind::NotInfixOperator { .. })
         );
@@ -2902,8 +2905,10 @@ mod tests {
             parse_with_aliases("author(A)", [("A", "a")]).unwrap(),
             parse("author(a)").unwrap()
         );
+        // However, parentheses are required because top-level x:y is parsed as
+        // program modifier.
         assert_eq!(
-            parse_with_aliases("author(A)", [("A", "exact:a")]).unwrap(),
+            parse_with_aliases("author(A)", [("A", "(exact:a)")]).unwrap(),
             parse("author(exact:a)").unwrap()
         );
 
@@ -2933,6 +2938,16 @@ mod tests {
             parse_with_modifier("all:ALL").unwrap()
         );
 
+        // Top-level alias can be substituted to modifier expression.
+        assert_eq!(
+            parse_with_aliases_and_modifier("A", [("A", "all:a")]),
+            parse_with_modifier("all:a")
+        );
+        assert_eq!(
+            parse_with_aliases_and_modifier("A-", [("A", "all:a")]),
+            Err(RevsetParseErrorKind::BadAliasExpansion("A".to_owned()))
+        );
+
         // Multi-level substitution.
         assert_eq!(
             parse_with_aliases("A", [("A", "BC"), ("BC", "b|C"), ("C", "c")]).unwrap(),
@@ -2952,11 +2967,6 @@ mod tests {
         // Error in alias definition.
         assert_eq!(
             parse_with_aliases("A", [("A", "a(")]),
-            Err(RevsetParseErrorKind::BadAliasExpansion("A".to_owned()))
-        );
-        // Modifier isn't allowed in alias definition.
-        assert_eq!(
-            parse_with_aliases_and_modifier("A", [("A", "all:a")]),
             Err(RevsetParseErrorKind::BadAliasExpansion("A".to_owned()))
         );
     }
@@ -3014,6 +3024,12 @@ mod tests {
         assert_eq!(
             parse_with_aliases("F(a)", [("F(x)", "author(x)|committer(x)")]).unwrap(),
             parse("author(a)|committer(a)").unwrap()
+        );
+
+        // Modifier expression body as parameter.
+        assert_eq!(
+            parse_with_aliases_and_modifier("F(a|b)", [("F(x)", "all:x")]).unwrap(),
+            parse_with_modifier("all:(a|b)").unwrap()
         );
 
         // Function and symbol aliases reside in separate namespaces.
