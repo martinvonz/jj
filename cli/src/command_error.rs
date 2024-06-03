@@ -600,9 +600,8 @@ fn revset_parse_error_hint(err: &RevsetParseError) -> Option<String> {
             name: _,
             candidates,
         } => format_similarity_hint(candidates),
-        RevsetParseErrorKind::InvalidFunctionArguments { .. } => {
-            find_source_parse_error_hint(bottom_err)
-        }
+        RevsetParseErrorKind::InvalidFunctionArguments { .. }
+        | RevsetParseErrorKind::Expression(_) => find_source_parse_error_hint(bottom_err),
         _ => None,
     }
 }
