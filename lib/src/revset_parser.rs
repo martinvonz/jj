@@ -314,6 +314,8 @@ pub enum ExpressionKind<'i> {
     Unary(UnaryOp, Box<ExpressionNode<'i>>),
     Binary(BinaryOp, Box<ExpressionNode<'i>>, Box<ExpressionNode<'i>>),
     FunctionCall(Box<FunctionCallNode<'i>>),
+    /// `name: body`
+    Modifier(Box<ModifierNode<'i>>),
     /// Identity node to preserve the span in the source text.
     AliasExpanded(AliasId<'i>, Box<ExpressionNode<'i>>),
 }
@@ -342,6 +344,14 @@ impl<'i> FoldableExpression<'i> for ExpressionKind<'i> {
                 Ok(ExpressionKind::Binary(op, lhs, rhs))
             }
             ExpressionKind::FunctionCall(function) => folder.fold_function_call(function, span),
+            ExpressionKind::Modifier(modifier) => {
+                let modifier = Box::new(ModifierNode {
+                    name: modifier.name,
+                    name_span: modifier.name_span,
+                    body: folder.fold_expression(modifier.body)?,
+                });
+                Ok(ExpressionKind::Modifier(modifier))
+            }
             ExpressionKind::AliasExpanded(id, subst) => {
                 let subst = Box::new(folder.fold_expression(*subst)?);
                 Ok(ExpressionKind::AliasExpanded(id, subst))
@@ -399,42 +409,36 @@ pub enum BinaryOp {
 pub type ExpressionNode<'i> = dsl_util::ExpressionNode<'i, ExpressionKind<'i>>;
 pub type FunctionCallNode<'i> = dsl_util::FunctionCallNode<'i, ExpressionKind<'i>>;
 
+/// Expression with modifier `name: body`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModifierNode<'i> {
     /// Modifier name.
     pub name: &'i str,
     /// Span of the modifier name.
     pub name_span: pest::Span<'i>,
+    /// Expression body.
+    pub body: ExpressionNode<'i>,
 }
 
 pub(super) fn parse_program(revset_str: &str) -> Result<ExpressionNode, RevsetParseError> {
-    let mut pairs = RevsetParser::parse(Rule::program, revset_str)?;
-    let first = pairs.next().unwrap();
-    parse_expression_node(first.into_inner())
-}
-
-pub(super) fn parse_program_with_modifier(
-    revset_str: &str,
-) -> Result<(ExpressionNode, Option<ModifierNode>), RevsetParseError> {
     let mut pairs = RevsetParser::parse(Rule::program_with_modifier, revset_str)?;
     let first = pairs.next().unwrap();
     match first.as_rule() {
-        Rule::expression => {
-            let node = parse_expression_node(first.into_inner())?;
-            Ok((node, None))
-        }
+        Rule::expression => parse_expression_node(first.into_inner()),
         Rule::program_modifier => {
             let (lhs, op) = first.into_inner().collect_tuple().unwrap();
             let rhs = pairs.next().unwrap();
             assert_eq!(lhs.as_rule(), Rule::identifier);
             assert_eq!(op.as_rule(), Rule::pattern_kind_op);
             assert_eq!(rhs.as_rule(), Rule::expression);
-            let modifier = ModifierNode {
+            let span = lhs.as_span().start_pos().span(&rhs.as_span().end_pos());
+            let modifier = Box::new(ModifierNode {
                 name: lhs.as_str(),
                 name_span: lhs.as_span(),
-            };
-            let node = parse_expression_node(rhs.into_inner())?;
-            Ok((node, Some(modifier)))
+                body: parse_expression_node(rhs.into_inner())?,
+            });
+            let expr = ExpressionKind::Modifier(modifier);
+            Ok(ExpressionNode::new(expr, span))
         }
         r => panic!("unexpected revset parse rule: {r:?}"),
     }
@@ -726,6 +730,22 @@ impl AliasDefinitionParser for RevsetAliasParser {
     fn parse_definition<'i>(&self, source: &'i str) -> Result<ExpressionNode<'i>, Self::Error> {
         parse_program(source)
     }
+}
+
+/// Applies the given functions to the top-level expression body node with an
+/// optional modifier. Alias expansion nodes are unwrapped accordingly.
+pub(super) fn expect_program_with<B, M>(
+    node: &ExpressionNode,
+    parse_body: impl FnOnce(&ExpressionNode) -> Result<B, RevsetParseError>,
+    parse_modifier: impl FnOnce(&str, pest::Span<'_>) -> Result<M, RevsetParseError>,
+) -> Result<(B, Option<M>), RevsetParseError> {
+    expect_literal_with(node, |node| match &node.kind {
+        ExpressionKind::Modifier(modifier) => {
+            let parsed_modifier = parse_modifier(modifier.name, modifier.name_span)?;
+            Ok((parse_body(&modifier.body)?, Some(parsed_modifier)))
+        }
+        _ => Ok((parse_body(node)?, None)),
+    })
 }
 
 pub(super) fn expect_pattern_with<T, E: Into<Box<dyn error::Error + Send + Sync>>>(

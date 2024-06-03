@@ -549,29 +549,26 @@ fn test_all_modifier() {
       = Modifier "ale" doesn't exist
     "###);
 
-    // Modifier shouldn't be allowed in aliases (This restriction might be
-    // lifted later. "all:" in alias could be allowed if it is expanded to the
-    // top-level expression.)
+    // Modifier shouldn't be allowed in sub expression
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
-        &["new", "x", "--config-toml=revset-aliases.x='all:@'"],
+        &["new", "x..", "--config-toml=revset-aliases.x='all:@'"],
     );
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to parse revset: Alias "x" cannot be expanded
     Caused by:
     1:  --> 1:1
       |
-    1 | x
+    1 | x..
       | ^
       |
       = Alias "x" cannot be expanded
-    2:  --> 1:4
+    2:  --> 1:1
       |
     1 | all:@
-      |    ^
+      | ^-^
       |
-      = ':' is not an infix operator
-    Hint: Did you mean '::' for DAG range?
+      = Modifier "all:" is not allowed in sub expression
     "###);
 
     // immutable_heads() alias may be parsed as a top-level expression, but
@@ -586,12 +583,12 @@ fn test_all_modifier() {
     );
     insta::assert_snapshot!(stderr, @r###"
     Config error: Invalid `revset-aliases.immutable_heads()`
-    Caused by:  --> 1:4
+    Caused by:  --> 1:1
       |
     1 | all:@
-      |    ^
+      | ^-^
       |
-      = ':' is not an infix operator
+      = Modifier "all:" is not allowed in sub expression
     For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
     "###);
 }

@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+* In revset aliases, top-level `kind:pattern` expression is now parsed as
+  modifier. Surround with parentheses if it should be parsed as string/file
+  pattern.
+
 ### Deprecations
 
 ### New features
