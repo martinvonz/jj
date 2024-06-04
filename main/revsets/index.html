@@ -1723,7 +1723,7 @@ xyz</code> will add <code>xyz</code> to the list of <code>w</code>'s parents.</p
 <div class="highlight"><pre><span></span><code>jj log -r &#39;remote_branches(remote=origin)..&#39;
 </code></pre></div>
 <p>Show the initial commits in the repo (the ones Git calls "root commits"):</p>
-<div class="highlight"><pre><span></span><code>jj log -r root()+
+<div class="highlight"><pre><span></span><code>jj log -r &#39;root()+&#39;
 </code></pre></div>
 <p>Show some important commits (like <code>git --simplify-by-decoration</code>):</p>
 <div class="highlight"><pre><span></span><code>jj log -r &#39;tags() | branches()&#39;
