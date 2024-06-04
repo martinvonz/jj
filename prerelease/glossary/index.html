@@ -1866,7 +1866,7 @@ commit ID consisting of all '0's (<code>00000000...</code>) and a change ID cons
 all 'z's (<code>zzzzzzzz...</code>). It can be referred to in <a href="#revset">revsets</a> by the
 function <code>root()</code>. Note that our definition of "root commit" is different from
 Git's; Git's "root commits" are the first commit(s) in the repository, i.e. the
-commits <code>jj log -r root()+</code> will show.</p>
+commits <code>jj log -r 'root()+'</code> will show.</p>
 <h2 id="tree">Tree<a class="headerlink" href="#tree" title="Permanent link">&para;</a></h2>
 <p>A tree object represents a snapshot of a directory in the repository. Tree
 objects are defined recursively; each tree object only has the files and
