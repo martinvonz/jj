@@ -165,7 +165,7 @@ commit ID consisting of all '0's (`00000000...`) and a change ID consisting of
 all 'z's (`zzzzzzzz...`). It can be referred to in [revsets](#revset) by the
 function `root()`. Note that our definition of "root commit" is different from
 Git's; Git's "root commits" are the first commit(s) in the repository, i.e. the
-commits `jj log -r root()+` will show.
+commits `jj log -r 'root()+'` will show.
 
 ## Tree
 
