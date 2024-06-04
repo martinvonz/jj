@@ -92,7 +92,7 @@ pub enum RevsetModifier {
 }
 
 /// Symbol or function to be resolved to `CommitId`s.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum RevsetCommitRef {
     WorkingCopy(WorkspaceId),
     WorkingCopies,
@@ -121,20 +121,7 @@ pub trait RevsetFilterExtension: std::fmt::Debug + Any {
     fn matches_commit(&self, commit: &Commit) -> bool;
 }
 
-// TODO: Refactor tests to not need the Eq trait so we can remove this wrapper.
 #[derive(Clone, Debug)]
-#[repr(transparent)]
-pub struct RevsetFilterExtensionWrapper(pub Rc<dyn RevsetFilterExtension>);
-
-impl PartialEq for RevsetFilterExtensionWrapper {
-    fn eq(&self, other: &RevsetFilterExtensionWrapper) -> bool {
-        Rc::ptr_eq(&self.0, &other.0)
-    }
-}
-
-impl Eq for RevsetFilterExtensionWrapper {}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RevsetFilterPredicate {
     /// Commits with number of parents in the range.
     ParentCount(Range<u32>),
@@ -149,10 +136,10 @@ pub enum RevsetFilterPredicate {
     /// Commits with conflicts
     HasConflict,
     /// Custom predicates provided by extensions
-    Extension(RevsetFilterExtensionWrapper),
+    Extension(Rc<dyn RevsetFilterExtension>),
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Clone, Debug)]
 pub enum RevsetExpression {
     None,
     All,
@@ -479,7 +466,7 @@ impl RevsetExpression {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum ResolvedPredicateExpression {
     /// Pure filter predicate.
     Filter(RevsetFilterPredicate),
@@ -499,7 +486,7 @@ pub enum ResolvedPredicateExpression {
 /// properties.
 ///
 /// Use `RevsetExpression` API to build a query programmatically.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum ResolvedExpression {
     Commits(Vec<CommitId>),
     Ancestors {
