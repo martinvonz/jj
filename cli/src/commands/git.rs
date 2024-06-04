@@ -916,29 +916,34 @@ fn cmd_git_push(
         return Ok(());
     }
 
-    let mut new_heads = vec![];
     let mut branch_push_direction = HashMap::new();
     for (branch_name, update) in &branch_updates {
-        if let Some(new_target) = &update.new_target {
-            new_heads.push(new_target.clone());
-            if let Some(old_target) = &update.old_target {
-                assert_ne!(old_target, new_target);
-                branch_push_direction.insert(
-                    branch_name.to_string(),
-                    if repo.index().is_ancestor(old_target, new_target) {
-                        BranchMoveDirection::Forward
-                    } else if repo.index().is_ancestor(new_target, old_target) {
-                        BranchMoveDirection::Backward
-                    } else {
-                        BranchMoveDirection::Sideways
-                    },
-                );
-            }
-        }
+        let BranchPushUpdate {
+            old_target: Some(old_target),
+            new_target: Some(new_target),
+        } = update
+        else {
+            continue;
+        };
+        assert_ne!(old_target, new_target);
+        branch_push_direction.insert(
+            branch_name.to_string(),
+            if repo.index().is_ancestor(old_target, new_target) {
+                BranchMoveDirection::Forward
+            } else if repo.index().is_ancestor(new_target, old_target) {
+                BranchMoveDirection::Backward
+            } else {
+                BranchMoveDirection::Sideways
+            },
+        );
     }
 
     // Check if there are conflicts in any commits we're about to push that haven't
     // already been pushed.
+    let new_heads = branch_updates
+        .iter()
+        .filter_map(|(_, update)| update.new_target.clone())
+        .collect_vec();
     let mut old_heads = repo
         .view()
         .remote_branches(&remote)
