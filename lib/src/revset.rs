@@ -2036,7 +2036,6 @@ mod tests {
     use assert_matches::assert_matches;
 
     use super::*;
-    use crate::repo_path::RepoPathBuf;
 
     fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseErrorKind> {
         parse_with_aliases(revset_str, [] as [(&str, &str); 0])
@@ -2141,280 +2140,337 @@ mod tests {
     #[test]
     #[allow(clippy::redundant_clone)] // allow symbol.clone()
     fn test_revset_expression_building() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
         let current_wc = RevsetExpression::working_copy(WorkspaceId::default());
         let foo_symbol = RevsetExpression::symbol("foo".to_string());
         let bar_symbol = RevsetExpression::symbol("bar".to_string());
         let baz_symbol = RevsetExpression::symbol("baz".to_string());
-        assert_eq!(
+
+        insta::assert_debug_snapshot!(
             current_wc,
-            Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::WorkingCopy(
-                WorkspaceId::default()
-            ))),
-        );
-        assert_eq!(
+            @r###"CommitRef(WorkingCopy(WorkspaceId("default")))"###);
+        insta::assert_debug_snapshot!(
             current_wc.heads(),
-            Rc::new(RevsetExpression::Heads(current_wc.clone()))
-        );
-        assert_eq!(
+            @r###"Heads(CommitRef(WorkingCopy(WorkspaceId("default"))))"###);
+        insta::assert_debug_snapshot!(
             current_wc.roots(),
-            Rc::new(RevsetExpression::Roots(current_wc.clone()))
-        );
-        assert_eq!(
-            current_wc.parents(),
-            Rc::new(RevsetExpression::Ancestors {
-                heads: current_wc.clone(),
-                generation: 1..2,
-            })
-        );
-        assert_eq!(
-            current_wc.ancestors(),
-            Rc::new(RevsetExpression::Ancestors {
-                heads: current_wc.clone(),
-                generation: GENERATION_RANGE_FULL,
-            })
-        );
-        assert_eq!(
-            foo_symbol.children(),
-            Rc::new(RevsetExpression::Descendants {
-                roots: foo_symbol.clone(),
-                generation: 1..2,
-            }),
-        );
-        assert_eq!(
-            foo_symbol.descendants(),
-            Rc::new(RevsetExpression::Descendants {
-                roots: foo_symbol.clone(),
-                generation: GENERATION_RANGE_FULL,
-            })
-        );
-        assert_eq!(
-            foo_symbol.dag_range_to(&current_wc),
-            Rc::new(RevsetExpression::DagRange {
-                roots: foo_symbol.clone(),
-                heads: current_wc.clone(),
-            })
-        );
-        assert_eq!(
-            foo_symbol.connected(),
-            Rc::new(RevsetExpression::DagRange {
-                roots: foo_symbol.clone(),
-                heads: foo_symbol.clone(),
-            })
-        );
-        assert_eq!(
-            foo_symbol.range(&current_wc),
-            Rc::new(RevsetExpression::Range {
-                roots: foo_symbol.clone(),
-                heads: current_wc.clone(),
-                generation: GENERATION_RANGE_FULL,
-            })
-        );
-        assert_eq!(
+            @r###"Roots(CommitRef(WorkingCopy(WorkspaceId("default"))))"###);
+        insta::assert_debug_snapshot!(
+            current_wc.parents(), @r###"
+        Ancestors {
+            heads: CommitRef(WorkingCopy(WorkspaceId("default"))),
+            generation: 1..2,
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            current_wc.ancestors(), @r###"
+        Ancestors {
+            heads: CommitRef(WorkingCopy(WorkspaceId("default"))),
+            generation: 0..18446744073709551615,
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            foo_symbol.children(), @r###"
+        Descendants {
+            roots: CommitRef(Symbol("foo")),
+            generation: 1..2,
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            foo_symbol.descendants(), @r###"
+        Descendants {
+            roots: CommitRef(Symbol("foo")),
+            generation: 0..18446744073709551615,
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            foo_symbol.dag_range_to(&current_wc), @r###"
+        DagRange {
+            roots: CommitRef(Symbol("foo")),
+            heads: CommitRef(WorkingCopy(WorkspaceId("default"))),
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            foo_symbol.connected(), @r###"
+        DagRange {
+            roots: CommitRef(Symbol("foo")),
+            heads: CommitRef(Symbol("foo")),
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            foo_symbol.range(&current_wc), @r###"
+        Range {
+            roots: CommitRef(Symbol("foo")),
+            heads: CommitRef(WorkingCopy(WorkspaceId("default"))),
+            generation: 0..18446744073709551615,
+        }
+        "###);
+        insta::assert_debug_snapshot!(
             foo_symbol.negated(),
-            Rc::new(RevsetExpression::NotIn(foo_symbol.clone()))
-        );
-        assert_eq!(
-            foo_symbol.union(&current_wc),
-            Rc::new(RevsetExpression::Union(
-                foo_symbol.clone(),
-                current_wc.clone()
-            ))
-        );
-        assert_eq!(
+            @r###"NotIn(CommitRef(Symbol("foo")))"###);
+        insta::assert_debug_snapshot!(
+            foo_symbol.union(&current_wc), @r###"
+        Union(
+            CommitRef(Symbol("foo")),
+            CommitRef(WorkingCopy(WorkspaceId("default"))),
+        )
+        "###);
+        insta::assert_debug_snapshot!(
             RevsetExpression::union_all(&[]),
-            Rc::new(RevsetExpression::None)
-        );
-        assert_eq!(
+            @"None");
+        insta::assert_debug_snapshot!(
             RevsetExpression::union_all(&[current_wc.clone()]),
-            current_wc
-        );
-        assert_eq!(
+            @r###"CommitRef(WorkingCopy(WorkspaceId("default")))"###);
+        insta::assert_debug_snapshot!(
             RevsetExpression::union_all(&[current_wc.clone(), foo_symbol.clone()]),
-            Rc::new(RevsetExpression::Union(
-                current_wc.clone(),
-                foo_symbol.clone(),
-            ))
-        );
-        assert_eq!(
+            @r###"
+        Union(
+            CommitRef(WorkingCopy(WorkspaceId("default"))),
+            CommitRef(Symbol("foo")),
+        )
+        "###);
+        insta::assert_debug_snapshot!(
             RevsetExpression::union_all(&[
                 current_wc.clone(),
                 foo_symbol.clone(),
                 bar_symbol.clone(),
             ]),
-            Rc::new(RevsetExpression::Union(
-                current_wc.clone(),
-                Rc::new(RevsetExpression::Union(
-                    foo_symbol.clone(),
-                    bar_symbol.clone(),
-                ))
-            ))
-        );
-        assert_eq!(
+            @r###"
+        Union(
+            CommitRef(WorkingCopy(WorkspaceId("default"))),
+            Union(
+                CommitRef(Symbol("foo")),
+                CommitRef(Symbol("bar")),
+            ),
+        )
+        "###);
+        insta::assert_debug_snapshot!(
             RevsetExpression::union_all(&[
                 current_wc.clone(),
                 foo_symbol.clone(),
                 bar_symbol.clone(),
                 baz_symbol.clone(),
             ]),
-            Rc::new(RevsetExpression::Union(
-                Rc::new(RevsetExpression::Union(
-                    current_wc.clone(),
-                    foo_symbol.clone(),
-                )),
-                Rc::new(RevsetExpression::Union(
-                    bar_symbol.clone(),
-                    baz_symbol.clone(),
-                ))
-            ))
-        );
-        assert_eq!(
-            foo_symbol.intersection(&current_wc),
-            Rc::new(RevsetExpression::Intersection(
-                foo_symbol.clone(),
-                current_wc.clone()
-            ))
-        );
-        assert_eq!(
-            foo_symbol.minus(&current_wc),
-            Rc::new(RevsetExpression::Difference(foo_symbol, current_wc.clone()))
-        );
+            @r###"
+        Union(
+            Union(
+                CommitRef(WorkingCopy(WorkspaceId("default"))),
+                CommitRef(Symbol("foo")),
+            ),
+            Union(
+                CommitRef(Symbol("bar")),
+                CommitRef(Symbol("baz")),
+            ),
+        )
+        "###);
+        insta::assert_debug_snapshot!(
+            foo_symbol.intersection(&current_wc), @r###"
+        Intersection(
+            CommitRef(Symbol("foo")),
+            CommitRef(WorkingCopy(WorkspaceId("default"))),
+        )
+        "###);
+        insta::assert_debug_snapshot!(
+            foo_symbol.minus(&current_wc), @r###"
+        Difference(
+            CommitRef(Symbol("foo")),
+            CommitRef(WorkingCopy(WorkspaceId("default"))),
+        )
+        "###);
     }
 
     #[test]
     fn test_parse_revset() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
         let main_workspace_id = WorkspaceId::new("main".to_string());
         let other_workspace_id = WorkspaceId::new("other".to_string());
-        let main_wc = RevsetExpression::working_copy(main_workspace_id.clone());
-        let foo_symbol = RevsetExpression::symbol("foo".to_string());
-        let bar_symbol = RevsetExpression::symbol("bar".to_string());
+
         // Parse "@" (the current working copy)
-        assert_eq!(
-            parse("@"),
-            Err(RevsetParseErrorKind::WorkingCopyWithoutWorkspace)
-        );
-        assert_eq!(parse("main@"), Ok(main_wc.clone()));
-        assert_eq!(
-            parse_with_workspace("@", &main_workspace_id),
-            Ok(main_wc.clone())
-        );
-        assert_eq!(
-            parse_with_workspace("main@", &other_workspace_id),
-            Ok(main_wc)
-        );
+        insta::assert_debug_snapshot!(
+            parse("@").unwrap_err(),
+            @"WorkingCopyWithoutWorkspace");
+        insta::assert_debug_snapshot!(
+            parse("main@").unwrap(),
+            @r###"CommitRef(WorkingCopy(WorkspaceId("main")))"###);
+        insta::assert_debug_snapshot!(
+            parse_with_workspace("@", &main_workspace_id).unwrap(),
+            @r###"CommitRef(WorkingCopy(WorkspaceId("main")))"###);
+        insta::assert_debug_snapshot!(
+            parse_with_workspace("main@", &other_workspace_id).unwrap(),
+            @r###"CommitRef(WorkingCopy(WorkspaceId("main")))"###);
         // "@" in function argument must be quoted
-        assert_eq!(
-            parse("author(foo@)"),
-            Err(RevsetParseErrorKind::Expression(
-                "Expected expression of string pattern".to_string(),
-            ))
-        );
-        assert_eq!(
-            parse(r#"author("foo@")"#),
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
-                StringPattern::Substring("foo@".to_string()),
-            )))
-        );
+        insta::assert_debug_snapshot!(
+            parse("author(foo@)").unwrap_err(),
+            @r###"Expression("Expected expression of string pattern")"###);
+        insta::assert_debug_snapshot!(
+            parse(r#"author("foo@")"#).unwrap(),
+            @r###"Filter(Author(Substring("foo@")))"###);
         // Parse a single symbol
-        assert_eq!(parse("foo"), Ok(foo_symbol.clone()));
+        insta::assert_debug_snapshot!(
+            parse("foo").unwrap(),
+            @r###"CommitRef(Symbol("foo"))"###);
         // Default arguments for *branches() are all ""
-        assert_eq!(parse("branches()"), parse(r#"branches("")"#));
-        assert_eq!(parse("remote_branches()"), parse(r#"remote_branches("")"#));
-        assert_eq!(
-            parse("remote_branches()"),
-            parse(r#"remote_branches("", "")"#)
-        );
+        insta::assert_debug_snapshot!(
+            parse("branches()").unwrap(),
+            @r###"CommitRef(Branches(Substring("")))"###);
+        insta::assert_debug_snapshot!(parse("remote_branches()").unwrap(), @r###"
+        CommitRef(
+            RemoteBranches {
+                branch_pattern: Substring(""),
+                remote_pattern: Substring(""),
+            },
+        )
+        "###);
+        insta::assert_debug_snapshot!(parse("remote_branches()").unwrap(), @r###"
+        CommitRef(
+            RemoteBranches {
+                branch_pattern: Substring(""),
+                remote_pattern: Substring(""),
+            },
+        )
+        "###);
         // Parse a quoted symbol
-        assert_eq!(parse("'foo'"), Ok(foo_symbol.clone()));
+        insta::assert_debug_snapshot!(
+            parse("'foo'").unwrap(),
+            @r###"CommitRef(Symbol("foo"))"###);
         // Parse the "parents" operator
-        assert_eq!(parse("foo-"), Ok(foo_symbol.parents()));
+        insta::assert_debug_snapshot!(parse("foo-").unwrap(), @r###"
+        Ancestors {
+            heads: CommitRef(Symbol("foo")),
+            generation: 1..2,
+        }
+        "###);
         // Parse the "children" operator
-        assert_eq!(parse("foo+"), Ok(foo_symbol.children()));
+        insta::assert_debug_snapshot!(parse("foo+").unwrap(), @r###"
+        Descendants {
+            roots: CommitRef(Symbol("foo")),
+            generation: 1..2,
+        }
+        "###);
         // Parse the "ancestors" operator
-        assert_eq!(parse("::foo"), Ok(foo_symbol.ancestors()));
+        insta::assert_debug_snapshot!(parse("::foo").unwrap(), @r###"
+        Ancestors {
+            heads: CommitRef(Symbol("foo")),
+            generation: 0..18446744073709551615,
+        }
+        "###);
         // Parse the "descendants" operator
-        assert_eq!(parse("foo::"), Ok(foo_symbol.descendants()));
+        insta::assert_debug_snapshot!(parse("foo::").unwrap(), @r###"
+        Descendants {
+            roots: CommitRef(Symbol("foo")),
+            generation: 0..18446744073709551615,
+        }
+        "###);
         // Parse the "dag range" operator
-        assert_eq!(parse("foo::bar"), Ok(foo_symbol.dag_range_to(&bar_symbol)));
+        insta::assert_debug_snapshot!(parse("foo::bar").unwrap(), @r###"
+        DagRange {
+            roots: CommitRef(Symbol("foo")),
+            heads: CommitRef(Symbol("bar")),
+        }
+        "###);
         // Parse the nullary "dag range" operator
-        assert_eq!(parse("::"), Ok(RevsetExpression::all()));
+        insta::assert_debug_snapshot!(parse("::").unwrap(), @"All");
         // Parse the "range" prefix operator
-        assert_eq!(
-            parse("..foo"),
-            Ok(RevsetExpression::root().range(&foo_symbol))
-        );
-        assert_eq!(
-            parse("foo.."),
-            Ok(foo_symbol.range(&RevsetExpression::visible_heads()))
-        );
-        assert_eq!(parse("foo..bar"), Ok(foo_symbol.range(&bar_symbol)));
+        insta::assert_debug_snapshot!(parse("..foo").unwrap(), @r###"
+        Range {
+            roots: CommitRef(Root),
+            heads: CommitRef(Symbol("foo")),
+            generation: 0..18446744073709551615,
+        }
+        "###);
+        insta::assert_debug_snapshot!(parse("foo..").unwrap(), @r###"
+        Range {
+            roots: CommitRef(Symbol("foo")),
+            heads: CommitRef(VisibleHeads),
+            generation: 0..18446744073709551615,
+        }
+        "###);
+        insta::assert_debug_snapshot!(parse("foo..bar").unwrap(), @r###"
+        Range {
+            roots: CommitRef(Symbol("foo")),
+            heads: CommitRef(Symbol("bar")),
+            generation: 0..18446744073709551615,
+        }
+        "###);
         // Parse the nullary "range" operator
-        assert_eq!(
-            parse(".."),
-            Ok(RevsetExpression::root().range(&RevsetExpression::visible_heads()))
-        );
+        insta::assert_debug_snapshot!(parse("..").unwrap(), @r###"
+        Range {
+            roots: CommitRef(Root),
+            heads: CommitRef(VisibleHeads),
+            generation: 0..18446744073709551615,
+        }
+        "###);
         // Parse the "negate" operator
-        assert_eq!(parse("~ foo"), Ok(foo_symbol.negated()));
+        insta::assert_debug_snapshot!(
+            parse("~ foo").unwrap(),
+            @r###"NotIn(CommitRef(Symbol("foo")))"###);
         // Parse the "intersection" operator
-        assert_eq!(parse("foo & bar"), Ok(foo_symbol.intersection(&bar_symbol)));
+        insta::assert_debug_snapshot!(parse("foo & bar").unwrap(), @r###"
+        Intersection(
+            CommitRef(Symbol("foo")),
+            CommitRef(Symbol("bar")),
+        )
+        "###);
         // Parse the "union" operator
-        assert_eq!(parse("foo | bar"), Ok(foo_symbol.union(&bar_symbol)));
+        insta::assert_debug_snapshot!(parse("foo | bar").unwrap(), @r###"
+        Union(
+            CommitRef(Symbol("foo")),
+            CommitRef(Symbol("bar")),
+        )
+        "###);
         // Parse the "difference" operator
-        assert_eq!(parse("foo ~ bar"), Ok(foo_symbol.minus(&bar_symbol)));
+        insta::assert_debug_snapshot!(parse("foo ~ bar").unwrap(), @r###"
+        Difference(
+            CommitRef(Symbol("foo")),
+            CommitRef(Symbol("bar")),
+        )
+        "###);
     }
 
     #[test]
     fn test_parse_revset_with_modifier() {
-        let foo_symbol = RevsetExpression::symbol("foo".to_owned());
-        assert_eq!(
-            parse_with_modifier("all:foo"),
-            Ok((foo_symbol.clone(), Some(RevsetModifier::All)))
-        );
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
+        insta::assert_debug_snapshot!(
+            parse_with_modifier("all:foo").unwrap(), @r###"
+        (
+            CommitRef(Symbol("foo")),
+            Some(All),
+        )
+        "###);
 
         // Top-level string pattern can't be parsed, which is an error anyway
-        assert_eq!(
-            parse_with_modifier(r#"exact:"foo""#),
-            Err(RevsetParseErrorKind::NoSuchModifier("exact".to_owned()))
-        );
+        insta::assert_debug_snapshot!(
+            parse_with_modifier(r#"exact:"foo""#).unwrap_err(),
+            @r###"NoSuchModifier("exact")"###);
     }
 
     #[test]
     fn test_parse_string_pattern() {
-        assert_eq!(
-            parse(r#"branches("foo")"#),
-            Ok(RevsetExpression::branches(StringPattern::Substring(
-                "foo".to_owned()
-            )))
-        );
-        assert_eq!(
-            parse(r#"branches(exact:"foo")"#),
-            Ok(RevsetExpression::branches(StringPattern::Exact(
-                "foo".to_owned()
-            )))
-        );
-        assert_eq!(
-            parse(r#"branches(substring:"foo")"#),
-            Ok(RevsetExpression::branches(StringPattern::Substring(
-                "foo".to_owned()
-            )))
-        );
-        assert_eq!(
-            parse(r#"branches(bad:"foo")"#),
-            Err(RevsetParseErrorKind::Expression(
-                "Invalid string pattern".to_owned()
-            ))
-        );
-        assert_eq!(
-            parse(r#"branches(exact::"foo")"#),
-            Err(RevsetParseErrorKind::Expression(
-                "Expected expression of string pattern".to_owned()
-            ))
-        );
-        assert_eq!(
-            parse(r#"branches(exact:"foo"+)"#),
-            Err(RevsetParseErrorKind::Expression(
-                "Expected expression of string pattern".to_owned()
-            ))
-        );
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
+        insta::assert_debug_snapshot!(
+            parse(r#"branches("foo")"#).unwrap(),
+            @r###"CommitRef(Branches(Substring("foo")))"###);
+        insta::assert_debug_snapshot!(
+            parse(r#"branches(exact:"foo")"#).unwrap(),
+            @r###"CommitRef(Branches(Exact("foo")))"###);
+        insta::assert_debug_snapshot!(
+            parse(r#"branches(substring:"foo")"#).unwrap(),
+            @r###"CommitRef(Branches(Substring("foo")))"###);
+        insta::assert_debug_snapshot!(
+            parse(r#"branches(bad:"foo")"#).unwrap_err(),
+            @r###"Expression("Invalid string pattern")"###);
+        insta::assert_debug_snapshot!(
+            parse(r#"branches(exact::"foo")"#).unwrap_err(),
+            @r###"Expression("Expected expression of string pattern")"###);
+        insta::assert_debug_snapshot!(
+            parse(r#"branches(exact:"foo"+)"#).unwrap_err(),
+            @r###"Expression("Expected expression of string pattern")"###);
 
         // String pattern isn't allowed at top level.
         assert_matches!(
@@ -2425,87 +2481,85 @@ mod tests {
 
     #[test]
     fn test_parse_revset_function() {
-        let foo_symbol = RevsetExpression::symbol("foo".to_string());
-        assert_eq!(parse("parents(foo)"), Ok(foo_symbol.parents()));
-        assert_eq!(parse("parents(\"foo\")"), Ok(foo_symbol.parents()));
-        assert_eq!(
-            parse("ancestors(parents(foo))"),
-            Ok(foo_symbol.parents().ancestors())
-        );
-        assert_eq!(
-            parse("parents(foo,foo)"),
-            Err(RevsetParseErrorKind::InvalidFunctionArguments {
-                name: "parents".to_string(),
-                message: "Expected 1 arguments".to_string()
-            })
-        );
-        assert_eq!(
-            parse("root()"),
-            Ok(Rc::new(RevsetExpression::CommitRef(RevsetCommitRef::Root)))
-        );
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
+        insta::assert_debug_snapshot!(
+            parse("parents(foo)").unwrap(), @r###"
+        Ancestors {
+            heads: CommitRef(Symbol("foo")),
+            generation: 1..2,
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            parse("parents(\"foo\")").unwrap(), @r###"
+        Ancestors {
+            heads: CommitRef(Symbol("foo")),
+            generation: 1..2,
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            parse("ancestors(parents(foo))").unwrap(), @r###"
+        Ancestors {
+            heads: Ancestors {
+                heads: CommitRef(Symbol("foo")),
+                generation: 1..2,
+            },
+            generation: 0..18446744073709551615,
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            parse("parents(foo,foo)").unwrap_err(), @r###"
+        InvalidFunctionArguments {
+            name: "parents",
+            message: "Expected 1 arguments",
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            parse("root()").unwrap(),
+            @"CommitRef(Root)");
         assert!(parse("root(a)").is_err());
-        assert_eq!(
-            parse(r#"description("")"#),
-            Ok(RevsetExpression::filter(
-                RevsetFilterPredicate::Description(StringPattern::Substring("".to_string()))
-            ))
-        );
-        assert_eq!(
-            parse("description(foo)"),
-            Ok(RevsetExpression::filter(
-                RevsetFilterPredicate::Description(StringPattern::Substring("foo".to_string()))
-            ))
-        );
-        assert_eq!(
-            parse("description(visible_heads())"),
-            Err(RevsetParseErrorKind::Expression(
-                "Expected expression of string pattern".to_string()
-            ))
-        );
-        assert_eq!(
-            parse("description(\"(foo)\")"),
-            Ok(RevsetExpression::filter(
-                RevsetFilterPredicate::Description(StringPattern::Substring("(foo)".to_string()))
-            ))
-        );
+        insta::assert_debug_snapshot!(
+            parse(r#"description("")"#).unwrap(),
+            @r###"Filter(Description(Substring("")))"###);
+        insta::assert_debug_snapshot!(
+            parse("description(foo)").unwrap(),
+            @r###"Filter(Description(Substring("foo")))"###);
+        insta::assert_debug_snapshot!(
+            parse("description(visible_heads())").unwrap_err(),
+            @r###"Expression("Expected expression of string pattern")"###);
+        insta::assert_debug_snapshot!(
+            parse("description(\"(foo)\")").unwrap(),
+            @r###"Filter(Description(Substring("(foo)")))"###);
         assert!(parse("mine(foo)").is_err());
-        assert_eq!(
-            parse("mine()"),
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
-                StringPattern::Exact("test.user@example.com".to_string())
-            )))
-        );
-        assert_eq!(
-            parse_with_workspace("empty()", &WorkspaceId::default()),
-            Ok(
-                RevsetExpression::filter(RevsetFilterPredicate::File(FilesetExpression::all()))
-                    .negated()
-            )
-        );
+        insta::assert_debug_snapshot!(
+            parse("mine()").unwrap(),
+            @r###"Filter(Author(Exact("test.user@example.com")))"###);
+        insta::assert_debug_snapshot!(
+            parse_with_workspace("empty()", &WorkspaceId::default()).unwrap(),
+            @"NotIn(Filter(File(All)))");
         assert!(parse_with_workspace("empty(foo)", &WorkspaceId::default()).is_err());
         assert!(parse_with_workspace("file()", &WorkspaceId::default()).is_err());
-        assert_eq!(
-            parse_with_workspace("file(foo)", &WorkspaceId::default()),
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(
-                FilesetExpression::prefix_path(RepoPathBuf::from_internal_string("foo"))
-            )))
-        );
-        assert_eq!(
-            parse_with_workspace(r#"file(file:"foo")"#, &WorkspaceId::default()),
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(
-                FilesetExpression::file_path(RepoPathBuf::from_internal_string("foo"))
-            )))
-        );
-        assert_eq!(
-            parse_with_workspace("file(foo, bar, baz)", &WorkspaceId::default()),
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(
-                FilesetExpression::union_all(vec![
-                    FilesetExpression::prefix_path(RepoPathBuf::from_internal_string("foo")),
-                    FilesetExpression::prefix_path(RepoPathBuf::from_internal_string("bar")),
-                    FilesetExpression::prefix_path(RepoPathBuf::from_internal_string("baz")),
-                ])
-            )))
-        );
+        insta::assert_debug_snapshot!(
+            parse_with_workspace("file(foo)", &WorkspaceId::default()).unwrap(),
+            @r###"Filter(File(Pattern(PrefixPath("foo"))))"###);
+        insta::assert_debug_snapshot!(
+            parse_with_workspace(r#"file(file:"foo")"#, &WorkspaceId::default()).unwrap(),
+            @r###"Filter(File(Pattern(FilePath("foo"))))"###);
+        insta::assert_debug_snapshot!(
+            parse_with_workspace("file(foo, bar, baz)", &WorkspaceId::default()).unwrap(), @r###"
+        Filter(
+            File(
+                UnionAll(
+                    [
+                        Pattern(PrefixPath("foo")),
+                        Pattern(PrefixPath("bar")),
+                        Pattern(PrefixPath("baz")),
+                    ],
+                ),
+            ),
+        )
+        "###);
     }
 
     #[test]
@@ -2513,14 +2567,24 @@ mod tests {
         let settings = insta_settings();
         let _guard = settings.bind_to_scope();
 
-        assert_eq!(
-            parse("remote_branches(remote=foo)").unwrap(),
-            parse(r#"remote_branches("", foo)"#).unwrap(),
-        );
-        assert_eq!(
-            parse("remote_branches(foo, remote=bar)").unwrap(),
-            parse(r#"remote_branches(foo, bar)"#).unwrap(),
-        );
+        insta::assert_debug_snapshot!(
+            parse("remote_branches(remote=foo)").unwrap(), @r###"
+        CommitRef(
+            RemoteBranches {
+                branch_pattern: Substring(""),
+                remote_pattern: Substring("foo"),
+            },
+        )
+        "###);
+        insta::assert_debug_snapshot!(
+            parse("remote_branches(foo, remote=bar)").unwrap(), @r###"
+        CommitRef(
+            RemoteBranches {
+                branch_pattern: Substring("foo"),
+                remote_pattern: Substring("bar"),
+            },
+        )
+        "###);
         insta::assert_debug_snapshot!(
             parse(r#"remote_branches(remote=foo, bar)"#).unwrap_err(),
             @r###"
@@ -2557,126 +2621,162 @@ mod tests {
 
     #[test]
     fn test_expand_symbol_alias() {
-        assert_eq!(
-            parse_with_aliases("AB|c", [("AB", "a|b")]).unwrap(),
-            parse("(a|b)|c").unwrap()
-        );
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
+        insta::assert_debug_snapshot!(
+            parse_with_aliases("AB|c", [("AB", "a|b")]).unwrap(), @r###"
+        Union(
+            Union(
+                CommitRef(Symbol("a")),
+                CommitRef(Symbol("b")),
+            ),
+            CommitRef(Symbol("c")),
+        )
+        "###);
 
         // Alias can be substituted to string literal.
-        assert_eq!(
+        insta::assert_debug_snapshot!(
             parse_with_aliases_and_workspace("file(A)", [("A", "a")], &WorkspaceId::default())
                 .unwrap(),
-            parse_with_workspace("file(a)", &WorkspaceId::default()).unwrap()
-        );
+            @r###"Filter(File(Pattern(PrefixPath("a"))))"###);
 
         // Alias can be substituted to string pattern.
-        assert_eq!(
+        insta::assert_debug_snapshot!(
             parse_with_aliases("author(A)", [("A", "a")]).unwrap(),
-            parse("author(a)").unwrap()
-        );
+            @r###"Filter(Author(Substring("a")))"###);
         // However, parentheses are required because top-level x:y is parsed as
         // program modifier.
-        assert_eq!(
+        insta::assert_debug_snapshot!(
             parse_with_aliases("author(A)", [("A", "(exact:a)")]).unwrap(),
-            parse("author(exact:a)").unwrap()
-        );
+            @r###"Filter(Author(Exact("a")))"###);
 
         // Sub-expression alias cannot be substituted to modifier expression.
-        assert_eq!(
-            parse_with_aliases_and_modifier("A-", [("A", "all:a")]),
-            Err(RevsetParseErrorKind::BadAliasExpansion("A".to_owned()))
-        );
+        insta::assert_debug_snapshot!(
+            parse_with_aliases_and_modifier("A-", [("A", "all:a")]).unwrap_err(),
+            @r###"BadAliasExpansion("A")"###);
     }
 
     #[test]
     fn test_expand_function_alias() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
         // Pass string literal as parameter.
-        assert_eq!(
-            parse_with_aliases("F(a)", [("F(x)", "author(x)|committer(x)")]).unwrap(),
-            parse("author(a)|committer(a)").unwrap()
-        );
+        insta::assert_debug_snapshot!(
+            parse_with_aliases("F(a)", [("F(x)", "author(x)|committer(x)")]).unwrap(), @r###"
+        Union(
+            Filter(Author(Substring("a"))),
+            Filter(Committer(Substring("a"))),
+        )
+        "###);
     }
 
     #[test]
     fn test_optimize_subtree() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
         // Check that transform_expression_bottom_up() never rewrites enum variant
         // (e.g. Range -> DagRange) nor reorders arguments unintentionally.
 
-        assert_eq!(
-            optimize(parse("parents(branches() & all())").unwrap()),
-            RevsetExpression::branches(StringPattern::everything()).parents()
-        );
-        assert_eq!(
-            optimize(parse("children(branches() & all())").unwrap()),
-            RevsetExpression::branches(StringPattern::everything()).children()
-        );
-        assert_eq!(
-            optimize(parse("ancestors(branches() & all())").unwrap()),
-            RevsetExpression::branches(StringPattern::everything()).ancestors()
-        );
-        assert_eq!(
-            optimize(parse("descendants(branches() & all())").unwrap()),
-            RevsetExpression::branches(StringPattern::everything()).descendants()
-        );
+        insta::assert_debug_snapshot!(
+            optimize(parse("parents(branches() & all())").unwrap()), @r###"
+        Ancestors {
+            heads: CommitRef(Branches(Substring(""))),
+            generation: 1..2,
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("children(branches() & all())").unwrap()), @r###"
+        Descendants {
+            roots: CommitRef(Branches(Substring(""))),
+            generation: 1..2,
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("ancestors(branches() & all())").unwrap()), @r###"
+        Ancestors {
+            heads: CommitRef(Branches(Substring(""))),
+            generation: 0..18446744073709551615,
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("descendants(branches() & all())").unwrap()), @r###"
+        Descendants {
+            roots: CommitRef(Branches(Substring(""))),
+            generation: 0..18446744073709551615,
+        }
+        "###);
 
-        assert_eq!(
-            optimize(parse("(branches() & all())..(all() & tags())").unwrap()),
-            RevsetExpression::branches(StringPattern::everything())
-                .range(&RevsetExpression::tags())
-        );
-        assert_eq!(
-            optimize(parse("(branches() & all())::(all() & tags())").unwrap()),
-            RevsetExpression::branches(StringPattern::everything())
-                .dag_range_to(&RevsetExpression::tags())
-        );
+        insta::assert_debug_snapshot!(
+            optimize(parse("(branches() & all())..(all() & tags())").unwrap()), @r###"
+        Range {
+            roots: CommitRef(Branches(Substring(""))),
+            heads: CommitRef(Tags),
+            generation: 0..18446744073709551615,
+        }
+        "###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("(branches() & all())::(all() & tags())").unwrap()), @r###"
+        DagRange {
+            roots: CommitRef(Branches(Substring(""))),
+            heads: CommitRef(Tags),
+        }
+        "###);
 
-        assert_eq!(
+        insta::assert_debug_snapshot!(
             optimize(parse("heads(branches() & all())").unwrap()),
-            RevsetExpression::branches(StringPattern::everything()).heads()
-        );
-        assert_eq!(
+            @r###"Heads(CommitRef(Branches(Substring(""))))"###);
+        insta::assert_debug_snapshot!(
             optimize(parse("roots(branches() & all())").unwrap()),
-            RevsetExpression::branches(StringPattern::everything()).roots()
-        );
+            @r###"Roots(CommitRef(Branches(Substring(""))))"###);
 
-        assert_eq!(
-            optimize(parse("latest(branches() & all(), 2)").unwrap()),
-            RevsetExpression::branches(StringPattern::everything()).latest(2)
-        );
+        insta::assert_debug_snapshot!(
+            optimize(parse("latest(branches() & all(), 2)").unwrap()), @r###"
+        Latest {
+            candidates: CommitRef(Branches(Substring(""))),
+            count: 2,
+        }
+        "###);
 
-        assert_eq!(
-            optimize(parse("present(foo ~ bar)").unwrap()),
-            Rc::new(RevsetExpression::Present(
-                RevsetExpression::symbol("foo".to_owned())
-                    .minus(&RevsetExpression::symbol("bar".to_owned()))
-            ))
-        );
-        assert_eq!(
+        insta::assert_debug_snapshot!(
+            optimize(parse("present(foo ~ bar)").unwrap()), @r###"
+        Present(
+            Difference(
+                CommitRef(Symbol("foo")),
+                CommitRef(Symbol("bar")),
+            ),
+        )
+        "###);
+        insta::assert_debug_snapshot!(
             optimize(parse("present(branches() & all())").unwrap()),
-            Rc::new(RevsetExpression::Present(RevsetExpression::branches(
-                StringPattern::everything()
-            )))
-        );
+            @r###"Present(CommitRef(Branches(Substring(""))))"###);
 
-        assert_eq!(
+        insta::assert_debug_snapshot!(
             optimize(parse("~branches() & all()").unwrap()),
-            RevsetExpression::branches(StringPattern::everything()).negated()
-        );
-        assert_eq!(
-            optimize(parse("(branches() & all()) | (all() & tags())").unwrap()),
-            RevsetExpression::branches(StringPattern::everything())
-                .union(&RevsetExpression::tags())
-        );
-        assert_eq!(
-            optimize(parse("(branches() & all()) & (all() & tags())").unwrap()),
-            RevsetExpression::branches(StringPattern::everything())
-                .intersection(&RevsetExpression::tags())
-        );
-        assert_eq!(
-            optimize(parse("(branches() & all()) ~ (all() & tags())").unwrap()),
-            RevsetExpression::branches(StringPattern::everything())
-                .minus(&RevsetExpression::tags())
-        );
+            @r###"NotIn(CommitRef(Branches(Substring(""))))"###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("(branches() & all()) | (all() & tags())").unwrap()), @r###"
+        Union(
+            CommitRef(Branches(Substring(""))),
+            CommitRef(Tags),
+        )
+        "###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("(branches() & all()) & (all() & tags())").unwrap()), @r###"
+        Intersection(
+            CommitRef(Branches(Substring(""))),
+            CommitRef(Tags),
+        )
+        "###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("(branches() & all()) ~ (all() & tags())").unwrap()), @r###"
+        Difference(
+            CommitRef(Branches(Substring(""))),
+            CommitRef(Tags),
+        )
+        "###);
     }
 
     #[test]
@@ -2706,9 +2806,9 @@ mod tests {
         // Only left subtree should be rewritten.
         let parsed = parse("(branches() & all()) | tags()").unwrap();
         let optimized = optimize(parsed.clone());
-        assert_eq!(
+        assert_matches!(
             unwrap_union(&optimized).0.as_ref(),
-            &RevsetExpression::CommitRef(RevsetCommitRef::Branches(StringPattern::everything()))
+            RevsetExpression::CommitRef(RevsetCommitRef::Branches(_))
         );
         assert!(Rc::ptr_eq(
             unwrap_union(&parsed).1,
@@ -2722,9 +2822,9 @@ mod tests {
             unwrap_union(&parsed).0,
             unwrap_union(&optimized).0
         ));
-        assert_eq!(
+        assert_matches!(
             unwrap_union(&optimized).1.as_ref(),
-            &RevsetExpression::CommitRef(RevsetCommitRef::Tags),
+            RevsetExpression::CommitRef(RevsetCommitRef::Tags)
         );
     }
 
