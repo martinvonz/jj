@@ -3,7 +3,8 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres
+to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
@@ -134,7 +135,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Conflict markers now include an explanation of what each part of the conflict
   represents.
 
-* `ui.color = "debug"` prints active labels alongside the regular colored output.
+* `ui.color = "debug"` prints active labels alongside the regular colored
+  output.
 
 * `jj branch track` now show conflicts if there are some.
 
@@ -162,6 +164,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj git push` now can push commits with empty descriptions with the
   `--allow-empty-description` flag
 
+* `jj squash` now accepts a `--keep-emptied` option to keep the source commit.
+
 ### Fixed bugs
 
 * Previously, `jj git push` only made sure that the branch is in the expected
@@ -176,12 +180,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fetch` works, `jj` does not suffer from the same problems as Git's `git push
   --force-with-lease` in situations when `git fetch` is run in the background.
 
-* When the working copy commit becomes immutable, a new one is automatically created
+* When the working copy commit becomes immutable, a new one is automatically
+  created
   on top of it to avoid letting the user edit the immutable one.
 
 * `jj config list` now properly escapes TOML keys (#1322).
 
-* Files with conflicts are now checked out as executable if all sides of the 
+* Files with conflicts are now checked out as executable if all sides of the
   conflict are executable.
 
 * The progress bar (visible when using e.g. `jj git clone`) clears the
@@ -220,7 +225,8 @@ Thanks to the people who made this release happen!
 
 ### Fixed bugs
 
-* `jj status` no longer scans through the entire history to look for ancestors with conflicts.
+* `jj status` no longer scans through the entire history to look for ancestors
+  with conflicts.
 
 ## [0.17.0] - 2024-05-01
 
@@ -279,7 +285,7 @@ Thanks to the people who made this release happen!
   `jj debug watchman status` command.
 
 * `jj rebase` now accepts revsets resolving to multiple revisions with the
-   `--revisions`/`-r` option.
+  `--revisions`/`-r` option.
 
 * `jj rebase -r` now accepts `--insert-after` and `--insert-before` options to
   customize the location of the rebased revisions.
@@ -327,7 +333,6 @@ Thanks to the people who made this release happen!
 * Théo Daron (@tdaron)
 * Yuya Nishihara (@yuja)
 
-
 ## [0.16.0] - 2024-04-03
 
 ### Deprecations
@@ -345,11 +350,13 @@ Thanks to the people who made this release happen!
 * The `jj sparse` subcommands now parse and print patterns as workspace-relative
   paths.
 
-* The `jj log` command no longer uses the default revset when a path is specified.
+* The `jj log` command no longer uses the default revset when a path is
+  specified.
 
 ### New features
 
-* Config now supports rgb hex colors (in the form `#rrggbb`) wherever existing color names are supported.
+* Config now supports rgb hex colors (in the form `#rrggbb`) wherever existing
+  color names are supported.
 
 * `ui.default-command` now accepts multiple string arguments, for more complex
   default `jj` commands.
@@ -375,7 +382,8 @@ Thanks to the people who made this release happen!
 
 * `jj git push` now prints messages from the remote.
 
-* `jj branch list` now supports a `--conflicted/-c` option to show only conflicted branches.
+* `jj branch list` now supports a `--conflicted/-c` option to show only
+  conflicted branches.
 
 * `jj duplicate` and `jj abandon` can now take more than a single `-r` argument,
   for consistency with other commands.
@@ -389,7 +397,8 @@ Thanks to the people who made this release happen!
 * `jj split` now supports a `--siblings/-s` option that splits the target
   revision into siblings with the same parents and children.
 
-* New function `working_copies()` for revsets to show the working copy commits of all workspaces.
+* New function `working_copies()` for revsets to show the working copy commits
+  of all workspaces.
 
 ### Fixed bugs
 
@@ -420,7 +429,6 @@ Thanks to the people who made this release happen!
 * Tom Ward (@tomafro)
 * TrashCan (@TrashCan69420)
 * Yuya Nishihara (@yuja)
-
 
 ## [0.15.1] - 2024-03-06
 
@@ -496,15 +504,17 @@ No code changes (fixing Rust `Cargo.toml` stuff).
 * `jj git init --colocate` can now import an existing Git repository. This is
   equivalent to `jj git init --git-repo=.`.
 
-* `jj git fetch` now automatically prints new remote branches and tags by default.
+* `jj git fetch` now automatically prints new remote branches and tags by
+  default.
 
-* `--verbose/-v` is now `--debug` (no short option since it's not intended to be used often)
+* `--verbose/-v` is now `--debug` (no short option since it's not intended to be
+  used often)
 
 * `jj move --from/--to` can now be abbreviated to `jj move -f/-t`
 
 * `jj commit`/`diffedit`/`move`/`resolve`/`split`/`squash`/`unsquash` now accept
   `--tool=<NAME>` option to override the default.
-   [#2575](https://github.com/martinvonz/jj/issues/2575)
+  [#2575](https://github.com/martinvonz/jj/issues/2575)
 
 * Added completions for [Nushell](https://nushell.sh) to `jj util completion`
 
@@ -520,8 +530,10 @@ No code changes (fixing Rust `Cargo.toml` stuff).
 
 ### Fixed bugs
 
-* On Windows, symlinks in the repo are now supported when Developer Mode is enabled.
-  When symlink support is unavailable, they will be materialized as regular files in the
+* On Windows, symlinks in the repo are now supported when Developer Mode is
+  enabled.
+  When symlink support is unavailable, they will be materialized as regular
+  files in the
   working copy (instead of resulting in a crash).
   [#2](https://github.com/martinvonz/jj/issues/2)
 
@@ -558,7 +570,6 @@ Thanks to the people who made this release happen!
 * Vladimir (@0xdeafbeef)
 * Yuya Nishihara (@yuja)
 
-
 ## [0.14.0] - 2024-02-07
 
 ### Deprecations
@@ -587,11 +598,11 @@ Thanks to the people who made this release happen!
   **Deadline**: `jj checkout` and `jj merge` will be deleted and are expected
   become a **hard error later in 2024**.
 
-* `jj init --git` and `jj init --git-repo` are now deprecated and will be removed
+* `jj init --git` and `jj init --git-repo` are now deprecated and will be
+  removed
   in the near future.
 
   Use `jj git init` instead.
-
 
 ### Breaking changes
 
@@ -620,7 +631,8 @@ Thanks to the people who made this release happen!
 
 * `jj util gc` now removes unreachable operation, view, and Git objects.
 
-* `jj branch rename` will now warn if the renamed branch has a remote branch, since
+* `jj branch rename` will now warn if the renamed branch has a remote branch,
+  since
   those will have to be manually renamed outside of `jj`.
 
 * `jj git push` gained a `--tracked` option, to push all the tracked branches.
@@ -684,7 +696,6 @@ Thanks to the people who made this release happen!
 * vwkd (@vwkd)
 * Yuya Nishihara (@yuja)
 
-
 ## [0.13.0] - 2024-01-03
 
 ### Breaking changes
@@ -717,7 +728,6 @@ Thanks to the people who made this release happen!
 * Philip Metzger (@PhilipMetzger)
 * Waleed Khan (@arxanas)
 * Yuya Nishihara (@yuja)
-
 
 ## [0.12.0] - 2023-12-05
 
@@ -779,7 +789,6 @@ Thanks to the people who made this release happen!
 * Waleed Khan (@arxanas)
 * Yuya Nishihara (@yuja)
 
-
 ## [0.11.0] - 2023-11-01
 
 ### Breaking changes
@@ -827,7 +836,8 @@ Thanks to the people who made this release happen!
 
 ### New features
 
-* `jj`'s stable release can now be installed with [`cargo binstall jj-cli`](https://github.com/cargo-bins/cargo-binstall).
+* `jj`'s stable release can now be installed
+  with [`cargo binstall jj-cli`](https://github.com/cargo-bins/cargo-binstall).
 
 * `jj workspace add` now takes a `--revision` argument.
 
@@ -880,14 +890,15 @@ Thanks to the people who made this release happen!
 * Waleed Khan (@arxanas)
 * Yuya Nishihara (@yuja)
 
-
 ## [0.10.0] - 2023-10-04
 
 ### Breaking changes
 
-* A default revset-alias function `trunk()` now exists. If you previously defined
+* A default revset-alias function `trunk()` now exists. If you previously
+  defined
   your own `trunk()` alias it will continue to overwrite the built-in one.
-  Check [revsets.toml](cli/src/config/revsets.toml) and [revsets.md](docs/revsets.md)
+  Check [revsets.toml](cli/src/config/revsets.toml)
+  and [revsets.md](docs/revsets.md)
   to understand how the function can be adapted.
 
 ### New features
@@ -943,7 +954,6 @@ Thanks to the people who made this release happen!
 * Yuya Nishihara (@yuja)
 * Zachary Dremann (@Dr-Emann)
 
-
 ## [0.9.0] - 2023-09-06
 
 ### Breaking changes
@@ -968,7 +978,8 @@ Thanks to the people who made this release happen!
 
 * The default editor on Windows is now `Notepad` instead of `pico`.
 
-* `jj` will fail attempts to snapshot new files larger than 1MiB by default. This behavior
+* `jj` will fail attempts to snapshot new files larger than 1MiB by default.
+  This behavior
   can be customized with the `snapshot.max-new-file-size` config option.
 
 * Author and committer signatures now use empty strings to represent unset
@@ -1010,7 +1021,8 @@ Thanks to the people who made this release happen!
 * `jj init --git-repo` now works with bare repositories.
 
 * `jj config edit --user` and `jj config set --user` will now pick a default
-  config location if no existing file is found, potentially creating parent directories.
+  config location if no existing file is found, potentially creating parent
+  directories.
 
 * `jj log` output is now topologically grouped.
   [#242](https://github.com/martinvonz/jj/issues/242)
@@ -1051,7 +1063,8 @@ Thanks to the people who made this release happen!
   selects the branch named "main", but not "maint". `description(exact:"")`
   selects commits whose description is empty.
 
-* Revsets gained a new function `mine()` that aliases `author(exact:"your_email")`.
+* Revsets gained a new function `mine()` that
+  aliases `author(exact:"your_email")`.
 
 * Added support for `::` and `..` revset operators with both left and right
   operands omitted. These expressions are equivalent to `all()` and `~root()`
@@ -1059,7 +1072,8 @@ Thanks to the people who made this release happen!
 
 * `jj log` timestamp format now accepts `.utc()` to convert a timestamp to UTC.
 
-* templates now support additional string methods `.starts_with(x)`, `.ends_with(x)`
+* templates now support additional string
+  methods `.starts_with(x)`, `.ends_with(x)`
   `.remove_prefix(x)`, `.remove_suffix(x)`, and `.substr(start, end)`.
 
 * `jj next` and `jj prev` are added, these allow you to traverse the history
@@ -1068,7 +1082,8 @@ Thanks to the people who made this release happen!
   further pending improvements.
 
 * `jj diff --stat` has been implemented. It shows a histogram of the changes,
-  same as `git diff --stat`. Fixes [#2066](https://github.com/martinvonz/jj/issues/2066)
+  same as `git diff --stat`.
+  Fixes [#2066](https://github.com/martinvonz/jj/issues/2066)
 
 * `jj git fetch --all-remotes` has been implemented. It fetches all remotes
   instead of just the default remote
@@ -1078,7 +1093,8 @@ Thanks to the people who made this release happen!
 * Fix issues related to .gitignore handling of untracked directories
   [#2051](https://github.com/martinvonz/jj/issues/2051).
 
-* `jj config set --user` and `jj config edit --user` can now be used outside of any repository.
+* `jj config set --user` and `jj config edit --user` can now be used outside of
+  any repository.
 
 * SSH authentication could hang when ssh-agent couldn't be reached
   [#1970](https://github.com/martinvonz/jj/issues/1970)
@@ -1119,7 +1135,6 @@ Thanks to the people who made this release happen!
 * Waleed Khan (@arxanas)
 * Yuya Nishihara (@yuja)
 * Zachary Dremann (@Dr-Emann)
-
 
 ## [0.8.0] - 2023-07-09
 
@@ -1165,7 +1180,8 @@ Thanks to the people who made this release happen!
 
 ### New features
 
-* `jj git push --deleted` will remove all locally deleted branches from the remote.
+* `jj git push --deleted` will remove all locally deleted branches from the
+  remote.
 
 * `jj restore` without `--from` works correctly even if `@` is a merge
   commit.
@@ -1320,7 +1336,6 @@ Thanks to the people who made this release happen!
 * Vamsi Avula (@avamsi)
 * Waleed Khan (@arxanas)
 * Yuya Nishihara (@yuja)
-
 
 ## [0.7.0] - 2023-02-16
 
@@ -1505,7 +1520,8 @@ Thanks to the people who made this release happen!
 * `jj undo` now works after `jj duplicate`.
 
 * `jj duplicate` followed by `jj rebase` of a tree containing both the original
-  and duplicate commit no longer crashes. The fix should also resolve any remaining
+  and duplicate commit no longer crashes. The fix should also resolve any
+  remaining
   instances of https://github.com/martinvonz/jj/issues/27.
 
 * Fix the output of `jj debug completion --help` by reversing fish and zsh text.
@@ -1517,25 +1533,25 @@ Thanks to the people who made this release happen!
 
 Thanks to the people who made this release happen!
 
- * Aleksandr Mikhailov (@AM5800)
- * Augie Fackler (@durin42)
- * Benjamin Saunders (@Ralith)
- * Daniel Ploch (@torquestomp)
- * Danny Hooper (@hooper)
- * David Barnett (@dbarnett)
- * Glen Choo (@chooglen)
- * Herby Gillot (@herbygillot)
- * Ilya Grigoriev (@ilyagr)
- * Luke Granger-Brown (@lukegb)
- * Martin von Zweigbergk (@martinvonz)
- * Michael Forster (@MForster)
- * Philip Metzger (@PhilipMetzger)
- * Ruben Slabbert (@rslabbert)
- * Samuel Tardieu (@samueltardieu)
- * Tal Pressman (@talpr)
- * Vamsi Avula (@avamsi)
- * Waleed Khan (@arxanas)
- * Yuya Nishihara (@yuja)
+* Aleksandr Mikhailov (@AM5800)
+* Augie Fackler (@durin42)
+* Benjamin Saunders (@Ralith)
+* Daniel Ploch (@torquestomp)
+* Danny Hooper (@hooper)
+* David Barnett (@dbarnett)
+* Glen Choo (@chooglen)
+* Herby Gillot (@herbygillot)
+* Ilya Grigoriev (@ilyagr)
+* Luke Granger-Brown (@lukegb)
+* Martin von Zweigbergk (@martinvonz)
+* Michael Forster (@MForster)
+* Philip Metzger (@PhilipMetzger)
+* Ruben Slabbert (@rslabbert)
+* Samuel Tardieu (@samueltardieu)
+* Tal Pressman (@talpr)
+* Vamsi Avula (@avamsi)
+* Waleed Khan (@arxanas)
+* Yuya Nishihara (@yuja)
 
 ## [0.6.1] - 2022-12-05
 
@@ -1660,17 +1676,16 @@ No changes, only changed to a released version of the `thrift` crate dependency.
 
 Thanks to the people who made this release happen!
 
- * Martin von Zweigbergk (@martinvonz)
- * Benjamin Saunders (@Ralith)
- * Yuya Nishihara (@yuja)
- * Glen Choo (@chooglen)
- * Ilya Grigoriev (@ilyagr)
- * Ruben Slabbert (@rslabbert)
- * Waleed Khan (@arxanas)
- * Sean E. Russell (@xxxserxxx)
- * Pranay Sashank (@pranaysashank)
- * Luke Granger-Brown (@lukegb)
-
+* Martin von Zweigbergk (@martinvonz)
+* Benjamin Saunders (@Ralith)
+* Yuya Nishihara (@yuja)
+* Glen Choo (@chooglen)
+* Ilya Grigoriev (@ilyagr)
+* Ruben Slabbert (@rslabbert)
+* Waleed Khan (@arxanas)
+* Sean E. Russell (@xxxserxxx)
+* Pranay Sashank (@pranaysashank)
+* Luke Granger-Brown (@lukegb)
 
 ## [0.5.1] - 2022-10-17
 
@@ -1935,9 +1950,9 @@ No changes, only trying to get the automated build to work.
 
 ### Fixed bugs
 
- - Fixed crash when `core.excludesFile` pointed to nonexistent file, and made
-   leading `~/` in that config expand to `$HOME/`
-   [#131](https://github.com/martinvonz/jj/issues/131)
+- Fixed crash when `core.excludesFile` pointed to nonexistent file, and made
+  leading `~/` in that config expand to `$HOME/`
+  [#131](https://github.com/martinvonz/jj/issues/131)
 
 ## [0.3.0] - 2022-03-12
 

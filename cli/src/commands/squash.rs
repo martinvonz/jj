@@ -38,8 +38,8 @@ use crate::ui::Ui;
 /// commit to the grandparent.
 ///
 /// If, after moving changes out, the source revision is empty compared to its
-/// parent(s), it will be abandoned. Without `--interactive`, the source
-/// revision will always be empty.
+/// parent(s), and `--keep-emptied` is not set, it will be abandoned. Without
+/// `--interactive` or paths, the source revision will always be empty.
 ///
 /// If the source became empty and both the source and destination had a
 /// non-empty description, you will be asked for the combined description. If
@@ -74,6 +74,9 @@ pub(crate) struct SquashArgs {
     /// Move only changes to these paths (instead of all paths)
     #[arg(conflicts_with_all = ["interactive", "tool"], value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
+    /// The source revision will not be abandoned
+    #[arg(long)]
+    keep_emptied: bool,
 }
 
 #[instrument(skip_all)]
@@ -132,6 +135,7 @@ pub(crate) fn cmd_squash(
         SquashedDescription::from_args(args),
         args.revision.is_none() && args.from.is_empty() && args.into.is_none(),
         &args.paths,
+        args.keep_emptied,
     )?;
     tx.finish(ui, tx_description)?;
     Ok(())
@@ -177,6 +181,7 @@ pub fn move_diff(
     description: SquashedDescription,
     no_rev_arg: bool,
     path_arg: &[String],
+    keep_emptied: bool,
 ) -> Result<(), CommandError> {
     tx.base_workspace_helper()
         .check_rewritable(sources.iter().chain(std::iter::once(destination)).ids())?;
@@ -210,7 +215,7 @@ from the source will be moved into the destination.
         let selected_tree_id =
             diff_selector.select(&parent_tree, &source_tree, matcher, Some(&instructions))?;
         let selected_tree = tx.repo().store().get_root_tree(&selected_tree_id)?;
-        let abandon = selected_tree.id() == source_tree.id();
+        let abandon = !keep_emptied && selected_tree.id() == source_tree.id();
         if !abandon && selected_tree_id == parent_tree.id() {
             // Nothing selected from this commit. If it's abandoned (i.e. already empty), we
             // still include it so `jj squash` can be used for abandoning an empty commit in

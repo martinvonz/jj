@@ -100,6 +100,7 @@ pub(crate) fn cmd_move(
         SquashedDescription::Combine,
         false,
         &args.paths,
+        false,
     )?;
     tx.finish(ui, tx_description)?;
     Ok(())
