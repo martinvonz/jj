@@ -296,7 +296,7 @@ jj log -r 'remote_branches(remote=origin)..'
 Show the initial commits in the repo (the ones Git calls "root commits"):
 
 ```
-jj log -r root()+
+jj log -r 'root()+'
 ```
 
 Show some important commits (like `git --simplify-by-decoration`):
