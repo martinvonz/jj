@@ -105,9 +105,8 @@ impl Rule {
             Rule::neighbors_expression => None,
             Rule::range_expression => None,
             Rule::expression => None,
-            Rule::program => None,
             Rule::program_modifier => None,
-            Rule::program_with_modifier => None,
+            Rule::program => None,
             Rule::function_alias_declaration => None,
             Rule::alias_declaration => None,
         }
@@ -421,7 +420,7 @@ pub struct ModifierNode<'i> {
 }
 
 pub(super) fn parse_program(revset_str: &str) -> Result<ExpressionNode, RevsetParseError> {
-    let mut pairs = RevsetParser::parse(Rule::program_with_modifier, revset_str)?;
+    let mut pairs = RevsetParser::parse(Rule::program, revset_str)?;
     let first = pairs.next().unwrap();
     match first.as_rule() {
         Rule::expression => parse_expression_node(first.into_inner()),

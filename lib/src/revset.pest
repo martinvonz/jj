@@ -105,9 +105,8 @@ expression = {
   ~ (whitespace* ~ infix_op ~ whitespace* ~ (negate_op ~ whitespace*)* ~ range_expression)*
 }
 
-program = _{ SOI ~ whitespace* ~ expression ~ whitespace* ~ EOI }
 program_modifier = { identifier ~ pattern_kind_op ~ !":" }
-program_with_modifier = _{
+program = _{
   SOI ~ whitespace* ~ (program_modifier ~ whitespace*)? ~ expression ~ whitespace* ~ EOI
 }
 
