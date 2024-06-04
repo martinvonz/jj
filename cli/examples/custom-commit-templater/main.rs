@@ -30,8 +30,8 @@ use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use jj_lib::revset::{
     FunctionCallNode, PartialSymbolResolver, RevsetExpression, RevsetFilterExtension,
-    RevsetFilterExtensionWrapper, RevsetFilterPredicate, RevsetParseContext, RevsetParseError,
-    RevsetResolutionError, SymbolResolverExtension,
+    RevsetFilterPredicate, RevsetParseContext, RevsetParseError, RevsetResolutionError,
+    SymbolResolverExtension,
 };
 use once_cell::sync::OnceCell;
 
@@ -185,7 +185,7 @@ fn even_digits(
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     function.expect_no_arguments()?;
     Ok(RevsetExpression::filter(RevsetFilterPredicate::Extension(
-        RevsetFilterExtensionWrapper(Rc::new(EvenDigitsFilter)),
+        Rc::new(EvenDigitsFilter),
     )))
 }
 

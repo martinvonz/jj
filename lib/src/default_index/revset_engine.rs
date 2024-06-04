@@ -33,7 +33,7 @@ use crate::matchers::{Matcher, Visit};
 use crate::repo_path::RepoPath;
 use crate::revset::{
     ResolvedExpression, ResolvedPredicateExpression, Revset, RevsetEvaluationError,
-    RevsetFilterExtensionWrapper, RevsetFilterPredicate, GENERATION_RANGE_FULL,
+    RevsetFilterPredicate, GENERATION_RANGE_FULL,
 };
 use crate::store::Store;
 use crate::{rewrite, union_find};
@@ -1081,7 +1081,7 @@ fn build_predicate_fn(
             let commit = store.get_commit(&entry.commit_id()).unwrap();
             commit.has_conflict().unwrap()
         }),
-        RevsetFilterPredicate::Extension(RevsetFilterExtensionWrapper(ext)) => {
+        RevsetFilterPredicate::Extension(ext) => {
             let ext = ext.clone();
             box_pure_predicate_fn(move |index, pos| {
                 let entry = index.entry_by_pos(pos);
