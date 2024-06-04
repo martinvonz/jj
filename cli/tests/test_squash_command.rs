@@ -260,6 +260,49 @@ fn test_squash_partial() {
 }
 
 #[test]
+fn test_squash_keep_empty() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a"]);
+    std::fs::write(repo_path.join("file1"), "a\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "b"]);
+    std::fs::write(repo_path.join("file1"), "b\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "c"]);
+    std::fs::write(repo_path.join("file1"), "c\n").unwrap();
+    // Test the setup
+
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  90fe0a96fc90 c
+    ◉  fa5efbdf533c b
+    ◉  90aeefd03044 a
+    ◉  000000000000 (empty)
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "-r", "b", "--keep-empty"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 2 descendant commits
+    Working copy now at: mzvwutvl 8d072ade c | (no description set)
+    Parent commit      : kkmpptxz 1ffda862 b | (empty) (no description set)
+    "###);
+    // With --keep-empty, b remains even though it is now empty.
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  8d072adecae0 c
+    ◉  1ffda862e07e b (empty)
+    ◉  297fde616b71 a
+    ◉  000000000000 (empty)
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "a"]);
+    insta::assert_snapshot!(stdout, @r###"
+    b
+    "###);
+}
+
+#[test]
 fn test_squash_from_to() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);

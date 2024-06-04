@@ -1783,7 +1783,7 @@ With the `-r` option, moves the changes from the specified revision to the paren
 
 With the `--from` and/or `--into` options, moves changes from/to the given revisions. If either is left out, it defaults to the working-copy commit. For example, `jj squash --into @--` moves changes from the working-copy commit to the grandparent.
 
-If, after moving changes out, the source revision is empty compared to its parent(s), it will be abandoned. Without `--interactive`, the source revision will always be empty.
+If, after moving changes out, the source revision is empty compared to its parent(s), and `--keep-empty` is not set, it will be abandoned. Without `--interactive` or paths, the source revision will always be empty.
 
 If the source became empty and both the source and destination had a non-empty description, you will be asked for the combined description. If either was empty, then the other one will be used.
 
@@ -1810,6 +1810,10 @@ If a working-copy commit gets abandoned, it will be given a new, empty commit. T
   Possible values: `true`, `false`
 
 * `--tool <NAME>` — Specify diff editor to be used (implies --interactive)
+* `--keep-empty` — The source revision will not be abandoned
+
+  Possible values: `true`, `false`
+
 
 
 
