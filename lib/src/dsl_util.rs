@@ -64,6 +64,11 @@ pub struct KeywordArgument<'i, T> {
 }
 
 impl<'i, T> FunctionCallNode<'i, T> {
+    /// Number of arguments assuming named arguments are all unique.
+    pub fn arity(&self) -> usize {
+        self.args.len() + self.keyword_args.len()
+    }
+
     /// Ensures that no arguments passed.
     pub fn expect_no_arguments(&self) -> Result<(), InvalidArguments<'i>> {
         let ([], []) = self.expect_arguments()?;
@@ -218,6 +223,14 @@ impl<'i, T> FunctionCallNode<'i, T> {
         };
         self.invalid_arguments(message, self.args_span)
     }
+
+    fn invalid_arguments_count_with_arities(
+        &self,
+        arities: impl IntoIterator<Item = usize>,
+    ) -> InvalidArguments<'i> {
+        let message = format!("Expected {} arguments", arities.into_iter().join(", "));
+        self.invalid_arguments(message, self.args_span)
+    }
 }
 
 /// Unexpected number of arguments, or invalid combination of arguments.
@@ -350,7 +363,8 @@ impl<R: RuleType> StringLiteralParser<R> {
 #[derive(Clone, Debug, Default)]
 pub struct AliasesMap<P> {
     symbol_aliases: HashMap<String, String>,
-    function_aliases: HashMap<String, (Vec<String>, String)>,
+    // name: [(params, defn)] (sorted by arity)
+    function_aliases: HashMap<String, Vec<(Vec<String>, String)>>,
     // Parser type P helps prevent misuse of AliasesMap of different language.
     parser: P,
 }
@@ -377,7 +391,11 @@ impl<P> AliasesMap<P> {
                 self.symbol_aliases.insert(name, defn.into());
             }
             AliasDeclaration::Function(name, params) => {
-                self.function_aliases.insert(name, (params, defn.into()));
+                let overloads = self.function_aliases.entry(name).or_default();
+                match overloads.binary_search_by_key(&params.len(), |(params, _)| params.len()) {
+                    Ok(i) => overloads[i] = (params, defn.into()),
+                    Err(i) => overloads.insert(i, (params, defn.into())),
+                }
             }
         }
         Ok(())
@@ -400,18 +418,49 @@ impl<P> AliasesMap<P> {
             .map(|(name, defn)| (AliasId::Symbol(name), defn.as_ref()))
     }
 
-    /// Looks up function alias by name. Returns identifier, list of parameter
-    /// names, and definition text.
-    pub fn get_function(&self, name: &str) -> Option<(AliasId<'_>, &[String], &str)> {
-        self.function_aliases
-            .get_key_value(name)
-            .map(|(name, (params, defn))| {
-                (
-                    AliasId::Function(name, params),
-                    params.as_ref(),
-                    defn.as_ref(),
-                )
-            })
+    /// Looks up function alias by name and arity. Returns identifier, list of
+    /// parameter names, and definition text.
+    pub fn get_function(&self, name: &str, arity: usize) -> Option<(AliasId<'_>, &[String], &str)> {
+        let overloads = self.get_function_overloads(name)?;
+        overloads.find_by_arity(arity)
+    }
+
+    /// Looks up function aliases by name.
+    fn get_function_overloads(&self, name: &str) -> Option<AliasFunctionOverloads<'_>> {
+        let (name, overloads) = self.function_aliases.get_key_value(name)?;
+        Some(AliasFunctionOverloads { name, overloads })
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct AliasFunctionOverloads<'a> {
+    name: &'a String,
+    overloads: &'a Vec<(Vec<String>, String)>,
+}
+
+impl<'a> AliasFunctionOverloads<'a> {
+    fn arities(self) -> impl DoubleEndedIterator<Item = usize> + ExactSizeIterator + 'a {
+        self.overloads.iter().map(|(params, _)| params.len())
+    }
+
+    fn min_arity(self) -> usize {
+        self.arities().next().unwrap()
+    }
+
+    fn max_arity(self) -> usize {
+        self.arities().next_back().unwrap()
+    }
+
+    fn find_by_arity(self, arity: usize) -> Option<(AliasId<'a>, &'a [String], &'a str)> {
+        let index = self
+            .overloads
+            .binary_search_by_key(&arity, |(params, _)| params.len())
+            .ok()?;
+        let (params, defn) = &self.overloads[index];
+        // Exact parameter names aren't needed to identify a function, but they
+        // provide a better error indication. (e.g. "foo(x, y)" is easier to
+        // follow than "foo/2".)
+        Some((AliasId::Function(self.name, params), params, defn))
     }
 }
 
@@ -564,18 +613,23 @@ where
         function: Box<FunctionCallNode<'i, T>>,
         span: pest::Span<'i>,
     ) -> Result<T, Self::Error> {
-        if let Some((id, params, defn)) = self.aliases_map.get_function(function.name) {
-            // TODO: add support for keyword arguments and arity-based
-            // overloading (#2966)?
-            let arity = params.len();
+        // For better error indication, builtin functions are shadowed by name,
+        // not by (name, arity).
+        if let Some(overloads) = self.aliases_map.get_function_overloads(function.name) {
+            // TODO: add support for keyword arguments
             function
                 .ensure_no_keyword_arguments()
                 .map_err(E::invalid_arguments)?;
-            if function.args.len() != arity {
-                return Err(E::invalid_arguments(
-                    function.invalid_arguments_count(arity, Some(arity)),
-                ));
-            }
+            let Some((id, params, defn)) = overloads.find_by_arity(function.arity()) else {
+                let min = overloads.min_arity();
+                let max = overloads.max_arity();
+                let err = if max - min + 1 == overloads.arities().len() {
+                    function.invalid_arguments_count(min, Some(max))
+                } else {
+                    function.invalid_arguments_count_with_arities(overloads.arities())
+                };
+                return Err(E::invalid_arguments(err));
+            };
             // Resolve arguments in the current scope, and pass them in to the alias
             // expansion scope.
             let args = fold_expression_nodes(self, function.args)?;

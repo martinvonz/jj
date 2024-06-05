@@ -1275,6 +1275,37 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_revset_alias_func_decl() {
+        let mut aliases_map = RevsetAliasesMap::new();
+        aliases_map.insert("func()", r#""is function 0""#).unwrap();
+        aliases_map
+            .insert("func(a, b)", r#""is function 2""#)
+            .unwrap();
+        aliases_map.insert("func(a)", r#""is function a""#).unwrap();
+        aliases_map.insert("func(b)", r#""is function b""#).unwrap();
+
+        let (id, params, defn) = aliases_map.get_function("func", 0).unwrap();
+        assert_eq!(id, AliasId::Function("func", &[]));
+        assert!(params.is_empty());
+        assert_eq!(defn, r#""is function 0""#);
+
+        let (id, params, defn) = aliases_map.get_function("func", 1).unwrap();
+        assert_eq!(id, AliasId::Function("func", &["b".to_owned()]));
+        assert_eq!(params, ["b"]);
+        assert_eq!(defn, r#""is function b""#);
+
+        let (id, params, defn) = aliases_map.get_function("func", 2).unwrap();
+        assert_eq!(
+            id,
+            AliasId::Function("func", &["a".to_owned(), "b".to_owned()])
+        );
+        assert_eq!(params, ["a", "b"]);
+        assert_eq!(defn, r#""is function 2""#);
+
+        assert!(aliases_map.get_function("func", 3).is_none());
+    }
+
+    #[test]
     fn test_parse_revset_alias_formal_parameter() {
         let mut aliases_map = RevsetAliasesMap::new();
         // Working copy or remote symbol cannot be used as an parameter name.
@@ -1542,6 +1573,12 @@ mod tests {
             parse_normalized("a|b")
         );
 
+        // Not recursion because functions are overloaded by arity.
+        assert_eq!(
+            with_aliases([("F(x)", "F(x,b)"), ("F(x,y)", "x|y")]).parse_normalized("F(a)"),
+            parse_normalized("a|b")
+        );
+
         // Arguments should be resolved in the current scope.
         assert_eq!(
             with_aliases([("F(x,y)", "x|y")]).parse_normalized("F(a::y,b::x)"),
@@ -1613,6 +1650,26 @@ mod tests {
                 message: "Expected 2 arguments".to_owned()
             }
         );
+        assert_eq!(
+            with_aliases([("F(x)", "x"), ("F(x,y)", "x|y")])
+                .parse("F()")
+                .unwrap_err()
+                .kind,
+            RevsetParseErrorKind::InvalidFunctionArguments {
+                name: "F".to_owned(),
+                message: "Expected 1 to 2 arguments".to_owned()
+            }
+        );
+        assert_eq!(
+            with_aliases([("F()", "x"), ("F(x,y)", "x|y")])
+                .parse("F(a)")
+                .unwrap_err()
+                .kind,
+            RevsetParseErrorKind::InvalidFunctionArguments {
+                name: "F".to_owned(),
+                message: "Expected 0, 2 arguments".to_owned()
+            }
+        );
 
         // Keyword argument isn't supported for now.
         assert_eq!(
@@ -1629,6 +1686,13 @@ mod tests {
         // Infinite recursion, where the top-level error isn't of RecursiveAlias kind.
         assert_eq!(
             with_aliases([("F(x)", "G(x)"), ("G(x)", "H(x)"), ("H(x)", "F(x)")])
+                .parse("F(a)")
+                .unwrap_err()
+                .kind,
+            RevsetParseErrorKind::BadAliasExpansion("F(x)".to_owned())
+        );
+        assert_eq!(
+            with_aliases([("F(x)", "F(x,b)"), ("F(x,y)", "F(x|y)")])
                 .parse("F(a)")
                 .unwrap_err()
                 .kind,

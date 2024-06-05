@@ -196,11 +196,15 @@ Functions that perform string matching support the following pattern syntax:
 New symbols and functions can be defined in the config file, by using any
 combination of the predefined symbols/functions and other aliases.
 
+Alias functions can be overloaded by the number of parameters. However, builtin
+function will be shadowed by name, and can't co-exist with aliases.
+
 For example:
 
 ```toml
 [revset-aliases]
 'HEAD' = '@-'
+'user()' = 'user("me@example.org")
 'user(x)' = 'author(x) | committer(x)'
 ```
 
