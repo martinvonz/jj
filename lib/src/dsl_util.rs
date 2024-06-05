@@ -405,7 +405,13 @@ impl<P> AliasesMap<P> {
     pub fn get_function(&self, name: &str) -> Option<(AliasId<'_>, &[String], &str)> {
         self.function_aliases
             .get_key_value(name)
-            .map(|(name, (params, defn))| (AliasId::Function(name), params.as_ref(), defn.as_ref()))
+            .map(|(name, (params, defn))| {
+                (
+                    AliasId::Function(name, params),
+                    params.as_ref(),
+                    defn.as_ref(),
+                )
+            })
     }
 }
 
@@ -414,8 +420,8 @@ impl<P> AliasesMap<P> {
 pub enum AliasId<'a> {
     /// Symbol name.
     Symbol(&'a str),
-    /// Function name.
-    Function(&'a str),
+    /// Function name and parameter names.
+    Function(&'a str, &'a [String]),
     /// Function parameter name.
     Parameter(&'a str),
 }
@@ -424,7 +430,9 @@ impl fmt::Display for AliasId<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             AliasId::Symbol(name) => write!(f, "{name}"),
-            AliasId::Function(name) => write!(f, "{name}()"),
+            AliasId::Function(name, params) => {
+                write!(f, "{name}({params})", params = params.join(", "))
+            }
             AliasId::Parameter(name) => write!(f, "{name}"),
         }
     }

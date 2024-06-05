@@ -84,14 +84,14 @@ fn test_templater_parse_error() {
     Hint: Did you mean "s", "self"?
     "###);
     insta::assert_snapshot!(render_err(r#"format_id(commit_id)"#), @r###"
-    Error: Failed to parse template: Alias "format_id()" cannot be expanded
+    Error: Failed to parse template: Alias "format_id(id)" cannot be expanded
     Caused by:
     1:  --> 1:1
       |
     1 | format_id(commit_id)
       | ^------------------^
       |
-      = Alias "format_id()" cannot be expanded
+      = Alias "format_id(id)" cannot be expanded
     2:  --> 1:4
       |
     1 | id.sort()
@@ -189,14 +189,14 @@ fn test_templater_alias() {
     "###);
 
     insta::assert_snapshot!(render_err(r#"identity(identity(commit_id.short("")))"#), @r###"
-    Error: Failed to parse template: Alias "identity()" cannot be expanded
+    Error: Failed to parse template: Alias "identity(x)" cannot be expanded
     Caused by:
     1:  --> 1:1
       |
     1 | identity(identity(commit_id.short("")))
       | ^-------------------------------------^
       |
-      = Alias "identity()" cannot be expanded
+      = Alias "identity(x)" cannot be expanded
     2:  --> 1:1
       |
     1 | x
@@ -208,7 +208,7 @@ fn test_templater_alias() {
     1 | identity(identity(commit_id.short("")))
       |          ^---------------------------^
       |
-      = Alias "identity()" cannot be expanded
+      = Alias "identity(x)" cannot be expanded
     4:  --> 1:1
       |
     1 | x
@@ -272,14 +272,14 @@ fn test_templater_alias() {
     "###);
 
     insta::assert_snapshot!(render_err(r#"coalesce(label("x", "not boolean"), "")"#), @r###"
-    Error: Failed to parse template: Alias "coalesce()" cannot be expanded
+    Error: Failed to parse template: Alias "coalesce(x, y)" cannot be expanded
     Caused by:
     1:  --> 1:1
       |
     1 | coalesce(label("x", "not boolean"), "")
       | ^-------------------------------------^
       |
-      = Alias "coalesce()" cannot be expanded
+      = Alias "coalesce(x, y)" cannot be expanded
     2:  --> 1:4
       |
     1 | if(x, x, y)
