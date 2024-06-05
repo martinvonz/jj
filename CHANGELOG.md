@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Breaking changes
 
+### Deprecations
+
+### New features
+
+### Fixed bugs
+
+## [0.18.0] - 2024-06-05
+
+### Breaking changes
+
 * Dropped support for `ui.default-revset` config (replaced by `revsets.log` in
   0.8.0).
 
@@ -38,7 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Deprecations
 
-- Attempting to alias a built-in command now gives a warning, rather than being silently ignored.
+* Attempting to alias a built-in command now gives a warning, rather than being
+  silently ignored.
 
 ### New features
 
@@ -61,7 +72,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added new revsets `mutable()` and `immutable()`.
 
-* Upgraded `scm-record` from v0.2.0 to v0.3.0. See release notes at https://github.com/arxanas/scm-record/releases/tag/v0.3.0
+* Upgraded `scm-record` from v0.2.0 to v0.3.0. See release notes at
+  <https://github.com/arxanas/scm-record/releases/tag/v0.3.0>
 
 * New command `jj fix` that can be configured to update commits by running code
   formatters (or similar tools) on changed files. The configuration schema and
@@ -89,8 +101,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fetch` works, `jj` does not suffer from the same problems as Git's `git push
   --force-with-lease` in situations when `git fetch` is run in the background.
 
-* When the working copy commit becomes immutable, a new one is automatically created on top of it 
-to avoid letting the user edit the immutable one.
+* When the working copy commit becomes immutable, a new one is automatically created
+  on top of it to avoid letting the user edit the immutable one.
 
 * `jj config list` now properly escapes TOML keys (#1322).
 
@@ -100,6 +112,34 @@ to avoid letting the user edit the immutable one.
 * The progress bar (visible when using e.g. `jj git clone`) clears the
   remainder of the cursor row after drawing rather than clearing the entire row
   before drawing, eliminating the "flicker" effect seen on some terminals.
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+* Alexander Potashev (@aspotashev)
+* Austin Seipp (@thoughtpolice)
+* Benjamin Tan (@bnjmnt4n)
+* Charles Crete (@Cretezy)
+* Danny Hooper (@hooper)
+* Eidolon (@HybridEidolon)
+* Glen Choo (@chooglen)
+* Gregory Anders (@gpanders)
+* Ilya Grigoriev (@ilyagr)
+* Martin von Zweigbergk (@martinvonz)
+* Matt Stark (@matts1)
+* Matthew Davidson (@KingMob)
+* Michael Gattozzi (@mgattozzi)
+* Philip Metzger (@PhilipMetzger)
+* Remo Senekowitsch (@senekor)
+* Thomas Castiglione (@gulbanana)
+* Théo Daron (@Kaporos)
+* Waleed Khan (@arxanas)
+* Yuya Nishihara (@yuja)
+* Daniel Ploch (@torquestomp)
+* jyn (@jyn514)
+* mlcui (@mlcui-google)
+* tinger (@tingerrr)
 
 ## [0.17.1] - 2024-05-07
 
