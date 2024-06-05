@@ -529,6 +529,37 @@ fn test_new_error_revision_does_not_exist() {
     "###);
 }
 
+#[test]
+fn test_new_with_new_branch() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["new", "-b", "new_branch"]);
+
+    insta::assert_snapshot!(get_log_output_branches(&test_env, &repo_path), @r###"
+    @  65b6b74e08973b88d38404430f119c8c79465250 new_branch
+    ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    ◉  0000000000000000000000000000000000000000
+    "###);
+}
+
+#[test]
+fn test_new_with_existing_branch() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["branch", "c", "new_branch"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-b", "new_branch"]);
+
+    insta::assert_snapshot!(get_log_output_branches(&test_env, &repo_path), @r###"
+    @  4db490c88528133d579540b6900b8098f0c17701 new_branch
+    ◉  230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    ◉  0000000000000000000000000000000000000000
+    "###);
+}
+
 fn setup_before_insertion(test_env: &TestEnvironment, repo_path: &Path) {
     test_env.jj_cmd_ok(repo_path, &["branch", "create", "A"]);
     test_env.jj_cmd_ok(repo_path, &["commit", "-m", "A"]);
@@ -547,6 +578,11 @@ fn setup_before_insertion(test_env: &TestEnvironment, repo_path: &Path) {
 
 fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     let template = r#"commit_id ++ " " ++ description"#;
+    test_env.jj_cmd_success(repo_path, &["log", "-T", template])
+}
+
+fn get_log_output_branches(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    let template = r#"commit_id ++ " " ++ branches"#;
     test_env.jj_cmd_success(repo_path, &["log", "-T", template])
 }
 
