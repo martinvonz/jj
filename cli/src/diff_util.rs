@@ -638,7 +638,7 @@ fn git_diff_part(
     value: MaterializedTreeValue,
 ) -> Result<GitDiffPart, DiffRenderError> {
     let mode;
-    let hash;
+    let mut hash;
     let mut contents: Vec<u8>;
     match value {
         MaterializedTreeValue::Absent => {
@@ -693,7 +693,7 @@ fn git_diff_part(
             panic!("Unexpected tree in diff at path {path:?}");
         }
     }
-    let hash = hash[0..10].to_string();
+    hash.truncate(10);
     Ok(GitDiffPart {
         mode,
         hash,
