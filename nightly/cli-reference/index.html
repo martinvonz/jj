@@ -6465,13 +6465,9 @@ tool-command = ["rustfmt", "--emit", "stdout"]</p>
 <p>Possible values: <code>true</code>, <code>false</code></p>
 </li>
 <li>
-<p><code>-A</code>, <code>--insert-after</code> — Insert the new change between the target commit(s) and their children</p>
-<p>Possible values: <code>true</code>, <code>false</code></p>
+<p><code>-A</code>, <code>--insert-after &lt;INSERT_AFTER&gt;</code> — Insert the new change after the given commit(s)</p>
 </li>
-<li>
-<p><code>-B</code>, <code>--insert-before</code> — Insert the new change between the target commit(s) and their parents</p>
-<p>Possible values: <code>true</code>, <code>false</code></p>
-</li>
+<li><code>-B</code>, <code>--insert-before &lt;INSERT_BEFORE&gt;</code> — Insert the new change before the given commit(s)</li>
 </ul>
 <h2 id="jj-next"><code>jj next</code><a class="headerlink" href="#jj-next" title="Permanent link">&para;</a></h2>
 <p>Move the working-copy commit to the child revision</p>
