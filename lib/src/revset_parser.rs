@@ -233,7 +233,7 @@ impl AliasExpandError for RevsetParseError {
 
     fn within_alias_expansion(self, id: AliasId<'_>, span: pest::Span<'_>) -> Self {
         let kind = match id {
-            AliasId::Symbol(_) | AliasId::Function(_) => {
+            AliasId::Symbol(_) | AliasId::Function(..) => {
                 RevsetParseErrorKind::BadAliasExpansion(id.to_string())
             }
             AliasId::Parameter(_) => RevsetParseErrorKind::BadParameterExpansion(id.to_string()),
@@ -1632,7 +1632,7 @@ mod tests {
                 .parse("F(a)")
                 .unwrap_err()
                 .kind,
-            RevsetParseErrorKind::BadAliasExpansion("F()".to_owned())
+            RevsetParseErrorKind::BadAliasExpansion("F(x)".to_owned())
         );
     }
 }

@@ -372,14 +372,14 @@ fn test_alias() {
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "my_author(none())"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Alias "my_author()" cannot be expanded
+    Error: Failed to parse revset: Alias "my_author(x)" cannot be expanded
     Caused by:
     1:  --> 1:1
       |
     1 | my_author(none())
       | ^---------------^
       |
-      = Alias "my_author()" cannot be expanded
+      = Alias "my_author(x)" cannot be expanded
     2:  --> 1:8
       |
     1 | author(x)

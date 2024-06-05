@@ -220,7 +220,7 @@ impl AliasExpandError for TemplateParseError {
 
     fn within_alias_expansion(self, id: AliasId<'_>, span: pest::Span<'_>) -> Self {
         let kind = match id {
-            AliasId::Symbol(_) | AliasId::Function(_) => {
+            AliasId::Symbol(_) | AliasId::Function(..) => {
                 TemplateParseErrorKind::BadAliasExpansion(id.to_string())
             }
             AliasId::Parameter(_) => TemplateParseErrorKind::BadParameterExpansion(id.to_string()),
@@ -1035,7 +1035,7 @@ mod tests {
         assert_eq!(defn, r#""is symbol""#);
 
         let (id, params, defn) = aliases_map.get_function("func").unwrap();
-        assert_eq!(id, AliasId::Function("func"));
+        assert_eq!(id, AliasId::Function("func", &["a".to_owned()]));
         assert_eq!(params, ["a"]);
         assert_eq!(defn, r#""is function""#);
 
@@ -1219,7 +1219,7 @@ mod tests {
                 .parse("F(a)")
                 .unwrap_err()
                 .kind,
-            TemplateParseErrorKind::BadAliasExpansion("F()".to_owned()),
+            TemplateParseErrorKind::BadAliasExpansion("F(x)".to_owned()),
         );
     }
 }
