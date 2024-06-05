@@ -134,17 +134,6 @@ pub fn load_revset_aliases(
             }
         }
     }
-
-    // TODO: If we add support for function overloading (#2966), this check can
-    // be removed.
-    let (_, params, _) = aliases_map.get_function(BUILTIN_IMMUTABLE_HEADS).unwrap();
-    if !params.is_empty() {
-        return Err(user_error(format!(
-            "The `revset-aliases.{name}()` function must be declared without arguments",
-            name = BUILTIN_IMMUTABLE_HEADS
-        )));
-    }
-
     Ok(aliases_map)
 }
 
@@ -175,14 +164,10 @@ pub fn default_symbol_resolver<'a>(
 pub fn parse_immutable_expression(
     context: &RevsetParseContext,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
-    let (_, params, immutable_heads_str) = context
+    let (_, _, immutable_heads_str) = context
         .aliases_map()
-        .get_function(BUILTIN_IMMUTABLE_HEADS)
+        .get_function(BUILTIN_IMMUTABLE_HEADS, 0)
         .unwrap();
-    assert!(
-        params.is_empty(),
-        "invalid declaration should have been rejected by load_revset_aliases()"
-    );
     // Negated ancestors expression `~::(<heads> | root())` is slightly easier
     // to optimize than negated union `~(::<heads> | root())`.
     let heads = revset::parse(immutable_heads_str, context)?;

@@ -273,6 +273,9 @@ can be seen in the `cli/src/config/templates.toml` file in jj's source tree.
 New keywords and functions can be defined as aliases, by using any
 combination of the predefined keywords/functions and other aliases.
 
+Alias functions can be overloaded by the number of parameters. However, builtin
+function will be shadowed by name, and can't co-exist with aliases.
+
 For example:
 
 ```toml

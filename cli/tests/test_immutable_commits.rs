@@ -95,17 +95,11 @@ fn test_rewrite_immutable_generic() {
     Parent commit      : kkmpptxz c8d4c7ca main | b
     "###);
 
-    // Error if we redefine immutable_heads() with an argument
+    // immutable_heads() of different arity doesn't shadow the 0-ary one
     test_env.add_config(r#"revset-aliases."immutable_heads(foo)" = "none()""#);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["edit", "root()"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: The `revset-aliases.immutable_heads()` function must be declared without arguments
-    "###);
-    // ... even if we also update the built-in call sites
-    test_env.add_config(r#"revsets.short-prefixes = "immutable_heads(root())""#);
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["edit", "root()"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: The `revset-aliases.immutable_heads()` function must be declared without arguments
+    Error: The root commit 000000000000 is immutable
     "###);
 }
 

@@ -1028,16 +1028,36 @@ mod tests {
     fn test_parse_alias_decl() {
         let mut aliases_map = TemplateAliasesMap::new();
         aliases_map.insert("sym", r#""is symbol""#).unwrap();
-        aliases_map.insert("func(a)", r#""is function""#).unwrap();
+        aliases_map.insert("func()", r#""is function 0""#).unwrap();
+        aliases_map
+            .insert("func(a, b)", r#""is function 2""#)
+            .unwrap();
+        aliases_map.insert("func(a)", r#""is function a""#).unwrap();
+        aliases_map.insert("func(b)", r#""is function b""#).unwrap();
 
         let (id, defn) = aliases_map.get_symbol("sym").unwrap();
         assert_eq!(id, AliasId::Symbol("sym"));
         assert_eq!(defn, r#""is symbol""#);
 
-        let (id, params, defn) = aliases_map.get_function("func").unwrap();
-        assert_eq!(id, AliasId::Function("func", &["a".to_owned()]));
-        assert_eq!(params, ["a"]);
-        assert_eq!(defn, r#""is function""#);
+        let (id, params, defn) = aliases_map.get_function("func", 0).unwrap();
+        assert_eq!(id, AliasId::Function("func", &[]));
+        assert!(params.is_empty());
+        assert_eq!(defn, r#""is function 0""#);
+
+        let (id, params, defn) = aliases_map.get_function("func", 1).unwrap();
+        assert_eq!(id, AliasId::Function("func", &["b".to_owned()]));
+        assert_eq!(params, ["b"]);
+        assert_eq!(defn, r#""is function b""#);
+
+        let (id, params, defn) = aliases_map.get_function("func", 2).unwrap();
+        assert_eq!(
+            id,
+            AliasId::Function("func", &["a".to_owned(), "b".to_owned()])
+        );
+        assert_eq!(params, ["a", "b"]);
+        assert_eq!(defn, r#""is function 2""#);
+
+        assert!(aliases_map.get_function("func", 3).is_none());
 
         // Formal parameter 'a' can't be redefined
         assert_eq!(
@@ -1149,6 +1169,12 @@ mod tests {
             parse_normalized("a ++ b"),
         );
 
+        // Not recursion because functions are overloaded by arity.
+        assert_eq!(
+            with_aliases([("F(x)", "F(x,b)"), ("F(x,y)", "x ++ y")]).parse_normalized("F(a)"),
+            parse_normalized("a ++ b")
+        );
+
         // Arguments should be resolved in the current scope.
         assert_eq!(
             with_aliases([("F(x,y)", "if(x, y)")]).parse_normalized("F(a ++ y, b ++ x)"),
@@ -1220,6 +1246,13 @@ mod tests {
                 .unwrap_err()
                 .kind,
             TemplateParseErrorKind::BadAliasExpansion("F(x)".to_owned()),
+        );
+        assert_eq!(
+            with_aliases([("F(x)", "F(x,b)"), ("F(x,y)", "F(x|y)")])
+                .parse("F(a)")
+                .unwrap_err()
+                .kind,
+            TemplateParseErrorKind::BadAliasExpansion("F(x)".to_owned())
         );
     }
 }
