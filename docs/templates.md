@@ -35,6 +35,8 @@ The following operators are supported.
 * `x || y`: Logical or, short-circuiting.
 * `x ++ y`: Concatenate `x` and `y` templates.
 
+(listed in order of binding strengths)
+
 ## Global functions
 
 The following functions are defined.
