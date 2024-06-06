@@ -50,8 +50,8 @@ Jujutsu attempts to resolve a symbol in the following order:
 The following operators are supported. `x` and `y` below can be any revset, not
 only symbols.
 
-* `x-`: Parents of `x`.
-* `x+`: Children of `x`.
+* `x-`: Parents of `x`, can be empty.
+* `x+`: Children of `x`, can be empty.
 * `x::`: Descendants of `x`, including the commits in `x` itself.
 * `x..`: Revisions that are not ancestors of `x`.
 * `::x`: Ancestors of `x`, including the commits in `x` itself.
