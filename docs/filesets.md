@@ -46,10 +46,12 @@ The following patterns are supported:
 The following operators are supported. `x` and `y` below can be any fileset
 expressions.
 
-* `x & y`: Matches both `x` and `y`.
-* `x | y`: Matches either `x` or `y` (or both).
-* `x ~ y`: Matches `x` but not `y`.
 * `~x`: Matches everything but `x`.
+* `x & y`: Matches both `x` and `y`.
+* `x ~ y`: Matches `x` but not `y`.
+* `x | y`: Matches either `x` or `y` (or both).
+
+(listed in order of binding strengths)
 
 You can use parentheses to control evaluation order, such as `(x & y) | z` or
 `x & (y | z)`.

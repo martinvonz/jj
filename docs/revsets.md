@@ -50,24 +50,26 @@ Jujutsu attempts to resolve a symbol in the following order:
 The following operators are supported. `x` and `y` below can be any revset, not
 only symbols.
 
-* `x & y`: Revisions that are in both `x` and `y`.
-* `x | y`: Revisions that are in either `x` or `y` (or both).
-* `x ~ y`: Revisions that are in `x` but not in `y`.
-* `~x`: Revisions that are not in `x`.
 * `x-`: Parents of `x`.
 * `x+`: Children of `x`.
-* `::x`: Ancestors of `x`, including the commits in `x` itself.
 * `x::`: Descendants of `x`, including the commits in `x` itself.
-* `x::y`: Descendants of `x` that are also ancestors of `y`. Equivalent
-   to `x:: & ::y`. This is what `git log` calls `--ancestry-path x..y`.
-* `::`: All visible commits in the repo. Equivalent to `all()`.
-* `x..y`: Ancestors of `y` that are not also ancestors of `x`. Equivalent to
-  `::y ~ ::x`. This is what `git log` calls `x..y` (i.e. the same as we call it).
+* `x..`: Revisions that are not ancestors of `x`.
+* `::x`: Ancestors of `x`, including the commits in `x` itself.
 * `..x`: Ancestors of `x`, including the commits in `x` itself, but excluding
   the root commit. Equivalent to `::x ~ root()`.
-* `x..`: Revisions that are not ancestors of `x`.
+* `x::y`: Descendants of `x` that are also ancestors of `y`. Equivalent
+   to `x:: & ::y`. This is what `git log` calls `--ancestry-path x..y`.
+* `x..y`: Ancestors of `y` that are not also ancestors of `x`. Equivalent to
+  `::y ~ ::x`. This is what `git log` calls `x..y` (i.e. the same as we call it).
+* `::`: All visible commits in the repo. Equivalent to `all()`.
 * `..`: All visible commits in the repo, but excluding the root commit.
   Equivalent to `~root()`.
+* `~x`: Revisions that are not in `x`.
+* `x & y`: Revisions that are in both `x` and `y`.
+* `x ~ y`: Revisions that are in `x` but not in `y`.
+* `x | y`: Revisions that are in either `x` or `y` (or both).
+
+(listed in order of binding strengths)
 
 You can use parentheses to control evaluation order, such as `(x & y) | z` or
 `x & (y | z)`.
