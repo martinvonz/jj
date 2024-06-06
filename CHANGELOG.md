@@ -138,7 +138,7 @@ Thanks to the people who made this release happen!
 * Yuya Nishihara (@yuja)
 * Daniel Ploch (@torquestomp)
 * jyn (@jyn514)
-* mlcui (@mlcui-google)
+* mlcui (@mlcui-corp)
 * tinger (@tingerrr)
 
 ## [0.17.1] - 2024-05-07
@@ -699,7 +699,7 @@ Thanks to the people who made this release happen!
 * Jesse Somerville (@jessesomerville)
 * Łukasz Kurowski (@crackcomm)
 * Martin von Zweigbergk (@martinvonz)
-* mlcui (@mlcui-google)
+* mlcui (@mlcui-corp)
 * Philip Metzger (@PhilipMetzger)
 * Waleed Khan (@arxanas)
 * Yuya Nishihara (@yuja)
@@ -1239,7 +1239,7 @@ Thanks to the people who made this release happen!
 * Isabella Basso (@isinyaaa)
 * Kevin Liao (@kevincliao)
 * Martin von Zweigbergk (@martinvonz)
-* mlcui (@mlcui-google)
+* mlcui (@mlcui-corp)
 * Samuel Tardieu (@samueltardieu)
 * Tal Pressman (@talpr)
 * Vamsi Avula (@avamsi)
