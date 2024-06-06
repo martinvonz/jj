@@ -133,7 +133,7 @@ Thanks to the people who made this release happen!
 * Philip Metzger (@PhilipMetzger)
 * Remo Senekowitsch (@senekor)
 * Thomas Castiglione (@gulbanana)
-* Théo Daron (@Kaporos)
+* Théo Daron (@tdaron)
 * Waleed Khan (@arxanas)
 * Yuya Nishihara (@yuja)
 * Daniel Ploch (@torquestomp)
@@ -249,7 +249,7 @@ Thanks to the people who made this release happen!
 * Poliorcetics (@poliorcetics)
 * Rowan Walsh (@rowan-walsh)
 * Scott Olson (@solson)
-* Théo Daron (@Kaporos)
+* Théo Daron (@tdaron)
 * Yuya Nishihara (@yuja)
 
 
