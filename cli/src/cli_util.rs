@@ -184,6 +184,9 @@ impl TracingSubscription {
             })
             .map_err(|err| internal_error_with_message("failed to enable debug logging", err))?;
         tracing::info!("debug logging enabled");
+        git2::trace_set(git2::TraceLevel::Trace, |level,message| {
+            tracing::debug!("libgit2: {level:?} {message}");
+        });
         Ok(())
     }
 }
