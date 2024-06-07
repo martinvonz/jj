@@ -142,30 +142,49 @@ fn test_fix_sibling_commit() {
 #[test]
 fn test_default_revset() {
     let (test_env, repo_path) = init_with_fake_formatter(&["--uppercase"]);
+    std::fs::write(repo_path.join("file"), "trunk1").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "trunk1"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file"), "trunk2").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "trunk2"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "trunk1"]);
     std::fs::write(repo_path.join("file"), "foo").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "trunk1"]);
+    std::fs::write(repo_path.join("file"), "bar1").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "bar1"]);
     test_env.jj_cmd_ok(&repo_path, &["new"]);
-    std::fs::write(repo_path.join("file"), "bar").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "bar"]);
-    test_env.jj_cmd_ok(&repo_path, &["new", "foo"]);
-    std::fs::write(repo_path.join("file"), "baz").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "baz"]);
+    std::fs::write(repo_path.join("file"), "bar2").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "bar2"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file"), "bar3").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "bar3"]);
+    test_env.jj_cmd_ok(&repo_path, &["edit", "bar2"]);
 
-    // With no args and no revset configuration, we fix `@`.
+    // With no args and no revset configuration, we fix `reachable(@, mutable())`,
+    // which includes bar{1,2,3} and excludes trunk{1,2} (which is immutable) and
+    // foo (which is mutable but not reachable).
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "trunk2""#);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["fix"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Fixed 1 commits of 1 checked.
-    Working copy now at: mzvwutvl 5205c5f1 baz | (no description set)
-    Parent commit      : qpvuntsm 34af74d0 foo | (no description set)
+    Fixed 3 commits of 3 checked.
+    Working copy now at: yostqsxw 0bd830d2 bar2 | (no description set)
+    Parent commit      : yqosqzyt 4747dd17 bar1 | (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["print", "file", "-r", "trunk1"]);
+    insta::assert_snapshot!(content, @"trunk1");
+    let content = test_env.jj_cmd_success(&repo_path, &["print", "file", "-r", "trunk2"]);
+    insta::assert_snapshot!(content, @"trunk2");
     let content = test_env.jj_cmd_success(&repo_path, &["print", "file", "-r", "foo"]);
     insta::assert_snapshot!(content, @"foo");
-    let content = test_env.jj_cmd_success(&repo_path, &["print", "file", "-r", "bar"]);
-    insta::assert_snapshot!(content, @"bar");
-    let content = test_env.jj_cmd_success(&repo_path, &["print", "file", "-r", "baz"]);
-    insta::assert_snapshot!(content, @"BAZ");
+    let content = test_env.jj_cmd_success(&repo_path, &["print", "file", "-r", "bar1"]);
+    insta::assert_snapshot!(content, @"BAR1");
+    let content = test_env.jj_cmd_success(&repo_path, &["print", "file", "-r", "bar2"]);
+    insta::assert_snapshot!(content, @"BAR2");
+    let content = test_env.jj_cmd_success(&repo_path, &["print", "file", "-r", "bar3"]);
+    insta::assert_snapshot!(content, @"BAR3");
 }
 
 #[test]
@@ -178,8 +197,8 @@ fn test_custom_default_revset() {
     std::fs::write(repo_path.join("file"), "bar").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "bar"]);
 
-    // Check out a different commit so that the schema default `@` would behave
-    // differently from our customized default.
+    // Check out a different commit so that the schema default `reachable(@,
+    // mutable())` would behave differently from our customized default.
     test_env.jj_cmd_ok(&repo_path, &["new", "-r", "foo"]);
     test_env.add_config(r#"revsets.fix = "bar""#);
 

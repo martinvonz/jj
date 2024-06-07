@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Dropped support for automatic upgrade of repo formats used by versions before
   0.12.0.
 
+* `jj fix` now defaults to the broader revset `-s reachable(@, mutable())`
+  instead of `-s @`.
+
 ### Deprecations
 
 ### New features

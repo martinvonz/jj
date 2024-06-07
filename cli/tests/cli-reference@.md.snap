@@ -798,7 +798,7 @@ And then run the command `jj fix -s @`.
 
 ###### **Options:**
 
-* `-s`, `--source <SOURCE>` — Fix files in the specified revision(s) and their descendants. If no revisions are specified, this defaults to the `revsets.fix` setting, or `@` if it is not set
+* `-s`, `--source <SOURCE>` — Fix files in the specified revision(s) and their descendants. If no revisions are specified, this defaults to the `revsets.fix` setting, or `reachable(@, mutable())` if it is not set
 
 
 
