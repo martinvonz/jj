@@ -140,6 +140,61 @@ fn test_fix_sibling_commit() {
 }
 
 #[test]
+fn test_default_revset() {
+    let (test_env, repo_path) = init_with_fake_formatter(&["--uppercase"]);
+    std::fs::write(repo_path.join("file"), "foo").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file"), "bar").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "bar"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "foo"]);
+    std::fs::write(repo_path.join("file"), "baz").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "baz"]);
+
+    // With no args and no revset configuration, we fix `@`.
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["fix"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Fixed 1 commits of 1 checked.
+    Working copy now at: mzvwutvl 5205c5f1 baz | (no description set)
+    Parent commit      : qpvuntsm 34af74d0 foo | (no description set)
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["print", "file", "-r", "foo"]);
+    insta::assert_snapshot!(content, @"foo");
+    let content = test_env.jj_cmd_success(&repo_path, &["print", "file", "-r", "bar"]);
+    insta::assert_snapshot!(content, @"bar");
+    let content = test_env.jj_cmd_success(&repo_path, &["print", "file", "-r", "baz"]);
+    insta::assert_snapshot!(content, @"BAZ");
+}
+
+#[test]
+fn test_custom_default_revset() {
+    let (test_env, repo_path) = init_with_fake_formatter(&["--uppercase"]);
+
+    std::fs::write(repo_path.join("file"), "foo").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file"), "bar").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "bar"]);
+
+    // Check out a different commit so that the schema default `@` would behave
+    // differently from our customized default.
+    test_env.jj_cmd_ok(&repo_path, &["new", "-r", "foo"]);
+    test_env.add_config(r#"revsets.fix = "bar""#);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["fix"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Fixed 1 commits of 1 checked.
+    "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["print", "file", "-r", "foo"]);
+    insta::assert_snapshot!(content, @"foo");
+    let content = test_env.jj_cmd_success(&repo_path, &["print", "file", "-r", "bar"]);
+    insta::assert_snapshot!(content, @"BAR");
+}
+
+#[test]
 fn test_fix_immutable_commit() {
     let (test_env, repo_path) = init_with_fake_formatter(&["--uppercase"]);
     std::fs::write(repo_path.join("file"), "immutable").unwrap();

@@ -346,6 +346,11 @@
             "type": "object",
             "description": "Revset expressions used by various commands",
             "properties": {
+                "fix": {
+                    "type": "string",
+                    "description": "Default set of revisions to fix when no explicit revset is given for jj fix",
+                    "default": "@"
+                },
                 "log": {
                     "type": "string",
                     "description": "Default set of revisions to show when no explicit revset is given for jj log and similar commands",
