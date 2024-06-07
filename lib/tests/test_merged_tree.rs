@@ -433,7 +433,9 @@ fn test_resolve_success() {
     );
 
     let tree = MergedTree::new(Merge::from_removes_adds(vec![base1], vec![side1, side2]));
-    let resolved = tree.resolve().unwrap();
+    let MergedTree::Merge(resolved) = tree.resolve().unwrap() else {
+        unreachable!()
+    };
     let resolved_tree = resolved.as_resolved().unwrap().clone();
     assert_eq!(
         resolved_tree,
@@ -458,7 +460,7 @@ fn test_resolve_root_becomes_empty() {
 
     let tree = MergedTree::new(Merge::from_removes_adds(vec![base1], vec![side1, side2]));
     let resolved = tree.resolve().unwrap();
-    assert_eq!(resolved.as_resolved().unwrap().id(), store.empty_tree_id());
+    assert_eq!(resolved.id(), store.empty_merged_tree_id());
 }
 
 #[test]
@@ -484,7 +486,10 @@ fn test_resolve_with_conflict() {
     let resolved_tree = tree.resolve().unwrap();
     assert_eq!(
         resolved_tree,
-        Merge::from_removes_adds(vec![expected_base1], vec![expected_side1, expected_side2])
+        MergedTree::new(Merge::from_removes_adds(
+            vec![expected_base1],
+            vec![expected_side1, expected_side2]
+        ))
     )
 }
 
@@ -500,10 +505,9 @@ fn test_resolve_with_conflict_containing_empty_subtree() {
     let side1 = create_single_tree(repo, &[(conflict_path, "side1")]);
     let side2 = create_single_tree(repo, &[]);
 
-    let original_tree = Merge::from_removes_adds(vec![base1], vec![side1, side2]);
-    let tree = MergedTree::new(original_tree.clone());
+    let tree = MergedTree::new(Merge::from_removes_adds(vec![base1], vec![side1, side2]));
     let resolved_tree = tree.resolve().unwrap();
-    assert_eq!(resolved_tree, original_tree);
+    assert_eq!(resolved_tree, tree);
 }
 
 #[test]
@@ -616,7 +620,7 @@ fn test_conflict_iterator() {
     );
 
     // After we resolve conflicts, there are only non-trivial conflicts left
-    let tree = MergedTree::Merge(tree.resolve().unwrap());
+    let tree = tree.resolve().unwrap();
     let conflicts = tree.conflicts().collect_vec();
     assert_eq!(
         conflicts,
