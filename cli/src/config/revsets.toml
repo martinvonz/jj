@@ -2,6 +2,7 @@
 # adding/updating any of these aliases
 
 [revsets]
+fix = "@"
 log = "@ | ancestors(immutable_heads().., 2) | trunk()"
 
 [revset-aliases]

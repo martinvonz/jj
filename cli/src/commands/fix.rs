@@ -65,7 +65,9 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 pub(crate) struct FixArgs {
-    /// Fix files in the specified revision(s) and their descendants
+    /// Fix files in the specified revision(s) and their descendants. If no
+    /// revisions are specified, this defaults to the `revsets.fix` setting, or
+    /// `@` if it is not set.
     #[arg(long, short)]
     source: Vec<RevisionArg>,
     /// Fix only these paths
@@ -80,14 +82,15 @@ pub(crate) fn cmd_fix(
     args: &FixArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let root_commits: Vec<CommitId> = workspace_command
-        .parse_union_revsets(if args.source.is_empty() {
-            &[RevisionArg::AT]
-        } else {
-            &args.source
-        })?
-        .evaluate_to_commit_ids()?
-        .collect();
+    let root_commits: Vec<CommitId> = if args.source.is_empty() {
+        workspace_command.parse_revset(&RevisionArg::from(
+            command.settings().config().get_string("revsets.fix")?,
+        ))?
+    } else {
+        workspace_command.parse_union_revsets(&args.source)?
+    }
+    .evaluate_to_commit_ids()?
+    .collect();
     workspace_command.check_rewritable(root_commits.iter())?;
     let matcher = workspace_command
         .parse_file_patterns(&args.paths)?
