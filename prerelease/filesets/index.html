@@ -1369,11 +1369,12 @@ if the expression has no operators nor function calls. For example:</p>
 <p>The following operators are supported. <code>x</code> and <code>y</code> below can be any fileset
 expressions.</p>
 <ul>
-<li><code>x &amp; y</code>: Matches both <code>x</code> and <code>y</code>.</li>
-<li><code>x | y</code>: Matches either <code>x</code> or <code>y</code> (or both).</li>
-<li><code>x ~ y</code>: Matches <code>x</code> but not <code>y</code>.</li>
 <li><code>~x</code>: Matches everything but <code>x</code>.</li>
+<li><code>x &amp; y</code>: Matches both <code>x</code> and <code>y</code>.</li>
+<li><code>x ~ y</code>: Matches <code>x</code> but not <code>y</code>.</li>
+<li><code>x | y</code>: Matches either <code>x</code> or <code>y</code> (or both).</li>
 </ul>
+<p>(listed in order of binding strengths)</p>
 <p>You can use parentheses to control evaluation order, such as <code>(x &amp; y) | z</code> or
 <code>x &amp; (y | z)</code>.</p>
 <h2 id="functions">Functions<a class="headerlink" href="#functions" title="Permanent link">&para;</a></h2>
