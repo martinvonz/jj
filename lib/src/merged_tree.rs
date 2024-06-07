@@ -185,10 +185,13 @@ impl MergedTree {
     /// automatically resolved and leaving the rest unresolved. The returned
     /// conflict will either be resolved or have the same number of sides as
     /// the input.
-    pub fn resolve(&self) -> BackendResult<Merge<Tree>> {
+    pub fn resolve(&self) -> BackendResult<MergedTree> {
         match self {
             MergedTree::Legacy(_) => panic!("Cannot resolve conflicts in legacy tree"),
-            MergedTree::Merge(trees) => merge_trees(trees),
+            MergedTree::Merge(trees) => {
+                let merged = merge_trees(trees)?;
+                Ok(MergedTree::Merge(merged))
+            }
         }
     }
 
