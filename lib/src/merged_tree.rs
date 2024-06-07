@@ -182,15 +182,25 @@ impl MergedTree {
     }
 
     /// Tries to resolve any conflicts, resolving any conflicts that can be
-    /// automatically resolved and leaving the rest unresolved. The returned
-    /// conflict will either be resolved or have the same number of sides as
-    /// the input.
+    /// automatically resolved and leaving the rest unresolved.
     pub fn resolve(&self) -> BackendResult<MergedTree> {
         match self {
             MergedTree::Legacy(_) => panic!("Cannot resolve conflicts in legacy tree"),
             MergedTree::Merge(trees) => {
                 let merged = merge_trees(trees)?;
-                Ok(MergedTree::Merge(merged))
+                // If the result can be resolved, then `merge_trees()` above would have returned
+                // a resolved merge. However, that function will always preserve the arity of
+                // conflicts it cannot resolve. So we simplify the conflict again
+                // here to possibly reduce a complex conflict to a simpler one.
+                let simplified = merged.simplify();
+                // If debug assertions are enabled, check that the merge was idempotent. In
+                // particular,  that this last simplification doesn't enable further automatic
+                // resolutions
+                if cfg!(debug_assertions) {
+                    let re_merged = merge_trees(&simplified).unwrap();
+                    debug_assert_eq!(re_merged, simplified);
+                }
+                Ok(MergedTree::Merge(simplified))
             }
         }
     }
@@ -389,20 +399,8 @@ impl MergedTree {
             }
         };
         let nested = Merge::from_vec(vec![to_merge(self)?, to_merge(base)?, to_merge(other)?]);
-        let tree = merge_trees(&nested.flatten().simplify())?;
-        // If the result can be resolved, then `merge_trees()` above would have returned
-        // a resolved merge. However, that function will always preserve the arity of
-        // conflicts it cannot resolve. So we simplify the conflict again
-        // here to possibly reduce a complex conflict to a simpler one.
-        let tree = tree.simplify();
-        // If debug assertions are enabled, check that the merge was idempotent. In
-        // particular,  that this last simplification doesn't enable further automatic
-        // resolutions
-        if cfg!(debug_assertions) {
-            let re_merged = merge_trees(&tree).unwrap();
-            debug_assert_eq!(re_merged, tree);
-        }
-        Ok(MergedTree::Merge(tree))
+        let flattened = MergedTree::Merge(nested.flatten().simplify());
+        flattened.resolve()
     }
 }
 
@@ -476,6 +474,8 @@ fn trees_value<'a>(trees: &'a Merge<Tree>, basename: &RepoPathComponent) -> Merg
     MergedTreeVal::Conflict(value.map(|x| x.cloned()))
 }
 
+/// The returned conflict will either be resolved or have the same number of
+/// sides as the input.
 fn merge_trees(merge: &Merge<Tree>) -> BackendResult<Merge<Tree>> {
     if let Some(tree) = merge.resolve_trivial() {
         return Ok(Merge::resolved(tree.clone()));
