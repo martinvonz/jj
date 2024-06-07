@@ -67,7 +67,7 @@ use crate::ui::Ui;
 pub(crate) struct FixArgs {
     /// Fix files in the specified revision(s) and their descendants. If no
     /// revisions are specified, this defaults to the `revsets.fix` setting, or
-    /// `@` if it is not set.
+    /// `reachable(@, mutable())` if it is not set.
     #[arg(long, short)]
     source: Vec<RevisionArg>,
     /// Fix only these paths

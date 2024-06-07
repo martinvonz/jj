@@ -349,7 +349,7 @@
                 "fix": {
                     "type": "string",
                     "description": "Default set of revisions to fix when no explicit revset is given for jj fix",
-                    "default": "@"
+                    "default": "reachable(@, mutable())"
                 },
                 "log": {
                     "type": "string",
