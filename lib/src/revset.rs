@@ -301,10 +301,7 @@ impl RevsetExpression {
 
     /// Parents of `self`.
     pub fn parents(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Ancestors {
-            heads: self.clone(),
-            generation: 1..2,
-        })
+        self.ancestors_at(1)
     }
 
     /// Ancestors of `self`, including `self`.
@@ -331,10 +328,7 @@ impl RevsetExpression {
 
     /// Children of `self`.
     pub fn children(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Descendants {
-            roots: self.clone(),
-            generation: 1..2,
-        })
+        self.descendants_at(1)
     }
 
     /// Descendants of `self`, including `self`.
