@@ -43,7 +43,7 @@ pub use crate::revset_parser::{
 };
 use crate::store::Store;
 use crate::str_util::StringPattern;
-use crate::{dsl_util, git, revset_parser};
+use crate::{dsl_util, revset_parser};
 
 /// Error occurred during symbol resolution.
 #[derive(Debug, Error)]
@@ -1313,7 +1313,8 @@ pub fn walk_revs<'index>(
 fn resolve_remote_branch(repo: &dyn Repo, name: &str, remote: &str) -> Option<Vec<CommitId>> {
     let view = repo.view();
     let target = match (name, remote) {
-        ("HEAD", git::REMOTE_NAME_FOR_LOCAL_GIT_REPO) => view.git_head(),
+        #[cfg(feature = "git")]
+        ("HEAD", crate::git::REMOTE_NAME_FOR_LOCAL_GIT_REPO) => view.git_head(),
         (name, remote) => &view.get_remote_branch(name, remote).target,
     };
     target
@@ -1605,7 +1606,17 @@ fn resolve_commit_ref(
             let commit_ids = repo
                 .view()
                 .remote_branches_matching(branch_pattern, remote_pattern)
-                .filter(|&((_, remote_name), _)| remote_name != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO)
+                .filter(|&((_, remote_name), _)| {
+                    #[cfg(feature = "git")]
+                    {
+                        remote_name != crate::git::REMOTE_NAME_FOR_LOCAL_GIT_REPO
+                    }
+                    #[cfg(not(feature = "git"))]
+                    {
+                        let _ = remote_name;
+                        true
+                    }
+                })
                 .flat_map(|(_, remote_ref)| remote_ref.target.added_ids())
                 .cloned()
                 .collect();

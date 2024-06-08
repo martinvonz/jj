@@ -37,7 +37,6 @@ use crate::commit_builder::CommitBuilder;
 use crate::default_index::{DefaultIndexStore, DefaultMutableIndex};
 use crate::default_submodule_store::DefaultSubmoduleStore;
 use crate::file_util::{IoResultExt as _, PathError};
-use crate::git_backend::GitBackend;
 use crate::index::{ChangeIdIndex, Index, IndexStore, MutableIndex, ReadonlyIndex};
 use crate::local_backend::LocalBackend;
 use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
@@ -378,9 +377,14 @@ impl Default for StoreFactories {
             LocalBackend::name(),
             Box::new(|_settings, store_path| Ok(Box::new(LocalBackend::load(store_path)))),
         );
+        #[cfg(feature = "git")]
         factories.add_backend(
-            GitBackend::name(),
-            Box::new(|settings, store_path| Ok(Box::new(GitBackend::load(settings, store_path)?))),
+            crate::git_backend::GitBackend::name(),
+            Box::new(|settings, store_path| {
+                Ok(Box::new(crate::git_backend::GitBackend::load(
+                    settings, store_path,
+                )?))
+            }),
         );
         #[cfg(feature = "testing")]
         factories.add_backend(

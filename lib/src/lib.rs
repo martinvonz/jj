@@ -44,7 +44,9 @@ pub mod fileset;
 mod fileset_parser;
 pub mod fmt_util;
 pub mod fsmonitor;
+#[cfg(feature = "git")]
 pub mod git;
+#[cfg(feature = "git")]
 pub mod git_backend;
 pub mod gitignore;
 pub mod gpg_signing;
