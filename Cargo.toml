@@ -39,6 +39,7 @@ chrono = { version = "0.4.38", default-features = false, features = [
     "std",
     "clock",
 ] }
+chrono-english = { version = "0.1.7" }
 config = { version = "0.13.4", default-features = false, features = ["toml"] }
 criterion = "0.5.1"
 crossterm = { version = "0.27", default-features = false }
