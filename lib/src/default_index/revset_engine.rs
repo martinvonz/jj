@@ -1074,6 +1074,24 @@ fn build_predicate_fn(
                     || pattern.matches(&commit.committer().email)
             })
         }
+        RevsetFilterPredicate::AuthorDate(expression) => {
+            let expression = *expression;
+            box_pure_predicate_fn(move |index, pos| {
+                let entry = index.entry_by_pos(pos);
+                let commit = store.get_commit(&entry.commit_id()).unwrap();
+                let author_date = &commit.author().timestamp;
+                expression.matches(author_date)
+            })
+        }
+        RevsetFilterPredicate::CommitterDate(expression) => {
+            let expression = *expression;
+            box_pure_predicate_fn(move |index, pos| {
+                let entry = index.entry_by_pos(pos);
+                let commit = store.get_commit(&entry.commit_id()).unwrap();
+                let committer_date = &commit.committer().timestamp;
+                expression.matches(committer_date)
+            })
+        }
         RevsetFilterPredicate::File(expr) => {
             let matcher: Rc<dyn Matcher> = expr.to_matcher().into();
             box_pure_predicate_fn(move |index, pos| {

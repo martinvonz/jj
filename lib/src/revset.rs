@@ -43,6 +43,7 @@ pub use crate::revset_parser::{
 };
 use crate::store::Store;
 use crate::str_util::StringPattern;
+use crate::time_util::{DatePattern, DatePatternContext};
 use crate::{dsl_util, fileset, revset_parser};
 
 /// Error occurred during symbol resolution.
@@ -132,6 +133,10 @@ pub enum RevsetFilterPredicate {
     Author(StringPattern),
     /// Commits with committer name or email matching the pattern.
     Committer(StringPattern),
+    /// Commits with author dates matching the given date pattern.
+    AuthorDate(DatePattern),
+    /// Commits with committer dates matching the given date pattern.
+    CommitterDate(DatePattern),
     /// Commits modifying the paths specified by the fileset.
     File(FilesetExpression),
     /// Commits containing diffs matching the `text` pattern within the `files`.
@@ -684,6 +689,13 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
             pattern,
         )))
     });
+    map.insert("author_date", |function, context| {
+        let [arg] = function.expect_exact_arguments()?;
+        let pattern = expect_date_pattern(arg, context.date_pattern_context())?;
+        Ok(RevsetExpression::filter(RevsetFilterPredicate::AuthorDate(
+            pattern,
+        )))
+    });
     map.insert("mine", |function, context| {
         function.expect_no_arguments()?;
         // Email address domains are inherently case‐insensitive, and the local‐parts
@@ -699,6 +711,13 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Committer(
             pattern,
         )))
+    });
+    map.insert("committer_date", |function, context| {
+        let [arg] = function.expect_exact_arguments()?;
+        let pattern = expect_date_pattern(arg, context.date_pattern_context())?;
+        Ok(RevsetExpression::filter(
+            RevsetFilterPredicate::CommitterDate(pattern),
+        ))
     });
     map.insert("empty", |function, _context| {
         function.expect_no_arguments()?;
@@ -772,6 +791,20 @@ pub fn expect_string_pattern(node: &ExpressionNode) -> Result<StringPattern, Rev
         None => Ok(StringPattern::Substring(value.to_owned())),
     };
     revset_parser::expect_pattern_with("string pattern", node, parse_pattern)
+}
+
+pub fn expect_date_pattern(
+    node: &ExpressionNode,
+    context: &DatePatternContext,
+) -> Result<DatePattern, RevsetParseError> {
+    let parse_pattern =
+        |value: &str, kind: Option<&str>| -> Result<_, Box<dyn std::error::Error + Send + Sync>> {
+            match kind {
+                None => Err("Date pattern must specify 'after' or 'before'".into()),
+                Some(kind) => Ok(context.parse_relative(value, kind)?),
+            }
+        };
+    revset_parser::expect_pattern_with("date pattern", node, parse_pattern)
 }
 
 fn parse_remote_branches_arguments(
@@ -2035,6 +2068,7 @@ impl RevsetExtensions {
 pub struct RevsetParseContext<'a> {
     aliases_map: &'a RevsetAliasesMap,
     user_email: String,
+    date_pattern_context: DatePatternContext,
     extensions: &'a RevsetExtensions,
     workspace: Option<RevsetWorkspaceContext<'a>>,
 }
@@ -2043,12 +2077,14 @@ impl<'a> RevsetParseContext<'a> {
     pub fn new(
         aliases_map: &'a RevsetAliasesMap,
         user_email: String,
+        date_pattern_context: DatePatternContext,
         extensions: &'a RevsetExtensions,
         workspace: Option<RevsetWorkspaceContext<'a>>,
     ) -> Self {
         Self {
             aliases_map,
             user_email,
+            date_pattern_context,
             extensions,
             workspace,
         }
@@ -2060,6 +2096,10 @@ impl<'a> RevsetParseContext<'a> {
 
     pub fn user_email(&self) -> &str {
         &self.user_email
+    }
+
+    pub fn date_pattern_context(&self) -> &DatePatternContext {
+        &self.date_pattern_context
     }
 
     pub fn symbol_resolvers(&self) -> &[impl AsRef<dyn SymbolResolverExtension>] {
@@ -2105,6 +2145,7 @@ mod tests {
         let context = RevsetParseContext::new(
             &aliases_map,
             "test.user@example.com".to_string(),
+            chrono::Utc::now().fixed_offset().into(),
             &extensions,
             None,
         );
@@ -2133,6 +2174,7 @@ mod tests {
         let context = RevsetParseContext::new(
             &aliases_map,
             "test.user@example.com".to_string(),
+            chrono::Utc::now().fixed_offset().into(),
             &extensions,
             Some(workspace_ctx),
         );
@@ -2157,6 +2199,7 @@ mod tests {
         let context = RevsetParseContext::new(
             &aliases_map,
             "test.user@example.com".to_string(),
+            chrono::Utc::now().fixed_offset().into(),
             &extensions,
             None,
         );

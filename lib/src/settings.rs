@@ -172,6 +172,10 @@ impl UserSettings {
     // address
     pub const USER_EMAIL_PLACEHOLDER: &'static str = "(no email configured)";
 
+    pub fn commit_timestamp(&self) -> Option<Timestamp> {
+        self.timestamp.to_owned()
+    }
+
     pub fn operation_timestamp(&self) -> Option<Timestamp> {
         get_timestamp_config(&self.config, "debug.operation-timestamp")
     }

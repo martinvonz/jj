@@ -99,6 +99,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   This simplifies the use case of configuring code formatters for specific file
   types. See `jj help fix` for details.
 
+* Added revset functions `author_date` and `committer_date`.
+
 ### Fixed bugs
 
 * `jj status` will show different messages in a conflicted tree, depending
