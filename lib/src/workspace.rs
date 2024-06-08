@@ -31,7 +31,7 @@ use crate::local_backend::LocalBackend;
 use crate::local_working_copy::{LocalWorkingCopy, LocalWorkingCopyFactory};
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo::{
-    read_store_type_compat, BackendInitializer, CheckOutCommitError, IndexStoreInitializer,
+    read_store_type, BackendInitializer, CheckOutCommitError, IndexStoreInitializer,
     OpHeadsStoreInitializer, OpStoreInitializer, ReadonlyRepo, Repo, RepoInitError, RepoLoader,
     StoreFactories, StoreLoadError, SubmoduleStoreInitializer,
 };
@@ -484,12 +484,8 @@ impl WorkspaceLoader {
         &self,
         working_copy_factories: &'a WorkingCopyFactories,
     ) -> Result<&'a dyn WorkingCopyFactory, StoreLoadError> {
-        // For compatibility with existing repos. TODO: Delete default in 0.17+
-        let working_copy_type = read_store_type_compat(
-            "working copy",
-            self.working_copy_state_path.join("type"),
-            LocalWorkingCopy::name,
-        )?;
+        let working_copy_type =
+            read_store_type("working copy", self.working_copy_state_path.join("type"))?;
 
         if let Some(factory) = working_copy_factories.get(&working_copy_type) {
             Ok(factory.as_ref())

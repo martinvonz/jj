@@ -17,7 +17,6 @@
 use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
-use std::io::ErrorKind;
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -478,19 +477,7 @@ impl StoreFactories {
         settings: &UserSettings,
         store_path: &Path,
     ) -> Result<Box<dyn Backend>, StoreLoadError> {
-        // For compatibility with existing repos. TODO: Delete in 0.8+.
-        if store_path.join("backend").is_file() {
-            fs::rename(store_path.join("backend"), store_path.join("type"))
-                .expect("Failed to rename 'backend' file to 'type'");
-        }
-        // For compatibility with existing repos. TODO: Delete default in 0.8+.
-        let backend_type = read_store_type_compat("commit", store_path.join("type"), || {
-            if store_path.join("git_target").is_file() {
-                GitBackend::name()
-            } else {
-                LocalBackend::name()
-            }
-        })?;
+        let backend_type = read_store_type("commit", store_path.join("type"))?;
         let backend_factory = self.backend_factories.get(&backend_type).ok_or_else(|| {
             StoreLoadError::UnsupportedType {
                 store: "commit",
@@ -509,9 +496,7 @@ impl StoreFactories {
         settings: &UserSettings,
         store_path: &Path,
     ) -> Result<Box<dyn OpStore>, StoreLoadError> {
-        // For compatibility with existing repos. TODO: Delete default in 0.8+.
-        let op_store_type =
-            read_store_type_compat("operation", store_path.join("type"), SimpleOpStore::name)?;
+        let op_store_type = read_store_type("operation", store_path.join("type"))?;
         let op_store_factory = self.op_store_factories.get(&op_store_type).ok_or_else(|| {
             StoreLoadError::UnsupportedType {
                 store: "operation",
@@ -531,12 +516,7 @@ impl StoreFactories {
         settings: &UserSettings,
         store_path: &Path,
     ) -> Result<Box<dyn OpHeadsStore>, StoreLoadError> {
-        // For compatibility with existing repos. TODO: Delete default in 0.8+.
-        let op_heads_store_type = read_store_type_compat(
-            "operation heads",
-            store_path.join("type"),
-            SimpleOpHeadsStore::name,
-        )?;
+        let op_heads_store_type = read_store_type("operation heads", store_path.join("type"))?;
         let op_heads_store_factory = self
             .op_heads_store_factories
             .get(&op_heads_store_type)
@@ -556,9 +536,7 @@ impl StoreFactories {
         settings: &UserSettings,
         store_path: &Path,
     ) -> Result<Box<dyn IndexStore>, StoreLoadError> {
-        // For compatibility with existing repos. TODO: Delete default in 0.9+
-        let index_store_type =
-            read_store_type_compat("index", store_path.join("type"), DefaultIndexStore::name)?;
+        let index_store_type = read_store_type("index", store_path.join("type"))?;
         let index_store_factory = self
             .index_store_factories
             .get(&index_store_type)
@@ -579,13 +557,7 @@ impl StoreFactories {
         settings: &UserSettings,
         store_path: &Path,
     ) -> Result<Box<dyn SubmoduleStore>, StoreLoadError> {
-        // For compatibility with repos without repo/submodule_store.
-        // TODO Delete default in TBD version
-        let submodule_store_type = read_store_type_compat(
-            "submodule_store",
-            store_path.join("type"),
-            DefaultSubmoduleStore::name,
-        )?;
+        let submodule_store_type = read_store_type("submodule_store", store_path.join("type"))?;
         let submodule_store_factory = self
             .submodule_store_factories
             .get(&submodule_store_type)
@@ -598,23 +570,12 @@ impl StoreFactories {
     }
 }
 
-pub fn read_store_type_compat(
+pub fn read_store_type(
     store: &'static str,
     path: impl AsRef<Path>,
-    default: impl FnOnce() -> &'static str,
 ) -> Result<String, StoreLoadError> {
     let path = path.as_ref();
-    let read_or_write_default = || match fs::read_to_string(path) {
-        Ok(content) => Ok(content),
-        Err(err) if err.kind() == ErrorKind::NotFound => {
-            let default_type = default();
-            fs::create_dir(path.parent().unwrap()).ok();
-            fs::write(path, default_type)?;
-            Ok(default_type.to_owned())
-        }
-        Err(err) => Err(err),
-    };
-    read_or_write_default()
+    fs::read_to_string(path)
         .context(path)
         .map_err(|source| StoreLoadError::ReadError { store, source })
 }
