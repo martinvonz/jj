@@ -23,10 +23,9 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use crate::backend::{Backend, BackendInitError, MergedTreeId};
+use crate::backend::{BackendInitError, MergedTreeId};
 use crate::commit::Commit;
-use crate::file_util::{self, IoResultExt as _, PathError};
-use crate::git_backend::{canonicalize_git_repo_path, GitBackend};
+use crate::file_util::{IoResultExt as _, PathError};
 use crate::local_backend::LocalBackend;
 use crate::local_working_copy::{LocalWorkingCopy, LocalWorkingCopyFactory};
 use crate::op_store::{OperationId, WorkspaceId};
@@ -157,36 +156,44 @@ impl Workspace {
 
     /// Initializes a workspace with a new Git backend and bare Git repo in
     /// `.jj/repo/store/git`.
+    #[cfg(feature = "git")]
     pub fn init_internal_git(
         user_settings: &UserSettings,
         workspace_root: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        let backend_initializer: &BackendInitializer =
-            &|settings, store_path| Ok(Box::new(GitBackend::init_internal(settings, store_path)?));
+        let backend_initializer: &BackendInitializer = &|settings, store_path| {
+            Ok(Box::new(crate::git_backend::GitBackend::init_internal(
+                settings, store_path,
+            )?))
+        };
         let signer = Signer::from_settings(user_settings)?;
         Self::init_with_backend(user_settings, workspace_root, backend_initializer, signer)
     }
 
     /// Initializes a workspace with a new Git backend and Git repo that shares
     /// the same working copy.
+    #[cfg(feature = "git")]
     pub fn init_colocated_git(
         user_settings: &UserSettings,
         workspace_root: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
         let backend_initializer = |settings: &UserSettings,
                                    store_path: &Path|
-         -> Result<Box<dyn Backend>, _> {
+         -> Result<Box<dyn crate::backend::Backend>, _> {
             // TODO: Clean up path normalization. store_path is canonicalized by
             // ReadonlyRepo::init(). workspace_root will be canonicalized by
             // Workspace::new(), but it's not yet here.
             let store_relative_workspace_root =
                 if let Ok(workspace_root) = workspace_root.canonicalize() {
-                    file_util::relative_path(store_path, &workspace_root)
+                    crate::file_util::relative_path(store_path, &workspace_root)
                 } else {
                     workspace_root.to_owned()
                 };
-            let backend =
-                GitBackend::init_colocated(settings, store_path, &store_relative_workspace_root)?;
+            let backend = crate::git_backend::GitBackend::init_colocated(
+                settings,
+                store_path,
+                &store_relative_workspace_root,
+            )?;
             Ok(Box::new(backend))
         };
         let signer = Signer::from_settings(user_settings)?;
@@ -197,33 +204,38 @@ impl Workspace {
     ///
     /// The `git_repo_path` usually ends with `.git`. It's the path to the Git
     /// repo directory, not the working directory.
+    #[cfg(feature = "git")]
     pub fn init_external_git(
         user_settings: &UserSettings,
         workspace_root: &Path,
         git_repo_path: &Path,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
-        let backend_initializer =
-            |settings: &UserSettings, store_path: &Path| -> Result<Box<dyn Backend>, _> {
-                // If the git repo is inside the workspace, use a relative path to it so the
-                // whole workspace can be moved without breaking.
-                // TODO: Clean up path normalization. store_path is canonicalized by
-                // ReadonlyRepo::init(). workspace_root will be canonicalized by
-                // Workspace::new(), but it's not yet here.
-                let store_relative_git_repo_path = match (
-                    workspace_root.canonicalize(),
-                    canonicalize_git_repo_path(git_repo_path),
-                ) {
-                    (Ok(workspace_root), Ok(git_repo_path))
-                        if git_repo_path.starts_with(&workspace_root) =>
-                    {
-                        file_util::relative_path(store_path, &git_repo_path)
-                    }
-                    _ => git_repo_path.to_owned(),
-                };
-                let backend =
-                    GitBackend::init_external(settings, store_path, &store_relative_git_repo_path)?;
-                Ok(Box::new(backend))
+        let backend_initializer = |settings: &UserSettings,
+                                   store_path: &Path|
+         -> Result<Box<dyn crate::backend::Backend>, _> {
+            // If the git repo is inside the workspace, use a relative path to it so the
+            // whole workspace can be moved without breaking.
+            // TODO: Clean up path normalization. store_path is canonicalized by
+            // ReadonlyRepo::init(). workspace_root will be canonicalized by
+            // Workspace::new(), but it's not yet here.
+            let store_relative_git_repo_path = match (
+                workspace_root.canonicalize(),
+                crate::git_backend::canonicalize_git_repo_path(git_repo_path),
+            ) {
+                (Ok(workspace_root), Ok(git_repo_path))
+                    if git_repo_path.starts_with(&workspace_root) =>
+                {
+                    crate::file_util::relative_path(store_path, &git_repo_path)
+                }
+                _ => git_repo_path.to_owned(),
             };
+            let backend = crate::git_backend::GitBackend::init_external(
+                settings,
+                store_path,
+                &store_relative_git_repo_path,
+            )?;
+            Ok(Box::new(backend))
+        };
         let signer = Signer::from_settings(user_settings)?;
         Self::init_with_backend(user_settings, workspace_root, &backend_initializer, signer)
     }

@@ -76,6 +76,20 @@ jobs:
       env:
         RUST_BACKTRACE: 1
 
+  build-no-git:
+    name: Build jj-lib without Git support
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
+      with:
+        toolchain:  1.76
+    - name: Build
+      run: cargo build -p jj-lib --no-default-features --verbose
+
   check-protos:
     name: Check protos
     runs-on: ubuntu-latest

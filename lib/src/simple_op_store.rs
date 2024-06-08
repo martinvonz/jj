@@ -36,7 +36,7 @@ use crate::op_store::{
     OpStore, OpStoreError, OpStoreResult, Operation, OperationId, OperationMetadata, RefTarget,
     RemoteRef, RemoteRefState, RemoteView, View, ViewId, WorkspaceId,
 };
-use crate::{dag_walk, git, op_store};
+use crate::{dag_walk, op_store};
 
 // BLAKE2b-512 hash length in bytes
 const OPERATION_ID_LENGTH: usize = 64;
@@ -528,8 +528,11 @@ fn branch_views_from_proto_legacy(
                 // than deleted but yet-to-be-pushed local branch. Alternatively, we could read
                 // git.auto-local-branch setting here, but that wouldn't always work since the
                 // setting could be toggled after the branch got merged.
+                #[cfg(feature = "git")]
                 let is_git_tracking =
-                    remote_branch.remote_name == git::REMOTE_NAME_FOR_LOCAL_GIT_REPO;
+                    remote_branch.remote_name == crate::git::REMOTE_NAME_FOR_LOCAL_GIT_REPO;
+                #[cfg(not(feature = "git"))]
+                let is_git_tracking = false;
                 let default_state = if is_git_tracking || local_target.is_present() {
                     RemoteRefState::Tracking
                 } else {
@@ -578,13 +581,21 @@ fn migrate_git_refs_to_remote(view: &mut View) {
             git_view.branches.insert(name.to_owned(), remote_ref);
         }
     }
-    view.remote_views
-        .insert(git::REMOTE_NAME_FOR_LOCAL_GIT_REPO.to_owned(), git_view);
+    #[cfg(feature = "git")]
+    {
+        view.remote_views.insert(
+            crate::git::REMOTE_NAME_FOR_LOCAL_GIT_REPO.to_owned(),
+            git_view,
+        );
 
-    // jj < 0.9 might have imported refs from remote named "git"
-    let reserved_git_ref_prefix = format!("refs/remotes/{}/", git::REMOTE_NAME_FOR_LOCAL_GIT_REPO);
-    view.git_refs
-        .retain(|name, _| !name.starts_with(&reserved_git_ref_prefix));
+        // jj < 0.9 might have imported refs from remote named "git"
+        let reserved_git_ref_prefix = format!(
+            "refs/remotes/{}/",
+            crate::git::REMOTE_NAME_FOR_LOCAL_GIT_REPO
+        );
+        view.git_refs
+            .retain(|name, _| !name.starts_with(&reserved_git_ref_prefix));
+    }
 }
 
 fn ref_target_to_proto(value: &RefTarget) -> Option<crate::protos::op_store::RefTarget> {
