@@ -38,6 +38,7 @@ backoff = { workspace = true }
 blake2 = { workspace = true }
 bstr = { workspace = true }
 chrono = { workspace = true }
+chrono-english = { workspace = true }
 config = { workspace = true }
 digest = { workspace = true }
 either = { workspace = true }

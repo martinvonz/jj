@@ -84,6 +84,7 @@ pub mod stacked_table;
 pub mod store;
 pub mod str_util;
 pub mod submodule_store;
+pub mod time_util;
 pub mod transaction;
 pub mod tree;
 pub mod tree_builder;
