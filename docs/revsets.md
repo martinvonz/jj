@@ -257,6 +257,10 @@ revsets (expressions) as arguments.
 * `committer(pattern)`: Commits with the committer's  name or email matching the
 given [string pattern](#string-patterns).
 
+* `author_date(pattern)`: Commits authored within at or after specified [date](#date-patterns).
+
+* `committer_date(pattern)`: Commits committed at or after the specified [date](#date-patterns).
+
 * `empty()`: Commits modifying no files. This also includes `merges()` without
   user modifications and `root()`.
 
@@ -332,6 +336,21 @@ Functions that perform string matching support the following pattern syntax:
 * `exact:"string"`: Matches strings exactly equal to `string`.
 * `glob:"pattern"`: Matches strings with Unix-style shell [wildcard
   `pattern`](https://docs.rs/glob/latest/glob/struct.Pattern.html).
+
+## Date patterns
+
+Date patterns can be specified in several forms, including:
+
+* 2024-02-01
+* 2024-02-01T12:00:00
+* 2024-02-01T12:00:00-08:00
+* 2024-02-01 12:00:00
+* 2 days ago
+* 5 minutes ago
+* yesterday
+* yesterday 5pm
+* yesterday 10:30
+* yesterday 15:30
 
 ## Aliases
 

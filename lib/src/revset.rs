@@ -22,6 +22,7 @@ use std::ops::Range;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use chrono::{DateTime, FixedOffset, NaiveDateTime, Offset, TimeZone};
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use thiserror::Error;
@@ -43,6 +44,7 @@ pub use crate::revset_parser::{
 };
 use crate::store::Store;
 use crate::str_util::StringPattern;
+use crate::time_expression::TimeExpression;
 use crate::{dsl_util, revset_parser};
 
 /// Error occurred during symbol resolution.
@@ -131,6 +133,10 @@ pub enum RevsetFilterPredicate {
     Author(StringPattern),
     /// Commits with committer's name or email containing the needle.
     Committer(StringPattern),
+    /// Commits authored after the given date.
+    AuthorDate(TimeExpression),
+    /// Commits committed after the given date.
+    CommitterDate(TimeExpression),
     /// Commits modifying the paths specified by the fileset.
     File(FilesetExpression),
     /// Commits with conflicts
@@ -685,6 +691,13 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
             pattern,
         )))
     });
+    map.insert("author_date", |function, context| {
+        let [arg] = function.expect_exact_arguments()?;
+        let pattern = expect_time_expression(arg, context.now().to_owned())?;
+        Ok(RevsetExpression::filter(RevsetFilterPredicate::AuthorDate(
+            pattern,
+        )))
+    });
     map.insert("mine", |function, context| {
         function.expect_no_arguments()?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
@@ -697,6 +710,13 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Committer(
             pattern,
         )))
+    });
+    map.insert("committer_date", |function, context| {
+        let [arg] = function.expect_exact_arguments()?;
+        let pattern = expect_time_expression(arg, context.now().to_owned())?;
+        Ok(RevsetExpression::filter(
+            RevsetFilterPredicate::CommitterDate(pattern),
+        ))
     });
     map.insert("empty", |function, _context| {
         function.expect_no_arguments()?;
@@ -747,6 +767,20 @@ pub fn expect_string_pattern(node: &ExpressionNode) -> Result<StringPattern, Rev
         None => Ok(StringPattern::Substring(value.to_owned())),
     };
     revset_parser::expect_pattern_with("string pattern", node, parse_pattern)
+}
+
+fn expect_time_expression<Tz: TimeZone>(
+    node: &ExpressionNode,
+    now: DateTime<Tz>,
+) -> Result<TimeExpression, RevsetParseError>
+where
+    Tz::Offset: Copy,
+{
+    let expression = revset_parser::expect_literal::<String>("time expression", node)?;
+    TimeExpression::parse(&expression, now).map_err(|err| {
+        RevsetParseError::expression(format!("Unable to parse time expression: {err}"), node.span)
+            .with_source(err)
+    })
 }
 
 /// Resolves function call by using the given function map.
@@ -1977,20 +2011,29 @@ impl RevsetExtensions {
 pub struct RevsetParseContext<'a> {
     aliases_map: &'a RevsetAliasesMap,
     user_email: String,
+    /// The current local time when the revset expression was written.
+    now: NaiveDateTime,
+    /// The offset from UTC at the time the revset expression was written. TODO:
+    /// It would be better if this was the TimeZone so times could be computed
+    /// correctly across DST shifts.
+    offset: FixedOffset,
     extensions: &'a RevsetExtensions,
     workspace: Option<RevsetWorkspaceContext<'a>>,
 }
 
 impl<'a> RevsetParseContext<'a> {
-    pub fn new(
+    pub fn new<Tz: TimeZone>(
         aliases_map: &'a RevsetAliasesMap,
         user_email: String,
+        now: DateTime<Tz>,
         extensions: &'a RevsetExtensions,
         workspace: Option<RevsetWorkspaceContext<'a>>,
     ) -> Self {
         Self {
             aliases_map,
             user_email,
+            now: now.naive_local(),
+            offset: now.offset().fix(),
             extensions,
             workspace,
         }
@@ -2002,6 +2045,10 @@ impl<'a> RevsetParseContext<'a> {
 
     pub fn user_email(&self) -> &str {
         &self.user_email
+    }
+
+    pub fn now(&self) -> DateTime<FixedOffset> {
+        DateTime::from_naive_utc_and_offset(self.now, self.offset)
     }
 
     pub fn symbol_resolvers(&self) -> &[impl AsRef<dyn SymbolResolverExtension>] {
@@ -2047,6 +2094,7 @@ mod tests {
         let context = RevsetParseContext::new(
             &aliases_map,
             "test.user@example.com".to_string(),
+            chrono::Utc::now(),
             &extensions,
             None,
         );
@@ -2076,6 +2124,7 @@ mod tests {
         let context = RevsetParseContext::new(
             &aliases_map,
             "test.user@example.com".to_string(),
+            chrono::Utc::now(),
             &extensions,
             Some(workspace_ctx),
         );
@@ -2101,6 +2150,7 @@ mod tests {
         let context = RevsetParseContext::new(
             &aliases_map,
             "test.user@example.com".to_string(),
+            chrono::Utc::now(),
             &extensions,
             None,
         );
