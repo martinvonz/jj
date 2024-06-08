@@ -16,6 +16,7 @@ use std::iter;
 use std::path::Path;
 
 use assert_matches::assert_matches;
+use chrono::DateTime;
 use itertools::Itertools;
 use jj_lib::backend::{CommitId, MillisSinceEpoch, Signature, Timestamp};
 use jj_lib::commit::Commit;
@@ -46,7 +47,9 @@ fn resolve_symbol_with_extensions(
     symbol: &str,
 ) -> Result<Vec<CommitId>, RevsetResolutionError> {
     let aliases_map = RevsetAliasesMap::default();
-    let context = RevsetParseContext::new(&aliases_map, String::new(), extensions, None);
+    let now = chrono::Local::now();
+    let context =
+        RevsetParseContext::new(&aliases_map, String::new(), now.into(), extensions, None);
     let expression = parse(symbol, &context).unwrap();
     assert_matches!(*expression, RevsetExpression::CommitRef(_));
     let symbol_resolver = DefaultSymbolResolver::new(repo, extensions.symbol_resolvers());
@@ -180,7 +183,13 @@ fn test_resolve_symbol_commit_id() {
     );
     let aliases_map = RevsetAliasesMap::default();
     let extensions = RevsetExtensions::default();
-    let context = RevsetParseContext::new(&aliases_map, settings.user_email(), &extensions, None);
+    let context = RevsetParseContext::new(
+        &aliases_map,
+        settings.user_email(),
+        chrono::Utc::now().fixed_offset().into(),
+        &extensions,
+        None,
+    );
     assert_matches!(
         optimize(parse("present(04)", &context).unwrap()).resolve_user_expression(repo.as_ref(), &symbol_resolver),
         Err(RevsetResolutionError::AmbiguousCommitIdPrefix(s)) if s == "04"
@@ -838,6 +847,7 @@ fn resolve_commit_ids(repo: &dyn Repo, revset_str: &str) -> Vec<CommitId> {
     let context = RevsetParseContext::new(
         &aliases_map,
         settings.user_email(),
+        chrono::Utc::now().fixed_offset().into(),
         &revset_extensions,
         None,
     );
@@ -869,6 +879,7 @@ fn resolve_commit_ids_in_workspace(
     let context = RevsetParseContext::new(
         &aliases_map,
         settings.user_email(),
+        chrono::Utc::now().fixed_offset().into(),
         &extensions,
         Some(workspace_ctx),
     );
@@ -2475,6 +2486,144 @@ fn test_evaluate_expression_author() {
             &format!("root().. & (author(name1) | {})", commit3.id().hex())
         ),
         vec![commit3.id().clone(), commit1.id().clone()]
+    );
+}
+
+fn parse_timestamp(s: &str) -> Timestamp {
+    Timestamp::from_datetime(s.parse::<DateTime<chrono::FixedOffset>>().unwrap())
+}
+
+#[test]
+fn test_evaluate_expression_author_date() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+
+    let timestamp1 = parse_timestamp("2023-03-25T11:30:00Z");
+    let timestamp2 = parse_timestamp("2023-03-25T12:30:00Z");
+    let timestamp3 = parse_timestamp("2023-03-25T13:30:00Z");
+
+    let root_commit = repo.store().root_commit();
+    let commit1 = create_random_commit(mut_repo, &settings)
+        .set_author(Signature {
+            name: "name1".to_string(),
+            email: "email1".to_string(),
+            timestamp: timestamp1.clone(),
+        })
+        .set_committer(Signature {
+            name: "name1".to_string(),
+            email: "email1".to_string(),
+            timestamp: timestamp2.clone(),
+        })
+        .write()
+        .unwrap();
+    let commit2 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![commit1.id().clone()])
+        .set_author(Signature {
+            name: "name2".to_string(),
+            email: "email2".to_string(),
+            timestamp: timestamp2.clone(),
+        })
+        .set_committer(Signature {
+            name: "name1".to_string(),
+            email: "email1".to_string(),
+            timestamp: timestamp2.clone(),
+        })
+        .write()
+        .unwrap();
+    let commit3 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![commit2.id().clone()])
+        .set_author(Signature {
+            name: "name3".to_string(),
+            email: "email3".to_string(),
+            timestamp: timestamp3,
+        })
+        .set_committer(Signature {
+            name: "name1".to_string(),
+            email: "email1".to_string(),
+            timestamp: timestamp2.clone(),
+        })
+        .write()
+        .unwrap();
+
+    // Can find multiple matches
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "author_date(after:'2023-03-25 12:00')"),
+        vec![commit3.id().clone(), commit2.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "author_date(before:'2023-03-25 12:00')"),
+        vec![commit1.id().clone(), root_commit.id().clone()]
+    );
+}
+
+#[test]
+fn test_evaluate_expression_committer_date() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+
+    let timestamp1 = parse_timestamp("2023-03-25T11:30:00Z");
+    let timestamp2 = parse_timestamp("2023-03-25T12:30:00Z");
+    let timestamp3 = parse_timestamp("2023-03-25T13:30:00Z");
+
+    let root_commit = repo.store().root_commit();
+    let commit1 = create_random_commit(mut_repo, &settings)
+        .set_author(Signature {
+            name: "name1".to_string(),
+            email: "email1".to_string(),
+            timestamp: timestamp2.clone(),
+        })
+        .set_committer(Signature {
+            name: "name1".to_string(),
+            email: "email1".to_string(),
+            timestamp: timestamp1.clone(),
+        })
+        .write()
+        .unwrap();
+    let commit2 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![commit1.id().clone()])
+        .set_author(Signature {
+            name: "name2".to_string(),
+            email: "email2".to_string(),
+            timestamp: timestamp2.clone(),
+        })
+        .set_committer(Signature {
+            name: "name1".to_string(),
+            email: "email1".to_string(),
+            timestamp: timestamp2.clone(),
+        })
+        .write()
+        .unwrap();
+    let commit3 = create_random_commit(mut_repo, &settings)
+        .set_parents(vec![commit2.id().clone()])
+        .set_author(Signature {
+            name: "name3".to_string(),
+            email: "email3".to_string(),
+            timestamp: timestamp2.clone(),
+        })
+        .set_committer(Signature {
+            name: "name1".to_string(),
+            email: "email1".to_string(),
+            timestamp: timestamp3,
+        })
+        .write()
+        .unwrap();
+
+    // Can find multiple matches
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "committer_date(after:'2023-03-25 12:00')"),
+        vec![commit3.id().clone(), commit2.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "committer_date(before:'2023-03-25 12:00')"),
+        vec![commit1.id().clone(), root_commit.id().clone()]
     );
 }
 

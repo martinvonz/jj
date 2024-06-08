@@ -325,7 +325,7 @@ fn test_function_name_hint() {
       | ^-----^
       |
       = Function "author_" doesn't exist
-    Hint: Did you mean "author", "my_author"?
+    Hint: Did you mean "author", "author_date", "my_author"?
     "###);
 
     insta::assert_snapshot!(evaluate_err("my_branches"), @r###"
@@ -627,5 +627,128 @@ fn test_all_modifier() {
       |
       = Modifier "all:" is not allowed in sub expression
     For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    "###);
+}
+
+/// Verifies that the committer_date revset honors the local time zone.
+/// This test cannot run on Windows because The TZ env var does not control
+/// chrono::Local on that platform.
+#[test]
+#[cfg(not(target_os = "windows"))]
+fn test_revset_committer_date_with_time_zone() {
+    // Use these for the test instead of tzdb identifiers like America/New_York
+    // because the tz database may not be installed on some build servers
+    const NEW_YORK: &str = "EST+5EDT+4,M3.1.0,M11.1.0";
+    const CHICAGO: &str = "CST+6CDT+5,M3.1.0,M11.1.0";
+    const AUSTRALIA: &str = "AEST-10";
+    let mut test_env = TestEnvironment::default();
+    test_env.add_env_var("TZ", NEW_YORK);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "--config-toml",
+            "debug.commit-timestamp='2023-01-25T11:30:00-05:00'",
+            "describe",
+            "-m",
+            "first",
+        ],
+    );
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "--config-toml",
+            "debug.commit-timestamp='2023-01-25T12:30:00-05:00'",
+            "new",
+            "-m",
+            "second",
+        ],
+    );
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "--config-toml",
+            "debug.commit-timestamp='2023-01-25T13:30:00-05:00'",
+            "new",
+            "-m",
+            "third",
+        ],
+    );
+
+    let mut log_commits_before_and_after =
+        |committer_date: &str, now: &str, tz: &str| -> (String, String) {
+            test_env.add_env_var("TZ", tz);
+            let config = format!("debug.commit-timestamp='{now}'");
+            let before_log = test_env.jj_cmd_success(
+                &repo_path,
+                &[
+                    "--config-toml",
+                    config.as_str(),
+                    "log",
+                    "--no-graph",
+                    "-T",
+                    "description.first_line() ++ ' ' ++ committer.timestamp() ++ '\n'",
+                    "-r",
+                    format!("committer_date(before:'{committer_date}') ~ root()").as_str(),
+                ],
+            );
+            let after_log = test_env.jj_cmd_success(
+                &repo_path,
+                &[
+                    "--config-toml",
+                    config.as_str(),
+                    "log",
+                    "--no-graph",
+                    "-T",
+                    "description.first_line() ++ ' ' ++ committer.timestamp() ++ '\n'",
+                    "-r",
+                    format!("committer_date(after:'{committer_date}')").as_str(),
+                ],
+            );
+            (before_log, after_log)
+        };
+
+    let (before_log, after_log) =
+        log_commits_before_and_after("2023-01-25 12:00", "2023-02-01T00:00:00-05:00", NEW_YORK);
+    insta::assert_snapshot!(before_log, @r###"
+    first 2023-01-25 11:30:00.000 -05:00
+    "###);
+    insta::assert_snapshot!(after_log, @r###"
+    third 2023-01-25 13:30:00.000 -05:00
+    second 2023-01-25 12:30:00.000 -05:00
+    "###);
+
+    // Switch to DST and ensure we get the same results, because it should
+    // evaluate 12:00 on commit date, not the current date
+    let (before_log, after_log) =
+        log_commits_before_and_after("2023-01-25 12:00", "2023-06-01T00:00:00-04:00", NEW_YORK);
+    insta::assert_snapshot!(before_log, @r###"
+    first 2023-01-25 11:30:00.000 -05:00
+    "###);
+    insta::assert_snapshot!(after_log, @r###"
+    third 2023-01-25 13:30:00.000 -05:00
+    second 2023-01-25 12:30:00.000 -05:00
+    "###);
+
+    // Change the local time zone and ensure the result changes
+    let (before_log, after_log) =
+        log_commits_before_and_after("2023-01-25 12:00", "2023-06-01T00:00:00-06:00", CHICAGO);
+    insta::assert_snapshot!(before_log, @r###"
+    second 2023-01-25 12:30:00.000 -05:00
+    first 2023-01-25 11:30:00.000 -05:00
+    "###);
+    insta::assert_snapshot!(after_log, @"third 2023-01-25 13:30:00.000 -05:00");
+
+    // Time zone far outside USA with no DST
+    let (before_log, after_log) =
+        log_commits_before_and_after("2023-01-26 03:00", "2023-06-01T00:00:00+10:00", AUSTRALIA);
+    insta::assert_snapshot!(before_log, @r###"
+    first 2023-01-25 11:30:00.000 -05:00
+    "###);
+    insta::assert_snapshot!(after_log, @r###"
+    third 2023-01-25 13:30:00.000 -05:00
+    second 2023-01-25 12:30:00.000 -05:00
     "###);
 }

@@ -28,6 +28,7 @@ use std::time::SystemTime;
 use std::{fs, mem, str};
 
 use bstr::ByteVec as _;
+use chrono::TimeZone;
 use clap::builder::{
     MapValueParser, NonEmptyStringValueParser, TypedValueParser, ValueParserFactory,
 };
@@ -1010,9 +1011,17 @@ impl WorkspaceCommandHelper {
             path_converter: &self.path_converter,
             workspace_id: self.workspace_id(),
         };
+        let now = if let Some(timestamp) = self.settings.commit_timestamp() {
+            chrono::Local
+                .timestamp_millis_opt(timestamp.timestamp.0)
+                .unwrap()
+        } else {
+            chrono::Local::now()
+        };
         RevsetParseContext::new(
             &self.revset_aliases_map,
             self.settings.user_email(),
+            now.into(),
             &self.revset_extensions,
             Some(workspace_context),
         )
