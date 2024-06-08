@@ -727,29 +727,18 @@ fn test_reindex_missing_commit() {
     assert_matches!(err, DefaultIndexStoreError::IndexCommits { op_id, .. } if op_id == *bad_op_id);
 }
 
-/// Test that .jj/repo/index/type is created when the repo is created, and that
-/// it is created when an old repo is loaded.
+/// Test that .jj/repo/index/type is created when the repo is created.
 #[test]
 fn test_index_store_type() {
-    let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
 
     assert_eq!(as_readonly_composite(repo).num_commits(), 1);
     let index_store_type_path = repo.repo_path().join("index").join("type");
     assert_eq!(
-        std::fs::read_to_string(&index_store_type_path).unwrap(),
+        std::fs::read_to_string(index_store_type_path).unwrap(),
         "default"
     );
-    // Remove the file to simulate an old repo. Loading the repo should result in
-    // the file being created.
-    std::fs::remove_file(&index_store_type_path).unwrap();
-    let repo = load_repo_at_head(&settings, repo.repo_path());
-    assert_eq!(
-        std::fs::read_to_string(&index_store_type_path).unwrap(),
-        "default"
-    );
-    assert_eq!(as_readonly_composite(&repo).num_commits(), 1);
 }
 
 #[test]

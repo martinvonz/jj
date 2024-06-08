@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   modifier. Surround with parentheses if it should be parsed as string/file
   pattern.
 
+* Dropped support for automatic upgrade of repo formats used by versions before
+  0.12.0.
+
 ### Deprecations
 
 ### New features
