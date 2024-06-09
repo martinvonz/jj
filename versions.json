@@ -2,10 +2,7 @@
   {
     "version": "prerelease",
     "title": "prerelease",
-    "aliases": [
-      "nightly",
-      "main"
-    ]
+    "aliases": []
   },
   {
     "version": "v0.18.0",
