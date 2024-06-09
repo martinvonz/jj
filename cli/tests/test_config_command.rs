@@ -833,6 +833,28 @@ fn test_config_path_syntax() {
     "###);
 }
 
+#[test]
+fn test_config_show_paths() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let user_config_path = test_env.config_path().join("config.toml");
+    test_env.set_config_path(user_config_path.to_owned());
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["config", "set", "--user", "ui.paginate", ":builtin"],
+    );
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["st"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Config error: Invalid `ui.paginate`
+    Caused by: enum PaginationChoice does not have variant constructor :builtin
+    Hint: Check the following config files:
+    - $TEST_ENV/config/config.toml
+    For help, see https://github.com/martinvonz/jj/blob/main/docs/config.md.
+    "###);
+}
+
 fn find_stdout_lines(keyname_pattern: &str, stdout: &str) -> String {
     let key_line_re = Regex::new(&format!(r"(?m)^{keyname_pattern} = .*$")).unwrap();
     key_line_re

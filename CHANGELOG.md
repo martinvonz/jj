@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### New features
 
+* Show paths to config files when configuration errors occur
+
 ### Fixed bugs
 
 ## [0.18.0] - 2024-06-05

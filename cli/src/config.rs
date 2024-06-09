@@ -228,10 +228,18 @@ impl LayeredConfigs {
         Ok(())
     }
 
+    pub fn user_config_path(&self) -> Result<Option<PathBuf>, ConfigError> {
+        existing_config_path()
+    }
+
     #[instrument]
     pub fn read_repo_config(&mut self, repo_path: &Path) -> Result<(), ConfigError> {
-        self.repo = Some(read_config_file(&repo_path.join("config.toml"))?);
+        self.repo = Some(read_config_file(&self.repo_config_path(repo_path))?);
         Ok(())
+    }
+
+    pub fn repo_config_path(&self, repo_path: &Path) -> PathBuf {
+        repo_path.join("config.toml")
     }
 
     pub fn parse_config_args(&mut self, toml_strs: &[String]) -> Result<(), ConfigError> {

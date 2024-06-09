@@ -2828,11 +2828,21 @@ impl CliRunner {
         let maybe_cwd_workspace_loader = WorkspaceLoader::init(find_workspace_dir(&cwd))
             .map_err(|err| map_workspace_load_error(err, None));
         layered_configs.read_user_config()?;
+        let mut repo_config_path = None;
         if let Ok(loader) = &maybe_cwd_workspace_loader {
             layered_configs.read_repo_config(loader.repo_path())?;
+            repo_config_path = Some(layered_configs.repo_config_path(loader.repo_path()));
         }
         let config = layered_configs.merge();
-        ui.reset(&config)?;
+        ui.reset(&config).map_err(|e| {
+            let user_config_path = layered_configs.user_config_path().unwrap_or(None);
+            let paths = [repo_config_path, user_config_path]
+                .into_iter()
+                .flatten()
+                .map(|path| format!("- {}", path.display()))
+                .join("\n");
+            e.hinted(format!("Check the following config files:\n{}", paths))
+        })?;
 
         let string_args = expand_args(ui, &self.app, env::args_os(), &config)?;
         let (matches, args) = parse_args(
