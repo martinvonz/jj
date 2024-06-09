@@ -28,19 +28,6 @@ be compiled from the same source code.
 
 ### Linux
 
-#### Arch Linux
-You can install the `jujutsu` package from the [official extra repository](https://archlinux.org/packages/extra/x86_64/jujutsu/):
-
-```
-pacman -S jujutsu
-```
-
-Or install from the [AUR repository](https://aur.archlinux.org/packages/jujutsu-git) with an [AUR Helper](https://wiki.archlinux.org/title/AUR_helpers):
-
-```
-yay -S jujutsu-git
-```
-
 #### From Source
 
 First make sure that you have the `libssl-dev`, `openssl`, `pkg-config`, and
@@ -62,6 +49,19 @@ or:
 ```shell
 # To install the latest release
 cargo install --locked --bin jj jj-cli
+```
+
+#### Arch Linux
+You can install the `jujutsu` package from the [official extra repository](https://archlinux.org/packages/extra/x86_64/jujutsu/):
+
+```
+pacman -S jujutsu
+```
+
+Or install from the [AUR repository](https://aur.archlinux.org/packages/jujutsu-git) with an [AUR Helper](https://wiki.archlinux.org/title/AUR_helpers):
+
+```
+yay -S jujutsu-git
 ```
 
 #### Nix OS
