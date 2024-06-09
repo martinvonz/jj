@@ -390,18 +390,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arch-linux" class="md-nav__link">
+  <a href="#from-source" class="md-nav__link">
     <span class="md-ellipsis">
-      Arch Linux
+      From Source
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#from-source" class="md-nav__link">
+  <a href="#arch-linux" class="md-nav__link">
     <span class="md-ellipsis">
-      From Source
+      Arch Linux
     </span>
   </a>
   
@@ -1500,18 +1500,18 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#arch-linux" class="md-nav__link">
+  <a href="#from-source" class="md-nav__link">
     <span class="md-ellipsis">
-      Arch Linux
+      From Source
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#from-source" class="md-nav__link">
+  <a href="#arch-linux" class="md-nav__link">
     <span class="md-ellipsis">
-      From Source
+      Arch Linux
     </span>
   </a>
   
@@ -1697,13 +1697,6 @@ cargo<span class="w"> </span>binstall<span class="w"> </span>--strategies<span c
 <p>Without the <code>--strategies</code> option, you may get equivalent binaries that should
 be compiled from the same source code.</p>
 <h3 id="linux">Linux<a class="headerlink" href="#linux" title="Permanent link">&para;</a></h3>
-<h4 id="arch-linux">Arch Linux<a class="headerlink" href="#arch-linux" title="Permanent link">&para;</a></h4>
-<p>You can install the <code>jujutsu</code> package from the <a href="https://archlinux.org/packages/extra/x86_64/jujutsu/">official extra repository</a>:</p>
-<div class="highlight"><pre><span></span><code>pacman -S jujutsu
-</code></pre></div>
-<p>Or install from the <a href="https://aur.archlinux.org/packages/jujutsu-git">AUR repository</a> with an <a href="https://wiki.archlinux.org/title/AUR_helpers">AUR Helper</a>:</p>
-<div class="highlight"><pre><span></span><code>yay -S jujutsu-git
-</code></pre></div>
 <h4 id="from-source">From Source<a class="headerlink" href="#from-source" title="Permanent link">&para;</a></h4>
 <p>First make sure that you have the <code>libssl-dev</code>, <code>openssl</code>, <code>pkg-config</code>, and
 <code>build-essential</code> packages installed by running something like this:</p>
@@ -1716,6 +1709,13 @@ cargo<span class="w"> </span>install<span class="w"> </span>--git<span class="w"
 <p>or:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># To install the latest release</span>
 cargo<span class="w"> </span>install<span class="w"> </span>--locked<span class="w"> </span>--bin<span class="w"> </span>jj<span class="w"> </span>jj-cli
+</code></pre></div>
+<h4 id="arch-linux">Arch Linux<a class="headerlink" href="#arch-linux" title="Permanent link">&para;</a></h4>
+<p>You can install the <code>jujutsu</code> package from the <a href="https://archlinux.org/packages/extra/x86_64/jujutsu/">official extra repository</a>:</p>
+<div class="highlight"><pre><span></span><code>pacman -S jujutsu
+</code></pre></div>
+<p>Or install from the <a href="https://aur.archlinux.org/packages/jujutsu-git">AUR repository</a> with an <a href="https://wiki.archlinux.org/title/AUR_helpers">AUR Helper</a>:</p>
+<div class="highlight"><pre><span></span><code>yay -S jujutsu-git
 </code></pre></div>
 <h4 id="nix-os">Nix OS<a class="headerlink" href="#nix-os" title="Permanent link">&para;</a></h4>
 <p>If you're on Nix OS you can install a <strong>released</strong> version of <code>jj</code> using the
