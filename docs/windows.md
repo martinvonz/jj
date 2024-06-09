@@ -33,10 +33,12 @@ especially IDEs, preserve LF line endings.
 
 ## Pagination
 
-[Pagination is disabled by default on Windows][issue-2040] because Windows
-doesn't ship with a usable pager.
+On Windows, `jj` will use its integrated pager called `minus` by default, unless
+the environment variable `%PAGER%` or the config `ui.pager` is explicitly set.
+See the [pager section of the config docs](config.md#pager) for more details.
 
-If you have Git installed, you can use Git's pager and re-enable pagination:
+If the built-in pager doesn't meet your needs and you have Git installed, you
+can switch to using Git's pager as follows:
 
 ```powershell
 PS> jj config set --user ui.pager '["C:\\Program Files\\Git\\usr\\bin\\less.exe", "-FRX"]'

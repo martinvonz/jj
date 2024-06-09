@@ -359,10 +359,13 @@ a `$`):
 `less -FRX` is the default pager in the absence of any other setting, except
 on Windows where it is `:builtin`.
 
-The special value `:builtin` enables usage of the
-[integrated pager](https://github.com/arijit79/minus/). It is likely if you
-are using a standard Linux distro, your system has `$PAGER` set already
-and that will be preferred over the built-in. To use the built-in:
+The special value `:builtin` enables usage of the [integrated pager called
+`minus`](https://github.com/AMythicDev/minus/). See the [docs for the `minus`
+pager](https://docs.rs/minus/latest/minus/#default-keybindings) for the key
+bindings and some more details.
+
+If you are using a standard Linux distro, your system likely already has
+`$PAGER` set and that will be preferred over the built-in. To use the built-in:
 
 ```
 jj config set --user ui.pager :builtin
