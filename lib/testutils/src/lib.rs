@@ -326,7 +326,7 @@ pub fn create_single_tree(repo: &Arc<ReadonlyRepo>, path_contents: &[(&RepoPath,
 }
 
 pub fn create_tree(repo: &Arc<ReadonlyRepo>, path_contents: &[(&RepoPath, &str)]) -> MergedTree {
-    MergedTree::legacy(create_single_tree(repo, path_contents))
+    MergedTree::resolved(create_single_tree(repo, path_contents))
 }
 
 #[must_use]
