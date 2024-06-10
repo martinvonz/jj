@@ -1375,9 +1375,11 @@ line endings:</p>
 converting them to CRLF. You'll want to make sure any tooling you use,
 especially IDEs, preserve LF line endings.</p>
 <h2 id="pagination">Pagination<a class="headerlink" href="#pagination" title="Permanent link">&para;</a></h2>
-<p><a href="https://github.com/martinvonz/jj/issues/2040">Pagination is disabled by default on Windows</a> because Windows
-doesn't ship with a usable pager.</p>
-<p>If you have Git installed, you can use Git's pager and re-enable pagination:</p>
+<p>On Windows, <code>jj</code> will use its integrated pager called <code>minus</code> by default, unless
+the environment variable <code>%PAGER%</code> or the config <code>ui.pager</code> is explicitly set.
+See the <a href="../config/#pager">pager section of the config docs</a> for more details.</p>
+<p>If the built-in pager doesn't meet your needs and you have Git installed, you
+can switch to using Git's pager as follows:</p>
 <div class="highlight"><pre><span></span><code><span class="n">PS</span><span class="p">&gt;</span> <span class="n">jj</span> <span class="n">config</span> <span class="nb">set </span><span class="p">-</span><span class="n">-user</span> <span class="n">ui</span><span class="p">.</span><span class="n">pager</span> <span class="s1">&#39;[&quot;C:\\Program Files\\Git\\usr\\bin\\less.exe&quot;, &quot;-FRX&quot;]&#39;</span>
 <span class="n">PS</span><span class="p">&gt;</span> <span class="n">jj</span> <span class="n">config</span> <span class="nb">set </span><span class="p">-</span><span class="n">-user</span> <span class="n">ui</span><span class="p">.</span><span class="n">paginate</span> <span class="n">auto</span>
 </code></pre></div>

@@ -2482,10 +2482,12 @@ a <code>$</code>):</p>
 <p><code>ui.pager</code> &gt; <code>$PAGER</code></p>
 <p><code>less -FRX</code> is the default pager in the absence of any other setting, except
 on Windows where it is <code>:builtin</code>.</p>
-<p>The special value <code>:builtin</code> enables usage of the
-<a href="https://github.com/arijit79/minus/">integrated pager</a>. It is likely if you
-are using a standard Linux distro, your system has <code>$PAGER</code> set already
-and that will be preferred over the built-in. To use the built-in:</p>
+<p>The special value <code>:builtin</code> enables usage of the <a href="https://github.com/AMythicDev/minus/">integrated pager called
+<code>minus</code></a>. See the <a href="https://docs.rs/minus/latest/minus/#default-keybindings">docs for the <code>minus</code>
+pager</a> for the key
+bindings and some more details.</p>
+<p>If you are using a standard Linux distro, your system likely already has
+<code>$PAGER</code> set and that will be preferred over the built-in. To use the built-in:</p>
 <div class="highlight"><pre><span></span><code>jj config set --user ui.pager :builtin
 </code></pre></div>
 <p>It is possible the default will change to <code>:builtin</code> for all platforms in the
