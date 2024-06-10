@@ -340,12 +340,12 @@ mod tests {
             .map_err(|err| err.kind)
     }
 
-    fn parse_normalized(text: &str) -> FilesetParseResult<ExpressionNode> {
-        parse_program(text).map(normalize_tree)
+    fn parse_normalized(text: &str) -> ExpressionNode {
+        normalize_tree(parse_program(text).unwrap())
     }
 
-    fn parse_maybe_bare_normalized(text: &str) -> FilesetParseResult<ExpressionNode> {
-        parse_program_or_bare_string(text).map(normalize_tree)
+    fn parse_maybe_bare_normalized(text: &str) -> ExpressionNode {
+        normalize_tree(parse_program_or_bare_string(text).unwrap())
     }
 
     /// Drops auxiliary data from parsed tree so it can be compared with other.
@@ -403,13 +403,10 @@ mod tests {
     #[test]
     fn test_parse_tree_eq() {
         assert_eq!(
-            parse_normalized(r#" foo( x ) | ~bar:"baz" "#).unwrap(),
-            parse_normalized(r#"(foo(x))|(~(bar:"baz"))"#).unwrap()
+            parse_normalized(r#" foo( x ) | ~bar:"baz" "#),
+            parse_normalized(r#"(foo(x))|(~(bar:"baz"))"#)
         );
-        assert_ne!(
-            parse_normalized(r#" foo "#).unwrap(),
-            parse_normalized(r#" "foo" "#).unwrap()
-        );
+        assert_ne!(parse_normalized(r#" foo "#), parse_normalized(r#" "foo" "#));
     }
 
     #[test]
@@ -418,8 +415,8 @@ mod tests {
             .filter(char::is_ascii_whitespace)
             .collect();
         assert_eq!(
-            parse_normalized(&format!("{ascii_whitespaces}f()")).unwrap(),
-            parse_normalized("f()").unwrap()
+            parse_normalized(&format!("{ascii_whitespaces}f()")),
+            parse_normalized("f()")
         );
     }
 
@@ -540,46 +537,16 @@ mod tests {
         );
 
         // Set operator associativity/precedence
-        assert_eq!(
-            parse_normalized("~x|y").unwrap(),
-            parse_normalized("(~x)|y").unwrap()
-        );
-        assert_eq!(
-            parse_normalized("x&~y").unwrap(),
-            parse_normalized("x&(~y)").unwrap()
-        );
-        assert_eq!(
-            parse_normalized("x~~y").unwrap(),
-            parse_normalized("x~(~y)").unwrap()
-        );
-        assert_eq!(
-            parse_normalized("x~~~y").unwrap(),
-            parse_normalized("x~(~(~y))").unwrap()
-        );
-        assert_eq!(
-            parse_normalized("x|y|z").unwrap(),
-            parse_normalized("(x|y)|z").unwrap()
-        );
-        assert_eq!(
-            parse_normalized("x&y|z").unwrap(),
-            parse_normalized("(x&y)|z").unwrap()
-        );
-        assert_eq!(
-            parse_normalized("x|y&z").unwrap(),
-            parse_normalized("x|(y&z)").unwrap()
-        );
-        assert_eq!(
-            parse_normalized("x|y~z").unwrap(),
-            parse_normalized("x|(y~z)").unwrap()
-        );
-        assert_eq!(
-            parse_normalized("~x:y").unwrap(),
-            parse_normalized("~(x:y)").unwrap()
-        );
-        assert_eq!(
-            parse_normalized("x|y:z").unwrap(),
-            parse_normalized("x|(y:z)").unwrap()
-        );
+        assert_eq!(parse_normalized("~x|y"), parse_normalized("(~x)|y"));
+        assert_eq!(parse_normalized("x&~y"), parse_normalized("x&(~y)"));
+        assert_eq!(parse_normalized("x~~y"), parse_normalized("x~(~y)"));
+        assert_eq!(parse_normalized("x~~~y"), parse_normalized("x~(~(~y))"));
+        assert_eq!(parse_normalized("x|y|z"), parse_normalized("(x|y)|z"));
+        assert_eq!(parse_normalized("x&y|z"), parse_normalized("(x&y)|z"));
+        assert_eq!(parse_normalized("x|y&z"), parse_normalized("x|(y&z)"));
+        assert_eq!(parse_normalized("x|y~z"), parse_normalized("x|(y~z)"));
+        assert_eq!(parse_normalized("~x:y"), parse_normalized("~(x:y)"));
+        assert_eq!(parse_normalized("x|y:z"), parse_normalized("x|(y:z)"));
 
         // Expression span
         assert_eq!(parse_program(" ~ x ").unwrap().span.as_str(), "~ x");
@@ -597,21 +564,12 @@ mod tests {
         assert!(parse_into_kind("foo(,)").is_err());
 
         // Trailing comma is allowed for the last argument
-        assert_eq!(
-            parse_normalized("foo(a,)").unwrap(),
-            parse_normalized("foo(a)").unwrap()
-        );
-        assert_eq!(
-            parse_normalized("foo(a ,  )").unwrap(),
-            parse_normalized("foo(a)").unwrap()
-        );
+        assert_eq!(parse_normalized("foo(a,)"), parse_normalized("foo(a)"));
+        assert_eq!(parse_normalized("foo(a ,  )"), parse_normalized("foo(a)"));
         assert!(parse_into_kind("foo(,a)").is_err());
         assert!(parse_into_kind("foo(a,,)").is_err());
         assert!(parse_into_kind("foo(a  , , )").is_err());
-        assert_eq!(
-            parse_normalized("foo(a,b,)").unwrap(),
-            parse_normalized("foo(a,b)").unwrap()
-        );
+        assert_eq!(parse_normalized("foo(a,b,)"), parse_normalized("foo(a,b)"));
         assert!(parse_into_kind("foo(a,,b)").is_err());
     }
 
@@ -623,8 +581,8 @@ mod tests {
             Ok(ExpressionKind::Identifier("valid"))
         );
         assert_eq!(
-            parse_maybe_bare_normalized("f(x)&y").unwrap(),
-            parse_normalized("f(x)&y").unwrap()
+            parse_maybe_bare_normalized("f(x)&y"),
+            parse_normalized("f(x)&y")
         );
 
         // Bare string

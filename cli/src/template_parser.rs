@@ -708,11 +708,8 @@ mod tests {
             parse(template_text, &self.0)
         }
 
-        fn parse_normalized<'i>(
-            &'i self,
-            template_text: &'i str,
-        ) -> TemplateParseResult<ExpressionNode<'i>> {
-            self.parse(template_text).map(normalize_tree)
+        fn parse_normalized<'i>(&'i self, template_text: &'i str) -> ExpressionNode<'i> {
+            normalize_tree(self.parse(template_text).unwrap())
         }
     }
 
@@ -732,8 +729,8 @@ mod tests {
             .map_err(|err| err.kind)
     }
 
-    fn parse_normalized(template_text: &str) -> TemplateParseResult<ExpressionNode> {
-        parse_template(template_text).map(normalize_tree)
+    fn parse_normalized(template_text: &str) -> ExpressionNode {
+        normalize_tree(parse_template(template_text).unwrap())
     }
 
     /// Drops auxiliary data of AST so it can be compared with other node.
@@ -828,40 +825,37 @@ mod tests {
             .filter(char::is_ascii_whitespace)
             .collect();
         assert_eq!(
-            parse_normalized(&format!("{ascii_whitespaces}f()")).unwrap(),
-            parse_normalized("f()").unwrap(),
+            parse_normalized(&format!("{ascii_whitespaces}f()")),
+            parse_normalized("f()"),
         );
     }
 
     #[test]
     fn test_parse_operator_syntax() {
         // Operator precedence
+        assert_eq!(parse_normalized("!!x"), parse_normalized("!(!x)"));
         assert_eq!(
-            parse_normalized("!!x").unwrap(),
-            parse_normalized("!(!x)").unwrap(),
+            parse_normalized("!x.f() || !g()"),
+            parse_normalized("(!(x.f())) || (!(g()))"),
         );
         assert_eq!(
-            parse_normalized("!x.f() || !g()").unwrap(),
-            parse_normalized("(!(x.f())) || (!(g()))").unwrap(),
+            parse_normalized("x.f() || y || z"),
+            parse_normalized("((x.f()) || y) || z"),
         );
         assert_eq!(
-            parse_normalized("x.f() || y || z").unwrap(),
-            parse_normalized("((x.f()) || y) || z").unwrap(),
-        );
-        assert_eq!(
-            parse_normalized("x || y && z.h()").unwrap(),
-            parse_normalized("x || (y && (z.h()))").unwrap(),
+            parse_normalized("x || y && z.h()"),
+            parse_normalized("x || (y && (z.h()))"),
         );
 
         // Logical operator bounds more tightly than concatenation. This might
         // not be so intuitive, but should be harmless.
         assert_eq!(
-            parse_normalized(r"x && y ++ z").unwrap(),
-            parse_normalized(r"(x && y) ++ z").unwrap(),
+            parse_normalized(r"x && y ++ z"),
+            parse_normalized(r"(x && y) ++ z"),
         );
         assert_eq!(
-            parse_normalized(r"x ++ y || z").unwrap(),
-            parse_normalized(r"x ++ (y || z)").unwrap(),
+            parse_normalized(r"x ++ y || z"),
+            parse_normalized(r"x ++ (y || z)"),
         );
 
         // Expression span
@@ -895,8 +889,8 @@ mod tests {
     #[test]
     fn test_method_call_syntax() {
         assert_eq!(
-            parse_normalized("x.f().g()").unwrap(),
-            parse_normalized("(x.f()).g()").unwrap(),
+            parse_normalized("x.f().g()"),
+            parse_normalized("(x.f()).g()"),
         );
 
         // Expression span
@@ -929,27 +923,21 @@ mod tests {
 
         // Binding
         assert_eq!(
-            parse_normalized("||  x ++ y").unwrap(),
-            parse_normalized("|| (x ++ y)").unwrap(),
+            parse_normalized("||  x ++ y"),
+            parse_normalized("|| (x ++ y)"),
         );
         assert_eq!(
-            parse_normalized("f( || x,   || y)").unwrap(),
-            parse_normalized("f((|| x), (|| y))").unwrap(),
+            parse_normalized("f( || x,   || y)"),
+            parse_normalized("f((|| x), (|| y))"),
         );
         assert_eq!(
-            parse_normalized("||  x ++  || y").unwrap(),
-            parse_normalized("|| (x ++ (|| y))").unwrap(),
+            parse_normalized("||  x ++  || y"),
+            parse_normalized("|| (x ++ (|| y))"),
         );
 
         // Lambda vs logical operator: weird, but this is type error anyway
-        assert_eq!(
-            parse_normalized("x||||y").unwrap(),
-            parse_normalized("x || (|| y)").unwrap(),
-        );
-        assert_eq!(
-            parse_normalized("||||x").unwrap(),
-            parse_normalized("|| (|| x)").unwrap(),
-        );
+        assert_eq!(parse_normalized("x||||y"), parse_normalized("x || (|| y)"));
+        assert_eq!(parse_normalized("||||x"), parse_normalized("|| (|| x)"));
 
         // Trailing comma
         assert!(parse_template("|,| a").is_err());
@@ -1077,69 +1065,53 @@ mod tests {
     #[test]
     fn test_expand_symbol_alias() {
         assert_eq!(
-            with_aliases([("AB", "a ++ b")])
-                .parse_normalized("AB ++ c")
-                .unwrap(),
-            parse_normalized("(a ++ b) ++ c").unwrap(),
+            with_aliases([("AB", "a ++ b")]).parse_normalized("AB ++ c"),
+            parse_normalized("(a ++ b) ++ c"),
         );
         assert_eq!(
-            with_aliases([("AB", "a ++ b")])
-                .parse_normalized("if(AB, label(c, AB))")
-                .unwrap(),
-            parse_normalized("if((a ++ b), label(c, (a ++ b)))").unwrap(),
+            with_aliases([("AB", "a ++ b")]).parse_normalized("if(AB, label(c, AB))"),
+            parse_normalized("if((a ++ b), label(c, (a ++ b)))"),
         );
 
         // Multi-level substitution.
         assert_eq!(
-            with_aliases([("A", "BC"), ("BC", "b ++ C"), ("C", "c")])
-                .parse_normalized("A")
-                .unwrap(),
-            parse_normalized("b ++ c").unwrap(),
+            with_aliases([("A", "BC"), ("BC", "b ++ C"), ("C", "c")]).parse_normalized("A"),
+            parse_normalized("b ++ c"),
         );
 
         // Operator expression can be expanded in concatenation.
         assert_eq!(
-            with_aliases([("AB", "a || b")])
-                .parse_normalized("AB ++ c")
-                .unwrap(),
-            parse_normalized("(a || b) ++ c").unwrap(),
+            with_aliases([("AB", "a || b")]).parse_normalized("AB ++ c"),
+            parse_normalized("(a || b) ++ c"),
         );
 
         // Operands should be expanded.
         assert_eq!(
-            with_aliases([("A", "a"), ("B", "b")])
-                .parse_normalized("A || !B")
-                .unwrap(),
-            parse_normalized("a || !b").unwrap(),
+            with_aliases([("A", "a"), ("B", "b")]).parse_normalized("A || !B"),
+            parse_normalized("a || !b"),
         );
 
         // Method receiver and arguments should be expanded.
         assert_eq!(
-            with_aliases([("A", "a")])
-                .parse_normalized("A.f()")
-                .unwrap(),
-            parse_normalized("a.f()").unwrap(),
+            with_aliases([("A", "a")]).parse_normalized("A.f()"),
+            parse_normalized("a.f()"),
         );
         assert_eq!(
-            with_aliases([("A", "a"), ("B", "b")])
-                .parse_normalized("x.f(A, B)")
-                .unwrap(),
-            parse_normalized("x.f(a, b)").unwrap(),
+            with_aliases([("A", "a"), ("B", "b")]).parse_normalized("x.f(A, B)"),
+            parse_normalized("x.f(a, b)"),
         );
 
         // Lambda expression body should be expanded.
         assert_eq!(
-            with_aliases([("A", "a")]).parse_normalized("|| A").unwrap(),
-            parse_normalized("|| a").unwrap(),
+            with_aliases([("A", "a")]).parse_normalized("|| A"),
+            parse_normalized("|| a"),
         );
         // No matter if 'A' is a formal parameter. Alias substitution isn't scoped.
         // If we don't like this behavior, maybe we can turn off alias substitution
         // for lambda parameters.
         assert_eq!(
-            with_aliases([("A", "a ++ b")])
-                .parse_normalized("|A| A")
-                .unwrap(),
-            parse_normalized("|A| (a ++ b)").unwrap(),
+            with_aliases([("A", "a ++ b")]).parse_normalized("|A| A"),
+            parse_normalized("|A| (a ++ b)"),
         );
 
         // Infinite recursion, where the top-level error isn't of RecursiveAlias kind.
@@ -1165,85 +1137,63 @@ mod tests {
     #[test]
     fn test_expand_function_alias() {
         assert_eq!(
-            with_aliases([("F(  )", "a")])
-                .parse_normalized("F()")
-                .unwrap(),
-            parse_normalized("a").unwrap(),
+            with_aliases([("F(  )", "a")]).parse_normalized("F()"),
+            parse_normalized("a"),
         );
         assert_eq!(
-            with_aliases([("F( x )", "x")])
-                .parse_normalized("F(a)")
-                .unwrap(),
-            parse_normalized("a").unwrap(),
+            with_aliases([("F( x )", "x")]).parse_normalized("F(a)"),
+            parse_normalized("a"),
         );
         assert_eq!(
-            with_aliases([("F( x, y )", "x ++ y")])
-                .parse_normalized("F(a, b)")
-                .unwrap(),
-            parse_normalized("a ++ b").unwrap(),
+            with_aliases([("F( x, y )", "x ++ y")]).parse_normalized("F(a, b)"),
+            parse_normalized("a ++ b"),
         );
 
         // Arguments should be resolved in the current scope.
         assert_eq!(
-            with_aliases([("F(x,y)", "if(x, y)")])
-                .parse_normalized("F(a ++ y, b ++ x)")
-                .unwrap(),
-            parse_normalized("if((a ++ y), (b ++ x))").unwrap(),
+            with_aliases([("F(x,y)", "if(x, y)")]).parse_normalized("F(a ++ y, b ++ x)"),
+            parse_normalized("if((a ++ y), (b ++ x))"),
         );
         // F(a) -> if(G(a), y) -> if((x ++ a), y)
         assert_eq!(
-            with_aliases([("F(x)", "if(G(x), y)"), ("G(y)", "x ++ y")])
-                .parse_normalized("F(a)")
-                .unwrap(),
-            parse_normalized("if((x ++ a), y)").unwrap(),
+            with_aliases([("F(x)", "if(G(x), y)"), ("G(y)", "x ++ y")]).parse_normalized("F(a)"),
+            parse_normalized("if((x ++ a), y)"),
         );
         // F(G(a)) -> F(x ++ a) -> if(G(x ++ a), y) -> if((x ++ (x ++ a)), y)
         assert_eq!(
-            with_aliases([("F(x)", "if(G(x), y)"), ("G(y)", "x ++ y")])
-                .parse_normalized("F(G(a))")
-                .unwrap(),
-            parse_normalized("if((x ++ (x ++ a)), y)").unwrap(),
+            with_aliases([("F(x)", "if(G(x), y)"), ("G(y)", "x ++ y")]).parse_normalized("F(G(a))"),
+            parse_normalized("if((x ++ (x ++ a)), y)"),
         );
 
         // Function parameter should precede the symbol alias.
         assert_eq!(
-            with_aliases([("F(X)", "X"), ("X", "x")])
-                .parse_normalized("F(a) ++ X")
-                .unwrap(),
-            parse_normalized("a ++ x").unwrap(),
+            with_aliases([("F(X)", "X"), ("X", "x")]).parse_normalized("F(a) ++ X"),
+            parse_normalized("a ++ x"),
         );
 
         // Function parameter shouldn't be expanded in symbol alias.
         assert_eq!(
-            with_aliases([("F(x)", "x ++ A"), ("A", "x")])
-                .parse_normalized("F(a)")
-                .unwrap(),
-            parse_normalized("a ++ x").unwrap(),
+            with_aliases([("F(x)", "x ++ A"), ("A", "x")]).parse_normalized("F(a)"),
+            parse_normalized("a ++ x"),
         );
 
         // Function and symbol aliases reside in separate namespaces.
         assert_eq!(
-            with_aliases([("A()", "A"), ("A", "a")])
-                .parse_normalized("A()")
-                .unwrap(),
-            parse_normalized("a").unwrap(),
+            with_aliases([("A()", "A"), ("A", "a")]).parse_normalized("A()"),
+            parse_normalized("a"),
         );
 
         // Method call shouldn't be substituted by function alias.
         assert_eq!(
-            with_aliases([("F()", "f()")])
-                .parse_normalized("x.F()")
-                .unwrap(),
-            parse_normalized("x.F()").unwrap(),
+            with_aliases([("F()", "f()")]).parse_normalized("x.F()"),
+            parse_normalized("x.F()"),
         );
 
         // Formal parameter shouldn't be substituted by alias parameter, but
         // the expression should be substituted.
         assert_eq!(
-            with_aliases([("F(x)", "|x| x")])
-                .parse_normalized("F(a ++ b)")
-                .unwrap(),
-            parse_normalized("|x| (a ++ b)").unwrap(),
+            with_aliases([("F(x)", "|x| x")]).parse_normalized("F(a ++ b)"),
+            parse_normalized("|x| (a ++ b)"),
         );
 
         // Invalid number of arguments.
