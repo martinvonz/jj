@@ -419,7 +419,7 @@ pub fn make_diff_files(
 }
 
 pub fn apply_diff_builtin(
-    store: Arc<Store>,
+    store: &Arc<Store>,
     left_tree: &MergedTree,
     right_tree: &MergedTree,
     changed_files: Vec<RepoPathBuf>,
@@ -513,7 +513,7 @@ pub fn edit_diff_builtin(
         &mut input,
     );
     let result = recorder.run().map_err(BuiltinToolError::Record)?;
-    let tree_id = apply_diff_builtin(store, left_tree, right_tree, changed_files, &result.files)
+    let tree_id = apply_diff_builtin(&store, left_tree, right_tree, changed_files, &result.files)
         .map_err(BuiltinToolError::BackendError)?;
     Ok(tree_id)
 }
@@ -624,14 +624,8 @@ pub fn edit_merge_builtin(
     let state = recorder.run()?;
 
     let file = state.files.into_iter().exactly_one().unwrap();
-    apply_diff_builtin(
-        tree.store().clone(),
-        tree,
-        tree,
-        vec![path.to_owned()],
-        &[file],
-    )
-    .map_err(BuiltinToolError::BackendError)
+    apply_diff_builtin(tree.store(), tree, tree, vec![path.to_owned()], &[file])
+        .map_err(BuiltinToolError::BackendError)
 }
 
 #[cfg(test)]
@@ -767,7 +761,7 @@ mod tests {
         "###);
 
         let no_changes_tree_id = apply_diff_builtin(
-            store.clone(),
+            store,
             &left_tree,
             &right_tree,
             changed_files.clone(),
@@ -785,14 +779,8 @@ mod tests {
         for file in files.iter_mut() {
             file.toggle_all();
         }
-        let all_changes_tree_id = apply_diff_builtin(
-            store.clone(),
-            &left_tree,
-            &right_tree,
-            changed_files,
-            &files,
-        )
-        .unwrap();
+        let all_changes_tree_id =
+            apply_diff_builtin(store, &left_tree, &right_tree, changed_files, &files).unwrap();
         let all_changes_tree = store.get_root_tree(&all_changes_tree_id).unwrap();
         assert_eq!(
             all_changes_tree.id(),
@@ -837,7 +825,7 @@ mod tests {
         ]
         "###);
         let no_changes_tree_id = apply_diff_builtin(
-            store.clone(),
+            store,
             &left_tree,
             &right_tree,
             changed_files.clone(),
@@ -855,14 +843,8 @@ mod tests {
         for file in files.iter_mut() {
             file.toggle_all();
         }
-        let all_changes_tree_id = apply_diff_builtin(
-            store.clone(),
-            &left_tree,
-            &right_tree,
-            changed_files,
-            &files,
-        )
-        .unwrap();
+        let all_changes_tree_id =
+            apply_diff_builtin(store, &left_tree, &right_tree, changed_files, &files).unwrap();
         let all_changes_tree = store.get_root_tree(&all_changes_tree_id).unwrap();
         assert_eq!(
             all_changes_tree.id(),
@@ -907,7 +889,7 @@ mod tests {
         ]
         "###);
         let no_changes_tree_id = apply_diff_builtin(
-            store.clone(),
+            store,
             &left_tree,
             &right_tree,
             changed_files.clone(),
@@ -925,14 +907,8 @@ mod tests {
         for file in files.iter_mut() {
             file.toggle_all();
         }
-        let all_changes_tree_id = apply_diff_builtin(
-            store.clone(),
-            &left_tree,
-            &right_tree,
-            changed_files,
-            &files,
-        )
-        .unwrap();
+        let all_changes_tree_id =
+            apply_diff_builtin(store, &left_tree, &right_tree, changed_files, &files).unwrap();
         let all_changes_tree = store.get_root_tree(&all_changes_tree_id).unwrap();
         assert_eq!(
             all_changes_tree.id(),
@@ -978,7 +954,7 @@ mod tests {
         ]
         "###);
         let no_changes_tree_id = apply_diff_builtin(
-            store.clone(),
+            store,
             &left_tree,
             &right_tree,
             changed_files.clone(),
@@ -996,14 +972,8 @@ mod tests {
         for file in files.iter_mut() {
             file.toggle_all();
         }
-        let all_changes_tree_id = apply_diff_builtin(
-            store.clone(),
-            &left_tree,
-            &right_tree,
-            changed_files,
-            &files,
-        )
-        .unwrap();
+        let all_changes_tree_id =
+            apply_diff_builtin(store, &left_tree, &right_tree, changed_files, &files).unwrap();
         let all_changes_tree = store.get_root_tree(&all_changes_tree_id).unwrap();
         assert_eq!(
             all_changes_tree.id(),
