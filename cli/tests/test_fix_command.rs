@@ -176,6 +176,28 @@ fn test_fix_empty_file() {
 }
 
 #[test]
+fn test_fix_some_paths() {
+    let (test_env, repo_path) = init_with_fake_formatter(&["--uppercase"]);
+    std::fs::write(repo_path.join("file1"), "foo").unwrap();
+    std::fs::write(repo_path.join("file2"), "bar").unwrap();
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["fix", "-s", "@", "file1"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Fixed 1 commits of 1 checked.
+    Working copy now at: qpvuntsm 3f72f723 (no description set)
+    Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
+    insta::assert_snapshot!(content, @r###"
+    FOO
+    "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
+    insta::assert_snapshot!(content, @"bar");
+}
+
+#[test]
 fn test_fix_cyclic() {
     let (test_env, repo_path) = init_with_fake_formatter(&["--reverse"]);
     std::fs::write(repo_path.join("file"), "content\n").unwrap();

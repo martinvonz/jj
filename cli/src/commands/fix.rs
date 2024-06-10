@@ -20,7 +20,6 @@ use std::sync::mpsc::channel;
 use futures::StreamExt;
 use itertools::Itertools;
 use jj_lib::backend::{BackendError, BackendResult, CommitId, FileId, TreeValue};
-use jj_lib::matchers::EverythingMatcher;
 use jj_lib::merged_tree::MergedTreeBuilder;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPathBuf;
@@ -69,6 +68,9 @@ pub(crate) struct FixArgs {
     /// Fix files in the specified revision(s) and their descendants
     #[arg(long, short)]
     source: Vec<RevisionArg>,
+    /// Fix only these paths
+    #[arg(value_hint = clap::ValueHint::AnyPath)]
+    paths: Vec<String>,
 }
 
 #[instrument(skip_all)]
@@ -87,6 +89,9 @@ pub(crate) fn cmd_fix(
         .evaluate_to_commit_ids()?
         .collect();
     workspace_command.check_rewritable(root_commits.iter())?;
+    let matcher = workspace_command
+        .parse_file_patterns(&args.paths)?
+        .to_matcher();
 
     let mut tx = workspace_command.start_transaction();
 
@@ -127,7 +132,7 @@ pub(crate) fn cmd_fix(
         // Also fix any new paths that were changed in this commit.
         let tree = commit.tree()?;
         let parent_tree = commit.parent_tree(tx.repo())?;
-        let mut diff_stream = parent_tree.diff_stream(&tree, &EverythingMatcher);
+        let mut diff_stream = parent_tree.diff_stream(&tree, &matcher);
         async {
             while let Some((repo_path, diff)) = diff_stream.next().await {
                 let (_before, after) = diff?;
