@@ -790,7 +790,11 @@ tool-command = ["rustfmt", "--emit", "stdout"]
 
 And then run the command `jj fix -s @`.
 
-**Usage:** `jj fix [OPTIONS]`
+**Usage:** `jj fix [OPTIONS] [PATHS]...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Fix only these paths
 
 ###### **Options:**
 
