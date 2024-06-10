@@ -969,7 +969,7 @@ fn test_gitignores_ignored_directory_already_tracked() {
             }
         }
         let id = tree_builder.write_tree().unwrap();
-        MergedTree::legacy(store.get_tree(RepoPath::root(), &id).unwrap())
+        MergedTree::resolved(store.get_tree(RepoPath::root(), &id).unwrap())
     };
 
     let gitignore_path = RepoPath::from_internal_string(".gitignore");
