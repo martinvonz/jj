@@ -594,7 +594,7 @@ mod tests {
         );
 
         // Trailing comma isn't allowed for empty argument
-        assert!(parse_normalized("foo(,)").is_err());
+        assert!(parse_into_kind("foo(,)").is_err());
 
         // Trailing comma is allowed for the last argument
         assert_eq!(
@@ -605,14 +605,14 @@ mod tests {
             parse_normalized("foo(a ,  )").unwrap(),
             parse_normalized("foo(a)").unwrap()
         );
-        assert!(parse_normalized("foo(,a)").is_err());
-        assert!(parse_normalized("foo(a,,)").is_err());
-        assert!(parse_normalized("foo(a  , , )").is_err());
+        assert!(parse_into_kind("foo(,a)").is_err());
+        assert!(parse_into_kind("foo(a,,)").is_err());
+        assert!(parse_into_kind("foo(a  , , )").is_err());
         assert_eq!(
             parse_normalized("foo(a,b,)").unwrap(),
             parse_normalized("foo(a,b)").unwrap()
         );
-        assert!(parse_normalized("foo(a,,b)").is_err());
+        assert!(parse_into_kind("foo(a,,b)").is_err());
     }
 
     #[test]
