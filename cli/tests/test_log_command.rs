@@ -141,7 +141,7 @@ fn test_log_with_or_without_diff() {
             "description",
             "-p",
             "-s",
-            "--config-toml=ui.diff.format='summary'",
+            "--config=ui.diff.format='summary'",
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
@@ -707,7 +707,7 @@ fn test_log_author_format() {
         test_env.jj_cmd_success(
             &repo_path,
             &[
-                "--config-toml",
+                "--config",
                 &format!("{decl}='signature.username()'"),
                 "log",
                 "--revisions=@",
@@ -1285,7 +1285,7 @@ fn test_log_word_wrap() {
     let render = |args: &[&str], columns: u32, word_wrap: bool| {
         let mut args = args.to_vec();
         if word_wrap {
-            args.push("--config-toml=ui.log-word-wrap=true");
+            args.push("--config=ui.log-word-wrap=true");
         }
         let assert = test_env
             .jj_cmd(&repo_path, &args)

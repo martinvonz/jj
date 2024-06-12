@@ -155,7 +155,7 @@ fn test_diff_basic() {
         &repo_path,
         &[
             "diff",
-            "--config-toml=ui.allow-filesets=true",
+            "--config=ui.allow-filesets=true",
             "-s",
             r#"glob:"file[12]""#,
         ],
@@ -854,7 +854,7 @@ fn test_diff_external_tool() {
     "###);
 
     // Enabled by default, looks up the merge-tools table
-    let config = "--config-toml=ui.diff.tool='fake-diff-editor'";
+    let config = "--config=ui.diff.tool='fake-diff-editor'";
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", config]), @r###"
     file1
     file2
@@ -865,7 +865,7 @@ fn test_diff_external_tool() {
 
     // Inlined command arguments
     let command = escaped_fake_diff_editor_path();
-    let config = format!(r#"--config-toml=ui.diff.tool=["{command}", "$right", "$left"]"#);
+    let config = format!(r#"--config=ui.diff.tool=["{command}", "$right", "$left"]"#);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", &config]), @r###"
     file2
     file3

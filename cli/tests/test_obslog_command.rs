@@ -157,7 +157,7 @@ fn test_obslog_with_custom_symbols() {
 
     let toml = concat!("templates.log_node = 'if(current_working_copy, \"$\", \"┝\")'\n",);
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--config-toml", toml]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--config", toml]);
 
     insta::assert_snapshot!(stdout, @r###"
     $  rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
@@ -179,7 +179,7 @@ fn test_obslog_word_wrap() {
     let render = |args: &[&str], columns: u32, word_wrap: bool| {
         let mut args = args.to_vec();
         if word_wrap {
-            args.push("--config-toml=ui.log-word-wrap=true");
+            args.push("--config=ui.log-word-wrap=true");
         }
         let assert = test_env
             .jj_cmd(&repo_path, &args)

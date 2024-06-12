@@ -107,7 +107,7 @@ fn test_commit_interactive() {
         &workspace_path,
         &[
             "commit",
-            "--config-toml=ui.diff-editor='false'",
+            "--config=ui.diff-editor='false'",
             "--tool=fake-diff-editor",
         ],
     );

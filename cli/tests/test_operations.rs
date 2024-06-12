@@ -31,7 +31,7 @@ fn test_op_log() {
         &[
             "op",
             "log",
-            "--config-toml",
+            "--config",
             "template-aliases.'format_time_range(x)' = 'x'",
         ],
     );
@@ -105,7 +105,7 @@ fn test_op_log_with_custom_symbols() {
         &[
             "op",
             "log",
-            "--config-toml",
+            "--config",
             concat!(
                 "template-aliases.'format_time_range(x)' = 'x'\n",
                 "templates.op_log_node = 'if(current_operation, \"$\", if(root, \"┴\", \"┝\"))'",
@@ -299,7 +299,7 @@ fn test_op_log_word_wrap() {
     let render = |args: &[&str], columns: u32, word_wrap: bool| {
         let mut args = args.to_vec();
         if word_wrap {
-            args.push("--config-toml=ui.log-word-wrap=true");
+            args.push("--config=ui.log-word-wrap=true");
         }
         let assert = test_env
             .jj_cmd(&repo_path, &args)

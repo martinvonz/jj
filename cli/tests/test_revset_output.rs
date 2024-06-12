@@ -438,7 +438,7 @@ fn test_alias_override() {
     "###,
     );
 
-    // 'f(x)' should be overridden by --config-toml 'f(a)'. If aliases were sorted
+    // 'f(x)' should be overridden by --config 'f(a)'. If aliases were sorted
     // purely by name, 'f(a)' would come first.
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
@@ -446,7 +446,7 @@ fn test_alias_override() {
             "log",
             "-r",
             "f(_)",
-            "--config-toml",
+            "--config",
             "revset-aliases.'f(a)' = 'arg'",
         ],
     );
@@ -552,7 +552,7 @@ fn test_all_modifier() {
     // Modifier shouldn't be allowed in sub expression
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
-        &["new", "x..", "--config-toml=revset-aliases.x='all:@'"],
+        &["new", "x..", "--config=revset-aliases.x='all:@'"],
     );
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to parse revset: Alias "x" cannot be expanded
@@ -577,8 +577,8 @@ fn test_all_modifier() {
         &repo_path,
         &[
             "new",
-            "--config-toml=revset-aliases.'immutable_heads()'='all:@'",
-            "--config-toml=revsets.short-prefixes='none()'",
+            "--config=revset-aliases.'immutable_heads()'='all:@'",
+            "--config=revsets.short-prefixes='none()'",
         ],
     );
     insta::assert_snapshot!(stderr, @r###"

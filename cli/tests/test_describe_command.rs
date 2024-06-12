@@ -310,7 +310,7 @@ fn test_describe_author() {
         &repo_path,
         &[
             "describe",
-            "--config-toml",
+            "--config",
             r#"user.name = "Ove Ridder"
             user.email = "ove.ridder@example.com""#,
             "--no-edit",
