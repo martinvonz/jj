@@ -343,7 +343,7 @@ fn test_split_siblings_no_descendants() {
         ["dump editor1", "next invocation\n", "dump editor2"].join("\0"),
     )
     .unwrap();
-    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["split", "--siblings", "file1"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["split", "--parallel", "file1"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     First part: qpvuntsm 8d2b7558 TESTED=TODO
@@ -421,7 +421,7 @@ fn test_split_siblings_with_descendants() {
         .join("\0"),
     )
     .unwrap();
-    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["split", "--siblings", "file1"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["split", "--parallel", "file1"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 2 descendant commits
@@ -500,7 +500,7 @@ fn test_split_siblings_with_merge_child() {
     .unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_path,
-        &["split", "-r", "description(a)", "--siblings", "file1"],
+        &["split", "-r", "description(a)", "--parallel", "file1"],
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"

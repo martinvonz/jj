@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Replacing `-l` shorthand for `--limit` with `-n` in `jj log`, `jj op log` and `jj obslog`.
 
+* `jj split --siblings` is deprecated in favor of `jj split --parallel` (to
+  match `jj parallelize`).
+
 ### New features
 
 * Show paths to config files when configuration errors occur
