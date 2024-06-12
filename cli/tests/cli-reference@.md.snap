@@ -1771,7 +1771,7 @@ Splitting an empty commit is not supported because the same effect can be achiev
 * `-r`, `--revision <REVISION>` — The revision to split
 
   Default value: `@`
-* `-s`, `--siblings` — Split the revision into two siblings instead of a parent and child
+* `-p`, `--parallel` — Split the revision into two parallel revisions instead of a parent and child
 
   Possible values: `true`, `false`
 

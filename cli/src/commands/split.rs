@@ -51,9 +51,11 @@ pub(crate) struct SplitArgs {
     /// The revision to split
     #[arg(long, short, default_value = "@")]
     revision: RevisionArg,
-    /// Split the revision into two siblings instead of a parent and child.
-    #[arg(long, short)]
-    siblings: bool,
+    /// Split the revision into two parallel revisions instead of a parent and
+    /// child.
+    // TODO: Delete `--siblings` alias in jj 0.25+
+    #[arg(long, short, alias = "siblings")]
+    parallel: bool,
     /// Put these paths in the first commit
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
@@ -137,7 +139,7 @@ the operation will be aborted.
 
     // Create the second commit, which includes everything the user didn't
     // select.
-    let (second_tree, second_base_tree) = if args.siblings {
+    let (second_tree, second_base_tree) = if args.parallel {
         // Merge the original commit tree with its parent using the tree
         // containing the user selected changes as the base for the merge.
         // This results in a tree with the changes the user didn't select.
@@ -145,7 +147,7 @@ the operation will be aborted.
     } else {
         (end_tree, &selected_tree)
     };
-    let second_commit_parents = if args.siblings {
+    let second_commit_parents = if args.parallel {
         commit.parent_ids().to_vec()
     } else {
         vec![first_commit.id().clone()]
@@ -189,11 +191,11 @@ the operation will be aborted.
         vec![commit.id().clone()],
         |mut rewriter| {
             num_rebased += 1;
-            if args.siblings {
+            if args.parallel {
                 rewriter
                     .replace_parent(second_commit.id(), [first_commit.id(), second_commit.id()]);
             }
-            // We don't need to do anything special for the non-siblings case
+            // We don't need to do anything special for the non-parallel case
             // since we already marked the original commit as rewritten.
             rewriter.rebase(command.settings())?.write()?;
             Ok(())
