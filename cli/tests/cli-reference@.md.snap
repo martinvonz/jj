@@ -2025,7 +2025,18 @@ Stop tracking specified paths in the working copy
 
 Display version information
 
-**Usage:** `jj version`
+**Usage:** `jj version [OPTIONS]`
+
+###### **Options:**
+
+* `--numeric-only` — Display only the version number and nothing else
+
+  Possible values: `true`, `false`
+
+* `--details` — Display build information
+
+  Possible values: `true`, `false`
+
 
 
 
