@@ -87,7 +87,9 @@ revsets (expressions) as arguments.
   `ancestors(x, depth)` returns the ancestors of `x` limited to the given
   `depth`.
 
-* `descendants(x)`: Same as `x::`.
+* `descendants(x[, depth])`: `descendants(x)` is the same as `x::`.
+  `descendants(x, depth)` returns the descendants of `x` limited to the given
+  `depth`.
 
 * `reachable(srcs, domain)`: All commits reachable from `srcs` within
   `domain`, traversing all parent and child edges.

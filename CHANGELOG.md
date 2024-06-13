@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj fix` now supports configuring the default revset for `-s` using the
   `revsets.fix` config.
 
+* The `descendants()` revset function now accepts an optional `depth` argument;
+  like the `ancestors()` depth argument, it limits the depth of the set.
+
 ### Fixed bugs
 
 ## [0.18.0] - 2024-06-05

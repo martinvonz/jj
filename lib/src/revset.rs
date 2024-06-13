@@ -339,18 +339,23 @@ impl RevsetExpression {
 
     /// Descendants of `self`, including `self`.
     pub fn descendants(self: &Rc<RevsetExpression>) -> Rc<RevsetExpression> {
-        Rc::new(RevsetExpression::Descendants {
-            roots: self.clone(),
-            generation: GENERATION_RANGE_FULL,
-        })
+        self.descendants_range(GENERATION_RANGE_FULL)
     }
 
     /// Descendants of `self` at an offset of `generation` ahead of `self`.
     /// The `generation` offset is zero-based starting from `self`.
     pub fn descendants_at(self: &Rc<RevsetExpression>, generation: u64) -> Rc<RevsetExpression> {
+        self.descendants_range(generation..(generation + 1))
+    }
+
+    /// Descendants of `self` in the given range.
+    pub fn descendants_range(
+        self: &Rc<RevsetExpression>,
+        generation_range: Range<u64>,
+    ) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::Descendants {
             roots: self.clone(),
-            generation: generation..(generation + 1),
+            generation: generation_range,
         })
     }
 
@@ -572,9 +577,15 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         Ok(heads.ancestors_range(generation))
     });
     map.insert("descendants", |function, context| {
-        let [arg] = function.expect_exact_arguments()?;
-        let expression = lower_expression(arg, context)?;
-        Ok(expression.descendants())
+        let ([roots_arg], [depth_opt_arg]) = function.expect_arguments()?;
+        let roots = lower_expression(roots_arg, context)?;
+        let generation = if let Some(depth_arg) = depth_opt_arg {
+            let depth = expect_literal("integer", depth_arg)?;
+            0..depth
+        } else {
+            GENERATION_RANGE_FULL
+        };
+        Ok(roots.descendants_range(generation))
     });
     map.insert("connected", |function, context| {
         let [arg] = function.expect_exact_arguments()?;
