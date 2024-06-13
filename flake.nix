@@ -54,16 +54,25 @@
         export DYLD_FALLBACK_LIBRARY_PATH=$(${ourRustVersion}/bin/rustc --print sysroot)/lib
       '';
       
-      # NOTE (aseipp): on Linux, go ahead and use mold by default to improve
-      # link times a bit; mostly useful for debug build speed, but will help
-      # over time if we ever get more dependencies, too
-      useMoldLinker = pkgs.stdenv.isLinux;
-
       # these are needed in both devShell and buildInputs
       linuxNativeDeps = with pkgs; lib.optionals stdenv.isLinux [
         mold-wrapped
       ];
 
+      # on macOS and Linux, use faster parallel linkers that are much more
+      # efficient than the defaults. these noticeably improve link time even for
+      # medium sized rust projects like jj
+      rustLinkerFlags =
+        if pkgs.stdenv.isLinux then
+          [ "-fuse-ld=mold" "-Wl,--compress-debug-sections=zstd" ]
+        else if pkgs.stdenv.isDarwin then
+          [ "-fuse-ld=/usr/bin/ld" "-ld_new" ]
+        else
+          [ ];
+
+      rustLinkFlagsString = pkgs.lib.concatStringsSep " " (pkgs.lib.concatMap (x:
+        [ "-C" "link-arg=${x}" ]
+      ) rustLinkerFlags);
     in
     {
       packages = {
@@ -98,7 +107,7 @@
 
           ZSTD_SYS_USE_PKG_CONFIG = "1";
           LIBSSH2_SYS_USE_PKG_CONFIG = "1";
-          RUSTFLAGS = pkgs.lib.optionalString useMoldLinker "-C link-arg=-fuse-ld=mold";
+          RUSTFLAGS = pkgs.lib.optionalString pkgs.stdenv.isLinux "-C link-arg=-fuse-ld=mold";
           NIX_JJ_GIT_HASH = self.rev or "";
           CARGO_INCREMENTAL = "0";
 
@@ -175,9 +184,7 @@
           export ZSTD_SYS_USE_PKG_CONFIG=1
           export LIBSSH2_SYS_USE_PKG_CONFIG=1
 
-          export RUSTFLAGS="-Zthreads=0"
-        '' + pkgs.lib.optionalString useMoldLinker ''
-          export RUSTFLAGS+=" -C link-arg=-fuse-ld=mold -C link-arg=-Wl,--compress-debug-sections=zstd"
+          export RUSTFLAGS="-Zthreads=0 ${rustLinkFlagsString}"
         '' + darwinNextestHack;
       };
     }));
