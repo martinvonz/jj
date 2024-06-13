@@ -1816,6 +1816,24 @@ fn test_evaluate_expression_descendants() {
             commit3.id().clone(),
         ]
     );
+
+    // Can find next n descendants of a commit
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("descendants({}, 0)", commit2.id().hex())),
+        vec![]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("descendants({}, 1)", commit3.id().hex())),
+        vec![commit3.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &format!("descendants({}, 3)", commit3.id().hex())),
+        vec![
+            commit6.id().clone(),
+            commit5.id().clone(),
+            commit3.id().clone(),
+        ]
+    );
 }
 
 #[test]
