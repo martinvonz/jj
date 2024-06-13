@@ -15,6 +15,7 @@
 use jj_lib::matchers::{EverythingMatcher, FilesMatcher};
 use jj_lib::merged_tree::DiffSummary;
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
+use jj_lib::testutils;
 use testutils::{create_tree, TestRepo};
 
 fn to_owned_path_vec(paths: &[&RepoPath]) -> Vec<RepoPathBuf> {

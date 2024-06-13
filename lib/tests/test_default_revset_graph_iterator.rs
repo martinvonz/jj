@@ -20,6 +20,7 @@ use jj_lib::default_index::DefaultReadonlyIndex;
 use jj_lib::graph::GraphEdge;
 use jj_lib::repo::{ReadonlyRepo, Repo as _};
 use jj_lib::revset::ResolvedExpression;
+use jj_lib::testutils;
 use test_case::test_case;
 use testutils::{CommitGraphBuilder, TestRepo};
 

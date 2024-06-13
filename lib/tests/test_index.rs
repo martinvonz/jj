@@ -30,6 +30,7 @@ use jj_lib::op_store::{RefTarget, RemoteRef};
 use jj_lib::repo::{MutableRepo, ReadonlyRepo, Repo};
 use jj_lib::revset::{ResolvedExpression, GENERATION_RANGE_FULL};
 use jj_lib::settings::UserSettings;
+use jj_lib::testutils;
 use maplit::hashset;
 use testutils::test_backend::TestBackend;
 use testutils::{

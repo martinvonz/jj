@@ -5,7 +5,7 @@ mod common;
 #[test]
 fn test_no_forgotten_test_files() {
     let test_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests");
-    testutils::assert_no_forgotten_test_files(&test_dir);
+    jj_lib::testutils::assert_no_forgotten_test_files(&test_dir);
 }
 
 mod test_abandon_command;

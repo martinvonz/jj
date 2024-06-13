@@ -32,6 +32,7 @@ use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
 use jj_lib::secret_backend::SecretBackend;
 use jj_lib::settings::UserSettings;
+use jj_lib::testutils;
 use jj_lib::working_copy::{CheckoutStats, SnapshotError, SnapshotOptions};
 use jj_lib::workspace::{default_working_copy_factories, LockedWorkspace, Workspace};
 use test_case::test_case;
