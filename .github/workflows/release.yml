@@ -37,7 +37,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout repository
-      uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+      uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
     - name: Install packages (Ubuntu)
       if: matrix.os == 'ubuntu-24.04'
       run: |
@@ -96,7 +96,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends xz-utils liblz4-tool musl-tools
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d
         with:
           python-version: 3.11
@@ -127,7 +127,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
       - run:  "git fetch origin gh-pages --depth=1"
       - uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d
         with:
