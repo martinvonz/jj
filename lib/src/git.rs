@@ -309,9 +309,10 @@ pub fn import_some_refs(
                 mut_repo.set_remote_branch(branch, REMOTE_NAME_FOR_LOCAL_GIT_REPO, new_remote_ref);
             }
             RefName::RemoteBranch { branch, remote } => {
-                if new_remote_ref.is_tracking() {
+                if new_remote_ref.is_tracking() && !git_settings.protect_local_branches {
                     mut_repo.merge_local_branch(branch, base_target, &new_remote_ref.target);
                 }
+
                 // Remote-tracking branch is the last known state of the branch in the remote.
                 // It shouldn't diverge even if we had inconsistent view.
                 mut_repo.set_remote_branch(branch, remote, new_remote_ref);

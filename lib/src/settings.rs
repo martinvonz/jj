@@ -42,6 +42,7 @@ pub struct RepoSettings {
 pub struct GitSettings {
     pub auto_local_branch: bool,
     pub abandon_unreachable_commits: bool,
+    pub protect_local_branches: bool,
 }
 
 impl GitSettings {
@@ -51,6 +52,9 @@ impl GitSettings {
             abandon_unreachable_commits: config
                 .get_bool("git.abandon-unreachable-commits")
                 .unwrap_or(true),
+            protect_local_branches: config
+                .get_bool("git.protect-local-branches")
+                .unwrap_or(false),
         }
     }
 }
@@ -60,6 +64,7 @@ impl Default for GitSettings {
         GitSettings {
             auto_local_branch: false,
             abandon_unreachable_commits: true,
+            protect_local_branches: false,
         }
     }
 }

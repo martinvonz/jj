@@ -785,6 +785,15 @@ example:
 
     git.push-branch-prefix = "martinvonz/push-"
 
+### Don't move local branches on fetch
+
+By default, local branch pointers get updated should the corresponding remote branch move. One can
+prevent this by setting the following.
+
+```toml
+git.protect-local-branches = true
+```
+
 ## Filesystem monitor
 
 In large repositories, it may be beneficial to use a "filesystem monitor" to
