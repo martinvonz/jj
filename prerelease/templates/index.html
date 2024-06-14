@@ -1981,6 +1981,8 @@ can be seen in the <code>cli/src/config/templates.toml</code> file in jj's sourc
 
 <p>New keywords and functions can be defined as aliases, by using any
 combination of the predefined keywords/functions and other aliases.</p>
+<p>Alias functions can be overloaded by the number of parameters. However, builtin
+function will be shadowed by name, and can't co-exist with aliases.</p>
 <p>For example:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[template-aliases]</span>
 <span class="s1">&#39;commit_change_ids&#39;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;</span>
