@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The `descendants()` revset function now accepts an optional `depth` argument;
   like the `ancestors()` depth argument, it limits the depth of the set.
 
+* `jj describe` can now update the description of multiple commits.
+
 ### Fixed bugs
 
 ## [0.18.0] - 2024-06-05

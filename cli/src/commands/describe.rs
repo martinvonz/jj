@@ -12,35 +12,44 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::{self, Read, Write};
+use std::collections::HashMap;
+use std::io::{self, Read};
 
+use itertools::Itertools;
+use jj_lib::commit::CommitIteratorExt;
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
 
 use crate::cli_util::{CommandHelper, RevisionArg};
-use crate::command_error::CommandError;
+use crate::command_error::{user_error, CommandError};
 use crate::description_util::{
-    description_template_for_describe, edit_description, join_message_paragraphs,
+    edit_multiple_descriptions, join_message_paragraphs, EditMultipleDescriptionsResult,
 };
 use crate::ui::Ui;
 
 /// Update the change description or other metadata
 ///
-/// Starts an editor to let you edit the description of a change. The editor
+/// Starts an editor to let you edit the description of changes. The editor
 /// will be $EDITOR, or `pico` if that's not defined (`Notepad` on Windows).
 #[derive(clap::Args, Clone, Debug)]
 #[command(visible_aliases = &["desc"])]
 pub(crate) struct DescribeArgs {
-    /// The revision whose description to edit
+    /// The revision(s) whose description to edit
     #[arg(default_value = "@")]
-    revision: RevisionArg,
+    revisions: Vec<RevisionArg>,
     /// Ignored (but lets you pass `-r` for consistency with other commands)
-    #[arg(short = 'r', hide = true)]
-    unused_revision: bool,
+    #[arg(short = 'r', hide = true, action = clap::ArgAction::Count)]
+    unused_revision: u8,
     /// The change description to use (don't open editor)
+    ///
+    /// If multiple revisions are specified, the same description will be used
+    /// for all of them.
     #[arg(long = "message", short, value_name = "MESSAGE")]
     message_paragraphs: Vec<String>,
     /// Read the change description from stdin
+    ///
+    /// If multiple revisions are specified, the same description will be used
+    /// for all of them.
     #[arg(long)]
     stdin: bool,
     /// Don't open an editor
@@ -67,35 +76,134 @@ pub(crate) fn cmd_describe(
     args: &DescribeArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let commit = workspace_command.resolve_single_rev(&args.revision)?;
-    workspace_command.check_rewritable([commit.id()])?;
-    let description = if args.stdin {
+    let commits: Vec<_> = workspace_command
+        .parse_union_revsets(&args.revisions)?
+        .evaluate_to_commits()?
+        .try_collect()?; // in reverse topological order
+    if commits.is_empty() {
+        writeln!(ui.status(), "No revisions to describe.")?;
+        return Ok(());
+    }
+    workspace_command.check_rewritable(commits.iter().ids())?;
+
+    let shared_description = if args.stdin {
         let mut buffer = String::new();
         io::stdin().read_to_string(&mut buffer).unwrap();
-        buffer
+        Some(buffer)
     } else if !args.message_paragraphs.is_empty() {
-        join_message_paragraphs(&args.message_paragraphs)
-    } else if args.no_edit {
-        commit.description().to_owned()
+        Some(join_message_paragraphs(&args.message_paragraphs))
     } else {
-        let template =
-            description_template_for_describe(ui, command.settings(), &workspace_command, &commit)?;
-        edit_description(workspace_command.repo(), &template, command.settings())?
+        None
     };
-    if description == *commit.description() && !args.reset_author {
-        writeln!(ui.status(), "Nothing changed.")?;
+    let commit_descriptions: HashMap<_, _> = if args.no_edit || shared_description.is_some() {
+        commits
+            .iter()
+            .map(|commit| {
+                let new_description = shared_description
+                    .as_deref()
+                    .unwrap_or_else(|| commit.description());
+                (commit, new_description.to_owned())
+            })
+            .collect()
     } else {
-        let mut tx = workspace_command.start_transaction();
-        let mut commit_builder = tx
-            .mut_repo()
-            .rewrite_commit(command.settings(), &commit)
-            .set_description(description);
-        if args.reset_author {
-            let new_author = commit_builder.committer().clone();
-            commit_builder = commit_builder.set_author(new_author);
+        let EditMultipleDescriptionsResult {
+            descriptions,
+            missing,
+            duplicates,
+            unexpected,
+        } = edit_multiple_descriptions(
+            ui,
+            command.settings(),
+            &workspace_command,
+            workspace_command.repo(),
+            // Edit descriptions in topological order
+            &commits.iter().rev().collect_vec(),
+        )?;
+        if !missing.is_empty() {
+            return Err(user_error(format!(
+                "The description for the following commits were not found in the edited message: \
+                 {}",
+                missing.join(", ")
+            )));
         }
-        commit_builder.write()?;
-        tx.finish(ui, format!("describe commit {}", commit.id().hex()))?;
+        if !duplicates.is_empty() {
+            return Err(user_error(format!(
+                "The following commits were found in the edited message multiple times: {}",
+                duplicates.join(", ")
+            )));
+        }
+        if !unexpected.is_empty() {
+            return Err(user_error(format!(
+                "The following commits were not being edited, but were found in the edited \
+                 message: {}",
+                unexpected.join(", ")
+            )));
+        }
+
+        let commit_descriptions = commits
+            .iter()
+            .filter_map(|commit| {
+                descriptions
+                    .get(commit.id())
+                    .map(|description| (commit, description.to_owned()))
+            })
+            .collect();
+
+        commit_descriptions
+    };
+    let commit_descriptions: HashMap<_, _> = commit_descriptions
+        .into_iter()
+        .filter_map(|(commit, new_description)| {
+            if *new_description == *commit.description() && !args.reset_author {
+                None
+            } else {
+                Some((commit.id(), new_description))
+            }
+        })
+        .collect();
+
+    let mut tx = workspace_command.start_transaction();
+    let tx_description = if commits.len() == 1 {
+        format!("describe commit {}", commits[0].id().hex())
+    } else {
+        format!(
+            "describe commit {} and {} more",
+            commits[0].id().hex(),
+            commits.len() - 1
+        )
+    };
+
+    let mut num_described = 0;
+    let mut num_rebased = 0;
+    tx.mut_repo().transform_descendants(
+        command.settings(),
+        commit_descriptions
+            .keys()
+            .map(|&id| id.clone())
+            .collect_vec(),
+        |rewriter| {
+            let old_commit_id = rewriter.old_commit().id().clone();
+            let mut commit_builder = rewriter.rebase(command.settings())?;
+            if let Some(description) = commit_descriptions.get(&old_commit_id) {
+                commit_builder = commit_builder.set_description(description);
+                if args.reset_author {
+                    let new_author = commit_builder.committer().clone();
+                    commit_builder = commit_builder.set_author(new_author);
+                }
+                num_described += 1;
+            } else {
+                num_rebased += 1;
+            }
+            commit_builder.write()?;
+            Ok(())
+        },
+    )?;
+    if num_described > 1 {
+        writeln!(ui.status(), "Updated {} commits", num_described)?;
     }
+    if num_rebased > 0 {
+        writeln!(ui.status(), "Rebased {} descendant commits", num_rebased)?;
+    }
+    tx.finish(ui, tx_description)?;
     Ok(())
 }
