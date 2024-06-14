@@ -16,6 +16,7 @@ use clap::builder::NonEmptyStringValueParser;
 use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::RefTarget;
 
+use super::has_tracked_remote_branches;
 use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::{user_error_with_hint, CommandError};
 use crate::ui::Ui;
@@ -42,14 +43,22 @@ pub fn cmd_branch_create(
         workspace_command.resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
     let view = workspace_command.repo().view();
     let branch_names = &args.names;
-    if let Some(branch_name) = branch_names
-        .iter()
-        .find(|&name| view.get_local_branch(name).is_present())
-    {
-        return Err(user_error_with_hint(
-            format!("Branch already exists: {branch_name}"),
-            "Use `jj branch set` to update it.",
-        ));
+    for name in branch_names {
+        if view.get_local_branch(name).is_present() {
+            return Err(user_error_with_hint(
+                format!("Branch already exists: {name}"),
+                "Use `jj branch set` to update it.",
+            ));
+        }
+        if has_tracked_remote_branches(view, name) {
+            return Err(user_error_with_hint(
+                format!("Tracked remote branches exist for deleted branch: {name}"),
+                format!(
+                    "Use `jj branch set` to recreate the local branch. Run `jj branch untrack \
+                     'glob:{name}@*'` to disassociate them."
+                ),
+            ));
+        }
     }
 
     if branch_names.len() > 1 {
