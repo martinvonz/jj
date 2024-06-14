@@ -449,7 +449,7 @@ fn test_op_abandon_ancestors() {
     insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
     "###);
-    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log", "-l1"]), @r###"
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log", "-n1"]), @r###"
     @  445e93662d71 test-username@host.example.com 2001-02-03 04:05:21.000 +07:00 - 2001-02-03 04:05:21.000 +07:00
     │  undo operation 70112b4447b65fa811038b2b119fe22e959e3b3194b461a32475f6528c2b684ac6baebc86cce7ad7e0bb92c033852850e561506508ca43e823626f107e81ed76
     │  args: jj undo
@@ -480,7 +480,7 @@ fn test_op_abandon_without_updating_working_copy() {
     Current tree: Merge(Resolved(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904")))
     "###);
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["op", "log", "-l1", "--ignore-working-copy"]), @r###"
+        test_env.jj_cmd_success(&repo_path, &["op", "log", "-n1", "--ignore-working-copy"]), @r###"
     @  ae6364994418 test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
     │  commit 268f5f16139313ff25bef31280b2ec2e675200f3
     │  args: jj commit -m 'commit 3'
@@ -500,7 +500,7 @@ fn test_op_abandon_without_updating_working_copy() {
     Current tree: Merge(Resolved(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904")))
     "###);
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["op", "log", "-l1", "--ignore-working-copy"]), @r###"
+        test_env.jj_cmd_success(&repo_path, &["op", "log", "-n1", "--ignore-working-copy"]), @r###"
     @  51192a90e899 test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
     │  commit 268f5f16139313ff25bef31280b2ec2e675200f3
     │  args: jj commit -m 'commit 3'

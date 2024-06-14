@@ -39,8 +39,16 @@ pub(crate) struct ObslogArgs {
     #[arg(long, short, default_value = "@")]
     revision: RevisionArg,
     /// Limit number of revisions to show
-    #[arg(long, short)]
+    #[arg(long, short = 'n')]
     limit: Option<usize>,
+    // TODO: Delete `-l` alias in jj 0.25+
+    #[arg(
+        short = 'l',
+        hide = true,
+        conflicts_with = "limit",
+        value_name = "LIMIT"
+    )]
+    deprecated_limit: Option<usize>,
     /// Don't show the graph, show a flat list of revisions
     #[arg(long)]
     no_graph: bool,
@@ -107,7 +115,13 @@ pub(crate) fn cmd_obslog(
         |commit: &Commit| commit.id().clone(),
         |commit: &Commit| commit.predecessors().collect_vec(),
     )?;
-    if let Some(n) = args.limit {
+    if args.deprecated_limit.is_some() {
+        writeln!(
+            ui.warning_default(),
+            "The -l shorthand is deprecated, use -n instead."
+        )?;
+    }
+    if let Some(n) = args.limit.or(args.deprecated_limit) {
         commits.truncate(n);
     }
     if !args.no_graph {
