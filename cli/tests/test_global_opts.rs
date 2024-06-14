@@ -377,29 +377,23 @@ fn test_color_config() {
     ◉  0000000000000000000000000000000000000000
     "###);
 
-    // Test that --config-toml 'ui.color="never"' overrides the config.
+    // Test that --config 'ui.color="never"' overrides the config.
     let stdout = test_env.jj_cmd_success(
         &repo_path,
-        &[
-            "--config-toml",
-            "ui.color=\"never\"",
-            "log",
-            "-T",
-            "commit_id",
-        ],
+        &["--config", "ui.color=\"never\"", "log", "-T", "commit_id"],
     );
     insta::assert_snapshot!(stdout, @r###"
     @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
     ◉  0000000000000000000000000000000000000000
     "###);
 
-    // --color overrides --config-toml 'ui.color=...'.
+    // --color overrides --config 'ui.color=...'.
     let stdout = test_env.jj_cmd_success(
         &repo_path,
         &[
             "--color",
             "never",
-            "--config-toml",
+            "--config",
             "ui.color=\"always\"",
             "log",
             "-T",
@@ -467,7 +461,7 @@ fn test_color_ui_messages() {
         &[
             "log",
             "-r@|@--",
-            "--config-toml=templates.log_node='commit_id'",
+            "--config=templates.log_node='commit_id'",
             "-Tdescription",
         ],
     );
@@ -528,7 +522,7 @@ fn test_early_args() {
     test_env.jj_cmd_success(test_env.env_root(), &["--no-pager", "help"]);
     test_env.jj_cmd_success(
         test_env.env_root(),
-        &["--config-toml", "ui.color = 'always'", "help"],
+        &["--config", "ui.color = 'always'", "help"],
     );
 }
 
@@ -606,7 +600,7 @@ fn test_help() {
           --color <WHEN>                 When to colorize output (always, never, debug, auto)
           --quiet                        Silence non-primary command output
           --no-pager                     Disable the pager
-          --config-toml <TOML>           Additional configuration options (can be repeated)
+          --config <TOML>                Additional configuration options (can be repeated)
     "###);
 }
 

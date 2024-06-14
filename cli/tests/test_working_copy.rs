@@ -32,7 +32,7 @@ fn test_snapshot_large_file() {
       - Adding the file to `.gitignore`
       - Run `jj config set --repo snapshot.max-new-file-size 13`
         This will increase the maximum file size allowed for new files, in this repository only.
-      - Run `jj --config-toml 'snapshot.max-new-file-size=13' st`
+      - Run `jj --config 'snapshot.max-new-file-size=13' st`
         This will increase the maximum file size allowed for new files, for this command only.
     "###);
 
@@ -48,7 +48,7 @@ fn test_snapshot_large_file() {
       - Adding the file to `.gitignore`
       - Run `jj config set --repo snapshot.max-new-file-size 11264`
         This will increase the maximum file size allowed for new files, in this repository only.
-      - Run `jj --config-toml 'snapshot.max-new-file-size=11264' st`
+      - Run `jj --config 'snapshot.max-new-file-size=11264' st`
         This will increase the maximum file size allowed for new files, for this command only.
     "###);
 }

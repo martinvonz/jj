@@ -412,7 +412,7 @@ fn test_workspaces_current_op_discarded_by_other() {
     // Use the local backend because GitBackend::gc() depends on the git CLI.
     test_env.jj_cmd_ok(
         test_env.env_root(),
-        &["init", "main", "--config-toml=ui.allow-init-native=true"],
+        &["init", "main", "--config=ui.allow-init-native=true"],
     );
     let main_path = test_env.env_root().join("main");
     let secondary_path = test_env.env_root().join("secondary");

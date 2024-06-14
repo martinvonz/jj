@@ -154,8 +154,8 @@ fn test_mine_is_true_when_author_is_user() {
     test_env.jj_cmd_ok(
         &repo_path,
         &[
-            "--config-toml=user.email='johndoe@example.com'",
-            "--config-toml=user.name='John Doe'",
+            "--config=user.email='johndoe@example.com'",
+            "--config=user.name='John Doe'",
             "new",
         ],
     );
@@ -229,11 +229,7 @@ fn test_log_builtin_templates() {
 
     test_env.jj_cmd_ok(
         &repo_path,
-        &[
-            "--config-toml=user.email=''",
-            "--config-toml=user.name=''",
-            "new",
-        ],
+        &["--config=user.email=''", "--config=user.name=''", "new"],
     );
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "my-branch"]);
 
@@ -302,11 +298,7 @@ fn test_log_builtin_templates_colored() {
 
     test_env.jj_cmd_ok(
         &repo_path,
-        &[
-            "--config-toml=user.email=''",
-            "--config-toml=user.name=''",
-            "new",
-        ],
+        &["--config=user.email=''", "--config=user.name=''", "new"],
     );
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "my-branch"]);
 
@@ -370,11 +362,7 @@ fn test_log_builtin_templates_colored_debug() {
 
     test_env.jj_cmd_ok(
         &repo_path,
-        &[
-            "--config-toml=user.email=''",
-            "--config-toml=user.name=''",
-            "new",
-        ],
+        &["--config=user.email=''", "--config=user.name=''", "new"],
     );
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "my-branch"]);
 
@@ -653,7 +641,7 @@ fn test_log_customize_short_id() {
         &repo_path,
         &[
             "log",
-            "--config-toml",
+            "--config",
             &format!(r#"{decl}='id.shortest(5).prefix().upper() ++ "_" ++ id.shortest(5).rest()'"#),
         ],
     );
@@ -668,7 +656,7 @@ fn test_log_customize_short_id() {
         &repo_path,
         &[
             "log",
-            "--config-toml",
+            "--config",
             r#"
                 [template-aliases]
                 'format_short_change_id(id)'='format_short_id(id).upper()'

@@ -769,7 +769,7 @@ fn test_rebase_multiple_destinations() {
         &repo_path,
         &[
             "rebase",
-            "--config-toml=ui.always-allow-large-revsets=true",
+            "--config=ui.always-allow-large-revsets=true",
             "-r=a",
             "-d=b|c",
         ],

@@ -196,7 +196,7 @@ pub struct AnnotatedValue {
 /// 4. Repo config `.jj/repo/config.toml`
 /// 5. TODO: Workspace config `.jj/config.toml`
 /// 6. Override environment variables
-/// 7. Command-line arguments `--config-toml`
+/// 7. Command-line arguments `--config`
 #[derive(Clone, Debug)]
 pub struct LayeredConfigs {
     default: config::Config,

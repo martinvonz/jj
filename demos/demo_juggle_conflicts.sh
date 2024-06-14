@@ -4,7 +4,7 @@ set -euo pipefail
 
 new_tmp_dir
 (
-    jj init --config-toml ui.allow-init-native=true
+    jj init --config ui.allow-init-native=true
     echo "first" > file
     jj branch create first
     jj commit -m 'first'

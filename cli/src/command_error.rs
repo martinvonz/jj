@@ -326,7 +326,7 @@ impl From<SnapshotError> for CommandError {
   - Adding the file to `.gitignore`
   - Run `jj config set --repo snapshot.max-new-file-size {}`
     This will increase the maximum file size allowed for new files, in this repository only.
-  - Run `jj --config-toml 'snapshot.max-new-file-size={}' st`
+  - Run `jj --config 'snapshot.max-new-file-size={}' st`
     This will increase the maximum file size allowed for new files, for this command only.",
                     size.0, size.0
                 ))

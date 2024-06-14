@@ -2406,10 +2406,9 @@ pub struct EarlyArgs {
     // Option<bool>.
     pub no_pager: Option<bool>,
     /// Additional configuration options (can be repeated)
-    //  TODO: Introduce a `--config` option with simpler syntax for simple
-    //  cases, designed so that `--config ui.color=auto` works
-    #[arg(long, value_name = "TOML", global = true)]
-    pub config_toml: Vec<String>,
+    // TODO: Delete `--config-toml` alias in jj 0.25+
+    #[arg(long, value_name = "TOML", global = true, alias = "config-toml")]
+    pub config: Vec<String>,
 }
 
 /// Wrapper around revset expression argument.
@@ -2598,16 +2597,16 @@ fn handle_early_args(
     let mut args: EarlyArgs = EarlyArgs::from_arg_matches(&early_matches).unwrap();
 
     if let Some(choice) = args.color {
-        args.config_toml.push(format!(r#"ui.color="{choice}""#));
+        args.config.push(format!(r#"ui.color="{choice}""#));
     }
     if args.quiet.unwrap_or_default() {
-        args.config_toml.push(r#"ui.quiet=true"#.to_string());
+        args.config.push(r#"ui.quiet=true"#.to_string());
     }
     if args.no_pager.unwrap_or_default() {
-        args.config_toml.push(r#"ui.paginate="never""#.to_owned());
+        args.config.push(r#"ui.paginate="never""#.to_owned());
     }
-    if !args.config_toml.is_empty() {
-        layered_configs.parse_config_args(&args.config_toml)?;
+    if !args.config.is_empty() {
+        layered_configs.parse_config_args(&args.config)?;
         ui.reset(&layered_configs.merge())?;
     }
     Ok(())
@@ -2867,12 +2866,12 @@ impl CliRunner {
             maybe_cwd_workspace_loader
         };
 
-        // Apply workspace configs and --config-toml arguments.
+        // Apply workspace configs and --config arguments.
         let config = layered_configs.merge();
         ui.reset(&config)?;
 
         // If -R is specified, check if the expanded arguments differ. Aliases
-        // can also be injected by --config-toml, but that's obviously wrong.
+        // can also be injected by --config, but that's obviously wrong.
         if args.global_args.repository.is_some() {
             let new_string_args = expand_args(ui, &self.app, env::args_os(), &config).ok();
             if new_string_args.as_ref() != Some(&string_args) {

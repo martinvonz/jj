@@ -44,7 +44,7 @@ fn test_gc_args() {
     // Use the local backend because GitBackend::gc() depends on the git CLI.
     test_env.jj_cmd_ok(
         test_env.env_root(),
-        &["init", "repo", "--config-toml=ui.allow-init-native=true"],
+        &["init", "repo", "--config=ui.allow-init-native=true"],
     );
     let repo_path = test_env.env_root().join("repo");
 
@@ -68,7 +68,7 @@ fn test_gc_operation_log() {
     // Use the local backend because GitBackend::gc() depends on the git CLI.
     test_env.jj_cmd_ok(
         test_env.env_root(),
-        &["init", "repo", "--config-toml=ui.allow-init-native=true"],
+        &["init", "repo", "--config=ui.allow-init-native=true"],
     );
     let repo_path = test_env.env_root().join("repo");
 

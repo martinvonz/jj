@@ -37,7 +37,7 @@ fn set_up(trunk_name: &str) -> (TestEnvironment, PathBuf) {
         &[
             "git",
             "clone",
-            "--config-toml=git.auto-local-branch=true",
+            "--config=git.auto-local-branch=true",
             origin_git_repo_path.to_str().unwrap(),
             "local",
         ],

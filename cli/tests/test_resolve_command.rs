@@ -125,7 +125,7 @@ fn test_resolution() {
         &repo_path,
         &[
             "resolve",
-            "--config-toml=ui.merge-editor='false'",
+            "--config=ui.merge-editor='false'",
             "--tool=fake-editor",
         ],
     );
@@ -172,7 +172,7 @@ fn test_resolution() {
         &repo_path,
         &[
             "resolve",
-            "--config-toml",
+            "--config",
             "merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
         ],
     );
@@ -230,7 +230,7 @@ fn test_resolution() {
         &repo_path,
         &[
             "resolve",
-            "--config-toml",
+            "--config",
             "merge-tools.fake-editor.merge-tool-edits-conflict-markers=true",
         ],
     );
@@ -368,7 +368,7 @@ fn check_resolve_produces_input_file(
     // https://github.com/mitsuhiko/insta/commit/745b45b. Hopefully, this will again become possible
     // in the future. See also https://github.com/mitsuhiko/insta/issues/313.
     assert_eq!(
-        &test_env.jj_cmd_failure(repo_path, &["resolve", "--config-toml", &merge_arg_config]),
+        &test_env.jj_cmd_failure(repo_path, &["resolve", "--config", &merge_arg_config]),
         "Resolving conflicts in: file\nError: Failed to resolve conflicts\nCaused by: The output \
          file is either unchanged or empty after the editor quit (run with --debug to see the \
          exact invocation).\n"
