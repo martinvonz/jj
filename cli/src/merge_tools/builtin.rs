@@ -1014,7 +1014,9 @@ mod tests {
             to_file_id(base_tree.path_value(path).unwrap()),
             to_file_id(right_tree.path_value(path).unwrap()),
         ]);
-        let content = extract_as_single_hunk(&merge, store, path).block_on();
+        let content = extract_as_single_hunk(&merge, store, path)
+            .block_on()
+            .unwrap();
         let slices = content.map(|ContentHunk(buf)| buf.as_slice());
         let merge_result = files::merge(&slices);
         let sections = make_merge_sections(merge_result).unwrap();
