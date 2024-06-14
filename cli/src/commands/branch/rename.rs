@@ -69,6 +69,19 @@ pub fn cmd_branch_rename(
              `jj git push --all` would also be sufficient."
         )?;
     }
+    if has_tracked_remote_branches(view, new_branch) {
+        // This isn't an error because branch renaming can't be propagated to
+        // the remote immediately. "rename old new && rename new old" should be
+        // allowed even if the original old branch had tracked remotes.
+        writeln!(
+            ui.warning_default(),
+            "Tracked remote branches for branch {new_branch} exist."
+        )?;
+        writeln!(
+            ui.hint_default(),
+            "Run `jj branch untrack 'glob:{new_branch}@*'` to disassociate them."
+        )?;
+    }
 
     Ok(())
 }

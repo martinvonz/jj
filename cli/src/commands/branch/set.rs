@@ -16,7 +16,7 @@ use clap::builder::NonEmptyStringValueParser;
 use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::RefTarget;
 
-use super::is_fast_forward;
+use super::{has_tracked_remote_branches, is_fast_forward};
 use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::{user_error_with_hint, CommandError};
 use crate::ui::Ui;
@@ -50,7 +50,9 @@ pub fn cmd_branch_set(
     let mut new_branch_names: Vec<&str> = Vec::new();
     for name in branch_names {
         let old_target = repo.view().get_local_branch(name);
-        if old_target.is_absent() {
+        // If a branch is absent locally but is still tracking remote branches,
+        // we are resurrecting the local branch, not "creating" a new branch.
+        if old_target.is_absent() && !has_tracked_remote_branches(repo.view(), name) {
             new_branch_names.push(name);
         }
         if !args.allow_backwards && !is_fast_forward(repo, old_target, target_commit.id()) {

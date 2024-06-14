@@ -103,6 +103,14 @@ fn test_branch_move() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
+    // Set up remote
+    let git_repo_path = test_env.env_root().join("git-repo");
+    git2::Repository::init_bare(git_repo_path).unwrap();
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &["git", "remote", "add", "origin", "../git-repo"],
+    );
+
     let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "move", "foo"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: No such branch: foo
@@ -150,6 +158,40 @@ fn test_branch_move() {
         &["branch", "move", "--to=@-", "--allow-backwards", "foo"],
     );
     insta::assert_snapshot!(stderr, @"");
+
+    // Delete branch locally, but is still tracking remote
+    test_env.jj_cmd_ok(&repo_path, &["describe", "@-", "-mcommit"]);
+    test_env.jj_cmd_ok(&repo_path, &["git", "push", "-r@-"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "foo"]);
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    foo (deleted)
+      @origin: qpvuntsm 29a62310 (empty) commit
+    "###);
+
+    // Deleted tracking branch name should still be allocated
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "create", "foo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Tracked remote branches exist for deleted branch: foo
+    Hint: Use `jj branch set` to recreate the local branch. Run `jj branch untrack 'glob:foo@*'` to disassociate them.
+    "###);
+
+    // Restoring local target shouldn't invalidate tracking state
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo"]);
+    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    foo: mzvwutvl d5f17aba (empty) (no description set)
+      @origin (behind by 1 commits): qpvuntsm 29a62310 (empty) commit
+    "###);
+
+    // Untracked remote branch shouldn't block creation of local branch
+    test_env.jj_cmd_ok(&repo_path, &["branch", "untrack", "foo@origin"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "foo"]);
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
+    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
+    foo: mzvwutvl d5f17aba (empty) (no description set)
+    foo@origin: qpvuntsm 29a62310 (empty) commit
+    "###);
 }
 
 #[test]
@@ -356,6 +398,12 @@ fn test_branch_rename() {
     insta::assert_snapshot!(stderr, @r###"
     Warning: Tracked remote branches for branch bremote were not renamed.
     Hint: To rename the branch on the remote, you can `jj git push --branch bremote` first (to delete it on the remote), and then `jj git push --branch bremote2`. `jj git push --all` would also be sufficient.
+    "###);
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["branch", "rename", "bremote2", "bremote"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Warning: Tracked remote branches for branch bremote exist.
+    Hint: Run `jj branch untrack 'glob:bremote@*'` to disassociate them.
     "###);
 }
 
