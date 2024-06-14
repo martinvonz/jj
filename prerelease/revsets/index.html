@@ -1522,7 +1522,9 @@ revsets (expressions) as arguments.</p>
   <code>depth</code>.</p>
 </li>
 <li>
-<p><code>descendants(x)</code>: Same as <code>x::</code>.</p>
+<p><code>descendants(x[, depth])</code>: <code>descendants(x)</code> is the same as <code>x::</code>.
+  <code>descendants(x, depth)</code> returns the descendants of <code>x</code> limited to the given
+  <code>depth</code>.</p>
 </li>
 <li>
 <p><code>reachable(srcs, domain)</code>: All commits reachable from <code>srcs</code> within
