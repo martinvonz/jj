@@ -13,8 +13,8 @@
 // limitations under the License.
 
 use jj_lib::op_store::RefTarget;
-use jj_lib::str_util::StringPattern;
 
+use super::has_tracked_remote_branches;
 use crate::cli_util::CommandHelper;
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
@@ -57,13 +57,7 @@ pub fn cmd_branch_rename(
     tx.finish(ui, format!("rename branch {old_branch} to {new_branch}"))?;
 
     let view = workspace_command.repo().view();
-    if view
-        .remote_branches_matching(
-            &StringPattern::exact(old_branch),
-            &StringPattern::everything(),
-        )
-        .any(|(_, remote_ref)| remote_ref.is_tracking())
-    {
+    if has_tracked_remote_branches(view, old_branch) {
         writeln!(
             ui.warning_default(),
             "Branch {old_branch} has tracking remote branches which were not renamed."

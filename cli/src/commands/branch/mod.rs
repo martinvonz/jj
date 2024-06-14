@@ -159,6 +159,13 @@ fn find_remote_branches<'a>(
     }
 }
 
+/// Whether or not the `branch` has any tracked remotes (i.e. is a tracking
+/// local branch.)
+fn has_tracked_remote_branches(view: &View, branch: &str) -> bool {
+    view.remote_branches_matching(&StringPattern::exact(branch), &StringPattern::everything())
+        .any(|(_, remote_ref)| remote_ref.is_tracking())
+}
+
 fn is_fast_forward(repo: &dyn Repo, old_target: &RefTarget, new_target_id: &CommitId) -> bool {
     if old_target.is_present() {
         // Strictly speaking, "all" old targets should be ancestors, but we allow
