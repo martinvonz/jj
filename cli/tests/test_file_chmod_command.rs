@@ -50,7 +50,7 @@ fn test_chmod_regular_conflict() {
     create_commit(&test_env, &repo_path, "n", &["base"], &[("file", "n\n")]);
     create_commit(&test_env, &repo_path, "x", &["base"], &[("file", "x\n")]);
     // Test chmodding a file. The effect will be visible in the conflict below.
-    test_env.jj_cmd_ok(&repo_path, &["chmod", "x", "file", "-r=x"]);
+    test_env.jj_cmd_ok(&repo_path, &["file", "chmod", "x", "file", "-r=x"]);
     create_commit(&test_env, &repo_path, "conflict", &["x", "n"], &[]);
 
     // Test the setup
@@ -68,7 +68,7 @@ fn test_chmod_regular_conflict() {
     @r###"
     file: Ok(Conflicted([Some(File { id: FileId("587be6b4c3f93f93c489c0111bba5596147a26cb"), executable: true }), Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false }), Some(File { id: FileId("8ba3a16384aacc37d01564b28401755ce8053f51"), executable: false })]))
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "file"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file"]);
     insta::assert_snapshot!(stdout, 
     @r###"
     <<<<<<< Conflict 1 of 1
@@ -81,13 +81,13 @@ fn test_chmod_regular_conflict() {
     "###);
 
     // Test chmodding a conflict
-    test_env.jj_cmd_ok(&repo_path, &["chmod", "x", "file"]);
+    test_env.jj_cmd_ok(&repo_path, &["file", "chmod", "x", "file"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["debug", "tree"]);
     insta::assert_snapshot!(stdout, 
     @r###"
     file: Ok(Conflicted([Some(File { id: FileId("587be6b4c3f93f93c489c0111bba5596147a26cb"), executable: true }), Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: true }), Some(File { id: FileId("8ba3a16384aacc37d01564b28401755ce8053f51"), executable: true })]))
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "file"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file"]);
     insta::assert_snapshot!(stdout, 
     @r###"
     <<<<<<< Conflict 1 of 1
@@ -98,13 +98,13 @@ fn test_chmod_regular_conflict() {
     n
     >>>>>>> Conflict 1 of 1 ends
     "###);
-    test_env.jj_cmd_ok(&repo_path, &["chmod", "n", "file"]);
+    test_env.jj_cmd_ok(&repo_path, &["file", "chmod", "n", "file"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["debug", "tree"]);
     insta::assert_snapshot!(stdout, 
     @r###"
     file: Ok(Conflicted([Some(File { id: FileId("587be6b4c3f93f93c489c0111bba5596147a26cb"), executable: false }), Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false }), Some(File { id: FileId("8ba3a16384aacc37d01564b28401755ce8053f51"), executable: false })]))
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "file"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file"]);
     insta::assert_snapshot!(stdout, 
     @r###"
     <<<<<<< Conflict 1 of 1
@@ -117,7 +117,8 @@ fn test_chmod_regular_conflict() {
     "###);
 
     // Unmatched paths should generate warnings
-    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["chmod", "x", "nonexistent", "file"]);
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["file", "chmod", "x", "nonexistent", "file"]);
     insta::assert_snapshot!(stderr, @r###"
     Warning: No matching entries for paths: nonexistent
     Working copy now at: yostqsxw e5912d62 conflict | (conflict) conflict
@@ -179,7 +180,7 @@ fn test_chmod_file_dir_deletion_conflicts() {
     @r###"
     file: Ok(Conflicted([Some(File { id: FileId("78981922613b2afb6025042ff6bd878ac1994e85"), executable: false }), Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false }), Some(Tree(TreeId("133bb38fc4e4bf6b551f1f04db7e48f04cac2877")))]))
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "-r=file_dir", "file"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "-r=file_dir", "file"]);
     insta::assert_snapshot!(stdout,
     @r###"
     Conflict:
@@ -187,7 +188,8 @@ fn test_chmod_file_dir_deletion_conflicts() {
       Adding file with id 78981922613b2afb6025042ff6bd878ac1994e85
       Adding tree with id 133bb38fc4e4bf6b551f1f04db7e48f04cac2877
     "###);
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["chmod", "x", "file", "-r=file_dir"]);
+    let stderr =
+        test_env.jj_cmd_failure(&repo_path, &["file", "chmod", "x", "file", "-r=file_dir"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Some of the sides of the conflict are not files at 'file'.
     "###);
@@ -198,7 +200,8 @@ fn test_chmod_file_dir_deletion_conflicts() {
     @r###"
     file: Ok(Conflicted([Some(File { id: FileId("78981922613b2afb6025042ff6bd878ac1994e85"), executable: false }), Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: false }), None]))
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "-r=file_deletion", "file"]);
+    let stdout =
+        test_env.jj_cmd_success(&repo_path, &["file", "print", "-r=file_deletion", "file"]);
     insta::assert_snapshot!(stdout,
     @r###"
     <<<<<<< Conflict 1 of 1
@@ -208,8 +211,10 @@ fn test_chmod_file_dir_deletion_conflicts() {
     -base
     >>>>>>> Conflict 1 of 1 ends
     "###);
-    let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["chmod", "x", "file", "-r=file_deletion"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["file", "chmod", "x", "file", "-r=file_deletion"],
+    );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     New conflicts appeared in these commits:
@@ -231,7 +236,8 @@ fn test_chmod_file_dir_deletion_conflicts() {
     @r###"
     file: Ok(Conflicted([Some(File { id: FileId("78981922613b2afb6025042ff6bd878ac1994e85"), executable: true }), Some(File { id: FileId("df967b96a579e45a18b8251732d16804b2e56a55"), executable: true }), None]))
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["cat", "-r=file_deletion", "file"]);
+    let stdout =
+        test_env.jj_cmd_success(&repo_path, &["file", "print", "-r=file_deletion", "file"]);
     insta::assert_snapshot!(stdout,
     @r###"
     <<<<<<< Conflict 1 of 1

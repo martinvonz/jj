@@ -22,8 +22,6 @@ This document contains the help content for the `jj` command-line program.
 * [`jj branch set`↴](#jj-branch-set)
 * [`jj branch track`↴](#jj-branch-track)
 * [`jj branch untrack`↴](#jj-branch-untrack)
-* [`jj cat`↴](#jj-cat)
-* [`jj chmod`↴](#jj-chmod)
 * [`jj commit`↴](#jj-commit)
 * [`jj config`↴](#jj-config)
 * [`jj config list`↴](#jj-config-list)
@@ -36,6 +34,9 @@ This document contains the help content for the `jj` command-line program.
 * [`jj diffedit`↴](#jj-diffedit)
 * [`jj duplicate`↴](#jj-duplicate)
 * [`jj edit`↴](#jj-edit)
+* [`jj file`↴](#jj-file)
+* [`jj file print`↴](#jj-file-print)
+* [`jj file chmod`↴](#jj-file-chmod)
 * [`jj files`↴](#jj-files)
 * [`jj fix`↴](#jj-fix)
 * [`jj git`↴](#jj-git)
@@ -108,8 +109,6 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `abandon` — Abandon a revision
 * `backout` — Apply the reverse of a revision on top of another revision
 * `branch` — Manage branches
-* `cat` — Print contents of files in a revision
-* `chmod` — Sets or removes the executable bit for paths in the repo
 * `commit` — Update the description and create a new change on top
 * `config` — Manage config options
 * `describe` — Update the change description or other metadata
@@ -117,6 +116,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `diffedit` — Touch up the content changes in a revision with a diff editor
 * `duplicate` — Create a new change with the same content as an existing one
 * `edit` — Sets the specified revision as the working-copy revision
+* `file` — File operations
 * `files` — List files in a revision
 * `fix` — Update files with formatting fixes or other changes
 * `git` — Commands for working with Git remotes and the underlying Git repo
@@ -390,54 +390,6 @@ A non-tracking remote branch is just a pointer to the last-fetched remote branch
 
 
 
-## `jj cat`
-
-Print contents of files in a revision
-
-If the given path is a directory, files in the directory will be visited recursively.
-
-**Usage:** `jj cat [OPTIONS] <PATHS>...`
-
-###### **Arguments:**
-
-* `<PATHS>` — Paths to print
-
-###### **Options:**
-
-* `-r`, `--revision <REVISION>` — The revision to get the file contents from
-
-  Default value: `@`
-
-
-
-## `jj chmod`
-
-Sets or removes the executable bit for paths in the repo
-
-Unlike the POSIX `chmod`, `jj chmod` also works on Windows, on conflicted files, and on arbitrary revisions.
-
-**Usage:** `jj chmod [OPTIONS] <MODE> <PATHS>...`
-
-###### **Arguments:**
-
-* `<MODE>`
-
-  Possible values:
-  - `n`:
-    Make a path non-executable (alias: normal)
-  - `x`:
-    Make a path executable (alias: executable)
-
-* `<PATHS>` — Paths to change the executable bit for
-
-###### **Options:**
-
-* `-r`, `--revision <REVISION>` — The revision to update
-
-  Default value: `@`
-
-
-
 ## `jj commit`
 
 Update the description and create a new change on top
@@ -690,6 +642,67 @@ For more information, see https://martinvonz.github.io/jj/latest/FAQ#how-do-i-re
 ###### **Arguments:**
 
 * `<REVISION>` — The commit to edit
+
+
+
+## `jj file`
+
+File operations
+
+**Usage:** `jj file <COMMAND>`
+
+###### **Subcommands:**
+
+* `print` — Print contents of files in a revision
+* `chmod` — Sets or removes the executable bit for paths in the repo
+
+
+
+## `jj file print`
+
+Print contents of files in a revision
+
+If the given path is a directory, files in the directory will be visited recursively.
+
+**Usage:** `jj file print [OPTIONS] <PATHS>...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Paths to print
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>` — The revision to get the file contents from
+
+  Default value: `@`
+
+
+
+## `jj file chmod`
+
+Sets or removes the executable bit for paths in the repo
+
+Unlike the POSIX `chmod`, `jj chmod` also works on Windows, on conflicted files, and on arbitrary revisions.
+
+**Usage:** `jj file chmod [OPTIONS] <MODE> <PATHS>...`
+
+###### **Arguments:**
+
+* `<MODE>`
+
+  Possible values:
+  - `n`:
+    Make a path non-executable (alias: normal)
+  - `x`:
+    Make a path executable (alias: executable)
+
+* `<PATHS>` — Paths to change the executable bit for
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>` — The revision to update
+
+  Default value: `@`
 
 
 

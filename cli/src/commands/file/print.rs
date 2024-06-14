@@ -34,7 +34,7 @@ use crate::ui::Ui;
 /// If the given path is a directory, files in the directory will be visited
 /// recursively.
 #[derive(clap::Args, Clone, Debug)]
-pub(crate) struct CatArgs {
+pub(crate) struct PrintArgs {
     /// The revision to get the file contents from
     #[arg(long, short, default_value = "@")]
     revision: RevisionArg,
@@ -44,10 +44,27 @@ pub(crate) struct CatArgs {
 }
 
 #[instrument(skip_all)]
-pub(crate) fn cmd_cat(
+pub(crate) fn deprecated_cmd_cat(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &CatArgs,
+    args: &PrintArgs,
+) -> Result<(), CommandError> {
+    writeln!(
+        ui.warning_default(),
+        "`jj cat` is deprecated; use `jj file print` instead, which is equivalent"
+    )?;
+    writeln!(
+        ui.warning_default(),
+        "`jj cat` will be removed in a future version, and this will be a hard error"
+    )?;
+    cmd_print(ui, command, args)
+}
+
+#[instrument(skip_all)]
+pub(crate) fn cmd_print(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &PrintArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;

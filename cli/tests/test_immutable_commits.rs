@@ -204,7 +204,7 @@ fn test_rewrite_immutable_commands() {
     Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
     // chmod
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["chmod", "-r=main", "x", "file"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["file", "chmod", "-r=main", "x", "file"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Commit 3e0250828ca5 is immutable
     Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.

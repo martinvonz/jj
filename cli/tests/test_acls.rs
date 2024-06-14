@@ -110,7 +110,7 @@ fn test_cat() {
 
     SecretBackend::adopt_git_repo(&repo_path);
 
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["cat", "."]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["file", "print", "."]);
     insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
     foo
     baz
