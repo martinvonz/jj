@@ -17,9 +17,7 @@ mod backout;
 #[cfg(feature = "bench")]
 mod bench;
 mod branch;
-mod cat;
 mod checkout;
-mod chmod;
 mod commit;
 mod config;
 mod debug;
@@ -28,6 +26,7 @@ mod diff;
 mod diffedit;
 mod duplicate;
 mod edit;
+mod file;
 mod files;
 mod fix;
 mod git;
@@ -77,11 +76,12 @@ enum Command {
     Bench(bench::BenchCommand),
     #[command(subcommand)]
     Branch(branch::BranchCommand),
-    #[command(alias = "print")]
-    Cat(cat::CatArgs),
+    #[command(alias = "print", hide = true)]
+    Cat(file::print::PrintArgs),
     #[command(hide = true)]
     Checkout(checkout::CheckoutArgs),
-    Chmod(chmod::ChmodArgs),
+    #[command(hide = true)]
+    Chmod(file::chmod::ChmodArgs),
     Commit(commit::CommitArgs),
     #[command(subcommand)]
     Config(config::ConfigCommand),
@@ -92,6 +92,8 @@ enum Command {
     Diffedit(diffedit::DiffeditArgs),
     Duplicate(duplicate::DuplicateArgs),
     Edit(edit::EditArgs),
+    #[command(subcommand)]
+    File(file::FileCommand),
     Files(files::FilesArgs),
     Fix(fix::FixArgs),
     #[command(subcommand)]
@@ -171,8 +173,9 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Config(sub_args) => config::cmd_config(ui, command_helper, sub_args),
         Command::Checkout(sub_args) => checkout::cmd_checkout(ui, command_helper, sub_args),
         Command::Untrack(sub_args) => untrack::cmd_untrack(ui, command_helper, sub_args),
+        Command::File(sub_args) => file::cmd_file(ui, command_helper, sub_args),
         Command::Files(sub_args) => files::cmd_files(ui, command_helper, sub_args),
-        Command::Cat(sub_args) => cat::cmd_cat(ui, command_helper, sub_args),
+        Command::Cat(sub_args) => file::print::deprecated_cmd_cat(ui, command_helper, sub_args),
         Command::Diff(sub_args) => diff::cmd_diff(ui, command_helper, sub_args),
         Command::Show(sub_args) => show::cmd_show(ui, command_helper, sub_args),
         Command::Status(sub_args) => status::cmd_status(ui, command_helper, sub_args),
@@ -210,7 +213,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Workspace(sub_args) => workspace::cmd_workspace(ui, command_helper, sub_args),
         Command::Sparse(sub_args) => sparse::cmd_sparse(ui, command_helper, sub_args),
         Command::Tag(sub_args) => tag::cmd_tag(ui, command_helper, sub_args),
-        Command::Chmod(sub_args) => chmod::cmd_chmod(ui, command_helper, sub_args),
+        Command::Chmod(sub_args) => file::chmod::deprecated_cmd_chmod(ui, command_helper, sub_args),
         Command::Git(sub_args) => git::cmd_git(ui, command_helper, sub_args),
         Command::Util(sub_args) => util::cmd_util(ui, command_helper, sub_args),
         #[cfg(feature = "bench")]

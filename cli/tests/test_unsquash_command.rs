@@ -50,7 +50,7 @@ fn test_unsquash() {
     ◉  90aeefd03044 a b
     ◉  000000000000
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
     c
     "###);
@@ -69,11 +69,11 @@ fn test_unsquash() {
     ◉  9146bcc8d996 b
     ◉  000000000000 a
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "b"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file1", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     b
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
     c
     "###);
@@ -122,7 +122,7 @@ fn test_unsquash() {
     ◉  90aeefd03044 a
     ◉  000000000000
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
     e
     "###);
@@ -169,7 +169,7 @@ fn test_unsquash_partial() {
     ◉  ee67504598b6 a
     ◉  000000000000
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "a"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file1", "-r", "a"]);
     insta::assert_snapshot!(stdout, @r###"
     a
     "###);
@@ -189,19 +189,19 @@ fn test_unsquash_partial() {
     ◉  47a1e795d146 a
     ◉  000000000000
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "b"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file1", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     a
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "b"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file2", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     b
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "c"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file1", "-r", "c"]);
     insta::assert_snapshot!(stdout, @r###"
     c
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "c"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file2", "-r", "c"]);
     insta::assert_snapshot!(stdout, @r###"
     c
     "###);
@@ -221,19 +221,19 @@ fn test_unsquash_partial() {
     Working copy now at: mzvwutvl 1c82d27c c | (no description set)
     Parent commit      : kkmpptxz b9d23fd8 b | (no description set)
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "b"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file1", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     a
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "b"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file2", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     b
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "c"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file1", "-r", "c"]);
     insta::assert_snapshot!(stdout, @r###"
     c
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "c"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file2", "-r", "c"]);
     insta::assert_snapshot!(stdout, @r###"
     c
     "###);

@@ -26,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj split --siblings` is deprecated in favor of `jj split --parallel` (to
   match `jj parallelize`).
 
+* `jj file print` (aka `jj file cat`) replaces `jj cat`.
+
+* `jj file chmod` replaces `jj chmod`.
+
 ### New features
 
 * Show paths to config files when configuration errors occur
@@ -40,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [#2966](https://github.com/martinvonz/jj/issues/2966)
 
 * Conflicted files are individually simplified before being materialized.
+
+* `jj file` now groups commands for working with files.
 
 ### Fixed bugs
 

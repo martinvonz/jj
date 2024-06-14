@@ -103,12 +103,12 @@ fn test_move() {
     ◉  000000000000
     "###);
     // The change from the source has been applied
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
     c
     "###);
     // File `file2`, which was not changed in source, is unchanged
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file2"]);
     insta::assert_snapshot!(stdout, @r###"
     f
     "###);
@@ -136,7 +136,7 @@ fn test_move() {
     "###);
     // The change from the source has been applied (the file contents were already
     // "f", as is typically the case when moving changes from an ancestor)
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file2"]);
     insta::assert_snapshot!(stdout, @r###"
     f
     "###);
@@ -164,7 +164,7 @@ fn test_move() {
     ◉  000000000000
     "###);
     // The change from the source has been applied
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "d"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file2", "-r", "d"]);
     insta::assert_snapshot!(stdout, @r###"
     e
     "###);
@@ -227,16 +227,16 @@ fn test_move_partial() {
     ◉  000000000000
     "###);
     // The changes from the source has been applied
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
     c
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file2"]);
     insta::assert_snapshot!(stdout, @r###"
     c
     "###);
     // File `file3`, which was not changed in source, is unchanged
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file3"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file3"]);
     insta::assert_snapshot!(stdout, @r###"
     d
     "###);
@@ -262,17 +262,17 @@ fn test_move_partial() {
     ◉  000000000000
     "###);
     // The selected change from the source has been applied
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
     c
     "###);
     // The unselected change from the source has not been applied
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file2"]);
     insta::assert_snapshot!(stdout, @r###"
     a
     "###);
     // File `file3`, which was changed in source's parent, is unchanged
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file3"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file3"]);
     insta::assert_snapshot!(stdout, @r###"
     d
     "###);
@@ -299,17 +299,17 @@ fn test_move_partial() {
     ◉  000000000000
     "###);
     // The selected change from the source has been applied
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file1"]);
     insta::assert_snapshot!(stdout, @r###"
     c
     "###);
     // The unselected change from the source has not been applied
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file2"]);
     insta::assert_snapshot!(stdout, @r###"
     a
     "###);
     // File `file3`, which was changed in source's parent, is unchanged
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file3"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file3"]);
     insta::assert_snapshot!(stdout, @r###"
     d
     "###);
@@ -335,12 +335,12 @@ fn test_move_partial() {
     ◉  000000000000
     "###);
     // The selected change from the source has been applied
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file1", "-r", "b"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file1", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     c
     "###);
     // The unselected change from the source has not been applied
-    let stdout = test_env.jj_cmd_success(&repo_path, &["print", "file2", "-r", "b"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file2", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"
     a
     "###);
