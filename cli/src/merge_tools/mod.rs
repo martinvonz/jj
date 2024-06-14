@@ -307,7 +307,7 @@ impl MergeEditor {
             });
         };
         let content =
-            extract_as_single_hunk(&simplified_file_merge, tree.store(), repo_path).block_on();
+            extract_as_single_hunk(&simplified_file_merge, tree.store(), repo_path).block_on()?;
 
         match &self.tool {
             MergeTool::Builtin => {

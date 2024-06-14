@@ -27,7 +27,7 @@ use crate::content_hash::ContentHash;
 use crate::index::Index;
 use crate::merge::Merge;
 use crate::object_id::{id_type, ObjectId};
-use crate::repo_path::{RepoPath, RepoPathComponent, RepoPathComponentBuf};
+use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent, RepoPathComponentBuf};
 use crate::signing::SignResult;
 
 id_type!(
@@ -197,6 +197,12 @@ pub enum BackendError {
     ReadAccessDenied {
         object_type: String,
         hash: String,
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
+    #[error("Error when reading file content for file {} with id {}", path.as_internal_file_string(), id.hex())]
+    ReadFile {
+        path: RepoPathBuf,
+        id: FileId,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
     #[error("Could not write object of type {object_type}")]

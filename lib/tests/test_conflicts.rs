@@ -991,7 +991,9 @@ fn materialize_conflict_string(
     conflict: &Merge<Option<FileId>>,
 ) -> String {
     let mut result: Vec<u8> = vec![];
-    let contents = extract_as_single_hunk(conflict, store, path).block_on();
+    let contents = extract_as_single_hunk(conflict, store, path)
+        .block_on()
+        .unwrap();
     materialize_merge_result(&contents, &mut result).unwrap();
     String::from_utf8(result).unwrap()
 }

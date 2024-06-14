@@ -17,7 +17,7 @@
 use std::io::{Read, Write};
 use std::iter::zip;
 
-use futures::StreamExt;
+use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
 use regex::bytes::Regex;
 
@@ -77,21 +77,32 @@ fn write_diff_hunks(hunks: &[DiffHunk], file: &mut dyn Write) -> std::io::Result
     Ok(())
 }
 
-async fn get_file_contents(store: &Store, path: &RepoPath, term: &Option<FileId>) -> ContentHunk {
+async fn get_file_contents(
+    store: &Store,
+    path: &RepoPath,
+    term: &Option<FileId>,
+) -> BackendResult<ContentHunk> {
     match term {
         Some(id) => {
             let mut content = vec![];
             store
                 .read_file_async(path, id)
-                .await
-                .unwrap()
+                .await?
                 .read_to_end(&mut content)
-                .unwrap();
-            ContentHunk(content)
+                .map_err(|err| BackendError::ReadFile {
+                    path: path.to_owned(),
+                    id: id.clone(),
+                    source: format!(
+                        "Failed to read file contents for {}: {err}",
+                        path.as_internal_file_string()
+                    )
+                    .into(),
+                })?;
+            Ok(ContentHunk(content))
         }
         // If the conflict had removed the file on one side, we pretend that the file
         // was empty there.
-        None => ContentHunk(vec![]),
+        None => Ok(ContentHunk(vec![])),
     }
 }
 
@@ -99,12 +110,12 @@ pub async fn extract_as_single_hunk(
     merge: &Merge<Option<FileId>>,
     store: &Store,
     path: &RepoPath,
-) -> Merge<ContentHunk> {
+) -> BackendResult<Merge<ContentHunk>> {
     let builder: MergeBuilder<ContentHunk> = futures::stream::iter(merge.iter())
         .then(|term| get_file_contents(store, path, term))
-        .collect()
-        .await;
-    builder.build()
+        .try_collect()
+        .await?;
+    Ok(builder.build())
 }
 
 /// A type similar to `MergedTreeValue` but with associated data to include in
@@ -183,7 +194,7 @@ async fn materialize_tree_value_no_access_denied(
             let mut contents = vec![];
             if let Some(file_merge) = conflict.to_file_merge() {
                 let file_merge = file_merge.simplify();
-                let content = extract_as_single_hunk(&file_merge, store, path).await;
+                let content = extract_as_single_hunk(&file_merge, store, path).await?;
                 materialize_merge_result(&content, &mut contents)
                     .expect("Failed to materialize conflict to in-memory buffer");
             } else {
@@ -453,7 +464,7 @@ pub async fn update_from_content(
     // conflicts (for example) are not converted to regular files in the working
     // copy.
     let mut old_content = Vec::with_capacity(content.len());
-    let merge_hunk = extract_as_single_hunk(simplified_file_ids, store, path).await;
+    let merge_hunk = extract_as_single_hunk(simplified_file_ids, store, path).await?;
     materialize_merge_result(&merge_hunk, &mut old_content).unwrap();
     if content == old_content {
         return Ok(file_ids.clone());
