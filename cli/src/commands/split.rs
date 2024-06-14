@@ -75,6 +75,7 @@ pub(crate) fn cmd_split(
             "Use `jj new` if you want to create another empty commit.",
         ));
     }
+    let advanceable_branches = workspace_command.get_advanceable_branches(commit.parent_ids())?;
 
     workspace_command.check_rewritable([commit.id()])?;
     let matcher = workspace_command
@@ -201,6 +202,9 @@ the operation will be aborted.
             Ok(())
         },
     )?;
+
+    // Does nothing if there's no branches to advance.
+    tx.advance_branches(advanceable_branches, &first_commit.id());
 
     if let Some(mut formatter) = ui.status_formatter() {
         if num_rebased > 0 {
