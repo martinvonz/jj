@@ -49,8 +49,16 @@ pub(crate) struct LogArgs {
     /// Limit number of revisions to show
     ///
     /// Applied after revisions are filtered and reordered.
-    #[arg(long, short)]
+    #[arg(long, short = 'n')]
     limit: Option<usize>,
+    // TODO: Delete `-l` alias in jj 0.25+
+    #[arg(
+        short = 'l',
+        hide = true,
+        conflicts_with = "limit",
+        value_name = "LIMIT"
+    )]
+    deprecated_limit: Option<usize>,
     /// Don't show the graph, show a flat list of revisions
     #[arg(long)]
     no_graph: bool,
@@ -137,6 +145,14 @@ pub(crate) fn cmd_log(
         let mut formatter = ui.stdout_formatter();
         let formatter = formatter.as_mut();
 
+        if args.deprecated_limit.is_some() {
+            writeln!(
+                ui.warning_default(),
+                "The -l shorthand is deprecated, use -n instead."
+            )?;
+        }
+        let limit = args.limit.or(args.deprecated_limit).unwrap_or(usize::MAX);
+
         if !args.no_graph {
             let mut graph = get_graphlog(command.settings(), formatter.raw());
             let forward_iter = TopoGroupedGraphIterator::new(revset.iter_graph());
@@ -145,7 +161,7 @@ pub(crate) fn cmd_log(
             } else {
                 Box::new(forward_iter)
             };
-            for (commit_id, edges) in iter.take(args.limit.unwrap_or(usize::MAX)) {
+            for (commit_id, edges) in iter.take(limit) {
                 // The graph is keyed by (CommitId, is_synthetic)
                 let mut graphlog_edges = vec![];
                 // TODO: Should we update revset.iter_graph() to yield this flag instead of all
@@ -222,7 +238,7 @@ pub(crate) fn cmd_log(
             } else {
                 Box::new(revset.iter())
             };
-            for commit_or_error in iter.commits(store).take(args.limit.unwrap_or(usize::MAX)) {
+            for commit_or_error in iter.commits(store).take(limit) {
                 let commit = commit_or_error?;
                 with_content_format
                     .write(formatter, |formatter| template.format(&commit, formatter))?;

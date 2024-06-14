@@ -45,8 +45,16 @@ pub enum OperationCommand {
 #[derive(clap::Args, Clone, Debug)]
 pub struct OperationLogArgs {
     /// Limit number of operations to show
-    #[arg(long, short)]
+    #[arg(long, short = 'n')]
     limit: Option<usize>,
+    // TODO: Delete `-l` alias in jj 0.25+
+    #[arg(
+        short = 'l',
+        hide = true,
+        conflicts_with = "limit",
+        value_name = "LIMIT"
+    )]
+    deprecated_limit: Option<usize>,
     /// Don't show the graph, show a flat list of operations
     #[arg(long)]
     no_graph: bool,
@@ -191,7 +199,14 @@ fn cmd_op_log(
     ui.request_pager();
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
-    let iter = op_walk::walk_ancestors(&head_ops).take(args.limit.unwrap_or(usize::MAX));
+    if args.deprecated_limit.is_some() {
+        writeln!(
+            ui.warning_default(),
+            "The -l shorthand is deprecated, use -n instead."
+        )?;
+    }
+    let limit = args.limit.or(args.deprecated_limit).unwrap_or(usize::MAX);
+    let iter = op_walk::walk_ancestors(&head_ops).take(limit);
     if !args.no_graph {
         let mut graph = get_graphlog(command.settings(), formatter.raw());
         for op in iter {

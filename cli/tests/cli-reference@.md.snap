@@ -1097,7 +1097,8 @@ Spans of revisions that are not included in the graph per `--revisions` are rend
 
   Possible values: `true`, `false`
 
-* `-l`, `--limit <LIMIT>` — Limit number of revisions to show
+* `-n`, `--limit <LIMIT>` — Limit number of revisions to show
+* `-l <LIMIT>`
 * `--no-graph` — Don't show the graph, show a flat list of revisions
 
   Possible values: `true`, `false`
@@ -1236,7 +1237,8 @@ Name is derived from Merciual's obsolescence markers.
 * `-r`, `--revision <REVISION>`
 
   Default value: `@`
-* `-l`, `--limit <LIMIT>` — Limit number of revisions to show
+* `-n`, `--limit <LIMIT>` — Limit number of revisions to show
+* `-l <LIMIT>`
 * `--no-graph` — Don't show the graph, show a flat list of revisions
 
   Possible values: `true`, `false`
@@ -1314,7 +1316,8 @@ Show the operation log
 
 ###### **Options:**
 
-* `-l`, `--limit <LIMIT>` — Limit number of operations to show
+* `-n`, `--limit <LIMIT>` — Limit number of operations to show
+* `-l <LIMIT>`
 * `--no-graph` — Don't show the graph, show a flat list of operations
 
   Possible values: `true`, `false`
