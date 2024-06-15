@@ -69,7 +69,7 @@ pub(crate) fn cmd_untrack(
     // untracked because they're not ignored.
     let wc_tree_id = locked_ws.locked_wc().snapshot(SnapshotOptions {
         base_ignores,
-        fsmonitor_kind: command.settings().fsmonitor_kind()?,
+        fsmonitor_settings: command.settings().fsmonitor_settings()?,
         progress: None,
         max_new_file_size: command.settings().max_new_file_size()?,
     })?;

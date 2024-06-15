@@ -168,6 +168,16 @@
                     "type": "string",
                     "enum": ["none", "watchman"],
                     "description": "Whether to use an external filesystem monitor, useful for large repos"
+                },
+                "watchman": {
+                    "type": "object",
+                    "properties": {
+                      "register_snapshot_trigger": {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Whether to use triggers to monitor for changes in the background."
+                      }
+                    }
                 }
             }
         },

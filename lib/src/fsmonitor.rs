@@ -21,13 +21,23 @@
 #![warn(missing_docs)]
 
 use std::path::PathBuf;
-use std::str::FromStr;
+
+use config::{Config, ConfigError};
+
+use crate::settings::ConfigResultExt;
+
+/// Config for Watchman filesystem monitor (<https://facebook.github.io/watchman/>).
+#[derive(Default, Eq, PartialEq, Clone, Debug)]
+pub struct WatchmanConfig {
+    /// Whether to use triggers to monitor for changes in the background.
+    register_trigger: bool,
+}
 
 /// The recognized kinds of filesystem monitors.
 #[derive(Eq, PartialEq, Clone, Debug)]
-pub enum FsmonitorKind {
+pub enum FsmonitorSettings {
     /// The Watchman filesystem monitor (<https://facebook.github.io/watchman/>).
-    Watchman,
+    Watchman(WatchmanConfig),
 
     /// Only used in tests.
     Test {
@@ -44,20 +54,27 @@ pub enum FsmonitorKind {
     None,
 }
 
-impl FromStr for FsmonitorKind {
-    type Err = config::ConfigError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "watchman" => Ok(Self::Watchman),
-            "test" => Err(config::ConfigError::Message(
-                "cannot use test fsmonitor in real repository".to_string(),
-            )),
-            "none" => Ok(Self::None),
-            other => Err(config::ConfigError::Message(format!(
-                "unknown fsmonitor kind: {}",
-                other
-            ))),
+impl FsmonitorSettings {
+    /// Creates an `FsmonitorSettings` from a `config`.
+    pub fn from_config(config: &Config) -> Result<FsmonitorSettings, ConfigError> {
+        match config.get_string("core.fsmonitor") {
+            Ok(s) => match s.as_str() {
+                "watchman" => Ok(Self::Watchman(WatchmanConfig {
+                    register_trigger: config
+                        .get_bool("core.watchman.register_snapshot_trigger")
+                        .optional()?
+                        .unwrap_or_default(),
+                })),
+                "test" => Err(ConfigError::Message(
+                    "cannot use test fsmonitor in real repository".to_string(),
+                )),
+                "none" => Ok(Self::None),
+                other => Err(ConfigError::Message(format!(
+                    "unknown fsmonitor kind: {other}",
+                ))),
+            },
+            Err(ConfigError::NotFound(_)) => Ok(Self::None),
+            Err(err) => Err(err),
         }
     }
 }
@@ -75,6 +92,10 @@ pub mod watchman {
     use watchman_client::expr;
     use watchman_client::prelude::{
         Clock as InnerClock, ClockSpec, NameOnly, QueryRequestCommon, QueryResult,
+    };
+
+    use crate::fsmonitor_watchman_extensions::{
+        list_triggers, register_trigger, remove_trigger, TriggerRequest,
     };
 
     /// Represents an instance in time from the perspective of the filesystem
@@ -139,6 +160,9 @@ pub mod watchman {
 
         #[error("Failed to query Watchman")]
         WatchmanQueryError(#[source] watchman_client::Error),
+
+        #[error("Failed to register Watchman trigger")]
+        WatchmanTriggerError(#[source] watchman_client::Error),
     }
 
     /// Handle to the underlying Watchman instance.
@@ -153,7 +177,10 @@ pub mod watchman {
         /// copy to build up its in-memory representation of the
         /// filesystem, which may take some time.
         #[instrument]
-        pub async fn init(working_copy_path: &Path) -> Result<Self, Error> {
+        pub async fn init(
+            working_copy_path: &Path,
+            config: &super::WatchmanConfig,
+        ) -> Result<Self, Error> {
             info!("Initializing Watchman filesystem monitor...");
             let connector = watchman_client::Connector::new();
             let client = connector
@@ -166,10 +193,20 @@ pub mod watchman {
                 .resolve_root(working_copy_root)
                 .await
                 .map_err(Error::ResolveRootError)?;
-            Ok(Fsmonitor {
+
+            let monitor = Fsmonitor {
                 client,
                 resolved_root,
-            })
+            };
+
+            // Registering the trigger causes an unconditional evaluation of the query, so
+            // test if it is already registered first.
+            if !config.register_trigger {
+                monitor.unregister_trigger().await?;
+            } else if !monitor.is_trigger_registered().await? {
+                monitor.register_trigger().await?;
+            }
+            Ok(monitor)
         }
 
         /// Query for changed files since the previous point in time.
@@ -184,24 +221,6 @@ pub mod watchman {
         ) -> Result<(Clock, Option<Vec<PathBuf>>), Error> {
             // TODO: might be better to specify query options by caller, but we
             // shouldn't expose the underlying watchman API too much.
-            let exclude_dirs = [Path::new(".git"), Path::new(".jj")];
-            let excludes = itertools::chain(
-                // the directories themselves
-                [expr::Expr::Name(expr::NameTerm {
-                    paths: exclude_dirs.iter().map(|&name| name.to_owned()).collect(),
-                    wholename: true,
-                })],
-                // and all files under the directories
-                exclude_dirs.iter().map(|&name| {
-                    expr::Expr::DirName(expr::DirNameTerm {
-                        path: name.to_owned(),
-                        depth: None,
-                    })
-                }),
-            )
-            .collect();
-            let expression = expr::Expr::Not(Box::new(expr::Expr::Any(excludes)));
-
             info!("Querying Watchman for changed files...");
             let QueryResult {
                 version: _,
@@ -219,7 +238,7 @@ pub mod watchman {
                     &self.resolved_root,
                     QueryRequestCommon {
                         since: previous_clock.map(|Clock(clock)| clock),
-                        expression: Some(expression),
+                        expression: Some(self.build_exclude_expr()),
                         ..Default::default()
                     },
                 )
@@ -241,6 +260,74 @@ pub mod watchman {
                     .collect_vec();
                 Ok((clock, Some(paths)))
             }
+        }
+
+        /// Return whether or not a trigger has been registered already.
+        #[instrument(skip(self))]
+        async fn is_trigger_registered(&self) -> Result<bool, Error> {
+            info!("Checking for an existing Watchman trigger...");
+            Ok(list_triggers(&self.client, &self.resolved_root)
+                .await
+                .map_err(Error::WatchmanTriggerError)?
+                .triggers
+                .iter()
+                .any(|t| t.name == "jj-background-monitor"))
+        }
+
+        /// Register trigger for changed files.
+        #[instrument(skip(self))]
+        async fn register_trigger(&self) -> Result<(), Error> {
+            info!("Registering Watchman trigger...");
+            register_trigger(
+                &self.client,
+                &self.resolved_root,
+                TriggerRequest {
+                    name: "jj-background-monitor".to_string(),
+                    command: vec![
+                        "jj".to_string(),
+                        "files".to_string(),
+                        "-r".to_string(),
+                        "root()".to_string(),
+                    ],
+                    expression: Some(self.build_exclude_expr()),
+                    ..Default::default()
+                },
+            )
+            .await
+            .map_err(Error::WatchmanTriggerError)?;
+            Ok(())
+        }
+
+        /// Register trigger for changed files.
+        #[instrument(skip(self))]
+        async fn unregister_trigger(&self) -> Result<(), Error> {
+            info!("Unregistering Watchman trigger...");
+            remove_trigger(&self.client, &self.resolved_root, "jj-background-monitor")
+                .await
+                .map_err(Error::WatchmanTriggerError)?;
+            Ok(())
+        }
+
+        /// Build an exclude expr for `working_copy_path`.
+        fn build_exclude_expr(&self) -> expr::Expr {
+            // TODO: consider parsing `.gitignore`.
+            let exclude_dirs = [Path::new(".git"), Path::new(".jj")];
+            let excludes = itertools::chain(
+                // the directories themselves
+                [expr::Expr::Name(expr::NameTerm {
+                    paths: exclude_dirs.iter().map(|&name| name.to_owned()).collect(),
+                    wholename: true,
+                })],
+                // and all files under the directories
+                exclude_dirs.iter().map(|&name| {
+                    expr::Expr::DirName(expr::DirNameTerm {
+                        path: name.to_owned(),
+                        depth: None,
+                    })
+                }),
+            )
+            .collect();
+            expr::Expr::Not(Box::new(expr::Expr::Any(excludes)))
         }
     }
 }

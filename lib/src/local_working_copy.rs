@@ -49,7 +49,7 @@ use crate::conflicts::{self, materialize_tree_value, MaterializedTreeValue};
 use crate::file_util::{check_symlink_support, try_symlink};
 #[cfg(feature = "watchman")]
 use crate::fsmonitor::watchman;
-use crate::fsmonitor::FsmonitorKind;
+use crate::fsmonitor::{FsmonitorSettings, WatchmanConfig};
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
 use crate::matchers::{
@@ -726,8 +726,9 @@ impl TreeState {
     #[instrument(skip(self))]
     pub async fn query_watchman(
         &self,
+        config: &WatchmanConfig,
     ) -> Result<(watchman::Clock, Option<Vec<PathBuf>>), TreeStateError> {
-        let fsmonitor = watchman::Fsmonitor::init(&self.working_copy_path)
+        let fsmonitor = watchman::Fsmonitor::init(&self.working_copy_path, config)
             .await
             .map_err(|err| TreeStateError::Fsmonitor(Box::new(err)))?;
         let previous_clock = self.watchman_clock.clone().map(watchman::Clock::from);
@@ -744,19 +745,19 @@ impl TreeState {
     pub fn snapshot(&mut self, options: SnapshotOptions) -> Result<bool, SnapshotError> {
         let SnapshotOptions {
             base_ignores,
-            fsmonitor_kind,
+            fsmonitor_settings,
             progress,
             max_new_file_size,
         } = options;
 
         let sparse_matcher = self.sparse_matcher();
 
-        let fsmonitor_clock_needs_save = fsmonitor_kind != FsmonitorKind::None;
+        let fsmonitor_clock_needs_save = fsmonitor_settings != FsmonitorSettings::None;
         let mut is_dirty = fsmonitor_clock_needs_save;
         let FsmonitorMatcher {
             matcher: fsmonitor_matcher,
             watchman_clock,
-        } = self.make_fsmonitor_matcher(fsmonitor_kind)?;
+        } = self.make_fsmonitor_matcher(fsmonitor_settings)?;
         let fsmonitor_matcher = match fsmonitor_matcher.as_ref() {
             None => &EverythingMatcher,
             Some(fsmonitor_matcher) => fsmonitor_matcher.as_ref(),
@@ -1024,13 +1025,13 @@ impl TreeState {
     #[instrument(skip_all)]
     fn make_fsmonitor_matcher(
         &self,
-        fsmonitor_kind: FsmonitorKind,
+        fsmonitor_settings: FsmonitorSettings,
     ) -> Result<FsmonitorMatcher, SnapshotError> {
-        let (watchman_clock, changed_files) = match fsmonitor_kind {
-            FsmonitorKind::None => (None, None),
-            FsmonitorKind::Test { changed_files } => (None, Some(changed_files)),
+        let (watchman_clock, changed_files) = match fsmonitor_settings {
+            FsmonitorSettings::None => (None, None),
+            FsmonitorSettings::Test { changed_files } => (None, Some(changed_files)),
             #[cfg(feature = "watchman")]
-            FsmonitorKind::Watchman => match self.query_watchman() {
+            FsmonitorSettings::Watchman(config) => match self.query_watchman(&config) {
                 Ok((watchman_clock, changed_files)) => (Some(watchman_clock.into()), changed_files),
                 Err(err) => {
                     tracing::warn!(?err, "Failed to query filesystem monitor");
@@ -1038,7 +1039,7 @@ impl TreeState {
                 }
             },
             #[cfg(not(feature = "watchman"))]
-            FsmonitorKind::Watchman => {
+            FsmonitorSettings::Watchman(_) => {
                 return Err(SnapshotError::Other {
                     message: "Failed to query the filesystem monitor".to_string(),
                     err: "Cannot query Watchman because jj was not compiled with the `watchman` \
@@ -1686,9 +1687,10 @@ impl LocalWorkingCopy {
     #[cfg(feature = "watchman")]
     pub fn query_watchman(
         &self,
+        config: &WatchmanConfig,
     ) -> Result<(watchman::Clock, Option<Vec<PathBuf>>), WorkingCopyStateError> {
         self.tree_state()?
-            .query_watchman()
+            .query_watchman(config)
             .map_err(|err| WorkingCopyStateError {
                 message: "Failed to query watchman".to_string(),
                 err: err.into(),
