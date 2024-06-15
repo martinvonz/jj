@@ -33,7 +33,7 @@ clap = { version = "4.5.7", features = [
 ] }
 clap_complete = "4.5.5"
 clap_complete_nushell = "4.5.2"
-clap-markdown = "0.1.3"
+clap-markdown = "0.1.4"
 clap_mangen = "0.2.10"
 chrono = { version = "0.4.38", default-features = false, features = [
     "std",
