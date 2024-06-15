@@ -35,7 +35,7 @@ fn test_untrack() {
     // patterns
     test_env.jj_cmd_ok(&repo_path, &["st"]);
     std::fs::write(repo_path.join(".gitignore"), "*.bak\n").unwrap();
-    let files_before = test_env.jj_cmd_success(&repo_path, &["files"]);
+    let files_before = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
 
     // Errors out when not run at the head operation
     let stderr = test_env.jj_cmd_failure(&repo_path, &["untrack", "file1", "--at-op", "@-"]);
@@ -60,7 +60,7 @@ fn test_untrack() {
     Hint: Files that are not ignored will be added back by the next command.
     Make sure they're ignored, then try again.
     "###);
-    let files_after = test_env.jj_cmd_success(&repo_path, &["files"]);
+    let files_after = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
     // There should be no changes to the state when there was an error
     assert_eq!(files_after, files_before);
 
@@ -69,7 +69,7 @@ fn test_untrack() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["untrack", "file1.bak"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
-    let files_after = test_env.jj_cmd_success(&repo_path, &["files"]);
+    let files_after = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
     // The file is no longer tracked
     assert!(!files_after.contains("file1.bak"));
     // Other files that match the ignore pattern are not untracked
@@ -94,7 +94,7 @@ fn test_untrack() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["untrack", "target"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
-    let files_after = test_env.jj_cmd_success(&repo_path, &["files"]);
+    let files_after = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
     assert!(!files_after.contains("target"));
 }
 
@@ -111,7 +111,7 @@ fn test_untrack_sparse() {
     // When untracking a file that's not included in the sparse working copy, it
     // doesn't need to be ignored (because it won't be automatically added
     // back).
-    let stdout = test_env.jj_cmd_success(&repo_path, &["files"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     file1
     file2
@@ -120,7 +120,7 @@ fn test_untrack_sparse() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["untrack", "file2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
-    let stdout = test_env.jj_cmd_success(&repo_path, &["files"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     file1
     "###);

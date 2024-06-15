@@ -316,8 +316,10 @@ fn test_alias_in_repo_config() {
     "###);
 
     // No warning if the expanded command is identical.
-    let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo1_path, &["files", "-R", repo2_path.to_str().unwrap()]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo1_path,
+        &["file", "list", "-R", repo2_path.to_str().unwrap()],
+    );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
 

@@ -37,7 +37,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj file`↴](#jj-file)
 * [`jj file print`↴](#jj-file-print)
 * [`jj file chmod`↴](#jj-file-chmod)
-* [`jj files`↴](#jj-files)
+* [`jj file list`↴](#jj-file-list)
 * [`jj fix`↴](#jj-fix)
 * [`jj git`↴](#jj-git)
 * [`jj git remote`↴](#jj-git-remote)
@@ -117,7 +117,6 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `duplicate` — Create a new change with the same content as an existing one
 * `edit` — Sets the specified revision as the working-copy revision
 * `file` — File operations
-* `files` — List files in a revision
 * `fix` — Update files with formatting fixes or other changes
 * `git` — Commands for working with Git remotes and the underlying Git repo
 * `init` — Create a new repo in the given directory
@@ -655,6 +654,7 @@ File operations
 
 * `print` — Print contents of files in a revision
 * `chmod` — Sets or removes the executable bit for paths in the repo
+* `list` — List files in a revision
 
 
 
@@ -706,11 +706,11 @@ Unlike the POSIX `chmod`, `jj chmod` also works on Windows, on conflicted files,
 
 
 
-## `jj files`
+## `jj file list`
 
 List files in a revision
 
-**Usage:** `jj files [OPTIONS] [PATHS]...`
+**Usage:** `jj file list [OPTIONS] [PATHS]...`
 
 ###### **Arguments:**
 

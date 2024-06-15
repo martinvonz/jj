@@ -22,7 +22,7 @@ use crate::ui::Ui;
 
 /// List files in a revision
 #[derive(clap::Args, Clone, Debug)]
-pub(crate) struct FilesArgs {
+pub(crate) struct ListArgs {
     /// The revision to list files in
     #[arg(long, short, default_value = "@")]
     revision: RevisionArg,
@@ -32,10 +32,27 @@ pub(crate) struct FilesArgs {
 }
 
 #[instrument(skip_all)]
-pub(crate) fn cmd_files(
+pub(crate) fn deprecated_cmd_files(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &FilesArgs,
+    args: &ListArgs,
+) -> Result<(), CommandError> {
+    writeln!(
+        ui.warning_default(),
+        "`jj files` is deprecated; use `jj file list` instead, which is equivalent"
+    )?;
+    writeln!(
+        ui.warning_default(),
+        "`jj files` will be removed in a future version, and this will be a hard error"
+    )?;
+    cmd_list(ui, command, args)
+}
+
+#[instrument(skip_all)]
+pub(crate) fn cmd_list(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    args: &ListArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;

@@ -49,7 +49,7 @@ fn test_sparse_manage_patterns() {
     assert!(!repo_path.join("file2").exists());
     assert!(!repo_path.join("file3").exists());
     // But they're still in the commit
-    let stdout = test_env.jj_cmd_success(&repo_path, &["files"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "list"]);
     insta::assert_snapshot!(stdout, @r###"
     file1
     file2

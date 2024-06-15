@@ -13,6 +13,7 @@
 // limitations under the License.
 
 pub mod chmod;
+pub mod list;
 pub mod print;
 
 use crate::cli_util::CommandHelper;
@@ -24,6 +25,7 @@ use crate::ui::Ui;
 pub enum FileCommand {
     Print(print::PrintArgs),
     Chmod(chmod::ChmodArgs),
+    List(list::ListArgs),
 }
 
 pub fn cmd_file(
@@ -34,5 +36,6 @@ pub fn cmd_file(
     match subcommand {
         FileCommand::Print(sub_args) => print::cmd_print(ui, command, sub_args),
         FileCommand::Chmod(sub_args) => chmod::cmd_chmod(ui, command, sub_args),
+        FileCommand::List(sub_args) => list::cmd_list(ui, command, sub_args),
     }
 }

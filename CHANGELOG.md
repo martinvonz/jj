@@ -30,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj file chmod` replaces `jj chmod`.
 
+* `jj file list` (aka `jj file ls`) replaces `jj files`.
+
 ### New features
 
 * Support background filesystem monitoring via watchman triggers enabled with

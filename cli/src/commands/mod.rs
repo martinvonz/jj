@@ -27,7 +27,6 @@ mod diffedit;
 mod duplicate;
 mod edit;
 mod file;
-mod files;
 mod fix;
 mod git;
 mod init;
@@ -94,7 +93,9 @@ enum Command {
     Edit(edit::EditArgs),
     #[command(subcommand)]
     File(file::FileCommand),
-    Files(files::FilesArgs),
+    /// List files in a revision (DEPRECATED use `jj file list`)
+    #[command(hide = true)]
+    Files(file::list::ListArgs),
     Fix(fix::FixArgs),
     #[command(subcommand)]
     Git(git::GitCommand),
@@ -174,8 +175,8 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Checkout(sub_args) => checkout::cmd_checkout(ui, command_helper, sub_args),
         Command::Untrack(sub_args) => untrack::cmd_untrack(ui, command_helper, sub_args),
         Command::File(sub_args) => file::cmd_file(ui, command_helper, sub_args),
-        Command::Files(sub_args) => files::cmd_files(ui, command_helper, sub_args),
         Command::Cat(sub_args) => file::print::deprecated_cmd_cat(ui, command_helper, sub_args),
+        Command::Files(sub_args) => file::list::deprecated_cmd_files(ui, command_helper, sub_args),
         Command::Diff(sub_args) => diff::cmd_diff(ui, command_helper, sub_args),
         Command::Show(sub_args) => show::cmd_show(ui, command_helper, sub_args),
         Command::Status(sub_args) => status::cmd_status(ui, command_helper, sub_args),
