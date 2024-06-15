@@ -33,12 +33,9 @@ fn test_generate_markdown_docs_in_docs_dir() {
         snapshot_suffix => ".md",
         prepend_module_to_snapshot => false,
         omit_expression => true,
-        description => "AUTO-GENERATED FILE, DO NOT EDIT. This cli reference is generated as an \
-                        `insta` snapshot. MkDocs follows they symlink from docs/cli-reference.md \
-                        to the snap. Unfortunately, `insta` unavoidably creates this header. Luckily, \
-                        MkDocs ignores the header since it has the same format as Markdown headers. \
-                        TODO: MkDocs may fail on Windows if symlinks are not enabled in the OS \
-                        settings",
+        description => "AUTO-GENERATED FILE, DO NOT EDIT. This cli reference is generated \
+                        by a test as an `insta` snapshot. MkDocs includes this snapshot \
+                        from docs/cli-reference.md.",
     },
     { assert_snapshot!("cli-reference", markdown_help) });
 }
