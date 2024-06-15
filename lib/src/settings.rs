@@ -23,7 +23,7 @@ use rand_chacha::ChaCha20Rng;
 
 use crate::backend::{ChangeId, Commit, Signature, Timestamp};
 use crate::fmt_util::binary_prefix;
-use crate::fsmonitor::FsmonitorKind;
+use crate::fsmonitor::FsmonitorSettings;
 use crate::signing::SignBehavior;
 
 #[derive(Debug, Clone)]
@@ -164,12 +164,8 @@ impl UserSettings {
         self.config.get_string("user.email").unwrap_or_default()
     }
 
-    pub fn fsmonitor_kind(&self) -> Result<FsmonitorKind, config::ConfigError> {
-        match self.config.get_string("core.fsmonitor") {
-            Ok(fsmonitor_kind) => Ok(fsmonitor_kind.parse()?),
-            Err(config::ConfigError::NotFound(_)) => Ok(FsmonitorKind::None),
-            Err(err) => Err(err),
-        }
+    pub fn fsmonitor_settings(&self) -> Result<FsmonitorSettings, config::ConfigError> {
+        FsmonitorSettings::from_config(&self.config)
     }
 
     // Must not be changed to avoid git pushing older commits with no set email

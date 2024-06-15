@@ -24,7 +24,7 @@ use thiserror::Error;
 
 use crate::backend::{BackendError, MergedTreeId};
 use crate::commit::Commit;
-use crate::fsmonitor::FsmonitorKind;
+use crate::fsmonitor::FsmonitorSettings;
 use crate::gitignore::{GitIgnoreError, GitIgnoreFile};
 use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo_path::{RepoPath, RepoPathBuf};
@@ -189,7 +189,7 @@ pub struct SnapshotOptions<'a> {
     /// The fsmonitor (e.g. Watchman) to use, if any.
     // TODO: Should we make this a field on `LocalWorkingCopy` instead since it's quite specific to
     // that implementation?
-    pub fsmonitor_kind: FsmonitorKind,
+    pub fsmonitor_settings: FsmonitorSettings,
     /// A callback for the UI to display progress.
     pub progress: Option<&'a SnapshotProgress<'a>>,
     /// The size of the largest file that should be allowed to become tracked
@@ -205,7 +205,7 @@ impl SnapshotOptions<'_> {
     pub fn empty_for_test() -> Self {
         SnapshotOptions {
             base_ignores: GitIgnoreFile::empty(),
-            fsmonitor_kind: FsmonitorKind::None,
+            fsmonitor_settings: FsmonitorSettings::None,
             progress: None,
             max_new_file_size: u64::MAX,
         }

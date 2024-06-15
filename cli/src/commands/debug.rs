@@ -19,6 +19,7 @@ use std::io::Write as _;
 use clap::Subcommand;
 use jj_lib::backend::TreeId;
 use jj_lib::default_index::{AsCompositeIndex as _, DefaultIndexStore, DefaultReadonlyIndex};
+use jj_lib::fsmonitor::{FsmonitorSettings, WatchmanConfig};
 use jj_lib::local_working_copy::LocalWorkingCopy;
 use jj_lib::merged_tree::MergedTree;
 use jj_lib::object_id::ObjectId;
@@ -374,11 +375,11 @@ fn cmd_debug_watchman(
     match subcommand {
         DebugWatchmanSubcommand::Status => {
             // TODO(ilyagr): It would be nice to add colors here
-            match command.settings().fsmonitor_kind()? {
-                jj_lib::fsmonitor::FsmonitorKind::Watchman => {
+            match command.settings().fsmonitor_settings()? {
+                FsmonitorSettings::Watchman { .. } => {
                     writeln!(ui.stdout(), "Watchman is enabled via `core.fsmonitor`.")?
                 }
-                jj_lib::fsmonitor::FsmonitorKind::None => writeln!(
+                FsmonitorSettings::None => writeln!(
                     ui.stdout(),
                     "Watchman is disabled. Set `core.fsmonitor=\"watchman\"` to \
                      enable.\nAttempting to contact the `watchman` CLI regardless..."
@@ -391,7 +392,7 @@ fn cmd_debug_watchman(
                 }
             };
             let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
-            let _ = wc.query_watchman()?;
+            let _ = wc.query_watchman(&WatchmanConfig::default())?;
             writeln!(
                 ui.stdout(),
                 "The watchman server seems to be installed and working correctly."
@@ -399,12 +400,12 @@ fn cmd_debug_watchman(
         }
         DebugWatchmanSubcommand::QueryClock => {
             let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
-            let (clock, _changed_files) = wc.query_watchman()?;
+            let (clock, _changed_files) = wc.query_watchman(&WatchmanConfig::default())?;
             writeln!(ui.stdout(), "Clock: {clock:?}")?;
         }
         DebugWatchmanSubcommand::QueryChangedFiles => {
             let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
-            let (_clock, changed_files) = wc.query_watchman()?;
+            let (_clock, changed_files) = wc.query_watchman(&WatchmanConfig::default())?;
             writeln!(ui.stdout(), "Changed files: {changed_files:?}")?;
         }
         DebugWatchmanSubcommand::ResetClock => {

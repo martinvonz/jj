@@ -23,7 +23,7 @@ use indoc::indoc;
 use itertools::Itertools;
 use jj_lib::backend::{MergedTreeId, TreeId, TreeValue};
 use jj_lib::file_util::{check_symlink_support, try_symlink};
-use jj_lib::fsmonitor::FsmonitorKind;
+use jj_lib::fsmonitor::FsmonitorSettings;
 use jj_lib::local_working_copy::LocalWorkingCopy;
 use jj_lib::merge::{Merge, MergedTreeValue};
 use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
@@ -1183,7 +1183,7 @@ fn test_fsmonitor() {
         locked_ws
             .locked_wc()
             .snapshot(SnapshotOptions {
-                fsmonitor_kind: FsmonitorKind::Test {
+                fsmonitor_settings: FsmonitorSettings::Test {
                     changed_files: fs_paths,
                 },
                 ..SnapshotOptions::empty_for_test()
