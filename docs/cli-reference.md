@@ -10,11 +10,7 @@
 
     Run `jj help <COMMAND>` for more authoritative documentation.
 
-    For example, each argument for each command will show only one
-    paragraph of documentation on this page, even if `jj help` would
-    show multiple paragraphs with additional details.
-
-    <!-- https://github.com/ConnorGray/clap-markdown/issues/20 -->
+    If you see a significant difference, feel free to file a bug, or a PR to note the difference here.
 
 
 {%
