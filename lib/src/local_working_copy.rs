@@ -473,6 +473,7 @@ fn file_state(metadata: &Metadata) -> Option<FileState> {
 }
 
 struct FsmonitorMatcher {
+    base_tree_id: MergedTreeId,
     matcher: Option<Box<dyn Matcher>>,
     watchman_clock: Option<crate::protos::working_copy::WatchmanClock>,
 }
@@ -771,6 +772,7 @@ impl TreeState {
         let fsmonitor_clock_needs_save = fsmonitor_settings != FsmonitorSettings::None;
         let mut is_dirty = fsmonitor_clock_needs_save;
         let FsmonitorMatcher {
+            base_tree_id,
             matcher: fsmonitor_matcher,
             watchman_clock,
         } = self.make_fsmonitor_matcher(fsmonitor_settings)?;
@@ -791,7 +793,7 @@ impl TreeState {
         let (present_files_tx, present_files_rx) = channel();
 
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
-            let current_tree = self.current_tree()?;
+            let current_tree = self.store.get_root_tree(&base_tree_id)?;
             let directory_to_visit = DirectoryToVisit {
                 dir: RepoPathBuf::root(),
                 disk_dir: self.working_copy_path.clone(),
@@ -810,7 +812,7 @@ impl TreeState {
             )
         })?;
 
-        let mut tree_builder = MergedTreeBuilder::new(self.tree_id.clone());
+        let mut tree_builder = MergedTreeBuilder::new(base_tree_id.clone());
         let mut deleted_files: HashSet<_> =
             trace_span!("collecting existing files").in_scope(|| {
                 // Since file_states shouldn't contain files excluded by the sparse patterns,
@@ -1062,6 +1064,9 @@ impl TreeState {
                           feature (consider disabling `core.fsmonitor`)"
                         .into(),
                 });
+            }
+            FsmonitorKind::GitStatus => {
+                let status_files = self.query_git_status()?;
             }
         };
         let matcher: Option<Box<dyn Matcher>> = match changed_files {

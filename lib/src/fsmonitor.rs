@@ -39,6 +39,8 @@ pub enum FsmonitorSettings {
     /// The Watchman filesystem monitor (<https://facebook.github.io/watchman/>).
     Watchman(WatchmanConfig),
 
+    GitStatus,
+
     /// Only used in tests.
     Test {
         /// The set of changed files to pretend that the filesystem monitor is
@@ -326,6 +328,333 @@ pub mod watchman {
             )
             .collect();
             expr::Expr::Not(Box::new(expr::Expr::Any(excludes)))
+        }
+    }
+}
+
+pub mod git_status {
+    use std::{
+        ffi::OsString,
+        path::{Path, PathBuf},
+        process::{Command, ExitStatus, Stdio},
+    };
+
+    use itertools::Itertools;
+    use thiserror::Error;
+
+    use crate::backend::CommitId;
+
+    #[allow(missing_docs)]
+    #[derive(Debug, Error)]
+    pub enum Error {
+        #[error("failed to spawn {} {}: {err}", program.to_string_lossy(), args.into_iter().map(|arg| arg.to_string_lossy()).join(" "))]
+        SpawnGitStatus {
+            program: OsString,
+            args: Vec<OsString>,
+            #[source]
+            err: std::io::Error,
+        },
+
+        #[error("failed to run {} {}: {status}", program.to_string_lossy(), args.into_iter().map(|arg| arg.to_string_lossy()).join(" "))]
+        GitStatusFailed {
+            program: OsString,
+            args: Vec<OsString>,
+            status: ExitStatus,
+        },
+
+        #[error("failed to compile regexes (should not happen): {err}")]
+        CompileRegexes {
+            #[source]
+            err: regex::Error,
+        },
+
+        #[error("failed to parse line {line_num}: {err}: {line:?}")]
+        Parse {
+            line_num: usize,
+            line: String,
+            #[source]
+            err: ParseError,
+        },
+    }
+
+    pub struct StatusFile {
+        path: PathBuf,
+    }
+    pub struct StatusOutput {
+        pub head_commit_id: Option<CommitId>,
+        pub files: Vec<StatusFile>,
+    }
+
+    /// From the Git docs:
+    ///
+    /// > Show untracked files. When -u option is not used, untracked files and
+    /// > directories are shown (i.e. the same as specifying normal), to help you
+    /// > avoid forgetting to add newly created files. Because it takes extra work
+    /// > to find untracked files in the filesystem, this mode may take some time
+    /// > in a large working tree.
+    #[derive(Clone, Copy, Debug)]
+    pub enum UntrackedFilesMode {
+        /// Show no untracked files.
+        No,
+
+        /// Show untracked files and directories.
+        Normal,
+
+        /// Also show individual files in untracked directories.
+        All,
+    }
+
+    /// From the Git docs:
+    ///
+    /// > The mode parameter is used to specify the handling of ignored files.
+    /// > When matching mode is specified, paths that explicitly match an ignored
+    /// > gnored pattern are shown. If a directory matches an ignore pattern, then
+    /// > it is shown, but not paths contained in the ignored directory. If a
+    /// > directory does not match an ignore pattern, but all contents are
+    /// > ignored, then the directory is not shown, but all contents are shown.
+    #[derive(Clone, Copy, Debug)]
+    pub enum IgnoredMode {
+        /// Shows ignored files and directories, unless --untracked-files=all is specified, in which case individual files in ignored directories are displayed.
+        Traditional,
+
+        /// Show no ignored files.
+        No,
+
+        /// Shows ignored files and directories matching an ignore pattern.
+        Matching,
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct StatusOptions {
+        untracked_files: UntrackedFilesMode,
+        ignored: IgnoredMode,
+    }
+
+    impl Default for StatusOptions {
+        fn default() -> Self {
+            Self {
+                untracked_files: UntrackedFilesMode::All,
+                ignored: IgnoredMode::Traditional,
+            }
+        }
+    }
+
+    pub fn query_git_status(
+        git_exe_path: &Path,
+        repo_path: &Path,
+        status_options: StatusOptions,
+    ) -> Result<StatusOutput, Error> {
+        let StatusOptions {
+            untracked_files,
+            ignored,
+        } = status_options;
+        let mut command = Command::new(git_exe_path)
+            .arg("-C")
+            .arg(repo_path)
+            .arg("status")
+            .arg("--porcelain=v2")
+            // use the null character to terminate entries so that we can handle
+            // filenames with newlines
+            .arg("-z")
+            // enable "branch" header lines, which will tell us what the base commit OID is
+            .arg("--branch")
+            .arg(match untracked_files {
+                UntrackedFilesMode::No => "--untracked-files=no",
+                UntrackedFilesMode::Normal => "--untracked-files=normal",
+                UntrackedFilesMode::All => "--untracked-files=all",
+            })
+            .arg(match ignored {
+                IgnoredMode::Traditional => "--ignored=traditional",
+                IgnoredMode::No => "--ignored=no",
+                IgnoredMode::Matching => "--ignored=matching",
+            })
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null());
+
+        let program: OsString = command.get_program().to_owned();
+        let args: Vec<OsString> = command.get_args().map(|arg| arg.to_owned()).collect();
+        let output =
+            command
+                .output()
+                .map_err(|err| Error::SpawnGitStatus { program, args, err })?;
+        if !output.status.success() {
+            return Err(Error::GitStatusFailed {
+                program,
+                args,
+                status: output.status,
+            });
+        }
+        let status_lines = parse_git_status_output(output.stdout)?;
+        Ok(())
+    }
+
+    enum ChangeType {
+        Unmodified,
+        Modified,
+        FileTypeChanged,
+        Added,
+        Deleted,
+        Renamed,
+        Copied,
+        UpdatedButUnmerged,
+        Invalid,
+    }
+
+    impl From<char> for ChangeType {
+        fn from(value: char) -> Self {
+            match value {
+                ' ' | '.' => ChangeType::Unmodified,
+                'M' => ChangeType::Modified,
+                'T' => ChangeType::FileTypeChanged,
+                'A' => ChangeType::Added,
+                'D' => ChangeType::Deleted,
+                'R' => ChangeType::Renamed,
+                'C' => ChangeType::Copied,
+                'U' => ChangeType::UpdatedButUnmerged,
+                _ => ChangeType::Invalid,
+            }
+        }
+    }
+
+    enum SubmoduleState {
+        NotASubmodule,
+        Submodule {
+            commit_changed: bool,
+            has_tracked_changes: bool,
+            has_untracked_changes: bool,
+        },
+    }
+
+    struct FileMode(u32);
+
+    enum RenameOrCopy {
+        Rename,
+        Copy,
+    }
+
+    struct ObjectId([char; 40]);
+
+    enum StatusLine {
+        Header {
+            name: String,
+            value: String,
+        },
+        Ordinary {
+            xy: [ChangeType; 2],
+            submodule_state: SubmoduleState,
+            mode_head: FileMode,
+            mode_index: FileMode,
+            mode_worktree: FileMode,
+            object_head: ObjectId,
+            object_index: ObjectId,
+            path: PathBuf,
+        },
+        RenamedOrCopied {
+            xy: [ChangeType; 2],
+            submodule_state: SubmoduleState,
+            mode_head: FileMode,
+            mode_index: FileMode,
+            mode_worktree: FileMode,
+            object_head: ObjectId,
+            object_index: ObjectId,
+            rename_or_copy: RenameOrCopy,
+            similarity_score: usize,
+            path: PathBuf,
+            original_path: PathBuf,
+        },
+        Unmerged {
+            xy: [char; 2],
+            submodule_state: [char; 4],
+            mode_stage1: u32,
+            mode_stage2: u32,
+            mode_stage3: u32,
+            object_stage1: ObjectId,
+            object_stage2: ObjectId,
+            object_stage3: ObjectId,
+            path: PathBuf,
+        },
+        Untracked {
+            path: PathBuf,
+        },
+        Ignored {
+            path: PathBuf,
+        },
+    }
+
+    struct Regexes {
+        header: regex::bytes::Regex,
+    }
+
+    impl Regexes {
+        fn new() -> Result<Self, regex::Error> {
+            Ok(Self {
+                header: regex::bytes::Regex::new("^# (?P<key>[^ ]+) (?P<value>.+)\0")?,
+            })
+        }
+    }
+
+    fn parse_git_status_output(output: Vec<u8>) -> Result<Vec<StatusLine>, Error> {
+        let regexes = Regexes::new()?;
+        let mut output = output.as_slice();
+        let mut lines = Vec::new();
+        while let Some((line, output)) = {
+            let line_num = lines.len() + 1;
+            parse_git_status_line(&regexes, line_num, &output).map_err(|err| Error::Parse {
+                line_num,
+                line: output
+                    .split(|c| *c == 0)
+                    .next()
+                    .map(|s| String::from_utf8_lossy(s).to_string())
+                    .unwrap_or_default(),
+                err,
+            })?
+        } {
+            lines.push(line);
+        }
+        Ok(lines)
+    }
+
+    #[derive(Debug, Error)]
+    enum ParseError {
+        #[error("regex match failed: {regex}")]
+        RegexMatchFailed { regex: regex::bytes::Regex },
+
+        #[error("unknown entry type: {entry_type}")]
+        UnknownEntryType { entry_type: char },
+    }
+
+    fn parse_git_status_line<'a>(
+        regexes: &Regexes,
+        line_num: usize,
+        output: &'a [u8],
+    ) -> Result<Option<(StatusLine, &'a [u8])>, ParseError> {
+        // TODO: just rewrite this all with pest
+        fn try_match(
+            regex: &regex::bytes::Regex,
+            output: &[u8],
+        ) -> Result<(regex::bytes::Captures, &[u8]), ParseError> {
+            regex.captures(output)
+        }
+
+        match output.get(0) {
+            None => Ok(None),
+            Some(b'#') => {
+                let regex = &regexes.header;
+                let captures =
+                    regex
+                        .captures(output)
+                        .ok_or_else(|| ParseError::RegexMatchFailed {
+                            regex: regex.clone(),
+                        })?;
+                Ok(Some(StatusLine::Header {
+                    name: captures.name("key"),
+                    value: captures.name("value"),
+                }))
+            }
+            Some(other) => Err(ParseError::UnknownEntryType {
+                entry_type: char::from(*other),
+            }),
         }
     }
 }
