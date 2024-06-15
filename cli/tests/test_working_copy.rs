@@ -24,7 +24,7 @@ fn test_snapshot_large_file() {
     // in bytes
     test_env.add_config(r#"snapshot.max-new-file-size = 10"#);
     std::fs::write(repo_path.join("large"), "a lot of text").unwrap();
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["files"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["file", "list"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to snapshot the working copy
     The file '$TEST_ENV/repo/large' is too large to be snapshotted: it is 3 bytes too large; the maximum size allowed is 10 bytes (10.0B).
@@ -40,7 +40,7 @@ fn test_snapshot_large_file() {
     test_env.add_config(r#"snapshot.max-new-file-size = "10KB""#);
     let big_string = vec![0; 1024 * 11];
     std::fs::write(repo_path.join("large"), big_string).unwrap();
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["files"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["file", "list"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Failed to snapshot the working copy
     The file '$TEST_ENV/repo/large' is too large to be snapshotted: it is 1024 bytes too large; the maximum size allowed is 10240 bytes (10.0KiB).
