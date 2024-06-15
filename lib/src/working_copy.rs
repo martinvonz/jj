@@ -150,8 +150,8 @@ pub enum SnapshotError {
         path: PathBuf,
     },
     /// Reading or writing from the commit backend failed.
-    #[error("Internal backend error")]
-    InternalBackendError(#[from] BackendError),
+    #[error(transparent)]
+    BackendError(#[from] BackendError),
     /// A file was larger than the specified maximum file size for new
     /// (previously untracked) files.
     #[error("New file {path} of size ~{size} exceeds snapshot.max-new-file-size ({max_size})")]
