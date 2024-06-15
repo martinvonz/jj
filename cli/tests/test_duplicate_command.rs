@@ -250,6 +250,60 @@ fn test_duplicate_many() {
     "###);
 }
 
+#[test]
+fn test_duplicate_destination() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "a", &[]);
+    create_commit(&test_env, &repo_path, "b", &[]);
+    create_commit(&test_env, &repo_path, "c", &["a", "b"]);
+    // Test the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @    17a00fc21654   c
+    ├─╮
+    │ ◉  d370aee184ba   b
+    ◉ │  2443ea76b0b1   a
+    ├─╯
+    ◉  000000000000
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate", "a", "-d", "c"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Duplicated 2443ea76b0b1 as yostqsxw a777fdfc a
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉  a777fdfc29f3   a
+    @    17a00fc21654   c
+    ├─╮
+    │ ◉  d370aee184ba   b
+    ◉ │  2443ea76b0b1   a
+    ├─╯
+    ◉  000000000000
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["undo"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @"");
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["duplicate" /* duplicates `c` */]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Duplicated 17a00fc21654 as kmkuslsw 2426bb15 c
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    ◉    2426bb15bfd6   c
+    ├─╮
+    │ │ @  17a00fc21654   c
+    ╭─┬─╯
+    │ ◉  d370aee184ba   b
+    ◉ │  2443ea76b0b1   a
+    ├─╯
+    ◉  000000000000
+    "###);
+}
+
 // https://github.com/martinvonz/jj/issues/1050
 #[test]
 fn test_undo_after_duplicate() {
