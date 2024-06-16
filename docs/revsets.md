@@ -52,18 +52,22 @@ only symbols.
 
 * `x-`: Parents of `x`, can be empty.
 * `x+`: Children of `x`, can be empty.
-* `x::`: Descendants of `x`, including the commits in `x` itself.
-* `x..`: Revisions that are not ancestors of `x`.
-* `::x`: Ancestors of `x`, including the commits in `x` itself.
+* `x::`: Descendants of `x`, including the commits in `x` itself. Shorthand for
+  `x::visible_heads()`.
+* `x..`: Revisions that are not ancestors of `x`. Shorthand for
+  `x..visible_heads()`.
+* `::x`: Ancestors of `x`, including the commits in `x` itself. Shorthand for
+  `root()::x`.
 * `..x`: Ancestors of `x`, including the commits in `x` itself, but excluding
-  the root commit. Equivalent to `::x ~ root()`.
+  the root commit. Shorthand for `root()..x`. Equivalent to `::x ~ root()`.
 * `x::y`: Descendants of `x` that are also ancestors of `y`. Equivalent
    to `x:: & ::y`. This is what `git log` calls `--ancestry-path x..y`.
 * `x..y`: Ancestors of `y` that are not also ancestors of `x`. Equivalent to
   `::y ~ ::x`. This is what `git log` calls `x..y` (i.e. the same as we call it).
-* `::`: All visible commits in the repo. Equivalent to `all()`.
+* `::`: All visible commits in the repo. Shorthand for
+  `root()::visible_heads()`. Equivalent to `all()`.
 * `..`: All visible commits in the repo, but excluding the root commit.
-  Equivalent to `~root()`.
+  Shorthand for `root()..visible_heads()`. Equivalent to `~root()`.
 * `~x`: Revisions that are not in `x`.
 * `x & y`: Revisions that are in both `x` and `y`.
 * `x ~ y`: Revisions that are in `x` but not in `y`.
