@@ -101,6 +101,10 @@ fn test_branch_move() {
     Error: No such branch: foo
     Hint: Use `jj branch create` to create it.
     "###);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "move", "foo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No such branch: foo
+    "###);
 
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
     insta::assert_snapshot!(stderr, @"");
@@ -126,6 +130,124 @@ fn test_branch_move() {
         &["branch", "set", "-r@-", "--allow-backwards", "foo"],
     );
     insta::assert_snapshot!(stderr, @"");
+
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "move", "foo"]);
+    insta::assert_snapshot!(stderr, @"");
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "move", "--to=@-", "foo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Refusing to move branch backwards or sideways: foo
+    Hint: Use --allow-backwards to allow it.
+    "###);
+
+    let (_stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["branch", "move", "--to=@-", "--allow-backwards", "foo"],
+    );
+    insta::assert_snapshot!(stderr, @"");
+}
+
+#[test]
+fn test_branch_move_matching() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "a1", "a2"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-mhead1"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "b1"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "c1"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-mhead2"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @   a2781dd9ee37
+    ◉  c1 f4f38657a3dd
+    ◉  b1 f652c32197cf
+    │ ◉   6b5e840ea72b
+    │ ◉  a1 a2 230dd059e1b0
+    ├─╯
+    ◉   000000000000
+    "###);
+
+    // The default could be considered "--from=all() glob:*", but is disabled
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["branch", "move"]);
+    insta::assert_snapshot!(stderr, @r###"
+    error: the following required arguments were not provided:
+      <--from <REVISIONS>|NAMES>
+
+    Usage: jj branch move <--from <REVISIONS>|NAMES>
+
+    For more information, try '--help'.
+    "###);
+
+    // No branches pointing to the source revisions
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "move", "--from=none()"]);
+    insta::assert_snapshot!(stderr, @r###"
+    No branches to update.
+    "###);
+
+    // No matching branches within the source revisions
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "move", "--from=::@", "glob:a?"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No matching branches for patterns: a?
+    "###);
+
+    // Noop move
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "move", "--to=a1", "a2"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Nothing changed.
+    "###);
+
+    // Move from multiple revisions
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "move", "--from=::@"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Warning: Updating multiple branches: b1, c1
+    Hint: Specify branch by name to update one.
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  b1 c1 a2781dd9ee37
+    ◉   f4f38657a3dd
+    ◉   f652c32197cf
+    │ ◉   6b5e840ea72b
+    │ ◉  a1 a2 230dd059e1b0
+    ├─╯
+    ◉   000000000000
+    "###);
+    test_env.jj_cmd_ok(&repo_path, &["undo"]);
+
+    // Try to move multiple branches, but one of them isn't fast-forward
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "move", "glob:?1"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Warning: Updating multiple branches: a1, b1, c1
+    Error: Refusing to move branch backwards or sideways: a1
+    Hint: Use --allow-backwards to allow it.
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @   a2781dd9ee37
+    ◉  c1 f4f38657a3dd
+    ◉  b1 f652c32197cf
+    │ ◉   6b5e840ea72b
+    │ ◉  a1 a2 230dd059e1b0
+    ├─╯
+    ◉   000000000000
+    "###);
+
+    // Select by revision and name
+    let (_stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["branch", "move", "--from=::a1+", "--to=a1+", "glob:?1"],
+    );
+    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @   a2781dd9ee37
+    ◉  c1 f4f38657a3dd
+    ◉  b1 f652c32197cf
+    │ ◉  a1 6b5e840ea72b
+    │ ◉  a2 230dd059e1b0
+    ├─╯
+    ◉   000000000000
+    "###);
 }
 
 #[test]
