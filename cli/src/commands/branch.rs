@@ -18,6 +18,7 @@ use std::io::Write as _;
 
 use clap::builder::NonEmptyStringValueParser;
 use itertools::Itertools;
+use jj_lib::backend::CommitId;
 use jj_lib::git;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::{RefTarget, RemoteRef};
@@ -349,13 +350,6 @@ fn cmd_branch_set(
     let target_commit =
         workspace_command.resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
     let repo = workspace_command.repo().as_ref();
-    let is_fast_forward = |old_target: &RefTarget| {
-        // Strictly speaking, "all" old targets should be ancestors, but we allow
-        // conflict resolution by setting branch to "any" of the old target descendants.
-        old_target
-            .added_ids()
-            .any(|old| repo.index().is_ancestor(old, target_commit.id()))
-    };
     let branch_names = &args.names;
     for name in branch_names {
         let old_target = repo.view().get_local_branch(name);
@@ -365,7 +359,7 @@ fn cmd_branch_set(
                 "Use `jj branch create` to create it.",
             ));
         }
-        if !args.allow_backwards && !is_fast_forward(old_target) {
+        if !args.allow_backwards && !is_fast_forward(repo, old_target, target_commit.id()) {
             return Err(user_error_with_hint(
                 format!("Refusing to move branch backwards or sideways: {name}"),
                 "Use --allow-backwards to allow it.",
@@ -782,4 +776,16 @@ fn cmd_branch_list(
     }
 
     Ok(())
+}
+
+fn is_fast_forward(repo: &dyn Repo, old_target: &RefTarget, new_target_id: &CommitId) -> bool {
+    if old_target.is_present() {
+        // Strictly speaking, "all" old targets should be ancestors, but we allow
+        // conflict resolution by setting branch to "any" of the old target descendants.
+        old_target
+            .added_ids()
+            .any(|old| repo.index().is_ancestor(old, new_target_id))
+    } else {
+        true
+    }
 }
