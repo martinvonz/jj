@@ -52,6 +52,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj file` now groups commands for working with files.
 
+* New command `jj branch move` let you update branches by name pattern or source
+  revision.
+
 ### Fixed bugs
 
 ## [0.18.0] - 2024-06-05
