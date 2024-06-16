@@ -13,29 +13,27 @@
 // limitations under the License.
 
 use jj_lib::git;
-use jj_lib::repo::Repo;
 
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
-use crate::git_util::get_git_repo;
+use crate::git_util::print_git_import_stats;
 use crate::ui::Ui;
 
-/// Remove a Git remote and forget its branches
+/// Update repo with changes made in the underlying Git repo
+///
+/// If a working-copy commit gets abandoned, it will be given a new, empty
+/// commit. This is true in general; it is not specific to this command.
 #[derive(clap::Args, Clone, Debug)]
-pub struct Args {
-    /// The remote's name
-    remote: String,
-}
+pub struct Args {}
 
-pub fn run(ui: &mut Ui, command: &CommandHelper, args: &Args) -> Result<(), CommandError> {
+pub fn run(ui: &mut Ui, command: &CommandHelper, _args: &Args) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo();
-    let git_repo = get_git_repo(repo.store())?;
     let mut tx = workspace_command.start_transaction();
-    git::remove_remote(tx.mut_repo(), &git_repo, &args.remote)?;
-    if tx.mut_repo().has_changes() {
-        tx.finish(ui, format!("remove git remote {}", &args.remote))
-    } else {
-        Ok(()) // Do not print "Nothing changed."
-    }
+    // In non-colocated repo, HEAD@git will never be moved internally by jj.
+    // That's why cmd_git_export() doesn't export the HEAD ref.
+    git::import_head(tx.mut_repo())?;
+    let stats = git::import_refs(tx.mut_repo(), &command.settings().git_settings())?;
+    print_git_import_stats(ui, tx.repo(), &stats, true)?;
+    tx.finish(ui, "import git refs")?;
+    Ok(())
 }

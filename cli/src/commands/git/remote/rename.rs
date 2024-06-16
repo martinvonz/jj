@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use jj_lib::git::{self};
+use jj_lib::git;
 use jj_lib::repo::Repo;
 
 use crate::cli_util::CommandHelper;
