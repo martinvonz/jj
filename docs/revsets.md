@@ -78,6 +78,144 @@ only symbols.
 You can use parentheses to control evaluation order, such as `(x & y) | z` or
 `x & (y | z)`.
 
+<details>
+<summary>Examples:</summary>
+
+Given this history:
+```
+D
+|\
+| o C
+| |
+o | B
+|/
+o A
+|
+o root()
+```
+
+**Operator** `x-`
+
+`D-` ⇒ `{C,B}`
+
+`B-` ⇒ `{A}`
+
+`A-` ⇒ `{root()}`
+
+`root()-` ⇒ `{}` (empty set)
+
+`none()-` ⇒ `{}` (empty set)
+
+`(D|A)-` ⇒ `{C,B,root()}`
+
+`(C|B)-` ⇒ `{A}`
+
+**Operator** `x+`
+
+`D+` ⇒ `{}` (empty set)
+
+`B+` ⇒ `{D}`
+
+`A+` ⇒ `{B,C}`
+
+`root()+` ⇒ `{A}`
+
+`none()+` ⇒ `{}` (empty set)
+
+`(C|B)+` ⇒ `{D}`
+
+`(B|root())+` ⇒ `{D,A}`
+
+**Operator** `x::`
+
+`D::` ⇒ `{D}`
+
+`B::` ⇒ `{D,B}`
+
+`A::` ⇒ `{D,C,B,A}`
+
+`root()::` ⇒ `{D,C,B,A,root()}`
+
+`::none()` ⇒ `{}` (empty set)
+
+`(C|B)::` ⇒ `{D,C,B}`
+
+**Operator** `x..`
+
+`D..` ⇒ `{}` (empty set)
+
+`B..` ⇒ `{D,C}` (note that, unlike `B::`, this includes `C`)
+
+`A..` ⇒ `{D,C,B}`
+
+`root()..` ⇒ `{D,C,B,A}`
+
+`none()..` ⇒ `{D,C,B,A,root()}`
+
+`(C|B)..` ⇒ `{D}`
+
+**Operator** `::x`
+
+`::D` ⇒ `{D,C,B,A,root()}`
+
+`::B` ⇒ `{B,A,root()}`
+
+`::A` ⇒ `{A,root()}`
+
+`::root()` ⇒ `{root()}`
+
+`::none()` ⇒ `{}` (empty set)
+
+`::(C|B)` ⇒ `{C,B,A,root()}`
+
+**Operator** `..x`
+
+`..D` ⇒ `{D,C,B,A}`
+
+`..B` ⇒ `{B,A}`
+
+`..A` ⇒ `{A}`
+
+`..root()` ⇒ `{}` (empty set)
+
+`..none()` ⇒ `{}` (empty set)
+
+`..(C|B)` ⇒ `{C,B,A}`
+
+**Operator** `x::y`
+
+`D::D` ⇒ `{D}`
+
+`B::D` ⇒ `{D,B}` (note that, unlike `B..D`, this includes `B` and excludes `C`)
+
+`A::D` ⇒ `{D,C,B,A}`
+
+`root()::D` ⇒ `{D,C,B,A,root()}`
+
+`none()::D` ⇒ `{}` (empty set)
+
+`D::B` ⇒ `{}` (empty set)
+
+`(C|B)::(C|B)` ⇒ `{C,B}`
+
+**Operator** `x..y`
+
+`D..D` ⇒ `{}` (empty set)
+
+`B..D` ⇒ `{D,C}` (note that, unlike `B::D`, this includes `C` and excludes `B`)
+
+`A..D` ⇒ `{D,C,B}`
+
+`root()..D` ⇒ `{D,C,B,A}`
+
+`none()..D` ⇒ `{D,C,B,A,root()}`
+
+`D..B` ⇒ `{}` (empty set)
+
+`(C|B)..(C|B)` ⇒ `{}` (empty set)
+
+</details>
+
 ## Functions
 
 You can also specify revisions by using functions. Some functions take other
