@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod remote;
+
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -58,7 +60,7 @@ use crate::ui::Ui;
 #[derive(Subcommand, Clone, Debug)]
 pub enum GitCommand {
     #[command(subcommand)]
-    Remote(GitRemoteCommand),
+    Remote(remote::Command),
     Init(GitInitArgs),
     Fetch(GitFetchArgs),
     Clone(GitCloneArgs),
@@ -68,46 +70,6 @@ pub enum GitCommand {
     #[command(subcommand, hide = true)]
     Submodule(GitSubmoduleCommand),
 }
-
-/// Manage Git remotes
-///
-/// The Git repo will be a bare git repo stored inside the `.jj/` directory.
-#[derive(Subcommand, Clone, Debug)]
-pub enum GitRemoteCommand {
-    Add(GitRemoteAddArgs),
-    Remove(GitRemoteRemoveArgs),
-    Rename(GitRemoteRenameArgs),
-    List(GitRemoteListArgs),
-}
-
-/// Add a Git remote
-#[derive(clap::Args, Clone, Debug)]
-pub struct GitRemoteAddArgs {
-    /// The remote's name
-    remote: String,
-    /// The remote's URL
-    url: String,
-}
-
-/// Remove a Git remote and forget its branches
-#[derive(clap::Args, Clone, Debug)]
-pub struct GitRemoteRemoveArgs {
-    /// The remote's name
-    remote: String,
-}
-
-/// Rename a Git remote
-#[derive(clap::Args, Clone, Debug)]
-pub struct GitRemoteRenameArgs {
-    /// The name of an existing remote
-    old: String,
-    /// The desired name for `old`
-    new: String,
-}
-
-/// List Git remotes
-#[derive(clap::Args, Clone, Debug)]
-pub struct GitRemoteListArgs {}
 
 /// Create a new Git backed repo.
 #[derive(clap::Args, Clone, Debug)]
@@ -312,75 +274,6 @@ pub fn maybe_add_gitignore(workspace_command: &WorkspaceCommandHelper) -> Result
     } else {
         Ok(())
     }
-}
-
-fn cmd_git_remote_add(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &GitRemoteAddArgs,
-) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo();
-    let git_repo = get_git_repo(repo.store())?;
-    git::add_remote(&git_repo, &args.remote, &args.url)?;
-    Ok(())
-}
-
-fn cmd_git_remote_remove(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &GitRemoteRemoveArgs,
-) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo();
-    let git_repo = get_git_repo(repo.store())?;
-    let mut tx = workspace_command.start_transaction();
-    git::remove_remote(tx.mut_repo(), &git_repo, &args.remote)?;
-    if tx.mut_repo().has_changes() {
-        tx.finish(ui, format!("remove git remote {}", &args.remote))
-    } else {
-        Ok(()) // Do not print "Nothing changed."
-    }
-}
-
-fn cmd_git_remote_rename(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    args: &GitRemoteRenameArgs,
-) -> Result<(), CommandError> {
-    let mut workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo();
-    let git_repo = get_git_repo(repo.store())?;
-    let mut tx = workspace_command.start_transaction();
-    git::rename_remote(tx.mut_repo(), &git_repo, &args.old, &args.new)?;
-    if tx.mut_repo().has_changes() {
-        tx.finish(
-            ui,
-            format!("rename git remote {} to {}", &args.old, &args.new),
-        )
-    } else {
-        Ok(()) // Do not print "Nothing changed."
-    }
-}
-
-fn cmd_git_remote_list(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    _args: &GitRemoteListArgs,
-) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo();
-    let git_repo = get_git_repo(repo.store())?;
-    for remote_name in git_repo.remotes()?.iter().flatten() {
-        let remote = git_repo.find_remote(remote_name)?;
-        writeln!(
-            ui.stdout(),
-            "{} {}",
-            remote_name,
-            remote.url().unwrap_or("<no URL>")
-        )?;
-    }
-    Ok(())
 }
 
 pub fn git_init(
@@ -1332,14 +1225,7 @@ pub fn cmd_git(
         GitCommand::Init(args) => cmd_git_init(ui, command, args),
         GitCommand::Fetch(args) => cmd_git_fetch(ui, command, args),
         GitCommand::Clone(args) => cmd_git_clone(ui, command, args),
-        GitCommand::Remote(GitRemoteCommand::Add(args)) => cmd_git_remote_add(ui, command, args),
-        GitCommand::Remote(GitRemoteCommand::Remove(args)) => {
-            cmd_git_remote_remove(ui, command, args)
-        }
-        GitCommand::Remote(GitRemoteCommand::Rename(args)) => {
-            cmd_git_remote_rename(ui, command, args)
-        }
-        GitCommand::Remote(GitRemoteCommand::List(args)) => cmd_git_remote_list(ui, command, args),
+        GitCommand::Remote(args) => remote::run(ui, command, args),
         GitCommand::Push(args) => cmd_git_push(ui, command, args),
         GitCommand::Import(args) => cmd_git_import(ui, command, args),
         GitCommand::Export(args) => cmd_git_export(ui, command, args),
