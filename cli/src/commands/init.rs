@@ -60,12 +60,12 @@ pub(crate) fn cmd_init(
     // a colocated repo.
     let colocate = false;
     if args.git || args.git_repo.is_some() {
-        git::git_init(ui, command, &wc_path, colocate, args.git_repo.as_deref())?;
+        git::init::do_init(ui, command, &wc_path, colocate, args.git_repo.as_deref())?;
         writeln!(
             ui.warning_default(),
             "`--git` and `--git-repo` are deprecated.
 Use `jj git init` instead"
-        )?;
+        )?
     } else {
         if !command.settings().allow_native_backend() {
             return Err(user_error_with_hint(
