@@ -1049,7 +1049,7 @@ fn build_predicate_fn(
                 pattern.matches(commit.description())
             })
         }
-        RevsetFilterPredicate::Author(field, pattern) => {
+        RevsetFilterPredicate::AuthorRaw(field, pattern) => {
             let pattern = pattern.clone();
             let &field = field;
             // TODO: Make these functions that take a needle to search for accept some
@@ -1064,7 +1064,7 @@ fn build_predicate_fn(
                 pattern.matches(field_value)
             })
         }
-        RevsetFilterPredicate::Committer(field, pattern) => {
+        RevsetFilterPredicate::CommitterRaw(field, pattern) => {
             let pattern = pattern.clone();
             let &field = field;
             box_pure_predicate_fn(move |index, pos| {

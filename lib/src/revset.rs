@@ -133,10 +133,10 @@ pub enum RevsetFilterPredicate {
     ParentCount(Range<u32>),
     /// Commits with description matching the pattern.
     Description(StringPattern),
-    /// Commits with author field matching the pattern.
-    Author(SignatureField, StringPattern),
-    /// Commits with committer field matching the pattern.
-    Committer(SignatureField, StringPattern),
+    /// Commits with raw author field matching the pattern.
+    AuthorRaw(SignatureField, StringPattern),
+    /// Commits with raw committer field matching the pattern.
+    CommitterRaw(SignatureField, StringPattern),
     /// Commits modifying the paths specified by the fileset.
     File(FilesetExpression),
     /// Commits with conflicts
@@ -449,7 +449,7 @@ impl RevsetExpression {
     /// Commits with author name matching the pattern.
     pub fn author_name(pattern: StringPattern) -> Rc<RevsetExpression> {
         RevsetExpression::signature_field(
-            RevsetFilterPredicate::Author,
+            RevsetFilterPredicate::AuthorRaw,
             SignatureField::Name,
             pattern,
         )
@@ -458,7 +458,7 @@ impl RevsetExpression {
     /// Commits with author email matching the pattern.
     pub fn author_email(pattern: StringPattern) -> Rc<RevsetExpression> {
         RevsetExpression::signature_field(
-            RevsetFilterPredicate::Author,
+            RevsetFilterPredicate::AuthorRaw,
             SignatureField::Email,
             pattern,
         )
@@ -475,7 +475,7 @@ impl RevsetExpression {
     /// Commits with committer name matching the pattern.
     pub fn committer_name(pattern: StringPattern) -> Rc<RevsetExpression> {
         RevsetExpression::signature_field(
-            RevsetFilterPredicate::Committer,
+            RevsetFilterPredicate::CommitterRaw,
             SignatureField::Name,
             pattern,
         )
@@ -484,7 +484,7 @@ impl RevsetExpression {
     /// Commits with committer email matching the pattern.
     pub fn committer_email(pattern: StringPattern) -> Rc<RevsetExpression> {
         RevsetExpression::signature_field(
-            RevsetFilterPredicate::Committer,
+            RevsetFilterPredicate::CommitterRaw,
             SignatureField::Email,
             pattern,
         )
@@ -2359,13 +2359,13 @@ mod tests {
             @r###"
         Union(
             Filter(
-                Author(
+                AuthorRaw(
                     Name,
                     Substring("foo@"),
                 ),
             ),
             Filter(
-                Author(
+                AuthorRaw(
                     Email,
                     Substring("foo@"),
                 ),
@@ -2601,7 +2601,7 @@ mod tests {
             parse("mine()").unwrap(),
             @r###"
         Filter(
-            Author(
+            AuthorRaw(
                 Email,
                 ExactI("test.user@example.com"),
             ),
@@ -2719,13 +2719,13 @@ mod tests {
             @r###"
         Union(
             Filter(
-                Author(
+                AuthorRaw(
                     Name,
                     Substring("a"),
                 ),
             ),
             Filter(
-                Author(
+                AuthorRaw(
                     Email,
                     Substring("a"),
                 ),
@@ -2739,13 +2739,13 @@ mod tests {
             @r###"
         Union(
             Filter(
-                Author(
+                AuthorRaw(
                     Name,
                     Exact("a"),
                 ),
             ),
             Filter(
-                Author(
+                AuthorRaw(
                     Email,
                     Exact("a"),
                 ),
@@ -2770,13 +2770,13 @@ mod tests {
         Union(
             Union(
                 Filter(
-                    Author(
+                    AuthorRaw(
                         Name,
                         Substring("a"),
                     ),
                 ),
                 Filter(
-                    Author(
+                    AuthorRaw(
                         Email,
                         Substring("a"),
                     ),
@@ -2784,13 +2784,13 @@ mod tests {
             ),
             Union(
                 Filter(
-                    Committer(
+                    CommitterRaw(
                         Name,
                         Substring("a"),
                     ),
                 ),
                 Filter(
-                    Committer(
+                    CommitterRaw(
                         Email,
                         Substring("a"),
                     ),
@@ -3139,13 +3139,13 @@ mod tests {
             AsFilter(
                 Union(
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Name,
                             Substring("foo"),
                         ),
                     ),
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Email,
                             Substring("foo"),
                         ),
@@ -3163,13 +3163,13 @@ mod tests {
             AsFilter(
                 Union(
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Name,
                             Substring("bar"),
                         ),
                     ),
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Email,
                             Substring("bar"),
                         ),
@@ -3187,13 +3187,13 @@ mod tests {
                     AsFilter(
                         Union(
                             Filter(
-                                Author(
+                                AuthorRaw(
                                     Name,
                                     Substring("bar"),
                                 ),
                             ),
                             Filter(
-                                Author(
+                                AuthorRaw(
                                     Email,
                                     Substring("bar"),
                                 ),
@@ -3214,13 +3214,13 @@ mod tests {
             AsFilter(
                 Union(
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Name,
                             Substring("foo"),
                         ),
                     ),
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Email,
                             Substring("foo"),
                         ),
@@ -3241,13 +3241,13 @@ mod tests {
         AsFilter(
             Union(
                 Filter(
-                    Author(
+                    AuthorRaw(
                         Name,
                         Substring("foo"),
                     ),
                 ),
                 Filter(
-                    Author(
+                    AuthorRaw(
                         Email,
                         Substring("foo"),
                     ),
@@ -3268,13 +3268,13 @@ mod tests {
             AsFilter(
                 Union(
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Name,
                             Substring("foo"),
                         ),
                     ),
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Email,
                             Substring("foo"),
                         ),
@@ -3289,13 +3289,13 @@ mod tests {
             AsFilter(
                 Union(
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Name,
                             Substring("foo"),
                         ),
                     ),
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Email,
                             Substring("foo"),
                         ),
@@ -3305,13 +3305,13 @@ mod tests {
             AsFilter(
                 Union(
                     Filter(
-                        Committer(
+                        CommitterRaw(
                             Name,
                             Substring("bar"),
                         ),
                     ),
                     Filter(
-                        Committer(
+                        CommitterRaw(
                             Email,
                             Substring("bar"),
                         ),
@@ -3331,13 +3331,13 @@ mod tests {
             AsFilter(
                 Union(
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Name,
                             Substring("baz"),
                         ),
                     ),
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Email,
                             Substring("baz"),
                         ),
@@ -3354,13 +3354,13 @@ mod tests {
                 AsFilter(
                     Union(
                         Filter(
-                            Committer(
+                            CommitterRaw(
                                 Name,
                                 Substring("foo"),
                             ),
                         ),
                         Filter(
-                            Committer(
+                            CommitterRaw(
                                 Email,
                                 Substring("foo"),
                             ),
@@ -3371,13 +3371,13 @@ mod tests {
             AsFilter(
                 Union(
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Name,
                             Substring("baz"),
                         ),
                     ),
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Email,
                             Substring("baz"),
                         ),
@@ -3394,13 +3394,13 @@ mod tests {
                 AsFilter(
                     Union(
                         Filter(
-                            Committer(
+                            CommitterRaw(
                                 Name,
                                 Substring("foo"),
                             ),
                         ),
                         Filter(
-                            Committer(
+                            CommitterRaw(
                                 Email,
                                 Substring("foo"),
                             ),
@@ -3418,13 +3418,13 @@ mod tests {
                 AsFilter(
                     Union(
                         Filter(
-                            Committer(
+                            CommitterRaw(
                                 Name,
                                 Substring("foo"),
                             ),
                         ),
                         Filter(
-                            Committer(
+                            CommitterRaw(
                                 Email,
                                 Substring("foo"),
                             ),
@@ -3436,13 +3436,13 @@ mod tests {
             AsFilter(
                 Union(
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Name,
                             Substring("baz"),
                         ),
                     ),
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Email,
                             Substring("baz"),
                         ),
@@ -3474,13 +3474,13 @@ mod tests {
             AsFilter(
                 Union(
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Name,
                             Substring("baz"),
                         ),
                     ),
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Email,
                             Substring("baz"),
                         ),
@@ -3499,13 +3499,13 @@ mod tests {
                         heads: AsFilter(
                             Union(
                                 Filter(
-                                    Author(
+                                    AuthorRaw(
                                         Name,
                                         Substring("baz"),
                                     ),
                                 ),
                                 Filter(
-                                    Author(
+                                    AuthorRaw(
                                         Email,
                                         Substring("baz"),
                                     ),
@@ -3531,13 +3531,13 @@ mod tests {
                         AsFilter(
                             Union(
                                 Filter(
-                                    Author(
+                                    AuthorRaw(
                                         Name,
                                         Substring("baz"),
                                     ),
                                 ),
                                 Filter(
-                                    Author(
+                                    AuthorRaw(
                                         Email,
                                         Substring("baz"),
                                     ),
@@ -3568,13 +3568,13 @@ mod tests {
                     AsFilter(
                         Union(
                             Filter(
-                                Author(
+                                AuthorRaw(
                                     Name,
                                     Substring("A"),
                                 ),
                             ),
                             Filter(
-                                Author(
+                                AuthorRaw(
                                     Email,
                                     Substring("A"),
                                 ),
@@ -3585,13 +3585,13 @@ mod tests {
                 AsFilter(
                     Union(
                         Filter(
-                            Author(
+                            AuthorRaw(
                                 Name,
                                 Substring("B"),
                             ),
                         ),
                         Filter(
-                            Author(
+                            AuthorRaw(
                                 Email,
                                 Substring("B"),
                             ),
@@ -3602,13 +3602,13 @@ mod tests {
             AsFilter(
                 Union(
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Name,
                             Substring("C"),
                         ),
                     ),
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Email,
                             Substring("C"),
                         ),
@@ -3636,13 +3636,13 @@ mod tests {
                     AsFilter(
                         Union(
                             Filter(
-                                Author(
+                                AuthorRaw(
                                     Name,
                                     Substring("A"),
                                 ),
                             ),
                             Filter(
-                                Author(
+                                AuthorRaw(
                                     Email,
                                     Substring("A"),
                                 ),
@@ -3653,13 +3653,13 @@ mod tests {
                 AsFilter(
                     Union(
                         Filter(
-                            Author(
+                            AuthorRaw(
                                 Name,
                                 Substring("B"),
                             ),
                         ),
                         Filter(
-                            Author(
+                            AuthorRaw(
                                 Email,
                                 Substring("B"),
                             ),
@@ -3670,13 +3670,13 @@ mod tests {
             AsFilter(
                 Union(
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Name,
                             Substring("C"),
                         ),
                     ),
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Email,
                             Substring("C"),
                         ),
@@ -3698,13 +3698,13 @@ mod tests {
             AsFilter(
                 Union(
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Name,
                             Substring("baz"),
                         ),
                     ),
                     Filter(
-                        Author(
+                        AuthorRaw(
                             Email,
                             Substring("baz"),
                         ),
@@ -3729,13 +3729,13 @@ mod tests {
                     AsFilter(
                         Union(
                             Filter(
-                                Author(
+                                AuthorRaw(
                                     Name,
                                     Substring("foo"),
                                 ),
                             ),
                             Filter(
-                                Author(
+                                AuthorRaw(
                                     Email,
                                     Substring("foo"),
                                 ),
@@ -3759,13 +3759,13 @@ mod tests {
                         AsFilter(
                             Union(
                                 Filter(
-                                    Committer(
+                                    CommitterRaw(
                                         Name,
                                         Substring("bar"),
                                     ),
                                 ),
                                 Filter(
-                                    Committer(
+                                    CommitterRaw(
                                         Email,
                                         Substring("bar"),
                                     ),
@@ -3794,13 +3794,13 @@ mod tests {
                                         AsFilter(
                                             Union(
                                                 Filter(
-                                                    Author(
+                                                    AuthorRaw(
                                                         Name,
                                                         Substring("foo"),
                                                     ),
                                                 ),
                                                 Filter(
-                                                    Author(
+                                                    AuthorRaw(
                                                         Email,
                                                         Substring("foo"),
                                                     ),
@@ -3838,13 +3838,13 @@ mod tests {
                             AsFilter(
                                 Union(
                                     Filter(
-                                        Author(
+                                        AuthorRaw(
                                             Name,
                                             Substring("A"),
                                         ),
                                     ),
                                     Filter(
-                                        Author(
+                                        AuthorRaw(
                                             Email,
                                             Substring("A"),
                                         ),
@@ -3860,13 +3860,13 @@ mod tests {
                         AsFilter(
                             Union(
                                 Filter(
-                                    Author(
+                                    AuthorRaw(
                                         Name,
                                         Substring("B"),
                                     ),
                                 ),
                                 Filter(
-                                    Author(
+                                    AuthorRaw(
                                         Email,
                                         Substring("B"),
                                     ),
@@ -3882,13 +3882,13 @@ mod tests {
                     AsFilter(
                         Union(
                             Filter(
-                                Author(
+                                AuthorRaw(
                                     Name,
                                     Substring("C"),
                                 ),
                             ),
                             Filter(
-                                Author(
+                                AuthorRaw(
                                     Email,
                                     Substring("C"),
                                 ),
