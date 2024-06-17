@@ -65,6 +65,11 @@ impl<T, S> LabeledWriter<T, S> {
     pub fn new(formatter: T, label: S) -> Self {
         LabeledWriter { formatter, label }
     }
+
+    /// Turns into writer that prints labeled message with the `heading`.
+    pub fn with_heading<H>(self, heading: H) -> HeadingLabeledWriter<T, S, H> {
+        HeadingLabeledWriter::new(self, heading)
+    }
 }
 
 impl<'a, T, S> LabeledWriter<T, S>
@@ -96,9 +101,9 @@ pub struct HeadingLabeledWriter<T, S, H> {
 }
 
 impl<T, S, H> HeadingLabeledWriter<T, S, H> {
-    pub fn new(formatter: T, label: S, heading: H) -> Self {
+    pub fn new(writer: LabeledWriter<T, S>, heading: H) -> Self {
         HeadingLabeledWriter {
-            writer: LabeledWriter::new(formatter, label),
+            writer,
             heading: Some(heading),
         }
     }
@@ -1162,8 +1167,14 @@ mod tests {
         let mut output: Vec<u8> = vec![];
         let mut formatter: Box<dyn Formatter> =
             Box::new(ColorFormatter::for_config(&mut output, &config, false).unwrap());
-        HeadingLabeledWriter::new(formatter.as_mut(), "inner", "Should be noop: ");
-        let mut writer = HeadingLabeledWriter::new(formatter.as_mut(), "inner", "Heading: ");
+        formatter
+            .as_mut()
+            .labeled("inner")
+            .with_heading("Should be noop: ");
+        let mut writer = formatter
+            .as_mut()
+            .labeled("inner")
+            .with_heading("Heading: ");
         write!(writer, "Message").unwrap();
         writeln!(writer, " continues").unwrap();
         drop(formatter);
@@ -1176,7 +1187,10 @@ mod tests {
     fn test_heading_labeled_writer_empty_string() {
         let mut output: Vec<u8> = vec![];
         let mut formatter: Box<dyn Formatter> = Box::new(PlainTextFormatter::new(&mut output));
-        let mut writer = HeadingLabeledWriter::new(formatter.as_mut(), "inner", "Heading: ");
+        let mut writer = formatter
+            .as_mut()
+            .labeled("inner")
+            .with_heading("Heading: ");
         // write_fmt() is called even if the format string is empty. I don't
         // know if that's guaranteed, but let's record the current behavior.
         write!(writer, "").unwrap();
