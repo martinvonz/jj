@@ -47,15 +47,15 @@ pub struct BuiltinPager {
     dynamic_pager_thread: JoinHandle<()>,
 }
 
-impl std::io::Write for &BuiltinPager {
+impl Write for &BuiltinPager {
     fn flush(&mut self) -> io::Result<()> {
         // no-op since this is being run in a dynamic pager mode.
         Ok(())
     }
 
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let string = std::str::from_utf8(buf).map_err(std::io::Error::other)?;
-        self.pager.push_str(string).map_err(std::io::Error::other)?;
+        let string = std::str::from_utf8(buf).map_err(io::Error::other)?;
+        self.pager.push_str(string).map_err(io::Error::other)?;
         Ok(buf.len())
     }
 }
@@ -395,7 +395,7 @@ impl Ui {
     /// Writer to print an update that's not part of the command's main output.
     pub fn status(&self) -> Box<dyn Write + '_> {
         if self.quiet {
-            Box::new(std::io::sink())
+            Box::new(io::sink())
         } else {
             Box::new(self.stderr())
         }
