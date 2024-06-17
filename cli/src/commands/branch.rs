@@ -329,14 +329,12 @@ fn cmd_branch_rename(
             ui.warning_default(),
             "Branch {old_branch} has tracking remote branches which were not renamed."
         )?;
-        if let Some(mut writer) = ui.hint_default() {
-            writeln!(
-                writer,
-                "to rename the branch on the remote, you can `jj git push --branch {old_branch}` \
-                 first (to delete it on the remote), and then `jj git push --branch \
-                 {new_branch}`. `jj git push --all` would also be sufficient."
-            )?;
-        }
+        writeln!(
+            ui.hint_default(),
+            "to rename the branch on the remote, you can `jj git push --branch {old_branch}` \
+             first (to delete it on the remote), and then `jj git push --branch {new_branch}`. \
+             `jj git push --all` would also be sufficient."
+        )?;
     }
 
     Ok(())
@@ -770,21 +768,17 @@ fn cmd_branch_list(
     // Print only one of these hints. It's not important to mention unexported
     // branches, but user might wonder why deleted branches are still listed.
     if found_deleted_tracking_local_branch {
-        if let Some(mut writer) = ui.hint_default() {
-            writeln!(
-                writer,
-                "Branches marked as deleted will be *deleted permanently* on the remote on the \
-                 next `jj git push`. Use `jj branch forget` to prevent this."
-            )?;
-        }
+        writeln!(
+            ui.hint_default(),
+            "Branches marked as deleted will be *deleted permanently* on the remote on the next \
+             `jj git push`. Use `jj branch forget` to prevent this."
+        )?;
     } else if found_deleted_local_branch {
-        if let Some(mut writer) = ui.hint_default() {
-            writeln!(
-                writer,
-                "Branches marked as deleted will be deleted from the underlying Git repo on the \
-                 next `jj git export`."
-            )?;
-        }
+        writeln!(
+            ui.hint_default(),
+            "Branches marked as deleted will be deleted from the underlying Git repo on the next \
+             `jj git export`."
+        )?;
     }
 
     Ok(())
