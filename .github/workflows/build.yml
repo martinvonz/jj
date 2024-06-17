@@ -2,8 +2,6 @@ name: build
 
 on:
   push:
-    branches:
-      - main
   pull_request:
 
 permissions: read-all
