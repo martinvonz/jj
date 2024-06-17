@@ -20,3 +20,9 @@ Jujutsu, you'll need to go through this process.
    
 
 [Rust RFCs]: https://github.com/rust-lang/rfcs 
+
+## Blueprint (Template)
+
+You can find the base template of a new Design Doc 
+[here](design_doc_blueprint.md).
+
