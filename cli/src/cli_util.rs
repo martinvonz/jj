@@ -1993,21 +1993,17 @@ pub fn print_trackable_remote_branches(ui: &Ui, view: &View) -> io::Result<()> {
         return Ok(());
     }
 
-    if let Some(mut writer) = ui.hint_default() {
+    if let Some(mut formatter) = ui.status_formatter() {
         writeln!(
-            writer,
+            formatter.labeled("hint").with_heading("Hint: "),
             "The following remote branches aren't associated with the existing local branches:"
         )?;
-    }
-    if let Some(mut formatter) = ui.status_formatter() {
         for full_name in &remote_branch_names {
             write!(formatter, "  ")?;
             writeln!(formatter.labeled("branch"), "{full_name}")?;
         }
-    }
-    if let Some(mut writer) = ui.hint_default() {
         writeln!(
-            writer,
+            formatter.labeled("hint").with_heading("Hint: "),
             "Run `jj branch track {names}` to keep local branches updated on future pulls.",
             names = remote_branch_names.join(" "),
         )?;
