@@ -3136,8 +3136,8 @@ fn test_rewrite_imported_commit() {
             imported_commit.parent_ids().to_vec(),
             imported_commit.tree_id().clone(),
         )
-        .set_author(imported_commit.author().clone())
-        .set_committer(imported_commit.committer().clone())
+        .set_author(imported_commit.author_raw().clone())
+        .set_committer(imported_commit.committer_raw().clone())
         .set_description(imported_commit.description())
         .write()
         .unwrap();
@@ -3147,8 +3147,8 @@ fn test_rewrite_imported_commit() {
     // commit should be adjusted to create new commit.
     assert_ne!(imported_commit.id(), authored_commit.id());
     assert_ne!(
-        imported_commit.committer().timestamp,
-        authored_commit.committer().timestamp,
+        imported_commit.committer_raw().timestamp,
+        authored_commit.committer_raw().timestamp,
     );
 
     // The index should be consistent with the store.

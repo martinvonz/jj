@@ -150,10 +150,10 @@ fn test_init_no_config_set(backend: TestRepoBackend) {
         .get_wc_commit_id(&WorkspaceId::default())
         .unwrap();
     let wc_commit = repo.store().get_commit(wc_commit_id).unwrap();
-    assert_eq!(wc_commit.author().name, "".to_string());
-    assert_eq!(wc_commit.author().email, "".to_string());
-    assert_eq!(wc_commit.committer().name, "".to_string());
-    assert_eq!(wc_commit.committer().email, "".to_string());
+    assert_eq!(wc_commit.author_raw().name, "".to_string());
+    assert_eq!(wc_commit.author_raw().email, "".to_string());
+    assert_eq!(wc_commit.committer_raw().name, "".to_string());
+    assert_eq!(wc_commit.committer_raw().email, "".to_string());
 }
 
 #[test_case(TestRepoBackend::Local ; "local backend")]
@@ -175,8 +175,8 @@ fn test_init_checkout(backend: TestRepoBackend) {
     );
     assert!(wc_commit.predecessors().next().is_none());
     assert_eq!(wc_commit.description(), "");
-    assert_eq!(wc_commit.author().name, settings.user_name());
-    assert_eq!(wc_commit.author().email, settings.user_email());
-    assert_eq!(wc_commit.committer().name, settings.user_name());
-    assert_eq!(wc_commit.committer().email, settings.user_email());
+    assert_eq!(wc_commit.author_raw().name, settings.user_name());
+    assert_eq!(wc_commit.author_raw().email, settings.user_email());
+    assert_eq!(wc_commit.committer_raw().name, settings.user_name());
+    assert_eq!(wc_commit.committer_raw().email, settings.user_email());
 }
