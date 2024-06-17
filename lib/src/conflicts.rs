@@ -107,23 +107,6 @@ pub async fn extract_as_single_hunk(
     builder.build()
 }
 
-pub async fn materialize(
-    conflict: &MergedTreeValue,
-    store: &Store,
-    path: &RepoPath,
-    output: &mut dyn Write,
-) -> std::io::Result<()> {
-    if let Some(file_merge) = conflict.to_file_merge() {
-        let file_merge = file_merge.simplify();
-        let content = extract_as_single_hunk(&file_merge, store, path).await;
-        materialize_merge_result(&content, output)
-    } else {
-        // Unless all terms are regular files, we can't do much better than to try to
-        // describe the merge.
-        conflict.describe(output)
-    }
-}
-
 /// A type similar to `MergedTreeValue` but with associated data to include in
 /// e.g. the working copy or in a diff.
 pub enum MaterializedTreeValue {
@@ -198,9 +181,18 @@ async fn materialize_tree_value_no_access_denied(
         }
         Err(conflict) => {
             let mut contents = vec![];
-            materialize(&conflict, store, path, &mut contents)
-                .await
-                .expect("Failed to materialize conflict to in-memory buffer");
+            if let Some(file_merge) = conflict.to_file_merge() {
+                let file_merge = file_merge.simplify();
+                let content = extract_as_single_hunk(&file_merge, store, path).await;
+                materialize_merge_result(&content, &mut contents)
+                    .expect("Failed to materialize conflict to in-memory buffer");
+            } else {
+                // Unless all terms are regular files, we can't do much better than to try to
+                // describe the merge.
+                conflict
+                    .describe(&mut contents)
+                    .expect("Failed to materialize conflict to in-memory buffer");
+            }
             let executable = if let Some(merge) = conflict.to_executable_merge() {
                 merge.resolve_trivial().copied().unwrap_or_default()
             } else {
