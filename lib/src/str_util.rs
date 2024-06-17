@@ -174,6 +174,16 @@ impl StringPattern {
         }
     }
 
+    /// Returns a version of this pattern that matches case‐insensitively.
+    pub fn to_case_insensitive(&self) -> Cow<'_, Self> {
+        match self {
+            StringPattern::Exact(literal) => Cow::Owned(StringPattern::exact_i(literal)),
+            StringPattern::Substring(needle) => Cow::Owned(StringPattern::substring_i(needle)),
+            StringPattern::Glob(pattern) => Cow::Owned(StringPattern::GlobI(pattern.clone())),
+            _ => Cow::Borrowed(self),
+        }
+    }
+
     /// Returns true if this pattern matches the `haystack`.
     ///
     /// When matching against a case‐insensitive pattern, only ASCII case

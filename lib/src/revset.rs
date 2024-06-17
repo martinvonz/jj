@@ -33,6 +33,7 @@ use crate::fileset::{FilePattern, FilesetExpression};
 use crate::graph::GraphEdge;
 use crate::hex_util::to_forward_hex;
 use crate::id_prefix::IdPrefixContext;
+use crate::mailmap::Mailmap;
 use crate::object_id::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
@@ -437,64 +438,162 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Difference(self.clone(), other.clone()))
     }
 
+    /// Commits that are in `self` but not in any of the `others`.
+    pub fn minus_all(
+        self: &Rc<RevsetExpression>,
+        others: &[Rc<RevsetExpression>],
+    ) -> Rc<RevsetExpression> {
+        if others.is_empty() {
+            self.clone()
+        } else {
+            RevsetExpression::minus(self, &RevsetExpression::union_all(others))
+        }
+    }
+
     /// Internal helper for matching on signature fields.
     fn signature_field(
-        predicate: fn(SignatureField, StringPattern) -> RevsetFilterPredicate,
+        raw_predicate: fn(SignatureField, StringPattern) -> RevsetFilterPredicate,
         field: SignatureField,
         pattern: StringPattern,
+        mailmap: &Mailmap,
     ) -> Rc<RevsetExpression> {
-        RevsetExpression::filter(predicate(field, pattern))
+        // Matching against a canonical signature field is the same as matching against
+        // the corresponding raw signature field except:
+        //
+        // * field values that may match but are mapped to a value that does not should
+        //   be excluded; and
+        //
+        // * field values that may not match but are mapped to a value that does should
+        //   be included.
+        //
+        // We build the expression `(raw_field(pattern) - excludes) | includes`, where:
+        //
+        //     excludes = union_all {
+        //         entry : entry ∈ mailmap,
+        //         (old field absent | old field matches) &
+        //         (new field present & new field doesn’t match)
+        //     }
+        //
+        //     includes = union_all {
+        //         entry : entry ∈ mailmap,
+        //         (old field absent | old field doesn’t match) &
+        //         (new field present & new field matches)
+        //     }
+        //
+        // When matching raw signatures, the `Mailmap` is empty and this reduces to
+        // `raw_field(pattern)`.
+
+        // The first term is a placeholder for later replacement.
+        let mut includes = vec![RevsetExpression::none()];
+        let mut excludes = vec![];
+
+        let pattern_case_insensitive = pattern.to_case_insensitive();
+
+        for entry in mailmap.iter() {
+            let make_old_signature_expr = || {
+                // `.mailmap` entries are always matched case‐insensitively, per
+                // `gitmailmap(5)`.
+                let email_expr: Rc<RevsetExpression> = RevsetExpression::filter(raw_predicate(
+                    SignatureField::Email,
+                    StringPattern::exact_i(entry.old_email()),
+                ));
+                if let Some(name) = entry.old_name() {
+                    email_expr.filtered(raw_predicate(
+                        SignatureField::Name,
+                        StringPattern::exact_i(name),
+                    ))
+                } else {
+                    email_expr
+                }
+            };
+
+            let maybe_new_field_value = match field {
+                SignatureField::Name => entry.new_name(),
+                SignatureField::Email => entry.new_email(),
+            };
+            let Some(new_field_value) = maybe_new_field_value else {
+                continue;
+            };
+            let old_field_value = match field {
+                SignatureField::Name => entry.old_name(),
+                SignatureField::Email => Some(entry.old_email()),
+            };
+
+            // We use `pattern_case_insensitive` for the old field, to respect the
+            // case‐insensitivity of `.mailmap` entries, but `pattern` for the new field, to
+            // determine whether the replacement would actually match.
+            let old_field_matches =
+                old_field_value.map(|field_value| pattern_case_insensitive.matches(field_value));
+            let new_field_matches = pattern.matches(new_field_value);
+
+            if !new_field_matches && old_field_matches.unwrap_or(true) {
+                excludes.push(make_old_signature_expr());
+            } else if new_field_matches && !old_field_matches.unwrap_or(false) {
+                includes.push(make_old_signature_expr());
+            }
+        }
+
+        includes[0] = RevsetExpression::minus_all(
+            &RevsetExpression::filter(raw_predicate(field, pattern)),
+            &excludes,
+        );
+
+        RevsetExpression::union_all(&includes)
     }
 
     /// Commits with author name matching the pattern.
-    pub fn author_name(pattern: StringPattern) -> Rc<RevsetExpression> {
+    pub fn author_name(pattern: StringPattern, mailmap: &Mailmap) -> Rc<RevsetExpression> {
         RevsetExpression::signature_field(
             RevsetFilterPredicate::AuthorRaw,
             SignatureField::Name,
             pattern,
+            mailmap,
         )
     }
 
     /// Commits with author email matching the pattern.
-    pub fn author_email(pattern: StringPattern) -> Rc<RevsetExpression> {
+    pub fn author_email(pattern: StringPattern, mailmap: &Mailmap) -> Rc<RevsetExpression> {
         RevsetExpression::signature_field(
             RevsetFilterPredicate::AuthorRaw,
             SignatureField::Email,
             pattern,
+            mailmap,
         )
     }
 
     /// Commits with author name or email matching the pattern.
-    pub fn author(pattern: StringPattern) -> Rc<RevsetExpression> {
+    pub fn author(pattern: StringPattern, mailmap: &Mailmap) -> Rc<RevsetExpression> {
         RevsetExpression::union(
-            &RevsetExpression::author_name(pattern.clone()),
-            &RevsetExpression::author_email(pattern),
+            &RevsetExpression::author_name(pattern.clone(), mailmap),
+            &RevsetExpression::author_email(pattern, mailmap),
         )
     }
 
     /// Commits with committer name matching the pattern.
-    pub fn committer_name(pattern: StringPattern) -> Rc<RevsetExpression> {
+    pub fn committer_name(pattern: StringPattern, mailmap: &Mailmap) -> Rc<RevsetExpression> {
         RevsetExpression::signature_field(
             RevsetFilterPredicate::CommitterRaw,
             SignatureField::Name,
             pattern,
+            mailmap,
         )
     }
 
     /// Commits with committer email matching the pattern.
-    pub fn committer_email(pattern: StringPattern) -> Rc<RevsetExpression> {
+    pub fn committer_email(pattern: StringPattern, mailmap: &Mailmap) -> Rc<RevsetExpression> {
         RevsetExpression::signature_field(
             RevsetFilterPredicate::CommitterRaw,
             SignatureField::Email,
             pattern,
+            mailmap,
         )
     }
 
     /// Commits with committer name or email matching the pattern.
-    pub fn committer(pattern: StringPattern) -> Rc<RevsetExpression> {
+    pub fn committer(pattern: StringPattern, mailmap: &Mailmap) -> Rc<RevsetExpression> {
         RevsetExpression::union(
-            &RevsetExpression::committer_name(pattern.clone()),
-            &RevsetExpression::committer_email(pattern),
+            &RevsetExpression::committer_name(pattern.clone(), mailmap),
+            &RevsetExpression::committer_email(pattern, mailmap),
         )
     }
 
@@ -745,24 +844,35 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
             RevsetFilterPredicate::Description(pattern),
         ))
     });
-    map.insert("author", |function, _context| {
+    map.insert("author", |function, context| {
         let [arg] = function.expect_exact_arguments()?;
         let pattern = expect_string_pattern(arg)?;
-        Ok(RevsetExpression::author(pattern))
+        Ok(RevsetExpression::author(pattern, context.mailmap()))
+    });
+    map.insert("author_raw", |function, _context| {
+        let [arg] = function.expect_exact_arguments()?;
+        let pattern = expect_string_pattern(arg)?;
+        Ok(RevsetExpression::author(pattern, &Mailmap::empty()))
     });
     map.insert("mine", |function, context| {
         function.expect_no_arguments()?;
         // Email address domains are inherently case‐insensitive, and the local‐parts
         // are generally (although not universally) treated as case‐insensitive too, so
         // we use a case‐insensitive match here.
-        Ok(RevsetExpression::author_email(StringPattern::exact_i(
-            &context.user_email,
-        )))
+        Ok(RevsetExpression::author_email(
+            StringPattern::exact_i(&context.user_email),
+            context.mailmap(),
+        ))
     });
-    map.insert("committer", |function, _context| {
+    map.insert("committer", |function, context| {
         let [arg] = function.expect_exact_arguments()?;
         let pattern = expect_string_pattern(arg)?;
-        Ok(RevsetExpression::committer(pattern))
+        Ok(RevsetExpression::committer(pattern, context.mailmap()))
+    });
+    map.insert("committer_raw", |function, _context| {
+        let [arg] = function.expect_exact_arguments()?;
+        let pattern = expect_string_pattern(arg)?;
+        Ok(RevsetExpression::committer(pattern, &Mailmap::empty()))
     });
     map.insert("empty", |function, _context| {
         function.expect_no_arguments()?;
@@ -2045,6 +2155,7 @@ pub struct RevsetParseContext<'a> {
     user_email: String,
     extensions: &'a RevsetExtensions,
     workspace: Option<RevsetWorkspaceContext<'a>>,
+    mailmap: Rc<Mailmap>,
 }
 
 impl<'a> RevsetParseContext<'a> {
@@ -2053,12 +2164,14 @@ impl<'a> RevsetParseContext<'a> {
         user_email: String,
         extensions: &'a RevsetExtensions,
         workspace: Option<RevsetWorkspaceContext<'a>>,
+        mailmap: Rc<Mailmap>,
     ) -> Self {
         Self {
             aliases_map,
             user_email,
             extensions,
             workspace,
+            mailmap,
         }
     }
 
@@ -2072,6 +2185,10 @@ impl<'a> RevsetParseContext<'a> {
 
     pub fn symbol_resolvers(&self) -> &[impl AsRef<dyn SymbolResolverExtension>] {
         self.extensions.symbol_resolvers()
+    }
+
+    pub fn mailmap(&self) -> &Mailmap {
+        &self.mailmap
     }
 }
 
@@ -2115,6 +2232,7 @@ mod tests {
             "test.user@example.com".to_string(),
             &extensions,
             None,
+            Rc::new(Mailmap::empty()),
         );
         super::parse(revset_str, &context)
     }
@@ -2143,6 +2261,7 @@ mod tests {
             "test.user@example.com".to_string(),
             &extensions,
             Some(workspace_ctx),
+            Rc::new(Mailmap::empty()),
         );
         super::parse(revset_str, &context)
     }
@@ -2167,6 +2286,7 @@ mod tests {
             "test.user@example.com".to_string(),
             &extensions,
             None,
+            Rc::new(Mailmap::empty()),
         );
         super::parse_with_modifier(revset_str, &context)
     }
