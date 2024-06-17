@@ -134,9 +134,10 @@ fn cmd_util_completion(
             "`jj util completion --{shell}` will be removed in a future version, and this will be \
              a hard error"
         )?;
-        if let Some(mut writer) = ui.hint_default() {
-            writeln!(writer, "Use `jj util completion {shell}` instead")?;
-        }
+        writeln!(
+            ui.hint_default(),
+            "Use `jj util completion {shell}` instead"
+        )?;
         Ok(())
     };
     let shell = match (args.shell, args.fish, args.zsh, args.bash) {
