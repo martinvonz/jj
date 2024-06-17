@@ -1049,11 +1049,21 @@ fn build_predicate_fn(
                 pattern.matches(commit.description())
             })
         }
-        RevsetFilterPredicate::Author(pattern) => {
+        RevsetFilterPredicate::Author(pattern, mailmap) => {
             let pattern = pattern.clone();
+            let mailmap = mailmap.clone();
             // TODO: Make these functions that take a needle to search for accept some
             // syntax for specifying whether it's a regex and whether it's
             // case-sensitive.
+            box_pure_predicate_fn(move |index, pos| {
+                let entry = index.entry_by_pos(pos);
+                let commit = store.get_commit(&entry.commit_id()).unwrap();
+                let author = mailmap.author(&commit);
+                pattern.matches(&author.name) || pattern.matches(&author.email)
+            })
+        }
+        RevsetFilterPredicate::AuthorRaw(pattern) => {
+            let pattern = pattern.clone();
             box_pure_predicate_fn(move |index, pos| {
                 let entry = index.entry_by_pos(pos);
                 let commit = store.get_commit(&entry.commit_id()).unwrap();
@@ -1061,7 +1071,17 @@ fn build_predicate_fn(
                     || pattern.matches(&commit.author_raw().email)
             })
         }
-        RevsetFilterPredicate::Committer(pattern) => {
+        RevsetFilterPredicate::Committer(pattern, mailmap) => {
+            let pattern = pattern.clone();
+            let mailmap = mailmap.clone();
+            box_pure_predicate_fn(move |index, pos| {
+                let entry = index.entry_by_pos(pos);
+                let commit = store.get_commit(&entry.commit_id()).unwrap();
+                let committer = mailmap.committer(&commit);
+                pattern.matches(&committer.name) || pattern.matches(&committer.email)
+            })
+        }
+        RevsetFilterPredicate::CommitterRaw(pattern) => {
             let pattern = pattern.clone();
             box_pure_predicate_fn(move |index, pos| {
                 let entry = index.entry_by_pos(pos);

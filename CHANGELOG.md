@@ -72,6 +72,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * New command `jj git remote set-url` that sets the url of a git remote.
 
+* Support for [`.mailmap`](https://git-scm.com/docs/gitmailmap) files has
+  been added.
+
 ### Fixed bugs
 
 * `jj git push` now ignores immutable commits when checking whether a

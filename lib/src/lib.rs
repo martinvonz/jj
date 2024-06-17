@@ -57,6 +57,7 @@ pub mod index;
 pub mod local_backend;
 pub mod local_working_copy;
 pub mod lock;
+pub mod mailmap;
 pub mod matchers;
 pub mod merge;
 pub mod merged_tree;

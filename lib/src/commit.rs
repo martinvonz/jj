@@ -146,11 +146,25 @@ impl Commit {
     }
 
     /// Returns the raw author signature from the commit data.
+    ///
+    /// **Note:** You usually **should not** directly process or display this
+    /// information before canonicalizing it. Prefer
+    /// [`Mailmap::author`][`crate::mailmap::Mailmap::author`] unless you
+    /// care specficially about the potentially‐outdated immutable commit data,
+    /// or are performing low‐level operations in a context that can’t obtain a
+    /// [`Mailmap`][`crate::mailmap::Mailmap`].
     pub fn author_raw(&self) -> &Signature {
         &self.data.author
     }
 
     /// Returns the raw committer signature from the commit data.
+    ///
+    /// **Note:** You usually **should not** directly process or display this
+    /// information before canonicalizing it. Prefer
+    /// [`Mailmap::committer`][`crate::mailmap::Mailmap::committer`] unless you
+    /// care specficially about the potentially‐outdated immutable commit
+    /// data, or are performing low‐level operations in a context that can’t
+    /// obtain a [`Mailmap`][`crate::mailmap::Mailmap`].
     pub fn committer_raw(&self) -> &Signature {
         &self.data.committer
     }

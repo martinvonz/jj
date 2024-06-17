@@ -33,6 +33,7 @@ use crate::fileset::{FilePattern, FilesetExpression};
 use crate::graph::GraphEdge;
 use crate::hex_util::to_forward_hex;
 use crate::id_prefix::IdPrefixContext;
+use crate::mailmap::Mailmap;
 use crate::object_id::{HexPrefix, PrefixResolution};
 use crate::op_store::WorkspaceId;
 use crate::repo::Repo;
@@ -141,9 +142,13 @@ pub enum RevsetFilterPredicate {
     /// Commits with description containing the needle.
     Description(StringPattern),
     /// Commits with author's name or email containing the needle.
-    Author(StringPattern),
+    Author(StringPattern, Rc<Mailmap>),
+    /// Commits with author's unmapped name or email containing the needle.
+    AuthorRaw(StringPattern),
     /// Commits with committer's name or email containing the needle.
-    Committer(StringPattern),
+    Committer(StringPattern, Rc<Mailmap>),
+    /// Commits with committer's unmapped name or email containing the needle.
+    CommitterRaw(StringPattern),
     /// Commits modifying the paths specified by the fileset.
     File(FilesetExpression),
     /// Commits with conflicts
@@ -691,10 +696,18 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
             RevsetFilterPredicate::Description(pattern),
         ))
     });
-    map.insert("author", |function, _context| {
+    map.insert("author", |function, context| {
         let [arg] = function.expect_exact_arguments()?;
         let pattern = expect_string_pattern(arg)?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
+            pattern,
+            context.mailmap.clone(),
+        )))
+    });
+    map.insert("author_raw", |function, _context| {
+        let [arg] = function.expect_exact_arguments()?;
+        let pattern = expect_string_pattern(arg)?;
+        Ok(RevsetExpression::filter(RevsetFilterPredicate::AuthorRaw(
             pattern,
         )))
     });
@@ -702,14 +715,23 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         function.expect_no_arguments()?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
             StringPattern::Exact(context.user_email.to_owned()),
+            context.mailmap.clone(),
         )))
     });
-    map.insert("committer", |function, _context| {
+    map.insert("committer", |function, context| {
         let [arg] = function.expect_exact_arguments()?;
         let pattern = expect_string_pattern(arg)?;
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Committer(
             pattern,
+            context.mailmap.clone(),
         )))
+    });
+    map.insert("committer_raw", |function, _context| {
+        let [arg] = function.expect_exact_arguments()?;
+        let pattern = expect_string_pattern(arg)?;
+        Ok(RevsetExpression::filter(
+            RevsetFilterPredicate::CommitterRaw(pattern),
+        ))
     });
     map.insert("empty", |function, _context| {
         function.expect_no_arguments()?;
@@ -1992,6 +2014,7 @@ pub struct RevsetParseContext<'a> {
     user_email: String,
     extensions: &'a RevsetExtensions,
     workspace: Option<RevsetWorkspaceContext<'a>>,
+    mailmap: Rc<Mailmap>,
 }
 
 impl<'a> RevsetParseContext<'a> {
@@ -2000,12 +2023,14 @@ impl<'a> RevsetParseContext<'a> {
         user_email: String,
         extensions: &'a RevsetExtensions,
         workspace: Option<RevsetWorkspaceContext<'a>>,
+        mailmap: Rc<Mailmap>,
     ) -> Self {
         Self {
             aliases_map,
             user_email,
             extensions,
             workspace,
+            mailmap,
         }
     }
 
@@ -2063,6 +2088,7 @@ mod tests {
             "test.user@example.com".to_string(),
             &extensions,
             None,
+            Default::default(),
         );
         // Map error to comparable object
         super::parse(revset_str, &context).map_err(|e| e.kind)
@@ -2092,6 +2118,7 @@ mod tests {
             "test.user@example.com".to_string(),
             &extensions,
             Some(workspace_ctx),
+            Default::default(),
         );
         // Map error to comparable object
         super::parse(revset_str, &context).map_err(|e| e.kind)
@@ -2117,6 +2144,7 @@ mod tests {
             "test.user@example.com".to_string(),
             &extensions,
             None,
+            Default::default(),
         );
         // Map error to comparable object
         super::parse_with_modifier(revset_str, &context).map_err(|e| e.kind)
@@ -2296,6 +2324,7 @@ mod tests {
             parse(r#"author("foo@")"#),
             Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
                 StringPattern::Substring("foo@".to_string()),
+                Default::default(),
             )))
         );
         // Parse a single symbol
@@ -2456,7 +2485,8 @@ mod tests {
         assert_eq!(
             parse("mine()"),
             Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
-                StringPattern::Exact("test.user@example.com".to_string())
+                StringPattern::Exact("test.user@example.com".to_string()),
+                Default::default(),
             )))
         );
         assert_eq!(
@@ -3047,6 +3077,11 @@ mod tests {
                     Substring(
                         "foo",
                     ),
+                    Mailmap(
+                        Snapshot {
+                            entries_by_old_email: [],
+                        },
+                    ),
                 ),
             ),
         )
@@ -3068,6 +3103,11 @@ mod tests {
                     Substring(
                         "bar",
                     ),
+                    Mailmap(
+                        Snapshot {
+                            entries_by_old_email: [],
+                        },
+                    ),
                 ),
             ),
         )
@@ -3088,6 +3128,11 @@ mod tests {
                         Author(
                             Substring(
                                 "bar",
+                            ),
+                            Mailmap(
+                                Snapshot {
+                                    entries_by_old_email: [],
+                                },
                             ),
                         ),
                     ),
@@ -3117,6 +3162,11 @@ mod tests {
                     Substring(
                         "foo",
                     ),
+                    Mailmap(
+                        Snapshot {
+                            entries_by_old_email: [],
+                        },
+                    ),
                 ),
             ),
         )
@@ -3130,6 +3180,11 @@ mod tests {
             Author(
                 Substring(
                     "foo",
+                ),
+                Mailmap(
+                    Snapshot {
+                        entries_by_old_email: [],
+                    },
                 ),
             ),
         )
@@ -3163,6 +3218,11 @@ mod tests {
                     Substring(
                         "foo",
                     ),
+                    Mailmap(
+                        Snapshot {
+                            entries_by_old_email: [],
+                        },
+                    ),
                 ),
             ),
         )
@@ -3175,12 +3235,22 @@ mod tests {
                     Substring(
                         "foo",
                     ),
+                    Mailmap(
+                        Snapshot {
+                            entries_by_old_email: [],
+                        },
+                    ),
                 ),
             ),
             Filter(
                 Committer(
                     Substring(
                         "bar",
+                    ),
+                    Mailmap(
+                        Snapshot {
+                            entries_by_old_email: [],
+                        },
                     ),
                 ),
             ),
@@ -3209,6 +3279,11 @@ mod tests {
                     Substring(
                         "baz",
                     ),
+                    Mailmap(
+                        Snapshot {
+                            entries_by_old_email: [],
+                        },
+                    ),
                 ),
             ),
         )
@@ -3227,6 +3302,11 @@ mod tests {
                         Substring(
                             "foo",
                         ),
+                        Mailmap(
+                            Snapshot {
+                                entries_by_old_email: [],
+                            },
+                        ),
                     ),
                 ),
             ),
@@ -3234,6 +3314,11 @@ mod tests {
                 Author(
                     Substring(
                         "baz",
+                    ),
+                    Mailmap(
+                        Snapshot {
+                            entries_by_old_email: [],
+                        },
                     ),
                 ),
             ),
@@ -3252,6 +3337,11 @@ mod tests {
                     Committer(
                         Substring(
                             "foo",
+                        ),
+                        Mailmap(
+                            Snapshot {
+                                entries_by_old_email: [],
+                            },
                         ),
                     ),
                 ),
@@ -3276,6 +3366,11 @@ mod tests {
                         Substring(
                             "foo",
                         ),
+                        Mailmap(
+                            Snapshot {
+                                entries_by_old_email: [],
+                            },
+                        ),
                     ),
                 ),
                 Filter(
@@ -3292,6 +3387,11 @@ mod tests {
                 Author(
                     Substring(
                         "baz",
+                    ),
+                    Mailmap(
+                        Snapshot {
+                            entries_by_old_email: [],
+                        },
                     ),
                 ),
             ),
@@ -3352,6 +3452,11 @@ mod tests {
                     Substring(
                         "baz",
                     ),
+                    Mailmap(
+                        Snapshot {
+                            entries_by_old_email: [],
+                        },
+                    ),
                 ),
             ),
         )
@@ -3371,6 +3476,11 @@ mod tests {
                             Author(
                                 Substring(
                                     "baz",
+                                ),
+                                Mailmap(
+                                    Snapshot {
+                                        entries_by_old_email: [],
+                                    },
                                 ),
                             ),
                         ),
@@ -3412,6 +3522,11 @@ mod tests {
                             Author(
                                 Substring(
                                     "baz",
+                                ),
+                                Mailmap(
+                                    Snapshot {
+                                        entries_by_old_email: [],
+                                    },
                                 ),
                             ),
                         ),
@@ -3459,6 +3574,11 @@ mod tests {
                             Substring(
                                 "A",
                             ),
+                            Mailmap(
+                                Snapshot {
+                                    entries_by_old_email: [],
+                                },
+                            ),
                         ),
                     ),
                 ),
@@ -3467,6 +3587,11 @@ mod tests {
                         Substring(
                             "B",
                         ),
+                        Mailmap(
+                            Snapshot {
+                                entries_by_old_email: [],
+                            },
+                        ),
                     ),
                 ),
             ),
@@ -3474,6 +3599,11 @@ mod tests {
                 Author(
                     Substring(
                         "C",
+                    ),
+                    Mailmap(
+                        Snapshot {
+                            entries_by_old_email: [],
+                        },
                     ),
                 ),
             ),
@@ -3516,6 +3646,11 @@ mod tests {
                             Substring(
                                 "A",
                             ),
+                            Mailmap(
+                                Snapshot {
+                                    entries_by_old_email: [],
+                                },
+                            ),
                         ),
                     ),
                 ),
@@ -3524,6 +3659,11 @@ mod tests {
                         Substring(
                             "B",
                         ),
+                        Mailmap(
+                            Snapshot {
+                                entries_by_old_email: [],
+                            },
+                        ),
                     ),
                 ),
             ),
@@ -3531,6 +3671,11 @@ mod tests {
                 Author(
                     Substring(
                         "C",
+                    ),
+                    Mailmap(
+                        Snapshot {
+                            entries_by_old_email: [],
+                        },
                     ),
                 ),
             ),
@@ -3561,6 +3706,11 @@ mod tests {
                     Substring(
                         "baz",
                     ),
+                    Mailmap(
+                        Snapshot {
+                            entries_by_old_email: [],
+                        },
+                    ),
                 ),
             ),
         )
@@ -3583,6 +3733,11 @@ mod tests {
                         Author(
                             Substring(
                                 "foo",
+                            ),
+                            Mailmap(
+                                Snapshot {
+                                    entries_by_old_email: [],
+                                },
                             ),
                         ),
                     ),
@@ -3616,6 +3771,11 @@ mod tests {
                             Committer(
                                 Substring(
                                     "bar",
+                                ),
+                                Mailmap(
+                                    Snapshot {
+                                        entries_by_old_email: [],
+                                    },
                                 ),
                             ),
                         ),
@@ -3656,6 +3816,11 @@ mod tests {
                                             Author(
                                                 Substring(
                                                     "foo",
+                                                ),
+                                                Mailmap(
+                                                    Snapshot {
+                                                        entries_by_old_email: [],
+                                                    },
                                                 ),
                                             ),
                                         ),
@@ -3708,6 +3873,11 @@ mod tests {
                                     Substring(
                                         "A",
                                     ),
+                                    Mailmap(
+                                        Snapshot {
+                                            entries_by_old_email: [],
+                                        },
+                                    ),
                                 ),
                             ),
                             CommitRef(
@@ -3725,6 +3895,11 @@ mod tests {
                                 Substring(
                                     "B",
                                 ),
+                                Mailmap(
+                                    Snapshot {
+                                        entries_by_old_email: [],
+                                    },
+                                ),
                             ),
                         ),
                         CommitRef(
@@ -3741,6 +3916,11 @@ mod tests {
                         Author(
                             Substring(
                                 "C",
+                            ),
+                            Mailmap(
+                                Snapshot {
+                                    entries_by_old_email: [],
+                                },
                             ),
                         ),
                     ),

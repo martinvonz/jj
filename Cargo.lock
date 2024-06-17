@@ -1080,9 +1080,9 @@ dependencies = [
 
 [[package]]
 name = "gix-date"
-version = "0.8.6"
+version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "367ee9093b0c2b04fd04c5c7c8b6a1082713534eab537597ae343663a518fa99"
+checksum = "9eed6931f21491ee0aeb922751bd7ec97b4b2fe8fbfedcb678e2a2dce5f3b8c0"
 dependencies = [
  "bstr",
  "itoa",
@@ -1232,6 +1232,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "gix-mailmap"
+version = "0.23.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f69655c4706db2545f2d78723db30ac15738811de0bc14963135d06666392279"
+dependencies = [
+ "bstr",
+ "gix-actor",
+ "gix-date",
+ "thiserror",
 ]
 
 [[package]]
@@ -1736,6 +1748,8 @@ dependencies = [
  "futures 0.3.30",
  "git2",
  "gix",
+ "gix-actor",
+ "gix-mailmap",
  "glob",
  "hex",
  "ignore",
