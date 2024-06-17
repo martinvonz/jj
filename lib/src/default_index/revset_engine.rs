@@ -965,7 +965,7 @@ impl<'index> EvaluationContext<'index> {
             let entry = self.index.entry_by_pos(pos);
             let commit = self.store.get_commit(&entry.commit_id()).unwrap();
             Reverse(Item {
-                timestamp: commit.committer().timestamp.timestamp,
+                timestamp: commit.committer_raw().timestamp.timestamp,
                 pos: entry.position(),
             })
         };
@@ -1057,7 +1057,8 @@ fn build_predicate_fn(
             box_pure_predicate_fn(move |index, pos| {
                 let entry = index.entry_by_pos(pos);
                 let commit = store.get_commit(&entry.commit_id()).unwrap();
-                pattern.matches(&commit.author().name) || pattern.matches(&commit.author().email)
+                pattern.matches(&commit.author_raw().name)
+                    || pattern.matches(&commit.author_raw().email)
             })
         }
         RevsetFilterPredicate::Committer(pattern) => {
@@ -1065,8 +1066,8 @@ fn build_predicate_fn(
             box_pure_predicate_fn(move |index, pos| {
                 let entry = index.entry_by_pos(pos);
                 let commit = store.get_commit(&entry.commit_id()).unwrap();
-                pattern.matches(&commit.committer().name)
-                    || pattern.matches(&commit.committer().email)
+                pattern.matches(&commit.committer_raw().name)
+                    || pattern.matches(&commit.committer_raw().email)
             })
         }
         RevsetFilterPredicate::File(expr) => {

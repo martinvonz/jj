@@ -145,11 +145,13 @@ impl Commit {
         &self.data.description
     }
 
-    pub fn author(&self) -> &Signature {
+    /// Returns the raw author signature from the commit data.
+    pub fn author_raw(&self) -> &Signature {
         &self.data.author
     }
 
-    pub fn committer(&self) -> &Signature {
+    /// Returns the raw committer signature from the commit data.
+    pub fn committer_raw(&self) -> &Signature {
         &self.data.committer
     }
 
@@ -193,8 +195,8 @@ pub(crate) struct CommitByCommitterTimestamp(pub Commit);
 
 impl Ord for CommitByCommitterTimestamp {
     fn cmp(&self, other: &Self) -> Ordering {
-        let self_timestamp = &self.0.committer().timestamp.timestamp;
-        let other_timestamp = &other.0.committer().timestamp.timestamp;
+        let self_timestamp = &self.0.committer_raw().timestamp.timestamp;
+        let other_timestamp = &other.0.committer_raw().timestamp.timestamp;
         self_timestamp
             .cmp(other_timestamp)
             .then_with(|| self.0.cmp(&other.0)) // to comply with Eq
