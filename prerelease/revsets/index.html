@@ -1486,18 +1486,22 @@ only symbols.</p>
 <ul>
 <li><code>x-</code>: Parents of <code>x</code>, can be empty.</li>
 <li><code>x+</code>: Children of <code>x</code>, can be empty.</li>
-<li><code>x::</code>: Descendants of <code>x</code>, including the commits in <code>x</code> itself.</li>
-<li><code>x..</code>: Revisions that are not ancestors of <code>x</code>.</li>
-<li><code>::x</code>: Ancestors of <code>x</code>, including the commits in <code>x</code> itself.</li>
+<li><code>x::</code>: Descendants of <code>x</code>, including the commits in <code>x</code> itself. Shorthand for
+  <code>x::visible_heads()</code>.</li>
+<li><code>x..</code>: Revisions that are not ancestors of <code>x</code>. Shorthand for
+  <code>x..visible_heads()</code>.</li>
+<li><code>::x</code>: Ancestors of <code>x</code>, including the commits in <code>x</code> itself. Shorthand for
+  <code>root()::x</code>.</li>
 <li><code>..x</code>: Ancestors of <code>x</code>, including the commits in <code>x</code> itself, but excluding
-  the root commit. Equivalent to <code>::x ~ root()</code>.</li>
+  the root commit. Shorthand for <code>root()..x</code>. Equivalent to <code>::x ~ root()</code>.</li>
 <li><code>x::y</code>: Descendants of <code>x</code> that are also ancestors of <code>y</code>. Equivalent
    to <code>x:: &amp; ::y</code>. This is what <code>git log</code> calls <code>--ancestry-path x..y</code>.</li>
 <li><code>x..y</code>: Ancestors of <code>y</code> that are not also ancestors of <code>x</code>. Equivalent to
   <code>::y ~ ::x</code>. This is what <code>git log</code> calls <code>x..y</code> (i.e. the same as we call it).</li>
-<li><code>::</code>: All visible commits in the repo. Equivalent to <code>all()</code>.</li>
+<li><code>::</code>: All visible commits in the repo. Shorthand for
+  <code>root()::visible_heads()</code>. Equivalent to <code>all()</code>.</li>
 <li><code>..</code>: All visible commits in the repo, but excluding the root commit.
-  Equivalent to <code>~root()</code>.</li>
+  Shorthand for <code>root()..visible_heads()</code>. Equivalent to <code>~root()</code>.</li>
 <li><code>~x</code>: Revisions that are not in <code>x</code>.</li>
 <li><code>x &amp; y</code>: Revisions that are in both <code>x</code> and <code>y</code>.</li>
 <li><code>x ~ y</code>: Revisions that are in <code>x</code> but not in <code>y</code>.</li>
@@ -1506,6 +1510,143 @@ only symbols.</p>
 <p>(listed in order of binding strengths)</p>
 <p>You can use parentheses to control evaluation order, such as <code>(x &amp; y) | z</code> or
 <code>x &amp; (y | z)</code>.</p>
+<details>
+<summary>Examples:</summary>
+
+Given this history:
+<div class="highlight"><pre><span></span><code>D
+|\
+| o C
+| |
+o | B
+|/
+o A
+|
+o root()
+</code></pre></div>
+
+**Operator** `x-`
+
+`D-` ⇒ `{C,B}`
+
+`B-` ⇒ `{A}`
+
+`A-` ⇒ `{root()}`
+
+`root()-` ⇒ `{}` (empty set)
+
+`none()-` ⇒ `{}` (empty set)
+
+`(D|A)-` ⇒ `{C,B,root()}`
+
+`(C|B)-` ⇒ `{A}`
+
+**Operator** `x+`
+
+`D+` ⇒ `{}` (empty set)
+
+`B+` ⇒ `{D}`
+
+`A+` ⇒ `{B,C}`
+
+`root()+` ⇒ `{A}`
+
+`none()+` ⇒ `{}` (empty set)
+
+`(C|B)+` ⇒ `{D}`
+
+`(B|root())+` ⇒ `{D,A}`
+
+**Operator** `x::`
+
+`D::` ⇒ `{D}`
+
+`B::` ⇒ `{D,B}`
+
+`A::` ⇒ `{D,C,B,A}`
+
+`root()::` ⇒ `{D,C,B,A,root()}`
+
+`::none()` ⇒ `{}` (empty set)
+
+`(C|B)::` ⇒ `{D,C,B}`
+
+**Operator** `x..`
+
+`D..` ⇒ `{}` (empty set)
+
+`B..` ⇒ `{D,C}` (note that, unlike `B::`, this includes `C`)
+
+`A..` ⇒ `{D,C,B}`
+
+`root()..` ⇒ `{D,C,B,A}`
+
+`none()..` ⇒ `{D,C,B,A,root()}`
+
+`(C|B)..` ⇒ `{D}`
+
+**Operator** `::x`
+
+`::D` ⇒ `{D,C,B,A,root()}`
+
+`::B` ⇒ `{B,A,root()}`
+
+`::A` ⇒ `{A,root()}`
+
+`::root()` ⇒ `{root()}`
+
+`::none()` ⇒ `{}` (empty set)
+
+`::(C|B)` ⇒ `{C,B,A,root()}`
+
+**Operator** `..x`
+
+`..D` ⇒ `{D,C,B,A}`
+
+`..B` ⇒ `{B,A}`
+
+`..A` ⇒ `{A}`
+
+`..root()` ⇒ `{}` (empty set)
+
+`..none()` ⇒ `{}` (empty set)
+
+`..(C|B)` ⇒ `{C,B,A}`
+
+**Operator** `x::y`
+
+`D::D` ⇒ `{D}`
+
+`B::D` ⇒ `{D,B}` (note that, unlike `B..D`, this includes `B` and excludes `C`)
+
+`A::D` ⇒ `{D,C,B,A}`
+
+`root()::D` ⇒ `{D,C,B,A,root()}`
+
+`none()::D` ⇒ `{}` (empty set)
+
+`D::B` ⇒ `{}` (empty set)
+
+`(C|B)::(C|B)` ⇒ `{C,B}`
+
+**Operator** `x..y`
+
+`D..D` ⇒ `{}` (empty set)
+
+`B..D` ⇒ `{D,C}` (note that, unlike `B::D`, this includes `C` and excludes `B`)
+
+`A..D` ⇒ `{D,C,B}`
+
+`root()..D` ⇒ `{D,C,B,A}`
+
+`none()..D` ⇒ `{D,C,B,A,root()}`
+
+`D..B` ⇒ `{}` (empty set)
+
+`(C|B)..(C|B)` ⇒ `{}` (empty set)
+
+</details>
+
 <h2 id="functions">Functions<a class="headerlink" href="#functions" title="Permanent link">&para;</a></h2>
 <p>You can also specify revisions by using functions. Some functions take other
 revsets (expressions) as arguments.</p>
