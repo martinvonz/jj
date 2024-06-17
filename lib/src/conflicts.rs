@@ -92,11 +92,7 @@ async fn get_file_contents(
                 .map_err(|err| BackendError::ReadFile {
                     path: path.to_owned(),
                     id: id.clone(),
-                    source: format!(
-                        "Failed to read file contents for {}: {err}",
-                        path.as_internal_file_string()
-                    )
-                    .into(),
+                    source: err.into(),
                 })?;
             Ok(ContentHunk(content))
         }
