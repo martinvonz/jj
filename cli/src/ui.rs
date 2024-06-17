@@ -424,7 +424,8 @@ impl Ui {
         &self,
         heading: H,
     ) -> Option<HeadingLabeledWriter<Box<dyn Formatter + '_>, &'static str, H>> {
-        (!self.quiet).then(|| HeadingLabeledWriter::new(self.stderr_formatter(), "hint", heading))
+        self.hint_no_heading()
+            .map(|writer| writer.with_heading(heading))
     }
 
     /// Writer to print warning with the default "Warning: " heading.
@@ -444,7 +445,7 @@ impl Ui {
         &self,
         heading: H,
     ) -> HeadingLabeledWriter<Box<dyn Formatter + '_>, &'static str, H> {
-        HeadingLabeledWriter::new(self.stderr_formatter(), "warning", heading)
+        self.warning_no_heading().with_heading(heading)
     }
 
     /// Writer to print error without the "Error: " heading.
@@ -457,7 +458,7 @@ impl Ui {
         &self,
         heading: H,
     ) -> HeadingLabeledWriter<Box<dyn Formatter + '_>, &'static str, H> {
-        HeadingLabeledWriter::new(self.stderr_formatter(), "error", heading)
+        self.error_no_heading().with_heading(heading)
     }
 
     /// Waits for the pager exits.
