@@ -128,6 +128,7 @@ nav:
 - Contributing:
       - 'Guidelines and "How to...?"': 'contributing.md'
       - 'Code of conduct': 'code-of-conduct.md'
+      - 'Design Docs': 'design_docs.md'
 
 - 'Design docs': 
     - 'git-submodules': 'design/git-submodules.md'

@@ -64,6 +64,12 @@ your company's interests, do feel free to approve it.
 This project follows [Google's Open Source Community
 Guidelines](https://opensource.google/conduct/).
 
+## Contributing large patches
+
+Before sending a PR for a large change which designs/redesigns or reworks an 
+existing component, we require an architecture review from  multiple 
+stakeholders, which we do with [Design Docs](design_docs.md), see the 
+[process here](design_docs.md#process).
 
 ## Contributing to the documentation
 
