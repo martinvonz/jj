@@ -2485,6 +2485,8 @@ fn resolve_default_command(
             if args.is_none() {
                 if let Some(mut writer) = ui.hint_default() {
                     writeln!(writer, "Use `jj -h` for a list of available commands.")?;
+                }
+                if let Some(mut writer) = ui.hint_no_heading() {
                     writeln!(
                         writer,
                         "Run `jj config set --user ui.default-command log` to disable this \
