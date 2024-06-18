@@ -78,143 +78,140 @@ only symbols.
 You can use parentheses to control evaluation order, such as `(x & y) | z` or
 `x & (y | z)`.
 
-<details>
-<summary>Examples:</summary>
+??? examples
 
-Given this history:
-```
-D
-|\
-| o C
-| |
-o | B
-|/
-o A
-|
-o root()
-```
+    Given this history:
+    ```
+    D
+    |\
+    | o C
+    | |
+    o | B
+    |/
+    o A
+    |
+    o root()
+    ```
 
-**Operator** `x-`
+    **Operator** `x-`
 
-`D-` ⇒ `{C,B}`
+    `D-` ⇒ `{C,B}`
 
-`B-` ⇒ `{A}`
+    `B-` ⇒ `{A}`
 
-`A-` ⇒ `{root()}`
+    `A-` ⇒ `{root()}`
 
-`root()-` ⇒ `{}` (empty set)
+    `root()-` ⇒ `{}` (empty set)
 
-`none()-` ⇒ `{}` (empty set)
+    `none()-` ⇒ `{}` (empty set)
 
-`(D|A)-` ⇒ `{C,B,root()}`
+    `(D|A)-` ⇒ `{C,B,root()}`
 
-`(C|B)-` ⇒ `{A}`
+    `(C|B)-` ⇒ `{A}`
 
-**Operator** `x+`
+    **Operator** `x+`
 
-`D+` ⇒ `{}` (empty set)
+    `D+` ⇒ `{}` (empty set)
 
-`B+` ⇒ `{D}`
+    `B+` ⇒ `{D}`
 
-`A+` ⇒ `{B,C}`
+    `A+` ⇒ `{B,C}`
 
-`root()+` ⇒ `{A}`
+    `root()+` ⇒ `{A}`
 
-`none()+` ⇒ `{}` (empty set)
+    `none()+` ⇒ `{}` (empty set)
 
-`(C|B)+` ⇒ `{D}`
+    `(C|B)+` ⇒ `{D}`
 
-`(B|root())+` ⇒ `{D,A}`
+    `(B|root())+` ⇒ `{D,A}`
 
-**Operator** `x::`
+    **Operator** `x::`
 
-`D::` ⇒ `{D}`
+    `D::` ⇒ `{D}`
 
-`B::` ⇒ `{D,B}`
+    `B::` ⇒ `{D,B}`
 
-`A::` ⇒ `{D,C,B,A}`
+    `A::` ⇒ `{D,C,B,A}`
 
-`root()::` ⇒ `{D,C,B,A,root()}`
+    `root()::` ⇒ `{D,C,B,A,root()}`
 
-`::none()` ⇒ `{}` (empty set)
+    `none()::` ⇒ `{}` (empty set)
 
-`(C|B)::` ⇒ `{D,C,B}`
+    `(C|B)::` ⇒ `{D,C,B}`
 
-**Operator** `x..`
+    **Operator** `x..`
 
-`D..` ⇒ `{}` (empty set)
+    `D..` ⇒ `{}` (empty set)
 
-`B..` ⇒ `{D,C}` (note that, unlike `B::`, this includes `C`)
+    `B..` ⇒ `{D,C}` (note that, unlike `B::`, this includes `C`)
 
-`A..` ⇒ `{D,C,B}`
+    `A..` ⇒ `{D,C,B}`
 
-`root()..` ⇒ `{D,C,B,A}`
+    `root()..` ⇒ `{D,C,B,A}`
 
-`none()..` ⇒ `{D,C,B,A,root()}`
+    `none()..` ⇒ `{D,C,B,A,root()}`
 
-`(C|B)..` ⇒ `{D}`
+    `(C|B)..` ⇒ `{D}`
 
-**Operator** `::x`
+    **Operator** `::x`
 
-`::D` ⇒ `{D,C,B,A,root()}`
+    `::D` ⇒ `{D,C,B,A,root()}`
 
-`::B` ⇒ `{B,A,root()}`
+    `::B` ⇒ `{B,A,root()}`
 
-`::A` ⇒ `{A,root()}`
+    `::A` ⇒ `{A,root()}`
 
-`::root()` ⇒ `{root()}`
+    `::root()` ⇒ `{root()}`
 
-`::none()` ⇒ `{}` (empty set)
+    `::none()` ⇒ `{}` (empty set)
 
-`::(C|B)` ⇒ `{C,B,A,root()}`
+    `::(C|B)` ⇒ `{C,B,A,root()}`
 
-**Operator** `..x`
+    **Operator** `..x`
 
-`..D` ⇒ `{D,C,B,A}`
+    `..D` ⇒ `{D,C,B,A}`
 
-`..B` ⇒ `{B,A}`
+    `..B` ⇒ `{B,A}`
 
-`..A` ⇒ `{A}`
+    `..A` ⇒ `{A}`
 
-`..root()` ⇒ `{}` (empty set)
+    `..root()` ⇒ `{}` (empty set)
 
-`..none()` ⇒ `{}` (empty set)
+    `..none()` ⇒ `{}` (empty set)
 
-`..(C|B)` ⇒ `{C,B,A}`
+    `..(C|B)` ⇒ `{C,B,A}`
 
-**Operator** `x::y`
+    **Operator** `x::y`
 
-`D::D` ⇒ `{D}`
+    `D::D` ⇒ `{D}`
 
-`B::D` ⇒ `{D,B}` (note that, unlike `B..D`, this includes `B` and excludes `C`)
+    `B::D` ⇒ `{D,B}` (note that, unlike `B..D`, this includes `B` and excludes `C`)
 
-`A::D` ⇒ `{D,C,B,A}`
+    `A::D` ⇒ `{D,C,B,A}`
 
-`root()::D` ⇒ `{D,C,B,A,root()}`
+    `root()::D` ⇒ `{D,C,B,A,root()}`
 
-`none()::D` ⇒ `{}` (empty set)
+    `none()::D` ⇒ `{}` (empty set)
 
-`D::B` ⇒ `{}` (empty set)
+    `D::B` ⇒ `{}` (empty set)
 
-`(C|B)::(C|B)` ⇒ `{C,B}`
+    `(C|B)::(C|B)` ⇒ `{C,B}`
 
-**Operator** `x..y`
+    **Operator** `x..y`
 
-`D..D` ⇒ `{}` (empty set)
+    `D..D` ⇒ `{}` (empty set)
 
-`B..D` ⇒ `{D,C}` (note that, unlike `B::D`, this includes `C` and excludes `B`)
+    `B..D` ⇒ `{D,C}` (note that, unlike `B::D`, this includes `C` and excludes `B`)
 
-`A..D` ⇒ `{D,C,B}`
+    `A..D` ⇒ `{D,C,B}`
 
-`root()..D` ⇒ `{D,C,B,A}`
+    `root()..D` ⇒ `{D,C,B,A}`
 
-`none()..D` ⇒ `{D,C,B,A,root()}`
+    `none()..D` ⇒ `{D,C,B,A,root()}`
 
-`D..B` ⇒ `{}` (empty set)
+    `D..B` ⇒ `{}` (empty set)
 
-`(C|B)..(C|B)` ⇒ `{}` (empty set)
-
-</details>
+    `(C|B)..(C|B)` ⇒ `{}` (empty set)
 
 ## Functions
 
