@@ -1530,10 +1530,9 @@ only symbols.</p>
 <p>(listed in order of binding strengths)</p>
 <p>You can use parentheses to control evaluation order, such as <code>(x &amp; y) | z</code> or
 <code>x &amp; (y | z)</code>.</p>
-<details>
-<summary>Examples:</summary>
-
-Given this history:
+<details class="examples">
+<summary>Examples</summary>
+<p>Given this history:
 <div class="highlight"><pre><span></span><code>D
 |\
 | o C
@@ -1543,130 +1542,68 @@ o | B
 o A
 |
 o root()
-</code></pre></div>
-
-**Operator** `x-`
-
-`D-` ⇒ `{C,B}`
-
-`B-` ⇒ `{A}`
-
-`A-` ⇒ `{root()}`
-
-`root()-` ⇒ `{}` (empty set)
-
-`none()-` ⇒ `{}` (empty set)
-
-`(D|A)-` ⇒ `{C,B,root()}`
-
-`(C|B)-` ⇒ `{A}`
-
-**Operator** `x+`
-
-`D+` ⇒ `{}` (empty set)
-
-`B+` ⇒ `{D}`
-
-`A+` ⇒ `{B,C}`
-
-`root()+` ⇒ `{A}`
-
-`none()+` ⇒ `{}` (empty set)
-
-`(C|B)+` ⇒ `{D}`
-
-`(B|root())+` ⇒ `{D,A}`
-
-**Operator** `x::`
-
-`D::` ⇒ `{D}`
-
-`B::` ⇒ `{D,B}`
-
-`A::` ⇒ `{D,C,B,A}`
-
-`root()::` ⇒ `{D,C,B,A,root()}`
-
-`::none()` ⇒ `{}` (empty set)
-
-`(C|B)::` ⇒ `{D,C,B}`
-
-**Operator** `x..`
-
-`D..` ⇒ `{}` (empty set)
-
-`B..` ⇒ `{D,C}` (note that, unlike `B::`, this includes `C`)
-
-`A..` ⇒ `{D,C,B}`
-
-`root()..` ⇒ `{D,C,B,A}`
-
-`none()..` ⇒ `{D,C,B,A,root()}`
-
-`(C|B)..` ⇒ `{D}`
-
-**Operator** `::x`
-
-`::D` ⇒ `{D,C,B,A,root()}`
-
-`::B` ⇒ `{B,A,root()}`
-
-`::A` ⇒ `{A,root()}`
-
-`::root()` ⇒ `{root()}`
-
-`::none()` ⇒ `{}` (empty set)
-
-`::(C|B)` ⇒ `{C,B,A,root()}`
-
-**Operator** `..x`
-
-`..D` ⇒ `{D,C,B,A}`
-
-`..B` ⇒ `{B,A}`
-
-`..A` ⇒ `{A}`
-
-`..root()` ⇒ `{}` (empty set)
-
-`..none()` ⇒ `{}` (empty set)
-
-`..(C|B)` ⇒ `{C,B,A}`
-
-**Operator** `x::y`
-
-`D::D` ⇒ `{D}`
-
-`B::D` ⇒ `{D,B}` (note that, unlike `B..D`, this includes `B` and excludes `C`)
-
-`A::D` ⇒ `{D,C,B,A}`
-
-`root()::D` ⇒ `{D,C,B,A,root()}`
-
-`none()::D` ⇒ `{}` (empty set)
-
-`D::B` ⇒ `{}` (empty set)
-
-`(C|B)::(C|B)` ⇒ `{C,B}`
-
-**Operator** `x..y`
-
-`D..D` ⇒ `{}` (empty set)
-
-`B..D` ⇒ `{D,C}` (note that, unlike `B::D`, this includes `C` and excludes `B`)
-
-`A..D` ⇒ `{D,C,B}`
-
-`root()..D` ⇒ `{D,C,B,A}`
-
-`none()..D` ⇒ `{D,C,B,A,root()}`
-
-`D..B` ⇒ `{}` (empty set)
-
-`(C|B)..(C|B)` ⇒ `{}` (empty set)
-
+</code></pre></div></p>
+<p><strong>Operator</strong> <code>x-</code></p>
+<p><code>D-</code> ⇒ <code>{C,B}</code></p>
+<p><code>B-</code> ⇒ <code>{A}</code></p>
+<p><code>A-</code> ⇒ <code>{root()}</code></p>
+<p><code>root()-</code> ⇒ <code>{}</code> (empty set)</p>
+<p><code>none()-</code> ⇒ <code>{}</code> (empty set)</p>
+<p><code>(D|A)-</code> ⇒ <code>{C,B,root()}</code></p>
+<p><code>(C|B)-</code> ⇒ <code>{A}</code></p>
+<p><strong>Operator</strong> <code>x+</code></p>
+<p><code>D+</code> ⇒ <code>{}</code> (empty set)</p>
+<p><code>B+</code> ⇒ <code>{D}</code></p>
+<p><code>A+</code> ⇒ <code>{B,C}</code></p>
+<p><code>root()+</code> ⇒ <code>{A}</code></p>
+<p><code>none()+</code> ⇒ <code>{}</code> (empty set)</p>
+<p><code>(C|B)+</code> ⇒ <code>{D}</code></p>
+<p><code>(B|root())+</code> ⇒ <code>{D,A}</code></p>
+<p><strong>Operator</strong> <code>x::</code></p>
+<p><code>D::</code> ⇒ <code>{D}</code></p>
+<p><code>B::</code> ⇒ <code>{D,B}</code></p>
+<p><code>A::</code> ⇒ <code>{D,C,B,A}</code></p>
+<p><code>root()::</code> ⇒ <code>{D,C,B,A,root()}</code></p>
+<p><code>none()::</code> ⇒ <code>{}</code> (empty set)</p>
+<p><code>(C|B)::</code> ⇒ <code>{D,C,B}</code></p>
+<p><strong>Operator</strong> <code>x..</code></p>
+<p><code>D..</code> ⇒ <code>{}</code> (empty set)</p>
+<p><code>B..</code> ⇒ <code>{D,C}</code> (note that, unlike <code>B::</code>, this includes <code>C</code>)</p>
+<p><code>A..</code> ⇒ <code>{D,C,B}</code></p>
+<p><code>root()..</code> ⇒ <code>{D,C,B,A}</code></p>
+<p><code>none()..</code> ⇒ <code>{D,C,B,A,root()}</code></p>
+<p><code>(C|B)..</code> ⇒ <code>{D}</code></p>
+<p><strong>Operator</strong> <code>::x</code></p>
+<p><code>::D</code> ⇒ <code>{D,C,B,A,root()}</code></p>
+<p><code>::B</code> ⇒ <code>{B,A,root()}</code></p>
+<p><code>::A</code> ⇒ <code>{A,root()}</code></p>
+<p><code>::root()</code> ⇒ <code>{root()}</code></p>
+<p><code>::none()</code> ⇒ <code>{}</code> (empty set)</p>
+<p><code>::(C|B)</code> ⇒ <code>{C,B,A,root()}</code></p>
+<p><strong>Operator</strong> <code>..x</code></p>
+<p><code>..D</code> ⇒ <code>{D,C,B,A}</code></p>
+<p><code>..B</code> ⇒ <code>{B,A}</code></p>
+<p><code>..A</code> ⇒ <code>{A}</code></p>
+<p><code>..root()</code> ⇒ <code>{}</code> (empty set)</p>
+<p><code>..none()</code> ⇒ <code>{}</code> (empty set)</p>
+<p><code>..(C|B)</code> ⇒ <code>{C,B,A}</code></p>
+<p><strong>Operator</strong> <code>x::y</code></p>
+<p><code>D::D</code> ⇒ <code>{D}</code></p>
+<p><code>B::D</code> ⇒ <code>{D,B}</code> (note that, unlike <code>B..D</code>, this includes <code>B</code> and excludes <code>C</code>)</p>
+<p><code>A::D</code> ⇒ <code>{D,C,B,A}</code></p>
+<p><code>root()::D</code> ⇒ <code>{D,C,B,A,root()}</code></p>
+<p><code>none()::D</code> ⇒ <code>{}</code> (empty set)</p>
+<p><code>D::B</code> ⇒ <code>{}</code> (empty set)</p>
+<p><code>(C|B)::(C|B)</code> ⇒ <code>{C,B}</code></p>
+<p><strong>Operator</strong> <code>x..y</code></p>
+<p><code>D..D</code> ⇒ <code>{}</code> (empty set)</p>
+<p><code>B..D</code> ⇒ <code>{D,C}</code> (note that, unlike <code>B::D</code>, this includes <code>C</code> and excludes <code>B</code>)</p>
+<p><code>A..D</code> ⇒ <code>{D,C,B}</code></p>
+<p><code>root()..D</code> ⇒ <code>{D,C,B,A}</code></p>
+<p><code>none()..D</code> ⇒ <code>{D,C,B,A,root()}</code></p>
+<p><code>D..B</code> ⇒ <code>{}</code> (empty set)</p>
+<p><code>(C|B)..(C|B)</code> ⇒ <code>{}</code> (empty set)</p>
 </details>
-
 <h2 id="functions">Functions<a class="headerlink" href="#functions" title="Permanent link">&para;</a></h2>
 <p>You can also specify revisions by using functions. Some functions take other
 revsets (expressions) as arguments.</p>
