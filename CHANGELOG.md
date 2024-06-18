@@ -26,11 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj split --siblings` is deprecated in favor of `jj split --parallel` (to
   match `jj parallelize`).
 
-* `jj file print` (aka `jj file cat`) replaces `jj cat`.
+* `jj file print` replaces `jj cat`.
 
 * `jj file chmod` replaces `jj chmod`.
 
-* `jj file list` (aka `jj file ls`) replaces `jj files`.
+* `jj file list` replaces `jj files`.
 
 ### New features
 
