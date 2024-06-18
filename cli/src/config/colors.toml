@@ -80,6 +80,10 @@
 "diff hunk_header" = "cyan"
 "diff removed" = "red"
 "diff added" = "green"
+# fg typically has no effect on whitespace, but add it here anyway to make debug
+# text visible when using --color=debug.
+"diff removed whitespace" = { fg = "default", bg = "red" }
+"diff added whitespace" = { fg = "default", bg = "green" }
 "diff modified" = "cyan"
 "diff access-denied" = { bg = "red" }
 

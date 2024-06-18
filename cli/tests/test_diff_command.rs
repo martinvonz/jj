@@ -194,6 +194,35 @@ fn test_diff_basic() {
 }
 
 #[test]
+fn test_diff_whitespace_only_label() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(
+        repo_path.join("file"),
+        "  first  \n  second  \n  third  \nfourth\n",
+    )
+    .unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(
+        repo_path.join("file"),
+        "first  \n    second    \n  third\n\nfifth\n",
+    )
+    .unwrap();
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--color=debug", "diff"]);
+    insta::assert_snapshot!(stdout, @r###"
+    [38;5;3m<<diff header::Modified regular file>><<diff header:: >><<diff header::file>><<diff header:::>>[39m
+    [38;5;1m<<diff removed:: >><<diff removed:: >><<diff removed:: >><<diff removed::1>>[39m<<diff:: >>[38;5;2m<<diff added:: >><<diff added:: >><<diff added:: >><<diff added::1>>[39m<<diff::: >>[39m[48;5;1m<<diff removed whitespace::  >>[39m[49m<<diff::first  >>
+    [38;5;1m<<diff removed:: >><<diff removed:: >><<diff removed:: >><<diff removed::2>>[39m<<diff:: >>[38;5;2m<<diff added:: >><<diff added:: >><<diff added:: >><<diff added::2>>[39m<<diff::: >><<diff::  >>[39m[48;5;2m<<diff added whitespace::  >>[39m[49m<<diff::second  >>[39m[48;5;2m<<diff added whitespace::  >>[39m[49m<<diff::>>
+    [38;5;1m<<diff removed:: >><<diff removed:: >><<diff removed:: >><<diff removed::3>>[39m<<diff:: >>[38;5;2m<<diff added:: >><<diff added:: >><<diff added:: >><<diff added::3>>[39m<<diff::: >><<diff::  third>>[39m[48;5;1m<<diff removed whitespace::  >>[39m[49m<<diff::>>
+    [38;5;1m<<diff removed:: >><<diff removed:: >><<diff removed:: >><<diff removed::4>>[39m<<diff:: >>[38;5;2m<<diff added:: >><<diff added:: >><<diff added:: >><<diff added::4>>[39m<<diff::: >>[38;5;1m<<diff removed::fourth>>[39m<<diff::>>
+    <<diff::     >>[38;5;2m<<diff added:: >><<diff added:: >><<diff added:: >><<diff added::5>>[39m<<diff::: >>[38;5;2m<<diff added::fifth>>[39m
+    "###);
+}
+
+#[test]
 fn test_diff_empty() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);

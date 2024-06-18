@@ -55,6 +55,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * New command `jj branch move` let you update branches by name pattern or source
   revision.
 
+* In color-words diffs, whitespace-only hunks are marked with a background
+  color. (If a hunk contains printable characters, it is displayed with a
+  foreground color as usual.)
+
 ### Fixed bugs
 
 ## [0.18.0] - 2024-06-05

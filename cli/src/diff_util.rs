@@ -387,13 +387,18 @@ fn show_color_words_diff_line(
                 formatter.write_all(data)?;
             }
             DiffHunk::Different(data) => {
-                let before = data[0];
-                let after = data[1];
-                if !before.is_empty() {
-                    formatter.with_label("removed", |formatter| formatter.write_all(before))?;
-                }
-                if !after.is_empty() {
-                    formatter.with_label("added", |formatter| formatter.write_all(after))?;
+                for (hunk_part, label) in data.iter().zip(["removed", "added"]) {
+                    if !hunk_part.is_empty() {
+                        formatter.with_label(label, |formatter| {
+                            if hunk_part.iter().all(u8::is_ascii_whitespace) {
+                                formatter.with_label("whitespace", |formatter| {
+                                    formatter.write_all(hunk_part)
+                                })
+                            } else {
+                                formatter.write_all(hunk_part)
+                            }
+                        })?;
+                    }
                 }
             }
         }
