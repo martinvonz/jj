@@ -23,9 +23,9 @@ use crate::ui::Ui;
 /// File operations.
 #[derive(clap::Subcommand, Clone, Debug)]
 pub enum FileCommand {
-    Print(print::PrintArgs),
     Chmod(chmod::ChmodArgs),
     List(list::ListArgs),
+    Print(print::PrintArgs),
 }
 
 pub fn cmd_file(
@@ -34,8 +34,8 @@ pub fn cmd_file(
     subcommand: &FileCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        FileCommand::Print(sub_args) => print::cmd_print(ui, command, sub_args),
         FileCommand::Chmod(sub_args) => chmod::cmd_chmod(ui, command, sub_args),
         FileCommand::List(sub_args) => list::cmd_list(ui, command, sub_args),
+        FileCommand::Print(sub_args) => print::cmd_print(ui, command, sub_args),
     }
 }

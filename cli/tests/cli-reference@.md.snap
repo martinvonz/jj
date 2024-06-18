@@ -35,9 +35,9 @@ This document contains the help content for the `jj` command-line program.
 * [`jj duplicate`↴](#jj-duplicate)
 * [`jj edit`↴](#jj-edit)
 * [`jj file`↴](#jj-file)
-* [`jj file print`↴](#jj-file-print)
 * [`jj file chmod`↴](#jj-file-chmod)
 * [`jj file list`↴](#jj-file-list)
+* [`jj file print`↴](#jj-file-print)
 * [`jj fix`↴](#jj-fix)
 * [`jj git`↴](#jj-git)
 * [`jj git remote`↴](#jj-git-remote)
@@ -652,29 +652,9 @@ File operations
 
 ###### **Subcommands:**
 
-* `print` — Print contents of files in a revision
 * `chmod` — Sets or removes the executable bit for paths in the repo
 * `list` — List files in a revision
-
-
-
-## `jj file print`
-
-Print contents of files in a revision
-
-If the given path is a directory, files in the directory will be visited recursively.
-
-**Usage:** `jj file print [OPTIONS] <PATHS>...`
-
-###### **Arguments:**
-
-* `<PATHS>` — Paths to print
-
-###### **Options:**
-
-* `-r`, `--revision <REVISION>` — The revision to get the file contents from
-
-  Default value: `@`
+* `print` — Print contents of files in a revision
 
 
 
@@ -719,6 +699,26 @@ List files in a revision
 ###### **Options:**
 
 * `-r`, `--revision <REVISION>` — The revision to list files in
+
+  Default value: `@`
+
+
+
+## `jj file print`
+
+Print contents of files in a revision
+
+If the given path is a directory, files in the directory will be visited recursively.
+
+**Usage:** `jj file print [OPTIONS] <PATHS>...`
+
+###### **Arguments:**
+
+* `<PATHS>` — Paths to print
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>` — The revision to get the file contents from
 
   Default value: `@`
 
