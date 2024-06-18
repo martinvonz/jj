@@ -108,7 +108,7 @@ tracing-subscriber = { version = "0.3.18", default-features = false, features = 
 ] }
 unicode-width = "0.1.13"
 version_check = "0.9.4"
-watchman_client = { version = "0.8.0" }
+watchman_client = { version = "0.9.0" }
 whoami = "1.5.1"
 winreg = "0.52"
 zstd = "0.12.4"
