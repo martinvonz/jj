@@ -35,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### New features
 
 * Support background filesystem monitoring via watchman triggers enabled with
-  the `core.watchman.register_trigger = true` config.
+  the `core.watchman.register_snapshot_trigger = true` config.
 
 * Show paths to config files when configuration errors occur
 
