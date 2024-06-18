@@ -44,8 +44,6 @@ pub mod fileset;
 mod fileset_parser;
 pub mod fmt_util;
 pub mod fsmonitor;
-#[cfg(feature = "watchman")]
-pub mod fsmonitor_watchman_extensions;
 #[cfg(feature = "git")]
 pub mod git;
 #[cfg(feature = "git")]

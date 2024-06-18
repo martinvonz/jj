@@ -91,11 +91,7 @@ pub mod watchman {
     use tracing::{info, instrument};
     use watchman_client::expr;
     use watchman_client::prelude::{
-        Clock as InnerClock, ClockSpec, NameOnly, QueryRequestCommon, QueryResult,
-    };
-
-    use crate::fsmonitor_watchman_extensions::{
-        list_triggers, register_trigger, remove_trigger, TriggerRequest,
+        Clock as InnerClock, ClockSpec, NameOnly, QueryRequestCommon, QueryResult, TriggerRequest,
     };
 
     /// Represents an instance in time from the perspective of the filesystem
@@ -266,7 +262,9 @@ pub mod watchman {
         #[instrument(skip(self))]
         async fn is_trigger_registered(&self) -> Result<bool, Error> {
             info!("Checking for an existing Watchman trigger...");
-            Ok(list_triggers(&self.client, &self.resolved_root)
+            Ok(self
+                .client
+                .list_triggers(&self.resolved_root)
                 .await
                 .map_err(Error::WatchmanTriggerError)?
                 .triggers
@@ -278,23 +276,23 @@ pub mod watchman {
         #[instrument(skip(self))]
         async fn register_trigger(&self) -> Result<(), Error> {
             info!("Registering Watchman trigger...");
-            register_trigger(
-                &self.client,
-                &self.resolved_root,
-                TriggerRequest {
-                    name: "jj-background-monitor".to_string(),
-                    command: vec![
-                        "jj".to_string(),
-                        "files".to_string(),
-                        "-r".to_string(),
-                        "root()".to_string(),
-                    ],
-                    expression: Some(self.build_exclude_expr()),
-                    ..Default::default()
-                },
-            )
-            .await
-            .map_err(Error::WatchmanTriggerError)?;
+            self.client
+                .register_trigger(
+                    &self.resolved_root,
+                    TriggerRequest {
+                        name: "jj-background-monitor".to_string(),
+                        command: vec![
+                            "jj".to_string(),
+                            "files".to_string(),
+                            "-r".to_string(),
+                            "root()".to_string(),
+                        ],
+                        expression: Some(self.build_exclude_expr()),
+                        ..Default::default()
+                    },
+                )
+                .await
+                .map_err(Error::WatchmanTriggerError)?;
             Ok(())
         }
 
@@ -302,7 +300,8 @@ pub mod watchman {
         #[instrument(skip(self))]
         async fn unregister_trigger(&self) -> Result<(), Error> {
             info!("Unregistering Watchman trigger...");
-            remove_trigger(&self.client, &self.resolved_root, "jj-background-monitor")
+            self.client
+                .remove_trigger(&self.resolved_root, "jj-background-monitor")
                 .await
                 .map_err(Error::WatchmanTriggerError)?;
             Ok(())
