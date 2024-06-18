@@ -424,28 +424,32 @@ impl<R: RuleType> StringLiteralParser<R> {
 
 /// Map of symbol and function aliases.
 #[derive(Clone, Debug, Default)]
-pub struct AliasesMap<P> {
-    symbol_aliases: HashMap<String, String>,
+pub struct AliasesMap<P, V> {
+    symbol_aliases: HashMap<String, V>,
     // name: [(params, defn)] (sorted by arity)
-    function_aliases: HashMap<String, Vec<(Vec<String>, String)>>,
+    function_aliases: HashMap<String, Vec<(Vec<String>, V)>>,
     // Parser type P helps prevent misuse of AliasesMap of different language.
     parser: P,
 }
 
-impl<P> AliasesMap<P> {
+impl<P, V> AliasesMap<P, V> {
     /// Creates an empty aliases map with default-constructed parser.
     pub fn new() -> Self
     where
         P: Default,
     {
-        Self::default()
+        Self {
+            symbol_aliases: Default::default(),
+            function_aliases: Default::default(),
+            parser: Default::default(),
+        }
     }
 
     /// Adds new substitution rule `decl = defn`.
     ///
     /// Returns error if `decl` is invalid. The `defn` part isn't checked. A bad
     /// `defn` will be reported when the alias is substituted.
-    pub fn insert(&mut self, decl: impl AsRef<str>, defn: impl Into<String>) -> Result<(), P::Error>
+    pub fn insert(&mut self, decl: impl AsRef<str>, defn: impl Into<V>) -> Result<(), P::Error>
     where
         P: AliasDeclarationParser,
     {
@@ -475,46 +479,46 @@ impl<P> AliasesMap<P> {
     }
 
     /// Looks up symbol alias by name. Returns identifier and definition text.
-    pub fn get_symbol(&self, name: &str) -> Option<(AliasId<'_>, &str)> {
+    pub fn get_symbol(&self, name: &str) -> Option<(AliasId<'_>, &V)> {
         self.symbol_aliases
             .get_key_value(name)
-            .map(|(name, defn)| (AliasId::Symbol(name), defn.as_ref()))
+            .map(|(name, defn)| (AliasId::Symbol(name), defn))
     }
 
     /// Looks up function alias by name and arity. Returns identifier, list of
     /// parameter names, and definition text.
-    pub fn get_function(&self, name: &str, arity: usize) -> Option<(AliasId<'_>, &[String], &str)> {
+    pub fn get_function(&self, name: &str, arity: usize) -> Option<(AliasId<'_>, &[String], &V)> {
         let overloads = self.get_function_overloads(name)?;
         overloads.find_by_arity(arity)
     }
 
     /// Looks up function aliases by name.
-    fn get_function_overloads(&self, name: &str) -> Option<AliasFunctionOverloads<'_>> {
+    fn get_function_overloads(&self, name: &str) -> Option<AliasFunctionOverloads<'_, V>> {
         let (name, overloads) = self.function_aliases.get_key_value(name)?;
         Some(AliasFunctionOverloads { name, overloads })
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-struct AliasFunctionOverloads<'a> {
+#[derive(Clone, Debug)]
+struct AliasFunctionOverloads<'a, V> {
     name: &'a String,
-    overloads: &'a Vec<(Vec<String>, String)>,
+    overloads: &'a Vec<(Vec<String>, V)>,
 }
 
-impl<'a> AliasFunctionOverloads<'a> {
-    fn arities(self) -> impl DoubleEndedIterator<Item = usize> + ExactSizeIterator + 'a {
+impl<'a, V> AliasFunctionOverloads<'a, V> {
+    fn arities(&self) -> impl DoubleEndedIterator<Item = usize> + ExactSizeIterator + 'a {
         self.overloads.iter().map(|(params, _)| params.len())
     }
 
-    fn min_arity(self) -> usize {
+    fn min_arity(&self) -> usize {
         self.arities().next().unwrap()
     }
 
-    fn max_arity(self) -> usize {
+    fn max_arity(&self) -> usize {
         self.arities().next_back().unwrap()
     }
 
-    fn find_by_arity(self, arity: usize) -> Option<(AliasId<'a>, &'a [String], &'a str)> {
+    fn find_by_arity(&self, arity: usize) -> Option<(AliasId<'a>, &'a [String], &'a V)> {
         let index = self
             .overloads
             .binary_search_by_key(&arity, |(params, _)| params.len())
@@ -609,7 +613,7 @@ pub trait AliasExpandError: Sized {
 #[derive(Debug)]
 struct AliasExpander<'i, T, P> {
     /// Alias symbols and functions that are globally available.
-    aliases_map: &'i AliasesMap<P>,
+    aliases_map: &'i AliasesMap<P, String>,
     /// Stack of aliases and local parameters currently expanding.
     states: Vec<AliasExpandingState<'i, T>>,
 }
@@ -708,7 +712,7 @@ where
 /// Expands aliases recursively.
 pub fn expand_aliases<'i, T, P>(
     node: ExpressionNode<'i, T>,
-    aliases_map: &'i AliasesMap<P>,
+    aliases_map: &'i AliasesMap<P, String>,
 ) -> Result<ExpressionNode<'i, T>, P::Error>
 where
     T: AliasExpandableExpression<'i> + Clone,
