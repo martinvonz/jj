@@ -552,7 +552,7 @@ pub fn parse_template(template_text: &str) -> TemplateParseResult<ExpressionNode
     }
 }
 
-pub type TemplateAliasesMap = AliasesMap<TemplateAliasParser>;
+pub type TemplateAliasesMap = AliasesMap<TemplateAliasParser, String>;
 
 #[derive(Clone, Debug, Default)]
 pub struct TemplateAliasParser;

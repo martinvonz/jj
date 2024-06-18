@@ -682,7 +682,7 @@ fn parse_function_call_node(pair: Pair<Rule>) -> Result<FunctionCallNode, Revset
     })
 }
 
-pub type RevsetAliasesMap = AliasesMap<RevsetAliasParser>;
+pub type RevsetAliasesMap = AliasesMap<RevsetAliasParser, String>;
 
 #[derive(Clone, Debug, Default)]
 pub struct RevsetAliasParser;
