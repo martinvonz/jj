@@ -580,7 +580,7 @@ fn test_git_push_changes() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--change", "@"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Creating branch push-yostqsxwqrlt for revision @
+    Creating branch push-yostqsxwqrlt for revision yostqsxwqrlt
     Branch changes to push to origin:
       Add branch push-yostqsxwqrlt to 28d7620ea63a
     "###);
@@ -589,7 +589,7 @@ fn test_git_push_changes() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-c=@", "-c=@-"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Creating branch push-yqosqzytrlsw for revision @-
+    Creating branch push-yqosqzytrlsw for revision yqosqzytrlsw
     Branch changes to push to origin:
       Move sideways branch push-yostqsxwqrlt from 28d7620ea63a to 48d8c7948133
       Add branch push-yqosqzytrlsw to fa16a14170fb
@@ -664,7 +664,7 @@ fn test_git_push_changes() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Creating branch test-yostqsxwqrlt for revision @
+    Creating branch test-yostqsxwqrlt for revision yostqsxwqrlt
     Branch changes to push to origin:
       Add branch test-yostqsxwqrlt to 3e2ce808759b
     "###);
@@ -759,7 +759,7 @@ fn test_git_push_mixed() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Creating branch push-yqosqzytrlsw for revision @--
+    Creating branch push-yqosqzytrlsw for revision yqosqzytrlsw
     Branch changes to push to origin:
       Add branch push-yqosqzytrlsw to fa16a14170fb
       Add branch branch-1 to 7decc7932d9c
