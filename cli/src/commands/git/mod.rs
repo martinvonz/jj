@@ -55,6 +55,23 @@ pub enum GitCommand {
     Submodule(SubmoduleCommand),
 }
 
+pub fn cmd_git(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    subcommand: &GitCommand,
+) -> Result<(), CommandError> {
+    match subcommand {
+        GitCommand::Clone(args) => cmd_git_clone(ui, command, args),
+        GitCommand::Export(args) => cmd_git_export(ui, command, args),
+        GitCommand::Fetch(args) => cmd_git_fetch(ui, command, args),
+        GitCommand::Import(args) => cmd_git_import(ui, command, args),
+        GitCommand::Init(args) => cmd_git_init(ui, command, args),
+        GitCommand::Push(args) => cmd_git_push(ui, command, args),
+        GitCommand::Remote(args) => cmd_git_remote(ui, command, args),
+        GitCommand::Submodule(args) => cmd_git_submodule(ui, command, args),
+    }
+}
+
 fn map_git_error(err: git2::Error) -> CommandError {
     if err.class() == git2::ErrorClass::Ssh {
         let hint =
@@ -94,21 +111,4 @@ fn get_single_remote(git_repo: &git2::Repository) -> Result<Option<String>, Comm
         1 => git_remotes.get(0).map(ToOwned::to_owned),
         _ => None,
     })
-}
-
-pub fn cmd_git(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    subcommand: &GitCommand,
-) -> Result<(), CommandError> {
-    match subcommand {
-        GitCommand::Clone(args) => cmd_git_clone(ui, command, args),
-        GitCommand::Export(args) => cmd_git_export(ui, command, args),
-        GitCommand::Fetch(args) => cmd_git_fetch(ui, command, args),
-        GitCommand::Import(args) => cmd_git_import(ui, command, args),
-        GitCommand::Init(args) => cmd_git_init(ui, command, args),
-        GitCommand::Push(args) => cmd_git_push(ui, command, args),
-        GitCommand::Remote(args) => cmd_git_remote(ui, command, args),
-        GitCommand::Submodule(args) => cmd_git_submodule(ui, command, args),
-    }
 }
