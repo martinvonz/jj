@@ -1,4 +1,4 @@
-# Community built tools around Jujutsu
+# Community-built tools around Jujutsu
 
 **Important:** Many of these are not complete yet, just like Jujutsu itself.
 But they already simplify many workflows and can improve your experience.
