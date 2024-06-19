@@ -48,7 +48,7 @@ const DEFAULT_CONTEXT_LINES: usize = 3;
 
 #[derive(clap::Args, Clone, Debug)]
 #[command(next_help_heading = "Diff Formatting Options")]
-#[command(group(clap::ArgGroup::new("short-format").args(&["summary", "stat", "types"])))]
+#[command(group(clap::ArgGroup::new("short-format").args(&["summary", "stat", "types", "name_only"])))]
 #[command(group(clap::ArgGroup::new("long-format").args(&["git", "color_words", "tool"])))]
 pub struct DiffFormatArgs {
     /// For each path, show only whether it was modified, added, or deleted
@@ -66,6 +66,12 @@ pub struct DiffFormatArgs {
     /// Git submodule.
     #[arg(long)]
     pub types: bool,
+    /// For each path, show only its path
+    ///
+    /// Typically useful for shell commands like:
+    ///    `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
+    #[arg(long)]
+    pub name_only: bool,
     /// Show a Git-format diff
     #[arg(long)]
     pub git: bool,
@@ -85,6 +91,7 @@ pub enum DiffFormat {
     Summary,
     Stat,
     Types,
+    NameOnly,
     Git { context: usize },
     ColorWords { context: usize },
     Tool(Box<ExternalMergeTool>),
@@ -126,6 +133,7 @@ fn diff_formats_from_args(
     let mut formats = [
         (args.summary, DiffFormat::Summary),
         (args.types, DiffFormat::Types),
+        (args.name_only, DiffFormat::NameOnly),
         (
             args.git,
             DiffFormat::Git {
@@ -176,6 +184,7 @@ fn default_diff_format(
     match name.as_ref() {
         "summary" => Ok(DiffFormat::Summary),
         "types" => Ok(DiffFormat::Types),
+        "name-only" => Ok(DiffFormat::NameOnly),
         "git" => Ok(DiffFormat::Git {
             context: num_context_lines.unwrap_or(DEFAULT_CONTEXT_LINES),
         }),
@@ -250,6 +259,10 @@ impl<'a> DiffRenderer<'a> {
                 DiffFormat::Types => {
                     let tree_diff = from_tree.diff_stream(to_tree, matcher);
                     show_types(formatter, tree_diff, path_converter)?;
+                }
+                DiffFormat::NameOnly => {
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    show_names(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::Git { context } => {
                     let tree_diff = from_tree.diff_stream(to_tree, matcher);
@@ -1104,4 +1117,18 @@ fn diff_summary_char(value: &MergedTreeValue) -> char {
             panic!("Unexpected {value:?} in diff")
         }
     }
+}
+
+pub fn show_names(
+    formatter: &mut dyn Formatter,
+    mut tree_diff: TreeDiffStream,
+    path_converter: &RepoPathUiConverter,
+) -> io::Result<()> {
+    async {
+        while let Some((repo_path, _)) = tree_diff.next().await {
+            writeln!(formatter, "{}", path_converter.format_file_path(&repo_path))?;
+        }
+        Ok(())
+    }
+    .block_on()
 }

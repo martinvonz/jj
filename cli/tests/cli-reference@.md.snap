@@ -614,6 +614,9 @@ With the `--from` and/or `--to` options, shows the difference from/to the given 
 * `--types` — For each path, show only its type before and after
 
    The diff is shown as two letters. The first letter indicates the type before and the second letter indicates the type after. '-' indicates that the path was not present, 'F' represents a regular file, `L' represents a symlink, 'C' represents a conflict, and 'G' represents a Git submodule.
+* `--name-only` — For each path, show only its path
+
+   Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
 * `--git` — Show a Git-format diff
 * `--color-words` — Show a word-level diff with changes indicated only by color
 * `--tool <TOOL>` — Generate diff by external command
@@ -1038,6 +1041,9 @@ This excludes changes from other commits by temporarily rebasing `--from` onto `
 * `--types` — For each path, show only its type before and after
 
    The diff is shown as two letters. The first letter indicates the type before and the second letter indicates the type after. '-' indicates that the path was not present, 'F' represents a regular file, `L' represents a symlink, 'C' represents a conflict, and 'G' represents a Git submodule.
+* `--name-only` — For each path, show only its path
+
+   Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
 * `--git` — Show a Git-format diff
 * `--color-words` — Show a word-level diff with changes indicated only by color
 * `--tool <TOOL>` — Generate diff by external command
@@ -1076,6 +1082,9 @@ Spans of revisions that are not included in the graph per `--revisions` are rend
 * `--types` — For each path, show only its type before and after
 
    The diff is shown as two letters. The first letter indicates the type before and the second letter indicates the type after. '-' indicates that the path was not present, 'F' represents a regular file, `L' represents a symlink, 'C' represents a conflict, and 'G' represents a Git submodule.
+* `--name-only` — For each path, show only its path
+
+   Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
 * `--git` — Show a Git-format diff
 * `--color-words` — Show a word-level diff with changes indicated only by color
 * `--tool <TOOL>` — Generate diff by external command
@@ -1185,6 +1194,9 @@ Name is derived from Merciual's obsolescence markers.
 * `--types` — For each path, show only its type before and after
 
    The diff is shown as two letters. The first letter indicates the type before and the second letter indicates the type after. '-' indicates that the path was not present, 'F' represents a regular file, `L' represents a symlink, 'C' represents a conflict, and 'G' represents a Git submodule.
+* `--name-only` — For each path, show only its path
+
+   Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
 * `--git` — Show a Git-format diff
 * `--color-words` — Show a word-level diff with changes indicated only by color
 * `--tool <TOOL>` — Generate diff by external command
@@ -1592,6 +1604,9 @@ Show commit description and changes in a revision
 * `--types` — For each path, show only its type before and after
 
    The diff is shown as two letters. The first letter indicates the type before and the second letter indicates the type after. '-' indicates that the path was not present, 'F' represents a regular file, `L' represents a symlink, 'C' represents a conflict, and 'G' represents a Git submodule.
+* `--name-only` — For each path, show only its path
+
+   Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
 * `--git` — Show a Git-format diff
 * `--color-words` — Show a word-level diff with changes indicated only by color
 * `--tool <TOOL>` — Generate diff by external command
