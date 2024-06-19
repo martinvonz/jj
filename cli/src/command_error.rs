@@ -327,7 +327,9 @@ impl From<SnapshotError> for CommandError {
   - Run `jj config set --repo snapshot.max-new-file-size {}`
     This will increase the maximum file size allowed for new files, in this repository only.
   - Run `jj --config-toml 'snapshot.max-new-file-size={}' st`
-    This will increase the maximum file size allowed for new files, for this command only.",
+    This will increase the maximum file size allowed for new files, for this command only.
+  - Run the command with `--ignore-working-copy`
+    This will ignore changes to the working copy that have not been previously snapshotted.",
                     size.0, size.0
                 ))
             }
