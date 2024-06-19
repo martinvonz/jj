@@ -33,9 +33,9 @@ use crate::ui::Ui;
 #[derive(Subcommand, Clone, Debug)]
 pub enum RemoteCommand {
     Add(AddArgs),
+    List(ListArgs),
     Remove(RemoveArgs),
     Rename(RenameArgs),
-    List(ListArgs),
 }
 
 pub fn cmd_git_remote(
@@ -45,8 +45,8 @@ pub fn cmd_git_remote(
 ) -> Result<(), CommandError> {
     match subcommand {
         RemoteCommand::Add(args) => cmd_remote_add(ui, command, args),
+        RemoteCommand::List(args) => cmd_remote_list(ui, command, args),
         RemoteCommand::Remove(args) => cmd_remote_remove(ui, command, args),
         RemoteCommand::Rename(args) => cmd_remote_rename(ui, command, args),
-        RemoteCommand::List(args) => cmd_remote_list(ui, command, args),
     }
 }

@@ -41,17 +41,17 @@ This document contains the help content for the `jj` command-line program.
 * [`jj file print`↴](#jj-file-print)
 * [`jj fix`↴](#jj-fix)
 * [`jj git`↴](#jj-git)
+* [`jj git clone`↴](#jj-git-clone)
+* [`jj git export`↴](#jj-git-export)
+* [`jj git fetch`↴](#jj-git-fetch)
+* [`jj git import`↴](#jj-git-import)
+* [`jj git init`↴](#jj-git-init)
+* [`jj git push`↴](#jj-git-push)
 * [`jj git remote`↴](#jj-git-remote)
 * [`jj git remote add`↴](#jj-git-remote-add)
+* [`jj git remote list`↴](#jj-git-remote-list)
 * [`jj git remote remove`↴](#jj-git-remote-remove)
 * [`jj git remote rename`↴](#jj-git-remote-rename)
-* [`jj git remote list`↴](#jj-git-remote-list)
-* [`jj git init`↴](#jj-git-init)
-* [`jj git fetch`↴](#jj-git-fetch)
-* [`jj git clone`↴](#jj-git-clone)
-* [`jj git push`↴](#jj-git-push)
-* [`jj git import`↴](#jj-git-import)
-* [`jj git export`↴](#jj-git-export)
 * [`jj init`↴](#jj-init)
 * [`jj interdiff`↴](#jj-interdiff)
 * [`jj log`↴](#jj-log)
@@ -811,76 +811,70 @@ For a comparison with Git, including a table of commands, see https://github.com
 
 ###### **Subcommands:**
 
-* `remote` — Manage Git remotes
-* `init` — Create a new Git backed repo
-* `fetch` — Fetch from a Git remote
 * `clone` — Create a new repo backed by a clone of a Git repo
-* `push` — Push to a Git remote
-* `import` — Update repo with changes made in the underlying Git repo
 * `export` — Update the underlying Git repo with changes made in the repo
+* `fetch` — Fetch from a Git remote
+* `import` — Update repo with changes made in the underlying Git repo
+* `init` — Create a new Git backed repo
+* `push` — Push to a Git remote
+* `remote` — Manage Git remotes
 
 
 
-## `jj git remote`
+## `jj git clone`
 
-Manage Git remotes
+Create a new repo backed by a clone of a Git repo
 
 The Git repo will be a bare git repo stored inside the `.jj/` directory.
 
-**Usage:** `jj git remote <COMMAND>`
-
-###### **Subcommands:**
-
-* `add` — Add a Git remote
-* `remove` — Remove a Git remote and forget its branches
-* `rename` — Rename a Git remote
-* `list` — List Git remotes
-
-
-
-## `jj git remote add`
-
-Add a Git remote
-
-**Usage:** `jj git remote add <REMOTE> <URL>`
+**Usage:** `jj git clone [OPTIONS] <SOURCE> [DESTINATION]`
 
 ###### **Arguments:**
 
-* `<REMOTE>` — The remote's name
-* `<URL>` — The remote's URL
+* `<SOURCE>` — URL or path of the Git repo to clone
+* `<DESTINATION>` — The directory to write the Jujutsu repo to
+
+###### **Options:**
+
+* `--colocate` — Whether or not to colocate the Jujutsu repo with the git repo
 
 
 
-## `jj git remote remove`
+## `jj git export`
 
-Remove a Git remote and forget its branches
+Update the underlying Git repo with changes made in the repo
 
-**Usage:** `jj git remote remove <REMOTE>`
-
-###### **Arguments:**
-
-* `<REMOTE>` — The remote's name
+**Usage:** `jj git export`
 
 
 
-## `jj git remote rename`
+## `jj git fetch`
 
-Rename a Git remote
+Fetch from a Git remote
 
-**Usage:** `jj git remote rename <OLD> <NEW>`
+If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.
 
-###### **Arguments:**
+**Usage:** `jj git fetch [OPTIONS]`
 
-* `<OLD>` — The name of an existing remote
-* `<NEW>` — The desired name for `old`
+###### **Options:**
+
+* `-b`, `--branch <BRANCH>` — Fetch only some of the branches
+
+   By default, the specified name matches exactly. Use `glob:` prefix to expand `*` as a glob. The other wildcard characters aren't supported.
+
+  Default value: `glob:*`
+* `--remote <remote>` — The remote to fetch from (only named remotes are supported, can be repeated)
+* `--all-remotes` — Fetch from all remotes
 
 
 
-## `jj git remote list`
+## `jj git import`
 
-List Git remotes
+Update repo with changes made in the underlying Git repo
 
-**Usage:** `jj git remote list`
+If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.
+
+**Usage:** `jj git import`
 
 
 
@@ -910,45 +904,6 @@ Create a new Git backed repo
    If the specified `--git-repo` path happens to be the same as the `jj` repo path (both .jj and .git directories are in the same working directory), then both `jj` and `git` commands will work on the same repo. This is called a co-located repo.
 
    This option is mutually exclusive with `--colocate`.
-
-
-
-## `jj git fetch`
-
-Fetch from a Git remote
-
-If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.
-
-**Usage:** `jj git fetch [OPTIONS]`
-
-###### **Options:**
-
-* `-b`, `--branch <BRANCH>` — Fetch only some of the branches
-
-   By default, the specified name matches exactly. Use `glob:` prefix to expand `*` as a glob. The other wildcard characters aren't supported.
-
-  Default value: `glob:*`
-* `--remote <remote>` — The remote to fetch from (only named remotes are supported, can be repeated)
-* `--all-remotes` — Fetch from all remotes
-
-
-
-## `jj git clone`
-
-Create a new repo backed by a clone of a Git repo
-
-The Git repo will be a bare git repo stored inside the `.jj/` directory.
-
-**Usage:** `jj git clone [OPTIONS] <SOURCE> [DESTINATION]`
-
-###### **Arguments:**
-
-* `<SOURCE>` — URL or path of the Git repo to clone
-* `<DESTINATION>` — The directory to write the Jujutsu repo to
-
-###### **Options:**
-
-* `--colocate` — Whether or not to colocate the Jujutsu repo with the git repo
 
 
 
@@ -986,21 +941,66 @@ Before the command actually moves, creates, or deletes a remote branch, it makes
 
 
 
-## `jj git import`
+## `jj git remote`
 
-Update repo with changes made in the underlying Git repo
+Manage Git remotes
 
-If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.
+The Git repo will be a bare git repo stored inside the `.jj/` directory.
 
-**Usage:** `jj git import`
+**Usage:** `jj git remote <COMMAND>`
+
+###### **Subcommands:**
+
+* `add` — Add a Git remote
+* `list` — List Git remotes
+* `remove` — Remove a Git remote and forget its branches
+* `rename` — Rename a Git remote
 
 
 
-## `jj git export`
+## `jj git remote add`
 
-Update the underlying Git repo with changes made in the repo
+Add a Git remote
 
-**Usage:** `jj git export`
+**Usage:** `jj git remote add <REMOTE> <URL>`
+
+###### **Arguments:**
+
+* `<REMOTE>` — The remote's name
+* `<URL>` — The remote's URL
+
+
+
+## `jj git remote list`
+
+List Git remotes
+
+**Usage:** `jj git remote list`
+
+
+
+## `jj git remote remove`
+
+Remove a Git remote and forget its branches
+
+**Usage:** `jj git remote remove <REMOTE>`
+
+###### **Arguments:**
+
+* `<REMOTE>` — The remote's name
+
+
+
+## `jj git remote rename`
+
+Rename a Git remote
+
+**Usage:** `jj git remote rename <OLD> <NEW>`
+
+###### **Arguments:**
+
+* `<OLD>` — The name of an existing remote
+* `<NEW>` — The desired name for `old`
 
 
 
