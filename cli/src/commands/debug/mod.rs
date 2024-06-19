@@ -58,7 +58,6 @@ pub enum DebugCommand {
     Tree(TreeArgs),
     #[command(subcommand)]
     Watchman(WatchmanCommand),
-    #[command(name = "workingcopy")]
     WorkingCopy(WorkingCopyArgs),
 }
 
