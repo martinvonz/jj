@@ -3,10 +3,11 @@
 ## Introduction
 
 This document attempts to describe how jj is different
-from [Sapling](https://sapling-scm.com). Sapling is a VCS developed by Meta. It is a
-heavily modified fork of [Mercurial](https://www.mercurial-scm.org/). Because
-jj has copied many ideas from Mercurial, there are many similarities between the
-two tools, such as:
+from [Sapling](https://sapling-scm.com). Sapling is a VCS developed by Meta. It
+was announced about 3 years after development started on jj. It is a heavily
+modified fork of [Mercurial](https://www.mercurial-scm.org/). Because jj has
+copied many ideas from Mercurial, there are many similarities between the two
+tools, such as:
 
 * A user-friendly CLI
 * A "[revset](revsets.md)" language for selecting revisions
