@@ -48,18 +48,18 @@ use crate::ui::Ui;
 #[command(hide = true)]
 pub enum DebugCommand {
     Fileset(FilesetArgs),
-    Revset(RevsetArgs),
-    #[command(name = "workingcopy")]
-    WorkingCopy(WorkingCopyArgs),
-    Template(TemplateArgs),
     Index(IndexArgs),
-    Reindex(ReindexArgs),
     #[command(visible_alias = "view")]
     Operation(OperationArgs),
+    Reindex(ReindexArgs),
+    Revset(RevsetArgs),
+    Snapshot(SnapshotArgs),
+    Template(TemplateArgs),
     Tree(TreeArgs),
     #[command(subcommand)]
     Watchman(WatchmanCommand),
-    Snapshot(SnapshotArgs),
+    #[command(name = "workingcopy")]
+    WorkingCopy(WorkingCopyArgs),
 }
 
 pub fn cmd_debug(
@@ -69,15 +69,15 @@ pub fn cmd_debug(
 ) -> Result<(), CommandError> {
     match subcommand {
         DebugCommand::Fileset(args) => cmd_debug_fileset(ui, command, args),
-        DebugCommand::Revset(args) => cmd_debug_revset(ui, command, args),
-        DebugCommand::WorkingCopy(args) => cmd_debug_working_copy(ui, command, args),
-        DebugCommand::Template(args) => cmd_debug_template(ui, command, args),
         DebugCommand::Index(args) => cmd_debug_index(ui, command, args),
-        DebugCommand::Reindex(args) => cmd_debug_reindex(ui, command, args),
         DebugCommand::Operation(args) => cmd_debug_operation(ui, command, args),
+        DebugCommand::Reindex(args) => cmd_debug_reindex(ui, command, args),
+        DebugCommand::Revset(args) => cmd_debug_revset(ui, command, args),
+        DebugCommand::Snapshot(args) => cmd_debug_snapshot(ui, command, args),
+        DebugCommand::Template(args) => cmd_debug_template(ui, command, args),
         DebugCommand::Tree(args) => cmd_debug_tree(ui, command, args),
         DebugCommand::Watchman(args) => cmd_debug_watchman(ui, command, args),
-        DebugCommand::Snapshot(args) => cmd_debug_snapshot(ui, command, args),
+        DebugCommand::WorkingCopy(args) => cmd_debug_working_copy(ui, command, args),
     }
 }
 

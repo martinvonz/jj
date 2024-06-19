@@ -43,14 +43,14 @@ use crate::ui::Ui;
 /// https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.
 #[derive(Subcommand, Clone, Debug)]
 pub enum GitCommand {
+    Clone(CloneArgs),
+    Export(ExportArgs),
+    Fetch(FetchArgs),
+    Import(ImportArgs),
+    Init(InitArgs),
+    Push(PushArgs),
     #[command(subcommand)]
     Remote(RemoteCommand),
-    Init(InitArgs),
-    Fetch(FetchArgs),
-    Clone(CloneArgs),
-    Push(PushArgs),
-    Import(ImportArgs),
-    Export(ExportArgs),
     #[command(subcommand, hide = true)]
     Submodule(SubmoduleCommand),
 }
@@ -102,13 +102,13 @@ pub fn cmd_git(
     subcommand: &GitCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        GitCommand::Init(args) => cmd_git_init(ui, command, args),
-        GitCommand::Fetch(args) => cmd_git_fetch(ui, command, args),
         GitCommand::Clone(args) => cmd_git_clone(ui, command, args),
-        GitCommand::Remote(args) => cmd_git_remote(ui, command, args),
-        GitCommand::Push(args) => cmd_git_push(ui, command, args),
-        GitCommand::Import(args) => cmd_git_import(ui, command, args),
         GitCommand::Export(args) => cmd_git_export(ui, command, args),
+        GitCommand::Fetch(args) => cmd_git_fetch(ui, command, args),
+        GitCommand::Import(args) => cmd_git_import(ui, command, args),
+        GitCommand::Init(args) => cmd_git_init(ui, command, args),
+        GitCommand::Push(args) => cmd_git_push(ui, command, args),
+        GitCommand::Remote(args) => cmd_git_remote(ui, command, args),
         GitCommand::Submodule(args) => cmd_git_submodule(ui, command, args),
     }
 }
