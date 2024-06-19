@@ -1544,65 +1544,81 @@ o A
 o root()
 </code></pre></div></p>
 <p><strong>Operator</strong> <code>x-</code></p>
-<p><code>D-</code> ⇒ <code>{C,B}</code></p>
-<p><code>B-</code> ⇒ <code>{A}</code></p>
-<p><code>A-</code> ⇒ <code>{root()}</code></p>
-<p><code>root()-</code> ⇒ <code>{}</code> (empty set)</p>
-<p><code>none()-</code> ⇒ <code>{}</code> (empty set)</p>
-<p><code>(D|A)-</code> ⇒ <code>{C,B,root()}</code></p>
-<p><code>(C|B)-</code> ⇒ <code>{A}</code></p>
+<ul>
+<li><code>D-</code> ⇒ <code>{C,B}</code></li>
+<li><code>B-</code> ⇒ <code>{A}</code></li>
+<li><code>A-</code> ⇒ <code>{root()}</code></li>
+<li><code>root()-</code> ⇒ <code>{}</code> (empty set)</li>
+<li><code>none()-</code> ⇒ <code>{}</code> (empty set)</li>
+<li><code>(D|A)-</code> ⇒ <code>{C,B,root()}</code></li>
+<li><code>(C|B)-</code> ⇒ <code>{A}</code></li>
+</ul>
 <p><strong>Operator</strong> <code>x+</code></p>
-<p><code>D+</code> ⇒ <code>{}</code> (empty set)</p>
-<p><code>B+</code> ⇒ <code>{D}</code></p>
-<p><code>A+</code> ⇒ <code>{B,C}</code></p>
-<p><code>root()+</code> ⇒ <code>{A}</code></p>
-<p><code>none()+</code> ⇒ <code>{}</code> (empty set)</p>
-<p><code>(C|B)+</code> ⇒ <code>{D}</code></p>
-<p><code>(B|root())+</code> ⇒ <code>{D,A}</code></p>
+<ul>
+<li><code>D+</code> ⇒ <code>{}</code> (empty set)</li>
+<li><code>B+</code> ⇒ <code>{D}</code></li>
+<li><code>A+</code> ⇒ <code>{B,C}</code></li>
+<li><code>root()+</code> ⇒ <code>{A}</code></li>
+<li><code>none()+</code> ⇒ <code>{}</code> (empty set)</li>
+<li><code>(C|B)+</code> ⇒ <code>{D}</code></li>
+<li><code>(B|root())+</code> ⇒ <code>{D,A}</code></li>
+</ul>
 <p><strong>Operator</strong> <code>x::</code></p>
-<p><code>D::</code> ⇒ <code>{D}</code></p>
-<p><code>B::</code> ⇒ <code>{D,B}</code></p>
-<p><code>A::</code> ⇒ <code>{D,C,B,A}</code></p>
-<p><code>root()::</code> ⇒ <code>{D,C,B,A,root()}</code></p>
-<p><code>none()::</code> ⇒ <code>{}</code> (empty set)</p>
-<p><code>(C|B)::</code> ⇒ <code>{D,C,B}</code></p>
+<ul>
+<li><code>D::</code> ⇒ <code>{D}</code></li>
+<li><code>B::</code> ⇒ <code>{D,B}</code></li>
+<li><code>A::</code> ⇒ <code>{D,C,B,A}</code></li>
+<li><code>root()::</code> ⇒ <code>{D,C,B,A,root()}</code></li>
+<li><code>none()::</code> ⇒ <code>{}</code> (empty set)</li>
+<li><code>(C|B)::</code> ⇒ <code>{D,C,B}</code></li>
+</ul>
 <p><strong>Operator</strong> <code>x..</code></p>
-<p><code>D..</code> ⇒ <code>{}</code> (empty set)</p>
-<p><code>B..</code> ⇒ <code>{D,C}</code> (note that, unlike <code>B::</code>, this includes <code>C</code>)</p>
-<p><code>A..</code> ⇒ <code>{D,C,B}</code></p>
-<p><code>root()..</code> ⇒ <code>{D,C,B,A}</code></p>
-<p><code>none()..</code> ⇒ <code>{D,C,B,A,root()}</code></p>
-<p><code>(C|B)..</code> ⇒ <code>{D}</code></p>
+<ul>
+<li><code>D..</code> ⇒ <code>{}</code> (empty set)</li>
+<li><code>B..</code> ⇒ <code>{D,C}</code> (note that, unlike <code>B::</code>, this includes <code>C</code>)</li>
+<li><code>A..</code> ⇒ <code>{D,C,B}</code></li>
+<li><code>root()..</code> ⇒ <code>{D,C,B,A}</code></li>
+<li><code>none()..</code> ⇒ <code>{D,C,B,A,root()}</code></li>
+<li><code>(C|B)..</code> ⇒ <code>{D}</code></li>
+</ul>
 <p><strong>Operator</strong> <code>::x</code></p>
-<p><code>::D</code> ⇒ <code>{D,C,B,A,root()}</code></p>
-<p><code>::B</code> ⇒ <code>{B,A,root()}</code></p>
-<p><code>::A</code> ⇒ <code>{A,root()}</code></p>
-<p><code>::root()</code> ⇒ <code>{root()}</code></p>
-<p><code>::none()</code> ⇒ <code>{}</code> (empty set)</p>
-<p><code>::(C|B)</code> ⇒ <code>{C,B,A,root()}</code></p>
+<ul>
+<li><code>::D</code> ⇒ <code>{D,C,B,A,root()}</code></li>
+<li><code>::B</code> ⇒ <code>{B,A,root()}</code></li>
+<li><code>::A</code> ⇒ <code>{A,root()}</code></li>
+<li><code>::root()</code> ⇒ <code>{root()}</code></li>
+<li><code>::none()</code> ⇒ <code>{}</code> (empty set)</li>
+<li><code>::(C|B)</code> ⇒ <code>{C,B,A,root()}</code></li>
+</ul>
 <p><strong>Operator</strong> <code>..x</code></p>
-<p><code>..D</code> ⇒ <code>{D,C,B,A}</code></p>
-<p><code>..B</code> ⇒ <code>{B,A}</code></p>
-<p><code>..A</code> ⇒ <code>{A}</code></p>
-<p><code>..root()</code> ⇒ <code>{}</code> (empty set)</p>
-<p><code>..none()</code> ⇒ <code>{}</code> (empty set)</p>
-<p><code>..(C|B)</code> ⇒ <code>{C,B,A}</code></p>
+<ul>
+<li><code>..D</code> ⇒ <code>{D,C,B,A}</code></li>
+<li><code>..B</code> ⇒ <code>{B,A}</code></li>
+<li><code>..A</code> ⇒ <code>{A}</code></li>
+<li><code>..root()</code> ⇒ <code>{}</code> (empty set)</li>
+<li><code>..none()</code> ⇒ <code>{}</code> (empty set)</li>
+<li><code>..(C|B)</code> ⇒ <code>{C,B,A}</code></li>
+</ul>
 <p><strong>Operator</strong> <code>x::y</code></p>
-<p><code>D::D</code> ⇒ <code>{D}</code></p>
-<p><code>B::D</code> ⇒ <code>{D,B}</code> (note that, unlike <code>B..D</code>, this includes <code>B</code> and excludes <code>C</code>)</p>
-<p><code>A::D</code> ⇒ <code>{D,C,B,A}</code></p>
-<p><code>root()::D</code> ⇒ <code>{D,C,B,A,root()}</code></p>
-<p><code>none()::D</code> ⇒ <code>{}</code> (empty set)</p>
-<p><code>D::B</code> ⇒ <code>{}</code> (empty set)</p>
-<p><code>(C|B)::(C|B)</code> ⇒ <code>{C,B}</code></p>
+<ul>
+<li><code>D::D</code> ⇒ <code>{D}</code></li>
+<li><code>B::D</code> ⇒ <code>{D,B}</code> (note that, unlike <code>B..D</code>, this includes <code>B</code> and excludes <code>C</code>)</li>
+<li><code>A::D</code> ⇒ <code>{D,C,B,A}</code></li>
+<li><code>root()::D</code> ⇒ <code>{D,C,B,A,root()}</code></li>
+<li><code>none()::D</code> ⇒ <code>{}</code> (empty set)</li>
+<li><code>D::B</code> ⇒ <code>{}</code> (empty set)</li>
+<li><code>(C|B)::(C|B)</code> ⇒ <code>{C,B}</code></li>
+</ul>
 <p><strong>Operator</strong> <code>x..y</code></p>
-<p><code>D..D</code> ⇒ <code>{}</code> (empty set)</p>
-<p><code>B..D</code> ⇒ <code>{D,C}</code> (note that, unlike <code>B::D</code>, this includes <code>C</code> and excludes <code>B</code>)</p>
-<p><code>A..D</code> ⇒ <code>{D,C,B}</code></p>
-<p><code>root()..D</code> ⇒ <code>{D,C,B,A}</code></p>
-<p><code>none()..D</code> ⇒ <code>{D,C,B,A,root()}</code></p>
-<p><code>D..B</code> ⇒ <code>{}</code> (empty set)</p>
-<p><code>(C|B)..(C|B)</code> ⇒ <code>{}</code> (empty set)</p>
+<ul>
+<li><code>D..D</code> ⇒ <code>{}</code> (empty set)</li>
+<li><code>B..D</code> ⇒ <code>{D,C}</code> (note that, unlike <code>B::D</code>, this includes <code>C</code> and excludes <code>B</code>)</li>
+<li><code>A..D</code> ⇒ <code>{D,C,B}</code></li>
+<li><code>root()..D</code> ⇒ <code>{D,C,B,A}</code></li>
+<li><code>none()..D</code> ⇒ <code>{D,C,B,A,root()}</code></li>
+<li><code>D..B</code> ⇒ <code>{}</code> (empty set)</li>
+<li><code>(C|B)..(C|B)</code> ⇒ <code>{}</code> (empty set)</li>
+</ul>
 </details>
 <h2 id="functions">Functions<a class="headerlink" href="#functions" title="Permanent link">&para;</a></h2>
 <p>You can also specify revisions by using functions. Some functions take other
@@ -1751,27 +1767,35 @@ o A
 o root()
 </code></pre></div></p>
 <p><strong>function</strong> <code>reachable()</code></p>
-<p><code>reachable(E, A..)</code> ⇒ <code>{E,D,C,B}</code></p>
-<p><code>reachable(D, A..)</code> ⇒ <code>{E,D,C,B}</code></p>
-<p><code>reachable(C, A..)</code> ⇒ <code>{E,D,C,B}</code></p>
-<p><code>reachable(B, A..)</code> ⇒ <code>{E,D,C,B}</code></p>
-<p><code>reachable(A, A..)</code> ⇒ <code>{}</code> (empty set)</p>
+<ul>
+<li><code>reachable(E, A..)</code> ⇒ <code>{E,D,C,B}</code></li>
+<li><code>reachable(D, A..)</code> ⇒ <code>{E,D,C,B}</code></li>
+<li><code>reachable(C, A..)</code> ⇒ <code>{E,D,C,B}</code></li>
+<li><code>reachable(B, A..)</code> ⇒ <code>{E,D,C,B}</code></li>
+<li><code>reachable(A, A..)</code> ⇒ <code>{}</code> (empty set)</li>
+</ul>
 <p><strong>function</strong> <code>connected()</code></p>
-<p><code>connected(E|A)</code> ⇒ <code>{E,B,A}</code></p>
-<p><code>connected(D|A)</code> ⇒ <code>{D,C,B,A}</code></p>
-<p><code>connected(A)</code> ⇒ <code>{A}</code></p>
+<ul>
+<li><code>connected(E|A)</code> ⇒ <code>{E,B,A}</code></li>
+<li><code>connected(D|A)</code> ⇒ <code>{D,C,B,A}</code></li>
+<li><code>connected(A)</code> ⇒ <code>{A}</code></li>
+</ul>
 <p><strong>function</strong> <code>heads()</code></p>
-<p><code>heads(E|D)</code> ⇒ <code>{E,D}</code></p>
-<p><code>heads(E|C)</code> ⇒ <code>{E,C}</code></p>
-<p><code>heads(E|B)</code> ⇒ <code>{E}</code></p>
-<p><code>heads(E|A)</code> ⇒ <code>{E}</code></p>
-<p><code>heads(A)</code> ⇒ <code>{A}</code></p>
+<ul>
+<li><code>heads(E|D)</code> ⇒ <code>{E,D}</code></li>
+<li><code>heads(E|C)</code> ⇒ <code>{E,C}</code></li>
+<li><code>heads(E|B)</code> ⇒ <code>{E}</code></li>
+<li><code>heads(E|A)</code> ⇒ <code>{E}</code></li>
+<li><code>heads(A)</code> ⇒ <code>{A}</code></li>
+</ul>
 <p><strong>function</strong> <code>roots()</code></p>
-<p><code>roots(E|D)</code> ⇒ <code>{E,D}</code></p>
-<p><code>roots(E|C)</code> ⇒ <code>{E,C}</code></p>
-<p><code>roots(E|B)</code> ⇒ <code>{B}</code></p>
-<p><code>roots(E|A)</code> ⇒ <code>{A}</code></p>
-<p><code>roots(A)</code> ⇒ <code>{A}</code></p>
+<ul>
+<li><code>roots(E|D)</code> ⇒ <code>{E,D}</code></li>
+<li><code>roots(E|C)</code> ⇒ <code>{E,C}</code></li>
+<li><code>roots(E|B)</code> ⇒ <code>{B}</code></li>
+<li><code>roots(E|A)</code> ⇒ <code>{A}</code></li>
+<li><code>roots(A)</code> ⇒ <code>{A}</code></li>
+</ul>
 </details>
 <h2 id="string-patterns">String patterns<a class="headerlink" href="#string-patterns" title="Permanent link">&para;</a></h2>
 <p>Functions that perform string matching support the following pattern syntax:</p>
