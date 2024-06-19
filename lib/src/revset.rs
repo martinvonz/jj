@@ -53,7 +53,7 @@ pub enum RevsetResolutionError {
         name: String,
         candidates: Vec<String>,
     },
-    #[error("Workspace \"{name}\" doesn't have a working copy")]
+    #[error("Workspace \"{name}\" doesn't have a working-copy commit")]
     WorkspaceMissingWorkingCopy { name: String },
     #[error("An empty string is not a valid revision")]
     EmptyString,

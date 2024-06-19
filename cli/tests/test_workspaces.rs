@@ -643,7 +643,7 @@ fn test_workspaces_forget() {
     // Revision "@" cannot be used
     let stderr = test_env.jj_cmd_failure(&main_path, &["log", "-r", "@"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Workspace "default" doesn't have a working copy
+    Error: Workspace "default" doesn't have a working-copy commit
     "###);
 
     // Try to add back the workspace
