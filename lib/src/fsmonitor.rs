@@ -283,9 +283,8 @@ pub mod watchman {
                         name: "jj-background-monitor".to_string(),
                         command: vec![
                             "jj".to_string(),
-                            "files".to_string(),
-                            "-r".to_string(),
-                            "root()".to_string(),
+                            "debug".to_string(),
+                            "snapshot".to_string(),
                         ],
                         expression: Some(self.build_exclude_expr()),
                         ..Default::default()
