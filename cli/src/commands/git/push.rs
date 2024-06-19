@@ -467,12 +467,12 @@ fn update_change_branches(
     for change_arg in changes {
         let workspace_command = tx.base_workspace_helper();
         let commit = workspace_command.resolve_single_rev(change_arg)?;
+        let short_change_id = short_change_hash(commit.change_id());
         let mut branch_name = format!("{branch_prefix}{}", commit.change_id().hex());
         let view = tx.base_repo().view();
         if view.get_local_branch(&branch_name).is_absent() {
             // A local branch with the full change ID doesn't exist already, so use the
             // short ID if it's not ambiguous (which it shouldn't be most of the time).
-            let short_change_id = short_change_hash(commit.change_id());
             if workspace_command
                 .resolve_single_rev(&RevisionArg::from(short_change_id.clone()))
                 .is_ok()
@@ -484,7 +484,7 @@ fn update_change_branches(
         if view.get_local_branch(&branch_name).is_absent() {
             writeln!(
                 ui.status(),
-                "Creating branch {branch_name} for revision {change_arg}",
+                "Creating branch {branch_name} for revision {short_change_id}",
             )?;
         }
         tx.mut_repo()
