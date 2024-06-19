@@ -782,6 +782,42 @@ fn test_workspaces_root() {
     "###);
 }
 
+#[test]
+fn test_debug_snapshot() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file"), "contents").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["debug", "snapshot"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  2d01fc903f0f test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  snapshot working copy
+    │  args: jj debug snapshot
+    ◉  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    ◉  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  initialize repo
+    ◉  000000000000 root()
+    "###);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "initial"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  53a64275e379 test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
+    │  describe commit 123ed18e4c4c0d77428df41112bc02ffc83fb935
+    │  args: jj describe -m initial
+    ◉  2d01fc903f0f test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  snapshot working copy
+    │  args: jj debug snapshot
+    ◉  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    ◉  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  initialize repo
+    ◉  000000000000 root()
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"
     separate(" ",

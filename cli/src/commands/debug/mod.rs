@@ -17,6 +17,7 @@ pub mod index;
 pub mod operation;
 pub mod reindex;
 pub mod revset;
+pub mod snapshot;
 pub mod template;
 pub mod tree;
 pub mod watchman;
@@ -33,6 +34,7 @@ use self::index::{cmd_debug_index, IndexArgs};
 use self::operation::{cmd_debug_operation, OperationArgs};
 use self::reindex::{cmd_debug_reindex, ReindexArgs};
 use self::revset::{cmd_debug_revset, RevsetArgs};
+use self::snapshot::{cmd_debug_snapshot, SnapshotArgs};
 use self::template::{cmd_debug_template, TemplateArgs};
 use self::tree::{cmd_debug_tree, TreeArgs};
 use self::watchman::{cmd_debug_watchman, WatchmanCommand};
@@ -57,6 +59,7 @@ pub enum DebugCommand {
     Tree(TreeArgs),
     #[command(subcommand)]
     Watchman(WatchmanCommand),
+    Snapshot(SnapshotArgs),
 }
 
 pub fn cmd_debug(
@@ -74,6 +77,7 @@ pub fn cmd_debug(
         DebugCommand::Operation(args) => cmd_debug_operation(ui, command, args),
         DebugCommand::Tree(args) => cmd_debug_tree(ui, command, args),
         DebugCommand::Watchman(args) => cmd_debug_watchman(ui, command, args),
+        DebugCommand::Snapshot(args) => cmd_debug_snapshot(ui, command, args),
     }
 }
 
