@@ -586,7 +586,16 @@ fn test_git_push_changes() {
     "###);
     // test pushing two changes at once
     std::fs::write(workspace_root.join("file"), "modified2").unwrap();
-    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-c=@", "-c=@-"]);
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "-c=(@|@-)"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Revset "(@|@-)" resolved to more than one revision
+    Hint: The revset "(@|@-)" resolved to these revisions:
+      yostqsxw 48d8c794 push-yostqsxwqrlt* | bar
+      yqosqzyt fa16a141 foo
+    Hint: Prefix the expression with 'all:' to allow any number of revisions (i.e. 'all:(@|@-)').
+    "###);
+    // test pushing two changes at once, part 2
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-c=all:(@|@-)"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Creating branch push-yqosqzytrlsw for revision yqosqzytrlsw
@@ -596,11 +605,11 @@ fn test_git_push_changes() {
     "###);
     // specifying the same change twice doesn't break things
     std::fs::write(workspace_root.join("file"), "modified3").unwrap();
-    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-c=@", "-c=@"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "-c=all:(@|@)"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Move sideways branch push-yostqsxwqrlt from 48d8c7948133 to b5f030322b1d
+      Move sideways branch push-yostqsxwqrlt from 48d8c7948133 to 8a2941b572b9
     "###);
 
     // specifying the same branch with --change/--branch doesn't break things
@@ -612,7 +621,7 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Move sideways branch push-yostqsxwqrlt from b5f030322b1d to 4df62cec2ee4
+      Move sideways branch push-yostqsxwqrlt from 8a2941b572b9 to 5b65c040beef
     "###);
 
     // try again with --change that moves the branch forward
@@ -631,7 +640,7 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(stdout, @r###"
     Working copy changes:
     M file
-    Working copy : yostqsxw 3e2ce808 bar
+    Working copy : yostqsxw 361948b1 bar
     Parent commit: yqosqzyt fa16a141 push-yostqsxwqrlt* push-yqosqzytrlsw | foo
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(
@@ -641,13 +650,13 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Move sideways branch push-yostqsxwqrlt from 4df62cec2ee4 to 3e2ce808759b
+      Move sideways branch push-yostqsxwqrlt from 5b65c040beef to 361948b172e3
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["status"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy changes:
     M file
-    Working copy : yostqsxw 3e2ce808 push-yostqsxwqrlt | bar
+    Working copy : yostqsxw 361948b1 push-yostqsxwqrlt | bar
     Parent commit: yqosqzyt fa16a141 push-yqosqzytrlsw | foo
     "###);
 
@@ -666,7 +675,7 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(stderr, @r###"
     Creating branch test-yostqsxwqrlt for revision yostqsxwqrlt
     Branch changes to push to origin:
-      Add branch test-yostqsxwqrlt to 3e2ce808759b
+      Add branch test-yostqsxwqrlt to 361948b172e3
     "###);
 }
 

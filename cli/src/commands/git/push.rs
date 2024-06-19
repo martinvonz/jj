@@ -463,10 +463,18 @@ fn update_change_branches(
     changes: &[RevisionArg],
     branch_prefix: &str,
 ) -> Result<Vec<String>, CommandError> {
+    if changes.is_empty() {
+        // NOTE: we don't want resolve_some_revsets_default_single to fail if the
+        // changes argument wasn't provided, so handle that
+        return Ok(vec![]);
+    }
+
     let mut branch_names = Vec::new();
-    for change_arg in changes {
+    let workspace_command = tx.base_workspace_helper();
+    let all_commits = workspace_command.resolve_some_revsets_default_single(changes)?;
+
+    for commit in all_commits {
         let workspace_command = tx.base_workspace_helper();
-        let commit = workspace_command.resolve_single_rev(change_arg)?;
         let short_change_id = short_change_hash(commit.change_id());
         let mut branch_name = format!("{branch_prefix}{}", commit.change_id().hex());
         let view = tx.base_repo().view();
