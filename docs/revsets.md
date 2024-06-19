@@ -320,6 +320,67 @@ given [string pattern](#string-patterns).
 
 * `working_copies()`: The working copy commits across all the workspaces.
 
+??? examples
+
+    Given this history:
+    ```
+    E
+    |
+    | D
+    |/|
+    | o C
+    | |
+    o | B
+    |/
+    o A
+    |
+    o root()
+    ```
+
+    **function** `reachable()`
+
+    `reachable(E, A..)` ⇒ `{E,D,C,B}`
+
+    `reachable(D, A..)` ⇒ `{E,D,C,B}`
+
+    `reachable(C, A..)` ⇒ `{E,D,C,B}`
+
+    `reachable(B, A..)` ⇒ `{E,D,C,B}`
+
+    `reachable(A, A..)` ⇒ `{}` (empty set)
+
+    **function** `connected()`
+
+    `connected(E|A)` ⇒ `{E,B,A}`
+
+    `connected(D|A)` ⇒ `{D,C,B,A}`
+
+    `connected(A)` ⇒ `{A}`
+
+    **function** `heads()`
+
+    `heads(E|D)` ⇒ `{E,D}`
+
+    `heads(E|C)` ⇒ `{E,C}`
+
+    `heads(E|B)` ⇒ `{E}`
+
+    `heads(E|A)` ⇒ `{E}`
+
+    `heads(A)` ⇒ `{A}`
+
+    **function** `roots()`
+
+    `roots(E|D)` ⇒ `{E,D}`
+
+    `roots(E|C)` ⇒ `{E,C}`
+
+    `roots(E|B)` ⇒ `{B}`
+
+    `roots(E|A)` ⇒ `{A}`
+
+    `roots(A)` ⇒ `{A}`
+
 ## String patterns
 
 Functions that perform string matching support the following pattern syntax:
