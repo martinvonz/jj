@@ -57,6 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * New diff option `jj diff --name-only` allows for easier shell scripting.
 
+* `jj git push -c <arg>` can now accept revsets that resolve to multiple
+  revisions. This means that `jj git push -c xyz -c abc` is now equivalent to
+  `jj git push -c 'all:(xyz | abc)'`.
+
 ### Fixed bugs
 
 ## [0.18.0] - 2024-06-05
