@@ -88,6 +88,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   were global flags and specifying them once would insert the new commit before/
   after all the specified commits.
 
+* New commands `jj op show` and `jj op diff` that can show the changes made in a
+  single operation, and compare changes made between two operations, respectively.
+
 ### Deprecations
 
 * Attempting to alias a built-in command now gives a warning, rather than being

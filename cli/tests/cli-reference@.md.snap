@@ -60,7 +60,9 @@ This document contains the help content for the `jj` command-line program.
 * [`jj obslog`↴](#jj-obslog)
 * [`jj operation`↴](#jj-operation)
 * [`jj operation abandon`↴](#jj-operation-abandon)
+* [`jj operation diff`↴](#jj-operation-diff)
 * [`jj operation log`↴](#jj-operation-log)
+* [`jj operation show`↴](#jj-operation-show)
 * [`jj operation undo`↴](#jj-operation-undo)
 * [`jj operation restore`↴](#jj-operation-restore)
 * [`jj parallelize`↴](#jj-parallelize)
@@ -1203,7 +1205,9 @@ For information about the operation log, see https://github.com/martinvonz/jj/bl
 ###### **Subcommands:**
 
 * `abandon` — Abandon operation history
+* `diff` — Compare changes to the repository between two operations
 * `log` — Show the operation log
+* `show` — Show changes to the repository in an operation
 * `undo` — Create a new operation that undoes an earlier operation
 * `restore` — Create a new operation that restores the repo to an earlier state
 
@@ -1227,6 +1231,50 @@ The abandoned operations, commits, and other unreachable objects can later be ga
 
 
 
+## `jj operation diff`
+
+Compare changes to the repository between two operations
+
+**Usage:** `jj operation diff [OPTIONS]`
+
+###### **Options:**
+
+* `--operation <OPERATION>` — Show repository changes in this operation, compared to its parent
+* `--from <FROM>` — Show repository changes from this operation
+* `--to <TO>` — Show repository changes to this operation
+* `--no-graph` — Don't show the graph, show a flat list of modified changes
+
+  Possible values: `true`, `false`
+
+* `-p`, `--patch` — Show patch of modifications to changes
+
+  Possible values: `true`, `false`
+
+* `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
+
+  Possible values: `true`, `false`
+
+* `--stat` — Show a histogram of the changes
+
+  Possible values: `true`, `false`
+
+* `--types` — For each path, show only its type before and after
+
+  Possible values: `true`, `false`
+
+* `--git` — Show a Git-format diff
+
+  Possible values: `true`, `false`
+
+* `--color-words` — Show a word-level diff with changes indicated only by color
+
+  Possible values: `true`, `false`
+
+* `--tool <TOOL>` — Generate diff by external command
+* `--context <CONTEXT>` — Number of lines of context to show
+
+
+
 ## `jj operation log`
 
 Show the operation log
@@ -1240,6 +1288,53 @@ Show the operation log
 * `-T`, `--template <TEMPLATE>` — Render each operation using the given template
 
    For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+
+
+
+## `jj operation show`
+
+Show changes to the repository in an operation
+
+**Usage:** `jj operation show [OPTIONS] [OPERATION]`
+
+###### **Arguments:**
+
+* `<OPERATION>` — Show repository changes in this operation, compared to its parent(s)
+
+  Default value: `@`
+
+###### **Options:**
+
+* `--no-graph` — Don't show the graph, show a flat list of modified changes
+
+  Possible values: `true`, `false`
+
+* `-p`, `--patch` — Show patch of modifications to changes
+
+  Possible values: `true`, `false`
+
+* `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
+
+  Possible values: `true`, `false`
+
+* `--stat` — Show a histogram of the changes
+
+  Possible values: `true`, `false`
+
+* `--types` — For each path, show only its type before and after
+
+  Possible values: `true`, `false`
+
+* `--git` — Show a Git-format diff
+
+  Possible values: `true`, `false`
+
+* `--color-words` — Show a word-level diff with changes indicated only by color
+
+  Possible values: `true`, `false`
+
+* `--tool <TOOL>` — Generate diff by external command
+* `--context <CONTEXT>` — Number of lines of context to show
 
 
 
