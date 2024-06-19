@@ -395,7 +395,7 @@ fn intersect_regions(
 impl<'input> Diff<'input> {
     pub fn for_tokenizer(
         inputs: &[&'input [u8]],
-        tokenizer: &impl Fn(&[u8]) -> Vec<Range<usize>>,
+        tokenizer: impl Fn(&[u8]) -> Vec<Range<usize>>,
     ) -> Self {
         assert!(!inputs.is_empty());
         let base_input = inputs[0];
@@ -444,7 +444,7 @@ impl<'input> Diff<'input> {
     }
 
     pub fn unrefined(inputs: &[&'input [u8]]) -> Self {
-        Diff::for_tokenizer(inputs, &|_| vec![])
+        Diff::for_tokenizer(inputs, |_| vec![])
     }
 
     // TODO: At least when merging, it's wasteful to refine the diff if e.g. if 2
@@ -454,9 +454,9 @@ impl<'input> Diff<'input> {
     // probably mean that many callers repeat the same code. Perhaps it
     // should be possible to refine a whole diff *or* individual hunks.
     pub fn default_refinement(inputs: &[&'input [u8]]) -> Self {
-        let mut diff = Diff::for_tokenizer(inputs, &find_line_ranges);
-        diff.refine_changed_regions(&find_word_ranges);
-        diff.refine_changed_regions(&find_nonword_ranges);
+        let mut diff = Diff::for_tokenizer(inputs, find_line_ranges);
+        diff.refine_changed_regions(find_word_ranges);
+        diff.refine_changed_regions(find_nonword_ranges);
         diff
     }
 
@@ -475,7 +475,7 @@ impl<'input> Diff<'input> {
 
     /// Uses the given tokenizer to split the changed regions into smaller
     /// regions. Then tries to finds unchanged regions among them.
-    pub fn refine_changed_regions(&mut self, tokenizer: &impl Fn(&[u8]) -> Vec<Range<usize>>) {
+    pub fn refine_changed_regions(&mut self, tokenizer: impl Fn(&[u8]) -> Vec<Range<usize>>) {
         let mut previous = UnchangedRange {
             base_range: 0..0,
             offsets: vec![0; self.other_inputs.len()],
@@ -493,7 +493,7 @@ impl<'input> Diff<'input> {
                 slices.push(&self.other_inputs[i][changed_range]);
             }
 
-            let refined_diff = Diff::for_tokenizer(&slices, tokenizer);
+            let refined_diff = Diff::for_tokenizer(&slices, &tokenizer);
 
             for UnchangedRange {
                 base_range,
@@ -931,7 +931,7 @@ mod tests {
         // Tests that unchanged regions are compacted when using for_tokenizer()
         let diff = Diff::for_tokenizer(
             &[b"a\nb\nc\nd\ne\nf\ng", b"a\nb\nc\nX\ne\nf\ng"],
-            &find_line_ranges,
+            find_line_ranges,
         );
         assert_eq!(
             diff.hunks().collect_vec(),

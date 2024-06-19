@@ -259,7 +259,7 @@ pub fn materialize_merge_result(
                             output.write_all(&left.0)?;
                             continue;
                         };
-                        let diff1 = Diff::for_tokenizer(&[&left.0, &right1.0], &find_line_ranges)
+                        let diff1 = Diff::for_tokenizer(&[&left.0, &right1.0], find_line_ranges)
                             .hunks()
                             .collect_vec();
                         // Check if the diff against the next positive term is better. Since
@@ -267,7 +267,7 @@ pub fn materialize_merge_result(
                         // any later positive terms.
                         if let Some(right2) = hunk.get_add(add_index + 1) {
                             let diff2 =
-                                Diff::for_tokenizer(&[&left.0, &right2.0], &find_line_ranges)
+                                Diff::for_tokenizer(&[&left.0, &right2.0], find_line_ranges)
                                     .hunks()
                                     .collect_vec();
                             if diff_size(&diff2) < diff_size(&diff1) {
