@@ -227,7 +227,7 @@ fn make_diff_sections(
 ) -> Result<Vec<scm_record::Section<'static>>, BuiltinToolError> {
     let diff = Diff::for_tokenizer(
         &[left_contents.as_bytes(), right_contents.as_bytes()],
-        &find_line_ranges,
+        find_line_ranges,
     );
     let mut sections = Vec::new();
     for hunk in diff.hunks() {

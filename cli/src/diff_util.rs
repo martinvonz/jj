@@ -726,7 +726,7 @@ fn unified_diff_hunks<'content>(
         lines: vec![],
     };
     let mut show_context_after = false;
-    let diff = Diff::for_tokenizer(&[left_content, right_content], &diff::find_line_ranges);
+    let diff = Diff::for_tokenizer(&[left_content, right_content], diff::find_line_ranges);
     for hunk in diff.hunks() {
         match hunk {
             DiffHunk::Matching(content) => {
