@@ -55,6 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * New command `jj branch move` let you update branches by name pattern or source
   revision.
 
+* New diff option `jj diff --name-only` allows for easier shell scripting.
+
 ### Fixed bugs
 
 ## [0.18.0] - 2024-06-05

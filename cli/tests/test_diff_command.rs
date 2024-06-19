@@ -291,6 +291,34 @@ fn test_diff_types() {
 }
 
 #[test]
+fn test_diff_name_only() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("deleted"), "d").unwrap();
+    std::fs::write(repo_path.join("modified"), "m").unwrap();
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--name-only"]), @r###"
+    deleted
+    modified
+    "###);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-mfirst"]);
+    std::fs::remove_file(repo_path.join("deleted")).unwrap();
+    std::fs::write(repo_path.join("modified"), "mod").unwrap();
+    std::fs::write(repo_path.join("added"), "add").unwrap();
+    std::fs::create_dir(repo_path.join("sub")).unwrap();
+    std::fs::write(repo_path.join("sub/added"), "sub/add").unwrap();
+    insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--name-only"]).replace('\\', "/"),
+    @r###"
+    added
+    deleted
+    modified
+    sub/added
+    "###);
+}
+
+#[test]
 fn test_diff_bad_args() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
