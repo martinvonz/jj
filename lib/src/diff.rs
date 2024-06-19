@@ -23,23 +23,13 @@ use std::slice;
 use itertools::Itertools;
 
 pub fn find_line_ranges(text: &[u8]) -> Vec<Range<usize>> {
-    let mut ranges = vec![];
-    let mut start = 0;
-    loop {
-        match text[start..].iter().position(|b| *b == b'\n') {
-            None => {
-                break;
-            }
-            Some(i) => {
-                ranges.push(start..start + i + 1);
-                start += i + 1;
-            }
-        }
-    }
-    if start < text.len() {
-        ranges.push(start..text.len());
-    }
-    ranges
+    text.split_inclusive(|b| *b == b'\n')
+        .scan(0, |total, line| {
+            let start = *total;
+            *total += line.len();
+            Some(start..*total)
+        })
+        .collect()
 }
 
 fn is_word_byte(b: u8) -> bool {
@@ -73,13 +63,10 @@ pub fn find_word_ranges(text: &[u8]) -> Vec<Range<usize>> {
 }
 
 pub fn find_nonword_ranges(text: &[u8]) -> Vec<Range<usize>> {
-    let mut ranges = vec![];
-    for (i, b) in text.iter().enumerate() {
-        if !is_word_byte(*b) {
-            ranges.push(i..i + 1);
-        }
-    }
-    ranges
+    text.iter()
+        .positions(|b| !is_word_byte(*b))
+        .map(|i| i..i + 1)
+        .collect()
 }
 
 struct Histogram<'a> {
