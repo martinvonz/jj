@@ -76,14 +76,14 @@ pub fn cmd_branch(
 ) -> Result<(), CommandError> {
     match subcommand {
         BranchCommand::Create(args) => cmd_branch_create(ui, command, args),
-        BranchCommand::Rename(args) => cmd_branch_rename(ui, command, args),
-        BranchCommand::Set(args) => cmd_branch_set(ui, command, args),
-        BranchCommand::Move(args) => cmd_branch_move(ui, command, args),
         BranchCommand::Delete(args) => cmd_branch_delete(ui, command, args),
         BranchCommand::Forget(args) => cmd_branch_forget(ui, command, args),
+        BranchCommand::List(args) => cmd_branch_list(ui, command, args),
+        BranchCommand::Move(args) => cmd_branch_move(ui, command, args),
+        BranchCommand::Rename(args) => cmd_branch_rename(ui, command, args),
+        BranchCommand::Set(args) => cmd_branch_set(ui, command, args),
         BranchCommand::Track(args) => cmd_branch_track(ui, command, args),
         BranchCommand::Untrack(args) => cmd_branch_untrack(ui, command, args),
-        BranchCommand::List(args) => cmd_branch_list(ui, command, args),
     }
 }
 
