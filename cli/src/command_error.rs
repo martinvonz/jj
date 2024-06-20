@@ -22,7 +22,7 @@ use jj_lib::backend::BackendError;
 use jj_lib::fileset::{FilePatternParseError, FilesetParseError, FilesetParseErrorKind};
 use jj_lib::git::{GitConfigParseError, GitExportError, GitImportError, GitRemoteManagementError};
 use jj_lib::gitignore::GitIgnoreError;
-use jj_lib::op_heads_store::OpHeadResolutionError;
+use jj_lib::op_heads_store::{OpHeadResolutionError, OpHeadStoreError};
 use jj_lib::op_store::OpStoreError;
 use jj_lib::op_walk::OpsetEvaluationError;
 use jj_lib::repo::{CheckOutCommitError, EditCommitError, RepoLoaderError, RewriteRootCommit};
@@ -288,7 +288,14 @@ impl From<OpsetEvaluationError> for CommandError {
             OpsetEvaluationError::OpsetResolution(err) => user_error(err),
             OpsetEvaluationError::OpHeadResolution(err) => err.into(),
             OpsetEvaluationError::OpStore(err) => err.into(),
+            OpsetEvaluationError::OpHeadsStore(err) => err.into(),
         }
+    }
+}
+
+impl From<OpHeadStoreError> for CommandError {
+    fn from(err: OpHeadStoreError) -> Self {
+        internal_error_with_message("Failed to load the set of operation heads", err)
     }
 }
 

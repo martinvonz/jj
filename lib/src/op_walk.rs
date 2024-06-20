@@ -14,6 +14,8 @@
 
 //! Utility for operation id resolution and traversal.
 
+#![allow(missing_docs)]
+
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 use std::slice;
@@ -23,7 +25,7 @@ use itertools::Itertools as _;
 use thiserror::Error;
 
 use crate::object_id::{HexPrefix, PrefixResolution};
-use crate::op_heads_store::{OpHeadResolutionError, OpHeadsStore};
+use crate::op_heads_store::{OpHeadResolutionError, OpHeadStoreError, OpHeadsStore};
 use crate::op_store::{OpStore, OpStoreError, OpStoreResult, OperationId};
 use crate::operation::Operation;
 use crate::repo::{ReadonlyRepo, Repo as _, RepoLoader};
@@ -41,7 +43,12 @@ pub enum OpsetEvaluationError {
     /// Failed to access operation object.
     #[error(transparent)]
     OpStore(#[from] OpStoreError),
+    /// Failed to access operation head.
+    #[error(transparent)]
+    OpHeadsStore(#[from] OpHeadStoreError),
 }
+
+pub type OpsetEvaluationResult<T> = Result<T, OpsetEvaluationError>;
 
 /// Error that may occur during parsing and resolution of operation set
 /// expression.
@@ -70,7 +77,7 @@ pub enum OpsetResolutionError {
 pub fn resolve_op_for_load(
     repo_loader: &RepoLoader,
     op_str: &str,
-) -> Result<Operation, OpsetEvaluationError> {
+) -> OpsetEvaluationResult<Operation> {
     let op_store = repo_loader.op_store();
     let op_heads_store = repo_loader.op_heads_store().as_ref();
     let get_current_op = || {
@@ -85,10 +92,7 @@ pub fn resolve_op_for_load(
 /// Resolves operation set expression against the loaded repo.
 ///
 /// The "@" symbol will be resolved to the operation the repo was loaded at.
-pub fn resolve_op_with_repo(
-    repo: &ReadonlyRepo,
-    op_str: &str,
-) -> Result<Operation, OpsetEvaluationError> {
+pub fn resolve_op_with_repo(repo: &ReadonlyRepo, op_str: &str) -> OpsetEvaluationResult<Operation> {
     resolve_op_at(repo.op_store(), repo.operation(), op_str)
 }
 
@@ -97,7 +101,7 @@ pub fn resolve_op_at(
     op_store: &Arc<dyn OpStore>,
     head_op: &Operation,
     op_str: &str,
-) -> Result<Operation, OpsetEvaluationError> {
+) -> OpsetEvaluationResult<Operation> {
     let get_current_op = || Ok(head_op.clone());
     let get_head_ops = || Ok(vec![head_op.clone()]);
     resolve_single_op(op_store, get_current_op, get_head_ops, op_str)
@@ -107,10 +111,10 @@ pub fn resolve_op_at(
 /// callbacks.
 fn resolve_single_op(
     op_store: &Arc<dyn OpStore>,
-    get_current_op: impl FnOnce() -> Result<Operation, OpsetEvaluationError>,
-    get_head_ops: impl FnOnce() -> OpStoreResult<Vec<Operation>>,
+    get_current_op: impl FnOnce() -> OpsetEvaluationResult<Operation>,
+    get_head_ops: impl FnOnce() -> OpsetEvaluationResult<Vec<Operation>>,
     op_str: &str,
-) -> Result<Operation, OpsetEvaluationError> {
+) -> OpsetEvaluationResult<Operation> {
     let op_symbol = op_str.trim_end_matches(['-', '+']);
     let op_postfix = &op_str[op_symbol.len()..];
     let head_ops = op_postfix.contains('+').then(get_head_ops).transpose()?;
@@ -136,7 +140,7 @@ fn resolve_single_op(
 fn resolve_single_op_from_store(
     op_store: &Arc<dyn OpStore>,
     op_str: &str,
-) -> Result<Operation, OpsetEvaluationError> {
+) -> OpsetEvaluationResult<Operation> {
     if op_str.is_empty() {
         return Err(OpsetResolutionError::InvalidIdPrefix(op_str.to_owned()).into());
     }
@@ -161,11 +165,11 @@ fn resolve_single_op_from_store(
 pub fn get_current_head_ops(
     op_store: &Arc<dyn OpStore>,
     op_heads_store: &dyn OpHeadsStore,
-) -> OpStoreResult<Vec<Operation>> {
+) -> OpsetEvaluationResult<Vec<Operation>> {
     op_heads_store
-        .get_op_heads()
+        .get_op_heads()?
         .into_iter()
-        .map(|id| -> OpStoreResult<Operation> {
+        .map(|id| -> OpsetEvaluationResult<Operation> {
             let data = op_store.read_operation(&id)?;
             Ok(Operation::new(op_store.clone(), id, data))
         })
