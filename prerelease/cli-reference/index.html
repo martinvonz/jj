@@ -6072,6 +6072,10 @@ Martin von Zweigbergk</p>
 <p>The diff is shown as two letters. The first letter indicates the type before and the second letter indicates the type after. '-' indicates that the path was not present, 'F' represents a regular file, `L' represents a symlink, 'C' represents a conflict, and 'G' represents a Git submodule.</p>
 </li>
 <li>
+<p><code>--name-only</code> — For each path, show only its path</p>
+<p>Typically useful for shell commands like: <code>jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g</code></p>
+</li>
+<li>
 <p><code>--git</code> — Show a Git-format diff</p>
 </li>
 <li><code>--color-words</code> — Show a word-level diff with changes indicated only by color</li>
@@ -6378,6 +6382,10 @@ tool-command = ["rustfmt", "--emit", "stdout"]</p>
 <p>The diff is shown as two letters. The first letter indicates the type before and the second letter indicates the type after. '-' indicates that the path was not present, 'F' represents a regular file, `L' represents a symlink, 'C' represents a conflict, and 'G' represents a Git submodule.</p>
 </li>
 <li>
+<p><code>--name-only</code> — For each path, show only its path</p>
+<p>Typically useful for shell commands like: <code>jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g</code></p>
+</li>
+<li>
 <p><code>--git</code> — Show a Git-format diff</p>
 </li>
 <li><code>--color-words</code> — Show a word-level diff with changes indicated only by color</li>
@@ -6416,6 +6424,10 @@ tool-command = ["rustfmt", "--emit", "stdout"]</p>
 <li>
 <p><code>--types</code> — For each path, show only its type before and after</p>
 <p>The diff is shown as two letters. The first letter indicates the type before and the second letter indicates the type after. '-' indicates that the path was not present, 'F' represents a regular file, `L' represents a symlink, 'C' represents a conflict, and 'G' represents a Git submodule.</p>
+</li>
+<li>
+<p><code>--name-only</code> — For each path, show only its path</p>
+<p>Typically useful for shell commands like: <code>jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g</code></p>
 </li>
 <li>
 <p><code>--git</code> — Show a Git-format diff</p>
@@ -6510,6 +6522,10 @@ implied.</p>
 <li>
 <p><code>--types</code> — For each path, show only its type before and after</p>
 <p>The diff is shown as two letters. The first letter indicates the type before and the second letter indicates the type after. '-' indicates that the path was not present, 'F' represents a regular file, `L' represents a symlink, 'C' represents a conflict, and 'G' represents a Git submodule.</p>
+</li>
+<li>
+<p><code>--name-only</code> — For each path, show only its path</p>
+<p>Typically useful for shell commands like: <code>jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g</code></p>
 </li>
 <li>
 <p><code>--git</code> — Show a Git-format diff</p>
@@ -6839,6 +6855,10 @@ commit. This is true in general; it is not specific to this command.</p>
 <li>
 <p><code>--types</code> — For each path, show only its type before and after</p>
 <p>The diff is shown as two letters. The first letter indicates the type before and the second letter indicates the type after. '-' indicates that the path was not present, 'F' represents a regular file, `L' represents a symlink, 'C' represents a conflict, and 'G' represents a Git submodule.</p>
+</li>
+<li>
+<p><code>--name-only</code> — For each path, show only its path</p>
+<p>Typically useful for shell commands like: <code>jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g</code></p>
 </li>
 <li>
 <p><code>--git</code> — Show a Git-format diff</p>
