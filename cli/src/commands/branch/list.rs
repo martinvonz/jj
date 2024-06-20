@@ -55,7 +55,7 @@ pub struct BranchListArgs {
     /// select branches by wildcard pattern. For details, see
     /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
     #[arg(value_parser = StringPattern::parse)]
-    pub names: Vec<StringPattern>,
+    names: Vec<StringPattern>,
 
     /// Show branches whose local targets are in the given revisions.
     ///

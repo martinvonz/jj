@@ -33,7 +33,7 @@ pub struct BranchUntrackArgs {
     ///
     /// Examples: branch@remote, glob:main@*, glob:jjfan-*@upstream
     #[arg(required = true, value_name = "BRANCH@REMOTE")]
-    pub names: Vec<RemoteBranchNamePattern>,
+    names: Vec<RemoteBranchNamePattern>,
 }
 
 pub fn cmd_branch_untrack(

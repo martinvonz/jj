@@ -27,10 +27,10 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchRenameArgs {
     /// The old name of the branch.
-    pub old: String,
+    old: String,
 
     /// The new name of the branch.
-    pub new: String,
+    new: String,
 }
 
 pub fn cmd_branch_rename(
