@@ -22,7 +22,7 @@ include = [
     "/tests/",
     "!*.pending-snap",
     "!*.snap*",
-    "/tests/cli-reference@.md.snap"
+    "/tests/cli-reference@.md.snap",
 ]
 
 [[bin]]
@@ -75,6 +75,7 @@ once_cell = { workspace = true }
 pest = { workspace = true }
 pest_derive = { workspace = true }
 pollster = { workspace = true }
+rand = { workspace = true }
 rayon = { workspace = true }
 regex = { workspace = true }
 rpassword = { workspace = true }
