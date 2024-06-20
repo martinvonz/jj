@@ -167,8 +167,8 @@ pub fn default_app() -> clap::Command {
 
 #[instrument(skip_all)]
 pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), CommandError> {
-    let derived_subcommands: Command = Command::from_arg_matches(command_helper.matches()).unwrap();
-    match &derived_subcommands {
+    let subcommand = Command::from_arg_matches(command_helper.matches()).unwrap();
+    match &subcommand {
         Command::Version(args) => version::cmd_version(ui, command_helper, args),
         Command::Init(args) => init::cmd_init(ui, command_helper, args),
         Command::Config(args) => config::cmd_config(ui, command_helper, args),
