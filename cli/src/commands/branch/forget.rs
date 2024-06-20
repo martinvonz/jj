@@ -32,12 +32,8 @@ pub struct BranchForgetArgs {
     /// By default, the specified name matches exactly. Use `glob:` prefix to
     /// select branches by wildcard pattern. For details, see
     /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
-    #[arg(required_unless_present_any(&["glob"]), value_parser = StringPattern::parse)]
+    #[arg(required = true, value_parser = StringPattern::parse)]
     names: Vec<StringPattern>,
-
-    /// Deprecated. Please prefix the pattern with `glob:` instead.
-    #[arg(long, hide = true, value_parser = StringPattern::glob)]
-    glob: Vec<StringPattern>,
 }
 
 pub fn cmd_branch_forget(
@@ -47,14 +43,7 @@ pub fn cmd_branch_forget(
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let view = workspace_command.repo().view();
-    if !args.glob.is_empty() {
-        writeln!(
-            ui.warning_default(),
-            "--glob has been deprecated. Please prefix the pattern with `glob:` instead."
-        )?;
-    }
-    let name_patterns = [&args.names[..], &args.glob[..]].concat();
-    let names = find_forgettable_branches(view, &name_patterns)?;
+    let names = find_forgettable_branches(view, &args.names)?;
     let mut tx = workspace_command.start_transaction();
     for branch_name in names.iter() {
         tx.mut_repo().remove_branch(branch_name);

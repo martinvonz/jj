@@ -376,11 +376,9 @@ fn test_branch_forget_glob() {
     @  bar-2 foo-1 foo-3 foo-4 230dd059e1b0
     ◉   000000000000
     "###);
-    let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["branch", "forget", "--glob", "foo-[1-3]"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "forget", "glob:foo-[1-3]"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Warning: --glob has been deprecated. Please prefix the pattern with `glob:` instead.
     Forgot 2 branches.
     "###);
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -398,12 +396,10 @@ fn test_branch_forget_glob() {
     // multiple glob patterns, shouldn't produce an error.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["branch", "forget", "foo-4", "--glob", "foo-*", "glob:foo-*"],
+        &["branch", "forget", "foo-4", "glob:foo-*", "glob:foo-*"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Warning: --glob has been deprecated. Please prefix the pattern with `glob:` instead.
-    "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 230dd059e1b0
     ◉   000000000000
@@ -412,7 +408,7 @@ fn test_branch_forget_glob() {
     // Malformed glob
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["branch", "forget", "glob:foo-[1-3"]);
     insta::assert_snapshot!(stderr, @r###"
-    error: invalid value 'glob:foo-[1-3' for '[NAMES]...': Pattern syntax error near position 4: invalid range pattern
+    error: invalid value 'glob:foo-[1-3' for '<NAMES>...': Pattern syntax error near position 4: invalid range pattern
 
     For more information, try '--help'.
     "###);
@@ -420,10 +416,9 @@ fn test_branch_forget_glob() {
     // We get an error if none of the globs match anything
     let stderr = test_env.jj_cmd_failure(
         &repo_path,
-        &["branch", "forget", "glob:bar*", "glob:baz*", "--glob=boom*"],
+        &["branch", "forget", "glob:bar*", "glob:baz*", "glob:boom*"],
     );
     insta::assert_snapshot!(stderr, @r###"
-    Warning: --glob has been deprecated. Please prefix the pattern with `glob:` instead.
     Error: No matching branches for patterns: baz*, boom*
     "###);
 }
@@ -458,11 +453,9 @@ fn test_branch_delete_glob() {
     @  bar-2 foo-1 foo-3 foo-4 6fbf398c2d59
     ◉   000000000000
     "###);
-    let (stdout, stderr) =
-        test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "--glob", "foo-[1-3]"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "glob:foo-[1-3]"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Warning: --glob has been deprecated. Please prefix the pattern with `glob:` instead.
     Deleted 2 branches.
     "###);
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -478,9 +471,8 @@ fn test_branch_delete_glob() {
 
     // We get an error if none of the globs match live branches. Unlike `jj branch
     // forget`, it's not allowed to delete already deleted branches.
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "delete", "--glob=foo-[1-3]"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "delete", "glob:foo-[1-3]"]);
     insta::assert_snapshot!(stderr, @r###"
-    Warning: --glob has been deprecated. Please prefix the pattern with `glob:` instead.
     Error: No matching branches for patterns: foo-[1-3]
     "###);
 
@@ -488,12 +480,10 @@ fn test_branch_delete_glob() {
     // multiple glob patterns, shouldn't produce an error.
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &repo_path,
-        &["branch", "delete", "foo-4", "--glob", "foo-*", "glob:foo-*"],
+        &["branch", "delete", "foo-4", "glob:foo-*", "glob:foo-*"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Warning: --glob has been deprecated. Please prefix the pattern with `glob:` instead.
-    "###);
+    insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1@origin foo-3@origin foo-4@origin 6fbf398c2d59
     ◉   000000000000
@@ -514,7 +504,7 @@ fn test_branch_delete_glob() {
     // Malformed glob
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["branch", "delete", "glob:foo-[1-3"]);
     insta::assert_snapshot!(stderr, @r###"
-    error: invalid value 'glob:foo-[1-3' for '[NAMES]...': Pattern syntax error near position 4: invalid range pattern
+    error: invalid value 'glob:foo-[1-3' for '<NAMES>...': Pattern syntax error near position 4: invalid range pattern
 
     For more information, try '--help'.
     "###);
@@ -522,7 +512,7 @@ fn test_branch_delete_glob() {
     // Unknown pattern kind
     let stderr = test_env.jj_cmd_cli_error(&repo_path, &["branch", "forget", "whatever:branch"]);
     insta::assert_snapshot!(stderr, @r###"
-    error: invalid value 'whatever:branch' for '[NAMES]...': Invalid string pattern kind "whatever:"
+    error: invalid value 'whatever:branch' for '<NAMES>...': Invalid string pattern kind "whatever:"
 
     For more information, try '--help'.
     Hint: Try prefixing with one of `exact:`, `glob:` or `substring:`

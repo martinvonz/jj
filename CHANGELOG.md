@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj fix` now defaults to the broader revset `-s reachable(@, mutable())`
   instead of `-s @`.
 
+* Dropped support for deprecated `jj branch delete`/`forget` `--glob` option.
+
 ### Deprecations
 
 * Replacing `-l` shorthand for `--limit` with `-n` in `jj log`, `jj op log` and `jj obslog`.
