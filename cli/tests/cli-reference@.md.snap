@@ -225,7 +225,7 @@ Apply the reverse of a revision on top of another revision
 
 ## `jj branch`
 
-Manage branches.
+Manage branches
 
 For information about branches, see https://github.com/martinvonz/jj/blob/main/docs/branches.md.
 
@@ -277,7 +277,7 @@ Delete an existing branch and propagate the deletion to remotes on the next push
 
 ## `jj branch forget`
 
-Forget everything about a branch, including its local and remote targets.
+Forget everything about a branch, including its local and remote targets
 
 A forgotten branch will not impact remotes on future pushes. It will be recreated on future pulls if it still exists in the remote.
 
@@ -312,7 +312,7 @@ For information about branches, see https://github.com/martinvonz/jj/blob/main/d
 * `-a`, `--all-remotes` — Show all tracking and non-tracking remote branches including the ones whose targets are synchronized with the local branches
 * `-t`, `--tracked` — Show remote tracked branches only. Omits local Git-tracking branches by default
 * `-c`, `--conflicted` — Show conflicted branches only
-* `-r`, `--revisions <REVISIONS>` — Show branches whose local targets are in the given revisions.
+* `-r`, `--revisions <REVISIONS>` — Show branches whose local targets are in the given revisions
 
    Note that `-r deleted_branch` will not work since `deleted_branch` wouldn't have a local target.
 * `-T`, `--template <TEMPLATE>` — Render each branch using the given template
@@ -355,7 +355,7 @@ $ jj branch move --from 'heads(::@- & branches())' --to @-
 
 ## `jj branch rename`
 
-Rename `old` branch name to `new` branch name.
+Rename `old` branch name to `new` branch name
 
 The new branch name points at the same commit as the old branch name.
 

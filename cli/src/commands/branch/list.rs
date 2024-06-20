@@ -36,16 +36,16 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchListArgs {
     /// Show all tracking and non-tracking remote branches including the ones
-    /// whose targets are synchronized with the local branches.
+    /// whose targets are synchronized with the local branches
     #[arg(long, short, alias = "all")]
     all_remotes: bool,
 
     /// Show remote tracked branches only. Omits local Git-tracking branches by
-    /// default.
+    /// default
     #[arg(long, short, conflicts_with_all = ["all_remotes"])]
     tracked: bool,
 
-    /// Show conflicted branches only.
+    /// Show conflicted branches only
     #[arg(long, short, conflicts_with_all = ["all_remotes"])]
     conflicted: bool,
 
@@ -57,7 +57,7 @@ pub struct BranchListArgs {
     #[arg(value_parser = StringPattern::parse)]
     names: Vec<StringPattern>,
 
-    /// Show branches whose local targets are in the given revisions.
+    /// Show branches whose local targets are in the given revisions
     ///
     /// Note that `-r deleted_branch` will not work since `deleted_branch`
     /// wouldn't have a local target.

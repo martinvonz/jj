@@ -20,18 +20,18 @@ use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::{user_error_with_hint, CommandError};
 use crate::ui::Ui;
 
-/// Update an existing branch to point to a certain commit.
+/// Update an existing branch to point to a certain commit
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchSetArgs {
-    /// The branch's target revision.
+    /// The branch's target revision
     #[arg(long, short)]
     revision: Option<RevisionArg>,
 
-    /// Allow moving the branch backwards or sideways.
+    /// Allow moving the branch backwards or sideways
     #[arg(long, short = 'B')]
     allow_backwards: bool,
 
-    /// The branches to update.
+    /// The branches to update
     #[arg(required = true)]
     names: Vec<String>,
 }
