@@ -30,7 +30,7 @@ use crate::settings::ConfigResultExt;
 #[derive(Default, Eq, PartialEq, Clone, Debug)]
 pub struct WatchmanConfig {
     /// Whether to use triggers to monitor for changes in the background.
-    register_trigger: bool,
+    pub register_trigger: bool,
 }
 
 /// The recognized kinds of filesystem monitors.
@@ -260,7 +260,7 @@ pub mod watchman {
 
         /// Return whether or not a trigger has been registered already.
         #[instrument(skip(self))]
-        async fn is_trigger_registered(&self) -> Result<bool, Error> {
+        pub async fn is_trigger_registered(&self) -> Result<bool, Error> {
             info!("Checking for an existing Watchman trigger...");
             Ok(self
                 .client
