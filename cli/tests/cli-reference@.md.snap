@@ -265,7 +265,7 @@ Create a new branch
 
 Delete an existing branch and propagate the deletion to remotes on the next push
 
-**Usage:** `jj branch delete [NAMES]...`
+**Usage:** `jj branch delete <NAMES>...`
 
 ###### **Arguments:**
 
@@ -281,7 +281,7 @@ Forget everything about a branch, including its local and remote targets
 
 A forgotten branch will not impact remotes on future pushes. It will be recreated on future pulls if it still exists in the remote.
 
-**Usage:** `jj branch forget [NAMES]...`
+**Usage:** `jj branch forget <NAMES>...`
 
 ###### **Arguments:**
 
