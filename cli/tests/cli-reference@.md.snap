@@ -25,11 +25,11 @@ This document contains the help content for the `jj` command-line program.
 * [`jj branch untrack`↴](#jj-branch-untrack)
 * [`jj commit`↴](#jj-commit)
 * [`jj config`↴](#jj-config)
-* [`jj config list`↴](#jj-config-list)
-* [`jj config get`↴](#jj-config-get)
-* [`jj config set`↴](#jj-config-set)
 * [`jj config edit`↴](#jj-config-edit)
+* [`jj config get`↴](#jj-config-get)
+* [`jj config list`↴](#jj-config-list)
 * [`jj config path`↴](#jj-config-path)
+* [`jj config set`↴](#jj-config-set)
 * [`jj describe`↴](#jj-describe)
 * [`jj diff`↴](#jj-diff)
 * [`jj diffedit`↴](#jj-diffedit)
@@ -71,10 +71,10 @@ This document contains the help content for the `jj` command-line program.
 * [`jj root`↴](#jj-root)
 * [`jj show`↴](#jj-show)
 * [`jj sparse`↴](#jj-sparse)
-* [`jj sparse list`↴](#jj-sparse-list)
-* [`jj sparse set`↴](#jj-sparse-set)
-* [`jj sparse reset`↴](#jj-sparse-reset)
 * [`jj sparse edit`↴](#jj-sparse-edit)
+* [`jj sparse list`↴](#jj-sparse-list)
+* [`jj sparse reset`↴](#jj-sparse-reset)
+* [`jj sparse set`↴](#jj-sparse-set)
 * [`jj split`↴](#jj-split)
 * [`jj squash`↴](#jj-squash)
 * [`jj status`↴](#jj-status)
@@ -451,11 +451,46 @@ For file locations, supported config options, and other details about jj config,
 
 ###### **Subcommands:**
 
-* `list` — List variables set in config file, along with their values
-* `get` — Get the value of a given config option.
-* `set` — Update config file to set the given option to a given value
 * `edit` — Start an editor on a jj config file
+* `get` — Get the value of a given config option.
+* `list` — List variables set in config file, along with their values
 * `path` — Print the path to the config file
+* `set` — Update config file to set the given option to a given value
+
+
+
+## `jj config edit`
+
+Start an editor on a jj config file.
+
+Creates the file if it doesn't already exist regardless of what the editor does.
+
+**Usage:** `jj config edit <--user|--repo>`
+
+###### **Options:**
+
+* `--user` — Target the user-level config
+* `--repo` — Target the repo-level config
+
+
+
+## `jj config get`
+
+Get the value of a given config option.
+
+Unlike `jj config list`, the result of `jj config get` is printed without
+extra formatting and therefore is usable in scripting. For example:
+
+$ jj config list user.name
+user.name="Martin von Zweigbergk"
+$ jj config get user.name
+Martin von Zweigbergk
+
+**Usage:** `jj config get <NAME>`
+
+###### **Arguments:**
+
+* `<NAME>`
 
 
 
@@ -487,23 +522,20 @@ List variables set in config file, along with their values
 
 
 
-## `jj config get`
+## `jj config path`
 
-Get the value of a given config option.
+Print the path to the config file
 
-Unlike `jj config list`, the result of `jj config get` is printed without
-extra formatting and therefore is usable in scripting. For example:
+A config file at that path may or may not exist.
 
-$ jj config list user.name
-user.name="Martin von Zweigbergk"
-$ jj config get user.name
-Martin von Zweigbergk
+See `jj config edit` if you'd like to immediately edit the file.
 
-**Usage:** `jj config get <NAME>`
+**Usage:** `jj config path <--user|--repo>`
 
-###### **Arguments:**
+###### **Options:**
 
-* `<NAME>`
+* `--user` — Target the user-level config
+* `--repo` — Target the repo-level config
 
 
 
@@ -517,38 +549,6 @@ Update config file to set the given option to a given value
 
 * `<NAME>`
 * `<VALUE>`
-
-###### **Options:**
-
-* `--user` — Target the user-level config
-* `--repo` — Target the repo-level config
-
-
-
-## `jj config edit`
-
-Start an editor on a jj config file.
-
-Creates the file if it doesn't already exist regardless of what the editor does.
-
-**Usage:** `jj config edit <--user|--repo>`
-
-###### **Options:**
-
-* `--user` — Target the user-level config
-* `--repo` — Target the repo-level config
-
-
-
-## `jj config path`
-
-Print the path to the config file
-
-A config file at that path may or may not exist.
-
-See `jj config edit` if you'd like to immediately edit the file.
-
-**Usage:** `jj config path <--user|--repo>`
 
 ###### **Options:**
 
@@ -1624,10 +1624,18 @@ Manage which paths from the working-copy commit are present in the working copy
 
 ###### **Subcommands:**
 
-* `list` — List the patterns that are currently present in the working copy
-* `set` — Update the patterns that are present in the working copy
-* `reset` — Reset the patterns to include all files in the working copy
 * `edit` — Start an editor to update the patterns that are present in the working copy
+* `list` — List the patterns that are currently present in the working copy
+* `reset` — Reset the patterns to include all files in the working copy
+* `set` — Update the patterns that are present in the working copy
+
+
+
+## `jj sparse edit`
+
+Start an editor to update the patterns that are present in the working copy
+
+**Usage:** `jj sparse edit`
 
 
 
@@ -1638,6 +1646,14 @@ List the patterns that are currently present in the working copy
 By default, a newly cloned or initialized repo will have have a pattern matching all files from the repo root. That pattern is rendered as `.` (a single period).
 
 **Usage:** `jj sparse list`
+
+
+
+## `jj sparse reset`
+
+Reset the patterns to include all files in the working copy
+
+**Usage:** `jj sparse reset`
 
 
 
@@ -1654,22 +1670,6 @@ For example, if all you need is the `README.md` and the `lib/` directory, use `j
 * `--add <ADD>` — Patterns to add to the working copy
 * `--remove <REMOVE>` — Patterns to remove from the working copy
 * `--clear` — Include no files in the working copy (combine with --add)
-
-
-
-## `jj sparse reset`
-
-Reset the patterns to include all files in the working copy
-
-**Usage:** `jj sparse reset`
-
-
-
-## `jj sparse edit`
-
-Start an editor to update the patterns that are present in the working copy
-
-**Usage:** `jj sparse edit`
 
 
 
