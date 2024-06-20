@@ -739,6 +739,22 @@ impl TreeState {
         Ok(changed_files)
     }
 
+    #[cfg(feature = "watchman")]
+    #[tokio::main(flavor = "current_thread")]
+    #[instrument(skip(self))]
+    pub async fn is_watchman_trigger_registered(
+        &self,
+        config: &WatchmanConfig,
+    ) -> Result<bool, TreeStateError> {
+        let fsmonitor = watchman::Fsmonitor::init(&self.working_copy_path, config)
+            .await
+            .map_err(|err| TreeStateError::Fsmonitor(Box::new(err)))?;
+        fsmonitor
+            .is_trigger_registered()
+            .await
+            .map_err(|err| TreeStateError::Fsmonitor(Box::new(err)))
+    }
+
     /// Look for changes to the working copy. If there are any changes, create
     /// a new tree from it and return it, and also update the dirstate on disk.
     #[instrument(skip_all)]
@@ -1691,6 +1707,19 @@ impl LocalWorkingCopy {
     ) -> Result<(watchman::Clock, Option<Vec<PathBuf>>), WorkingCopyStateError> {
         self.tree_state()?
             .query_watchman(config)
+            .map_err(|err| WorkingCopyStateError {
+                message: "Failed to query watchman".to_string(),
+                err: err.into(),
+            })
+    }
+
+    #[cfg(feature = "watchman")]
+    pub fn is_watchman_trigger_registered(
+        &self,
+        config: &WatchmanConfig,
+    ) -> Result<bool, WorkingCopyStateError> {
+        self.tree_state()?
+            .is_watchman_trigger_registered(config)
             .map_err(|err| WorkingCopyStateError {
                 message: "Failed to query watchman".to_string(),
                 err: err.into(),

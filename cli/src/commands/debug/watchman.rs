@@ -46,27 +46,51 @@ pub fn cmd_debug_watchman(
     match subcommand {
         WatchmanCommand::Status => {
             // TODO(ilyagr): It would be nice to add colors here
-            match command.settings().fsmonitor_settings()? {
-                FsmonitorSettings::Watchman { .. } => {
-                    writeln!(ui.stdout(), "Watchman is enabled via `core.fsmonitor`.")?
+            let config = match command.settings().fsmonitor_settings()? {
+                FsmonitorSettings::Watchman(config) => {
+                    writeln!(ui.stdout(), "Watchman is enabled via `core.fsmonitor`.")?;
+                    writeln!(
+                        ui.stdout(),
+                        r"Background snapshotting is {}. Use `core.watchman.register_snapshot_trigger` to control it.",
+                        if config.register_trigger {
+                            "enabled"
+                        } else {
+                            "disabled"
+                        }
+                    )?;
+                    config
                 }
-                FsmonitorSettings::None => writeln!(
-                    ui.stdout(),
-                    "Watchman is disabled. Set `core.fsmonitor=\"watchman\"` to \
-                     enable.\nAttempting to contact the `watchman` CLI regardless..."
-                )?,
+                FsmonitorSettings::None => {
+                    writeln!(
+                        ui.stdout(),
+                        r#"Watchman is disabled. Set `core.fsmonitor="watchman"` to enable."#
+                    )?;
+                    writeln!(
+                        ui.stdout(),
+                        "Attempting to contact the `watchman` CLI regardless..."
+                    )?;
+                    WatchmanConfig::default()
+                }
                 other_fsmonitor => {
                     return Err(user_error(format!(
-                        "This command does not support the currently enabled filesystem monitor: \
-                         {other_fsmonitor:?}."
+                        r"This command does not support the currently enabled filesystem monitor: {other_fsmonitor:?}."
                     )))
                 }
             };
             let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
-            let _ = wc.query_watchman(&WatchmanConfig::default())?;
+            let _ = wc.query_watchman(&config)?;
             writeln!(
                 ui.stdout(),
                 "The watchman server seems to be installed and working correctly."
+            )?;
+            writeln!(
+                ui.stdout(),
+                "Background snapshotting is currently {}.",
+                if wc.is_watchman_trigger_registered(&config)? {
+                    "active"
+                } else {
+                    "inactive"
+                }
             )?;
         }
         WatchmanCommand::QueryClock => {
