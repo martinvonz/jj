@@ -75,15 +75,15 @@ pub fn cmd_branch(
     subcommand: &BranchCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        BranchCommand::Create(sub_args) => cmd_branch_create(ui, command, sub_args),
-        BranchCommand::Rename(sub_args) => cmd_branch_rename(ui, command, sub_args),
-        BranchCommand::Set(sub_args) => cmd_branch_set(ui, command, sub_args),
-        BranchCommand::Move(sub_args) => cmd_branch_move(ui, command, sub_args),
-        BranchCommand::Delete(sub_args) => cmd_branch_delete(ui, command, sub_args),
-        BranchCommand::Forget(sub_args) => cmd_branch_forget(ui, command, sub_args),
-        BranchCommand::Track(sub_args) => cmd_branch_track(ui, command, sub_args),
-        BranchCommand::Untrack(sub_args) => cmd_branch_untrack(ui, command, sub_args),
-        BranchCommand::List(sub_args) => cmd_branch_list(ui, command, sub_args),
+        BranchCommand::Create(args) => cmd_branch_create(ui, command, args),
+        BranchCommand::Rename(args) => cmd_branch_rename(ui, command, args),
+        BranchCommand::Set(args) => cmd_branch_set(ui, command, args),
+        BranchCommand::Move(args) => cmd_branch_move(ui, command, args),
+        BranchCommand::Delete(args) => cmd_branch_delete(ui, command, args),
+        BranchCommand::Forget(args) => cmd_branch_forget(ui, command, args),
+        BranchCommand::Track(args) => cmd_branch_track(ui, command, args),
+        BranchCommand::Untrack(args) => cmd_branch_untrack(ui, command, args),
+        BranchCommand::List(args) => cmd_branch_list(ui, command, args),
     }
 }
 
