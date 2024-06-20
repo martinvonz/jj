@@ -51,7 +51,7 @@ pub fn cmd_tag(
     subcommand: &TagCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        TagCommand::List(sub_args) => cmd_tag_list(ui, command, sub_args),
+        TagCommand::List(args) => cmd_tag_list(ui, command, args),
     }
 }
 

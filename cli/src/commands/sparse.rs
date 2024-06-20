@@ -91,10 +91,10 @@ pub(crate) fn cmd_sparse(
     subcommand: &SparseCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        SparseCommand::List(sub_args) => cmd_sparse_list(ui, command, sub_args),
-        SparseCommand::Set(sub_args) => cmd_sparse_set(ui, command, sub_args),
-        SparseCommand::Reset(sub_args) => cmd_sparse_reset(ui, command, sub_args),
-        SparseCommand::Edit(sub_args) => cmd_sparse_edit(ui, command, sub_args),
+        SparseCommand::List(args) => cmd_sparse_list(ui, command, args),
+        SparseCommand::Set(args) => cmd_sparse_set(ui, command, args),
+        SparseCommand::Reset(args) => cmd_sparse_reset(ui, command, args),
+        SparseCommand::Edit(args) => cmd_sparse_edit(ui, command, args),
     }
 }
 

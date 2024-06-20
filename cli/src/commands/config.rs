@@ -158,11 +158,11 @@ pub(crate) fn cmd_config(
     subcommand: &ConfigCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        ConfigCommand::List(sub_args) => cmd_config_list(ui, command, sub_args),
-        ConfigCommand::Get(sub_args) => cmd_config_get(ui, command, sub_args),
-        ConfigCommand::Set(sub_args) => cmd_config_set(ui, command, sub_args),
-        ConfigCommand::Edit(sub_args) => cmd_config_edit(ui, command, sub_args),
-        ConfigCommand::Path(sub_args) => cmd_config_path(ui, command, sub_args),
+        ConfigCommand::List(args) => cmd_config_list(ui, command, args),
+        ConfigCommand::Get(args) => cmd_config_get(ui, command, args),
+        ConfigCommand::Set(args) => cmd_config_set(ui, command, args),
+        ConfigCommand::Edit(args) => cmd_config_edit(ui, command, args),
+        ConfigCommand::Path(args) => cmd_config_path(ui, command, args),
     }
 }
 
