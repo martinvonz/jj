@@ -35,10 +35,10 @@ use crate::ui::Ui;
 /// copy
 #[derive(Subcommand, Clone, Debug)]
 pub(crate) enum SparseCommand {
-    List(SparseListArgs),
-    Set(SparseSetArgs),
-    Reset(SparseResetArgs),
     Edit(SparseEditArgs),
+    List(SparseListArgs),
+    Reset(SparseResetArgs),
+    Set(SparseSetArgs),
 }
 
 /// List the patterns that are currently present in the working copy
@@ -91,10 +91,10 @@ pub(crate) fn cmd_sparse(
     subcommand: &SparseCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        SparseCommand::List(args) => cmd_sparse_list(ui, command, args),
-        SparseCommand::Set(args) => cmd_sparse_set(ui, command, args),
-        SparseCommand::Reset(args) => cmd_sparse_reset(ui, command, args),
         SparseCommand::Edit(args) => cmd_sparse_edit(ui, command, args),
+        SparseCommand::List(args) => cmd_sparse_list(ui, command, args),
+        SparseCommand::Reset(args) => cmd_sparse_reset(ui, command, args),
+        SparseCommand::Set(args) => cmd_sparse_set(ui, command, args),
     }
 }
 
