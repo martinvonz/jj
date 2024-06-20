@@ -30,11 +30,11 @@ pub struct BranchDeleteArgs {
     /// select branches by wildcard pattern. For details, see
     /// https://github.com/martinvonz/jj/blob/main/docs/revsets.md#string-patterns.
     #[arg(required_unless_present_any(&["glob"]), value_parser = StringPattern::parse)]
-    pub names: Vec<StringPattern>,
+    names: Vec<StringPattern>,
 
     /// Deprecated. Please prefix the pattern with `glob:` instead.
     #[arg(long, hide = true, value_parser = StringPattern::glob)]
-    pub glob: Vec<StringPattern>,
+    glob: Vec<StringPattern>,
 }
 
 pub fn cmd_branch_delete(

@@ -25,15 +25,15 @@ use crate::ui::Ui;
 pub struct BranchSetArgs {
     /// The branch's target revision.
     #[arg(long, short)]
-    pub revision: Option<RevisionArg>,
+    revision: Option<RevisionArg>,
 
     /// Allow moving the branch backwards or sideways.
     #[arg(long, short = 'B')]
-    pub allow_backwards: bool,
+    allow_backwards: bool,
 
     /// The branches to update.
     #[arg(required = true)]
-    pub names: Vec<String>,
+    names: Vec<String>,
 }
 
 pub fn cmd_branch_set(
