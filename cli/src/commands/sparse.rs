@@ -34,7 +34,7 @@ use crate::ui::Ui;
 /// Manage which paths from the working-copy commit are present in the working
 /// copy
 #[derive(Subcommand, Clone, Debug)]
-pub(crate) enum SparseArgs {
+pub(crate) enum SparseCommand {
     List(SparseListArgs),
     Set(SparseSetArgs),
     Reset(SparseResetArgs),
@@ -88,13 +88,13 @@ pub(crate) struct SparseEditArgs {}
 pub(crate) fn cmd_sparse(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &SparseArgs,
+    subcommand: &SparseCommand,
 ) -> Result<(), CommandError> {
-    match args {
-        SparseArgs::List(sub_args) => cmd_sparse_list(ui, command, sub_args),
-        SparseArgs::Set(sub_args) => cmd_sparse_set(ui, command, sub_args),
-        SparseArgs::Reset(sub_args) => cmd_sparse_reset(ui, command, sub_args),
-        SparseArgs::Edit(sub_args) => cmd_sparse_edit(ui, command, sub_args),
+    match subcommand {
+        SparseCommand::List(sub_args) => cmd_sparse_list(ui, command, sub_args),
+        SparseCommand::Set(sub_args) => cmd_sparse_set(ui, command, sub_args),
+        SparseCommand::Reset(sub_args) => cmd_sparse_reset(ui, command, sub_args),
+        SparseCommand::Edit(sub_args) => cmd_sparse_edit(ui, command, sub_args),
     }
 }
 

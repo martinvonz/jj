@@ -137,7 +137,7 @@ enum Command {
     Run(run::RunArgs),
     Show(show::ShowArgs),
     #[command(subcommand)]
-    Sparse(sparse::SparseArgs),
+    Sparse(sparse::SparseCommand),
     Split(split::SplitArgs),
     Squash(squash::SquashArgs),
     Status(status::StatusArgs),
