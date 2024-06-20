@@ -21,7 +21,7 @@ use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Forget everything about a branch, including its local and remote
-/// targets.
+/// targets
 ///
 /// A forgotten branch will not impact remotes on future pushes. It will be
 /// recreated on future pulls if it still exists in the remote.

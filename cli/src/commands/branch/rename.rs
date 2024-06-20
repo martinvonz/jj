@@ -20,16 +20,15 @@ use crate::cli_util::CommandHelper;
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
-/// Rename `old` branch name to `new` branch name.
+/// Rename `old` branch name to `new` branch name
 ///
-/// The new branch name points at the same commit as the old
-/// branch name.
+/// The new branch name points at the same commit as the old branch name.
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchRenameArgs {
-    /// The old name of the branch.
+    /// The old name of the branch
     old: String,
 
-    /// The new name of the branch.
+    /// The new name of the branch
     new: String,
 }
 

@@ -44,7 +44,7 @@ use crate::cli_util::{CommandHelper, RemoteBranchName, RemoteBranchNamePattern};
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
-/// Manage branches.
+/// Manage branches
 ///
 /// For information about branches, see
 /// https://github.com/martinvonz/jj/blob/main/docs/branches.md.

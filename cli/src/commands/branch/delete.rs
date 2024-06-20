@@ -21,7 +21,7 @@ use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Delete an existing branch and propagate the deletion to remotes on the
-/// next push.
+/// next push
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchDeleteArgs {
     /// The branches to delete

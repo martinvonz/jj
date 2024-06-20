@@ -21,14 +21,14 @@ use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::{user_error_with_hint, CommandError};
 use crate::ui::Ui;
 
-/// Create a new branch.
+/// Create a new branch
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchCreateArgs {
-    /// The branch's target revision.
+    /// The branch's target revision
     #[arg(long, short)]
     revision: Option<RevisionArg>,
 
-    /// The branches to create.
+    /// The branches to create
     #[arg(required = true, value_parser=NonEmptyStringValueParser::new())]
     names: Vec<String>,
 }
