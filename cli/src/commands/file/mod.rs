@@ -34,8 +34,8 @@ pub fn cmd_file(
     subcommand: &FileCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        FileCommand::Chmod(sub_args) => chmod::cmd_chmod(ui, command, sub_args),
-        FileCommand::List(sub_args) => list::cmd_list(ui, command, sub_args),
-        FileCommand::Print(sub_args) => print::cmd_print(ui, command, sub_args),
+        FileCommand::Chmod(args) => chmod::cmd_chmod(ui, command, args),
+        FileCommand::List(args) => list::cmd_list(ui, command, args),
+        FileCommand::Print(args) => print::cmd_print(ui, command, args),
     }
 }
