@@ -40,17 +40,6 @@ pub struct BranchForgetArgs {
     pub glob: Vec<StringPattern>,
 }
 
-fn find_forgettable_branches(
-    view: &View,
-    name_patterns: &[StringPattern],
-) -> Result<Vec<String>, CommandError> {
-    find_branches_with(name_patterns, |pattern| {
-        view.branches()
-            .filter(|(name, _)| pattern.matches(name))
-            .map(|(name, _)| name.to_owned())
-    })
-}
-
 pub fn cmd_branch_forget(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -75,4 +64,15 @@ pub fn cmd_branch_forget(
         writeln!(ui.status(), "Forgot {} branches.", names.len())?;
     }
     Ok(())
+}
+
+fn find_forgettable_branches(
+    view: &View,
+    name_patterns: &[StringPattern],
+) -> Result<Vec<String>, CommandError> {
+    find_branches_with(name_patterns, |pattern| {
+        view.branches()
+            .filter(|(name, _)| pattern.matches(name))
+            .map(|(name, _)| name.to_owned())
+    })
 }

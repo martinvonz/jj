@@ -69,13 +69,6 @@ pub enum BranchCommand {
     Untrack(BranchUntrackArgs),
 }
 
-fn make_branch_term(branch_names: &[impl fmt::Display]) -> String {
-    match branch_names {
-        [branch_name] => format!("branch {}", branch_name),
-        branch_names => format!("branches {}", branch_names.iter().join(", ")),
-    }
-}
-
 pub fn cmd_branch(
     ui: &mut Ui,
     command: &CommandHelper,
@@ -91,6 +84,13 @@ pub fn cmd_branch(
         BranchCommand::Track(sub_args) => cmd_branch_track(ui, command, sub_args),
         BranchCommand::Untrack(sub_args) => cmd_branch_untrack(ui, command, sub_args),
         BranchCommand::List(sub_args) => cmd_branch_list(ui, command, sub_args),
+    }
+}
+
+fn make_branch_term(branch_names: &[impl fmt::Display]) -> String {
+    match branch_names {
+        [branch_name] => format!("branch {}", branch_name),
+        branch_names => format!("branches {}", branch_names.iter().join(", ")),
     }
 }
 
