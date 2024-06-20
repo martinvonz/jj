@@ -29,7 +29,7 @@ pub struct BranchCreateArgs {
     revision: Option<RevisionArg>,
 
     /// The branches to create
-    #[arg(required = true, value_parser=NonEmptyStringValueParser::new())]
+    #[arg(required = true, value_parser = NonEmptyStringValueParser::new())]
     names: Vec<String>,
 }
 
