@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use clap::builder::NonEmptyStringValueParser;
 use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::RefTarget;
 
@@ -32,7 +33,7 @@ pub struct BranchSetArgs {
     allow_backwards: bool,
 
     /// The branches to update
-    #[arg(required = true)]
+    #[arg(required = true, value_parser = NonEmptyStringValueParser::new())]
     names: Vec<String>,
 }
 
