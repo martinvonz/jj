@@ -90,10 +90,9 @@ pub(crate) fn cmd_prev(
         // If people desire to move to the root conflict, replace the `heads()` below
         // with `roots(). But let's wait for feedback.
         target_revset
+            .parents()
             .ancestors()
             .filtered(RevsetFilterPredicate::HasConflict)
-            // We need to filter out empty commits to not land on empty working-copies lying around.
-            .minus(&RevsetExpression::is_empty())
             .heads()
     } else {
         target_revset.ancestors_at(args.offset)
