@@ -534,7 +534,7 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
             state: RemoteRefState::Tracking,
         },
     );
-    assert!(view.has_branch("main")); // branch #3 of 3
+    assert!(view.get_local_branch("main").is_present()); // branch #3 of 3
 
     // Simulate fetching from a remote where feature-remote-only and
     // feature-remote-and-local branches were deleted. This leads to the
@@ -550,8 +550,11 @@ fn test_import_refs_reimport_with_deleted_remote_ref() {
     let view = repo.view();
     // The local branches were indeed deleted
     assert_eq!(view.branches().count(), 2);
-    assert!(view.has_branch("main"));
-    assert!(!view.has_branch("feature-remote-only"));
+    assert!(view.get_local_branch("main").is_present());
+    assert!(view.get_local_branch("feature-remote-only").is_absent());
+    assert!(view
+        .get_remote_branch("feature-remote-only", "origin")
+        .is_absent());
     assert!(view
         .get_local_branch("feature-remote-and-local")
         .is_absent());
@@ -653,7 +656,7 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
             state: RemoteRefState::Tracking,
         },
     );
-    assert!(view.has_branch("main")); // branch #3 of 3
+    assert!(view.get_local_branch("main").is_present()); // branch #3 of 3
 
     // Simulate fetching from a remote where feature-remote-only and
     // feature-remote-and-local branches were moved. This leads to the
@@ -711,7 +714,7 @@ fn test_import_refs_reimport_with_moved_remote_ref() {
             state: RemoteRefState::Tracking,
         },
     );
-    assert!(view.has_branch("main")); // branch #3 of 3
+    assert!(view.get_local_branch("main").is_present()); // branch #3 of 3
     let expected_heads = hashset! {
             jj_id(&commit_main),
             jj_id(&new_commit_remote_and_local),
@@ -1185,9 +1188,13 @@ fn test_import_some_refs() {
         view.get_remote_branch("feature4", "origin"),
         &commit_feat4_remote_ref
     );
-    assert!(!view.has_branch("main"));
+    assert!(view.get_local_branch("main").is_absent());
+    assert!(view.get_remote_branch("main", "git").is_absent());
+    assert!(view.get_remote_branch("main", "origin").is_absent());
     assert!(!view.heads().contains(&jj_id(&commit_main)));
-    assert!(!view.has_branch("ignored"));
+    assert!(view.get_local_branch("ignored").is_absent());
+    assert!(view.get_remote_branch("ignored", "git").is_absent());
+    assert!(view.get_remote_branch("ignored", "origin").is_absent());
     assert!(!view.heads().contains(&jj_id(&commit_ign)));
 
     // Delete branch feature1, feature3 and feature4 in git repository and import
@@ -2375,7 +2382,11 @@ fn test_fetch_prune_deleted_ref() {
     )
     .unwrap();
     // Test the setup
-    assert!(tx.mut_repo().has_branch("main"));
+    assert!(tx.mut_repo().get_local_branch("main").is_present());
+    assert!(tx
+        .mut_repo()
+        .get_remote_branch("main", "origin")
+        .is_present());
 
     test_data
         .origin_repo
@@ -2394,7 +2405,11 @@ fn test_fetch_prune_deleted_ref() {
     )
     .unwrap();
     assert_eq!(stats.import_stats.abandoned_commits, vec![jj_id(&commit)]);
-    assert!(!tx.mut_repo().has_branch("main"));
+    assert!(tx.mut_repo().get_local_branch("main").is_absent());
+    assert!(tx
+        .mut_repo()
+        .get_remote_branch("main", "origin")
+        .is_absent());
 }
 
 #[test]
