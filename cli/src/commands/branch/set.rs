@@ -21,7 +21,7 @@ use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::{user_error_with_hint, CommandError};
 use crate::ui::Ui;
 
-/// Update an existing branch to point to a certain commit
+/// Create or update a branch to point to a certain commit
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchSetArgs {
     /// The branch's target revision
@@ -47,13 +47,11 @@ pub fn cmd_branch_set(
         workspace_command.resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
     let repo = workspace_command.repo().as_ref();
     let branch_names = &args.names;
+    let mut new_branch_names: Vec<&str> = Vec::new();
     for name in branch_names {
         let old_target = repo.view().get_local_branch(name);
         if old_target.is_absent() {
-            return Err(user_error_with_hint(
-                format!("No such branch: {name}"),
-                "Use `jj branch create` to create it.",
-            ));
+            new_branch_names.push(name);
         }
         if !args.allow_backwards && !is_fast_forward(repo, old_target, target_commit.id()) {
             return Err(user_error_with_hint(
@@ -84,5 +82,18 @@ pub fn cmd_branch_set(
             target_commit.id().hex()
         ),
     )?;
+
+    if !new_branch_names.is_empty() {
+        writeln!(
+            ui.status(),
+            "Created branches: {}",
+            new_branch_names.join(", "),
+        )?;
+        // TODO: delete this hint in jj 0.25+
+        writeln!(
+            ui.hint_default(),
+            "Consider using `jj branch move` if your intention was to move existing branches."
+        )?;
+    }
     Ok(())
 }
