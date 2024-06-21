@@ -357,6 +357,44 @@ fn show_color_words_diff_hunks(
     Ok(())
 }
 
+fn split_slice(input: &[u8]) -> [&[u8]; 3] {
+    let is_whitespace = |&c: &u8| c.is_ascii_whitespace();
+
+    // Find the start and end of the text (non-whitespace)
+    let start = input.iter().position(|c| !is_whitespace(c));
+    let end = input.iter().rposition(|c| !is_whitespace(c));
+
+    match (start, end) {
+        (Some(start), Some(end)) => {
+            let mut leading = &input[..start];
+            let mut text = &input[start..=end];
+            let mut trailing = &input[end + 1..];
+
+            if leading.iter().all(|c| c == &b'\n' || c == &b'\r') {
+                leading = &[];
+                text = &input[..=end];
+            }
+            if trailing.iter().all(|c| c == &b'\n' || c == &b'\r') {
+                trailing = &[];
+                text = if leading.is_empty() {
+                    &input[..]
+                } else {
+                    &input[start..]
+                };
+            }
+
+            [leading, text, trailing]
+        }
+        _ => {
+            if input.iter().all(|c| c == &b'\n' || c == &b'\r') {
+                [&[], &input[..], &[]]
+            } else {
+                [&input[..], &[], &[]]
+            }
+        }
+    }
+}
+
 fn show_color_words_diff_line(
     formatter: &mut dyn Formatter,
     diff_line: &DiffLine,
@@ -388,16 +426,20 @@ fn show_color_words_diff_line(
             }
             DiffHunk::Different(data) => {
                 for (hunk_part, label) in data.iter().zip(["removed", "added"]) {
-                    if !hunk_part.is_empty() {
-                        formatter.with_label(label, |formatter| {
-                            if hunk_part.iter().all(u8::is_ascii_whitespace) {
-                                formatter.with_label("whitespace", |formatter| {
-                                    formatter.write_all(hunk_part)
-                                })
-                            } else {
-                                formatter.write_all(hunk_part)
-                            }
-                        })?;
+                    for (text, is_whitespace_only) in
+                        split_slice(hunk_part).iter().zip([true, false, true])
+                    {
+                        if !text.is_empty() {
+                            formatter.with_label(label, |formatter| {
+                                if is_whitespace_only {
+                                    formatter.with_label("whitespace", |formatter| {
+                                        formatter.write_all(text)
+                                    })
+                                } else {
+                                    formatter.write_all(text)
+                                }
+                            })?;
+                        }
                     }
                 }
             }
