@@ -16,6 +16,7 @@ pub mod add;
 pub mod list;
 pub mod remove;
 pub mod rename;
+pub mod set_url;
 
 use clap::Subcommand;
 
@@ -23,6 +24,7 @@ use self::add::{cmd_remote_add, AddArgs};
 use self::list::{cmd_remote_list, ListArgs};
 use self::remove::{cmd_remote_remove, RemoveArgs};
 use self::rename::{cmd_remote_rename, RenameArgs};
+use self::set_url::{cmd_remote_set_url, SetUrlArgs};
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
@@ -36,6 +38,7 @@ pub enum RemoteCommand {
     List(ListArgs),
     Remove(RemoveArgs),
     Rename(RenameArgs),
+    SetUrl(SetUrlArgs),
 }
 
 pub fn cmd_git_remote(
@@ -48,5 +51,6 @@ pub fn cmd_git_remote(
         RemoteCommand::List(args) => cmd_remote_list(ui, command, args),
         RemoteCommand::Remove(args) => cmd_remote_remove(ui, command, args),
         RemoteCommand::Rename(args) => cmd_remote_rename(ui, command, args),
+        RemoteCommand::SetUrl(args) => cmd_remote_set_url(ui, command, args),
     }
 }

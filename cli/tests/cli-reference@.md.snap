@@ -52,6 +52,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj git remote list`↴](#jj-git-remote-list)
 * [`jj git remote remove`↴](#jj-git-remote-remove)
 * [`jj git remote rename`↴](#jj-git-remote-rename)
+* [`jj git remote set-url`↴](#jj-git-remote-set-url)
 * [`jj init`↴](#jj-init)
 * [`jj interdiff`↴](#jj-interdiff)
 * [`jj log`↴](#jj-log)
@@ -955,6 +956,7 @@ The Git repo will be a bare git repo stored inside the `.jj/` directory.
 * `list` — List Git remotes
 * `remove` — Remove a Git remote and forget its branches
 * `rename` — Rename a Git remote
+* `set-url` — Set the URL of a Git remote
 
 
 
@@ -1001,6 +1003,19 @@ Rename a Git remote
 
 * `<OLD>` — The name of an existing remote
 * `<NEW>` — The desired name for `old`
+
+
+
+## `jj git remote set-url`
+
+Set the URL of a Git remote
+
+**Usage:** `jj git remote set-url <REMOTE> <URL>`
+
+###### **Arguments:**
+
+* `<REMOTE>` — The remote's name
+* `<URL>` — The desired url for `remote`
 
 
 

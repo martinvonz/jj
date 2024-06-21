@@ -70,6 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj prev` and `jj next` have gained a `--conflict` flag which moves you
   to the next conflict in a child commit.
 
+* New command `jj git remote set-url` that sets the url of a git remote.
+
 ### Fixed bugs
 
 ## [0.18.0] - 2024-06-05
