@@ -1144,6 +1144,32 @@ pub fn rename_remote(
     Ok(())
 }
 
+pub fn set_remote_url(
+    git_repo: &git2::Repository,
+    remote_name: &str,
+    new_remote_url: &str,
+) -> Result<(), GitRemoteManagementError> {
+    if remote_name == REMOTE_NAME_FOR_LOCAL_GIT_REPO {
+        return Err(GitRemoteManagementError::RemoteReservedForLocalGitRepo);
+    }
+
+    // Repository::remote_set_url() doesn't ensure the remote exists, it just
+    // creates it if it's missing.
+    // Therefore ensure it exists first
+    git_repo.find_remote(remote_name).map_err(|err| {
+        if is_remote_not_found_err(&err) {
+            GitRemoteManagementError::NoSuchRemote(remote_name.to_owned())
+        } else {
+            GitRemoteManagementError::InternalGitError(err)
+        }
+    })?;
+
+    git_repo
+        .remote_set_url(remote_name, new_remote_url)
+        .map_err(GitRemoteManagementError::InternalGitError)?;
+    Ok(())
+}
+
 fn rename_remote_refs(mut_repo: &mut MutableRepo, old_remote_name: &str, new_remote_name: &str) {
     mut_repo.rename_remote(old_remote_name, new_remote_name);
     let prefix = format!("refs/remotes/{old_remote_name}/");
