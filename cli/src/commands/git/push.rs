@@ -25,7 +25,7 @@ use jj_lib::refs::{
     classify_branch_push_action, BranchPushAction, BranchPushUpdate, LocalAndRemoteRef,
 };
 use jj_lib::repo::Repo;
-use jj_lib::revset::{self, RevsetExpression, RevsetIteratorExt as _};
+use jj_lib::revset::RevsetExpression;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::str_util::StringPattern;
 use jj_lib::view::View;
@@ -37,6 +37,7 @@ use crate::cli_util::{
 use crate::command_error::{user_error, user_error_with_hint, CommandError};
 use crate::commands::git::{get_single_remote, map_git_error};
 use crate::git_util::{get_git_repo, with_remote_git_callbacks, GitSidebandProgressMessageWriter};
+use crate::revset_util;
 use crate::ui::Ui;
 
 /// Push to a Git remote
@@ -266,18 +267,22 @@ pub fn cmd_git_push(
         .iter()
         .filter_map(|(_, update)| update.new_target.clone())
         .collect_vec();
-    let mut old_heads = repo
+    let old_heads = repo
         .view()
         .remote_branches(&remote)
         .flat_map(|(_, old_head)| old_head.target.added_ids())
         .cloned()
         .collect_vec();
-    if old_heads.is_empty() {
-        old_heads.push(repo.store().root_commit_id().clone());
-    }
-    for commit in revset::walk_revs(repo.as_ref(), &new_heads, &old_heads)?
-        .iter()
-        .commits(repo.store())
+    // (old_heads | immutable_heads() | root())..new_heads
+    let commits_to_push = RevsetExpression::commits(old_heads)
+        .union(&revset_util::parse_immutable_heads_expression(
+            &tx.base_workspace_helper().revset_parse_context(),
+        )?)
+        .range(&RevsetExpression::commits(new_heads));
+    for commit in tx
+        .base_workspace_helper()
+        .attach_revset_evaluator(commits_to_push)?
+        .evaluate_to_commits()?
     {
         let commit = commit?;
         let mut reasons = vec![];

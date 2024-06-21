@@ -57,6 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed bugs
 
+* `jj git push` now ignores immutable commits when checking whether a
+  to-be-pushed commit has conflicts, or has no description / committer / author
+  set. [#3029](https://github.com/martinvonz/jj/issues/3029)
+
 ## [0.18.0] - 2024-06-05
 
 ### Breaking changes

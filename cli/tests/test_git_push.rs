@@ -836,6 +836,36 @@ fn test_git_push_no_description() {
 }
 
 #[test]
+fn test_git_push_no_description_in_immutable() {
+    let (test_env, workspace_root) = set_up();
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "imm"]);
+    test_env.jj_cmd_ok(&workspace_root, &["describe", "-m="]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "-m", "foo"]);
+    std::fs::write(workspace_root.join("file"), "contents").unwrap();
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "my-branch"]);
+
+    let stderr = test_env.jj_cmd_failure(
+        &workspace_root,
+        &["git", "push", "--branch=my-branch", "--dry-run"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Won't push commit 5b36783cd11c since it has no description
+    "###);
+
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "imm""#);
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &workspace_root,
+        &["git", "push", "--branch=my-branch", "--dry-run"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Branch changes to push to origin:
+      Add branch my-branch to ea7373507ad9
+    Dry-run requested, not pushing.
+    "###);
+}
+
+#[test]
 fn test_git_push_missing_author() {
     let (test_env, workspace_root) = set_up();
     let run_without_var = |var: &str, args: &[&str]| {
@@ -860,6 +890,44 @@ fn test_git_push_missing_author() {
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-email"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit 59354714f789 since it has no author and/or committer set
+    "###);
+}
+
+#[test]
+fn test_git_push_missing_author_in_immutable() {
+    let (test_env, workspace_root) = set_up();
+    let run_without_var = |var: &str, args: &[&str]| {
+        test_env
+            .jj_cmd(&workspace_root, args)
+            .env_remove(var)
+            .assert()
+            .success();
+    };
+    run_without_var("JJ_USER", &["new", "root()", "-m=no author name"]);
+    run_without_var("JJ_EMAIL", &["new", "-m=no author email"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "imm"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "-m", "foo"]);
+    std::fs::write(workspace_root.join("file"), "contents").unwrap();
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "my-branch"]);
+
+    let stderr = test_env.jj_cmd_failure(
+        &workspace_root,
+        &["git", "push", "--branch=my-branch", "--dry-run"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Won't push commit 011f740bf8b5 since it has no author and/or committer set
+    "###);
+
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "imm""#);
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &workspace_root,
+        &["git", "push", "--branch=my-branch", "--dry-run"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Branch changes to push to origin:
+      Add branch my-branch to 68fdae89de4f
+    Dry-run requested, not pushing.
     "###);
 }
 
@@ -896,6 +964,45 @@ fn test_git_push_missing_committer() {
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch=missing-email"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Won't push commit 1143ed607f54 since it has no description and it has no author and/or committer set
+    "###);
+}
+
+#[test]
+fn test_git_push_missing_committer_in_immutable() {
+    let (test_env, workspace_root) = set_up();
+    let run_without_var = |var: &str, args: &[&str]| {
+        test_env
+            .jj_cmd(&workspace_root, args)
+            .env_remove(var)
+            .assert()
+            .success();
+    };
+    run_without_var("JJ_USER", &["describe", "-m=no committer name"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new"]);
+    run_without_var("JJ_EMAIL", &["describe", "-m=no committer email"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "imm"]);
+    test_env.jj_cmd_ok(&workspace_root, &["new", "-m", "foo"]);
+    std::fs::write(workspace_root.join("file"), "contents").unwrap();
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "my-branch"]);
+
+    let stderr = test_env.jj_cmd_failure(
+        &workspace_root,
+        &["git", "push", "--branch=my-branch", "--dry-run"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Won't push commit 7e61dc727a8f since it has no author and/or committer set
+    "###);
+
+    test_env.add_config(r#"revset-aliases."immutable_heads()" = "imm""#);
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &workspace_root,
+        &["git", "push", "--branch=my-branch", "--dry-run"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Branch changes to push to origin:
+      Add branch my-branch to c79f85e90b4a
+    Dry-run requested, not pushing.
     "###);
 }
 
