@@ -146,7 +146,7 @@ enum Command {
     #[command(subcommand)]
     Util(util::UtilCommand),
     /// Undo an operation (shortcut for `jj op undo`)
-    Undo(operation::OperationUndoArgs),
+    Undo(operation::undo::OperationUndoArgs),
     Unsquash(unsquash::UnsquashArgs),
     Untrack(untrack::UntrackArgs),
     Version(version::VersionArgs),
@@ -212,7 +212,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Squash(args) => squash::cmd_squash(ui, command_helper, args),
         Command::Status(args) => status::cmd_status(ui, command_helper, args),
         Command::Tag(args) => tag::cmd_tag(ui, command_helper, args),
-        Command::Undo(args) => operation::cmd_op_undo(ui, command_helper, args),
+        Command::Undo(args) => operation::undo::cmd_op_undo(ui, command_helper, args),
         Command::Unsquash(args) => unsquash::cmd_unsquash(ui, command_helper, args),
         Command::Untrack(args) => untrack::cmd_untrack(ui, command_helper, args),
         Command::Util(args) => util::cmd_util(ui, command_helper, args),
