@@ -67,7 +67,7 @@ pub fn cmd_branch_track(
         ui,
         format!("track remote branch {}", names.iter().join(", ")),
     )?;
-    if names.len() > 1 {
+    if !names.is_empty() {
         writeln!(
             ui.status(),
             "Started tracking {} remote branches.",
