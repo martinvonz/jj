@@ -79,23 +79,25 @@ pub(crate) fn cmd_prev(
             .view()
             .heads()
             .contains(current_wc_id);
+    let wc_revset = RevsetExpression::commit(current_wc_id.clone());
     // If we're editing, start at the working-copy commit. Otherwise, start from
     // its direct parent(s).
-    let target_revset = if edit {
-        RevsetExpression::commit(current_wc_id.clone())
+    let start_revset = if edit {
+        wc_revset.clone()
     } else {
-        RevsetExpression::commit(current_wc_id.clone()).parents()
+        wc_revset.parents()
     };
+
     let target_revset = if args.conflict {
         // If people desire to move to the root conflict, replace the `heads()` below
         // with `roots(). But let's wait for feedback.
-        target_revset
+        start_revset
             .parents()
             .ancestors()
             .filtered(RevsetFilterPredicate::HasConflict)
             .heads()
     } else {
-        target_revset.ancestors_at(args.offset)
+        start_revset.ancestors_at(args.offset)
     };
     let targets: Vec<_> = target_revset
         .evaluate_programmatic(workspace_command.repo().as_ref())?
