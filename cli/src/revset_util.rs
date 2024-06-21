@@ -160,18 +160,26 @@ pub fn default_symbol_resolver<'a>(
     DefaultSymbolResolver::new(repo, extensions).with_id_prefix_context(id_prefix_context)
 }
 
-/// Parses user-configured expression defining the immutable set.
-pub fn parse_immutable_expression(
+/// Parses user-configured expression defining the heads of the immutable set.
+/// Includes the root commit.
+pub fn parse_immutable_heads_expression(
     context: &RevsetParseContext,
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let (_, _, immutable_heads_str) = context
         .aliases_map()
         .get_function(BUILTIN_IMMUTABLE_HEADS, 0)
         .unwrap();
+    let heads = revset::parse(immutable_heads_str, context)?;
+    Ok(heads.union(&RevsetExpression::root()))
+}
+
+/// Parses user-configured expression defining the immutable set.
+pub fn parse_immutable_expression(
+    context: &RevsetParseContext,
+) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     // Negated ancestors expression `~::(<heads> | root())` is slightly easier
     // to optimize than negated union `~(::<heads> | root())`.
-    let heads = revset::parse(immutable_heads_str, context)?;
-    Ok(heads.union(&RevsetExpression::root()).ancestors())
+    Ok(parse_immutable_heads_expression(context)?.ancestors())
 }
 
 pub(super) fn evaluate_revset_to_single_commit<'a>(
