@@ -128,12 +128,14 @@ pub(crate) fn cmd_next(
 
     let target_revset = if args.conflict {
         start_revset
+            .children()
             .descendants()
             .filtered(RevsetFilterPredicate::HasConflict)
             .roots()
     } else {
-        start_revset.descendants_at(args.offset).minus(&wc_revset)
-    };
+        start_revset.descendants_at(args.offset)
+    }
+    .minus(&wc_revset);
 
     let targets: Vec<Commit> = target_revset
         .evaluate_programmatic(workspace_command.repo().as_ref())?

@@ -594,12 +594,11 @@ fn test_prev_conflict() {
     ◉  zzzzzzzzzzzz
     "###);
     test_env.jj_cmd_ok(&repo_path, &["prev", "--conflict"]);
-    // TODO: We now should be a child of `third`.
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  yostqsxwqrlt conflict
     │ ◉  royxmykxtrkr conflict fourth
-    │ ◉  kkmpptxzrspx conflict third
     ├─╯
+    ◉  kkmpptxzrspx conflict third
     ◉  rlvkpnrzqnoo conflict second
     ◉  qpvuntsmwlqt first
     ◉  zzzzzzzzzzzz
@@ -723,12 +722,14 @@ fn test_next_conflict_head() {
     @  rlvkpnrzqnoo conflict
     ◉  zzzzzzzzzzzz
     "###);
-    // TODO: The command should be an error since there is no conflict after the
-    // current one
-    test_env.jj_cmd_ok(&repo_path, &["next", "--conflict"]);
-    // TODO: The command should be an error since there is no conflict after the
-    // current one
-    test_env.jj_cmd_ok(&repo_path, &["next", "--conflict", "--edit"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["next", "--conflict"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No descendant found 1 commit forward
+    "###);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["next", "--conflict", "--edit"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: No descendant found 1 commit forward
+    "###);
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
