@@ -62,9 +62,7 @@ pub fn cmd_branch_forget(
             matched_branches.iter().map(|(name, _)| name).join(", ")
         ),
     )?;
-    if matched_branches.len() > 1 {
-        writeln!(ui.status(), "Forgot {} branches.", matched_branches.len())?;
-    }
+    writeln!(ui.status(), "Forgot {} branches.", matched_branches.len())?;
     Ok(())
 }
 

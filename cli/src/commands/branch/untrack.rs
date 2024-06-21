@@ -70,7 +70,7 @@ pub fn cmd_branch_untrack(
         ui,
         format!("untrack remote branch {}", names.iter().join(", ")),
     )?;
-    if names.len() > 1 {
+    if !names.is_empty() {
         writeln!(
             ui.status(),
             "Stopped tracking {} remote branches.",
