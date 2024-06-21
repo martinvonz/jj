@@ -103,18 +103,16 @@ fn test_branch_move() {
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "set", "foo"]);
-    insta::assert_snapshot!(stderr, @r###"
-    Error: No such branch: foo
-    Hint: Use `jj branch create` to create it.
-    "###);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "move", "foo"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: No such branch: foo
     "###);
 
-    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
-    insta::assert_snapshot!(stderr, @"");
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Created branches: foo
+    Hint: Consider using `jj branch move` if your intention was to move existing branches.
+    "###);
 
     test_env.jj_cmd_ok(&repo_path, &["new"]);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "create", "foo"]);

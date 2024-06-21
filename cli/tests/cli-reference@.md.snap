@@ -239,7 +239,7 @@ For information about branches, see https://github.com/martinvonz/jj/blob/main/d
 * `list` — List branches and their targets
 * `move` — Move existing branches to target revision
 * `rename` — Rename `old` branch name to `new` branch name
-* `set` — Update an existing branch to point to a certain commit
+* `set` — Create or update a branch to point to a certain commit
 * `track` — Start tracking given remote branches
 * `untrack` — Stop tracking given remote branches
 
@@ -370,7 +370,7 @@ The new branch name points at the same commit as the old branch name.
 
 ## `jj branch set`
 
-Update an existing branch to point to a certain commit
+Create or update a branch to point to a certain commit
 
 **Usage:** `jj branch set [OPTIONS] <NAMES>...`
 

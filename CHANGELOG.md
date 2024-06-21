@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Dropped support for deprecated `jj branch delete`/`forget` `--glob` option.
 
+* `jj branch set` now creates new branch if it doesn't exist. Use `jj branch
+  move` to ensure that the target branch already exists.
+  [#3584](https://github.com/martinvonz/jj/issues/3584)
+
 ### Deprecations
 
 * Replacing `-l` shorthand for `--limit` with `-n` in `jj log`, `jj op log` and `jj obslog`.
