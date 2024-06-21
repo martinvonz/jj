@@ -445,7 +445,9 @@ fn test_branch_forget_glob() {
         &["branch", "forget", "foo-4", "glob:foo-*", "glob:foo-*"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Forgot 1 branches.
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 230dd059e1b0
     ◉   000000000000
@@ -529,7 +531,9 @@ fn test_branch_delete_glob() {
         &["branch", "delete", "foo-4", "glob:foo-*", "glob:foo-*"],
     );
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Deleted 1 branches.
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar-2 foo-1@origin foo-3@origin foo-4@origin 312a98d6f27b
     ◉   000000000000
@@ -608,7 +612,9 @@ fn test_branch_forget_export() {
     insta::assert_snapshot!(stderr, @"");
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "forget", "foo"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Forgot 1 branches.
+    "###);
     // Forgetting a branch deletes local and remote-tracking branches including
     // the corresponding git-tracking branch.
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @"");
@@ -734,7 +740,9 @@ fn test_branch_forget_fetched_branch() {
         .unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "forget", "feature1"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Forgot 1 branches.
+    "###);
 
     // Fetching a moved branch does not create a conflict
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "fetch", "--remote=origin"]);
@@ -1014,6 +1022,7 @@ fn test_branch_track_conflict() {
     );
     let (_, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "track", "main@origin"]);
     insta::assert_snapshot!(stderr, @r###"
+    Started tracking 1 remote branches.
     main (conflicted):
       + qpvuntsm e802c4f8 (empty) b
       + qpvuntsm hidden 427890ea (empty) a
@@ -1129,6 +1138,7 @@ fn test_branch_track_untrack_patterns() {
     Warning: Git-tracking branch cannot be untracked: feature1@git
     Warning: Remote branch not tracked yet: feature2@origin
     Warning: Git-tracking branch cannot be untracked: main@git
+    Stopped tracking 1 remote branches.
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     feature1: omvolwpu 1336caed commit

@@ -54,8 +54,6 @@ pub fn cmd_branch_delete(
             matched_branches.iter().map(|(name, _)| name).join(", ")
         ),
     )?;
-    if matched_branches.len() > 1 {
-        writeln!(ui.status(), "Deleted {} branches.", matched_branches.len())?;
-    }
+    writeln!(ui.status(), "Deleted {} branches.", matched_branches.len())?;
     Ok(())
 }
