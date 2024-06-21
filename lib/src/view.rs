@@ -96,17 +96,6 @@ impl View {
         self.data.head_ids.remove(head_id);
     }
 
-    /// Returns true if any local or remote branch of the given `name` exists.
-    #[must_use]
-    pub fn has_branch(&self, name: &str) -> bool {
-        self.data.local_branches.contains_key(name)
-            || self
-                .data
-                .remote_views
-                .values()
-                .any(|remote_view| remote_view.branches.contains_key(name))
-    }
-
     // TODO: maybe rename to forget_branch() because this seems unusual operation?
     pub fn remove_branch(&mut self, name: &str) {
         self.data.local_branches.remove(name);
