@@ -704,8 +704,6 @@ fn test_next_conflict_editing() {
     ◉  qpvuntsmwlqt first
     ◉  zzzzzzzzzzzz
     "###);
-    // TODO: The command should be an error since there is no conflict after the
-    // current one
     test_env.jj_cmd_ok(&repo_path, &["next", "--conflict", "--edit"]);
     // We now should be editing the third commit.
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -715,6 +713,30 @@ fn test_next_conflict_editing() {
     ◉  qpvuntsmwlqt first
     ◉  zzzzzzzzzzzz
     "###);
+}
+
+#[test]
+fn test_next_conflict_head() {
+    // When editing a head with conflicts, `jj next --conflict [--edit]` errors out.
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+    let file_path = repo_path.join("file");
+    std::fs::write(&file_path, "first").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(&file_path, "second").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["abandon", "@-"]);
+    // Test the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  rlvkpnrzqnoo conflict
+    ◉  zzzzzzzzzzzz
+    "###);
+    // TODO: The command should be an error since there is no conflict after the
+    // current one
+    test_env.jj_cmd_ok(&repo_path, &["next", "--conflict"]);
+    // TODO: The command should be an error since there is no conflict after the
+    // current one
+    test_env.jj_cmd_ok(&repo_path, &["next", "--conflict", "--edit"]);
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
