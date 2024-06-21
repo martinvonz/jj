@@ -641,38 +641,35 @@ fn test_prev_conflict_editing() {
 
 #[test]
 fn test_next_conflict() {
-    // There is a conflict in the second commit, so after next it should be the new
+    // There is a conflict in the third commit, so after next it should be the new
     // parent.
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
     let repo_path = test_env.env_root().join("repo");
     let file_path = repo_path.join("content.txt");
-    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
-    std::fs::write(&file_path, "second").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
-    // Create a conflict in the second commit.
-    test_env.jj_cmd_ok(&repo_path, &["edit", "description(first)"]);
     std::fs::write(&file_path, "first").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["new", "description(second)"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "first"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "second"]);
+    // Create a conflict in the third commit.
+    std::fs::write(&file_path, "third").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
-    test_env.jj_cmd_ok(&repo_path, &["new", "description(second)"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "description(first)"]);
+    std::fs::write(&file_path, "first v2").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["squash", "--into", "description(third)"]);
     // Test the setup
-    // TODO: This test doesn't seem to test what it's supposed to (we're already on
-    // the second commit)
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  yqosqzytrlsw conflict
-    │ ◉  mzvwutvlkqwt conflict third
+    @  royxmykxtrkr
+    │ ◉  kkmpptxzrspx conflict third
+    │ ◉  rlvkpnrzqnoo second
     ├─╯
-    ◉  rlvkpnrzqnoo conflict second
     ◉  qpvuntsmwlqt first
     ◉  zzzzzzzzzzzz
     "###);
     test_env.jj_cmd_ok(&repo_path, &["next", "--conflict"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  yostqsxwqrlt conflict
-    │ ◉  mzvwutvlkqwt conflict third
-    ├─╯
-    ◉  rlvkpnrzqnoo conflict second
+    @  vruxwmqvtpmx conflict
+    ◉  kkmpptxzrspx conflict third
+    ◉  rlvkpnrzqnoo second
     ◉  qpvuntsmwlqt first
     ◉  zzzzzzzzzzzz
     "###);
@@ -693,22 +690,17 @@ fn test_next_conflict_editing() {
     std::fs::write(&file_path, "third").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["edit", "description(second)"]);
     std::fs::write(&file_path, "modified second").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["new", "@+"]);
+    test_env.jj_cmd_ok(&repo_path, &["edit", "@-"]);
     // Test the setup
-    // TODO: This test doesn't seem to test what it's supposed to (we're already on
-    // top of the third commit)
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  mzvwutvlkqwt conflict
     ◉  kkmpptxzrspx conflict
     ◉  rlvkpnrzqnoo second
-    ◉  qpvuntsmwlqt first
+    @  qpvuntsmwlqt first
     ◉  zzzzzzzzzzzz
     "###);
     test_env.jj_cmd_ok(&repo_path, &["next", "--conflict", "--edit"]);
-    // We now should be editing the third commit.
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  yqosqzytrlsw conflict
-    ◉  kkmpptxzrspx conflict
+    @  kkmpptxzrspx conflict
     ◉  rlvkpnrzqnoo second
     ◉  qpvuntsmwlqt first
     ◉  zzzzzzzzzzzz
