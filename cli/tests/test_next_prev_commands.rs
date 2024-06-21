@@ -584,14 +584,25 @@ fn test_prev_conflict() {
     std::fs::write(&file_path, "first+1").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["new", "description(third)"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "fourth"]);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev", "--conflict"]);
-    // We now should be a child of `fourth`.
-    insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: vruxwmqv b1ea981a (conflict) (empty) (no description set)
-    Parent commit      : rlvkpnrz c26675ba (conflict) second
-    There are unresolved conflicts at these paths:
-    content.txt    2-sided conflict
+    // Test the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  yqosqzytrlsw conflict
+    ◉  royxmykxtrkr conflict fourth
+    ◉  kkmpptxzrspx conflict third
+    ◉  rlvkpnrzqnoo conflict second
+    ◉  qpvuntsmwlqt first
+    ◉  zzzzzzzzzzzz
+    "###);
+    test_env.jj_cmd_ok(&repo_path, &["prev", "--conflict"]);
+    // TODO: We now should be a child of `third`.
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  yostqsxwqrlt conflict
+    │ ◉  royxmykxtrkr conflict fourth
+    │ ◉  kkmpptxzrspx conflict third
+    ├─╯
+    ◉  rlvkpnrzqnoo conflict second
+    ◉  qpvuntsmwlqt first
+    ◉  zzzzzzzzzzzz
     "###);
 }
 
@@ -610,14 +621,21 @@ fn test_prev_conflict_editing() {
     test_env.jj_cmd_ok(&repo_path, &["edit", "description(first)"]);
     std::fs::write(&file_path, "first text").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["new", "description(third)"]);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev", "--conflict", "--edit"]);
+    // Test the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  royxmykxtrkr conflict
+    ◉  kkmpptxzrspx conflict third
+    ◉  rlvkpnrzqnoo second
+    ◉  qpvuntsmwlqt first
+    ◉  zzzzzzzzzzzz
+    "###);
+    test_env.jj_cmd_ok(&repo_path, &["prev", "--conflict", "--edit"]);
     // We now should be editing the third commit.
-    insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: kkmpptxz 26b1439f (conflict) third
-    Parent commit      : rlvkpnrz 55b5d11a (empty) second
-    There are unresolved conflicts at these paths:
-    content.txt    2-sided conflict
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  kkmpptxzrspx conflict third
+    ◉  rlvkpnrzqnoo second
+    ◉  qpvuntsmwlqt first
+    ◉  zzzzzzzzzzzz
     "###);
 }
 
@@ -638,13 +656,25 @@ fn test_next_conflict() {
     test_env.jj_cmd_ok(&repo_path, &["new", "description(second)"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "third"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "description(second)"]);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next", "--conflict"]);
-    insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: vruxwmqv b69eca51 (conflict) (empty) (no description set)
-    Parent commit      : rlvkpnrz fa43d820 (conflict) second
-    There are unresolved conflicts at these paths:
-    content.txt    2-sided conflict
+    // Test the setup
+    // TODO: This test doesn't seem to test what it's supposed to (we're already on
+    // the second commit)
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  yqosqzytrlsw conflict
+    │ ◉  mzvwutvlkqwt conflict third
+    ├─╯
+    ◉  rlvkpnrzqnoo conflict second
+    ◉  qpvuntsmwlqt first
+    ◉  zzzzzzzzzzzz
+    "###);
+    test_env.jj_cmd_ok(&repo_path, &["next", "--conflict"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  yostqsxwqrlt conflict
+    │ ◉  mzvwutvlkqwt conflict third
+    ├─╯
+    ◉  rlvkpnrzqnoo conflict second
+    ◉  qpvuntsmwlqt first
+    ◉  zzzzzzzzzzzz
     "###);
 }
 
@@ -664,18 +694,30 @@ fn test_next_conflict_editing() {
     test_env.jj_cmd_ok(&repo_path, &["edit", "description(second)"]);
     std::fs::write(&file_path, "modified second").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["new", "@+"]);
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next", "--conflict", "--edit"]);
+    // Test the setup
+    // TODO: This test doesn't seem to test what it's supposed to (we're already on
+    // top of the third commit)
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  mzvwutvlkqwt conflict
+    ◉  kkmpptxzrspx conflict
+    ◉  rlvkpnrzqnoo second
+    ◉  qpvuntsmwlqt first
+    ◉  zzzzzzzzzzzz
+    "###);
+    // TODO: The command should be an error since there is no conflict after the
+    // current one
+    test_env.jj_cmd_ok(&repo_path, &["next", "--conflict", "--edit"]);
     // We now should be editing the third commit.
-    insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: royxmykx 08fda952 (conflict) (empty) (no description set)
-    Parent commit      : kkmpptxz 69ff337c (conflict) (no description set)
-    There are unresolved conflicts at these paths:
-    content.txt    2-sided conflict
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  yqosqzytrlsw conflict
+    ◉  kkmpptxzrspx conflict
+    ◉  rlvkpnrzqnoo second
+    ◉  qpvuntsmwlqt first
+    ◉  zzzzzzzzzzzz
     "###);
 }
 
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
-    let template = r#"separate(" ", change_id.short(), local_branches, description)"#;
+    let template = r#"separate(" ", change_id.short(), local_branches, if(conflict, "conflict"), description)"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
 }
