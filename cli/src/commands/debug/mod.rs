@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod copy_detection;
 pub mod fileset;
 pub mod index;
 pub mod local_working_copy;
@@ -30,6 +31,7 @@ use std::fmt::Debug;
 use clap::Subcommand;
 use jj_lib::local_working_copy::LocalWorkingCopy;
 
+use self::copy_detection::{cmd_debug_copy_detection, CopyDetectionArgs};
 use self::fileset::{cmd_debug_fileset, DebugFilesetArgs};
 use self::index::{cmd_debug_index, DebugIndexArgs};
 use self::local_working_copy::{cmd_debug_local_working_copy, DebugLocalWorkingCopyArgs};
@@ -49,6 +51,7 @@ use crate::ui::Ui;
 #[derive(Subcommand, Clone, Debug)]
 #[command(hide = true)]
 pub enum DebugCommand {
+    CopyDetection(CopyDetectionArgs),
     Fileset(DebugFilesetArgs),
     Index(DebugIndexArgs),
     LocalWorkingCopy(DebugLocalWorkingCopyArgs),
@@ -75,6 +78,7 @@ pub fn cmd_debug(
         DebugCommand::LocalWorkingCopy(args) => cmd_debug_local_working_copy(ui, command, args),
         DebugCommand::Operation(args) => cmd_debug_operation(ui, command, args),
         DebugCommand::Reindex(args) => cmd_debug_reindex(ui, command, args),
+        DebugCommand::CopyDetection(args) => cmd_debug_copy_detection(ui, command, args),
         DebugCommand::Revset(args) => cmd_debug_revset(ui, command, args),
         DebugCommand::Snapshot(args) => cmd_debug_snapshot(ui, command, args),
         DebugCommand::Template(args) => cmd_debug_template(ui, command, args),
