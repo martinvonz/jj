@@ -35,8 +35,8 @@ use crate::ui::Ui;
 pub enum OperationCommand {
     Abandon(OperationAbandonArgs),
     Log(OperationLogArgs),
-    Undo(OperationUndoArgs),
     Restore(OperationRestoreArgs),
+    Undo(OperationUndoArgs),
 }
 
 pub fn cmd_operation(
