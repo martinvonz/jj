@@ -84,8 +84,7 @@ use crate::command_error::{
 };
 use crate::commit_templater::{CommitTemplateLanguage, CommitTemplateLanguageExtension};
 use crate::config::{
-    new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigNamePathBuf, ConfigSource,
-    LayeredConfigs,
+    are_contents_valid_toml, new_config_path, AnnotatedValue, CommandNameAndArgs, ConfigNamePathBuf, ConfigSource, LayeredConfigs
 };
 use crate::diff_util::{self, DiffFormat, DiffFormatArgs, DiffRenderer};
 use crate::formatter::{FormatRecorder, Formatter, PlainTextFormatter};
@@ -2114,6 +2113,35 @@ impl LogContentFormat {
     }
 }
 
+pub fn get_config_file_contents(
+    config_source: &ConfigSource,
+    command: &CommandHelper,
+) -> Result<String, CommandError> {
+    let cfg_path = get_new_config_file_path(config_source, command)?;
+    let contents = fs::read_to_string(cfg_path.as_path());
+    match contents {
+        Ok(c) => Ok(c),
+        Err(err) => {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                Ok("".to_string())
+            } else {
+                let path_str = cfg_path.as_path().to_str().unwrap();
+                Err(user_error_with_message(format!("could not read config file {path_str}"), err))
+            }
+        }
+    }
+}
+
+pub fn set_config_file_contents(config_source: &ConfigSource, command: &CommandHelper, contents: &str) -> Result<(), CommandError> {
+    let cfg_path = get_new_config_file_path(config_source, command)?;
+    are_contents_valid_toml(contents).map_err(|err| {
+        user_error_with_message("could not save config file because the contents were invalid", err)
+    })?;
+    fs::write(cfg_path.as_path(), contents).map_err(|err| {
+        user_error_with_message(format!("could not write config file"), err)
+    })
+}
+
 pub fn get_new_config_file_path(
     config_source: &ConfigSource,
     command: &CommandHelper,
@@ -2133,15 +2161,16 @@ pub fn get_new_config_file_path(
     Ok(edit_path)
 }
 
+
 pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(), CommandError> {
     let editor: CommandNameAndArgs = settings
         .config()
         .get("ui.editor")
-        .map_err(|err| config_error_with_message("Invalid `ui.editor`", err))?;
+        .map_err(|err: config::ConfigError| config_error_with_message("Invalid `ui.editor`", err))?;
     let mut cmd = editor.to_command();
     cmd.arg(edit_path);
     tracing::info!(?cmd, "running editor");
-    let exit_status = cmd.status().map_err(|err| {
+    let exit_status: std::process::ExitStatus = cmd.status().map_err(|err| {
         user_error_with_message(
             format!(
                 // The executable couldn't be found or run; command-line arguments are not relevant
@@ -2151,6 +2180,7 @@ pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(),
             err,
         )
     })?;
+
     if !exit_status.success() {
         return Err(user_error(format!(
             "Editor '{editor}' exited with an error"

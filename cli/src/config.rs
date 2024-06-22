@@ -564,6 +564,14 @@ fn read_config_path(config_path: &Path) -> Result<config::Config, config::Config
         .build()
 }
 
+
+pub fn are_contents_valid_toml(contents: &str) -> Result<(), ConfigError> {
+    contents.parse::<toml_edit::Document>().map_err(|err| {
+        return config::ConfigError::FileParse { uri: None, cause: Box::new(err) };
+    })?;
+    Ok(())
+}
+
 pub fn write_config_value_to_file(
     key: &ConfigNamePathBuf,
     value_str: &str,

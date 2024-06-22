@@ -16,7 +16,7 @@ use std::io::Write;
 
 use tracing::instrument;
 
-use crate::cli_util::{get_new_config_file_path, run_ui_editor, CommandHelper};
+use crate::cli_util::{edit_temp_file, get_config_file_contents, get_new_config_file_path, set_config_file_contents, CommandHelper};
 use crate::command_error::{config_error, user_error, CommandError};
 use crate::config::{
     to_toml_value, write_config_value_to_file, AnnotatedValue, ConfigNamePathBuf, ConfigSource,
@@ -305,8 +305,11 @@ pub(crate) fn cmd_config_edit(
     command: &CommandHelper,
     args: &ConfigEditArgs,
 ) -> Result<(), CommandError> {
-    let config_path = get_new_config_file_path(&args.level.expect_source_kind(), command)?;
-    run_ui_editor(command.settings(), &config_path)
+    let config_path_contents = get_config_file_contents(&args.level.expect_source_kind(), command)?;
+    let new_contents = edit_temp_file("config.toml", ".tmp", std::env::temp_dir().as_path(), config_path_contents.as_str(), command.settings())?;
+    set_config_file_contents(&args.level.expect_source_kind(), command, new_contents.as_str())?;
+
+    return Ok(());
 }
 
 #[instrument(skip_all)]
