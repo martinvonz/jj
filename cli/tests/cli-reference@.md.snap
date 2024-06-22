@@ -61,8 +61,8 @@ This document contains the help content for the `jj` command-line program.
 * [`jj operation`↴](#jj-operation)
 * [`jj operation abandon`↴](#jj-operation-abandon)
 * [`jj operation log`↴](#jj-operation-log)
-* [`jj operation undo`↴](#jj-operation-undo)
 * [`jj operation restore`↴](#jj-operation-restore)
+* [`jj operation undo`↴](#jj-operation-undo)
 * [`jj parallelize`↴](#jj-parallelize)
 * [`jj prev`↴](#jj-prev)
 * [`jj rebase`↴](#jj-rebase)
@@ -1217,8 +1217,8 @@ For information about the operation log, see https://github.com/martinvonz/jj/bl
 
 * `abandon` — Abandon operation history
 * `log` — Show the operation log
-* `undo` — Create a new operation that undoes an earlier operation
 * `restore` — Create a new operation that restores the repo to an earlier state
+* `undo` — Create a new operation that undoes an earlier operation
 
 
 
@@ -1256,21 +1256,19 @@ Show the operation log
 
 
 
-## `jj operation undo`
+## `jj operation restore`
 
-Create a new operation that undoes an earlier operation
+Create a new operation that restores the repo to an earlier state
 
-This undoes an individual operation by applying the inverse of the operation.
+This restores the repo to the state at the specified operation, effectively undoing all later operations. It does so by creating a new operation.
 
-**Usage:** `jj operation undo [OPTIONS] [OPERATION]`
+**Usage:** `jj operation restore [OPTIONS] <OPERATION>`
 
 ###### **Arguments:**
 
-* `<OPERATION>` — The operation to undo
+* `<OPERATION>` — The operation to restore to
 
-   Use `jj op log` to find an operation to undo.
-
-  Default value: `@`
+   Use `jj op log` to find an operation to restore to. Use e.g. `jj --at-op=<operation ID> log` before restoring to an operation to see the state of the repo at that operation.
 
 ###### **Options:**
 
@@ -1289,19 +1287,21 @@ This undoes an individual operation by applying the inverse of the operation.
 
 
 
-## `jj operation restore`
+## `jj operation undo`
 
-Create a new operation that restores the repo to an earlier state
+Create a new operation that undoes an earlier operation
 
-This restores the repo to the state at the specified operation, effectively undoing all later operations. It does so by creating a new operation.
+This undoes an individual operation by applying the inverse of the operation.
 
-**Usage:** `jj operation restore [OPTIONS] <OPERATION>`
+**Usage:** `jj operation undo [OPTIONS] [OPERATION]`
 
 ###### **Arguments:**
 
-* `<OPERATION>` — The operation to restore to
+* `<OPERATION>` — The operation to undo
 
-   Use `jj op log` to find an operation to restore to. Use e.g. `jj --at-op=<operation ID> log` before restoring to an operation to see the state of the repo at that operation.
+   Use `jj op log` to find an operation to undo.
+
+  Default value: `@`
 
 ###### **Options:**
 
