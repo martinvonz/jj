@@ -39,6 +39,19 @@ pub enum OperationCommand {
     Restore(OperationRestoreArgs),
 }
 
+pub fn cmd_operation(
+    ui: &mut Ui,
+    command: &CommandHelper,
+    subcommand: &OperationCommand,
+) -> Result<(), CommandError> {
+    match subcommand {
+        OperationCommand::Abandon(args) => cmd_op_abandon(ui, command, args),
+        OperationCommand::Log(args) => cmd_op_log(ui, command, args),
+        OperationCommand::Restore(args) => cmd_op_restore(ui, command, args),
+        OperationCommand::Undo(args) => cmd_op_undo(ui, command, args),
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum)]
 pub enum UndoWhatToRestore {
     /// The jj repo state and local branches
@@ -75,18 +88,5 @@ fn view_with_desired_portions_restored(
         git_refs: current_view.git_refs.clone(),
         git_head: current_view.git_head.clone(),
         wc_commit_ids: repo_source.wc_commit_ids.clone(),
-    }
-}
-
-pub fn cmd_operation(
-    ui: &mut Ui,
-    command: &CommandHelper,
-    subcommand: &OperationCommand,
-) -> Result<(), CommandError> {
-    match subcommand {
-        OperationCommand::Abandon(args) => cmd_op_abandon(ui, command, args),
-        OperationCommand::Log(args) => cmd_op_log(ui, command, args),
-        OperationCommand::Restore(args) => cmd_op_restore(ui, command, args),
-        OperationCommand::Undo(args) => cmd_op_undo(ui, command, args),
     }
 }
