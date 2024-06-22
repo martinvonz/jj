@@ -53,7 +53,7 @@ pub fn cmd_operation(
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum)]
-pub enum UndoWhatToRestore {
+enum UndoWhatToRestore {
     /// The jj repo state and local branches
     Repo,
     /// The remote-tracking branches. Do not restore these if you'd like to push
@@ -61,7 +61,7 @@ pub enum UndoWhatToRestore {
     RemoteTracking,
 }
 
-pub const DEFAULT_UNDO_WHAT: [UndoWhatToRestore; 2] =
+const DEFAULT_UNDO_WHAT: [UndoWhatToRestore; 2] =
     [UndoWhatToRestore::Repo, UndoWhatToRestore::RemoteTracking];
 
 /// Restore only the portions of the view specified by the `what` argument
