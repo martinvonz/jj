@@ -217,6 +217,52 @@ fn test_commit_paths_warning() {
     "###);
 }
 
+#[test]
+fn test_commit_reset_author() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(
+        r#"[template-aliases]
+'format_signature(signature)' = 'signature.name() ++ " " ++ signature.email() ++ " " ++ signature.timestamp()'"#,
+    );
+    let get_signatures = || {
+        test_env.jj_cmd_success(
+            &repo_path,
+            &[
+                "log",
+                "-r@",
+                "-T",
+                r#"format_signature(author) ++ "\n" ++ format_signature(committer)"#,
+            ],
+        )
+    };
+    insta::assert_snapshot!(get_signatures(), @r###"
+    @  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
+    ~
+    "###);
+
+    // Reset the author (the committer is always reset)
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "commit",
+            "--config-toml",
+            r#"user.name = "Ove Ridder"
+            user.email = "ove.ridder@example.com""#,
+            "--reset-author",
+            "-m1",
+        ],
+    );
+    insta::assert_snapshot!(get_signatures(), @r###"
+    @  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:09.000 +07:00
+    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:09.000 +07:00
+    ~
+    "###);
+}
+
 fn get_log_output(test_env: &TestEnvironment, cwd: &Path) -> String {
     let template = r#"commit_id.short() ++ " " ++ description"#;
     test_env.jj_cmd_success(cwd, &["log", "-T", template])
