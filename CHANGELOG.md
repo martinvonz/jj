@@ -79,6 +79,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   commits with no description) if authored by the current user.
   [#2000](https://github.com/martinvonz/jj/issues/2000)
 
+* `jj commit` now accepts `--reset-author` option to match `jj describe`.
+
 ### Fixed bugs
 
 * `jj git push` now ignores immutable commits when checking whether a
