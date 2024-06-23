@@ -33,8 +33,8 @@ fn test_resolution_of_git_tracking_branches() {
     // Move the local branch somewhere else
     test_env.jj_cmd_ok(&repo_path, &["describe", "-r", "main", "-m", "new_message"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    main: qpvuntsm 3af37026 (empty) new_message
-      @git (ahead by 1 commits, behind by 1 commits): qpvuntsm hidden 16d541ca (empty) old_message
+    main: qpvuntsm b61d21b6 (empty) new_message
+      @git (ahead by 1 commits, behind by 1 commits): qpvuntsm hidden 03757d22 (empty) old_message
     "###);
 
     // Test that we can address both revisions
@@ -46,10 +46,10 @@ fn test_resolution_of_git_tracking_branches() {
         )
     };
     insta::assert_snapshot!(query("main"), @r###"
-    3af370264cdcbba791762f8ef6bc79b456dcbf3b new_message
+    b61d21b660c17a7191f3f73873bfe7d3f7938628 new_message
     "###);
     insta::assert_snapshot!(query("main@git"), @r###"
-    16d541ca40f42baf2dea41aa61a0b5f1cbf1f91b old_message
+    03757d2212d89990ec158e97795b612a38446652 old_message
     "###);
     // Can't be selected by remote_branches()
     insta::assert_snapshot!(query(r#"remote_branches(exact:"main", exact:"git")"#), @"");

@@ -54,9 +54,9 @@ fn test_status_merge() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["status"]);
     insta::assert_snapshot!(stdout, @r###"
     The working copy is clean
-    Working copy : mzvwutvl c965365c (empty) (no description set)
-    Parent commit: rlvkpnrz 9ae48ddb left | (empty) left
-    Parent commit: zsuskuln 29b991e9 right
+    Working copy : mzvwutvl a538c72d (empty) (no description set)
+    Parent commit: rlvkpnrz d3dd19f1 left | (empty) left
+    Parent commit: zsuskuln 705a356d right
     "###);
 }
 
@@ -80,7 +80,7 @@ fn test_status_ignored_gitignore() {
     insta::assert_snapshot!(stdout, @r###"
     Working copy changes:
     A .gitignore
-    Working copy : qpvuntsm 88a40909 (no description set)
+    Working copy : qpvuntsm 3cef2183 (no description set)
     Parent commit: zzzzzzzz 00000000 (empty) (no description set)
     "###);
 }
@@ -99,7 +99,7 @@ fn test_status_filtered() {
     insta::assert_snapshot!(stdout, @r###"
     Working copy changes:
     A file_1
-    Working copy : qpvuntsm abcaaacd (no description set)
+    Working copy : qpvuntsm c8fb8395 (no description set)
     Parent commit: zzzzzzzz 00000000 (empty) (no description set)
     "###);
 }
@@ -146,17 +146,17 @@ fn test_status_display_rebase_instructions() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "::@"]);
 
     insta::assert_snapshot!(stdout, @r###"
-    @  yqosqzyt test.user@example.com 2001-02-03 08:05:13 93e9928b conflict
+    @  yqosqzyt test.user@example.com 2001-02-03 08:05:13 65143fef conflict
     │  (empty) boom-cont-2
-    ◉  royxmykx test.user@example.com 2001-02-03 08:05:12 ac5398e8 conflict
+    ◉  royxmykx test.user@example.com 2001-02-03 08:05:12 a4e88714 conflict
     │  (empty) boom-cont
-    ◉    mzvwutvl test.user@example.com 2001-02-03 08:05:11 be6032ca conflict
+    ◉    mzvwutvl test.user@example.com 2001-02-03 08:05:11 538415e7 conflict
     ├─╮  (empty) boom
-    │ ◉  kkmpptxz test.user@example.com 2001-02-03 08:05:10 55ce6709
+    │ ◉  kkmpptxz test.user@example.com 2001-02-03 08:05:10 1e8c2956
     │ │  First part of conflicting change
-    ◉ │  zsuskuln test.user@example.com 2001-02-03 08:05:11 ba5f8773
+    ◉ │  zsuskuln test.user@example.com 2001-02-03 08:05:11 2c8b19fd
     ├─╯  Second part of conflicting change
-    ◉  qpvuntsm test.user@example.com 2001-02-03 08:05:08 98e0dcf8
+    ◉  qpvuntsm test.user@example.com 2001-02-03 08:05:08 aade7195
     │  Initial contents
     ◉  zzzzzzzz root() 00000000
     "###);
@@ -167,8 +167,8 @@ fn test_status_display_rebase_instructions() {
     The working copy is clean
     There are unresolved conflicts at these paths:
     conflicted.txt    2-sided conflict
-    Working copy : yqosqzyt 93e9928b (conflict) (empty) boom-cont-2
-    Parent commit: royxmykx ac5398e8 (conflict) (empty) boom-cont
+    Working copy : yqosqzyt 65143fef (conflict) (empty) boom-cont-2
+    Parent commit: royxmykx a4e88714 (conflict) (empty) boom-cont
     To resolve the conflicts, start by updating to the first one:
       jj new mzvwutvlkqwt
     Then use `jj resolve`, or edit the conflict markers in the file directly.

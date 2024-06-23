@@ -72,6 +72,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * New command `jj git remote set-url` that sets the url of a git remote.
 
+* Author timestamp is now reset when rewriting discardable commits (empty
+  commits with no description) if authored by the current user.
+  [#2000](https://github.com/martinvonz/jj/issues/2000)
+
 ### Fixed bugs
 
 * `jj git push` now ignores immutable commits when checking whether a

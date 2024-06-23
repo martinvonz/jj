@@ -41,14 +41,14 @@ fn test_edit() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["edit", "@-"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: qpvuntsm f41390a5 first
+    Working copy now at: qpvuntsm 73383c0b first
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  b2f7e9c549aa second
-    @  f41390a5efbf first
+    ◉  2c910ae2d628 second
+    @  73383c0b6439 first
     ◉  000000000000
     "###);
     insta::assert_snapshot!(stderr, @"");
@@ -58,8 +58,8 @@ fn test_edit() {
     std::fs::write(repo_path.join("file2"), "0").unwrap();
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  51d937a3eeb4 second
-    @  409306de8f44 first
+    ◉  b384b2cc1883 second
+    @  ff3f7b0dc386 first
     ◉  000000000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
@@ -105,8 +105,8 @@ fn test_edit_current_wc_commit_missing() {
     Internal error: Failed to edit a commit
     Caused by:
     1: Current working-copy commit not found
-    2: Object 69542c1984c1f9d91f7c6c9c9e6941782c944bd9 of type commit not found
-    3: An object with id 69542c1984c1f9d91f7c6c9c9e6941782c944bd9 could not be found
+    2: Object fa15625b4a986997697639dfc2844138900c79f2 of type commit not found
+    3: An object with id fa15625b4a986997697639dfc2844138900c79f2 could not be found
     "###);
 }
 

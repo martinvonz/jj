@@ -896,14 +896,14 @@ fn test_diff_external_tool() {
 
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-p", "--tool=fake-diff-editor"]), @r###"
-    @  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 0cba70c7
+    @  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 39d9055d
     │  (no description set)
     │  file1
     │  file2
     │  --
     │  file2
     │  file3
-    ◉  qpvuntsm test.user@example.com 2001-02-03 08:05:08 39b5a56f
+    ◉  qpvuntsm test.user@example.com 2001-02-03 08:05:08 0ad4ef22
     │  (no description set)
     │  --
     │  file1
@@ -914,9 +914,9 @@ fn test_diff_external_tool() {
 
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["show", "--tool=fake-diff-editor"]), @r###"
-    Commit ID: 0cba70c72186eabb5a2f91be63a8366b9f6da6c6
+    Commit ID: 39d9055d70873099fd924b9af218289d5663eac8
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
-    Author: Test User <test.user@example.com> (2001-02-03 08:05:08)
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
 
         (no description set)
@@ -961,9 +961,9 @@ fn test_diff_external_tool() {
     std::fs::write(&edit_script, "print diff\0fail").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["show", "--tool=fake-diff-editor"]);
     insta::assert_snapshot!(stdout, @r###"
-    Commit ID: 0cba70c72186eabb5a2f91be63a8366b9f6da6c6
+    Commit ID: 39d9055d70873099fd924b9af218289d5663eac8
     Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
-    Author: Test User <test.user@example.com> (2001-02-03 08:05:08)
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
     Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
 
         (no description set)

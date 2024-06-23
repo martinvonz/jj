@@ -353,7 +353,7 @@ fn test_log_shortest_accessors() {
     test_env.jj_cmd_ok(&repo_path, &["branch", "c", "original"]);
     insta::assert_snapshot!(
         render("original", r#"format_id(change_id) ++ " " ++ format_id(commit_id)"#),
-        @"q[pvuntsmwlqt] b[a1a30916d29]");
+        @"q[pvuntsmwlqt] e[0e22b9fae75]");
 
     // Create a chain of 10 commits
     for i in 1..10 {
@@ -367,37 +367,37 @@ fn test_log_shortest_accessors() {
 
     insta::assert_snapshot!(
         render("original", r#"format_id(change_id) ++ " " ++ format_id(commit_id)"#),
-        @"qpv[untsmwlqt] ba1[a30916d29]");
+        @"qpv[untsmwlqt] e0[e22b9fae75]");
 
     insta::assert_snapshot!(
         render("::@", r#"change_id.shortest() ++ " " ++ commit_id.shortest() ++ "\n""#),
         @r###"
-    wq 03
-    km f7
-    kp e7
-    zn 38
-    yo 0cf
-    vr 9e
-    yq 06
-    ro 1f
-    mz 7b
-    qpv ba1
+    wq ed
+    km ef3
+    kp af
+    zn 23
+    yo b87
+    vr 1e
+    yq 34
+    ro cc
+    mz 1b
+    qpv e0
     zzz 00
     "###);
 
     insta::assert_snapshot!(
         render("::@", r#"format_id(change_id) ++ " " ++ format_id(commit_id) ++ "\n""#),
         @r###"
-    wq[nwkozpkust] 03[f51310b83e]
-    km[kuslswpqwq] f7[7fb1909080]
-    kp[qxywonksrl] e7[15ad5db646]
-    zn[kkpsqqskkl] 38[622e54e2e5]
-    yo[stqsxwqrlt] 0cf[42f60199c]
-    vr[uxwmqvtpmx] 9e[6015e4e622]
-    yq[osqzytrlsw] 06[f34d9b1475]
-    ro[yxmykxtrkr] 1f[99a5e19891]
-    mz[vwutvlkqwt] 7b[1f7dee65b4]
-    qpv[untsmwlqt] ba1[a30916d29]
+    wq[nwkozpkust] ed[e204633421]
+    km[kuslswpqwq] ef3[d013266cd]
+    kp[qxywonksrl] af[95b841712d]
+    zn[kkpsqqskkl] 23[c1103d3427]
+    yo[stqsxwqrlt] b87[aa9b24921]
+    vr[uxwmqvtpmx] 1e[a31a205ce9]
+    yq[osqzytrlsw] 34[befb94f4eb]
+    ro[yxmykxtrkr] cc[0c127948ef]
+    mz[vwutvlkqwt] 1b[7b715afc3f]
+    qpv[untsmwlqt] e0[e22b9fae75]
     zzz[zzzzzzzzz] 00[0000000000]
     "###);
 
@@ -406,16 +406,16 @@ fn test_log_shortest_accessors() {
     insta::assert_snapshot!(
         render("::@", r#"format_id(change_id) ++ " " ++ format_id(commit_id) ++ "\n""#),
         @r###"
-    w[qnwkozpkust] 03[f51310b83e]
-    km[kuslswpqwq] f[77fb1909080]
-    kp[qxywonksrl] e[715ad5db646]
-    z[nkkpsqqskkl] 3[8622e54e2e5]
-    y[ostqsxwqrlt] 0c[f42f60199c]
-    vr[uxwmqvtpmx] 9e[6015e4e622]
-    yq[osqzytrlsw] 06f[34d9b1475]
-    ro[yxmykxtrkr] 1f[99a5e19891]
-    mz[vwutvlkqwt] 7b[1f7dee65b4]
-    qpv[untsmwlqt] ba1[a30916d29]
+    w[qnwkozpkust] ed[e204633421]
+    km[kuslswpqwq] ef[3d013266cd]
+    kp[qxywonksrl] a[f95b841712d]
+    z[nkkpsqqskkl] 2[3c1103d3427]
+    y[ostqsxwqrlt] b[87aa9b24921]
+    vr[uxwmqvtpmx] 1e[a31a205ce9]
+    yq[osqzytrlsw] 34[befb94f4eb]
+    ro[yxmykxtrkr] cc[0c127948ef]
+    mz[vwutvlkqwt] 1b[7b715afc3f]
+    qpv[untsmwlqt] e0[e22b9fae75]
     zzz[zzzzzzzzz] 00[0000000000]
     "###);
 
@@ -424,16 +424,16 @@ fn test_log_shortest_accessors() {
     insta::assert_snapshot!(
         render("::@", r#"format_id(change_id) ++ " " ++ format_id(commit_id) ++ "\n""#),
         @r###"
-    wq[nwkozpkust] 03[f51310b83e]
-    km[kuslswpqwq] f7[7fb1909080]
-    kp[qxywonksrl] e7[15ad5db646]
-    zn[kkpsqqskkl] 38[622e54e2e5]
-    yo[stqsxwqrlt] 0cf[42f60199c]
-    vr[uxwmqvtpmx] 9e[6015e4e622]
-    yq[osqzytrlsw] 06f[34d9b1475]
-    ro[yxmykxtrkr] 1f[99a5e19891]
-    mz[vwutvlkqwt] 7b[1f7dee65b4]
-    qpv[untsmwlqt] ba1[a30916d29]
+    wq[nwkozpkust] ed[e204633421]
+    km[kuslswpqwq] ef3[d013266cd]
+    kp[qxywonksrl] af[95b841712d]
+    zn[kkpsqqskkl] 23c[1103d3427]
+    yo[stqsxwqrlt] b87[aa9b24921]
+    vr[uxwmqvtpmx] 1e[a31a205ce9]
+    yq[osqzytrlsw] 34[befb94f4eb]
+    ro[yxmykxtrkr] cc[0c127948ef]
+    mz[vwutvlkqwt] 1b[7b715afc3f]
+    qpv[untsmwlqt] e0[e22b9fae75]
     zzz[zzzzzzzzz] 00[0000000000]
     "###);
 }
@@ -486,7 +486,7 @@ fn test_log_prefix_highlight_styled() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "original", "-T", &prefix_format(Some(12))]),
         @r###"
-    @  Change qpvuntsmwlqt initial ba1a30916d29 original
+    @  Change qpvuntsmwlqt initial e0e22b9fae75 original
     │
     ~
     "###
@@ -505,7 +505,7 @@ fn test_log_prefix_highlight_styled() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "original", "-T", &prefix_format(Some(12))]),
         @r###"
-    ◉  Change qpvuntsmwlqt initial ba1a30916d29 original
+    ◉  Change qpvuntsmwlqt initial e0e22b9fae75 original
     │
     ~
     "###
@@ -523,16 +523,16 @@ fn test_log_prefix_highlight_styled() {
     );
     insta::assert_snapshot!(stdout,
         @r###"
-    @  Change [1m[38;5;5mwq[0m[38;5;8mnwkozpkust[39m commit9 [1m[38;5;4m03[0m[38;5;8mf51310b83e[39m
-    ◉  Change [1m[38;5;5mkm[0m[38;5;8mkuslswpqwq[39m commit8 [1m[38;5;4mf7[0m[38;5;8m7fb1909080[39m
-    ◉  Change [1m[38;5;5mkp[0m[38;5;8mqxywonksrl[39m commit7 [1m[38;5;4me7[0m[38;5;8m15ad5db646[39m
-    ◉  Change [1m[38;5;5mzn[0m[38;5;8mkkpsqqskkl[39m commit6 [1m[38;5;4m38[0m[38;5;8m622e54e2e5[39m
-    ◉  Change [1m[38;5;5myo[0m[38;5;8mstqsxwqrlt[39m commit5 [1m[38;5;4m0cf[0m[38;5;8m42f60199c[39m
-    ◉  Change [1m[38;5;5mvr[0m[38;5;8muxwmqvtpmx[39m commit4 [1m[38;5;4m9e[0m[38;5;8m6015e4e622[39m
-    ◉  Change [1m[38;5;5myq[0m[38;5;8mosqzytrlsw[39m commit3 [1m[38;5;4m06[0m[38;5;8mf34d9b1475[39m
-    ◉  Change [1m[38;5;5mro[0m[38;5;8myxmykxtrkr[39m commit2 [1m[38;5;4m1f[0m[38;5;8m99a5e19891[39m
-    ◉  Change [1m[38;5;5mmz[0m[38;5;8mvwutvlkqwt[39m commit1 [1m[38;5;4m7b[0m[38;5;8m1f7dee65b4[39m
-    ◉  Change [1m[38;5;5mqpv[0m[38;5;8muntsmwlqt[39m initial [1m[38;5;4mba1[0m[38;5;8ma30916d29[39m [38;5;5moriginal[39m
+    @  Change [1m[38;5;5mwq[0m[38;5;8mnwkozpkust[39m commit9 [1m[38;5;4med[0m[38;5;8me204633421[39m
+    ◉  Change [1m[38;5;5mkm[0m[38;5;8mkuslswpqwq[39m commit8 [1m[38;5;4mef3[0m[38;5;8md013266cd[39m
+    ◉  Change [1m[38;5;5mkp[0m[38;5;8mqxywonksrl[39m commit7 [1m[38;5;4maf[0m[38;5;8m95b841712d[39m
+    ◉  Change [1m[38;5;5mzn[0m[38;5;8mkkpsqqskkl[39m commit6 [1m[38;5;4m23[0m[38;5;8mc1103d3427[39m
+    ◉  Change [1m[38;5;5myo[0m[38;5;8mstqsxwqrlt[39m commit5 [1m[38;5;4mb87[0m[38;5;8maa9b24921[39m
+    ◉  Change [1m[38;5;5mvr[0m[38;5;8muxwmqvtpmx[39m commit4 [1m[38;5;4m1e[0m[38;5;8ma31a205ce9[39m
+    ◉  Change [1m[38;5;5myq[0m[38;5;8mosqzytrlsw[39m commit3 [1m[38;5;4m34[0m[38;5;8mbefb94f4eb[39m
+    ◉  Change [1m[38;5;5mro[0m[38;5;8myxmykxtrkr[39m commit2 [1m[38;5;4mcc[0m[38;5;8m0c127948ef[39m
+    ◉  Change [1m[38;5;5mmz[0m[38;5;8mvwutvlkqwt[39m commit1 [1m[38;5;4m1b[0m[38;5;8m7b715afc3f[39m
+    ◉  Change [1m[38;5;5mqpv[0m[38;5;8muntsmwlqt[39m initial [1m[38;5;4me0[0m[38;5;8me22b9fae75[39m [38;5;5moriginal[39m
     ◉  Change [1m[38;5;5mzzz[0m[38;5;8mzzzzzzzzz[39m [1m[38;5;4m00[0m[38;5;8m0000000000[39m
     "###
     );
@@ -549,16 +549,16 @@ fn test_log_prefix_highlight_styled() {
     );
     insta::assert_snapshot!(stdout,
         @r###"
-    @  Change [1m[38;5;5mwq[0m[38;5;8mn[39m commit9 [1m[38;5;4m03[0m[38;5;8mf[39m
-    ◉  Change [1m[38;5;5mkm[0m[38;5;8mk[39m commit8 [1m[38;5;4mf7[0m[38;5;8m7[39m
-    ◉  Change [1m[38;5;5mkp[0m[38;5;8mq[39m commit7 [1m[38;5;4me7[0m[38;5;8m1[39m
-    ◉  Change [1m[38;5;5mzn[0m[38;5;8mk[39m commit6 [1m[38;5;4m38[0m[38;5;8m6[39m
-    ◉  Change [1m[38;5;5myo[0m[38;5;8ms[39m commit5 [1m[38;5;4m0cf[0m
-    ◉  Change [1m[38;5;5mvr[0m[38;5;8mu[39m commit4 [1m[38;5;4m9e[0m[38;5;8m6[39m
-    ◉  Change [1m[38;5;5myq[0m[38;5;8mo[39m commit3 [1m[38;5;4m06[0m[38;5;8mf[39m
-    ◉  Change [1m[38;5;5mro[0m[38;5;8my[39m commit2 [1m[38;5;4m1f[0m[38;5;8m9[39m
-    ◉  Change [1m[38;5;5mmz[0m[38;5;8mv[39m commit1 [1m[38;5;4m7b[0m[38;5;8m1[39m
-    ◉  Change [1m[38;5;5mqpv[0m initial [1m[38;5;4mba1[0m [38;5;5moriginal[39m
+    @  Change [1m[38;5;5mwq[0m[38;5;8mn[39m commit9 [1m[38;5;4med[0m[38;5;8me[39m
+    ◉  Change [1m[38;5;5mkm[0m[38;5;8mk[39m commit8 [1m[38;5;4mef3[0m
+    ◉  Change [1m[38;5;5mkp[0m[38;5;8mq[39m commit7 [1m[38;5;4maf[0m[38;5;8m9[39m
+    ◉  Change [1m[38;5;5mzn[0m[38;5;8mk[39m commit6 [1m[38;5;4m23[0m[38;5;8mc[39m
+    ◉  Change [1m[38;5;5myo[0m[38;5;8ms[39m commit5 [1m[38;5;4mb87[0m
+    ◉  Change [1m[38;5;5mvr[0m[38;5;8mu[39m commit4 [1m[38;5;4m1e[0m[38;5;8ma[39m
+    ◉  Change [1m[38;5;5myq[0m[38;5;8mo[39m commit3 [1m[38;5;4m34[0m[38;5;8mb[39m
+    ◉  Change [1m[38;5;5mro[0m[38;5;8my[39m commit2 [1m[38;5;4mcc[0m[38;5;8m0[39m
+    ◉  Change [1m[38;5;5mmz[0m[38;5;8mv[39m commit1 [1m[38;5;4m1b[0m[38;5;8m7[39m
+    ◉  Change [1m[38;5;5mqpv[0m initial [1m[38;5;4me0[0m[38;5;8me[39m [38;5;5moriginal[39m
     ◉  Change [1m[38;5;5mzzz[0m [1m[38;5;4m00[0m[38;5;8m0[39m
     "###
     );
@@ -575,16 +575,16 @@ fn test_log_prefix_highlight_styled() {
     );
     insta::assert_snapshot!(stdout,
         @r###"
-    @  Change [1m[38;5;5mwq[0m commit9 [1m[38;5;4m03[0m
-    ◉  Change [1m[38;5;5mkm[0m commit8 [1m[38;5;4mf7[0m
-    ◉  Change [1m[38;5;5mkp[0m commit7 [1m[38;5;4me7[0m
-    ◉  Change [1m[38;5;5mzn[0m commit6 [1m[38;5;4m38[0m
-    ◉  Change [1m[38;5;5myo[0m commit5 [1m[38;5;4m0cf[0m
-    ◉  Change [1m[38;5;5mvr[0m commit4 [1m[38;5;4m9e[0m
-    ◉  Change [1m[38;5;5myq[0m commit3 [1m[38;5;4m06[0m
-    ◉  Change [1m[38;5;5mro[0m commit2 [1m[38;5;4m1f[0m
-    ◉  Change [1m[38;5;5mmz[0m commit1 [1m[38;5;4m7b[0m
-    ◉  Change [1m[38;5;5mqpv[0m initial [1m[38;5;4mba1[0m [38;5;5moriginal[39m
+    @  Change [1m[38;5;5mwq[0m commit9 [1m[38;5;4med[0m
+    ◉  Change [1m[38;5;5mkm[0m commit8 [1m[38;5;4mef3[0m
+    ◉  Change [1m[38;5;5mkp[0m commit7 [1m[38;5;4maf[0m
+    ◉  Change [1m[38;5;5mzn[0m commit6 [1m[38;5;4m23[0m
+    ◉  Change [1m[38;5;5myo[0m commit5 [1m[38;5;4mb87[0m
+    ◉  Change [1m[38;5;5mvr[0m commit4 [1m[38;5;4m1e[0m
+    ◉  Change [1m[38;5;5myq[0m commit3 [1m[38;5;4m34[0m
+    ◉  Change [1m[38;5;5mro[0m commit2 [1m[38;5;4mcc[0m
+    ◉  Change [1m[38;5;5mmz[0m commit1 [1m[38;5;4m1b[0m
+    ◉  Change [1m[38;5;5mqpv[0m initial [1m[38;5;4me0[0m [38;5;5moriginal[39m
     ◉  Change [1m[38;5;5mzzz[0m [1m[38;5;4m00[0m
     "###
     );
@@ -620,7 +620,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["log", "-r", "all()", "-T", prefix_format]),
         @r###"
-    @  Change q[pvuntsmwlqt] initial b[a1a30916d29] original
+    @  Change q[pvuntsmwlqt] initial e0[e22b9fae75] original
     ◉  Change z[zzzzzzzzzzz] 0[00000000000]
     "###
     );
@@ -637,7 +637,7 @@ fn test_log_prefix_highlight_counts_hidden_commits() {
         test_env.jj_cmd_success(&repo_path, &["log", "-T", prefix_format]),
         @r###"
     @  Change wq[nwkozpkust] 44[4c3c5066d3]
-    │ ◉  Change qpv[untsmwlqt] initial ba[1a30916d29] original
+    │ ◉  Change qpv[untsmwlqt] initial e0e[22b9fae75] original
     ├─╯
     ◉  Change zzz[zzzzzzzzz] 00[0000000000]
     "###
@@ -1303,29 +1303,29 @@ fn test_log_word_wrap() {
 
     // ui.log-word-wrap option applies to both graph/no-graph outputs
     insta::assert_snapshot!(render(&["log", "-r@"], 40, false), @r###"
-    @  mzvwutvl test.user@example.com 2001-02-03 08:05:11 68518a7e
+    @  mzvwutvl test.user@example.com 2001-02-03 08:05:11 044c0400
     │  (empty) merge
     ~
     "###);
     insta::assert_snapshot!(render(&["log", "-r@"], 40, true), @r###"
     @  mzvwutvl test.user@example.com
-    │  2001-02-03 08:05:11 68518a7e
+    │  2001-02-03 08:05:11 044c0400
     ~  (empty) merge
     "###);
     insta::assert_snapshot!(render(&["log", "--no-graph", "-r@"], 40, false), @r###"
-    mzvwutvl test.user@example.com 2001-02-03 08:05:11 68518a7e
+    mzvwutvl test.user@example.com 2001-02-03 08:05:11 044c0400
     (empty) merge
     "###);
     insta::assert_snapshot!(render(&["log", "--no-graph", "-r@"], 40, true), @r###"
     mzvwutvl test.user@example.com
-    2001-02-03 08:05:11 68518a7e
+    2001-02-03 08:05:11 044c0400
     (empty) merge
     "###);
 
     // Color labels should be preserved
     insta::assert_snapshot!(render(&["log", "-r@", "--color=always"], 40, true), @r###"
     @  [1m[38;5;13mm[38;5;8mzvwutvl[39m [38;5;3mtest.user@example.com[39m[0m
-    │  [1m[38;5;14m2001-02-03 08:05:11[39m [38;5;12m6[38;5;8m8518a7e[39m[0m
+    │  [1m[38;5;14m2001-02-03 08:05:11[39m [38;5;12m04[38;5;8m4c0400[39m[0m
     ~  [1m[38;5;10m(empty)[39m merge[0m
     "###);
 
@@ -1358,7 +1358,7 @@ fn test_log_word_wrap() {
     │  test.user@example.com
     ~  2001-02-03
        08:05:11
-       68518a7e
+       044c0400
        (empty)
        merge
     "###);
@@ -1367,7 +1367,7 @@ fn test_log_word_wrap() {
     │  test.user@example.com
     ~  2001-02-03
        08:05:11
-       68518a7e
+       044c0400
        (empty)
        merge
     "###);

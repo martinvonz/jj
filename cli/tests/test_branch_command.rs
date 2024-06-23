@@ -165,7 +165,7 @@ fn test_branch_move() {
     test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "foo"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     foo (deleted)
-      @origin: qpvuntsm 29a62310 (empty) commit
+      @origin: qpvuntsm 1eb845f3 (empty) commit
     "###);
 
     // Deleted tracking branch name should still be allocated
@@ -179,8 +179,8 @@ fn test_branch_move() {
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo"]);
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    foo: mzvwutvl d5f17aba (empty) (no description set)
-      @origin (behind by 1 commits): qpvuntsm 29a62310 (empty) commit
+    foo: mzvwutvl 66d48752 (empty) (no description set)
+      @origin (behind by 1 commits): qpvuntsm 1eb845f3 (empty) commit
     "###);
 
     // Untracked remote branch shouldn't block creation of local branch
@@ -189,8 +189,8 @@ fn test_branch_move() {
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    foo: mzvwutvl d5f17aba (empty) (no description set)
-    foo@origin: qpvuntsm 29a62310 (empty) commit
+    foo: mzvwutvl 66d48752 (empty) (no description set)
+    foo@origin: qpvuntsm 1eb845f3 (empty) commit
     "###);
 }
 
@@ -496,7 +496,7 @@ fn test_branch_delete_glob() {
     test_env.jj_cmd_ok(&repo_path, &["git", "push", "--all"]);
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  bar-2 foo-1 foo-3 foo-4 6fbf398c2d59
+    @  bar-2 foo-1 foo-3 foo-4 312a98d6f27b
     ◉   000000000000
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "glob:foo-[1-3]"]);
@@ -511,7 +511,7 @@ fn test_branch_delete_glob() {
     Deleted 2 branches.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  bar-2 foo-1@origin foo-3@origin foo-4 6fbf398c2d59
+    @  bar-2 foo-1@origin foo-3@origin foo-4 312a98d6f27b
     ◉   000000000000
     "###);
 
@@ -531,20 +531,20 @@ fn test_branch_delete_glob() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  bar-2 foo-1@origin foo-3@origin foo-4@origin 6fbf398c2d59
+    @  bar-2 foo-1@origin foo-3@origin foo-4@origin 312a98d6f27b
     ◉   000000000000
     "###);
 
     // The deleted branches are still there
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
-    bar-2: qpvuntsm 6fbf398c (empty) commit
-      @origin: qpvuntsm 6fbf398c (empty) commit
+    bar-2: qpvuntsm 312a98d6 (empty) commit
+      @origin: qpvuntsm 312a98d6 (empty) commit
     foo-1 (deleted)
-      @origin: qpvuntsm 6fbf398c (empty) commit
+      @origin: qpvuntsm 312a98d6 (empty) commit
     foo-3 (deleted)
-      @origin: qpvuntsm 6fbf398c (empty) commit
+      @origin: qpvuntsm 312a98d6 (empty) commit
     foo-4 (deleted)
-      @origin: qpvuntsm 6fbf398c (empty) commit
+      @origin: qpvuntsm 312a98d6 (empty) commit
     "###);
 
     // Malformed glob
@@ -1014,11 +1014,11 @@ fn test_branch_track_conflict() {
     );
     let (_, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "track", "main@origin"]);
     insta::assert_snapshot!(stderr, @r###"
-main (conflicted):
-  + qpvuntsm b4a6b8c5 (empty) b
-  + qpvuntsm hidden 4bfd80cd (empty) a
-  @origin (behind by 1 commits): qpvuntsm hidden 4bfd80cd (empty) a
-"###);
+    main (conflicted):
+      + qpvuntsm e802c4f8 (empty) b
+      + qpvuntsm hidden 427890ea (empty) a
+      @origin (behind by 1 commits): qpvuntsm hidden 427890ea (empty) a
+    "###);
 }
 
 #[test]

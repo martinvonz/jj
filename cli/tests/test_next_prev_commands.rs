@@ -38,8 +38,8 @@ fn test_next_simple() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: royxmykx f039cf03 (empty) (no description set)
-    Parent commit      : kkmpptxz 3fa8931e (empty) third
+    Working copy now at: royxmykx fb00d619 (empty) (no description set)
+    Parent commit      : kkmpptxz 30056b0c (empty) third
     "###);
 }
 
@@ -58,8 +58,8 @@ fn test_next_multiple() {
     // We should now be the child of the fourth commit.
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: yqosqzyt 52a2e8c2 (empty) (no description set)
-    Parent commit      : zsuskuln 009f88bf (empty) fourth
+    Working copy now at: yqosqzyt 50168682 (empty) (no description set)
+    Parent commit      : zsuskuln 9d7e5e99 (empty) fourth
     "###);
 }
 
@@ -83,8 +83,8 @@ fn test_prev_simple() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: royxmykx 5647d685 (empty) (no description set)
-    Parent commit      : rlvkpnrz 5c52832c (empty) second
+    Working copy now at: royxmykx 6db74f64 (empty) (no description set)
+    Parent commit      : rlvkpnrz 9ed53a4a (empty) second
     "###);
 }
 
@@ -110,8 +110,8 @@ fn test_prev_multiple_without_root() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev", "2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: yqosqzyt d2edc95b (empty) (no description set)
-    Parent commit      : rlvkpnrz 5c52832c (empty) second
+    Working copy now at: yqosqzyt 794ffd20 (empty) (no description set)
+    Parent commit      : rlvkpnrz 9ed53a4a (empty) second
     "###);
 }
 
@@ -200,8 +200,8 @@ fn test_next_with_merge_commit_parent() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next"]);
     insta::assert_snapshot!(stdout,@r###""###);
     insta::assert_snapshot!(stderr,@r###"
-    Working copy now at: vruxwmqv 718bbcd9 (empty) (no description set)
-    Parent commit      : mzvwutvl cb5881ec (empty) 4
+    Working copy now at: vruxwmqv e2cefcb7 (empty) (no description set)
+    Parent commit      : mzvwutvl b54bbdea (empty) 4
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  vruxwmqvtpmx
@@ -243,8 +243,8 @@ fn test_next_on_merge_commit() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next"]);
     insta::assert_snapshot!(stdout,@r###""###);
     insta::assert_snapshot!(stderr,@r###"
-    Working copy now at: mzvwutvl cb5881ec (empty) 4
-    Parent commit      : zsuskuln 038acb86 (empty) 3
+    Working copy now at: mzvwutvl b54bbdea (empty) 4
+    Parent commit      : zsuskuln 5542f0b4 (empty) 3
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  mzvwutvlkqwt 4
@@ -296,8 +296,8 @@ fn test_next_fails_on_branching_children_quit_prompt() {
     let stderr = test_env.normalize_output(&get_stderr_string(&assert));
     insta::assert_snapshot!(stdout,@r###"
     ambiguous next commit, choose one to target:
-    1: zsuskuln 40a959a0 (empty) third
-    2: rlvkpnrz 5c52832c (empty) second
+    1: zsuskuln 5f24490d (empty) third
+    2: rlvkpnrz 9ed53a4a (empty) second
     q: quit the prompt
     enter the index of the commit you want to target: 
     "###);
@@ -322,15 +322,15 @@ fn test_next_choose_branching_child() {
     let (stdout, stderr) = test_env.jj_cmd_stdin_ok(&repo_path, &["next"], "2\n");
     insta::assert_snapshot!(stdout,@r###"
     ambiguous next commit, choose one to target:
-    1: royxmykx e488d731 (empty) fourth
-    2: zsuskuln 40a959a0 (empty) third
-    3: rlvkpnrz 5c52832c (empty) second
+    1: royxmykx d00fe885 (empty) fourth
+    2: zsuskuln 5f24490d (empty) third
+    3: rlvkpnrz 9ed53a4a (empty) second
     q: quit the prompt
     enter the index of the commit you want to target: 
     "###);
     insta::assert_snapshot!(stderr,@r###"
-    Working copy now at: yostqsxw 3e7e69dc (empty) (no description set)
-    Parent commit      : zsuskuln 40a959a0 (empty) third
+    Working copy now at: yostqsxw 5c8fa96d (empty) (no description set)
+    Parent commit      : zsuskuln 5f24490d (empty) third
     "###);
 }
 
@@ -367,12 +367,12 @@ fn test_prev_on_merge_commit() {
     insta::assert_snapshot!(stdout, @r###"
     ambiguous prev commit, choose one to target:
     1: zsuskuln b0d21db3 right | (empty) second
-    2: qpvuntsm 69542c19 left | (empty) first
+    2: qpvuntsm fa15625b left | (empty) first
     q: quit the prompt
     enter the index of the commit you want to target: 
     "###);
     insta::assert_snapshot!(stderr,@r###"
-    Working copy now at: qpvuntsm 69542c19 left | (empty) first
+    Working copy now at: qpvuntsm fa15625b left | (empty) first
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
 }
@@ -412,14 +412,14 @@ fn test_prev_on_merge_commit_with_parent_merge() {
     insta::assert_snapshot!(stdout, @r###"
     ambiguous prev commit, choose one to target:
     1: kkmpptxz 146d5c67 (empty) y
-    2: qpvuntsm c56e5035 (empty) x
+    2: qpvuntsm 6799aaa2 (empty) x
     3: zzzzzzzz 00000000 (empty) (no description set)
     q: quit the prompt
     enter the index of the commit you want to target: 
     "###);
     insta::assert_snapshot!(stderr,@r###"
-    Working copy now at: vruxwmqv e8ff4fa0 (empty) (no description set)
-    Parent commit      : qpvuntsm c56e5035 (empty) x
+    Working copy now at: vruxwmqv e5a6794c (empty) (no description set)
+    Parent commit      : qpvuntsm 6799aaa2 (empty) x
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -427,13 +427,13 @@ fn test_prev_on_merge_commit_with_parent_merge() {
     insta::assert_snapshot!(stdout, @r###"
     ambiguous prev commit, choose one to target:
     1: mzvwutvl 89b8a355 (empty) 1
-    2: zsuskuln 1ef71474 (empty) z
+    2: zsuskuln a83fc061 (empty) z
     q: quit the prompt
     enter the index of the commit you want to target: 
     "###);
     insta::assert_snapshot!(stderr,@r###"
-    Working copy now at: zsuskuln 1ef71474 (empty) z
-    Parent commit      : qpvuntsm c56e5035 (empty) x
+    Working copy now at: zsuskuln a83fc061 (empty) z
+    Parent commit      : qpvuntsm 6799aaa2 (empty) x
     Parent commit      : kkmpptxz 146d5c67 (empty) y
     "###);
 }
@@ -469,15 +469,15 @@ fn test_prev_prompts_on_multiple_parents() {
     let (stdout, stderr) = test_env.jj_cmd_stdin_ok(&repo_path, &["prev"], "3\n");
     insta::assert_snapshot!(stdout,@r###"
     ambiguous prev commit, choose one to target:
-    1: mzvwutvl a082e25d (empty) third
-    2: kkmpptxz 09881e5f (empty) second
-    3: qpvuntsm 69542c19 (empty) first
+    1: mzvwutvl bc4f4fe3 (empty) third
+    2: kkmpptxz b0d21db3 (empty) second
+    3: qpvuntsm fa15625b (empty) first
     q: quit the prompt
     enter the index of the commit you want to target: 
     "###);
     insta::assert_snapshot!(stderr,@r###"
-    Working copy now at: znkkpsqq 94715f3c (empty) (no description set)
-    Parent commit      : qpvuntsm 69542c19 (empty) first
+    Working copy now at: znkkpsqq 07b409e8 (empty) (no description set)
+    Parent commit      : qpvuntsm fa15625b (empty) first
     "###);
 }
 
@@ -529,15 +529,15 @@ fn test_prev_editing() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev", "--edit"]);
     insta::assert_snapshot!(stdout, @r"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: kkmpptxz 3fa8931e (empty) third
-    Parent commit      : rlvkpnrz 5c52832c (empty) second
+    Working copy now at: kkmpptxz 30056b0c (empty) third
+    Parent commit      : rlvkpnrz 9ed53a4a (empty) second
     "###);
     // --edit is implied when already editing a non-head commit
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["prev"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: rlvkpnrz 5c52832c (empty) second
-    Parent commit      : qpvuntsm 69542c19 (empty) first
+    Working copy now at: rlvkpnrz 9ed53a4a (empty) second
+    Parent commit      : qpvuntsm fa15625b (empty) first
     "###);
 }
 
@@ -555,15 +555,15 @@ fn test_next_editing() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next", "--edit"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: kkmpptxz 3fa8931e (empty) third
-    Parent commit      : rlvkpnrz 5c52832c (empty) second
+    Working copy now at: kkmpptxz 30056b0c (empty) third
+    Parent commit      : rlvkpnrz 9ed53a4a (empty) second
     "###);
     // --edit is implied when already editing a non-head commit
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["next"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: zsuskuln 009f88bf (empty) fourth
-    Parent commit      : kkmpptxz 3fa8931e (empty) third
+    Working copy now at: zsuskuln 9d7e5e99 (empty) fourth
+    Parent commit      : kkmpptxz 30056b0c (empty) third
     "###);
 }
 

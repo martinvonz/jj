@@ -52,7 +52,7 @@ fn test_builtin_alias_trunk_matches_main() {
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "trunk()"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 main 45a3aa29
+    ◉  xtvrqkyv test.user@example.com 2001-02-03 08:05:08 main d13ecdbd
     │  (empty) description 1
     ~
     "###);
@@ -64,7 +64,7 @@ fn test_builtin_alias_trunk_matches_master() {
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "trunk()"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 master 45a3aa29
+    ◉  xtvrqkyv test.user@example.com 2001-02-03 08:05:08 master d13ecdbd
     │  (empty) description 1
     ~
     "###);
@@ -76,7 +76,7 @@ fn test_builtin_alias_trunk_matches_trunk() {
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "trunk()"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 trunk 45a3aa29
+    ◉  xtvrqkyv test.user@example.com 2001-02-03 08:05:08 trunk d13ecdbd
     │  (empty) description 1
     ~
     "###);
@@ -91,7 +91,7 @@ fn test_builtin_alias_trunk_matches_exactly_one_commit() {
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "trunk()"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 main 45a3aa29
+    ◉  xtvrqkyv test.user@example.com 2001-02-03 08:05:08 main d13ecdbd
     │  (empty) description 1
     ~
     "###);
@@ -107,7 +107,7 @@ fn test_builtin_alias_trunk_override_alias() {
 
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-r", "trunk()"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 override-trunk 45a3aa29
+    ◉  xtvrqkyv test.user@example.com 2001-02-03 08:05:08 override-trunk d13ecdbd
     │  (empty) description 1
     ~
     "###);

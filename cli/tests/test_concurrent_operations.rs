@@ -33,10 +33,10 @@ fn test_concurrent_operation_divergence() {
     // "op log" doesn't merge the concurrent operations
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  bd72b691e2a8 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    ◉  48f4a48f3f70 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
     │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj describe -m 'message 2' --at-op @-
-    │ ◉  aff16879e85e test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │ ◉  e31015019d90 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     ├─╯  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │    args: jj describe -m 'message 1'
     ◉  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
@@ -69,10 +69,10 @@ fn test_concurrent_operations_auto_rebase() {
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "initial"]);
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  254fed738276 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
-    │  describe commit 123ed18e4c4c0d77428df41112bc02ffc83fb935
+    @  66d1dd775c54 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  describe commit 4e8f9d2be039994f589b4e57ac5e9488703e604d
     │  args: jj describe -m initial
-    ◉  1a6e7a5002b6 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    ◉  130d67859810 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  snapshot working copy
     │  args: jj describe -m initial
     ◉  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
@@ -92,8 +92,8 @@ fn test_concurrent_operations_auto_rebase() {
     // We should be informed about the concurrent modification
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
     insta::assert_snapshot!(stdout, @r###"
-    ◉  3f06323826b4a293a9ee6d24cc0e07ad2961b5d5 new child
-    @  d91437157468ec86bbbc9e6a14a60d3e8d1790ac rewritten
+    ◉  db141860e12c2d5591c56fde4fc99caf71cec418 new child
+    @  07c3641e495cce57ea4ca789123b52f421c57aa2 rewritten
     ◉  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
@@ -126,10 +126,10 @@ fn test_concurrent_operations_wc_modified() {
     // We should be informed about the concurrent modification
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &repo_path);
     insta::assert_snapshot!(stdout, @r###"
-    @  4eb0610031b7cd148ff9f729a673a3f815033170 new child1
-    │ ◉  4b20e61d23ee7d7c4d5e61e11e97c26e716f9c30 new child2
+    @  4eadcf3df11f46ef3d825c776496221cc8303053 new child1
+    │ ◉  68119f1643b7e3c301c5f7c2b6c9bf4ccba87379 new child2
     ├─╯
-    ◉  52c893bf3cd201e215b23e084e8a871244ca14d5 initial
+    ◉  2ff7ae858a3a11837fdf9d1a76be295ef53f1bb3 initial
     ◉  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
@@ -155,7 +155,7 @@ fn test_concurrent_operations_wc_modified() {
     ◉ │  new empty commit
     │ ◉  new empty commit
     ├─╯
-    ◉  describe commit cf911c223d3e24e001fc8264d6dbf0610804fc40
+    ◉  describe commit 506f4ec3c2c62befa15fabc34ca9d4e6d7bef254
     ◉  snapshot working copy
     ◉  add workspace 'default'
     ◉  initialize repo
@@ -184,16 +184,16 @@ fn test_concurrent_snapshot_wc_reloadable() {
     let template = r#"id ++ "\n" ++ description ++ "\n" ++ tags"#;
     let op_log_stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "-T", template]);
     insta::assert_snapshot!(op_log_stdout, @r###"
-    @  072711d601c17a74367ab8654d797d1743063208689cafad1bd43581490b4a4180916964824916c5e10d1ecdbaa0763efe79066554959978af0f7ff4b5ed66f0
-    │  commit 323b414dd255b51375d7f4392b7b2641ffe4289f
+    @  9f11958bcf79340028eeabf9b0381cd8d2ae2258d0097b8ce8bd24fe7138eca08d9eb113bb4722ebacd9b7a6fa017e3888f72907be7487f275823c8d21359eed
+    │  commit 554d22b2c43c1c47e279430197363e8daabe2fd6
     │  args: jj commit -m 'new child1'
-    ◉  ab6c5b4e16160c48cabbde43a267ee6991b78668695e744b97e2ae150995458e3ea1d553550e2305028b23af62f74270dc86bd8826b36ad7f1fa7e3986cfdaa3
+    ◉  f5460e8f43a04fbc61553d12fa5ba8d3b12e4fdcfda1999db6b67cc8e1e473b7e62cc0536196a53b84f34e18c1c6d608f427bb64bd5f834f845a9859e39cb320
     │  snapshot working copy
     │  args: jj commit -m 'new child1'
-    ◉  6454b2aacf0821685fda129124aecd7a379bdc2da9c3f9b5e0d58da24d1300bf6a09806a572aa7040263fbe57d430aa706d9cea1f3356fe042029e53d9faa991
-    │  commit 3d918700494a9895696e955b85fa05eb0d314cc6
+    ◉  49359b6597ead3fbb66802a6bbd8761c0ad4646a2b089090d6fd72fb6e2568aa99c4a92f9f1f252a83cce56ec84961c36e85f731f19fc5a4c24d6a3f7282b774
+    │  commit de71e09289762a65f80bb1c3dae2a949df6bcde7
     │  args: jj commit -m initial
-    ◉  8ae097b5e512914cd62b7e13b2ce27ded56ced97005b6e0232438f08b067df1272b06ad428984a6d28496df5ae41aa3522c5b54d7588abf76210922345d94b17
+    ◉  86dbba2b96a4a801abef7f77f8fdf338b6e36f81ea4a531aacf06acbd06f4037731fffef42503c2225fdb206488971c1601ca8b2b4a83a3fe2dce64ee4db085e
     │  snapshot working copy
     │  args: jj commit -m initial
     ◉  b51416386f2685fd5493f2b20e8eec3c24a1776d9e1a7cb5ed7e30d2d9c88c0c1e1fe71b0b7358cba60de42533d1228ed9878f2f89817d892c803395ccf9fe92
@@ -218,8 +218,8 @@ fn test_concurrent_snapshot_wc_reloadable() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "new child2"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: kkmpptxz 4011424e new child2
-    Parent commit      : rlvkpnrz e08863ee new child1
+    Working copy now at: kkmpptxz 1795621b new child2
+    Parent commit      : rlvkpnrz 86f54245 new child1
     "###);
 
     // Since the repo can be reloaded before snapshotting, "child2" should be
@@ -227,11 +227,11 @@ fn test_concurrent_snapshot_wc_reloadable() {
     let template = r#"commit_id ++ " " ++ description"#;
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-T", template, "-s"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  4011424ea0a210a914f869ea3c47d76931598d1d new child2
+    @  1795621b54f4ebb435978b65d66bc0f90d8f20b6 new child2
     │  A child2
-    ◉  e08863ee7a0df688755d3d3126498afdf4f580ad new child1
+    ◉  86f54245e13f850f8275b5541e56da996b6a47b7 new child1
     │  A child1
-    ◉  79989e62f8331e69a803058b57bacc264405cb65 initial
+    ◉  84f07f6bca2ffeddac84a8b09f60c6b81112375c initial
     │  A base
     ◉  0000000000000000000000000000000000000000
     "###);

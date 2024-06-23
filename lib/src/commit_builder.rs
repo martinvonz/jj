@@ -85,6 +85,17 @@ impl CommitBuilder<'_> {
         {
             commit.author.email = commit.committer.email.clone();
         }
+
+        // Reset author timestamp on discardable commits if the author is the
+        // committer. While it's unlikely we'll have somebody else's commit
+        // with no description in our repo, we'd like to be extra safe.
+        if commit.author.name == commit.committer.name
+            && commit.author.email == commit.committer.email
+            && predecessor.is_discardable(mut_repo).unwrap_or_default()
+        {
+            commit.author.timestamp = commit.committer.timestamp.clone();
+        }
+
         CommitBuilder {
             mut_repo,
             commit,

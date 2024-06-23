@@ -246,6 +246,82 @@ fn test_rewrite_update_missing_user(backend: TestRepoBackend) {
 }
 
 #[test_case(TestRepoBackend::Local ; "local backend")]
+#[test_case(TestRepoBackend::Git ; "git backend")]
+fn test_rewrite_resets_author_timestamp(backend: TestRepoBackend) {
+    let test_repo = TestRepo::init_with_backend(backend);
+    let repo = &test_repo.repo;
+
+    // Create discardable commit
+    let initial_timestamp = "2001-02-03T04:05:06+07:00";
+    let config = testutils::base_config()
+        .set_override("debug.commit-timestamp", initial_timestamp)
+        .unwrap()
+        .build()
+        .unwrap();
+    let settings = UserSettings::from_config(config);
+    let mut tx = repo.start_transaction(&settings);
+    let initial_commit = tx
+        .mut_repo()
+        .new_commit(
+            &settings,
+            vec![repo.store().root_commit_id().clone()],
+            repo.store().empty_merged_tree_id(),
+        )
+        .write()
+        .unwrap();
+
+    let initial_timestamp =
+        Timestamp::from_datetime(chrono::DateTime::parse_from_rfc3339(initial_timestamp).unwrap());
+    assert_eq!(initial_commit.author().timestamp, initial_timestamp);
+    assert_eq!(initial_commit.committer().timestamp, initial_timestamp);
+
+    // Rewrite discardable commit to no longer be discardable
+    let new_timestamp_1 = "2002-03-04T05:06:07+08:00";
+    let config = testutils::base_config()
+        .set_override("debug.commit-timestamp", new_timestamp_1)
+        .unwrap()
+        .build()
+        .unwrap();
+    let settings = UserSettings::from_config(config);
+    let rewritten_commit_1 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &initial_commit)
+        .set_description("No longer discardable")
+        .write()
+        .unwrap();
+
+    let new_timestamp_1 =
+        Timestamp::from_datetime(chrono::DateTime::parse_from_rfc3339(new_timestamp_1).unwrap());
+    assert_ne!(new_timestamp_1, initial_timestamp);
+
+    assert_eq!(rewritten_commit_1.author().timestamp, new_timestamp_1);
+    assert_eq!(rewritten_commit_1.committer().timestamp, new_timestamp_1);
+    assert_eq!(rewritten_commit_1.author(), rewritten_commit_1.committer());
+
+    // Rewrite non-discardable commit
+    let new_timestamp_2 = "2003-04-05T06:07:08+09:00";
+    let config = testutils::base_config()
+        .set_override("debug.commit-timestamp", new_timestamp_2)
+        .unwrap()
+        .build()
+        .unwrap();
+    let settings = UserSettings::from_config(config);
+    let rewritten_commit_2 = tx
+        .mut_repo()
+        .rewrite_commit(&settings, &rewritten_commit_1)
+        .set_description("New description")
+        .write()
+        .unwrap();
+
+    let new_timestamp_2 =
+        Timestamp::from_datetime(chrono::DateTime::parse_from_rfc3339(new_timestamp_2).unwrap());
+    assert_ne!(new_timestamp_2, new_timestamp_1);
+
+    assert_eq!(rewritten_commit_2.author().timestamp, new_timestamp_1);
+    assert_eq!(rewritten_commit_2.committer().timestamp, new_timestamp_2);
+}
+
+#[test_case(TestRepoBackend::Local ; "local backend")]
 // #[test_case(TestRepoBackend::Git ; "git backend")]
 fn test_commit_builder_descendants(backend: TestRepoBackend) {
     let settings = testutils::user_settings();

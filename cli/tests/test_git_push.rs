@@ -51,8 +51,8 @@ fn test_git_push_nothing() {
     let (test_env, workspace_root) = set_up();
     // Show the setup. `insta` has trouble if this is done inside `set_up()`
     insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
-    branch1: lzmmnrxq 45a3aa29 (empty) description 1
-      @origin: lzmmnrxq 45a3aa29 (empty) description 1
+    branch1: xtvrqkyv d13ecdbd (empty) description 1
+      @origin: xtvrqkyv d13ecdbd (empty) description 1
     branch2: rlzusymt 8476341e (empty) description 2
       @origin: rlzusymt 8476341e (empty) description 2
     "###);
@@ -80,35 +80,35 @@ fn test_git_push_current_branch() {
     test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "foo"]);
     // Check the setup
     insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
-    branch1: lzmmnrxq 19e00bf6 (empty) modified branch1 commit
-      @origin (ahead by 1 commits, behind by 1 commits): lzmmnrxq hidden 45a3aa29 (empty) description 1
-    branch2: yostqsxw 10ee3363 (empty) foo
+    branch1: xtvrqkyv 96cc58bf (empty) modified branch1 commit
+      @origin (ahead by 1 commits, behind by 1 commits): xtvrqkyv hidden d13ecdbd (empty) description 1
+    branch2: yostqsxw bc7610b6 (empty) foo
       @origin (behind by 1 commits): rlzusymt 8476341e (empty) description 2
-    my-branch: yostqsxw 10ee3363 (empty) foo
+    my-branch: yostqsxw bc7610b6 (empty) foo
     "###);
     // First dry-run. `branch1` should not get pushed.
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push", "--dry-run"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Move forward branch branch2 from 8476341eb395 to 10ee3363b259
-      Add branch my-branch to 10ee3363b259
+      Move forward branch branch2 from 8476341eb395 to bc7610b65a91
+      Add branch my-branch to bc7610b65a91
     Dry-run requested, not pushing.
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Move forward branch branch2 from 8476341eb395 to 10ee3363b259
-      Add branch my-branch to 10ee3363b259
+      Move forward branch branch2 from 8476341eb395 to bc7610b65a91
+      Add branch my-branch to bc7610b65a91
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
-    branch1: lzmmnrxq 19e00bf6 (empty) modified branch1 commit
-      @origin (ahead by 1 commits, behind by 1 commits): lzmmnrxq hidden 45a3aa29 (empty) description 1
-    branch2: yostqsxw 10ee3363 (empty) foo
-      @origin: yostqsxw 10ee3363 (empty) foo
-    my-branch: yostqsxw 10ee3363 (empty) foo
-      @origin: yostqsxw 10ee3363 (empty) foo
+    branch1: xtvrqkyv 96cc58bf (empty) modified branch1 commit
+      @origin (ahead by 1 commits, behind by 1 commits): xtvrqkyv hidden d13ecdbd (empty) description 1
+    branch2: yostqsxw bc7610b6 (empty) foo
+      @origin: yostqsxw bc7610b6 (empty) foo
+    my-branch: yostqsxw bc7610b6 (empty) foo
+      @origin: yostqsxw bc7610b6 (empty) foo
     "###);
 
     // Try pushing backwards
@@ -135,7 +135,7 @@ fn test_git_push_current_branch() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Move backward branch branch2 from 10ee3363b259 to 8476341eb395
+      Move backward branch branch2 from bc7610b65a91 to 8476341eb395
     "###);
 }
 
@@ -154,7 +154,7 @@ fn test_git_push_parent_branch() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Move sideways branch branch1 from 45a3aa29e907 to d47326d59ee1
+      Move sideways branch branch1 from d13ecdbda2a2 to 78bdfdea51c7
     "###);
 }
 
@@ -214,7 +214,7 @@ fn test_git_push_other_remote_has_branch() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Move sideways branch branch1 from 45a3aa29e907 to 50421a29358a
+      Move sideways branch branch1 from d13ecdbda2a2 to a657f1b61b94
     "###);
     // Since it's already pushed to origin, nothing will happen if push again
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "push"]);
@@ -235,7 +235,7 @@ fn test_git_push_other_remote_has_branch() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to other:
-      Add branch branch1 to 50421a29358a
+      Add branch branch1 to a657f1b61b94
     "###);
 }
 
@@ -259,7 +259,7 @@ fn test_git_push_forward_unexpectedly_moved() {
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Move forward branch branch1 from 45a3aa29e907 to c35839cb8e8c
+      Move forward branch branch1 from d13ecdbda2a2 to 6750425ff51c
     Error: Refusing to push a branch that unexpectedly moved on the remote. Affected refs: refs/heads/branch1
     Hint: Try fetching from the remote, then make the branch point to where you want it to be, and push again.
     "###);
@@ -275,8 +275,8 @@ fn test_git_push_sideways_unexpectedly_moved() {
     std::fs::write(origin_path.join("remote"), "remote").unwrap();
     test_env.jj_cmd_ok(&origin_path, &["branch", "set", "branch1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &origin_path), @r###"
-    branch1: vruxwmqv fb645b4b remote
-      @git (behind by 1 commits): qpvuntsm 45a3aa29 (empty) description 1
+    branch1: vruxwmqv 80284bec remote
+      @git (behind by 1 commits): qpvuntsm d13ecdbd (empty) description 1
     branch2: zsuskuln 8476341e (empty) description 2
       @git: zsuskuln 8476341e (empty) description 2
     "###);
@@ -291,7 +291,7 @@ fn test_git_push_sideways_unexpectedly_moved() {
     );
     insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
     branch1: kmkuslsw 0f8bf988 local
-      @origin (ahead by 1 commits, behind by 1 commits): lzmmnrxq 45a3aa29 (empty) description 1
+      @origin (ahead by 1 commits, behind by 1 commits): xtvrqkyv d13ecdbd (empty) description 1
     branch2: rlzusymt 8476341e (empty) description 2
       @origin: rlzusymt 8476341e (empty) description 2
     "###);
@@ -299,7 +299,7 @@ fn test_git_push_sideways_unexpectedly_moved() {
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Move sideways branch branch1 from 45a3aa29e907 to 0f8bf988588e
+      Move sideways branch branch1 from d13ecdbda2a2 to 0f8bf988588e
     Error: Refusing to push a branch that unexpectedly moved on the remote. Affected refs: refs/heads/branch1
     Hint: Try fetching from the remote, then make the branch point to where you want it to be, and push again.
     "###);
@@ -317,8 +317,8 @@ fn test_git_push_deletion_unexpectedly_moved() {
     std::fs::write(origin_path.join("remote"), "remote").unwrap();
     test_env.jj_cmd_ok(&origin_path, &["branch", "set", "branch1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &origin_path), @r###"
-    branch1: vruxwmqv fb645b4b remote
-      @git (behind by 1 commits): qpvuntsm 45a3aa29 (empty) description 1
+    branch1: vruxwmqv 80284bec remote
+      @git (behind by 1 commits): qpvuntsm d13ecdbd (empty) description 1
     branch2: zsuskuln 8476341e (empty) description 2
       @git: zsuskuln 8476341e (empty) description 2
     "###);
@@ -328,7 +328,7 @@ fn test_git_push_deletion_unexpectedly_moved() {
     test_env.jj_cmd_ok(&workspace_root, &["branch", "delete", "branch1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
     branch1 (deleted)
-      @origin: lzmmnrxq 45a3aa29 (empty) description 1
+      @origin: xtvrqkyv d13ecdbd (empty) description 1
     branch2: rlzusymt 8476341e (empty) description 2
       @origin: rlzusymt 8476341e (empty) description 2
     "###);
@@ -336,7 +336,7 @@ fn test_git_push_deletion_unexpectedly_moved() {
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--branch", "branch1"]);
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Delete branch branch1 from 45a3aa29e907
+      Delete branch branch1 from d13ecdbda2a2
     Error: Refusing to push a branch that unexpectedly moved on the remote. Affected refs: refs/heads/branch1
     Hint: Try fetching from the remote, then make the branch point to where you want it to be, and push again.
     "###);
@@ -351,7 +351,7 @@ fn test_git_push_unexpectedly_deleted() {
     test_env.jj_cmd_ok(&origin_path, &["branch", "delete", "branch1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &origin_path), @r###"
     branch1 (deleted)
-      @git: qpvuntsm 45a3aa29 (empty) description 1
+      @git: qpvuntsm d13ecdbd (empty) description 1
     branch2: zsuskuln 8476341e (empty) description 2
       @git: zsuskuln 8476341e (empty) description 2
     "###);
@@ -366,7 +366,7 @@ fn test_git_push_unexpectedly_deleted() {
     );
     insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
     branch1: kpqxywon 1ebe27ba local
-      @origin (ahead by 1 commits, behind by 1 commits): lzmmnrxq 45a3aa29 (empty) description 1
+      @origin (ahead by 1 commits, behind by 1 commits): xtvrqkyv d13ecdbd (empty) description 1
     branch2: rlzusymt 8476341e (empty) description 2
       @origin: rlzusymt 8476341e (empty) description 2
     "###);
@@ -375,7 +375,7 @@ fn test_git_push_unexpectedly_deleted() {
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push"]);
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Move sideways branch branch1 from 45a3aa29e907 to 1ebe27ba04bf
+      Move sideways branch branch1 from d13ecdbda2a2 to 1ebe27ba04bf
     Error: Refusing to push a branch that unexpectedly moved on the remote. Affected refs: refs/heads/branch1
     Hint: Try fetching from the remote, then make the branch point to where you want it to be, and push again.
     "###);
@@ -383,7 +383,7 @@ fn test_git_push_unexpectedly_deleted() {
     test_env.jj_cmd_ok(&workspace_root, &["branch", "delete", "branch1"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
     branch1 (deleted)
-      @origin: lzmmnrxq 45a3aa29 (empty) description 1
+      @origin: xtvrqkyv d13ecdbd (empty) description 1
     branch2: rlzusymt 8476341e (empty) description 2
       @origin: rlzusymt 8476341e (empty) description 2
     "###);
@@ -393,7 +393,7 @@ fn test_git_push_unexpectedly_deleted() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Delete branch branch1 from 45a3aa29e907
+      Delete branch branch1 from d13ecdbda2a2
     "###);
 }
 
@@ -442,8 +442,8 @@ fn test_git_push_locally_created_and_rewritten() {
     // set to "tracking"
     test_env.jj_cmd_ok(&workspace_root, &["describe", "-mlocal 2"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
-    branch1: lzmmnrxq 45a3aa29 (empty) description 1
-      @origin: lzmmnrxq 45a3aa29 (empty) description 1
+    branch1: xtvrqkyv d13ecdbd (empty) description 1
+      @origin: xtvrqkyv d13ecdbd (empty) description 1
     branch2: rlzusymt 8476341e (empty) description 2
       @origin: rlzusymt 8476341e (empty) description 2
     my: vruxwmqv bde1d2e4 (empty) local 2
@@ -469,10 +469,10 @@ fn test_git_push_multiple() {
     // Check the setup
     insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
     branch1 (deleted)
-      @origin: lzmmnrxq 45a3aa29 (empty) description 1
-    branch2: yqosqzyt 15dcdaa4 (empty) foo
+      @origin: xtvrqkyv d13ecdbd (empty) description 1
+    branch2: yqosqzyt c4a3c310 (empty) foo
       @origin (ahead by 1 commits, behind by 1 commits): rlzusymt 8476341e (empty) description 2
-    my-branch: yqosqzyt 15dcdaa4 (empty) foo
+    my-branch: yqosqzyt c4a3c310 (empty) foo
     "###);
     // First dry-run
     let (stdout, stderr) =
@@ -480,9 +480,9 @@ fn test_git_push_multiple() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Delete branch branch1 from 45a3aa29e907
-      Move sideways branch branch2 from 8476341eb395 to 15dcdaa4f12f
-      Add branch my-branch to 15dcdaa4f12f
+      Delete branch branch1 from d13ecdbda2a2
+      Move sideways branch branch2 from 8476341eb395 to c4a3c3105d92
+      Add branch my-branch to c4a3c3105d92
     Dry-run requested, not pushing.
     "###);
     // Dry run requesting two specific branches
@@ -493,8 +493,8 @@ fn test_git_push_multiple() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Delete branch branch1 from 45a3aa29e907
-      Add branch my-branch to 15dcdaa4f12f
+      Delete branch branch1 from d13ecdbda2a2
+      Add branch my-branch to c4a3c3105d92
     Dry-run requested, not pushing.
     "###);
     // Dry run requesting two specific branches twice
@@ -513,8 +513,8 @@ fn test_git_push_multiple() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Delete branch branch1 from 45a3aa29e907
-      Add branch my-branch to 15dcdaa4f12f
+      Delete branch branch1 from d13ecdbda2a2
+      Add branch my-branch to c4a3c3105d92
     Dry-run requested, not pushing.
     "###);
     // Dry run with glob pattern
@@ -525,8 +525,8 @@ fn test_git_push_multiple() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Delete branch branch1 from 45a3aa29e907
-      Move sideways branch branch2 from 8476341eb395 to 15dcdaa4f12f
+      Delete branch branch1 from d13ecdbda2a2
+      Move sideways branch branch2 from 8476341eb395 to c4a3c3105d92
     Dry-run requested, not pushing.
     "###);
 
@@ -547,23 +547,23 @@ fn test_git_push_multiple() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Delete branch branch1 from 45a3aa29e907
-      Move sideways branch branch2 from 8476341eb395 to 15dcdaa4f12f
-      Add branch my-branch to 15dcdaa4f12f
+      Delete branch branch1 from d13ecdbda2a2
+      Move sideways branch branch2 from 8476341eb395 to c4a3c3105d92
+      Add branch my-branch to c4a3c3105d92
     "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
-    branch2: yqosqzyt 15dcdaa4 (empty) foo
-      @origin: yqosqzyt 15dcdaa4 (empty) foo
-    my-branch: yqosqzyt 15dcdaa4 (empty) foo
-      @origin: yqosqzyt 15dcdaa4 (empty) foo
+    branch2: yqosqzyt c4a3c310 (empty) foo
+      @origin: yqosqzyt c4a3c310 (empty) foo
+    my-branch: yqosqzyt c4a3c310 (empty) foo
+      @origin: yqosqzyt c4a3c310 (empty) foo
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-rall()"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  yqosqzyt test.user@example.com 2001-02-03 08:05:17 branch2 my-branch 15dcdaa4
+    @  yqosqzyt test.user@example.com 2001-02-03 08:05:17 branch2 my-branch c4a3c310
     │  (empty) foo
     │ ◉  rlzusymt test.user@example.com 2001-02-03 08:05:10 8476341e
     ├─╯  (empty) description 2
-    │ ◉  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 45a3aa29
+    │ ◉  xtvrqkyv test.user@example.com 2001-02-03 08:05:08 d13ecdbd
     ├─╯  (empty) description 1
     ◉  zzzzzzzz root() 00000000
     "###);
@@ -582,7 +582,7 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(stderr, @r###"
     Creating branch push-yostqsxwqrlt for revision yostqsxwqrlt
     Branch changes to push to origin:
-      Add branch push-yostqsxwqrlt to 28d7620ea63a
+      Add branch push-yostqsxwqrlt to cf1a53a8800a
     "###);
     // test pushing two changes at once
     std::fs::write(workspace_root.join("file"), "modified2").unwrap();
@@ -590,8 +590,8 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "(@|@-)" resolved to more than one revision
     Hint: The revset "(@|@-)" resolved to these revisions:
-      yostqsxw 48d8c794 push-yostqsxwqrlt* | bar
-      yqosqzyt fa16a141 foo
+      yostqsxw 16c16966 push-yostqsxwqrlt* | bar
+      yqosqzyt a050abf4 foo
     Hint: Prefix the expression with 'all:' to allow any number of revisions (i.e. 'all:(@|@-)').
     "###);
     // test pushing two changes at once, part 2
@@ -600,8 +600,8 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(stderr, @r###"
     Creating branch push-yqosqzytrlsw for revision yqosqzytrlsw
     Branch changes to push to origin:
-      Move sideways branch push-yostqsxwqrlt from 28d7620ea63a to 48d8c7948133
-      Add branch push-yqosqzytrlsw to fa16a14170fb
+      Move sideways branch push-yostqsxwqrlt from cf1a53a8800a to 16c169664e9f
+      Add branch push-yqosqzytrlsw to a050abf4ff07
     "###);
     // specifying the same change twice doesn't break things
     std::fs::write(workspace_root.join("file"), "modified3").unwrap();
@@ -609,7 +609,7 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Move sideways branch push-yostqsxwqrlt from 48d8c7948133 to 8a2941b572b9
+      Move sideways branch push-yostqsxwqrlt from 16c169664e9f to ef6313d50ac1
     "###);
 
     // specifying the same branch with --change/--branch doesn't break things
@@ -621,7 +621,7 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Move sideways branch push-yostqsxwqrlt from 8a2941b572b9 to 5b65c040beef
+      Move sideways branch push-yostqsxwqrlt from ef6313d50ac1 to c1e65d3a64ce
     "###);
 
     // try again with --change that moves the branch forward
@@ -640,8 +640,8 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(stdout, @r###"
     Working copy changes:
     M file
-    Working copy : yostqsxw 361948b1 bar
-    Parent commit: yqosqzyt fa16a141 push-yostqsxwqrlt* push-yqosqzytrlsw | foo
+    Working copy : yostqsxw 38cb417c bar
+    Parent commit: yqosqzyt a050abf4 push-yostqsxwqrlt* push-yqosqzytrlsw | foo
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(
         &workspace_root,
@@ -650,14 +650,14 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Move sideways branch push-yostqsxwqrlt from 5b65c040beef to 361948b172e3
+      Move sideways branch push-yostqsxwqrlt from c1e65d3a64ce to 38cb417ce3a6
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["status"]);
     insta::assert_snapshot!(stdout, @r###"
     Working copy changes:
     M file
-    Working copy : yostqsxw 361948b1 push-yostqsxwqrlt | bar
-    Parent commit: yqosqzyt fa16a141 push-yqosqzytrlsw | foo
+    Working copy : yostqsxw 38cb417c push-yostqsxwqrlt | bar
+    Parent commit: yqosqzyt a050abf4 push-yqosqzytrlsw | foo
     "###);
 
     // Test changing `git.push-branch-prefix`. It causes us to push again.
@@ -675,7 +675,7 @@ fn test_git_push_changes() {
     insta::assert_snapshot!(stderr, @r###"
     Creating branch test-yostqsxwqrlt for revision yostqsxwqrlt
     Branch changes to push to origin:
-      Add branch test-yostqsxwqrlt to 361948b172e3
+      Add branch test-yostqsxwqrlt to 38cb417ce3a6
     "###);
 }
 
@@ -711,7 +711,7 @@ fn test_git_push_revisions() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Add branch branch-1 to 7decc7932d9c
+      Add branch branch-1 to 5f432a855e59
     Dry-run requested, not pushing.
     "###);
     // Push multiple revisions of which some have branches
@@ -723,7 +723,7 @@ fn test_git_push_revisions() {
     insta::assert_snapshot!(stderr, @r###"
     Warning: No branches point to the specified revisions: @--
     Branch changes to push to origin:
-      Add branch branch-1 to 7decc7932d9c
+      Add branch branch-1 to 5f432a855e59
     Dry-run requested, not pushing.
     "###);
     // Push a revision with a multiple branches
@@ -732,8 +732,8 @@ fn test_git_push_revisions() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Add branch branch-2a to 1b45449e18d0
-      Add branch branch-2b to 1b45449e18d0
+      Add branch branch-2a to 84f499037f5c
+      Add branch branch-2b to 84f499037f5c
     Dry-run requested, not pushing.
     "###);
     // Repeating a commit doesn't result in repeated messages about the branch
@@ -744,7 +744,7 @@ fn test_git_push_revisions() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Add branch branch-1 to 7decc7932d9c
+      Add branch branch-1 to 5f432a855e59
     Dry-run requested, not pushing.
     "###);
 }
@@ -770,10 +770,10 @@ fn test_git_push_mixed() {
     insta::assert_snapshot!(stderr, @r###"
     Creating branch push-yqosqzytrlsw for revision yqosqzytrlsw
     Branch changes to push to origin:
-      Add branch push-yqosqzytrlsw to fa16a14170fb
-      Add branch branch-1 to 7decc7932d9c
-      Add branch branch-2a to 1b45449e18d0
-      Add branch branch-2b to 1b45449e18d0
+      Add branch push-yqosqzytrlsw to a050abf4ff07
+      Add branch branch-1 to 5f432a855e59
+      Add branch branch-2a to 84f499037f5c
+      Add branch branch-2b to 84f499037f5c
     "###);
 }
 
@@ -791,7 +791,7 @@ fn test_git_push_existing_long_branch() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Add branch push-19b790168e73f7a73a98deae21e807c0 to fa16a14170fb
+      Add branch push-19b790168e73f7a73a98deae21e807c0 to a050abf4ff07
     "###);
 }
 
@@ -818,7 +818,7 @@ fn test_git_push_conflict() {
     test_env.jj_cmd_ok(&workspace_root, &["describe", "-m", "third"]);
     let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--all"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Won't push commit 739c4f08a056 since it has conflicts
+    Error: Won't push commit 73c265a92cfd since it has conflicts
     "###);
 }
 
@@ -1024,13 +1024,13 @@ fn test_git_push_deleted() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to origin:
-      Delete branch branch1 from 45a3aa29e907
+      Delete branch branch1 from d13ecdbda2a2
     "###);
     let stdout = test_env.jj_cmd_success(&workspace_root, &["log", "-rall()"]);
     insta::assert_snapshot!(stdout, @r###"
     ◉  rlzusymt test.user@example.com 2001-02-03 08:05:10 branch2 8476341e
     │  (empty) description 2
-    │ ◉  lzmmnrxq test.user@example.com 2001-02-03 08:05:08 45a3aa29
+    │ ◉  xtvrqkyv test.user@example.com 2001-02-03 08:05:08 d13ecdbd
     ├─╯  (empty) description 1
     │ @  yqosqzyt test.user@example.com 2001-02-03 08:05:13 5b36783c
     ├─╯  (empty) (no description set)
@@ -1064,8 +1064,8 @@ fn test_git_push_conflicting_branches() {
     test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "branch2"]);
     test_env.jj_cmd_ok(&workspace_root, &["git", "fetch"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
-    branch1: lzmmnrxq 45a3aa29 (empty) description 1
-      @origin: lzmmnrxq 45a3aa29 (empty) description 1
+    branch1: xtvrqkyv d13ecdbd (empty) description 1
+      @origin: xtvrqkyv d13ecdbd (empty) description 1
     branch2 (conflicted):
       + yostqsxw 8e670e2d (empty) description 3
       + rlzusymt 8476341e (empty) description 2
@@ -1101,7 +1101,7 @@ fn test_git_push_conflicting_branches() {
     Warning: Branch branch2 is conflicted
     Hint: Run `jj branch list` to inspect, and use `jj branch set` to fix it up.
     Branch changes to push to origin:
-      Move forward branch branch1 from 45a3aa29e907 to fd1d63e031ea
+      Move forward branch branch1 from d13ecdbda2a2 to 8df52121b022
     "###);
 
     // --revisions shouldn't be blocked by conflicting branch
@@ -1112,7 +1112,7 @@ fn test_git_push_conflicting_branches() {
     Warning: Branch branch2 is conflicted
     Hint: Run `jj branch list` to inspect, and use `jj branch set` to fix it up.
     Branch changes to push to origin:
-      Move forward branch branch1 from fd1d63e031ea to 8263cf992d33
+      Move forward branch branch1 from 8df52121b022 to 345e1f64a64d
     "###);
 }
 
@@ -1144,8 +1144,8 @@ fn test_git_push_tracked_vs_all() {
     test_env.jj_cmd_ok(&workspace_root, &["branch", "untrack", "branch1@origin"]);
     test_env.jj_cmd_ok(&workspace_root, &["branch", "create", "branch3"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
-    branch1: vruxwmqv a25f24af (empty) moved branch1
-    branch1@origin: lzmmnrxq 45a3aa29 (empty) description 1
+    branch1: vruxwmqv 0b16bb02 (empty) moved branch1
+    branch1@origin: xtvrqkyv d13ecdbd (empty) description 1
     branch2 (deleted)
       @origin: rlzusymt 8476341e (empty) description 2
     branch3: znkkpsqq 998d6a78 (empty) moved branch2
@@ -1164,8 +1164,8 @@ fn test_git_push_tracked_vs_all() {
     // Untrack the last remaining tracked branch.
     test_env.jj_cmd_ok(&workspace_root, &["branch", "untrack", "branch2@origin"]);
     insta::assert_snapshot!(get_branch_output(&test_env, &workspace_root), @r###"
-    branch1: vruxwmqv a25f24af (empty) moved branch1
-    branch1@origin: lzmmnrxq 45a3aa29 (empty) description 1
+    branch1: vruxwmqv 0b16bb02 (empty) moved branch1
+    branch1@origin: xtvrqkyv d13ecdbd (empty) description 1
     branch2@origin: rlzusymt 8476341e (empty) description 2
     branch3: znkkpsqq 998d6a78 (empty) moved branch2
     "###);
@@ -1248,7 +1248,7 @@ fn test_git_push_to_remote_named_git() {
         test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--all", "--remote=git"]);
     insta::assert_snapshot!(stderr, @r###"
     Branch changes to push to git:
-      Add branch branch1 to 45a3aa29e907
+      Add branch branch1 to d13ecdbda2a2
       Add branch branch2 to 8476341eb395
     Error: Git remote named 'git' is reserved for local Git repository
     "###);
