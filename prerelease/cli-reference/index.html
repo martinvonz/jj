@@ -1823,13 +1823,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#jj-operation-undo" class="md-nav__link">
+  <a href="#jj-operation-restore" class="md-nav__link">
     <span class="md-ellipsis">
-      jj operation undo
+      jj operation restore
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="jj operation undo">
+    <nav class="md-nav" aria-label="jj operation restore">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1856,13 +1856,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#jj-operation-restore" class="md-nav__link">
+  <a href="#jj-operation-undo" class="md-nav__link">
     <span class="md-ellipsis">
-      jj operation restore
+      jj operation undo
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="jj operation restore">
+    <nav class="md-nav" aria-label="jj operation undo">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -4774,13 +4774,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#jj-operation-undo" class="md-nav__link">
+  <a href="#jj-operation-restore" class="md-nav__link">
     <span class="md-ellipsis">
-      jj operation undo
+      jj operation restore
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="jj operation undo">
+    <nav class="md-nav" aria-label="jj operation restore">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -4807,13 +4807,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#jj-operation-restore" class="md-nav__link">
+  <a href="#jj-operation-undo" class="md-nav__link">
     <span class="md-ellipsis">
-      jj operation restore
+      jj operation undo
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="jj operation restore">
+    <nav class="md-nav" aria-label="jj operation undo">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -5631,8 +5631,8 @@ does not match the <code>jj help</code> output exactly.</p>
 <li><a href="#jj-operation"><code>jj operation</code>↴</a></li>
 <li><a href="#jj-operation-abandon"><code>jj operation abandon</code>↴</a></li>
 <li><a href="#jj-operation-log"><code>jj operation log</code>↴</a></li>
-<li><a href="#jj-operation-undo"><code>jj operation undo</code>↴</a></li>
 <li><a href="#jj-operation-restore"><code>jj operation restore</code>↴</a></li>
+<li><a href="#jj-operation-undo"><code>jj operation undo</code>↴</a></li>
 <li><a href="#jj-parallelize"><code>jj parallelize</code>↴</a></li>
 <li><a href="#jj-prev"><code>jj prev</code>↴</a></li>
 <li><a href="#jj-rebase"><code>jj rebase</code>↴</a></li>
@@ -6543,8 +6543,8 @@ implied.</p>
 <ul>
 <li><code>abandon</code> — Abandon operation history</li>
 <li><code>log</code> — Show the operation log</li>
-<li><code>undo</code> — Create a new operation that undoes an earlier operation</li>
 <li><code>restore</code> — Create a new operation that restores the repo to an earlier state</li>
+<li><code>undo</code> — Create a new operation that undoes an earlier operation</li>
 </ul>
 <h2 id="jj-operation-abandon"><code>jj operation abandon</code><a class="headerlink" href="#jj-operation-abandon" title="Permanent link">&para;</a></h2>
 <p>Abandon operation history</p>
@@ -6568,16 +6568,15 @@ implied.</p>
 <p>For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md</p>
 </li>
 </ul>
-<h2 id="jj-operation-undo"><code>jj operation undo</code><a class="headerlink" href="#jj-operation-undo" title="Permanent link">&para;</a></h2>
-<p>Create a new operation that undoes an earlier operation</p>
-<p>This undoes an individual operation by applying the inverse of the operation.</p>
-<p><strong>Usage:</strong> <code>jj operation undo [OPTIONS] [OPERATION]</code></p>
+<h2 id="jj-operation-restore"><code>jj operation restore</code><a class="headerlink" href="#jj-operation-restore" title="Permanent link">&para;</a></h2>
+<p>Create a new operation that restores the repo to an earlier state</p>
+<p>This restores the repo to the state at the specified operation, effectively undoing all later operations. It does so by creating a new operation.</p>
+<p><strong>Usage:</strong> <code>jj operation restore [OPTIONS] &lt;OPERATION&gt;</code></p>
 <h6 id="arguments_33"><strong>Arguments:</strong><a class="headerlink" href="#arguments_33" title="Permanent link">&para;</a></h6>
 <ul>
 <li>
-<p><code>&lt;OPERATION&gt;</code> — The operation to undo</p>
-<p>Use <code>jj op log</code> to find an operation to undo.</p>
-<p>Default value: <code>@</code></p>
+<p><code>&lt;OPERATION&gt;</code> — The operation to restore to</p>
+<p>Use <code>jj op log</code> to find an operation to restore to. Use e.g. <code>jj --at-op=&lt;operation ID&gt; log</code> before restoring to an operation to see the state of the repo at that operation.</p>
 </li>
 </ul>
 <h6 id="options_29"><strong>Options:</strong><a class="headerlink" href="#options_29" title="Permanent link">&para;</a></h6>
@@ -6595,15 +6594,16 @@ implied.</p>
 </ul>
 </li>
 </ul>
-<h2 id="jj-operation-restore"><code>jj operation restore</code><a class="headerlink" href="#jj-operation-restore" title="Permanent link">&para;</a></h2>
-<p>Create a new operation that restores the repo to an earlier state</p>
-<p>This restores the repo to the state at the specified operation, effectively undoing all later operations. It does so by creating a new operation.</p>
-<p><strong>Usage:</strong> <code>jj operation restore [OPTIONS] &lt;OPERATION&gt;</code></p>
+<h2 id="jj-operation-undo"><code>jj operation undo</code><a class="headerlink" href="#jj-operation-undo" title="Permanent link">&para;</a></h2>
+<p>Create a new operation that undoes an earlier operation</p>
+<p>This undoes an individual operation by applying the inverse of the operation.</p>
+<p><strong>Usage:</strong> <code>jj operation undo [OPTIONS] [OPERATION]</code></p>
 <h6 id="arguments_34"><strong>Arguments:</strong><a class="headerlink" href="#arguments_34" title="Permanent link">&para;</a></h6>
 <ul>
 <li>
-<p><code>&lt;OPERATION&gt;</code> — The operation to restore to</p>
-<p>Use <code>jj op log</code> to find an operation to restore to. Use e.g. <code>jj --at-op=&lt;operation ID&gt; log</code> before restoring to an operation to see the state of the repo at that operation.</p>
+<p><code>&lt;OPERATION&gt;</code> — The operation to undo</p>
+<p>Use <code>jj op log</code> to find an operation to undo.</p>
+<p>Default value: <code>@</code></p>
 </li>
 </ul>
 <h6 id="options_30"><strong>Options:</strong><a class="headerlink" href="#options_30" title="Permanent link">&para;</a></h6>
