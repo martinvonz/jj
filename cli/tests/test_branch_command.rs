@@ -354,8 +354,8 @@ fn test_branch_rename() {
     let (_stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["branch", "rename", "bremote", "bremote2"]);
     insta::assert_snapshot!(stderr, @r###"
-    Warning: Branch bremote has tracking remote branches which were not renamed.
-    Hint: to rename the branch on the remote, you can `jj git push --branch bremote` first (to delete it on the remote), and then `jj git push --branch bremote2`. `jj git push --all` would also be sufficient.
+    Warning: Tracked remote branches for branch bremote were not renamed.
+    Hint: To rename the branch on the remote, you can `jj git push --branch bremote` first (to delete it on the remote), and then `jj git push --branch bremote2`. `jj git push --all` would also be sufficient.
     "###);
 }
 

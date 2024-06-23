@@ -60,11 +60,11 @@ pub fn cmd_branch_rename(
     if has_tracked_remote_branches(view, old_branch) {
         writeln!(
             ui.warning_default(),
-            "Branch {old_branch} has tracking remote branches which were not renamed."
+            "Tracked remote branches for branch {old_branch} were not renamed.",
         )?;
         writeln!(
             ui.hint_default(),
-            "to rename the branch on the remote, you can `jj git push --branch {old_branch}` \
+            "To rename the branch on the remote, you can `jj git push --branch {old_branch}` \
              first (to delete it on the remote), and then `jj git push --branch {new_branch}`. \
              `jj git push --all` would also be sufficient."
         )?;
