@@ -1112,6 +1112,11 @@ impl WorkspaceCommandHelper {
                 Ok(())
             };
         }
+
+        // Not using self.id_prefix_context() because the disambiguation data
+        // must not be calculated and cached against arbitrary repo. It's also
+        // unlikely that the immutable expression contains short hashes.
+        let id_prefix_context = IdPrefixContext::new(self.revset_extensions.clone());
         let to_rewrite_revset =
             RevsetExpression::commits(commits.into_iter().cloned().collect_vec());
         let immutable = revset_util::parse_immutable_expression(&self.revset_parse_context())
@@ -1121,7 +1126,7 @@ impl WorkspaceCommandHelper {
         let mut expression = RevsetExpressionEvaluator::new(
             repo,
             self.revset_extensions.clone(),
-            self.id_prefix_context()?,
+            &id_prefix_context,
             immutable,
         );
         expression.intersect_with(&to_rewrite_revset);
