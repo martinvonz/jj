@@ -26,8 +26,8 @@ fn test_new() {
     test_env.jj_cmd_ok(&repo_path, &["new", "-m", "a new commit"]);
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  4f2d6e0a3482a6a34e4856a4a63869c0df109e79 a new commit
-    ◉  5d5c60b2aa96b8dbf55710656c50285c66cdcd74 add a file
+    @  34f3c770f1db22ac5c58df21d587aed1a030201f a new commit
+    ◉  bf8753cb48b860b68386c5c8cc997e8e37122485 add a file
     ◉  0000000000000000000000000000000000000000
     "###);
 
@@ -35,8 +35,8 @@ fn test_new() {
     test_env.jj_cmd_ok(&repo_path, &["new", "-m", "off of root", "root()"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  026537ddb96b801b9cb909985d5443aab44616c1 off of root
-    │ ◉  4f2d6e0a3482a6a34e4856a4a63869c0df109e79 a new commit
-    │ ◉  5d5c60b2aa96b8dbf55710656c50285c66cdcd74 add a file
+    │ ◉  34f3c770f1db22ac5c58df21d587aed1a030201f a new commit
+    │ ◉  bf8753cb48b860b68386c5c8cc997e8e37122485 add a file
     ├─╯
     ◉  0000000000000000000000000000000000000000
     "###);
@@ -46,8 +46,8 @@ fn test_new() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  101cbec5cae8049cb9850a906ef3675631ed48fa yet another commit
     ◉  026537ddb96b801b9cb909985d5443aab44616c1 off of root
-    │ ◉  4f2d6e0a3482a6a34e4856a4a63869c0df109e79 a new commit
-    │ ◉  5d5c60b2aa96b8dbf55710656c50285c66cdcd74 add a file
+    │ ◉  34f3c770f1db22ac5c58df21d587aed1a030201f a new commit
+    │ ◉  bf8753cb48b860b68386c5c8cc997e8e37122485 add a file
     ├─╯
     ◉  0000000000000000000000000000000000000000
     "###);
@@ -78,10 +78,10 @@ fn test_new_merge() {
     // Create a merge commit
     test_env.jj_cmd_ok(&repo_path, &["new", "main", "@"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @    0c4e5b9b68ae0cbe7ce3c61042619513d09005bf
+    @    2f9a61ea1fef257eca52fcee2feec1cbd2e41660
     ├─╮
     │ ◉  f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
-    ◉ │  38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
+    ◉ │  8d996e001c23e298d0d353ab455665c81bf2080c add file1
     ├─╯
     ◉  0000000000000000000000000000000000000000
     "###);
@@ -95,13 +95,13 @@ fn test_new_merge() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["new", "main", "@", "--no-edit"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Created new commit znkkpsqq 200ed1a1 (empty) (no description set)
+    Created new commit znkkpsqq 496490a6 (empty) (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉    200ed1a14c8acf09783dafefe5bebf2ff58f12fd
+    ◉    496490a66cebb31730c4103b7b22a1098d49af91
     ├─╮
     │ @  f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
-    ◉ │  38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
+    ◉ │  8d996e001c23e298d0d353ab455665c81bf2080c add file1
     ├─╯
     ◉  0000000000000000000000000000000000000000
     "###);
@@ -110,10 +110,10 @@ fn test_new_merge() {
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     test_env.jj_cmd_ok(&repo_path, &["merge", "main", "@"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @    3a44e52b073cbb5deb11bb8fa0763a369e96427a
+    @    114023233c454e2eca22b8b209f9e42f755eb28c
     ├─╮
     │ ◉  f399209d9dda06e8a25a0c8e9a0cde9f421ff35d add file2
-    ◉ │  38e8e2f6c92ffb954961fc391b515ff551b41636 add file1
+    ◉ │  8d996e001c23e298d0d353ab455665c81bf2080c add file1
     ├─╯
     ◉  0000000000000000000000000000000000000000
     "###);
@@ -135,14 +135,14 @@ fn test_new_merge() {
     // merge with non-unique revisions
     let stderr = test_env.jj_cmd_failure(&repo_path, &["new", "@", "3a44e"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: More than one revset resolved to revision 3a44e52b073c
+    Error: Revision "3a44e" doesn't exist
     "###);
     // if prefixed with all:, duplicates are allowed
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["new", "@", "all:visible_heads()"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: xznxytkn dddeb489 (empty) (no description set)
-    Parent commit      : wqnwkozp 3a44e52b (empty) (no description set)
+    Working copy now at: xznxytkn 6286a0ff (empty) (no description set)
+    Parent commit      : wqnwkozp 11402323 (empty) (no description set)
     "###);
 
     // merge with root
@@ -179,8 +179,8 @@ fn test_new_insert_after() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 2 descendant commits
-    Working copy now at: kxryzmor ca7c6481 (empty) G
-    Parent commit      : kkmpptxz 6041917c B | (empty) B
+    Working copy now at: kxryzmor 1fc93fd1 (empty) G
+    Parent commit      : kkmpptxz bfd4157e B | (empty) B
     Parent commit      : vruxwmqv c9257eff D | (empty) D
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
@@ -269,9 +269,9 @@ fn test_new_insert_after_children() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: kxryzmor b48d4d73 (empty) G
-    Parent commit      : qpvuntsm 65b1ef43 A | (empty) A
-    Parent commit      : mzvwutvl ec18c57d C | (empty) C
+    Working copy now at: kxryzmor 6d63e17b (empty) G
+    Parent commit      : qpvuntsm 5ef24e4b A | (empty) A
+    Parent commit      : mzvwutvl 83376b27 C | (empty) C
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     @    G
@@ -324,8 +324,8 @@ fn test_new_insert_before() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 2 descendant commits
-    Working copy now at: kxryzmor 19e53931 (empty) G
-    Parent commit      : kkmpptxz 6041917c B | (empty) B
+    Working copy now at: kxryzmor 7ed2d6ff (empty) G
+    Parent commit      : kkmpptxz bfd4157e B | (empty) B
     Parent commit      : vruxwmqv c9257eff D | (empty) D
     Parent commit      : znkkpsqq 41a89ffc E | (empty) E
     "###);
@@ -421,9 +421,9 @@ fn test_new_insert_before_no_loop() {
     │ ◉  41a89ffcbba2 E
     ◉ │  c9257eff5bf9 D
     ├─╯
-    │ ◉  ec18c57d72d8 C
-    │ ◉  6041917ceeb5 B
-    │ ◉  65b1ef43c737 A
+    │ ◉  83376b270925 C
+    │ ◉  bfd4157e6ea4 B
+    │ ◉  5ef24e4bf2be A
     ├─╯
     ◉  000000000000 root
     "###);
@@ -441,7 +441,7 @@ fn test_new_insert_before_no_loop() {
         ],
     );
     insta::assert_snapshot!(stderr, @r###"
-    Error: Refusing to create a loop: commit 6041917ceeb5 would be both an ancestor and a descendant of the new commit
+    Error: Refusing to create a loop: commit bfd4157e6ea4 would be both an ancestor and a descendant of the new commit
     "###);
 }
 
@@ -533,8 +533,8 @@ fn test_new_insert_after_before() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 1 descendant commits
-    Working copy now at: kxryzmor 33be1218 (empty) G
-    Parent commit      : mzvwutvl ec18c57d C | (empty) C
+    Working copy now at: kxryzmor 78a97058 (empty) G
+    Parent commit      : mzvwutvl 83376b27 C | (empty) C
     "###);
     insta::assert_snapshot!(get_short_log_output(&test_env, &repo_path), @r###"
     ◉      F
@@ -592,9 +592,9 @@ fn test_new_insert_after_before_no_loop() {
     │ ◉  41a89ffcbba2 E
     ◉ │  c9257eff5bf9 D
     ├─╯
-    │ ◉  ec18c57d72d8 C
-    │ ◉  6041917ceeb5 B
-    │ ◉  65b1ef43c737 A
+    │ ◉  83376b270925 C
+    │ ◉  bfd4157e6ea4 B
+    │ ◉  5ef24e4bf2be A
     ├─╯
     ◉  000000000000 root
     "###);
@@ -612,7 +612,7 @@ fn test_new_insert_after_before_no_loop() {
         ],
     );
     insta::assert_snapshot!(stderr, @r###"
-    Error: Refusing to create a loop: commit ec18c57d72d8 would be both an ancestor and a descendant of the new commit
+    Error: Refusing to create a loop: commit 83376b270925 would be both an ancestor and a descendant of the new commit
     "###);
 }
 
@@ -646,7 +646,7 @@ fn test_new_conflicting_branches() {
     Hint: Branch foo resolved to multiple revisions because it's conflicted.
     It resolved to these revisions:
       kkmpptxz 66c6502d foo?? | (empty) two
-      qpvuntsm a9330854 foo?? | (empty) one
+      qpvuntsm 876f4b7e foo?? | (empty) one
     Hint: Set which revision the branch points to with `jj branch set foo -r <REVISION>`.
     "###);
 }
@@ -667,8 +667,8 @@ fn test_new_conflicting_change_ids() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "qpvuntsm" resolved to more than one revision
     Hint: The revset "qpvuntsm" resolved to these revisions:
-      qpvuntsm?? d2ae6806 (empty) two
-      qpvuntsm?? a9330854 (empty) one
+      qpvuntsm?? 66c6502d (empty) two
+      qpvuntsm?? 876f4b7e (empty) one
     Hint: Some of these commits have the same change id. Abandon one of them with `jj abandon -r <REVISION>`.
     "###);
 }

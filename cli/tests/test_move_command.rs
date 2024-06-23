@@ -55,13 +55,13 @@ fn test_move() {
     std::fs::write(repo_path.join("file2"), "f\n").unwrap();
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  0d7353584003 f
-    ◉  e9515f21068c e
-    ◉  bdd835cae844 d
-    │ ◉  caa4d0b23201 c
-    │ ◉  55171e33db26 b
+    @  a847ab4967fe f
+    ◉  c2f9de87325d e
+    ◉  e0dac715116f d
+    │ ◉  59597b34a0d8 c
+    │ ◉  12d6103dc0c8 b
     ├─╯
-    ◉  3db0a2f5b535 a
+    ◉  b7b767179c44 a
     ◉  000000000000
     "###);
 
@@ -89,17 +89,17 @@ fn test_move() {
     insta::assert_snapshot!(stderr, @r###"
     Warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
     Warning: `jj move` will be removed in a future version, and this will be a hard error
-    Working copy now at: kmkuslsw 1c03e3d3 f | (no description set)
-    Parent commit      : znkkpsqq e9515f21 e | (no description set)
+    Working copy now at: kmkuslsw a45950b1 f | (no description set)
+    Parent commit      : znkkpsqq c2f9de87 e | (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  1c03e3d3c63f f
-    ◉  e9515f21068c e
-    ◉  bdd835cae844 d
-    │ ◉  55171e33db26 b c
+    @  a45950b1b7ff f
+    ◉  c2f9de87325d e
+    ◉  e0dac715116f d
+    │ ◉  12d6103dc0c8 b c
     ├─╯
-    ◉  3db0a2f5b535 a
+    ◉  b7b767179c44 a
     ◉  000000000000
     "###);
     // The change from the source has been applied
@@ -120,18 +120,18 @@ fn test_move() {
     insta::assert_snapshot!(stderr, @r###"
     Warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
     Warning: `jj move` will be removed in a future version, and this will be a hard error
-    Working copy now at: kmkuslsw c8d83075 f | (no description set)
-    Parent commit      : znkkpsqq 2c50bfc5 e | (no description set)
+    Working copy now at: kmkuslsw 5e5727af f | (no description set)
+    Parent commit      : znkkpsqq ed9c4164 e | (no description set)
     "###);
     // The change has been removed from the source (the change pointed to by 'd'
     // became empty and was abandoned)
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  c8d83075e8c2 f
-    ◉  2c50bfc59c68 e
-    │ ◉  caa4d0b23201 c
-    │ ◉  55171e33db26 b
+    @  5e5727af3d75 f
+    ◉  ed9c41643a77 e
+    │ ◉  59597b34a0d8 c
+    │ ◉  12d6103dc0c8 b
     ├─╯
-    ◉  3db0a2f5b535 a d
+    ◉  b7b767179c44 a d
     ◉  000000000000
     "###);
     // The change from the source has been applied (the file contents were already
@@ -149,18 +149,18 @@ fn test_move() {
     Warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
     Warning: `jj move` will be removed in a future version, and this will be a hard error
     Rebased 1 descendant commits
-    Working copy now at: kmkuslsw 2b723b1d f | (no description set)
-    Parent commit      : vruxwmqv 4293930d d e | (no description set)
+    Working copy now at: kmkuslsw e21f6bb0 f | (no description set)
+    Parent commit      : vruxwmqv 3cf0fa77 d e | (no description set)
     "###);
     // The change has been removed from the source (the change pointed to by 'e'
     // became empty and was abandoned)
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  2b723b1d6033 f
-    ◉  4293930d6333 d e
-    │ ◉  caa4d0b23201 c
-    │ ◉  55171e33db26 b
+    @  e21f6bb01bae f
+    ◉  3cf0fa772663 d e
+    │ ◉  59597b34a0d8 c
+    │ ◉  12d6103dc0c8 b
     ├─╯
-    ◉  3db0a2f5b535 a
+    ◉  b7b767179c44 a
     ◉  000000000000
     "###);
     // The change from the source has been applied
@@ -199,11 +199,11 @@ fn test_move_partial() {
     std::fs::write(repo_path.join("file3"), "d\n").unwrap();
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  bdd835cae844 d
-    │ ◉  5028db694b6b c
-    │ ◉  55171e33db26 b
+    @  e0dac715116f d
+    │ ◉  087591be5a01 c
+    │ ◉  12d6103dc0c8 b
     ├─╯
-    ◉  3db0a2f5b535 a
+    ◉  b7b767179c44 a
     ◉  000000000000
     "###);
 
@@ -215,15 +215,15 @@ fn test_move_partial() {
     insta::assert_snapshot!(stderr, @r###"
     Warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
     Warning: `jj move` will be removed in a future version, and this will be a hard error
-    Working copy now at: vruxwmqv 71b69e43 d | (no description set)
-    Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
+    Working copy now at: vruxwmqv 987bcfb2 d | (no description set)
+    Parent commit      : qpvuntsm b7b76717 a | (no description set)
     Added 0 files, modified 2 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  71b69e433fbc d
-    │ ◉  55171e33db26 b c
+    @  987bcfb2eb62 d
+    │ ◉  12d6103dc0c8 b c
     ├─╯
-    ◉  3db0a2f5b535 a
+    ◉  b7b767179c44 a
     ◉  000000000000
     "###);
     // The changes from the source has been applied
@@ -249,16 +249,16 @@ fn test_move_partial() {
     insta::assert_snapshot!(stderr, @r###"
     Warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
     Warning: `jj move` will be removed in a future version, and this will be a hard error
-    Working copy now at: vruxwmqv 63f1a6e9 d | (no description set)
-    Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
+    Working copy now at: vruxwmqv 576244e8 d | (no description set)
+    Parent commit      : qpvuntsm b7b76717 a | (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  63f1a6e96edb d
-    │ ◉  d027c6e3e6bc c
-    │ ◉  55171e33db26 b
+    @  576244e87883 d
+    │ ◉  6f486f2f4539 c
+    │ ◉  12d6103dc0c8 b
     ├─╯
-    ◉  3db0a2f5b535 a
+    ◉  b7b767179c44 a
     ◉  000000000000
     "###);
     // The selected change from the source has been applied
@@ -286,16 +286,16 @@ fn test_move_partial() {
     insta::assert_snapshot!(stderr, @r###"
     Warning: `jj move` is deprecated; use `jj squash` instead, which is equivalent
     Warning: `jj move` will be removed in a future version, and this will be a hard error
-    Working copy now at: vruxwmqv 17c2e663 d | (no description set)
-    Parent commit      : qpvuntsm 3db0a2f5 a | (no description set)
+    Working copy now at: vruxwmqv 5b407c24 d | (no description set)
+    Parent commit      : qpvuntsm b7b76717 a | (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  17c2e6632cc5 d
-    │ ◉  6a3ae047a03e c
-    │ ◉  55171e33db26 b
+    @  5b407c249fa7 d
+    │ ◉  724d64da1487 c
+    │ ◉  12d6103dc0c8 b
     ├─╯
-    ◉  3db0a2f5b535 a
+    ◉  b7b767179c44 a
     ◉  000000000000
     "###);
     // The selected change from the source has been applied
@@ -327,11 +327,11 @@ fn test_move_partial() {
     Rebased 1 descendant commits
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  21253406d416 c
-    ◉  e1cf08aae711 b
-    │ @  bdd835cae844 d
+    ◉  d2a587ae205d c
+    ◉  a53394306362 b
+    │ @  e0dac715116f d
     ├─╯
-    ◉  3db0a2f5b535 a
+    ◉  b7b767179c44 a
     ◉  000000000000
     "###);
     // The selected change from the source has been applied

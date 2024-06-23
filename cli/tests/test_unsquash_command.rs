@@ -32,9 +32,9 @@ fn test_unsquash() {
     std::fs::write(repo_path.join("file1"), "c\n").unwrap();
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  90fe0a96fc90 c
-    ◉  fa5efbdf533c b
-    ◉  90aeefd03044 a
+    @  382c9bad7d42 c
+    ◉  d5d59175b481 b
+    ◉  184ddbcce5a9 a
     ◉  000000000000
     "###);
 
@@ -42,12 +42,12 @@ fn test_unsquash() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: mzvwutvl 1b10d78f c | (no description set)
-    Parent commit      : qpvuntsm 90aeefd0 a b | (no description set)
+    Working copy now at: mzvwutvl 9177132c c | (no description set)
+    Parent commit      : qpvuntsm 184ddbcc a b | (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  1b10d78f6136 c
-    ◉  90aeefd03044 a b
+    @  9177132cfbb9 c
+    ◉  184ddbcce5a9 a b
     ◉  000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1"]);
@@ -61,12 +61,12 @@ fn test_unsquash() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 1 descendant commits
-    Working copy now at: mzvwutvl 45b8b3dd c | (no description set)
-    Parent commit      : kkmpptxz 9146bcc8 b | (no description set)
+    Working copy now at: mzvwutvl b353b29c c | (no description set)
+    Parent commit      : kkmpptxz 27772b15 b | (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  45b8b3ddc25a c
-    ◉  9146bcc8d996 b
+    @  b353b29c423d c
+    ◉  27772b156771 b
     ◉  000000000000 a
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1", "-r", "b"]);
@@ -88,13 +88,13 @@ fn test_unsquash() {
     test_env.jj_cmd_ok(&repo_path, &["new", "-m", "merge", "c", "d"]);
     test_env.jj_cmd_ok(&repo_path, &["branch", "create", "e"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @    1f8f152ff48e e
+    @    b780e7469252 e
     ├─╮
-    │ ◉  5658521e0f8b d
-    ◉ │  90fe0a96fc90 c
+    │ ◉  f86e2b3af3e3 d
+    ◉ │  382c9bad7d42 c
     ├─╯
-    ◉  fa5efbdf533c b
-    ◉  90aeefd03044 a
+    ◉  d5d59175b481 b
+    ◉  184ddbcce5a9 a
     ◉  000000000000
     "###);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["unsquash"]);
@@ -108,18 +108,18 @@ fn test_unsquash() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: pzsxstzt 3217340c merge
-    Parent commit      : mzvwutvl 90fe0a96 c e?? | (no description set)
-    Parent commit      : xznxytkn 5658521e d e?? | (no description set)
+    Working copy now at: pzsxstzt bd05eb69 merge
+    Parent commit      : mzvwutvl 382c9bad c e?? | (no description set)
+    Parent commit      : xznxytkn f86e2b3a d e?? | (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @    3217340cb761
+    @    bd05eb698d1e
     ├─╮
-    │ ◉  5658521e0f8b d e??
-    ◉ │  90fe0a96fc90 c e??
+    │ ◉  f86e2b3af3e3 d e??
+    ◉ │  382c9bad7d42 c e??
     ├─╯
-    ◉  fa5efbdf533c b
-    ◉  90aeefd03044 a
+    ◉  d5d59175b481 b
+    ◉  184ddbcce5a9 a
     ◉  000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1"]);
@@ -147,9 +147,9 @@ fn test_unsquash_partial() {
     std::fs::write(repo_path.join("file2"), "c\n").unwrap();
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  d989314f3df0 c
-    ◉  2a2d19a3283f b
-    ◉  47a1e795d146 a
+    @  a0b1a272ebc4 c
+    ◉  d117da276a0f b
+    ◉  54d3c1c0e9fd a
     ◉  000000000000
     "###);
 
@@ -160,13 +160,13 @@ fn test_unsquash_partial() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 1 descendant commits
-    Working copy now at: mzvwutvl 37c961d0 c | (no description set)
-    Parent commit      : kkmpptxz 000af220 b | (no description set)
+    Working copy now at: mzvwutvl 8802263d c | (no description set)
+    Parent commit      : kkmpptxz 5bd83140 b | (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  37c961d0d1e2 c
-    ◉  000af22057b9 b
-    ◉  ee67504598b6 a
+    @  8802263dbd92 c
+    ◉  5bd83140fd47 b
+    ◉  c93de9257191 a
     ◉  000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1", "-r", "a"]);
@@ -180,13 +180,13 @@ fn test_unsquash_partial() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash", "-i"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: mzvwutvl a8e8fded c | (no description set)
-    Parent commit      : kkmpptxz 46cc0667 b | (no description set)
+    Working copy now at: mzvwutvl a896ffde c | (no description set)
+    Parent commit      : kkmpptxz 904111b4 b | (no description set)
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  a8e8fded1021 c
-    ◉  46cc06672a99 b
-    ◉  47a1e795d146 a
+    @  a896ffdebb85 c
+    ◉  904111b4d3c4 b
+    ◉  54d3c1c0e9fd a
     ◉  000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1", "-r", "b"]);
@@ -218,8 +218,8 @@ fn test_unsquash_partial() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: mzvwutvl 1c82d27c c | (no description set)
-    Parent commit      : kkmpptxz b9d23fd8 b | (no description set)
+    Working copy now at: mzvwutvl aaca9268 c | (no description set)
+    Parent commit      : kkmpptxz fe8eb117 b | (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1", "-r", "b"]);
     insta::assert_snapshot!(stdout, @r###"

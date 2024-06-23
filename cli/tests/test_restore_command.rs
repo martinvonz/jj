@@ -42,9 +42,9 @@ fn test_restore() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Created kkmpptxz ed1678e3 (empty) (no description set)
-    Working copy now at: kkmpptxz ed1678e3 (empty) (no description set)
-    Parent commit      : rlvkpnrz 1a986a27 (no description set)
+    Created kkmpptxz 370d81ea (empty) (no description set)
+    Working copy now at: kkmpptxz 370d81ea (empty) (no description set)
+    Parent commit      : rlvkpnrz ef160660 (no description set)
     Added 1 files, modified 1 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -59,17 +59,17 @@ fn test_restore() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore", "-c=@-"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Created rlvkpnrz e25100af (empty) (no description set)
+    Created rlvkpnrz b9b6011e (empty) (no description set)
     Rebased 1 descendant commits
     New conflicts appeared in these commits:
-      kkmpptxz 4906178a (conflict) (no description set)
+      kkmpptxz d05c4d2a (conflict) (no description set)
     To resolve the conflicts, start by updating to it:
       jj new kkmpptxzrspx
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    Working copy now at: kkmpptxz 4906178a (conflict) (no description set)
-    Parent commit      : rlvkpnrz e25100af (empty) (no description set)
+    Working copy now at: kkmpptxz d05c4d2a (conflict) (no description set)
+    Parent commit      : rlvkpnrz b9b6011e (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
     file2    2-sided conflict including 1 deletion
@@ -82,9 +82,9 @@ fn test_restore() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore", "--from", "@--"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Created kkmpptxz 1dd6eb63 (no description set)
-    Working copy now at: kkmpptxz 1dd6eb63 (no description set)
-    Parent commit      : rlvkpnrz 1a986a27 (no description set)
+    Created kkmpptxz 1154634b (no description set)
+    Working copy now at: kkmpptxz 1154634b (no description set)
+    Parent commit      : rlvkpnrz ef160660 (no description set)
     Added 1 files, modified 0 files, removed 2 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -97,10 +97,10 @@ fn test_restore() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore", "--to", "@-"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Created rlvkpnrz ec9d5b59 (no description set)
+    Created rlvkpnrz ad805965 (no description set)
     Rebased 1 descendant commits
-    Working copy now at: kkmpptxz d6f3c681 (empty) (no description set)
-    Parent commit      : rlvkpnrz ec9d5b59 (no description set)
+    Working copy now at: kkmpptxz 3fcdcbf2 (empty) (no description set)
+    Parent commit      : rlvkpnrz ad805965 (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
@@ -117,10 +117,10 @@ fn test_restore() {
         test_env.jj_cmd_ok(&repo_path, &["restore", "--from", "@", "--to", "@-"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Created rlvkpnrz 5f6eb3d5 (no description set)
+    Created rlvkpnrz f256040a (no description set)
     Rebased 1 descendant commits
-    Working copy now at: kkmpptxz 525afd5d (empty) (no description set)
-    Parent commit      : rlvkpnrz 5f6eb3d5 (no description set)
+    Working copy now at: kkmpptxz 9c6f2083 (empty) (no description set)
+    Parent commit      : rlvkpnrz f256040a (no description set)
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @"");
@@ -136,9 +136,9 @@ fn test_restore() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["restore", "file2", "file3"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Created kkmpptxz 569ce73d (no description set)
-    Working copy now at: kkmpptxz 569ce73d (no description set)
-    Parent commit      : rlvkpnrz 1a986a27 (no description set)
+    Created kkmpptxz 4ad35a2f (no description set)
+    Working copy now at: kkmpptxz 4ad35a2f (no description set)
+    Parent commit      : rlvkpnrz ef160660 (no description set)
     Added 0 files, modified 1 files, removed 1 files
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);

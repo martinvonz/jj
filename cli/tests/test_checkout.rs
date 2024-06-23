@@ -31,23 +31,23 @@ fn test_checkout() {
     insta::assert_snapshot!(stderr, @r###"
     Warning: `jj checkout` is deprecated; use `jj new` instead, which is equivalent
     Warning: `jj checkout` will be removed in a future version, and this will be a hard error
-    Working copy now at: zsuskuln 05ce7118 (empty) (no description set)
-    Parent commit      : rlvkpnrz 5c52832c (empty) second
+    Working copy now at: zsuskuln c97da310 (empty) (no description set)
+    Parent commit      : rlvkpnrz 9ed53a4a (empty) second
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  05ce7118568d3007efc9163b055f9cb4a6becfde
-    ◉  5c52832c3483e0ace06d047a806024984f28f1d7 second
-    ◉  69542c1984c1f9d91f7c6c9c9e6941782c944bd9 first
+    @  c97da310c66008034013412d321397242e1e43ef
+    ◉  9ed53a4a1becd028f9a2fe0d5275973acea7e8da second
+    ◉  fa15625b4a986997697639dfc2844138900c79f2 first
     ◉  0000000000000000000000000000000000000000
     "###);
 
     // Can provide a description
     test_env.jj_cmd_ok(&repo_path, &["checkout", "@--", "-m", "my message"]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @  1191baaf276e3d0b96b1747e885b3a517be80d6f my message
-    │ ◉  5c52832c3483e0ace06d047a806024984f28f1d7 second
+    @  6f9c4a002224fde4ebc48ce6ec03d5ffcfa64ad2 my message
+    │ ◉  9ed53a4a1becd028f9a2fe0d5275973acea7e8da second
     ├─╯
-    ◉  69542c1984c1f9d91f7c6c9c9e6941782c944bd9 first
+    ◉  fa15625b4a986997697639dfc2844138900c79f2 first
     ◉  0000000000000000000000000000000000000000
     "###);
 }
@@ -70,11 +70,11 @@ fn test_checkout_not_single_rev() {
     Warning: `jj checkout` will be removed in a future version, and this will be a hard error
     Error: Revset "root()..@" resolved to more than one revision
     Hint: The revset "root()..@" resolved to these revisions:
-      royxmykx 2f859371 (empty) (no description set)
-      mzvwutvl 5c1afd8b (empty) fifth
-      zsuskuln 009f88bf (empty) fourth
-      kkmpptxz 3fa8931e (empty) third
-      rlvkpnrz 5c52832c (empty) second
+      royxmykx 554d2245 (empty) (no description set)
+      mzvwutvl a497e2bf (empty) fifth
+      zsuskuln 9d7e5e99 (empty) fourth
+      kkmpptxz 30056b0c (empty) third
+      rlvkpnrz 9ed53a4a (empty) second
       ...
     "###);
 
@@ -84,11 +84,11 @@ fn test_checkout_not_single_rev() {
     Warning: `jj checkout` will be removed in a future version, and this will be a hard error
     Error: Revset "root()..@-" resolved to more than one revision
     Hint: The revset "root()..@-" resolved to these revisions:
-      mzvwutvl 5c1afd8b (empty) fifth
-      zsuskuln 009f88bf (empty) fourth
-      kkmpptxz 3fa8931e (empty) third
-      rlvkpnrz 5c52832c (empty) second
-      qpvuntsm 69542c19 (empty) first
+      mzvwutvl a497e2bf (empty) fifth
+      zsuskuln 9d7e5e99 (empty) fourth
+      kkmpptxz 30056b0c (empty) third
+      rlvkpnrz 9ed53a4a (empty) second
+      qpvuntsm fa15625b (empty) first
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "@-|@--"]);
@@ -97,8 +97,8 @@ fn test_checkout_not_single_rev() {
     Warning: `jj checkout` will be removed in a future version, and this will be a hard error
     Error: Revset "@-|@--" resolved to more than one revision
     Hint: The revset "@-|@--" resolved to these revisions:
-      mzvwutvl 5c1afd8b (empty) fifth
-      zsuskuln 009f88bf (empty) fourth
+      mzvwutvl a497e2bf (empty) fifth
+      zsuskuln 9d7e5e99 (empty) fourth
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["checkout", "none()"]);

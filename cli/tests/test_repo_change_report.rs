@@ -33,15 +33,15 @@ fn test_report_conflicts() {
     insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
     New conflicts appeared in these commits:
-      kkmpptxz 7afb7d5a (conflict) C
-      rlvkpnrz 1b74c6ee (conflict) B
+      kkmpptxz 64bdec0c (conflict) C
+      rlvkpnrz 10a5fd45 (conflict) B
     To resolve the conflicts, start by updating to the first one:
       jj new rlvkpnrzqnoo
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    Working copy now at: zsuskuln 6ab4d738 (conflict) (empty) (no description set)
-    Parent commit      : kkmpptxz 7afb7d5a (conflict) C
+    Working copy now at: zsuskuln aa73e2ae (conflict) (empty) (no description set)
+    Parent commit      : kkmpptxz 64bdec0c (conflict) C
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
     file    2-sided conflict including 1 deletion
@@ -52,10 +52,10 @@ fn test_report_conflicts() {
     insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
     Existing conflicts were resolved or abandoned from these commits:
-      kkmpptxz hidden 7afb7d5a (conflict) C
-      rlvkpnrz hidden 1b74c6ee (conflict) B
-    Working copy now at: zsuskuln 355a2e34 (empty) (no description set)
-    Parent commit      : kkmpptxz ed071401 C
+      kkmpptxz hidden 64bdec0c (conflict) C
+      rlvkpnrz hidden 10a5fd45 (conflict) B
+    Working copy now at: zsuskuln d70c003d (empty) (no description set)
+    Parent commit      : kkmpptxz 43e94449 C
     Added 0 files, modified 1 files, removed 0 files
     "###);
 
@@ -67,16 +67,16 @@ fn test_report_conflicts() {
     Rebased 1 commits onto destination
     Rebased 2 descendant commits
     New conflicts appeared in these commits:
-      kkmpptxz d1edf578 (conflict) C
-      rlvkpnrz 262c4c38 (conflict) B
+      kkmpptxz 17c72220 (conflict) C
+      rlvkpnrz eb93a73d (conflict) B
     To resolve the conflicts, start by updating to one of the first ones:
       jj new kkmpptxzrspx
       jj new rlvkpnrzqnoo
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
-    Working copy now at: zsuskuln b56d36a0 (conflict) (empty) (no description set)
-    Parent commit      : kkmpptxz d1edf578 (conflict) C
+    Working copy now at: zsuskuln 99fb9018 (conflict) (empty) (no description set)
+    Parent commit      : kkmpptxz 17c72220 (conflict) C
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
     file    2-sided conflict
@@ -86,8 +86,8 @@ fn test_report_conflicts() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["new", "rlvkpnrzqnoo"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: vruxwmqv d1eb7305 (conflict) (empty) (no description set)
-    Parent commit      : rlvkpnrz 262c4c38 (conflict) B
+    Working copy now at: vruxwmqv 1d87c702 (conflict) (empty) (no description set)
+    Parent commit      : rlvkpnrz eb93a73d (conflict) B
     Added 0 files, modified 1 files, removed 0 files
     There are unresolved conflicts at these paths:
     file    2-sided conflict including 1 deletion
@@ -97,9 +97,9 @@ fn test_report_conflicts() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Existing conflicts were resolved or abandoned from these commits:
-      rlvkpnrz hidden 262c4c38 (conflict) B
-    Working copy now at: yostqsxw 8e160bc4 (empty) (no description set)
-    Parent commit      : rlvkpnrz c5319490 B
+      rlvkpnrz hidden eb93a73d (conflict) B
+    Working copy now at: yostqsxw f5a0cf8c (empty) (no description set)
+    Parent commit      : rlvkpnrz 87370844 B
     "###);
 }
 
@@ -148,8 +148,8 @@ fn test_report_conflicts_with_divergent_commits() {
       zsuskuln hidden b535189c (conflict) C3
       zsuskuln hidden 97ce1783 (conflict) C2
       kkmpptxz hidden eb93a73d (conflict) B
-    Working copy now at: zsuskuln?? 9c33e9a9 C2
-    Parent commit      : kkmpptxz 9ce42c2a B
+    Working copy now at: zsuskuln?? f2d7a228 C2
+    Parent commit      : kkmpptxz db069a22 B
     Added 0 files, modified 1 files, removed 0 files
     "###);
 
@@ -196,8 +196,8 @@ fn test_report_conflicts_with_divergent_commits() {
     Rebased 1 commits
     Existing conflicts were resolved or abandoned from these commits:
       zsuskuln hidden b15416ac (conflict) C2
-    Working copy now at: zsuskuln?? 24f79296 C2
-    Parent commit      : kkmpptxz 9ce42c2a B
+    Working copy now at: zsuskuln?? 1f9680bd C2
+    Parent commit      : kkmpptxz db069a22 B
     Added 0 files, modified 1 files, removed 0 files
     "###);
 

@@ -27,7 +27,7 @@ fn test_describe() {
         test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description from CLI"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: qpvuntsm cf3e8673 (empty) description from CLI
+    Working copy now at: qpvuntsm 95979928 (empty) description from CLI
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
 
@@ -59,7 +59,7 @@ fn test_describe() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: qpvuntsm 100943ae (empty) description from editor
+    Working copy now at: qpvuntsm 94fcb906 (empty) description from editor
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
 
@@ -72,7 +72,7 @@ fn test_describe() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: qpvuntsm ccefa58b (empty) description among comment
+    Working copy now at: qpvuntsm 7a348923 (empty) description among comment
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
 
@@ -81,7 +81,7 @@ fn test_describe() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: qpvuntsm e932ba42 (empty) line1
+    Working copy now at: qpvuntsm 749361b5 (empty) line1
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
     let stdout =
@@ -106,7 +106,7 @@ fn test_describe() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: qpvuntsm 13f903c1 (empty) line1
+    Working copy now at: qpvuntsm dc44dbee (empty) line1
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
     let stdout =
@@ -120,7 +120,7 @@ fn test_describe() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe", "-m", ""]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: qpvuntsm 3196270d (empty) (no description set)
+    Working copy now at: qpvuntsm 6296963b (empty) (no description set)
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
     std::fs::write(&edit_script, "write\n").unwrap();
@@ -190,7 +190,7 @@ fn test_multiple_message_args() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: qpvuntsm bdee9366 (empty) First Paragraph from CLI
+    Working copy now at: qpvuntsm 99a36a50 (empty) First Paragraph from CLI
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
 
@@ -233,7 +233,7 @@ fn test_multiple_message_args() {
     );
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: qpvuntsm a7506fe0 (empty) First Paragraph from CLI
+    Working copy now at: qpvuntsm 01ac40b3 (empty) First Paragraph from CLI
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
 
@@ -261,7 +261,7 @@ fn test_describe_default_description() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["describe"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Working copy now at: qpvuntsm 7e780ba8 TESTED=TODO
+    Working copy now at: qpvuntsm 573b6df5 TESTED=TODO
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
     assert_eq!(

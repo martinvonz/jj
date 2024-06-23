@@ -36,7 +36,7 @@ fn test_op_log() {
         ],
     );
     insta::assert_snapshot!(&stdout, @r###"
-    @  52ac15d375ba test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    @  c1851f1c3d90 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj describe -m 'description 0'
     ◉  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
@@ -59,7 +59,7 @@ fn test_op_log() {
     "###);
     // "@" resolves to the head operation
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path, "@"), @r###"
-    @  bc8f18aa6f396a93572811632313cbb5625d475d
+    @  19611c995a342c01f525583e5fcafdd211f6d009
     ◉  0000000000000000000000000000000000000000
     "###);
     // "@-" resolves to the parent of the head operation
@@ -113,7 +113,7 @@ fn test_op_log_with_custom_symbols() {
         ],
     );
     insta::assert_snapshot!(&stdout, @r###"
-    $  52ac15d375ba test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    $  c1851f1c3d90 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj describe -m 'description 0'
     ┝  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
@@ -200,7 +200,7 @@ fn test_op_log_no_graph_null_terminated() {
             r#"id.short(4) ++ "\0""#,
         ],
     );
-    insta::assert_debug_snapshot!(stdout, @r###""22d4\023da\0b514\09a7d\00000\0""###);
+    insta::assert_debug_snapshot!(stdout, @r###""8a30\05cec\0b514\09a7d\00000\0""###);
 }
 
 #[test]
@@ -263,7 +263,7 @@ fn test_op_log_builtin_templates() {
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "description 0"]);
 
     insta::assert_snapshot!(render(r#"builtin_op_log_compact"#), @r###"
-    52ac15d375ba test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    c1851f1c3d90 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     args: jj describe -m 'description 0'
     b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
@@ -275,7 +275,7 @@ fn test_op_log_builtin_templates() {
     "###);
 
     insta::assert_snapshot!(render(r#"builtin_op_log_comfortable"#), @r###"
-    52ac15d375ba test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    c1851f1c3d90 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     args: jj describe -m 'description 0'
 
@@ -362,10 +362,10 @@ fn test_op_abandon_ancestors() {
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 1"]);
     test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 2"]);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
-    @  de138472a722 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
-    │  commit a8ac27b29a157ae7dabc0deb524df68823505730
+    @  c2878c428b1c test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    │  commit 81a4ef3dd421f3184289df1c58bd3a16ea1e3d8e
     │  args: jj commit -m 'commit 2'
-    ◉  652e5aecc9f7 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    ◉  5d0ab09ab0fa test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj commit -m 'commit 1'
     ◉  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
@@ -382,12 +382,12 @@ fn test_op_abandon_ancestors() {
     "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["debug", "local-working-copy", "--ignore-working-copy"]), @r###"
-    Current operation: OperationId("10e856d0579c4aca88972ffea0a515f47f8c09dceaa2b1a5d531c83b04350f7aa64a3eff422def01eebd65df26089ef5e0f925f247a8f929c8cc858d16306e53")
+    Current operation: OperationId("8545e013752445fd845c84eb961dbfbce47e1deb628e4ef20df10f6dc9aae2ef9e47200b0fcc70ca51f050aede05d0fa6dd1db40e20ae740876775738a07d02e")
     Current tree: Merge(Resolved(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904")))
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
-    @  10e856d0579c test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
-    │  commit a8ac27b29a157ae7dabc0deb524df68823505730
+    @  8545e0137524 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    │  commit 81a4ef3dd421f3184289df1c58bd3a16ea1e3d8e
     │  args: jj commit -m 'commit 2'
     ◉  000000000000 root()
     "###);
@@ -401,11 +401,11 @@ fn test_op_abandon_ancestors() {
     Abandoned 2 operations and reparented 1 descendant operations.
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
-    @  70112b4447b6 test-username@host.example.com 2001-02-03 04:05:16.000 +07:00 - 2001-02-03 04:05:16.000 +07:00
-    │  commit e184d62c9ab118b0f62de91959b857550a9273a5
+    @  d92d0753399f test-username@host.example.com 2001-02-03 04:05:16.000 +07:00 - 2001-02-03 04:05:16.000 +07:00
+    │  commit c5f7dd51add0046405055336ef443f882a0a8968
     │  args: jj commit -m 'commit 5'
-    ◉  10e856d0579c test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
-    │  commit a8ac27b29a157ae7dabc0deb524df68823505730
+    ◉  8545e0137524 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    │  commit 81a4ef3dd421f3184289df1c58bd3a16ea1e3d8e
     │  args: jj commit -m 'commit 2'
     ◉  000000000000 root()
     "###);
@@ -431,15 +431,15 @@ fn test_op_abandon_ancestors() {
     "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["debug", "local-working-copy", "--ignore-working-copy"]), @r###"
-    Current operation: OperationId("445e93662d714f53fb97e450eb3793a8e1a9a4cca1e329d5a9096e65085fb96d5bb51659531145c8abf0db5da803cd11c4cecdcf9025391bc97fc6a42204a0fe")
+    Current operation: OperationId("0699d720d0cecd80fb7d765c45955708c61b12feb1d7ed9ff2777ae719471f04ffed3c1dc24efdbf94bdb74426065d6fa9a4f0862a89db2c8c8e359eefc45462")
     Current tree: Merge(Resolved(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904")))
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log"]), @r###"
-    @  445e93662d71 test-username@host.example.com 2001-02-03 04:05:21.000 +07:00 - 2001-02-03 04:05:21.000 +07:00
-    │  undo operation 70112b4447b65fa811038b2b119fe22e959e3b3194b461a32475f6528c2b684ac6baebc86cce7ad7e0bb92c033852850e561506508ca43e823626f107e81ed76
+    @  0699d720d0ce test-username@host.example.com 2001-02-03 04:05:21.000 +07:00 - 2001-02-03 04:05:21.000 +07:00
+    │  undo operation d92d0753399f732e438bdd88fa7e5214cba2a310d120ec1714028a514c7116bcf04b4a0b26c04dbecf0a917f1d4c8eb05571b8816dd98b0502aaf321e92500b3
     │  args: jj undo
-    ◉  10e856d0579c test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
-    │  commit a8ac27b29a157ae7dabc0deb524df68823505730
+    ◉  8545e0137524 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    │  commit 81a4ef3dd421f3184289df1c58bd3a16ea1e3d8e
     │  args: jj commit -m 'commit 2'
     ◉  000000000000 root()
     "###);
@@ -450,8 +450,8 @@ fn test_op_abandon_ancestors() {
     Nothing changed.
     "###);
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["op", "log", "-n1"]), @r###"
-    @  445e93662d71 test-username@host.example.com 2001-02-03 04:05:21.000 +07:00 - 2001-02-03 04:05:21.000 +07:00
-    │  undo operation 70112b4447b65fa811038b2b119fe22e959e3b3194b461a32475f6528c2b684ac6baebc86cce7ad7e0bb92c033852850e561506508ca43e823626f107e81ed76
+    @  0699d720d0ce test-username@host.example.com 2001-02-03 04:05:21.000 +07:00 - 2001-02-03 04:05:21.000 +07:00
+    │  undo operation d92d0753399f732e438bdd88fa7e5214cba2a310d120ec1714028a514c7116bcf04b4a0b26c04dbecf0a917f1d4c8eb05571b8816dd98b0502aaf321e92500b3
     │  args: jj undo
     "###);
 }
@@ -476,13 +476,13 @@ fn test_op_abandon_without_updating_working_copy() {
     "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["debug", "local-working-copy", "--ignore-working-copy"]), @r###"
-    Current operation: OperationId("61aeade2493b190412c61b9b0711025c2cccf95966870a5f7dc2e34ab313fbef64da70d00cab2cd69ad39816faeb80a6bc866927549b84dce6cb5a437e0e515b")
+    Current operation: OperationId("cd2b4690faf20cdc477e90c224f15a1f4d62b4d16d0d515fc0f9c998ff91a971cb114d82075c9a7331f3f94d7188c1f93628b7b93e4ca77ac89435a7b536de1e")
     Current tree: Merge(Resolved(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904")))
     "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["op", "log", "-n1", "--ignore-working-copy"]), @r###"
-    @  ae6364994418 test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
-    │  commit 268f5f16139313ff25bef31280b2ec2e675200f3
+    @  467d42715f00 test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
+    │  commit 220cb0b1b5d1c03cc0d351139d824598bb3c1967
     │  args: jj commit -m 'commit 3'
     "###);
 
@@ -492,17 +492,17 @@ fn test_op_abandon_without_updating_working_copy() {
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "abandon", "@-"]);
     insta::assert_snapshot!(stderr, @r###"
     Abandoned 1 operations and reparented 1 descendant operations.
-    Warning: The working copy operation 61aeade2493b is not updated because it differs from the repo ae6364994418.
+    Warning: The working copy operation cd2b4690faf2 is not updated because it differs from the repo 467d42715f00.
     "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["debug", "local-working-copy", "--ignore-working-copy"]), @r###"
-    Current operation: OperationId("61aeade2493b190412c61b9b0711025c2cccf95966870a5f7dc2e34ab313fbef64da70d00cab2cd69ad39816faeb80a6bc866927549b84dce6cb5a437e0e515b")
+    Current operation: OperationId("cd2b4690faf20cdc477e90c224f15a1f4d62b4d16d0d515fc0f9c998ff91a971cb114d82075c9a7331f3f94d7188c1f93628b7b93e4ca77ac89435a7b536de1e")
     Current tree: Merge(Resolved(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904")))
     "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["op", "log", "-n1", "--ignore-working-copy"]), @r###"
-    @  51192a90e899 test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
-    │  commit 268f5f16139313ff25bef31280b2ec2e675200f3
+    @  050b33d674ff test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
+    │  commit 220cb0b1b5d1c03cc0d351139d824598bb3c1967
     │  args: jj commit -m 'commit 3'
     "###);
 }

@@ -33,9 +33,9 @@ fn test_obslog_with_or_without_diff() {
     │  my description
     ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 cf73917d conflict
     │  my description
-    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 6fbba7bc
+    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 068224a7
     │  my description
-    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 eac0d0da
+    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 2b023b5f
        (empty) my description
     "###);
 
@@ -46,9 +46,9 @@ fn test_obslog_with_or_without_diff() {
     │  [1mmy description[0m
     ◉  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:09[39m [1m[38;5;4mc[0m[38;5;8mf73917d[39m [38;5;1mconflict[39m
     │  my description
-    ◉  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:09[39m [1m[38;5;4m6f[0m[38;5;8mbba7bc[39m
+    ◉  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:09[39m [1m[38;5;4m06[0m[38;5;8m8224a7[39m
     │  my description
-    ◉  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:08[39m [1m[38;5;4me[0m[38;5;8mac0d0da[39m
+    ◉  [1m[39mr[0m[38;5;8mlvkpnrz[39m hidden [38;5;3mtest.user@example.com[39m [38;5;6m2001-02-03 08:05:08[39m [1m[38;5;4m2b[0m[38;5;8m023b5f[39m
        [38;5;2m(empty)[39m my description
     "###);
 
@@ -68,14 +68,14 @@ fn test_obslog_with_or_without_diff() {
     │     7     : >>>>>>> Conflict 1 of 1 ends
     ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 cf73917d conflict
     │  my description
-    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 6fbba7bc
+    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 068224a7
     │  my description
     │  Modified regular file file1:
     │     1    1: foo
     │          2: bar
     │  Added regular file file2:
     │          1: foo
-    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 eac0d0da
+    ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 2b023b5f
        (empty) my description
     "###);
 
@@ -95,9 +95,9 @@ fn test_obslog_with_or_without_diff() {
     my description
     rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 cf73917d conflict
     my description
-    rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 6fbba7bc
+    rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 068224a7
     my description
-    rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 eac0d0da
+    rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 2b023b5f
     (empty) my description
     "###);
 
@@ -121,7 +121,7 @@ fn test_obslog_with_or_without_diff() {
     +resolved
     rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 cf73917d conflict
     my description
-    rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 6fbba7bc
+    rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 068224a7
     my description
     diff --git a/file1 b/file1
     index 257cc5642c...3bd1f0e297 100644
@@ -137,7 +137,7 @@ fn test_obslog_with_or_without_diff() {
     +++ b/file2
     @@ -1,0 +1,1 @@
     +foo
-    rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 eac0d0da
+    rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 2b023b5f
     (empty) my description
     "###);
 }
@@ -164,9 +164,9 @@ fn test_obslog_with_custom_symbols() {
     │  my description
     ┝  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 cf73917d conflict
     │  my description
-    ┝  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 6fbba7bc
+    ┝  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 068224a7
     │  my description
-    ┝  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 eac0d0da
+    ┝  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:08 2b023b5f
        (empty) my description
     "###);
 }
@@ -194,28 +194,28 @@ fn test_obslog_word_wrap() {
 
     // ui.log-word-wrap option applies to both graph/no-graph outputs
     insta::assert_snapshot!(render(&["obslog"], 40, false), @r###"
-    @  qpvuntsm test.user@example.com 2001-02-03 08:05:08 69542c19
+    @  qpvuntsm test.user@example.com 2001-02-03 08:05:08 fa15625b
     │  (empty) first
     ◉  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:07 230dd059
        (empty) (no description set)
     "###);
     insta::assert_snapshot!(render(&["obslog"], 40, true), @r###"
     @  qpvuntsm test.user@example.com
-    │  2001-02-03 08:05:08 69542c19
+    │  2001-02-03 08:05:08 fa15625b
     │  (empty) first
     ◉  qpvuntsm hidden test.user@example.com
        2001-02-03 08:05:07 230dd059
        (empty) (no description set)
     "###);
     insta::assert_snapshot!(render(&["obslog", "--no-graph"], 40, false), @r###"
-    qpvuntsm test.user@example.com 2001-02-03 08:05:08 69542c19
+    qpvuntsm test.user@example.com 2001-02-03 08:05:08 fa15625b
     (empty) first
     qpvuntsm hidden test.user@example.com 2001-02-03 08:05:07 230dd059
     (empty) (no description set)
     "###);
     insta::assert_snapshot!(render(&["obslog", "--no-graph"], 40, true), @r###"
     qpvuntsm test.user@example.com
-    2001-02-03 08:05:08 69542c19
+    2001-02-03 08:05:08 fa15625b
     (empty) first
     qpvuntsm hidden test.user@example.com
     2001-02-03 08:05:07 230dd059
@@ -240,25 +240,25 @@ fn test_obslog_squash() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "-p", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉    qpvuntsm test.user@example.com 2001-02-03 08:05:10 27e721a5
+    ◉    qpvuntsm test.user@example.com 2001-02-03 08:05:10 68647e34
     ├─╮  squashed
     │ │  Modified regular file file1:
     │ │     1    1: foo
     │ │          2: bar
-    ◉ │  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:09 9764e503
+    ◉ │  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:09 766420db
     │ │  first
     │ │  Added regular file file1:
     │ │          1: foo
-    ◉ │  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:08 69542c19
+    ◉ │  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:08 fa15625b
     │ │  (empty) first
     ◉ │  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:07 230dd059
       │  (empty) (no description set)
-      ◉  kkmpptxz hidden test.user@example.com 2001-02-03 08:05:10 f09a3889
+      ◉  kkmpptxz hidden test.user@example.com 2001-02-03 08:05:10 46acd22a
       │  second
       │  Modified regular file file1:
       │     1    1: foo
       │          2: bar
-      ◉  kkmpptxz hidden test.user@example.com 2001-02-03 08:05:09 57996536
+      ◉  kkmpptxz hidden test.user@example.com 2001-02-03 08:05:09 cba41deb
          (empty) second
     "###);
 }
