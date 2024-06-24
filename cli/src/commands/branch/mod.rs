@@ -22,8 +22,6 @@ mod set;
 mod track;
 mod untrack;
 
-use std::fmt;
-
 use itertools::Itertools as _;
 use jj_lib::backend::CommitId;
 use jj_lib::op_store::{RefTarget, RemoteRef};
@@ -84,13 +82,6 @@ pub fn cmd_branch(
         BranchCommand::Set(args) => cmd_branch_set(ui, command, args),
         BranchCommand::Track(args) => cmd_branch_track(ui, command, args),
         BranchCommand::Untrack(args) => cmd_branch_untrack(ui, command, args),
-    }
-}
-
-fn make_branch_term(branch_names: &[impl fmt::Display]) -> String {
-    match branch_names {
-        [branch_name] => format!("branch {}", branch_name),
-        branch_names => format!("branches {}", branch_names.iter().join(", ")),
     }
 }
 

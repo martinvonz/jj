@@ -14,7 +14,9 @@
 
 use std::collections::HashMap;
 
-use super::{find_remote_branches, make_branch_term};
+use itertools::Itertools as _;
+
+use super::find_remote_branches;
 use crate::cli_util::{CommandHelper, RemoteBranchNamePattern};
 use crate::command_error::CommandError;
 use crate::commit_templater::{CommitTemplateLanguage, RefName};
@@ -61,7 +63,10 @@ pub fn cmd_branch_track(
         tx.mut_repo()
             .track_remote_branch(&name.branch, &name.remote);
     }
-    tx.finish(ui, format!("track remote {}", make_branch_term(&names)))?;
+    tx.finish(
+        ui,
+        format!("track remote branch {}", names.iter().join(", ")),
+    )?;
     if names.len() > 1 {
         writeln!(
             ui.status(),

@@ -17,7 +17,7 @@ use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::RefTarget;
 use jj_lib::str_util::StringPattern;
 
-use super::{find_branches_with, is_fast_forward, make_branch_term};
+use super::{find_branches_with, is_fast_forward};
 use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::{user_error_with_hint, CommandError};
 use crate::ui::Ui;
@@ -125,9 +125,9 @@ pub fn cmd_branch_move(
     tx.finish(
         ui,
         format!(
-            "point {} to commit {}",
-            make_branch_term(&branch_names),
-            target_commit.id().hex()
+            "point branch {names} to commit {id}",
+            names = branch_names.join(", "),
+            id = target_commit.id().hex()
         ),
     )?;
 

@@ -15,7 +15,7 @@
 use jj_lib::op_store::RefTarget;
 use jj_lib::str_util::StringPattern;
 
-use super::{find_local_branches, make_branch_term};
+use super::find_local_branches;
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
@@ -46,7 +46,7 @@ pub fn cmd_branch_delete(
         tx.mut_repo()
             .set_local_branch_target(branch_name, RefTarget::absent());
     }
-    tx.finish(ui, format!("delete {}", make_branch_term(&names)))?;
+    tx.finish(ui, format!("delete branch {}", names.join(", ")))?;
     if names.len() > 1 {
         writeln!(ui.status(), "Deleted {} branches.", names.len())?;
     }
