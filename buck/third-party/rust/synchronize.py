@@ -2,6 +2,7 @@
 
 # synchronize.py: sync workspace Cargo.toml with buck2/reindeer Cargo.toml
 
+import re
 import subprocess
 import tomllib
 
@@ -49,6 +50,11 @@ def sync_cargo_deps():
         data = tomllib.load(f)
         deps = data["workspace"]["dependencies"]
 
+        # add build-dependencies to the normal set of deps
+        if "build-dependencies" in data:
+            for x, v in data["build-dependencies"].items():
+                deps[x] = v
+
         # delete jj crates
         for bad in [ "jj-lib", "jj-lib-proc-macros", "testutils" ]:
             if bad in deps:
@@ -95,5 +101,86 @@ def sync_cargo_deps():
     ]
     subprocess.run(cmd, check=True)
 
+BUILD_FILES= [
+    ( 'lib/gen-protos/BUILD', 'lib/gen-protos/Cargo.toml' ),
+    ( 'lib/proc-macros/BUILD', 'lib/proc-macros/Cargo.toml' ),
+
+    ( 'cli/BUILD.deps.bzl', 'cli/Cargo.toml' ),
+    ( 'lib/BUILD',          'lib/Cargo.toml' ),
+]
+
+def update_buck_files():
+
+    for (buck_file, cargo_file) in BUILD_FILES:
+        print("Updating", buck_file, "with", cargo_file)
+        # load cargo_file into a dict
+        with open(cargo_file, "rb") as f:
+            cargo_data = tomllib.load(f)
+
+        CARGO_START_RE = re.compile(r'(\s*)# CARGO-SYNC-START: (\S+)')
+        CARGO_END_RE = re.compile(r'(\s*)# CARGO-SYNC-END')
+
+        lines = []
+        with open(buck_file, "r") as f:
+            # walk over the lines until we match CARGO_START_RE,
+            # and then capture that line and the next one by
+            # appending them to lines, then stop until we match
+            # CARGO_END_RE
+            capturing = True
+            middle = False
+            for line in f:
+                if capturing:
+                    lines.append(line)
+
+                if middle:
+                    middle = False
+
+                    # now print out the real deps
+                    prefix = ' ' * indent_size
+                    dep_lines = []
+
+                    # if the captured name ends with "@cfg($FOO)",
+                    # then capture $FOO and use it to select the
+                    # proper target-specific cargo deps
+
+                    m = re.compile(r'\S+\@cfg\((\S+)\)').match(captured_name)
+                    if m != None:
+                        plat = f'cfg({m.group(1)})'
+                        deps = cargo_data["target"][plat]["dependencies"]
+                    else:
+                        deps = cargo_data[captured_name]
+
+                    for k, _ in deps.items():
+                        new_line = prefix
+                        # special case: jj-lib needs to be routed to //lib
+                        if k == "jj-lib":
+                            new_line += f"'//lib:{k}',\n"
+                        elif k == "jj-lib-proc-macros":
+                            new_line += f"'//lib/proc-macros:{k}',\n"
+                        else:
+                            new_line += f"'third-party//rust:{k}',\n"
+                        dep_lines.append(new_line)
+
+                    dep_lines = sorted(dep_lines)
+                    lines.extend(dep_lines)
+
+                if CARGO_START_RE.match(line):
+                    middle = True
+                    capturing = False
+                    indent_size = len(CARGO_START_RE.match(line).group(1))
+                    captured_name = CARGO_START_RE.match(line).group(2)
+                if CARGO_END_RE.match(line):
+                    lines.append(line)
+                    capturing = True
+
+        contents = "".join(lines)
+        if False:
+            # XXX FIXME: remove this debug path
+            print(contents)
+        else:
+            with open(buck_file, "w") as f:
+                f.write(contents)
+
 if __name__ == "__main__":
     sync_cargo_deps()
+    update_buck_files()
