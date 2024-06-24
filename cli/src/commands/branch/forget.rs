@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use itertools::Itertools as _;
-use jj_lib::op_store::BranchTarget;
+use jj_lib::op_store::{BranchTarget, RefTarget, RemoteRef};
 use jj_lib::str_util::StringPattern;
 use jj_lib::view::View;
 
@@ -47,8 +47,13 @@ pub fn cmd_branch_forget(
     let repo = workspace_command.repo().clone();
     let matched_branches = find_forgettable_branches(repo.view(), &args.names)?;
     let mut tx = workspace_command.start_transaction();
-    for (name, _) in &matched_branches {
-        tx.mut_repo().remove_branch(name);
+    for (name, branch_target) in &matched_branches {
+        tx.mut_repo()
+            .set_local_branch_target(name, RefTarget::absent());
+        for (remote_name, _) in &branch_target.remote_refs {
+            tx.mut_repo()
+                .set_remote_branch(name, remote_name, RemoteRef::absent());
+        }
     }
     tx.finish(
         ui,
