@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools as _;
 use jj_lib::op_store::RefTarget;
 use jj_lib::str_util::StringPattern;
 
@@ -39,16 +40,22 @@ pub fn cmd_branch_delete(
     args: &BranchDeleteArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let view = workspace_command.repo().view();
-    let names = find_local_branches(view, &args.names)?;
+    let repo = workspace_command.repo().clone();
+    let matched_branches = find_local_branches(repo.view(), &args.names)?;
     let mut tx = workspace_command.start_transaction();
-    for branch_name in names.iter() {
+    for (name, _) in &matched_branches {
         tx.mut_repo()
-            .set_local_branch_target(branch_name, RefTarget::absent());
+            .set_local_branch_target(name, RefTarget::absent());
     }
-    tx.finish(ui, format!("delete branch {}", names.join(", ")))?;
-    if names.len() > 1 {
-        writeln!(ui.status(), "Deleted {} branches.", names.len())?;
+    tx.finish(
+        ui,
+        format!(
+            "delete branch {}",
+            matched_branches.iter().map(|(name, _)| name).join(", ")
+        ),
+    )?;
+    if matched_branches.len() > 1 {
+        writeln!(ui.status(), "Deleted {} branches.", matched_branches.len())?;
     }
     Ok(())
 }
