@@ -121,6 +121,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://martinvonz.github.io/jj/latest/design/copy-tracking/</loc>
+         <lastmod>2024-06-24</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://martinvonz.github.io/jj/latest/design/git-submodule-storage/</loc>
          <lastmod>2024-06-24</lastmod>
          <changefreq>daily</changefreq>
