@@ -487,16 +487,16 @@ where
     NI: IntoIterator<Item = Result<T, E>>,
 {
     let start: Vec<T> = start.into_iter().try_collect()?;
-    let mut reachable: HashSet<T> = start.iter().cloned().collect();
+    let mut heads: HashSet<T> = start.iter().cloned().collect();
     dfs_ok(start.into_iter().map(Ok), id_fn, |node| {
         let neighbors: Vec<Result<T, E>> = neighbors_fn(node).into_iter().collect();
         for neighbor in neighbors.iter().filter_map(|x| x.as_ref().ok()) {
-            reachable.remove(neighbor);
+            heads.remove(neighbor);
         }
         neighbors
     })
     .try_for_each(|r| r.map(|_| ()))?;
-    Ok(reachable)
+    Ok(heads)
 }
 
 /// Finds the closest common neighbor among the `set1` and `set2`.
