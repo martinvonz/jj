@@ -15,7 +15,7 @@
 use jj_lib::str_util::StringPattern;
 use jj_lib::view::View;
 
-use super::{find_branches_with, make_branch_term};
+use super::find_branches_with;
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
@@ -48,7 +48,7 @@ pub fn cmd_branch_forget(
     for branch_name in names.iter() {
         tx.mut_repo().remove_branch(branch_name);
     }
-    tx.finish(ui, format!("forget {}", make_branch_term(&names)))?;
+    tx.finish(ui, format!("forget branch {}", names.join(", ")))?;
     if names.len() > 1 {
         writeln!(ui.status(), "Forgot {} branches.", names.len())?;
     }

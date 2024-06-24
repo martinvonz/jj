@@ -15,7 +15,6 @@
 use jj_lib::op_store::RefTarget;
 use jj_lib::str_util::StringPattern;
 
-use super::make_branch_term;
 use crate::cli_util::CommandHelper;
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
@@ -55,14 +54,7 @@ pub fn cmd_branch_rename(
         .set_local_branch_target(new_branch, ref_target);
     tx.mut_repo()
         .set_local_branch_target(old_branch, RefTarget::absent());
-    tx.finish(
-        ui,
-        format!(
-            "rename {} to {}",
-            make_branch_term(&[old_branch]),
-            make_branch_term(&[new_branch]),
-        ),
-    )?;
+    tx.finish(ui, format!("rename branch {old_branch} to {new_branch}"))?;
 
     let view = workspace_command.repo().view();
     if view

@@ -12,9 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools as _;
 use jj_lib::git;
 
-use super::{find_remote_branches, make_branch_term};
+use super::find_remote_branches;
 use crate::cli_util::{CommandHelper, RemoteBranchNamePattern};
 use crate::command_error::CommandError;
 use crate::ui::Ui;
@@ -65,7 +66,10 @@ pub fn cmd_branch_untrack(
         tx.mut_repo()
             .untrack_remote_branch(&name.branch, &name.remote);
     }
-    tx.finish(ui, format!("untrack remote {}", make_branch_term(&names)))?;
+    tx.finish(
+        ui,
+        format!("untrack remote branch {}", names.iter().join(", ")),
+    )?;
     if names.len() > 1 {
         writeln!(
             ui.status(),
