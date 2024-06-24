@@ -96,14 +96,6 @@ impl View {
         self.data.head_ids.remove(head_id);
     }
 
-    // TODO: maybe rename to forget_branch() because this seems unusual operation?
-    pub fn remove_branch(&mut self, name: &str) {
-        self.data.local_branches.remove(name);
-        for remote_view in self.data.remote_views.values_mut() {
-            remote_view.branches.remove(name);
-        }
-    }
-
     /// Iterates local branch `(name, target)`s in lexicographical order.
     pub fn local_branches(&self) -> impl Iterator<Item = (&str, &RefTarget)> {
         self.data

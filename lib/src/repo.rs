@@ -1428,10 +1428,6 @@ impl MutableRepo {
         self.view.mark_dirty();
     }
 
-    pub fn remove_branch(&mut self, name: &str) {
-        self.view_mut().remove_branch(name);
-    }
-
     pub fn get_local_branch(&self, name: &str) -> RefTarget {
         self.view.with_ref(|v| v.get_local_branch(name).clone())
     }
