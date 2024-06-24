@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools as _;
+use jj_lib::op_store::BranchTarget;
 use jj_lib::str_util::StringPattern;
 use jj_lib::view::View;
 
@@ -42,26 +44,30 @@ pub fn cmd_branch_forget(
     args: &BranchForgetArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let view = workspace_command.repo().view();
-    let names = find_forgettable_branches(view, &args.names)?;
+    let repo = workspace_command.repo().clone();
+    let matched_branches = find_forgettable_branches(repo.view(), &args.names)?;
     let mut tx = workspace_command.start_transaction();
-    for branch_name in names.iter() {
-        tx.mut_repo().remove_branch(branch_name);
+    for (name, _) in &matched_branches {
+        tx.mut_repo().remove_branch(name);
     }
-    tx.finish(ui, format!("forget branch {}", names.join(", ")))?;
-    if names.len() > 1 {
-        writeln!(ui.status(), "Forgot {} branches.", names.len())?;
+    tx.finish(
+        ui,
+        format!(
+            "forget branch {}",
+            matched_branches.iter().map(|(name, _)| name).join(", ")
+        ),
+    )?;
+    if matched_branches.len() > 1 {
+        writeln!(ui.status(), "Forgot {} branches.", matched_branches.len())?;
     }
     Ok(())
 }
 
-fn find_forgettable_branches(
-    view: &View,
+fn find_forgettable_branches<'a>(
+    view: &'a View,
     name_patterns: &[StringPattern],
-) -> Result<Vec<String>, CommandError> {
+) -> Result<Vec<(&'a str, BranchTarget<'a>)>, CommandError> {
     find_branches_with(name_patterns, |pattern| {
-        view.branches()
-            .filter(|(name, _)| pattern.matches(name))
-            .map(|(name, _)| name.to_owned())
+        view.branches().filter(|(name, _)| pattern.matches(name))
     })
 }

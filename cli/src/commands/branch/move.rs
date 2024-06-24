@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use itertools::Itertools as _;
 use jj_lib::backend::CommitId;
 use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::RefTarget;
@@ -63,10 +64,9 @@ pub fn cmd_branch_move(
     args: &BranchMoveArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
-    let repo = workspace_command.repo().as_ref();
-    let view = repo.view();
+    let repo = workspace_command.repo().clone();
 
-    let branch_names = {
+    let matched_branches = {
         let is_source_commit = if !args.from.is_empty() {
             workspace_command
                 .parse_union_revsets(&args.from)?
@@ -77,28 +77,28 @@ pub fn cmd_branch_move(
         };
         if !args.names.is_empty() {
             find_branches_with(&args.names, |pattern| {
-                view.local_branches_matching(pattern)
+                repo.view()
+                    .local_branches_matching(pattern)
                     .filter(|(_, target)| target.added_ids().any(&is_source_commit))
-                    .map(|(name, _)| name.to_owned())
             })?
         } else {
-            view.local_branches()
+            repo.view()
+                .local_branches()
                 .filter(|(_, target)| target.added_ids().any(&is_source_commit))
-                .map(|(name, _)| name.to_owned())
                 .collect()
         }
     };
     let target_commit = workspace_command.resolve_single_rev(&args.to)?;
 
-    if branch_names.is_empty() {
+    if matched_branches.is_empty() {
         writeln!(ui.status(), "No branches to update.")?;
         return Ok(());
     }
-    if branch_names.len() > 1 {
+    if matched_branches.len() > 1 {
         writeln!(
             ui.warning_default(),
             "Updating multiple branches: {}",
-            branch_names.join(", "),
+            matched_branches.iter().map(|(name, _)| name).join(", "),
         )?;
         if args.names.is_empty() {
             writeln!(ui.hint_default(), "Specify branch by name to update one.")?;
@@ -106,9 +106,9 @@ pub fn cmd_branch_move(
     }
 
     if !args.allow_backwards {
-        if let Some(name) = branch_names
+        if let Some((name, _)) = matched_branches
             .iter()
-            .find(|name| !is_fast_forward(repo, view.get_local_branch(name), target_commit.id()))
+            .find(|(_, old_target)| !is_fast_forward(repo.as_ref(), old_target, target_commit.id()))
         {
             return Err(user_error_with_hint(
                 format!("Refusing to move branch backwards or sideways: {name}"),
@@ -118,7 +118,7 @@ pub fn cmd_branch_move(
     }
 
     let mut tx = workspace_command.start_transaction();
-    for name in &branch_names {
+    for (name, _) in &matched_branches {
         tx.mut_repo()
             .set_local_branch_target(name, RefTarget::normal(target_commit.id().clone()));
     }
@@ -126,7 +126,7 @@ pub fn cmd_branch_move(
         ui,
         format!(
             "point branch {names} to commit {id}",
-            names = branch_names.join(", "),
+            names = matched_branches.iter().map(|(name, _)| name).join(", "),
             id = target_commit.id().hex()
         ),
     )?;

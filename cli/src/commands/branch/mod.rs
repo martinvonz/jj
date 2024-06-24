@@ -85,33 +85,32 @@ pub fn cmd_branch(
     }
 }
 
-fn find_local_branches(
-    view: &View,
+fn find_local_branches<'a>(
+    view: &'a View,
     name_patterns: &[StringPattern],
-) -> Result<Vec<String>, CommandError> {
+) -> Result<Vec<(&'a str, &'a RefTarget)>, CommandError> {
     find_branches_with(name_patterns, |pattern| {
         view.local_branches_matching(pattern)
-            .map(|(name, _)| name.to_owned())
     })
 }
 
-fn find_branches_with<'a, I: Iterator<Item = String>>(
-    name_patterns: &'a [StringPattern],
-    mut find_matches: impl FnMut(&'a StringPattern) -> I,
-) -> Result<Vec<String>, CommandError> {
-    let mut matching_branches: Vec<String> = vec![];
+fn find_branches_with<'a, 'b, V, I: Iterator<Item = (&'a str, V)>>(
+    name_patterns: &'b [StringPattern],
+    mut find_matches: impl FnMut(&'b StringPattern) -> I,
+) -> Result<Vec<I::Item>, CommandError> {
+    let mut matching_branches: Vec<I::Item> = vec![];
     let mut unmatched_patterns = vec![];
     for pattern in name_patterns {
-        let mut names = find_matches(pattern).peekable();
-        if names.peek().is_none() {
+        let mut matches = find_matches(pattern).peekable();
+        if matches.peek().is_none() {
             unmatched_patterns.push(pattern);
         }
-        matching_branches.extend(names);
+        matching_branches.extend(matches);
     }
     match &unmatched_patterns[..] {
         [] => {
-            matching_branches.sort_unstable();
-            matching_branches.dedup();
+            matching_branches.sort_unstable_by_key(|(name, _)| *name);
+            matching_branches.dedup_by_key(|(name, _)| *name);
             Ok(matching_branches)
         }
         [pattern] if pattern.is_exact() => Err(user_error(format!("No such branch: {pattern}"))),
