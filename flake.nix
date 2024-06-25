@@ -150,9 +150,6 @@
           openssl zstd libgit2 libssh2
           pkg-config
 
-          # Make sure rust-analyzer is present
-          rust-analyzer
-
           # Additional tools recommended by contributing.md
           cargo-deny
           cargo-insta
