@@ -34,8 +34,8 @@ enum ChmodMode {
 
 /// Sets or removes the executable bit for paths in the repo
 ///
-/// Unlike the POSIX `chmod`, `jj chmod` also works on Windows, on conflicted
-/// files, and on arbitrary revisions.
+/// Unlike the POSIX `chmod`, `jj file chmod` also works on Windows, on
+/// conflicted files, and on arbitrary revisions.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct ChmodArgs {
     mode: ChmodMode,
