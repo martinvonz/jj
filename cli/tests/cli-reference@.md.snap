@@ -698,7 +698,7 @@ File operations
 
 Sets or removes the executable bit for paths in the repo
 
-Unlike the POSIX `chmod`, `jj chmod` also works on Windows, on conflicted files, and on arbitrary revisions.
+Unlike the POSIX `chmod`, `jj file chmod` also works on Windows, on conflicted files, and on arbitrary revisions.
 
 **Usage:** `jj file chmod [OPTIONS] <MODE> <PATHS>...`
 
