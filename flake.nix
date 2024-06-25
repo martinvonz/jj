@@ -156,6 +156,9 @@
           cargo-nextest
           cargo-watch
 
+          # Miscellaneous tools
+          watchman
+
           # In case you need to run `cargo run --bin gen-protos`
           protobuf
 
