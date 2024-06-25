@@ -26,18 +26,19 @@ use std::{fs, io, str};
 
 use async_trait::async_trait;
 use futures::stream::BoxStream;
-use gix::bstr::BString;
+use gix::bstr::{BStr, BString};
 use gix::objs::{CommitRef, CommitRefIter, WriteTo};
 use itertools::Itertools;
+use pollster::FutureExt;
 use prost::Message;
 use smallvec::SmallVec;
 use thiserror::Error;
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendInitError, BackendLoadError, BackendResult,
-    ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictTerm, CopyRecord, FileId,
-    MergedTreeId, MillisSinceEpoch, SecureSig, Signature, SigningFn, SymlinkId, Timestamp, Tree,
-    TreeId, TreeValue,
+    ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictTerm, CopyRecord, CopySource,
+    CopySources, FileId, MergedTreeId, MillisSinceEpoch, SecureSig, Signature, SigningFn,
+    SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::index::Index;
@@ -390,6 +391,48 @@ impl GitBackend {
             .try_into_blob()
             .map_err(|err| to_read_object_err(err, id))?;
         Ok(Box::new(Cursor::new(blob.take_data())))
+    }
+
+    fn new_diff_platform(&self) -> BackendResult<gix::diff::blob::Platform> {
+        let attributes = gix::worktree::Stack::new(
+            Path::new(""),
+            gix::worktree::stack::State::AttributesStack(Default::default()),
+            gix::worktree::glob::pattern::Case::Sensitive,
+            Vec::new(),
+            Vec::new(),
+        );
+        let filter = gix::diff::blob::Pipeline::new(
+            Default::default(),
+            gix_filter::Pipeline::new(
+                self.git_repo()
+                    .command_context()
+                    .map_err(|err| BackendError::Other(Box::new(err)))?,
+                Default::default(),
+            ),
+            Vec::new(),
+            Default::default(),
+        );
+        Ok(gix::diff::blob::Platform::new(
+            Default::default(),
+            filter,
+            gix::diff::blob::pipeline::Mode::ToGit,
+            attributes,
+        ))
+    }
+
+    fn read_tree_for_commit<'repo>(
+        &self,
+        repo: &'repo gix::Repository,
+        id: &CommitId,
+    ) -> BackendResult<gix::Tree<'repo>> {
+        let tree = self.read_commit(id).block_on()?.root_tree.to_merge();
+        // TODO(kfm): probably want to do something here if it is a merge
+        let tree_id = tree.first().clone();
+        let gix_id = validate_git_object_id(&tree_id)?;
+        repo.find_object(gix_id)
+            .map_err(|err| map_not_found_err(err, &tree_id))?
+            .try_into_tree()
+            .map_err(|err| to_read_object_err(err, &tree_id))
     }
 }
 
@@ -1212,11 +1255,83 @@ impl Backend for GitBackend {
 
     fn get_copy_records(
         &self,
-        _paths: &[RepoPathBuf],
-        _roots: &[CommitId],
-        _heads: &[CommitId],
+        paths: &[RepoPathBuf],
+        roots: &[CommitId],
+        heads: &[CommitId],
     ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>> {
-        Err(BackendError::Unsupported("get_copy_records".into()))
+        if paths.is_empty() || roots.is_empty() || heads.is_empty() {
+            return Ok(Box::pin(futures::stream::empty()));
+        }
+        if roots.len() != 1 || heads.len() != 1 {
+            return Err(BackendError::Unsupported(
+                "GitBackend does not support getting copy records for multiple commits".into(),
+            ));
+        }
+        let root_id = &roots[0];
+        let head_id = &heads[0];
+
+        let repo = self.git_repo();
+        let root_tree = self.read_tree_for_commit(&repo, root_id)?;
+        let head_tree = self.read_tree_for_commit(&repo, head_id)?;
+
+        let paths: HashSet<&BStr> = paths
+            .iter()
+            .map(|p| BStr::new(p.as_internal_file_string()))
+            .collect();
+        let change_to_copy_record =
+            |change: gix::object::tree::diff::Change| -> BackendResult<Option<CopyRecord>> {
+                let gix::object::tree::diff::Change {
+                    location: dest_location,
+                    event:
+                        gix::object::tree::diff::change::Event::Rewrite {
+                            source_location,
+                            source_id,
+                            ..
+                        },
+                    ..
+                } = change
+                else {
+                    return Ok(None);
+                };
+                if !paths.contains(dest_location) {
+                    return Ok(None);
+                }
+
+                let source = str::from_utf8(source_location)
+                    .map_err(|err| to_invalid_utf8_err(err, root_id))?;
+                let dest = str::from_utf8(dest_location)
+                    .map_err(|err| to_invalid_utf8_err(err, head_id))?;
+                Ok(Some(CopyRecord {
+                    target: RepoPathBuf::from_internal_string(dest),
+                    id: head_id.clone(),
+                    sources: CopySources::Resolved(CopySource {
+                        path: RepoPathBuf::from_internal_string(source),
+                        file: FileId::from_bytes(source_id.as_bytes()),
+                        commit: Some(root_id.clone()),
+                    }),
+                }))
+            };
+
+        let mut records: Vec<BackendResult<CopyRecord>> = Vec::new();
+        let mut change_platform = root_tree
+            .changes()
+            .map_err(|err| BackendError::Other(err.into()))?;
+        change_platform.track_path();
+        change_platform
+            .for_each_to_obtain_tree_with_cache(
+                &head_tree,
+                &mut self.new_diff_platform()?,
+                |change| -> BackendResult<_> {
+                    match change_to_copy_record(change) {
+                        Ok(None) => {}
+                        Ok(Some(change)) => records.push(Ok(change)),
+                        Err(err) => records.push(Err(err)),
+                    }
+                    Ok(gix::object::tree::diff::Action::Continue)
+                },
+            )
+            .map_err(|err| BackendError::Other(err.into()))?;
+        Ok(Box::pin(futures::stream::iter(records)))
     }
 
     #[tracing::instrument(skip(self, index))]
