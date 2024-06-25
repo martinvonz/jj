@@ -21,9 +21,10 @@ use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::SystemTime;
 
 use async_trait::async_trait;
+use futures::stream::BoxStream;
 use jj_lib::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, FileId, SecureSig, SigningFn, SymlinkId, Tree, TreeId,
+    ConflictId, CopyRecord, FileId, SecureSig, SigningFn, SymlinkId, Tree, TreeId,
 };
 use jj_lib::index::Index;
 use jj_lib::object_id::ObjectId;
@@ -298,6 +299,15 @@ impl Backend for TestBackend {
             .commits
             .insert(id.clone(), contents.clone());
         Ok((id, contents))
+    }
+
+    fn get_copy_records(
+        &self,
+        _paths: &[RepoPathBuf],
+        _roots: &[CommitId],
+        _heads: &[CommitId],
+    ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>> {
+        Err(BackendError::Unsupported("get_copy_records".into()))
     }
 
     fn gc(&self, _index: &dyn Index, _keep_newer: SystemTime) -> BackendResult<()> {

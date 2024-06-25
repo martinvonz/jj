@@ -25,6 +25,7 @@ use std::time::SystemTime;
 use std::{fs, io, str};
 
 use async_trait::async_trait;
+use futures::stream::BoxStream;
 use gix::bstr::BString;
 use gix::objs::{CommitRef, CommitRefIter, WriteTo};
 use itertools::Itertools;
@@ -34,16 +35,16 @@ use thiserror::Error;
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendInitError, BackendLoadError, BackendResult,
-    ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictTerm, FileId, MergedTreeId,
-    MillisSinceEpoch, SecureSig, Signature, SigningFn, SymlinkId, Timestamp, Tree, TreeId,
-    TreeValue,
+    ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictTerm, CopyRecord, FileId,
+    MergedTreeId, MillisSinceEpoch, SecureSig, Signature, SigningFn, SymlinkId, Timestamp, Tree,
+    TreeId, TreeValue,
 };
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::index::Index;
 use crate::lock::FileLock;
 use crate::merge::{Merge, MergeBuilder};
 use crate::object_id::ObjectId;
-use crate::repo_path::{RepoPath, RepoPathComponentBuf};
+use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponentBuf};
 use crate::settings::UserSettings;
 use crate::stacked_table::{
     MutableTable, ReadonlyTable, TableSegment, TableStore, TableStoreError,
@@ -1207,6 +1208,15 @@ impl Backend for GitBackend {
         mut_table.add_entry(id.to_bytes(), extras);
         self.save_extra_metadata_table(mut_table, &table_lock)?;
         Ok((id, contents))
+    }
+
+    fn get_copy_records(
+        &self,
+        _paths: &[RepoPathBuf],
+        _roots: &[CommitId],
+        _heads: &[CommitId],
+    ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>> {
+        Err(BackendError::Unsupported("get_copy_records".into()))
     }
 
     #[tracing::instrument(skip(self, index))]
