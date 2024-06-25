@@ -74,7 +74,7 @@ jj diff '~Cargo.lock'
 List files in `src` excluding Rust sources.
 
 ```
-jj files 'src ~ glob:"**/*.rs"'
+jj file list 'src ~ glob:"**/*.rs"'
 ```
 
 Split a revision in two, putting `foo` into the second commit.
