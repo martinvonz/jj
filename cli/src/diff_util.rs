@@ -375,21 +375,25 @@ fn show_color_words_diff_line(
     diff_line: &DiffLine,
 ) -> io::Result<()> {
     if diff_line.has_left_content {
-        write!(
-            formatter.labeled("removed"),
-            "{:>4}",
-            diff_line.left_line_number
-        )?;
+        formatter.with_label("removed", |formatter| {
+            write!(
+                formatter.labeled("line_number"),
+                "{:>4}",
+                diff_line.left_line_number
+            )
+        })?;
         write!(formatter, " ")?;
     } else {
         write!(formatter, "     ")?;
     }
     if diff_line.has_right_content {
-        write!(
-            formatter.labeled("added"),
-            "{:>4}",
-            diff_line.right_line_number
-        )?;
+        formatter.with_label("added", |formatter| {
+            write!(
+                formatter.labeled("line_number"),
+                "{:>4}",
+                diff_line.right_line_number
+            )
+        })?;
         write!(formatter, ": ")?;
     } else {
         write!(formatter, "    : ")?;
