@@ -486,8 +486,7 @@ where
     II: IntoIterator<Item = Result<T, E>>,
     NI: IntoIterator<Item = Result<T, E>>,
 {
-    let start: Vec<T> = start.into_iter().try_collect()?;
-    let mut heads: HashSet<T> = start.iter().cloned().collect();
+    let mut heads: HashSet<T> = start.into_iter().try_collect()?;
     // Do a BFS until we have only one item left in the frontier. That frontier must
     // have originated from one of the heads, and since there can't be cycles,
     // it won't be able to eliminate any other heads.
