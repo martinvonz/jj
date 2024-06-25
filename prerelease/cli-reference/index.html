@@ -5791,7 +5791,7 @@ does not match the <code>jj help</code> output exactly.</p>
 <li><code>--color &lt;WHEN&gt;</code> — When to colorize output (always, never, debug, auto)</li>
 <li>
 <p><code>--quiet</code> — Silence non-primary command output</p>
-<p>For example, <code>jj files</code> will still list files, but it won't tell you if the working copy was snapshotted or if descendants were rebased.</p>
+<p>For example, <code>jj file list</code> will still list files, but it won't tell you if the working copy was snapshotted or if descendants were rebased.</p>
 <p>Warnings and errors will still be printed.</p>
 </li>
 <li>
@@ -6175,7 +6175,7 @@ Martin von Zweigbergk</p>
 </ul>
 <h2 id="jj-file-chmod"><code>jj file chmod</code><a class="headerlink" href="#jj-file-chmod" title="Permanent link">&para;</a></h2>
 <p>Sets or removes the executable bit for paths in the repo</p>
-<p>Unlike the POSIX <code>chmod</code>, <code>jj chmod</code> also works on Windows, on conflicted files, and on arbitrary revisions.</p>
+<p>Unlike the POSIX <code>chmod</code>, <code>jj file chmod</code> also works on Windows, on conflicted files, and on arbitrary revisions.</p>
 <p><strong>Usage:</strong> <code>jj file chmod [OPTIONS] &lt;MODE&gt; &lt;PATHS&gt;...</code></p>
 <h6 id="arguments_18"><strong>Arguments:</strong><a class="headerlink" href="#arguments_18" title="Permanent link">&para;</a></h6>
 <ul>
