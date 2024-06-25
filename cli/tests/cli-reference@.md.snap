@@ -177,7 +177,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `--color <WHEN>` — When to colorize output (always, never, debug, auto)
 * `--quiet` — Silence non-primary command output
 
-   For example, `jj files` will still list files, but it won't tell you if the working copy was snapshotted or if descendants were rebased.
+   For example, `jj file list ` will still list files, but it won't tell you if the working copy was snapshotted or if descendants were rebased.
 
    Warnings and errors will still be printed.
 * `--no-pager` — Disable the pager

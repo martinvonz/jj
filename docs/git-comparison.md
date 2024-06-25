@@ -196,7 +196,7 @@ parent.
     </tr>
     <tr>
       <td>Search among files versioned in the repository</td>
-      <td><code>grep foo $(jj files)</code>, or <code>rg --no-require-git foo</code></td>
+      <td><code>grep foo $(jj file list)</code>, or <code>rg --no-require-git foo</code></td>
       <td><code>git grep foo</code></td>
     </tr>
     <tr>
