@@ -14,7 +14,7 @@
 
 pub mod chmod;
 pub mod list;
-pub mod print;
+pub mod show;
 
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
@@ -25,7 +25,7 @@ use crate::ui::Ui;
 pub enum FileCommand {
     Chmod(chmod::ChmodArgs),
     List(list::ListArgs),
-    Print(print::PrintArgs),
+    Show(show::ShowArgs),
 }
 
 pub fn cmd_file(
@@ -36,6 +36,6 @@ pub fn cmd_file(
     match subcommand {
         FileCommand::Chmod(args) => chmod::cmd_chmod(ui, command, args),
         FileCommand::List(args) => list::cmd_list(ui, command, args),
-        FileCommand::Print(args) => print::cmd_print(ui, command, args),
+        FileCommand::Show(args) => show::cmd_show(ui, command, args),
     }
 }

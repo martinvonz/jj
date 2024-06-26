@@ -236,7 +236,7 @@ fn test_bad_path() {
     test_env.add_config("ui.allow-filesets = true");
 
     // cwd == workspace_root
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["file", "print", "../out"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["file", "show", "../out"]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
     Error: Failed to parse fileset: Invalid file pattern
     Caused by:
@@ -251,7 +251,7 @@ fn test_bad_path() {
     "###);
 
     // cwd != workspace_root, can't be parsed as repo-relative path
-    let stderr = test_env.jj_cmd_failure(&subdir, &["file", "print", "../.."]);
+    let stderr = test_env.jj_cmd_failure(&subdir, &["file", "show", "../.."]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
     Error: Failed to parse fileset: Invalid file pattern
     Caused by:
@@ -266,7 +266,7 @@ fn test_bad_path() {
     "###);
 
     // cwd != workspace_root, can be parsed as repo-relative path
-    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["file", "print", "-Rrepo", "out"]);
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["file", "show", "-Rrepo", "out"]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
     Error: Failed to parse fileset: Invalid file pattern
     Caused by:
@@ -284,7 +284,7 @@ fn test_bad_path() {
     test_env.add_config("ui.allow-filesets = false");
 
     // If fileset/pattern syntax is disabled, no hint should be generated
-    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["file", "print", "-Rrepo", "out"]);
+    let stderr = test_env.jj_cmd_failure(test_env.env_root(), &["file", "show", "-Rrepo", "out"]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
     Error: Path "out" is not in the repo "repo"
     Caused by: Invalid component ".." in repo-relative path "../out"

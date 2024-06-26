@@ -76,7 +76,7 @@ enum Command {
     #[command(subcommand)]
     Branch(branch::BranchCommand),
     #[command(alias = "print", hide = true)]
-    Cat(file::print::PrintArgs),
+    Cat(file::show::ShowArgs),
     #[command(hide = true)]
     Checkout(checkout::CheckoutArgs),
     #[command(hide = true)]
@@ -174,7 +174,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         #[cfg(feature = "bench")]
         Command::Bench(args) => bench::cmd_bench(ui, command_helper, args),
         Command::Branch(args) => branch::cmd_branch(ui, command_helper, args),
-        Command::Cat(args) => file::print::deprecated_cmd_cat(ui, command_helper, args),
+        Command::Cat(args) => file::show::deprecated_cmd_cat(ui, command_helper, args),
         Command::Checkout(args) => checkout::cmd_checkout(ui, command_helper, args),
         Command::Chmod(args) => file::chmod::deprecated_cmd_chmod(ui, command_helper, args),
         Command::Commit(args) => commit::cmd_commit(ui, command_helper, args),

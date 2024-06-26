@@ -79,9 +79,9 @@ fn test_fix_leaf_commit() {
     Parent commit      : qpvuntsm fda57e40 (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "@-"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "@-"]);
     insta::assert_snapshot!(content, @"unaffected");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "@"]);
     insta::assert_snapshot!(content, @"AFFECTED");
 }
 
@@ -106,11 +106,11 @@ fn test_fix_parent_commit() {
     Parent commit      : qpvuntsm 4f4d2103 parent | (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "parent"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "parent"]);
     insta::assert_snapshot!(content, @"PARENT");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "child1"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "child1"]);
     insta::assert_snapshot!(content, @"CHILD1");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "child2"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "child2"]);
     insta::assert_snapshot!(content, @"CHILD2");
 }
 
@@ -131,11 +131,11 @@ fn test_fix_sibling_commit() {
     insta::assert_snapshot!(stderr, @r###"
     Fixed 1 commits of 1 checked.
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "parent"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "parent"]);
     insta::assert_snapshot!(content, @"parent");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "child1"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "child1"]);
     insta::assert_snapshot!(content, @"CHILD1");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "child2"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "child2"]);
     insta::assert_snapshot!(content, @"child2");
 }
 
@@ -173,17 +173,17 @@ fn test_default_revset() {
     Parent commit      : yqosqzyt 4747dd17 bar1 | (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "trunk1"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "trunk1"]);
     insta::assert_snapshot!(content, @"trunk1");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "trunk2"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "trunk2"]);
     insta::assert_snapshot!(content, @"trunk2");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "foo"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "foo"]);
     insta::assert_snapshot!(content, @"foo");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "bar1"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "bar1"]);
     insta::assert_snapshot!(content, @"BAR1");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "bar2"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "bar2"]);
     insta::assert_snapshot!(content, @"BAR2");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "bar3"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "bar3"]);
     insta::assert_snapshot!(content, @"BAR3");
 }
 
@@ -207,9 +207,9 @@ fn test_custom_default_revset() {
     insta::assert_snapshot!(stderr, @r###"
     Fixed 1 commits of 1 checked.
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "foo"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "foo"]);
     insta::assert_snapshot!(content, @"foo");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "bar"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "bar"]);
     insta::assert_snapshot!(content, @"BAR");
 }
 
@@ -228,10 +228,9 @@ fn test_fix_immutable_commit() {
     Error: Commit 83eee3c8dce2 is immutable
     Hint: Pass `--ignore-immutable` or configure the set of immutable commits via `revset-aliases.immutable_heads()`.
     "###);
-    let content =
-        test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "immutable"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "immutable"]);
     insta::assert_snapshot!(content, @"immutable");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "mutable"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "mutable"]);
     insta::assert_snapshot!(content, @"mutable");
 }
 
@@ -246,7 +245,7 @@ fn test_fix_empty_file() {
     Fixed 0 commits of 1 checked.
     Nothing changed.
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "@"]);
     insta::assert_snapshot!(content, @"");
 }
 
@@ -264,11 +263,11 @@ fn test_fix_some_paths() {
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file1"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1"]);
     insta::assert_snapshot!(content, @r###"
     FOO
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file2"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file2"]);
     insta::assert_snapshot!(content, @"bar");
 }
 
@@ -285,7 +284,7 @@ fn test_fix_cyclic() {
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "@"]);
     insta::assert_snapshot!(content, @"tnetnoc\n");
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["fix"]);
@@ -296,7 +295,7 @@ fn test_fix_cyclic() {
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "@"]);
     insta::assert_snapshot!(content, @"content\n");
 }
 
@@ -329,13 +328,13 @@ fn test_deduplication() {
     Parent commit      : mzvwutvl 90d9a032 c | (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "a"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "a"]);
     insta::assert_snapshot!(content, @"FOO\n");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "b"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "b"]);
     insta::assert_snapshot!(content, @"BAR\n");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "c"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "c"]);
     insta::assert_snapshot!(content, @"BAR\n");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "d"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "d"]);
     insta::assert_snapshot!(content, @"FOO\n");
 
     // Each new content string only appears once in the log, because all the other
@@ -367,7 +366,7 @@ fn test_executed_but_nothing_changed() {
     Fixed 0 commits of 1 checked.
     Nothing changed.
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "@"]);
     insta::assert_snapshot!(content, @"content\n");
     let copy_content = std::fs::read_to_string(repo_path.join("file-copy").as_os_str()).unwrap();
     insta::assert_snapshot!(copy_content, @"content\n");
@@ -384,7 +383,7 @@ fn test_failure() {
     Fixed 0 commits of 1 checked.
     Nothing changed.
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "@"]);
     insta::assert_snapshot!(content, @"content");
 }
 
@@ -404,7 +403,7 @@ fn test_stderr_success() {
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "@"]);
     insta::assert_snapshot!(content, @"new content");
 }
 
@@ -420,7 +419,7 @@ fn test_stderr_failure() {
     errorFixed 0 commits of 1 checked.
     Nothing changed.
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "@"]);
     insta::assert_snapshot!(content, @"old content");
 }
 
@@ -456,7 +455,7 @@ fn test_fix_file_types() {
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "@"]);
     insta::assert_snapshot!(content, @"CONTENT");
 }
 
@@ -478,7 +477,7 @@ fn test_fix_executable() {
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "@"]);
     insta::assert_snapshot!(content, @"CONTENT");
     let executable = std::fs::metadata(&path).unwrap().permissions().mode() & 0o111;
     assert_eq!(executable, 0o111);
@@ -504,11 +503,11 @@ fn test_fix_trivial_merge_commit() {
     Fixed 0 commits of 1 checked.
     Nothing changed.
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file_a", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file_a", "-r", "@"]);
     insta::assert_snapshot!(content, @"content a");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file_b", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file_b", "-r", "@"]);
     insta::assert_snapshot!(content, @"content b");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file_c", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file_c", "-r", "@"]);
     insta::assert_snapshot!(content, @"content c");
 }
 
@@ -539,13 +538,13 @@ fn test_fix_adding_merge_commit() {
     Parent commit      : kkmpptxz 82e9bc6a b | (no description set)
     Added 0 files, modified 4 files, removed 0 files
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file_a", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file_a", "-r", "@"]);
     insta::assert_snapshot!(content, @"CHANGE A");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file_b", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file_b", "-r", "@"]);
     insta::assert_snapshot!(content, @"CHANGE B");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file_c", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file_c", "-r", "@"]);
     insta::assert_snapshot!(content, @"CHANGE C");
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file_d", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file_d", "-r", "@"]);
     insta::assert_snapshot!(content, @"CHANGE D");
 }
 
@@ -572,15 +571,15 @@ fn test_fix_both_sides_of_conflict() {
     There are unresolved conflicts at these paths:
     file    2-sided conflict
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "a"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "a"]);
     insta::assert_snapshot!(content, @r###"
     CONTENT A
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "b"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "b"]);
     insta::assert_snapshot!(content, @r###"
     CONTENT B
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "@"]);
     insta::assert_snapshot!(content, @r###"
     <<<<<<< Conflict 1 of 1
     %%%%%%% Changes from base to side #1
@@ -614,7 +613,7 @@ fn test_fix_resolve_conflict() {
     Parent commit      : kkmpptxz 82703f5e b | (no description set)
     Added 0 files, modified 1 files, removed 0 files
     "###);
-    let content = test_env.jj_cmd_success(&repo_path, &["file", "print", "file", "-r", "@"]);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "file", "-r", "@"]);
     insta::assert_snapshot!(content, @r###"
     CONTENT
     "###);
