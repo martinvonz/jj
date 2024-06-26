@@ -85,9 +85,9 @@ fn test_new_merge() {
     ├─╯
     ◉  0000000000000000000000000000000000000000
     "###);
-    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file1"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1"]);
     insta::assert_snapshot!(stdout, @"a");
-    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "print", "file2"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file2"]);
     insta::assert_snapshot!(stdout, @"b");
 
     // Same test with `--no-edit`

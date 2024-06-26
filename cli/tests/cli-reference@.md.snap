@@ -38,7 +38,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj file`↴](#jj-file)
 * [`jj file chmod`↴](#jj-file-chmod)
 * [`jj file list`↴](#jj-file-list)
-* [`jj file print`↴](#jj-file-print)
+* [`jj file show`↴](#jj-file-show)
 * [`jj fix`↴](#jj-fix)
 * [`jj git`↴](#jj-git)
 * [`jj git clone`↴](#jj-git-clone)
@@ -690,7 +690,7 @@ File operations
 
 * `chmod` — Sets or removes the executable bit for paths in the repo
 * `list` — List files in a revision
-* `print` — Print contents of files in a revision
+* `show` — Print contents of files in a revision
 
 
 
@@ -740,13 +740,13 @@ List files in a revision
 
 
 
-## `jj file print`
+## `jj file show`
 
 Print contents of files in a revision
 
 If the given path is a directory, files in the directory will be visited recursively.
 
-**Usage:** `jj file print [OPTIONS] <PATHS>...`
+**Usage:** `jj file show [OPTIONS] <PATHS>...`
 
 ###### **Arguments:**
 
