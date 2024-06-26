@@ -407,10 +407,14 @@ fn show_color_words_diff_line(
                 let before = data[0];
                 let after = data[1];
                 if !before.is_empty() {
-                    formatter.with_label("removed", |formatter| formatter.write_all(before))?;
+                    formatter.with_label("removed", |formatter| {
+                        formatter.with_label("token", |formatter| formatter.write_all(before))
+                    })?;
                 }
                 if !after.is_empty() {
-                    formatter.with_label("added", |formatter| formatter.write_all(after))?;
+                    formatter.with_label("added", |formatter| {
+                        formatter.with_label("token", |formatter| formatter.write_all(after))
+                    })?;
                 }
             }
         }
