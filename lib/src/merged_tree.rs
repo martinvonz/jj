@@ -22,8 +22,9 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::{iter, vec};
 
-use futures::stream::StreamExt;
-use futures::{Future, Stream, TryStreamExt};
+use futures::future::BoxFuture;
+use futures::stream::{BoxStream, StreamExt};
+use futures::{Stream, TryStreamExt};
 use itertools::Itertools;
 
 use crate::backend;
@@ -407,15 +408,12 @@ impl MergedTree {
 /// Type alias for the result from `MergedTree::diff_stream()`. We use a
 /// `Stream` instead of an `Iterator` so high-latency backends (e.g. cloud-based
 /// ones) can fetch trees asynchronously.
-pub type TreeDiffStream<'matcher> = Pin<
-    Box<
-        dyn Stream<
-                Item = (
-                    RepoPathBuf,
-                    BackendResult<(MergedTreeValue, MergedTreeValue)>,
-                ),
-            > + 'matcher,
-    >,
+pub type TreeDiffStream<'matcher> = BoxStream<
+    'matcher,
+    (
+        RepoPathBuf,
+        BackendResult<(MergedTreeValue, MergedTreeValue)>,
+    ),
 >;
 
 fn all_tree_basenames(trees: &Merge<Tree>) -> impl Iterator<Item = &RepoPathComponent> {
@@ -902,7 +900,7 @@ pub struct TreeDiffStreamImpl<'matcher> {
     #[allow(clippy::type_complexity)]
     pending_trees: VecDeque<(
         RepoPathBuf,
-        Pin<Box<dyn Future<Output = BackendResult<(MergedTree, MergedTree)>> + 'matcher>>,
+        BoxFuture<'matcher, BackendResult<(MergedTree, MergedTree)>>,
     )>,
     /// The maximum number of trees to request concurrently. However, we do the
     /// accounting per path, so for there will often be twice as many pending

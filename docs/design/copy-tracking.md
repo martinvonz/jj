@@ -71,7 +71,7 @@ pub struct CopyRecordOpts {
     // TODO: Probably something for git similarity detection
 }
 
-pub type CopyRecordStream = Pin<Box<dyn Stream<Item = BackendResult<CopyRecord>>>>;
+pub type CopyRecordStream = BoxStream<BackendResult<CopyRecord>>;
 
 pub trait Backend {
     /// Get all copy records for `paths` in the dag range `roots..heads`.
