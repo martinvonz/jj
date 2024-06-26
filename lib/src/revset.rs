@@ -2122,6 +2122,22 @@ mod tests {
         super::parse_with_modifier(revset_str, &context).map_err(|e| e.kind)
     }
 
+    fn insta_settings() -> insta::Settings {
+        let mut settings = insta::Settings::clone_current();
+        // Collapse short "Thing(_,)" repeatedly to save vertical space and make
+        // the output more readable.
+        for _ in 0..4 {
+            settings.add_filter(
+                r"(?x)
+                \b([A-Z]\w*)\(\n
+                    \s*(.{1,60}),\n
+                \s*\)",
+                "$1($2)",
+            );
+        }
+        settings
+    }
+
     #[test]
     #[allow(clippy::redundant_clone)] // allow symbol.clone()
     fn test_revset_expression_building() {
@@ -2494,6 +2510,9 @@ mod tests {
 
     #[test]
     fn test_parse_revset_keyword_arguments() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
         assert_eq!(
             parse("remote_branches(remote=foo)").unwrap(),
             parse(r#"remote_branches("", foo)"#).unwrap(),
@@ -2711,165 +2730,80 @@ mod tests {
 
     #[test]
     fn test_optimize_difference() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
         insta::assert_debug_snapshot!(optimize(parse("foo & ~bar").unwrap()), @r###"
         Difference(
-            CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
-            CommitRef(
-                Symbol(
-                    "bar",
-                ),
-            ),
+            CommitRef(Symbol("foo")),
+            CommitRef(Symbol("bar")),
         )
         "###);
         insta::assert_debug_snapshot!(optimize(parse("~foo & bar").unwrap()), @r###"
         Difference(
-            CommitRef(
-                Symbol(
-                    "bar",
-                ),
-            ),
-            CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
+            CommitRef(Symbol("bar")),
+            CommitRef(Symbol("foo")),
         )
         "###);
         insta::assert_debug_snapshot!(optimize(parse("~foo & bar & ~baz").unwrap()), @r###"
         Difference(
             Difference(
-                CommitRef(
-                    Symbol(
-                        "bar",
-                    ),
-                ),
-                CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
+                CommitRef(Symbol("bar")),
+                CommitRef(Symbol("foo")),
             ),
-            CommitRef(
-                Symbol(
-                    "baz",
-                ),
-            ),
+            CommitRef(Symbol("baz")),
         )
         "###);
         insta::assert_debug_snapshot!(optimize(parse("(all() & ~foo) & bar").unwrap()), @r###"
         Difference(
-            CommitRef(
-                Symbol(
-                    "bar",
-                ),
-            ),
-            CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
+            CommitRef(Symbol("bar")),
+            CommitRef(Symbol("foo")),
         )
         "###);
 
         // Binary difference operation should go through the same optimization passes.
-        insta::assert_debug_snapshot!(optimize(parse("all() ~ foo").unwrap()), @r###"
-        NotIn(
-            CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
-        )
-        "###);
+        insta::assert_debug_snapshot!(
+            optimize(parse("all() ~ foo").unwrap()),
+            @r###"NotIn(CommitRef(Symbol("foo")))"###);
         insta::assert_debug_snapshot!(optimize(parse("foo ~ bar").unwrap()), @r###"
         Difference(
-            CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
-            CommitRef(
-                Symbol(
-                    "bar",
-                ),
-            ),
+            CommitRef(Symbol("foo")),
+            CommitRef(Symbol("bar")),
         )
         "###);
         insta::assert_debug_snapshot!(optimize(parse("(all() ~ foo) & bar").unwrap()), @r###"
         Difference(
-            CommitRef(
-                Symbol(
-                    "bar",
-                ),
-            ),
-            CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
+            CommitRef(Symbol("bar")),
+            CommitRef(Symbol("foo")),
         )
         "###);
 
         // Range expression.
         insta::assert_debug_snapshot!(optimize(parse("::foo & ~::bar").unwrap()), @r###"
         Range {
-            roots: CommitRef(
-                Symbol(
-                    "bar",
-                ),
-            ),
-            heads: CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
+            roots: CommitRef(Symbol("bar")),
+            heads: CommitRef(Symbol("foo")),
             generation: 0..18446744073709551615,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("~::foo & ::bar").unwrap()), @r###"
         Range {
-            roots: CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
-            heads: CommitRef(
-                Symbol(
-                    "bar",
-                ),
-            ),
+            roots: CommitRef(Symbol("foo")),
+            heads: CommitRef(Symbol("bar")),
             generation: 0..18446744073709551615,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("foo..").unwrap()), @r###"
         Range {
-            roots: CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
-            heads: CommitRef(
-                VisibleHeads,
-            ),
+            roots: CommitRef(Symbol("foo")),
+            heads: CommitRef(VisibleHeads),
             generation: 0..18446744073709551615,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("foo..bar").unwrap()), @r###"
         Range {
-            roots: CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
-            heads: CommitRef(
-                Symbol(
-                    "bar",
-                ),
-            ),
+            roots: CommitRef(Symbol("foo")),
+            heads: CommitRef(Symbol("bar")),
             generation: 0..18446744073709551615,
         }
         "###);
@@ -2877,79 +2811,42 @@ mod tests {
         // Double/triple negates.
         insta::assert_debug_snapshot!(optimize(parse("foo & ~~bar").unwrap()), @r###"
         Intersection(
-            CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
-            CommitRef(
-                Symbol(
-                    "bar",
-                ),
-            ),
+            CommitRef(Symbol("foo")),
+            CommitRef(Symbol("bar")),
         )
         "###);
         insta::assert_debug_snapshot!(optimize(parse("foo & ~~~bar").unwrap()), @r###"
         Difference(
-            CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
-            CommitRef(
-                Symbol(
-                    "bar",
-                ),
-            ),
+            CommitRef(Symbol("foo")),
+            CommitRef(Symbol("bar")),
         )
         "###);
         insta::assert_debug_snapshot!(optimize(parse("~(all() & ~foo) & bar").unwrap()), @r###"
         Intersection(
-            CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
-            CommitRef(
-                Symbol(
-                    "bar",
-                ),
-            ),
+            CommitRef(Symbol("foo")),
+            CommitRef(Symbol("bar")),
         )
         "###);
 
         // Should be better than '(all() & ~foo) & (all() & ~bar)'.
         insta::assert_debug_snapshot!(optimize(parse("~foo & ~bar").unwrap()), @r###"
         Difference(
-            NotIn(
-                CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
-            ),
-            CommitRef(
-                Symbol(
-                    "bar",
-                ),
-            ),
+            NotIn(CommitRef(Symbol("foo"))),
+            CommitRef(Symbol("bar")),
         )
         "###);
     }
 
     #[test]
     fn test_optimize_not_in_ancestors() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
         // '~(::foo)' is equivalent to 'foo..'.
         insta::assert_debug_snapshot!(optimize(parse("~(::foo)").unwrap()), @r###"
         Range {
-            roots: CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
-            heads: CommitRef(
-                VisibleHeads,
-            ),
+            roots: CommitRef(Symbol("foo")),
+            heads: CommitRef(VisibleHeads),
             generation: 0..18446744073709551615,
         }
         "###);
@@ -2958,32 +2855,20 @@ mod tests {
         insta::assert_debug_snapshot!(optimize(parse("~(::foo-)").unwrap()), @r###"
         Range {
             roots: Ancestors {
-                heads: CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
+                heads: CommitRef(Symbol("foo")),
                 generation: 1..2,
             },
-            heads: CommitRef(
-                VisibleHeads,
-            ),
+            heads: CommitRef(VisibleHeads),
             generation: 0..18446744073709551615,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("~(::foo--)").unwrap()), @r###"
         Range {
             roots: Ancestors {
-                heads: CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
+                heads: CommitRef(Symbol("foo")),
                 generation: 2..3,
             },
-            heads: CommitRef(
-                VisibleHeads,
-            ),
+            heads: CommitRef(VisibleHeads),
             generation: 0..18446744073709551615,
         }
         "###);
@@ -2992,11 +2877,7 @@ mod tests {
         insta::assert_debug_snapshot!(optimize(parse("~ancestors(foo, 1)").unwrap()), @r###"
         NotIn(
             Ancestors {
-                heads: CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
+                heads: CommitRef(Symbol("foo")),
                 generation: 0..1,
             },
         )
@@ -3004,11 +2885,7 @@ mod tests {
         insta::assert_debug_snapshot!(optimize(parse("~ancestors(foo-, 1)").unwrap()), @r###"
         NotIn(
             Ancestors {
-                heads: CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
+                heads: CommitRef(Symbol("foo")),
                 generation: 1..2,
             },
         )
@@ -3017,38 +2894,21 @@ mod tests {
 
     #[test]
     fn test_optimize_filter_difference() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
         // '~empty()' -> '~~file(*)' -> 'file(*)'
-        insta::assert_debug_snapshot!(optimize(parse("~empty()").unwrap()), @r###"
-        Filter(
-            File(
-                All,
-            ),
-        )
-        "###);
+        insta::assert_debug_snapshot!(optimize(parse("~empty()").unwrap()), @"Filter(File(All))");
 
         // '& baz' can be moved into the filter node, and form a difference node.
         insta::assert_debug_snapshot!(
             optimize(parse("(author(foo) & ~bar) & baz").unwrap()), @r###"
         Intersection(
             Difference(
-                CommitRef(
-                    Symbol(
-                        "baz",
-                    ),
-                ),
-                CommitRef(
-                    Symbol(
-                        "bar",
-                    ),
-                ),
+                CommitRef(Symbol("baz")),
+                CommitRef(Symbol("bar")),
             ),
-            Filter(
-                Author(
-                    Substring(
-                        "foo",
-                    ),
-                ),
-            ),
+            Filter(Author(Substring("foo"))),
         )
         "###);
 
@@ -3056,46 +2916,18 @@ mod tests {
         insta::assert_debug_snapshot!(
             optimize(parse("~foo & author(bar)").unwrap()), @r###"
         Intersection(
-            NotIn(
-                CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
-            ),
-            Filter(
-                Author(
-                    Substring(
-                        "bar",
-                    ),
-                ),
-            ),
+            NotIn(CommitRef(Symbol("foo"))),
+            Filter(Author(Substring("bar"))),
         )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("~foo & (author(bar) | baz)").unwrap()), @r###"
         Intersection(
-            NotIn(
-                CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
-            ),
+            NotIn(CommitRef(Symbol("foo"))),
             AsFilter(
                 Union(
-                    Filter(
-                        Author(
-                            Substring(
-                                "bar",
-                            ),
-                        ),
-                    ),
-                    CommitRef(
-                        Symbol(
-                            "baz",
-                        ),
-                    ),
+                    Filter(Author(Substring("bar"))),
+                    CommitRef(Symbol("baz")),
                 ),
             ),
         )
@@ -3105,85 +2937,37 @@ mod tests {
         insta::assert_debug_snapshot!(
             optimize(parse("author(foo) ~ bar").unwrap()), @r###"
         Intersection(
-            NotIn(
-                CommitRef(
-                    Symbol(
-                        "bar",
-                    ),
-                ),
-            ),
-            Filter(
-                Author(
-                    Substring(
-                        "foo",
-                    ),
-                ),
-            ),
+            NotIn(CommitRef(Symbol("bar"))),
+            Filter(Author(Substring("foo"))),
         )
         "###);
     }
 
     #[test]
     fn test_optimize_filter_intersection() {
-        insta::assert_debug_snapshot!(optimize(parse("author(foo)").unwrap()), @r###"
-        Filter(
-            Author(
-                Substring(
-                    "foo",
-                ),
-            ),
-        )
-        "###);
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
+        insta::assert_debug_snapshot!(
+            optimize(parse("author(foo)").unwrap()), @r###"Filter(Author(Substring("foo")))"###);
 
         insta::assert_debug_snapshot!(optimize(parse("foo & description(bar)").unwrap()), @r###"
         Intersection(
-            CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
-            Filter(
-                Description(
-                    Substring(
-                        "bar",
-                    ),
-                ),
-            ),
+            CommitRef(Symbol("foo")),
+            Filter(Description(Substring("bar"))),
         )
         "###);
         insta::assert_debug_snapshot!(optimize(parse("author(foo) & bar").unwrap()), @r###"
         Intersection(
-            CommitRef(
-                Symbol(
-                    "bar",
-                ),
-            ),
-            Filter(
-                Author(
-                    Substring(
-                        "foo",
-                    ),
-                ),
-            ),
+            CommitRef(Symbol("bar")),
+            Filter(Author(Substring("foo"))),
         )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("author(foo) & committer(bar)").unwrap()), @r###"
         Intersection(
-            Filter(
-                Author(
-                    Substring(
-                        "foo",
-                    ),
-                ),
-            ),
-            Filter(
-                Committer(
-                    Substring(
-                        "bar",
-                    ),
-                ),
-            ),
+            Filter(Author(Substring("foo"))),
+            Filter(Committer(Substring("bar"))),
         )
         "###);
 
@@ -3191,135 +2975,49 @@ mod tests {
             optimize(parse("foo & description(bar) & author(baz)").unwrap()), @r###"
         Intersection(
             Intersection(
-                CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
-                Filter(
-                    Description(
-                        Substring(
-                            "bar",
-                        ),
-                    ),
-                ),
+                CommitRef(Symbol("foo")),
+                Filter(Description(Substring("bar"))),
             ),
-            Filter(
-                Author(
-                    Substring(
-                        "baz",
-                    ),
-                ),
-            ),
+            Filter(Author(Substring("baz"))),
         )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("committer(foo) & bar & author(baz)").unwrap()), @r###"
         Intersection(
             Intersection(
-                CommitRef(
-                    Symbol(
-                        "bar",
-                    ),
-                ),
-                Filter(
-                    Committer(
-                        Substring(
-                            "foo",
-                        ),
-                    ),
-                ),
+                CommitRef(Symbol("bar")),
+                Filter(Committer(Substring("foo"))),
             ),
-            Filter(
-                Author(
-                    Substring(
-                        "baz",
-                    ),
-                ),
-            ),
+            Filter(Author(Substring("baz"))),
         )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse_with_workspace("committer(foo) & file(bar) & baz", &WorkspaceId::default()).unwrap()), @r###"
         Intersection(
             Intersection(
-                CommitRef(
-                    Symbol(
-                        "baz",
-                    ),
-                ),
-                Filter(
-                    Committer(
-                        Substring(
-                            "foo",
-                        ),
-                    ),
-                ),
+                CommitRef(Symbol("baz")),
+                Filter(Committer(Substring("foo"))),
             ),
-            Filter(
-                File(
-                    Pattern(
-                        PrefixPath(
-                            "bar",
-                        ),
-                    ),
-                ),
-            ),
+            Filter(File(Pattern(PrefixPath("bar")))),
         )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse_with_workspace("committer(foo) & file(bar) & author(baz)", &WorkspaceId::default()).unwrap()), @r###"
         Intersection(
             Intersection(
-                Filter(
-                    Committer(
-                        Substring(
-                            "foo",
-                        ),
-                    ),
-                ),
-                Filter(
-                    File(
-                        Pattern(
-                            PrefixPath(
-                                "bar",
-                            ),
-                        ),
-                    ),
-                ),
+                Filter(Committer(Substring("foo"))),
+                Filter(File(Pattern(PrefixPath("bar")))),
             ),
-            Filter(
-                Author(
-                    Substring(
-                        "baz",
-                    ),
-                ),
-            ),
+            Filter(Author(Substring("baz"))),
         )
         "###);
         insta::assert_debug_snapshot!(optimize(parse_with_workspace("foo & file(bar) & baz", &WorkspaceId::default()).unwrap()), @r###"
         Intersection(
             Intersection(
-                CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
-                CommitRef(
-                    Symbol(
-                        "baz",
-                    ),
-                ),
+                CommitRef(Symbol("foo")),
+                CommitRef(Symbol("baz")),
             ),
-            Filter(
-                File(
-                    Pattern(
-                        PrefixPath(
-                            "bar",
-                        ),
-                    ),
-                ),
-            ),
+            Filter(File(Pattern(PrefixPath("bar")))),
         )
         "###);
 
@@ -3328,32 +3026,12 @@ mod tests {
         Intersection(
             Intersection(
                 Intersection(
-                    CommitRef(
-                        Symbol(
-                            "foo",
-                        ),
-                    ),
-                    CommitRef(
-                        Symbol(
-                            "qux",
-                        ),
-                    ),
+                    CommitRef(Symbol("foo")),
+                    CommitRef(Symbol("qux")),
                 ),
-                Filter(
-                    Description(
-                        Substring(
-                            "bar",
-                        ),
-                    ),
-                ),
+                Filter(Description(Substring("bar"))),
             ),
-            Filter(
-                Author(
-                    Substring(
-                        "baz",
-                    ),
-                ),
-            ),
+            Filter(Author(Substring("baz"))),
         )
         "###);
         insta::assert_debug_snapshot!(
@@ -3361,71 +3039,31 @@ mod tests {
         Intersection(
             Intersection(
                 Intersection(
-                    CommitRef(
-                        Symbol(
-                            "foo",
-                        ),
-                    ),
+                    CommitRef(Symbol("foo")),
                     Ancestors {
-                        heads: Filter(
-                            Author(
-                                Substring(
-                                    "baz",
-                                ),
-                            ),
-                        ),
+                        heads: Filter(Author(Substring("baz"))),
                         generation: 1..2,
                     },
                 ),
-                CommitRef(
-                    Symbol(
-                        "qux",
-                    ),
-                ),
+                CommitRef(Symbol("qux")),
             ),
-            Filter(
-                Description(
-                    Substring(
-                        "bar",
-                    ),
-                ),
-            ),
+            Filter(Description(Substring("bar"))),
         )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("foo & description(bar) & parents(author(baz) & qux)").unwrap()), @r###"
         Intersection(
             Intersection(
-                CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
+                CommitRef(Symbol("foo")),
                 Ancestors {
                     heads: Intersection(
-                        CommitRef(
-                            Symbol(
-                                "qux",
-                            ),
-                        ),
-                        Filter(
-                            Author(
-                                Substring(
-                                    "baz",
-                                ),
-                            ),
-                        ),
+                        CommitRef(Symbol("qux")),
+                        Filter(Author(Substring("baz"))),
                     ),
                     generation: 1..2,
                 },
             ),
-            Filter(
-                Description(
-                    Substring(
-                        "bar",
-                    ),
-                ),
-            ),
+            Filter(Description(Substring("bar"))),
         )
         "###);
 
@@ -3437,46 +3075,16 @@ mod tests {
                 Intersection(
                     Intersection(
                         Intersection(
-                            CommitRef(
-                                Symbol(
-                                    "a",
-                                ),
-                            ),
-                            CommitRef(
-                                Symbol(
-                                    "b",
-                                ),
-                            ),
+                            CommitRef(Symbol("a")),
+                            CommitRef(Symbol("b")),
                         ),
-                        CommitRef(
-                            Symbol(
-                                "c",
-                            ),
-                        ),
+                        CommitRef(Symbol("c")),
                     ),
-                    Filter(
-                        Author(
-                            Substring(
-                                "A",
-                            ),
-                        ),
-                    ),
+                    Filter(Author(Substring("A"))),
                 ),
-                Filter(
-                    Author(
-                        Substring(
-                            "B",
-                        ),
-                    ),
-                ),
+                Filter(Author(Substring("B"))),
             ),
-            Filter(
-                Author(
-                    Substring(
-                        "C",
-                    ),
-                ),
-            ),
+            Filter(Author(Substring("C"))),
         )
         "###);
         insta::assert_debug_snapshot!(
@@ -3487,53 +3095,19 @@ mod tests {
                 Intersection(
                     Intersection(
                         Intersection(
-                            CommitRef(
-                                Symbol(
-                                    "a",
-                                ),
-                            ),
+                            CommitRef(Symbol("a")),
                             Intersection(
-                                CommitRef(
-                                    Symbol(
-                                        "b",
-                                    ),
-                                ),
-                                CommitRef(
-                                    Symbol(
-                                        "c",
-                                    ),
-                                ),
+                                CommitRef(Symbol("b")),
+                                CommitRef(Symbol("c")),
                             ),
                         ),
-                        CommitRef(
-                            Symbol(
-                                "d",
-                            ),
-                        ),
+                        CommitRef(Symbol("d")),
                     ),
-                    Filter(
-                        Author(
-                            Substring(
-                                "A",
-                            ),
-                        ),
-                    ),
+                    Filter(Author(Substring("A"))),
                 ),
-                Filter(
-                    Author(
-                        Substring(
-                            "B",
-                        ),
-                    ),
-                ),
+                Filter(Author(Substring("B"))),
             ),
-            Filter(
-                Author(
-                    Substring(
-                        "C",
-                    ),
-                ),
-            ),
+            Filter(Author(Substring("C"))),
         )
         "###);
 
@@ -3543,54 +3117,27 @@ mod tests {
             @r###"
         Intersection(
             Intersection(
-                CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
-                Filter(
-                    Description(
-                        Substring(
-                            "bar",
-                        ),
-                    ),
-                ),
+                CommitRef(Symbol("foo")),
+                Filter(Description(Substring("bar"))),
             ),
-            Filter(
-                Author(
-                    Substring(
-                        "baz",
-                    ),
-                ),
-            ),
+            Filter(Author(Substring("baz"))),
         )
         "###);
     }
 
     #[test]
     fn test_optimize_filter_subtree() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
         insta::assert_debug_snapshot!(
             optimize(parse("(author(foo) | bar) & baz").unwrap()), @r###"
         Intersection(
-            CommitRef(
-                Symbol(
-                    "baz",
-                ),
-            ),
+            CommitRef(Symbol("baz")),
             AsFilter(
                 Union(
-                    Filter(
-                        Author(
-                            Substring(
-                                "foo",
-                            ),
-                        ),
-                    ),
-                    CommitRef(
-                        Symbol(
-                            "bar",
-                        ),
-                    ),
+                    Filter(Author(Substring("foo"))),
+                    CommitRef(Symbol("bar")),
                 ),
             ),
         )
@@ -3600,46 +3147,22 @@ mod tests {
             optimize(parse("(foo | committer(bar)) & description(baz) & qux").unwrap()), @r###"
         Intersection(
             Intersection(
-                CommitRef(
-                    Symbol(
-                        "qux",
-                    ),
-                ),
+                CommitRef(Symbol("qux")),
                 AsFilter(
                     Union(
-                        CommitRef(
-                            Symbol(
-                                "foo",
-                            ),
-                        ),
-                        Filter(
-                            Committer(
-                                Substring(
-                                    "bar",
-                                ),
-                            ),
-                        ),
+                        CommitRef(Symbol("foo")),
+                        Filter(Committer(Substring("bar"))),
                     ),
                 ),
             ),
-            Filter(
-                Description(
-                    Substring(
-                        "baz",
-                    ),
-                ),
-            ),
+            Filter(Description(Substring("baz"))),
         )
         "###);
 
         insta::assert_debug_snapshot!(
             optimize(parse("(~present(author(foo) & bar) | baz) & qux").unwrap()), @r###"
         Intersection(
-            CommitRef(
-                Symbol(
-                    "qux",
-                ),
-            ),
+            CommitRef(Symbol("qux")),
             AsFilter(
                 Union(
                     AsFilter(
@@ -3647,28 +3170,14 @@ mod tests {
                             AsFilter(
                                 Present(
                                     Intersection(
-                                        CommitRef(
-                                            Symbol(
-                                                "bar",
-                                            ),
-                                        ),
-                                        Filter(
-                                            Author(
-                                                Substring(
-                                                    "foo",
-                                                ),
-                                            ),
-                                        ),
+                                        CommitRef(Symbol("bar")),
+                                        Filter(Author(Substring("foo"))),
                                     ),
                                 ),
                             ),
                         ),
                     ),
-                    CommitRef(
-                        Symbol(
-                            "baz",
-                        ),
-                    ),
+                    CommitRef(Symbol("baz")),
                 ),
             ),
         )
@@ -3684,71 +3193,29 @@ mod tests {
                 Intersection(
                     Intersection(
                         Intersection(
-                            CommitRef(
-                                Symbol(
-                                    "a",
-                                ),
-                            ),
-                            CommitRef(
-                                Symbol(
-                                    "b",
-                                ),
-                            ),
+                            CommitRef(Symbol("a")),
+                            CommitRef(Symbol("b")),
                         ),
-                        CommitRef(
-                            Symbol(
-                                "c",
-                            ),
-                        ),
+                        CommitRef(Symbol("c")),
                     ),
                     AsFilter(
                         Union(
-                            Filter(
-                                Author(
-                                    Substring(
-                                        "A",
-                                    ),
-                                ),
-                            ),
-                            CommitRef(
-                                Symbol(
-                                    "0",
-                                ),
-                            ),
+                            Filter(Author(Substring("A"))),
+                            CommitRef(Symbol("0")),
                         ),
                     ),
                 ),
                 AsFilter(
                     Union(
-                        Filter(
-                            Author(
-                                Substring(
-                                    "B",
-                                ),
-                            ),
-                        ),
-                        CommitRef(
-                            Symbol(
-                                "1",
-                            ),
-                        ),
+                        Filter(Author(Substring("B"))),
+                        CommitRef(Symbol("1")),
                     ),
                 ),
             ),
             AsFilter(
                 Union(
-                    Filter(
-                        Author(
-                            Substring(
-                                "C",
-                            ),
-                        ),
-                    ),
-                    CommitRef(
-                        Symbol(
-                            "2",
-                        ),
-                    ),
+                    Filter(Author(Substring("C"))),
+                    CommitRef(Symbol("2")),
                 ),
             ),
         )
@@ -3757,34 +3224,25 @@ mod tests {
 
     #[test]
     fn test_optimize_ancestors() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
         // Typical scenario: fold nested parents()
         insta::assert_debug_snapshot!(optimize(parse("foo--").unwrap()), @r###"
         Ancestors {
-            heads: CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
+            heads: CommitRef(Symbol("foo")),
             generation: 2..3,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("::(foo---)").unwrap()), @r###"
         Ancestors {
-            heads: CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
+            heads: CommitRef(Symbol("foo")),
             generation: 3..18446744073709551615,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("(::foo)---").unwrap()), @r###"
         Ancestors {
-            heads: CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
+            heads: CommitRef(Symbol("foo")),
             generation: 3..18446744073709551615,
         }
         "###);
@@ -3793,11 +3251,7 @@ mod tests {
         insta::assert_debug_snapshot!(optimize(parse("foo---+").unwrap()), @r###"
         Descendants {
             roots: Ancestors {
-                heads: CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
+                heads: CommitRef(Symbol("foo")),
                 generation: 3..4,
             },
             generation: 1..2,
@@ -3807,16 +3261,8 @@ mod tests {
         // For 'roots..heads', heads can be folded.
         insta::assert_debug_snapshot!(optimize(parse("foo..(bar--)").unwrap()), @r###"
         Range {
-            roots: CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
-            heads: CommitRef(
-                Symbol(
-                    "bar",
-                ),
-            ),
+            roots: CommitRef(Symbol("foo")),
+            heads: CommitRef(Symbol("bar")),
             generation: 2..18446744073709551615,
         }
         "###);
@@ -3824,18 +3270,10 @@ mod tests {
         insta::assert_debug_snapshot!(optimize(parse("(foo--)..(bar---)").unwrap()), @r###"
         Range {
             roots: Ancestors {
-                heads: CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
+                heads: CommitRef(Symbol("foo")),
                 generation: 2..3,
             },
-            heads: CommitRef(
-                Symbol(
-                    "bar",
-                ),
-            ),
+            heads: CommitRef(Symbol("bar")),
             generation: 3..18446744073709551615,
         }
         "###);
@@ -3844,19 +3282,11 @@ mod tests {
             optimize(parse("~ancestors(foo, 2) & ::bar").unwrap()), @r###"
         Difference(
             Ancestors {
-                heads: CommitRef(
-                    Symbol(
-                        "bar",
-                    ),
-                ),
+                heads: CommitRef(Symbol("bar")),
                 generation: 0..18446744073709551615,
             },
             Ancestors {
-                heads: CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
+                heads: CommitRef(Symbol("foo")),
                 generation: 0..2,
             },
         )
@@ -3867,16 +3297,8 @@ mod tests {
         insta::assert_debug_snapshot!(optimize(parse("(foo..bar)--").unwrap()), @r###"
         Ancestors {
             heads: Range {
-                roots: CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
-                heads: CommitRef(
-                    Symbol(
-                        "bar",
-                    ),
-                ),
+                roots: CommitRef(Symbol("foo")),
+                heads: CommitRef(Symbol("bar")),
                 generation: 0..18446744073709551615,
             },
             generation: 2..3,
@@ -3884,22 +3306,10 @@ mod tests {
         "###);
         insta::assert_debug_snapshot!(optimize(parse("foo..(bar..baz)").unwrap()), @r###"
         Range {
-            roots: CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
+            roots: CommitRef(Symbol("foo")),
             heads: Range {
-                roots: CommitRef(
-                    Symbol(
-                        "bar",
-                    ),
-                ),
-                heads: CommitRef(
-                    Symbol(
-                        "baz",
-                    ),
-                ),
+                roots: CommitRef(Symbol("bar")),
+                heads: CommitRef(Symbol("baz")),
                 generation: 0..18446744073709551615,
             },
             generation: 0..18446744073709551615,
@@ -3910,11 +3320,7 @@ mod tests {
         insta::assert_debug_snapshot!(
             optimize(parse("ancestors(ancestors(foo), 0)").unwrap()), @r###"
         Ancestors {
-            heads: CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
+            heads: CommitRef(Symbol("foo")),
             generation: 0..0,
         }
         "###
@@ -3922,11 +3328,7 @@ mod tests {
         insta::assert_debug_snapshot!(
             optimize(parse("ancestors(ancestors(foo, 0))").unwrap()), @r###"
         Ancestors {
-            heads: CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
+            heads: CommitRef(Symbol("foo")),
             generation: 0..0,
         }
         "###
@@ -3935,34 +3337,25 @@ mod tests {
 
     #[test]
     fn test_optimize_descendants() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
         // Typical scenario: fold nested children()
         insta::assert_debug_snapshot!(optimize(parse("foo++").unwrap()), @r###"
         Descendants {
-            roots: CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
+            roots: CommitRef(Symbol("foo")),
             generation: 2..3,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("(foo+++)::").unwrap()), @r###"
         Descendants {
-            roots: CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
+            roots: CommitRef(Symbol("foo")),
             generation: 3..18446744073709551615,
         }
         "###);
         insta::assert_debug_snapshot!(optimize(parse("(foo::)+++").unwrap()), @r###"
         Descendants {
-            roots: CommitRef(
-                Symbol(
-                    "foo",
-                ),
-            ),
+            roots: CommitRef(Symbol("foo")),
             generation: 3..18446744073709551615,
         }
         "###);
@@ -3971,11 +3364,7 @@ mod tests {
         insta::assert_debug_snapshot!(optimize(parse("foo+++-").unwrap()), @r###"
         Ancestors {
             heads: Descendants {
-                roots: CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
+                roots: CommitRef(Symbol("foo")),
                 generation: 3..4,
             },
             generation: 1..2,
@@ -3988,18 +3377,10 @@ mod tests {
         insta::assert_debug_snapshot!(optimize(parse("(foo++)::bar").unwrap()), @r###"
         DagRange {
             roots: Descendants {
-                roots: CommitRef(
-                    Symbol(
-                        "foo",
-                    ),
-                ),
+                roots: CommitRef(Symbol("foo")),
                 generation: 2..3,
             },
-            heads: CommitRef(
-                Symbol(
-                    "bar",
-                ),
-            ),
+            heads: CommitRef(Symbol("bar")),
         }
         "###);
     }
