@@ -474,6 +474,22 @@ mod tests {
         RepoPathBuf::from_internal_string(value)
     }
 
+    fn insta_settings() -> insta::Settings {
+        let mut settings = insta::Settings::clone_current();
+        // Collapse short "Thing(_,)" repeatedly to save vertical space and make
+        // the output more readable.
+        for _ in 0..4 {
+            settings.add_filter(
+                r"(?x)
+                \b([A-Z]\w*)\(\n
+                    \s*(.{1,60}),\n
+                \s*\)",
+                "$1($2)",
+            );
+        }
+        settings
+    }
+
     #[test]
     fn test_parse_file_pattern() {
         let path_converter = RepoPathUiConverter::Fs {
@@ -611,6 +627,8 @@ mod tests {
 
     #[test]
     fn test_parse_function() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
         let path_converter = RepoPathUiConverter::Fs {
             cwd: PathBuf::from("/ws/cur"),
             base: PathBuf::from("/ws"),
@@ -637,6 +655,8 @@ mod tests {
 
     #[test]
     fn test_parse_compound_expression() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
         let path_converter = RepoPathUiConverter::Fs {
             cwd: PathBuf::from("/ws/cur"),
             base: PathBuf::from("/ws"),
@@ -646,53 +666,25 @@ mod tests {
         insta::assert_debug_snapshot!(parse("~x").unwrap(), @r###"
         Difference(
             All,
-            Pattern(
-                PrefixPath(
-                    "cur/x",
-                ),
-            ),
+            Pattern(PrefixPath("cur/x")),
         )
         "###);
         insta::assert_debug_snapshot!(parse("x|y|root:z").unwrap(), @r###"
         UnionAll(
             [
-                Pattern(
-                    PrefixPath(
-                        "cur/x",
-                    ),
-                ),
-                Pattern(
-                    PrefixPath(
-                        "cur/y",
-                    ),
-                ),
-                Pattern(
-                    PrefixPath(
-                        "z",
-                    ),
-                ),
+                Pattern(PrefixPath("cur/x")),
+                Pattern(PrefixPath("cur/y")),
+                Pattern(PrefixPath("z")),
             ],
         )
         "###);
         insta::assert_debug_snapshot!(parse("x|y&z").unwrap(), @r###"
         UnionAll(
             [
-                Pattern(
-                    PrefixPath(
-                        "cur/x",
-                    ),
-                ),
+                Pattern(PrefixPath("cur/x")),
                 Intersection(
-                    Pattern(
-                        PrefixPath(
-                            "cur/y",
-                        ),
-                    ),
-                    Pattern(
-                        PrefixPath(
-                            "cur/z",
-                        ),
-                    ),
+                    Pattern(PrefixPath("cur/y")),
+                    Pattern(PrefixPath("cur/z")),
                 ),
             ],
         )
@@ -734,6 +726,9 @@ mod tests {
 
     #[test]
     fn test_build_matcher_simple() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
         insta::assert_debug_snapshot!(FilesetExpression::none().to_matcher(), @"NothingMatcher");
         insta::assert_debug_snapshot!(FilesetExpression::all().to_matcher(), @"EverythingMatcher");
         insta::assert_debug_snapshot!(
@@ -758,6 +753,8 @@ mod tests {
 
     #[test]
     fn test_build_matcher_glob_pattern() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
         let glob_expr = |dir: &str, pattern: &str| {
             FilesetExpression::pattern(FilePattern::FileGlob {
                 dir: repo_path_buf(dir),
@@ -810,6 +807,9 @@ mod tests {
 
     #[test]
     fn test_build_matcher_union_patterns_of_same_kind() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
         let expr = FilesetExpression::union_all(vec![
             FilesetExpression::file_path(repo_path_buf("foo")),
             FilesetExpression::file_path(repo_path_buf("foo/bar")),
@@ -841,6 +841,9 @@ mod tests {
 
     #[test]
     fn test_build_matcher_union_patterns_of_different_kind() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
         let expr = FilesetExpression::union_all(vec![
             FilesetExpression::file_path(repo_path_buf("foo")),
             FilesetExpression::prefix_path(repo_path_buf("bar")),
@@ -863,6 +866,9 @@ mod tests {
 
     #[test]
     fn test_build_matcher_unnormalized_union() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
         let expr = FilesetExpression::UnionAll(vec![]);
         insta::assert_debug_snapshot!(expr.to_matcher(), @"NothingMatcher");
 
@@ -878,6 +884,9 @@ mod tests {
 
     #[test]
     fn test_build_matcher_combined() {
+        let settings = insta_settings();
+        let _guard = settings.bind_to_scope();
+
         let expr = FilesetExpression::union_all(vec![
             FilesetExpression::intersection(FilesetExpression::all(), FilesetExpression::none()),
             FilesetExpression::difference(FilesetExpression::none(), FilesetExpression::all()),
