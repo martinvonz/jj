@@ -1486,7 +1486,7 @@ tracking:</p>
 <span class="w">    </span><span class="c1">// TODO: Probably something for git similarity detection</span>
 <span class="p">}</span>
 
-<span class="k">pub</span><span class="w"> </span><span class="k">type</span><span class="w"> </span><span class="nc">CopyRecordStream</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Pin</span><span class="o">&lt;</span><span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">Stream</span><span class="o">&lt;</span><span class="n">Item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BackendResult</span><span class="o">&lt;</span><span class="n">CopyRecord</span><span class="o">&gt;&gt;&gt;&gt;</span><span class="p">;</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">type</span><span class="w"> </span><span class="nc">CopyRecordStream</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BoxStream</span><span class="o">&lt;</span><span class="n">BackendResult</span><span class="o">&lt;</span><span class="n">CopyRecord</span><span class="o">&gt;&gt;</span><span class="p">;</span>
 
 <span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">Backend</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="sd">/// Get all copy records for `paths` in the dag range `roots..heads`.</span>
