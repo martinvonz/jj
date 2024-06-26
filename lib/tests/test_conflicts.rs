@@ -357,15 +357,31 @@ fn test_materialize_conflict_no_newlines_at_eof() {
         @r###"
     <<<<<<< Conflict 1 of 1
     %%%%%%% Changes from base to side #1
-    -base+++++++ Contents of side #2
-    right>>>>>>> Conflict 1 of 1 ends
+    -base
+    +++++++ Contents of side #2
+    right
+    >>>>>>> Conflict 1 of 1 ends
     "###
     );
-    // BUG(#3968): These conflict markers cannot be parsed
+    // These conflict markers can be parsed (#3968)
+    // TODO(#3975): BUG: The result of the parsing has newlines where original files
+    // didn't.
     insta::assert_debug_snapshot!(parse_conflict(
         materialized.as_bytes(),
         conflict.num_sides()
-    ),@"None");
+    ),@r###"
+    Some(
+        [
+            Conflicted(
+                [
+                    "",
+                    "base\n",
+                    "right\n",
+                ],
+            ),
+        ],
+    )
+    "###);
 }
 
 #[test]

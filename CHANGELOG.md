@@ -84,6 +84,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `jj` will look for divergent changes outside the short prefix set even if it finds the change id inside the short prefix set. [#2476](https://github.com/martinvonz/jj/issues/2476)
 
+* Conflicts involving non-empty files that do not end in a newline no longer
+  look broken when materialized.
+  [#3968](https://github.com/martinvonz/jj/issues/3968). This is a partial fix,
+  see also [#3975](https://github.com/martinvonz/jj/issues/3968) which is not
+  yet fixed.
+
 ## [0.18.0] - 2024-06-05
 
 ### Breaking changes
