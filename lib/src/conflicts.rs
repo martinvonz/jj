@@ -53,6 +53,8 @@ static CONFLICT_MARKER_REGEX: once_cell::sync::Lazy<Regex> = once_cell::sync::La
     .unwrap()
 });
 
+/// This function assumes that each hunk consists of 0 or more lines, each
+/// ending with a newline.
 fn write_diff_hunks(hunks: &[DiffHunk], file: &mut dyn Write) -> std::io::Result<()> {
     for hunk in hunks {
         match hunk {
@@ -218,6 +220,16 @@ pub fn materialize_merge_result(
     single_hunk: Merge<ContentHunk>,
     output: &mut dyn Write,
 ) -> std::io::Result<()> {
+    // The following code assumes that each version of the file contains 0 or
+    // more lines, each ending with `\n`. For now, we force this to be true.
+    // TODO(#3795): A better solution for this.
+    let single_hunk: Merge<ContentHunk> = single_hunk.into_map(|ContentHunk(mut side)| {
+        if !side.is_empty() && !side.ends_with(b"\n") {
+            side.push(b'\n');
+        };
+        ContentHunk(side)
+    });
+
     let slices = single_hunk.map(|content| content.0.as_slice());
     let merge_result = files::merge(&slices);
     match merge_result {
@@ -239,6 +251,7 @@ pub fn materialize_merge_result(
                     output.write_all(
                         format!(" Conflict {conflict_index} of {num_conflicts}\n").as_bytes(),
                     )?;
+
                     let mut add_index = 0;
                     for (base_index, left) in hunk.removes().enumerate() {
                         // The vast majority of conflicts one actually tries to
