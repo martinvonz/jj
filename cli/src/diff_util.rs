@@ -1050,40 +1050,39 @@ pub fn show_diff_stat(
         max_bar_length as f64 / max_diffs as f64
     };
 
-    formatter.with_label("diff", |formatter| {
-        let mut total_added = 0;
-        let mut total_removed = 0;
-        let total_files = stats.len();
-        for stat in &stats {
-            total_added += stat.added;
-            total_removed += stat.removed;
-            let bar_added = (stat.added as f64 * factor).ceil() as usize;
-            let bar_removed = (stat.removed as f64 * factor).ceil() as usize;
-            // replace start of path with ellipsis if the path is too long
-            let (path, path_width) = text_util::elide_start(&stat.path, "...", max_path_width);
-            let path_pad_width = max_path_width - path_width;
-            write!(
-                formatter,
-                "{path}{:path_pad_width$} | {:>number_padding$}{}",
-                "", // pad to max_path_width
-                stat.added + stat.removed,
-                if bar_added + bar_removed > 0 { " " } else { "" },
-            )?;
-            write!(formatter.labeled("added"), "{}", "+".repeat(bar_added))?;
-            writeln!(formatter.labeled("removed"), "{}", "-".repeat(bar_removed))?;
-        }
-        writeln!(
-            formatter.labeled("stat-summary"),
-            "{} file{} changed, {} insertion{}(+), {} deletion{}(-)",
-            total_files,
-            if total_files == 1 { "" } else { "s" },
-            total_added,
-            if total_added == 1 { "" } else { "s" },
-            total_removed,
-            if total_removed == 1 { "" } else { "s" },
+    formatter.push_label("diff")?;
+    let mut total_added = 0;
+    let mut total_removed = 0;
+    let total_files = stats.len();
+    for stat in &stats {
+        total_added += stat.added;
+        total_removed += stat.removed;
+        let bar_added = (stat.added as f64 * factor).ceil() as usize;
+        let bar_removed = (stat.removed as f64 * factor).ceil() as usize;
+        // replace start of path with ellipsis if the path is too long
+        let (path, path_width) = text_util::elide_start(&stat.path, "...", max_path_width);
+        let path_pad_width = max_path_width - path_width;
+        write!(
+            formatter,
+            "{path}{:path_pad_width$} | {:>number_padding$}{}",
+            "", // pad to max_path_width
+            stat.added + stat.removed,
+            if bar_added + bar_removed > 0 { " " } else { "" },
         )?;
-        Ok(())
-    })?;
+        write!(formatter.labeled("added"), "{}", "+".repeat(bar_added))?;
+        writeln!(formatter.labeled("removed"), "{}", "-".repeat(bar_removed))?;
+    }
+    writeln!(
+        formatter.labeled("stat-summary"),
+        "{} file{} changed, {} insertion{}(+), {} deletion{}(-)",
+        total_files,
+        if total_files == 1 { "" } else { "s" },
+        total_added,
+        if total_added == 1 { "" } else { "s" },
+        total_removed,
+        if total_removed == 1 { "" } else { "s" },
+    )?;
+    formatter.pop_label()?;
     Ok(())
 }
 
@@ -1092,22 +1091,23 @@ pub fn show_types(
     mut tree_diff: TreeDiffStream,
     path_converter: &RepoPathUiConverter,
 ) -> io::Result<()> {
-    formatter.with_label("diff", |formatter| {
-        async {
-            while let Some((repo_path, diff)) = tree_diff.next().await {
-                let (before, after) = diff.unwrap();
-                writeln!(
-                    formatter.labeled("modified"),
-                    "{}{} {}",
-                    diff_summary_char(&before),
-                    diff_summary_char(&after),
-                    path_converter.format_file_path(&repo_path)
-                )?;
-            }
-            Ok(())
+    formatter.push_label("diff")?;
+    async {
+        while let Some((repo_path, diff)) = tree_diff.next().await {
+            let (before, after) = diff.unwrap();
+            writeln!(
+                formatter.labeled("modified"),
+                "{}{} {}",
+                diff_summary_char(&before),
+                diff_summary_char(&after),
+                path_converter.format_file_path(&repo_path)
+            )?;
         }
-        .block_on()
-    })
+        io::Result::Ok(())
+    }
+    .block_on()?;
+    formatter.pop_label()?;
+    Ok(())
 }
 
 fn diff_summary_char(value: &MergedTreeValue) -> char {
