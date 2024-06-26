@@ -82,8 +82,8 @@ fn test_initial(backend: TestRepoBackend) {
     assert_eq!(parents, vec![store.root_commit()]);
     assert!(commit.predecessors().next().is_none());
     assert_eq!(commit.description(), "description");
-    assert_eq!(commit.author(), &author_signature);
-    assert_eq!(commit.committer(), &committer_signature);
+    assert_eq!(commit.author_raw(), &author_signature);
+    assert_eq!(commit.committer_raw(), &committer_signature);
     assert_eq!(
         store
             .root_commit()
@@ -158,14 +158,14 @@ fn test_rewrite(backend: TestRepoBackend) {
     assert_eq!(parents, vec![store.root_commit()]);
     let predecessors: Vec<_> = rewritten_commit.predecessors().try_collect().unwrap();
     assert_eq!(predecessors, vec![initial_commit.clone()]);
-    assert_eq!(rewritten_commit.author().name, settings.user_name());
-    assert_eq!(rewritten_commit.author().email, settings.user_email());
+    assert_eq!(rewritten_commit.author_raw().name, settings.user_name());
+    assert_eq!(rewritten_commit.author_raw().email, settings.user_email());
     assert_eq!(
-        rewritten_commit.committer().name,
+        rewritten_commit.committer_raw().name,
         rewrite_settings.user_name()
     );
     assert_eq!(
-        rewritten_commit.committer().email,
+        rewritten_commit.committer_raw().email,
         rewrite_settings.user_email()
     );
     assert_eq!(
@@ -214,10 +214,10 @@ fn test_rewrite_update_missing_user(backend: TestRepoBackend) {
         )
         .write()
         .unwrap();
-    assert_eq!(initial_commit.author().name, "");
-    assert_eq!(initial_commit.author().email, "");
-    assert_eq!(initial_commit.committer().name, "");
-    assert_eq!(initial_commit.committer().email, "");
+    assert_eq!(initial_commit.author_raw().name, "");
+    assert_eq!(initial_commit.author_raw().email, "");
+    assert_eq!(initial_commit.committer_raw().name, "");
+    assert_eq!(initial_commit.committer_raw().email, "");
 
     let config = config::Config::builder()
         .set_override("user.name", "Configured User")
@@ -233,14 +233,14 @@ fn test_rewrite_update_missing_user(backend: TestRepoBackend) {
         .write()
         .unwrap();
 
-    assert_eq!(rewritten_commit.author().name, "Configured User");
+    assert_eq!(rewritten_commit.author_raw().name, "Configured User");
     assert_eq!(
-        rewritten_commit.author().email,
+        rewritten_commit.author_raw().email,
         "configured.user@example.com"
     );
-    assert_eq!(rewritten_commit.committer().name, "Configured User");
+    assert_eq!(rewritten_commit.committer_raw().name, "Configured User");
     assert_eq!(
-        rewritten_commit.committer().email,
+        rewritten_commit.committer_raw().email,
         "configured.user@example.com"
     );
 }

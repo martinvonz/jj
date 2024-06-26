@@ -145,11 +145,27 @@ impl Commit {
         &self.data.description
     }
 
-    pub fn author(&self) -> &Signature {
+    /// Returns the raw author signature from the commit data.
+    ///
+    /// **Note:** You usually **should not** directly process or display this
+    /// information before canonicalizing it. Prefer
+    /// [`Mailmap::author`][`crate::mailmap::Mailmap::author`] unless you
+    /// care specficially about the potentially‐outdated immutable commit data,
+    /// or are performing low‐level operations in a context that can’t obtain a
+    /// [`Mailmap`][`crate::mailmap::Mailmap`].
+    pub fn author_raw(&self) -> &Signature {
         &self.data.author
     }
 
-    pub fn committer(&self) -> &Signature {
+    /// Returns the raw committer signature from the commit data.
+    ///
+    /// **Note:** You usually **should not** directly process or display this
+    /// information before canonicalizing it. Prefer
+    /// [`Mailmap::committer`][`crate::mailmap::Mailmap::committer`] unless you
+    /// care specficially about the potentially‐outdated immutable commit
+    /// data, or are performing low‐level operations in a context that can’t
+    /// obtain a [`Mailmap`][`crate::mailmap::Mailmap`].
+    pub fn committer_raw(&self) -> &Signature {
         &self.data.committer
     }
 
@@ -193,8 +209,8 @@ pub(crate) struct CommitByCommitterTimestamp(pub Commit);
 
 impl Ord for CommitByCommitterTimestamp {
     fn cmp(&self, other: &Self) -> Ordering {
-        let self_timestamp = &self.0.committer().timestamp.timestamp;
-        let other_timestamp = &other.0.committer().timestamp.timestamp;
+        let self_timestamp = &self.0.committer_raw().timestamp.timestamp;
+        let other_timestamp = &other.0.committer_raw().timestamp.timestamp;
         self_timestamp
             .cmp(other_timestamp)
             .then_with(|| self.0.cmp(&other.0)) // to comply with Eq

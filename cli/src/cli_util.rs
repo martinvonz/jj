@@ -41,6 +41,7 @@ use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::{GitIgnoreError, GitIgnoreFile};
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
+use jj_lib::mailmap::get_current_mailmap;
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::MergedTree;
@@ -991,11 +992,16 @@ impl WorkspaceCommandHelper {
             path_converter: &self.path_converter,
             workspace_id: self.workspace_id(),
         };
+        let mailmap = Rc::new(get_current_mailmap(
+            self.repo().as_ref(),
+            self.workspace_id(),
+        ));
         RevsetParseContext::new(
             &self.revset_aliases_map,
             self.settings.user_email(),
             &self.revset_extensions,
             Some(workspace_context),
+            mailmap,
         )
     }
 

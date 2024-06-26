@@ -25,6 +25,7 @@ use jj_lib::extensions_map::ExtensionsMap;
 use jj_lib::git;
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
+use jj_lib::mailmap::{get_current_mailmap, Mailmap};
 use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::{RefTarget, RemoteRef, WorkspaceId};
 use jj_lib::repo::Repo;
@@ -61,6 +62,7 @@ pub struct CommitTemplateLanguage<'repo> {
     build_fn_table: CommitTemplateBuildFnTable<'repo>,
     keyword_cache: CommitKeywordCache<'repo>,
     cache_extensions: ExtensionsMap,
+    mailmap: Rc<Mailmap>,
 }
 
 impl<'repo> CommitTemplateLanguage<'repo> {
@@ -83,6 +85,8 @@ impl<'repo> CommitTemplateLanguage<'repo> {
                 .build_cache_extensions(&mut cache_extensions);
         }
 
+        let mailmap = Rc::new(get_current_mailmap(repo, workspace_id));
+
         CommitTemplateLanguage {
             repo,
             workspace_id: workspace_id.clone(),
@@ -91,6 +95,7 @@ impl<'repo> CommitTemplateLanguage<'repo> {
             build_fn_table,
             keyword_cache: CommitKeywordCache::default(),
             cache_extensions,
+            mailmap,
         }
     }
 }
@@ -468,26 +473,43 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
             Ok(L::wrap_commit_list(out_property))
         },
     );
+    map.insert("author", |language, _build_ctx, self_property, function| {
+        function.expect_no_arguments()?;
+        let mailmap = language.mailmap.clone();
+        let out_property = self_property.map(move |commit| mailmap.author(&commit));
+        Ok(L::wrap_signature(out_property))
+    });
     map.insert(
-        "author",
+        "author_raw",
         |_language, _build_ctx, self_property, function| {
             function.expect_no_arguments()?;
-            let out_property = self_property.map(|commit| commit.author().clone());
+            let out_property = self_property.map(|commit| commit.author_raw().clone());
             Ok(L::wrap_signature(out_property))
         },
     );
     map.insert(
         "committer",
+        |language, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let mailmap = language.mailmap.clone();
+            let out_property = self_property.map(move |commit| mailmap.committer(&commit));
+            Ok(L::wrap_signature(out_property))
+        },
+    );
+    map.insert(
+        "committer_raw",
         |_language, _build_ctx, self_property, function| {
             function.expect_no_arguments()?;
-            let out_property = self_property.map(|commit| commit.committer().clone());
+            let out_property = self_property.map(|commit| commit.committer_raw().clone());
             Ok(L::wrap_signature(out_property))
         },
     );
     map.insert("mine", |language, _build_ctx, self_property, function| {
         function.expect_no_arguments()?;
+        let mailmap = language.mailmap.clone();
         let user_email = language.revset_parse_context.user_email().to_owned();
-        let out_property = self_property.map(move |commit| commit.author().email == user_email);
+        let out_property =
+            self_property.map(move |commit| mailmap.author(&commit).email == user_email);
         Ok(L::wrap_boolean(out_property))
     });
     map.insert(
