@@ -339,6 +339,36 @@ fn test_materialize_parse_roundtrip() {
 }
 
 #[test]
+fn test_materialize_conflict_no_newlines_at_eof() {
+    let test_repo = TestRepo::init();
+    let store = test_repo.repo.store();
+
+    let path = RepoPath::from_internal_string("file");
+    let base_id = testutils::write_file(store, path, "base");
+    let left_empty_id = testutils::write_file(store, path, "");
+    let right_id = testutils::write_file(store, path, "right");
+
+    let conflict = Merge::from_removes_adds(
+        vec![Some(base_id.clone())],
+        vec![Some(left_empty_id.clone()), Some(right_id.clone())],
+    );
+    let materialized = &materialize_conflict_string(store, path, &conflict);
+    insta::assert_snapshot!(materialized,
+        @r###"
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
+    -base+++++++ Contents of side #2
+    right>>>>>>> Conflict 1 of 1 ends
+    "###
+    );
+    // BUG(#3968): These conflict markers cannot be parsed
+    insta::assert_debug_snapshot!(parse_conflict(
+        materialized.as_bytes(),
+        conflict.num_sides()
+    ),@"None");
+}
+
+#[test]
 fn test_materialize_conflict_modify_delete() {
     let test_repo = TestRepo::init();
     let store = test_repo.repo.store();
