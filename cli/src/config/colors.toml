@@ -78,9 +78,11 @@
 "diff binary" = "cyan"
 "diff file_header" = { bold = true }
 "diff hunk_header" = "cyan"
-"diff removed" = { fg = "red", underline = true }
-"diff added" = { fg = "green", underline = true }
-"diff line_number" = { underline = false }
+"diff removed" = { fg = "red" }
+"diff added" = { fg = "green" }
+"diff color_words added" = { underline = true }
+"diff color_words removed" = { underline = true }
+"diff color_words line_number" = { underline = false }
 "diff modified" = "cyan"
 "diff access-denied" = { bg = "red" }
 

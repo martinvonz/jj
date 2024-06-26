@@ -518,6 +518,7 @@ pub fn show_color_words_diff(
     path_converter: &RepoPathUiConverter,
 ) -> Result<(), DiffRenderError> {
     formatter.push_label("diff")?;
+    formatter.push_label("color_words")?;
     let mut diff_stream = materialized_diff_stream(repo.store(), tree_diff);
     async {
         while let Some((path, diff)) = diff_stream.next().await {
@@ -640,6 +641,7 @@ pub fn show_color_words_diff(
         Ok::<(), DiffRenderError>(())
     }
     .block_on()?;
+    formatter.pop_label()?;
     formatter.pop_label()?;
     Ok(())
 }
@@ -886,6 +888,7 @@ pub fn show_git_diff(
     tree_diff: TreeDiffStream,
 ) -> Result<(), DiffRenderError> {
     formatter.push_label("diff")?;
+    formatter.push_label("git")?;
 
     let mut diff_stream = materialized_diff_stream(repo.store(), tree_diff);
     async {
@@ -947,6 +950,7 @@ pub fn show_git_diff(
         Ok::<(), DiffRenderError>(())
     }
     .block_on()?;
+    formatter.pop_label()?;
     formatter.pop_label()?;
     Ok(())
 }
@@ -1051,6 +1055,7 @@ pub fn show_diff_stat(
     };
 
     formatter.push_label("diff")?;
+    formatter.push_label("stat")?;
     let mut total_added = 0;
     let mut total_removed = 0;
     let total_files = stats.len();
@@ -1083,6 +1088,7 @@ pub fn show_diff_stat(
         if total_removed == 1 { "" } else { "s" },
     )?;
     formatter.pop_label()?;
+    formatter.pop_label()?;
     Ok(())
 }
 
@@ -1092,6 +1098,7 @@ pub fn show_types(
     path_converter: &RepoPathUiConverter,
 ) -> io::Result<()> {
     formatter.push_label("diff")?;
+    formatter.push_label("types")?;
     async {
         while let Some((repo_path, diff)) = tree_diff.next().await {
             let (before, after) = diff.unwrap();
@@ -1106,6 +1113,7 @@ pub fn show_types(
         io::Result::Ok(())
     }
     .block_on()?;
+    formatter.pop_label()?;
     formatter.pop_label()?;
     Ok(())
 }
