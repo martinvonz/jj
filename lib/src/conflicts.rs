@@ -191,7 +191,7 @@ async fn materialize_tree_value_no_access_denied(
             if let Some(file_merge) = conflict.to_file_merge() {
                 let file_merge = file_merge.simplify();
                 let content = extract_as_single_hunk(&file_merge, store, path).await?;
-                materialize_merge_result(&content, &mut contents)
+                materialize_merge_result(content, &mut contents)
                     .expect("Failed to materialize conflict to in-memory buffer");
             } else {
                 // Unless all terms are regular files, we can't do much better than to try to
@@ -215,10 +215,10 @@ async fn materialize_tree_value_no_access_denied(
 }
 
 pub fn materialize_merge_result(
-    single_hunk: &Merge<ContentHunk>,
+    single_hunk: Merge<ContentHunk>,
     output: &mut dyn Write,
 ) -> std::io::Result<()> {
-    let merge_result = files::merge(single_hunk);
+    let merge_result = files::merge(&single_hunk);
     match merge_result {
         MergeResult::Resolved(content) => {
             output.write_all(&content.0)?;
@@ -501,7 +501,7 @@ pub async fn update_from_content(
     // copy.
     let mut old_content = Vec::with_capacity(content.len());
     let merge_hunk = extract_as_single_hunk(simplified_file_ids, store, path).await?;
-    materialize_merge_result(&merge_hunk, &mut old_content).unwrap();
+    materialize_merge_result(merge_hunk, &mut old_content).unwrap();
     if content == old_content {
         return Ok(file_ids.clone());
     }
