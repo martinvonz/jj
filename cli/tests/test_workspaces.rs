@@ -628,14 +628,11 @@ fn test_workspaces_forget() {
     insta::assert_snapshot!(stderr, @"");
 
     // The old working copy doesn't get an "@" in the log output
-    // TODO: We should abandon the empty working copy commit
     // TODO: It seems useful to still have the "secondary@" marker here even though
     // there's only one workspace. We should show it when the command is not run
     // from that workspace.
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
     ◉  18463f438cc9
-    │ ◉  909d51b17292
-    ├─╯
     ◉  4e8f9d2be039
     ◉  000000000000
     "###);
@@ -695,7 +692,7 @@ fn test_workspaces_forget_multi_transaction() {
     // the op log should have multiple workspaces forgotten in a single tx
     let stdout = test_env.jj_cmd_success(&main_path, &["op", "log", "--limit", "1"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  6c88cdee70e6 test-username@host.example.com 2001-02-03 04:05:12.000 +07:00 - 2001-02-03 04:05:12.000 +07:00
+    @  f91852cb278f test-username@host.example.com 2001-02-03 04:05:12.000 +07:00 - 2001-02-03 04:05:12.000 +07:00
     │  forget workspaces second, third
     │  args: jj workspace forget second third
     "###);
@@ -709,6 +706,65 @@ fn test_workspaces_forget_multi_transaction() {
     default: rlvkpnrz 909d51b1 (empty) (no description set)
     second: pmmvwywv 18463f43 (empty) (no description set)
     third: rzvqmyuk cc383fa2 (empty) (no description set)
+    "###);
+}
+
+#[test]
+fn test_workspaces_forget_abandon_commits() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "main"]);
+    let main_path = test_env.env_root().join("main");
+
+    std::fs::write(main_path.join("file"), "contents").unwrap();
+
+    test_env.jj_cmd_ok(&main_path, &["workspace", "add", "../second"]);
+    test_env.jj_cmd_ok(&main_path, &["workspace", "add", "../third"]);
+    test_env.jj_cmd_ok(&main_path, &["workspace", "add", "../fourth"]);
+    let third_path = test_env.env_root().join("third");
+    test_env.jj_cmd_ok(&third_path, &["edit", "second@"]);
+    let fourth_path = test_env.env_root().join("fourth");
+    test_env.jj_cmd_ok(&fourth_path, &["edit", "second@"]);
+
+    // there should be four workspaces, three of which are at the same empty commit
+    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    default: qpvuntsm 4e8f9d2b (no description set)
+    fourth: uuqppmxq 57d63245 (empty) (no description set)
+    second: uuqppmxq 57d63245 (empty) (no description set)
+    third: uuqppmxq 57d63245 (empty) (no description set)
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
+    ◉  57d63245a308 fourth@ second@ third@
+    │ @  4e8f9d2be039 default@
+    ├─╯
+    ◉  000000000000
+    "###);
+
+    // delete the default workspace (should not abandon commit since not empty)
+    test_env.jj_cmd_success(&main_path, &["workspace", "forget", "default"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
+    ◉  57d63245a308 fourth@ second@ third@
+    │ ◉  4e8f9d2be039
+    ├─╯
+    ◉  000000000000
+    "###);
+
+    // delete the second workspace (should not abandon commit since other workspaces
+    // still have commit checked out)
+    test_env.jj_cmd_success(&main_path, &["workspace", "forget", "second"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
+    ◉  57d63245a308 fourth@ third@
+    │ ◉  4e8f9d2be039
+    ├─╯
+    ◉  000000000000
+    "###);
+
+    // delete the last 2 workspaces (commit should be abandoned now even though
+    // forgotten in same tx)
+    test_env.jj_cmd_success(&main_path, &["workspace", "forget", "third", "fourth"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
+    ◉  4e8f9d2be039
+    ◉  000000000000
     "###);
 }
 

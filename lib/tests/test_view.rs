@@ -158,7 +158,7 @@ fn test_merge_views_checkout() {
     tx1.mut_repo()
         .set_wc_commit(ws2_id.clone(), commit2.id().clone())
         .unwrap();
-    tx1.mut_repo().remove_wc_commit(&ws4_id);
+    tx1.mut_repo().remove_wc_commit(&ws4_id).unwrap();
     tx1.mut_repo()
         .set_wc_commit(ws5_id.clone(), commit2.id().clone())
         .unwrap();
@@ -176,7 +176,7 @@ fn test_merge_views_checkout() {
     tx2.mut_repo()
         .set_wc_commit(ws4_id.clone(), commit3.id().clone())
         .unwrap();
-    tx2.mut_repo().remove_wc_commit(&ws5_id);
+    tx2.mut_repo().remove_wc_commit(&ws5_id).unwrap();
     tx2.mut_repo()
         .set_wc_commit(ws7_id.clone(), commit3.id().clone())
         .unwrap();

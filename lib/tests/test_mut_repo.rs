@@ -598,3 +598,54 @@ fn test_rename_remote() {
         RemoteRef::absent()
     );
 }
+
+#[test]
+fn test_remove_wc_commit_previous_not_discardable() {
+    // Test that MutableRepo::remove_wc_commit() does not usually abandon the
+    // previous commit.
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+    let old_wc_commit = write_random_commit(mut_repo, &settings);
+    let ws_id = WorkspaceId::default();
+    mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
+    let repo = tx.commit("test");
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+    mut_repo.remove_wc_commit(&ws_id).unwrap();
+    mut_repo.rebase_descendants(&settings).unwrap();
+    assert!(mut_repo.view().heads().contains(old_wc_commit.id()));
+}
+
+#[test]
+fn test_remove_wc_commit_previous_discardable() {
+    // Test that MutableRepo::remove_wc_commit() abandons the previous commit
+    // if it was discardable.
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+    let old_wc_commit = mut_repo
+        .new_commit(
+            &settings,
+            vec![repo.store().root_commit_id().clone()],
+            repo.store().empty_merged_tree_id(),
+        )
+        .write()
+        .unwrap();
+    let ws_id = WorkspaceId::default();
+    mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
+    let repo = tx.commit("test");
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+    mut_repo.remove_wc_commit(&ws_id).unwrap();
+    mut_repo.rebase_descendants(&settings).unwrap();
+    assert!(!mut_repo.view().heads().contains(old_wc_commit.id()));
+}

@@ -1290,8 +1290,10 @@ impl MutableRepo {
         Ok(())
     }
 
-    pub fn remove_wc_commit(&mut self, workspace_id: &WorkspaceId) {
+    pub fn remove_wc_commit(&mut self, workspace_id: &WorkspaceId) -> Result<(), EditCommitError> {
+        self.maybe_abandon_wc_commit(workspace_id)?;
         self.view_mut().remove_wc_commit(workspace_id);
+        Ok(())
     }
 
     pub fn check_out(
