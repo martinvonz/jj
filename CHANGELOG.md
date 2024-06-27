@@ -24,6 +24,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   default branch of the remote as repository settings for
   `revset-aliases."trunk()"`.`
 
+* `jj workspace forget` now abandons the workspace's working-copy commit if it
+  was empty.
+
 ### Fixed bugs
 
 ## [0.19.0] - 2024-07-03
