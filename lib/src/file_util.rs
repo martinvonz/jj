@@ -57,6 +57,14 @@ pub fn create_or_reuse_dir(dirname: &Path) -> io::Result<()> {
     }
 }
 
+/// Creates a directory (including any intermediate directories) or does nothing
+/// if the directory already exists.
+///
+/// Returns the underlying error if any directory can't be created.
+pub fn create_dir_all(dirname: &Path) -> io::Result<()> {
+    fs::create_dir_all(dirname)
+}
+
 /// Removes all files in the directory, but not the directory itself.
 ///
 /// The directory must exist, and there should be no sub directories.

@@ -34,17 +34,21 @@ struct Args {
     _ignore: Vec<String>,
 }
 
-fn files_recursively(dir: &Path) -> HashSet<String> {
+fn files_recursively(p: &Path) -> HashSet<String> {
     let mut files = HashSet::new();
-    for dir_entry in std::fs::read_dir(dir).unwrap() {
-        let dir_entry = dir_entry.unwrap();
-        let base_name = dir_entry.file_name().to_str().unwrap().to_string();
-        if dir_entry.path().is_dir() {
-            for sub_path in files_recursively(&dir_entry.path()) {
-                files.insert(format!("{base_name}/{sub_path}"));
+    if !p.is_dir() {
+        files.insert(p.file_name().unwrap().to_str().unwrap().to_string());
+    } else {
+        for dir_entry in std::fs::read_dir(p).unwrap() {
+            let dir_entry = dir_entry.unwrap();
+            let base_name = dir_entry.file_name().to_str().unwrap().to_string();
+            if !dir_entry.path().is_dir() {
+                files.insert(base_name);
+            } else {
+                for sub_path in files_recursively(&dir_entry.path()) {
+                    files.insert(format!("{base_name}/{sub_path}"));
+                }
             }
-        } else {
-            files.insert(base_name);
         }
     }
     files

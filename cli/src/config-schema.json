@@ -332,6 +332,14 @@
                             "type": "string"
                         }
                     },
+                    "diff-invocation-mode": {
+                      "description": "Invoke the tool with directories or individual files",
+                      "enum": [
+                        "dir",
+                        "file-by-file"
+                      ],
+                      "default": "dir"
+                    },
                     "edit-args": {
                         "type": "array",
                         "items": {

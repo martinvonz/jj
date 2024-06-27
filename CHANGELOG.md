@@ -76,6 +76,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   commits with no description) if authored by the current user.
   [#2000](https://github.com/martinvonz/jj/issues/2000)
 
+* External diff tools can now be configured to invoke the tool on each file
+  individually instead of being passed a directory by setting
+  `merge-tools.$TOOL.diff-invocation-mode="file-by-file"` in config.toml.
+
 ### Fixed bugs
 
 * `jj git push` now ignores immutable commits when checking whether a
