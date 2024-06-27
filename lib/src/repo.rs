@@ -1316,6 +1316,15 @@ impl MutableRepo {
         workspace_id: WorkspaceId,
         commit: &Commit,
     ) -> Result<(), EditCommitError> {
+        self.maybe_abandon_wc_commit(&workspace_id)?;
+        self.set_wc_commit(workspace_id, commit.id().clone())
+            .map_err(|RewriteRootCommit| EditCommitError::RewriteRootCommit)
+    }
+
+    fn maybe_abandon_wc_commit(
+        &mut self,
+        workspace_id: &WorkspaceId,
+    ) -> Result<(), EditCommitError> {
         fn local_branch_target_ids(view: &View) -> impl Iterator<Item = &CommitId> {
             view.local_branches()
                 .flat_map(|(_, target)| target.added_ids())
@@ -1323,7 +1332,7 @@ impl MutableRepo {
 
         let maybe_wc_commit_id = self
             .view
-            .with_ref(|v| v.get_wc_commit_id(&workspace_id).cloned());
+            .with_ref(|v| v.get_wc_commit_id(workspace_id).cloned());
         if let Some(wc_commit_id) = maybe_wc_commit_id {
             let wc_commit = self
                 .store()
@@ -1340,8 +1349,8 @@ impl MutableRepo {
                 self.record_abandoned_commit(wc_commit_id);
             }
         }
-        self.set_wc_commit(workspace_id, commit.id().clone())
-            .map_err(|RewriteRootCommit| EditCommitError::RewriteRootCommit)
+
+        Ok(())
     }
 
     fn enforce_view_invariants(&self, view: &mut View) {
