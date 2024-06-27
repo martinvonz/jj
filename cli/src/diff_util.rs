@@ -16,6 +16,7 @@ use std::cmp::max;
 use std::collections::VecDeque;
 use std::io;
 use std::ops::Range;
+use std::path::{Path, PathBuf};
 
 use futures::{try_join, Stream, StreamExt};
 use itertools::Itertools;
@@ -40,7 +41,10 @@ use unicode_width::UnicodeWidthStr as _;
 
 use crate::config::CommandNameAndArgs;
 use crate::formatter::Formatter;
-use crate::merge_tools::{self, DiffGenerateError, ExternalMergeTool};
+use crate::merge_tools::{
+    self, generate_diff, invoke_external_diff, new_utf8_temp_dir, DiffGenerateError, DiffToolMode,
+    ExternalMergeTool,
+};
 use crate::text_util;
 use crate::ui::Ui;
 
@@ -273,15 +277,23 @@ impl<'a> DiffRenderer<'a> {
                     show_color_words_diff(repo, formatter, *context, tree_diff, path_converter)?;
                 }
                 DiffFormat::Tool(tool) => {
-                    merge_tools::generate_diff(
-                        ui,
-                        formatter.raw(),
-                        from_tree,
-                        to_tree,
-                        matcher,
-                        tool,
-                    )
-                    .map_err(DiffRenderError::DiffGenerate)?;
+                    match tool.diff_invocation_mode {
+                        DiffToolMode::FileByFile => {
+                            let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                            show_file_by_file_diff(
+                                ui,
+                                repo,
+                                formatter,
+                                tool,
+                                tree_diff,
+                                path_converter,
+                            )
+                        }
+                        DiffToolMode::Dir => {
+                            generate_diff(ui, formatter.raw(), from_tree, to_tree, matcher, tool)
+                                .map_err(DiffRenderError::DiffGenerate)
+                        }
+                    }?;
                 }
             }
         }
@@ -646,6 +658,66 @@ pub fn show_color_words_diff(
     .block_on()?;
     formatter.pop_label()?;
     Ok(())
+}
+
+pub fn show_file_by_file_diff(
+    ui: &Ui,
+    repo: &dyn Repo,
+    formatter: &mut dyn Formatter,
+    tool: &ExternalMergeTool,
+    tree_diff: TreeDiffStream,
+    path_converter: &RepoPathUiConverter,
+) -> Result<(), DiffRenderError> {
+    fn create_file(
+        path: &RepoPath,
+        wc_dir: &Path,
+        value: MaterializedTreeValue,
+    ) -> Result<PathBuf, DiffRenderError> {
+        let fs_path = path.to_fs_path(wc_dir);
+        std::fs::create_dir_all(fs_path.parent().unwrap())?;
+        let content = diff_content(path, value)?;
+        std::fs::write(&fs_path, content.contents)?;
+        Ok(fs_path)
+    }
+
+    let temp_dir = new_utf8_temp_dir("jj-diff-")?;
+    let left_wc_dir = temp_dir.path().join("left");
+    let right_wc_dir = temp_dir.path().join("right");
+    let mut diff_stream = materialized_diff_stream(repo.store(), tree_diff);
+    async {
+        while let Some((path, diff)) = diff_stream.next().await {
+            let ui_path = path_converter.format_file_path(&path);
+            let (left_value, right_value) = diff?;
+
+            match (&left_value, &right_value) {
+                (_, MaterializedTreeValue::AccessDenied(source))
+                | (MaterializedTreeValue::AccessDenied(source), _) => {
+                    write!(
+                        formatter.labeled("access-denied"),
+                        "Access denied to {ui_path}:"
+                    )?;
+                    writeln!(formatter, " {source}")?;
+                    continue;
+                }
+                _ => {}
+            }
+            let left_path = create_file(&path, &left_wc_dir, left_value)?;
+            let right_path = create_file(&path, &right_wc_dir, right_value)?;
+
+            invoke_external_diff(
+                ui,
+                formatter.raw(),
+                tool,
+                &maplit::hashmap! {
+                    "left" => left_path.to_str().expect("temp_dir should be valid utf-8"),
+                    "right" => right_path.to_str().expect("temp_dir should be valid utf-8"),
+                },
+            )
+            .map_err(DiffRenderError::DiffGenerate)?;
+        }
+        Ok::<(), DiffRenderError>(())
+    }
+    .block_on()
 }
 
 struct GitDiffPart {
