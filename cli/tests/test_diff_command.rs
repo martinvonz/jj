@@ -1115,6 +1115,109 @@ fn test_diff_external_tool() {
     "###);
 }
 
+#[test]
+fn test_diff_external_file_by_file_tool() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "foo\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::remove_file(repo_path.join("file1")).unwrap();
+    std::fs::write(repo_path.join("file2"), "foo\nbar\n").unwrap();
+    std::fs::write(repo_path.join("file3"), "foo\n").unwrap();
+
+    let edit_script = test_env.set_up_fake_diff_editor();
+    std::fs::write(
+        edit_script,
+        "print ==\0print-files-before\0print --\0print-files-after",
+    )
+    .unwrap();
+
+    // Enabled by default, looks up the merge-tools table
+    let config = "--config-toml=ui.diff.tool='fake-diff-editor'\nmerge-tools.fake-diff-editor.\
+                  diff-invocation-mode='file-by-file'";
+
+    // diff without file patterns
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["diff", config]), @r###"
+    ==
+    file1
+    --
+    file1
+    ==
+    file2
+    --
+    file2
+    ==
+    file3
+    --
+    file3
+    "###);
+
+    // diff with file patterns
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["diff", config, "file1"]), @r###"
+    ==
+    file1
+    --
+    file1
+    "###);
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["log", "-p", config]), @r###"
+    @  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 39d9055d
+    │  (no description set)
+    │  ==
+    │  file1
+    │  --
+    │  file1
+    │  ==
+    │  file2
+    │  --
+    │  file2
+    │  ==
+    │  file3
+    │  --
+    │  file3
+    ◉  qpvuntsm test.user@example.com 2001-02-03 08:05:08 0ad4ef22
+    │  (no description set)
+    │  ==
+    │  file1
+    │  --
+    │  file1
+    │  ==
+    │  file2
+    │  --
+    │  file2
+    ◉  zzzzzzzz root() 00000000
+    "###);
+
+    insta::assert_snapshot!(
+        test_env.jj_cmd_success(&repo_path, &["show", config]), @r###"
+    Commit ID: 39d9055d70873099fd924b9af218289d5663eac8
+    Change ID: rlvkpnrzqnoowoytxnquwvuryrwnrmlp
+    Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
+
+        (no description set)
+
+    ==
+    file1
+    --
+    file1
+    ==
+    file2
+    --
+    file2
+    ==
+    file3
+    --
+    file3
+    "###);
+}
+
 #[cfg(unix)]
 #[test]
 fn test_diff_external_tool_symlink() {

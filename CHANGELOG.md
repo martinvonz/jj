@@ -84,6 +84,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj squash` now accepts a `--keep-emptied` option to keep the source commit.
 
+* External diff tools can now be configured to invoke the tool on each file
+  individually instead of being passed a directory by setting
+  `merge-tools.$TOOL.diff-invocation-mode="file-by-file"` in config.toml.
+
 ### Fixed bugs
 
 * `jj git push` now ignores immutable commits when checking whether a
