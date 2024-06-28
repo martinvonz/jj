@@ -21,12 +21,12 @@ use crate::ui::Ui;
 
 /// Show information about the working copy state
 #[derive(clap::Args, Clone, Debug)]
-pub struct WorkingCopyArgs {}
+pub struct DebugWorkingCopyArgs {}
 
 pub fn cmd_debug_working_copy(
     ui: &mut Ui,
     command: &CommandHelper,
-    _args: &WorkingCopyArgs,
+    _args: &DebugWorkingCopyArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper_no_snapshot(ui)?;
     let wc = workspace_command.working_copy();

@@ -24,12 +24,12 @@ use crate::ui::Ui;
 
 /// Show commit index stats
 #[derive(clap::Args, Clone, Debug)]
-pub struct IndexArgs {}
+pub struct DebugIndexArgs {}
 
 pub fn cmd_debug_index(
     ui: &mut Ui,
     command: &CommandHelper,
-    _args: &IndexArgs,
+    _args: &DebugIndexArgs,
 ) -> Result<(), CommandError> {
     // Resolve the operation without loading the repo, so this command won't
     // merge concurrent operations and update the index.

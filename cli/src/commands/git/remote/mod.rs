@@ -20,11 +20,11 @@ pub mod set_url;
 
 use clap::Subcommand;
 
-use self::add::{cmd_remote_add, AddArgs};
-use self::list::{cmd_remote_list, ListArgs};
-use self::remove::{cmd_remote_remove, RemoveArgs};
-use self::rename::{cmd_remote_rename, RenameArgs};
-use self::set_url::{cmd_remote_set_url, SetUrlArgs};
+use self::add::{cmd_git_remote_add, GitRemoteAddArgs};
+use self::list::{cmd_git_remote_list, GitRemoteListArgs};
+use self::remove::{cmd_git_remote_remove, GitRemoteRemoveArgs};
+use self::rename::{cmd_git_remote_rename, GitRemoteRenameArgs};
+use self::set_url::{cmd_git_remote_set_url, GitRemoteSetUrlArgs};
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
@@ -34,11 +34,11 @@ use crate::ui::Ui;
 /// The Git repo will be a bare git repo stored inside the `.jj/` directory.
 #[derive(Subcommand, Clone, Debug)]
 pub enum RemoteCommand {
-    Add(AddArgs),
-    List(ListArgs),
-    Remove(RemoveArgs),
-    Rename(RenameArgs),
-    SetUrl(SetUrlArgs),
+    Add(GitRemoteAddArgs),
+    List(GitRemoteListArgs),
+    Remove(GitRemoteRemoveArgs),
+    Rename(GitRemoteRenameArgs),
+    SetUrl(GitRemoteSetUrlArgs),
 }
 
 pub fn cmd_git_remote(
@@ -47,10 +47,10 @@ pub fn cmd_git_remote(
     subcommand: &RemoteCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        RemoteCommand::Add(args) => cmd_remote_add(ui, command, args),
-        RemoteCommand::List(args) => cmd_remote_list(ui, command, args),
-        RemoteCommand::Remove(args) => cmd_remote_remove(ui, command, args),
-        RemoteCommand::Rename(args) => cmd_remote_rename(ui, command, args),
-        RemoteCommand::SetUrl(args) => cmd_remote_set_url(ui, command, args),
+        RemoteCommand::Add(args) => cmd_git_remote_add(ui, command, args),
+        RemoteCommand::List(args) => cmd_git_remote_list(ui, command, args),
+        RemoteCommand::Remove(args) => cmd_git_remote_remove(ui, command, args),
+        RemoteCommand::Rename(args) => cmd_git_remote_rename(ui, command, args),
+        RemoteCommand::SetUrl(args) => cmd_git_remote_set_url(ui, command, args),
     }
 }

@@ -30,17 +30,17 @@ use std::fmt::Debug;
 use clap::Subcommand;
 use jj_lib::local_working_copy::LocalWorkingCopy;
 
-use self::fileset::{cmd_debug_fileset, FilesetArgs};
-use self::index::{cmd_debug_index, IndexArgs};
-use self::local_working_copy::{cmd_debug_local_working_copy, LocalWorkingCopyArgs};
-use self::operation::{cmd_debug_operation, OperationArgs};
-use self::reindex::{cmd_debug_reindex, ReindexArgs};
-use self::revset::{cmd_debug_revset, RevsetArgs};
-use self::snapshot::{cmd_debug_snapshot, SnapshotArgs};
-use self::template::{cmd_debug_template, TemplateArgs};
-use self::tree::{cmd_debug_tree, TreeArgs};
-use self::watchman::{cmd_debug_watchman, WatchmanCommand};
-use self::working_copy::{cmd_debug_working_copy, WorkingCopyArgs};
+use self::fileset::{cmd_debug_fileset, DebugFilesetArgs};
+use self::index::{cmd_debug_index, DebugIndexArgs};
+use self::local_working_copy::{cmd_debug_local_working_copy, DebugLocalWorkingCopyArgs};
+use self::operation::{cmd_debug_operation, DebugOperationArgs};
+use self::reindex::{cmd_debug_reindex, DebugReindexArgs};
+use self::revset::{cmd_debug_revset, DebugRevsetArgs};
+use self::snapshot::{cmd_debug_snapshot, DebugSnapshotArgs};
+use self::template::{cmd_debug_template, DebugTemplateArgs};
+use self::tree::{cmd_debug_tree, DebugTreeArgs};
+use self::watchman::{cmd_debug_watchman, DebugWatchmanCommand};
+use self::working_copy::{cmd_debug_working_copy, DebugWorkingCopyArgs};
 use crate::cli_util::CommandHelper;
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
@@ -49,19 +49,19 @@ use crate::ui::Ui;
 #[derive(Subcommand, Clone, Debug)]
 #[command(hide = true)]
 pub enum DebugCommand {
-    Fileset(FilesetArgs),
-    Index(IndexArgs),
-    LocalWorkingCopy(LocalWorkingCopyArgs),
+    Fileset(DebugFilesetArgs),
+    Index(DebugIndexArgs),
+    LocalWorkingCopy(DebugLocalWorkingCopyArgs),
     #[command(visible_alias = "view")]
-    Operation(OperationArgs),
-    Reindex(ReindexArgs),
-    Revset(RevsetArgs),
-    Snapshot(SnapshotArgs),
-    Template(TemplateArgs),
-    Tree(TreeArgs),
+    Operation(DebugOperationArgs),
+    Reindex(DebugReindexArgs),
+    Revset(DebugRevsetArgs),
+    Snapshot(DebugSnapshotArgs),
+    Template(DebugTemplateArgs),
+    Tree(DebugTreeArgs),
     #[command(subcommand)]
-    Watchman(WatchmanCommand),
-    WorkingCopy(WorkingCopyArgs),
+    Watchman(DebugWatchmanCommand),
+    WorkingCopy(DebugWorkingCopyArgs),
 }
 
 pub fn cmd_debug(

@@ -37,7 +37,7 @@ enum ChmodMode {
 /// Unlike the POSIX `chmod`, `jj file chmod` also works on Windows, on
 /// conflicted files, and on arbitrary revisions.
 #[derive(clap::Args, Clone, Debug)]
-pub(crate) struct ChmodArgs {
+pub(crate) struct FileChmodArgs {
     mode: ChmodMode,
     /// The revision to update
     #[arg(long, short, default_value = "@")]
@@ -51,7 +51,7 @@ pub(crate) struct ChmodArgs {
 pub(crate) fn deprecated_cmd_chmod(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &ChmodArgs,
+    args: &FileChmodArgs,
 ) -> Result<(), CommandError> {
     writeln!(
         ui.warning_default(),
@@ -61,14 +61,14 @@ pub(crate) fn deprecated_cmd_chmod(
         ui.warning_default(),
         "`jj chmod` will be removed in a future version, and this will be a hard error"
     )?;
-    cmd_chmod(ui, command, args)
+    cmd_file_chmod(ui, command, args)
 }
 
 #[instrument(skip_all)]
-pub(crate) fn cmd_chmod(
+pub(crate) fn cmd_file_chmod(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &ChmodArgs,
+    args: &FileChmodArgs,
 ) -> Result<(), CommandError> {
     let executable_bit = match args.mode {
         ChmodMode::Executable => true,

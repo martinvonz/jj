@@ -22,17 +22,17 @@ use crate::ui::Ui;
 
 /// Add a Git remote
 #[derive(clap::Args, Clone, Debug)]
-pub struct AddArgs {
+pub struct GitRemoteAddArgs {
     /// The remote's name
     remote: String,
     /// The remote's URL
     url: String,
 }
 
-pub fn cmd_remote_add(
+pub fn cmd_git_remote_add(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &AddArgs,
+    args: &GitRemoteAddArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();

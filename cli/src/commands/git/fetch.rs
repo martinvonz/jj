@@ -29,7 +29,7 @@ use crate::ui::Ui;
 /// If a working-copy commit gets abandoned, it will be given a new, empty
 /// commit. This is true in general; it is not specific to this command.
 #[derive(clap::Args, Clone, Debug)]
-pub struct FetchArgs {
+pub struct GitFetchArgs {
     /// Fetch only some of the branches
     ///
     /// By default, the specified name matches exactly. Use `glob:` prefix to
@@ -49,7 +49,7 @@ pub struct FetchArgs {
 pub fn cmd_git_fetch(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &FetchArgs,
+    args: &GitFetchArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let git_repo = get_git_repo(workspace_command.repo().store())?;

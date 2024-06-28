@@ -20,12 +20,12 @@ use crate::ui::Ui;
 
 /// Trigger a snapshot in the op log
 #[derive(clap::Args, Clone, Debug)]
-pub struct SnapshotArgs {}
+pub struct DebugSnapshotArgs {}
 
 pub fn cmd_debug_snapshot(
     ui: &mut Ui,
     command: &CommandHelper,
-    _args: &SnapshotArgs,
+    _args: &DebugSnapshotArgs,
 ) -> Result<(), CommandError> {
     // workspace helper will snapshot as needed
     command.workspace_helper(ui)?;

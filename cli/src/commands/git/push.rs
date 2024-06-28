@@ -61,7 +61,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 #[command(group(ArgGroup::new("specific").args(&["branch", "change", "revisions"]).multiple(true)))]
 #[command(group(ArgGroup::new("what").args(&["all", "deleted", "tracked"]).conflicts_with("specific")))]
-pub struct PushArgs {
+pub struct GitPushArgs {
     /// The remote to push to (only named remotes are supported)
     #[arg(long)]
     remote: Option<String>,
@@ -123,7 +123,7 @@ enum BranchMoveDirection {
 pub fn cmd_git_push(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &PushArgs,
+    args: &GitPushArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let git_repo = get_git_repo(workspace_command.repo().store())?;

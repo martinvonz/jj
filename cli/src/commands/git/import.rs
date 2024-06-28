@@ -24,12 +24,12 @@ use crate::ui::Ui;
 /// If a working-copy commit gets abandoned, it will be given a new, empty
 /// commit. This is true in general; it is not specific to this command.
 #[derive(clap::Args, Clone, Debug)]
-pub struct ImportArgs {}
+pub struct GitImportArgs {}
 
 pub fn cmd_git_import(
     ui: &mut Ui,
     command: &CommandHelper,
-    _args: &ImportArgs,
+    _args: &GitImportArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let mut tx = workspace_command.start_transaction();
