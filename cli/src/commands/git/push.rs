@@ -552,7 +552,7 @@ fn find_branches_targeted_by_revisions<'a>(
         };
         let current_branches_expression = RevsetExpression::remote_branches(
             StringPattern::everything(),
-            StringPattern::Exact(remote_name.to_owned()),
+            StringPattern::exact(remote_name),
         )
         .range(&RevsetExpression::commit(wc_commit_id))
         .intersection(&RevsetExpression::branches(StringPattern::everything()));

@@ -32,16 +32,26 @@ pub enum StringPatternParseError {
     GlobPattern(glob::PatternError),
 }
 
+fn parse_glob(src: &str) -> Result<glob::Pattern, StringPatternParseError> {
+    glob::Pattern::new(src).map_err(StringPatternParseError::GlobPattern)
+}
+
 /// Pattern to be tested against string property like commit description or
 /// branch name.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StringPattern {
-    /// Matches strings exactly equal to `string`.
+    /// Matches strings exactly.
     Exact(String),
-    /// Unix-style shell wildcard pattern.
-    Glob(glob::Pattern),
-    /// Matches strings that contain `substring`.
+    /// Matches strings case‐insensitively.
+    ExactI(String),
+    /// Matches strings that contain a substring.
     Substring(String),
+    /// Matches strings that case‐insensitively contain a substring.
+    SubstringI(String),
+    /// Matches with a Unix‐style shell wildcard pattern.
+    Glob(glob::Pattern),
+    /// Matches with a case‐insensitive Unix‐style shell wildcard pattern.
+    GlobI(glob::Pattern),
 }
 
 impl StringPattern {
@@ -50,11 +60,12 @@ impl StringPattern {
         StringPattern::Substring(String::new())
     }
 
-    /// Parses the given string as a `StringPattern`. Everything before the
-    /// first ":" is considered the string's prefix. If the prefix is "exact:",
-    /// "glob:", or "substring:", a pattern of the specified kind is returned.
-    /// Returns an error if the string has an unrecognized prefix. Otherwise, a
-    /// `StringPattern::Exact` is returned.
+    /// Parses the given string as a [`StringPattern`]. Everything before the
+    /// first ":" is considered the string's prefix. If the prefix is
+    /// "exact[-i]:", "glob[-i]:", or "substring[-i]:", a pattern of the
+    /// specified kind is returned. Returns an error if the string has an
+    /// unrecognized prefix. Otherwise, a `StringPattern::Exact` is
+    /// returned.
     pub fn parse(src: &str) -> Result<StringPattern, StringPatternParseError> {
         if let Some((kind, pat)) = src.split_once(':') {
             StringPattern::from_str_kind(pat, kind)
@@ -63,26 +74,48 @@ impl StringPattern {
         }
     }
 
-    /// Creates pattern that matches exactly.
+    /// Constructs a pattern that matches exactly.
     pub fn exact(src: impl Into<String>) -> Self {
         StringPattern::Exact(src.into())
     }
 
-    /// Parses the given string as glob pattern.
+    /// Constructs a pattern that matches case‐insensitively.
+    pub fn exact_i(src: impl Into<String>) -> Self {
+        StringPattern::ExactI(src.into())
+    }
+
+    /// Constructs a pattern that matches a substring.
+    pub fn substring(src: impl Into<String>) -> Self {
+        StringPattern::Substring(src.into())
+    }
+
+    /// Constructs a pattern that case‐insensitively matches a substring.
+    pub fn substring_i(src: impl Into<String>) -> Self {
+        StringPattern::SubstringI(src.into())
+    }
+
+    /// Parses the given string as a glob pattern.
     pub fn glob(src: &str) -> Result<Self, StringPatternParseError> {
         // TODO: might be better to do parsing and compilation separately since
         // not all backends would use the compiled pattern object.
         // TODO: if no meta character found, it can be mapped to Exact.
-        let pattern = glob::Pattern::new(src).map_err(StringPatternParseError::GlobPattern)?;
-        Ok(StringPattern::Glob(pattern))
+        Ok(StringPattern::Glob(parse_glob(src)?))
     }
 
-    /// Parses the given string as pattern of the specified `kind`.
+    /// Parses the given string as a case‐insensitive glob pattern.
+    pub fn glob_i(src: &str) -> Result<Self, StringPatternParseError> {
+        Ok(StringPattern::GlobI(parse_glob(src)?))
+    }
+
+    /// Parses the given string as a pattern of the specified `kind`.
     pub fn from_str_kind(src: &str, kind: &str) -> Result<Self, StringPatternParseError> {
         match kind {
             "exact" => Ok(StringPattern::exact(src)),
+            "exact-i" => Ok(StringPattern::exact_i(src)),
+            "substring" => Ok(StringPattern::substring(src)),
+            "substring-i" => Ok(StringPattern::substring_i(src)),
             "glob" => StringPattern::glob(src),
-            "substring" => Ok(StringPattern::Substring(src.to_owned())),
+            "glob-i" => StringPattern::glob_i(src),
             _ => Err(StringPatternParseError::InvalidKind(kind.to_owned())),
         }
     }
@@ -96,9 +129,12 @@ impl StringPattern {
     ///
     /// This can be used to optimize map lookup by exact key.
     pub fn as_exact(&self) -> Option<&str> {
+        // TODO: Handle trivial case‐insensitive patterns here? It might make people
+        // expect they can use case‐insensitive patterns in contexts where they
+        // generally can’t.
         match self {
             StringPattern::Exact(literal) => Some(literal),
-            StringPattern::Glob(_) | StringPattern::Substring(_) => None,
+            _ => None,
         }
     }
 
@@ -106,8 +142,11 @@ impl StringPattern {
     pub fn as_str(&self) -> &str {
         match self {
             StringPattern::Exact(literal) => literal,
-            StringPattern::Glob(pattern) => pattern.as_str(),
+            StringPattern::ExactI(literal) => literal,
             StringPattern::Substring(needle) => needle,
+            StringPattern::SubstringI(needle) => needle,
+            StringPattern::Glob(pattern) => pattern.as_str(),
+            StringPattern::GlobI(pattern) => pattern.as_str(),
         }
     }
 
@@ -115,22 +154,61 @@ impl StringPattern {
     /// can't be represented as a glob.
     pub fn to_glob(&self) -> Option<Cow<'_, str>> {
         // TODO: If we add Regex pattern, it will return None.
+        //
+        // TODO: Handle trivial case‐insensitive patterns here? It might make people
+        // expect they can use case‐insensitive patterns in contexts where they
+        // generally can’t.
         match self {
             StringPattern::Exact(literal) => Some(glob::Pattern::escape(literal).into()),
-            StringPattern::Glob(pattern) => Some(pattern.as_str().into()),
-            StringPattern::Substring(needle) if needle.is_empty() => Some("*".into()),
             StringPattern::Substring(needle) => {
-                Some(format!("*{}*", glob::Pattern::escape(needle)).into())
+                if needle.is_empty() {
+                    Some("*".into())
+                } else {
+                    Some(format!("*{}*", glob::Pattern::escape(needle)).into())
+                }
             }
+            StringPattern::Glob(pattern) => Some(pattern.as_str().into()),
+            StringPattern::ExactI(_) => None,
+            StringPattern::SubstringI(_) => None,
+            StringPattern::GlobI(_) => None,
         }
     }
 
     /// Returns true if this pattern matches the `haystack`.
+    ///
+    /// When matching against a case‐insensitive pattern, only ASCII case
+    /// differences are currently folded. This may change in the future.
     pub fn matches(&self, haystack: &str) -> bool {
+        // TODO: Unicode case folding is complicated and can be locale‐specific. The
+        // `glob` crate and Gitoxide only deal with ASCII case folding, so we do
+        // the same here; a more elaborate case folding system will require
+        // making sure those behave in a matching manner where relevant.
+        //
+        // Care will need to be taken regarding normalization and the choice of an
+        // appropriate case‐insensitive comparison scheme (`toNFKC_Casefold`?) to ensure
+        // that it is compatible with the standard case‐insensitivity of haystack
+        // components (like internationalized domain names in email addresses). The
+        // availability of normalization and case folding schemes in database backends
+        // will also need to be considered. A locale‐specific case folding
+        // scheme would likely not be appropriate for Jujutsu.
+        //
+        // For some discussion of this topic, see:
+        // <https://github.com/unicode-org/icu4x/issues/3151>
         match self {
             StringPattern::Exact(literal) => haystack == literal,
-            StringPattern::Glob(pattern) => pattern.matches(haystack),
+            StringPattern::ExactI(literal) => haystack.eq_ignore_ascii_case(literal),
             StringPattern::Substring(needle) => haystack.contains(needle),
+            StringPattern::SubstringI(needle) => haystack
+                .to_ascii_lowercase()
+                .contains(&needle.to_ascii_lowercase()),
+            StringPattern::Glob(pattern) => pattern.matches(haystack),
+            StringPattern::GlobI(pattern) => pattern.matches_with(
+                haystack,
+                glob::MatchOptions {
+                    case_sensitive: false,
+                    ..glob::MatchOptions::new()
+                },
+            ),
         }
     }
 
@@ -191,6 +269,10 @@ mod tests {
         assert_eq!(
             StringPattern::parse("substring:foo").unwrap(),
             StringPattern::from_str_kind("foo", "substring").unwrap()
+        );
+        assert_eq!(
+            StringPattern::parse("substring-i:foo").unwrap(),
+            StringPattern::from_str_kind("foo", "substring-i").unwrap()
         );
 
         // Parse a pattern that contains a : itself.
