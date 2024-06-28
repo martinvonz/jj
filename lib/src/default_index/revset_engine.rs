@@ -1052,8 +1052,7 @@ fn build_predicate_fn(
         RevsetFilterPredicate::Author(pattern) => {
             let pattern = pattern.clone();
             // TODO: Make these functions that take a needle to search for accept some
-            // syntax for specifying whether it's a regex and whether it's
-            // case-sensitive.
+            // syntax for specifying whether it's a regex.
             box_pure_predicate_fn(move |index, pos| {
                 let entry = index.entry_by_pos(pos);
                 let commit = store.get_commit(&entry.commit_id()).unwrap();

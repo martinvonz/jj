@@ -41,6 +41,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `jj git clone some/nested/path` now creates the full directory tree for 
    nested destination paths if they don't exist.
 
+* String patterns now support case‐insensitive matching by suffixing any
+  pattern kind with `-i`. `mine()` uses case‐insensitive matching on your email
+  address unconditionally. Only ASCII case folding is currently implemented,
+  but this will likely change in the future.
+
 ### Fixed bugs
 
 ## [0.19.0] - 2024-07-03

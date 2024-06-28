@@ -687,8 +687,11 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     });
     map.insert("mine", |function, context| {
         function.expect_no_arguments()?;
+        // Email address domains are inherently case‐insensitive, and the local‐parts
+        // are generally (although not universally) treated as case‐insensitive too, so
+        // we use a case‐insensitive match here.
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
-            StringPattern::Exact(context.user_email.to_owned()),
+            StringPattern::exact_i(&context.user_email),
         )))
     });
     map.insert("committer", |function, _context| {
@@ -2518,7 +2521,7 @@ mod tests {
         assert!(parse("mine(foo)").is_err());
         insta::assert_debug_snapshot!(
             parse("mine()").unwrap(),
-            @r###"Filter(Author(Exact("test.user@example.com")))"###);
+            @r###"Filter(Author(ExactI("test.user@example.com")))"###);
         insta::assert_debug_snapshot!(
             parse_with_workspace("empty()", &WorkspaceId::default()).unwrap(),
             @"NotIn(Filter(File(All)))");
