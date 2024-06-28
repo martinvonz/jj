@@ -2398,6 +2398,15 @@ fn test_evaluate_expression_author() {
         resolve_commit_ids(mut_repo, "author(\"email3\")"),
         vec![commit3.id().clone()]
     );
+    // Can match case‐insensitively
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "author(i:Name)"),
+        vec![
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+        ]
+    );
     // Searches only among candidates if specified
     assert_eq!(
         resolve_commit_ids(mut_repo, "visible_heads() & author(\"name2\")"),
@@ -2452,7 +2461,8 @@ fn test_evaluate_expression_mine() {
         .set_parents(vec![commit2.id().clone()])
         .set_author(Signature {
             name: "name3".to_string(),
-            email: settings.user_email(),
+            // Test that matches are case‐insensitive
+            email: settings.user_email().to_ascii_uppercase(),
             timestamp,
         })
         .write()
@@ -2538,6 +2548,15 @@ fn test_evaluate_expression_committer() {
     assert_eq!(
         resolve_commit_ids(mut_repo, "committer(\"email3\")"),
         vec![commit3.id().clone()]
+    );
+    // Can match case‐insensitively
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "committer(i:Name)"),
+        vec![
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+        ]
     );
     // Searches only among candidates if specified
     assert_eq!(

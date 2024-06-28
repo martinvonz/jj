@@ -2298,7 +2298,7 @@ impl FromStr for RemoteBranchNamePattern {
 
 impl RemoteBranchNamePattern {
     pub fn is_exact(&self) -> bool {
-        self.branch.is_exact() && self.remote.is_exact()
+        self.branch.is_case_sensitive_exact() && self.remote.is_case_sensitive_exact()
     }
 }
 

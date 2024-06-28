@@ -74,11 +74,11 @@ pub fn cmd_git_fetch(
         })
         .map_err(|err| match err {
             GitFetchError::InvalidBranchPattern => {
-                if args
-                    .branch
-                    .iter()
-                    .any(|pattern| pattern.as_exact().map_or(false, |s| s.contains('*')))
-                {
+                if args.branch.iter().any(|pattern| {
+                    pattern
+                        .as_case_sensitive_exact()
+                        .map_or(false, |s| s.contains('*'))
+                }) {
                     user_error_with_hint(
                         err,
                         "Prefix the pattern with `glob:` to expand `*` as a glob",
