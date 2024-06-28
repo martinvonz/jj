@@ -22,6 +22,7 @@ pub mod snapshot;
 pub mod template;
 pub mod tree;
 pub mod watchman;
+pub mod working_copy;
 
 use std::any::Any;
 use std::fmt::Debug;
@@ -39,6 +40,7 @@ use self::snapshot::{cmd_debug_snapshot, SnapshotArgs};
 use self::template::{cmd_debug_template, TemplateArgs};
 use self::tree::{cmd_debug_tree, TreeArgs};
 use self::watchman::{cmd_debug_watchman, WatchmanCommand};
+use self::working_copy::{cmd_debug_working_copy, WorkingCopyArgs};
 use crate::cli_util::CommandHelper;
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
@@ -59,6 +61,7 @@ pub enum DebugCommand {
     Tree(TreeArgs),
     #[command(subcommand)]
     Watchman(WatchmanCommand),
+    WorkingCopy(WorkingCopyArgs),
 }
 
 pub fn cmd_debug(
@@ -77,6 +80,7 @@ pub fn cmd_debug(
         DebugCommand::Template(args) => cmd_debug_template(ui, command, args),
         DebugCommand::Tree(args) => cmd_debug_tree(ui, command, args),
         DebugCommand::Watchman(args) => cmd_debug_watchman(ui, command, args),
+        DebugCommand::WorkingCopy(args) => cmd_debug_working_copy(ui, command, args),
     }
 }
 

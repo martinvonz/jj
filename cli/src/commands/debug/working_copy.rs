@@ -15,37 +15,23 @@
 use std::fmt::Debug;
 use std::io::Write as _;
 
-use jj_lib::working_copy::WorkingCopy;
-
-use super::check_local_disk_wc;
 use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
-/// Show information about the local working copy state
-///
-/// This command only works with a standard local-disk working copy.
+/// Show information about the working copy state
 #[derive(clap::Args, Clone, Debug)]
-pub struct LocalWorkingCopyArgs {}
+pub struct WorkingCopyArgs {}
 
-pub fn cmd_debug_local_working_copy(
+pub fn cmd_debug_working_copy(
     ui: &mut Ui,
     command: &CommandHelper,
-    _args: &LocalWorkingCopyArgs,
+    _args: &WorkingCopyArgs,
 ) -> Result<(), CommandError> {
-    let workspace_command = command.workspace_helper(ui)?;
-    let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
+    let workspace_command = command.workspace_helper_no_snapshot(ui)?;
+    let wc = workspace_command.working_copy();
+    writeln!(ui.stdout(), "Type: {:?}", wc.name())?;
     writeln!(ui.stdout(), "Current operation: {:?}", wc.operation_id())?;
     writeln!(ui.stdout(), "Current tree: {:?}", wc.tree_id()?)?;
-    for (file, state) in wc.file_states()? {
-        writeln!(
-            ui.stdout(),
-            "{:?} {:13?} {:10?} {:?}",
-            state.file_type,
-            state.size,
-            state.mtime.0,
-            file
-        )?;
-    }
     Ok(())
 }
