@@ -20,6 +20,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   individually instead of being passed a directory by setting
   `merge-tools.$TOOL.diff-invocation-mode="file-by-file"` in config.toml.
 
+* In git diffs, word-level hunks are now highlighted with underline. See [diff
+  colors and styles](docs/config.md#diff-colors-and-styles) for customization.
+
 * `jj git clone` and `jj git init` with an existing git repository adds the
   default branch of the remote as repository settings for
   `revset-aliases."trunk()"`.`
