@@ -735,6 +735,30 @@ struct UnifiedDiffHunk<'content> {
     lines: Vec<(DiffLineType, &'content [u8])>,
 }
 
+impl<'content> UnifiedDiffHunk<'content> {
+    fn extend_context_lines(&mut self, lines: impl IntoIterator<Item = &'content [u8]>) {
+        let old_len = self.lines.len();
+        self.lines
+            .extend(lines.into_iter().map(|line| (DiffLineType::Context, line)));
+        self.left_line_range.end += self.lines.len() - old_len;
+        self.right_line_range.end += self.lines.len() - old_len;
+    }
+
+    fn extend_removed_lines(&mut self, lines: impl IntoIterator<Item = &'content [u8]>) {
+        let old_len = self.lines.len();
+        self.lines
+            .extend(lines.into_iter().map(|line| (DiffLineType::Removed, line)));
+        self.left_line_range.end += self.lines.len() - old_len;
+    }
+
+    fn extend_added_lines(&mut self, lines: impl IntoIterator<Item = &'content [u8]>) {
+        let old_len = self.lines.len();
+        self.lines
+            .extend(lines.into_iter().map(|line| (DiffLineType::Added, line)));
+        self.right_line_range.end += self.lines.len() - old_len;
+    }
+}
+
 fn unified_diff_hunks<'content>(
     left_content: &'content [u8],
     right_content: &'content [u8],
@@ -758,11 +782,7 @@ fn unified_diff_hunks<'content>(
                 } else {
                     0
                 });
-                current_hunk.left_line_range.end += num_after_lines;
-                current_hunk.right_line_range.end += num_after_lines;
-                for line in lines.iter().take(num_after_lines) {
-                    current_hunk.lines.push((DiffLineType::Context, line));
-                }
+                current_hunk.extend_context_lines(lines.iter().copied().take(num_after_lines));
                 let num_skip_lines = lines
                     .len()
                     .saturating_sub(num_after_lines)
@@ -779,29 +799,16 @@ fn unified_diff_hunks<'content>(
                         lines: vec![],
                     };
                 }
-                let num_before_lines = lines.len() - num_after_lines - num_skip_lines;
-                current_hunk.left_line_range.end += num_before_lines;
-                current_hunk.right_line_range.end += num_before_lines;
-                for line in lines.iter().skip(num_after_lines + num_skip_lines) {
-                    current_hunk.lines.push((DiffLineType::Context, line));
-                }
+                current_hunk.extend_context_lines(
+                    lines.iter().copied().skip(num_after_lines + num_skip_lines),
+                );
             }
             DiffHunk::Different(content) => {
                 show_context_after = true;
-                let left_lines = content[0].split_inclusive(|b| *b == b'\n').collect_vec();
-                let right_lines = content[1].split_inclusive(|b| *b == b'\n').collect_vec();
-                if !left_lines.is_empty() {
-                    current_hunk.left_line_range.end += left_lines.len();
-                    for line in left_lines {
-                        current_hunk.lines.push((DiffLineType::Removed, line));
-                    }
-                }
-                if !right_lines.is_empty() {
-                    current_hunk.right_line_range.end += right_lines.len();
-                    for line in right_lines {
-                        current_hunk.lines.push((DiffLineType::Added, line));
-                    }
-                }
+                let left_lines = content[0].split_inclusive(|b| *b == b'\n');
+                let right_lines = content[1].split_inclusive(|b| *b == b'\n');
+                current_hunk.extend_removed_lines(left_lines);
+                current_hunk.extend_added_lines(right_lines);
             }
         }
     }
