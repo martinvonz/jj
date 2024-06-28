@@ -151,6 +151,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj git push` now can push commits with empty descriptions with the
   `--allow-empty-description` flag
 
+* `jj squash` now accepts a `--keep-empty` option to keep the source commit.
+
 ### Fixed bugs
 
 * Previously, `jj git push` only made sure that the branch is in the expected
