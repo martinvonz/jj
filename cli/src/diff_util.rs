@@ -775,18 +775,12 @@ fn unified_diff_hunks<'content>(
     for hunk in diff.hunks() {
         match hunk {
             DiffHunk::Matching(content) => {
-                let lines = content.split_inclusive(|b| *b == b'\n').collect_vec();
-                // Number of context lines to print after the previous non-matching hunk.
-                let num_after_lines = lines.len().min(if show_context_after {
-                    num_context_lines
-                } else {
-                    0
-                });
-                current_hunk.extend_context_lines(lines.iter().copied().take(num_after_lines));
-                let num_skip_lines = lines
-                    .len()
-                    .saturating_sub(num_after_lines)
-                    .saturating_sub(num_context_lines);
+                let mut lines = content.split_inclusive(|b| *b == b'\n').fuse();
+                if show_context_after {
+                    current_hunk.extend_context_lines(lines.by_ref().take(num_context_lines));
+                }
+                let before_lines = lines.by_ref().rev().take(num_context_lines).collect_vec();
+                let num_skip_lines = lines.count();
                 if num_skip_lines > 0 {
                     let left_start = current_hunk.left_line_range.end + num_skip_lines;
                     let right_start = current_hunk.right_line_range.end + num_skip_lines;
@@ -799,9 +793,7 @@ fn unified_diff_hunks<'content>(
                         lines: vec![],
                     };
                 }
-                current_hunk.extend_context_lines(
-                    lines.iter().copied().skip(num_after_lines + num_skip_lines),
-                );
+                current_hunk.extend_context_lines(before_lines.into_iter().rev());
             }
             DiffHunk::Different(content) => {
                 show_context_after = true;
