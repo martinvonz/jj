@@ -2395,7 +2395,7 @@ fn test_evaluate_expression_author() {
         vec![commit2.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "author(\"name3\")"),
+        resolve_commit_ids(mut_repo, "author(\"email3\")"),
         vec![commit3.id().clone()]
     );
     // Searches only among candidates if specified
@@ -2536,7 +2536,7 @@ fn test_evaluate_expression_committer() {
         vec![commit2.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "committer(\"name3\")"),
+        resolve_commit_ids(mut_repo, "committer(\"email3\")"),
         vec![commit3.id().clone()]
     );
     // Searches only among candidates if specified
