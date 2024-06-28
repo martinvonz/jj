@@ -125,11 +125,11 @@ pub trait RevsetFilterExtension: std::fmt::Debug + Any {
 pub enum RevsetFilterPredicate {
     /// Commits with number of parents in the range.
     ParentCount(Range<u32>),
-    /// Commits with description containing the needle.
+    /// Commits with description matching the pattern.
     Description(StringPattern),
-    /// Commits with author's name or email containing the needle.
+    /// Commits with author name or email matching the pattern.
     Author(StringPattern),
-    /// Commits with committer's name or email containing the needle.
+    /// Commits with committer name or email matching the pattern.
     Committer(StringPattern),
     /// Commits modifying the paths specified by the fileset.
     File(FilesetExpression),
