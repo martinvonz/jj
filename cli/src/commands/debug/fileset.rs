@@ -23,7 +23,7 @@ use crate::ui::Ui;
 
 /// Parse fileset expression
 #[derive(clap::Args, Clone, Debug)]
-pub struct FilesetArgs {
+pub struct DebugFilesetArgs {
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     path: String,
 }
@@ -31,7 +31,7 @@ pub struct FilesetArgs {
 pub fn cmd_debug_fileset(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &FilesetArgs,
+    args: &DebugFilesetArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let path_converter = workspace_command.path_converter();

@@ -24,7 +24,7 @@ use crate::ui::Ui;
 
 /// Show information about an operation and its view
 #[derive(clap::Args, Clone, Debug)]
-pub struct OperationArgs {
+pub struct DebugOperationArgs {
     #[arg(default_value = "@")]
     operation: String,
     #[arg(long, value_enum, default_value = "all")]
@@ -46,7 +46,7 @@ pub enum OperationDisplay {
 pub fn cmd_debug_operation(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &OperationArgs,
+    args: &DebugOperationArgs,
 ) -> Result<(), CommandError> {
     // Resolve the operation without loading the repo, so this command can be used
     // even if e.g. the view object is broken.

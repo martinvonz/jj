@@ -26,7 +26,7 @@ use crate::ui::Ui;
 
 /// FOR INTERNAL USE ONLY Interact with git submodules
 #[derive(Subcommand, Clone, Debug)]
-pub enum SubmoduleCommand {
+pub enum GitSubmoduleCommand {
     /// Print the relevant contents from .gitmodules. For debugging purposes
     /// only.
     PrintGitmodules(PrintArgs),
@@ -35,10 +35,10 @@ pub enum SubmoduleCommand {
 pub fn cmd_git_submodule(
     ui: &mut Ui,
     command: &CommandHelper,
-    subcommand: &SubmoduleCommand,
+    subcommand: &GitSubmoduleCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        SubmoduleCommand::PrintGitmodules(args) => cmd_submodule_print(ui, command, args),
+        GitSubmoduleCommand::PrintGitmodules(args) => cmd_submodule_print(ui, command, args),
     }
 }
 

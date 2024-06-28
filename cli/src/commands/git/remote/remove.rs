@@ -22,15 +22,15 @@ use crate::ui::Ui;
 
 /// Remove a Git remote and forget its branches
 #[derive(clap::Args, Clone, Debug)]
-pub struct RemoveArgs {
+pub struct GitRemoteRemoveArgs {
     /// The remote's name
     remote: String,
 }
 
-pub fn cmd_remote_remove(
+pub fn cmd_git_remote_remove(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &RemoveArgs,
+    args: &GitRemoteRemoveArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();

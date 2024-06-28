@@ -26,7 +26,7 @@ use crate::ui::Ui;
 
 /// List the recursive entries of a tree.
 #[derive(clap::Args, Clone, Debug)]
-pub struct TreeArgs {
+pub struct DebugTreeArgs {
     #[arg(long, short = 'r')]
     revision: Option<RevisionArg>,
     #[arg(long, conflicts_with = "revision")]
@@ -40,7 +40,7 @@ pub struct TreeArgs {
 pub fn cmd_debug_tree(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &TreeArgs,
+    args: &DebugTreeArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let tree = if let Some(tree_id_hex) = &args.id {

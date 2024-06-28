@@ -23,9 +23,9 @@ use crate::ui::Ui;
 /// File operations.
 #[derive(clap::Subcommand, Clone, Debug)]
 pub enum FileCommand {
-    Chmod(chmod::ChmodArgs),
-    List(list::ListArgs),
-    Show(show::ShowArgs),
+    Chmod(chmod::FileChmodArgs),
+    List(list::FileListArgs),
+    Show(show::FileShowArgs),
 }
 
 pub fn cmd_file(
@@ -34,8 +34,8 @@ pub fn cmd_file(
     subcommand: &FileCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
-        FileCommand::Chmod(args) => chmod::cmd_chmod(ui, command, args),
-        FileCommand::List(args) => list::cmd_list(ui, command, args),
-        FileCommand::Show(args) => show::cmd_show(ui, command, args),
+        FileCommand::Chmod(args) => chmod::cmd_file_chmod(ui, command, args),
+        FileCommand::List(args) => list::cmd_file_list(ui, command, args),
+        FileCommand::Show(args) => show::cmd_file_show(ui, command, args),
     }
 }

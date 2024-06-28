@@ -21,12 +21,12 @@ use crate::ui::Ui;
 
 /// Update the underlying Git repo with changes made in the repo
 #[derive(clap::Args, Clone, Debug)]
-pub struct ExportArgs {}
+pub struct GitExportArgs {}
 
 pub fn cmd_git_export(
     ui: &mut Ui,
     command: &CommandHelper,
-    _args: &ExportArgs,
+    _args: &GitExportArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let mut tx = workspace_command.start_transaction();

@@ -31,7 +31,7 @@ use crate::ui::Ui;
 ///
 /// The Git repo will be a bare git repo stored inside the `.jj/` directory.
 #[derive(clap::Args, Clone, Debug)]
-pub struct CloneArgs {
+pub struct GitCloneArgs {
     /// URL or path of the Git repo to clone
     #[arg(value_hint = clap::ValueHint::DirPath)]
     source: String,
@@ -79,7 +79,7 @@ fn is_empty_dir(path: &Path) -> bool {
 pub fn cmd_git_clone(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &CloneArgs,
+    args: &GitCloneArgs,
 ) -> Result<(), CommandError> {
     let remote_name = "origin";
     let source = absolute_git_source(command.cwd(), &args.source);

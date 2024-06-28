@@ -25,7 +25,7 @@ use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
 #[derive(Subcommand, Clone, Debug)]
-pub enum WatchmanCommand {
+pub enum DebugWatchmanCommand {
     /// Check whether `watchman` is enabled and whether it's correctly installed
     Status,
     QueryClock,
@@ -37,14 +37,14 @@ pub enum WatchmanCommand {
 pub fn cmd_debug_watchman(
     ui: &mut Ui,
     command: &CommandHelper,
-    subcommand: &WatchmanCommand,
+    subcommand: &DebugWatchmanCommand,
 ) -> Result<(), CommandError> {
     use jj_lib::local_working_copy::LockedLocalWorkingCopy;
 
     let mut workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo().clone();
     match subcommand {
-        WatchmanCommand::Status => {
+        DebugWatchmanCommand::Status => {
             // TODO(ilyagr): It would be nice to add colors here
             let config = match command.settings().fsmonitor_settings()? {
                 FsmonitorSettings::Watchman(config) => {
@@ -93,17 +93,17 @@ pub fn cmd_debug_watchman(
                 }
             )?;
         }
-        WatchmanCommand::QueryClock => {
+        DebugWatchmanCommand::QueryClock => {
             let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
             let (clock, _changed_files) = wc.query_watchman(&WatchmanConfig::default())?;
             writeln!(ui.stdout(), "Clock: {clock:?}")?;
         }
-        WatchmanCommand::QueryChangedFiles => {
+        DebugWatchmanCommand::QueryChangedFiles => {
             let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;
             let (_clock, changed_files) = wc.query_watchman(&WatchmanConfig::default())?;
             writeln!(ui.stdout(), "Changed files: {changed_files:?}")?;
         }
-        WatchmanCommand::ResetClock => {
+        DebugWatchmanCommand::ResetClock => {
             let (mut locked_ws, _commit) = workspace_command.start_working_copy_mutation()?;
             let Some(locked_local_wc): Option<&mut LockedLocalWorkingCopy> =
                 locked_ws.locked_wc().as_any_mut().downcast_mut()
@@ -124,7 +124,7 @@ pub fn cmd_debug_watchman(
 pub fn cmd_debug_watchman(
     _ui: &mut Ui,
     _command: &CommandHelper,
-    _subcommand: &WatchmanCommand,
+    _subcommand: &DebugWatchmanCommand,
 ) -> Result<(), CommandError> {
     Err(user_error(
         "Cannot query Watchman because jj was not compiled with the `watchman` feature",

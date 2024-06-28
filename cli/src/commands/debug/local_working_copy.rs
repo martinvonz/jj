@@ -26,12 +26,12 @@ use crate::ui::Ui;
 ///
 /// This command only works with a standard local-disk working copy.
 #[derive(clap::Args, Clone, Debug)]
-pub struct LocalWorkingCopyArgs {}
+pub struct DebugLocalWorkingCopyArgs {}
 
 pub fn cmd_debug_local_working_copy(
     ui: &mut Ui,
     command: &CommandHelper,
-    _args: &LocalWorkingCopyArgs,
+    _args: &DebugLocalWorkingCopyArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;

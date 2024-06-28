@@ -76,11 +76,11 @@ enum Command {
     #[command(subcommand)]
     Branch(branch::BranchCommand),
     #[command(alias = "print", hide = true)]
-    Cat(file::show::ShowArgs),
+    Cat(file::show::FileShowArgs),
     #[command(hide = true)]
     Checkout(checkout::CheckoutArgs),
     #[command(hide = true)]
-    Chmod(file::chmod::ChmodArgs),
+    Chmod(file::chmod::FileChmodArgs),
     Commit(commit::CommitArgs),
     #[command(subcommand)]
     Config(config::ConfigCommand),
@@ -95,7 +95,7 @@ enum Command {
     File(file::FileCommand),
     /// List files in a revision (DEPRECATED use `jj file list`)
     #[command(hide = true)]
-    Files(file::list::ListArgs),
+    Files(file::list::FileListArgs),
     Fix(fix::FixArgs),
     #[command(subcommand)]
     Git(git::GitCommand),

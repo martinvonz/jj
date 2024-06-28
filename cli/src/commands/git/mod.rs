@@ -23,14 +23,14 @@ pub mod submodule;
 
 use clap::Subcommand;
 
-use self::clone::{cmd_git_clone, CloneArgs};
-use self::export::{cmd_git_export, ExportArgs};
-use self::fetch::{cmd_git_fetch, FetchArgs};
-use self::import::{cmd_git_import, ImportArgs};
-use self::init::{cmd_git_init, InitArgs};
-use self::push::{cmd_git_push, PushArgs};
+use self::clone::{cmd_git_clone, GitCloneArgs};
+use self::export::{cmd_git_export, GitExportArgs};
+use self::fetch::{cmd_git_fetch, GitFetchArgs};
+use self::import::{cmd_git_import, GitImportArgs};
+use self::init::{cmd_git_init, GitInitArgs};
+use self::push::{cmd_git_push, GitPushArgs};
 use self::remote::{cmd_git_remote, RemoteCommand};
-use self::submodule::{cmd_git_submodule, SubmoduleCommand};
+use self::submodule::{cmd_git_submodule, GitSubmoduleCommand};
 use crate::cli_util::{CommandHelper, WorkspaceCommandHelper};
 use crate::command_error::{
     user_error, user_error_with_hint, user_error_with_message, CommandError,
@@ -43,16 +43,16 @@ use crate::ui::Ui;
 /// https://github.com/martinvonz/jj/blob/main/docs/git-comparison.md.
 #[derive(Subcommand, Clone, Debug)]
 pub enum GitCommand {
-    Clone(CloneArgs),
-    Export(ExportArgs),
-    Fetch(FetchArgs),
-    Import(ImportArgs),
-    Init(InitArgs),
-    Push(PushArgs),
+    Clone(GitCloneArgs),
+    Export(GitExportArgs),
+    Fetch(GitFetchArgs),
+    Import(GitImportArgs),
+    Init(GitInitArgs),
+    Push(GitPushArgs),
     #[command(subcommand)]
     Remote(RemoteCommand),
     #[command(subcommand, hide = true)]
-    Submodule(SubmoduleCommand),
+    Submodule(GitSubmoduleCommand),
 }
 
 pub fn cmd_git(

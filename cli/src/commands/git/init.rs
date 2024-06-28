@@ -30,7 +30,7 @@ use crate::ui::Ui;
 
 /// Create a new Git backed repo.
 #[derive(clap::Args, Clone, Debug)]
-pub struct InitArgs {
+pub struct GitInitArgs {
     /// The destination directory where the `jj` repo will be created.
     /// If the directory does not exist, it will be created.
     /// If no directory is given, the current directory is used.
@@ -67,7 +67,7 @@ pub struct InitArgs {
 pub fn cmd_git_init(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &InitArgs,
+    args: &GitInitArgs,
 ) -> Result<(), CommandError> {
     let cwd = command.cwd();
     let wc_path = cwd.join(&args.destination);

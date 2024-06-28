@@ -23,12 +23,12 @@ use crate::ui::Ui;
 
 /// List Git remotes
 #[derive(clap::Args, Clone, Debug)]
-pub struct ListArgs {}
+pub struct GitRemoteListArgs {}
 
-pub fn cmd_remote_list(
+pub fn cmd_git_remote_list(
     ui: &mut Ui,
     command: &CommandHelper,
-    _args: &ListArgs,
+    _args: &GitRemoteListArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();

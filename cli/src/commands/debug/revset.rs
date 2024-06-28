@@ -25,14 +25,14 @@ use crate::ui::Ui;
 
 /// Evaluate revset to full commit IDs
 #[derive(clap::Args, Clone, Debug)]
-pub struct RevsetArgs {
+pub struct DebugRevsetArgs {
     revision: String,
 }
 
 pub fn cmd_debug_revset(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &RevsetArgs,
+    args: &DebugRevsetArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let workspace_ctx = workspace_command.revset_parse_context();

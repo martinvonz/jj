@@ -24,12 +24,12 @@ use crate::ui::Ui;
 
 /// Rebuild commit index
 #[derive(clap::Args, Clone, Debug)]
-pub struct ReindexArgs {}
+pub struct DebugReindexArgs {}
 
 pub fn cmd_debug_reindex(
     ui: &mut Ui,
     command: &CommandHelper,
-    _args: &ReindexArgs,
+    _args: &DebugReindexArgs,
 ) -> Result<(), CommandError> {
     // Resolve the operation without loading the repo. The index might have to
     // be rebuilt while loading the repo.

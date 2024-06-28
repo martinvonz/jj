@@ -22,14 +22,14 @@ use crate::ui::Ui;
 
 /// Parse a template
 #[derive(clap::Args, Clone, Debug)]
-pub struct TemplateArgs {
+pub struct DebugTemplateArgs {
     template: String,
 }
 
 pub fn cmd_debug_template(
     ui: &mut Ui,
     _command: &CommandHelper,
-    args: &TemplateArgs,
+    args: &DebugTemplateArgs,
 ) -> Result<(), CommandError> {
     let node = template_parser::parse_template(&args.template)?;
     writeln!(ui.stdout(), "{node:#?}")?;

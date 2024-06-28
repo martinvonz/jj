@@ -22,17 +22,17 @@ use crate::ui::Ui;
 
 /// Rename a Git remote
 #[derive(clap::Args, Clone, Debug)]
-pub struct RenameArgs {
+pub struct GitRemoteRenameArgs {
     /// The name of an existing remote
     old: String,
     /// The desired name for `old`
     new: String,
 }
 
-pub fn cmd_remote_rename(
+pub fn cmd_git_remote_rename(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &RenameArgs,
+    args: &GitRemoteRenameArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo();
