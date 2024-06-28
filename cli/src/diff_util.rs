@@ -995,15 +995,19 @@ fn get_diff_stat(
     // TODO: this matches git's behavior, which is to count the number of newlines
     // in the file. but that behavior seems unhelpful; no one really cares how
     // many `0xa0` characters are in an image.
-    let hunks = unified_diff_hunks(&left_content.contents, &right_content.contents, 0);
+    let diff = Diff::for_tokenizer(
+        &[&left_content.contents, &right_content.contents],
+        diff::find_line_ranges,
+    );
     let mut added = 0;
     let mut removed = 0;
-    for hunk in hunks {
-        for (line_type, _content) in hunk.lines {
-            match line_type {
-                DiffLineType::Context => {}
-                DiffLineType::Removed => removed += 1,
-                DiffLineType::Added => added += 1,
+    for hunk in diff.hunks() {
+        match hunk {
+            DiffHunk::Matching(_) => {}
+            DiffHunk::Different(contents) => {
+                let [left, right] = contents.try_into().unwrap();
+                removed += left.split_inclusive(|b| *b == b'\n').count();
+                added += right.split_inclusive(|b| *b == b'\n').count();
             }
         }
     }
