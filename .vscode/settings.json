@@ -10,4 +10,21 @@
         "BUILD": "starlark",
         "PACKAGE": "starlark",
     },
+
+    "rust-analyzer.workspace.discoverConfig": {
+        "command": [
+            "rust-project",
+            "develop-json",
+            "--sysroot-mode=rustc",
+            "{arg}"
+        ],
+        "progressLabel": "rust-analyzer[buck2]",
+        "filesToWatch": ["BUILD", "PACKAGE"]
+    },
+
+    "rust-analyzer.check.overrideCommand": [
+        "rust-project",
+        "check",
+        "$saved_file",
+    ]
 }
