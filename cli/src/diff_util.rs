@@ -14,9 +14,9 @@
 
 use std::cmp::max;
 use std::collections::VecDeque;
-use std::io;
 use std::ops::Range;
 use std::path::{Path, PathBuf};
+use std::{io, mem};
 
 use futures::{try_join, Stream, StreamExt};
 use itertools::Itertools;
@@ -794,36 +794,46 @@ fn git_diff_part(
     })
 }
 
-#[derive(PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum DiffLineType {
     Context,
     Removed,
     Added,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DiffTokenType {
+    Matching,
+    Different,
+}
+
+type DiffTokenVec<'content> = Vec<(DiffTokenType, &'content [u8])>;
+
 struct UnifiedDiffHunk<'content> {
     left_line_range: Range<usize>,
     right_line_range: Range<usize>,
-    lines: Vec<(DiffLineType, &'content [u8])>,
+    lines: Vec<(DiffLineType, DiffTokenVec<'content>)>,
 }
 
 impl<'content> UnifiedDiffHunk<'content> {
     fn extend_context_lines(&mut self, lines: impl IntoIterator<Item = &'content [u8]>) {
         let old_len = self.lines.len();
-        self.lines
-            .extend(lines.into_iter().map(|line| (DiffLineType::Context, line)));
+        self.lines.extend(lines.into_iter().map(|line| {
+            let tokens = vec![(DiffTokenType::Matching, line)];
+            (DiffLineType::Context, tokens)
+        }));
         self.left_line_range.end += self.lines.len() - old_len;
         self.right_line_range.end += self.lines.len() - old_len;
     }
 
-    fn extend_removed_lines(&mut self, lines: impl IntoIterator<Item = &'content [u8]>) {
+    fn extend_removed_lines(&mut self, lines: impl IntoIterator<Item = DiffTokenVec<'content>>) {
         let old_len = self.lines.len();
         self.lines
             .extend(lines.into_iter().map(|line| (DiffLineType::Removed, line)));
         self.left_line_range.end += self.lines.len() - old_len;
     }
 
-    fn extend_added_lines(&mut self, lines: impl IntoIterator<Item = &'content [u8]>) {
+    fn extend_added_lines(&mut self, lines: impl IntoIterator<Item = DiffTokenVec<'content>>) {
         let old_len = self.lines.len();
         self.lines
             .extend(lines.into_iter().map(|line| (DiffLineType::Added, line)));
@@ -873,9 +883,9 @@ fn unified_diff_hunks<'content>(
                 // The next hunk should be of DiffHunk::Different type if any.
                 current_hunk.extend_context_lines(before_lines.into_iter().rev());
             }
-            DiffHunk::Different(content) => {
-                let left_lines = content[0].split_inclusive(|b| *b == b'\n');
-                let right_lines = content[1].split_inclusive(|b| *b == b'\n');
+            DiffHunk::Different(contents) => {
+                let [left, right] = contents.try_into().unwrap();
+                let (left_lines, right_lines) = inline_diff_hunks(left, right);
                 current_hunk.extend_removed_lines(left_lines);
                 current_hunk.extend_added_lines(right_lines);
             }
@@ -885,6 +895,60 @@ fn unified_diff_hunks<'content>(
         hunks.push(current_hunk);
     }
     hunks
+}
+
+/// Splits line-level hunks into word-level tokens. Returns lists of tokens per
+/// line.
+fn inline_diff_hunks<'content>(
+    left_content: &'content [u8],
+    right_content: &'content [u8],
+) -> (Vec<DiffTokenVec<'content>>, Vec<DiffTokenVec<'content>>) {
+    let mut left_lines: Vec<DiffTokenVec<'content>> = vec![];
+    let mut right_lines: Vec<DiffTokenVec<'content>> = vec![];
+    let mut left_tokens: DiffTokenVec<'content> = vec![];
+    let mut right_tokens: DiffTokenVec<'content> = vec![];
+
+    // Like Diff::default_refinement(), but doesn't try to match up contents by
+    // lines. We know left/right_contents have no matching lines.
+    let mut diff = Diff::for_tokenizer(&[left_content, right_content], diff::find_word_ranges);
+    diff.refine_changed_regions(diff::find_nonword_ranges);
+    for hunk in diff.hunks() {
+        match hunk {
+            DiffHunk::Matching(content) => {
+                for token in content.split_inclusive(|b| *b == b'\n') {
+                    left_tokens.push((DiffTokenType::Matching, token));
+                    right_tokens.push((DiffTokenType::Matching, token));
+                    if token.ends_with(b"\n") {
+                        left_lines.push(mem::take(&mut left_tokens));
+                        right_lines.push(mem::take(&mut right_tokens));
+                    }
+                }
+            }
+            DiffHunk::Different(contents) => {
+                let [left, right] = contents.try_into().unwrap();
+                for token in left.split_inclusive(|b| *b == b'\n') {
+                    left_tokens.push((DiffTokenType::Different, token));
+                    if token.ends_with(b"\n") {
+                        left_lines.push(mem::take(&mut left_tokens));
+                    }
+                }
+                for token in right.split_inclusive(|b| *b == b'\n') {
+                    right_tokens.push((DiffTokenType::Different, token));
+                    if token.ends_with(b"\n") {
+                        right_lines.push(mem::take(&mut right_tokens));
+                    }
+                }
+            }
+        }
+    }
+
+    if !left_tokens.is_empty() {
+        left_lines.push(left_tokens);
+    }
+    if !right_tokens.is_empty() {
+        right_lines.push(right_tokens);
+    }
+    (left_lines, right_lines)
 }
 
 fn show_unified_diff_hunks(
@@ -902,7 +966,7 @@ fn show_unified_diff_hunks(
             hunk.right_line_range.start,
             hunk.right_line_range.len()
         )?;
-        for (line_type, content) in hunk.lines {
+        for (line_type, tokens) in &hunk.lines {
             let (label, sigil) = match line_type {
                 DiffLineType::Context => ("context", " "),
                 DiffLineType::Removed => ("removed", "-"),
@@ -910,8 +974,16 @@ fn show_unified_diff_hunks(
             };
             formatter.with_label(label, |formatter| {
                 write!(formatter, "{sigil}")?;
-                formatter.write_all(content)
+                for (token_type, content) in tokens {
+                    match token_type {
+                        DiffTokenType::Matching => formatter.write_all(content)?,
+                        DiffTokenType::Different => formatter
+                            .with_label("token", |formatter| formatter.write_all(content))?,
+                    }
+                }
+                Ok(())
             })?;
+            let (_, content) = tokens.last().expect("hunk line must not be empty");
             if !content.ends_with(b"\n") {
                 write!(formatter, "\n\\ No newline at end of file\n")?;
             }

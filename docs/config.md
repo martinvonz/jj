@@ -168,8 +168,8 @@ ui.default-description = "\n\nTESTED=TODO"
 
 ### Diff colors and styles
 
-In color-words diffs, hunks are rendered with underline. You can override the
-default style with the following keys:
+In color-words and git diffs, word-level hunks are rendered with underline. You
+can override the default style with the following keys:
 
 ```toml
 [colors]
