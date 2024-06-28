@@ -22,14 +22,14 @@ use crate::cli_util::CommandHelper;
 use crate::command_error::CommandError;
 use crate::ui::Ui;
 
-/// Show information about the working copy state
+/// Show information about the local working copy state
 #[derive(clap::Args, Clone, Debug)]
-pub struct WorkingCopyArgs {}
+pub struct LocalWorkingCopyArgs {}
 
-pub fn cmd_debug_working_copy(
+pub fn cmd_debug_local_working_copy(
     ui: &mut Ui,
     command: &CommandHelper,
-    _args: &WorkingCopyArgs,
+    _args: &LocalWorkingCopyArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let wc = check_local_disk_wc(workspace_command.working_copy().as_any())?;

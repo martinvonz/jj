@@ -381,7 +381,7 @@ fn test_op_abandon_ancestors() {
     Abandoned 3 operations and reparented 1 descendant operations.
     "###);
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["debug", "working-copy", "--ignore-working-copy"]), @r###"
+        test_env.jj_cmd_success(&repo_path, &["debug", "local-working-copy", "--ignore-working-copy"]), @r###"
     Current operation: OperationId("10e856d0579c4aca88972ffea0a515f47f8c09dceaa2b1a5d531c83b04350f7aa64a3eff422def01eebd65df26089ef5e0f925f247a8f929c8cc858d16306e53")
     Current tree: Merge(Resolved(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904")))
     "###);
@@ -430,7 +430,7 @@ fn test_op_abandon_ancestors() {
     Abandoned 1 operations and reparented 1 descendant operations.
     "###);
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["debug", "working-copy", "--ignore-working-copy"]), @r###"
+        test_env.jj_cmd_success(&repo_path, &["debug", "local-working-copy", "--ignore-working-copy"]), @r###"
     Current operation: OperationId("445e93662d714f53fb97e450eb3793a8e1a9a4cca1e329d5a9096e65085fb96d5bb51659531145c8abf0db5da803cd11c4cecdcf9025391bc97fc6a42204a0fe")
     Current tree: Merge(Resolved(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904")))
     "###);
@@ -475,7 +475,7 @@ fn test_op_abandon_without_updating_working_copy() {
     Abandoned 1 operations and reparented 1 descendant operations.
     "###);
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["debug", "working-copy", "--ignore-working-copy"]), @r###"
+        test_env.jj_cmd_success(&repo_path, &["debug", "local-working-copy", "--ignore-working-copy"]), @r###"
     Current operation: OperationId("61aeade2493b190412c61b9b0711025c2cccf95966870a5f7dc2e34ab313fbef64da70d00cab2cd69ad39816faeb80a6bc866927549b84dce6cb5a437e0e515b")
     Current tree: Merge(Resolved(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904")))
     "###);
@@ -495,7 +495,7 @@ fn test_op_abandon_without_updating_working_copy() {
     Warning: The working copy operation 61aeade2493b is not updated because it differs from the repo ae6364994418.
     "###);
     insta::assert_snapshot!(
-        test_env.jj_cmd_success(&repo_path, &["debug", "working-copy", "--ignore-working-copy"]), @r###"
+        test_env.jj_cmd_success(&repo_path, &["debug", "local-working-copy", "--ignore-working-copy"]), @r###"
     Current operation: OperationId("61aeade2493b190412c61b9b0711025c2cccf95966870a5f7dc2e34ab313fbef64da70d00cab2cd69ad39816faeb80a6bc866927549b84dce6cb5a437e0e515b")
     Current tree: Merge(Resolved(TreeId("4b825dc642cb6eb9a060e54bf8d69288fbee4904")))
     "###);
