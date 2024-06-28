@@ -365,12 +365,19 @@ fn test_id_prefix_divergent() {
         c.shortest_change_prefix_len(repo.as_ref(), second_commit.change_id()),
         1
     );
-    // Short prefix does not find the first commit (as intended).
-    // TODO(#2476): BUG: Looking up the divergent commits by their change id prefix
-    // only finds the id within the lookup set.
+    // This tests two issues, both important:
+    // - We find both commits with the same change id, even though
+    // `third_commit_divergent_with_second` is not in the short prefix set
+    // (#2476).
+    // - The short prefix set still works: we do *not* find the first commit and the
+    //   match is not ambiguous, even though the first commit's change id would also
+    //   match the prefix.
     assert_eq!(
         c.resolve_change_prefix(repo.as_ref(), &prefix("a")),
-        SingleMatch(vec![second_commit.id().clone()])
+        SingleMatch(vec![
+            second_commit.id().clone(),
+            third_commit_divergent_with_second.id().clone()
+        ])
     );
 
     // We can still resolve commits outside the set

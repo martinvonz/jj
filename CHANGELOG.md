@@ -82,6 +82,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to-be-pushed commit has conflicts, or has no description / committer / author
   set. [#3029](https://github.com/martinvonz/jj/issues/3029)
 
+* `jj` will look for divergent changes outside the short prefix set even if it finds the change id inside the short prefix set. [#2476](https://github.com/martinvonz/jj/issues/2476)
+
 ## [0.18.0] - 2024-06-05
 
 ### Breaking changes
