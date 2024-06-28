@@ -121,16 +121,22 @@ pub trait RevsetFilterExtension: std::fmt::Debug + Any {
     fn matches_commit(&self, commit: &Commit) -> bool;
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SignatureField {
+    Name,
+    Email,
+}
+
 #[derive(Clone, Debug)]
 pub enum RevsetFilterPredicate {
     /// Commits with number of parents in the range.
     ParentCount(Range<u32>),
     /// Commits with description matching the pattern.
     Description(StringPattern),
-    /// Commits with author name or email matching the pattern.
-    Author(StringPattern),
-    /// Commits with committer name or email matching the pattern.
-    Committer(StringPattern),
+    /// Commits with author field matching the pattern.
+    Author(SignatureField, StringPattern),
+    /// Commits with committer field matching the pattern.
+    Committer(SignatureField, StringPattern),
     /// Commits modifying the paths specified by the fileset.
     File(FilesetExpression),
     /// Commits with conflicts
@@ -431,6 +437,67 @@ impl RevsetExpression {
         Rc::new(RevsetExpression::Difference(self.clone(), other.clone()))
     }
 
+    /// Internal helper for matching on signature fields.
+    fn signature_field(
+        predicate: fn(SignatureField, StringPattern) -> RevsetFilterPredicate,
+        field: SignatureField,
+        pattern: StringPattern,
+    ) -> Rc<RevsetExpression> {
+        RevsetExpression::filter(predicate(field, pattern))
+    }
+
+    /// Commits with author name matching the pattern.
+    pub fn author_name(pattern: StringPattern) -> Rc<RevsetExpression> {
+        RevsetExpression::signature_field(
+            RevsetFilterPredicate::Author,
+            SignatureField::Name,
+            pattern,
+        )
+    }
+
+    /// Commits with author email matching the pattern.
+    pub fn author_email(pattern: StringPattern) -> Rc<RevsetExpression> {
+        RevsetExpression::signature_field(
+            RevsetFilterPredicate::Author,
+            SignatureField::Email,
+            pattern,
+        )
+    }
+
+    /// Commits with author name or email matching the pattern.
+    pub fn author(pattern: StringPattern) -> Rc<RevsetExpression> {
+        RevsetExpression::union(
+            &RevsetExpression::author_name(pattern.clone()),
+            &RevsetExpression::author_email(pattern),
+        )
+    }
+
+    /// Commits with committer name matching the pattern.
+    pub fn committer_name(pattern: StringPattern) -> Rc<RevsetExpression> {
+        RevsetExpression::signature_field(
+            RevsetFilterPredicate::Committer,
+            SignatureField::Name,
+            pattern,
+        )
+    }
+
+    /// Commits with committer email matching the pattern.
+    pub fn committer_email(pattern: StringPattern) -> Rc<RevsetExpression> {
+        RevsetExpression::signature_field(
+            RevsetFilterPredicate::Committer,
+            SignatureField::Email,
+            pattern,
+        )
+    }
+
+    /// Commits with committer name or email matching the pattern.
+    pub fn committer(pattern: StringPattern) -> Rc<RevsetExpression> {
+        RevsetExpression::union(
+            &RevsetExpression::committer_name(pattern.clone()),
+            &RevsetExpression::committer_email(pattern),
+        )
+    }
+
     /// Resolve a programmatically created revset expression. In particular, the
     /// expression must not contain any symbols (branches, tags, change/commit
     /// prefixes). Callers must not include `RevsetExpression::symbol()` in
@@ -681,25 +748,21 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     map.insert("author", |function, _context| {
         let [arg] = function.expect_exact_arguments()?;
         let pattern = expect_string_pattern(arg)?;
-        Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
-            pattern,
-        )))
+        Ok(RevsetExpression::author(pattern))
     });
     map.insert("mine", |function, context| {
         function.expect_no_arguments()?;
         // Email address domains are inherently case‐insensitive, and the local‐parts
         // are generally (although not universally) treated as case‐insensitive too, so
         // we use a case‐insensitive match here.
-        Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
-            StringPattern::exact_i(&context.user_email),
+        Ok(RevsetExpression::author_email(StringPattern::exact_i(
+            &context.user_email,
         )))
     });
     map.insert("committer", |function, _context| {
         let [arg] = function.expect_exact_arguments()?;
         let pattern = expect_string_pattern(arg)?;
-        Ok(RevsetExpression::filter(RevsetFilterPredicate::Committer(
-            pattern,
-        )))
+        Ok(RevsetExpression::committer(pattern))
     });
     map.insert("empty", |function, _context| {
         function.expect_no_arguments()?;
@@ -2293,7 +2356,22 @@ mod tests {
             @r###"Expression("Expected expression of string pattern")"###);
         insta::assert_debug_snapshot!(
             parse(r#"author("foo@")"#).unwrap(),
-            @r###"Filter(Author(Substring("foo@")))"###);
+            @r###"
+        Union(
+            Filter(
+                Author(
+                    Name,
+                    Substring("foo@"),
+                ),
+            ),
+            Filter(
+                Author(
+                    Email,
+                    Substring("foo@"),
+                ),
+            ),
+        )
+        "###);
         // Parse a single symbol
         insta::assert_debug_snapshot!(
             parse("foo").unwrap(),
@@ -2521,7 +2599,14 @@ mod tests {
         assert!(parse("mine(foo)").is_err());
         insta::assert_debug_snapshot!(
             parse("mine()").unwrap(),
-            @r###"Filter(Author(ExactI("test.user@example.com")))"###);
+            @r###"
+        Filter(
+            Author(
+                Email,
+                ExactI("test.user@example.com"),
+            ),
+        )
+        "###);
         insta::assert_debug_snapshot!(
             parse_with_workspace("empty()", &WorkspaceId::default()).unwrap(),
             @"NotIn(Filter(File(All)))");
@@ -2631,12 +2716,42 @@ mod tests {
         // Alias can be substituted to string pattern.
         insta::assert_debug_snapshot!(
             parse_with_aliases("author(A)", [("A", "a")]).unwrap(),
-            @r###"Filter(Author(Substring("a")))"###);
+            @r###"
+        Union(
+            Filter(
+                Author(
+                    Name,
+                    Substring("a"),
+                ),
+            ),
+            Filter(
+                Author(
+                    Email,
+                    Substring("a"),
+                ),
+            ),
+        )
+        "###);
         // However, parentheses are required because top-level x:y is parsed as
         // program modifier.
         insta::assert_debug_snapshot!(
             parse_with_aliases("author(A)", [("A", "(exact:a)")]).unwrap(),
-            @r###"Filter(Author(Exact("a")))"###);
+            @r###"
+        Union(
+            Filter(
+                Author(
+                    Name,
+                    Exact("a"),
+                ),
+            ),
+            Filter(
+                Author(
+                    Email,
+                    Exact("a"),
+                ),
+            ),
+        )
+        "###);
 
         // Sub-expression alias cannot be substituted to modifier expression.
         insta::assert_debug_snapshot!(
@@ -2653,8 +2768,34 @@ mod tests {
         insta::assert_debug_snapshot!(
             parse_with_aliases("F(a)", [("F(x)", "author(x)|committer(x)")]).unwrap(), @r###"
         Union(
-            Filter(Author(Substring("a"))),
-            Filter(Committer(Substring("a"))),
+            Union(
+                Filter(
+                    Author(
+                        Name,
+                        Substring("a"),
+                    ),
+                ),
+                Filter(
+                    Author(
+                        Email,
+                        Substring("a"),
+                    ),
+                ),
+            ),
+            Union(
+                Filter(
+                    Committer(
+                        Name,
+                        Substring("a"),
+                    ),
+                ),
+                Filter(
+                    Committer(
+                        Email,
+                        Substring("a"),
+                    ),
+                ),
+            ),
         )
         "###);
     }
@@ -2995,7 +3136,22 @@ mod tests {
                 CommitRef(Symbol("baz")),
                 CommitRef(Symbol("bar")),
             ),
-            Filter(Author(Substring("foo"))),
+            AsFilter(
+                Union(
+                    Filter(
+                        Author(
+                            Name,
+                            Substring("foo"),
+                        ),
+                    ),
+                    Filter(
+                        Author(
+                            Email,
+                            Substring("foo"),
+                        ),
+                    ),
+                ),
+            ),
         )
         "###);
 
@@ -3004,7 +3160,22 @@ mod tests {
             optimize(parse("~foo & author(bar)").unwrap()), @r###"
         Intersection(
             NotIn(CommitRef(Symbol("foo"))),
-            Filter(Author(Substring("bar"))),
+            AsFilter(
+                Union(
+                    Filter(
+                        Author(
+                            Name,
+                            Substring("bar"),
+                        ),
+                    ),
+                    Filter(
+                        Author(
+                            Email,
+                            Substring("bar"),
+                        ),
+                    ),
+                ),
+            ),
         )
         "###);
         insta::assert_debug_snapshot!(
@@ -3013,7 +3184,22 @@ mod tests {
             NotIn(CommitRef(Symbol("foo"))),
             AsFilter(
                 Union(
-                    Filter(Author(Substring("bar"))),
+                    AsFilter(
+                        Union(
+                            Filter(
+                                Author(
+                                    Name,
+                                    Substring("bar"),
+                                ),
+                            ),
+                            Filter(
+                                Author(
+                                    Email,
+                                    Substring("bar"),
+                                ),
+                            ),
+                        ),
+                    ),
                     CommitRef(Symbol("baz")),
                 ),
             ),
@@ -3025,7 +3211,22 @@ mod tests {
             optimize(parse("author(foo) ~ bar").unwrap()), @r###"
         Intersection(
             NotIn(CommitRef(Symbol("bar"))),
-            Filter(Author(Substring("foo"))),
+            AsFilter(
+                Union(
+                    Filter(
+                        Author(
+                            Name,
+                            Substring("foo"),
+                        ),
+                    ),
+                    Filter(
+                        Author(
+                            Email,
+                            Substring("foo"),
+                        ),
+                    ),
+                ),
+            ),
         )
         "###);
     }
@@ -3036,7 +3237,24 @@ mod tests {
         let _guard = settings.bind_to_scope();
 
         insta::assert_debug_snapshot!(
-            optimize(parse("author(foo)").unwrap()), @r###"Filter(Author(Substring("foo")))"###);
+            optimize(parse("author(foo)").unwrap()), @r###"
+        AsFilter(
+            Union(
+                Filter(
+                    Author(
+                        Name,
+                        Substring("foo"),
+                    ),
+                ),
+                Filter(
+                    Author(
+                        Email,
+                        Substring("foo"),
+                    ),
+                ),
+            ),
+        )
+        "###);
 
         insta::assert_debug_snapshot!(optimize(parse("foo & description(bar)").unwrap()), @r###"
         Intersection(
@@ -3047,14 +3265,59 @@ mod tests {
         insta::assert_debug_snapshot!(optimize(parse("author(foo) & bar").unwrap()), @r###"
         Intersection(
             CommitRef(Symbol("bar")),
-            Filter(Author(Substring("foo"))),
+            AsFilter(
+                Union(
+                    Filter(
+                        Author(
+                            Name,
+                            Substring("foo"),
+                        ),
+                    ),
+                    Filter(
+                        Author(
+                            Email,
+                            Substring("foo"),
+                        ),
+                    ),
+                ),
+            ),
         )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("author(foo) & committer(bar)").unwrap()), @r###"
         Intersection(
-            Filter(Author(Substring("foo"))),
-            Filter(Committer(Substring("bar"))),
+            AsFilter(
+                Union(
+                    Filter(
+                        Author(
+                            Name,
+                            Substring("foo"),
+                        ),
+                    ),
+                    Filter(
+                        Author(
+                            Email,
+                            Substring("foo"),
+                        ),
+                    ),
+                ),
+            ),
+            AsFilter(
+                Union(
+                    Filter(
+                        Committer(
+                            Name,
+                            Substring("bar"),
+                        ),
+                    ),
+                    Filter(
+                        Committer(
+                            Email,
+                            Substring("bar"),
+                        ),
+                    ),
+                ),
+            ),
         )
         "###);
 
@@ -3065,7 +3328,22 @@ mod tests {
                 CommitRef(Symbol("foo")),
                 Filter(Description(Substring("bar"))),
             ),
-            Filter(Author(Substring("baz"))),
+            AsFilter(
+                Union(
+                    Filter(
+                        Author(
+                            Name,
+                            Substring("baz"),
+                        ),
+                    ),
+                    Filter(
+                        Author(
+                            Email,
+                            Substring("baz"),
+                        ),
+                    ),
+                ),
+            ),
         )
         "###);
         insta::assert_debug_snapshot!(
@@ -3073,9 +3351,39 @@ mod tests {
         Intersection(
             Intersection(
                 CommitRef(Symbol("bar")),
-                Filter(Committer(Substring("foo"))),
+                AsFilter(
+                    Union(
+                        Filter(
+                            Committer(
+                                Name,
+                                Substring("foo"),
+                            ),
+                        ),
+                        Filter(
+                            Committer(
+                                Email,
+                                Substring("foo"),
+                            ),
+                        ),
+                    ),
+                ),
             ),
-            Filter(Author(Substring("baz"))),
+            AsFilter(
+                Union(
+                    Filter(
+                        Author(
+                            Name,
+                            Substring("baz"),
+                        ),
+                    ),
+                    Filter(
+                        Author(
+                            Email,
+                            Substring("baz"),
+                        ),
+                    ),
+                ),
+            ),
         )
         "###);
         insta::assert_debug_snapshot!(
@@ -3083,7 +3391,22 @@ mod tests {
         Intersection(
             Intersection(
                 CommitRef(Symbol("baz")),
-                Filter(Committer(Substring("foo"))),
+                AsFilter(
+                    Union(
+                        Filter(
+                            Committer(
+                                Name,
+                                Substring("foo"),
+                            ),
+                        ),
+                        Filter(
+                            Committer(
+                                Email,
+                                Substring("foo"),
+                            ),
+                        ),
+                    ),
+                ),
             ),
             Filter(File(Pattern(PrefixPath("bar")))),
         )
@@ -3092,10 +3415,40 @@ mod tests {
             optimize(parse_with_workspace("committer(foo) & file(bar) & author(baz)", &WorkspaceId::default()).unwrap()), @r###"
         Intersection(
             Intersection(
-                Filter(Committer(Substring("foo"))),
+                AsFilter(
+                    Union(
+                        Filter(
+                            Committer(
+                                Name,
+                                Substring("foo"),
+                            ),
+                        ),
+                        Filter(
+                            Committer(
+                                Email,
+                                Substring("foo"),
+                            ),
+                        ),
+                    ),
+                ),
                 Filter(File(Pattern(PrefixPath("bar")))),
             ),
-            Filter(Author(Substring("baz"))),
+            AsFilter(
+                Union(
+                    Filter(
+                        Author(
+                            Name,
+                            Substring("baz"),
+                        ),
+                    ),
+                    Filter(
+                        Author(
+                            Email,
+                            Substring("baz"),
+                        ),
+                    ),
+                ),
+            ),
         )
         "###);
         insta::assert_debug_snapshot!(optimize(parse_with_workspace("foo & file(bar) & baz", &WorkspaceId::default()).unwrap()), @r###"
@@ -3118,7 +3471,22 @@ mod tests {
                 ),
                 Filter(Description(Substring("bar"))),
             ),
-            Filter(Author(Substring("baz"))),
+            AsFilter(
+                Union(
+                    Filter(
+                        Author(
+                            Name,
+                            Substring("baz"),
+                        ),
+                    ),
+                    Filter(
+                        Author(
+                            Email,
+                            Substring("baz"),
+                        ),
+                    ),
+                ),
+            ),
         )
         "###);
         insta::assert_debug_snapshot!(
@@ -3128,7 +3496,22 @@ mod tests {
                 Intersection(
                     CommitRef(Symbol("foo")),
                     Ancestors {
-                        heads: Filter(Author(Substring("baz"))),
+                        heads: AsFilter(
+                            Union(
+                                Filter(
+                                    Author(
+                                        Name,
+                                        Substring("baz"),
+                                    ),
+                                ),
+                                Filter(
+                                    Author(
+                                        Email,
+                                        Substring("baz"),
+                                    ),
+                                ),
+                            ),
+                        ),
                         generation: 1..2,
                     },
                 ),
@@ -3145,7 +3528,22 @@ mod tests {
                 Ancestors {
                     heads: Intersection(
                         CommitRef(Symbol("qux")),
-                        Filter(Author(Substring("baz"))),
+                        AsFilter(
+                            Union(
+                                Filter(
+                                    Author(
+                                        Name,
+                                        Substring("baz"),
+                                    ),
+                                ),
+                                Filter(
+                                    Author(
+                                        Email,
+                                        Substring("baz"),
+                                    ),
+                                ),
+                            ),
+                        ),
                     ),
                     generation: 1..2,
                 },
@@ -3167,11 +3565,56 @@ mod tests {
                         ),
                         CommitRef(Symbol("c")),
                     ),
-                    Filter(Author(Substring("A"))),
+                    AsFilter(
+                        Union(
+                            Filter(
+                                Author(
+                                    Name,
+                                    Substring("A"),
+                                ),
+                            ),
+                            Filter(
+                                Author(
+                                    Email,
+                                    Substring("A"),
+                                ),
+                            ),
+                        ),
+                    ),
                 ),
-                Filter(Author(Substring("B"))),
+                AsFilter(
+                    Union(
+                        Filter(
+                            Author(
+                                Name,
+                                Substring("B"),
+                            ),
+                        ),
+                        Filter(
+                            Author(
+                                Email,
+                                Substring("B"),
+                            ),
+                        ),
+                    ),
+                ),
             ),
-            Filter(Author(Substring("C"))),
+            AsFilter(
+                Union(
+                    Filter(
+                        Author(
+                            Name,
+                            Substring("C"),
+                        ),
+                    ),
+                    Filter(
+                        Author(
+                            Email,
+                            Substring("C"),
+                        ),
+                    ),
+                ),
+            ),
         )
         "###);
         insta::assert_debug_snapshot!(
@@ -3190,11 +3633,56 @@ mod tests {
                         ),
                         CommitRef(Symbol("d")),
                     ),
-                    Filter(Author(Substring("A"))),
+                    AsFilter(
+                        Union(
+                            Filter(
+                                Author(
+                                    Name,
+                                    Substring("A"),
+                                ),
+                            ),
+                            Filter(
+                                Author(
+                                    Email,
+                                    Substring("A"),
+                                ),
+                            ),
+                        ),
+                    ),
                 ),
-                Filter(Author(Substring("B"))),
+                AsFilter(
+                    Union(
+                        Filter(
+                            Author(
+                                Name,
+                                Substring("B"),
+                            ),
+                        ),
+                        Filter(
+                            Author(
+                                Email,
+                                Substring("B"),
+                            ),
+                        ),
+                    ),
+                ),
             ),
-            Filter(Author(Substring("C"))),
+            AsFilter(
+                Union(
+                    Filter(
+                        Author(
+                            Name,
+                            Substring("C"),
+                        ),
+                    ),
+                    Filter(
+                        Author(
+                            Email,
+                            Substring("C"),
+                        ),
+                    ),
+                ),
+            ),
         )
         "###);
 
@@ -3207,7 +3695,22 @@ mod tests {
                 CommitRef(Symbol("foo")),
                 Filter(Description(Substring("bar"))),
             ),
-            Filter(Author(Substring("baz"))),
+            AsFilter(
+                Union(
+                    Filter(
+                        Author(
+                            Name,
+                            Substring("baz"),
+                        ),
+                    ),
+                    Filter(
+                        Author(
+                            Email,
+                            Substring("baz"),
+                        ),
+                    ),
+                ),
+            ),
         )
         "###);
     }
@@ -3223,7 +3726,22 @@ mod tests {
             CommitRef(Symbol("baz")),
             AsFilter(
                 Union(
-                    Filter(Author(Substring("foo"))),
+                    AsFilter(
+                        Union(
+                            Filter(
+                                Author(
+                                    Name,
+                                    Substring("foo"),
+                                ),
+                            ),
+                            Filter(
+                                Author(
+                                    Email,
+                                    Substring("foo"),
+                                ),
+                            ),
+                        ),
+                    ),
                     CommitRef(Symbol("bar")),
                 ),
             ),
@@ -3238,7 +3756,22 @@ mod tests {
                 AsFilter(
                     Union(
                         CommitRef(Symbol("foo")),
-                        Filter(Committer(Substring("bar"))),
+                        AsFilter(
+                            Union(
+                                Filter(
+                                    Committer(
+                                        Name,
+                                        Substring("bar"),
+                                    ),
+                                ),
+                                Filter(
+                                    Committer(
+                                        Email,
+                                        Substring("bar"),
+                                    ),
+                                ),
+                            ),
+                        ),
                     ),
                 ),
             ),
@@ -3258,7 +3791,22 @@ mod tests {
                                 Present(
                                     Intersection(
                                         CommitRef(Symbol("bar")),
-                                        Filter(Author(Substring("foo"))),
+                                        AsFilter(
+                                            Union(
+                                                Filter(
+                                                    Author(
+                                                        Name,
+                                                        Substring("foo"),
+                                                    ),
+                                                ),
+                                                Filter(
+                                                    Author(
+                                                        Email,
+                                                        Substring("foo"),
+                                                    ),
+                                                ),
+                                            ),
+                                        ),
                                     ),
                                 ),
                             ),
@@ -3287,21 +3835,66 @@ mod tests {
                     ),
                     AsFilter(
                         Union(
-                            Filter(Author(Substring("A"))),
+                            AsFilter(
+                                Union(
+                                    Filter(
+                                        Author(
+                                            Name,
+                                            Substring("A"),
+                                        ),
+                                    ),
+                                    Filter(
+                                        Author(
+                                            Email,
+                                            Substring("A"),
+                                        ),
+                                    ),
+                                ),
+                            ),
                             CommitRef(Symbol("0")),
                         ),
                     ),
                 ),
                 AsFilter(
                     Union(
-                        Filter(Author(Substring("B"))),
+                        AsFilter(
+                            Union(
+                                Filter(
+                                    Author(
+                                        Name,
+                                        Substring("B"),
+                                    ),
+                                ),
+                                Filter(
+                                    Author(
+                                        Email,
+                                        Substring("B"),
+                                    ),
+                                ),
+                            ),
+                        ),
                         CommitRef(Symbol("1")),
                     ),
                 ),
             ),
             AsFilter(
                 Union(
-                    Filter(Author(Substring("C"))),
+                    AsFilter(
+                        Union(
+                            Filter(
+                                Author(
+                                    Name,
+                                    Substring("C"),
+                                ),
+                            ),
+                            Filter(
+                                Author(
+                                    Email,
+                                    Substring("C"),
+                                ),
+                            ),
+                        ),
+                    ),
                     CommitRef(Symbol("2")),
                 ),
             ),
