@@ -168,13 +168,14 @@ impl IdPrefixContext {
         prefix: &HexPrefix,
     ) -> PrefixResolution<Vec<CommitId>> {
         if let Some(indexes) = self.disambiguation_indexes(repo) {
-            let resolution = indexes.change_index.resolve_prefix_with(
-                &*indexes.commit_change_ids,
-                prefix,
-                |(commit_id, _)| commit_id.clone(),
-            );
-            if let PrefixResolution::SingleMatch((_, ids)) = resolution {
-                return PrefixResolution::SingleMatch(ids);
+            let resolution = indexes
+                .change_index
+                .resolve_prefix_to_key(&*indexes.commit_change_ids, prefix);
+            if let PrefixResolution::SingleMatch(change_id) = resolution {
+                // There may be more commits with this change id outside the narrower sets.
+                return PrefixResolution::SingleMatch(repo.resolve_change_id(&change_id).expect(
+                    "Change ids present in narrower search set should be present globally.",
+                ));
             }
         }
         repo.resolve_change_id_prefix(prefix)
