@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use itertools::Itertools;
-use jj_lib::backend::{CommitId, MillisSinceEpoch, Signature, Timestamp};
+use jj_lib::backend::{ChangeId, CommitId, MillisSinceEpoch, Signature, Timestamp};
 use jj_lib::id_prefix::IdPrefixContext;
 use jj_lib::object_id::PrefixResolution::{AmbiguousMatch, NoMatch, SingleMatch};
 use jj_lib::object_id::{HexPrefix, ObjectId};
@@ -251,5 +251,135 @@ fn test_id_prefix() {
     assert_eq!(
         context.resolve_commit_prefix(repo.as_ref(), &prefix("2")),
         AmbiguousMatch
+    );
+}
+
+#[test]
+fn test_id_prefix_divergent() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
+    let repo = &test_repo.repo;
+    let root_commit_id = repo.store().root_commit_id();
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut create_commit_with_change_id =
+        |parent_id: &CommitId, description: &str, change_id: ChangeId| {
+            let signature = Signature {
+                name: "Some One".to_string(),
+                email: "some.one@example.com".to_string(),
+                timestamp: Timestamp {
+                    timestamp: MillisSinceEpoch(0),
+                    tz_offset: 0,
+                },
+            };
+            tx.mut_repo()
+                .new_commit(
+                    &settings,
+                    vec![parent_id.clone()],
+                    repo.store().empty_merged_tree_id(),
+                )
+                .set_description(description)
+                .set_author(signature.clone())
+                .set_committer(signature)
+                .set_change_id(change_id)
+                .write()
+                .unwrap()
+        };
+
+    let first_change_id = ChangeId::from_hex("a5333333333333333333333333333333");
+    let second_change_id = ChangeId::from_hex("a5000000000000000000000000000000");
+
+    let first_commit = create_commit_with_change_id(root_commit_id, "first", first_change_id);
+    let second_commit =
+        create_commit_with_change_id(first_commit.id(), "second", second_change_id.clone());
+    let third_commit_divergent_with_second =
+        create_commit_with_change_id(first_commit.id(), "third", second_change_id);
+    let commits = [
+        first_commit.clone(),
+        second_commit.clone(),
+        third_commit_divergent_with_second.clone(),
+    ];
+    let repo = tx.commit("test");
+
+    // Print the commit IDs and change IDs for reference
+    let change_prefixes = commits
+        .iter()
+        .enumerate()
+        .map(|(i, commit)| format!("{} {}", &commit.change_id().hex()[..4], i))
+        .join("\n");
+    insta::assert_snapshot!(change_prefixes, @r###"
+    a533 0
+    a500 1
+    a500 2
+    "###);
+    let commit_prefixes = commits
+        .iter()
+        .enumerate()
+        .map(|(i, commit)| format!("{} {}", &commit.id().hex()[..4], i))
+        .join("\n");
+    insta::assert_snapshot!(commit_prefixes, @r###"
+    eafa 0
+    d48d 1
+    2fbb 2
+    "###);
+
+    let prefix = |x| HexPrefix::new(x).unwrap();
+
+    // Without a disambiguation revset
+    // --------------------------------
+    let c = IdPrefixContext::default();
+    assert_eq!(
+        c.shortest_change_prefix_len(repo.as_ref(), commits[0].change_id()),
+        3
+    );
+    assert_eq!(
+        c.shortest_change_prefix_len(repo.as_ref(), commits[1].change_id()),
+        3
+    );
+    assert_eq!(
+        c.shortest_change_prefix_len(repo.as_ref(), commits[2].change_id()),
+        3
+    );
+    assert_eq!(
+        c.resolve_change_prefix(repo.as_ref(), &prefix("a5")),
+        AmbiguousMatch
+    );
+    assert_eq!(
+        c.resolve_change_prefix(repo.as_ref(), &prefix("a53")),
+        SingleMatch(vec![first_commit.id().clone()])
+    );
+    assert_eq!(
+        c.resolve_change_prefix(repo.as_ref(), &prefix("a50")),
+        SingleMatch(vec![
+            second_commit.id().clone(),
+            third_commit_divergent_with_second.id().clone()
+        ])
+    );
+
+    // Now, disambiguate within the revset containing only the second commit
+    // ----------------------------------------------------------------------
+    let expression = RevsetExpression::commits(vec![second_commit.id().clone()]);
+    let c = c.disambiguate_within(expression);
+    // The prefix is now shorter
+    assert_eq!(
+        c.shortest_change_prefix_len(repo.as_ref(), second_commit.change_id()),
+        1
+    );
+    // Short prefix does not find the first commit (as intended).
+    // TODO(#2476): BUG: Looking up the divergent commits by their change id prefix
+    // only finds the id within the lookup set.
+    assert_eq!(
+        c.resolve_change_prefix(repo.as_ref(), &prefix("a")),
+        SingleMatch(vec![second_commit.id().clone()])
+    );
+
+    // We can still resolve commits outside the set
+    assert_eq!(
+        c.resolve_change_prefix(repo.as_ref(), &prefix("a53")),
+        SingleMatch(vec![first_commit.id().clone()])
+    );
+    assert_eq!(
+        c.shortest_change_prefix_len(repo.as_ref(), first_commit.change_id()),
+        3
     );
 }
