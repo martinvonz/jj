@@ -47,9 +47,9 @@ use crate::backend::{
 use crate::commit::Commit;
 use crate::conflicts::{self, materialize_tree_value, MaterializedTreeValue};
 use crate::file_util::{check_symlink_support, try_symlink};
+use crate::fsmonitor::FsmonitorSettings;
 #[cfg(feature = "watchman")]
-use crate::fsmonitor::watchman;
-use crate::fsmonitor::{FsmonitorSettings, WatchmanConfig};
+use crate::fsmonitor::{watchman, WatchmanConfig};
 use crate::gitignore::GitIgnoreFile;
 use crate::lock::FileLock;
 use crate::matchers::{
