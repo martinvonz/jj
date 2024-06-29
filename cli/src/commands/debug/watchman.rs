@@ -12,12 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#[cfg(feature = "watchman")]
 use std::any::Any;
 use std::fmt::Debug;
+#[cfg(feature = "watchman")]
 use std::io::Write as _;
 
 use clap::Subcommand;
+#[cfg(feature = "watchman")]
 use jj_lib::fsmonitor::{FsmonitorSettings, WatchmanConfig};
+#[cfg(feature = "watchman")]
 use jj_lib::local_working_copy::LocalWorkingCopy;
 
 use crate::cli_util::CommandHelper;
@@ -131,6 +135,7 @@ pub fn cmd_debug_watchman(
     ))
 }
 
+#[cfg(feature = "watchman")]
 fn check_local_disk_wc(x: &dyn Any) -> Result<&LocalWorkingCopy, CommandError> {
     x.downcast_ref()
         .ok_or_else(|| user_error("This command requires a standard local-disk working copy"))
