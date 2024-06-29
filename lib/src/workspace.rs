@@ -283,9 +283,8 @@ impl Workspace {
             let workspace = Workspace::new(workspace_root, working_copy, repo_loader)?;
             Ok((workspace, repo))
         })()
-        .map_err(|err| {
+        .inspect_err(|_err| {
             let _ = std::fs::remove_dir_all(jj_dir);
-            err
         })
     }
 

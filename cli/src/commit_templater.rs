@@ -1029,6 +1029,7 @@ impl RefNamesIndex {
 
     #[allow(unknown_lints)] // XXX FIXME (aseipp): nightly bogons; re-test this occasionally
     #[allow(clippy::manual_unwrap_or_default)]
+    #[allow(clippy::manual_unwrap_or)] // https://github.com/rust-lang/rust-clippy/issues/13018
     pub fn get(&self, id: &CommitId) -> &[Rc<RefName>] {
         if let Some(names) = self.index.get(id) {
             names
