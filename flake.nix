@@ -48,12 +48,6 @@
         libiconv
       ];
 
-      # work around https://github.com/nextest-rs/nextest/issues/267
-      # this needs to exist in both the devShell and preCheck phase!
-      darwinNextestHack = pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
-        export DYLD_FALLBACK_LIBRARY_PATH=$(${ourRustVersion}/bin/rustc --print sysroot)/lib
-      '';
-      
       # these are needed in both devShell and buildInputs
       linuxNativeDeps = with pkgs; lib.optionals stdenv.isLinux [
         mold-wrapped
@@ -113,7 +107,7 @@
 
           preCheck = ''
             export RUST_BACKTRACE=1
-          '' + darwinNextestHack;
+          '';
 
           postInstall = ''
             $out/bin/jj util mangen > ./jj.1
@@ -185,7 +179,7 @@
           export LIBSSH2_SYS_USE_PKG_CONFIG=1
 
           export RUSTFLAGS="-Zthreads=0 ${rustLinkFlagsString}"
-        '' + darwinNextestHack;
+        '';
       };
     }));
 }
