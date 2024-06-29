@@ -50,17 +50,26 @@ impl StringPattern {
         StringPattern::Substring(String::new())
     }
 
-    /// Parses the given string as a `StringPattern`. Everything before the
-    /// first ":" is considered the string's prefix. If the prefix is "exact:",
-    /// "glob:", or "substring:", a pattern of the specified kind is returned.
-    /// Returns an error if the string has an unrecognized prefix. Otherwise, a
-    /// `StringPattern::Exact` is returned.
+    /// Parses the given string as a [`StringPattern`]. Everything before the
+    /// first “:” is considered the string’s prefix. If the prefix is `exact:`,
+    /// `glob:`, or `substring:`, a pattern of the specified kind is returned.
+    /// Returns an error if the string has an unrecognized prefix. Otherwise,
+    /// a pattern of kind `default_kind` is returned.
+    pub fn parse_with_default_kind(
+        src: &str,
+        default_kind: &str,
+    ) -> Result<Self, StringPatternParseError> {
+        let (maybe_kind, pat) = match src.split_once(':') {
+            Some((kind, pat)) => (Some(kind), pat),
+            None => (None, src),
+        };
+        Self::from_str_maybe_kind(pat, maybe_kind, default_kind)
+    }
+
+    /// Helper for `StringPattern::parse_with_default_kind(src, "exact')`. See
+    /// [`StringPattern::parse_with_default_kind()`] for details.
     pub fn parse(src: &str) -> Result<StringPattern, StringPatternParseError> {
-        if let Some((kind, pat)) = src.split_once(':') {
-            StringPattern::from_str_kind(pat, kind)
-        } else {
-            Ok(StringPattern::exact(src))
-        }
+        Self::parse_with_default_kind(src, "exact")
     }
 
     /// Creates pattern that matches exactly.
@@ -77,7 +86,7 @@ impl StringPattern {
         Ok(StringPattern::Glob(pattern))
     }
 
-    /// Parses the given string as pattern of the specified `kind`.
+    /// Parses the given string as a pattern of the specified `kind`.
     pub fn from_str_kind(src: &str, kind: &str) -> Result<Self, StringPatternParseError> {
         match kind {
             "exact" => Ok(StringPattern::exact(src)),
@@ -85,6 +94,16 @@ impl StringPattern {
             "substring" => Ok(StringPattern::Substring(src.to_owned())),
             _ => Err(StringPatternParseError::InvalidKind(kind.to_owned())),
         }
+    }
+
+    /// Parses the given string as a pattern of the specified `maybe_kind` if
+    /// present, or `default_kind` otherwise.
+    pub fn from_str_maybe_kind(
+        src: &str,
+        maybe_kind: Option<&str>,
+        default_kind: &str,
+    ) -> Result<Self, StringPatternParseError> {
+        Self::from_str_kind(src, maybe_kind.unwrap_or(default_kind))
     }
 
     /// Returns true if this pattern matches input strings exactly.

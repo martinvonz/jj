@@ -742,9 +742,8 @@ pub fn expect_file_pattern(
 }
 
 pub fn expect_string_pattern(node: &ExpressionNode) -> Result<StringPattern, RevsetParseError> {
-    let parse_pattern = |value: &str, kind: Option<&str>| match kind {
-        Some(kind) => StringPattern::from_str_kind(value, kind),
-        None => Ok(StringPattern::Substring(value.to_owned())),
+    let parse_pattern = |value: &str, maybe_kind: Option<&str>| {
+        StringPattern::from_str_maybe_kind(value, maybe_kind, "substring")
     };
     revset_parser::expect_pattern_with("string pattern", node, parse_pattern)
 }
