@@ -42,6 +42,7 @@ pub struct RepoSettings {
 pub struct GitSettings {
     pub auto_local_branch: bool,
     pub abandon_unreachable_commits: bool,
+    pub colocate: bool,
 }
 
 impl GitSettings {
@@ -51,6 +52,7 @@ impl GitSettings {
             abandon_unreachable_commits: config
                 .get_bool("git.abandon-unreachable-commits")
                 .unwrap_or(true),
+            colocate: config.get_bool("git.colocate").unwrap_or(false),
         }
     }
 }
@@ -60,6 +62,7 @@ impl Default for GitSettings {
         GitSettings {
             auto_local_branch: false,
             abandon_unreachable_commits: true,
+            colocate: false,
         }
     }
 }

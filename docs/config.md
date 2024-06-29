@@ -732,6 +732,19 @@ signing.backends.ssh.allowed-signers = "/path/to/allowed-signers"
 
 ## Git settings
 
+### Default colocation
+
+When creating a git-backed Jujutsu repository, you can enable "colocation" which
+places the `.git` directory next to the `.jj` directory, allowing some amount of
+two-way interoperability.
+
+The setting `git.colocate` is a boolean option that controls whether or not the
+`jj git init` and `jj git clone` commands should create colocated repositories
+by default. By default, `git.colocate` is set to `false`.
+
+See [Co-located Jujutsu/Git repos](./
+git-compatibility.md#co-located-jujutsugit-repos) for more information.
+
 ### Default remotes for `jj git fetch` and `jj git push`
 
 By default, if a single remote exists it is used for `jj git fetch` and `jj git

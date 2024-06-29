@@ -845,6 +845,7 @@ The Git repo will be a bare git repo stored inside the `.jj/` directory.
 ###### **Options:**
 
 * `--colocate` — Whether or not to colocate the Jujutsu repo with the git repo
+* `--no-colocate` — Disable colocation of the Jujutsu repo with the git repo
 
 
 
@@ -907,6 +908,7 @@ Create a new Git backed repo
    This is done by placing the backing git repo into a `.git` directory in the root of the `jj` repo along with the `.jj` directory. If the `.git` directory already exists, all the existing commits will be imported.
 
    This option is mutually exclusive with `--git-repo`.
+* `--no-colocate` — Disable colocation of the Jujutsu repo with the git repo
 * `--git-repo <GIT_REPO>` — Specifies a path to an **existing** git repository to be used as the backing git repo for the newly created `jj` repo.
 
    If the specified `--git-repo` path happens to be the same as the `jj` repo path (both .jj and .git directories are in the same working directory), then both `jj` and `git` commands will work on the same repo. This is called a co-located repo.

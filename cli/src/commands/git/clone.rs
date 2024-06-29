@@ -45,6 +45,9 @@ pub struct GitCloneArgs {
     /// Whether or not to colocate the Jujutsu repo with the git repo
     #[arg(long)]
     colocate: bool,
+    /// Disable colocation of the Jujutsu repo with the git repo
+    #[arg(long, conflicts_with = "colocate")]
+    no_colocate: bool,
 }
 
 fn absolute_git_source(cwd: &Path, source: &str) -> String {
@@ -105,6 +108,12 @@ pub fn cmd_git_clone(
     fs::create_dir_all(&wc_path)
         .map_err(|err| user_error_with_message(format!("Failed to create {wc_path_str}"), err))?;
 
+    let colocate = if command.settings().git_settings().colocate {
+        !args.no_colocate
+    } else {
+        args.colocate
+    };
+
     // Canonicalize because fs::remove_dir_all() doesn't seem to like e.g.
     // `/some/path/.`
     let canonical_wc_path: PathBuf = wc_path
@@ -113,7 +122,7 @@ pub fn cmd_git_clone(
     let clone_result = do_git_clone(
         ui,
         command,
-        args.colocate,
+        colocate,
         remote_name,
         &source,
         &canonical_wc_path,
@@ -121,7 +130,7 @@ pub fn cmd_git_clone(
     if clone_result.is_err() {
         let clean_up_dirs = || -> io::Result<()> {
             fs::remove_dir_all(canonical_wc_path.join(".jj"))?;
-            if args.colocate {
+            if colocate {
                 fs::remove_dir_all(canonical_wc_path.join(".git"))?;
             }
             if !wc_path_existed {
