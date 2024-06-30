@@ -2443,7 +2443,7 @@ fn test_evaluate_expression_mine() {
         })
         .write()
         .unwrap();
-    // Can find a unique match by name
+    // Can find a unique match
     assert_eq!(
         resolve_commit_ids(mut_repo, "mine()"),
         vec![commit2.id().clone()]
@@ -2457,7 +2457,7 @@ fn test_evaluate_expression_mine() {
         })
         .write()
         .unwrap();
-    // Can find multiple matches by name
+    // Can find multiple matches
     assert_eq!(
         resolve_commit_ids(mut_repo, "mine()"),
         vec![commit3.id().clone(), commit2.id().clone()]
