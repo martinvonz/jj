@@ -858,6 +858,141 @@ fn test_diff_skipped_context_nondefault() {
 }
 
 #[test]
+fn test_diff_leading_trailing_context() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // N=5 context lines at start/end of the file
+    std::fs::write(
+        repo_path.join("file1"),
+        "1\n2\n3\n4\n5\nL\n6\n7\n8\n9\n10\n11\n",
+    )
+    .unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(
+        repo_path.join("file1"),
+        "1\n2\n3\n4\n5\n6\nR\n7\n8\n9\n10\n11\n",
+    )
+    .unwrap();
+
+    // N=5 <= num_context_lines + 1: No room to skip.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--context=4"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Modified regular file file1:
+       1    1: 1
+       2    2: 2
+       3    3: 3
+       4    4: 4
+       5    5: 5
+       6     : L
+       7    6: 6
+            7: R
+       8    8: 7
+       9    9: 8
+      10   10: 9
+      11   11: 10
+      12   12: 11
+    "###);
+
+    // N=5 <= 2 * num_context_lines + 1: The last hunk wouldn't be split if
+    // trailing diff existed.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--context=3"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Modified regular file file1:
+        ...
+       3    3: 3
+       4    4: 4
+       5    5: 5
+       6     : L
+       7    6: 6
+            7: R
+       8    8: 7
+       9    9: 8
+      10   10: 9
+        ...
+    "###);
+
+    // N=5 > 2 * num_context_lines + 1: The last hunk should be split no matter
+    // if trailing diff existed.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--context=1"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Modified regular file file1:
+        ...
+       5    5: 5
+       6     : L
+       7    6: 6
+            7: R
+       8    8: 7
+        ...
+    "###);
+
+    // N=5 <= num_context_lines: No room to skip.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--context=5"]);
+    insta::assert_snapshot!(stdout, @r###"
+    diff --git a/file1 b/file1
+    index 1bf57dee4a...69b3e1865c 100644
+    --- a/file1
+    +++ b/file1
+    @@ -1,12 +1,12 @@
+     1
+     2
+     3
+     4
+     5
+    -L
+     6
+    +R
+     7
+     8
+     9
+     10
+     11
+    "###);
+
+    // N=5 <= 2 * num_context_lines: The last hunk wouldn't be split if
+    // trailing diff existed.
+    // FIXME: trailing context lines should be trimmed
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--context=3"]);
+    insta::assert_snapshot!(stdout, @r###"
+    diff --git a/file1 b/file1
+    index 1bf57dee4a...69b3e1865c 100644
+    --- a/file1
+    +++ b/file1
+    @@ -3,10 +3,10 @@
+     3
+     4
+     5
+    -L
+     6
+    +R
+     7
+     8
+     9
+     10
+     11
+    "###);
+
+    // N=5 > 2 * num_context_lines: The last hunk should be split no matter
+    // if trailing diff existed.
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--context=2"]);
+    insta::assert_snapshot!(stdout, @r###"
+    diff --git a/file1 b/file1
+    index 1bf57dee4a...69b3e1865c 100644
+    --- a/file1
+    +++ b/file1
+    @@ -4,6 +4,6 @@
+     4
+     5
+    -L
+     6
+    +R
+     7
+     8
+    "###);
+}
+
+#[test]
 fn test_diff_external_tool() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
