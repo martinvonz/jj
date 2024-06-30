@@ -771,7 +771,8 @@ fn unified_diff_hunks<'content>(
         lines: vec![],
     };
     let diff = Diff::for_tokenizer(&[left_content, right_content], diff::find_line_ranges);
-    for hunk in diff.hunks() {
+    let mut diff_hunks = diff.hunks().peekable();
+    while let Some(hunk) = diff_hunks.next() {
         match hunk {
             DiffHunk::Matching(content) => {
                 let mut lines = content.split_inclusive(|b| *b == b'\n').fuse();
@@ -779,7 +780,11 @@ fn unified_diff_hunks<'content>(
                     // The previous hunk line should be either removed/added.
                     current_hunk.extend_context_lines(lines.by_ref().take(num_context_lines));
                 }
-                let before_lines = lines.by_ref().rev().take(num_context_lines).collect_vec();
+                let before_lines = if diff_hunks.peek().is_some() {
+                    lines.by_ref().rev().take(num_context_lines).collect()
+                } else {
+                    vec![] // No more hunks
+                };
                 let num_skip_lines = lines.count();
                 if num_skip_lines > 0 {
                     let left_start = current_hunk.left_line_range.end + num_skip_lines;
@@ -804,12 +809,7 @@ fn unified_diff_hunks<'content>(
             }
         }
     }
-    // The last unified hunk might contain redundant "before" context lines.
-    if !current_hunk
-        .lines
-        .iter()
-        .all(|(diff_type, _line)| *diff_type == DiffLineType::Context)
-    {
+    if !current_hunk.lines.is_empty() {
         hunks.push(current_hunk);
     }
     hunks
