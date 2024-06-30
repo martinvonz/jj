@@ -1645,8 +1645,10 @@ impl WorkspaceCommandTransaction<'_> {
         formatter: &mut dyn Formatter,
         commit: &Commit,
     ) -> std::io::Result<()> {
-        // TODO: Use the disambiguation revset
-        let id_prefix_context = IdPrefixContext::new(self.helper.revset_extensions.clone());
+        let id_prefix_context = self
+            .helper
+            .new_id_prefix_context()
+            .expect("parse error should be confined by WorkspaceCommandHelper::new()");
         let language = CommitTemplateLanguage::new(
             self.tx.repo(),
             self.helper.workspace_id(),
