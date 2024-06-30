@@ -903,26 +903,15 @@ fn show_unified_diff_hunks(
             hunk.right_line_range.len()
         )?;
         for (line_type, content) in hunk.lines {
-            match line_type {
-                DiffLineType::Context => {
-                    formatter.with_label("context", |formatter| {
-                        write!(formatter, " ")?;
-                        formatter.write_all(content)
-                    })?;
-                }
-                DiffLineType::Removed => {
-                    formatter.with_label("removed", |formatter| {
-                        write!(formatter, "-")?;
-                        formatter.write_all(content)
-                    })?;
-                }
-                DiffLineType::Added => {
-                    formatter.with_label("added", |formatter| {
-                        write!(formatter, "+")?;
-                        formatter.write_all(content)
-                    })?;
-                }
-            }
+            let (label, sigil) = match line_type {
+                DiffLineType::Context => ("context", " "),
+                DiffLineType::Removed => ("removed", "-"),
+                DiffLineType::Added => ("added", "+"),
+            };
+            formatter.with_label(label, |formatter| {
+                write!(formatter, "{sigil}")?;
+                formatter.write_all(content)
+            })?;
             if !content.ends_with(b"\n") {
                 write!(formatter, "\n\\ No newline at end of file\n")?;
             }
