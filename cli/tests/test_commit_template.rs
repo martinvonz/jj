@@ -870,3 +870,70 @@ fn test_log_contained_in() {
     Hint: Did you mean "main"?
     "###);
 }
+
+#[test]
+fn test_short_prefix_in_transaction() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.add_config(r#"
+        [revsets]
+        log = '::description(test)'
+
+        [templates]
+        log = 'summary ++ "\n"'
+        commit_summary = 'summary'
+
+        [template-aliases]
+        'format_id(id)' = 'id.shortest(12).prefix() ++ "[" ++ id.shortest(12).rest() ++ "]"'
+        'summary' = 'separate(" ", format_id(change_id), format_id(commit_id), description.first_line())'
+    "#);
+
+    std::fs::write(repo_path.join("file"), "original file\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "initial"]);
+
+    // Create a chain of 5 commits
+    for i in 0..5 {
+        test_env.jj_cmd_ok(&repo_path, &["new", "-m", &format!("commit{i}")]);
+        std::fs::write(repo_path.join("file"), format!("file {i}\n")).unwrap();
+    }
+    // Create 2^4 duplicates of the chain
+    for _ in 0..4 {
+        test_env.jj_cmd_ok(&repo_path, &["duplicate", "description(commit)"]);
+    }
+
+    // Short prefix should be used for commit summary inside the transaction
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["new", "--no-edit", "-m", "test"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Created new commit km[kuslswpqwq] 7[4ac55dd119b] test
+    "###);
+
+    // Should match log's short prefixes
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--no-graph"]);
+    insta::assert_snapshot!(stdout, @r###"
+    km[kuslswpqwq] 7[4ac55dd119b] test
+    y[qosqzytrlsw] 5[8731db5875e] commit4
+    r[oyxmykxtrkr] 9[95cc897bca7] commit3
+    m[zvwutvlkqwt] 3[74534c54448] commit2
+    zs[uskulnrvyr] d[e304c281bed] commit1
+    kk[mpptxzrspx] 05[2755155952] commit0
+    q[pvuntsmwlqt] e[0e22b9fae75] initial
+    zz[zzzzzzzzzz] 00[0000000000]
+    "###);
+
+    test_env.add_config(r#"revsets.short-prefixes = """#);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--no-graph"]);
+    insta::assert_snapshot!(stdout, @r###"
+    kmk[uslswpqwq] 74ac[55dd119b] test
+    yq[osqzytrlsw] 587[31db5875e] commit4
+    ro[yxmykxtrkr] 99[5cc897bca7] commit3
+    mz[vwutvlkqwt] 374[534c54448] commit2
+    zs[uskulnrvyr] de[304c281bed] commit1
+    kk[mpptxzrspx] 052[755155952] commit0
+    qp[vuntsmwlqt] e0[e22b9fae75] initial
+    zz[zzzzzzzzzz] 00[0000000000]
+    "###);
+}
