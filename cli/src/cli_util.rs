@@ -999,25 +999,28 @@ impl WorkspaceCommandHelper {
         )
     }
 
+    fn new_id_prefix_context(&self) -> Result<IdPrefixContext, CommandError> {
+        let mut context: IdPrefixContext = IdPrefixContext::new(self.revset_extensions.clone());
+        let revset_string: String = self
+            .settings
+            .config()
+            .get_string("revsets.short-prefixes")
+            .unwrap_or_else(|_| self.settings.default_revset());
+        if !revset_string.is_empty() {
+            let (expression, modifier) =
+                revset::parse_with_modifier(&revset_string, &self.revset_parse_context()).map_err(
+                    |err| config_error_with_message("Invalid `revsets.short-prefixes`", err),
+                )?;
+            let (None | Some(RevsetModifier::All)) = modifier;
+            context = context.disambiguate_within(revset::optimize(expression));
+        }
+        Ok(context)
+    }
+
     pub fn id_prefix_context(&self) -> Result<&IdPrefixContext, CommandError> {
-        self.user_repo.id_prefix_context.get_or_try_init(|| {
-            let mut context: IdPrefixContext = IdPrefixContext::new(self.revset_extensions.clone());
-            let revset_string: String = self
-                .settings
-                .config()
-                .get_string("revsets.short-prefixes")
-                .unwrap_or_else(|_| self.settings.default_revset());
-            if !revset_string.is_empty() {
-                let (expression, modifier) =
-                    revset::parse_with_modifier(&revset_string, &self.revset_parse_context())
-                        .map_err(|err| {
-                            config_error_with_message("Invalid `revsets.short-prefixes`", err)
-                        })?;
-                let (None | Some(RevsetModifier::All)) = modifier;
-                context = context.disambiguate_within(revset::optimize(expression));
-            }
-            Ok(context)
-        })
+        self.user_repo
+            .id_prefix_context
+            .get_or_try_init(|| self.new_id_prefix_context())
     }
 
     pub fn template_aliases_map(&self) -> &TemplateAliasesMap {
