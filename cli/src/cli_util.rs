@@ -2137,7 +2137,10 @@ pub fn get_new_config_file_path(
     Ok(edit_path)
 }
 
-pub fn run_ui_editor(settings: &UserSettings, edit_path: &PathBuf) -> Result<(), CommandError> {
+pub fn run_ui_editor(settings: &UserSettings, edit_path: &Path) -> Result<(), CommandError> {
+    // Work around UNC paths not being well supported on Windows (no-op for
+    // non-Windows): https://github.com/martinvonz/jj/issues/3986
+    let edit_path = dunce::simplified(edit_path);
     let editor: CommandNameAndArgs = settings
         .config()
         .get("ui.editor")
