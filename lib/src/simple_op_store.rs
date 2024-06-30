@@ -696,6 +696,7 @@ mod tests {
     use maplit::{btreemap, hashmap, hashset};
 
     use super::*;
+    use crate::tests_common::new_temp_dir;
 
     fn create_view() -> View {
         let new_remote_ref = |target: &RefTarget| RemoteRef {
@@ -795,7 +796,7 @@ mod tests {
 
     #[test]
     fn test_read_write_view() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let store = SimpleOpStore::init(temp_dir.path());
         let view = create_view();
         let view_id = store.write_view(&view).unwrap();
@@ -805,7 +806,7 @@ mod tests {
 
     #[test]
     fn test_read_write_operation() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let store = SimpleOpStore::init(temp_dir.path());
         let operation = create_operation();
         let op_id = store.write_operation(&operation).unwrap();
