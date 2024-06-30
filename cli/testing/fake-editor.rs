@@ -50,18 +50,15 @@ fn main() {
                 let dest_path = edit_script_path.parent().unwrap().join(dest);
                 fs::copy(&args.file, dest_path).unwrap();
             }
+            ["dump-path", dest] => {
+                let dest_path = edit_script_path.parent().unwrap().join(dest);
+                fs::write(&dest_path, args.file.to_str().unwrap())
+                    .unwrap_or_else(|err| panic!("Failed to write file {dest_path:?}: {err}"));
+            }
             ["expect"] => {
                 let actual = String::from_utf8(fs::read(&args.file).unwrap()).unwrap();
                 if actual != payload {
                     eprintln!("fake-editor: Unexpected content.\n");
-                    eprintln!("EXPECTED: <{payload}>\nRECEIVED: <{actual}>");
-                    exit(1)
-                }
-            }
-            ["expectpath"] => {
-                let actual = args.file.to_str().unwrap();
-                if actual != payload {
-                    eprintln!("fake-editor: Unexpected path.\n");
                     eprintln!("EXPECTED: <{payload}>\nRECEIVED: <{actual}>");
                     exit(1)
                 }

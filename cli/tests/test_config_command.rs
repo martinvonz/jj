@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::PathBuf;
+
 use insta::assert_snapshot;
 use itertools::Itertools;
 use regex::Regex;
@@ -621,12 +623,12 @@ fn test_config_edit_user() {
     let repo_path = test_env.env_root().join("repo");
     let edit_script = test_env.set_up_fake_editor();
 
-    std::fs::write(
-        edit_script,
-        format!("expectpath\n{}", test_env.config_path().to_str().unwrap()),
-    )
-    .unwrap();
+    std::fs::write(edit_script, "dump-path path").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["config", "edit", "--user"]);
+
+    let edited_path =
+        PathBuf::from(std::fs::read_to_string(test_env.env_root().join("path")).unwrap());
+    assert_eq!(&edited_path, test_env.config_path());
 }
 
 #[test]
@@ -636,15 +638,12 @@ fn test_config_edit_repo() {
     let repo_path = test_env.env_root().join("repo");
     let edit_script = test_env.set_up_fake_editor();
 
-    std::fs::write(
-        edit_script,
-        format!(
-            "expectpath\n{}",
-            repo_path.join(".jj/repo/config.toml").to_str().unwrap()
-        ),
-    )
-    .unwrap();
+    std::fs::write(edit_script, "dump-path path").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["config", "edit", "--repo"]);
+
+    let edited_path =
+        PathBuf::from(std::fs::read_to_string(test_env.env_root().join("path")).unwrap());
+    assert_eq!(edited_path, repo_path.join(".jj/repo/config.toml"));
 }
 
 #[test]
