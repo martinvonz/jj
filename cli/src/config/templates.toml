@@ -203,6 +203,12 @@ if(commit.hidden(),
 )
 '''
 
+# Uncomment the following or put it in your config to enable facier graph node
+# styling.
+#
+# log_node = 'builtin_log_node'
+# op_log_node = 'builtin_op_log_node'
+
 builtin_log_node = '''
 coalesce(
   if(!self, label("elided", "~")),
