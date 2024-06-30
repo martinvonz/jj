@@ -1,0 +1,77 @@
+name: binaries
+
+on:
+  push:
+    branches:
+      - main
+
+permissions: read-all
+
+jobs:
+  binaries:
+    strategy:
+      fail-fast: false
+
+      matrix:
+        build: [linux-x86_64-musl, linux-x86_64-gnu, linux-aarch64-musl, linux-aarch64-gnu, macos-aarch64, win-x86_64]
+        include:
+        - build: linux-x86_64-musl
+          os: ubuntu-24.04
+          target: x86_64-unknown-linux-musl
+        - build: linux-x86_64-gnu
+          os: ubuntu-24.04
+          target: x86_64-unknown-linux-gnu
+        - build: linux-aarch64-musl
+          os: ubuntu-24.04
+          target: aarch64-unknown-linux-musl
+        - build: linux-aarch64-gnu
+          os: ubuntu-24.04
+          target: aarch64-unknown-linux-gnu
+        - build: macos-aarch64
+          os: macos-14
+          target: aarch64-apple-darwin
+        - build: win-x86_64
+          os: windows-2022
+          target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15 # NOTE (aseipp): keep in-sync with the build.yml timeout limit
+
+    name: Build binary artifacts
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - name: Install packages (Ubuntu)
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xz-utils liblz4-tool musl-tools
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+      - name: Build release binary
+        shell: bash
+        run: |
+          CARGO_CMD=cargo
+          if [[ "${{ matrix.target }}" = aarch64-unknown-linux* ]]; then
+            echo "Downloading 'cross' binary for aarch64-linux..."
+            wget -c https://github.com/cross-rs/cross/releases/download/v0.2.5/cross-x86_64-unknown-linux-gnu.tar.gz -O - | tar -xz
+            CARGO_CMD=$PWD/cross
+          fi
+          $CARGO_CMD build --target ${{ matrix.target }} --verbose --release --features packaging,vendored-openssl
+
+      - name: Setup artifact directory
+        shell: bash
+        run: |
+          outdir="target/${{ matrix.target }}/release"
+          BIN=$outdir/jj
+          [[ "${{ matrix.os }}" == "windows-latest" ]] && BIN+=".exe" 
+
+          mkdir -p target/out
+          cp $BIN target/out
+
+      - name: Publish binary artifact
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        with:
+          name: jj-${{ matrix.target }}
+          path: target/out
