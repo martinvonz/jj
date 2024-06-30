@@ -1859,6 +1859,7 @@ dependencies = [
  "criterion",
  "crossterm",
  "dirs",
+ "dunce",
  "esl01-renderdag",
  "futures 0.3.30",
  "git2",
