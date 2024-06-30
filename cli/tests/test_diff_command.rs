@@ -952,14 +952,13 @@ fn test_diff_leading_trailing_context() {
 
     // N=5 <= 2 * num_context_lines: The last hunk wouldn't be split if
     // trailing diff existed.
-    // FIXME: trailing context lines should be trimmed
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--context=3"]);
     insta::assert_snapshot!(stdout, @r###"
     diff --git a/file1 b/file1
     index 1bf57dee4a...69b3e1865c 100644
     --- a/file1
     +++ b/file1
-    @@ -3,10 +3,10 @@
+    @@ -3,8 +3,8 @@
      3
      4
      5
@@ -969,8 +968,6 @@ fn test_diff_leading_trailing_context() {
      7
      8
      9
-     10
-     11
     "###);
 
     // N=5 > 2 * num_context_lines: The last hunk should be split no matter
