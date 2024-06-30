@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::path::Path;
+
 use crate::common::{get_stderr_string, TestEnvironment};
 
 #[test]
@@ -172,6 +174,49 @@ fn test_describe() {
 }
 
 #[test]
+fn test_bug_2600() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["init", "repo", "--git"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    create_commit(&test_env, &repo_path, "base", &[]);
+    create_commit(&test_env, &repo_path, "a", &["base"]);
+    create_commit(&test_env, &repo_path, "b", &["base", "a"]);
+    create_commit(&test_env, &repo_path, "c", &["b"]);
+
+    // Test the setup
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  c
+    ◉    b
+    ├─╮
+    │ ◉  a
+    ├─╯
+    ◉  base
+    ◉
+    "###);
+
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["describe", "-r", "a", "-m", "newname"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Rebased 2 descendant commits
+    Working copy now at: vruxwmqv 6a9375ce c | c
+    Parent commit      : royxmykx 26ffdee4 b | b
+    "###);
+    // BUG: `jj describe` should not change the shape of the graph.
+    // This bug is not specific to `describe`; it also occurs with `jj edit` and
+    // other commands. It is a consequence of how DescendantRebaser works. See
+    // https://github.com/martinvonz/jj/issues/2600 for details.
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  c
+    ◉  b
+    ◉  newname
+    ◉  base
+    ◉
+    "###);
+}
+
+#[test]
 fn test_multiple_message_args() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
@@ -322,4 +367,20 @@ fn test_describe_author() {
     │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:09.000 +07:00
     ~
     "###);
+}
+
+fn create_commit(test_env: &TestEnvironment, repo_path: &Path, name: &str, parents: &[&str]) {
+    if parents.is_empty() {
+        test_env.jj_cmd_ok(repo_path, &["new", "root()", "-m", name]);
+    } else {
+        let mut args = vec!["new", "-m", name];
+        args.extend(parents);
+        test_env.jj_cmd_ok(repo_path, &args);
+    }
+    std::fs::write(repo_path.join(name), format!("{name}\n")).unwrap();
+    test_env.jj_cmd_ok(repo_path, &["branch", "create", name]);
+}
+
+fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    test_env.jj_cmd_success(repo_path, &["log", "-T", "description"])
 }
