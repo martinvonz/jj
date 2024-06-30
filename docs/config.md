@@ -166,6 +166,18 @@ useful reminder to fill in things like BUG=, TESTED= etc.
 ui.default-description = "\n\nTESTED=TODO"
 ```
 
+### Diff colors and styles
+
+In color-words diffs, hunks are rendered with underline. You can override the
+default style with the following keys:
+
+```toml
+[colors]
+# Highlight hunks with background
+"diff removed token" = { bg = "#221111", underline = false }
+"diff added token" = { bg = "#002200", underline = false }
+```
+
 ### Diff format
 
 ```toml
