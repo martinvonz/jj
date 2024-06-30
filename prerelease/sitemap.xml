@@ -46,6 +46,16 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://martinvonz.github.io/jj/latest/design_doc_blueprint/</loc>
+         <lastmod>2024-06-30</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
+         <loc>https://martinvonz.github.io/jj/latest/design_docs/</loc>
+         <lastmod>2024-06-30</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://martinvonz.github.io/jj/latest/filesets/</loc>
          <lastmod>2024-06-30</lastmod>
          <changefreq>daily</changefreq>
