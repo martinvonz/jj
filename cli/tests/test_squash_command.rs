@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::common::TestEnvironment;
 
@@ -1028,6 +1028,32 @@ fn test_squash_description() {
     insta::assert_snapshot!(get_description(&test_env, &repo_path, "@"), @r###"
     source
     "###);
+}
+
+#[test]
+fn test_squash_description_editor_avoids_unc() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let edit_script = test_env.set_up_fake_editor();
+    std::fs::write(repo_path.join("file1"), "a\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "a\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file1"), "b\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "b\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["describe", "@-", "-m", "destination"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "source"]);
+
+    std::fs::write(edit_script, "dump-path path").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["squash"]);
+
+    let edited_path =
+        PathBuf::from(std::fs::read_to_string(test_env.env_root().join("path")).unwrap());
+    // While `assert!(!edited_path.starts_with("//?/"))` could work here in most
+    // cases, it fails when it is not safe to strip the prefix, such as paths
+    // over 260 chars.
+    assert_eq!(edited_path, dunce::simplified(&edited_path));
 }
 
 #[test]

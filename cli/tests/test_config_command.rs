@@ -628,7 +628,7 @@ fn test_config_edit_user() {
 
     let edited_path =
         PathBuf::from(std::fs::read_to_string(test_env.env_root().join("path")).unwrap());
-    assert_eq!(&edited_path, test_env.config_path());
+    assert_eq!(edited_path, dunce::simplified(test_env.config_path()));
 }
 
 #[test]
@@ -643,7 +643,10 @@ fn test_config_edit_repo() {
 
     let edited_path =
         PathBuf::from(std::fs::read_to_string(test_env.env_root().join("path")).unwrap());
-    assert_eq!(edited_path, repo_path.join(".jj/repo/config.toml"));
+    assert_eq!(
+        edited_path,
+        dunce::simplified(&repo_path.join(".jj/repo/config.toml"))
+    );
 }
 
 #[test]
