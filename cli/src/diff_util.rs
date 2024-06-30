@@ -30,7 +30,7 @@ use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::{MergedTree, TreeDiffStream};
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::{RepoPath, RepoPathUiConverter};
+use jj_lib::repo_path::{RepoPath, RepoPathBuf, RepoPathUiConverter};
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::store::Store;
 use jj_lib::{diff, files};
@@ -684,11 +684,15 @@ pub fn show_file_by_file_diff(
     let left_wc_dir = temp_dir.path().join("left");
     let right_wc_dir = temp_dir.path().join("right");
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
+    let mut items: Vec<(
+        String,
+        RepoPathBuf,
+        (MaterializedTreeValue, MaterializedTreeValue),
+    )> = Vec::new();
     async {
         while let Some((path, diff)) = diff_stream.next().await {
             let ui_path = path_converter.format_file_path(&path);
             let (left_value, right_value) = diff?;
-
             match (&left_value, &right_value) {
                 (_, MaterializedTreeValue::AccessDenied(source))
                 | (MaterializedTreeValue::AccessDenied(source), _) => {
@@ -699,25 +703,39 @@ pub fn show_file_by_file_diff(
                     writeln!(formatter, " {source}")?;
                     continue;
                 }
-                _ => {}
+                _ => {
+                    items.push((ui_path, path, (left_value, right_value)));
+                }
             }
-            let left_path = create_file(&path, &left_wc_dir, left_value)?;
-            let right_path = create_file(&path, &right_wc_dir, right_value)?;
-
-            invoke_external_diff(
-                ui,
-                formatter.raw(),
-                tool,
-                &maplit::hashmap! {
-                    "left" => left_path.to_str().expect("temp_dir should be valid utf-8"),
-                    "right" => right_path.to_str().expect("temp_dir should be valid utf-8"),
-                },
-            )
-            .map_err(DiffRenderError::DiffGenerate)?;
         }
         Ok::<(), DiffRenderError>(())
     }
-    .block_on()
+    .block_on()?;
+    let num_items = items.len();
+    for (idx, (ui_path, path, (left_value, right_value))) in items.into_iter().enumerate() {
+        if idx > 0 {
+            writeln!(formatter.labeled("header"))?;
+        }
+        writeln!(
+            formatter.labeled("header"),
+            "JJ (#{} of {}): comparing {ui_path}",
+            idx + 1,
+            num_items,
+        )?;
+        let left_path = create_file(&path, &left_wc_dir, left_value)?;
+        let right_path = create_file(&path, &right_wc_dir, right_value)?;
+        invoke_external_diff(
+            ui,
+            formatter.raw(),
+            tool,
+            &maplit::hashmap! {
+                "left" => left_path.to_str().expect("temp_dir should be valid utf-8"),
+                "right" => right_path.to_str().expect("temp_dir should be valid utf-8"),
+            },
+        )
+        .map_err(DiffRenderError::DiffGenerate)?;
+    }
+    Ok(())
 }
 
 struct GitDiffPart {
