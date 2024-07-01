@@ -169,31 +169,29 @@ pub(crate) fn unchanged_ranges(
     }
 
     let max_occurrences = 100;
-    let mut left_histogram = Histogram::calculate(left, left_ranges, max_occurrences);
+    let left_histogram = Histogram::calculate(left, left_ranges, max_occurrences);
     if *left_histogram.count_to_words.keys().next().unwrap() > max_occurrences {
         // If there are very many occurrences of all words, then we just give up.
         return vec![];
     }
-    let mut right_histogram = Histogram::calculate(right, right_ranges, max_occurrences);
+    let right_histogram = Histogram::calculate(right, right_ranges, max_occurrences);
     // Look for words with few occurrences in `left` (could equally well have picked
     // `right`?). If any of them also occur in `right`, then we add the words to
     // the LCS.
-    let mut uncommon_shared_words = vec![];
-    while !left_histogram.count_to_words.is_empty() && uncommon_shared_words.is_empty() {
-        let left_words = left_histogram
-            .count_to_words
-            .first_entry()
-            .map(|x| x.remove())
-            .unwrap();
-        for left_word in left_words {
-            if right_histogram.word_to_positions.contains_key(left_word) {
-                uncommon_shared_words.push(left_word);
-            }
-        }
-    }
-    if uncommon_shared_words.is_empty() {
+    let Some(uncommon_shared_words) = left_histogram
+        .count_to_words
+        .values()
+        .map(|left_words| -> Vec<&[u8]> {
+            left_words
+                .iter()
+                .copied()
+                .filter(|left_word| right_histogram.word_to_positions.contains_key(left_word))
+                .collect()
+        })
+        .find(|words| !words.is_empty())
+    else {
         return vec![];
-    }
+    };
 
     // Let's say our inputs are "a b a b" and "a b c c b a b". We will have found
     // the least common words to be "a" and "b". We now assume that each
@@ -208,14 +206,8 @@ pub(crate) fn unchanged_ranges(
     let mut left_positions = vec![];
     let mut right_positions = vec![];
     for uncommon_shared_word in uncommon_shared_words {
-        let left_occurrences = left_histogram
-            .word_to_positions
-            .get_mut(uncommon_shared_word)
-            .unwrap();
-        let right_occurrences = right_histogram
-            .word_to_positions
-            .get_mut(uncommon_shared_word)
-            .unwrap();
+        let left_occurrences = &left_histogram.word_to_positions[uncommon_shared_word];
+        let right_occurrences = &right_histogram.word_to_positions[uncommon_shared_word];
         let shared_count = min(left_occurrences.len(), right_occurrences.len());
         for occurrence in 0..shared_count {
             left_positions.push((
