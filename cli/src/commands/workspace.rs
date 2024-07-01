@@ -21,6 +21,7 @@ use clap::Subcommand;
 use itertools::Itertools;
 use jj_lib::commit::CommitIteratorExt;
 use jj_lib::file_util;
+use jj_lib::file_util::IoResultExt;
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::{OpStoreError, WorkspaceId};
 use jj_lib::operation::Operation;
@@ -137,7 +138,7 @@ fn cmd_workspace_add(
     if destination_path.exists() {
         return Err(user_error("Workspace already exists"));
     } else {
-        fs::create_dir(&destination_path).unwrap();
+        fs::create_dir(&destination_path).context(&destination_path)?;
     }
     let name = if let Some(name) = &args.name {
         name.to_string()
