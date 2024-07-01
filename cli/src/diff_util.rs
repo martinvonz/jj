@@ -398,6 +398,23 @@ fn show_color_words_diff_line(
     } else {
         write!(formatter, "    : ")?;
     }
+
+    // In color-words diffs, all hunks of DiffHunk::Different can be considered
+    // word-level and eligible for "token" highlighting. However, we exclude a
+    // hunk that spans the whole line because it would be too verbose if large
+    // block insertion or deletion were highlighted.
+    let write_diff_hunk = |formatter: &mut dyn Formatter, label: &str, data: &[u8]| {
+        if data.is_empty() {
+            return Ok(());
+        }
+        formatter.with_label(label, |formatter| {
+            if diff_line.has_left_content && diff_line.has_right_content {
+                formatter.with_label("token", |formatter| formatter.write_all(data))
+            } else {
+                formatter.write_all(data)
+            }
+        })
+    };
     for hunk in &diff_line.hunks {
         match hunk {
             DiffHunk::Matching(data) => {
@@ -406,16 +423,8 @@ fn show_color_words_diff_line(
             DiffHunk::Different(data) => {
                 let before = data[0];
                 let after = data[1];
-                if !before.is_empty() {
-                    formatter.with_label("removed", |formatter| {
-                        formatter.with_label("token", |formatter| formatter.write_all(before))
-                    })?;
-                }
-                if !after.is_empty() {
-                    formatter.with_label("added", |formatter| {
-                        formatter.with_label("token", |formatter| formatter.write_all(after))
-                    })?;
-                }
+                write_diff_hunk(formatter, "removed", before)?;
+                write_diff_hunk(formatter, "added", after)?;
             }
         }
     }

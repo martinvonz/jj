@@ -166,6 +166,23 @@ useful reminder to fill in things like BUG=, TESTED= etc.
 ui.default-description = "\n\nTESTED=TODO"
 ```
 
+### Diff colors and styles
+
+In color-words diffs, word-level hunks are rendered with underline. You can
+override the default style with the following keys:
+
+```toml
+[colors]
+# Highlight all hunks but line numbers
+"diff removed" = { fg = "red", underline = true }
+"diff added" = { fg = "green", underline = true }
+"diff line_number" = { bold = false, underline = false }
+
+# Highlight word-level hunks with background
+"diff removed token" = { bg = "#330000", underline = false }
+"diff added token" = { bg = "#002200", underline = false }
+```
+
 ### Diff format
 
 ```toml

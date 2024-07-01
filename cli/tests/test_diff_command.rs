@@ -56,13 +56,13 @@ fn test_diff_basic() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--color=debug"]);
     insta::assert_snapshot!(stdout, @r###"
     [38;5;3m<<diff header::Removed >><<diff header::regular file>><<diff header:: >><<diff header::file1>><<diff header:::>>[39m
-    [38;5;1m<<diff removed line_number:: >><<diff removed line_number:: >><<diff removed line_number:: >><<diff removed line_number::1>>[39m<<diff:: >><<diff::    : >>[4m[38;5;1m<<diff removed token::foo>>[24m[39m
+    [38;5;1m<<diff removed line_number:: >><<diff removed line_number:: >><<diff removed line_number:: >><<diff removed line_number::1>>[39m<<diff:: >><<diff::    : >>[38;5;1m<<diff removed::foo>>[39m
     [38;5;3m<<diff header::Modified regular file>><<diff header:: >><<diff header::file2>><<diff header:::>>[39m
     [38;5;1m<<diff removed line_number:: >><<diff removed line_number:: >><<diff removed line_number:: >><<diff removed line_number::1>>[39m<<diff:: >>[38;5;2m<<diff added line_number:: >><<diff added line_number:: >><<diff added line_number:: >><<diff added line_number::1>>[39m<<diff::: >><<diff::foo>>
-    <<diff::     >>[38;5;2m<<diff added line_number:: >><<diff added line_number:: >><<diff added line_number:: >><<diff added line_number::2>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::bar>>[24m[39m
+    <<diff::     >>[38;5;2m<<diff added line_number:: >><<diff added line_number:: >><<diff added line_number:: >><<diff added line_number::2>>[39m<<diff::: >>[38;5;2m<<diff added::bar>>[39m
     [38;5;1m<<diff removed line_number:: >><<diff removed line_number:: >><<diff removed line_number:: >><<diff removed line_number::2>>[39m<<diff:: >>[38;5;2m<<diff added line_number:: >><<diff added line_number:: >><<diff added line_number:: >><<diff added line_number::3>>[39m<<diff::: >><<diff::baz >>[4m[38;5;1m<<diff removed token::qux>>[38;5;2m<<diff added token::quux>>[24m[39m<<diff::>>
     [38;5;3m<<diff header::Added >><<diff header::regular file>><<diff header:: >><<diff header::file3>><<diff header:::>>[39m
-    <<diff::     >>[38;5;2m<<diff added line_number:: >><<diff added line_number:: >><<diff added line_number:: >><<diff added line_number::1>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::foo>>[24m[39m
+    <<diff::     >>[38;5;2m<<diff added line_number:: >><<diff added line_number:: >><<diff added line_number:: >><<diff added line_number::1>>[39m<<diff::: >>[38;5;2m<<diff added::foo>>[39m
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
