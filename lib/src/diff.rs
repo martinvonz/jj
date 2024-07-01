@@ -18,7 +18,7 @@ use std::cmp::{max, min, Ordering};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Formatter};
 use std::ops::Range;
-use std::slice;
+use std::{iter, slice};
 
 use itertools::Itertools;
 
@@ -168,6 +168,56 @@ pub(crate) fn unchanged_ranges(
         return vec![];
     }
 
+    // Prioritize LCS-based algorithm than leading/trailing matches
+    let result = unchanged_ranges_lcs(left, right, left_ranges, right_ranges);
+    if !result.is_empty() {
+        return result;
+    }
+
+    // Trim leading common ranges (i.e. grow previous unchanged region)
+    let common_leading_len = iter::zip(left_ranges, right_ranges)
+        .take_while(|&(l, r)| left[l.clone()] == right[r.clone()])
+        .count();
+    if common_leading_len > 0 {
+        let (left_leading_ranges, left_ranges) = left_ranges.split_at(common_leading_len);
+        let (right_leading_ranges, right_ranges) = right_ranges.split_at(common_leading_len);
+        let mut result = unchanged_ranges(left, right, left_ranges, right_ranges);
+        result.splice(
+            0..0,
+            iter::zip(
+                left_leading_ranges.iter().cloned(),
+                right_leading_ranges.iter().cloned(),
+            ),
+        );
+        return result;
+    }
+
+    // Trim trailing common ranges (i.e. grow next unchanged region)
+    let common_trailing_len = iter::zip(left_ranges.iter().rev(), right_ranges.iter().rev())
+        .take_while(|&(l, r)| left[l.clone()] == right[r.clone()])
+        .count();
+    if common_trailing_len > 0 {
+        let (left_ranges, left_trailing_ranges) =
+            left_ranges.split_at(left_ranges.len() - common_trailing_len);
+        let (right_ranges, right_trailing_ranges) =
+            right_ranges.split_at(right_ranges.len() - common_trailing_len);
+        let mut result = unchanged_ranges(left, right, left_ranges, right_ranges);
+        result.extend(iter::zip(
+            left_trailing_ranges.iter().cloned(),
+            right_trailing_ranges.iter().cloned(),
+        ));
+        return result;
+    }
+
+    vec![]
+}
+
+fn unchanged_ranges_lcs(
+    left: &[u8],
+    right: &[u8],
+    left_ranges: &[Range<usize>],
+    right_ranges: &[Range<usize>],
+) -> Vec<(Range<usize>, Range<usize>)> {
     let max_occurrences = 100;
     let left_histogram = Histogram::calculate(left, left_ranges, max_occurrences);
     if *left_histogram.count_to_words.keys().next().unwrap() > max_occurrences {
@@ -759,6 +809,33 @@ mod tests {
             ),
             vec![(0..1, 0..1), (2..3, 4..5)]
         );
+        assert_eq!(
+            unchanged_ranges(
+                b"a a a a",
+                b"b a c a",
+                &[0..1, 2..3, 4..5, 6..7],
+                &[0..1, 2..3, 4..5, 6..7],
+            ),
+            vec![(0..1, 2..3), (2..3, 6..7)]
+        );
+        assert_eq!(
+            unchanged_ranges(
+                b"a a a a",
+                b"b a a c",
+                &[0..1, 2..3, 4..5, 6..7],
+                &[0..1, 2..3, 4..5, 6..7],
+            ),
+            vec![(0..1, 2..3), (2..3, 4..5)]
+        );
+        assert_eq!(
+            unchanged_ranges(
+                b"a a a a",
+                b"a b c a",
+                &[0..1, 2..3, 4..5, 6..7],
+                &[0..1, 2..3, 4..5, 6..7],
+            ),
+            vec![(0..1, 0..1), (2..3, 6..7)]
+        );
     }
 
     #[test]
@@ -771,6 +848,33 @@ mod tests {
                 &[0..1, 2..3, 4..5, 6..7],
             ),
             vec![(0..1, 0..1), (4..5, 2..3)]
+        );
+        assert_eq!(
+            unchanged_ranges(
+                b"b a c a",
+                b"a a a a",
+                &[0..1, 2..3, 4..5, 6..7],
+                &[0..1, 2..3, 4..5, 6..7],
+            ),
+            vec![(2..3, 0..1), (6..7, 2..3)]
+        );
+        assert_eq!(
+            unchanged_ranges(
+                b"b a a c",
+                b"a a a a",
+                &[0..1, 2..3, 4..5, 6..7],
+                &[0..1, 2..3, 4..5, 6..7],
+            ),
+            vec![(2..3, 0..1), (4..5, 2..3)]
+        );
+        assert_eq!(
+            unchanged_ranges(
+                b"a b c a",
+                b"a a a a",
+                &[0..1, 2..3, 4..5, 6..7],
+                &[0..1, 2..3, 4..5, 6..7],
+            ),
+            vec![(0..1, 0..1), (6..7, 2..3)]
         );
     }
 
