@@ -206,6 +206,12 @@ impl From<io::Error> for CommandError {
     }
 }
 
+impl From<jj_lib::file_util::PathError> for CommandError {
+    fn from(err: jj_lib::file_util::PathError) -> Self {
+        user_error(err)
+    }
+}
+
 impl From<config::ConfigError> for CommandError {
     fn from(err: config::ConfigError) -> Self {
         config_error(err)

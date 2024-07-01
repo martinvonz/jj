@@ -31,7 +31,7 @@ pub struct PathError {
     pub error: io::Error,
 }
 
-pub(crate) trait IoResultExt<T> {
+pub trait IoResultExt<T> {
     fn context(self, path: impl AsRef<Path>) -> Result<T, PathError>;
 }
 
