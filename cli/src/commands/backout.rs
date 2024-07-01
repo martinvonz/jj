@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use jj_lib::object_id::ObjectId;
-use jj_lib::rewrite::back_out_commit;
+use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
 use crate::cli_util::{CommandHelper, RevisionArg};
@@ -47,12 +47,37 @@ pub(crate) fn cmd_backout(
         parents.push(destination);
     }
     let mut tx = workspace_command.start_transaction();
-    back_out_commit(
-        command.settings(),
-        tx.mut_repo(),
-        &commit_to_back_out,
-        &parents,
-    )?;
+    let commit_to_back_out_subject = commit_to_back_out
+        .description()
+        .lines()
+        .next()
+        .unwrap_or_default();
+    let is_reapplying_backed_out_commit = commit_to_back_out_subject.starts_with("Back out \"")
+        && commit_to_back_out_subject.ends_with('"');
+    let new_commit_subject = if is_reapplying_backed_out_commit {
+        &commit_to_back_out_subject["Back out \"".len()..commit_to_back_out_subject.len() - 1]
+    } else {
+        commit_to_back_out_subject
+    };
+    let new_commit_description = format!(
+        "{} \"{}\"\n\nThis backs out commit {}.\n",
+        if is_reapplying_backed_out_commit {
+            "Reapply"
+        } else {
+            "Back out"
+        },
+        &new_commit_subject,
+        &commit_to_back_out.id().hex()
+    );
+    let old_base_tree = commit_to_back_out.parent_tree(tx.mut_repo())?;
+    let new_base_tree = merge_commit_trees(tx.mut_repo(), &parents)?;
+    let old_tree = commit_to_back_out.tree()?;
+    let new_tree = new_base_tree.merge(&old_tree, &old_base_tree)?;
+    let new_parent_ids = parents.iter().map(|commit| commit.id().clone()).collect();
+    tx.mut_repo()
+        .new_commit(command.settings(), new_parent_ids, new_tree.id())
+        .set_description(new_commit_description)
+        .write()?;
     tx.finish(
         ui,
         format!("back out commit {}", commit_to_back_out.id().hex()),

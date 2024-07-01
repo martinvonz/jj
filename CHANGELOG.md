@@ -157,6 +157,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `jj git push` now can push commits with empty descriptions with the
   `--allow-empty-description` flag
 
+* `jj backout` now includes the backed out commit's subject in the new commit
+  message.
+
 ### Fixed bugs
 
 * Previously, `jj git push` only made sure that the branch is in the expected

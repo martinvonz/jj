@@ -28,7 +28,6 @@ use crate::commit_builder::CommitBuilder;
 use crate::index::Index;
 use crate::matchers::{Matcher, Visit};
 use crate::merged_tree::{MergedTree, MergedTreeBuilder};
-use crate::object_id::ObjectId;
 use crate::repo::{MutableRepo, Repo};
 use crate::repo_path::RepoPath;
 use crate::settings::UserSettings;
@@ -318,27 +317,6 @@ pub fn rebase_to_dest_parent(
         let rebased_tree = destination_parent_tree.merge(&source_parent_tree, &source_tree)?;
         Ok(rebased_tree)
     }
-}
-
-pub fn back_out_commit(
-    settings: &UserSettings,
-    mut_repo: &mut MutableRepo,
-    old_commit: &Commit,
-    new_parents: &[Commit],
-) -> BackendResult<Commit> {
-    let old_base_tree = old_commit.parent_tree(mut_repo)?;
-    let new_base_tree = merge_commit_trees(mut_repo, new_parents)?;
-    let old_tree = old_commit.tree()?;
-    let new_tree = new_base_tree.merge(&old_tree, &old_base_tree)?;
-    let new_parent_ids = new_parents
-        .iter()
-        .map(|commit| commit.id().clone())
-        .collect();
-    // TODO: i18n the description based on repo language
-    mut_repo
-        .new_commit(settings, new_parent_ids, new_tree.id())
-        .set_description(format!("backout of commit {}", &old_commit.id().hex()))
-        .write()
 }
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
