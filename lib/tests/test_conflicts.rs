@@ -339,6 +339,52 @@ fn test_materialize_parse_roundtrip() {
 }
 
 #[test]
+fn test_materialize_conflict_no_newlines_at_eof() {
+    let test_repo = TestRepo::init();
+    let store = test_repo.repo.store();
+
+    let path = RepoPath::from_internal_string("file");
+    let base_id = testutils::write_file(store, path, "base");
+    let left_empty_id = testutils::write_file(store, path, "");
+    let right_id = testutils::write_file(store, path, "right");
+
+    let conflict = Merge::from_removes_adds(
+        vec![Some(base_id.clone())],
+        vec![Some(left_empty_id.clone()), Some(right_id.clone())],
+    );
+    let materialized = &materialize_conflict_string(store, path, &conflict);
+    insta::assert_snapshot!(materialized,
+        @r###"
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
+    -base
+    +++++++ Contents of side #2
+    right
+    >>>>>>> Conflict 1 of 1 ends
+    "###
+    );
+    // These conflict markers can be parsed (#3968)
+    // TODO(#3975): BUG: The result of the parsing has newlines where original files
+    // didn't.
+    insta::assert_debug_snapshot!(parse_conflict(
+        materialized.as_bytes(),
+        conflict.num_sides()
+    ),@r###"
+    Some(
+        [
+            Conflicted(
+                [
+                    "",
+                    "base\n",
+                    "right\n",
+                ],
+            ),
+        ],
+    )
+    "###);
+}
+
+#[test]
 fn test_materialize_conflict_modify_delete() {
     let test_repo = TestRepo::init();
     let store = test_repo.repo.store();
@@ -994,6 +1040,6 @@ fn materialize_conflict_string(
     let contents = extract_as_single_hunk(conflict, store, path)
         .block_on()
         .unwrap();
-    materialize_merge_result(&contents, &mut result).unwrap();
+    materialize_merge_result(contents, &mut result).unwrap();
     String::from_utf8(result).unwrap()
 }

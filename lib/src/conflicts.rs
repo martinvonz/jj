@@ -53,6 +53,8 @@ static CONFLICT_MARKER_REGEX: once_cell::sync::Lazy<Regex> = once_cell::sync::La
     .unwrap()
 });
 
+/// This function assumes that each hunk consists of 0 or more lines, each
+/// ending with a newline.
 fn write_diff_hunks(hunks: &[DiffHunk], file: &mut dyn Write) -> std::io::Result<()> {
     for hunk in hunks {
         match hunk {
@@ -191,7 +193,7 @@ async fn materialize_tree_value_no_access_denied(
             if let Some(file_merge) = conflict.to_file_merge() {
                 let file_merge = file_merge.simplify();
                 let content = extract_as_single_hunk(&file_merge, store, path).await?;
-                materialize_merge_result(&content, &mut contents)
+                materialize_merge_result(content, &mut contents)
                     .expect("Failed to materialize conflict to in-memory buffer");
             } else {
                 // Unless all terms are regular files, we can't do much better than to try to
@@ -215,9 +217,19 @@ async fn materialize_tree_value_no_access_denied(
 }
 
 pub fn materialize_merge_result(
-    single_hunk: &Merge<ContentHunk>,
+    single_hunk: Merge<ContentHunk>,
     output: &mut dyn Write,
 ) -> std::io::Result<()> {
+    // The following code assumes that each version of the file contains 0 or
+    // more lines, each ending with `\n`. For now, we force this to be true.
+    // TODO(#3795): A better solution for this.
+    let single_hunk: Merge<ContentHunk> = single_hunk.into_map(|ContentHunk(mut side)| {
+        if !side.is_empty() && !side.ends_with(b"\n") {
+            side.push(b'\n');
+        };
+        ContentHunk(side)
+    });
+
     let slices = single_hunk.map(|content| content.0.as_slice());
     let merge_result = files::merge(&slices);
     match merge_result {
@@ -239,6 +251,7 @@ pub fn materialize_merge_result(
                     output.write_all(
                         format!(" Conflict {conflict_index} of {num_conflicts}\n").as_bytes(),
                     )?;
+
                     let mut add_index = 0;
                     for (base_index, left) in hunk.removes().enumerate() {
                         // The vast majority of conflicts one actually tries to
@@ -461,7 +474,7 @@ pub async fn update_from_content(
     // copy.
     let mut old_content = Vec::with_capacity(content.len());
     let merge_hunk = extract_as_single_hunk(simplified_file_ids, store, path).await?;
-    materialize_merge_result(&merge_hunk, &mut old_content).unwrap();
+    materialize_merge_result(merge_hunk, &mut old_content).unwrap();
     if content == old_content {
         return Ok(file_ids.clone());
     }
