@@ -1,0 +1,108 @@
+[cells]
+# 'cells' that are defined in the project. all 'jj' code should remain under
+# 'root', while 'prelude' is the prelude, and third-party is where any vendored
+# code should go.
+root = .
+mode = buck/mode
+prelude = buck/prelude
+toolchains = buck/toolchains
+third-party = buck/third-party
+none = none
+
+[external_cells]
+# use the built-in prelude that is packaged inside of the buck2 executable. at
+# any time we could vendor it, or use a 'git' cell, if we needed to apply custom
+# patches
+prelude = bundled
+
+[cell_aliases]
+# these aliases are all required by the upstream buck2 prelude, with stubs for
+# meta-specific cells. 'config//' is occasionally useful for select() calls
+config = prelude
+buck = none
+fbcode = none
+fbsource = none
+
+[buildfile]
+name = BUILD
+
+[buck2]
+# use sha256 since everything supports it. XXX FIXME (aseipp): blake3?
+digest_algorithms = SHA256
+
+# enable deferred materialization. this means that intermediate outputs will
+# never get written to disk, and instead will be stored in the remote cache for
+# all intermediate execution steps.
+#
+# we don' use RE yet, but keep these enabled so we don' have to change things or
+# find problems later. this also enables (local disk) sqlite materialization
+# state, and defers writes to the end of actions to help improve performance.
+materializations = deferred
+sqlite_materializer_state = true
+defer_write_actions = true
+
+# hash all commands in the action graph; this helps avoid some spurious
+# recompilations when the action graph changes, but the actual commands don't.
+# NOTE: this requires `materializations = deferred`
+hash_all_commands = true
+
+# deferred materialization requires that cache outputs never expire. if they do,
+# a command might fail if it expects a hit on an object that was supposed to be
+# an input. in that case, the buck2d daemon needs to restart to 'purge' its
+# knowledge of that object. this enables that.
+restarter = true
+
+# enable checking the peak memory in the interpreter, and also set a byte limit
+# for the interpreter. this is useful for catching runaway memory usage in BUILD
+# files just in case people start going crazy with them.
+check_starlark_peak_memory = true
+# default limit is 5MiB = 5 * 1024 * 1024 = 5242880 bytes
+default_starlark_peak_memory = 5242880
+# also, enforce a max callstack size to prevent ridiculous stack sizes and
+# put a limit on how deep/abstract things can get.
+starlark_max_callstack_size = 50
+
+[build]
+# set the default execution platform for builds on this machine. NOTE: this
+# platform definition is where remote execution (optionally) is enabled via
+# ExecutionPlatformRegistrationInfo
+execution_platforms = root//buck/platforms:default
+
+[parser]
+# set the default execution platform for several target patterns. this is
+# required; the main documentation for the format is the source code, I think...
+target_platform_detector_spec = \
+  target:root//...->root//buck/platforms:default \
+  target:third-party//...->root//buck/platforms:default \
+  target:toolchains//...->root//buck/platforms:default
+
+[project]
+# things that should not be scanned by buck2 for file changes. if you notice
+# something strange is being scanned, it might be worth adding here.
+ignore = \
+  .jj, \
+  .git, \
+  .direnv, \
+  .watchman-cookie** \
+  target
+
+[buck2_re_client]
+# default address for the cas/actioncache. this should be public for users so
+# they can always get build results. this does NOT include the 'engine_address'
+# service, which enables actual remote execution. that must be enabled
+# explicitly in .buckconfig.local
+cas_address          = https://builds.example.com
+action_cache_address = https://builds.example.com
+
+# 'instance name', which in RBE is the basic unit of isolation for projects; we
+# always default this for simplicity
+instance_name = jujutsu
+
+# always use TLS for all build products
+tls = true
+
+# in .buckconfig.local:
+#
+# [buck2_re_client]
+# engine_address = https://builds.jujutsu.dev
+# http_headers   = x-build-api-key:$BUILD_API_KEY

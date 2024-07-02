@@ -16,6 +16,9 @@ documentation = "https://martinvonz.github.io/jj/"
 categories = ["version-control", "development-tools"]
 keywords = ["VCS", "DVCS", "SCM", "Git", "Mercurial"]
 
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(buck_build)'] }
+
 [workspace.dependencies]
 anyhow = "1.0.86"
 assert_cmd = "2.0.8"

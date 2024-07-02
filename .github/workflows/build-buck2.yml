@@ -1,0 +1,56 @@
+name: buck2
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions: read-all
+
+jobs:
+  buck2:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            abi: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            abi: x86_64-pc-windows-msvc
+          - os: macos-latest
+            abi: aarch64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15 # NOTE (aseipp): keep in-sync with the build.yml timeout limit
+
+    name: build with buck2
+    steps:
+      - uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@1482605bfc5719782e1267fd0c0cc350fe7646b8
+        with:
+          toolchain: 1.76
+      - name: (Linux) Install Mold
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y mold
+      - name: Install DotSlash
+        uses: ./.github/actions/install-dotslash
+      - name: Add build tools to $PATH
+        run: echo "$PWD/tools/bin" >> $GITHUB_PATH
+      # FIXME (aseipp): use 'buck2' out of `$PATH` after we have dotslash .exe
+      # shim files for windows. until then just invoke manually
+      - name: buck2 build //...
+        run: |
+          mkdir -p out
+          dotslash ./tools/bin/buck2 build @mode//debug //...
+          cp buck-out/v2/log/*.pb.zst out
+          dotslash ./tools/bin/buck2 build @mode//debug cli --out out/jj.exe
+          ./out/jj.exe version
+
+      - name: "Upload artifact"
+        uses: actions/upload-artifact@65462800fd760344b1a7b4382951275a0abb4808
+        with:
+          name: jj-${{ matrix.abi }}
+          path: out
+          retention-days: 14
