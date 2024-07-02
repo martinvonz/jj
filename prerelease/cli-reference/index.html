@@ -6028,6 +6028,12 @@ does not match the <code>jj help</code> output exactly.</p>
 <li><code>-i</code>, <code>--interactive</code> — Interactively choose which changes to include in the first commit</li>
 <li><code>--tool &lt;NAME&gt;</code> — Specify diff editor to be used (implies --interactive)</li>
 <li><code>-m</code>, <code>--message &lt;MESSAGE&gt;</code> — The change description to use (don't open editor)</li>
+<li>
+<p><code>--reset-author</code> — Reset the author to the configured user</p>
+<p>This resets the author name, email, and timestamp.</p>
+<p>You can use it in combination with the JJ_USER and JJ_EMAIL environment variables to set a different author:</p>
+<p>$ JJ_USER='Foo Bar' JJ_EMAIL=foo@bar.com jj commit --reset-author</p>
+</li>
 </ul>
 <h2 id="jj-config"><code>jj config</code><a class="headerlink" href="#jj-config" title="Permanent link">&para;</a></h2>
 <p>Manage config options</p>
