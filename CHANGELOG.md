@@ -79,6 +79,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   commits with no description) if authored by the current user.
   [#2000](https://github.com/martinvonz/jj/issues/2000)
 
+* String patterns now support case‐insensitive matching. You can append `-i` to
+  any pattern kind, or use `i:` by itself to match case‐insensitively with the
+  default pattern kind for the context. `mine()` uses case‐insensitive matching
+  on your email address unconditionally. Only ASCII case folding is currently
+  implemented, but this will likely change in the future.
+
 ### Fixed bugs
 
 * `jj git push` now ignores immutable commits when checking whether a

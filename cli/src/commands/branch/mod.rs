@@ -26,7 +26,7 @@ use itertools::Itertools as _;
 use jj_lib::backend::CommitId;
 use jj_lib::op_store::{RefTarget, RemoteRef};
 use jj_lib::repo::Repo;
-use jj_lib::str_util::StringPattern;
+use jj_lib::str_util::{CaseSensitivity, StringPattern};
 use jj_lib::view::View;
 
 use self::create::{cmd_branch_create, BranchCreateArgs};
@@ -113,7 +113,9 @@ fn find_branches_with<'a, 'b, V, I: Iterator<Item = (&'a str, V)>>(
             matching_branches.dedup_by_key(|(name, _)| *name);
             Ok(matching_branches)
         }
-        [pattern] if pattern.is_exact() => Err(user_error(format!("No such branch: {pattern}"))),
+        [pattern] if pattern.is_case_sensitive_exact() => {
+            Err(user_error(format!("No such branch: {pattern}")))
+        }
         patterns => Err(user_error(format!(
             "No matching branches for patterns: {}",
             patterns.iter().join(", ")
@@ -162,8 +164,11 @@ fn find_remote_branches<'a>(
 /// Whether or not the `branch` has any tracked remotes (i.e. is a tracking
 /// local branch.)
 fn has_tracked_remote_branches(view: &View, branch: &str) -> bool {
-    view.remote_branches_matching(&StringPattern::exact(branch), &StringPattern::everything())
-        .any(|(_, remote_ref)| remote_ref.is_tracking())
+    view.remote_branches_matching(
+        &StringPattern::exact(branch, CaseSensitivity::Sensitive),
+        &StringPattern::everything(),
+    )
+    .any(|(_, remote_ref)| remote_ref.is_tracking())
 }
 
 fn is_fast_forward(repo: &dyn Repo, old_target: &RefTarget, new_target_id: &CommitId) -> bool {

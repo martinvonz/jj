@@ -2395,8 +2395,17 @@ fn test_evaluate_expression_author() {
         vec![commit2.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "author(\"name3\")"),
+        resolve_commit_ids(mut_repo, "author(\"email3\")"),
         vec![commit3.id().clone()]
+    );
+    // Can match case‐insensitively
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "author(i:Name)"),
+        vec![
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+        ]
     );
     // Searches only among candidates if specified
     assert_eq!(
@@ -2443,7 +2452,7 @@ fn test_evaluate_expression_mine() {
         })
         .write()
         .unwrap();
-    // Can find a unique match by name
+    // Can find a unique match
     assert_eq!(
         resolve_commit_ids(mut_repo, "mine()"),
         vec![commit2.id().clone()]
@@ -2452,12 +2461,13 @@ fn test_evaluate_expression_mine() {
         .set_parents(vec![commit2.id().clone()])
         .set_author(Signature {
             name: "name3".to_string(),
-            email: settings.user_email(),
+            // Test that matches are case‐insensitive
+            email: settings.user_email().to_ascii_uppercase(),
             timestamp,
         })
         .write()
         .unwrap();
-    // Can find multiple matches by name
+    // Can find multiple matches
     assert_eq!(
         resolve_commit_ids(mut_repo, "mine()"),
         vec![commit3.id().clone(), commit2.id().clone()]
@@ -2536,8 +2546,17 @@ fn test_evaluate_expression_committer() {
         vec![commit2.id().clone()]
     );
     assert_eq!(
-        resolve_commit_ids(mut_repo, "committer(\"name3\")"),
+        resolve_commit_ids(mut_repo, "committer(\"email3\")"),
         vec![commit3.id().clone()]
+    );
+    // Can match case‐insensitively
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "committer(i:Name)"),
+        vec![
+            commit3.id().clone(),
+            commit2.id().clone(),
+            commit1.id().clone(),
+        ]
     );
     // Searches only among candidates if specified
     assert_eq!(

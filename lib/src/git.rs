@@ -1250,7 +1250,7 @@ pub fn fetch(
         .iter()
         .map(|pattern| {
             pattern
-                .to_glob()
+                .to_case_sensitive_glob()
                 .filter(|glob| !glob.contains(INVALID_REFSPEC_CHARS))
                 .map(|glob| format!("+refs/heads/{glob}:refs/remotes/{remote_name}/{glob}"))
         })

@@ -27,7 +27,7 @@ use jj_lib::refs::{
 use jj_lib::repo::Repo;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
-use jj_lib::str_util::StringPattern;
+use jj_lib::str_util::{CaseSensitivity, StringPattern};
 use jj_lib::view::View;
 
 use crate::cli_util::{
@@ -530,7 +530,9 @@ fn find_branches_to_push<'a>(
     }
     match &unmatched_patterns[..] {
         [] => Ok(matching_branches),
-        [pattern] if pattern.is_exact() => Err(user_error(format!("No such branch: {pattern}"))),
+        [pattern] if pattern.is_case_sensitive_exact() => {
+            Err(user_error(format!("No such branch: {pattern}")))
+        }
         patterns => Err(user_error(format!(
             "No matching branches for patterns: {}",
             patterns.iter().join(", ")
@@ -552,7 +554,7 @@ fn find_branches_targeted_by_revisions<'a>(
         };
         let current_branches_expression = RevsetExpression::remote_branches(
             StringPattern::everything(),
-            StringPattern::Exact(remote_name.to_owned()),
+            StringPattern::exact(remote_name, CaseSensitivity::Sensitive),
         )
         .range(&RevsetExpression::commit(wc_commit_id))
         .intersection(&RevsetExpression::branches(StringPattern::everything()));

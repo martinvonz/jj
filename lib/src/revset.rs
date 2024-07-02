@@ -42,7 +42,7 @@ pub use crate::revset_parser::{
     RevsetParseError, RevsetParseErrorKind, UnaryOp,
 };
 use crate::store::Store;
-use crate::str_util::StringPattern;
+use crate::str_util::{CaseSensitivity, StringPattern};
 use crate::{dsl_util, revset_parser};
 
 /// Error occurred during symbol resolution.
@@ -125,11 +125,11 @@ pub trait RevsetFilterExtension: std::fmt::Debug + Any {
 pub enum RevsetFilterPredicate {
     /// Commits with number of parents in the range.
     ParentCount(Range<u32>),
-    /// Commits with description containing the needle.
+    /// Commits with description matching the pattern.
     Description(StringPattern),
-    /// Commits with author's name or email containing the needle.
+    /// Commits with author name or email matching the pattern.
     Author(StringPattern),
-    /// Commits with committer's name or email containing the needle.
+    /// Commits with committer name or email matching the pattern.
     Committer(StringPattern),
     /// Commits modifying the paths specified by the fileset.
     File(FilesetExpression),
@@ -687,8 +687,11 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     });
     map.insert("mine", |function, context| {
         function.expect_no_arguments()?;
+        // Email address domains are inherently case‐insensitive, and the local‐parts
+        // are generally (although not universally) treated as case‐insensitive too, so
+        // we use a case‐insensitive match here.
         Ok(RevsetExpression::filter(RevsetFilterPredicate::Author(
-            StringPattern::Exact(context.user_email.to_owned()),
+            StringPattern::exact(&context.user_email, CaseSensitivity::Insensitive),
         )))
     });
     map.insert("committer", |function, _context| {
@@ -742,9 +745,8 @@ pub fn expect_file_pattern(
 }
 
 pub fn expect_string_pattern(node: &ExpressionNode) -> Result<StringPattern, RevsetParseError> {
-    let parse_pattern = |value: &str, kind: Option<&str>| match kind {
-        Some(kind) => StringPattern::from_str_kind(value, kind),
-        None => Ok(StringPattern::Substring(value.to_owned())),
+    let parse_pattern = |value: &str, maybe_kind: Option<&str>| {
+        StringPattern::from_str_maybe_kind(value, maybe_kind, "substring")
     };
     revset_parser::expect_pattern_with("string pattern", node, parse_pattern)
 }
@@ -2293,7 +2295,16 @@ mod tests {
             @r###"Expression("Expected expression of string pattern")"###);
         insta::assert_debug_snapshot!(
             parse(r#"author("foo@")"#).unwrap(),
-            @r###"Filter(Author(Substring("foo@")))"###);
+            @r###"
+        Filter(
+            Author(
+                Substring(
+                    "foo@",
+                    Sensitive,
+                ),
+            ),
+        )
+        "###);
         // Parse a single symbol
         insta::assert_debug_snapshot!(
             parse("foo").unwrap(),
@@ -2301,20 +2312,41 @@ mod tests {
         // Default arguments for *branches() are all ""
         insta::assert_debug_snapshot!(
             parse("branches()").unwrap(),
-            @r###"CommitRef(Branches(Substring("")))"###);
+            @r###"
+        CommitRef(
+            Branches(
+                Substring(
+                    "",
+                    Sensitive,
+                ),
+            ),
+        )
+        "###);
         insta::assert_debug_snapshot!(parse("remote_branches()").unwrap(), @r###"
         CommitRef(
             RemoteBranches {
-                branch_pattern: Substring(""),
-                remote_pattern: Substring(""),
+                branch_pattern: Substring(
+                    "",
+                    Sensitive,
+                ),
+                remote_pattern: Substring(
+                    "",
+                    Sensitive,
+                ),
             },
         )
         "###);
         insta::assert_debug_snapshot!(parse("remote_branches()").unwrap(), @r###"
         CommitRef(
             RemoteBranches {
-                branch_pattern: Substring(""),
-                remote_pattern: Substring(""),
+                branch_pattern: Substring(
+                    "",
+                    Sensitive,
+                ),
+                remote_pattern: Substring(
+                    "",
+                    Sensitive,
+                ),
             },
         )
         "###);
@@ -2442,13 +2474,40 @@ mod tests {
 
         insta::assert_debug_snapshot!(
             parse(r#"branches("foo")"#).unwrap(),
-            @r###"CommitRef(Branches(Substring("foo")))"###);
+            @r###"
+        CommitRef(
+            Branches(
+                Substring(
+                    "foo",
+                    Sensitive,
+                ),
+            ),
+        )
+        "###);
         insta::assert_debug_snapshot!(
             parse(r#"branches(exact:"foo")"#).unwrap(),
-            @r###"CommitRef(Branches(Exact("foo")))"###);
+            @r###"
+        CommitRef(
+            Branches(
+                Exact(
+                    "foo",
+                    Sensitive,
+                ),
+            ),
+        )
+        "###);
         insta::assert_debug_snapshot!(
             parse(r#"branches(substring:"foo")"#).unwrap(),
-            @r###"CommitRef(Branches(Substring("foo")))"###);
+            @r###"
+        CommitRef(
+            Branches(
+                Substring(
+                    "foo",
+                    Sensitive,
+                ),
+            ),
+        )
+        "###);
         insta::assert_debug_snapshot!(
             parse(r#"branches(bad:"foo")"#).unwrap_err(),
             @r###"Expression("Invalid string pattern")"###);
@@ -2508,20 +2567,56 @@ mod tests {
         assert!(parse("root(a)").is_err());
         insta::assert_debug_snapshot!(
             parse(r#"description("")"#).unwrap(),
-            @r###"Filter(Description(Substring("")))"###);
+            @r###"
+        Filter(
+            Description(
+                Substring(
+                    "",
+                    Sensitive,
+                ),
+            ),
+        )
+        "###);
         insta::assert_debug_snapshot!(
             parse("description(foo)").unwrap(),
-            @r###"Filter(Description(Substring("foo")))"###);
+            @r###"
+        Filter(
+            Description(
+                Substring(
+                    "foo",
+                    Sensitive,
+                ),
+            ),
+        )
+        "###);
         insta::assert_debug_snapshot!(
             parse("description(visible_heads())").unwrap_err(),
             @r###"Expression("Expected expression of string pattern")"###);
         insta::assert_debug_snapshot!(
             parse("description(\"(foo)\")").unwrap(),
-            @r###"Filter(Description(Substring("(foo)")))"###);
+            @r###"
+        Filter(
+            Description(
+                Substring(
+                    "(foo)",
+                    Sensitive,
+                ),
+            ),
+        )
+        "###);
         assert!(parse("mine(foo)").is_err());
         insta::assert_debug_snapshot!(
             parse("mine()").unwrap(),
-            @r###"Filter(Author(Exact("test.user@example.com")))"###);
+            @r###"
+        Filter(
+            Author(
+                Exact(
+                    "test.user@example.com",
+                    Insensitive,
+                ),
+            ),
+        )
+        "###);
         insta::assert_debug_snapshot!(
             parse_with_workspace("empty()", &WorkspaceId::default()).unwrap(),
             @"NotIn(Filter(File(All)))");
@@ -2558,8 +2653,14 @@ mod tests {
             parse("remote_branches(remote=foo)").unwrap(), @r###"
         CommitRef(
             RemoteBranches {
-                branch_pattern: Substring(""),
-                remote_pattern: Substring("foo"),
+                branch_pattern: Substring(
+                    "",
+                    Sensitive,
+                ),
+                remote_pattern: Substring(
+                    "foo",
+                    Sensitive,
+                ),
             },
         )
         "###);
@@ -2567,8 +2668,14 @@ mod tests {
             parse("remote_branches(foo, remote=bar)").unwrap(), @r###"
         CommitRef(
             RemoteBranches {
-                branch_pattern: Substring("foo"),
-                remote_pattern: Substring("bar"),
+                branch_pattern: Substring(
+                    "foo",
+                    Sensitive,
+                ),
+                remote_pattern: Substring(
+                    "bar",
+                    Sensitive,
+                ),
             },
         )
         "###);
@@ -2631,12 +2738,30 @@ mod tests {
         // Alias can be substituted to string pattern.
         insta::assert_debug_snapshot!(
             parse_with_aliases("author(A)", [("A", "a")]).unwrap(),
-            @r###"Filter(Author(Substring("a")))"###);
+            @r###"
+        Filter(
+            Author(
+                Substring(
+                    "a",
+                    Sensitive,
+                ),
+            ),
+        )
+        "###);
         // However, parentheses are required because top-level x:y is parsed as
         // program modifier.
         insta::assert_debug_snapshot!(
             parse_with_aliases("author(A)", [("A", "(exact:a)")]).unwrap(),
-            @r###"Filter(Author(Exact("a")))"###);
+            @r###"
+        Filter(
+            Author(
+                Exact(
+                    "a",
+                    Sensitive,
+                ),
+            ),
+        )
+        "###);
 
         // Sub-expression alias cannot be substituted to modifier expression.
         insta::assert_debug_snapshot!(
@@ -2653,8 +2778,22 @@ mod tests {
         insta::assert_debug_snapshot!(
             parse_with_aliases("F(a)", [("F(x)", "author(x)|committer(x)")]).unwrap(), @r###"
         Union(
-            Filter(Author(Substring("a"))),
-            Filter(Committer(Substring("a"))),
+            Filter(
+                Author(
+                    Substring(
+                        "a",
+                        Sensitive,
+                    ),
+                ),
+            ),
+            Filter(
+                Committer(
+                    Substring(
+                        "a",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
     }
@@ -2670,28 +2809,56 @@ mod tests {
         insta::assert_debug_snapshot!(
             optimize(parse("parents(branches() & all())").unwrap()), @r###"
         Ancestors {
-            heads: CommitRef(Branches(Substring(""))),
+            heads: CommitRef(
+                Branches(
+                    Substring(
+                        "",
+                        Sensitive,
+                    ),
+                ),
+            ),
             generation: 1..2,
         }
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("children(branches() & all())").unwrap()), @r###"
         Descendants {
-            roots: CommitRef(Branches(Substring(""))),
+            roots: CommitRef(
+                Branches(
+                    Substring(
+                        "",
+                        Sensitive,
+                    ),
+                ),
+            ),
             generation: 1..2,
         }
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("ancestors(branches() & all())").unwrap()), @r###"
         Ancestors {
-            heads: CommitRef(Branches(Substring(""))),
+            heads: CommitRef(
+                Branches(
+                    Substring(
+                        "",
+                        Sensitive,
+                    ),
+                ),
+            ),
             generation: 0..18446744073709551615,
         }
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("descendants(branches() & all())").unwrap()), @r###"
         Descendants {
-            roots: CommitRef(Branches(Substring(""))),
+            roots: CommitRef(
+                Branches(
+                    Substring(
+                        "",
+                        Sensitive,
+                    ),
+                ),
+            ),
             generation: 0..18446744073709551615,
         }
         "###);
@@ -2699,7 +2866,14 @@ mod tests {
         insta::assert_debug_snapshot!(
             optimize(parse("(branches() & all())..(all() & tags())").unwrap()), @r###"
         Range {
-            roots: CommitRef(Branches(Substring(""))),
+            roots: CommitRef(
+                Branches(
+                    Substring(
+                        "",
+                        Sensitive,
+                    ),
+                ),
+            ),
             heads: CommitRef(Tags),
             generation: 0..18446744073709551615,
         }
@@ -2707,22 +2881,58 @@ mod tests {
         insta::assert_debug_snapshot!(
             optimize(parse("(branches() & all())::(all() & tags())").unwrap()), @r###"
         DagRange {
-            roots: CommitRef(Branches(Substring(""))),
+            roots: CommitRef(
+                Branches(
+                    Substring(
+                        "",
+                        Sensitive,
+                    ),
+                ),
+            ),
             heads: CommitRef(Tags),
         }
         "###);
 
         insta::assert_debug_snapshot!(
             optimize(parse("heads(branches() & all())").unwrap()),
-            @r###"Heads(CommitRef(Branches(Substring(""))))"###);
+            @r###"
+        Heads(
+            CommitRef(
+                Branches(
+                    Substring(
+                        "",
+                        Sensitive,
+                    ),
+                ),
+            ),
+        )
+        "###);
         insta::assert_debug_snapshot!(
             optimize(parse("roots(branches() & all())").unwrap()),
-            @r###"Roots(CommitRef(Branches(Substring(""))))"###);
+            @r###"
+        Roots(
+            CommitRef(
+                Branches(
+                    Substring(
+                        "",
+                        Sensitive,
+                    ),
+                ),
+            ),
+        )
+        "###);
 
         insta::assert_debug_snapshot!(
             optimize(parse("latest(branches() & all(), 2)").unwrap()), @r###"
         Latest {
-            candidates: CommitRef(Branches(Substring(""))),
+            candidates: CommitRef(
+                Branches(
+                    Substring(
+                        "",
+                        Sensitive,
+                    ),
+                ),
+            ),
             count: 2,
         }
         "###);
@@ -2738,29 +2948,72 @@ mod tests {
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("present(branches() & all())").unwrap()),
-            @r###"Present(CommitRef(Branches(Substring(""))))"###);
+            @r###"
+        Present(
+            CommitRef(
+                Branches(
+                    Substring(
+                        "",
+                        Sensitive,
+                    ),
+                ),
+            ),
+        )
+        "###);
 
         insta::assert_debug_snapshot!(
             optimize(parse("~branches() & all()").unwrap()),
-            @r###"NotIn(CommitRef(Branches(Substring(""))))"###);
+            @r###"
+        NotIn(
+            CommitRef(
+                Branches(
+                    Substring(
+                        "",
+                        Sensitive,
+                    ),
+                ),
+            ),
+        )
+        "###);
         insta::assert_debug_snapshot!(
             optimize(parse("(branches() & all()) | (all() & tags())").unwrap()), @r###"
         Union(
-            CommitRef(Branches(Substring(""))),
+            CommitRef(
+                Branches(
+                    Substring(
+                        "",
+                        Sensitive,
+                    ),
+                ),
+            ),
             CommitRef(Tags),
         )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("(branches() & all()) & (all() & tags())").unwrap()), @r###"
         Intersection(
-            CommitRef(Branches(Substring(""))),
+            CommitRef(
+                Branches(
+                    Substring(
+                        "",
+                        Sensitive,
+                    ),
+                ),
+            ),
             CommitRef(Tags),
         )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("(branches() & all()) ~ (all() & tags())").unwrap()), @r###"
         Difference(
-            CommitRef(Branches(Substring(""))),
+            CommitRef(
+                Branches(
+                    Substring(
+                        "",
+                        Sensitive,
+                    ),
+                ),
+            ),
             CommitRef(Tags),
         )
         "###);
@@ -2995,7 +3248,14 @@ mod tests {
                 CommitRef(Symbol("baz")),
                 CommitRef(Symbol("bar")),
             ),
-            Filter(Author(Substring("foo"))),
+            Filter(
+                Author(
+                    Substring(
+                        "foo",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
 
@@ -3004,7 +3264,14 @@ mod tests {
             optimize(parse("~foo & author(bar)").unwrap()), @r###"
         Intersection(
             NotIn(CommitRef(Symbol("foo"))),
-            Filter(Author(Substring("bar"))),
+            Filter(
+                Author(
+                    Substring(
+                        "bar",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
         insta::assert_debug_snapshot!(
@@ -3013,7 +3280,14 @@ mod tests {
             NotIn(CommitRef(Symbol("foo"))),
             AsFilter(
                 Union(
-                    Filter(Author(Substring("bar"))),
+                    Filter(
+                        Author(
+                            Substring(
+                                "bar",
+                                Sensitive,
+                            ),
+                        ),
+                    ),
                     CommitRef(Symbol("baz")),
                 ),
             ),
@@ -3025,7 +3299,14 @@ mod tests {
             optimize(parse("author(foo) ~ bar").unwrap()), @r###"
         Intersection(
             NotIn(CommitRef(Symbol("bar"))),
-            Filter(Author(Substring("foo"))),
+            Filter(
+                Author(
+                    Substring(
+                        "foo",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
     }
@@ -3036,25 +3317,62 @@ mod tests {
         let _guard = settings.bind_to_scope();
 
         insta::assert_debug_snapshot!(
-            optimize(parse("author(foo)").unwrap()), @r###"Filter(Author(Substring("foo")))"###);
+            optimize(parse("author(foo)").unwrap()), @r###"
+        Filter(
+            Author(
+                Substring(
+                    "foo",
+                    Sensitive,
+                ),
+            ),
+        )
+        "###);
 
         insta::assert_debug_snapshot!(optimize(parse("foo & description(bar)").unwrap()), @r###"
         Intersection(
             CommitRef(Symbol("foo")),
-            Filter(Description(Substring("bar"))),
+            Filter(
+                Description(
+                    Substring(
+                        "bar",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
         insta::assert_debug_snapshot!(optimize(parse("author(foo) & bar").unwrap()), @r###"
         Intersection(
             CommitRef(Symbol("bar")),
-            Filter(Author(Substring("foo"))),
+            Filter(
+                Author(
+                    Substring(
+                        "foo",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
         insta::assert_debug_snapshot!(
             optimize(parse("author(foo) & committer(bar)").unwrap()), @r###"
         Intersection(
-            Filter(Author(Substring("foo"))),
-            Filter(Committer(Substring("bar"))),
+            Filter(
+                Author(
+                    Substring(
+                        "foo",
+                        Sensitive,
+                    ),
+                ),
+            ),
+            Filter(
+                Committer(
+                    Substring(
+                        "bar",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
 
@@ -3063,9 +3381,23 @@ mod tests {
         Intersection(
             Intersection(
                 CommitRef(Symbol("foo")),
-                Filter(Description(Substring("bar"))),
+                Filter(
+                    Description(
+                        Substring(
+                            "bar",
+                            Sensitive,
+                        ),
+                    ),
+                ),
             ),
-            Filter(Author(Substring("baz"))),
+            Filter(
+                Author(
+                    Substring(
+                        "baz",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
         insta::assert_debug_snapshot!(
@@ -3073,9 +3405,23 @@ mod tests {
         Intersection(
             Intersection(
                 CommitRef(Symbol("bar")),
-                Filter(Committer(Substring("foo"))),
+                Filter(
+                    Committer(
+                        Substring(
+                            "foo",
+                            Sensitive,
+                        ),
+                    ),
+                ),
             ),
-            Filter(Author(Substring("baz"))),
+            Filter(
+                Author(
+                    Substring(
+                        "baz",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
         insta::assert_debug_snapshot!(
@@ -3083,7 +3429,14 @@ mod tests {
         Intersection(
             Intersection(
                 CommitRef(Symbol("baz")),
-                Filter(Committer(Substring("foo"))),
+                Filter(
+                    Committer(
+                        Substring(
+                            "foo",
+                            Sensitive,
+                        ),
+                    ),
+                ),
             ),
             Filter(File(Pattern(PrefixPath("bar")))),
         )
@@ -3092,10 +3445,24 @@ mod tests {
             optimize(parse_with_workspace("committer(foo) & file(bar) & author(baz)", &WorkspaceId::default()).unwrap()), @r###"
         Intersection(
             Intersection(
-                Filter(Committer(Substring("foo"))),
+                Filter(
+                    Committer(
+                        Substring(
+                            "foo",
+                            Sensitive,
+                        ),
+                    ),
+                ),
                 Filter(File(Pattern(PrefixPath("bar")))),
             ),
-            Filter(Author(Substring("baz"))),
+            Filter(
+                Author(
+                    Substring(
+                        "baz",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
         insta::assert_debug_snapshot!(optimize(parse_with_workspace("foo & file(bar) & baz", &WorkspaceId::default()).unwrap()), @r###"
@@ -3116,9 +3483,23 @@ mod tests {
                     CommitRef(Symbol("foo")),
                     CommitRef(Symbol("qux")),
                 ),
-                Filter(Description(Substring("bar"))),
+                Filter(
+                    Description(
+                        Substring(
+                            "bar",
+                            Sensitive,
+                        ),
+                    ),
+                ),
             ),
-            Filter(Author(Substring("baz"))),
+            Filter(
+                Author(
+                    Substring(
+                        "baz",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
         insta::assert_debug_snapshot!(
@@ -3128,13 +3509,27 @@ mod tests {
                 Intersection(
                     CommitRef(Symbol("foo")),
                     Ancestors {
-                        heads: Filter(Author(Substring("baz"))),
+                        heads: Filter(
+                            Author(
+                                Substring(
+                                    "baz",
+                                    Sensitive,
+                                ),
+                            ),
+                        ),
                         generation: 1..2,
                     },
                 ),
                 CommitRef(Symbol("qux")),
             ),
-            Filter(Description(Substring("bar"))),
+            Filter(
+                Description(
+                    Substring(
+                        "bar",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
         insta::assert_debug_snapshot!(
@@ -3145,12 +3540,26 @@ mod tests {
                 Ancestors {
                     heads: Intersection(
                         CommitRef(Symbol("qux")),
-                        Filter(Author(Substring("baz"))),
+                        Filter(
+                            Author(
+                                Substring(
+                                    "baz",
+                                    Sensitive,
+                                ),
+                            ),
+                        ),
                     ),
                     generation: 1..2,
                 },
             ),
-            Filter(Description(Substring("bar"))),
+            Filter(
+                Description(
+                    Substring(
+                        "bar",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
 
@@ -3167,11 +3576,32 @@ mod tests {
                         ),
                         CommitRef(Symbol("c")),
                     ),
-                    Filter(Author(Substring("A"))),
+                    Filter(
+                        Author(
+                            Substring(
+                                "A",
+                                Sensitive,
+                            ),
+                        ),
+                    ),
                 ),
-                Filter(Author(Substring("B"))),
+                Filter(
+                    Author(
+                        Substring(
+                            "B",
+                            Sensitive,
+                        ),
+                    ),
+                ),
             ),
-            Filter(Author(Substring("C"))),
+            Filter(
+                Author(
+                    Substring(
+                        "C",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
         insta::assert_debug_snapshot!(
@@ -3190,11 +3620,32 @@ mod tests {
                         ),
                         CommitRef(Symbol("d")),
                     ),
-                    Filter(Author(Substring("A"))),
+                    Filter(
+                        Author(
+                            Substring(
+                                "A",
+                                Sensitive,
+                            ),
+                        ),
+                    ),
                 ),
-                Filter(Author(Substring("B"))),
+                Filter(
+                    Author(
+                        Substring(
+                            "B",
+                            Sensitive,
+                        ),
+                    ),
+                ),
             ),
-            Filter(Author(Substring("C"))),
+            Filter(
+                Author(
+                    Substring(
+                        "C",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
 
@@ -3205,9 +3656,23 @@ mod tests {
         Intersection(
             Intersection(
                 CommitRef(Symbol("foo")),
-                Filter(Description(Substring("bar"))),
+                Filter(
+                    Description(
+                        Substring(
+                            "bar",
+                            Sensitive,
+                        ),
+                    ),
+                ),
             ),
-            Filter(Author(Substring("baz"))),
+            Filter(
+                Author(
+                    Substring(
+                        "baz",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
     }
@@ -3223,7 +3688,14 @@ mod tests {
             CommitRef(Symbol("baz")),
             AsFilter(
                 Union(
-                    Filter(Author(Substring("foo"))),
+                    Filter(
+                        Author(
+                            Substring(
+                                "foo",
+                                Sensitive,
+                            ),
+                        ),
+                    ),
                     CommitRef(Symbol("bar")),
                 ),
             ),
@@ -3238,11 +3710,25 @@ mod tests {
                 AsFilter(
                     Union(
                         CommitRef(Symbol("foo")),
-                        Filter(Committer(Substring("bar"))),
+                        Filter(
+                            Committer(
+                                Substring(
+                                    "bar",
+                                    Sensitive,
+                                ),
+                            ),
+                        ),
                     ),
                 ),
             ),
-            Filter(Description(Substring("baz"))),
+            Filter(
+                Description(
+                    Substring(
+                        "baz",
+                        Sensitive,
+                    ),
+                ),
+            ),
         )
         "###);
 
@@ -3258,7 +3744,14 @@ mod tests {
                                 Present(
                                     Intersection(
                                         CommitRef(Symbol("bar")),
-                                        Filter(Author(Substring("foo"))),
+                                        Filter(
+                                            Author(
+                                                Substring(
+                                                    "foo",
+                                                    Sensitive,
+                                                ),
+                                            ),
+                                        ),
                                     ),
                                 ),
                             ),
@@ -3287,21 +3780,42 @@ mod tests {
                     ),
                     AsFilter(
                         Union(
-                            Filter(Author(Substring("A"))),
+                            Filter(
+                                Author(
+                                    Substring(
+                                        "A",
+                                        Sensitive,
+                                    ),
+                                ),
+                            ),
                             CommitRef(Symbol("0")),
                         ),
                     ),
                 ),
                 AsFilter(
                     Union(
-                        Filter(Author(Substring("B"))),
+                        Filter(
+                            Author(
+                                Substring(
+                                    "B",
+                                    Sensitive,
+                                ),
+                            ),
+                        ),
                         CommitRef(Symbol("1")),
                     ),
                 ),
             ),
             AsFilter(
                 Union(
-                    Filter(Author(Substring("C"))),
+                    Filter(
+                        Author(
+                            Substring(
+                                "C",
+                                Sensitive,
+                            ),
+                        ),
+                    ),
                     CommitRef(Symbol("2")),
                 ),
             ),

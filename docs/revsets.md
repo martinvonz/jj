@@ -333,6 +333,9 @@ Functions that perform string matching support the following pattern syntax:
 * `glob:"pattern"`: Matches strings with Unix-style shell [wildcard
   `pattern`](https://docs.rs/glob/latest/glob/struct.Pattern.html).
 
+You can append `-i` after the kind to match case‐insensitively (e.g.
+`glob-i:"fix*jpeg*"`). `i:string` is short for `substring-i:"string"`.
+
 ## Aliases
 
 New symbols and functions can be defined in the config file, by using any

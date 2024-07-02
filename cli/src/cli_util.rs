@@ -2282,11 +2282,8 @@ impl FromStr for RemoteBranchNamePattern {
             .split_once(':')
             .map_or((None, src), |(kind, pat)| (Some(kind), pat));
         let to_pattern = |pat: &str| {
-            if let Some(kind) = maybe_kind {
-                StringPattern::from_str_kind(pat, kind).map_err(|err| err.to_string())
-            } else {
-                Ok(StringPattern::exact(pat))
-            }
+            StringPattern::from_str_maybe_kind(pat, maybe_kind, "exact")
+                .map_err(|err| err.to_string())
         };
         // TODO: maybe reuse revset parser to handle branch/remote name containing @
         let (branch, remote) = pat
@@ -2301,7 +2298,7 @@ impl FromStr for RemoteBranchNamePattern {
 
 impl RemoteBranchNamePattern {
     pub fn is_exact(&self) -> bool {
-        self.branch.is_exact() && self.remote.is_exact()
+        self.branch.is_case_sensitive_exact() && self.remote.is_case_sensitive_exact()
     }
 }
 
