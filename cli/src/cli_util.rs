@@ -1550,9 +1550,10 @@ Then run `jj squash` to move the resolution into the conflicted commit."#,
         Ok(())
     }
 
-    /// Identifies branches which are eligible to be moved automatically during
-    /// `jj commit` and `jj new`. Whether a branch is eligible is determined by
-    /// its target and the user and repo config for "advance-branches".
+    /// Identifies branches which are eligible to be moved automatically
+    /// following creation of a new commit. Whether a branch is eligible is
+    /// determined by its target and the user and repo config for
+    /// "advance-branches".
     ///
     /// Returns a Vec of branches in `repo` that point to any of the `from`
     /// commits and that are eligible to advance. The `from` commits are
@@ -1678,8 +1679,12 @@ impl WorkspaceCommandTransaction<'_> {
     /// (configured by `get_advanceable_branches`) to the `move_to` commit. If
     /// the branch is conflicted before the update, it will remain conflicted
     /// after the update, but the conflict will involve the `move_to` commit
-    /// instead of the old commit.
+    /// instead of the old commit. If the `move_to` commit already has any
+    /// branches, no branches are moved.
     pub fn advance_branches(&mut self, branches: Vec<AdvanceableBranch>, move_to: &CommitId) {
+        if self.repo().view().local_branches_for_commit(move_to).next().is_some() {
+            return
+        }
         for branch in branches {
             // This removes the old commit ID from the branch's RefTarget and
             // replaces it with the `move_to` ID.
