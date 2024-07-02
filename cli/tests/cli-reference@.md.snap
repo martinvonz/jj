@@ -437,6 +437,13 @@ Update the description and create a new change on top
 * `-i`, `--interactive` — Interactively choose which changes to include in the first commit
 * `--tool <NAME>` — Specify diff editor to be used (implies --interactive)
 * `-m`, `--message <MESSAGE>` — The change description to use (don't open editor)
+* `--reset-author` — Reset the author to the configured user
+
+   This resets the author name, email, and timestamp.
+
+   You can use it in combination with the JJ_USER and JJ_EMAIL environment variables to set a different author:
+
+   $ JJ_USER='Foo Bar' JJ_EMAIL=foo@bar.com jj commit --reset-author
 
 
 

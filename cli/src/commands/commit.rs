@@ -39,6 +39,16 @@ pub(crate) struct CommitArgs {
     /// Put these paths in the first commit
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
+    /// Reset the author to the configured user
+    ///
+    /// This resets the author name, email, and timestamp.
+    ///
+    /// You can use it in combination with the JJ_USER and JJ_EMAIL
+    /// environment variables to set a different author:
+    ///
+    /// $ JJ_USER='Foo Bar' JJ_EMAIL=foo@bar.com jj commit --reset-author
+    #[arg(long)]
+    reset_author: bool,
 }
 
 #[instrument(skip_all)]
@@ -102,12 +112,16 @@ new working-copy commit.
         edit_description(tx.base_repo(), &template, command.settings())?
     };
 
-    let new_commit = tx
+    let mut commit_builder = tx
         .mut_repo()
         .rewrite_commit(command.settings(), &commit)
         .set_tree_id(tree_id)
-        .set_description(description)
-        .write()?;
+        .set_description(description);
+    if args.reset_author {
+        let new_author = commit_builder.committer().clone();
+        commit_builder = commit_builder.set_author(new_author);
+    }
+    let new_commit = commit_builder.write()?;
     let workspace_ids = tx
         .mut_repo()
         .view()
