@@ -778,6 +778,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#diff-colors-and-styles" class="md-nav__link">
+    <span class="md-ellipsis">
+      Diff colors and styles
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#diff-format" class="md-nav__link">
     <span class="md-ellipsis">
       Diff format
@@ -1873,6 +1882,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#diff-colors-and-styles" class="md-nav__link">
+    <span class="md-ellipsis">
+      Diff colors and styles
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#diff-format" class="md-nav__link">
     <span class="md-ellipsis">
       Diff format
@@ -2412,6 +2430,14 @@ subcommand name, subcommand alias, or user-defined alias (defaults to <code>"log
 the editor when describing changes with an empty description. This could be a
 useful reminder to fill in things like BUG=, TESTED= etc.</p>
 <div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">default-description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">TESTED=TODO&quot;</span>
+</code></pre></div>
+<h3 id="diff-colors-and-styles">Diff colors and styles<a class="headerlink" href="#diff-colors-and-styles" title="Permanent link">&para;</a></h3>
+<p>In color-words diffs, hunks are rendered with underline. You can override the
+default style with the following keys:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[colors]</span>
+<span class="c1"># Highlight hunks with background</span>
+<span class="s2">&quot;diff removed token&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">bg</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;#221111&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">underline</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">false</span><span class="w"> </span><span class="p">}</span>
+<span class="s2">&quot;diff added token&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">bg</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;#002200&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">underline</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="kc">false</span><span class="w"> </span><span class="p">}</span>
 </code></pre></div>
 <h3 id="diff-format">Diff format<a class="headerlink" href="#diff-format" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="c1"># Possible values: &quot;color-words&quot; (default), &quot;git&quot;, &quot;summary&quot;</span>
