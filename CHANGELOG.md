@@ -63,8 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * New diff option `jj diff --name-only` allows for easier shell scripting.
 
-* In color-words diffs, hunks are now highlighted with underline. See [diff
-  colors and styles](docs/config.md#diff-colors-and-styles) for customization.
+* In color-words and git diffs, word-level hunks are now highlighted with
+  underline. See [diff colors and styles](docs/config.md#diff-colors-and-styles)
+  for customization.
 
 * `jj git push -c <arg>` can now accept revsets that resolve to multiple
   revisions. This means that `jj git push -c xyz -c abc` is now equivalent to
