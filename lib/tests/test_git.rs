@@ -23,7 +23,6 @@ use itertools::Itertools;
 use jj_lib::backend::{BackendError, ChangeId, CommitId, MillisSinceEpoch, Signature, Timestamp};
 use jj_lib::commit::Commit;
 use jj_lib::commit_builder::CommitBuilder;
-use jj_lib::git;
 use jj_lib::git::{
     FailedRefExportReason, GitBranchPushTargets, GitFetchError, GitImportError, GitPushError,
     GitRefUpdate, RefName, SubmoduleConfig,
@@ -38,6 +37,7 @@ use jj_lib::settings::{GitSettings, UserSettings};
 use jj_lib::signing::Signer;
 use jj_lib::str_util::StringPattern;
 use jj_lib::workspace::Workspace;
+use jj_lib::{git, testutils};
 use maplit::{btreemap, hashset};
 use tempfile::TempDir;
 use test_case::test_case;

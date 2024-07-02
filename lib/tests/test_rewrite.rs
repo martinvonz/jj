@@ -22,6 +22,7 @@ use jj_lib::repo_path::RepoPath;
 use jj_lib::rewrite::{
     rebase_commit_with_options, restore_tree, CommitRewriter, EmptyBehaviour, RebaseOptions,
 };
+use jj_lib::testutils;
 use maplit::{hashmap, hashset};
 use test_case::test_case;
 use testutils::{

@@ -1368,6 +1368,7 @@ mod tests {
 
     use super::*;
     use crate::content_hash::blake2b_hash;
+    use crate::testutils;
 
     #[test_case(false; "legacy tree format")]
     #[test_case(true; "tree-level conflict format")]

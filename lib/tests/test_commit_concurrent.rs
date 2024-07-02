@@ -16,8 +16,8 @@ use std::cmp::max;
 use std::sync::Arc;
 use std::thread;
 
-use jj_lib::dag_walk;
 use jj_lib::repo::{ReadonlyRepo, Repo};
+use jj_lib::{dag_walk, testutils};
 use test_case::test_case;
 use testutils::{load_repo_at_head, write_random_commit, TestRepoBackend, TestWorkspace};
 

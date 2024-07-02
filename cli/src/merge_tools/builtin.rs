@@ -633,7 +633,8 @@ mod tests {
     use jj_lib::conflicts::extract_as_single_hunk;
     use jj_lib::merge::MergedTreeValue;
     use jj_lib::repo::Repo;
-    use testutils::TestRepo;
+    use jj_lib::testutils;
+    use jj_lib::testutils::TestRepo;
 
     use super::*;
 

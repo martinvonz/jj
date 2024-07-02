@@ -50,9 +50,9 @@ pub struct TestEnvironment {
 
 impl Default for TestEnvironment {
     fn default() -> Self {
-        testutils::hermetic_libgit2();
+        jj_lib::testutils::hermetic_libgit2();
 
-        let tmp_dir = testutils::new_temp_dir();
+        let tmp_dir = jj_lib::testutils::new_temp_dir();
         let env_root = tmp_dir.path().canonicalize().unwrap();
         let home_dir = env_root.join("home");
         std::fs::create_dir(&home_dir).unwrap();

@@ -18,6 +18,7 @@ use jj_lib::git_backend::GitBackend;
 use jj_lib::op_store::WorkspaceId;
 use jj_lib::repo::Repo;
 use jj_lib::settings::UserSettings;
+use jj_lib::testutils;
 use jj_lib::workspace::Workspace;
 use test_case::test_case;
 use testutils::{write_random_commit, TestRepoBackend, TestWorkspace};

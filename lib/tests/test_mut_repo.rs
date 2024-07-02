@@ -15,6 +15,7 @@
 use jj_lib::backend::CommitId;
 use jj_lib::op_store::{RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
 use jj_lib::repo::Repo;
+use jj_lib::testutils;
 use maplit::hashset;
 use testutils::{
     assert_rebased_onto, create_random_commit, write_random_commit, CommitGraphBuilder, TestRepo,

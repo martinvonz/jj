@@ -21,6 +21,7 @@ use std::time::{Duration, SystemTime};
 use jj_lib::backend::CommitId;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::repo::{ReadonlyRepo, Repo};
+use jj_lib::testutils;
 use maplit::hashset;
 use testutils::{create_random_commit, CommitGraphBuilder, TestRepo, TestRepoBackend};
 

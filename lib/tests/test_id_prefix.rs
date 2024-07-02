@@ -19,6 +19,7 @@ use jj_lib::object_id::PrefixResolution::{AmbiguousMatch, NoMatch, SingleMatch};
 use jj_lib::object_id::{HexPrefix, ObjectId};
 use jj_lib::repo::Repo;
 use jj_lib::revset::RevsetExpression;
+use jj_lib::testutils;
 use testutils::{TestRepo, TestRepoBackend};
 
 #[test]

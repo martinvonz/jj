@@ -2,7 +2,7 @@ cargo-features = []
 
 [workspace]
 resolver = "2"
-members = ["cli", "lib", "lib/gen-protos", "lib/proc-macros", "lib/testutils"]
+members = ["cli", "lib", "lib/gen-protos", "lib/proc-macros"]
 
 [workspace.package]
 version = "0.18.0"
@@ -118,7 +118,6 @@ zstd = "0.12.4"
 
 jj-lib = { path = "lib", version = "0.18.0" }
 jj-lib-proc-macros = { path = "lib/proc-macros", version = "0.18.0" }
-testutils = { path = "lib/testutils" }
 
 # Insta suggests compiling these packages in opt mode for faster testing.
 # See https://docs.rs/insta/latest/insta/#optional-faster-runs.

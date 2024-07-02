@@ -27,6 +27,7 @@ mod tests {
     use std::{fs, thread};
 
     use super::*;
+    use crate::testutils;
 
     #[test]
     fn lock_basic() {

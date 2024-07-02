@@ -14,9 +14,9 @@
 
 //! Jujutsu version control system.
 
-#![warn(missing_docs)]
+#![deny(missing_docs)]
 #![deny(unused_must_use)]
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 
 // Needed so that proc macros can be used inside jj_lib and by external crates
 // that depend on it.
@@ -73,7 +73,7 @@ pub mod repo_path;
 pub mod revset;
 mod revset_parser;
 pub mod rewrite;
-#[cfg(feature = "testing")]
+#[cfg(feature = "git")]
 pub mod secret_backend;
 pub mod settings;
 pub mod signing;
@@ -84,6 +84,8 @@ pub mod stacked_table;
 pub mod store;
 pub mod str_util;
 pub mod submodule_store;
+#[cfg(feature = "git")]
+pub mod testutils;
 pub mod transaction;
 pub mod tree;
 pub mod tree_builder;

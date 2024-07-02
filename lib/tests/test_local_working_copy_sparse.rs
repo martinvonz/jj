@@ -17,6 +17,7 @@ use jj_lib::local_working_copy::LocalWorkingCopy;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
+use jj_lib::testutils;
 use jj_lib::working_copy::{CheckoutStats, WorkingCopy};
 use testutils::{commit_with_tree, create_tree, TestWorkspace};
 

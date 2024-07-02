@@ -512,6 +512,7 @@ mod tests {
     use test_case::test_case;
 
     use super::*;
+    use crate::testutils;
 
     #[test_case(false; "memory")]
     #[test_case(true; "file")]

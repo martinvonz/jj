@@ -523,6 +523,7 @@ mod tests {
     use itertools::Itertools as _;
 
     use super::*;
+    use crate::testutils;
 
     fn repo_path(value: &str) -> &RepoPath {
         RepoPath::from_internal_string(value)

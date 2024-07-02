@@ -1707,7 +1707,6 @@ dependencies = [
  "strsim",
  "tempfile",
  "test-case",
- "testutils",
  "textwrap",
  "thiserror",
  "timeago",
@@ -1763,7 +1762,6 @@ dependencies = [
  "strsim",
  "tempfile",
  "test-case",
- "testutils",
  "thiserror",
  "tokio",
  "tracing",
@@ -2928,20 +2926,6 @@ dependencies = [
  "quote",
  "syn",
  "test-case-core",
-]
-
-[[package]]
-name = "testutils"
-version = "0.18.0"
-dependencies = [
- "async-trait",
- "config",
- "git2",
- "hex",
- "itertools 0.12.1",
- "jj-lib",
- "rand",
- "tempfile",
 ]
 
 [[package]]

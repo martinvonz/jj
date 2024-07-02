@@ -25,6 +25,7 @@ use jj_lib::op_walk::{self, OpsetEvaluationError, OpsetResolutionError};
 use jj_lib::operation::Operation;
 use jj_lib::repo::{ReadonlyRepo, Repo};
 use jj_lib::settings::UserSettings;
+use jj_lib::testutils;
 use testutils::{create_random_commit, write_random_commit, TestRepo};
 
 fn list_dir(dir: &Path) -> Vec<String> {

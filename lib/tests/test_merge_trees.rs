@@ -17,6 +17,7 @@ use jj_lib::backend::TreeValue;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathComponent};
 use jj_lib::rewrite::rebase_commit;
+use jj_lib::testutils;
 use jj_lib::tree::{merge_trees, Tree};
 use testutils::{create_single_tree, create_tree, TestRepo};
 

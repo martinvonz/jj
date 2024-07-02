@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use jj_lib::repo::RepoLoader;
+use jj_lib::testutils;
 use testutils::{write_random_commit, TestRepo};
 
 #[test]

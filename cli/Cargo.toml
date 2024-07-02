@@ -22,7 +22,7 @@ include = [
     "/tests/",
     "!*.pending-snap",
     "!*.snap*",
-    "/tests/cli-reference@.md.snap"
+    "/tests/cli-reference@.md.snap",
 ]
 
 [[bin]]
@@ -103,7 +103,6 @@ async-trait = { workspace = true }
 indoc = { workspace = true }
 insta = { workspace = true }
 test-case = { workspace = true }
-testutils = { workspace = true }
 # https://github.com/rust-lang/cargo/issues/2911#issuecomment-1483256987
 jj-cli = { path = ".", features = ["test-fakes"], default-features = false }
 

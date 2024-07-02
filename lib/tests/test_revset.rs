@@ -19,7 +19,6 @@ use itertools::Itertools;
 use jj_lib::backend::{CommitId, MillisSinceEpoch, Signature, Timestamp};
 use jj_lib::commit::Commit;
 use jj_lib::fileset::FilesetExpression;
-use jj_lib::git;
 use jj_lib::git_backend::GitBackend;
 use jj_lib::graph::{GraphEdge, ReverseGraphIterator};
 use jj_lib::object_id::ObjectId;
@@ -33,6 +32,7 @@ use jj_lib::revset::{
 };
 use jj_lib::settings::GitSettings;
 use jj_lib::workspace::Workspace;
+use jj_lib::{git, testutils};
 use test_case::test_case;
 use testutils::{
     create_random_commit, create_tree, write_random_commit, CommitGraphBuilder, TestRepo,

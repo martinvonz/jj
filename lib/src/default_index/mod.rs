@@ -52,6 +52,7 @@ mod tests {
     use crate::default_index::entry::{LocalPosition, SmallLocalPositionsVec};
     use crate::index::Index;
     use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
+    use crate::testutils;
 
     /// Generator of unique 16-byte CommitId excluding root id
     fn commit_id_generator() -> impl FnMut() -> CommitId {

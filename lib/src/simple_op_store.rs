@@ -696,6 +696,7 @@ mod tests {
     use maplit::{btreemap, hashmap, hashset};
 
     use super::*;
+    use crate::testutils;
 
     fn create_view() -> View {
         let new_remote_ref = |target: &RefTarget| RemoteRef {
