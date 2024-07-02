@@ -20,15 +20,16 @@ use std::path::Path;
 use std::time::SystemTime;
 
 use async_trait::async_trait;
+use futures::stream::BoxStream;
 
 use crate::backend::{
     Backend, BackendError, BackendLoadError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, FileId, SigningFn, SymlinkId, Tree, TreeId,
+    ConflictId, CopyRecord, FileId, SigningFn, SymlinkId, Tree, TreeId,
 };
 use crate::git_backend::GitBackend;
 use crate::index::Index;
 use crate::object_id::ObjectId;
-use crate::repo_path::RepoPath;
+use crate::repo_path::{RepoPath, RepoPathBuf};
 use crate::settings::UserSettings;
 
 const SECRET_CONTENTS_HEX: [&str; 2] = [
@@ -165,6 +166,15 @@ impl Backend for SecretBackend {
         sign_with: Option<&mut SigningFn>,
     ) -> BackendResult<(CommitId, Commit)> {
         self.inner.write_commit(contents, sign_with)
+    }
+
+    fn get_copy_records(
+        &self,
+        paths: &[RepoPathBuf],
+        roots: &[CommitId],
+        heads: &[CommitId],
+    ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>> {
+        self.inner.get_copy_records(paths, roots, heads)
     }
 
     fn gc(&self, index: &dyn Index, keep_newer: SystemTime) -> BackendResult<()> {

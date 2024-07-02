@@ -24,20 +24,21 @@ use std::time::SystemTime;
 
 use async_trait::async_trait;
 use blake2::{Blake2b512, Digest};
+use futures::stream::BoxStream;
 use prost::Message;
 use tempfile::NamedTempFile;
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendResult, ChangeId, Commit, CommitId, Conflict,
-    ConflictId, ConflictTerm, FileId, MergedTreeId, MillisSinceEpoch, SecureSig, Signature,
-    SigningFn, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
+    ConflictId, ConflictTerm, CopyRecord, FileId, MergedTreeId, MillisSinceEpoch, SecureSig,
+    Signature, SigningFn, SymlinkId, Timestamp, Tree, TreeId, TreeValue,
 };
 use crate::content_hash::blake2b_hash;
 use crate::file_util::persist_content_addressed_temp_file;
 use crate::index::Index;
 use crate::merge::MergeBuilder;
 use crate::object_id::ObjectId;
-use crate::repo_path::{RepoPath, RepoPathComponentBuf};
+use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponentBuf};
 
 const COMMIT_ID_LENGTH: usize = 64;
 const CHANGE_ID_LENGTH: usize = 16;
@@ -299,6 +300,15 @@ impl Backend for LocalBackend {
         persist_content_addressed_temp_file(temp_file, self.commit_path(&id))
             .map_err(to_other_err)?;
         Ok((id, commit))
+    }
+
+    fn get_copy_records(
+        &self,
+        _paths: &[RepoPathBuf],
+        _roots: &[CommitId],
+        _heads: &[CommitId],
+    ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>> {
+        Err(BackendError::Unsupported("get_copy_records".into()))
     }
 
     fn gc(&self, _index: &dyn Index, _keep_newer: SystemTime) -> BackendResult<()> {

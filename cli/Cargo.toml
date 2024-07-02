@@ -65,6 +65,7 @@ esl01-renderdag = { workspace = true }
 futures = { workspace = true }
 git2 = { workspace = true }
 gix = { workspace = true }
+gix-filter = { workspace = true }
 hex = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }

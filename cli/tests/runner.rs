@@ -19,6 +19,7 @@ mod test_commit_command;
 mod test_commit_template;
 mod test_concurrent_operations;
 mod test_config_command;
+mod test_copy_detection;
 mod test_debug_command;
 mod test_describe_command;
 mod test_diff_command;
