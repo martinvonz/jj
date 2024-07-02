@@ -59,13 +59,13 @@ fn test_obslog_with_or_without_diff() {
     @  rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
     │  my description
     │  Resolved conflict in file1:
-    │     1    1: <<<<<<< Conflict 1 of 1resolved
+    │     1     : <<<<<<< Conflict 1 of 1
     │     2     : %%%%%%% Changes from base to side #1
     │     3     : -foo
     │     4     : +++++++ Contents of side #2
     │     5     : foo
     │     6     : bar
-    │     7     : >>>>>>> Conflict 1 of 1 ends
+    │     7    1: >>>>>>> Conflict 1 of 1 endsresolved
     ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 cf73917d conflict
     │  my description
     ◉  rlvkpnrz hidden test.user@example.com 2001-02-03 08:05:09 068224a7

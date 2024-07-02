@@ -18,7 +18,7 @@ use std::cmp::{max, min, Ordering};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Formatter};
 use std::ops::Range;
-use std::slice;
+use std::{iter, slice};
 
 use itertools::Itertools;
 
@@ -164,60 +164,99 @@ pub(crate) fn unchanged_ranges(
     left_ranges: &[Range<usize>],
     right_ranges: &[Range<usize>],
 ) -> Vec<(Range<usize>, Range<usize>)> {
+    // Prioritize LCS-based algorithm than leading/trailing matches
+    let result = unchanged_ranges_lcs(left, right, left_ranges, right_ranges);
+    if !result.is_empty() {
+        return result;
+    }
+
+    // Trim leading common ranges (i.e. grow previous unchanged region)
+    let common_leading_len = iter::zip(left_ranges, right_ranges)
+        .take_while(|&(l, r)| left[l.clone()] == right[r.clone()])
+        .count();
+    if common_leading_len > 0 {
+        let (left_leading_ranges, left_ranges) = left_ranges.split_at(common_leading_len);
+        let (right_leading_ranges, right_ranges) = right_ranges.split_at(common_leading_len);
+        let mut result = unchanged_ranges_lcs(left, right, left_ranges, right_ranges);
+        result.splice(
+            0..0,
+            iter::zip(
+                left_leading_ranges.iter().cloned(),
+                right_leading_ranges.iter().cloned(),
+            ),
+        );
+        return result;
+    }
+
+    // Trim trailing common ranges (i.e. grow next unchanged region)
+    let common_trailing_len = iter::zip(left_ranges.iter().rev(), right_ranges.iter().rev())
+        .take_while(|&(l, r)| left[l.clone()] == right[r.clone()])
+        .count();
+    if common_trailing_len > 0 {
+        let (left_ranges, left_trailing_ranges) =
+            left_ranges.split_at(left_ranges.len() - common_trailing_len);
+        let (right_ranges, right_trailing_ranges) =
+            right_ranges.split_at(right_ranges.len() - common_trailing_len);
+        let mut result = unchanged_ranges_lcs(left, right, left_ranges, right_ranges);
+        result.extend(iter::zip(
+            left_trailing_ranges.iter().cloned(),
+            right_trailing_ranges.iter().cloned(),
+        ));
+        return result;
+    }
+
+    vec![]
+}
+
+fn unchanged_ranges_lcs(
+    left: &[u8],
+    right: &[u8],
+    left_ranges: &[Range<usize>],
+    right_ranges: &[Range<usize>],
+) -> Vec<(Range<usize>, Range<usize>)> {
     if left_ranges.is_empty() || right_ranges.is_empty() {
         return vec![];
     }
 
     let max_occurrences = 100;
-    let mut left_histogram = Histogram::calculate(left, left_ranges, max_occurrences);
+    let left_histogram = Histogram::calculate(left, left_ranges, max_occurrences);
     if *left_histogram.count_to_words.keys().next().unwrap() > max_occurrences {
         // If there are very many occurrences of all words, then we just give up.
         return vec![];
     }
-    let mut right_histogram = Histogram::calculate(right, right_ranges, max_occurrences);
+    let right_histogram = Histogram::calculate(right, right_ranges, max_occurrences);
     // Look for words with few occurrences in `left` (could equally well have picked
     // `right`?). If any of them also occur in `right`, then we add the words to
     // the LCS.
-    let mut uncommon_shared_words = vec![];
-    while !left_histogram.count_to_words.is_empty() && uncommon_shared_words.is_empty() {
-        let left_words = left_histogram
-            .count_to_words
-            .first_entry()
-            .map(|x| x.remove())
-            .unwrap();
-        for left_word in left_words {
-            if right_histogram.word_to_positions.contains_key(left_word) {
-                uncommon_shared_words.push(left_word);
-            }
-        }
-    }
-    if uncommon_shared_words.is_empty() {
+    let Some(uncommon_shared_words) = left_histogram
+        .count_to_words
+        .iter()
+        .map(|(left_count, left_words)| -> Vec<&[u8]> {
+            left_words
+                .iter()
+                .copied()
+                .filter(|left_word| {
+                    let right_count = right_histogram
+                        .word_to_positions
+                        .get(left_word)
+                        .map_or(0, |right_positions| right_positions.len());
+                    *left_count == right_count
+                })
+                .collect()
+        })
+        .find(|words| !words.is_empty())
+    else {
         return vec![];
-    }
-
-    // Let's say our inputs are "a b a b" and "a b c c b a b". We will have found
-    // the least common words to be "a" and "b". We now assume that each
-    // occurrence of each word lines up in the left and right input. We do that
-    // by numbering the shared occurrences, effectively instead comparing "a1 b1
-    // a2 b2" and "a1 b1 c c b2 a2 b". We then walk the common words in the
-    // right input in order (["a1", "b1", "b2", "a2"]), and record the index of
-    // that word in the left input ([0,1,3,2]). We then find the LCS and split
-    // points based on that ([0,1,3] or [0,1,2] are both valid).
+    };
 
     // [(index into left_ranges, word, occurrence #)]
     let mut left_positions = vec![];
     let mut right_positions = vec![];
     for uncommon_shared_word in uncommon_shared_words {
-        let left_occurrences = left_histogram
-            .word_to_positions
-            .get_mut(uncommon_shared_word)
-            .unwrap();
-        let right_occurrences = right_histogram
-            .word_to_positions
-            .get_mut(uncommon_shared_word)
-            .unwrap();
-        let shared_count = min(left_occurrences.len(), right_occurrences.len());
-        for occurrence in 0..shared_count {
+        let left_occurrences = &left_histogram.word_to_positions[uncommon_shared_word];
+        let right_occurrences = &right_histogram.word_to_positions[uncommon_shared_word];
+        assert_eq!(left_occurrences.len(), right_occurrences.len());
+        for occurrence in 0..left_occurrences.len() {
             left_positions.push((
                 left_occurrences[occurrence],
                 uncommon_shared_word,
@@ -758,6 +797,8 @@ mod tests {
 
     #[test]
     fn test_unchanged_ranges_non_unique_removed() {
+        // We used to consider the first two "a" in the first input to match the two
+        // "a"s in the second input. We no longer do.
         assert_eq!(
             unchanged_ranges(
                 b"a a a a",
@@ -765,12 +806,32 @@ mod tests {
                 &[0..1, 2..3, 4..5, 6..7],
                 &[0..1, 2..3, 4..5, 6..7],
             ),
-            vec![(0..1, 0..1), (2..3, 4..5)]
+            vec![(0..1, 0..1)]
+        );
+        assert_eq!(
+            unchanged_ranges(
+                b"a a a a",
+                b"b a c a",
+                &[0..1, 2..3, 4..5, 6..7],
+                &[0..1, 2..3, 4..5, 6..7],
+            ),
+            vec![(6..7, 6..7)]
+        );
+        assert_eq!(
+            unchanged_ranges(
+                b"a a a a",
+                b"b a a c",
+                &[0..1, 2..3, 4..5, 6..7],
+                &[0..1, 2..3, 4..5, 6..7],
+            ),
+            vec![]
         );
     }
 
     #[test]
     fn test_unchanged_ranges_non_unique_added() {
+        // We used to consider the first two "a" in the first input to match the two
+        // "a"s in the second input. We no longer do.
         assert_eq!(
             unchanged_ranges(
                 b"a b a c",
@@ -778,7 +839,25 @@ mod tests {
                 &[0..1, 2..3, 4..5, 6..7],
                 &[0..1, 2..3, 4..5, 6..7],
             ),
-            vec![(0..1, 0..1), (4..5, 2..3)]
+            vec![(0..1, 0..1)]
+        );
+        assert_eq!(
+            unchanged_ranges(
+                b"b a c a",
+                b"a a a a",
+                &[0..1, 2..3, 4..5, 6..7],
+                &[0..1, 2..3, 4..5, 6..7],
+            ),
+            vec![(6..7, 6..7)]
+        );
+        assert_eq!(
+            unchanged_ranges(
+                b"b a a c",
+                b"a a a a",
+                &[0..1, 2..3, 4..5, 6..7],
+                &[0..1, 2..3, 4..5, 6..7],
+            ),
+            vec![]
         );
     }
 
@@ -1162,16 +1241,12 @@ int main(int argc, char **argv)
                DiffHunk::Matching(b"\t\tunsigned int mode;\n"),
                DiffHunk::Different(vec![b"", b"\t\tint fd;\n\n"]),
                DiffHunk::Matching(b"\t\tif (size < len + 20 || sscanf(buffer, \"%o\", &mode) != 1)\n\t\t\tusage(\"corrupt \'tree\' file\");\n\t\tbuffer = sha1 + 20;\n\t\tsize -= len + 20;\n\t\t"),
-               DiffHunk::Different(vec![b"printf", b"data = read_sha1_file"]),
-               DiffHunk::Matching(b"("),
-               DiffHunk::Different(vec![b"\"%o %s (%s)\\n\", mode, path, sha1_to_hex(", b""]),
-               DiffHunk::Matching(b"sha1"),
-               DiffHunk::Different(vec![b"", b", type, &filesize"]),
-               DiffHunk::Matching(b")"),
-               DiffHunk::Different(vec![b")", b""]),
-               DiffHunk::Matching(b";\n"),
-               DiffHunk::Different(vec![b"", b"\t\tif (!data || strcmp(type, \"blob\"))\n\t\t\tusage(\"tree file refers to bad file data\");\n\t\tfd = create_file(path);\n\t\tif (fd < 0)\n\t\t\tusage(\"unable to create file\");\n\t\tif (write(fd, data, filesize) != filesize)\n\t\t\tusage(\"unable to write file\");\n\t\tfchmod(fd, mode);\n\t\tclose(fd);\n\t\tfree(data);\n"]),
-               DiffHunk::Matching(b"\t}\n\treturn 0;\n}\n\nint main(int argc, char **argv)\n{\n\tint fd;\n\tunsigned char sha1[20];\n\n\tif (argc != 2)\n\t\tusage(\"read-tree <key>\");\n\tif (get_sha1_hex(argv[1], sha1) < 0)\n\t\tusage(\"read-tree <key>\");\n\tsha1_file_directory = getenv(DB_ENVIRONMENT);\n\tif (!sha1_file_directory)\n\t\tsha1_file_directory = DEFAULT_DB_ENVIRONMENT;\n\tif (unpack(sha1) < 0)\n\t\tusage(\"unpack failed\");\n\treturn 0;\n}\n")
+               DiffHunk::Different(vec![b"printf(\"%o %s (%s)\\n\", mode, path,", b"data ="]),
+               DiffHunk::Matching(b" "),
+               DiffHunk::Different(vec![b"sha1_to_hex", b"read_sha1_file"]),
+               DiffHunk::Matching(b"(sha1"),
+               DiffHunk::Different(vec![b")", b", type, &filesize);\n\t\tif (!data || strcmp(type, \"blob\"))\n\t\t\tusage(\"tree file refers to bad file data\");\n\t\tfd = create_file(path);\n\t\tif (fd < 0)\n\t\t\tusage(\"unable to create file\");\n\t\tif (write(fd, data, filesize) != filesize)\n\t\t\tusage(\"unable to write file\");\n\t\tfchmod(fd, mode);\n\t\tclose(fd);\n\t\tfree(data"]),
+               DiffHunk::Matching(b");\n\t}\n\treturn 0;\n}\n\nint main(int argc, char **argv)\n{\n\tint fd;\n\tunsigned char sha1[20];\n\n\tif (argc != 2)\n\t\tusage(\"read-tree <key>\");\n\tif (get_sha1_hex(argv[1], sha1) < 0)\n\t\tusage(\"read-tree <key>\");\n\tsha1_file_directory = getenv(DB_ENVIRONMENT);\n\tif (!sha1_file_directory)\n\t\tsha1_file_directory = DEFAULT_DB_ENVIRONMENT;\n\tif (unpack(sha1) < 0)\n\t\tusage(\"unpack failed\");\n\treturn 0;\n}\n"),
             ]
         );
     }
