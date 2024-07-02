@@ -323,3 +323,24 @@ fn test_describe_author() {
     ~
     "###);
 }
+
+#[test]
+#[cfg(windows)]
+fn test_describe_avoids_unc() {
+    use std::path::PathBuf;
+
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let workspace_path = test_env.env_root().join("repo");
+    let edit_script = test_env.set_up_fake_editor();
+
+    std::fs::write(edit_script, "dump-path path").unwrap();
+    test_env.jj_cmd_ok(&workspace_path, &["describe"]);
+
+    let edited_path =
+        PathBuf::from(std::fs::read_to_string(test_env.env_root().join("path")).unwrap());
+    // While `assert!(!edited_path.starts_with("//?/"))` could work here in most
+    // cases, it fails when it is not safe to strip the prefix, such as paths
+    // over 260 chars.
+    assert_eq!(edited_path, dunce::simplified(&edited_path));
+}
