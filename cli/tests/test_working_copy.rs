@@ -34,6 +34,8 @@ fn test_snapshot_large_file() {
         This will increase the maximum file size allowed for new files, in this repository only.
       - Run `jj --config-toml 'snapshot.max-new-file-size=13' st`
         This will increase the maximum file size allowed for new files, for this command only.
+      - Run the command with `--ignore-working-copy`
+        This will ignore changes to the working copy that have not been previously snapshotted.
     "###);
 
     // test with a larger file using 'KB' human-readable syntax
@@ -50,5 +52,7 @@ fn test_snapshot_large_file() {
         This will increase the maximum file size allowed for new files, in this repository only.
       - Run `jj --config-toml 'snapshot.max-new-file-size=11264' st`
         This will increase the maximum file size allowed for new files, for this command only.
+      - Run the command with `--ignore-working-copy`
+        This will ignore changes to the working copy that have not been previously snapshotted.
     "###);
 }
