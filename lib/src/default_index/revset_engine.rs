@@ -36,6 +36,7 @@ use crate::revset::{
     RevsetFilterPredicate, GENERATION_RANGE_FULL,
 };
 use crate::store::Store;
+use crate::time_expression::TimeExpression;
 use crate::{rewrite, union_find};
 
 type BoxedPredicateFn<'a> = Box<dyn FnMut(&CompositeIndex, IndexPosition) -> bool + 'a>;
@@ -1067,6 +1068,28 @@ fn build_predicate_fn(
                 let commit = store.get_commit(&entry.commit_id()).unwrap();
                 pattern.matches(&commit.committer().name)
                     || pattern.matches(&commit.committer().email)
+            })
+        }
+        RevsetFilterPredicate::AuthorDate(expression) => {
+            let expression = expression.clone();
+            box_pure_predicate_fn(move |index, pos| {
+                let entry = index.entry_by_pos(pos);
+                let commit = store.get_commit(&entry.commit_id()).unwrap();
+                let author_date = &commit.author().timestamp;
+                match &expression {
+                    TimeExpression::AtOrAfter(ts) => ts.le(author_date),
+                }
+            })
+        }
+        RevsetFilterPredicate::CommitterDate(expression) => {
+            let expression = expression.clone();
+            box_pure_predicate_fn(move |index, pos| {
+                let entry = index.entry_by_pos(pos);
+                let commit = store.get_commit(&entry.commit_id()).unwrap();
+                let committer_date = &commit.committer().timestamp;
+                match &expression {
+                    TimeExpression::AtOrAfter(ts) => ts.le(committer_date),
+                }
             })
         }
         RevsetFilterPredicate::File(expr) => {

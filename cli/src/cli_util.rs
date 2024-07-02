@@ -994,6 +994,7 @@ impl WorkspaceCommandHelper {
         RevsetParseContext::new(
             &self.revset_aliases_map,
             self.settings.user_email(),
+            chrono::Local::now(),
             &self.revset_extensions,
             Some(workspace_context),
         )
