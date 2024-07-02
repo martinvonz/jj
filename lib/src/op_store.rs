@@ -28,6 +28,7 @@ use crate::backend::{CommitId, MillisSinceEpoch, Timestamp};
 use crate::content_hash::ContentHash;
 use crate::merge::Merge;
 use crate::object_id::{id_type, HexPrefix, ObjectId, PrefixResolution};
+use crate::op_heads_store::OpHeadStoreError;
 
 #[derive(ContentHash, PartialEq, Eq, PartialOrd, Ord, Clone, Hash)]
 pub struct WorkspaceId(String);
@@ -416,6 +417,12 @@ pub enum OpStoreError {
 }
 
 pub type OpStoreResult<T> = Result<T, OpStoreError>;
+
+impl From<OpHeadStoreError> for OpStoreError {
+    fn from(err: OpHeadStoreError) -> Self {
+        OpStoreError::Other(err.into())
+    }
+}
 
 pub trait OpStore: Send + Sync + Debug {
     fn as_any(&self) -> &dyn Any;
