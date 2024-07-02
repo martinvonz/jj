@@ -210,6 +210,18 @@ diff-args = ["--color=always", "$left", "$right"]
 - `$left` and `$right` are replaced with the paths to the left and right
   directories to diff respectively.
 
+By default `jj` will invoke external tools with a directory containing the left
+and right sides.  The `diff-invocation-mode` config can change this to file by file
+invocations as follows:
+
+```toml
+[ui]
+diff.tool = "vimdiff"
+
+[merge-tools.vimdiff]
+diff-invocation-mode = "file-by-file"
+```
+
 ### Set of immutable commits
 
 You can configure the set of immutable commits via `revset-aliases."immutable_heads()"`.

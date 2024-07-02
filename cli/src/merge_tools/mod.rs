@@ -31,9 +31,10 @@ use pollster::FutureExt;
 use thiserror::Error;
 
 use self::builtin::{edit_diff_builtin, edit_merge_builtin, BuiltinToolError};
+pub(crate) use self::diff_working_copies::new_utf8_temp_dir;
 use self::diff_working_copies::DiffCheckoutError;
 use self::external::{edit_diff_external, ExternalToolError};
-pub use self::external::{generate_diff, ExternalMergeTool};
+pub use self::external::{generate_diff, invoke_external_diff, DiffToolMode, ExternalMergeTool};
 use crate::config::CommandNameAndArgs;
 use crate::ui::Ui;
 
@@ -351,6 +352,7 @@ mod tests {
                     "$left",
                     "$right",
                 ],
+                diff_invocation_mode: Dir,
                 edit_args: [
                     "$left",
                     "$right",
@@ -375,6 +377,7 @@ mod tests {
                     "$left",
                     "$right",
                 ],
+                diff_invocation_mode: Dir,
                 edit_args: [
                     "--edit",
                     "args",
@@ -410,6 +413,7 @@ mod tests {
                     "$left",
                     "$right",
                 ],
+                diff_invocation_mode: Dir,
                 edit_args: [
                     "$left",
                     "$right",
@@ -430,6 +434,7 @@ mod tests {
                     "$left",
                     "$right",
                 ],
+                diff_invocation_mode: Dir,
                 edit_args: [
                     "-l",
                     "$left",
@@ -452,6 +457,7 @@ mod tests {
                     "$left",
                     "$right",
                 ],
+                diff_invocation_mode: Dir,
                 edit_args: [
                     "--diff",
                     "$left",
@@ -478,6 +484,7 @@ mod tests {
                     "$left",
                     "$right",
                 ],
+                diff_invocation_mode: Dir,
                 edit_args: [
                     "--edit",
                     "args",
@@ -505,6 +512,7 @@ mod tests {
                     "$left",
                     "$right",
                 ],
+                diff_invocation_mode: Dir,
                 edit_args: [
                     "$left",
                     "$right",
@@ -524,6 +532,7 @@ mod tests {
                     "$left",
                     "$right",
                 ],
+                diff_invocation_mode: Dir,
                 edit_args: [
                     "$left",
                     "$right",
@@ -569,6 +578,7 @@ mod tests {
                     "$left",
                     "$right",
                 ],
+                diff_invocation_mode: Dir,
                 edit_args: [
                     "$left",
                     "$right",
@@ -614,6 +624,7 @@ mod tests {
                     "$left",
                     "$right",
                 ],
+                diff_invocation_mode: Dir,
                 edit_args: [
                     "$left",
                     "$right",
@@ -641,6 +652,7 @@ mod tests {
                     "$left",
                     "$right",
                 ],
+                diff_invocation_mode: Dir,
                 edit_args: [
                     "$left",
                     "$right",
@@ -671,6 +683,7 @@ mod tests {
                     "$left",
                     "$right",
                 ],
+                diff_invocation_mode: Dir,
                 edit_args: [
                     "$left",
                     "$right",

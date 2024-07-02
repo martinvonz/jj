@@ -31,6 +31,9 @@ pub struct ExternalMergeTool {
     /// Arguments to pass to the program when generating diffs.
     /// `$left` and `$right` are replaced with the corresponding directories.
     pub diff_args: Vec<String>,
+    /// Whether to execute the tool with a pair of directories or individual
+    /// files.
+    pub diff_invocation_mode: DiffToolMode,
     /// Arguments to pass to the program when editing diffs.
     /// `$left` and `$right` are replaced with the corresponding directories.
     pub edit_args: Vec<String>,
@@ -50,6 +53,15 @@ pub struct ExternalMergeTool {
     pub merge_tool_edits_conflict_markers: bool,
 }
 
+#[derive(serde::Deserialize, Copy, Clone, Debug, Eq, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum DiffToolMode {
+    /// Invoke the diff tool on a temp directory of the modified files.
+    Dir,
+    /// Invoke the diff tool on each of the modified files individually.
+    FileByFile,
+}
+
 impl Default for ExternalMergeTool {
     fn default() -> Self {
         Self {
@@ -63,6 +75,7 @@ impl Default for ExternalMergeTool {
             edit_args: ["$left", "$right"].map(ToOwned::to_owned).to_vec(),
             merge_args: vec![],
             merge_tool_edits_conflict_markers: false,
+            diff_invocation_mode: DiffToolMode::Dir,
         }
     }
 }
@@ -257,7 +270,7 @@ pub fn edit_diff_external(
     diffedit_wc.snapshot_results(base_ignores)
 }
 
-/// Generates textual diff by the specified `tool`, and writes into `writer`.
+/// Generates textual diff by the specified `tool` and writes into `writer`.
 pub fn generate_diff(
     ui: &Ui,
     writer: &mut dyn Write,
@@ -272,11 +285,19 @@ pub fn generate_diff(
         .map_err(ExternalToolError::SetUpDir)?;
     set_readonly_recursively(diff_wc.right_working_copy_path())
         .map_err(ExternalToolError::SetUpDir)?;
-    // TODO: Add support for tools without directory diff functionality?
+    invoke_external_diff(ui, writer, tool, &diff_wc.to_command_variables())
+}
+
+/// Invokes the specified `tool` directing its output into `writer`.
+pub fn invoke_external_diff(
+    ui: &Ui,
+    writer: &mut dyn Write,
+    tool: &ExternalMergeTool,
+    patterns: &HashMap<&str, &str>,
+) -> Result<(), DiffGenerateError> {
     // TODO: Somehow propagate --color to the external command?
-    let patterns = diff_wc.to_command_variables();
     let mut cmd = Command::new(&tool.program);
-    cmd.args(interpolate_variables(&tool.diff_args, &patterns));
+    cmd.args(interpolate_variables(&tool.diff_args, patterns));
     tracing::info!(?cmd, "Invoking the external diff generator:");
     let mut child = cmd
         .stdin(Stdio::null())
