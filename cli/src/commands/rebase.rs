@@ -35,7 +35,7 @@ use crate::cli_util::{
     short_commit_hash, CommandHelper, RevisionArg, WorkspaceCommandHelper,
     WorkspaceCommandTransaction,
 };
-use crate::command_error::{user_error, CommandError};
+use crate::command_error::{cli_error, user_error, CommandError};
 use crate::ui::Ui;
 
 /// Move revisions to different parent(s)
@@ -188,12 +188,16 @@ pub(crate) struct RebaseArgs {
     )]
     insert_before: Vec<RevisionArg>,
 
+    /// Deprecated. Use --skip-emptied instead.
+    #[arg(long, conflicts_with = "revisions", hide = true)]
+    skip_empty: bool,
+
     /// If true, when rebasing would produce an empty commit, the commit is
     /// abandoned. It will not be abandoned if it was already empty before the
     /// rebase. Will never skip merge commits with multiple non-empty
     /// parents.
     #[arg(long, conflicts_with = "revisions")]
-    skip_empty: bool,
+    skip_emptied: bool,
 }
 
 #[instrument(skip_all)]
@@ -202,8 +206,14 @@ pub(crate) fn cmd_rebase(
     command: &CommandHelper,
     args: &RebaseArgs,
 ) -> Result<(), CommandError> {
+    if args.skip_empty {
+        return Err(cli_error(
+            "--skip-empty is deprecated, and has been renamed to --skip-emptied.",
+        ));
+    }
+
     let rebase_options = RebaseOptions {
-        empty: match args.skip_empty {
+        empty: match args.skip_emptied {
             true => EmptyBehaviour::AbandonNewlyEmpty,
             false => EmptyBehaviour::Keep,
         },

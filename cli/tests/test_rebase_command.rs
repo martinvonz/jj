@@ -2236,7 +2236,7 @@ fn test_rebase_revisions_after_before() {
 }
 
 #[test]
-fn test_rebase_skip_empty() {
+fn test_rebase_skip_emptied() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
@@ -2259,7 +2259,7 @@ fn test_rebase_skip_empty() {
     ◉
     "###);
 
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d=b", "--skip-empty"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d=b", "--skip-emptied"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Rebased 3 commits
