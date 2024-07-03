@@ -7031,7 +7031,7 @@ commit. This is true in general; it is not specific to this command.</p>
 <p>Move changes from a revision into another revision</p>
 <p>With the <code>-r</code> option, moves the changes from the specified revision to the parent revision. Fails if there are several parent revisions (i.e., the given revision is a merge).</p>
 <p>With the <code>--from</code> and/or <code>--into</code> options, moves changes from/to the given revisions. If either is left out, it defaults to the working-copy commit. For example, <code>jj squash --into @--</code> moves changes from the working-copy commit to the grandparent.</p>
-<p>If, after moving changes out, the source revision is empty compared to its parent(s), it will be abandoned. Without <code>--interactive</code>, the source revision will always be empty.</p>
+<p>If, after moving changes out, the source revision is empty compared to its parent(s), and <code>--keep-emptied</code> is not set, it will be abandoned. Without <code>--interactive</code> or paths, the source revision will always be empty.</p>
 <p>If the source became empty and both the source and destination had a non-empty description, you will be asked for the combined description. If either was empty, then the other one will be used.</p>
 <p>If a working-copy commit gets abandoned, it will be given a new, empty commit. This is true in general; it is not specific to this command.</p>
 <p><strong>Usage:</strong> <code>jj squash [OPTIONS] [PATHS]...</code></p>
@@ -7048,6 +7048,7 @@ commit. This is true in general; it is not specific to this command.</p>
 <li><code>-u</code>, <code>--use-destination-message</code> — Use the description of the destination revision and discard the description(s) of the source revision(s)</li>
 <li><code>-i</code>, <code>--interactive</code> — Interactively choose which parts to squash</li>
 <li><code>--tool &lt;NAME&gt;</code> — Specify diff editor to be used (implies --interactive)</li>
+<li><code>--keep-emptied</code> — The source revision will not be abandoned</li>
 </ul>
 <h2 id="jj-status"><code>jj status</code><a class="headerlink" href="#jj-status" title="Permanent link">&para;</a></h2>
 <p>Show high-level repo status</p>
