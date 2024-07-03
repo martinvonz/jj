@@ -194,10 +194,6 @@ pub(crate) struct RebaseArgs {
     /// parents.
     #[arg(long, conflicts_with = "revisions")]
     skip_empty: bool,
-
-    /// Deprecated. Please prefix the revset with `all:` instead.
-    #[arg(long, short = 'L', hide = true)]
-    allow_large_revsets: bool,
 }
 
 #[instrument(skip_all)]
@@ -206,13 +202,6 @@ pub(crate) fn cmd_rebase(
     command: &CommandHelper,
     args: &RebaseArgs,
 ) -> Result<(), CommandError> {
-    if args.allow_large_revsets {
-        return Err(user_error(
-            "--allow-large-revsets has been deprecated.
-Please use `jj rebase -d 'all:x|y'` instead of `jj rebase --allow-large-revsets -d x -d y`.",
-        ));
-    }
-
     let rebase_options = RebaseOptions {
         empty: match args.skip_empty {
             true => EmptyBehaviour::AbandonNewlyEmpty,
