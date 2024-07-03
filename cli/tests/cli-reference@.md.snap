@@ -182,6 +182,10 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
    Warnings and errors will still be printed.
 * `--no-pager` — Disable the pager
 * `--config-toml <TOML>` — Additional configuration options (can be repeated)
+* `--show-heap-stats` — Show memory allocation statistics from the internal heap allocator on `stderr`, when the program exits
+
+  Possible values: `true`, `false`
+
 
 
 
