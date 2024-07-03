@@ -178,38 +178,27 @@ pub(crate) fn unchanged_ranges(
     let common_leading_len = iter::zip(left_ranges, right_ranges)
         .take_while(|&(l, r)| left[l.clone()] == right[r.clone()])
         .count();
-    if common_leading_len > 0 {
-        let (left_leading_ranges, left_ranges) = left_ranges.split_at(common_leading_len);
-        let (right_leading_ranges, right_ranges) = right_ranges.split_at(common_leading_len);
-        let mut result = unchanged_ranges(left, right, left_ranges, right_ranges);
-        result.splice(
-            0..0,
-            iter::zip(
-                left_leading_ranges.iter().cloned(),
-                right_leading_ranges.iter().cloned(),
-            ),
-        );
-        return result;
-    }
+    let (left_leading_ranges, left_ranges) = left_ranges.split_at(common_leading_len);
+    let (right_leading_ranges, right_ranges) = right_ranges.split_at(common_leading_len);
 
     // Trim trailing common ranges (i.e. grow next unchanged region)
     let common_trailing_len = iter::zip(left_ranges.iter().rev(), right_ranges.iter().rev())
         .take_while(|&(l, r)| left[l.clone()] == right[r.clone()])
         .count();
-    if common_trailing_len > 0 {
-        let (left_ranges, left_trailing_ranges) =
-            left_ranges.split_at(left_ranges.len() - common_trailing_len);
-        let (right_ranges, right_trailing_ranges) =
-            right_ranges.split_at(right_ranges.len() - common_trailing_len);
-        let mut result = unchanged_ranges(left, right, left_ranges, right_ranges);
-        result.extend(iter::zip(
+    let left_trailing_ranges = &left_ranges[(left_ranges.len() - common_trailing_len)..];
+    let right_trailing_ranges = &right_ranges[(right_ranges.len() - common_trailing_len)..];
+
+    itertools::chain(
+        iter::zip(
+            left_leading_ranges.iter().cloned(),
+            right_leading_ranges.iter().cloned(),
+        ),
+        iter::zip(
             left_trailing_ranges.iter().cloned(),
             right_trailing_ranges.iter().cloned(),
-        ));
-        return result;
-    }
-
-    vec![]
+        ),
+    )
+    .collect()
 }
 
 fn unchanged_ranges_lcs(
