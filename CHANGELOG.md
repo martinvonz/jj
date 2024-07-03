@@ -82,6 +82,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj commit` now accepts `--reset-author` option to match `jj describe`.
 
+* `jj squash` now accepts a `--keep-emptied` option to keep the source commit.
+
 ### Fixed bugs
 
 * `jj git push` now ignores immutable commits when checking whether a
@@ -163,8 +165,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj git push` now can push commits with empty descriptions with the
   `--allow-empty-description` flag
-
-* `jj squash` now accepts a `--keep-emptied` option to keep the source commit.
 
 ### Fixed bugs
 
