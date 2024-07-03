@@ -28,23 +28,24 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Deprecations
 
-* Replacing `-l` shorthand for `--limit` with `-n` in `jj log`, `jj op log` and `jj obslog`.
+* Replacing `-l` shorthand for `--limit` with `-n` in `jj log`, `jj op log`
+  and `jj obslog`.
 
 * `jj split --siblings` is deprecated in favor of `jj split --parallel` (to
   match `jj parallelize`).
 
-* `jj file show` replaces `jj cat`.
-
-* `jj file chmod` replaces `jj chmod`.
-
-* `jj file list` replaces `jj files`.
+* A new `jj file` subcommand now replaces several existing uncategorized
+  commands, which are deprecated.
+  - `jj file show` replaces `jj cat`.
+  - `jj file chmod` replaces `jj chmod`.
+  - `jj file list` replaces `jj files`.
 
 ### New features
 
 * Support background filesystem monitoring via watchman triggers enabled with
   the `core.watchman.register_snapshot_trigger = true` config.
 
-* Show paths to config files when configuration errors occur
+* Show paths to config files when configuration errors occur.
 
 * `jj fix` now supports configuring the default revset for `-s` using the
   `revsets.fix` config.
@@ -57,7 +58,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Conflicted files are individually simplified before being materialized.
 
-* `jj file` now groups commands for working with files.
+* The `jj file` subcommand now contains several existing file utilities.
+  - `jj file show`, replacing `jj cat`.
+  - `jj file chmod` replacing `jj chmod`.
+  - `jj file list` replacing `jj files`.
 
 * New command `jj branch move` let you update branches by name pattern or source
   revision.
@@ -90,7 +94,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   to-be-pushed commit has conflicts, or has no description / committer / author
   set. [#3029](https://github.com/martinvonz/jj/issues/3029)
 
-* `jj` will look for divergent changes outside the short prefix set even if it finds the change id inside the short prefix set. [#2476](https://github.com/martinvonz/jj/issues/2476)
+* `jj` will look for divergent changes outside the short prefix set even if it
+  finds the change id inside the short prefix set.
+  [#2476](https://github.com/martinvonz/jj/issues/2476)
 
 ## [0.18.0] - 2024-06-05
 
