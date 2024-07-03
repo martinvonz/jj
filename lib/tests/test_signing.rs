@@ -2,6 +2,7 @@ use jj_lib::backend::{MillisSinceEpoch, Signature, Timestamp};
 use jj_lib::repo::Repo;
 use jj_lib::settings::UserSettings;
 use jj_lib::signing::{SigStatus, SignBehavior, Signer, Verification};
+use jj_lib::testutils;
 use test_case::test_case;
 use testutils::test_signing_backend::TestSigningBackend;
 use testutils::{create_random_commit, write_random_commit, TestRepoBackend, TestWorkspace};

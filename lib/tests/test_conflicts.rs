@@ -21,6 +21,7 @@ use jj_lib::merge::Merge;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::RepoPath;
 use jj_lib::store::Store;
+use jj_lib::testutils;
 use pollster::FutureExt;
 use testutils::TestRepo;
 

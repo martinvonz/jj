@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Testing utilities for Jujutsu.
+#![allow(missing_docs)]
 use std::collections::HashMap;
 use std::env;
 use std::fs::{self, OpenOptions};
@@ -42,12 +44,12 @@ use jj_lib::tree_builder::TreeBuilder;
 use jj_lib::working_copy::{SnapshotError, SnapshotOptions};
 use jj_lib::workspace::Workspace;
 use tempfile::TempDir;
-
-use crate::test_backend::TestBackend;
+use test_backend::TestBackend;
 
 pub mod test_backend;
 pub mod test_signing_backend;
 
+#[allow(unsafe_code)]
 pub fn hermetic_libgit2() {
     // libgit2 respects init.defaultBranch (and possibly other config
     // variables) in the user's config files. Disable access to them to make

@@ -19,6 +19,7 @@ use jj_lib::merged_tree::DiffSummary;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::settings::UserSettings;
+use jj_lib::testutils;
 use test_case::test_case;
 use testutils::{assert_rebased_onto, create_tree, CommitGraphBuilder, TestRepo, TestRepoBackend};
 

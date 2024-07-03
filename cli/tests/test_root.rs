@@ -14,8 +14,8 @@
 
 use std::path::Path;
 
+use jj_lib::testutils::{TestRepoBackend, TestWorkspace};
 use test_case::test_case;
-use testutils::{TestRepoBackend, TestWorkspace};
 
 use crate::common::TestEnvironment;
 
@@ -23,7 +23,7 @@ use crate::common::TestEnvironment;
 #[test_case(TestRepoBackend::Git ; "git backend")]
 fn test_root(backend: TestRepoBackend) {
     let test_env = TestEnvironment::default();
-    let settings = testutils::user_settings();
+    let settings = jj_lib::testutils::user_settings();
     let test_workspace = TestWorkspace::init_with_backend(&settings, backend);
     let root = test_workspace.workspace.workspace_root();
     let subdir = root.join("subdir");

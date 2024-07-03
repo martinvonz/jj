@@ -16,6 +16,7 @@ use std::collections::BTreeMap;
 
 use jj_lib::op_store::{BranchTarget, RefTarget, RemoteRef, RemoteRefState, WorkspaceId};
 use jj_lib::repo::Repo;
+use jj_lib::testutils;
 use maplit::{btreemap, hashset};
 use test_case::test_case;
 use testutils::{

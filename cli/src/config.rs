@@ -1259,7 +1259,7 @@ mod tests {
     }
 
     fn setup_config_fs(files: &Vec<&'static str>) -> anyhow::Result<tempfile::TempDir> {
-        let tmp = testutils::new_temp_dir();
+        let tmp = jj_lib::testutils::new_temp_dir();
         for file in files {
             let path = tmp.path().join(file);
             if let Some(parent) = path.parent() {

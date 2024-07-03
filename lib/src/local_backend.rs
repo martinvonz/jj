@@ -498,6 +498,7 @@ mod tests {
     use pollster::FutureExt;
 
     use super::*;
+    use crate::testutils;
 
     /// Test that parents get written correctly
     #[test]
