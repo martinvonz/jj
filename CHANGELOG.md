@@ -40,6 +40,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   move` to ensure that the target branch already exists.
   [#3584](https://github.com/martinvonz/jj/issues/3584)
 
+* `jj rebase --skip-empty` has been renamed to `jj rebase --skip-emptied`
+
 ### Deprecations
 
 * Replacing `-l` shorthand for `--limit` with `-n` in `jj log`, `jj op log`
