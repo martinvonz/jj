@@ -10,6 +10,16 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Breaking changes
 
+### Deprecations
+
+### New features
+
+### Fixed bugs
+
+## [0.19.0] - 2024-07-03
+
+### Breaking changes
+
 * In revset aliases, top-level `kind:pattern` expression is now parsed as
   modifier. Surround with parentheses if it should be parsed as string/file
   pattern.
@@ -97,6 +107,29 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `jj` will look for divergent changes outside the short prefix set even if it
   finds the change id inside the short prefix set.
   [#2476](https://github.com/martinvonz/jj/issues/2476)
+
+### Contributors
+
+Thanks to the people who made this release happen!
+
+* Austin Seipp (@thoughtpolice)
+* Benjamin Tan (@bnjmnt4n)
+* Daniel Ploch (@torquestomp)
+* Danny Hooper (@hooper)
+* Ilya Grigoriev (@ilyagr)
+* James Sully (@sullyj3)
+* Jonathan Tan (@jonathantanmy)
+* Kyle J Strand (@BatmanAoD)
+* Manuel Caldeira (@KiitoX)
+* Martin von Zweigbergk (@martinvonz)
+* Matt Kulukundis (@fowles)
+* Matt Stark (@matts1)
+* mlcui (@mlcui-corp)
+* Philip Metzger (@PhilipMetzger)
+* Scott Taylor (@scott2000)
+* Simon Wollwage (@Kintaro)
+* Tal Pressman (@tp-woven)
+* Yuya Nishihara (@yuja)
 
 ## [0.18.0] - 2024-06-05
 
