@@ -1325,10 +1325,17 @@ impl MutableRepo {
         &mut self,
         workspace_id: &WorkspaceId,
     ) -> Result<(), EditCommitError> {
-        fn local_branch_target_ids(view: &View) -> impl Iterator<Item = &CommitId> {
-            view.local_branches()
-                .flat_map(|(_, target)| target.added_ids())
-        }
+        let is_commit_referenced = |view: &View, commit_id: &CommitId| -> bool {
+            view.wc_commit_ids()
+                .iter()
+                .filter(|&(ws_id, _)| ws_id != workspace_id)
+                .map(|(_, wc_id)| wc_id)
+                .chain(
+                    view.local_branches()
+                        .flat_map(|(_, target)| target.added_ids()),
+                )
+                .any(|id| id == commit_id)
+        };
 
         let maybe_wc_commit_id = self
             .view
@@ -1341,11 +1348,12 @@ impl MutableRepo {
             if wc_commit.is_discardable(self)?
                 && self
                     .view
-                    .with_ref(|v| local_branch_target_ids(v).all(|id| id != wc_commit.id()))
+                    .with_ref(|v| !is_commit_referenced(v, wc_commit.id()))
                 && self.view().heads().contains(wc_commit.id())
             {
-                // Abandon the working-copy commit we're leaving if it's empty, not pointed by
-                // local branch, and a head commit.
+                // Abandon the working-copy commit we're leaving if it's
+                // discardable, not pointed by local branch or other working
+                // copies, and a head commit.
                 self.record_abandoned_commit(wc_commit_id);
             }
         }

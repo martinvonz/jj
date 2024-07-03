@@ -217,6 +217,38 @@ fn test_edit_previous_empty_with_local_branch() {
 }
 
 #[test]
+fn test_edit_previous_empty_with_other_workspace() {
+    // Test that MutableRepo::edit() does not abandon the previous commit if it
+    // is pointed by another workspace
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+    let old_wc_commit = mut_repo
+        .new_commit(
+            &settings,
+            vec![repo.store().root_commit_id().clone()],
+            repo.store().empty_merged_tree_id(),
+        )
+        .write()
+        .unwrap();
+    let ws_id = WorkspaceId::default();
+    mut_repo.edit(ws_id.clone(), &old_wc_commit).unwrap();
+    let other_ws_id = WorkspaceId::new("other".to_string());
+    mut_repo.edit(other_ws_id.clone(), &old_wc_commit).unwrap();
+    let repo = tx.commit("test");
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+    let new_wc_commit = write_random_commit(mut_repo, &settings);
+    mut_repo.edit(ws_id, &new_wc_commit).unwrap();
+    mut_repo.rebase_descendants(&settings).unwrap();
+    assert!(mut_repo.view().heads().contains(old_wc_commit.id()));
+}
+
+#[test]
 fn test_edit_previous_empty_non_head() {
     // Test that MutableRepo::edit() does not abandon the previous commit if it
     // was empty and is not a head
