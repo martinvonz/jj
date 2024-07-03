@@ -51,9 +51,6 @@ pub(crate) struct NewArgs {
     /// The change description to use
     #[arg(long = "message", short, value_name = "MESSAGE")]
     message_paragraphs: Vec<String>,
-    /// Deprecated. Please prefix the revset with `all:` instead.
-    #[arg(long, short = 'L', hide = true)]
-    allow_large_revsets: bool,
     /// Do not edit the newly created change
     #[arg(long, conflicts_with = "_edit")]
     no_edit: bool,
@@ -84,12 +81,6 @@ pub(crate) fn cmd_new(
     command: &CommandHelper,
     args: &NewArgs,
 ) -> Result<(), CommandError> {
-    if args.allow_large_revsets {
-        return Err(user_error(
-            "--allow-large-revsets has been deprecated.
-Please use `jj new 'all:x|y'` instead of `jj new --allow-large-revsets x y`.",
-        ));
-    }
     let mut workspace_command = command.workspace_helper(ui)?;
 
     let parent_commits;
