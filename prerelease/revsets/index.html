@@ -1870,6 +1870,9 @@ for a comprehensive list.</p>
   named <code>origin</code> or <code>upstream</code>. The branches <code>main</code>, <code>master</code>, and <code>trunk</code> are
   tried. If more than one potential trunk commit exists, the newest one is
   chosen. If none of the branches exist, the revset evaluates to <code>root()</code>.</p>
+<p>When working with an existing Git repository (via <code>jj git clone</code> or
+<code>jj git init</code>), <code>trunk()</code> will be overridden at the repository level
+to the default branch of the remote <code>origin</code>.</p>
 <p>You can <a href="../config/">override</a> this as appropriate. If you do, make sure it
 always resolves to exactly one commit. For example:</p>
 <div class="highlight"><pre><span></span><code><span class="k">[revset-aliases]</span>
