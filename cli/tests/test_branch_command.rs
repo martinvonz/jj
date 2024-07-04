@@ -25,7 +25,8 @@ fn test_branch_multiple_names() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo", "bar"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Warning: Creating multiple branches: foo, bar
+    Created 2 branches pointing to qpvuntsm 230dd059 bar foo | (empty) (no description set)
+    Hint: Use -r to specify the target revision.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar foo 230dd059e1b0
@@ -55,6 +56,13 @@ fn test_branch_multiple_names() {
     ◉   230dd059e1b0
     ◉   000000000000
     "###);
+
+    // Hint should be omitted if -r is specified
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["branch", "create", "-r@-", "foo", "bar"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Created 2 branches pointing to qpvuntsm 230dd059 bar foo | (empty) (no description set)
+    "###);
 }
 
 #[test]
@@ -66,7 +74,9 @@ fn test_branch_at_root() {
     let (stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["branch", "create", "fred", "-r=root()"]);
     insta::assert_snapshot!(stdout, @"");
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Created 1 branches pointing to zzzzzzzz 00000000 fred | (empty) (no description set)
+    "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["git", "export"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -191,7 +201,9 @@ fn test_branch_move() {
     test_env.jj_cmd_ok(&repo_path, &["branch", "untrack", "foo@origin"]);
     test_env.jj_cmd_ok(&repo_path, &["branch", "delete", "foo"]);
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo"]);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Created 1 branches pointing to mzvwutvl 66d48752 foo | (empty) (no description set)
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     foo: mzvwutvl 66d48752 (empty) (no description set)
     foo@origin: qpvuntsm 1eb845f3 (empty) commit

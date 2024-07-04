@@ -400,6 +400,7 @@ fn test_git_colocated_branch_at_root() {
     let (_stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo", "-r=root()"]);
     insta::assert_snapshot!(stderr, @r###"
+    Created 1 branches pointing to zzzzzzzz 00000000 foo | (empty) (no description set)
     Warning: Failed to export some branches:
       foo: Ref cannot point to the root commit in Git
     "###);
@@ -431,6 +432,7 @@ fn test_git_colocated_conflicting_git_refs() {
     insta::assert_snapshot!(stdout, @"");
     insta::with_settings!({filters => vec![("Failed to set: .*", "Failed to set: ...")]}, {
         insta::assert_snapshot!(stderr, @r###"
+        Created 1 branches pointing to qpvuntsm 230dd059 main main/sub | (empty) (no description set)
         Warning: Failed to export some branches:
           main/sub: Failed to set: ...
         Hint: Git doesn't allow a branch name that looks like a parent directory of
