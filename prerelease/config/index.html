@@ -2462,6 +2462,15 @@ For the tool named <code>&lt;name&gt;</code>, command arguments can be configure
 <li><code>$left</code> and <code>$right</code> are replaced with the paths to the left and right
   directories to diff respectively.</li>
 </ul>
+<p>By default <code>jj</code> will invoke external tools with a directory containing the left
+and right sides.  The <code>diff-invocation-mode</code> config can change this to file by file
+invocations as follows:</p>
+<div class="highlight"><pre><span></span><code><span class="k">[ui]</span>
+<span class="n">diff</span><span class="p">.</span><span class="n">tool</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;vimdiff&quot;</span>
+
+<span class="k">[merge-tools.vimdiff]</span>
+<span class="n">diff-invocation-mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;file-by-file&quot;</span>
+</code></pre></div>
 <h3 id="set-of-immutable-commits">Set of immutable commits<a class="headerlink" href="#set-of-immutable-commits" title="Permanent link">&para;</a></h3>
 <p>You can configure the set of immutable commits via <code>revset-aliases."immutable_heads()"</code>.
 The default set of immutable heads is <code>trunk() | tags()</code>. For example, to
