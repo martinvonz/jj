@@ -37,7 +37,8 @@ fn test_branch_multiple_names() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo", "bar"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Warning: Updating multiple branches: foo, bar
+    Moved 2 branches to zsuskuln 8bb159bc bar foo | (empty) (no description set)
+    Hint: Use -r to specify the target revision.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  bar foo 8bb159bc30a9
@@ -62,6 +63,21 @@ fn test_branch_multiple_names() {
         test_env.jj_cmd_ok(&repo_path, &["branch", "create", "-r@-", "foo", "bar"]);
     insta::assert_snapshot!(stderr, @r###"
     Created 2 branches pointing to qpvuntsm 230dd059 bar foo | (empty) (no description set)
+    "###);
+
+    // Create and move with explicit -r
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "set", "-r@", "bar", "baz"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Created 1 branches pointing to zsuskuln 8bb159bc bar baz | (empty) (no description set)
+    Moved 1 branches to zsuskuln 8bb159bc bar baz | (empty) (no description set)
+    Hint: Consider using `jj branch move` if your intention was to move existing branches.
+    "###);
+
+    // Noop changes should not be included in the stats
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["branch", "set", "-r@", "foo", "bar", "baz"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Moved 1 branches to zsuskuln 8bb159bc bar baz foo | (empty) (no description set)
     "###);
 }
 
@@ -128,7 +144,7 @@ fn test_branch_move() {
 
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo"]);
     insta::assert_snapshot!(stderr, @r###"
-    Created branches: foo
+    Created 1 branches pointing to qpvuntsm 230dd059 foo | (empty) (no description set)
     Hint: Consider using `jj branch move` if your intention was to move existing branches.
     "###);
 
@@ -140,7 +156,9 @@ fn test_branch_move() {
     "###);
 
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo"]);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Moved 1 branches to mzvwutvl 167f90e7 foo | (empty) (no description set)
+    "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "set", "-r@-", "foo"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -152,7 +170,9 @@ fn test_branch_move() {
         &repo_path,
         &["branch", "set", "-r@-", "--allow-backwards", "foo"],
     );
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Moved 1 branches to qpvuntsm 230dd059 foo | (empty) (no description set)
+    "###);
 
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "move", "foo"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -191,7 +211,9 @@ fn test_branch_move() {
 
     // Restoring local target shouldn't invalidate tracking state
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "set", "foo"]);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Moved 1 branches to mzvwutvl 66d48752 foo* | (empty) (no description set)
+    "###);
     insta::assert_snapshot!(get_branch_output(&test_env, &repo_path), @r###"
     foo: mzvwutvl 66d48752 (empty) (no description set)
       @origin (behind by 1 commits): qpvuntsm 1eb845f3 (empty) commit
@@ -361,7 +383,9 @@ fn test_branch_move_conflicting() {
     // descendant of B0, though.
     let (_stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["branch", "set", "-rdescription(A1)", "foo"]);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Moved 1 branches to mzvwutvl 9328d344 foo | (empty) A1
+    "###);
     insta::assert_snapshot!(get_log(), @r###"
     @  A1 foo
     ◉  A0

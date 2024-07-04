@@ -112,6 +112,7 @@ fn test_new_wc_commit_when_wc_immutable() {
     test_env.jj_cmd_ok(test_env.env_root(), &["new", "-m=a"]);
     let (_, stderr) = test_env.jj_cmd_ok(test_env.env_root(), &["branch", "set", "main"]);
     insta::assert_snapshot!(stderr, @r###"
+    Moved 1 branches to kkmpptxz a164195b main | (empty) a
     Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
     Working copy now at: zsuskuln ef5fa85b (empty) (no description set)
     Parent commit      : kkmpptxz a164195b main | (empty) a
@@ -144,6 +145,7 @@ fn test_new_wc_commit_when_wc_immutable_multi_workspace() {
     test_env.jj_cmd_ok(workspace1_envroot.as_path(), &["edit", "default@"]);
     let (_, stderr) = test_env.jj_cmd_ok(test_env.env_root(), &["branch", "set", "main"]);
     insta::assert_snapshot!(stderr, @r###"
+    Moved 1 branches to kkmpptxz 40cbbd52 main | a
     Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
     Warning: The working-copy commit in workspace 'workspace1' became immutable, so a new commit has been created on top of it.
     Working copy now at: royxmykx 5bcb7da6 (empty) (no description set)

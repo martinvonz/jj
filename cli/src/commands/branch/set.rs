@@ -47,13 +47,16 @@ pub fn cmd_branch_set(
         workspace_command.resolve_single_rev(args.revision.as_ref().unwrap_or(&RevisionArg::AT))?;
     let repo = workspace_command.repo().as_ref();
     let branch_names = &args.names;
-    let mut new_branch_names: Vec<&str> = Vec::new();
+    let mut new_branch_count = 0;
+    let mut moved_branch_count = 0;
     for name in branch_names {
         let old_target = repo.view().get_local_branch(name);
         // If a branch is absent locally but is still tracking remote branches,
         // we are resurrecting the local branch, not "creating" a new branch.
         if old_target.is_absent() && !has_tracked_remote_branches(repo.view(), name) {
-            new_branch_names.push(name);
+            new_branch_count += 1;
+        } else if old_target.as_normal() != Some(target_commit.id()) {
+            moved_branch_count += 1;
         }
         if !args.allow_backwards && !is_fast_forward(repo, old_target, target_commit.id()) {
             return Err(user_error_with_hint(
@@ -63,26 +66,31 @@ pub fn cmd_branch_set(
         }
     }
 
-    if branch_names.len() > 1 {
-        writeln!(
-            ui.warning_default(),
-            "Updating multiple branches: {}",
-            branch_names.join(", "),
-        )?;
-    }
-
     let mut tx = workspace_command.start_transaction();
     for branch_name in branch_names {
         tx.mut_repo()
             .set_local_branch_target(branch_name, RefTarget::normal(target_commit.id().clone()));
     }
 
-    if !new_branch_names.is_empty() {
-        writeln!(
-            ui.status(),
-            "Created branches: {}",
-            new_branch_names.join(", "),
-        )?;
+    if let Some(mut formatter) = ui.status_formatter() {
+        if new_branch_count > 0 {
+            write!(
+                formatter,
+                "Created {new_branch_count} branches pointing to "
+            )?;
+            tx.write_commit_summary(formatter.as_mut(), &target_commit)?;
+            writeln!(formatter)?;
+        }
+        if moved_branch_count > 0 {
+            write!(formatter, "Moved {moved_branch_count} branches to ")?;
+            tx.write_commit_summary(formatter.as_mut(), &target_commit)?;
+            writeln!(formatter)?;
+        }
+    }
+    if branch_names.len() > 1 && args.revision.is_none() {
+        writeln!(ui.hint_default(), "Use -r to specify the target revision.")?;
+    }
+    if new_branch_count > 0 {
         // TODO: delete this hint in jj 0.25+
         writeln!(
             ui.hint_default(),
