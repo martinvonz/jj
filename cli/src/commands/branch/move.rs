@@ -130,7 +130,10 @@ pub fn cmd_branch_move(
         writeln!(formatter)?;
     }
     if matched_branches.len() > 1 && args.names.is_empty() {
-        writeln!(ui.hint_default(), "Specify branch by name to update one.")?;
+        writeln!(
+            ui.hint_default(),
+            "Specify branch by name to update just one of the branches."
+        )?;
     }
     Ok(())
 }
