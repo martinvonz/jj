@@ -254,7 +254,7 @@ fn test_branch_move_matching() {
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "move", "--from=::@"]);
     insta::assert_snapshot!(stderr, @r###"
     Moved 2 branches to vruxwmqv a2781dd9 b1 c1 | (empty) head2
-    Hint: Specify branch by name to update one.
+    Hint: Specify branch by name to update just one of the branches.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  b1 c1 a2781dd9ee37
