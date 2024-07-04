@@ -700,21 +700,47 @@ impl RepoLoader {
         Arc::new(repo)
     }
 
+    /// Merges the given `operations` into a single operation.
+    /// Assumes that there is at least one operation.
+    pub fn merge_operations(
+        &self,
+        settings: &UserSettings,
+        operations: Vec<Operation>,
+        tx_description: Option<&str>,
+    ) -> Result<Operation, RepoLoaderError> {
+        let num_operations = operations.len();
+        let mut operations = operations.into_iter();
+        let base_op = operations.next().unwrap();
+        let final_op = if num_operations > 1 {
+            let base_repo = self.load_at(&base_op)?;
+            let mut tx = base_repo.start_transaction(settings);
+            for other_op in operations {
+                tx.merge_operation(other_op)?;
+                tx.mut_repo().rebase_descendants(settings)?;
+            }
+            let tx_description = tx_description.map_or_else(
+                || format!("merge {} operations", num_operations),
+                |tx_description| tx_description.to_string(),
+            );
+            let merged_repo = tx.write(tx_description).leave_unpublished();
+            merged_repo.operation().clone()
+        } else {
+            base_op
+        };
+
+        Ok(final_op)
+    }
+
     fn _resolve_op_heads(
         &self,
         op_heads: Vec<Operation>,
         user_settings: &UserSettings,
     ) -> Result<Operation, RepoLoaderError> {
-        let base_repo = self.load_at(&op_heads[0])?;
-        let mut tx = base_repo.start_transaction(user_settings);
-        for other_op_head in op_heads.into_iter().skip(1) {
-            tx.merge_operation(other_op_head)?;
-            tx.mut_repo().rebase_descendants(user_settings)?;
-        }
-        let merged_repo = tx
-            .write("resolve concurrent operations")
-            .leave_unpublished();
-        Ok(merged_repo.operation().clone())
+        self.merge_operations(
+            user_settings,
+            op_heads,
+            Some("resolve concurrent operations"),
+        )
     }
 
     fn _finish_load(&self, operation: Operation, view: View) -> Arc<ReadonlyRepo> {
