@@ -10,6 +10,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Breaking changes
 
+* `jj rebase --skip-empty` has been renamed to `jj rebase --skip-emptied`
+
 ### Deprecations
 
 ### New features
@@ -39,8 +41,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `jj branch set` now creates new branch if it doesn't exist. Use `jj branch
   move` to ensure that the target branch already exists.
   [#3584](https://github.com/martinvonz/jj/issues/3584)
-
-* `jj rebase --skip-empty` has been renamed to `jj rebase --skip-emptied`
 
 ### Deprecations
 
