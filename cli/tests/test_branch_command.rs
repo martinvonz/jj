@@ -145,7 +145,9 @@ fn test_branch_move() {
     insta::assert_snapshot!(stderr, @"");
 
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "move", "foo"]);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Moved 1 branches to mzvwutvl 167f90e7 foo | (empty) (no description set)
+    "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "move", "--to=@-", "foo"]);
     insta::assert_snapshot!(stderr, @r###"
@@ -157,7 +159,9 @@ fn test_branch_move() {
         &repo_path,
         &["branch", "move", "--to=@-", "--allow-backwards", "foo"],
     );
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Moved 1 branches to qpvuntsm 230dd059 foo | (empty) (no description set)
+    "###);
 
     // Delete branch locally, but is still tracking remote
     test_env.jj_cmd_ok(&repo_path, &["describe", "@-", "-mcommit"]);
@@ -243,13 +247,13 @@ fn test_branch_move_matching() {
     // Noop move
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "move", "--to=a1", "a2"]);
     insta::assert_snapshot!(stderr, @r###"
-    Nothing changed.
+    No branches to update.
     "###);
 
     // Move from multiple revisions
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "move", "--from=::@"]);
     insta::assert_snapshot!(stderr, @r###"
-    Warning: Updating multiple branches: b1, c1
+    Moved 2 branches to vruxwmqv a2781dd9 b1 c1 | (empty) head2
     Hint: Specify branch by name to update one.
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
@@ -266,7 +270,6 @@ fn test_branch_move_matching() {
     // Try to move multiple branches, but one of them isn't fast-forward
     let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "move", "glob:?1"]);
     insta::assert_snapshot!(stderr, @r###"
-    Warning: Updating multiple branches: a1, b1, c1
     Error: Refusing to move branch backwards or sideways: a1
     Hint: Use --allow-backwards to allow it.
     "###);
@@ -285,7 +288,9 @@ fn test_branch_move_matching() {
         &repo_path,
         &["branch", "move", "--from=::a1+", "--to=a1+", "glob:?1"],
     );
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Moved 1 branches to kkmpptxz 6b5e840e a1 | (empty) head1
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @   a2781dd9ee37
     ◉  c1 f4f38657a3dd

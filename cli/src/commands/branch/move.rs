@@ -66,6 +66,7 @@ pub fn cmd_branch_move(
     let mut workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo().clone();
 
+    let target_commit = workspace_command.resolve_single_rev(&args.to)?;
     let matched_branches = {
         let is_source_commit = if !args.from.is_empty() {
             workspace_command
@@ -75,7 +76,7 @@ pub fn cmd_branch_move(
         } else {
             Box::new(|_: &CommitId| true)
         };
-        if !args.names.is_empty() {
+        let mut branches = if !args.names.is_empty() {
             find_branches_with(&args.names, |pattern| {
                 repo.view()
                     .local_branches_matching(pattern)
@@ -86,23 +87,15 @@ pub fn cmd_branch_move(
                 .local_branches()
                 .filter(|(_, target)| target.added_ids().any(&is_source_commit))
                 .collect()
-        }
+        };
+        // Noop matches aren't error, but should be excluded from stats.
+        branches.retain(|(_, old_target)| old_target.as_normal() != Some(target_commit.id()));
+        branches
     };
-    let target_commit = workspace_command.resolve_single_rev(&args.to)?;
 
     if matched_branches.is_empty() {
         writeln!(ui.status(), "No branches to update.")?;
         return Ok(());
-    }
-    if matched_branches.len() > 1 {
-        writeln!(
-            ui.warning_default(),
-            "Updating multiple branches: {}",
-            matched_branches.iter().map(|(name, _)| name).join(", "),
-        )?;
-        if args.names.is_empty() {
-            writeln!(ui.hint_default(), "Specify branch by name to update one.")?;
-        }
     }
 
     if !args.allow_backwards {
@@ -131,5 +124,13 @@ pub fn cmd_branch_move(
         ),
     )?;
 
+    if let Some(mut formatter) = ui.status_formatter() {
+        write!(formatter, "Moved {} branches to ", matched_branches.len())?;
+        workspace_command.write_commit_summary(formatter.as_mut(), &target_commit)?;
+        writeln!(formatter)?;
+    }
+    if matched_branches.len() > 1 && args.names.is_empty() {
+        writeln!(ui.hint_default(), "Specify branch by name to update one.")?;
+    }
     Ok(())
 }
