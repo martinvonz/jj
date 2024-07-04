@@ -112,7 +112,7 @@ fn test_git_push_current_branch() {
     "###);
 
     // Try pushing backwards
-    test_env.jj_cmd_success(
+    test_env.jj_cmd_ok(
         &workspace_root,
         &[
             "branch",
