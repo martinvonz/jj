@@ -521,7 +521,9 @@ fn test_all_modifier() {
 
     // Command that accepts only single revision
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "create", "-rall:@", "x"]);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Created 1 branches pointing to qpvuntsm 230dd059 x | (empty) (no description set)
+    "###);
     let stderr = test_env.jj_cmd_failure(&repo_path, &["branch", "set", "-rall:all()", "x"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: Revset "all:all()" resolved to more than one revision

@@ -61,19 +61,25 @@ pub fn cmd_branch_create(
         }
     }
 
-    if branch_names.len() > 1 {
-        writeln!(
-            ui.warning_default(),
-            "Creating multiple branches: {}",
-            branch_names.join(", "),
-        )?;
-    }
-
     let mut tx = workspace_command.start_transaction();
     for branch_name in branch_names {
         tx.mut_repo()
             .set_local_branch_target(branch_name, RefTarget::normal(target_commit.id().clone()));
     }
+
+    if let Some(mut formatter) = ui.status_formatter() {
+        write!(
+            formatter,
+            "Created {} branches pointing to ",
+            branch_names.len()
+        )?;
+        tx.write_commit_summary(formatter.as_mut(), &target_commit)?;
+        writeln!(formatter)?;
+    }
+    if branch_names.len() > 1 && args.revision.is_none() {
+        writeln!(ui.hint_default(), "Use -r to specify the target revision.")?;
+    }
+
     tx.finish(
         ui,
         format!(
