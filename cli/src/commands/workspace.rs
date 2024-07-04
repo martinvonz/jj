@@ -44,7 +44,7 @@ use crate::ui::Ui;
 /// while you're continuing to write code in another workspace.
 ///
 /// Each workspace has its own working-copy commit. When you have more than one
-/// workspace attached to a repo, they are indicated by `@<workspace name>` in
+/// workspace attached to a repo, they are indicated by `<workspace name>@` in
 /// `jj log`.
 ///
 /// Each workspace also has own sparse patterns.
