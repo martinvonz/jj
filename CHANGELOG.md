@@ -14,6 +14,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New features
 
+* External diff tools can now be configured to invoke the tool on each file
+  individually instead of being passed a directory by setting
+  `merge-tools.$TOOL.diff-invocation-mode="file-by-file"` in config.toml.
+
 ### Fixed bugs
 
 ## [0.19.0] - 2024-07-03
@@ -97,10 +101,6 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `jj commit` now accepts `--reset-author` option to match `jj describe`.
 
 * `jj squash` now accepts a `--keep-emptied` option to keep the source commit.
-
-* External diff tools can now be configured to invoke the tool on each file
-  individually instead of being passed a directory by setting
-  `merge-tools.$TOOL.diff-invocation-mode="file-by-file"` in config.toml.
 
 ### Fixed bugs
 
