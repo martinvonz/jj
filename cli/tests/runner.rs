@@ -36,6 +36,7 @@ mod test_git_colocated;
 mod test_git_fetch;
 mod test_git_import_export;
 mod test_git_init;
+mod test_git_private_commits;
 mod test_git_push;
 mod test_git_remotes;
 mod test_git_submodule;

@@ -809,6 +809,24 @@ example:
 
     git.push-branch-prefix = "martinvonz/push-"
 
+### Set of private commits
+
+You can configure the set of private commits by setting `git.private-commits` to
+a revset. The value is a revset of commits that Jujutsu will refuse to push. If
+unset, all commits are eligible to be pushed.
+
+```toml
+# Prevent pushing work in progress or anything explicitly labeled "private"
+git.private-commits = "description(glob:'wip:*') | description(glob:'private:*')"
+```
+
+If a commit is in `git.private-commits` but is already on the remote, then it is
+not considered a private commit. Commits that are immutable are also excluded
+from the private set.
+
+Private commits prevent their descendants from being pushed, since doing so
+would require pushing the private commit as well.
+
 ## Filesystem monitor
 
 In large repositories, it may be beneficial to use a "filesystem monitor" to
