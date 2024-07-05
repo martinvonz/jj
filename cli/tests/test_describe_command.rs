@@ -12,7 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+use indoc::indoc;
 
 use crate::common::{get_stderr_string, TestEnvironment};
 
@@ -174,6 +176,200 @@ fn test_describe() {
 }
 
 #[test]
+fn test_describe_multiple_commits() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let edit_script = test_env.set_up_fake_editor();
+
+    // Initial setup
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  c6349e79bbfd
+    ○  65b6b74e0897
+    ○  230dd059e1b0
+    ◆  000000000000
+    "###);
+
+    // Set the description of multiple commits using `-m` flag
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["describe", "@", "@--", "-m", "description from CLI"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Updated 2 commits
+    Rebased 1 descendant commits
+    Working copy now at: kkmpptxz 41659b84 (empty) description from CLI
+    Parent commit      : rlvkpnrz 8d650510 (empty) (no description set)
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  41659b846096 description from CLI
+    ○  8d650510daad
+    ○  a42f5755e688 description from CLI
+    ◆  000000000000
+    "###);
+
+    // Check that the text file gets initialized with the current description of
+    // each commit and doesn't update commits if no changes are made.
+    // Commit descriptions are edited in topological order
+    std::fs::write(&edit_script, "dump editor0").unwrap();
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe", "@", "@-"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Nothing changed.
+    "###);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
+    JJ: describe 8d650510daad -------
+
+    JJ: describe 41659b846096 -------
+    description from CLI
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
+
+    // Set the description of multiple commits in the editor
+    std::fs::write(
+        &edit_script,
+        indoc! {"
+            write
+            JJ: describe 8d650510daad -------
+            description from editor of @-
+
+            further commit message of @-
+
+            JJ: describe 41659b846096 -------
+            description from editor of @
+
+            further commit message of @
+
+            JJ: Lines starting with \"JJ: \" (like this one) will be removed.
+        "},
+    )
+    .unwrap();
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["describe", "@", "@-"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Updated 2 commits
+    Working copy now at: kkmpptxz f203494a (empty) description from editor of @
+    Parent commit      : rlvkpnrz 0d76a92c (empty) description from editor of @-
+    "###);
+    insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
+    @  f203494a4507 description from editor of @
+    │
+    │  further commit message of @
+    ○  0d76a92ca7cc description from editor of @-
+    │
+    │  further commit message of @-
+    ○  a42f5755e688 description from CLI
+    ◆  000000000000
+    "###);
+
+    // Fails if the edited message has a commit with multiple descriptions
+    std::fs::write(
+        &edit_script,
+        indoc! {"
+            write
+            JJ: describe 0d76a92ca7cc -------
+            first description from editor of @-
+
+            further commit message of @-
+
+            JJ: describe 0d76a92ca7cc -------
+            second description from editor of @-
+
+            further commit message of @-
+
+            JJ: describe f203494a4507 -------
+            updated description from editor of @
+
+            further commit message of @
+
+            JJ: Lines starting with \"JJ: \" (like this one) will be removed.
+        "},
+    )
+    .unwrap();
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["describe", "@", "@-"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: The following commits were found in the edited message multiple times: 0d76a92ca7cc
+    "###);
+
+    // Fails if the edited message has unexpected commit IDs
+    std::fs::write(
+        &edit_script,
+        indoc! {"
+            write
+            JJ: describe 000000000000 -------
+            unexpected commit ID
+
+            JJ: describe 0d76a92ca7cc -------
+            description from editor of @-
+
+            further commit message of @-
+
+            JJ: describe f203494a4507 -------
+            description from editor of @
+
+            further commit message of @
+
+            JJ: Lines starting with \"JJ: \" (like this one) will be removed.
+        "},
+    )
+    .unwrap();
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["describe", "@", "@-"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: The following commits were not being edited, but were found in the edited message: 000000000000
+    "###);
+
+    // Fails if the edited message has missing commit messages
+    std::fs::write(
+        &edit_script,
+        indoc! {"
+            write
+            JJ: describe f203494a4507 -------
+            description from editor of @
+
+            further commit message of @
+
+            JJ: Lines starting with \"JJ: \" (like this one) will be removed.
+        "},
+    )
+    .unwrap();
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["describe", "@", "@-"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: The description for the following commits were not found in the edited message: 0d76a92ca7cc
+    "###);
+
+    // Fails if the edited message has a line which does not have any preceding
+    // `JJ: describe` headers
+    std::fs::write(
+        &edit_script,
+        indoc! {"
+            write
+            description from editor of @-
+
+            JJ: describe f203494a4507 -------
+            description from editor of @
+
+            JJ: Lines starting with \"JJ: \" (like this one) will be removed.
+        "},
+    )
+    .unwrap();
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["describe", "@", "@-"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Found the following line without a commit header: "description from editor of @-"
+    "###);
+
+    // Fails if the editor fails
+    std::fs::write(&edit_script, "fail").unwrap();
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["describe", "@", "@-"]);
+    assert!(stderr.contains("exited with an error"));
+}
+
+#[test]
 fn test_multiple_message_args() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
@@ -295,19 +491,30 @@ fn test_describe_author() {
             &repo_path,
             &[
                 "log",
-                "-r@",
+                "-r..",
                 "-T",
                 r#"format_signature(author) ++ "\n" ++ format_signature(committer)"#,
             ],
         )
     };
+
+    // Initial setup
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
     insta::assert_snapshot!(get_signatures(), @r###"
-    @  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
+    @  Test User test.user@example.com 2001-02-03 04:05:10.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:10.000 +07:00
+    ○  Test User test.user@example.com 2001-02-03 04:05:09.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:09.000 +07:00
+    ○  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
+    ○  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
     │  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
     ~
     "###);
 
-    // Reset the author (the committer is always reset)
+    // Reset the author for the latest commit (the committer is always reset)
     test_env.jj_cmd_ok(
         &repo_path,
         &[
@@ -320,8 +527,40 @@ fn test_describe_author() {
         ],
     );
     insta::assert_snapshot!(get_signatures(), @r###"
-    @  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:09.000 +07:00
-    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:09.000 +07:00
+    @  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:12.000 +07:00
+    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:12.000 +07:00
+    ○  Test User test.user@example.com 2001-02-03 04:05:09.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:09.000 +07:00
+    ○  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
+    ○  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
+    │  Test User test.user@example.com 2001-02-03 04:05:07.000 +07:00
+    ~
+    "###);
+
+    // Reset the author for multiple commits (the committer is always reset)
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "describe",
+            "@---",
+            "@-",
+            "--config-toml",
+            r#"user.name = "Ove Ridder"
+            user.email = "ove.ridder@example.com""#,
+            "--no-edit",
+            "--reset-author",
+        ],
+    );
+    insta::assert_snapshot!(get_signatures(), @r###"
+    @  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
+    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
+    ○  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
+    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
+    ○  Test User test.user@example.com 2001-02-03 04:05:08.000 +07:00
+    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
+    ○  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
+    │  Ove Ridder ove.ridder@example.com 2001-02-03 04:05:14.000 +07:00
     ~
     "###);
 }
@@ -342,4 +581,9 @@ fn test_describe_avoids_unc() {
     // cases, it fails when it is not safe to strip the prefix, such as paths
     // over 260 chars.
     assert_eq!(edited_path, dunce::simplified(&edited_path));
+}
+
+fn get_log_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
+    let template = r#"commit_id.short() ++ " " ++ description"#;
+    test_env.jj_cmd_success(repo_path, &["log", "-T", template])
 }
