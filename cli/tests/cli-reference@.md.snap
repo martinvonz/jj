@@ -571,20 +571,24 @@ Update config file to set the given option to a given value
 
 Update the change description or other metadata
 
-Starts an editor to let you edit the description of a change. The editor will be $EDITOR, or `pico` if that's not defined (`Notepad` on Windows).
+Starts an editor to let you edit the description of changes. The editor will be $EDITOR, or `pico` if that's not defined (`Notepad` on Windows).
 
-**Usage:** `jj describe [OPTIONS] [REVISION]`
+**Usage:** `jj describe [OPTIONS] [REVISIONS]...`
 
 ###### **Arguments:**
 
-* `<REVISION>` — The revision whose description to edit
+* `<REVISIONS>` — The revision(s) whose description to edit
 
   Default value: `@`
 
 ###### **Options:**
 
 * `-m`, `--message <MESSAGE>` — The change description to use (don't open editor)
+
+   If multiple revisions are specified, the same description will be used for all of them.
 * `--stdin` — Read the change description from stdin
+
+   If multiple revisions are specified, the same description will be used for all of them.
 * `--no-edit` — Don't open an editor
 
    This is mainly useful in combination with e.g. `--reset-author`.

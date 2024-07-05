@@ -37,6 +37,7 @@ use jj_lib::workspace::WorkspaceInitError;
 use thiserror::Error;
 
 use crate::cli_util::short_operation_hash;
+use crate::description_util::ParseBulkEditMessageError;
 use crate::diff_util::DiffRenderError;
 use crate::formatter::{FormatRecorder, Formatter};
 use crate::merge_tools::{ConflictResolveError, DiffEditError, MergeToolConfigError};
@@ -538,6 +539,12 @@ impl From<WorkingCopyStateError> for CommandError {
 impl From<GitIgnoreError> for CommandError {
     fn from(err: GitIgnoreError) -> Self {
         user_error_with_message("Failed to process .gitignore.", err)
+    }
+}
+
+impl From<ParseBulkEditMessageError> for CommandError {
+    fn from(err: ParseBulkEditMessageError) -> Self {
+        user_error(err)
     }
 }
 

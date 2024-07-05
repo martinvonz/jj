@@ -103,6 +103,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * Added revset functions `author_date` and `committer_date`.
 
+* `jj describe` can now update the description of multiple commits.
+
 ### Fixed bugs
 
 * `jj status` will show different messages in a conflicted tree, depending
