@@ -33,7 +33,7 @@ use crate::ui::Ui;
 /// Lists the previous commits which a change has pointed to. The current commit
 /// of a change evolves when the change is updated, rebased, etc.
 ///
-/// Name is derived from Merciual's obsolescence markers.
+/// Name is derived from Mercurial's obsolescence markers.
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct ObslogArgs {
     #[arg(long, short, default_value = "@")]
