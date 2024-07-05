@@ -55,6 +55,7 @@ pub fn cmd_branch_forget(
                 .set_remote_branch(name, remote_name, RemoteRef::absent());
         }
     }
+    writeln!(ui.status(), "Forgot {} branches.", matched_branches.len())?;
     tx.finish(
         ui,
         format!(
@@ -62,7 +63,6 @@ pub fn cmd_branch_forget(
             matched_branches.iter().map(|(name, _)| name).join(", ")
         ),
     )?;
-    writeln!(ui.status(), "Forgot {} branches.", matched_branches.len())?;
     Ok(())
 }
 

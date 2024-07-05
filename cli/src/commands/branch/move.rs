@@ -115,18 +115,10 @@ pub fn cmd_branch_move(
         tx.mut_repo()
             .set_local_branch_target(name, RefTarget::normal(target_commit.id().clone()));
     }
-    tx.finish(
-        ui,
-        format!(
-            "point branch {names} to commit {id}",
-            names = matched_branches.iter().map(|(name, _)| name).join(", "),
-            id = target_commit.id().hex()
-        ),
-    )?;
 
     if let Some(mut formatter) = ui.status_formatter() {
         write!(formatter, "Moved {} branches to ", matched_branches.len())?;
-        workspace_command.write_commit_summary(formatter.as_mut(), &target_commit)?;
+        tx.write_commit_summary(formatter.as_mut(), &target_commit)?;
         writeln!(formatter)?;
     }
     if matched_branches.len() > 1 && args.names.is_empty() {
@@ -135,5 +127,14 @@ pub fn cmd_branch_move(
             "Specify branch by name to update just one of the branches."
         )?;
     }
+
+    tx.finish(
+        ui,
+        format!(
+            "point branch {names} to commit {id}",
+            names = matched_branches.iter().map(|(name, _)| name).join(", "),
+            id = target_commit.id().hex()
+        ),
+    )?;
     Ok(())
 }

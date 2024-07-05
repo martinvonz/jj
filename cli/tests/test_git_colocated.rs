@@ -392,6 +392,35 @@ fn test_git_colocated_branch_forget() {
 }
 
 #[test]
+fn test_git_colocated_branch_at_root() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "--colocate", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["branch", "create", "foo", "-r=root()"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Warning: Failed to export some branches:
+      foo: Ref cannot point to the root commit in Git
+    "###);
+
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "move", "foo"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Moved 1 branches to qpvuntsm 230dd059 foo | (empty) (no description set)
+    "###);
+
+    let (_stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["branch", "move", "foo", "--allow-backwards", "--to=root()"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Moved 1 branches to zzzzzzzz 00000000 foo* | (empty) (no description set)
+    Warning: Failed to export some branches:
+      foo: Ref cannot point to the root commit in Git
+    "###);
+}
+
+#[test]
 fn test_git_colocated_conflicting_git_refs() {
     let test_env = TestEnvironment::default();
     let workspace_root = test_env.env_root().join("repo");

@@ -76,14 +76,6 @@ pub fn cmd_branch_set(
         tx.mut_repo()
             .set_local_branch_target(branch_name, RefTarget::normal(target_commit.id().clone()));
     }
-    tx.finish(
-        ui,
-        format!(
-            "point branch {names} to commit {id}",
-            names = branch_names.join(", "),
-            id = target_commit.id().hex()
-        ),
-    )?;
 
     if !new_branch_names.is_empty() {
         writeln!(
@@ -97,5 +89,14 @@ pub fn cmd_branch_set(
             "Consider using `jj branch move` if your intention was to move existing branches."
         )?;
     }
+
+    tx.finish(
+        ui,
+        format!(
+            "point branch {names} to commit {id}",
+            names = branch_names.join(", "),
+            id = target_commit.id().hex()
+        ),
+    )?;
     Ok(())
 }
