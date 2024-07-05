@@ -1,0 +1,1761 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://martinvonz.github.io/jj/latest/design/copy-tracking/">
+      
+      
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.0, mkdocs-material-9.5.24">
+    
+    
+      
+        <title>Copy Tracking and Tracing Design - Jujutsu docs</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.6543a935.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce((e,_)=>(e<<5)-e+_.charCodeAt(0),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#copy-tracking-and-tracing-design" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Jujutsu docs" class="md-header__button md-logo" aria-label="Jujutsu docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3V6m0 5h18v2H3v-2m0 5h18v2H3v-2Z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Jujutsu docs
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Copy Tracking and Tracing Design
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9h-1.9M20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69m-9.15 3.96h2.3L12 9l-1.15 3.65Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12c0-2.42-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12 20 8.69Z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var media,input,key,value,palette=__md_get("__palette");if(palette&&palette.color){"(prefers-color-scheme)"===palette.color.media&&(media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']"),palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent"));for([key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.516 6.516 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5Z"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11h12Z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12 19 6.41Z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Jujutsu docs" class="md-nav__button md-logo" aria-label="Jujutsu docs" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54Z"/></svg>
+
+    </a>
+    Jujutsu docs
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Getting started
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../install-and-setup/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Installation and Setup
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tutorial/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tutorial and Birds-Eye View
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../github/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working with GitHub
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../windows/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working on Windows
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../FAQ/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    FAQ
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cli-reference/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    CLI Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testimonials/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testimonials
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../community_tools/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Community-built tools
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Concepts
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            Concepts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../working-copy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Working Copy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../branches/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Branches
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../conflicts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conflicts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../operation-log/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Operation Log
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../glossary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Glossary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Configuration
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Configuration
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Settings
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../filesets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fileset language
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../revsets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Revset language
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../templates/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Templating language
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Comparisons
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            Comparisons
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../git-comparison/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Git comparison
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../git-compatibility/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Git compatibility
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sapling-comparison/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sapling
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../related-work/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Other related work
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Technical details
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            Technical details
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../technical/architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../technical/concurrency/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Concurrency
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../technical/conflicts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Conflicts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Contributing
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            Contributing
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Guidelines and "How to...?"
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../code-of-conduct/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Code of conduct
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design_docs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Design Docs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design_doc_blueprint/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Design Doc Blueprint
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          <label class="md-nav__link" for="__nav_12" id="__nav_12_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Design docs
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            Design docs
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../git-submodules/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    git-submodules
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../git-submodule-storage/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    git-submodule-storage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../run/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    JJ run
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../sparse-v2/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sparse Patterns v2
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tracking-branches/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tracking branches
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#objective" class="md-nav__link">
+    <span class="md-ellipsis">
+      Objective
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interface-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      Interface Design
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Interface Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#read-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read API
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#write-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      Write API
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#behavioral-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Behavioral Changes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Behavioral Changes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rebase-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rebase Changes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rebase Changes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rename-of-an-added-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rename of an added file
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conflicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conflicts
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Conflicts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#split-conflicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Split conflicts
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#merge-commit-conflicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Merge commit conflicts
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#squash-conflicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Squash conflicts
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Squash conflicts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#track-replacements-explicitly" class="md-nav__link">
+    <span class="md-ellipsis">
+      Track replacements explicitly
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#always-assume-replacement" class="md-nav__link">
+    <span class="md-ellipsis">
+      Always assume replacement
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#future-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Future Changes
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      Non-goals
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Non-goals">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tracking-copies-in-git" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tracking copies in Git
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#directory-copiesmoves" class="md-nav__link">
+    <span class="md-ellipsis">
+      Directory copies/moves
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+<h1 id="copy-tracking-and-tracing-design">Copy Tracking and Tracing Design<a class="headerlink" href="#copy-tracking-and-tracing-design" title="Permanent link">&para;</a></h1>
+<p>Authors: <a href="mailto:dploch@google.com">Daniel Ploch</a></p>
+<p><strong>Summary:</strong> This Document documents an approach to tracking and detecting copy
+information in jj repos, in a way that is compatible with both Git's detection
+model and with custom backends that have more complicated tracking of copy
+information. This design affects the output of diff commands as well as the
+results of rebasing across remote copies.</p>
+<h2 id="objective">Objective<a class="headerlink" href="#objective" title="Permanent link">&para;</a></h2>
+<p>Implement extensible APIs for recording and retrieving copy info for the
+purposes of diffing and rebasing across renames and copies more accurately.
+This should be performant both for Git, which synthesizes copy info on the fly
+between arbitrary trees, and for custom extensions which may explicitly record
+and re-serve copy info over arbitrarily large commit ranges.</p>
+<p>The APIs should be defined in a way that makes it easy for custom backends to
+ignore copy info entirely until they are ready to implement it.</p>
+<h2 id="interface-design">Interface Design<a class="headerlink" href="#interface-design" title="Permanent link">&para;</a></h2>
+<h3 id="read-api">Read API<a class="headerlink" href="#read-api" title="Permanent link">&para;</a></h3>
+<p>Copy information will be served both by a new Backend trait method described
+below, as well as a new field on Commit objects for backends that support copy
+tracking:</p>
+<div class="highlight"><pre><span></span><code><span class="sd">/// An individual copy source.</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">CopySource</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="sd">/// The source path a target was copied from.</span>
+<span class="w">    </span><span class="sd">///</span>
+<span class="w">    </span><span class="sd">/// It is not required that the source path is different than the target</span>
+<span class="w">    </span><span class="sd">/// path. A custom backend may choose to represent &#39;rollbacks&#39; as copies</span>
+<span class="w">    </span><span class="sd">/// from a file unto itself, from a specific prior commit.</span>
+<span class="w">    </span><span class="n">path</span><span class="p">:</span><span class="w"> </span><span class="nc">RepoPathBuf</span><span class="p">,</span>
+<span class="w">    </span><span class="n">file</span><span class="p">:</span><span class="w"> </span><span class="nc">FileId</span><span class="p">,</span>
+<span class="w">    </span><span class="sd">/// The source commit the target was copied from. If not specified, then the</span>
+<span class="w">    </span><span class="sd">/// parent of the target commit is the source commit. Backends may use this</span>
+<span class="w">    </span><span class="sd">/// field to implement &#39;integration&#39; logic, where a source may be</span>
+<span class="w">    </span><span class="sd">/// periodically merged into a target, similar to a branch, but the</span>
+<span class="w">    </span><span class="sd">/// branching occurs at the file level rather than the repository level. It</span>
+<span class="w">    </span><span class="sd">/// also follows naturally that any copy source targeted to a specific</span>
+<span class="w">    </span><span class="sd">/// commit should avoid copy propagation on rebasing, which is desirable</span>
+<span class="w">    </span><span class="sd">/// for &#39;fork&#39; style copies.</span>
+<span class="w">    </span><span class="sd">///</span>
+<span class="w">    </span><span class="sd">/// If specified, it is required that the commit id is an ancestor of the</span>
+<span class="w">    </span><span class="sd">/// commit with which this copy source is associated.</span>
+<span class="w">    </span><span class="n">commit</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">CommitId</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">CopySources</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">Resolved</span><span class="p">(</span><span class="n">CopySource</span><span class="p">),</span>
+<span class="w">    </span><span class="n">Conflict</span><span class="p">(</span><span class="n">HashSet</span><span class="o">&lt;</span><span class="n">CopySource</span><span class="o">&gt;</span><span class="p">),</span>
+<span class="p">}</span>
+
+<span class="sd">/// An individual copy event, from file A -&gt; B.</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">CopyRecord</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="sd">/// The destination of the copy, B.</span>
+<span class="w">    </span><span class="n">target</span><span class="p">:</span><span class="w"> </span><span class="nc">RepoPathBuf</span><span class="p">,</span>
+<span class="w">    </span><span class="sd">/// The CommitId where the copy took place.</span>
+<span class="w">    </span><span class="n">id</span><span class="p">:</span><span class="w"> </span><span class="nc">CommitId</span><span class="p">,</span>
+<span class="w">    </span><span class="sd">/// The source of the copy, A.</span>
+<span class="w">    </span><span class="n">sources</span><span class="p">:</span><span class="w"> </span><span class="nc">CopySources</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="sd">/// Backend options for fetching copy records.</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">CopyRecordOpts</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// TODO: Probably something for git similarity detection</span>
+<span class="p">}</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">type</span><span class="w"> </span><span class="nc">CopyRecordStream</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BoxStream</span><span class="o">&lt;</span><span class="n">BackendResult</span><span class="o">&lt;</span><span class="n">CopyRecord</span><span class="o">&gt;&gt;</span><span class="p">;</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">Backend</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="sd">/// Get all copy records for `paths` in the dag range `roots..heads`.</span>
+<span class="w">    </span><span class="sd">/// </span>
+<span class="w">    </span><span class="sd">/// The exact order these are returned is unspecified, but it is guaranteed</span>
+<span class="w">    </span><span class="sd">/// to be reverse-topological. That is, for any two copy records with</span>
+<span class="w">    </span><span class="sd">/// different commit ids A and B, if A is an ancestor of B, A is streamed</span>
+<span class="w">    </span><span class="sd">/// after B.</span>
+<span class="w">    </span><span class="sd">/// </span>
+<span class="w">    </span><span class="sd">/// Streaming by design to better support large backends which may have very</span>
+<span class="w">    </span><span class="sd">/// large single-file histories. This also allows more iterative algorithms</span>
+<span class="w">    </span><span class="sd">/// like blame/annotate to short-circuit after a point without wasting</span>
+<span class="w">    </span><span class="sd">/// unnecessary resources.</span>
+<span class="w">    </span><span class="k">async</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">get_copy_records</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">paths</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="n">RepoPathBuf</span><span class="p">],</span><span class="w"> </span><span class="n">roots</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="n">CommitId</span><span class="p">],</span><span class="w"> </span><span class="n">heads</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="p">[</span><span class="n">CommitId</span><span class="p">])</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">CopyRecordStream</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>Obtaining copy records for a single commit requires first computing the files
+list for that commit, then calling get_copy_records with <code>heads = [id]</code> and
+<code>roots = parents()</code>. This enables commands like <code>jj diff</code> to produce better
+diffs that take copy sources into account.</p>
+<h3 id="write-api">Write API<a class="headerlink" href="#write-api" title="Permanent link">&para;</a></h3>
+<p>Backends that support tracking copy records at the commit level will do so
+through a new field on <code>backend::Commit</code> objects:</p>
+<div class="highlight"><pre><span></span><code><span class="k">pub</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">Commit</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="o">..</span><span class="p">.</span>
+<span class="w">    </span><span class="n">copies</span><span class="p">:</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="n">HashMap</span><span class="o">&lt;</span><span class="n">RepoPathBuf</span><span class="p">,</span><span class="w"> </span><span class="n">CopySources</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">pub</span><span class="w"> </span><span class="k">trait</span><span class="w"> </span><span class="n">Backend</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="sd">/// Whether this backend supports storing explicit copy records on write.</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">supports_copy_tracking</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">bool</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div>
+<p>This field will be ignored by backends that do not support copy tracking, and
+always set to <code>None</code> when read from such backends. Backends that do support copy
+tracking are required to preserve the field value always.</p>
+<p>This API will enable the creation of new <code>jj</code> commands for recording copies:</p>
+<div class="highlight"><pre><span></span><code>jj<span class="w"> </span>cp<span class="w"> </span><span class="nv">$SRC</span><span class="w"> </span><span class="nv">$DEST</span><span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+jj<span class="w"> </span>mv<span class="w"> </span><span class="nv">$SRC</span><span class="w"> </span><span class="nv">$DEST</span><span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
+</code></pre></div>
+<p>These commands will rewrite the target commit to reflect the given move/copy
+instructions in its tree, as well as recording the rewrites on the Commit
+object itself for backends that support it (for backends that do not,
+these copy records will be silently discarded).</p>
+<p>Flags for the first two commands will include:</p>
+<div class="highlight"><pre><span></span><code>-r/--revision
+    perform the copy or move at the specified revision
+    defaults to the working copy commit if unspecified
+-f
+    force overwrite the destination path
+--after
+    record the copy retroactively, without modifying the targeted commit tree
+--resolve
+    overwrite all previous copy intents for this $DEST
+--allow-ignore-copy
+    don&#39;t error if the backend doesn&#39;t support copy tracking
+--from REV
+    specify a commit id for the copy source that isn&#39;t the parent commit
+</code></pre></div>
+<p>For backends which do not support copy tracking, it will be an error to use
+<code>--after</code>, since this has no effect on anything and the user should know that.
+The <code>supports_copy_tracking()</code> trait method is used to determine this.</p>
+<p>An additional command is provided to deliberately discard copy info for a
+destination path, possibly as a means of resolving a conflict.</p>
+<div class="highlight"><pre><span></span><code>jj<span class="w"> </span>forget-cp<span class="w"> </span><span class="nv">$DEST</span><span class="w"> </span><span class="o">[</span>-r<span class="w"> </span>REV<span class="o">]</span>
+</code></pre></div>
+<h2 id="behavioral-changes">Behavioral Changes<a class="headerlink" href="#behavioral-changes" title="Permanent link">&para;</a></h2>
+<h3 id="rebase-changes">Rebase Changes<a class="headerlink" href="#rebase-changes" title="Permanent link">&para;</a></h3>
+<p>In general, we want to support the following use cases:</p>
+<ul>
+<li>A rebase of an edited file A across a rename of A-&gt;B should transparently move the edits to B.</li>
+<li>A rebase of an edited file A across a copy from A-&gt;B should <em>optionally</em> copy the edits to B. A configuration option should be defined to enable/disable this behavior.</li>
+<li>TODO: Others?</li>
+</ul>
+<p>Using the aforementioned copy tracing API, both of these should be feasible. A
+detailed approach to a specific edge case is detailed in the next section.</p>
+<h4 id="rename-of-an-added-file">Rename of an added file<a class="headerlink" href="#rename-of-an-added-file" title="Permanent link">&para;</a></h4>
+<p>A well known and thorny problem in Mercurial occurs in the following scenario:</p>
+<ol>
+<li>Create a new file A</li>
+<li>Create new commits on top that make changes to file A</li>
+<li>Whoops, I should rename file A to B. Do so, amend the first commit.</li>
+<li>Because the first commit created file A, there is no rename to record; it's changing to a commit that instead creates file B.</li>
+<li>All child commits get sad on evolve</li>
+</ol>
+<p>In jj, we have an opportunity to fix this because all rebasing occurs atomically
+and transactionally within memory. The exact implementation of this is yet to be
+determined, but conceptually the following should produce desirable results:</p>
+<ol>
+<li>Rebase commit A from parents [B] to parents [C]</li>
+<li>Get copy records from [D]-&gt;[B] and [D]-&gt;[C], where [D] are the common ancestors of [B] and [C]</li>
+<li>DescendantRebaser maintains an in-memory map of commits to extra copy info, which it may inject into (2). When squashing a rename of a newly created file into the commit that creates that file, DescendentRebase will return this rename for all rebases of descendants of the newly modified commit. The rename lives ephemerally in memory and has no persistence after the rebase completes.</li>
+<li>A to-be-determined algorithm diffs the copy records between [D]-&gt;[B] and [D]-&gt;[C] in order to make changes to the rebased commit. This results in edits to renamed files being propagated to those renamed files, and avoiding conflicts on the deletion of their sources. A copy/move may also be undone in this way; abandoning a commit which renames A-&gt;B should move all descendant edits of B back into A.</li>
+</ol>
+<h3 id="conflicts">Conflicts<a class="headerlink" href="#conflicts" title="Permanent link">&para;</a></h3>
+<p>With copy-tracking, a whole new class of conflicts become possible. These need
+to be well-defined and have well documented resolution paths. Because copy info
+in a commit is keyed by <em>destination</em>, conflicts can only occur at the
+<em>destination</em> of a copy, not at a source (that's called forking).</p>
+<h4 id="split-conflicts">Split conflicts<a class="headerlink" href="#split-conflicts" title="Permanent link">&para;</a></h4>
+<p>Suppose we create commit A by renaming file F1 -&gt; F2, then we split A. What
+happens to the copy info? I argue that this is straightforward:</p>
+<ul>
+<li>If F2 is preserved at all in the parent commit, the copy info stays on the parent commit.</li>
+<li>Otherwise, the copy info goes onto the child commit.</li>
+</ul>
+<p>Things get a little messier if A <em>also</em> modifies F1, and this modification is
+separated from the copy, but I think this is messy only in an academic sense and
+the user gets a sane result either way. If they want to separate the
+modification from the copy while still putting it in an earlier commit, they can
+express this intent after with <code>jj cp --after --from</code>.</p>
+<h4 id="merge-commit-conflicts">Merge commit conflicts<a class="headerlink" href="#merge-commit-conflicts" title="Permanent link">&para;</a></h4>
+<p>Suppose we create commit A by renaming file F1 -&gt; F, then we create a sibling
+commit B by renaming file F2 -&gt; F. What happens when we create a merge commit
+with parents A and B?</p>
+<p>In terms of <em>copy info</em> there is no conflict here, because C does not have copy
+info and needs none, but resolving the contents of F becomes more complicated.
+We need to (1) identify the greatest common ancestor of A and B (D)
+(which we do anyway), and (2) invoke <code>get_copy_records()</code> on F for each of
+<code>D::A</code> and <code>D::B</code> to identify the 'real' source file id for each parent. If
+these are the same, then we can use that as the base for a better 3-way merge.
+Otherwise, we must treat it as an add+add conflict where the base is the empty
+file id.</p>
+<p>It is possible that F1 and F2 both came from a common source file G, but that
+these copies precede D. In such case, we will not produce as good of a merge
+resolution as we theoretically could, but (1) this seems extremely niche and
+unlikely, and (2) we cannot reasonably achieve this without implementing some
+analogue of Mercurial's linknodes concept, and it would be nice to avoid that
+additional complexity.</p>
+<h4 id="squash-conflicts">Squash conflicts<a class="headerlink" href="#squash-conflicts" title="Permanent link">&para;</a></h4>
+<p>Suppose we create commit A by renaming file F1 -&gt; F, then we create child
+commit B in which we replace F by renaming F2 -&gt; F. This touches on two issues.</p>
+<p>Firstly, if these two commits are squashed together, then we have a destination
+F with two copy sources, F1 and F2. In this case, we can store a
+<code>CopySources::Conflict([F1, F2])</code> as the copy source for F, and treat this
+commit as 'conflicted' in <code>jj log</code>. <code>jj status</code> will need modification to show
+this conflicted state, and <code>jj resolve</code> will need some way of handling the
+conflicted copy sources (possibly printing them in some structured text form,
+and using the user's merge tool to resolve them). Alternatively, the user can
+'resolve directly' by running <code>jj cp --after --resolve</code> with the desired copy
+info.</p>
+<p>Secondly, who is to say that commit B is 'replacing' F at all? In some version
+control systems, it is possible to 'integrate' a file X into an existing file Y,
+by e.g. propagating changes in X since its previous 'integrate' into Y, without
+erasing Y's prior history in that moment for the purpose of archaeology. With
+the commit metadata currently defined, it is not possible to distinguish
+between a 'replacement' operation and an 'integrate' operation.</p>
+<h5 id="track-replacements-explicitly">Track replacements explicitly<a class="headerlink" href="#track-replacements-explicitly" title="Permanent link">&para;</a></h5>
+<p>One solution is to add a <code>destructive: bool</code> field or similar to the
+<code>CopySource</code> struct, to explicitly distinguish between these two types of copy
+records. It then becomes possible to record a non-destructive copy using
+<code>--after</code> to recognize that a file F was 'merged into' its destination, which
+can be useful in handling parallel edits of F that later sync this information.</p>
+<h5 id="always-assume-replacement">Always assume replacement<a class="headerlink" href="#always-assume-replacement" title="Permanent link">&para;</a></h5>
+<p>Alternatively, we can keep copy-tracking simple in jj by taking a stronger
+stance here and treating all copies-onto-existing-files as 'replacement'
+operations. This makes integrations with more complex VCSs that do support
+'integrate'-style operations trickier, but it is possible that a more generic
+commit extension system is better suited to such backends.</p>
+<h3 id="future-changes">Future Changes<a class="headerlink" href="#future-changes" title="Permanent link">&para;</a></h3>
+<p>An implementation of <code>jj blame</code> or <code>jj annotate</code> does not currently exist, but
+when it does we'll definitely want it to be copy-tracing aware to provide
+better annotations for users doing archaeology. The Read APIs provided are
+expected to be sufficient for these use cases.</p>
+<h2 id="non-goals">Non-goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h2>
+<h3 id="tracking-copies-in-git">Tracking copies in Git<a class="headerlink" href="#tracking-copies-in-git" title="Permanent link">&para;</a></h3>
+<p>Git uses rename detection rather than copy tracking, generating copy info on
+the fly between two arbitrary trees. It does not have any place for explicit
+copy info that <em>exchanges</em> with other users of the same git repo, so any
+enhancements jj adds here would be local only and could potentially introduce
+confusion when collaborating with other users.</p>
+<h3 id="directory-copiesmoves">Directory copies/moves<a class="headerlink" href="#directory-copiesmoves" title="Permanent link">&para;</a></h3>
+<p>All copy/move information will be read and written at the file level. While
+<code>jj cp|mv</code> may accept directory paths as a convenience and perform the
+appropriate tree modification operations, the renames will be recorded at the
+file level, one for each copied/moved file.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.b8dbb3d2.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.081f42fc.min.js"></script>
+      
+    
+  </body>
+</html>
