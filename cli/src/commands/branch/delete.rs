@@ -47,6 +47,7 @@ pub fn cmd_branch_delete(
         tx.mut_repo()
             .set_local_branch_target(name, RefTarget::absent());
     }
+    writeln!(ui.status(), "Deleted {} branches.", matched_branches.len())?;
     tx.finish(
         ui,
         format!(
@@ -54,6 +55,5 @@ pub fn cmd_branch_delete(
             matched_branches.iter().map(|(name, _)| name).join(", ")
         ),
     )?;
-    writeln!(ui.status(), "Deleted {} branches.", matched_branches.len())?;
     Ok(())
 }

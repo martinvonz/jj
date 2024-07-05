@@ -66,10 +66,6 @@ pub fn cmd_branch_untrack(
         tx.mut_repo()
             .untrack_remote_branch(&name.branch, &name.remote);
     }
-    tx.finish(
-        ui,
-        format!("untrack remote branch {}", names.iter().join(", ")),
-    )?;
     if !names.is_empty() {
         writeln!(
             ui.status(),
@@ -77,5 +73,9 @@ pub fn cmd_branch_untrack(
             names.len()
         )?;
     }
+    tx.finish(
+        ui,
+        format!("untrack remote branch {}", names.iter().join(", ")),
+    )?;
     Ok(())
 }

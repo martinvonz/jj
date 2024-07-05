@@ -63,10 +63,6 @@ pub fn cmd_branch_track(
         tx.mut_repo()
             .track_remote_branch(&name.branch, &name.remote);
     }
-    tx.finish(
-        ui,
-        format!("track remote branch {}", names.iter().join(", ")),
-    )?;
     if !names.is_empty() {
         writeln!(
             ui.status(),
@@ -74,6 +70,10 @@ pub fn cmd_branch_track(
             names.len()
         )?;
     }
+    tx.finish(
+        ui,
+        format!("track remote branch {}", names.iter().join(", ")),
+    )?;
 
     //show conflicted branches if there are some
 
