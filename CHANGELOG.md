@@ -73,6 +73,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * New command `jj operation show` that can show the changes made in a single
   operation.
 
+* New config setting `git.private-commits` to prevent commits from being pushed.
+
 ### Fixed bugs
 
 * `jj diff --git` no longer shows the contents of binary files.

@@ -18,6 +18,7 @@ use std::{fmt, io};
 
 use clap::ArgGroup;
 use itertools::Itertools;
+use jj_lib::backend::CommitId;
 use jj_lib::git::{self, GitBranchPushTargets, GitPushError};
 use jj_lib::object_id::ObjectId;
 use jj_lib::op_store::RefTarget;
@@ -261,56 +262,7 @@ pub fn cmd_git_push(
         );
     }
 
-    // Check if there are conflicts in any commits we're about to push that haven't
-    // already been pushed.
-    let new_heads = branch_updates
-        .iter()
-        .filter_map(|(_, update)| update.new_target.clone())
-        .collect_vec();
-    let old_heads = repo
-        .view()
-        .remote_branches(&remote)
-        .flat_map(|(_, old_head)| old_head.target.added_ids())
-        .cloned()
-        .collect_vec();
-    // (old_heads | immutable_heads() | root())..new_heads
-    let commits_to_push = RevsetExpression::commits(old_heads)
-        .union(&revset_util::parse_immutable_heads_expression(
-            &tx.base_workspace_helper().revset_parse_context(),
-        )?)
-        .range(&RevsetExpression::commits(new_heads));
-    for commit in tx
-        .base_workspace_helper()
-        .attach_revset_evaluator(commits_to_push)?
-        .evaluate_to_commits()?
-    {
-        let commit = commit?;
-        let mut reasons = vec![];
-        if commit.description().is_empty() && !args.allow_empty_description {
-            reasons.push("it has no description");
-        }
-        if commit.author().name.is_empty()
-            || commit.author().name == UserSettings::USER_NAME_PLACEHOLDER
-            || commit.author().email.is_empty()
-            || commit.author().email == UserSettings::USER_EMAIL_PLACEHOLDER
-            || commit.committer().name.is_empty()
-            || commit.committer().name == UserSettings::USER_NAME_PLACEHOLDER
-            || commit.committer().email.is_empty()
-            || commit.committer().email == UserSettings::USER_EMAIL_PLACEHOLDER
-        {
-            reasons.push("it has no author and/or committer set");
-        }
-        if commit.has_conflict()? {
-            reasons.push("it has conflicts");
-        }
-        if !reasons.is_empty() {
-            return Err(user_error(format!(
-                "Won't push commit {} since {}",
-                short_commit_hash(commit.id()),
-                reasons.join(" and ")
-            )));
-        }
-    }
+    validate_commits_ready_to_push(&branch_updates, &remote, &tx, command, args)?;
 
     writeln!(ui.status(), "Branch changes to push to {}:", &remote)?;
     for (branch_name, update) in &branch_updates {
@@ -384,6 +336,81 @@ pub fn cmd_git_push(
     })?;
     writer.flush(ui)?;
     tx.finish(ui, tx_description)?;
+    Ok(())
+}
+
+/// Validates that the commits that will be pushed are ready (have authorship
+/// information, are not conflicted, etc.)
+fn validate_commits_ready_to_push(
+    branch_updates: &[(String, BranchPushUpdate)],
+    remote: &str,
+    tx: &WorkspaceCommandTransaction,
+    command: &CommandHelper,
+    args: &GitPushArgs,
+) -> Result<(), CommandError> {
+    let workspace_helper = tx.base_workspace_helper();
+    let repo = workspace_helper.repo();
+
+    let new_heads = branch_updates
+        .iter()
+        .filter_map(|(_, update)| update.new_target.clone())
+        .collect_vec();
+    let old_heads = repo
+        .view()
+        .remote_branches(remote)
+        .flat_map(|(_, old_head)| old_head.target.added_ids())
+        .cloned()
+        .collect_vec();
+    let commits_to_push = RevsetExpression::commits(old_heads)
+        .union(&revset_util::parse_immutable_heads_expression(
+            &tx.base_workspace_helper().revset_parse_context(),
+        )?)
+        .range(&RevsetExpression::commits(new_heads));
+
+    let config = command.settings().config();
+    let is_private = if let Ok(revset) = config.get_string("git.private-commits") {
+        workspace_helper
+            .parse_revset(&RevisionArg::from(revset))?
+            .evaluate()?
+            .containing_fn()
+    } else {
+        Box::new(|_: &CommitId| false)
+    };
+
+    for commit in workspace_helper
+        .attach_revset_evaluator(commits_to_push)?
+        .evaluate_to_commits()?
+    {
+        let commit = commit?;
+        let mut reasons = vec![];
+        if commit.description().is_empty() && !args.allow_empty_description {
+            reasons.push("it has no description");
+        }
+        if commit.author().name.is_empty()
+            || commit.author().name == UserSettings::USER_NAME_PLACEHOLDER
+            || commit.author().email.is_empty()
+            || commit.author().email == UserSettings::USER_EMAIL_PLACEHOLDER
+            || commit.committer().name.is_empty()
+            || commit.committer().name == UserSettings::USER_NAME_PLACEHOLDER
+            || commit.committer().email.is_empty()
+            || commit.committer().email == UserSettings::USER_EMAIL_PLACEHOLDER
+        {
+            reasons.push("it has no author and/or committer set");
+        }
+        if commit.has_conflict()? {
+            reasons.push("it has conflicts");
+        }
+        if is_private(commit.id()) {
+            reasons.push("it is private");
+        }
+        if !reasons.is_empty() {
+            return Err(user_error(format!(
+                "Won't push commit {} since {}",
+                short_commit_hash(commit.id()),
+                reasons.join(" and ")
+            )));
+        }
+    }
     Ok(())
 }
 
