@@ -29,7 +29,7 @@ use thiserror::Error;
 use crate::backend::{BackendError, BackendResult, ChangeId, CommitId};
 use crate::commit::Commit;
 use crate::dsl_util::{collect_similar, AliasExpandError as _};
-use crate::fileset::{FilePattern, FilesetExpression};
+use crate::fileset::FilesetExpression;
 use crate::graph::GraphEdge;
 use crate::hex_util::to_forward_hex;
 use crate::id_prefix::IdPrefixContext;
@@ -43,7 +43,7 @@ pub use crate::revset_parser::{
 };
 use crate::store::Store;
 use crate::str_util::StringPattern;
-use crate::{dsl_util, revset_parser};
+use crate::{dsl_util, fileset, revset_parser};
 
 /// Error occurred during symbol resolution.
 #[derive(Debug, Error)]
@@ -706,10 +706,10 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
                 function.args_span, // TODO: better to use name_span?
             )
         })?;
+        // TODO: emit deprecation warning if multiple arguments are passed
         let ([arg], args) = function.expect_some_arguments()?;
         let file_expressions = itertools::chain([arg], args)
-            .map(|arg| expect_file_pattern(arg, ctx.path_converter))
-            .map_ok(FilesetExpression::pattern)
+            .map(|arg| expect_fileset_expression(arg, ctx.path_converter))
             .try_collect()?;
         let expr = FilesetExpression::union_all(file_expressions);
         Ok(RevsetExpression::filter(RevsetFilterPredicate::File(expr)))
@@ -726,15 +726,19 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
     map
 });
 
-pub fn expect_file_pattern(
+/// Parses the given `node` as a fileset expression.
+pub fn expect_fileset_expression(
     node: &ExpressionNode,
     path_converter: &RepoPathUiConverter,
-) -> Result<FilePattern, RevsetParseError> {
-    let parse_pattern = |value: &str, kind: Option<&str>| match kind {
-        Some(kind) => FilePattern::from_str_kind(path_converter, value, kind),
-        None => FilePattern::cwd_prefix_path(path_converter, value),
-    };
-    revset_parser::expect_pattern_with("file pattern", node, parse_pattern)
+) -> Result<FilesetExpression, RevsetParseError> {
+    // Alias handling is a bit tricky. The outermost expression `alias` is
+    // substituted, but inner expressions `x & alias` aren't. If this seemed
+    // weird, we can either transform AST or turn off revset aliases completely.
+    revset_parser::expect_expression_with(node, |node| {
+        fileset::parse(node.span.as_str(), path_converter).map_err(|err| {
+            RevsetParseError::expression("Invalid fileset expression", node.span).with_source(err)
+        })
+    })
 }
 
 pub fn expect_string_pattern(node: &ExpressionNode) -> Result<StringPattern, RevsetParseError> {
@@ -2568,8 +2572,27 @@ mod tests {
             parse_with_workspace("file(foo)", &WorkspaceId::default()).unwrap(),
             @r###"Filter(File(Pattern(PrefixPath("foo"))))"###);
         insta::assert_debug_snapshot!(
+            parse_with_workspace("file(all())", &WorkspaceId::default()).unwrap(),
+            @"Filter(File(All))");
+        insta::assert_debug_snapshot!(
             parse_with_workspace(r#"file(file:"foo")"#, &WorkspaceId::default()).unwrap(),
             @r###"Filter(File(Pattern(FilePath("foo"))))"###);
+        insta::assert_debug_snapshot!(
+            parse_with_workspace("file(foo|bar&baz)", &WorkspaceId::default()).unwrap(), @r###"
+        Filter(
+            File(
+                UnionAll(
+                    [
+                        Pattern(PrefixPath("foo")),
+                        Intersection(
+                            Pattern(PrefixPath("bar")),
+                            Pattern(PrefixPath("baz")),
+                        ),
+                    ],
+                ),
+            ),
+        )
+        "###);
         insta::assert_debug_snapshot!(
             parse_with_workspace("file(foo, bar, baz)", &WorkspaceId::default()).unwrap(), @r###"
         Filter(

@@ -140,42 +140,61 @@ fn test_bad_function_call() {
       = Function "file": Expected at least 1 arguments
     "###);
 
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file(a, not@a-string)"]);
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "file(not::a-fileset)"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Expected expression of file pattern
-    Caused by:  --> 1:9
+    Error: Failed to parse revset: Invalid fileset expression
+    Caused by:
+    1:  --> 1:6
       |
-    1 | file(a, not@a-string)
-      |         ^----------^
+    1 | file(not::a-fileset)
+      |      ^------------^
       |
-      = Expected expression of file pattern
+      = Invalid fileset expression
+    2:  --> 1:5
+      |
+    1 | not::a-fileset
+      |     ^---
+      |
+      = expected <identifier>, <string_literal>, or <raw_string_literal>
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"file(foo:"bar")"#]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Failed to parse revset: Invalid file pattern
+    Error: Failed to parse revset: Invalid fileset expression
     Caused by:
     1:  --> 1:6
       |
     1 | file(foo:"bar")
       |      ^-------^
       |
+      = Invalid fileset expression
+    2:  --> 1:1
+      |
+    1 | foo:"bar"
+      | ^-------^
+      |
       = Invalid file pattern
-    2: Invalid file pattern kind "foo:"
+    3: Invalid file pattern kind "foo:"
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", r#"file(a, "../out")"#]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
-    Error: Failed to parse revset: Invalid file pattern
+    Error: Failed to parse revset: Invalid fileset expression
     Caused by:
     1:  --> 1:9
       |
     1 | file(a, "../out")
       |         ^------^
       |
+      = Invalid fileset expression
+    2:  --> 1:1
+      |
+    1 | "../out"
+      | ^------^
+      |
       = Invalid file pattern
-    2: Path "../out" is not in the repo "."
-    3: Invalid component ".." in repo-relative path "../out"
+    3: Path "../out" is not in the repo "."
+    4: Invalid component ".." in repo-relative path "../out"
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "branches(bad:pattern)"]);

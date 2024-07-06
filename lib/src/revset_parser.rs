@@ -804,7 +804,7 @@ pub fn expect_literal<T: FromStr>(
 
 /// Applies the give function to the innermost `node` by unwrapping alias
 /// expansion nodes.
-fn expect_expression_with<T>(
+pub(super) fn expect_expression_with<T>(
     node: &ExpressionNode,
     f: impl FnOnce(&ExpressionNode) -> Result<T, RevsetParseError>,
 ) -> Result<T, RevsetParseError> {

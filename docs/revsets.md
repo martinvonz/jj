@@ -268,14 +268,17 @@ given [string pattern](#string-patterns).
 * `empty()`: Commits modifying no files. This also includes `merges()` without
   user modifications and `root()`.
 
-* `file(pattern[, pattern]...)`: Commits modifying paths matching one of the
-  given [file patterns](filesets.md#file-patterns).
+* `file(expression)`: Commits modifying paths matching the given [fileset
+  expression](filesets.md).
 
   Paths are relative to the directory `jj` was invoked from. A directory name
   will match all files in that directory and its subdirectories.
 
   For example, `file(foo)` will match files `foo`, `foo/bar`, `foo/bar/baz`.
   It will *not* match `foobar` or `bar/foo`.
+
+  Some file patterns might need quoting because the `expression` must also be
+  parsable as a revset. For example, `.` has to be quoted in `file(".")`.
 
 * `conflict()`: Commits with conflicts.
 

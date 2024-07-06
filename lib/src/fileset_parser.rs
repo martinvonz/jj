@@ -305,7 +305,6 @@ fn parse_expression_node(pair: Pair<Rule>) -> FilesetParseResult<ExpressionNode>
 }
 
 /// Parses text into expression tree. No name resolution is made at this stage.
-#[cfg(test)] // TODO: alias will be parsed with no bare_string fallback
 pub fn parse_program(text: &str) -> FilesetParseResult<ExpressionNode> {
     let mut pairs = FilesetParser::parse(Rule::program, text)?;
     let first = pairs.next().unwrap();
