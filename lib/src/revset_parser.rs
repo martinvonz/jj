@@ -116,8 +116,7 @@ impl Rule {
 #[derive(Debug, Error)]
 #[error("{pest_error}")]
 pub struct RevsetParseError {
-    // TODO: move parsing tests to this module and drop pub(super)
-    pub(super) kind: RevsetParseErrorKind,
+    kind: RevsetParseErrorKind,
     pest_error: Box<pest::error::Error<Rule>>,
     source: Option<Box<dyn error::Error + Send + Sync>>,
 }

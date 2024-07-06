@@ -2024,21 +2024,21 @@ mod tests {
 
     use super::*;
 
-    fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseErrorKind> {
+    fn parse(revset_str: &str) -> Result<Rc<RevsetExpression>, RevsetParseError> {
         parse_with_aliases(revset_str, [] as [(&str, &str); 0])
     }
 
     fn parse_with_workspace(
         revset_str: &str,
         workspace_id: &WorkspaceId,
-    ) -> Result<Rc<RevsetExpression>, RevsetParseErrorKind> {
+    ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
         parse_with_aliases_and_workspace(revset_str, [] as [(&str, &str); 0], workspace_id)
     }
 
     fn parse_with_aliases(
         revset_str: &str,
         aliases: impl IntoIterator<Item = (impl AsRef<str>, impl Into<String>)>,
-    ) -> Result<Rc<RevsetExpression>, RevsetParseErrorKind> {
+    ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
         let mut aliases_map = RevsetAliasesMap::new();
         for (decl, defn) in aliases {
             aliases_map.insert(decl, defn).unwrap();
@@ -2050,15 +2050,14 @@ mod tests {
             &extensions,
             None,
         );
-        // Map error to comparable object
-        super::parse(revset_str, &context).map_err(|e| e.kind)
+        super::parse(revset_str, &context)
     }
 
     fn parse_with_aliases_and_workspace(
         revset_str: &str,
         aliases: impl IntoIterator<Item = (impl AsRef<str>, impl Into<String>)>,
         workspace_id: &WorkspaceId,
-    ) -> Result<Rc<RevsetExpression>, RevsetParseErrorKind> {
+    ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
         // Set up pseudo context to resolve `workspace_id@` and `file(path)`
         let path_converter = RepoPathUiConverter::Fs {
             cwd: PathBuf::from("/"),
@@ -2079,20 +2078,19 @@ mod tests {
             &extensions,
             Some(workspace_ctx),
         );
-        // Map error to comparable object
-        super::parse(revset_str, &context).map_err(|e| e.kind)
+        super::parse(revset_str, &context)
     }
 
     fn parse_with_modifier(
         revset_str: &str,
-    ) -> Result<(Rc<RevsetExpression>, Option<RevsetModifier>), RevsetParseErrorKind> {
+    ) -> Result<(Rc<RevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
         parse_with_aliases_and_modifier(revset_str, [] as [(&str, &str); 0])
     }
 
     fn parse_with_aliases_and_modifier(
         revset_str: &str,
         aliases: impl IntoIterator<Item = (impl AsRef<str>, impl Into<String>)>,
-    ) -> Result<(Rc<RevsetExpression>, Option<RevsetModifier>), RevsetParseErrorKind> {
+    ) -> Result<(Rc<RevsetExpression>, Option<RevsetModifier>), RevsetParseError> {
         let mut aliases_map = RevsetAliasesMap::new();
         for (decl, defn) in aliases {
             aliases_map.insert(decl, defn).unwrap();
@@ -2104,8 +2102,7 @@ mod tests {
             &extensions,
             None,
         );
-        // Map error to comparable object
-        super::parse_with_modifier(revset_str, &context).map_err(|e| e.kind)
+        super::parse_with_modifier(revset_str, &context)
     }
 
     fn insta_settings() -> insta::Settings {
@@ -2276,7 +2273,7 @@ mod tests {
 
         // Parse "@" (the current working copy)
         insta::assert_debug_snapshot!(
-            parse("@").unwrap_err(),
+            parse("@").unwrap_err().kind(),
             @"WorkingCopyWithoutWorkspace");
         insta::assert_debug_snapshot!(
             parse("main@").unwrap(),
@@ -2289,7 +2286,7 @@ mod tests {
             @r###"CommitRef(WorkingCopy(WorkspaceId("main")))"###);
         // "@" in function argument must be quoted
         insta::assert_debug_snapshot!(
-            parse("author(foo@)").unwrap_err(),
+            parse("author(foo@)").unwrap_err().kind(),
             @r###"Expression("Expected expression of string pattern")"###);
         insta::assert_debug_snapshot!(
             parse(r#"author("foo@")"#).unwrap(),
@@ -2431,7 +2428,7 @@ mod tests {
 
         // Top-level string pattern can't be parsed, which is an error anyway
         insta::assert_debug_snapshot!(
-            parse_with_modifier(r#"exact:"foo""#).unwrap_err(),
+            parse_with_modifier(r#"exact:"foo""#).unwrap_err().kind(),
             @r###"NoSuchModifier("exact")"###);
     }
 
@@ -2450,19 +2447,19 @@ mod tests {
             parse(r#"branches(substring:"foo")"#).unwrap(),
             @r###"CommitRef(Branches(Substring("foo")))"###);
         insta::assert_debug_snapshot!(
-            parse(r#"branches(bad:"foo")"#).unwrap_err(),
+            parse(r#"branches(bad:"foo")"#).unwrap_err().kind(),
             @r###"Expression("Invalid string pattern")"###);
         insta::assert_debug_snapshot!(
-            parse(r#"branches(exact::"foo")"#).unwrap_err(),
+            parse(r#"branches(exact::"foo")"#).unwrap_err().kind(),
             @r###"Expression("Expected expression of string pattern")"###);
         insta::assert_debug_snapshot!(
-            parse(r#"branches(exact:"foo"+)"#).unwrap_err(),
+            parse(r#"branches(exact:"foo"+)"#).unwrap_err().kind(),
             @r###"Expression("Expected expression of string pattern")"###);
 
         // String pattern isn't allowed at top level.
         assert_matches!(
-            parse(r#"(exact:"foo")"#),
-            Err(RevsetParseErrorKind::NotInfixOperator { .. })
+            parse(r#"(exact:"foo")"#).unwrap_err().kind(),
+            RevsetParseErrorKind::NotInfixOperator { .. }
         );
     }
 
@@ -2496,7 +2493,7 @@ mod tests {
         }
         "###);
         insta::assert_debug_snapshot!(
-            parse("parents(foo,foo)").unwrap_err(), @r###"
+            parse("parents(foo,foo)").unwrap_err().kind(), @r###"
         InvalidFunctionArguments {
             name: "parents",
             message: "Expected 1 arguments",
@@ -2513,7 +2510,7 @@ mod tests {
             parse("description(foo)").unwrap(),
             @r###"Filter(Description(Substring("foo")))"###);
         insta::assert_debug_snapshot!(
-            parse("description(visible_heads())").unwrap_err(),
+            parse("description(visible_heads())").unwrap_err().kind(),
             @r###"Expression("Expected expression of string pattern")"###);
         insta::assert_debug_snapshot!(
             parse("description(\"(foo)\")").unwrap(),
@@ -2573,7 +2570,7 @@ mod tests {
         )
         "###);
         insta::assert_debug_snapshot!(
-            parse(r#"remote_branches(remote=foo, bar)"#).unwrap_err(),
+            parse(r#"remote_branches(remote=foo, bar)"#).unwrap_err().kind(),
             @r###"
         InvalidFunctionArguments {
             name: "remote_branches",
@@ -2581,7 +2578,7 @@ mod tests {
         }
         "###);
         insta::assert_debug_snapshot!(
-            parse(r#"remote_branches("", foo, remote=bar)"#).unwrap_err(),
+            parse(r#"remote_branches("", foo, remote=bar)"#).unwrap_err().kind(),
             @r###"
         InvalidFunctionArguments {
             name: "remote_branches",
@@ -2589,7 +2586,7 @@ mod tests {
         }
         "###);
         insta::assert_debug_snapshot!(
-            parse(r#"remote_branches(remote=bar, remote=bar)"#).unwrap_err(),
+            parse(r#"remote_branches(remote=bar, remote=bar)"#).unwrap_err().kind(),
             @r###"
         InvalidFunctionArguments {
             name: "remote_branches",
@@ -2597,7 +2594,7 @@ mod tests {
         }
         "###);
         insta::assert_debug_snapshot!(
-            parse(r#"remote_branches(unknown=bar)"#).unwrap_err(),
+            parse(r#"remote_branches(unknown=bar)"#).unwrap_err().kind(),
             @r###"
         InvalidFunctionArguments {
             name: "remote_branches",
@@ -2640,7 +2637,7 @@ mod tests {
 
         // Sub-expression alias cannot be substituted to modifier expression.
         insta::assert_debug_snapshot!(
-            parse_with_aliases_and_modifier("A-", [("A", "all:a")]).unwrap_err(),
+            parse_with_aliases_and_modifier("A-", [("A", "all:a")]).unwrap_err().kind(),
             @r###"BadAliasExpansion("A")"###);
     }
 
