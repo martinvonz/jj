@@ -49,6 +49,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * New `tracked_remote_branches()` and `untracked_remote_branches()` revset
   functions can be used to select tracked/untracked remote branches.
 
+* The `file()` revset function now accepts fileset as argument.
+
 ### Fixed bugs
 
 ## [0.19.0] - 2024-07-03

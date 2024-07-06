@@ -446,6 +446,16 @@ fn resolve_expression(
     }
 }
 
+/// Parses text into `FilesetExpression` without bare string fallback.
+pub fn parse(
+    text: &str,
+    path_converter: &RepoPathUiConverter,
+) -> FilesetParseResult<FilesetExpression> {
+    let node = fileset_parser::parse_program(text)?;
+    // TODO: add basic tree substitution pass to eliminate redundant expressions
+    resolve_expression(path_converter, &node)
+}
+
 /// Parses text into `FilesetExpression` with bare string fallback.
 ///
 /// If the text can't be parsed as a fileset expression, and if it doesn't
