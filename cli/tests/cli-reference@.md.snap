@@ -215,7 +215,7 @@ Apply the reverse of a revision on top of another revision
 
 ###### **Options:**
 
-* `-r`, `--revision <REVISION>` — The revision to apply the reverse of
+* `-r`, `--revisions <REVISIONS>` — The revision(s) to apply the reverse of
 
   Default value: `@`
 * `-d`, `--destination <DESTINATION>` — The revision to apply the reverse changes on top of
