@@ -755,7 +755,7 @@ pub(super) fn expect_program_with<B, M>(
     parse_body: impl FnOnce(&ExpressionNode) -> Result<B, RevsetParseError>,
     parse_modifier: impl FnOnce(&str, pest::Span<'_>) -> Result<M, RevsetParseError>,
 ) -> Result<(B, Option<M>), RevsetParseError> {
-    expect_literal_with(node, |node| match &node.kind {
+    expect_expression_with(node, |node| match &node.kind {
         ExpressionKind::Modifier(modifier) => {
             let parsed_modifier = parse_modifier(modifier.name, modifier.name_span)?;
             Ok((parse_body(&modifier.body)?, Some(parsed_modifier)))
@@ -772,7 +772,7 @@ pub(super) fn expect_pattern_with<T, E: Into<Box<dyn error::Error + Send + Sync>
     let wrap_error = |err: E| {
         RevsetParseError::expression(format!("Invalid {type_name}"), node.span).with_source(err)
     };
-    expect_literal_with(node, |node| match &node.kind {
+    expect_expression_with(node, |node| match &node.kind {
         ExpressionKind::Identifier(name) => parse_pattern(name, None).map_err(wrap_error),
         ExpressionKind::String(name) => parse_pattern(name, None).map_err(wrap_error),
         ExpressionKind::StringPattern { kind, value } => {
@@ -795,7 +795,7 @@ pub fn expect_literal<T: FromStr>(
             node.span,
         )
     };
-    expect_literal_with(node, |node| match &node.kind {
+    expect_expression_with(node, |node| match &node.kind {
         ExpressionKind::Identifier(name) => name.parse().map_err(|_| make_error()),
         ExpressionKind::String(name) => name.parse().map_err(|_| make_error()),
         _ => Err(make_error()),
@@ -804,12 +804,12 @@ pub fn expect_literal<T: FromStr>(
 
 /// Applies the give function to the innermost `node` by unwrapping alias
 /// expansion nodes.
-fn expect_literal_with<T>(
+fn expect_expression_with<T>(
     node: &ExpressionNode,
     f: impl FnOnce(&ExpressionNode) -> Result<T, RevsetParseError>,
 ) -> Result<T, RevsetParseError> {
     if let ExpressionKind::AliasExpanded(id, subst) = &node.kind {
-        expect_literal_with(subst, f).map_err(|e| e.within_alias_expansion(*id, node.span))
+        expect_expression_with(subst, f).map_err(|e| e.within_alias_expansion(*id, node.span))
     } else {
         f(node)
     }
