@@ -12,6 +12,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj rebase --skip-empty` has been renamed to `jj rebase --skip-emptied`
 
+* `jj backout --revision` has been renamed to `jj backout --revisions`.
+  The short alias `-r` is still supported.
+
 ### Deprecations
 
 ### New features
@@ -32,6 +35,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj backout` now includes the backed out commit's subject in the new commit
   message.
+
+* `jj backout` can now back out multiple commits at once.
 
 ### Fixed bugs
 
