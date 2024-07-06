@@ -1099,6 +1099,9 @@ Spans of revisions that are not included in the graph per `--revisions` are rend
 
    For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
 * `-p`, `--patch` — Show patch
+* `--diff-revisions <DIFF_REVISIONS>` — Restrict diffs to the given revsets.
+
+   Defaults to all().
 * `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
 * `--stat` — Show a histogram of the changes
 * `--types` — For each path, show only its type before and after

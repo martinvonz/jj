@@ -70,6 +70,11 @@ pub(crate) struct LogArgs {
     /// Show patch
     #[arg(long, short = 'p')]
     patch: bool,
+    /// Restrict diffs to the given revsets.
+    ///
+    /// Defaults to all().
+    #[arg(long)]
+    diff_revisions: Vec<RevisionArg>,
     #[command(flatten)]
     diff_format: DiffFormatArgs,
 }
@@ -101,6 +106,14 @@ pub(crate) fn cmd_log(
             expression.intersect_with(&RevsetExpression::filter(predicate));
         }
         expression
+    };
+    let diff_revset_contains = {
+        let diff_revset_expression = if args.diff_revisions.is_empty() {
+            workspace_command.attach_revset_evaluator(RevsetExpression::all())?
+        } else {
+            workspace_command.parse_union_revsets(&args.diff_revisions)?
+        };
+        diff_revset_expression.evaluate()?.containing_fn()
     };
 
     let repo = workspace_command.repo();
@@ -202,8 +215,10 @@ pub(crate) fn cmd_log(
                     buffer.push(b'\n');
                 }
                 if let Some(renderer) = &diff_renderer {
-                    let mut formatter = ui.new_formatter(&mut buffer);
-                    renderer.show_patch(ui, formatter.as_mut(), &commit, matcher.as_ref())?;
+                    if diff_revset_contains(commit.id()) {
+                        let mut formatter = ui.new_formatter(&mut buffer);
+                        renderer.show_patch(ui, formatter.as_mut(), &commit, matcher.as_ref())?;
+                    }
                 }
 
                 let node_symbol = format_template(ui, &Some(commit), &node_template);
@@ -243,7 +258,9 @@ pub(crate) fn cmd_log(
                 with_content_format
                     .write(formatter, |formatter| template.format(&commit, formatter))?;
                 if let Some(renderer) = &diff_renderer {
-                    renderer.show_patch(ui, formatter, &commit, matcher.as_ref())?;
+                    if diff_revset_contains(commit.id()) {
+                        renderer.show_patch(ui, formatter, &commit, matcher.as_ref())?;
+                    }
                 }
             }
         }
