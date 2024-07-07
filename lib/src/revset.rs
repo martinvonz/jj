@@ -34,7 +34,7 @@ use crate::graph::GraphEdge;
 use crate::hex_util::to_forward_hex;
 use crate::id_prefix::IdPrefixContext;
 use crate::object_id::{HexPrefix, PrefixResolution};
-use crate::op_store::WorkspaceId;
+use crate::op_store::{RemoteRefState, WorkspaceId};
 use crate::repo::Repo;
 use crate::repo_path::RepoPathUiConverter;
 pub use crate::revset_parser::{
@@ -107,6 +107,7 @@ pub enum RevsetCommitRef {
     RemoteBranches {
         branch_pattern: StringPattern,
         remote_pattern: StringPattern,
+        remote_ref_state: Option<RemoteRefState>,
     },
     Tags,
     GitRefs,
@@ -239,11 +240,13 @@ impl RevsetExpression {
     pub fn remote_branches(
         branch_pattern: StringPattern,
         remote_pattern: StringPattern,
+        remote_ref_state: Option<RemoteRefState>,
     ) -> Rc<RevsetExpression> {
         Rc::new(RevsetExpression::CommitRef(
             RevsetCommitRef::RemoteBranches {
                 branch_pattern,
                 remote_pattern,
+                remote_ref_state,
             },
         ))
     }
@@ -626,22 +629,13 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         Ok(RevsetExpression::branches(pattern))
     });
     map.insert("remote_branches", |function, _context| {
-        let ([], [branch_opt_arg, remote_opt_arg]) =
-            function.expect_named_arguments(&["", "remote"])?;
-        let branch_pattern = if let Some(branch_arg) = branch_opt_arg {
-            expect_string_pattern(branch_arg)?
-        } else {
-            StringPattern::everything()
-        };
-        let remote_pattern = if let Some(remote_arg) = remote_opt_arg {
-            expect_string_pattern(remote_arg)?
-        } else {
-            StringPattern::everything()
-        };
-        Ok(RevsetExpression::remote_branches(
-            branch_pattern,
-            remote_pattern,
-        ))
+        parse_remote_branches_arguments(function, None)
+    });
+    map.insert("tracked_remote_branches", |function, _context| {
+        parse_remote_branches_arguments(function, Some(RemoteRefState::Tracking))
+    });
+    map.insert("untracked_remote_branches", |function, _context| {
+        parse_remote_branches_arguments(function, Some(RemoteRefState::New))
     });
     map.insert("tags", |function, _context| {
         function.expect_no_arguments()?;
@@ -750,6 +744,29 @@ pub fn expect_string_pattern(node: &ExpressionNode) -> Result<StringPattern, Rev
         None => Ok(StringPattern::Substring(value.to_owned())),
     };
     revset_parser::expect_pattern_with("string pattern", node, parse_pattern)
+}
+
+fn parse_remote_branches_arguments(
+    function: &FunctionCallNode,
+    remote_ref_state: Option<RemoteRefState>,
+) -> Result<Rc<RevsetExpression>, RevsetParseError> {
+    let ([], [branch_opt_arg, remote_opt_arg]) =
+        function.expect_named_arguments(&["", "remote"])?;
+    let branch_pattern = if let Some(branch_arg) = branch_opt_arg {
+        expect_string_pattern(branch_arg)?
+    } else {
+        StringPattern::everything()
+    };
+    let remote_pattern = if let Some(remote_arg) = remote_opt_arg {
+        expect_string_pattern(remote_arg)?
+    } else {
+        StringPattern::everything()
+    };
+    Ok(RevsetExpression::remote_branches(
+        branch_pattern,
+        remote_pattern,
+        remote_ref_state,
+    ))
 }
 
 /// Resolves function call by using the given function map.
@@ -1609,11 +1626,15 @@ fn resolve_commit_ref(
         RevsetCommitRef::RemoteBranches {
             branch_pattern,
             remote_pattern,
+            remote_ref_state,
         } => {
             // TODO: should we allow to select @git branches explicitly?
             let commit_ids = repo
                 .view()
                 .remote_branches_matching(branch_pattern, remote_pattern)
+                .filter(|(_, remote_ref)| {
+                    remote_ref_state.map_or(true, |state| remote_ref.state == state)
+                })
                 .filter(|&((_, remote_name), _)| {
                     #[cfg(feature = "git")]
                     {
@@ -2313,14 +2334,25 @@ mod tests {
             RemoteBranches {
                 branch_pattern: Substring(""),
                 remote_pattern: Substring(""),
+                remote_ref_state: None,
             },
         )
         "###);
-        insta::assert_debug_snapshot!(parse("remote_branches()").unwrap(), @r###"
+        insta::assert_debug_snapshot!(parse("tracked_remote_branches()").unwrap(), @r###"
         CommitRef(
             RemoteBranches {
                 branch_pattern: Substring(""),
                 remote_pattern: Substring(""),
+                remote_ref_state: Some(Tracking),
+            },
+        )
+        "###);
+        insta::assert_debug_snapshot!(parse("untracked_remote_branches()").unwrap(), @r###"
+        CommitRef(
+            RemoteBranches {
+                branch_pattern: Substring(""),
+                remote_pattern: Substring(""),
+                remote_ref_state: Some(New),
             },
         )
         "###);
@@ -2566,6 +2598,7 @@ mod tests {
             RemoteBranches {
                 branch_pattern: Substring(""),
                 remote_pattern: Substring("foo"),
+                remote_ref_state: None,
             },
         )
         "###);
@@ -2575,6 +2608,27 @@ mod tests {
             RemoteBranches {
                 branch_pattern: Substring("foo"),
                 remote_pattern: Substring("bar"),
+                remote_ref_state: None,
+            },
+        )
+        "###);
+        insta::assert_debug_snapshot!(
+            parse("tracked_remote_branches(foo, remote=bar)").unwrap(), @r###"
+        CommitRef(
+            RemoteBranches {
+                branch_pattern: Substring("foo"),
+                remote_pattern: Substring("bar"),
+                remote_ref_state: Some(Tracking),
+            },
+        )
+        "###);
+        insta::assert_debug_snapshot!(
+            parse("untracked_remote_branches(foo, remote=bar)").unwrap(), @r###"
+        CommitRef(
+            RemoteBranches {
+                branch_pattern: Substring("foo"),
+                remote_pattern: Substring("bar"),
+                remote_ref_state: Some(New),
             },
         )
         "###);

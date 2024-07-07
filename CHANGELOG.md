@@ -46,6 +46,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   address unconditionally. Only ASCII case folding is currently implemented,
   but this will likely change in the future.
 
+* New `tracked_remote_branches()` and `untracked_remote_branches()` revset
+  functions can be used to select tracked/untracked remote branches.
+
 ### Fixed bugs
 
 ## [0.19.0] - 2024-07-03

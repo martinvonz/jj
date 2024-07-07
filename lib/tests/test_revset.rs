@@ -2059,11 +2059,12 @@ fn test_evaluate_expression_remote_branches() {
     let settings = testutils::user_settings();
     let test_repo = TestRepo::init();
     let repo = &test_repo.repo;
-    let remote_ref = |target| RemoteRef {
+    let tracking_remote_ref = |target| RemoteRef {
         target,
-        state: RemoteRefState::Tracking, // doesn't matter
+        state: RemoteRefState::Tracking,
     };
-    let normal_remote_ref = |id: &CommitId| remote_ref(RefTarget::normal(id.clone()));
+    let normal_tracking_remote_ref =
+        |id: &CommitId| tracking_remote_ref(RefTarget::normal(id.clone()));
 
     let mut tx = repo.start_transaction(&settings);
     let mut_repo = tx.mut_repo();
@@ -2076,15 +2077,28 @@ fn test_evaluate_expression_remote_branches() {
 
     // Can get branches when there are none
     assert_eq!(resolve_commit_ids(mut_repo, "remote_branches()"), vec![]);
-    // Can get a few branches
-    mut_repo.set_remote_branch("branch1", "origin", normal_remote_ref(commit1.id()));
-    mut_repo.set_remote_branch("branch2", "private", normal_remote_ref(commit2.id()));
+    // Branch 1 is untracked on remote origin
+    mut_repo.set_remote_branch(
+        "branch1",
+        "origin",
+        RemoteRef {
+            target: RefTarget::normal(commit1.id().clone()),
+            state: RemoteRefState::New,
+        },
+    );
+    // Branch 2 is tracked on remote private
+    mut_repo.set_remote_branch(
+        "branch2",
+        "private",
+        normal_tracking_remote_ref(commit2.id()),
+    );
     // Git-tracking branches aren't included
     mut_repo.set_remote_branch(
         "branch",
         git::REMOTE_NAME_FOR_LOCAL_GIT_REPO,
-        normal_remote_ref(commit_git_remote.id()),
+        normal_tracking_remote_ref(commit_git_remote.id()),
     );
+    // Can get a few branches
     assert_eq!(
         resolve_commit_ids(mut_repo, "remote_branches()"),
         vec![commit2.id().clone(), commit1.id().clone()]
@@ -2128,6 +2142,23 @@ fn test_evaluate_expression_remote_branches() {
         resolve_commit_ids(mut_repo, r#"remote_branches(exact:branch1, exact:origin)"#),
         vec![commit1.id().clone()]
     );
+    // Can filter branches by tracked and untracked
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "tracked_remote_branches()"),
+        vec![commit2.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "untracked_remote_branches()"),
+        vec![commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "untracked_remote_branches(branch1, origin)"),
+        vec![commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "tracked_remote_branches(branch2, private)"),
+        vec![commit2.id().clone()]
+    );
     // Can silently resolve to an empty set if there's no matches
     assert_eq!(
         resolve_commit_ids(mut_repo, "remote_branches(branch3)"),
@@ -2149,9 +2180,21 @@ fn test_evaluate_expression_remote_branches() {
         resolve_commit_ids(mut_repo, r#"remote_branches(exact:branch1, exact:orig)"#),
         vec![]
     );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "tracked_remote_branches(branch1)"),
+        vec![]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "untracked_remote_branches(branch2)"),
+        vec![]
+    );
     // Two branches pointing to the same commit does not result in a duplicate in
     // the revset
-    mut_repo.set_remote_branch("branch3", "origin", normal_remote_ref(commit2.id()));
+    mut_repo.set_remote_branch(
+        "branch3",
+        "origin",
+        normal_tracking_remote_ref(commit2.id()),
+    );
     assert_eq!(
         resolve_commit_ids(mut_repo, "remote_branches()"),
         vec![commit2.id().clone(), commit1.id().clone()]
@@ -2166,7 +2209,7 @@ fn test_evaluate_expression_remote_branches() {
     mut_repo.set_remote_branch(
         "branch1",
         "origin",
-        remote_ref(RefTarget::from_legacy_form(
+        tracking_remote_ref(RefTarget::from_legacy_form(
             [commit1.id().clone()],
             [commit2.id().clone(), commit3.id().clone()],
         )),
@@ -2174,7 +2217,7 @@ fn test_evaluate_expression_remote_branches() {
     mut_repo.set_remote_branch(
         "branch2",
         "private",
-        remote_ref(RefTarget::from_legacy_form(
+        tracking_remote_ref(RefTarget::from_legacy_form(
             [commit2.id().clone()],
             [commit3.id().clone(), commit4.id().clone()],
         )),
