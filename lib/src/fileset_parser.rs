@@ -164,9 +164,14 @@ fn rename_rules_in_pest_error(err: pest::error::Error<Rule>) -> pest::error::Err
 pub enum ExpressionKind<'i> {
     Identifier(&'i str),
     String(String),
-    StringPattern { kind: &'i str, value: String },
+    StringPattern {
+        kind: &'i str,
+        value: String,
+    },
     Unary(UnaryOp, Box<ExpressionNode<'i>>),
     Binary(BinaryOp, Box<ExpressionNode<'i>>, Box<ExpressionNode<'i>>),
+    /// `x | y | ..`
+    UnionAll(Vec<ExpressionNode<'i>>),
     FunctionCall(Box<FunctionCallNode<'i>>),
 }
 
@@ -178,8 +183,6 @@ pub enum UnaryOp {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum BinaryOp {
-    /// `|`
-    Union,
     /// `&`
     Intersection,
     /// `~`
@@ -188,6 +191,20 @@ pub enum BinaryOp {
 
 pub type ExpressionNode<'i> = dsl_util::ExpressionNode<'i, ExpressionKind<'i>>;
 pub type FunctionCallNode<'i> = dsl_util::FunctionCallNode<'i, ExpressionKind<'i>>;
+
+fn union_nodes<'i>(lhs: ExpressionNode<'i>, rhs: ExpressionNode<'i>) -> ExpressionNode<'i> {
+    let span = lhs.span.start_pos().span(&rhs.span.end_pos());
+    let expr = match lhs.kind {
+        // Flatten "x | y | z" to save recursion stack. Machine-generated query
+        // might have long chain of unions.
+        ExpressionKind::UnionAll(mut nodes) => {
+            nodes.push(rhs);
+            ExpressionKind::UnionAll(nodes)
+        }
+        _ => ExpressionKind::UnionAll(vec![lhs, rhs]),
+    };
+    ExpressionNode::new(expr, span)
+}
 
 fn parse_function_call_node(pair: Pair<Rule>) -> FilesetParseResult<FunctionCallNode> {
     assert_eq!(pair.as_rule(), Rule::function);
@@ -273,7 +290,7 @@ fn parse_expression_node(pair: Pair<Rule>) -> FilesetParseResult<ExpressionNode>
         })
         .map_infix(|lhs, op, rhs| {
             let op_kind = match op.as_rule() {
-                Rule::union_op => BinaryOp::Union,
+                Rule::union_op => return Ok(union_nodes(lhs?, rhs?)),
                 Rule::intersection_op => BinaryOp::Intersection,
                 Rule::difference_op => BinaryOp::Difference,
                 r => panic!("unexpected infix operator rule {r:?}"),
@@ -388,6 +405,10 @@ mod tests {
                 let lhs = Box::new(normalize_tree(*lhs));
                 let rhs = Box::new(normalize_tree(*rhs));
                 ExpressionKind::Binary(op, lhs, rhs)
+            }
+            ExpressionKind::UnionAll(nodes) => {
+                let nodes = normalize_list(nodes);
+                ExpressionKind::UnionAll(nodes)
             }
             ExpressionKind::FunctionCall(function) => {
                 let function = Box::new(normalize_function_call(*function));
@@ -525,7 +546,11 @@ mod tests {
         );
         assert_matches!(
             parse_into_kind("x|y"),
-            Ok(ExpressionKind::Binary(BinaryOp::Union, _, _))
+            Ok(ExpressionKind::UnionAll(nodes)) if nodes.len() == 2
+        );
+        assert_matches!(
+            parse_into_kind("x|y|z"),
+            Ok(ExpressionKind::UnionAll(nodes)) if nodes.len() == 3
         );
         assert_matches!(
             parse_into_kind("x&y"),

@@ -17,6 +17,7 @@
 use std::collections::HashMap;
 use std::{iter, path, slice};
 
+use itertools::Itertools as _;
 use once_cell::sync::Lazy;
 use thiserror::Error;
 
@@ -227,18 +228,6 @@ impl FilesetExpression {
         FilesetExpression::Pattern(FilePattern::PrefixPath(path))
     }
 
-    /// Expression that matches either `self` or `other` (or both).
-    pub fn union(self, other: Self) -> Self {
-        match self {
-            // Micro optimization for "x | y | z"
-            FilesetExpression::UnionAll(mut expressions) => {
-                expressions.push(other);
-                FilesetExpression::UnionAll(expressions)
-            }
-            expr => FilesetExpression::UnionAll(vec![expr, other]),
-        }
-    }
-
     /// Expression that matches any of the given `expressions`.
     pub fn union_all(expressions: Vec<FilesetExpression>) -> Self {
         match expressions.len() {
@@ -442,10 +431,16 @@ fn resolve_expression(
             let lhs = resolve_expression(path_converter, lhs_node)?;
             let rhs = resolve_expression(path_converter, rhs_node)?;
             match op {
-                BinaryOp::Union => Ok(lhs.union(rhs)),
                 BinaryOp::Intersection => Ok(lhs.intersection(rhs)),
                 BinaryOp::Difference => Ok(lhs.difference(rhs)),
             }
+        }
+        ExpressionKind::UnionAll(nodes) => {
+            let expressions = nodes
+                .iter()
+                .map(|node| resolve_expression(path_converter, node))
+                .try_collect()?;
+            Ok(FilesetExpression::union_all(expressions))
         }
         ExpressionKind::FunctionCall(function) => resolve_function(path_converter, function),
     }
