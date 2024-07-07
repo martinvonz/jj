@@ -700,20 +700,19 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
         Ok(RevsetExpression::is_empty())
     });
     map.insert("file", |function, context| {
-        if let Some(ctx) = &context.workspace {
-            let ([arg], args) = function.expect_some_arguments()?;
-            let file_expressions = itertools::chain([arg], args)
-                .map(|arg| expect_file_pattern(arg, ctx.path_converter))
-                .map_ok(FilesetExpression::pattern)
-                .try_collect()?;
-            let expr = FilesetExpression::union_all(file_expressions);
-            Ok(RevsetExpression::filter(RevsetFilterPredicate::File(expr)))
-        } else {
-            Err(RevsetParseError::with_span(
+        let ctx = context.workspace.as_ref().ok_or_else(|| {
+            RevsetParseError::with_span(
                 RevsetParseErrorKind::FsPathWithoutWorkspace,
                 function.args_span, // TODO: better to use name_span?
-            ))
-        }
+            )
+        })?;
+        let ([arg], args) = function.expect_some_arguments()?;
+        let file_expressions = itertools::chain([arg], args)
+            .map(|arg| expect_file_pattern(arg, ctx.path_converter))
+            .map_ok(FilesetExpression::pattern)
+            .try_collect()?;
+        let expr = FilesetExpression::union_all(file_expressions);
+        Ok(RevsetExpression::filter(RevsetFilterPredicate::File(expr)))
     });
     map.insert("conflict", |function, _context| {
         function.expect_no_arguments()?;
