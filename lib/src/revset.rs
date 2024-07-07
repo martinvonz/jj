@@ -821,12 +821,18 @@ pub fn lower_expression(
             let lhs = lower_expression(lhs_node, context)?;
             let rhs = lower_expression(rhs_node, context)?;
             match op {
-                BinaryOp::Union => Ok(lhs.union(&rhs)),
                 BinaryOp::Intersection => Ok(lhs.intersection(&rhs)),
                 BinaryOp::Difference => Ok(lhs.minus(&rhs)),
                 BinaryOp::DagRange => Ok(lhs.dag_range_to(&rhs)),
                 BinaryOp::Range => Ok(lhs.range(&rhs)),
             }
+        }
+        ExpressionKind::UnionAll(nodes) => {
+            let expressions: Vec<_> = nodes
+                .iter()
+                .map(|node| lower_expression(node, context))
+                .try_collect()?;
+            Ok(RevsetExpression::union_all(&expressions))
         }
         ExpressionKind::FunctionCall(function) => lower_function_call(function, context),
         ExpressionKind::Modifier(modifier) => {
