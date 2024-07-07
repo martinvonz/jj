@@ -217,6 +217,14 @@ revsets (expressions) as arguments.
   While Git-tracking branches can be selected by `<name>@git`, these branches
   aren't included in `remote_branches()`.
 
+* `tracked_remote_branches([branch_pattern[, [remote=]remote_pattern]])`: All
+  targets of tracked remote branches. Supports the same optional arguments as
+  `remote_branches()`.
+
+* `untracked_remote_branches([branch_pattern[, [remote=]remote_pattern]])`:
+  All targets of untracked remote branches. Supports the same optional arguments
+  as `remote_branches()`.
+
 * `tags()`: All tag targets. If a tag is in a conflicted state, all its
   possible targets are included.
 
