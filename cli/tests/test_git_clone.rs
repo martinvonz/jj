@@ -136,6 +136,21 @@ fn test_git_clone() {
     insta::assert_snapshot!(stderr, @r###"
     Error: Destination path exists and is not an empty directory
     "###);
+
+    // Clone into a nested path
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &["git", "clone", "source", "nested/path/to/repo"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Fetching into new repo in "$TEST_ENV/nested/path/to/repo"
+    branch: main@origin [new] tracked
+    Setting the revset alias "trunk()" to "main@origin"
+    Working copy now at: uuzqqzqu df8acbac (empty) (no description set)
+    Parent commit      : mzyxwzks 9f01a0e0 main | message
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
 }
 
 #[test]
@@ -307,6 +322,27 @@ fn test_git_clone_colocate() {
     );
     insta::assert_snapshot!(stderr, @r###"
     Error: Destination path exists and is not an empty directory
+    "###);
+
+    // Clone into a nested path
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &[
+            "git",
+            "clone",
+            "source",
+            "nested/path/to/repo",
+            "--colocate",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Fetching into new repo in "$TEST_ENV/nested/path/to/repo"
+    branch: main@origin [new] tracked
+    Setting the revset alias "trunk()" to "main@origin"
+    Working copy now at: vzqnnsmr 9407107f (empty) (no description set)
+    Parent commit      : mzyxwzks 9f01a0e0 main | message
+    Added 1 files, modified 0 files, removed 0 files
     "###);
 }
 

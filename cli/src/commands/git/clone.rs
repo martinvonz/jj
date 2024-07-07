@@ -36,7 +36,10 @@ pub struct GitCloneArgs {
     /// URL or path of the Git repo to clone
     #[arg(value_hint = clap::ValueHint::DirPath)]
     source: String,
-    /// The directory to write the Jujutsu repo to
+    /// Specifies the target directory for the Jujutsu repository clone.
+    /// If not provided, defaults to a directory named after the last component
+    /// of the source URL. The full directory path will be created if it
+    /// doesn't exist.
     #[arg(value_hint = clap::ValueHint::DirPath)]
     destination: Option<String>,
     /// Whether or not to colocate the Jujutsu repo with the git repo
@@ -90,21 +93,17 @@ pub fn cmd_git_clone(
         .or_else(|| clone_destination_for_source(&source))
         .ok_or_else(|| user_error("No destination specified and wasn't able to guess it"))?;
     let wc_path = command.cwd().join(wc_path_str);
-    let wc_path_existed = match fs::create_dir(&wc_path) {
-        Ok(()) => false,
-        Err(err) if err.kind() == io::ErrorKind::AlreadyExists => true,
-        Err(err) => {
-            return Err(user_error_with_message(
-                format!("Failed to create {wc_path_str}"),
-                err,
-            ));
-        }
-    };
+
+    let wc_path_existed = wc_path.exists();
     if wc_path_existed && !is_empty_dir(&wc_path) {
         return Err(user_error(
             "Destination path exists and is not an empty directory",
         ));
     }
+
+    // will create a tree dir in case if was deleted after last check
+    fs::create_dir_all(&wc_path)
+        .map_err(|err| user_error_with_message(format!("Failed to create {wc_path_str}"), err))?;
 
     // Canonicalize because fs::remove_dir_all() doesn't seem to like e.g.
     // `/some/path/.`

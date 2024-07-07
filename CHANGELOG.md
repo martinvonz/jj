@@ -38,6 +38,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj backout` can now back out multiple commits at once.
 
+* `jj git clone some/nested/path` now creates the full directory tree for 
+   nested destination paths if they don't exist.
+
 ### Fixed bugs
 
 ## [0.19.0] - 2024-07-03
