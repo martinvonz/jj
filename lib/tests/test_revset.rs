@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::iter;
 use std::path::Path;
 
 use assert_matches::assert_matches;
@@ -2638,6 +2639,29 @@ fn test_evaluate_expression_union() {
             commit4.id().clone(),
             commit3.id().clone()
         ]
+    );
+}
+
+#[test]
+fn test_evaluate_expression_machine_generated_union() {
+    let settings = testutils::user_settings();
+    let test_repo = TestRepo::init();
+    let repo = &test_repo.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+    let mut graph_builder = CommitGraphBuilder::new(&settings, mut_repo);
+    let commit1 = graph_builder.initial_commit();
+    let commit2 = graph_builder.commit_with_parents(&[&commit1]);
+
+    // This query shouldn't trigger stack overflow. Here we use "x::y" in case
+    // we had optimization path for trivial "commit_id|.." expression.
+    let revset_str = iter::repeat(format!("({}::{})", commit1.id().hex(), commit2.id().hex()))
+        .take(5000)
+        .join("|");
+    assert_eq!(
+        resolve_commit_ids(mut_repo, &revset_str),
+        vec![commit2.id().clone(), commit1.id().clone()]
     );
 }
 

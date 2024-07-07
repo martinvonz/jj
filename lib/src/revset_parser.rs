@@ -311,6 +311,8 @@ pub enum ExpressionKind<'i> {
     RangeAll,
     Unary(UnaryOp, Box<ExpressionNode<'i>>),
     Binary(BinaryOp, Box<ExpressionNode<'i>>, Box<ExpressionNode<'i>>),
+    /// `x | y | ..`
+    UnionAll(Vec<ExpressionNode<'i>>),
     FunctionCall(Box<FunctionCallNode<'i>>),
     /// `name: body`
     Modifier(Box<ModifierNode<'i>>),
@@ -340,6 +342,10 @@ impl<'i> FoldableExpression<'i> for ExpressionKind<'i> {
                 let lhs = Box::new(folder.fold_expression(*lhs)?);
                 let rhs = Box::new(folder.fold_expression(*rhs)?);
                 Ok(ExpressionKind::Binary(op, lhs, rhs))
+            }
+            ExpressionKind::UnionAll(nodes) => {
+                let nodes = dsl_util::fold_expression_nodes(folder, nodes)?;
+                Ok(ExpressionKind::UnionAll(nodes))
             }
             ExpressionKind::FunctionCall(function) => folder.fold_function_call(function, span),
             ExpressionKind::Modifier(modifier) => {
@@ -392,8 +398,6 @@ pub enum UnaryOp {
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum BinaryOp {
-    /// `|`
-    Union,
     /// `&`
     Intersection,
     /// `~`
@@ -416,6 +420,20 @@ pub struct ModifierNode<'i> {
     pub name_span: pest::Span<'i>,
     /// Expression body.
     pub body: ExpressionNode<'i>,
+}
+
+fn union_nodes<'i>(lhs: ExpressionNode<'i>, rhs: ExpressionNode<'i>) -> ExpressionNode<'i> {
+    let span = lhs.span.start_pos().span(&rhs.span.end_pos());
+    let expr = match lhs.kind {
+        // Flatten "x | y | z" to save recursion stack. Machine-generated query
+        // might have long chain of unions.
+        ExpressionKind::UnionAll(mut nodes) => {
+            nodes.push(rhs);
+            ExpressionKind::UnionAll(nodes)
+        }
+        _ => ExpressionKind::UnionAll(vec![lhs, rhs]),
+    };
+    ExpressionNode::new(expr, span)
 }
 
 pub(super) fn parse_program(revset_str: &str) -> Result<ExpressionNode, RevsetParseError> {
@@ -551,7 +569,7 @@ fn parse_expression_node(pairs: Pairs<Rule>) -> Result<ExpressionNode, RevsetPar
         })
         .map_infix(|lhs, op, rhs| {
             let op_kind = match op.as_rule() {
-                Rule::union_op => BinaryOp::Union,
+                Rule::union_op => return Ok(union_nodes(lhs?, rhs?)),
                 Rule::compat_add_op => Err(not_infix_op(&op, "|", "union"))?,
                 Rule::intersection_op => BinaryOp::Intersection,
                 Rule::difference_op => BinaryOp::Difference,
@@ -883,6 +901,10 @@ mod tests {
                 let rhs = Box::new(normalize_tree(*rhs));
                 ExpressionKind::Binary(op, lhs, rhs)
             }
+            ExpressionKind::UnionAll(nodes) => {
+                let nodes = normalize_list(nodes);
+                ExpressionKind::UnionAll(nodes)
+            }
             ExpressionKind::FunctionCall(function) => {
                 let function = Box::new(normalize_function_call(*function));
                 ExpressionKind::FunctionCall(function)
@@ -1067,7 +1089,11 @@ mod tests {
         // Parse the "union" operator
         assert_matches!(
             parse_into_kind("foo | bar"),
-            Ok(ExpressionKind::Binary(BinaryOp::Union, _, _))
+            Ok(ExpressionKind::UnionAll(nodes)) if nodes.len() == 2
+        );
+        assert_matches!(
+            parse_into_kind("foo | bar | baz"),
+            Ok(ExpressionKind::UnionAll(nodes)) if nodes.len() == 3
         );
         // Parse the "difference" operator
         assert_matches!(
@@ -1479,8 +1505,8 @@ mod tests {
     #[test]
     fn test_expand_symbol_alias() {
         assert_eq!(
-            with_aliases([("AB", "a|b")]).parse_normalized("AB|c"),
-            parse_normalized("(a|b)|c")
+            with_aliases([("AB", "a&b")]).parse_normalized("AB|c"),
+            parse_normalized("(a&b)|c")
         );
         assert_eq!(
             with_aliases([("AB", "a|b")]).parse_normalized("AB::heads(AB)"),
