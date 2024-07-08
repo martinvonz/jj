@@ -157,6 +157,7 @@ fn test_squash_partial() {
     // If we don't make any changes in the diff-editor, the whole change is moved
     // into the parent
     let edit_script = test_env.set_up_fake_diff_editor();
+    std::fs::write(&edit_script, "dump JJ-INSTRUCTIONS instrs").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["squash", "-r", "b", "-i"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -164,6 +165,21 @@ fn test_squash_partial() {
     Working copy now at: mzvwutvl 3c633226 c | (no description set)
     Parent commit      : qpvuntsm 38ffd8b9 a b | (no description set)
     "###);
+
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("instrs")).unwrap(), @r###"
+    You are moving changes from: kkmpptxz d117da27 b | (no description set)
+    into commit: qpvuntsm 54d3c1c0 a | (no description set)
+
+    The left side of the diff shows the contents of the parent commit. The
+    right side initially shows the contents of the commit you're moving
+    changes from.
+
+    Adjust the right side until the diff shows the changes you want to move
+    to the destination. If you don't make any changes, then all the changes
+    from the source will be moved into the destination.
+    "###);
+
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  3c6332267ea8 c
     ◉  38ffd8b98578 a b

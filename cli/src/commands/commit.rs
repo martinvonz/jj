@@ -71,21 +71,23 @@ pub(crate) fn cmd_commit(
         workspace_command.diff_selector(ui, args.tool.as_deref(), args.interactive)?;
     let mut tx = workspace_command.start_transaction();
     let base_tree = commit.parent_tree(tx.repo())?;
-    let instructions = format!(
-        "\
+    let format_instructions = || {
+        format!(
+            "\
 You are splitting the working-copy commit: {}
 
 The diff initially shows all changes. Adjust the right side until it shows the
 contents you want for the first commit. The remainder will be included in the
 new working-copy commit.
 ",
-        tx.format_commit_summary(&commit)
-    );
+            tx.format_commit_summary(&commit)
+        )
+    };
     let tree_id = diff_selector.select(
         &base_tree,
         &commit.tree()?,
         matcher.as_ref(),
-        Some(&instructions),
+        format_instructions,
     )?;
     let middle_tree = tx.repo().store().get_root_tree(&tree_id)?;
     if !args.paths.is_empty() && middle_tree.id() == base_tree.id() {

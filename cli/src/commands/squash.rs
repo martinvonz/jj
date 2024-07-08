@@ -196,8 +196,9 @@ pub fn move_diff(
     for source in sources {
         let parent_tree = source.parent_tree(tx.repo())?;
         let source_tree = source.tree()?;
-        let instructions = format!(
-            "\
+        let format_instructions = || {
+            format!(
+                "\
 You are moving changes from: {}
 into commit: {}
 
@@ -209,11 +210,12 @@ Adjust the right side until the diff shows the changes you want to move
 to the destination. If you don't make any changes, then all the changes
 from the source will be moved into the destination.
 ",
-            tx.format_commit_summary(source),
-            tx.format_commit_summary(destination)
-        );
+                tx.format_commit_summary(source),
+                tx.format_commit_summary(destination)
+            )
+        };
         let selected_tree_id =
-            diff_selector.select(&parent_tree, &source_tree, matcher, Some(&instructions))?;
+            diff_selector.select(&parent_tree, &source_tree, matcher, format_instructions)?;
         let selected_tree = tx.repo().store().get_root_tree(&selected_tree_id)?;
         let abandon = !keep_emptied && selected_tree.id() == source_tree.id();
         if !abandon && selected_tree_id == parent_tree.id() {

@@ -219,20 +219,20 @@ impl DiffEditor {
         left_tree: &MergedTree,
         right_tree: &MergedTree,
         matcher: &dyn Matcher,
-        instructions: Option<&str>,
+        format_instructions: impl FnOnce() -> String,
     ) -> Result<MergedTreeId, DiffEditError> {
         match &self.tool {
             MergeTool::Builtin => {
                 Ok(edit_diff_builtin(left_tree, right_tree, matcher).map_err(Box::new)?)
             }
             MergeTool::External(editor) => {
-                let instructions = self.use_instructions.then_some(instructions).flatten();
+                let instructions = self.use_instructions.then(format_instructions);
                 edit_diff_external(
                     editor,
                     left_tree,
                     right_tree,
                     matcher,
-                    instructions,
+                    instructions.as_deref(),
                     self.base_ignores.clone(),
                 )
             }

@@ -89,19 +89,21 @@ pub(crate) fn cmd_diffedit(
 
     let diff_editor = workspace_command.diff_editor(ui, args.tool.as_deref())?;
     let mut tx = workspace_command.start_transaction();
-    let instructions = format!(
-        "\
+    let format_instructions = || {
+        format!(
+            "\
 You are editing changes in: {}
 
 {diff_description}
 
 Adjust the right side until it shows the contents you want. If you
 don't make any changes, then the operation will be aborted.",
-        tx.format_commit_summary(&target_commit),
-    );
+            tx.format_commit_summary(&target_commit),
+        )
+    };
     let base_tree = merge_commit_trees(tx.repo(), base_commits.as_slice())?;
     let tree = target_commit.tree()?;
-    let tree_id = diff_editor.edit(&base_tree, &tree, &EverythingMatcher, Some(&instructions))?;
+    let tree_id = diff_editor.edit(&base_tree, &tree, &EverythingMatcher, format_instructions)?;
     if tree_id == *target_commit.tree_id() {
         writeln!(ui.status(), "Nothing changed.")?;
     } else {

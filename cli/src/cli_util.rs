@@ -2248,12 +2248,12 @@ impl DiffSelector {
         left_tree: &MergedTree,
         right_tree: &MergedTree,
         matcher: &dyn Matcher,
-        instructions: Option<&str>,
+        format_instructions: impl FnOnce() -> String,
     ) -> Result<MergedTreeId, CommandError> {
         match self {
             DiffSelector::NonInteractive => Ok(restore_tree(right_tree, left_tree, matcher)?),
             DiffSelector::Interactive(editor) => {
-                Ok(editor.edit(left_tree, right_tree, matcher, instructions)?)
+                Ok(editor.edit(left_tree, right_tree, matcher, format_instructions)?)
             }
         }
     }

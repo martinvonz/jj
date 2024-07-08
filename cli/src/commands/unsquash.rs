@@ -71,8 +71,9 @@ pub(crate) fn cmd_unsquash(
     let parent_base_tree = parent.parent_tree(tx.repo())?;
     let new_parent_tree_id;
     if let Some(diff_editor) = &interactive_editor {
-        let instructions = format!(
-            "\
+        let format_instructions = || {
+            format!(
+                "\
 You are moving changes from: {}
 into its child: {}
 
@@ -83,15 +84,16 @@ the parent commit. The changes you edited out will be moved into the
 child commit. If you don't make any changes, then the operation will be
 aborted.
 ",
-            tx.format_commit_summary(&parent),
-            tx.format_commit_summary(&commit)
-        );
+                tx.format_commit_summary(&parent),
+                tx.format_commit_summary(&commit)
+            )
+        };
         let parent_tree = parent.tree()?;
         new_parent_tree_id = diff_editor.edit(
             &parent_base_tree,
             &parent_tree,
             &EverythingMatcher,
-            Some(&instructions),
+            format_instructions,
         )?;
         if new_parent_tree_id == parent_base_tree.id() {
             return Err(user_error("No changes selected"));

@@ -104,10 +104,20 @@ fn test_commit_interactive() {
     std::fs::write(edit_script, ["dump editor"].join("\0")).unwrap();
 
     let diff_editor = test_env.set_up_fake_diff_editor();
-    std::fs::write(diff_editor, "rm file2").unwrap();
+    let diff_script = ["rm file2", "dump JJ-INSTRUCTIONS instrs"].join("\0");
+    std::fs::write(diff_editor, diff_script).unwrap();
 
     // Create a commit interactively and select only file1
     test_env.jj_cmd_ok(&workspace_path, &["commit", "-i"]);
+
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("instrs")).unwrap(), @r###"
+    You are splitting the working-copy commit: qpvuntsm 4219467e add files
+
+    The diff initially shows all changes. Adjust the right side until it shows the
+    contents you want for the first commit. The remainder will be included in the
+    new working-copy commit.
+    "###);
 
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r###"

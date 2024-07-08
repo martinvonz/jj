@@ -57,7 +57,7 @@ fn files_recursively(p: &Path) -> HashSet<String> {
 fn main() {
     let args: Args = Args::parse();
     let edit_script_path = PathBuf::from(std::env::var_os("DIFF_EDIT_SCRIPT").unwrap());
-    let edit_script = String::from_utf8(std::fs::read(edit_script_path).unwrap()).unwrap();
+    let edit_script = String::from_utf8(std::fs::read(&edit_script_path).unwrap()).unwrap();
     for instruction in edit_script.split('\0') {
         let (command, payload) = instruction.split_once('\n').unwrap_or((instruction, ""));
         let parts = command.split(' ').collect_vec();
@@ -110,6 +110,10 @@ fn main() {
                 } else {
                     std::fs::remove_file(args.after.join(file)).unwrap();
                 }
+            }
+            ["dump", file, dest] => {
+                let dest_path = edit_script_path.parent().unwrap().join(dest);
+                std::fs::copy(args.after.join(file), dest_path).unwrap();
             }
             ["write", file] => {
                 std::fs::write(args.after.join(file), payload).unwrap();
