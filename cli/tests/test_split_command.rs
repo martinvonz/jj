@@ -559,3 +559,51 @@ fn test_split_message_editor_avoids_unc() {
     // over 260 chars.
     assert_eq!(edited_path, dunce::simplified(&edited_path));
 }
+
+#[test]
+fn test_split_interactive() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let workspace_path = test_env.env_root().join("repo");
+
+    std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
+    let edit_script = test_env.set_up_fake_editor();
+    std::fs::write(edit_script, ["dump editor"].join("\0")).unwrap();
+
+    let diff_editor = test_env.set_up_fake_diff_editor();
+    let diff_script = ["rm file2", "dump JJ-INSTRUCTIONS instrs"].join("\0");
+    std::fs::write(diff_editor, diff_script).unwrap();
+
+    // Split the working commit interactively and select only file1
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_path, &["split"]);
+
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("instrs")).unwrap(), @r###"
+    You are splitting a commit into two: qpvuntsm 44af2155 (no description set)
+
+    The diff initially shows the changes in the commit you're splitting.
+
+    Adjust the right side until it shows the contents you want for the first commit.
+    The remainder will be in the second commit. If you don't make any changes, then
+    the operation will be aborted.
+    "###);
+
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r###"
+    JJ: Enter a description for the first commit.
+
+    JJ: This commit contains the following changes:
+    JJ:     A file1
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
+
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    First part: qpvuntsm 0e15949e (no description set)
+    Second part: rlvkpnrz 9ed12e4c (no description set)
+    Working copy now at: rlvkpnrz 9ed12e4c (no description set)
+    Parent commit      : qpvuntsm 0e15949e (no description set)
+    "###);
+}

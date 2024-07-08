@@ -156,6 +156,7 @@ fn test_unsquash_partial() {
     // If we don't make any changes in the diff-editor, the whole change is moved
     // from the parent
     let edit_script = test_env.set_up_fake_diff_editor();
+    std::fs::write(&edit_script, "dump JJ-INSTRUCTIONS instrs").unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["unsquash", "-r", "b", "-i"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
@@ -163,6 +164,20 @@ fn test_unsquash_partial() {
     Working copy now at: mzvwutvl 8802263d c | (no description set)
     Parent commit      : kkmpptxz 5bd83140 b | (no description set)
     "###);
+
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("instrs")).unwrap(), @r###"
+    You are moving changes from: qpvuntsm 54d3c1c0 a | (no description set)
+    into its child: kkmpptxz d117da27 b | (no description set)
+
+    The diff initially shows the parent commit's changes.
+
+    Adjust the right side until it shows the contents you want to keep in
+    the parent commit. The changes you edited out will be moved into the
+    child commit. If you don't make any changes, then the operation will be
+    aborted.
+    "###);
+
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  8802263dbd92 c
     ◉  5bd83140fd47 b

@@ -33,13 +33,27 @@ fn test_diffedit() {
     // Test the setup; nothing happens if we make no changes
     std::fs::write(
         &edit_script,
-        "files-before file1 file2\0files-after JJ-INSTRUCTIONS file2",
+        [
+            "files-before file1 file2",
+            "files-after JJ-INSTRUCTIONS file2",
+            "dump JJ-INSTRUCTIONS instrs",
+        ]
+        .join("\0"),
     )
     .unwrap();
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["diffedit"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Nothing changed.
+    "###);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("instrs")).unwrap(), @r###"
+    You are editing changes in: kkmpptxz 3d4cce89 (no description set)
+
+    The diff initially shows the commit's changes.
+
+    Adjust the right side until it shows the contents you want. If you
+    don't make any changes, then the operation will be aborted.
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
