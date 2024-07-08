@@ -63,6 +63,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * The `file()` revset function now accepts fileset as argument.
 
+* New `diff_contains()` revset function can be used to search diffs.
+
 ### Fixed bugs
 
 * `jj diff --git` no longer shows the contents of binary files.

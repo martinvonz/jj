@@ -3013,6 +3013,152 @@ fn test_evaluate_expression_file() {
 }
 
 #[test]
+fn test_evaluate_expression_diff_contains() {
+    let settings = testutils::user_settings();
+    let test_workspace = TestWorkspace::init(&settings);
+    let repo = &test_workspace.repo;
+
+    let mut tx = repo.start_transaction(&settings);
+    let mut_repo = tx.mut_repo();
+
+    let empty_clean_inserted_deleted =
+        RepoPath::from_internal_string("empty_clean_inserted_deleted");
+    let blank_clean_inserted_clean = RepoPath::from_internal_string("blank_clean_inserted_clean");
+    let noeol_modified_modified_clean =
+        RepoPath::from_internal_string("noeol_modified_modified_clean");
+    let normal_inserted_modified_removed =
+        RepoPath::from_internal_string("normal_inserted_modified_removed");
+    let tree1 = create_tree(
+        repo,
+        &[
+            (empty_clean_inserted_deleted, ""),
+            (blank_clean_inserted_clean, "\n"),
+            (noeol_modified_modified_clean, "1"),
+            (normal_inserted_modified_removed, "1\n"),
+        ],
+    );
+    let tree2 = create_tree(
+        repo,
+        &[
+            (empty_clean_inserted_deleted, ""),
+            (blank_clean_inserted_clean, "\n"),
+            (noeol_modified_modified_clean, "2"),
+            (normal_inserted_modified_removed, "1\n2\n"),
+        ],
+    );
+    let tree3 = create_tree(
+        repo,
+        &[
+            (empty_clean_inserted_deleted, "3"),
+            (blank_clean_inserted_clean, "\n3\n"),
+            (noeol_modified_modified_clean, "2 3"),
+            (normal_inserted_modified_removed, "1 3\n2\n"),
+        ],
+    );
+    let tree4 = create_tree(
+        repo,
+        &[
+            (empty_clean_inserted_deleted, ""),
+            (blank_clean_inserted_clean, "\n3\n"),
+            (noeol_modified_modified_clean, "2 3"),
+            // normal_inserted_modified_removed
+        ],
+    );
+    let commit1 = mut_repo
+        .new_commit(
+            &settings,
+            vec![repo.store().root_commit_id().clone()],
+            tree1.id(),
+        )
+        .write()
+        .unwrap();
+    let commit2 = mut_repo
+        .new_commit(&settings, vec![commit1.id().clone()], tree2.id())
+        .write()
+        .unwrap();
+    let commit3 = mut_repo
+        .new_commit(&settings, vec![commit2.id().clone()], tree3.id())
+        .write()
+        .unwrap();
+    let commit4 = mut_repo
+        .new_commit(&settings, vec![commit3.id().clone()], tree4.id())
+        .write()
+        .unwrap();
+
+    let query = |revset_str: &str| {
+        resolve_commit_ids_in_workspace(
+            mut_repo,
+            revset_str,
+            &test_workspace.workspace,
+            Some(test_workspace.workspace.workspace_root()),
+        )
+    };
+
+    // should match both inserted and deleted lines
+    assert_eq!(
+        query("diff_contains('2')"),
+        vec![
+            commit4.id().clone(),
+            commit3.id().clone(),
+            commit2.id().clone(),
+        ]
+    );
+    assert_eq!(
+        query("diff_contains('3')"),
+        vec![commit4.id().clone(), commit3.id().clone()]
+    );
+    assert_eq!(query("diff_contains('2 3')"), vec![commit3.id().clone()]);
+    assert_eq!(
+        query("diff_contains('1 3')"),
+        vec![commit4.id().clone(), commit3.id().clone()]
+    );
+
+    // should match line with eol
+    assert_eq!(
+        query(&format!(
+            "diff_contains(exact:'1', {normal_inserted_modified_removed:?})",
+        )),
+        vec![commit3.id().clone(), commit1.id().clone()]
+    );
+
+    // should match line without eol
+    assert_eq!(
+        query(&format!(
+            "diff_contains(exact:'1', {noeol_modified_modified_clean:?})",
+        )),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+
+    // exact:'' should match blank line
+    assert_eq!(
+        query(&format!(
+            "diff_contains(exact:'', {empty_clean_inserted_deleted:?})",
+        )),
+        vec![]
+    );
+    assert_eq!(
+        query(&format!(
+            "diff_contains(exact:'', {blank_clean_inserted_clean:?})",
+        )),
+        vec![commit1.id().clone()]
+    );
+
+    // '' should match anything but clean
+    assert_eq!(
+        query(&format!(
+            "diff_contains('', {empty_clean_inserted_deleted:?})",
+        )),
+        vec![commit4.id().clone(), commit3.id().clone()]
+    );
+    assert_eq!(
+        query(&format!(
+            "diff_contains('', {blank_clean_inserted_clean:?})",
+        )),
+        vec![commit3.id().clone(), commit1.id().clone()]
+    );
+}
+
+#[test]
 fn test_evaluate_expression_conflict() {
     let settings = testutils::user_settings();
     let test_workspace = TestWorkspace::init(&settings);

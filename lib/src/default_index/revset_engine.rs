@@ -20,14 +20,17 @@ use std::collections::{BTreeSet, BinaryHeap, HashSet};
 use std::ops::Range;
 use std::rc::Rc;
 use std::sync::Arc;
-use std::{fmt, iter};
+use std::{fmt, iter, str};
 
+use futures::StreamExt as _;
 use itertools::Itertools;
+use pollster::FutureExt as _;
 
 use super::rev_walk::{EagerRevWalk, PeekableRevWalk, RevWalk, RevWalkBuilder};
 use super::revset_graph_iterator::RevsetGraphWalk;
-use crate::backend::{BackendResult, ChangeId, CommitId, MillisSinceEpoch};
+use crate::backend::{BackendError, BackendResult, ChangeId, CommitId, MillisSinceEpoch};
 use crate::commit::Commit;
+use crate::conflicts::{materialized_diff_stream, MaterializedTreeValue};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexPosition};
 use crate::graph::GraphEdge;
 use crate::matchers::{Matcher, Visit};
@@ -37,6 +40,7 @@ use crate::revset::{
     RevsetFilterPredicate, GENERATION_RANGE_FULL,
 };
 use crate::store::Store;
+use crate::str_util::StringPattern;
 use crate::{rewrite, union_find};
 
 type BoxedPredicateFn<'a> = Box<dyn FnMut(&CompositeIndex, IndexPosition) -> bool + 'a>;
@@ -1078,6 +1082,16 @@ fn build_predicate_fn(
                 has_diff_from_parent(&store, index, &commit, matcher.as_ref()).unwrap()
             })
         }
+        RevsetFilterPredicate::DiffContains { text, files } => {
+            let text_pattern = text.clone();
+            let files_matcher: Rc<dyn Matcher> = files.to_matcher().into();
+            box_pure_predicate_fn(move |index, pos| {
+                let entry = index.entry_by_pos(pos);
+                let commit = store.get_commit(&entry.commit_id()).unwrap();
+                matches_diff_from_parent(&store, index, &commit, &text_pattern, &*files_matcher)
+                    .unwrap()
+            })
+        }
         RevsetFilterPredicate::HasConflict => box_pure_predicate_fn(move |index, pos| {
             let entry = index.entry_by_pos(pos);
             let commit = store.get_commit(&entry.commit_id()).unwrap();
@@ -1113,6 +1127,75 @@ fn has_diff_from_parent(
     let from_tree = rewrite::merge_commit_trees_without_repo(store, &index, &parents)?;
     let to_tree = commit.tree()?;
     Ok(from_tree.diff(&to_tree, matcher).next().is_some())
+}
+
+fn matches_diff_from_parent(
+    store: &Arc<Store>,
+    index: &CompositeIndex,
+    commit: &Commit,
+    text_pattern: &StringPattern,
+    files_matcher: &dyn Matcher,
+) -> BackendResult<bool> {
+    let parents: Vec<_> = commit.parents().try_collect()?;
+    let from_tree = rewrite::merge_commit_trees_without_repo(store, &index, &parents)?;
+    let to_tree = commit.tree()?;
+    let tree_diff = from_tree.diff_stream(&to_tree, files_matcher);
+    // Conflicts are compared in materialized form. Alternatively, conflict
+    // pairs can be compared one by one. #4062
+    let mut diff_stream = materialized_diff_stream(store, tree_diff);
+    async {
+        while let Some((path, diff)) = diff_stream.next().await {
+            let (left_value, right_value) = diff?;
+            let left_content = to_file_content(&path, left_value)?;
+            let right_content = to_file_content(&path, right_value)?;
+            // Filter lines prior to comparison. This might produce inferior
+            // hunks due to lack of contexts, but is way faster than full diff.
+            let left_lines = match_lines(&left_content, text_pattern);
+            let right_lines = match_lines(&right_content, text_pattern);
+            if left_lines.ne(right_lines) {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+    .block_on()
+}
+
+fn match_lines<'a: 'b, 'b>(
+    text: &'a [u8],
+    pattern: &'b StringPattern,
+) -> impl Iterator<Item = &'a [u8]> + 'b {
+    // The pattern is matched line by line so that it can be anchored to line
+    // start/end. For example, exact:"" will match blank lines.
+    text.split_inclusive(|b| *b == b'\n').filter(|line| {
+        let line = line.strip_suffix(b"\n").unwrap_or(line);
+        // TODO: add .matches_bytes() or .to_bytes_matcher()
+        str::from_utf8(line).map_or(false, |line| pattern.matches(line))
+    })
+}
+
+fn to_file_content(path: &RepoPath, value: MaterializedTreeValue) -> BackendResult<Vec<u8>> {
+    match value {
+        MaterializedTreeValue::Absent => Ok(vec![]),
+        MaterializedTreeValue::AccessDenied(_) => Ok(vec![]),
+        MaterializedTreeValue::File { id, mut reader, .. } => {
+            let mut content = vec![];
+            reader
+                .read_to_end(&mut content)
+                .map_err(|err| BackendError::ReadFile {
+                    path: path.to_owned(),
+                    id: id.clone(),
+                    source: err.into(),
+                })?;
+            Ok(content)
+        }
+        MaterializedTreeValue::Symlink { id: _, target } => Ok(target.into_bytes()),
+        MaterializedTreeValue::GitSubmodule(_) => Ok(vec![]),
+        MaterializedTreeValue::Conflict { contents, .. } => Ok(contents),
+        MaterializedTreeValue::Tree(id) => {
+            panic!("Unexpected tree with id {id:?} in diff at path {path:?}");
+        }
+    }
 }
 
 #[cfg(test)]

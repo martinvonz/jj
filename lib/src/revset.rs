@@ -134,6 +134,11 @@ pub enum RevsetFilterPredicate {
     Committer(StringPattern),
     /// Commits modifying the paths specified by the fileset.
     File(FilesetExpression),
+    /// Commits containing diffs matching the `text` pattern within the `files`.
+    DiffContains {
+        text: StringPattern,
+        files: FilesetExpression,
+    },
     /// Commits with conflicts
     HasConflict,
     /// Custom predicates provided by extensions
@@ -713,6 +718,26 @@ static BUILTIN_FUNCTION_MAP: Lazy<HashMap<&'static str, RevsetFunction>> = Lazy:
             .try_collect()?;
         let expr = FilesetExpression::union_all(file_expressions);
         Ok(RevsetExpression::filter(RevsetFilterPredicate::File(expr)))
+    });
+    map.insert("diff_contains", |function, context| {
+        let ([text_arg], [files_opt_arg]) = function.expect_arguments()?;
+        let text = expect_string_pattern(text_arg)?;
+        let files = if let Some(files_arg) = files_opt_arg {
+            let ctx = context.workspace.as_ref().ok_or_else(|| {
+                RevsetParseError::with_span(
+                    RevsetParseErrorKind::FsPathWithoutWorkspace,
+                    files_arg.span,
+                )
+            })?;
+            expect_fileset_expression(files_arg, ctx.path_converter)?
+        } else {
+            // TODO: defaults to CLI path arguments?
+            // https://github.com/martinvonz/jj/issues/2933#issuecomment-1925870731
+            FilesetExpression::all()
+        };
+        Ok(RevsetExpression::filter(
+            RevsetFilterPredicate::DiffContains { text, files },
+        ))
     });
     map.insert("conflict", |function, _context| {
         function.expect_no_arguments()?;
