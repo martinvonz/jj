@@ -18,11 +18,11 @@ use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::{io, mem};
 
-use futures::{try_join, Stream, StreamExt};
+use futures::StreamExt;
 use itertools::Itertools;
-use jj_lib::backend::{BackendError, BackendResult, TreeValue};
+use jj_lib::backend::{BackendError, TreeValue};
 use jj_lib::commit::Commit;
-use jj_lib::conflicts::{materialize_tree_value, MaterializedTreeValue};
+use jj_lib::conflicts::{materialized_diff_stream, MaterializedTreeValue};
 use jj_lib::diff::{Diff, DiffHunk};
 use jj_lib::files::DiffLine;
 use jj_lib::matchers::Matcher;
@@ -30,7 +30,7 @@ use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::{MergedTree, TreeDiffStream};
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::{RepoPath, RepoPathBuf, RepoPathUiConverter};
+use jj_lib::repo_path::{RepoPath, RepoPathUiConverter};
 use jj_lib::settings::{ConfigResultExt as _, UserSettings};
 use jj_lib::store::Store;
 use jj_lib::{diff, files};
@@ -993,30 +993,6 @@ fn show_unified_diff_hunks(
         }
     }
     Ok(())
-}
-
-fn materialized_diff_stream<'a>(
-    store: &'a Store,
-    tree_diff: TreeDiffStream<'a>,
-) -> impl Stream<
-    Item = (
-        RepoPathBuf,
-        BackendResult<(MaterializedTreeValue, MaterializedTreeValue)>,
-    ),
-> + 'a {
-    tree_diff
-        .map(|(path, diff)| async {
-            match diff {
-                Err(err) => (path, Err(err)),
-                Ok((before, after)) => {
-                    let before_future = materialize_tree_value(store, &path, before);
-                    let after_future = materialize_tree_value(store, &path, after);
-                    let values = try_join!(before_future, after_future);
-                    (path, values)
-                }
-            }
-        })
-        .buffered((store.concurrency() / 2).max(1))
 }
 
 pub fn show_git_diff(
