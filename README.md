@@ -129,7 +129,7 @@ developers monitor both channels.
 
 ### News and Updates 📣
 
-- **Feb 2024**: Version 0.14 is released, which deprecates ["jj checkout" and "jj merge"](CHANGELOG.md#deprecations-1),
+- **Feb 2024**: Version 0.14 is released, which deprecates ["jj checkout" and "jj merge"](CHANGELOG.md#0140---2024-02-07),
   as well as `jj init --git`, which is now just called `jj git init`. 
 - **Oct 2023**: Version 0.10.0 is released! Now includes a bundled merge and
   diff editor for all platforms, "immutable revsets" to avoid accidentally
@@ -148,12 +148,15 @@ developers monitor both channels.
 - **Jan 2023**: Martin's Talk about Jujutsu at Git Merge 2022, [video][merge-talk] 
   and the associated [slides][merge-slides].
 
+The wiki also contains a more extensive list of [media references][wiki-media].
+
 [krycho-yt]: https://www.youtube.com/playlist?list=PLelyiwKWHHAq01Pvmpf6x7J0y-yQpmtxp
 [krycho]: https://v5.chriskrycho.com/essays/jj-init/
 [klabnik]: https://steveklabnik.github.io/jujutsu-tutorial/
 [lwn]: https://lwn.net/Articles/958468/ 
 [merge-talk]: https://www.youtube.com/watch?v=bx_LGilOuE4
 [merge-slides]: https://docs.google.com/presentation/d/1F8j9_UOOSGUN9MvHxPZX_L4bQ9NMcYOp1isn17kTC_M/view 
+[wiki-media]: https://github.com/martinvonz/jj/wiki/Media
 
 ## Getting started
 
