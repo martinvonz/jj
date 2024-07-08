@@ -17,7 +17,7 @@
 use std::io::{Read, Write};
 use std::iter::zip;
 
-use futures::{StreamExt, TryStreamExt};
+use futures::{try_join, Stream, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use regex::bytes::Regex;
 
@@ -26,7 +26,8 @@ use crate::diff::{Diff, DiffHunk};
 use crate::files;
 use crate::files::{ContentHunk, MergeResult};
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
-use crate::repo_path::RepoPath;
+use crate::merged_tree::TreeDiffStream;
+use crate::repo_path::{RepoPath, RepoPathBuf};
 use crate::store::Store;
 
 const CONFLICT_START_LINE: &[u8] = b"<<<<<<<";
@@ -324,6 +325,30 @@ fn diff_size(hunks: &[DiffHunk]) -> usize {
             DiffHunk::Different(slices) => slices.iter().map(|slice| slice.len()).sum(),
         })
         .sum()
+}
+
+pub fn materialized_diff_stream<'a>(
+    store: &'a Store,
+    tree_diff: TreeDiffStream<'a>,
+) -> impl Stream<
+    Item = (
+        RepoPathBuf,
+        BackendResult<(MaterializedTreeValue, MaterializedTreeValue)>,
+    ),
+> + 'a {
+    tree_diff
+        .map(|(path, diff)| async {
+            match diff {
+                Err(err) => (path, Err(err)),
+                Ok((before, after)) => {
+                    let before_future = materialize_tree_value(store, &path, before);
+                    let after_future = materialize_tree_value(store, &path, after);
+                    let values = try_join!(before_future, after_future);
+                    (path, values)
+                }
+            }
+        })
+        .buffered((store.concurrency() / 2).max(1))
 }
 
 /// Parses conflict markers from a slice. Returns None if there were no valid
