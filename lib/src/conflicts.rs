@@ -22,7 +22,7 @@ use itertools::Itertools;
 use regex::bytes::Regex;
 
 use crate::backend::{BackendError, BackendResult, CommitId, FileId, SymlinkId, TreeId, TreeValue};
-use crate::diff::{find_line_ranges, Diff, DiffHunk};
+use crate::diff::{Diff, DiffHunk};
 use crate::files;
 use crate::files::{ContentHunk, MergeResult};
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
@@ -259,17 +259,12 @@ pub fn materialize_merge_result(
                             output.write_all(&left.0)?;
                             continue;
                         };
-                        let diff1 = Diff::for_tokenizer(&[&left.0, &right1.0], find_line_ranges)
-                            .hunks()
-                            .collect_vec();
+                        let diff1 = Diff::by_line(&[&left.0, &right1.0]).hunks().collect_vec();
                         // Check if the diff against the next positive term is better. Since
                         // we want to preserve the order of the terms, we don't match against
                         // any later positive terms.
                         if let Some(right2) = hunk.get_add(add_index + 1) {
-                            let diff2 =
-                                Diff::for_tokenizer(&[&left.0, &right2.0], find_line_ranges)
-                                    .hunks()
-                                    .collect_vec();
+                            let diff2 = Diff::by_line(&[&left.0, &right2.0]).hunks().collect_vec();
                             if diff_size(&diff2) < diff_size(&diff1) {
                                 // If the next positive term is a better match, emit
                                 // the current positive term as a snapshot and the next

@@ -165,7 +165,7 @@ pub fn merge(slices: &Merge<&[u8]>) -> MergeResult {
     let num_diffs = slices.removes().len();
     let diff_inputs = slices.removes().chain(slices.adds()).copied().collect_vec();
 
-    let diff = Diff::for_tokenizer(&diff_inputs, diff::find_line_ranges);
+    let diff = Diff::by_line(&diff_inputs);
     let mut resolved_hunk = ContentHunk(vec![]);
     let mut merge_hunks: Vec<Merge<ContentHunk>> = vec![];
     for diff_hunk in diff.hunks() {

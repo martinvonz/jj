@@ -6,7 +6,7 @@ use futures::{StreamExt, TryFutureExt, TryStreamExt};
 use itertools::Itertools;
 use jj_lib::backend::{BackendError, BackendResult, FileId, MergedTreeId, TreeValue};
 use jj_lib::conflicts::{materialize_tree_value, MaterializedTreeValue};
-use jj_lib::diff::{find_line_ranges, Diff, DiffHunk};
+use jj_lib::diff::{Diff, DiffHunk};
 use jj_lib::files::{self, ContentHunk, MergeResult};
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::Merge;
@@ -225,10 +225,7 @@ fn make_diff_sections(
     left_contents: &str,
     right_contents: &str,
 ) -> Result<Vec<scm_record::Section<'static>>, BuiltinToolError> {
-    let diff = Diff::for_tokenizer(
-        &[left_contents.as_bytes(), right_contents.as_bytes()],
-        find_line_ranges,
-    );
+    let diff = Diff::by_line(&[left_contents.as_bytes(), right_contents.as_bytes()]);
     let mut sections = Vec::new();
     for hunk in diff.hunks() {
         match hunk {
