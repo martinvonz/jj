@@ -280,6 +280,16 @@ given [string pattern](#string-patterns).
   Some file patterns might need quoting because the `expression` must also be
   parsable as a revset. For example, `.` has to be quoted in `file(".")`.
 
+* `diff_contains(text[, files])`: Commits containing diffs matching the given
+  `text` pattern line by line.
+
+  The search paths can be narrowed by the `files` expression. All modified files
+  are scanned by default, but it is likely to change in future version to
+  respect the command line path arguments.
+
+  For example, `diff_contains("TODO", "src")` will search revisions where "TODO"
+  is added to or removed from files under "src".
+
 * `conflict()`: Commits with conflicts.
 
 * `present(x)`: Same as `x`, but evaluated to `none()` if any of the commits
