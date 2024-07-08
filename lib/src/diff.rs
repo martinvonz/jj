@@ -462,6 +462,11 @@ impl<'input> Diff<'input> {
         Diff::for_tokenizer(inputs, |_| vec![])
     }
 
+    /// Compares `inputs` line by line.
+    pub fn by_line(inputs: &[&'input [u8]]) -> Self {
+        Diff::for_tokenizer(inputs, find_line_ranges)
+    }
+
     // TODO: At least when merging, it's wasteful to refine the diff if e.g. if 2
     // out of 3 inputs match in the differing regions. Perhaps the refine()
     // method should be on the hunk instead (probably returning a new Diff)?
