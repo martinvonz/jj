@@ -16,10 +16,10 @@
 
 use std::cmp::{max, min, Ordering};
 use std::collections::{BTreeMap, HashMap};
-use std::fmt::{Debug, Formatter};
 use std::ops::Range;
 use std::{iter, slice};
 
+use bstr::BStr;
 use itertools::Itertools;
 
 pub fn find_line_ranges(text: &[u8]) -> Vec<Range<usize>> {
@@ -354,8 +354,8 @@ impl Ord for UnchangedRange {
 /// of them.
 #[derive(Clone, Debug)]
 pub struct Diff<'input> {
-    base_input: &'input [u8],
-    other_inputs: Vec<&'input [u8]>,
+    base_input: &'input BStr,
+    other_inputs: Vec<&'input BStr>,
     // The key is a range in the base input. The value is the start of each non-base region
     // relative to the base region's start. By making them relative, they don't need to change
     // when the base range changes.
@@ -412,7 +412,7 @@ impl<'input> Diff<'input> {
         inputs: impl IntoIterator<Item = &'input T>,
         tokenizer: impl Fn(&[u8]) -> Vec<Range<usize>>,
     ) -> Self {
-        let mut inputs = inputs.into_iter().map(AsRef::as_ref);
+        let mut inputs = inputs.into_iter().map(BStr::new);
         let base_input = inputs.next().expect("inputs must not be empty");
         let other_inputs = inputs.collect_vec();
         // First tokenize each input
@@ -430,8 +430,8 @@ impl<'input> Diff<'input> {
     }
 
     fn with_inputs_and_token_ranges(
-        base_input: &'input [u8],
-        other_inputs: Vec<&'input [u8]>,
+        base_input: &'input BStr,
+        other_inputs: Vec<&'input BStr>,
         base_token_ranges: &[Range<usize>],
         other_token_ranges: &[Vec<Range<usize>>],
     ) -> Self {
@@ -587,41 +587,21 @@ impl<'input> Diff<'input> {
     }
 }
 
-#[derive(PartialEq, Eq, Clone)]
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub enum DiffHunk<'input> {
-    Matching(&'input [u8]),
-    Different(Vec<&'input [u8]>),
+    Matching(&'input BStr),
+    Different(Vec<&'input BStr>),
 }
 
 impl<'input> DiffHunk<'input> {
     pub fn matching<T: AsRef<[u8]> + ?Sized>(content: &'input T) -> Self {
-        DiffHunk::Matching(content.as_ref())
+        DiffHunk::Matching(BStr::new(content))
     }
 
     pub fn different<T: AsRef<[u8]> + ?Sized + 'input>(
         contents: impl IntoIterator<Item = &'input T>,
     ) -> Self {
-        DiffHunk::Different(contents.into_iter().map(AsRef::as_ref).collect())
-    }
-}
-
-impl Debug for DiffHunk<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
-        match self {
-            DiffHunk::Matching(slice) => f
-                .debug_tuple("DiffHunk::Matching")
-                .field(&String::from_utf8_lossy(slice))
-                .finish(),
-            DiffHunk::Different(slices) => f
-                .debug_tuple("DiffHunk::Different")
-                .field(
-                    &slices
-                        .iter()
-                        .map(|slice| String::from_utf8_lossy(slice))
-                        .collect_vec(),
-                )
-                .finish(),
-        }
+        DiffHunk::Different(contents.into_iter().map(BStr::new).collect())
     }
 }
 
