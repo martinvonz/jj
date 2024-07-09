@@ -27,7 +27,8 @@ use itertools::Itertools;
 use super::rev_walk::{EagerRevWalk, PeekableRevWalk, RevWalk, RevWalkBuilder};
 use super::revset_graph_iterator::RevsetGraphWalk;
 use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
-use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexEntry, IndexPosition};
+use crate::commit::Commit;
+use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexPosition};
 use crate::graph::GraphEdge;
 use crate::matchers::{Matcher, Visit};
 use crate::repo_path::RepoPath;
@@ -1072,7 +1073,8 @@ fn build_predicate_fn(
             let matcher: Rc<dyn Matcher> = expr.to_matcher().into();
             box_pure_predicate_fn(move |index, pos| {
                 let entry = index.entry_by_pos(pos);
-                has_diff_from_parent(&store, index, &entry, matcher.as_ref())
+                let commit = store.get_commit(&entry.commit_id()).unwrap();
+                has_diff_from_parent(&store, index, &commit, matcher.as_ref())
             })
         }
         RevsetFilterPredicate::HasConflict => box_pure_predicate_fn(move |index, pos| {
@@ -1094,10 +1096,9 @@ fn build_predicate_fn(
 fn has_diff_from_parent(
     store: &Arc<Store>,
     index: &CompositeIndex,
-    entry: &IndexEntry<'_>,
+    commit: &Commit,
     matcher: &dyn Matcher,
 ) -> bool {
-    let commit = store.get_commit(&entry.commit_id()).unwrap();
     let parents: Vec<_> = commit.parents().try_collect().unwrap();
     if let [parent] = parents.as_slice() {
         // Fast path: no need to load the root tree
