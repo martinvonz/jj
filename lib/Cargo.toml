@@ -36,7 +36,6 @@ version_check = { workspace = true }
 async-trait = { workspace = true }
 backoff = { workspace = true }
 blake2 = { workspace = true }
-bytes = { workspace = true }
 chrono = { workspace = true }
 config = { workspace = true }
 digest = { workspace = true }
