@@ -26,7 +26,7 @@ use itertools::Itertools;
 
 use super::rev_walk::{EagerRevWalk, PeekableRevWalk, RevWalk, RevWalkBuilder};
 use super::revset_graph_iterator::RevsetGraphWalk;
-use crate::backend::{ChangeId, CommitId, MillisSinceEpoch};
+use crate::backend::{BackendResult, ChangeId, CommitId, MillisSinceEpoch};
 use crate::commit::Commit;
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexPosition};
 use crate::graph::GraphEdge;
@@ -1034,6 +1034,7 @@ fn build_predicate_fn(
     store: Arc<Store>,
     predicate: &RevsetFilterPredicate,
 ) -> Box<dyn ToPredicateFn> {
+    // TODO: propagate BackendError
     match predicate {
         RevsetFilterPredicate::ParentCount(parent_count_range) => {
             let parent_count_range = parent_count_range.clone();
@@ -1074,7 +1075,7 @@ fn build_predicate_fn(
             box_pure_predicate_fn(move |index, pos| {
                 let entry = index.entry_by_pos(pos);
                 let commit = store.get_commit(&entry.commit_id()).unwrap();
-                has_diff_from_parent(&store, index, &commit, matcher.as_ref())
+                has_diff_from_parent(&store, index, &commit, matcher.as_ref()).unwrap()
             })
         }
         RevsetFilterPredicate::HasConflict => box_pure_predicate_fn(move |index, pos| {
@@ -1098,20 +1099,20 @@ fn has_diff_from_parent(
     index: &CompositeIndex,
     commit: &Commit,
     matcher: &dyn Matcher,
-) -> bool {
-    let parents: Vec<_> = commit.parents().try_collect().unwrap();
+) -> BackendResult<bool> {
+    let parents: Vec<_> = commit.parents().try_collect()?;
     if let [parent] = parents.as_slice() {
         // Fast path: no need to load the root tree
         let unchanged = commit.tree_id() == parent.tree_id();
         if matcher.visit(RepoPath::root()) == Visit::AllRecursively {
-            return !unchanged;
+            return Ok(!unchanged);
         } else if unchanged {
-            return false;
+            return Ok(false);
         }
     }
-    let from_tree = rewrite::merge_commit_trees_without_repo(store, &index, &parents).unwrap();
-    let to_tree = commit.tree().unwrap();
-    from_tree.diff(&to_tree, matcher).next().is_some()
+    let from_tree = rewrite::merge_commit_trees_without_repo(store, &index, &parents)?;
+    let to_tree = commit.tree()?;
+    Ok(from_tree.diff(&to_tree, matcher).next().is_some())
 }
 
 #[cfg(test)]
