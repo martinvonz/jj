@@ -1127,7 +1127,7 @@ fn get_diff_stat(
 ) -> DiffStat {
     // TODO: this matches git's behavior, which is to count the number of newlines
     // in the file. but that behavior seems unhelpful; no one really cares how
-    // many `0xa0` characters are in an image.
+    // many `0x0a` characters are in an image.
     let diff = Diff::by_line(&[&left_content.contents, &right_content.contents]);
     let mut added = 0;
     let mut removed = 0;
