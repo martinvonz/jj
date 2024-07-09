@@ -169,11 +169,11 @@ pub fn merge(slices: &Merge<&[u8]>) -> MergeResult {
     for diff_hunk in diff.hunks() {
         match diff_hunk {
             DiffHunk::Matching(content) => {
-                resolved_hunk.0.extend(content);
+                resolved_hunk.0.extend_from_slice(content);
             }
             DiffHunk::Different(parts) => {
                 if let Some(resolved) = trivial_merge(&parts[..num_diffs], &parts[num_diffs..]) {
-                    resolved_hunk.0.extend(*resolved);
+                    resolved_hunk.0.extend_from_slice(resolved);
                 } else {
                     if !resolved_hunk.0.is_empty() {
                         merge_hunks.push(Merge::resolved(resolved_hunk));
