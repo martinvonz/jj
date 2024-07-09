@@ -1910,6 +1910,7 @@ dependencies = [
  "async-trait",
  "backoff",
  "blake2",
+ "bstr",
  "chrono",
  "config",
  "criterion",
