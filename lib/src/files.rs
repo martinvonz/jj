@@ -89,7 +89,7 @@ impl<'a> Iterator for DiffLineIterator<'a> {
                     for line in lines {
                         self.current_line.has_left_content = true;
                         self.current_line.has_right_content = true;
-                        self.current_line.hunks.push(DiffHunk::Matching(line));
+                        self.current_line.hunks.push(DiffHunk::matching(line));
                         if line.ends_with(b"\n") {
                             self.queued_lines.push_back(self.current_line.clone());
                             self.current_line.left_line_number += 1;
@@ -104,7 +104,7 @@ impl<'a> Iterator for DiffLineIterator<'a> {
                         self.current_line.has_left_content = true;
                         self.current_line
                             .hunks
-                            .push(DiffHunk::Different(vec![left_line, b""]));
+                            .push(DiffHunk::different([left_line, b""]));
                         if left_line.ends_with(b"\n") {
                             self.queued_lines.push_back(self.current_line.clone());
                             self.current_line.left_line_number += 1;
@@ -116,7 +116,7 @@ impl<'a> Iterator for DiffLineIterator<'a> {
                         self.current_line.has_right_content = true;
                         self.current_line
                             .hunks
-                            .push(DiffHunk::Different(vec![b"", right_line]));
+                            .push(DiffHunk::different([b"", right_line]));
                         if right_line.ends_with(b"\n") {
                             self.queued_lines.push_back(self.current_line.clone());
                             self.current_line.right_line_number += 1;
