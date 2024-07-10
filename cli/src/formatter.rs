@@ -264,7 +264,6 @@ impl Style {
 #[derive(Clone, Debug)]
 pub struct ColorFormatter<W: Write> {
     output: W,
-    debug: bool,
     rules: Arc<Rules>,
     /// The stack of currently applied labels. These determine the desired
     /// style.
@@ -272,6 +271,9 @@ pub struct ColorFormatter<W: Write> {
     cached_styles: HashMap<Vec<String>, Style>,
     /// The style we last wrote to the output.
     current_style: Style,
+    /// The debug string (space-separated labels) we last wrote to the output.
+    /// Initialize to None to turn debug strings off.
+    current_debug: Option<String>,
 }
 
 impl<W: Write> ColorFormatter<W> {
@@ -279,10 +281,10 @@ impl<W: Write> ColorFormatter<W> {
         ColorFormatter {
             output,
             rules,
-            debug,
             labels: vec![],
             cached_styles: HashMap::new(),
             current_style: Style::default(),
+            current_debug: if debug { Some(String::new()) } else { None },
         }
     }
 
@@ -335,6 +337,20 @@ impl<W: Write> ColorFormatter<W> {
     }
 
     fn write_new_style(&mut self) -> io::Result<()> {
+        let new_debug = match &self.current_debug {
+            Some(current) => {
+                let joined = self.labels.join(" ");
+                if joined.eq(current) {
+                    None
+                } else {
+                    if !current.is_empty() {
+                        write!(self.output, ">>")?;
+                    }
+                    Some(joined)
+                }
+            }
+            None => None,
+        };
         let new_style = self.requested_style();
         if new_style != self.current_style {
             if new_style.bold != self.current_style.bold {
@@ -369,6 +385,12 @@ impl<W: Write> ColorFormatter<W> {
                 )?;
             }
             self.current_style = new_style;
+        }
+        if let Some(d) = new_debug {
+            if !d.is_empty() {
+                write!(self.output, "<<{}::", d)?;
+            }
+            self.current_debug = Some(d);
         }
         Ok(())
     }
@@ -492,37 +514,15 @@ impl<W: Write> Write for ColorFormatter<W> {
         for line in data.split_inclusive(|b| *b == b'\n') {
             if line.ends_with(b"\n") {
                 self.write_new_style()?;
-                write_line_exclusive(
-                    &mut self.output,
-                    &line[..line.len() - 1],
-                    &self.labels,
-                    self.debug,
-                )?;
+                write_sanitized(&mut self.output, &line[..line.len() - 1])?;
                 let labels = mem::take(&mut self.labels);
                 self.write_new_style()?;
                 self.output.write_all(b"\n")?;
                 self.labels = labels;
             } else {
                 self.write_new_style()?;
-                write_line_exclusive(&mut self.output, line, &self.labels, self.debug)?;
+                write_sanitized(&mut self.output, line)?;
             }
-        }
-
-        fn write_line_exclusive<W: Write>(
-            output: &mut W,
-            buf: &[u8],
-            labels: &[String],
-            debug: bool,
-        ) -> io::Result<()> {
-            if debug && !labels.is_empty() {
-                write!(output, "<<{}::", labels.join(" "))?;
-                write_sanitized(output, buf)?;
-                write!(output, ">>")?;
-            } else {
-                write_sanitized(output, buf)?;
-            }
-
-            Ok(())
         }
 
         Ok(data.len())

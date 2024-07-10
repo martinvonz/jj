@@ -55,14 +55,14 @@ fn test_diff_basic() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--color=debug"]);
     insta::assert_snapshot!(stdout, @r###"
-    [38;5;3m<<diff header::Removed >><<diff header::regular file>><<diff header:: >><<diff header::file1>><<diff header:::>>[39m
-    [38;5;1m<<diff removed line_number:: >><<diff removed line_number:: >><<diff removed line_number:: >><<diff removed line_number::1>>[39m<<diff:: >><<diff::    : >>[4m[38;5;1m<<diff removed token::foo>>[24m[39m
-    [38;5;3m<<diff header::Modified regular file>><<diff header:: >><<diff header::file2>><<diff header:::>>[39m
-    [38;5;1m<<diff removed line_number:: >><<diff removed line_number:: >><<diff removed line_number:: >><<diff removed line_number::1>>[39m<<diff:: >>[38;5;2m<<diff added line_number:: >><<diff added line_number:: >><<diff added line_number:: >><<diff added line_number::1>>[39m<<diff::: >><<diff::foo>>
-    <<diff::     >>[38;5;2m<<diff added line_number:: >><<diff added line_number:: >><<diff added line_number:: >><<diff added line_number::2>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::bar>>[24m[39m
-    [38;5;1m<<diff removed line_number:: >><<diff removed line_number:: >><<diff removed line_number:: >><<diff removed line_number::2>>[39m<<diff:: >>[38;5;2m<<diff added line_number:: >><<diff added line_number:: >><<diff added line_number:: >><<diff added line_number::3>>[39m<<diff::: >><<diff::baz >>[4m[38;5;1m<<diff removed token::qux>>[38;5;2m<<diff added token::quux>>[24m[39m<<diff::>>
-    [38;5;3m<<diff header::Added >><<diff header::regular file>><<diff header:: >><<diff header::file3>><<diff header:::>>[39m
-    <<diff::     >>[38;5;2m<<diff added line_number:: >><<diff added line_number:: >><<diff added line_number:: >><<diff added line_number::1>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::foo>>[24m[39m
+    [38;5;3m<<diff header::Removed regular file file1:>>[39m
+    [38;5;1m<<diff removed line_number::   1>>[39m<<diff::     : >>[4m[38;5;1m<<diff removed token::foo>>[24m[39m
+    [38;5;3m<<diff header::Modified regular file file2:>>[39m
+    [38;5;1m<<diff removed line_number::   1>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: foo>>
+    <<diff::     >>[38;5;2m<<diff added line_number::   2>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::bar>>[24m[39m
+    [38;5;1m<<diff removed line_number::   2>>[39m<<diff:: >>[38;5;2m<<diff added line_number::   3>>[39m<<diff::: baz >>[4m[38;5;1m<<diff removed token::qux>>[38;5;2m<<diff added token::quux>>[24m[39m<<diff::>>
+    [38;5;3m<<diff header::Added regular file file3:>>[39m
+    <<diff::     >>[38;5;2m<<diff added line_number::   1>>[39m<<diff::: >>[4m[38;5;2m<<diff added token::foo>>[24m[39m
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
@@ -134,28 +134,28 @@ fn test_diff_basic() {
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--color=debug"]);
     insta::assert_snapshot!(stdout, @r###"
-    [1m<<diff file_header::diff --git a/>><<diff file_header::file1>><<diff file_header:: b/>><<diff file_header::file1>><<diff file_header::>>[0m
-    [1m<<diff file_header::deleted file mode >><<diff file_header::100644>><<diff file_header::>>[0m
-    [1m<<diff file_header::index >><<diff file_header::257cc5642c>><<diff file_header::..0000000000>>[0m
-    [1m<<diff file_header::--- a/>><<diff file_header::file1>><<diff file_header::>>[0m
+    [1m<<diff file_header::diff --git a/file1 b/file1>>[0m
+    [1m<<diff file_header::deleted file mode 100644>>[0m
+    [1m<<diff file_header::index 257cc5642c..0000000000>>[0m
+    [1m<<diff file_header::--- a/file1>>[0m
     [1m<<diff file_header::+++ /dev/null>>[0m
-    [38;5;6m<<diff hunk_header::@@ ->><<diff hunk_header::1>><<diff hunk_header::,>><<diff hunk_header::1>><<diff hunk_header:: +>><<diff hunk_header::1>><<diff hunk_header::,>><<diff hunk_header::0>><<diff hunk_header:: @@>>[39m
+    [38;5;6m<<diff hunk_header::@@ -1,1 +1,0 @@>>[39m
     [38;5;1m<<diff removed::->>[4m<<diff removed token::foo>>[24m[39m
-    [1m<<diff file_header::diff --git a/>><<diff file_header::file2>><<diff file_header:: b/>><<diff file_header::file2>><<diff file_header::>>[0m
-    [1m<<diff file_header::index >><<diff file_header::523a4a9de8>><<diff file_header::...>><<diff file_header::485b56a572>><<diff file_header:: >><<diff file_header::100644>><<diff file_header::>>[0m
-    [1m<<diff file_header::--- a/>><<diff file_header::file2>><<diff file_header::>>[0m
-    [1m<<diff file_header::+++ b/>><<diff file_header::file2>><<diff file_header::>>[0m
-    [38;5;6m<<diff hunk_header::@@ ->><<diff hunk_header::1>><<diff hunk_header::,>><<diff hunk_header::2>><<diff hunk_header:: +>><<diff hunk_header::1>><<diff hunk_header::,>><<diff hunk_header::3>><<diff hunk_header:: @@>>[39m
-    <<diff context:: >><<diff context::foo>>
-    [38;5;1m<<diff removed::->><<diff removed::baz >>[4m<<diff removed token::qux>>[24m<<diff removed::>>[39m
+    [1m<<diff file_header::diff --git a/file2 b/file2>>[0m
+    [1m<<diff file_header::index 523a4a9de8...485b56a572 100644>>[0m
+    [1m<<diff file_header::--- a/file2>>[0m
+    [1m<<diff file_header::+++ b/file2>>[0m
+    [38;5;6m<<diff hunk_header::@@ -1,2 +1,3 @@>>[39m
+    <<diff context:: foo>>
+    [38;5;1m<<diff removed::-baz >>[4m<<diff removed token::qux>>[24m<<diff removed::>>[39m
     [38;5;2m<<diff added::+>>[4m<<diff added token::bar>>[24m[39m
-    [38;5;2m<<diff added::+>><<diff added::baz >>[4m<<diff added token::quux>>[24m<<diff added::>>[39m
-    [1m<<diff file_header::diff --git a/>><<diff file_header::file3>><<diff file_header:: b/>><<diff file_header::file3>><<diff file_header::>>[0m
-    [1m<<diff file_header::new file mode >><<diff file_header::100644>><<diff file_header::>>[0m
-    [1m<<diff file_header::index 0000000000..>><<diff file_header::257cc5642c>><<diff file_header::>>[0m
+    [38;5;2m<<diff added::+baz >>[4m<<diff added token::quux>>[24m<<diff added::>>[39m
+    [1m<<diff file_header::diff --git a/file3 b/file3>>[0m
+    [1m<<diff file_header::new file mode 100644>>[0m
+    [1m<<diff file_header::index 0000000000..257cc5642c>>[0m
     [1m<<diff file_header::--- /dev/null>>[0m
-    [1m<<diff file_header::+++ b/>><<diff file_header::file3>><<diff file_header::>>[0m
-    [38;5;6m<<diff hunk_header::@@ ->><<diff hunk_header::1>><<diff hunk_header::,>><<diff hunk_header::0>><<diff hunk_header:: +>><<diff hunk_header::1>><<diff hunk_header::,>><<diff hunk_header::1>><<diff hunk_header:: @@>>[39m
+    [1m<<diff file_header::+++ b/file3>>[0m
+    [38;5;6m<<diff hunk_header::@@ -1,0 +1,1 @@>>[39m
     [38;5;2m<<diff added::+>>[4m<<diff added token::foo>>[24m[39m
     "###);
 
