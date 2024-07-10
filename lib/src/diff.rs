@@ -593,6 +593,18 @@ pub enum DiffHunk<'input> {
     Different(Vec<&'input [u8]>),
 }
 
+impl<'input> DiffHunk<'input> {
+    pub fn matching<T: AsRef<[u8]> + ?Sized>(content: &'input T) -> Self {
+        DiffHunk::Matching(content.as_ref())
+    }
+
+    pub fn different<T: AsRef<[u8]> + ?Sized + 'input>(
+        contents: impl IntoIterator<Item = &'input T>,
+    ) -> Self {
+        DiffHunk::Different(contents.into_iter().map(AsRef::as_ref).collect())
+    }
+}
+
 impl Debug for DiffHunk<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), std::fmt::Error> {
         match self {
@@ -660,13 +672,13 @@ impl<'diff, 'input> Iterator for DiffHunkIterator<'diff, 'input> {
 /// the changed ranges at the word level.
 pub fn diff<'a>(left: &'a [u8], right: &'a [u8]) -> Vec<DiffHunk<'a>> {
     if left == right {
-        return vec![DiffHunk::Matching(left)];
+        return vec![DiffHunk::matching(left)];
     }
     if left.is_empty() {
-        return vec![DiffHunk::Different(vec![b"", right])];
+        return vec![DiffHunk::different([b"", right])];
     }
     if right.is_empty() {
-        return vec![DiffHunk::Different(vec![left, b""])];
+        return vec![DiffHunk::different([left, b""])];
     }
 
     Diff::default_refinement([left, right])
@@ -974,7 +986,7 @@ mod tests {
     #[test]
     fn test_diff_single_input() {
         let diff = Diff::default_refinement(["abc"]);
-        assert_eq!(diff.hunks().collect_vec(), vec![DiffHunk::Matching(b"abc")]);
+        assert_eq!(diff.hunks().collect_vec(), vec![DiffHunk::matching("abc")]);
     }
 
     #[test]
@@ -989,9 +1001,9 @@ mod tests {
         assert_eq!(
             diff.hunks().collect_vec(),
             vec![
-                DiffHunk::Matching(b"a "),
-                DiffHunk::Different(vec![b"b", b"X"]),
-                DiffHunk::Matching(b" c"),
+                DiffHunk::matching("a "),
+                DiffHunk::different(["b", "X"]),
+                DiffHunk::matching(" c"),
             ]
         );
     }
@@ -1002,9 +1014,9 @@ mod tests {
         assert_eq!(
             diff.hunks().collect_vec(),
             vec![
-                DiffHunk::Matching(b"a "),
-                DiffHunk::Different(vec![b"b", b"X", b"b"]),
-                DiffHunk::Matching(b" c"),
+                DiffHunk::matching("a "),
+                DiffHunk::different(["b", "X", "b"]),
+                DiffHunk::matching(" c"),
             ]
         );
     }
@@ -1015,10 +1027,10 @@ mod tests {
         assert_eq!(
             diff.hunks().collect_vec(),
             vec![
-                DiffHunk::Matching(b"a "),
-                DiffHunk::Different(vec![b"b ", b"X ", b""]),
-                DiffHunk::Matching(b"c"),
-                DiffHunk::Different(vec![b"", b"", b" X"]),
+                DiffHunk::matching("a "),
+                DiffHunk::different(["b ", "X ", ""]),
+                DiffHunk::matching("c"),
+                DiffHunk::different(["", "", " X"]),
             ]
         );
     }
@@ -1033,9 +1045,9 @@ mod tests {
         assert_eq!(
             diff.hunks().collect_vec(),
             vec![
-                DiffHunk::Matching(b"a\nb\nc\n"),
-                DiffHunk::Different(vec![b"d\n", b"X\n"]),
-                DiffHunk::Matching(b"e\nf\ng"),
+                DiffHunk::matching("a\nb\nc\n"),
+                DiffHunk::different(["d\n", "X\n"]),
+                DiffHunk::matching("e\nf\ng"),
             ]
         );
     }
@@ -1044,7 +1056,7 @@ mod tests {
     fn test_diff_nothing_in_common() {
         assert_eq!(
             diff(b"aaa", b"bb"),
-            vec![DiffHunk::Different(vec![b"aaa", b"bb"])]
+            vec![DiffHunk::different(["aaa", "bb"])]
         );
     }
 
@@ -1053,9 +1065,9 @@ mod tests {
         assert_eq!(
             diff(b"a z", b"a S z"),
             vec![
-                DiffHunk::Matching(b"a "),
-                DiffHunk::Different(vec![b"", b"S "]),
-                DiffHunk::Matching(b"z"),
+                DiffHunk::matching("a "),
+                DiffHunk::different(["", "S "]),
+                DiffHunk::matching("z"),
             ]
         );
     }
@@ -1065,11 +1077,11 @@ mod tests {
         assert_eq!(
             diff(b"a R R S S z", b"a S S R R z"),
             vec![
-                DiffHunk::Matching(b"a "),
-                DiffHunk::Different(vec![b"R R ", b""]),
-                DiffHunk::Matching(b"S S "),
-                DiffHunk::Different(vec![b"", b"R R "]),
-                DiffHunk::Matching(b"z")
+                DiffHunk::matching("a "),
+                DiffHunk::different(["R R ", ""]),
+                DiffHunk::matching("S S "),
+                DiffHunk::different(["", "R R "]),
+                DiffHunk::matching("z")
             ],
         );
     }
@@ -1082,19 +1094,19 @@ mod tests {
                 b"a r r x q y z q b y q x r r c",
             ),
             vec![
-                DiffHunk::Matching(b"a "),
-                DiffHunk::Different(vec![b"q", b"r"]),
-                DiffHunk::Matching(b" "),
-                DiffHunk::Different(vec![b"", b"r "]),
-                DiffHunk::Matching(b"x q y "),
-                DiffHunk::Different(vec![b"q ", b""]),
-                DiffHunk::Matching(b"z q b "),
-                DiffHunk::Different(vec![b"q ", b""]),
-                DiffHunk::Matching(b"y q x "),
-                DiffHunk::Different(vec![b"q", b"r"]),
-                DiffHunk::Matching(b" "),
-                DiffHunk::Different(vec![b"", b"r "]),
-                DiffHunk::Matching(b"c"),
+                DiffHunk::matching("a "),
+                DiffHunk::different(["q", "r"]),
+                DiffHunk::matching(" "),
+                DiffHunk::different(["", "r "]),
+                DiffHunk::matching("x q y "),
+                DiffHunk::different(["q ", ""]),
+                DiffHunk::matching("z q b "),
+                DiffHunk::different(["q ", ""]),
+                DiffHunk::matching("y q x "),
+                DiffHunk::different(["q", "r"]),
+                DiffHunk::matching(" "),
+                DiffHunk::different(["", "r "]),
+                DiffHunk::matching("c"),
             ]
         );
     }
@@ -1111,11 +1123,11 @@ mod tests {
                 b"    pub fn write_fmt(&mut self, fmt: fmt::Arguments<\'_>) -> io::Result<()> {\n        self.styler().write_fmt(fmt)\n"
             ),
             vec![
-                DiffHunk::Matching(b"    pub fn write_fmt(&mut self, fmt: fmt::Arguments<\'_>) "),
-                DiffHunk::Different(vec![b"", b"-> io::Result<()> "]),
-                DiffHunk::Matching(b"{\n        self.styler().write_fmt(fmt)"),
-                DiffHunk::Different(vec![b".unwrap()", b""]),
-                DiffHunk::Matching(b"\n")
+                DiffHunk::matching("    pub fn write_fmt(&mut self, fmt: fmt::Arguments<\'_>) "),
+                DiffHunk::different(["", "-> io::Result<()> "]),
+                DiffHunk::matching("{\n        self.styler().write_fmt(fmt)"),
+                DiffHunk::different([".unwrap()", ""]),
+                DiffHunk::matching("\n")
             ]
         );
     }
@@ -1123,6 +1135,7 @@ mod tests {
     #[test]
     fn test_diff_real_case_gitgit_read_tree_c() {
         // This is the diff from commit e497ea2a9b in the git.git repo
+        #[rustfmt::skip]
         assert_eq!(
             diff(
                 br##"/*
@@ -1265,19 +1278,19 @@ int main(int argc, char **argv)
 "##,
             ),
             vec![
-               DiffHunk::Matching(b"/*\n * GIT - The information manager from hell\n *\n * Copyright (C) Linus Torvalds, 2005\n */\n#include \"#cache.h\"\n\n"),
-               DiffHunk::Different(vec![b"", b"static void create_directories(const char *path)\n{\n\tint len = strlen(path);\n\tchar *buf = malloc(len + 1);\n\tconst char *slash = path;\n\n\twhile ((slash = strchr(slash+1, \'/\')) != NULL) {\n\t\tlen = slash - path;\n\t\tmemcpy(buf, path, len);\n\t\tbuf[len] = 0;\n\t\tmkdir(buf, 0700);\n\t}\n}\n\nstatic int create_file(const char *path)\n{\n\tint fd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\tif (fd < 0) {\n\t\tif (errno == ENOENT) {\n\t\t\tcreate_directories(path);\n\t\t\tfd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\t\t}\n\t}\n\treturn fd;\n}\n\n"]),
-               DiffHunk::Matching(b"static int unpack(unsigned char *sha1)\n{\n\tvoid *buffer;\n\tunsigned long size;\n\tchar type[20];\n\n\tbuffer = read_sha1_file(sha1, type, &size);\n\tif (!buffer)\n\t\tusage(\"unable to read sha1 file\");\n\tif (strcmp(type, \"tree\"))\n\t\tusage(\"expected a \'tree\' node\");\n\twhile (size) {\n\t\tint len = strlen(buffer)+1;\n\t\tunsigned char *sha1 = buffer + len;\n\t\tchar *path = strchr(buffer, \' \')+1;\n"),
-               DiffHunk::Different(vec![b"", b"\t\tchar *data;\n\t\tunsigned long filesize;\n"]),
-               DiffHunk::Matching(b"\t\tunsigned int mode;\n"),
-               DiffHunk::Different(vec![b"", b"\t\tint fd;\n\n"]),
-               DiffHunk::Matching(b"\t\tif (size < len + 20 || sscanf(buffer, \"%o\", &mode) != 1)\n\t\t\tusage(\"corrupt \'tree\' file\");\n\t\tbuffer = sha1 + 20;\n\t\tsize -= len + 20;\n\t\t"),
-               DiffHunk::Different(vec![b"printf(\"%o %s (%s)\\n\", mode, path,", b"data ="]),
-               DiffHunk::Matching(b" "),
-               DiffHunk::Different(vec![b"sha1_to_hex", b"read_sha1_file"]),
-               DiffHunk::Matching(b"(sha1"),
-               DiffHunk::Different(vec![b")", b", type, &filesize);\n\t\tif (!data || strcmp(type, \"blob\"))\n\t\t\tusage(\"tree file refers to bad file data\");\n\t\tfd = create_file(path);\n\t\tif (fd < 0)\n\t\t\tusage(\"unable to create file\");\n\t\tif (write(fd, data, filesize) != filesize)\n\t\t\tusage(\"unable to write file\");\n\t\tfchmod(fd, mode);\n\t\tclose(fd);\n\t\tfree(data"]),
-               DiffHunk::Matching(b");\n\t}\n\treturn 0;\n}\n\nint main(int argc, char **argv)\n{\n\tint fd;\n\tunsigned char sha1[20];\n\n\tif (argc != 2)\n\t\tusage(\"read-tree <key>\");\n\tif (get_sha1_hex(argv[1], sha1) < 0)\n\t\tusage(\"read-tree <key>\");\n\tsha1_file_directory = getenv(DB_ENVIRONMENT);\n\tif (!sha1_file_directory)\n\t\tsha1_file_directory = DEFAULT_DB_ENVIRONMENT;\n\tif (unpack(sha1) < 0)\n\t\tusage(\"unpack failed\");\n\treturn 0;\n}\n"),
+               DiffHunk::matching("/*\n * GIT - The information manager from hell\n *\n * Copyright (C) Linus Torvalds, 2005\n */\n#include \"#cache.h\"\n\n"),
+               DiffHunk::different(["", "static void create_directories(const char *path)\n{\n\tint len = strlen(path);\n\tchar *buf = malloc(len + 1);\n\tconst char *slash = path;\n\n\twhile ((slash = strchr(slash+1, \'/\')) != NULL) {\n\t\tlen = slash - path;\n\t\tmemcpy(buf, path, len);\n\t\tbuf[len] = 0;\n\t\tmkdir(buf, 0700);\n\t}\n}\n\nstatic int create_file(const char *path)\n{\n\tint fd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\tif (fd < 0) {\n\t\tif (errno == ENOENT) {\n\t\t\tcreate_directories(path);\n\t\t\tfd = open(path, O_WRONLY | O_TRUNC | O_CREAT, 0600);\n\t\t}\n\t}\n\treturn fd;\n}\n\n"]),
+               DiffHunk::matching("static int unpack(unsigned char *sha1)\n{\n\tvoid *buffer;\n\tunsigned long size;\n\tchar type[20];\n\n\tbuffer = read_sha1_file(sha1, type, &size);\n\tif (!buffer)\n\t\tusage(\"unable to read sha1 file\");\n\tif (strcmp(type, \"tree\"))\n\t\tusage(\"expected a \'tree\' node\");\n\twhile (size) {\n\t\tint len = strlen(buffer)+1;\n\t\tunsigned char *sha1 = buffer + len;\n\t\tchar *path = strchr(buffer, \' \')+1;\n"),
+               DiffHunk::different(["", "\t\tchar *data;\n\t\tunsigned long filesize;\n"]),
+               DiffHunk::matching("\t\tunsigned int mode;\n"),
+               DiffHunk::different(["", "\t\tint fd;\n\n"]),
+               DiffHunk::matching("\t\tif (size < len + 20 || sscanf(buffer, \"%o\", &mode) != 1)\n\t\t\tusage(\"corrupt \'tree\' file\");\n\t\tbuffer = sha1 + 20;\n\t\tsize -= len + 20;\n\t\t"),
+               DiffHunk::different(["printf(\"%o %s (%s)\\n\", mode, path,", "data ="]),
+               DiffHunk::matching(" "),
+               DiffHunk::different(["sha1_to_hex", "read_sha1_file"]),
+               DiffHunk::matching("(sha1"),
+               DiffHunk::different([")", ", type, &filesize);\n\t\tif (!data || strcmp(type, \"blob\"))\n\t\t\tusage(\"tree file refers to bad file data\");\n\t\tfd = create_file(path);\n\t\tif (fd < 0)\n\t\t\tusage(\"unable to create file\");\n\t\tif (write(fd, data, filesize) != filesize)\n\t\t\tusage(\"unable to write file\");\n\t\tfchmod(fd, mode);\n\t\tclose(fd);\n\t\tfree(data"]),
+               DiffHunk::matching(");\n\t}\n\treturn 0;\n}\n\nint main(int argc, char **argv)\n{\n\tint fd;\n\tunsigned char sha1[20];\n\n\tif (argc != 2)\n\t\tusage(\"read-tree <key>\");\n\tif (get_sha1_hex(argv[1], sha1) < 0)\n\t\tusage(\"read-tree <key>\");\n\tsha1_file_directory = getenv(DB_ENVIRONMENT);\n\tif (!sha1_file_directory)\n\t\tsha1_file_directory = DEFAULT_DB_ENVIRONMENT;\n\tif (unpack(sha1) < 0)\n\t\tusage(\"unpack failed\");\n\treturn 0;\n}\n"),
             ]
         );
     }
