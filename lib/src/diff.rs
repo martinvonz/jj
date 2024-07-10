@@ -408,13 +408,13 @@ fn intersect_regions(
 }
 
 impl<'input> Diff<'input> {
-    pub fn for_tokenizer(
-        inputs: &[&'input [u8]],
+    pub fn for_tokenizer<T: AsRef<[u8]> + ?Sized + 'input>(
+        inputs: impl IntoIterator<Item = &'input T>,
         tokenizer: impl Fn(&[u8]) -> Vec<Range<usize>>,
     ) -> Self {
-        assert!(!inputs.is_empty());
-        let base_input = inputs[0];
-        let other_inputs = inputs.iter().skip(1).copied().collect_vec();
+        let mut inputs = inputs.into_iter().map(AsRef::as_ref);
+        let base_input = inputs.next().expect("inputs must not be empty");
+        let other_inputs = inputs.collect_vec();
         // First tokenize each input
         let base_token_ranges = tokenizer(base_input);
         let other_token_ranges = other_inputs
@@ -471,12 +471,16 @@ impl<'input> Diff<'input> {
         diff
     }
 
-    pub fn unrefined(inputs: &[&'input [u8]]) -> Self {
+    pub fn unrefined<T: AsRef<[u8]> + ?Sized + 'input>(
+        inputs: impl IntoIterator<Item = &'input T>,
+    ) -> Self {
         Diff::for_tokenizer(inputs, |_| vec![])
     }
 
     /// Compares `inputs` line by line.
-    pub fn by_line(inputs: &[&'input [u8]]) -> Self {
+    pub fn by_line<T: AsRef<[u8]> + ?Sized + 'input>(
+        inputs: impl IntoIterator<Item = &'input T>,
+    ) -> Self {
         Diff::for_tokenizer(inputs, find_line_ranges)
     }
 
@@ -486,7 +490,9 @@ impl<'input> Diff<'input> {
     // That would let each user decide which hunks to refine. However, it would
     // probably mean that many callers repeat the same code. Perhaps it
     // should be possible to refine a whole diff *or* individual hunks.
-    pub fn default_refinement(inputs: &[&'input [u8]]) -> Self {
+    pub fn default_refinement<T: AsRef<[u8]> + ?Sized + 'input>(
+        inputs: impl IntoIterator<Item = &'input T>,
+    ) -> Self {
         let mut diff = Diff::for_tokenizer(inputs, find_line_ranges);
         diff.refine_changed_regions(find_word_ranges);
         diff.refine_changed_regions(find_nonword_ranges);
@@ -526,7 +532,7 @@ impl<'input> Diff<'input> {
                 slices.push(&self.other_inputs[i][changed_range]);
             }
 
-            let refined_diff = Diff::for_tokenizer(&slices, &tokenizer);
+            let refined_diff = Diff::for_tokenizer(slices, &tokenizer);
 
             for UnchangedRange {
                 base_range,
@@ -663,7 +669,7 @@ pub fn diff<'a>(left: &'a [u8], right: &'a [u8]) -> Vec<DiffHunk<'a>> {
         return vec![DiffHunk::Different(vec![left, b""])];
     }
 
-    Diff::default_refinement(&[left, right])
+    Diff::default_refinement([left, right])
         .hunks()
         .collect_vec()
 }
@@ -967,19 +973,19 @@ mod tests {
 
     #[test]
     fn test_diff_single_input() {
-        let diff = Diff::default_refinement(&[b"abc"]);
+        let diff = Diff::default_refinement(["abc"]);
         assert_eq!(diff.hunks().collect_vec(), vec![DiffHunk::Matching(b"abc")]);
     }
 
     #[test]
     fn test_diff_single_empty_input() {
-        let diff = Diff::default_refinement(&[b""]);
+        let diff = Diff::default_refinement([""]);
         assert_eq!(diff.hunks().collect_vec(), vec![]);
     }
 
     #[test]
     fn test_diff_two_inputs_one_different() {
-        let diff = Diff::default_refinement(&[b"a b c", b"a X c"]);
+        let diff = Diff::default_refinement(["a b c", "a X c"]);
         assert_eq!(
             diff.hunks().collect_vec(),
             vec![
@@ -992,7 +998,7 @@ mod tests {
 
     #[test]
     fn test_diff_multiple_inputs_one_different() {
-        let diff = Diff::default_refinement(&[b"a b c", b"a X c", b"a b c"]);
+        let diff = Diff::default_refinement(["a b c", "a X c", "a b c"]);
         assert_eq!(
             diff.hunks().collect_vec(),
             vec![
@@ -1005,7 +1011,7 @@ mod tests {
 
     #[test]
     fn test_diff_multiple_inputs_all_different() {
-        let diff = Diff::default_refinement(&[b"a b c", b"a X c", b"a c X"]);
+        let diff = Diff::default_refinement(["a b c", "a X c", "a c X"]);
         assert_eq!(
             diff.hunks().collect_vec(),
             vec![
@@ -1021,7 +1027,7 @@ mod tests {
     fn test_diff_for_tokenizer_compacted() {
         // Tests that unchanged regions are compacted when using for_tokenizer()
         let diff = Diff::for_tokenizer(
-            &[b"a\nb\nc\nd\ne\nf\ng", b"a\nb\nc\nX\ne\nf\ng"],
+            ["a\nb\nc\nd\ne\nf\ng", "a\nb\nc\nX\ne\nf\ng"],
             find_line_ranges,
         );
         assert_eq!(
