@@ -104,7 +104,10 @@ files you want to keep around to match the pattern.
 
 If `$EDITOR` integration is important, something like `scratchpad.*` may be more
 helpful, as you can keep the filename extension intact (it
-matches `scratchpad.md`, `scratchpad.rs` and more).
+matches `scratchpad.md`, `scratchpad.rs` and more). Another option is to add a 
+directory to the global `.gitignore` which then stores all your temporary files
+and notes. For example, you could add `scratch/` to `~/.git/ignore` and then 
+store arbitrary files in `<your-git-repo>/scratch/`.
 
 You can find more details on `gitignore` files [here][gitignore].
 
