@@ -506,7 +506,7 @@
                 }
             }
         },
-	"fix": {
+    "fix": {
             "type": "object",
             "description": "Settings for jj fix",
             "properties": {
@@ -515,7 +515,31 @@
                     "items": {
                         "type": "string"
                     },
-                    "description": "Shell command that takes file content on stdin and returns fixed file content on stdout"
+                    "description": "Shell command that takes file content on stdin and returns fixed file content on stdout (deprecated)"
+                },
+                "tools": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "object",
+                        "description": "Settings for how specific filesets are affected by a tool",
+                        "properties": {
+                            "command": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "description": "Arguments used to execute this tool"
+                            },
+                            "patterns": {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                },
+                                "description": "Filesets that will be affected by this tool"
+                            }
+                        }
+                    },
+                    "description": "Settings for tools run by jj fix"
                 }
             }
         }

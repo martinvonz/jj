@@ -32,6 +32,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Deprecations
 
+* The original configuration syntax for `jj fix` is now deprecated in favor of
+  one that allows defining multiple tools that can affect different filesets.
+  These can be used in combination for now. See `jj help fix` for details.
+
 ### New features
 
 * External diff tools can now be configured to invoke the tool on each file
@@ -84,6 +88,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * [The default commit description template](docs/config.md#default-description)
   can now be configured by `templates.draft_commit_description`.
+
+* `jj fix` can now be configured to run different tools on different filesets.
+  This simplifies the use case of configuring code formatters for specific file
+  types. See `jj help fix` for details.
 
 ### Fixed bugs
 

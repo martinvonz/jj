@@ -684,6 +684,66 @@ the conflict is done, `jj` assumes that the conflict was only partially resolved
 and parses the conflict markers to get the new state of the conflict. The
 conflict is considered fully resolved when there are no conflict markers left.
 
+## Code formatting and other file content transformations
+
+The `jj fix` command allows you to efficiently rewrite files in complex commit
+graphs with no risk of introducing conflicts, using tools like `clang-format` or
+`prettier`. The tools run as subprocesses that take file content on standard
+input and repeat it, with any desired changes, on standard output. The file is
+only rewritten if the subprocess produces a successful exit code.
+
+### Enforce coding style rules
+
+Suppose you want to use `clang-format` to format your `*.c` and `*.h` files,
+as well as sorting their `#include` directives.
+
+`jj fix` provides the file content anonymously on standard input, but the name
+of the file being formatted may be important for include sorting or other output
+like error messages. To address this, you can use the `$path` substitution to
+provide the name of the file in a command argument.
+
+```toml
+[fix.tools.clang-format]
+command = ["/usr/bin/clang-format", "--sort-includes", "--assume-filename=$path"]
+patterns = ["glob:'**/*.c'",
+            "glob:'**/*.h'"]
+```
+
+### Sort and remove duplicate lines from a file
+
+`jj fix` can also be used with tools that are not considered code formatters.
+
+Suppose you have a list of words in a text file in your repository, and you want
+to keep the file sorted alphabetically and remove any duplicate words.
+
+```toml
+[fix.tools.sort-word-list]
+command = ["sort", "-u"]
+patterns = ["word_list.txt"]
+```
+
+### Execution order of tools
+
+If two or more tools affect the same file, they are executed in the ascending
+lexicographical order of their configured names. This will remain as a tie
+breaker if other ordering mechanisms are introduced in the future. If you use
+numbers in tool names to control execution order, remember to include enough
+leading zeros so that, for example, `09` sorts before `10`.
+
+Suppose you want to keep only the 10 smallest numbers in a text file that
+contains one number on each line. This can be accomplished with `sort` and
+`head`, but execution order is important.
+
+```toml
+[fix.tools.1-sort-numbers-file]
+command = ["sort", "-n"]
+patterns = ["numbers.txt"]
+
+[fix.tools.2-truncate-numbers-file]
+command = ["head", "-n", "10"]
+patterns = ["numbers.txt"]
+```
+
 ## Commit Signing
 
 `jj` can be configured to sign and verify the commits it creates using either 
