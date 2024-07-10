@@ -490,9 +490,9 @@ fn test_color_ui_messages() {
     // debugging colors
     let (stdout, _stderr) = test_env.jj_cmd_ok(&repo_path, &["st", "--color", "debug"]);
     insta::assert_snapshot!(stdout, @r###"
-    <<::The working copy is clean>>
-    <<::Working copy : >>[1m[38;5;13m<<working_copy change_id shortest prefix::m>>[38;5;8m<<working_copy change_id shortest rest::zvwutvl>>[39m<<working_copy:: >>[38;5;12m<<working_copy commit_id shortest prefix::1>>[38;5;8m<<working_copy commit_id shortest rest::67f90e7>>[39m<<working_copy:: >>[38;5;10m<<working_copy empty::(empty)>>[39m<<working_copy:: >>[38;5;10m<<working_copy empty description placeholder::(no description set)>>[0m<<::>>
-    <<::Parent commit: >>[1m[38;5;5m<<change_id shortest prefix::q>>[0m[38;5;8m<<change_id shortest rest::pvuntsm>>[39m<<:: >>[1m[38;5;4m<<commit_id shortest prefix::2>>[0m[38;5;8m<<commit_id shortest rest::30dd059>>[39m<<:: >>[38;5;2m<<empty::(empty)>>[39m<<:: >>[38;5;2m<<empty description placeholder::(no description set)>>[39m<<::>>
+    The working copy is clean
+    Working copy : [1m[38;5;13m<<working_copy change_id shortest prefix::m>>[38;5;8m<<working_copy change_id shortest rest::zvwutvl>>[39m<<working_copy:: >>[38;5;12m<<working_copy commit_id shortest prefix::1>>[38;5;8m<<working_copy commit_id shortest rest::67f90e7>>[39m<<working_copy:: >>[38;5;10m<<working_copy empty::(empty)>>[39m<<working_copy:: >>[38;5;10m<<working_copy empty description placeholder::(no description set)>>[0m
+    Parent commit: [1m[38;5;5m<<change_id shortest prefix::q>>[0m[38;5;8m<<change_id shortest rest::pvuntsm>>[39m [1m[38;5;4m<<commit_id shortest prefix::2>>[0m[38;5;8m<<commit_id shortest rest::30dd059>>[39m [38;5;2m<<empty::(empty)>>[39m [38;5;2m<<empty description placeholder::(no description set)>>[39m
     "###);
 }
 
