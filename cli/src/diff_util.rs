@@ -852,7 +852,7 @@ fn unified_diff_hunks<'content>(
         right_line_range: 1..1,
         lines: vec![],
     };
-    let diff = Diff::by_line(&[left_content, right_content]);
+    let diff = Diff::by_line([left_content, right_content]);
     let mut diff_hunks = diff.hunks().peekable();
     while let Some(hunk) = diff_hunks.next() {
         match hunk {
@@ -910,7 +910,7 @@ fn inline_diff_hunks<'content>(
 
     // Like Diff::default_refinement(), but doesn't try to match up contents by
     // lines. We know left/right_contents have no matching lines.
-    let mut diff = Diff::for_tokenizer(&[left_content, right_content], diff::find_word_ranges);
+    let mut diff = Diff::for_tokenizer([left_content, right_content], diff::find_word_ranges);
     diff.refine_changed_regions(diff::find_nonword_ranges);
     for hunk in diff.hunks() {
         match hunk {
@@ -1128,7 +1128,7 @@ fn get_diff_stat(
     // TODO: this matches git's behavior, which is to count the number of newlines
     // in the file. but that behavior seems unhelpful; no one really cares how
     // many `0x0a` characters are in an image.
-    let diff = Diff::by_line(&[&left_content.contents, &right_content.contents]);
+    let diff = Diff::by_line([&left_content.contents, &right_content.contents]);
     let mut added = 0;
     let mut removed = 0;
     for hunk in diff.hunks() {

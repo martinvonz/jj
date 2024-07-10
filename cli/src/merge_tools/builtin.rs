@@ -225,7 +225,7 @@ fn make_diff_sections(
     left_contents: &str,
     right_contents: &str,
 ) -> Result<Vec<scm_record::Section<'static>>, BuiltinToolError> {
-    let diff = Diff::by_line(&[left_contents.as_bytes(), right_contents.as_bytes()]);
+    let diff = Diff::by_line([left_contents.as_bytes(), right_contents.as_bytes()]);
     let mut sections = Vec::new();
     for hunk in diff.hunks() {
         match hunk {

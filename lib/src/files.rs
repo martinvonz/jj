@@ -17,8 +17,6 @@
 use std::collections::VecDeque;
 use std::fmt::{Debug, Error, Formatter};
 
-use itertools::Itertools;
-
 use crate::diff;
 use crate::diff::{Diff, DiffHunk};
 use crate::merge::{trivial_merge, Merge};
@@ -163,9 +161,9 @@ pub fn merge(slices: &Merge<&[u8]>) -> MergeResult {
     // usually done for 3-way conflicts. Are there better heuristics when there are
     // more than 3 parts?
     let num_diffs = slices.removes().len();
-    let diff_inputs = slices.removes().chain(slices.adds()).copied().collect_vec();
+    let diff_inputs = slices.removes().chain(slices.adds());
 
-    let diff = Diff::by_line(&diff_inputs);
+    let diff = Diff::by_line(diff_inputs);
     let mut resolved_hunk = ContentHunk(vec![]);
     let mut merge_hunks: Vec<Merge<ContentHunk>> = vec![];
     for diff_hunk in diff.hunks() {
