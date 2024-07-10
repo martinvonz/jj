@@ -778,26 +778,60 @@ code formatting tools to revisions that may not be properly formatted yet.
 It can also be used to modify files with other tools like `sed` or `sort`.
 
 The changed files in the given revisions will be updated with any fixes
-determined by passing their file content through the external tool.
-Descendants will also be updated by passing their versions of the same files
-through the same external tool, which will never result in new conflicts.
-Files with existing conflicts will be updated on all sides of the conflict,
-which can potentially increase or decrease the number of conflict markers.
+determined by passing their file content through any external tools the user
+has configured for those files. Descendants will also be updated by passing
+their versions of the same files through the same tools, which will ensure
+that the fixes are not lost. This will never result in new conflicts. Files
+with existing conflicts will be updated on all sides of the conflict, which
+can potentially increase or decrease the number of conflict markers.
 
-The external tool must accept the current file content on standard input,
-and return the updated file content on standard output. The output will not
-be used unless the tool exits with a successful exit code. Output on
-standard error will be passed through to the terminal.
+The external tools must accept the current file content on standard input,
+and return the updated file content on standard output. A tool's output will
+not be used unless it exits with a successful exit code. Output on standard
+error will be passed through to the terminal.
 
-The configuration schema is expected to change in the future. For now, it
-defines a single command that will affect all changed files in the specified
-revisions. For example, to format some Rust code changed in the working copy
-revision, you could write this configuration:
+Tools are defined in a table where the keys are arbitrary identifiers and
+the values have the following properties:
+ - `command`: The arguments used to run the tool. The first argument is the
+   path to an executable file. Arguments can contain the substring `$path`,
+   which will be replaced with the repo-relative path of the file being
+   fixed. It is useful to provide the path to tools that include the path in
+   error messages, or behave differently based on the directory or file
+   name.
+ - `patterns`: Determines which files the tool will affect. If this list is
+   empty, no files will be affected by the tool. If there are multiple
+   patterns, the tool is applied only once to each file in the union of the
+   patterns.
+
+For example, the following configuration defines how two code formatters
+(`clang-format` and `black`) will apply to three different file extensions
+(.cc, .h, and .py):
+
+[fix.tools.clang-format]
+command = ["/usr/bin/clang-format", "--assume-filename=$path"]
+patterns = ["glob:'**/*.cc'",
+            "glob:'**/*.h'"]
+
+[fix.tools.black]
+command = ["/usr/bin/black", "-", "--stdin-filename=$path"]
+patterns = ["glob:'**/*.py'"]
+
+Execution order of tools that affect the same file is deterministic, but
+currently unspecified, and may change between releases. If two tools affect
+the same file, the second tool to run will receive its input from the
+output of the first tool.
+
+There is also a deprecated configuration schema that defines a single
+command that will affect all changed files in the specified revisions. For
+example, the following configuration would apply the Rust formatter to all
+changed files (whether they are Rust files or not):
 
 [fix]
 tool-command = ["rustfmt", "--emit", "stdout"]
 
-And then run the command `jj fix -s @`.
+The tool defined by `tool-command` acts as if it was the first entry in
+`fix.tools`, and uses `pattern = "all()"``. Support for `tool-command`
+will be removed in a future version.
 
 **Usage:** `jj fix [OPTIONS] [PATHS]...`
 

@@ -19,10 +19,12 @@ use std::sync::mpsc::channel;
 
 use futures::StreamExt;
 use itertools::Itertools;
-use jj_lib::backend::{BackendError, BackendResult, CommitId, FileId, TreeValue};
+use jj_lib::backend::{BackendError, CommitId, FileId, TreeValue};
+use jj_lib::fileset::{self, FilesetExpression};
+use jj_lib::matchers::{EverythingMatcher, Matcher};
 use jj_lib::merged_tree::MergedTreeBuilder;
 use jj_lib::repo::Repo;
-use jj_lib::repo_path::RepoPathBuf;
+use jj_lib::repo_path::{RepoPathBuf, RepoPathUiConverter};
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
 use jj_lib::store::Store;
 use pollster::FutureExt;
@@ -31,8 +33,8 @@ use rayon::prelude::ParallelIterator;
 use tracing::instrument;
 
 use crate::cli_util::{CommandHelper, RevisionArg};
-use crate::command_error::{config_error_with_message, CommandError};
-use crate::config::CommandNameAndArgs;
+use crate::command_error::{config_error, CommandError};
+use crate::config::{to_toml_value, CommandNameAndArgs};
 use crate::ui::Ui;
 
 /// Update files with formatting fixes or other changes
@@ -42,26 +44,60 @@ use crate::ui::Ui;
 /// It can also be used to modify files with other tools like `sed` or `sort`.
 ///
 /// The changed files in the given revisions will be updated with any fixes
-/// determined by passing their file content through the external tool.
-/// Descendants will also be updated by passing their versions of the same files
-/// through the same external tool, which will never result in new conflicts.
-/// Files with existing conflicts will be updated on all sides of the conflict,
-/// which can potentially increase or decrease the number of conflict markers.
+/// determined by passing their file content through any external tools the user
+/// has configured for those files. Descendants will also be updated by passing
+/// their versions of the same files through the same tools, which will ensure
+/// that the fixes are not lost. This will never result in new conflicts. Files
+/// with existing conflicts will be updated on all sides of the conflict, which
+/// can potentially increase or decrease the number of conflict markers.
 ///
-/// The external tool must accept the current file content on standard input,
-/// and return the updated file content on standard output. The output will not
-/// be used unless the tool exits with a successful exit code. Output on
-/// standard error will be passed through to the terminal.
+/// The external tools must accept the current file content on standard input,
+/// and return the updated file content on standard output. A tool's output will
+/// not be used unless it exits with a successful exit code. Output on standard
+/// error will be passed through to the terminal.
 ///
-/// The configuration schema is expected to change in the future. For now, it
-/// defines a single command that will affect all changed files in the specified
-/// revisions. For example, to format some Rust code changed in the working copy
-/// revision, you could write this configuration:
+/// Tools are defined in a table where the keys are arbitrary identifiers and
+/// the values have the following properties:
+///  - `command`: The arguments used to run the tool. The first argument is the
+///    path to an executable file. Arguments can contain the substring `$path`,
+///    which will be replaced with the repo-relative path of the file being
+///    fixed. It is useful to provide the path to tools that include the path in
+///    error messages, or behave differently based on the directory or file
+///    name.
+///  - `patterns`: Determines which files the tool will affect. If this list is
+///    empty, no files will be affected by the tool. If there are multiple
+///    patterns, the tool is applied only once to each file in the union of the
+///    patterns.
+///
+/// For example, the following configuration defines how two code formatters
+/// (`clang-format` and `black`) will apply to three different file extensions
+/// (.cc, .h, and .py):
+///
+/// [fix.tools.clang-format]
+/// command = ["/usr/bin/clang-format", "--assume-filename=$path"]
+/// patterns = ["glob:'**/*.cc'",
+///             "glob:'**/*.h'"]
+///
+/// [fix.tools.black]
+/// command = ["/usr/bin/black", "-", "--stdin-filename=$path"]
+/// patterns = ["glob:'**/*.py'"]
+///
+/// Execution order of tools that affect the same file is deterministic, but
+/// currently unspecified, and may change between releases. If two tools affect
+/// the same file, the second tool to run will receive its input from the
+/// output of the first tool.
+///
+/// There is also a deprecated configuration schema that defines a single
+/// command that will affect all changed files in the specified revisions. For
+/// example, the following configuration would apply the Rust formatter to all
+/// changed files (whether they are Rust files or not):
 ///
 /// [fix]
 /// tool-command = ["rustfmt", "--emit", "stdout"]
 ///
-/// And then run the command `jj fix -s @`.
+/// The tool defined by `tool-command` acts as if it was the first entry in
+/// `fix.tools`, and uses `pattern = "all()"``. Support for `tool-command`
+/// will be removed in a future version.
 #[derive(clap::Args, Clone, Debug)]
 #[command(verbatim_doc_comment)]
 pub(crate) struct FixArgs {
@@ -82,6 +118,7 @@ pub(crate) fn cmd_fix(
     args: &FixArgs,
 ) -> Result<(), CommandError> {
     let mut workspace_command = command.workspace_helper(ui)?;
+    let tools_config = get_tools_config(ui, command.settings().config())?;
     let root_commits: Vec<CommitId> = if args.source.is_empty() {
         workspace_command.parse_revset(&RevisionArg::from(
             command.settings().config().get_string("revsets.fix")?,
@@ -166,15 +203,9 @@ pub(crate) fn cmd_fix(
     }
 
     // Run the configured tool on all of the chosen inputs.
-    // TODO: Support configuration of multiple tools and which files they affect.
-    let tool_command: CommandNameAndArgs = command
-        .settings()
-        .config()
-        .get("fix.tool-command")
-        .map_err(|err| config_error_with_message("Invalid `fix.tool-command`", err))?;
     let fixed_file_ids = fix_file_ids(
         tx.repo().store().as_ref(),
-        &tool_command,
+        &tools_config,
         &unique_tool_inputs,
     )?;
 
@@ -261,20 +292,38 @@ struct ToolInput {
 /// each failed input.
 fn fix_file_ids<'a>(
     store: &Store,
-    tool_command: &CommandNameAndArgs,
+    tools_config: &ToolsConfig,
     tool_inputs: &'a HashSet<ToolInput>,
-) -> BackendResult<HashMap<&'a ToolInput, FileId>> {
+) -> Result<HashMap<&'a ToolInput, FileId>, CommandError> {
     let (updates_tx, updates_rx) = channel();
     // TODO: Switch to futures, or document the decision not to. We don't need
     // threads unless the threads will be doing more than waiting for pipes.
     tool_inputs.into_par_iter().try_for_each_init(
         || updates_tx.clone(),
-        |updates_tx, tool_input| -> Result<(), BackendError> {
-            let mut read = store.read_file(&tool_input.repo_path, &tool_input.file_id)?;
-            let mut old_content = vec![];
-            read.read_to_end(&mut old_content).unwrap();
-            if let Ok(new_content) = run_tool(tool_command, tool_input, &old_content) {
-                if new_content != *old_content {
+        |updates_tx, tool_input| -> Result<(), CommandError> {
+            let mut matching_tools = tools_config
+                .tools
+                .iter()
+                .filter(|tool_config| tool_config.matcher.matches(&tool_input.repo_path))
+                .peekable();
+            if matching_tools.peek().is_some() {
+                // The first matching tool gets its input from the committed file, and any
+                // subsequent matching tool gets its input from the previous matching tool's
+                // output.
+                let mut old_content = vec![];
+                let mut read = store.read_file(&tool_input.repo_path, &tool_input.file_id)?;
+                read.read_to_end(&mut old_content)?;
+                let new_content =
+                    matching_tools.fold(old_content.clone(), |prev_content, tool_config| {
+                        match run_tool(&tool_config.command, tool_input, &prev_content) {
+                            Ok(next_content) => next_content,
+                            // TODO: Because the stderr is passed through, this isn't always failing
+                            // silently, but it should do something better will the exit code, tool
+                            // name, etc.
+                            Err(_) => prev_content,
+                        }
+                    });
+                if new_content != old_content {
                     let new_file_id =
                         store.write_file(&tool_input.repo_path, &mut new_content.as_slice())?;
                     updates_tx.send((tool_input, new_file_id)).unwrap();
@@ -326,5 +375,106 @@ fn run_tool(
         Ok(output.stdout)
     } else {
         Err(())
+    }
+}
+
+/// Represents an entry in the `fix.tools` config table.
+struct ToolConfig {
+    /// The command that will be run to fix a matching file.
+    command: CommandNameAndArgs,
+    /// The matcher that determines if this tool matches a file.
+    matcher: Box<dyn Matcher>,
+    // TODO: Store the `name` field here and print it with the command's stderr, to clearly
+    // associate any errors/warnings with the tool and its configuration entry.
+}
+
+/// Represents the `fix.tools` config table.
+struct ToolsConfig {
+    /// Some tools, stored in the order they will be executed if more than one
+    /// of them matches the same file.
+    tools: Vec<ToolConfig>,
+}
+
+/// Simplifies deserialization of the config values while building a ToolConfig.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+struct RawToolConfig {
+    command: CommandNameAndArgs,
+    patterns: Vec<String>,
+}
+
+/// Parses the `fix.tools` config table.
+///
+/// Parses the deprecated `fix.tool-command` config as if it was the first entry
+/// in `fix.tools`.
+///
+/// Fails if any of the commands or patterns are obviously unusable, but does
+/// not check for issues that might still occur later like missing executables.
+/// This is a place where we could fail earlier in some cases, though.
+fn get_tools_config(ui: &mut Ui, config: &config::Config) -> Result<ToolsConfig, CommandError> {
+    let mut tools_config = ToolsConfig { tools: Vec::new() };
+    // TODO: Remove this block of code and associated documentation after at least
+    // one release where the feature is marked deprecated.
+    if let Ok(tool_command) = config.get::<CommandNameAndArgs>("fix.tool-command") {
+        // This doesn't change the displayed indices of the `fix.tools` definitions, and
+        // doesn't have a `name` that could conflict with them. That would matter more
+        // if we already had better error handling that made use of the `name`.
+        tools_config.tools.push(ToolConfig {
+            command: tool_command,
+            matcher: Box::new(EverythingMatcher),
+        });
+
+        writeln!(
+            ui.warning_default(),
+            r"The `fix.tool-command` config option is deprecated and will be removed in a future version."
+        )?;
+        writeln!(
+            ui.hint_default(),
+            r###"Replace it with the following:
+            [fix.tools.legacy-tool-command]
+            command = {}
+            patterns = ["all()"]
+            "###,
+            to_toml_value(&config.get::<config::Value>("fix.tool-command").unwrap()).unwrap()
+        )?;
+    }
+    if let Ok(tools_table) = config.get_table("fix.tools") {
+        // Convert the map into a sorted vector early so errors are deterministic.
+        let mut tools: Vec<ToolConfig> = tools_table
+            .into_iter()
+            .sorted_by(|a, b| a.0.cmp(&b.0))
+            .map(|(_name, value)| -> Result<ToolConfig, CommandError> {
+                let tool: RawToolConfig = value.try_deserialize()?;
+                Ok(ToolConfig {
+                    command: tool.command,
+                    matcher: FilesetExpression::union_all(
+                        tool.patterns
+                            .iter()
+                            .map(|arg| {
+                                fileset::parse(
+                                    arg,
+                                    &RepoPathUiConverter::Fs {
+                                        cwd: "".into(),
+                                        base: "".into(),
+                                    },
+                                )
+                            })
+                            .try_collect()?,
+                    )
+                    .to_matcher(),
+                })
+            })
+            .try_collect()?;
+        tools_config.tools.append(&mut tools);
+    }
+    if tools_config.tools.is_empty() {
+        // TODO: This is not a useful message when one or both fields are present but
+        // have the wrong type. After removing `fix.tool-command`, it will be simpler to
+        // propagate any errors from `config.get_array("fix.tools")`.
+        Err(config_error(
+            "At least one entry of `fix.tools` or `fix.tool-command` is required.".to_string(),
+        ))
+    } else {
+        Ok(tools_config)
     }
 }
