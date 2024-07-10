@@ -514,7 +514,7 @@ impl<W: Write> Write for ColorFormatter<W> {
             labels: &[String],
             debug: bool,
         ) -> io::Result<()> {
-            if debug {
+            if debug && !labels.is_empty() {
                 write!(output, "<<{}::", labels.join(" "))?;
                 write_sanitized(output, buf)?;
                 write!(output, ">>")?;
