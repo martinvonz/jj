@@ -416,12 +416,25 @@ impl<'input> Diff<'input> {
         let base_input = inputs[0];
         let other_inputs = inputs.iter().skip(1).copied().collect_vec();
         // First tokenize each input
-        let base_token_ranges: Vec<Range<usize>> = tokenizer(base_input);
-        let other_token_ranges: Vec<Vec<Range<usize>>> = other_inputs
+        let base_token_ranges = tokenizer(base_input);
+        let other_token_ranges = other_inputs
             .iter()
             .map(|other_input| tokenizer(other_input))
             .collect_vec();
+        Self::with_inputs_and_token_ranges(
+            base_input,
+            other_inputs,
+            &base_token_ranges,
+            &other_token_ranges,
+        )
+    }
 
+    fn with_inputs_and_token_ranges(
+        base_input: &'input [u8],
+        other_inputs: Vec<&'input [u8]>,
+        base_token_ranges: &[Range<usize>],
+        other_token_ranges: &[Vec<Range<usize>>],
+    ) -> Self {
         // Look for unchanged regions. Initially consider the whole range of the base
         // input as unchanged (compared to itself). Then diff each other input
         // against the base. Intersect the previously found ranges with the
@@ -434,7 +447,7 @@ impl<'input> Diff<'input> {
             let unchanged_diff_ranges = unchanged_ranges(
                 base_input,
                 other_inputs[i],
-                &base_token_ranges,
+                base_token_ranges,
                 other_token_ranges,
             );
             unchanged_regions = intersect_regions(unchanged_regions, &unchanged_diff_ranges);
