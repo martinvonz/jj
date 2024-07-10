@@ -44,6 +44,14 @@ struct Args {
     #[arg(long, default_value_t = false)]
     uppercase: bool,
 
+    /// Convert all characters to lowercase when reading stdin.
+    #[arg(long, default_value_t = false)]
+    lowercase: bool,
+
+    /// Adds a line to the end of the file
+    #[arg(long)]
+    append: Option<String>,
+
     /// Write this string to stdout, and ignore stdin.
     #[arg(long)]
     stdout: Option<String>,
@@ -64,9 +72,14 @@ fn main() -> ExitCode {
         eprint!("{}", data);
     }
     let stdout = if let Some(data) = args.stdout {
-        data // --reverse doesn't apply to --stdout.
+        // Other content-altering flags don't apply to --stdout.
+        assert!(!args.reverse);
+        assert!(!args.uppercase);
+        assert!(!args.lowercase);
+        assert!(args.append.is_none());
+        data
     } else {
-        std::io::stdin()
+        let mut stdout = std::io::stdin()
             .lines()
             .map(|line| {
                 format!("{}\n", {
@@ -76,13 +89,21 @@ fn main() -> ExitCode {
                         line.unwrap()
                     };
                     if args.uppercase {
+                        assert!(!args.lowercase);
                         line.to_uppercase()
+                    } else if args.lowercase {
+                        assert!(!args.uppercase);
+                        line.to_lowercase()
                     } else {
                         line
                     }
                 })
             })
-            .join("")
+            .join("");
+        if let Some(line) = args.append {
+            stdout.push_str(&line);
+        }
+        stdout
     };
     print!("{}", stdout);
     if let Some(path) = args.tee {
