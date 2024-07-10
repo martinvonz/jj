@@ -407,24 +407,24 @@ fn test_log_builtin_templates_colored_debug() {
     <<node::@>>  <<log::Commit ID: >>[38;5;4m<<log commit_id::dc31539712c7294d1d712cec63cef4504b94ca74>>[39m<<log::>>
     │  <<log::Change ID: >>[38;5;5m<<log change_id::rlvkpnrzqnoowoytxnquwvuryrwnrmlp>>[39m<<log::>>
     │  <<log::Branches: >>[38;5;5m<<log local_branches name::my-branch>>[39m<<log::>>
-    │  <<log::Author: >>[38;5;1m<<log name placeholder::(no name set)>>[39m<<log:: <>>[38;5;1m<<log email placeholder::(no email set)>>[39m<<log::>>><<log:: (>>[38;5;6m<<log author timestamp local format::2001-02-03 08:05:08>>[39m<<log::)>><<log::>>
-    │  <<log::Committer: >>[38;5;1m<<log name placeholder::(no name set)>>[39m<<log:: <>>[38;5;1m<<log email placeholder::(no email set)>>[39m<<log::>>><<log:: (>>[38;5;6m<<log committer timestamp local format::2001-02-03 08:05:08>>[39m<<log::)>><<log::>>
+    │  <<log::Author: >>[38;5;1m<<log name placeholder::(no name set)>>[39m<<log:: <>>[38;5;1m<<log email placeholder::(no email set)>>[39m<<log::> (>>[38;5;6m<<log author timestamp local format::2001-02-03 08:05:08>>[39m<<log::)>>
+    │  <<log::Committer: >>[38;5;1m<<log name placeholder::(no name set)>>[39m<<log:: <>>[38;5;1m<<log email placeholder::(no email set)>>[39m<<log::> (>>[38;5;6m<<log committer timestamp local format::2001-02-03 08:05:08>>[39m<<log::)>>
     │  <<log::>>
-    │  [38;5;2m<<log empty description placeholder::    >><<log empty description placeholder::(no description set)>>[39m<<log::>>
+    │  [38;5;2m<<log empty description placeholder::    (no description set)>>[39m<<log::>>
     │  <<log::>>
     <<node::◉>>  <<log::Commit ID: >>[38;5;4m<<log commit_id::230dd059e1b059aefc0da06a2e5a7dbf22362f22>>[39m<<log::>>
     │  <<log::Change ID: >>[38;5;5m<<log change_id::qpvuntsmwlqtpsluzzsnyyzlmlwvmlnu>>[39m<<log::>>
-    │  <<log::Author: >><<log author name::Test User>><<log:: <>>[38;5;3m<<log author email::test.user@example.com>>[39m<<log::>>><<log:: (>>[38;5;6m<<log author timestamp local format::2001-02-03 08:05:07>>[39m<<log::)>><<log::>>
-    │  <<log::Committer: >><<log committer name::Test User>><<log:: <>>[38;5;3m<<log committer email::test.user@example.com>>[39m<<log::>>><<log:: (>>[38;5;6m<<log committer timestamp local format::2001-02-03 08:05:07>>[39m<<log::)>><<log::>>
+    │  <<log::Author: >><<log author name::Test User>><<log:: <>>[38;5;3m<<log author email::test.user@example.com>>[39m<<log::> (>>[38;5;6m<<log author timestamp local format::2001-02-03 08:05:07>>[39m<<log::)>>
+    │  <<log::Committer: >><<log committer name::Test User>><<log:: <>>[38;5;3m<<log committer email::test.user@example.com>>[39m<<log::> (>>[38;5;6m<<log committer timestamp local format::2001-02-03 08:05:07>>[39m<<log::)>>
     │  <<log::>>
-    │  [38;5;2m<<log empty description placeholder::    >><<log empty description placeholder::(no description set)>>[39m<<log::>>
+    │  [38;5;2m<<log empty description placeholder::    (no description set)>>[39m<<log::>>
     │  <<log::>>
     <<node::◉>>  <<log::Commit ID: >>[38;5;4m<<log commit_id::0000000000000000000000000000000000000000>>[39m<<log::>>
        <<log::Change ID: >>[38;5;5m<<log change_id::zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz>>[39m<<log::>>
-       <<log::Author: >>[38;5;1m<<log name placeholder::(no name set)>>[39m<<log:: <>>[38;5;1m<<log email placeholder::(no email set)>>[39m<<log::>>><<log:: (>>[38;5;6m<<log author timestamp local format::1970-01-01 11:00:00>>[39m<<log::)>><<log::>>
-       <<log::Committer: >>[38;5;1m<<log name placeholder::(no name set)>>[39m<<log:: <>>[38;5;1m<<log email placeholder::(no email set)>>[39m<<log::>>><<log:: (>>[38;5;6m<<log committer timestamp local format::1970-01-01 11:00:00>>[39m<<log::)>><<log::>>
+       <<log::Author: >>[38;5;1m<<log name placeholder::(no name set)>>[39m<<log:: <>>[38;5;1m<<log email placeholder::(no email set)>>[39m<<log::> (>>[38;5;6m<<log author timestamp local format::1970-01-01 11:00:00>>[39m<<log::)>>
+       <<log::Committer: >>[38;5;1m<<log name placeholder::(no name set)>>[39m<<log:: <>>[38;5;1m<<log email placeholder::(no email set)>>[39m<<log::> (>>[38;5;6m<<log committer timestamp local format::1970-01-01 11:00:00>>[39m<<log::)>>
        <<log::>>
-       [38;5;2m<<log empty description placeholder::    >><<log empty description placeholder::(no description set)>>[39m<<log::>>
+       [38;5;2m<<log empty description placeholder::    (no description set)>>[39m<<log::>>
        <<log::>>
     "###);
 }
