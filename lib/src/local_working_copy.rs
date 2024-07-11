@@ -1416,7 +1416,7 @@ impl TreeState {
                     }
                 }
                 MaterializedTreeValue::GitSubmodule(_) => {
-                    println!("ignoring git submodule at {path:?}");
+                    eprintln!("ignoring git submodule at {path:?}");
                     FileState::for_gitsubmodule()
                 }
                 MaterializedTreeValue::Tree(_) => {
@@ -1463,7 +1463,7 @@ impl TreeState {
                             panic!("unexpected conflict entry in diff at {path:?}");
                         }
                         TreeValue::GitSubmodule(_id) => {
-                            println!("ignoring git submodule at {path:?}");
+                            eprintln!("ignoring git submodule at {path:?}");
                             FileType::GitSubmodule
                         }
                         TreeValue::Tree(_id) => {
