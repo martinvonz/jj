@@ -432,33 +432,8 @@ pub fn apply_diff_builtin(
         let (selected, _unselected) = file.get_selected_contents();
         match selected {
             scm_record::SelectedContents::Absent => {
-                // TODO(https://github.com/arxanas/scm-record/issues/26): This
-                // is probably an upstream bug in scm-record. If the file exists
-                // but is empty, `get_selected_contents` should probably return
-                // `Unchanged` or `Present`. When this is fixed upstream we can
-                // simplify this logic.
-
-                // Currently, `Absent` means the file is either empty or
-                // deleted. We need to disambiguate three cases:
-                // 1. The file is new and empty.
-                // 2. The file existed before, is empty, and nothing changed.
-                // 3. The file does not exist (it's been deleted).
-                let old_mode = file.file_mode;
-                let new_mode = file.get_file_mode();
-                let file_existed_previously =
-                    old_mode.is_some() && old_mode != Some(scm_record::FileMode::absent());
-                let file_exists_now =
-                    new_mode.is_some() && new_mode != Some(scm_record::FileMode::absent());
-                let new_empty_file = !file_existed_previously && file_exists_now;
-                let file_deleted = file_existed_previously && !file_exists_now;
-
-                if new_empty_file {
-                    let value = right_tree.path_value(&path)?;
-                    tree_builder.set_or_remove(path, value);
-                } else if file_deleted {
-                    tree_builder.set_or_remove(path, Merge::absent());
-                }
-                // Else: the file is empty and nothing changed.
+                // `Absent` means the file has been deleted.
+                tree_builder.set_or_remove(path, Merge::absent());
             }
             scm_record::SelectedContents::Unchanged => {
                 // Do nothing.
@@ -471,15 +446,39 @@ pub fn apply_diff_builtin(
                 tree_builder.set_or_remove(path, value);
             }
             scm_record::SelectedContents::Present { contents } => {
-                let file_id = store.write_file(&path, &mut contents.as_bytes())?;
-                tree_builder.set_or_remove(
-                    path,
-                    Merge::normal(TreeValue::File {
-                        id: file_id,
-                        executable: file.get_file_mode()
-                            == Some(scm_record::FileMode(mode::EXECUTABLE)),
+                let file_mode = match right_tree.path_value(&path)?.as_resolved() {
+                    Some(Some(TreeValue::File { executable, .. })) => Some(if *executable {
+                        scm_record::FileMode(mode::EXECUTABLE)
+                    } else {
+                        scm_record::FileMode(mode::NORMAL)
                     }),
-                )
+                    Some(Some(TreeValue::Symlink(_))) => Some(scm_record::FileMode(mode::SYMLINK)),
+                    Some(None) => {
+                        if contents == "" {
+                            None
+                        } else {
+                            file.get_file_mode()
+                        }
+                    }
+                    _ => unreachable!(),
+                };
+                match file_mode {
+                    Some(file_mode) => {
+                        let tree_value = match file_mode {
+                            scm_record::FileMode(mode::NORMAL)
+                            | scm_record::FileMode(mode::EXECUTABLE) => TreeValue::File {
+                                id: store.write_file(&path, &mut contents.as_bytes())?,
+                                executable: file_mode == scm_record::FileMode(mode::EXECUTABLE),
+                            },
+                            scm_record::FileMode(mode::SYMLINK) => {
+                                TreeValue::Symlink(store.write_symlink(&path, &contents)?)
+                            }
+                            _ => unreachable!(),
+                        };
+                        tree_builder.set_or_remove(path, Merge::normal(tree_value))
+                    }
+                    None => tree_builder.set_or_remove(path, Merge::absent()),
+                };
             }
         }
     }
