@@ -454,7 +454,7 @@ pub fn apply_diff_builtin(
                     }),
                     Some(Some(TreeValue::Symlink(_))) => Some(scm_record::FileMode(mode::SYMLINK)),
                     Some(None) => {
-                        if contents == "" {
+                        if contents.is_empty() {
                             None
                         } else {
                             file.get_file_mode()
