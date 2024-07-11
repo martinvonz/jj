@@ -1665,7 +1665,10 @@ Something like <code>*.scratch</code> or <code>*.scratchpad</code> should do, af
 files you want to keep around to match the pattern.</p>
 <p>If <code>$EDITOR</code> integration is important, something like <code>scratchpad.*</code> may be more
 helpful, as you can keep the filename extension intact (it
-matches <code>scratchpad.md</code>, <code>scratchpad.rs</code> and more).</p>
+matches <code>scratchpad.md</code>, <code>scratchpad.rs</code> and more). Another option is to add a 
+directory to the global <code>.gitignore</code> which then stores all your temporary files
+and notes. For example, you could add <code>scratch/</code> to <code>~/.git/ignore</code> and then 
+store arbitrary files in <code>&lt;your-git-repo&gt;/scratch/</code>.</p>
 <p>You can find more details on <code>gitignore</code> files <a href="https://git-scm.com/docs/gitignore">here</a>.</p>
 <h3 id="how-can-i-keep-local-changes-around-but-not-use-them-for-pull-requests">How can I keep local changes around, but not use them for Pull Requests?<a class="headerlink" href="#how-can-i-keep-local-changes-around-but-not-use-them-for-pull-requests" title="Permanent link">&para;</a></h3>
 <p>In general, you should separate out the changes to their own commit (using
