@@ -66,8 +66,8 @@ impl GpgEnvironment {
         let res = gpg.wait_with_output().unwrap();
 
         if !res.status.success() {
-            println!("Failed to add private key to gpg-agent. Make sure it is running!");
-            println!("{}", String::from_utf8_lossy(&res.stderr));
+            eprintln!("Failed to add private key to gpg-agent. Make sure it is running!");
+            eprintln!("{}", String::from_utf8_lossy(&res.stderr));
             return Err(res);
         }
 
