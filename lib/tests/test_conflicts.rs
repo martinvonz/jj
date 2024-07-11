@@ -326,6 +326,99 @@ fn test_materialize_parse_roundtrip() {
     "###);
 }
 
+// Important TODO (maybe not for this file): add a test of what happens when the
+// user removes conflict markers and runs `jj diff`
+
+#[test]
+fn test_materialize_parse_roundtrip_tricky() {
+    let test_repo = TestRepo::init();
+    let store = test_repo.repo.store();
+
+    let path = RepoPath::from_internal_string("file");
+    let base_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            \\JJ Verbatim Line: fake verbatim line
+            line 1
+            line 2 <<<<<<<
+            <<<<<<< line 3
+            line 4
+            line 5"},
+    );
+    let left_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            \\JJ Verbatim Line: fake verbatim line
+            line 1 left
+            line 2 left
+            <<<<<<<< line 3
+            line 4
+            line 5 left"},
+    );
+    let right_id = testutils::write_file(
+        store,
+        path,
+        indoc! {"
+            \\JJ Verbatim Line: fake verbatim line
+            line 1 right
+            line 2
+            line 3
+            line 4 right
+            line 5 right
+        "},
+    );
+
+    let conflict = Merge::from_removes_adds(
+        vec![Some(base_id.clone())],
+        vec![Some(left_id.clone()), Some(right_id.clone())],
+    );
+    let materialized = materialize_conflict_string(store, path, &conflict);
+    insta::assert_snapshot!(
+        materialized,
+        @r###"
+    \JJ Verbatim Line:\JJ Verbatim Line: fake verbatim line
+    <<<<<<< Conflict 1 of 1
+    %%%%%%% Changes from base to side #1
+    -line 1
+    -line 2 <<<<<<<
+    -\JJ Verbatim Line:<<<<<<< line 3
+    +line 1 left
+    +line 2 left
+    +<<<<<<<< line 3
+     line 4
+    -line 5
+    +line 5 left
+     \JJ: No newline at the end of file
+    +++++++ Contents of side #2
+    line 1 right
+    line 2
+    line 3
+    line 4 right
+    line 5 right
+    >>>>>>> Conflict 1 of 1 ends
+    "###
+    );
+
+    // The first add should always be from the left side
+    insta::assert_debug_snapshot!(
+        parse_merge_result(materialized.as_bytes(), conflict.num_sides()),
+        @r###"
+    Some(
+        Conflicted(
+            [
+                "\\JJ Verbatim Line: fake verbatim line\nline 1 left\nline 2 left\n<<<<<<<< line 3\nline 4\nline 5 left",
+                "\\JJ Verbatim Line: fake verbatim line\nline 1\nline 2 <<<<<<<\n<<<<<<< line 3\nline 4\nline 5",
+                "\\JJ Verbatim Line: fake verbatim line\nline 1 right\nline 2\nline 3\nline 4 right\nline 5 right\n",
+            ],
+        ),
+    )
+    "###);
+
+    // TODO: update_from_conflict?
+}
+
 #[test]
 fn test_materialize_conflict_no_newlines_at_eof() {
     let test_repo = TestRepo::init();
@@ -344,16 +437,29 @@ fn test_materialize_conflict_no_newlines_at_eof() {
     insta::assert_snapshot!(materialized,
         @r###"
     <<<<<<< Conflict 1 of 1
-    %%%%%%% Changes from base to side #1
-    -base+++++++ Contents of side #2
-    right>>>>>>> Conflict 1 of 1 ends
+    +++++++ Contents of side #1
+    %%%%%%% Changes from base to side #2
+    -base
+    +right
+     \JJ: No newline at the end of file
+    >>>>>>> Conflict 1 of 1 ends
     "###
     );
-    // BUG(#3968): These conflict markers cannot be parsed
+    // These conflict markers can be parsed (issue #3968)
     insta::assert_debug_snapshot!(parse_merge_result(
         materialized.as_bytes(),
         conflict.num_sides()
-    ),@"None");
+    ),@r###"
+    Some(
+        Conflicted(
+            [
+                "",
+                "base",
+                "right",
+            ],
+        ),
+    )
+    "###);
 }
 
 #[test]
