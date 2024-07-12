@@ -578,15 +578,53 @@ fn test_parse_conflict_simple() {
     insta::assert_debug_snapshot!(
         parse_conflict(indoc! {b"
             line 1
-            <<<<<<<<<<< Text
-            %%%%%%%%%%% Different text 
+            <<<<<<< Text
+            %%%%%%% Different text 
              line 2
             -line 3
             +left
              line 4
-            +++++++++++ Yet <><>< more text
+            +++++++ Yet <><>< more text
             right
-            >>>>>>>>>>> More and more text
+            >>>>>>> More and more text
+            line 5
+            "},
+            2
+        ),
+        @r###"
+    Some(
+        [
+            Resolved(
+                "line 1\n",
+            ),
+            Conflicted(
+                [
+                    "line 2\nleft\nline 4\n",
+                    "line 2\nline 3\nline 4\n",
+                    "right\n",
+                ],
+            ),
+            Resolved(
+                "line 5\n",
+            ),
+        ],
+    )
+    "###
+    );
+    // BUG: The conflict markers are too long and shouldn't parse (though we may
+    // decide to change this in the future)
+    insta::assert_debug_snapshot!(
+        parse_conflict(indoc! {b"
+            line 1
+            <<<<<<<<<<<
+            %%%%%%%%%%%
+             line 2
+            -line 3
+            +left
+             line 4
+            +++++++++++
+            right
+            >>>>>>>>>>>
             line 5
             "},
             2
