@@ -284,7 +284,7 @@ impl<W: Write> ColorFormatter<W> {
             labels: vec![],
             cached_styles: HashMap::new(),
             current_style: Style::default(),
-            current_debug: if debug { Some(String::new()) } else { None },
+            current_debug: debug.then(String::new),
         }
     }
 
@@ -340,7 +340,7 @@ impl<W: Write> ColorFormatter<W> {
         let new_debug = match &self.current_debug {
             Some(current) => {
                 let joined = self.labels.join(" ");
-                if joined.eq(current) {
+                if joined == *current {
                     None
                 } else {
                     if !current.is_empty() {
