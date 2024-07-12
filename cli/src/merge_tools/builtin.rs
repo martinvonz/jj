@@ -851,6 +851,80 @@ mod tests {
     }
 
     #[test]
+    fn test_edit_diff_builtin_add_executable_file() {
+        let test_repo = TestRepo::init();
+        let store = test_repo.repo.store();
+
+        let added_executable_file_path = RepoPath::from_internal_string("executable_file");
+        let left_tree = testutils::create_tree(&test_repo.repo, &[]);
+        let right_tree = {
+            let store = test_repo.repo.store();
+            let mut tree_builder = store.tree_builder(store.empty_tree_id().clone());
+            testutils::write_executable_file(
+                &mut tree_builder,
+                added_executable_file_path,
+                "executable",
+            );
+            let id = tree_builder.write_tree().unwrap();
+            MergedTree::Legacy(store.get_tree(RepoPath::root(), &id).unwrap())
+        };
+
+        let changed_files = vec![added_executable_file_path.to_owned()];
+        let files = make_diff_files(store, &left_tree, &right_tree, &changed_files).unwrap();
+        insta::assert_debug_snapshot!(files, @r###"
+        [
+            File {
+                old_path: None,
+                path: "executable_file",
+                file_mode: Some(
+                    FileMode(
+                        0,
+                    ),
+                ),
+                sections: [
+                    Changed {
+                        lines: [
+                            SectionChangedLine {
+                                is_checked: false,
+                                change_type: Added,
+                                line: "executable",
+                            },
+                        ],
+                    },
+                ],
+            },
+        ]
+        "###);
+        let no_changes_tree_id = apply_diff_builtin(
+            store,
+            &left_tree,
+            &right_tree,
+            changed_files.clone(),
+            &files,
+        )
+        .unwrap();
+        let no_changes_tree = store.get_root_tree(&no_changes_tree_id).unwrap();
+        assert_eq!(
+            no_changes_tree.id(),
+            left_tree.id(),
+            "no-changes tree was different",
+        );
+
+        let mut files = files;
+        for file in files.iter_mut() {
+            file.toggle_all();
+        }
+        let all_changes_tree_id =
+            apply_diff_builtin(store, &left_tree, &right_tree, changed_files, &files).unwrap();
+        let all_changes_tree = store.get_root_tree(&all_changes_tree_id).unwrap();
+        assert_eq!(
+            all_changes_tree.id(),
+            right_tree.id(),
+            "all-changes tree was different",
+        );
+    }
+
+    #[test]
     fn test_edit_diff_builtin_delete_empty_file() {
         let test_repo = TestRepo::init();
         let store = test_repo.repo.store();
