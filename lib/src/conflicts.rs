@@ -19,7 +19,7 @@ use std::iter::zip;
 
 use futures::{try_join, Stream, StreamExt, TryStreamExt};
 use itertools::Itertools;
-use regex::bytes::Regex;
+use regex::bytes::{Regex, RegexBuilder};
 
 use crate::backend::{BackendError, BackendResult, CommitId, FileId, SymlinkId, TreeId, TreeValue};
 use crate::diff::{Diff, DiffHunk};
@@ -47,11 +47,10 @@ const CONFLICT_PLUS_LINE_CHAR: u8 = CONFLICT_PLUS_LINE[0];
 // separators. This could be useful to make it possible to allow conflict
 // markers inside the text of the conflicts.
 static CONFLICT_MARKER_REGEX: once_cell::sync::Lazy<Regex> = once_cell::sync::Lazy::new(|| {
-    Regex::new(
-        r"(<{7}|>{7}|%{7}|\-{7}|\+{7})( .*)?
-",
-    )
-    .unwrap()
+    RegexBuilder::new(r"^(<{7}|>{7}|%{7}|\-{7}|\+{7})( .*)?$")
+        .multi_line(true)
+        .build()
+        .unwrap()
 });
 
 fn write_diff_hunks(hunks: &[DiffHunk], file: &mut dyn Write) -> std::io::Result<()> {
