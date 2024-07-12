@@ -203,10 +203,22 @@ fn test_config_list_layer() {
         ],
     );
 
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "config",
+            "set",
+            "--user",
+            "test-layered-workspace-key",
+            "test-original-val",
+        ],
+    );
+
     let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", "--user"]);
     insta::assert_snapshot!(stdout, @r###"
     test-key = "test-val"
     test-layered-key = "test-original-val"
+    test-layered-workspace-key = "test-original-val"
     "###);
 
     // Repo
@@ -221,6 +233,18 @@ fn test_config_list_layer() {
         ],
     );
 
+    // Workspace
+    test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "config",
+            "set",
+            "--workspace",
+            "test-layered-workspace-key",
+            "test-layered-val",
+        ],
+    );
+
     let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", "--user"]);
     insta::assert_snapshot!(stdout, @r###"
     test-key = "test-val"
@@ -229,6 +253,11 @@ fn test_config_list_layer() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", "--repo"]);
     insta::assert_snapshot!(stdout, @r###"
     test-layered-key = "test-layered-val"
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["config", "list", "--workspace"]);
+    insta::assert_snapshot!(stdout, @r###"
+    test-layered-workspace-key = "test-layered-val"
     "###);
 }
 
@@ -408,16 +437,26 @@ fn test_config_layer_workspace() {
     // Repo
     std::fs::write(
         main_path.join(".jj/repo/config.toml"),
-        format!("{config_key} = {value:?}\n", value = "main-repo"),
+        format!(
+            "ui.merge-editor = \"foo\"\n{config_key} = {value:?}\n",
+            value = "main-repo"
+        ),
     )
     .unwrap();
+    // Secondary workspace
+    std::fs::write(
+        secondary_path.join(".jj/config.toml"),
+        format!("{config_key} = {value:?}\n", value = "main-workspace"),
+    )
+    .unwrap();
+
     let stdout = test_env.jj_cmd_success(&main_path, &["config", "list", config_key]);
     insta::assert_snapshot!(stdout, @r###"
     ui.editor = "main-repo"
     "###);
     let stdout = test_env.jj_cmd_success(&secondary_path, &["config", "list", config_key]);
     insta::assert_snapshot!(stdout, @r###"
-    ui.editor = "main-repo"
+    ui.editor = "main-workspace"
     "###);
 }
 
@@ -427,11 +466,11 @@ fn test_config_set_bad_opts() {
     let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["config", "set"]);
     insta::assert_snapshot!(stderr, @r###"
     error: the following required arguments were not provided:
-      <--user|--repo>
+      <--user|--repo|--workspace>
       <NAME>
       <VALUE>
 
-    Usage: jj config set <--user|--repo> <NAME> <VALUE>
+    Usage: jj config set <--user|--repo|--workspace> <NAME> <VALUE>
 
     For more information, try '--help'.
     "###);
@@ -608,9 +647,9 @@ fn test_config_edit_missing_opt() {
     let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["config", "edit"]);
     insta::assert_snapshot!(stderr, @r###"
     error: the following required arguments were not provided:
-      <--user|--repo>
+      <--user|--repo|--workspace>
 
-    Usage: jj config edit <--user|--repo>
+    Usage: jj config edit <--user|--repo|--workspace>
 
     For more information, try '--help'.
     "###);

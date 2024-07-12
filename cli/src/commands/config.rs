@@ -36,6 +36,10 @@ pub(crate) struct ConfigLevelArgs {
     /// Target the repo-level config
     #[arg(long, group = "config_level")]
     repo: bool,
+
+    /// Target the workspace-level config
+    #[arg(long, group = "config_level")]
+    workspace: bool,
 }
 
 impl ConfigLevelArgs {
@@ -48,6 +52,8 @@ impl ConfigLevelArgs {
             Some(ConfigSource::User)
         } else if self.repo {
             Some(ConfigSource::Repo)
+        } else if self.workspace {
+            Some(ConfigSource::Workspace)
         } else {
             None
         }

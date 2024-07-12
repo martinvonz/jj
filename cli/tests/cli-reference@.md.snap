@@ -473,12 +473,13 @@ Start an editor on a jj config file.
 
 Creates the file if it doesn't already exist regardless of what the editor does.
 
-**Usage:** `jj config edit <--user|--repo>`
+**Usage:** `jj config edit <--user|--repo|--workspace>`
 
 ###### **Options:**
 
 * `--user` — Target the user-level config
 * `--repo` — Target the repo-level config
+* `--workspace` — Target the workspace-level config
 
 
 
@@ -518,6 +519,7 @@ List variables set in config file, along with their values
 * `--include-overridden` — Allow printing overridden values
 * `--user` — Target the user-level config
 * `--repo` — Target the repo-level config
+* `--workspace` — Target the workspace-level config
 * `-T`, `--template <TEMPLATE>` — Render each variable using the given template
 
    The following keywords are defined:
@@ -538,12 +540,13 @@ A config file at that path may or may not exist.
 
 See `jj config edit` if you'd like to immediately edit the file.
 
-**Usage:** `jj config path <--user|--repo>`
+**Usage:** `jj config path <--user|--repo|--workspace>`
 
 ###### **Options:**
 
 * `--user` — Target the user-level config
 * `--repo` — Target the repo-level config
+* `--workspace` — Target the workspace-level config
 
 
 
@@ -551,7 +554,7 @@ See `jj config edit` if you'd like to immediately edit the file.
 
 Update config file to set the given option to a given value
 
-**Usage:** `jj config set <--user|--repo> <NAME> <VALUE>`
+**Usage:** `jj config set <--user|--repo|--workspace> <NAME> <VALUE>`
 
 ###### **Arguments:**
 
@@ -562,6 +565,7 @@ Update config file to set the given option to a given value
 
 * `--user` — Target the user-level config
 * `--repo` — Target the repo-level config
+* `--workspace` — Target the workspace-level config
 
 
 
