@@ -55,6 +55,10 @@ gix = { version = "0.63.0", default-features = false, features = [
     "blob-diff",
 ] }
 gix-filter = "0.11.2"
+# We list `gix-{actor,mailmap}` separately, as they are used by
+# `jj_lib::mailmap` even when the Git backend is disabled.
+gix-actor = { version = "0.31.3" }
+gix-mailmap = { version = "0.23.4" }
 glob = "0.3.1"
 hex = "0.4.3"
 ignore = "0.4.20"

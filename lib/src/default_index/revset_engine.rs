@@ -33,7 +33,7 @@ use crate::matchers::{Matcher, Visit};
 use crate::repo_path::RepoPath;
 use crate::revset::{
     ResolvedExpression, ResolvedPredicateExpression, Revset, RevsetEvaluationError,
-    RevsetFilterPredicate, GENERATION_RANGE_FULL,
+    RevsetFilterPredicate, SignatureField, GENERATION_RANGE_FULL,
 };
 use crate::store::Store;
 use crate::{rewrite, union_find};
@@ -965,7 +965,7 @@ impl<'index> EvaluationContext<'index> {
             let entry = self.index.entry_by_pos(pos);
             let commit = self.store.get_commit(&entry.commit_id()).unwrap();
             Reverse(Item {
-                timestamp: commit.committer().timestamp.timestamp,
+                timestamp: commit.committer_raw().timestamp.timestamp,
                 pos: entry.position(),
             })
         };
@@ -1049,23 +1049,32 @@ fn build_predicate_fn(
                 pattern.matches(commit.description())
             })
         }
-        RevsetFilterPredicate::Author(pattern) => {
+        RevsetFilterPredicate::AuthorRaw(field, pattern) => {
             let pattern = pattern.clone();
+            let &field = field;
             // TODO: Make these functions that take a needle to search for accept some
             // syntax for specifying whether it's a regex.
             box_pure_predicate_fn(move |index, pos| {
                 let entry = index.entry_by_pos(pos);
                 let commit = store.get_commit(&entry.commit_id()).unwrap();
-                pattern.matches(&commit.author().name) || pattern.matches(&commit.author().email)
+                let field_value = match field {
+                    SignatureField::Name => &commit.author_raw().name,
+                    SignatureField::Email => &commit.author_raw().email,
+                };
+                pattern.matches(field_value)
             })
         }
-        RevsetFilterPredicate::Committer(pattern) => {
+        RevsetFilterPredicate::CommitterRaw(field, pattern) => {
             let pattern = pattern.clone();
+            let &field = field;
             box_pure_predicate_fn(move |index, pos| {
                 let entry = index.entry_by_pos(pos);
                 let commit = store.get_commit(&entry.commit_id()).unwrap();
-                pattern.matches(&commit.committer().name)
-                    || pattern.matches(&commit.committer().email)
+                let field_value = match field {
+                    SignatureField::Name => &commit.committer_raw().name,
+                    SignatureField::Email => &commit.committer_raw().email,
+                };
+                pattern.matches(field_value)
             })
         }
         RevsetFilterPredicate::File(expr) => {

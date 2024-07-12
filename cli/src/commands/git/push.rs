@@ -289,14 +289,14 @@ pub fn cmd_git_push(
         if commit.description().is_empty() && !args.allow_empty_description {
             reasons.push("it has no description");
         }
-        if commit.author().name.is_empty()
-            || commit.author().name == UserSettings::USER_NAME_PLACEHOLDER
-            || commit.author().email.is_empty()
-            || commit.author().email == UserSettings::USER_EMAIL_PLACEHOLDER
-            || commit.committer().name.is_empty()
-            || commit.committer().name == UserSettings::USER_NAME_PLACEHOLDER
-            || commit.committer().email.is_empty()
-            || commit.committer().email == UserSettings::USER_EMAIL_PLACEHOLDER
+        if commit.author_raw().name.is_empty()
+            || commit.author_raw().name == UserSettings::USER_NAME_PLACEHOLDER
+            || commit.author_raw().email.is_empty()
+            || commit.author_raw().email == UserSettings::USER_EMAIL_PLACEHOLDER
+            || commit.committer_raw().name.is_empty()
+            || commit.committer_raw().name == UserSettings::USER_NAME_PLACEHOLDER
+            || commit.committer_raw().email.is_empty()
+            || commit.committer_raw().email == UserSettings::USER_EMAIL_PLACEHOLDER
         {
             reasons.push("it has no author and/or committer set");
         }

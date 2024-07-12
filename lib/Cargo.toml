@@ -45,6 +45,8 @@ futures = { workspace = true }
 git2 = { workspace = true, optional = true }
 gix = { workspace = true, optional = true }
 gix-filter = { workspace = true, optional = true }
+gix-actor = { workspace = true }
+gix-mailmap = { workspace = true }
 glob = { workspace = true }
 hex = { workspace = true }
 ignore = { workspace = true }
