@@ -32,7 +32,7 @@ use crate::op_store::{OperationId, WorkspaceId};
 use crate::repo::{
     read_store_type, BackendInitializer, CheckOutCommitError, IndexStoreInitializer,
     OpHeadsStoreInitializer, OpStoreInitializer, ReadonlyRepo, Repo, RepoInitError, RepoLoader,
-    StoreFactories, StoreLoadError, SubmoduleStoreInitializer,
+    StoreFactories, StoreLoadError, SubmoduleStoreInitializer, WorkingCopyStoreInitializer,
 };
 use crate::settings::UserSettings;
 use crate::signing::{SignInitError, Signer};
@@ -250,6 +250,7 @@ impl Workspace {
         op_heads_store_initializer: &OpHeadsStoreInitializer,
         index_store_initializer: &IndexStoreInitializer,
         submodule_store_initializer: &SubmoduleStoreInitializer,
+        working_copy_store_initializer: &WorkingCopyStoreInitializer,
         working_copy_factory: &dyn WorkingCopyFactory,
         workspace_id: WorkspaceId,
     ) -> Result<(Self, Arc<ReadonlyRepo>), WorkspaceInitError> {
@@ -266,6 +267,7 @@ impl Workspace {
                 op_heads_store_initializer,
                 index_store_initializer,
                 submodule_store_initializer,
+                working_copy_store_initializer,
             )
             .map_err(|repo_init_err| match repo_init_err {
                 RepoInitError::Backend(err) => WorkspaceInitError::Backend(err),
@@ -303,6 +305,7 @@ impl Workspace {
             ReadonlyRepo::default_op_heads_store_initializer(),
             ReadonlyRepo::default_index_store_initializer(),
             ReadonlyRepo::default_submodule_store_initializer(),
+            ReadonlyRepo::default_working_copy_store_initializer(),
             &*default_working_copy_factory(),
             WorkspaceId::default(),
         )
