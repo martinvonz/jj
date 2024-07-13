@@ -355,7 +355,29 @@ pub fn materialized_diff_stream<'a>(
 /// invalid if they don't have the expected arity.
 // TODO: "parse" is not usually the opposite of "materialize", so maybe we
 // should rename them to "serialize" and "deserialize"?
-pub fn parse_conflict(input: &[u8], num_sides: usize) -> Option<Vec<Merge<ContentHunk>>> {
+pub fn parse_merge_result(input: &[u8], num_sides: usize) -> Option<Merge<ContentHunk>> {
+    let hunks = parse_conflict_into_list_of_hunks(input, num_sides)?;
+    let mut result: Merge<Vec<u8>> = Merge::from_vec(vec![vec![]; num_sides * 2 - 1]);
+
+    for hunk in hunks {
+        if let Some(slice) = hunk.as_resolved() {
+            for content in result.iter_mut() {
+                content.extend_from_slice(&slice.0);
+            }
+        } else {
+            for (content, slice) in zip(result.iter_mut(), hunk.into_iter()) {
+                content.extend(slice.0);
+            }
+        }
+    }
+
+    Some(result.map_owned(ContentHunk))
+}
+
+fn parse_conflict_into_list_of_hunks(
+    input: &[u8],
+    num_sides: usize,
+) -> Option<Vec<Merge<ContentHunk>>> {
     if input.is_empty() {
         return None;
     }
@@ -488,13 +510,13 @@ pub async fn update_from_content(
     // conflicts initially. If unsuccessful, attempt to parse conflicts from with
     // the arity of the unsimplified conflicts since such a conflict may be
     // present in the working copy if written by an earlier version of jj.
-    let (used_file_ids, hunks) = 'hunks: {
-        if let Some(hunks) = parse_conflict(content, simplified_file_ids.num_sides()) {
-            break 'hunks (simplified_file_ids, hunks);
+    let (used_file_ids, contents) = 'hunks: {
+        if let Some(contents) = parse_merge_result(content, simplified_file_ids.num_sides()) {
+            break 'hunks (simplified_file_ids, contents);
         };
         if simplified_file_ids.num_sides() != file_ids.num_sides() {
-            if let Some(hunks) = parse_conflict(content, file_ids.num_sides()) {
-                break 'hunks (file_ids, hunks);
+            if let Some(contents) = parse_merge_result(content, file_ids.num_sides()) {
+                break 'hunks (file_ids, contents);
             };
         };
         // Either there are no markers or they don't have the expected arity
@@ -502,23 +524,10 @@ pub async fn update_from_content(
         return Ok(Merge::normal(file_id));
     };
 
-    let mut contents = used_file_ids.map(|_| vec![]);
-    for hunk in hunks {
-        if let Some(slice) = hunk.as_resolved() {
-            for content in contents.iter_mut() {
-                content.extend_from_slice(&slice.0);
-            }
-        } else {
-            for (content, slice) in zip(contents.iter_mut(), hunk.into_iter()) {
-                content.extend(slice.0);
-            }
-        }
-    }
-
     // If the user edited the empty placeholder for an absent side, we consider the
     // conflict resolved.
     if zip(contents.iter(), used_file_ids.iter())
-        .any(|(content, file_id)| file_id.is_none() && !content.is_empty())
+        .any(|(ContentHunk(content), file_id)| file_id.is_none() && !content.is_empty())
     {
         let file_id = store.write_file(path, &mut &content[..])?;
         return Ok(Merge::normal(file_id));
@@ -527,19 +536,21 @@ pub async fn update_from_content(
     // Now write the new files contents we found by parsing the file with conflict
     // markers.
     let new_file_ids: Vec<Option<FileId>> = zip(contents.iter(), used_file_ids.iter())
-        .map(|(content, file_id)| -> BackendResult<Option<FileId>> {
-            match file_id {
-                Some(_) => {
-                    let file_id = store.write_file(path, &mut content.as_slice())?;
-                    Ok(Some(file_id))
+        .map(
+            |(ContentHunk(content), file_id)| -> BackendResult<Option<FileId>> {
+                match file_id {
+                    Some(_) => {
+                        let file_id = store.write_file(path, &mut content.as_slice())?;
+                        Ok(Some(file_id))
+                    }
+                    None => {
+                        // The missing side of a conflict is still represented by
+                        // the empty string we materialized it as
+                        Ok(None)
+                    }
                 }
-                None => {
-                    // The missing side of a conflict is still represented by
-                    // the empty string we materialized it as
-                    Ok(None)
-                }
-            }
-        })
+            },
+        )
         .try_collect()?;
 
     // If the conflict was simplified, expand the conflict to the original
