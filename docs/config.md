@@ -224,10 +224,10 @@ diff-invocation-mode = "file-by-file"
 
 ### Set of immutable commits
 
-You can configure the set of immutable commits via `revset-aliases."immutable_heads()"`.
-The default set of immutable heads is `trunk() | tags()`. For example, to
-prevent rewriting commits on `main@origin` and commits authored by other
-users:
+You can configure the set of immutable commits via
+`revset-aliases."immutable_heads()"`. The default set of immutable heads is
+`trunk() | tags() | untracked_remote_branches()`. For example, to prevent
+rewriting commits on `main@origin` and commits authored by other users:
 
 ```toml
 # The `main.. &` bit is an optimization to scan for non-`mine()` commits only

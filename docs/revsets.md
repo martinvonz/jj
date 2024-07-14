@@ -385,7 +385,8 @@ for a comprehensive list.
   'trunk()' = 'your-branch@your-remote'
   ```
 
-* `immutable_heads()`: Resolves to `trunk() | tags()` by default. See
+* `immutable_heads()`: Resolves to `trunk() | tags() |
+  untracked_remote_branches()` by default. See
   [here](config.md#set-of-immutable-commits) for details.
 
 * `immutable()`: The set of commits that `jj` treats as immutable. This is
