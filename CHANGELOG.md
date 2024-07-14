@@ -15,6 +15,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `jj backout --revision` has been renamed to `jj backout --revisions`.
   The short alias `-r` is still supported.
 
+* [The default `immutable_heads()` set](docs/config.md#set-of-immutable-commits)
+  now includes `untracked_remote_branches()` with the assumption that untracked
+  branches aren't managed by you. Therefore, untracked branches are no longer
+  displayed in `jj log` by default.
+
 ### Deprecations
 
 ### New features
