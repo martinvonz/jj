@@ -1048,12 +1048,12 @@ pub fn show_git_diff(
                         writeln!(formatter, "old mode {}", &left_part.mode)?;
                         writeln!(formatter, "new mode {}", &right_part.mode)?;
                         if left_part.hash != right_part.hash {
-                            writeln!(formatter, "index {}...{}", &left_part.hash, right_part.hash)?;
+                            writeln!(formatter, "index {}..{}", &left_part.hash, right_part.hash)?;
                         }
                     } else if left_part.hash != right_part.hash {
                         writeln!(
                             formatter,
-                            "index {}...{} {}",
+                            "index {}..{} {}",
                             &left_part.hash, right_part.hash, left_part.mode
                         )?;
                     }

@@ -89,7 +89,7 @@ fn test_diff_basic() {
     @@ -1,1 +1,0 @@
     -foo
     diff --git a/file2 b/file2
-    index 523a4a9de8...485b56a572 100644
+    index 523a4a9de8..485b56a572 100644
     --- a/file2
     +++ b/file2
     @@ -1,2 +1,3 @@
@@ -116,7 +116,7 @@ fn test_diff_basic() {
     @@ -1,1 +1,0 @@
     -foo
     diff --git a/file2 b/file2
-    index 523a4a9de8...485b56a572 100644
+    index 523a4a9de8..485b56a572 100644
     --- a/file2
     +++ b/file2
     @@ -2,1 +2,2 @@
@@ -142,7 +142,7 @@ fn test_diff_basic() {
     [38;5;6m<<diff hunk_header::@@ -1,1 +1,0 @@>>[39m
     [38;5;1m<<diff removed::->>[4m<<diff removed token::foo>>[24m[39m
     [1m<<diff file_header::diff --git a/file2 b/file2>>[0m
-    [1m<<diff file_header::index 523a4a9de8...485b56a572 100644>>[0m
+    [1m<<diff file_header::index 523a4a9de8..485b56a572 100644>>[0m
     [1m<<diff file_header::--- a/file2>>[0m
     [1m<<diff file_header::+++ b/file2>>[0m
     [38;5;6m<<diff hunk_header::@@ -1,2 +1,3 @@>>[39m
@@ -172,7 +172,7 @@ fn test_diff_basic() {
     @@ -1,1 +1,0 @@
     -foo
     diff --git a/file2 b/file2
-    index 523a4a9de8...485b56a572 100644
+    index 523a4a9de8..485b56a572 100644
     --- a/file2
     +++ b/file2
     @@ -1,2 +1,3 @@
@@ -362,7 +362,7 @@ fn test_diff_file_mode() {
     diff --git a/file1 b/file1
     old mode 100755
     new mode 100644
-    index e69de29bb2...0cfbf08886
+    index e69de29bb2..0cfbf08886
     --- a/file1
     +++ b/file1
     @@ -1,0 +1,1 @@
@@ -373,7 +373,7 @@ fn test_diff_file_mode() {
     diff --git a/file3 b/file3
     old mode 100644
     new mode 100755
-    index d00491fd7e...0cfbf08886
+    index d00491fd7e..0cfbf08886
     --- a/file3
     +++ b/file3
     @@ -1,1 +1,1 @@
@@ -621,28 +621,28 @@ fn test_diff_relative_paths() {
     let stdout = test_env.jj_cmd_success(&repo_path.join("dir1"), &["diff", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
     diff --git a/dir1/file2 b/dir1/file2
-    index 54b060eee9...1fe912cdd8 100644
+    index 54b060eee9..1fe912cdd8 100644
     --- a/dir1/file2
     +++ b/dir1/file2
     @@ -1,1 +1,1 @@
     -foo2
     +bar2
     diff --git a/dir1/subdir1/file3 b/dir1/subdir1/file3
-    index c1ec6c6f12...f3c8b75ec6 100644
+    index c1ec6c6f12..f3c8b75ec6 100644
     --- a/dir1/subdir1/file3
     +++ b/dir1/subdir1/file3
     @@ -1,1 +1,1 @@
     -foo3
     +bar3
     diff --git a/dir2/file4 b/dir2/file4
-    index a0016dbc4c...17375f7a12 100644
+    index a0016dbc4c..17375f7a12 100644
     --- a/dir2/file4
     +++ b/dir2/file4
     @@ -1,1 +1,1 @@
     -foo4
     +bar4
     diff --git a/file1 b/file1
-    index 1715acd6a5...05c4fe6772 100644
+    index 1715acd6a5..05c4fe6772 100644
     --- a/file1
     +++ b/file1
     @@ -1,1 +1,1 @@
@@ -694,7 +694,7 @@ fn test_diff_missing_newline() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
     diff --git a/file1 b/file1
-    index 1910281566...a907ec3f43 100644
+    index 1910281566..a907ec3f43 100644
     --- a/file1
     +++ b/file1
     @@ -1,1 +1,2 @@
@@ -704,7 +704,7 @@ fn test_diff_missing_newline() {
     +bar
     \ No newline at end of file
     diff --git a/file2 b/file2
-    index a907ec3f43...1910281566 100644
+    index a907ec3f43..1910281566 100644
     --- a/file2
     +++ b/file2
     @@ -1,2 +1,1 @@
@@ -1077,7 +1077,7 @@ fn test_diff_leading_trailing_context() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--context=5"]);
     insta::assert_snapshot!(stdout, @r###"
     diff --git a/file1 b/file1
-    index 1bf57dee4a...69b3e1865c 100644
+    index 1bf57dee4a..69b3e1865c 100644
     --- a/file1
     +++ b/file1
     @@ -1,12 +1,12 @@
@@ -1101,7 +1101,7 @@ fn test_diff_leading_trailing_context() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--context=3"]);
     insta::assert_snapshot!(stdout, @r###"
     diff --git a/file1 b/file1
-    index 1bf57dee4a...69b3e1865c 100644
+    index 1bf57dee4a..69b3e1865c 100644
     --- a/file1
     +++ b/file1
     @@ -3,8 +3,8 @@
@@ -1121,7 +1121,7 @@ fn test_diff_leading_trailing_context() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git", "--context=2"]);
     insta::assert_snapshot!(stdout, @r###"
     diff --git a/file1 b/file1
-    index 1bf57dee4a...69b3e1865c 100644
+    index 1bf57dee4a..69b3e1865c 100644
     --- a/file1
     +++ b/file1
     @@ -4,6 +4,6 @@

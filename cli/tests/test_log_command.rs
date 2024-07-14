@@ -114,7 +114,7 @@ fn test_log_with_or_without_diff() {
     @  a new commit
     │  M file1
     │  diff --git a/file1 b/file1
-    │  index 257cc5642c...3bd1f0e297 100644
+    │  index 257cc5642c..3bd1f0e297 100644
     │  --- a/file1
     │  +++ b/file1
     │  @@ -1,1 +1,2 @@
@@ -176,7 +176,7 @@ fn test_log_with_or_without_diff() {
     insta::assert_snapshot!(stdout, @r###"
     a new commit
     diff --git a/file1 b/file1
-    index 257cc5642c...3bd1f0e297 100644
+    index 257cc5642c..3bd1f0e297 100644
     --- a/file1
     +++ b/file1
     @@ -1,1 +1,2 @@
@@ -241,7 +241,7 @@ fn test_log_with_or_without_diff() {
     insta::assert_snapshot!(stdout, @r###"
     @  a new commit
     │  diff --git a/file1 b/file1
-    ~  index 257cc5642c...3bd1f0e297 100644
+    ~  index 257cc5642c..3bd1f0e297 100644
        --- a/file1
        +++ b/file1
        @@ -1,1 +1,2 @@
@@ -255,7 +255,7 @@ fn test_log_with_or_without_diff() {
     insta::assert_snapshot!(stdout, @r###"
     a new commit
     diff --git a/file1 b/file1
-    index 257cc5642c...3bd1f0e297 100644
+    index 257cc5642c..3bd1f0e297 100644
     --- a/file1
     +++ b/file1
     @@ -1,1 +1,2 @@
