@@ -335,8 +335,6 @@ fn test_diff_file_mode() {
     diff --git a/file1 b/file1
     new file mode 100755
     index 0000000000..e69de29bb2
-    --- /dev/null
-    +++ b/file1
     diff --git a/file2 b/file2
     new file mode 100755
     index 0000000000..d00491fd7e
@@ -354,8 +352,6 @@ fn test_diff_file_mode() {
     diff --git a/file4 b/file4
     new file mode 100644
     index 0000000000..e69de29bb2
-    --- /dev/null
-    +++ b/file4
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-r@-", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -409,8 +405,6 @@ fn test_diff_file_mode() {
     diff --git a/file4 b/file4
     deleted file mode 100755
     index e69de29bb2..0000000000
-    --- a/file4
-    +++ /dev/null
     "###);
 }
 
