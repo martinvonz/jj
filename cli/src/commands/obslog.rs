@@ -113,7 +113,21 @@ pub(crate) fn cmd_obslog(
     let mut commits = topo_order_reverse_ok(
         vec![Ok(start_commit)],
         |commit: &Commit| commit.id().clone(),
-        |commit: &Commit| commit.predecessors().collect_vec(),
+        |commit: &Commit| {
+            let mut predecessors = commit.predecessors().collect_vec();
+            // Predecessors don't need to follow any defined order. However in
+            // practice, if there are multiple predecessors, then usually the
+            // first predecessor is the previous version of the same change, and
+            // the other predecessors are commits that were squashed into it. If
+            // multiple commits are squashed at once, then they are usually
+            // recorded in chronological order. We want to show squashed commits
+            // in reverse chronological order, and we also want to show squashed
+            // commits before the squash destination (since the destination's
+            // subgraph may contain earlier squashed commits as well), so we
+            // visit the predecessors in reverse order.
+            predecessors.reverse();
+            predecessors
+        },
     )?;
     if args.deprecated_limit.is_some() {
         writeln!(

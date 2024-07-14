@@ -252,36 +252,36 @@ fn test_obslog_squash() {
     │ │     1    1: foo
     │ │     2    2: bar
     │ │          3: baz
-    ◉ │    qpvuntsm hidden test.user@example.com 2001-02-03 08:05:10 e3c2a446
-    ├───╮  squashed 1
-    │ │ │  Modified regular file file1:
-    │ │ │     1    1: foo
-    │ │ │          2: bar
-    ◉ │ │  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:09 766420db
-    │ │ │  first
-    │ │ │  Added regular file file1:
-    │ │ │          1: foo
-    ◉ │ │  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:08 fa15625b
-    │ │ │  (empty) first
-    ◉ │ │  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:07 230dd059
-      │ │  (empty) (no description set)
-      │ ◉  kkmpptxz hidden test.user@example.com 2001-02-03 08:05:10 46acd22a
-      │ │  second
-      │ │  Modified regular file file1:
-      │ │     1    1: foo
-      │ │          2: bar
-      │ ◉  kkmpptxz hidden test.user@example.com 2001-02-03 08:05:09 cba41deb
-      │    (empty) second
-      ◉  zsuskuln hidden test.user@example.com 2001-02-03 08:05:12 7015a42c
-      │  third
-      │  Modified regular file file1:
-      │     1    1: foo
-      │     2    2: bar
-      │          3: baz
-      ◉  zsuskuln hidden test.user@example.com 2001-02-03 08:05:11 66645763
-      │  (empty) third
-      ◉  zsuskuln hidden test.user@example.com 2001-02-03 08:05:10 1c7afcb4
-         (empty) (no description set)
+    │ ◉  zsuskuln hidden test.user@example.com 2001-02-03 08:05:12 7015a42c
+    │ │  third
+    │ │  Modified regular file file1:
+    │ │     1    1: foo
+    │ │     2    2: bar
+    │ │          3: baz
+    │ ◉  zsuskuln hidden test.user@example.com 2001-02-03 08:05:11 66645763
+    │ │  (empty) third
+    │ ◉  zsuskuln hidden test.user@example.com 2001-02-03 08:05:10 1c7afcb4
+    │    (empty) (no description set)
+    ◉    qpvuntsm hidden test.user@example.com 2001-02-03 08:05:10 e3c2a446
+    ├─╮  squashed 1
+    │ │  Modified regular file file1:
+    │ │     1    1: foo
+    │ │          2: bar
+    │ ◉  kkmpptxz hidden test.user@example.com 2001-02-03 08:05:10 46acd22a
+    │ │  second
+    │ │  Modified regular file file1:
+    │ │     1    1: foo
+    │ │          2: bar
+    │ ◉  kkmpptxz hidden test.user@example.com 2001-02-03 08:05:09 cba41deb
+    │    (empty) second
+    ◉  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:09 766420db
+    │  first
+    │  Added regular file file1:
+    │          1: foo
+    ◉  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:08 fa15625b
+    │  (empty) first
+    ◉  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:07 230dd059
+       (empty) (no description set)
     "###);
 }
 
