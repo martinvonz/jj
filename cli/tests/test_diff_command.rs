@@ -269,6 +269,152 @@ fn test_diff_empty() {
 }
 
 #[test]
+fn test_diff_file_mode() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Test content+mode/mode-only changes of empty/non-empty files:
+    // - file1: ("",  x) -> ("2", n)  empty, content+mode
+    // - file2: ("1", x) -> ("1", n)  non-empty, mode-only
+    // - file3: ("1", n) -> ("2", x)  non-empty, content+mode
+    // - file4: ("",  n) -> ("",  x)  empty, mode-only
+
+    std::fs::write(repo_path.join("file1"), "").unwrap();
+    std::fs::write(repo_path.join("file2"), "1\n").unwrap();
+    std::fs::write(repo_path.join("file3"), "1\n").unwrap();
+    std::fs::write(repo_path.join("file4"), "").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["file", "chmod", "x", "file1", "file2"]);
+
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file1"), "2\n").unwrap();
+    std::fs::write(repo_path.join("file3"), "2\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["file", "chmod", "n", "file1", "file2"]);
+    test_env.jj_cmd_ok(&repo_path, &["file", "chmod", "x", "file3", "file4"]);
+
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::remove_file(repo_path.join("file1")).unwrap();
+    std::fs::remove_file(repo_path.join("file2")).unwrap();
+    std::fs::remove_file(repo_path.join("file3")).unwrap();
+    std::fs::remove_file(repo_path.join("file4")).unwrap();
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-r@--"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Added executable file file1:
+        (empty)
+    Added executable file file2:
+            1: 1
+    Added regular file file3:
+            1: 1
+    Added regular file file4:
+        (empty)
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-r@-"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Executable file became non-executable at file1:
+            1: 2
+    Executable file became non-executable at file2:
+    Non-executable file became executable at file3:
+       1    1: 12
+    Non-executable file became executable at file4:
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-r@"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Removed regular file file1:
+       1     : 2
+    Removed regular file file2:
+       1     : 1
+    Removed executable file file3:
+       1     : 2
+    Removed executable file file4:
+        (empty)
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-r@--", "--git"]);
+    insta::assert_snapshot!(stdout, @r###"
+    diff --git a/file1 b/file1
+    new file mode 100755
+    index 0000000000..e69de29bb2
+    --- /dev/null
+    +++ b/file1
+    diff --git a/file2 b/file2
+    new file mode 100755
+    index 0000000000..d00491fd7e
+    --- /dev/null
+    +++ b/file2
+    @@ -1,0 +1,1 @@
+    +1
+    diff --git a/file3 b/file3
+    new file mode 100644
+    index 0000000000..d00491fd7e
+    --- /dev/null
+    +++ b/file3
+    @@ -1,0 +1,1 @@
+    +1
+    diff --git a/file4 b/file4
+    new file mode 100644
+    index 0000000000..e69de29bb2
+    --- /dev/null
+    +++ b/file4
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-r@-", "--git"]);
+    insta::assert_snapshot!(stdout, @r###"
+    diff --git a/file1 b/file1
+    old mode 100755
+    new mode 100644
+    index e69de29bb2...0cfbf08886
+    --- a/file1
+    +++ b/file1
+    @@ -1,0 +1,1 @@
+    +2
+    diff --git a/file2 b/file2
+    old mode 100755
+    new mode 100644
+    diff --git a/file3 b/file3
+    old mode 100644
+    new mode 100755
+    index d00491fd7e...0cfbf08886
+    --- a/file3
+    +++ b/file3
+    @@ -1,1 +1,1 @@
+    -1
+    +2
+    diff --git a/file4 b/file4
+    old mode 100644
+    new mode 100755
+    "###);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-r@", "--git"]);
+    insta::assert_snapshot!(stdout, @r###"
+    diff --git a/file1 b/file1
+    deleted file mode 100644
+    index 0cfbf08886..0000000000
+    --- a/file1
+    +++ /dev/null
+    @@ -1,1 +1,0 @@
+    -2
+    diff --git a/file2 b/file2
+    deleted file mode 100644
+    index d00491fd7e..0000000000
+    --- a/file2
+    +++ /dev/null
+    @@ -1,1 +1,0 @@
+    -1
+    diff --git a/file3 b/file3
+    deleted file mode 100755
+    index 0cfbf08886..0000000000
+    --- a/file3
+    +++ /dev/null
+    @@ -1,1 +1,0 @@
+    -2
+    diff --git a/file4 b/file4
+    deleted file mode 100755
+    index e69de29bb2..0000000000
+    --- a/file4
+    +++ /dev/null
+    "###);
+}
+
+#[test]
 fn test_diff_types() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
