@@ -724,7 +724,7 @@ struct GitDiffPart {
     /// Octal mode string or `None` if the file is absent.
     mode: Option<&'static str>,
     hash: String,
-    content: Vec<u8>,
+    content: FileContent,
 }
 
 fn git_diff_part(
@@ -734,13 +734,13 @@ fn git_diff_part(
     const DUMMY_HASH: &str = "0000000000";
     let mode;
     let mut hash;
-    let mut contents: Vec<u8>;
+    let content;
     match value {
         MaterializedTreeValue::Absent => {
             return Ok(GitDiffPart {
                 mode: None,
                 hash: DUMMY_HASH.to_owned(),
-                content: vec![],
+                content: FileContent::empty(),
             });
         }
         MaterializedTreeValue::AccessDenied(err) => {
@@ -756,29 +756,34 @@ fn git_diff_part(
         } => {
             mode = if executable { "100755" } else { "100644" };
             hash = id.hex();
-            // TODO: use `file_content_for_diff` instead of showing binary
-            contents = vec![];
-            reader.read_to_end(&mut contents)?;
+            content = file_content_for_diff(&mut reader)?;
         }
         MaterializedTreeValue::Symlink { id, target } => {
             mode = "120000";
             hash = id.hex();
-            contents = target.into_bytes();
+            content = FileContent {
+                // Unix file paths can't contain null bytes.
+                is_binary: false,
+                contents: target.into_bytes(),
+            };
         }
         MaterializedTreeValue::GitSubmodule(id) => {
             // TODO: What should we actually do here?
             mode = "040000";
             hash = id.hex();
-            contents = vec![];
+            content = FileContent::empty();
         }
         MaterializedTreeValue::Conflict {
             id: _,
-            contents: conflict_data,
+            contents,
             executable,
         } => {
             mode = if executable { "100755" } else { "100644" };
             hash = DUMMY_HASH.to_owned();
-            contents = conflict_data
+            content = FileContent {
+                is_binary: false, // TODO: are we sure this is never binary?
+                contents,
+            };
         }
         MaterializedTreeValue::Tree(_) => {
             panic!("Unexpected tree in diff at path {path:?}");
@@ -788,7 +793,7 @@ fn git_diff_part(
     Ok(GitDiffPart {
         mode: Some(mode),
         hash,
-        content: contents,
+        content,
     })
 }
 
@@ -1058,7 +1063,7 @@ pub fn show_git_diff(
                 Ok(())
             })?;
 
-            if left_part.content == right_part.content {
+            if left_part.content.contents == right_part.content.contents {
                 continue; // no content hunks
             }
 
@@ -1070,17 +1075,25 @@ pub fn show_git_diff(
                 Some(_) => format!("b/{path_string}"),
                 None => "/dev/null".to_owned(),
             };
-            formatter.with_label("file_header", |formatter| {
-                writeln!(formatter, "--- {left_path}")?;
-                writeln!(formatter, "+++ {right_path}")?;
-                Ok(())
-            })?;
-            show_unified_diff_hunks(
-                formatter,
-                &left_part.content,
-                &right_part.content,
-                num_context_lines,
-            )?;
+            if left_part.content.is_binary || right_part.content.is_binary {
+                // TODO: add option to emit Git binary diff
+                writeln!(
+                    formatter,
+                    "Binary files {left_path} and {right_path} differ"
+                )?;
+            } else {
+                formatter.with_label("file_header", |formatter| {
+                    writeln!(formatter, "--- {left_path}")?;
+                    writeln!(formatter, "+++ {right_path}")?;
+                    Ok(())
+                })?;
+                show_unified_diff_hunks(
+                    formatter,
+                    &left_part.content.contents,
+                    &right_part.content.contents,
+                    num_context_lines,
+                )?;
+            }
         }
         Ok::<(), DiffRenderError>(())
     }
