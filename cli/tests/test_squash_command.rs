@@ -972,10 +972,10 @@ fn test_squash_from_multiple_partial_no_op() {
     insta::assert_snapshot!(stdout, @r###"
     @    e178068add8c d
     ├─╮
-    ◉ │  b37ca1ee3306 d
-    ◉ │  1d9eb34614c9 d
-      ◉  b73077b08c59 b
-      ◉  a786561e909f b
+    │ ◉  b73077b08c59 b
+    │ ◉  a786561e909f b
+    ◉  b37ca1ee3306 d
+    ◉  1d9eb34614c9 d
     "###);
 
     // If no source commits match the paths, then the whole operation is a no-op
