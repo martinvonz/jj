@@ -721,7 +721,8 @@ pub fn show_file_by_file_diff(
 }
 
 struct GitDiffPart {
-    mode: &'static str,
+    /// Octal mode string or `None` if the file is absent.
+    mode: Option<&'static str>,
     hash: String,
     content: Vec<u8>,
 }
@@ -730,12 +731,17 @@ fn git_diff_part(
     path: &RepoPath,
     value: MaterializedTreeValue,
 ) -> Result<GitDiffPart, DiffRenderError> {
+    const DUMMY_HASH: &str = "0000000000";
     let mode;
     let mut hash;
     let mut contents: Vec<u8>;
     match value {
         MaterializedTreeValue::Absent => {
-            panic!("Absent path {path:?} in diff should have been handled by caller");
+            return Ok(GitDiffPart {
+                mode: None,
+                hash: DUMMY_HASH.to_owned(),
+                content: vec![],
+            });
         }
         MaterializedTreeValue::AccessDenied(err) => {
             return Err(DiffRenderError::AccessDenied {
@@ -771,7 +777,7 @@ fn git_diff_part(
             executable,
         } => {
             mode = if executable { "100755" } else { "100644" };
-            hash = "0000000000".to_string();
+            hash = DUMMY_HASH.to_owned();
             contents = conflict_data
         }
         MaterializedTreeValue::Tree(_) => {
@@ -780,7 +786,7 @@ fn git_diff_part(
     }
     hash.truncate(10);
     Ok(GitDiffPart {
-        mode,
+        mode: Some(mode),
         hash,
         content: contents,
     })
@@ -1021,57 +1027,50 @@ pub fn show_git_diff(
         while let Some((path, diff)) = diff_stream.next().await {
             let path_string = path.as_internal_file_string();
             let (left_value, right_value) = diff?;
-            if left_value.is_absent() {
-                let right_part = git_diff_part(&path, right_value)?;
-                formatter.with_label("file_header", |formatter| {
-                    writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
-                    writeln!(formatter, "new file mode {}", right_part.mode)?;
-                    writeln!(formatter, "index 0000000000..{}", &right_part.hash)?;
-                    writeln!(formatter, "--- /dev/null")?;
-                    writeln!(formatter, "+++ b/{path_string}")
-                })?;
-                show_unified_diff_hunks(formatter, &[], &right_part.content, num_context_lines)?;
-            } else if right_value.is_present() {
-                let left_part = git_diff_part(&path, left_value)?;
-                let right_part = git_diff_part(&path, right_value)?;
-                formatter.with_label("file_header", |formatter| {
-                    writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
-                    if left_part.mode != right_part.mode {
-                        writeln!(formatter, "old mode {}", left_part.mode)?;
-                        writeln!(formatter, "new mode {}", right_part.mode)?;
-                        if left_part.hash != right_part.hash {
-                            writeln!(formatter, "index {}..{}", &left_part.hash, right_part.hash)?;
-                        }
-                    } else if left_part.hash != right_part.hash {
-                        writeln!(
-                            formatter,
-                            "index {}..{} {}",
-                            &left_part.hash, right_part.hash, left_part.mode
-                        )?;
-                    }
-                    if left_part.content != right_part.content {
-                        writeln!(formatter, "--- a/{path_string}")?;
+            let left_part = git_diff_part(&path, left_value)?;
+            let right_part = git_diff_part(&path, right_value)?;
+            formatter.with_label("file_header", |formatter| {
+                writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
+                let left_hash = &left_part.hash;
+                let right_hash = &right_part.hash;
+                match (left_part.mode, right_part.mode) {
+                    (None, Some(right_mode)) => {
+                        writeln!(formatter, "new file mode {right_mode}")?;
+                        writeln!(formatter, "index {left_hash}..{right_hash}")?;
+                        writeln!(formatter, "--- /dev/null")?;
                         writeln!(formatter, "+++ b/{path_string}")?;
                     }
-                    Ok(())
-                })?;
-                show_unified_diff_hunks(
-                    formatter,
-                    &left_part.content,
-                    &right_part.content,
-                    num_context_lines,
-                )?;
-            } else {
-                let left_part = git_diff_part(&path, left_value)?;
-                formatter.with_label("file_header", |formatter| {
-                    writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
-                    writeln!(formatter, "deleted file mode {}", left_part.mode)?;
-                    writeln!(formatter, "index {}..0000000000", &left_part.hash)?;
-                    writeln!(formatter, "--- a/{path_string}")?;
-                    writeln!(formatter, "+++ /dev/null")
-                })?;
-                show_unified_diff_hunks(formatter, &left_part.content, &[], num_context_lines)?;
-            }
+                    (Some(left_mode), None) => {
+                        writeln!(formatter, "deleted file mode {left_mode}")?;
+                        writeln!(formatter, "index {left_hash}..{right_hash}")?;
+                        writeln!(formatter, "--- a/{path_string}")?;
+                        writeln!(formatter, "+++ /dev/null")?;
+                    }
+                    (Some(left_mode), Some(right_mode)) => {
+                        if left_mode != right_mode {
+                            writeln!(formatter, "old mode {left_mode}")?;
+                            writeln!(formatter, "new mode {right_mode}")?;
+                            if left_hash != right_hash {
+                                writeln!(formatter, "index {left_hash}..{right_hash}")?;
+                            }
+                        } else if left_hash != right_hash {
+                            writeln!(formatter, "index {left_hash}..{right_hash} {left_mode}")?;
+                        }
+                        if left_part.content != right_part.content {
+                            writeln!(formatter, "--- a/{path_string}")?;
+                            writeln!(formatter, "+++ b/{path_string}")?;
+                        }
+                    }
+                    (None, None) => panic!("either left or right part should be present"),
+                }
+                Ok(())
+            })?;
+            show_unified_diff_hunks(
+                formatter,
+                &left_part.content,
+                &right_part.content,
+                num_context_lines,
+            )?;
         }
         Ok::<(), DiffRenderError>(())
     }
