@@ -721,7 +721,7 @@ pub fn show_file_by_file_diff(
 }
 
 struct GitDiffPart {
-    mode: String,
+    mode: &'static str,
     hash: String,
     content: Vec<u8>,
 }
@@ -748,24 +748,20 @@ fn git_diff_part(
             executable,
             mut reader,
         } => {
-            mode = if executable {
-                "100755".to_string()
-            } else {
-                "100644".to_string()
-            };
+            mode = if executable { "100755" } else { "100644" };
             hash = id.hex();
             // TODO: use `file_content_for_diff` instead of showing binary
             contents = vec![];
             reader.read_to_end(&mut contents)?;
         }
         MaterializedTreeValue::Symlink { id, target } => {
-            mode = "120000".to_string();
+            mode = "120000";
             hash = id.hex();
             contents = target.into_bytes();
         }
         MaterializedTreeValue::GitSubmodule(id) => {
             // TODO: What should we actually do here?
-            mode = "040000".to_string();
+            mode = "040000";
             hash = id.hex();
             contents = vec![];
         }
@@ -774,11 +770,7 @@ fn git_diff_part(
             contents: conflict_data,
             executable,
         } => {
-            mode = if executable {
-                "100755".to_string()
-            } else {
-                "100644".to_string()
-            };
+            mode = if executable { "100755" } else { "100644" };
             hash = "0000000000".to_string();
             contents = conflict_data
         }
@@ -1033,7 +1025,7 @@ pub fn show_git_diff(
                 let right_part = git_diff_part(&path, right_value)?;
                 formatter.with_label("file_header", |formatter| {
                     writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
-                    writeln!(formatter, "new file mode {}", &right_part.mode)?;
+                    writeln!(formatter, "new file mode {}", right_part.mode)?;
                     writeln!(formatter, "index 0000000000..{}", &right_part.hash)?;
                     writeln!(formatter, "--- /dev/null")?;
                     writeln!(formatter, "+++ b/{path_string}")
@@ -1045,8 +1037,8 @@ pub fn show_git_diff(
                 formatter.with_label("file_header", |formatter| {
                     writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
                     if left_part.mode != right_part.mode {
-                        writeln!(formatter, "old mode {}", &left_part.mode)?;
-                        writeln!(formatter, "new mode {}", &right_part.mode)?;
+                        writeln!(formatter, "old mode {}", left_part.mode)?;
+                        writeln!(formatter, "new mode {}", right_part.mode)?;
                         if left_part.hash != right_part.hash {
                             writeln!(formatter, "index {}..{}", &left_part.hash, right_part.hash)?;
                         }
@@ -1073,7 +1065,7 @@ pub fn show_git_diff(
                 let left_part = git_diff_part(&path, left_value)?;
                 formatter.with_label("file_header", |formatter| {
                     writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
-                    writeln!(formatter, "deleted file mode {}", &left_part.mode)?;
+                    writeln!(formatter, "deleted file mode {}", left_part.mode)?;
                     writeln!(formatter, "index {}..0000000000", &left_part.hash)?;
                     writeln!(formatter, "--- a/{path_string}")?;
                     writeln!(formatter, "+++ /dev/null")
