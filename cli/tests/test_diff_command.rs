@@ -1571,6 +1571,25 @@ fn test_diff_binary() {
         (binary)
     "###);
 
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
+    insta::assert_snapshot!(stdout, @r###"
+    diff --git a/file1.png b/file1.png
+    deleted file mode 100644
+    index 2b65b23c22..0000000000
+    Binary files a/file1.png and /dev/null differ
+    diff --git a/file2.png b/file2.png
+    index 7f036ce788..3bd1f0e297 100644
+    Binary files a/file2.png and b/file2.png differ
+    diff --git a/file3.png b/file3.png
+    new file mode 100644
+    index 0000000000..deacfbc286
+    Binary files /dev/null and b/file3.png differ
+    diff --git a/file4.png b/file4.png
+    new file mode 100644
+    index 0000000000..4227ca4e87
+    Binary files /dev/null and b/file4.png differ
+    "###);
+
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--stat"]);
     insta::assert_snapshot!(stdout, @r###"
     file1.png | 3 ---

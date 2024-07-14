@@ -51,6 +51,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed bugs
 
+* `jj diff --git` no longer shows the contents of binary files.
+
 ## [0.19.0] - 2024-07-03
 
 ### Breaking changes
