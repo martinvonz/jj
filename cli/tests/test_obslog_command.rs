@@ -235,31 +235,53 @@ fn test_obslog_squash() {
     std::fs::write(repo_path.join("file1"), "foo\nbar\n").unwrap();
 
     let edit_script = test_env.set_up_fake_editor();
-    std::fs::write(edit_script, "write\nsquashed").unwrap();
+    std::fs::write(&edit_script, "write\nsquashed 1").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["squash"]);
+
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "third"]);
+    std::fs::write(repo_path.join("file1"), "foo\nbar\nbaz\n").unwrap();
+
+    std::fs::write(&edit_script, "write\nsquashed 2").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["squash"]);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "-p", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
-    ◉    qpvuntsm test.user@example.com 2001-02-03 08:05:10 68647e34
-    ├─╮  squashed
+    ◉    qpvuntsm test.user@example.com 2001-02-03 08:05:12 1408a0a7
+    ├─╮  squashed 2
     │ │  Modified regular file file1:
     │ │     1    1: foo
-    │ │          2: bar
-    ◉ │  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:09 766420db
-    │ │  first
-    │ │  Added regular file file1:
-    │ │          1: foo
-    ◉ │  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:08 fa15625b
-    │ │  (empty) first
-    ◉ │  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:07 230dd059
-      │  (empty) (no description set)
-      ◉  kkmpptxz hidden test.user@example.com 2001-02-03 08:05:10 46acd22a
-      │  second
+    │ │     2    2: bar
+    │ │          3: baz
+    ◉ │    qpvuntsm hidden test.user@example.com 2001-02-03 08:05:10 e3c2a446
+    ├───╮  squashed 1
+    │ │ │  Modified regular file file1:
+    │ │ │     1    1: foo
+    │ │ │          2: bar
+    ◉ │ │  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:09 766420db
+    │ │ │  first
+    │ │ │  Added regular file file1:
+    │ │ │          1: foo
+    ◉ │ │  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:08 fa15625b
+    │ │ │  (empty) first
+    ◉ │ │  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:07 230dd059
+      │ │  (empty) (no description set)
+      │ ◉  kkmpptxz hidden test.user@example.com 2001-02-03 08:05:10 46acd22a
+      │ │  second
+      │ │  Modified regular file file1:
+      │ │     1    1: foo
+      │ │          2: bar
+      │ ◉  kkmpptxz hidden test.user@example.com 2001-02-03 08:05:09 cba41deb
+      │    (empty) second
+      ◉  zsuskuln hidden test.user@example.com 2001-02-03 08:05:12 7015a42c
+      │  third
       │  Modified regular file file1:
       │     1    1: foo
-      │          2: bar
-      ◉  kkmpptxz hidden test.user@example.com 2001-02-03 08:05:09 cba41deb
-         (empty) second
+      │     2    2: bar
+      │          3: baz
+      ◉  zsuskuln hidden test.user@example.com 2001-02-03 08:05:11 66645763
+      │  (empty) third
+      ◉  zsuskuln hidden test.user@example.com 2001-02-03 08:05:10 1c7afcb4
+         (empty) (no description set)
     "###);
 }
 
