@@ -138,7 +138,7 @@ fn test_concurrent_operations_wc_modified() {
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
     diff --git a/file b/file
-    index 12f00e90b6...2e0996000b 100644
+    index 12f00e90b6..2e0996000b 100644
     --- a/file
     +++ b/file
     @@ -1,1 +1,1 @@

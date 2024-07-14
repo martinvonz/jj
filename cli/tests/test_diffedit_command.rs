@@ -498,7 +498,7 @@ fn test_diffedit_old_restore_interactive_tests() {
     @@ -1,1 +1,0 @@
     -a
     diff --git a/file2 b/file2
-    index 7898192261...6178079822 100644
+    index 7898192261..6178079822 100644
     --- a/file2
     +++ b/file2
     @@ -1,1 +1,1 @@

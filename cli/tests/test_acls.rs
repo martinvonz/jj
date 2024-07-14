@@ -83,7 +83,7 @@ fn test_diff() {
         .failure();
     insta::assert_snapshot!(get_stdout_string(&assert).replace('\\', "/"), @r###"
     diff --git a/a-first b/a-first
-    index 257cc5642c...5716ca5987 100644
+    index 257cc5642c..5716ca5987 100644
     --- a/a-first
     +++ b/a-first
     @@ -1,1 +1,1 @@

@@ -100,7 +100,7 @@ fn test_resolution() {
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @r###"
     diff --git a/file b/file
-    index 0000000000...88425ec521 100644
+    index 0000000000..88425ec521 100644
     --- a/file
     +++ b/file
     @@ -1,7 +1,1 @@
@@ -140,7 +140,7 @@ fn test_resolution() {
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]),
     @r###"
     diff --git a/file b/file
-    index 0000000000...88425ec521 100644
+    index 0000000000..88425ec521 100644
     --- a/file
     +++ b/file
     @@ -1,7 +1,1 @@
@@ -189,7 +189,7 @@ fn test_resolution() {
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @r###"
     diff --git a/file b/file
-    index 0000000000...88425ec521 100644
+    index 0000000000..88425ec521 100644
     --- a/file
     +++ b/file
     @@ -1,7 +1,1 @@
@@ -324,7 +324,7 @@ fn test_resolution() {
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @r###"
     diff --git a/file b/file
-    index 0000000000...0610716cc1 100644
+    index 0000000000..0610716cc1 100644
     --- a/file
     +++ b/file
     @@ -1,7 +1,7 @@
@@ -879,7 +879,7 @@ fn test_multiple_conflicts() {
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @r###"
     diff --git a/another_file b/another_file
-    index 0000000000...a9fcc7d486 100644
+    index 0000000000..a9fcc7d486 100644
     --- a/another_file
     +++ b/another_file
     @@ -1,7 +1,1 @@
@@ -918,7 +918,7 @@ fn test_multiple_conflicts() {
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @r###"
     diff --git a/another_file b/another_file
-    index 0000000000...7903e1c1c7 100644
+    index 0000000000..7903e1c1c7 100644
     --- a/another_file
     +++ b/another_file
     @@ -1,7 +1,1 @@
@@ -945,7 +945,7 @@ fn test_multiple_conflicts() {
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["diff", "--git"]), 
     @r###"
     diff --git a/another_file b/another_file
-    index 0000000000...7903e1c1c7 100644
+    index 0000000000..7903e1c1c7 100644
     --- a/another_file
     +++ b/another_file
     @@ -1,7 +1,1 @@
@@ -958,7 +958,7 @@ fn test_multiple_conflicts() {
     ->>>>>>> Conflict 1 of 1 ends
     +first resolution for auto-chosen file
     diff --git a/this_file_has_a_very_long_name_to_test_padding b/this_file_has_a_very_long_name_to_test_padding
-    index 0000000000...f8c72adf17 100644
+    index 0000000000..f8c72adf17 100644
     --- a/this_file_has_a_very_long_name_to_test_padding
     +++ b/this_file_has_a_very_long_name_to_test_padding
     @@ -1,7 +1,1 @@
