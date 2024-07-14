@@ -1037,14 +1037,10 @@ pub fn show_git_diff(
                     (None, Some(right_mode)) => {
                         writeln!(formatter, "new file mode {right_mode}")?;
                         writeln!(formatter, "index {left_hash}..{right_hash}")?;
-                        writeln!(formatter, "--- /dev/null")?;
-                        writeln!(formatter, "+++ b/{path_string}")?;
                     }
                     (Some(left_mode), None) => {
                         writeln!(formatter, "deleted file mode {left_mode}")?;
                         writeln!(formatter, "index {left_hash}..{right_hash}")?;
-                        writeln!(formatter, "--- a/{path_string}")?;
-                        writeln!(formatter, "+++ /dev/null")?;
                     }
                     (Some(left_mode), Some(right_mode)) => {
                         if left_mode != right_mode {
@@ -1056,13 +1052,27 @@ pub fn show_git_diff(
                         } else if left_hash != right_hash {
                             writeln!(formatter, "index {left_hash}..{right_hash} {left_mode}")?;
                         }
-                        if left_part.content != right_part.content {
-                            writeln!(formatter, "--- a/{path_string}")?;
-                            writeln!(formatter, "+++ b/{path_string}")?;
-                        }
                     }
                     (None, None) => panic!("either left or right part should be present"),
                 }
+                Ok(())
+            })?;
+
+            if left_part.content == right_part.content {
+                continue; // no content hunks
+            }
+
+            let left_path = match left_part.mode {
+                Some(_) => format!("a/{path_string}"),
+                None => "/dev/null".to_owned(),
+            };
+            let right_path = match right_part.mode {
+                Some(_) => format!("b/{path_string}"),
+                None => "/dev/null".to_owned(),
+            };
+            formatter.with_label("file_header", |formatter| {
+                writeln!(formatter, "--- {left_path}")?;
+                writeln!(formatter, "+++ {right_path}")?;
                 Ok(())
             })?;
             show_unified_diff_hunks(
