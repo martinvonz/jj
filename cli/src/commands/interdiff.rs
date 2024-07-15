@@ -72,6 +72,7 @@ pub(crate) fn cmd_interdiff(
         &from_tree,
         &to_tree,
         matcher.as_ref(),
+        &Default::default(),
         ui.term_width(),
     )?;
     Ok(())

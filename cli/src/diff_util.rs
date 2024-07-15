@@ -20,7 +20,7 @@ use std::{io, mem};
 
 use futures::StreamExt;
 use itertools::Itertools;
-use jj_lib::backend::{BackendError, TreeValue};
+use jj_lib::backend::{BackendError, CopyRecords, TreeValue};
 use jj_lib::commit::Commit;
 use jj_lib::conflicts::{materialized_diff_stream, MaterializedTreeValue};
 use jj_lib::diff::{Diff, DiffHunk};
@@ -245,10 +245,19 @@ impl<'a> DiffRenderer<'a> {
         from_tree: &MergedTree,
         to_tree: &MergedTree,
         matcher: &dyn Matcher,
+        copy_records: &CopyRecords,
         width: usize,
     ) -> Result<(), DiffRenderError> {
         formatter.with_label("diff", |formatter| {
-            self.show_diff_inner(ui, formatter, from_tree, to_tree, matcher, width)
+            self.show_diff_inner(
+                ui,
+                formatter,
+                from_tree,
+                to_tree,
+                matcher,
+                copy_records,
+                width,
+            )
         })
     }
 
@@ -259,6 +268,7 @@ impl<'a> DiffRenderer<'a> {
         from_tree: &MergedTree,
         to_tree: &MergedTree,
         matcher: &dyn Matcher,
+        _copy_records: &CopyRecords,
         width: usize,
     ) -> Result<(), DiffRenderError> {
         let store = self.repo.store();
@@ -324,7 +334,15 @@ impl<'a> DiffRenderer<'a> {
     ) -> Result<(), DiffRenderError> {
         let from_tree = commit.parent_tree(self.repo)?;
         let to_tree = commit.tree()?;
-        self.show_diff(ui, formatter, &from_tree, &to_tree, matcher, width)
+        self.show_diff(
+            ui,
+            formatter,
+            &from_tree,
+            &to_tree,
+            matcher,
+            &Default::default(),
+            width,
+        )
     }
 }
 
