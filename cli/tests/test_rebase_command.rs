@@ -267,15 +267,17 @@ fn test_rebase_branch_with_merge() {
 
     create_commit(&test_env, &repo_path, "a", &[]);
     create_commit(&test_env, &repo_path, "b", &["a"]);
-    create_commit(&test_env, &repo_path, "c", &[]);
-    create_commit(&test_env, &repo_path, "d", &["c"]);
-    create_commit(&test_env, &repo_path, "e", &["a", "d"]);
+    create_commit(&test_env, &repo_path, "c", &["a"]);
+    create_commit(&test_env, &repo_path, "d", &[]);
+    create_commit(&test_env, &repo_path, "e", &["d"]);
+    create_commit(&test_env, &repo_path, "f", &["c", "e"]);
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @    e
+    @    f
     ├─╮
+    │ ◉  e
     │ ◉  d
-    │ ◉  c
+    ◉ │  c
     │ │ ◉  b
     ├───╯
     ◉ │  a
@@ -283,22 +285,23 @@ fn test_rebase_branch_with_merge() {
     ◉
     "###);
 
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "d", "-d", "b"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "e", "-d", "b"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Rebased 3 commits
-    Working copy now at: znkkpsqq 5f8a3db2 e | e
-    Parent commit      : rlvkpnrz 2443ea76 a | a
-    Parent commit      : vruxwmqv 1677f795 d | d
+    Rebased 4 commits
+    Working copy now at: kmkuslsw 8e1bc220 f | f
+    Parent commit      : royxmykx e258dccc c | c
+    Parent commit      : znkkpsqq 6b5a695a e | e
     Added 1 files, modified 0 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @    e
+    @    f
     ├─╮
+    │ ◉  e
     │ ◉  d
-    │ ◉  c
-    │ ◉  b
+    ◉ │  c
     ├─╯
+    ◉  b
     ◉  a
     ◉
     "###);
@@ -307,19 +310,20 @@ fn test_rebase_branch_with_merge() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d", "b"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
-    Rebased 3 commits
-    Working copy now at: znkkpsqq a331ac11 e | e
-    Parent commit      : rlvkpnrz 2443ea76 a | a
-    Parent commit      : vruxwmqv 3d0f3644 d | d
+    Rebased 4 commits
+    Working copy now at: kmkuslsw f1c1c340 f | f
+    Parent commit      : royxmykx b4062b33 c | c
+    Parent commit      : znkkpsqq f44449c1 e | e
     Added 1 files, modified 0 files, removed 0 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    @    e
+    @    f
     ├─╮
+    │ ◉  e
     │ ◉  d
-    │ ◉  c
-    │ ◉  b
+    ◉ │  c
     ├─╯
+    ◉  b
     ◉  a
     ◉
     "###);

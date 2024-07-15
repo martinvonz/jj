@@ -65,17 +65,14 @@ use crate::ui::Ui;
 /// ```
 ///
 /// With `-b`, the command rebases the whole "branch" containing the specified
-/// revision. A "branch" is the set of commits that includes:
-///
-/// * the specified revision and ancestors that are not also ancestors of the
-///   destination
-/// * all descendants of those commits
+/// revision. A "branch" is the set of revisions that includes all revisions
+/// reachable from the specified revision by via parent or child edges without
+/// visiting an ancestor of the destination.
 ///
 /// In other words, `jj rebase -b X -d Y` rebases commits in the revset
-/// `(Y..X)::` (which is equivalent to `jj rebase -s 'roots(Y..X)' -d Y` for a
-/// single root). For example, either `jj rebase -b L -d O` or `jj rebase -b M
-/// -d O` would transform your history like this (because `L` and `M` are on the
-/// same "branch", relative to the destination):
+/// `reachable(X, ::Y)`. For example, either `jj rebase -b L -d O` or `jj rebase
+/// -b M -d O` would transform your history like this (because `L` and `M` are
+/// on the same "branch", relative to the destination):
 ///
 /// ```text
 /// O           N'
@@ -338,8 +335,8 @@ fn rebase_branch(
         .iter()
         .map(|commit| commit.id().clone())
         .collect_vec();
-    let roots_expression = RevsetExpression::commits(parent_ids)
-        .range(&RevsetExpression::commits(branch_commit_ids))
+    let roots_expression = RevsetExpression::commits(branch_commit_ids)
+        .reachable(&RevsetExpression::commits(parent_ids).ancestors().negated())
         .roots();
     let root_commits: IndexSet<_> = roots_expression
         .evaluate_programmatic(workspace_command.repo().as_ref())

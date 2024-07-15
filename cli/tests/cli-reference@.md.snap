@@ -1455,17 +1455,14 @@ J           J
 ```
 
 With `-b`, the command rebases the whole "branch" containing the specified
-revision. A "branch" is the set of commits that includes:
-
-* the specified revision and ancestors that are not also ancestors of the
-  destination
-* all descendants of those commits
+revision. A "branch" is the set of revisions that includes all revisions
+reachable from the specified revision by via parent or child edges without
+visiting an ancestor of the destination.
 
 In other words, `jj rebase -b X -d Y` rebases commits in the revset
-`(Y..X)::` (which is equivalent to `jj rebase -s 'roots(Y..X)' -d Y` for a
-single root). For example, either `jj rebase -b L -d O` or `jj rebase -b M
--d O` would transform your history like this (because `L` and `M` are on the
-same "branch", relative to the destination):
+`reachable(X, ::Y)`. For example, either `jj rebase -b L -d O` or `jj rebase
+-b M -d O` would transform your history like this (because `L` and `M` are
+on the same "branch", relative to the destination):
 
 ```text
 O           N'
