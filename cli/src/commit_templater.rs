@@ -19,28 +19,36 @@ use std::io;
 use std::rc::Rc;
 
 use itertools::Itertools as _;
-use jj_lib::backend::{ChangeId, CommitId};
+use jj_lib::backend::{BackendResult, ChangeId, CommitId};
 use jj_lib::commit::Commit;
 use jj_lib::extensions_map::ExtensionsMap;
+use jj_lib::fileset::{self, FilesetExpression};
 use jj_lib::git;
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
+use jj_lib::matchers::Matcher;
+use jj_lib::merged_tree::{MergedTree, TreeDiffStream};
 use jj_lib::object_id::ObjectId as _;
 use jj_lib::op_store::{RefTarget, RemoteRef, WorkspaceId};
 use jj_lib::repo::Repo;
+use jj_lib::repo_path::RepoPathUiConverter;
 use jj_lib::revset::{self, Revset, RevsetExpression, RevsetModifier, RevsetParseContext};
+use jj_lib::store::Store;
 use once_cell::unsync::OnceCell;
 
+use crate::formatter::Formatter;
 use crate::template_builder::{
     self, merge_fn_map, BuildContext, CoreTemplateBuildFnTable, CoreTemplatePropertyKind,
     IntoTemplateProperty, TemplateBuildMethodFnMap, TemplateLanguage,
 };
-use crate::template_parser::{self, FunctionCallNode, TemplateParseError, TemplateParseResult};
+use crate::template_parser::{
+    self, ExpressionNode, FunctionCallNode, TemplateParseError, TemplateParseResult,
+};
 use crate::templater::{
     self, PlainTextFormattedProperty, SizeHint, Template, TemplateFormatter, TemplateProperty,
     TemplatePropertyError, TemplatePropertyExt as _,
 };
-use crate::{revset_util, text_util};
+use crate::{diff_util, revset_util, text_util};
 
 pub trait CommitTemplateLanguageExtension {
     fn build_fn_table<'repo>(&self) -> CommitTemplateBuildFnTable<'repo>;
@@ -50,12 +58,13 @@ pub trait CommitTemplateLanguageExtension {
 
 pub struct CommitTemplateLanguage<'repo> {
     repo: &'repo dyn Repo,
+    path_converter: &'repo RepoPathUiConverter,
     workspace_id: WorkspaceId,
     // RevsetParseContext doesn't borrow a repo, but we'll need 'repo lifetime
     // anyway to capture it to evaluate dynamically-constructed user expression
     // such as `revset("ancestors(" ++ commit_id ++ ")")`.
-    // TODO: Maybe refactor context structs? WorkspaceId is contained in
-    // RevsetParseContext for example.
+    // TODO: Maybe refactor context structs? RepoPathUiConverter and WorkspaceId
+    // are contained in RevsetParseContext for example.
     revset_parse_context: RevsetParseContext<'repo>,
     id_prefix_context: &'repo IdPrefixContext,
     build_fn_table: CommitTemplateBuildFnTable<'repo>,
@@ -68,6 +77,7 @@ impl<'repo> CommitTemplateLanguage<'repo> {
     /// evaluation tree.
     pub fn new(
         repo: &'repo dyn Repo,
+        path_converter: &'repo RepoPathUiConverter,
         workspace_id: &WorkspaceId,
         revset_parse_context: RevsetParseContext<'repo>,
         id_prefix_context: &'repo IdPrefixContext,
@@ -85,6 +95,7 @@ impl<'repo> CommitTemplateLanguage<'repo> {
 
         CommitTemplateLanguage {
             repo,
+            path_converter,
             workspace_id: workspace_id.clone(),
             revset_parse_context,
             id_prefix_context,
@@ -175,6 +186,11 @@ impl<'repo> TemplateLanguage<'repo> for CommitTemplateLanguage<'repo> {
                 let build = template_parser::lookup_method(type_name, table, function)?;
                 build(self, build_ctx, property, function)
             }
+            CommitTemplatePropertyKind::TreeDiff(property) => {
+                let table = &self.build_fn_table.tree_diff_methods;
+                let build = template_parser::lookup_method(type_name, table, function)?;
+                build(self, build_ctx, property, function)
+            }
         }
     }
 }
@@ -245,6 +261,12 @@ impl<'repo> CommitTemplateLanguage<'repo> {
     ) -> CommitTemplatePropertyKind<'repo> {
         CommitTemplatePropertyKind::ShortestIdPrefix(Box::new(property))
     }
+
+    pub fn wrap_tree_diff(
+        property: impl TemplateProperty<Output = TreeDiff> + 'repo,
+    ) -> CommitTemplatePropertyKind<'repo> {
+        CommitTemplatePropertyKind::TreeDiff(Box::new(property))
+    }
 }
 
 pub enum CommitTemplatePropertyKind<'repo> {
@@ -257,6 +279,7 @@ pub enum CommitTemplatePropertyKind<'repo> {
     RefNameList(Box<dyn TemplateProperty<Output = Vec<Rc<RefName>>> + 'repo>),
     CommitOrChangeId(Box<dyn TemplateProperty<Output = CommitOrChangeId> + 'repo>),
     ShortestIdPrefix(Box<dyn TemplateProperty<Output = ShortestIdPrefix> + 'repo>),
+    TreeDiff(Box<dyn TemplateProperty<Output = TreeDiff> + 'repo>),
 }
 
 impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
@@ -271,6 +294,7 @@ impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
             CommitTemplatePropertyKind::RefNameList(_) => "List<RefName>",
             CommitTemplatePropertyKind::CommitOrChangeId(_) => "CommitOrChangeId",
             CommitTemplatePropertyKind::ShortestIdPrefix(_) => "ShortestIdPrefix",
+            CommitTemplatePropertyKind::TreeDiff(_) => "TreeDiff",
         }
     }
 
@@ -293,6 +317,9 @@ impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
             }
             CommitTemplatePropertyKind::CommitOrChangeId(_) => None,
             CommitTemplatePropertyKind::ShortestIdPrefix(_) => None,
+            // TODO: boolean cast could be implemented, but explicit
+            // diff.empty() method might be better.
+            CommitTemplatePropertyKind::TreeDiff(_) => None,
         }
     }
 
@@ -328,6 +355,7 @@ impl<'repo> IntoTemplateProperty<'repo> for CommitTemplatePropertyKind<'repo> {
             CommitTemplatePropertyKind::ShortestIdPrefix(property) => {
                 Some(property.into_template())
             }
+            CommitTemplatePropertyKind::TreeDiff(_) => None,
         }
     }
 }
@@ -343,6 +371,7 @@ pub struct CommitTemplateBuildFnTable<'repo> {
     pub ref_name_methods: CommitTemplateBuildMethodFnMap<'repo, Rc<RefName>>,
     pub commit_or_change_id_methods: CommitTemplateBuildMethodFnMap<'repo, CommitOrChangeId>,
     pub shortest_id_prefix_methods: CommitTemplateBuildMethodFnMap<'repo, ShortestIdPrefix>,
+    pub tree_diff_methods: CommitTemplateBuildMethodFnMap<'repo, TreeDiff>,
 }
 
 impl<'repo> CommitTemplateBuildFnTable<'repo> {
@@ -354,6 +383,7 @@ impl<'repo> CommitTemplateBuildFnTable<'repo> {
             ref_name_methods: builtin_ref_name_methods(),
             commit_or_change_id_methods: builtin_commit_or_change_id_methods(),
             shortest_id_prefix_methods: builtin_shortest_id_prefix_methods(),
+            tree_diff_methods: builtin_tree_diff_methods(),
         }
     }
 
@@ -364,6 +394,7 @@ impl<'repo> CommitTemplateBuildFnTable<'repo> {
             ref_name_methods: HashMap::new(),
             commit_or_change_id_methods: HashMap::new(),
             shortest_id_prefix_methods: HashMap::new(),
+            tree_diff_methods: HashMap::new(),
         }
     }
 
@@ -374,6 +405,7 @@ impl<'repo> CommitTemplateBuildFnTable<'repo> {
             ref_name_methods,
             commit_or_change_id_methods,
             shortest_id_prefix_methods,
+            tree_diff_methods,
         } = extension;
 
         self.core.merge(core);
@@ -387,6 +419,7 @@ impl<'repo> CommitTemplateBuildFnTable<'repo> {
             &mut self.shortest_id_prefix_methods,
             shortest_id_prefix_methods,
         );
+        merge_fn_map(&mut self.tree_diff_methods, tree_diff_methods);
     }
 }
 
@@ -645,6 +678,21 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
         let out_property = self_property.and_then(|commit| Ok(commit.is_empty(repo)?));
         Ok(L::wrap_boolean(out_property))
     });
+    map.insert("diff", |language, _build_ctx, self_property, function| {
+        let ([], [files_node]) = function.expect_arguments()?;
+        let files = if let Some(node) = files_node {
+            expect_fileset_literal(node, language.path_converter)?
+        } else {
+            // TODO: defaults to CLI path arguments?
+            // https://github.com/martinvonz/jj/issues/2933#issuecomment-1925870731
+            FilesetExpression::all()
+        };
+        let repo = language.repo;
+        let matcher: Rc<dyn Matcher> = files.to_matcher().into();
+        let out_property = self_property
+            .and_then(move |commit| Ok(TreeDiff::from_commit(repo, &commit, matcher.clone())?));
+        Ok(L::wrap_tree_diff(out_property))
+    });
     map.insert("root", |language, _build_ctx, self_property, function| {
         function.expect_no_arguments()?;
         let repo = language.repo;
@@ -667,6 +715,17 @@ fn extract_working_copies(repo: &dyn Repo, commit: &Commit) -> String {
         }
     }
     names.join(" ")
+}
+
+fn expect_fileset_literal(
+    node: &ExpressionNode,
+    path_converter: &RepoPathUiConverter,
+) -> Result<FilesetExpression, TemplateParseError> {
+    template_parser::expect_string_literal_with(node, |text, span| {
+        fileset::parse(text, path_converter).map_err(|err| {
+            TemplateParseError::expression("Failed to parse fileset", span).with_source(err)
+        })
+    })
 }
 
 type RevsetContainingFn<'repo> = dyn Fn(&CommitId) -> bool + 'repo;
@@ -1210,5 +1269,138 @@ fn builtin_shortest_id_prefix_methods<'repo>(
         let out_property = self_property.map(|id| id.to_lower());
         Ok(L::wrap_shortest_id_prefix(out_property))
     });
+    map
+}
+
+/// Pair of trees to be diffed.
+#[derive(Debug)]
+pub struct TreeDiff {
+    from_tree: MergedTree,
+    to_tree: MergedTree,
+    matcher: Rc<dyn Matcher>,
+}
+
+impl TreeDiff {
+    fn from_commit(
+        repo: &dyn Repo,
+        commit: &Commit,
+        matcher: Rc<dyn Matcher>,
+    ) -> BackendResult<Self> {
+        Ok(TreeDiff {
+            from_tree: commit.parent_tree(repo)?,
+            to_tree: commit.tree()?,
+            matcher,
+        })
+    }
+
+    fn diff_stream(&self) -> TreeDiffStream<'_> {
+        self.from_tree.diff_stream(&self.to_tree, &*self.matcher)
+    }
+
+    fn into_formatted<F, E>(self, show: F) -> TreeDiffFormatted<F>
+    where
+        F: Fn(&mut dyn Formatter, &Store, TreeDiffStream) -> Result<(), E>,
+        E: Into<TemplatePropertyError>,
+    {
+        TreeDiffFormatted { diff: self, show }
+    }
+}
+
+/// Tree diff to be rendered by predefined function `F`.
+struct TreeDiffFormatted<F> {
+    diff: TreeDiff,
+    show: F,
+}
+
+impl<F, E> Template for TreeDiffFormatted<F>
+where
+    F: Fn(&mut dyn Formatter, &Store, TreeDiffStream) -> Result<(), E>,
+    E: Into<TemplatePropertyError>,
+{
+    fn format(&self, formatter: &mut TemplateFormatter) -> io::Result<()> {
+        let show = &self.show;
+        let store = self.diff.from_tree.store();
+        let tree_diff = self.diff.diff_stream();
+        show(formatter.as_mut(), store, tree_diff).or_else(|err| formatter.handle_error(err.into()))
+    }
+}
+
+fn builtin_tree_diff_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, TreeDiff> {
+    type L<'repo> = CommitTemplateLanguage<'repo>;
+    // Not using maplit::hashmap!{} or custom declarative macro here because
+    // code completion inside macro is quite restricted.
+    let mut map = CommitTemplateBuildMethodFnMap::<TreeDiff>::new();
+    map.insert(
+        "color_words",
+        |language, build_ctx, self_property, function| {
+            let ([], [context_node]) = function.expect_arguments()?;
+            let context_property = context_node
+                .map(|node| template_builder::expect_usize_expression(language, build_ctx, node))
+                .transpose()?;
+            let path_converter = language.path_converter;
+            let template = (self_property, context_property)
+                .map(move |(diff, context)| {
+                    let context = context.unwrap_or(diff_util::DEFAULT_CONTEXT_LINES);
+                    diff.into_formatted(move |formatter, store, tree_diff| {
+                        diff_util::show_color_words_diff(
+                            formatter,
+                            store,
+                            tree_diff,
+                            path_converter,
+                            context,
+                        )
+                    })
+                })
+                .into_template();
+            Ok(L::wrap_template(template))
+        },
+    );
+    map.insert("git", |language, build_ctx, self_property, function| {
+        let ([], [context_node]) = function.expect_arguments()?;
+        let context_property = context_node
+            .map(|node| template_builder::expect_usize_expression(language, build_ctx, node))
+            .transpose()?;
+        let template = (self_property, context_property)
+            .map(|(diff, context)| {
+                let context = context.unwrap_or(diff_util::DEFAULT_CONTEXT_LINES);
+                diff.into_formatted(move |formatter, store, tree_diff| {
+                    diff_util::show_git_diff(formatter, store, tree_diff, context)
+                })
+            })
+            .into_template();
+        Ok(L::wrap_template(template))
+    });
+    map.insert("stat", |language, build_ctx, self_property, function| {
+        let [width_node] = function.expect_exact_arguments()?;
+        let width_property =
+            template_builder::expect_usize_expression(language, build_ctx, width_node)?;
+        let path_converter = language.path_converter;
+        let template = (self_property, width_property)
+            .map(move |(diff, width)| {
+                diff.into_formatted(move |formatter, store, tree_diff| {
+                    diff_util::show_diff_stat(formatter, store, tree_diff, path_converter, width)
+                })
+            })
+            .into_template();
+        Ok(L::wrap_template(template))
+    });
+    map.insert(
+        "summary",
+        |language, _build_ctx, self_property, function| {
+            function.expect_no_arguments()?;
+            let path_converter = language.path_converter;
+            let template = self_property
+                .map(move |diff| {
+                    diff.into_formatted(move |formatter, _store, tree_diff| {
+                        diff_util::show_diff_summary(formatter, tree_diff, path_converter)
+                    })
+                })
+                .into_template();
+            Ok(L::wrap_template(template))
+        },
+    );
+    // TODO: add types() and name_only()? or let users write their own template?
+    // TODO: add support for external tools
+    // TODO: add files() or map() to support custom summary-like formatting?
     map
 }

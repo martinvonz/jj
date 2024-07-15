@@ -1064,6 +1064,7 @@ impl WorkspaceCommandHelper {
     pub fn commit_template_language(&self) -> Result<CommitTemplateLanguage<'_>, CommandError> {
         Ok(CommitTemplateLanguage::new(
             self.repo().as_ref(),
+            &self.path_converter,
             self.workspace_id(),
             self.revset_parse_context(),
             self.id_prefix_context()?,
@@ -1654,6 +1655,7 @@ impl WorkspaceCommandTransaction<'_> {
             .expect("parse error should be confined by WorkspaceCommandHelper::new()");
         let language = CommitTemplateLanguage::new(
             self.tx.repo(),
+            &self.helper.path_converter,
             self.helper.workspace_id(),
             self.helper.revset_parse_context(),
             &id_prefix_context,

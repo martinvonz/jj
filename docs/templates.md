@@ -96,6 +96,9 @@ This type cannot be printed. The following methods are defined.
 * `contained_in(revset: String) -> Boolean`: True if the commit is included in [the provided revset](revsets.md).
 * `conflict() -> Boolean`: True if the commit contains merge conflicts.
 * `empty() -> Boolean`: True if the commit modifies no files.
+* `diff([files: String]) -> TreeDiff`: Changes from the parents within [the
+  `files` expression](filesets.md). All files are compared by default, but it is
+  likely to change in future version to respect the command line path arguments.
 * `root() -> Boolean`: True if the commit is the root commit.
 
 ### CommitId / ChangeId type
@@ -261,6 +264,16 @@ The following methods are defined.
 * `.start() -> Timestamp`
 * `.end() -> Timestamp`
 * `.duration() -> String`
+
+### TreeDiff type
+
+This type cannot be printed. The following methods are defined.
+
+* `.color_words([context: Integer]) -> Template`: Format as a word-level diff
+  with changes indicated only by color.
+* `.git([context: Integer]) -> Template`: Format as a Git diff.
+* `.stat(width: Integer) -> Template`: Format as a histogram of the changes.
+* `.summary() -> Template`: Format as a list of status code and path pairs.
 
 ## Configuration
 

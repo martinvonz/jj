@@ -938,3 +938,131 @@ fn test_short_prefix_in_transaction() {
     zz[zzzzzzzzzz] 00[0000000000]
     "###);
 }
+
+#[test]
+fn test_log_diff_predefined_formats() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "a\nb\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "a\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new"]);
+    std::fs::write(repo_path.join("file1"), "a\nb\nc\n").unwrap();
+    std::fs::write(repo_path.join("file2"), "b\nc\n").unwrap();
+
+    let template = r#"
+    concat(
+      "=== color_words ===\n",
+      diff.color_words(),
+      "=== git ===\n",
+      diff.git(),
+      "=== stat ===\n",
+      diff.stat(80),
+      "=== summary ===\n",
+      diff.summary(),
+    )
+    "#;
+
+    // color, without paths
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "--no-graph", "--color=always", "-r@", "-T", template],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    === color_words ===
+    [38;5;3mModified regular file file1:[39m
+    [38;5;1m   1[39m [38;5;2m   1[39m: a
+    [38;5;1m   2[39m [38;5;2m   2[39m: b
+         [38;5;2m   3[39m: [4m[38;5;2mc[24m[39m
+    [38;5;3mModified regular file file2:[39m
+    [38;5;1m   1[39m [38;5;2m   1[39m: [4m[38;5;1ma[38;5;2mb[24m[39m
+         [38;5;2m   2[39m: [4m[38;5;2mc[24m[39m
+    === git ===
+    [1mdiff --git a/file1 b/file1[0m
+    [1mindex 422c2b7ab3..de980441c3 100644[0m
+    [1m--- a/file1[0m
+    [1m+++ b/file1[0m
+    [38;5;6m@@ -1,2 +1,3 @@[39m
+     a
+     b
+    [38;5;2m+[4mc[24m[39m
+    [1mdiff --git a/file2 b/file2[0m
+    [1mindex 7898192261..9ddeb5c484 100644[0m
+    [1m--- a/file2[0m
+    [1m+++ b/file2[0m
+    [38;5;6m@@ -1,1 +1,2 @@[39m
+    [38;5;1m-[4ma[24m[39m
+    [38;5;2m+[4mb[24m[39m
+    [38;5;2m+[4mc[24m[39m
+    === stat ===
+    file1 | 1 [38;5;2m+[38;5;1m[39m
+    file2 | 3 [38;5;2m++[38;5;1m-[39m
+    2 files changed, 3 insertions(+), 1 deletion(-)
+    === summary ===
+    [38;5;6mM file1[39m
+    [38;5;6mM file2[39m
+    "###);
+
+    // cwd != workspace root
+    let stdout = test_env.jj_cmd_success(
+        test_env.env_root(),
+        &["log", "-Rrepo", "--no-graph", "-r@", "-T", template],
+    );
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
+    === color_words ===
+    Modified regular file repo/file1:
+       1    1: a
+       2    2: b
+            3: c
+    Modified regular file repo/file2:
+       1    1: ab
+            2: c
+    === git ===
+    diff --git a/file1 b/file1
+    index 422c2b7ab3..de980441c3 100644
+    --- a/file1
+    +++ b/file1
+    @@ -1,2 +1,3 @@
+     a
+     b
+    +c
+    diff --git a/file2 b/file2
+    index 7898192261..9ddeb5c484 100644
+    --- a/file2
+    +++ b/file2
+    @@ -1,1 +1,2 @@
+    -a
+    +b
+    +c
+    === stat ===
+    repo/file1 | 1 +
+    repo/file2 | 3 ++-
+    2 files changed, 3 insertions(+), 1 deletion(-)
+    === summary ===
+    M repo/file1
+    M repo/file2
+    "###);
+
+    // color_words() with parameters
+    let template = "self.diff('file1').color_words(0)";
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-r@", "-T", template]);
+    insta::assert_snapshot!(stdout, @r###"
+    Modified regular file file1:
+        ...
+            3: c
+    "###);
+
+    // git() with parameters
+    let template = "self.diff('file1').git(1)";
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "--no-graph", "-r@", "-T", template]);
+    insta::assert_snapshot!(stdout, @r###"
+    diff --git a/file1 b/file1
+    index 422c2b7ab3..de980441c3 100644
+    --- a/file1
+    +++ b/file1
+    @@ -2,1 +2,2 @@
+     b
+    +c
+    "###);
+}

@@ -34,6 +34,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * In git diffs, word-level hunks are now highlighted with underline. See [diff
   colors and styles](docs/config.md#diff-colors-and-styles) for customization.
 
+* New `.diff().<format>()` commit template methods are added. They can be used
+  in order to show diffs conditionally. For example,
+  `if(current_working_copy, diff.summary())`.
+
 * `jj git clone` and `jj git init` with an existing git repository adds the
   default branch of the remote as repository settings for
   `revset-aliases."trunk()"`.`
