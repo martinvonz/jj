@@ -43,7 +43,7 @@ pub fn cmd_debug_copy_detection(
     let commit = ws.resolve_single_rev(&args.revision)?;
     for parent_id in commit.parent_ids() {
         for CopyRecord { target, source, .. } in
-            block_on_stream(git.get_copy_records(&[], parent_id, commit.id())?)
+            block_on_stream(git.get_copy_records(None, parent_id, commit.id())?)
                 .filter_map(|r| r.ok())
         {
             writeln!(

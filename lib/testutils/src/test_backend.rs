@@ -303,7 +303,7 @@ impl Backend for TestBackend {
 
     fn get_copy_records(
         &self,
-        _paths: &[RepoPathBuf],
+        _paths: Option<&[RepoPathBuf]>,
         _root: &CommitId,
         _head: &CommitId,
     ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>> {

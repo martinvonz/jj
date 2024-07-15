@@ -51,7 +51,7 @@ fn collect_no_gc_refs(git_repo_path: &Path) -> HashSet<CommitId> {
 
 fn get_copy_records(
     store: &Store,
-    paths: &[RepoPathBuf],
+    paths: Option<&[RepoPathBuf]>,
     a: &Commit,
     b: &Commit,
 ) -> HashMap<String, String> {
@@ -262,23 +262,27 @@ fn test_copy_detection() {
 
     let store = repo.store();
     assert_eq!(
-        get_copy_records(store, paths, &commit_a, &commit_b),
+        get_copy_records(store, Some(paths), &commit_a, &commit_b),
         HashMap::from([("file1".to_string(), "file0".to_string())])
     );
     assert_eq!(
-        get_copy_records(store, paths, &commit_b, &commit_c),
+        get_copy_records(store, Some(paths), &commit_b, &commit_c),
         HashMap::from([("file2".to_string(), "file1".to_string())])
     );
     assert_eq!(
-        get_copy_records(store, paths, &commit_a, &commit_c),
+        get_copy_records(store, Some(paths), &commit_a, &commit_c),
         HashMap::from([("file2".to_string(), "file0".to_string())])
     );
     assert_eq!(
-        get_copy_records(store, &[paths[1].clone()], &commit_a, &commit_c),
+        get_copy_records(store, None, &commit_a, &commit_c),
+        HashMap::from([("file2".to_string(), "file0".to_string())])
+    );
+    assert_eq!(
+        get_copy_records(store, Some(&[paths[1].clone()]), &commit_a, &commit_c),
         HashMap::default(),
     );
     assert_eq!(
-        get_copy_records(store, paths, &commit_c, &commit_c),
+        get_copy_records(store, Some(paths), &commit_c, &commit_c),
         HashMap::default(),
     );
 }

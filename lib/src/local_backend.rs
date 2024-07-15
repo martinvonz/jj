@@ -304,7 +304,7 @@ impl Backend for LocalBackend {
 
     fn get_copy_records(
         &self,
-        _paths: &[RepoPathBuf],
+        _paths: Option<&[RepoPathBuf]>,
         _root: &CommitId,
         _head: &CommitId,
     ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>> {
