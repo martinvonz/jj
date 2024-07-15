@@ -25,7 +25,10 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchCreateArgs {
     /// The branch's target revision
-    #[arg(long, short)]
+    //
+    // The `--to` alias exists for making it easier for the user to switch
+    // between `branch create`, `branch move`, and `branch set`.
+    #[arg(long, short, visible_alias = "to")]
     revision: Option<RevisionArg>,
 
     /// The branches to create

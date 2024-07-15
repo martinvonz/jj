@@ -25,7 +25,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub struct BranchSetArgs {
     /// The branch's target revision
-    #[arg(long, short)]
+    #[arg(long, short, visible_alias = "to")]
     revision: Option<RevisionArg>,
 
     /// Allow moving the branch backwards or sideways
