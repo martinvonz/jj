@@ -61,7 +61,7 @@ ignore = "0.4.20"
 indexmap = "2.2.5"
 indoc = "2.0.4"
 insta = { version = "1.39.0", features = ["filters"] }
-itertools = "0.12.1"
+itertools = "0.13.0"
 libc = { version = "0.2.155" }
 maplit = "1.0.2"
 minus = { version = "5.6.1", features = ["dynamic_output", "search"] }
