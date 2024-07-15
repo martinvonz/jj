@@ -48,7 +48,7 @@ use crate::merge_tools::{
 use crate::text_util;
 use crate::ui::Ui;
 
-const DEFAULT_CONTEXT_LINES: usize = 3;
+pub const DEFAULT_CONTEXT_LINES: usize = 3;
 
 #[derive(clap::Args, Clone, Debug)]
 #[command(next_help_heading = "Diff Formatting Options")]
