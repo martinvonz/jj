@@ -1255,7 +1255,7 @@ impl Backend for GitBackend {
 
     fn get_copy_records(
         &self,
-        paths: &[RepoPathBuf],
+        paths: Option<&[RepoPathBuf]>,
         root_id: &CommitId,
         head_id: &CommitId,
     ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>> {
@@ -1285,7 +1285,7 @@ impl Backend for GitBackend {
                     .map_err(|err| to_invalid_utf8_err(err, head_id))?;
 
                 let target = RepoPathBuf::from_internal_string(dest);
-                if !paths.is_empty() && !paths.contains(&target) {
+                if !paths.map_or(true, |paths| paths.contains(&target)) {
                     return Ok(None);
                 }
 

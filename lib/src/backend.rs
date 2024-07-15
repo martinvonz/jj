@@ -15,12 +15,13 @@
 #![allow(missing_docs)]
 
 use std::any::Any;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 use std::io::Read;
 use std::time::SystemTime;
 
 use async_trait::async_trait;
+use futures::executor::block_on_stream;
 use futures::stream::BoxStream;
 use thiserror::Error;
 
@@ -178,6 +179,44 @@ pub struct CopyRecord {
     /// It is required that the commit id is an ancestor of the commit with
     /// which this copy source is associated.
     pub source_commit: CommitId,
+}
+
+/// A collection of CopyRecords.
+#[derive(Default, Debug)]
+pub struct CopyRecords {
+    records: Vec<CopyRecord>,
+    // Maps from `target` to the index of the target in `records`.  Conflicts
+    // are excluded by keeping an out of range value.
+    targets: HashMap<RepoPathBuf, usize>,
+}
+
+impl CopyRecords {
+    /// Adds information about a stream of CopyRecords to `self`.  A target with
+    /// multiple conflicts is discarded and treated as not having an origin.
+    pub fn add_records(
+        &mut self,
+        stream: BoxStream<BackendResult<CopyRecord>>,
+    ) -> BackendResult<()> {
+        for record in block_on_stream(stream) {
+            let r = record?;
+            let value = self
+                .targets
+                .entry(r.target.clone())
+                .or_insert(self.records.len());
+
+            if *value != self.records.len() {
+                // TODO: handle conflicts instead of ignoring both sides.
+                *value = usize::MAX;
+            }
+            self.records.push(r);
+        }
+        Ok(())
+    }
+
+    /// Gets any copy record associated with a target path.
+    pub fn for_target(&self, target: &RepoPath) -> Option<&CopyRecord> {
+        self.targets.get(target).and_then(|&i| self.records.get(i))
+    }
 }
 
 /// Error that may occur during backend initialization.
@@ -458,7 +497,7 @@ pub trait Backend: Send + Sync + Debug {
     /// unnecessary resources.
     fn get_copy_records(
         &self,
-        paths: &[RepoPathBuf],
+        paths: Option<&[RepoPathBuf]>,
         root: &CommitId,
         head: &CommitId,
     ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>>;
