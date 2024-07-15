@@ -67,6 +67,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj diff --git` no longer shows the contents of binary files.
 
+* Windows binaries no longer require `vcruntime140.dll` to be installed
+  (normally through Visual Studio.)
+
 ## [0.19.0] - 2024-07-03
 
 ### Breaking changes
