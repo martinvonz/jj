@@ -27,6 +27,7 @@ use std::sync::Arc;
 use std::time::SystemTime;
 use std::{fs, str};
 
+use bstr::ByteVec as _;
 use clap::builder::{
     MapValueParser, NonEmptyStringValueParser, TypedValueParser, ValueParserFactory,
 };
@@ -1084,7 +1085,8 @@ impl WorkspaceCommandHelper {
         let mut output = Vec::new();
         self.write_commit_summary(&mut PlainTextFormatter::new(&mut output), commit)
             .expect("write() to PlainTextFormatter should never fail");
-        String::from_utf8(output).expect("template output should be utf-8 bytes")
+        // Template output is usually UTF-8, but it can contain file content.
+        output.into_string_lossy()
     }
 
     /// Writes one-line summary of the given `commit`.
@@ -1637,7 +1639,8 @@ impl WorkspaceCommandTransaction<'_> {
         let mut output = Vec::new();
         self.write_commit_summary(&mut PlainTextFormatter::new(&mut output), commit)
             .expect("write() to PlainTextFormatter should never fail");
-        String::from_utf8(output).expect("template output should be utf-8 bytes")
+        // Template output is usually UTF-8, but it can contain file content.
+        output.into_string_lossy()
     }
 
     pub fn write_commit_summary(
@@ -2667,7 +2670,8 @@ pub fn format_template<C: Clone>(ui: &Ui, arg: &C, template: &TemplateRenderer<C
     template
         .format(arg, ui.new_formatter(&mut output).as_mut())
         .expect("write() to vec backed formatter should never fail");
-    String::from_utf8(output).expect("template output should be utf-8 bytes")
+    // Template output is usually UTF-8, but it can contain file content.
+    output.into_string_lossy()
 }
 
 /// CLI command builder and runner.

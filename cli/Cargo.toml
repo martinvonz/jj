@@ -51,6 +51,7 @@ name = "runner"
 cargo_metadata = { workspace = true }
 
 [dependencies]
+bstr = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true }
 clap-markdown = { workspace = true }
