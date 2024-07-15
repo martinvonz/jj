@@ -1892,7 +1892,8 @@ always resolves to exactly one commit. For example:</p>
 </code></pre></div>
 </li>
 <li>
-<p><code>immutable_heads()</code>: Resolves to <code>trunk() | tags()</code> by default. See
+<p><code>immutable_heads()</code>: Resolves to <code>trunk() | tags() |
+  untracked_remote_branches()</code> by default. See
   <a href="../config/#set-of-immutable-commits">here</a> for details.</p>
 </li>
 <li>

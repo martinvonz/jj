@@ -1784,10 +1784,6 @@ installer options are fine), clone the repository, and use <code>cargo build</co
 <code>cargo clippy --workspace --all-targets</code>, and
 <code>cargo test --workspace</code>. If you are preparing a PR, there are some additional
 recommended steps.</p>
-<p>You will probably also want to make the <code>gh-pages</code> branch immutable (and thereby
-hidden from the default <code>jj log</code> output) by running the following in your repo:</p>
-<div class="highlight"><pre><span></span><code>jj<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>--repo<span class="w"> </span><span class="s2">&quot;revset-aliases.&#39;immutable_heads()&#39;&quot;</span><span class="w"> </span><span class="s1">&#39;remote_branches(exact:&quot;main&quot;) | remote_branches(exact:&quot;gh-pages&quot;)&#39;</span>
-</code></pre></div>
 <h3 id="summary">Summary<a class="headerlink" href="#summary" title="Permanent link">&para;</a></h3>
 <p>One-time setup:</p>
 <div class="codehilite"><pre><span></span><code>rustup toolchain add nightly  # wanted for &#39;rustfmt&#39;

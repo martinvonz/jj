@@ -2472,10 +2472,10 @@ invocations as follows:</p>
 <span class="n">diff-invocation-mode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;file-by-file&quot;</span>
 </code></pre></div>
 <h3 id="set-of-immutable-commits">Set of immutable commits<a class="headerlink" href="#set-of-immutable-commits" title="Permanent link">&para;</a></h3>
-<p>You can configure the set of immutable commits via <code>revset-aliases."immutable_heads()"</code>.
-The default set of immutable heads is <code>trunk() | tags()</code>. For example, to
-prevent rewriting commits on <code>main@origin</code> and commits authored by other
-users:</p>
+<p>You can configure the set of immutable commits via
+<code>revset-aliases."immutable_heads()"</code>. The default set of immutable heads is
+<code>trunk() | tags() | untracked_remote_branches()</code>. For example, to prevent
+rewriting commits on <code>main@origin</code> and commits authored by other users:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># The `main.. &amp;` bit is an optimization to scan for non-`mine()` commits only</span>
 <span class="c1"># among commits that are not in `main`.</span>
 <span class="n">revset-aliases</span><span class="p">.</span><span class="s2">&quot;immutable_heads()&quot;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;main@origin | (main@origin.. &amp; ~mine())&quot;</span>
