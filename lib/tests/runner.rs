@@ -10,6 +10,7 @@ mod test_bad_locking;
 mod test_commit_builder;
 mod test_commit_concurrent;
 mod test_conflicts;
+mod test_copy_tracking;
 mod test_default_revset_graph_iterator;
 mod test_diff_summary;
 mod test_git;
