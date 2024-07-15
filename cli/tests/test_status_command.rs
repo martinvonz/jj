@@ -148,17 +148,17 @@ fn test_status_display_rebase_instructions() {
     insta::assert_snapshot!(stdout, @r###"
     @  yqosqzyt test.user@example.com 2001-02-03 08:05:13 65143fef conflict
     │  (empty) boom-cont-2
-    ◉  royxmykx test.user@example.com 2001-02-03 08:05:12 a4e88714 conflict
+    ×  royxmykx test.user@example.com 2001-02-03 08:05:12 a4e88714 conflict
     │  (empty) boom-cont
-    ◉    mzvwutvl test.user@example.com 2001-02-03 08:05:11 538415e7 conflict
+    ×    mzvwutvl test.user@example.com 2001-02-03 08:05:11 538415e7 conflict
     ├─╮  (empty) boom
-    │ ◉  kkmpptxz test.user@example.com 2001-02-03 08:05:10 1e8c2956
+    │ ○  kkmpptxz test.user@example.com 2001-02-03 08:05:10 1e8c2956
     │ │  First part of conflicting change
-    ◉ │  zsuskuln test.user@example.com 2001-02-03 08:05:11 2c8b19fd
+    ○ │  zsuskuln test.user@example.com 2001-02-03 08:05:11 2c8b19fd
     ├─╯  Second part of conflicting change
-    ◉  qpvuntsm test.user@example.com 2001-02-03 08:05:08 aade7195
+    ○  qpvuntsm test.user@example.com 2001-02-03 08:05:08 aade7195
     │  Initial contents
-    ◉  zzzzzzzz root() 00000000
+    ◆  zzzzzzzz root() 00000000
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["status"]);

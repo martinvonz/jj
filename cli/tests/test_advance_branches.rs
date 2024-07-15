@@ -77,7 +77,7 @@ fn test_advance_branches_enabled(make_commit: CommitFn) {
     insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{test_branch} desc:
+    ◆  branches{test_branch} desc:
     "###);
     }
 
@@ -86,8 +86,8 @@ fn test_advance_branches_enabled(make_commit: CommitFn) {
     insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{test_branch} desc: first
-    ◉  branches{} desc:
+    ○  branches{test_branch} desc: first
+    ◆  branches{} desc:
     "###);
     }
 
@@ -97,9 +97,9 @@ fn test_advance_branches_enabled(make_commit: CommitFn) {
     insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{} desc: second
-    ◉  branches{test_branch} desc: first
-    ◉  branches{} desc:
+    ○  branches{} desc: second
+    ○  branches{test_branch} desc: first
+    ◆  branches{} desc:
     "###);
     }
 }
@@ -119,7 +119,7 @@ fn test_advance_branches_at_minus(make_commit: CommitFn) {
     insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{test_branch} desc:
-    ◉  branches{} desc:
+    ◆  branches{} desc:
     "###);
     }
 
@@ -127,8 +127,8 @@ fn test_advance_branches_at_minus(make_commit: CommitFn) {
     insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{test_branch} desc: first
-    ◉  branches{} desc:
+    ○  branches{test_branch} desc: first
+    ◆  branches{} desc:
     "###);
     }
 
@@ -139,9 +139,9 @@ fn test_advance_branches_at_minus(make_commit: CommitFn) {
     insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{test_branch test_branch2} desc: second
-    ◉  branches{} desc: first
-    ◉  branches{} desc:
+    ○  branches{test_branch test_branch2} desc: second
+    ○  branches{} desc: first
+    ◆  branches{} desc:
     "###);
     }
 }
@@ -165,7 +165,7 @@ fn test_advance_branches_overrides(make_commit: CommitFn) {
     insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{test_branch} desc:
+    ◆  branches{test_branch} desc:
     "###);
     }
 
@@ -174,8 +174,8 @@ fn test_advance_branches_overrides(make_commit: CommitFn) {
     insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{} desc: first
-    ◉  branches{test_branch} desc:
+    ○  branches{} desc: first
+    ◆  branches{test_branch} desc:
     "###);
     }
 
@@ -193,17 +193,17 @@ fn test_advance_branches_overrides(make_commit: CommitFn) {
     insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{test_branch} desc: first
-    ◉  branches{} desc:
+    ○  branches{test_branch} desc: first
+    ◆  branches{} desc:
     "###);
     }
     make_commit(&test_env, &workspace_path, "second");
     insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{test_branch} desc: second
-    ◉  branches{} desc: first
-    ◉  branches{} desc:
+    ○  branches{test_branch} desc: second
+    ○  branches{} desc: first
+    ◆  branches{} desc:
     "###);
     }
 
@@ -219,10 +219,10 @@ fn test_advance_branches_overrides(make_commit: CommitFn) {
     insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{} desc: third
-    ◉  branches{test_branch} desc: second
-    ◉  branches{} desc: first
-    ◉  branches{} desc:
+    ○  branches{} desc: third
+    ○  branches{test_branch} desc: second
+    ○  branches{} desc: first
+    ◆  branches{} desc:
     "###);
     }
 
@@ -239,21 +239,21 @@ fn test_advance_branches_overrides(make_commit: CommitFn) {
     insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{second_branch test_branch} desc: third
-    ◉  branches{} desc: second
-    ◉  branches{} desc: first
-    ◉  branches{} desc:
+    ○  branches{second_branch test_branch} desc: third
+    ○  branches{} desc: second
+    ○  branches{} desc: first
+    ◆  branches{} desc:
     "###);
     }
     make_commit(&test_env, &workspace_path, "fourth");
     insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{second_branch} desc: fourth
-    ◉  branches{test_branch} desc: third
-    ◉  branches{} desc: second
-    ◉  branches{} desc: first
-    ◉  branches{} desc:
+    ○  branches{second_branch} desc: fourth
+    ○  branches{test_branch} desc: third
+    ○  branches{} desc: second
+    ○  branches{} desc: first
+    ◆  branches{} desc:
     "###);
     }
 }
@@ -280,7 +280,7 @@ fn test_advance_branches_multiple_branches(make_commit: CommitFn) {
     // Check the initial state of the repo.
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{first_branch second_branch} desc:
+    ◆  branches{first_branch second_branch} desc:
     "###);
     }
 
@@ -289,8 +289,8 @@ fn test_advance_branches_multiple_branches(make_commit: CommitFn) {
     insta::allow_duplicates! {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{first_branch second_branch} desc: first
-    ◉  branches{} desc:
+    ○  branches{first_branch second_branch} desc: first
+    ◆  branches{} desc:
     "###);
     }
 }
@@ -308,7 +308,7 @@ fn test_new_advance_branches_interior() {
     // Check the initial state of the repo.
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{} desc:
+    ◆  branches{} desc:
     "###);
 
     // Create a gap in the commits for us to insert our new commit with --before.
@@ -321,20 +321,20 @@ fn test_new_advance_branches_interior() {
     );
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{} desc: third
-    ◉  branches{} desc: second
-    ◉  branches{test_branch} desc: first
-    ◉  branches{} desc:
+    ○  branches{} desc: third
+    ○  branches{} desc: second
+    ○  branches{test_branch} desc: first
+    ◆  branches{} desc:
     "###);
 
     test_env.jj_cmd_ok(&workspace_path, &["new", "-r", "@--"]);
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    │ ◉  branches{} desc: third
+    │ ○  branches{} desc: third
     ├─╯
-    ◉  branches{test_branch} desc: second
-    ◉  branches{} desc: first
-    ◉  branches{} desc:
+    ○  branches{test_branch} desc: second
+    ○  branches{} desc: first
+    ◆  branches{} desc:
     "###);
 }
 
@@ -350,7 +350,7 @@ fn test_new_advance_branches_before() {
     // Check the initial state of the repo.
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{} desc:
+    ◆  branches{} desc:
     "###);
 
     // Create a gap in the commits for us to insert our new commit with --before.
@@ -363,19 +363,19 @@ fn test_new_advance_branches_before() {
     );
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{} desc: third
-    ◉  branches{} desc: second
-    ◉  branches{test_branch} desc: first
-    ◉  branches{} desc:
+    ○  branches{} desc: third
+    ○  branches{} desc: second
+    ○  branches{test_branch} desc: first
+    ◆  branches{} desc:
     "###);
 
     test_env.jj_cmd_ok(&workspace_path, &["new", "--before", "@-"]);
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
-    ◉  branches{} desc: third
+    ○  branches{} desc: third
     @  branches{} desc:
-    ◉  branches{} desc: second
-    ◉  branches{test_branch} desc: first
-    ◉  branches{} desc:
+    ○  branches{} desc: second
+    ○  branches{test_branch} desc: first
+    ◆  branches{} desc:
     "###);
 }
 
@@ -395,15 +395,15 @@ fn test_new_advance_branches_after() {
     // Check the initial state of the repo.
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{test_branch} desc:
+    ◆  branches{test_branch} desc:
     "###);
 
     test_env.jj_cmd_ok(&workspace_path, &["describe", "-m", "first"]);
     test_env.jj_cmd_ok(&workspace_path, &["new", "--after", "@"]);
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc:
-    ◉  branches{} desc: first
-    ◉  branches{test_branch} desc:
+    ○  branches{} desc: first
+    ◆  branches{test_branch} desc:
     "###);
 }
 
@@ -425,10 +425,10 @@ fn test_new_advance_branches_merge_children() {
     // Check the initial state of the repo.
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @  branches{} desc: 2
-    │ ◉  branches{} desc: 1
+    │ ○  branches{} desc: 1
     ├─╯
-    ◉  branches{test_branch} desc: 0
-    ◉  branches{} desc:
+    ○  branches{test_branch} desc: 0
+    ◆  branches{} desc:
     "###);
 
     // The branch won't advance because `jj  new` had multiple targets.
@@ -439,10 +439,10 @@ fn test_new_advance_branches_merge_children() {
     insta::assert_snapshot!(get_log_output_with_branches(&test_env, &workspace_path), @r###"
     @    branches{} desc:
     ├─╮
-    │ ◉  branches{} desc: 2
-    ◉ │  branches{} desc: 1
+    │ ○  branches{} desc: 2
+    ○ │  branches{} desc: 1
     ├─╯
-    ◉  branches{test_branch} desc: 0
-    ◉  branches{} desc:
+    ○  branches{test_branch} desc: 0
+    ◆  branches{} desc:
     "###);
 }

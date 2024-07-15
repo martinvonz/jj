@@ -1175,12 +1175,12 @@ fn test_diff_external_tool() {
     │  --
     │  file2
     │  file3
-    ◉  qpvuntsm test.user@example.com 2001-02-03 08:05:08 0ad4ef22
+    ○  qpvuntsm test.user@example.com 2001-02-03 08:05:08 0ad4ef22
     │  (no description set)
     │  --
     │  file1
     │  file2
-    ◉  zzzzzzzz root() 00000000
+    ◆  zzzzzzzz root() 00000000
        --
     "###);
 
@@ -1321,7 +1321,7 @@ fn test_diff_external_file_by_file_tool() {
     │  file3
     │  --
     │  file3
-    ◉  qpvuntsm test.user@example.com 2001-02-03 08:05:08 0ad4ef22
+    ○  qpvuntsm test.user@example.com 2001-02-03 08:05:08 0ad4ef22
     │  (no description set)
     │  ==
     │  file1
@@ -1331,7 +1331,7 @@ fn test_diff_external_file_by_file_tool() {
     │  file2
     │  --
     │  file2
-    ◉  zzzzzzzz root() 00000000
+    ◆  zzzzzzzz root() 00000000
     "###);
 
     insta::assert_snapshot!(

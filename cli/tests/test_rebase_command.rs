@@ -182,13 +182,13 @@ fn test_rebase_branch() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  e
-    │ ◉  d
-    │ │ ◉  c
+    │ ○  d
+    │ │ ○  c
     │ ├─╯
-    │ ◉  b
+    │ ○  b
     ├─╯
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "c", "-d", "e"]);
@@ -197,13 +197,13 @@ fn test_rebase_branch() {
     Rebased 3 commits
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  d
-    │ ◉  c
+    ○  d
+    │ ○  c
     ├─╯
-    ◉  b
+    ○  b
     @  e
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
 
     // Test rebasing multiple branches at once
@@ -219,13 +219,13 @@ fn test_rebase_branch() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  e
-    │ ◉  d
+    │ ○  d
     ├─╯
-    │ ◉  c
+    │ ○  c
     ├─╯
-    ◉  b
-    ◉  a
-    ◉
+    ○  b
+    ○  a
+    ◆
     "###);
 
     // Same test but with more than one revision per argument
@@ -249,13 +249,13 @@ fn test_rebase_branch() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  e
-    │ ◉  d
+    │ ○  d
     ├─╯
-    │ ◉  c
+    │ ○  c
     ├─╯
-    ◉  b
-    ◉  a
-    ◉
+    ○  b
+    ○  a
+    ◆
     "###);
 }
 
@@ -274,13 +274,13 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e
     ├─╮
-    │ ◉  d
-    │ ◉  c
-    │ │ ◉  b
+    │ ○  d
+    │ ○  c
+    │ │ ○  b
     ├───╯
-    ◉ │  a
+    ○ │  a
     ├─╯
-    ◉
+    ◆
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "d", "-d", "b"]);
@@ -295,12 +295,12 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e
     ├─╮
-    │ ◉  d
-    │ ◉  c
-    │ ◉  b
+    │ ○  d
+    │ ○  c
+    │ ○  b
     ├─╯
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -316,12 +316,12 @@ fn test_rebase_branch_with_merge() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e
     ├─╮
-    │ ◉  d
-    │ ◉  c
-    │ ◉  b
+    │ ○  d
+    │ ○  c
+    │ ○  b
     ├─╯
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
 }
 
@@ -339,13 +339,13 @@ fn test_rebase_single_revision() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  e
-    ◉    d
+    ○    d
     ├─╮
-    │ ◉  c
-    ◉ │  b
+    │ ○  c
+    ○ │  b
     ├─╯
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
 
     // Descendants of the rebased commit "c" should be rebased onto parents. First
@@ -361,14 +361,14 @@ fn test_rebase_single_revision() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  e
-    ◉    d
+    ○    d
     ├─╮
-    │ │ ◉  c
+    │ │ ○  c
     ├───╯
-    ◉ │  b
+    ○ │  b
     ├─╯
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
 
@@ -387,13 +387,13 @@ fn test_rebase_single_revision() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    e
     ├─╮
-    │ ◉  c
-    ◉ │  b
+    │ ○  c
+    ○ │  b
     ├─╯
-    │ ◉  d
+    │ ○  d
     ├─╯
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
 }
 
@@ -411,11 +411,11 @@ fn test_rebase_single_revision_merge_parent() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    d
     ├─╮
-    │ ◉  c
-    │ ◉  b
-    ◉ │  a
+    │ ○  c
+    │ ○  b
+    ○ │  a
     ├─╯
-    ◉
+    ◆
     "###);
 
     // Descendants of the rebased commit should be rebased onto parents, and if
@@ -433,12 +433,12 @@ fn test_rebase_single_revision_merge_parent() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    d
     ├─╮
-    │ ◉  b
-    │ │ ◉  c
+    │ ○  b
+    │ │ ○  c
     ├───╯
-    ◉ │  a
+    ○ │  a
     ├─╯
-    ◉
+    ◆
     "###);
 }
 
@@ -460,18 +460,18 @@ fn test_rebase_multiple_revisions() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  i
-    │ ◉  h
-    │ ◉  g
+    │ ○  h
+    │ ○  g
     ├─╯
-    ◉    f
+    ○    f
     ├─╮
-    │ ◉  e
-    │ ◉  d
-    ◉ │  c
-    ◉ │  b
+    │ ○  e
+    │ ○  d
+    ○ │  c
+    ○ │  b
     ├─╯
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
 
     // Test with two non-related non-merge commits.
@@ -487,20 +487,20 @@ fn test_rebase_multiple_revisions() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  i
-    │ ◉  h
-    │ ◉  g
+    │ ○  h
+    │ ○  g
     ├─╯
-    ◉    f
+    ○    f
     ├─╮
-    │ ◉  d
-    ◉ │  b
+    │ ○  d
+    ○ │  b
     ├─╯
-    │ ◉  e
+    │ ○  e
     ├─╯
-    │ ◉  c
+    │ ○  c
     ├─╯
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
 
@@ -519,19 +519,19 @@ fn test_rebase_multiple_revisions() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  i
-    │ ◉  h
-    │ ◉  g
+    │ ○  h
+    │ ○  g
     ├─╯
-    ◉    f
+    ○    f
     ├─╮
-    │ │ ◉  c
-    │ │ ◉  b
+    │ │ ○  c
+    │ │ ○  b
     │ ├─╯
-    │ ◉  e
-    │ ◉  d
+    │ ○  e
+    │ ○  d
     ├─╯
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
 
@@ -551,18 +551,18 @@ fn test_rebase_multiple_revisions() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    i
     ├─╮
-    │ │ ◉  h
+    │ │ ○  h
     ╭─┬─╯
-    │ ◉  d
-    ◉ │  c
-    ◉ │  b
+    │ ○  d
+    ○ │  c
+    ○ │  b
     ├─╯
-    │ ◉  g
-    │ ◉  f
-    │ ◉  e
+    │ ○  g
+    │ ○  f
+    │ ○  e
     ├─╯
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
 
@@ -586,18 +586,18 @@ fn test_rebase_multiple_revisions() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    i
     ├─╮
-    │ │ ◉  g
+    │ │ ○  g
     ╭─┬─╯
-    │ ◉  e
-    ◉ │  c
-    │ │ ◉  h
-    │ │ ◉  f
-    │ │ ◉  d
+    │ ○  e
+    ○ │  c
+    │ │ ○  h
+    │ │ ○  f
+    │ │ ○  d
     ├───╯
-    ◉ │  b
+    ○ │  b
     ├─╯
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
 
@@ -612,19 +612,19 @@ fn test_rebase_multiple_revisions() {
     Added 0 files, modified 0 files, removed 2 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  h
-    ◉  g
-    │ ◉  e
-    │ ◉  d
+    ○  h
+    ○  g
+    │ ○  e
+    │ ○  d
     │ @  i
     ├─╯
-    ◉    f
+    ○    f
     ├─╮
-    ◉ │  c
-    ◉ │  b
+    ○ │  c
+    ○ │  b
     ├─╯
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
 }
 
@@ -642,11 +642,11 @@ fn test_rebase_revision_onto_descendant() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    merge
     ├─╮
-    │ ◉  a
-    ◉ │  b
+    │ ○  a
+    ○ │  b
     ├─╯
-    ◉  base
-    ◉
+    ○  base
+    ◆
     "###);
     let setup_opid = test_env.current_operation_id(&repo_path);
 
@@ -664,12 +664,12 @@ fn test_rebase_revision_onto_descendant() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    merge
     ├─╮
-    ◉ │  b
-    │ │ ◉  base
+    ○ │  b
+    │ │ ○  base
     │ ├─╯
-    │ ◉  a
+    │ ○  a
     ├─╯
-    ◉
+    ◆
     "###);
 
     // Now, let's rebase onto the descendant merge
@@ -692,13 +692,13 @@ fn test_rebase_revision_onto_descendant() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  base
+    ○  base
     @    merge
     ├─╮
-    │ ◉  a
-    ◉ │  b
+    │ ○  a
+    ○ │  b
     ├─╯
-    ◉
+    ◆
     "###);
 
     // TODO(ilyagr): These will be good tests for `jj rebase --insert-after` and
@@ -717,11 +717,11 @@ fn test_rebase_multiple_destinations() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    │ ◉  b
+    │ ○  b
     ├─╯
-    │ ◉  a
+    │ ○  a
     ├─╯
-    ◉
+    ◆
     "###);
 
     let (stdout, stderr) =
@@ -731,12 +731,12 @@ fn test_rebase_multiple_destinations() {
     Rebased 1 commits onto destination
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉    a
+    ○    a
     ├─╮
     │ @  c
-    ◉ │  b
+    ○ │  b
     ├─╯
-    ◉
+    ◆
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b|c"]);
@@ -755,12 +755,12 @@ fn test_rebase_multiple_destinations() {
     Rebased 1 commits onto destination
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉    a
+    ○    a
     ├─╮
-    │ ◉  b
+    │ ○  b
     @ │  c
     ├─╯
-    ◉
+    ◆
     "###);
 
     // undo and do it again, but with 'ui.always-allow-large-revsets'
@@ -775,12 +775,12 @@ fn test_rebase_multiple_destinations() {
         ],
     );
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉    a
+    ○    a
     ├─╮
-    │ ◉  b
+    │ ○  b
     @ │  c
     ├─╯
-    ◉
+    ◆
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["rebase", "-r", "a", "-d", "b", "-d", "b"]);
@@ -819,12 +819,12 @@ fn test_rebase_with_descendants() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  d
-    ◉    c
+    ○    c
     ├─╮
-    │ ◉  b
-    ◉ │  a
+    │ ○  b
+    ○ │  a
     ├─╯
-    ◉
+    ◆
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-s", "b", "-d", "a"]);
@@ -836,12 +836,12 @@ fn test_rebase_with_descendants() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  d
-    ◉    c
+    ○    c
     ├─╮
-    │ ◉  b
+    │ ○  b
     ├─╯
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
 
     // Rebase several subtrees at once.
@@ -856,24 +856,24 @@ fn test_rebase_with_descendants() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  d
-    │ ◉  c
+    │ ○  c
     ├─╯
-    ◉  a
-    │ ◉  b
+    ○  a
+    │ ○  b
     ├─╯
-    ◉
+    ◆
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
     // Reminder of the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  d
-    ◉    c
+    ○    c
     ├─╮
-    │ ◉  b
-    ◉ │  a
+    │ ○  b
+    ○ │  a
     ├─╯
-    ◉
+    ◆
     "###);
 
     // `d` was a descendant of `b`, and both are moved to be direct descendants of
@@ -887,14 +887,14 @@ fn test_rebase_with_descendants() {
     Added 0 files, modified 0 files, removed 2 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉    c
+    ○    c
     ├─╮
-    │ ◉  b
+    │ ○  b
     ├─╯
     │ @  d
     ├─╯
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
 
     // Same test as above, but with multiple commits per argument
@@ -916,14 +916,14 @@ fn test_rebase_with_descendants() {
     Added 0 files, modified 0 files, removed 2 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉    c
+    ○    c
     ├─╮
-    │ ◉  b
+    │ ○  b
     ├─╯
     │ @  d
     ├─╯
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
 }
 
@@ -969,13 +969,13 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉    b
+    ○    b
     ├─╮
-    │ ◉  a
+    │ ○  a
     ├─╯
-    ◉  base
-    ◉  notroot
-    ◉
+    ○  base
+    ○  notroot
+    ◆
     "###);
 
     // ===================== rebase -s tests =================
@@ -988,13 +988,13 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉    b
+    ○    b
     ├─╮
-    │ ◉  a
+    │ ○  a
     ├─╯
-    ◉  base
-    ◉  notroot
-    ◉
+    ○  base
+    ○  notroot
+    ◆
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
@@ -1006,13 +1006,13 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉    b
+    ○    b
     ├─╮
-    │ ◉  a
+    │ ○  a
     ├─╯
-    ◉  base
-    ◉  notroot
-    ◉
+    ○  base
+    ○  notroot
+    ◆
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
@@ -1027,13 +1027,13 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     // "base" and "a" as parents as before.
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉    b
+    ○    b
     ├─╮
-    │ ◉  a
-    ◉ │  base
-    ◉ │  notroot
+    │ ○  a
+    ○ │  base
+    ○ │  notroot
     ├─╯
-    ◉
+    ◆
     "###);
 
     // ===================== rebase -b tests =================
@@ -1041,13 +1041,13 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉    b
+    ○    b
     ├─╮
-    │ ◉  a
+    │ ○  a
     ├─╯
-    ◉  base
-    ◉  notroot
-    ◉
+    ○  base
+    ○  notroot
+    ◆
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "c", "-d", "base"]);
@@ -1059,13 +1059,13 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉    b
+    ○    b
     ├─╮
-    │ ◉  a
+    │ ○  a
     ├─╯
-    ◉  base
-    ◉  notroot
-    ◉
+    ○  base
+    ○  notroot
+    ◆
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
@@ -1080,11 +1080,11 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     // which means "b" loses its "base" parent
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉  b
-    ◉  a
-    ◉  base
-    ◉  notroot
-    ◉
+    ○  b
+    ○  a
+    ○  base
+    ○  notroot
+    ◆
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
@@ -1096,13 +1096,13 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉    b
+    ○    b
     ├─╮
-    │ ◉  a
+    │ ○  a
     ├─╯
-    ◉  base
-    ◉  notroot
-    ◉
+    ○  base
+    ○  notroot
+    ◆
     "###);
 
     // ===================== rebase -r tests =================
@@ -1110,13 +1110,13 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉    b
+    ○    b
     ├─╮
-    │ ◉  a
+    │ ○  a
     ├─╯
-    ◉  base
-    ◉  notroot
-    ◉
+    ○  base
+    ○  notroot
+    ◆
     "###);
 
     let (stdout, stderr) =
@@ -1132,14 +1132,14 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     // The user would expect unsimplified ancestry here.
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉    b
+    ○    b
     ├─╮
-    │ ◉  a
+    │ ○  a
     ├─╯
-    ◉  notroot
-    │ ◉  base
+    ○  notroot
+    │ ○  base
     ├─╯
-    ◉
+    ◆
     "###);
 
     // This tests the algorithm for rebasing onto descendants. The result should
@@ -1156,14 +1156,14 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    │ ◉  base
+    │ ○  base
     ├─╯
-    ◉    b
+    ○    b
     ├─╮
-    │ ◉  a
+    │ ○  a
     ├─╯
-    ◉  notroot
-    ◉
+    ○  notroot
+    ◆
     "###);
 
     // This tests the algorithm for rebasing onto descendants. The result should
@@ -1180,27 +1180,27 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉    b
+    ○    b
     ├─╮
-    │ │ ◉  base
+    │ │ ○  base
     │ ├─╯
-    │ ◉  a
+    │ ○  a
     ├─╯
-    ◉  notroot
-    ◉
+    ○  notroot
+    ◆
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
     // ====== Reminder of the setup =========
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉    b
+    ○    b
     ├─╮
-    │ ◉  a
+    │ ○  a
     ├─╯
-    ◉  base
-    ◉  notroot
-    ◉
+    ○  base
+    ○  notroot
+    ◆
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "a", "-d", "root()"]);
@@ -1216,12 +1216,12 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     // ancestry (whether `b` should also be a direct child of the root commit).
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    ◉  b
-    ◉  base
-    ◉  notroot
-    │ ◉  a
+    ○  b
+    ○  base
+    ○  notroot
+    │ ○  a
     ├─╯
-    ◉
+    ◆
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
@@ -1239,13 +1239,13 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    c
     ├─╮
-    │ ◉  a
+    │ ○  a
     ├─╯
-    ◉  base
-    ◉  notroot
-    │ ◉  b
+    ○  base
+    ○  notroot
+    │ ○  b
     ├─╯
-    ◉
+    ◆
     "###);
 
     // This tests the algorithm for rebasing onto descendants. The result should
@@ -1262,14 +1262,14 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  b
+    ○  b
     @    c
     ├─╮
-    │ ◉  a
+    │ ○  a
     ├─╯
-    ◉  base
-    ◉  notroot
-    ◉
+    ○  base
+    ○  notroot
+    ◆
     "###);
 
     // In this test, the commit with weird ancestry is not rebased (neither directly
@@ -1285,13 +1285,13 @@ fn test_rebase_with_child_and_descendant_bug_2600() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  c
-    │ ◉  b
+    │ ○  b
     ╭─┤
-    ◉ │  a
+    ○ │  a
     ├─╯
-    ◉  base
-    ◉  notroot
-    ◉
+    ○  base
+    ○  notroot
+    ◆
     "###);
 }
 
@@ -1313,18 +1313,18 @@ fn test_rebase_revisions_after() {
     // Test the setup
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  xznxytkn  e4a00798
-    ◉  e  nkmrtpmo  858693f7
-    │ ◉  d  lylxulpl  7d0512e5
+    ○  e  nkmrtpmo  858693f7
+    │ ○  d  lylxulpl  7d0512e5
     ├─╯
-    ◉    c  kmkuslsw  cd86b3e4
+    ○    c  kmkuslsw  cd86b3e4
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b2  royxmykx  2b8e1148
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b2  royxmykx  2b8e1148
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     let setup_opid = test_env.current_operation_id(&repo_path);
 
@@ -1340,18 +1340,18 @@ fn test_rebase_revisions_after() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  xznxytkn  e4a00798
-    ◉  e  nkmrtpmo  858693f7
-    │ ◉  d  lylxulpl  7d0512e5
+    ○  e  nkmrtpmo  858693f7
+    │ ○  d  lylxulpl  7d0512e5
     ├─╯
-    ◉    c  kmkuslsw  cd86b3e4
+    ○    c  kmkuslsw  cd86b3e4
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b2  royxmykx  2b8e1148
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b2  royxmykx  2b8e1148
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
 
     // Rebasing a commit after itself should be a no-op.
@@ -1363,18 +1363,18 @@ fn test_rebase_revisions_after() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  xznxytkn  e4a00798
-    ◉  e  nkmrtpmo  858693f7
-    │ ◉  d  lylxulpl  7d0512e5
+    ○  e  nkmrtpmo  858693f7
+    │ ○  d  lylxulpl  7d0512e5
     ├─╯
-    ◉    c  kmkuslsw  cd86b3e4
+    ○    c  kmkuslsw  cd86b3e4
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b2  royxmykx  2b8e1148
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b2  royxmykx  2b8e1148
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
 
     // Rebase a commit after another commit. "c" has parents "b2" and "b4", so its
@@ -1389,18 +1389,18 @@ fn test_rebase_revisions_after() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  xznxytkn  e0e873c8
-    ◉  c  kmkuslsw  754793f3
-    ◉    e  nkmrtpmo  e0d7fb63
+    ○  c  kmkuslsw  754793f3
+    ○    e  nkmrtpmo  e0d7fb63
     ├─╮
-    │ │ ◉  d  lylxulpl  5e9cb58d
+    │ │ ○  d  lylxulpl  5e9cb58d
     ╭─┬─╯
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b2  royxmykx  2b8e1148
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b2  royxmykx  2b8e1148
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1415,19 +1415,19 @@ fn test_rebase_revisions_after() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
-    ◉  e  nkmrtpmo  76ac6464
+    ○  e  nkmrtpmo  76ac6464
     @  f  xznxytkn  9804b742
-    │ ◉  d  lylxulpl  7d0512e5
+    │ ○  d  lylxulpl  7d0512e5
     ├─╯
-    ◉    c  kmkuslsw  cd86b3e4
+    ○    c  kmkuslsw  cd86b3e4
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b2  royxmykx  2b8e1148
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b2  royxmykx  2b8e1148
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1442,19 +1442,19 @@ fn test_rebase_revisions_after() {
     Added 0 files, modified 0 files, removed 5 files
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
-    ◉  e  nkmrtpmo  cee7a197
-    │ ◉  d  lylxulpl  1eb960ec
+    ○  e  nkmrtpmo  cee7a197
+    │ ○  d  lylxulpl  1eb960ec
     ├─╯
-    ◉    c  kmkuslsw  305a7803
+    ○    c  kmkuslsw  305a7803
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b2  royxmykx  526481b4
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b2  royxmykx  526481b4
     @ │  f  xznxytkn  80c27408
-    ◉ │  b1  zsuskuln  072d5ae1
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1469,19 +1469,19 @@ fn test_rebase_revisions_after() {
     Added 0 files, modified 0 files, removed 4 files
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
-    ◉  e  nkmrtpmo  3162ac52
-    │ ◉  d  lylxulpl  6f7f3b2a
+    ○  e  nkmrtpmo  3162ac52
+    │ ○  d  lylxulpl  6f7f3b2a
     ├─╯
-    ◉    c  kmkuslsw  d33f69f1
+    ○    c  kmkuslsw  d33f69f1
     ├─╮
     │ @  f  xznxytkn  ebbc24b1
-    │ ◉  b2  royxmykx  2b8e1148
-    │ ◉  b1  zsuskuln  072d5ae1
-    ◉ │  b4  znkkpsqq  a52a83a4
-    ◉ │  b3  vruxwmqv  523e6a8b
+    │ ○  b2  royxmykx  2b8e1148
+    │ ○  b1  zsuskuln  072d5ae1
+    ○ │  b4  znkkpsqq  a52a83a4
+    ○ │  b3  vruxwmqv  523e6a8b
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1498,19 +1498,19 @@ fn test_rebase_revisions_after() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
-    ◉  e  nkmrtpmo  03ade273
-    │ ◉  d  lylxulpl  8bccbeda
+    ○  e  nkmrtpmo  03ade273
+    │ ○  d  lylxulpl  8bccbeda
     ├─╯
     @  f  xznxytkn  8f8c91d3
-    ◉    c  kmkuslsw  cd86b3e4
+    ○    c  kmkuslsw  cd86b3e4
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b2  royxmykx  2b8e1148
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b2  royxmykx  2b8e1148
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1530,18 +1530,18 @@ fn test_rebase_revisions_after() {
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @    f  xznxytkn  7784e5a0
     ├─╮
-    │ ◉  d  lylxulpl  7d0512e5
-    ◉ │  e  nkmrtpmo  858693f7
+    │ ○  d  lylxulpl  7d0512e5
+    ○ │  e  nkmrtpmo  858693f7
     ├─╯
-    ◉    c  kmkuslsw  cd86b3e4
+    ○    c  kmkuslsw  cd86b3e4
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b2  royxmykx  2b8e1148
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b2  royxmykx  2b8e1148
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1560,19 +1560,19 @@ fn test_rebase_revisions_after() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  xznxytkn  0b53613e
-    ◉    c  kmkuslsw  193687bb
+    ○    c  kmkuslsw  193687bb
     ├─╮
-    │ ◉  b4  znkkpsqq  e8d0f57b
-    │ ◉    b3  vruxwmqv  cb48344c
+    │ ○  b4  znkkpsqq  e8d0f57b
+    │ ○    b3  vruxwmqv  cb48344c
     │ ├─╮
-    ◉ │ │  b2  royxmykx  535f779d
-    ◉ │ │  b1  zsuskuln  693186c0
+    ○ │ │  b2  royxmykx  535f779d
+    ○ │ │  b1  zsuskuln  693186c0
     ╰─┬─╮
-      │ ◉  e  nkmrtpmo  2bb4e0b6
-      ◉ │  d  lylxulpl  0b921a1c
+      │ ○  e  nkmrtpmo  2bb4e0b6
+      ○ │  d  lylxulpl  0b921a1c
       ├─╯
-      ◉  a  rlvkpnrz  2443ea76
-      ◉    zzzzzzzz  00000000
+      ○  a  rlvkpnrz  2443ea76
+      ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1591,21 +1591,21 @@ fn test_rebase_revisions_after() {
     Added 0 files, modified 0 files, removed 3 files
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
-    ◉    d  lylxulpl  16060da9
+    ○    d  lylxulpl  16060da9
     ├─╮
-    │ │ ◉    c  kmkuslsw  ef5ead27
+    │ │ ○    c  kmkuslsw  ef5ead27
     │ │ ├─╮
-    │ │ │ ◉  b4  znkkpsqq  9c884b94
-    │ │ ◉ │  b2  royxmykx  bdfea21d
+    │ │ │ ○  b4  znkkpsqq  9c884b94
+    │ │ ○ │  b2  royxmykx  bdfea21d
     │ │ ├─╯
     │ │ @  f  xznxytkn  eaf1d6b8
-    │ │ ◉  e  nkmrtpmo  0d7e4ce9
+    │ │ ○  e  nkmrtpmo  0d7e4ce9
     ╭─┬─╯
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1622,17 +1622,17 @@ fn test_rebase_revisions_after() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  xznxytkn  084e0629
-    ◉  e  nkmrtpmo  563d78c6
-    ◉  d  lylxulpl  e67ba5c9
-    ◉  c  kmkuslsw  049aa109
-    ◉  b2  royxmykx  7af3d6cd
-    ◉    b1  zsuskuln  cd84b343
+    ○  e  nkmrtpmo  563d78c6
+    ○  d  lylxulpl  e67ba5c9
+    ○  c  kmkuslsw  049aa109
+    ○  b2  royxmykx  7af3d6cd
+    ○    b1  zsuskuln  cd84b343
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1652,18 +1652,18 @@ fn test_rebase_revisions_after() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  xznxytkn  4fb2bb60
-    │ ◉  e  nkmrtpmo  1ea93588
-    │ ◉  b2  royxmykx  064e3bcb
-    │ ◉  d  lylxulpl  b46a9d31
+    │ ○  e  nkmrtpmo  1ea93588
+    │ ○  b2  royxmykx  064e3bcb
+    │ ○  d  lylxulpl  b46a9d31
     ├─╯
-    ◉    c  kmkuslsw  cebde86a
+    ○    c  kmkuslsw  cebde86a
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1695,18 +1695,18 @@ fn test_rebase_revisions_before() {
     // Test the setup
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  xznxytkn  e4a00798
-    ◉  e  nkmrtpmo  858693f7
-    │ ◉  d  lylxulpl  7d0512e5
+    ○  e  nkmrtpmo  858693f7
+    │ ○  d  lylxulpl  7d0512e5
     ├─╯
-    ◉    c  kmkuslsw  cd86b3e4
+    ○    c  kmkuslsw  cd86b3e4
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b2  royxmykx  2b8e1148
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b2  royxmykx  2b8e1148
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     let setup_opid = test_env.current_operation_id(&repo_path);
 
@@ -1722,18 +1722,18 @@ fn test_rebase_revisions_before() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  xznxytkn  e4a00798
-    ◉  e  nkmrtpmo  858693f7
-    │ ◉  d  lylxulpl  7d0512e5
+    ○  e  nkmrtpmo  858693f7
+    │ ○  d  lylxulpl  7d0512e5
     ├─╯
-    ◉    c  kmkuslsw  cd86b3e4
+    ○    c  kmkuslsw  cd86b3e4
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b2  royxmykx  2b8e1148
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b2  royxmykx  2b8e1148
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
 
     // Rebasing a commit before itself should be a no-op.
@@ -1745,18 +1745,18 @@ fn test_rebase_revisions_before() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  xznxytkn  e4a00798
-    ◉  e  nkmrtpmo  858693f7
-    │ ◉  d  lylxulpl  7d0512e5
+    ○  e  nkmrtpmo  858693f7
+    │ ○  d  lylxulpl  7d0512e5
     ├─╯
-    ◉    c  kmkuslsw  cd86b3e4
+    ○    c  kmkuslsw  cd86b3e4
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b2  royxmykx  2b8e1148
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b2  royxmykx  2b8e1148
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
 
     // Rebasing a commit before the root commit should error.
@@ -1777,18 +1777,18 @@ fn test_rebase_revisions_before() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  xznxytkn  24335685
-    ◉    e  nkmrtpmo  e9a28d4b
+    ○    e  nkmrtpmo  e9a28d4b
     ├─╮
-    │ │ ◉  d  lylxulpl  6609e9c6
+    │ │ ○  d  lylxulpl  6609e9c6
     ╭─┬─╯
-    │ ◉  b4  znkkpsqq  4b39b18c
-    │ ◉  b3  vruxwmqv  39f79dcc
-    ◉ │  b2  royxmykx  ffcf6038
-    ◉ │  b1  zsuskuln  85e90af6
+    │ ○  b4  znkkpsqq  4b39b18c
+    │ ○  b3  vruxwmqv  39f79dcc
+    ○ │  b2  royxmykx  ffcf6038
+    ○ │  b1  zsuskuln  85e90af6
     ├─╯
-    ◉  a  rlvkpnrz  318ea816
-    ◉  c  kmkuslsw  5f99791e
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  318ea816
+    ○  c  kmkuslsw  5f99791e
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1803,19 +1803,19 @@ fn test_rebase_revisions_before() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
-    ◉  e  nkmrtpmo  41706bd9
+    ○  e  nkmrtpmo  41706bd9
     @  f  xznxytkn  8e3b728a
-    │ ◉  d  lylxulpl  7d0512e5
+    │ ○  d  lylxulpl  7d0512e5
     ├─╯
-    ◉    c  kmkuslsw  cd86b3e4
+    ○    c  kmkuslsw  cd86b3e4
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b2  royxmykx  2b8e1148
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b2  royxmykx  2b8e1148
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1830,19 +1830,19 @@ fn test_rebase_revisions_before() {
     Added 0 files, modified 0 files, removed 5 files
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
-    ◉  e  nkmrtpmo  7cad61fd
-    │ ◉  d  lylxulpl  526b6ab6
+    ○  e  nkmrtpmo  7cad61fd
+    │ ○  d  lylxulpl  526b6ab6
     ├─╯
-    ◉    c  kmkuslsw  445f6927
+    ○    c  kmkuslsw  445f6927
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b2  royxmykx  972bfeb7
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b2  royxmykx  972bfeb7
     @ │  f  xznxytkn  2b4f48f8
-    ◉ │  b1  zsuskuln  072d5ae1
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1857,19 +1857,19 @@ fn test_rebase_revisions_before() {
     Added 0 files, modified 0 files, removed 6 files
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
-    ◉  e  nkmrtpmo  9d5fa6a2
-    │ ◉  d  lylxulpl  ca323694
+    ○  e  nkmrtpmo  9d5fa6a2
+    │ ○  d  lylxulpl  ca323694
     ├─╯
-    ◉    c  kmkuslsw  07426e1a
+    ○    c  kmkuslsw  07426e1a
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b2  royxmykx  55376058
-    ◉ │  b1  zsuskuln  cd5b1d04
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b2  royxmykx  55376058
+    ○ │  b1  zsuskuln  cd5b1d04
     @ │  f  xznxytkn  488ebb95
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1887,19 +1887,19 @@ fn test_rebase_revisions_before() {
     Added 0 files, modified 0 files, removed 2 files
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
-    ◉  e  nkmrtpmo  0ea67093
-    │ ◉  d  lylxulpl  c079568d
+    ○  e  nkmrtpmo  0ea67093
+    │ ○  d  lylxulpl  c079568d
     ├─╯
-    ◉  c  kmkuslsw  6371742b
+    ○  c  kmkuslsw  6371742b
     @    f  xznxytkn  aae1bc10
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b2  royxmykx  2b8e1148
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b2  royxmykx  2b8e1148
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1917,18 +1917,18 @@ fn test_rebase_revisions_before() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  xznxytkn  8268ec4d
-    ◉  e  nkmrtpmo  fd26fbd4
-    │ ◉  d  lylxulpl  21da64b4
+    ○  e  nkmrtpmo  fd26fbd4
+    │ ○  d  lylxulpl  21da64b4
     ├─╯
-    ◉  b1  zsuskuln  83e9b8ac
-    ◉    c  kmkuslsw  a89354fc
+    ○  b1  zsuskuln  83e9b8ac
+    ○    c  kmkuslsw  a89354fc
     ├─╮
-    │ ◉  b4  znkkpsqq  a52a83a4
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b2  royxmykx  b7f03180
+    │ ○  b4  znkkpsqq  a52a83a4
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b2  royxmykx  b7f03180
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1948,21 +1948,21 @@ fn test_rebase_revisions_before() {
     Added 0 files, modified 0 files, removed 4 files
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
-    ◉  e  nkmrtpmo  9436134a
-    │ ◉  d  lylxulpl  534be1ee
+    ○  e  nkmrtpmo  9436134a
+    │ ○  d  lylxulpl  534be1ee
     ├─╯
-    ◉    c  kmkuslsw  bc3ed9f8
+    ○    c  kmkuslsw  bc3ed9f8
     ├─╮
-    │ ◉  b4  znkkpsqq  3e59611b
-    ◉ │  b2  royxmykx  148d7e50
+    │ ○  b4  znkkpsqq  3e59611b
+    ○ │  b2  royxmykx  148d7e50
     ├─╯
     @    f  xznxytkn  7ba8014f
     ├─╮
-    │ ◉  b3  vruxwmqv  523e6a8b
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b3  vruxwmqv  523e6a8b
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -1981,20 +1981,20 @@ fn test_rebase_revisions_before() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  xznxytkn  fabd8dd7
-    ◉  e  nkmrtpmo  b5933877
-    │ ◉  d  lylxulpl  6b91dd66
+    ○  e  nkmrtpmo  b5933877
+    │ ○  d  lylxulpl  6b91dd66
     ├─╯
-    ◉    c  kmkuslsw  d873acf7
+    ○    c  kmkuslsw  d873acf7
     ├─╮
-    │ ◉  b3  vruxwmqv  1fd332d8
-    ◉ │  b1  zsuskuln  8e39430f
+    │ ○  b3  vruxwmqv  1fd332d8
+    ○ │  b1  zsuskuln  8e39430f
     ├─╯
-    ◉    a  rlvkpnrz  414580f5
+    ○    a  rlvkpnrz  414580f5
     ├─╮
-    │ ◉  b4  znkkpsqq  ae3d5bdb
-    ◉ │  b2  royxmykx  a225236e
+    │ ○  b4  znkkpsqq  ae3d5bdb
+    ○ │  b2  royxmykx  a225236e
     ├─╯
-    ◉    zzzzzzzz  00000000
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -2012,20 +2012,20 @@ fn test_rebase_revisions_before() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  xznxytkn  cbe2be58
-    ◉  e  nkmrtpmo  e31053d1
-    ◉    c  kmkuslsw  23155860
+    ○  e  nkmrtpmo  e31053d1
+    ○    c  kmkuslsw  23155860
     ├─╮
-    │ ◉    b4  znkkpsqq  e50520ad
+    │ ○    b4  znkkpsqq  e50520ad
     │ ├─╮
-    ◉ │ │  b2  royxmykx  54f03b06
+    ○ │ │  b2  royxmykx  54f03b06
     ╰─┬─╮
-    ◉ │ │  d  lylxulpl  0c74206e
+    ○ │ │  d  lylxulpl  0c74206e
     ╰─┬─╮
-      │ ◉  b3  vruxwmqv  523e6a8b
-      ◉ │  b1  zsuskuln  072d5ae1
+      │ ○  b3  vruxwmqv  523e6a8b
+      ○ │  b1  zsuskuln  072d5ae1
       ├─╯
-      ◉  a  rlvkpnrz  2443ea76
-      ◉    zzzzzzzz  00000000
+      ○  a  rlvkpnrz  2443ea76
+      ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -2044,18 +2044,18 @@ fn test_rebase_revisions_before() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  xznxytkn  1c48b514
-    │ ◉  d  lylxulpl  4dbbc808
+    │ ○  d  lylxulpl  4dbbc808
     ├─╯
-    ◉    c  kmkuslsw  c0fd979a
+    ○    c  kmkuslsw  c0fd979a
     ├─╮
-    │ ◉  b4  znkkpsqq  4d5c61f4
-    │ ◉  b3  vruxwmqv  d5699c24
-    ◉ │  b2  royxmykx  e23ab998
+    │ ○  b4  znkkpsqq  4d5c61f4
+    │ ○  b3  vruxwmqv  d5699c24
+    ○ │  b2  royxmykx  e23ab998
     ├─╯
-    ◉  a  rlvkpnrz  076f0094
-    ◉  e  nkmrtpmo  20d1f131
-    ◉  b1  zsuskuln  11db739a
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  076f0094
+    ○  e  nkmrtpmo  20d1f131
+    ○  b1  zsuskuln  11db739a
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -2085,16 +2085,16 @@ fn test_rebase_revisions_after_before() {
     // Test the setup
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  lylxulpl  88f778c5
-    ◉  e  kmkuslsw  48dd9e3f
-    │ ◉  d  znkkpsqq  92438fc9
+    ○  e  kmkuslsw  48dd9e3f
+    │ ○  d  znkkpsqq  92438fc9
     ├─╯
-    ◉    c  vruxwmqv  c41e416e
+    ○    c  vruxwmqv  c41e416e
     ├─╮
-    │ ◉  b2  royxmykx  903ab0d6
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b2  royxmykx  903ab0d6
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     let setup_opid = test_env.current_operation_id(&repo_path);
 
@@ -2114,15 +2114,15 @@ fn test_rebase_revisions_after_before() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  lylxulpl  fe3d8c30
-    ◉  d  znkkpsqq  cca70ee1
-    ◉  e  kmkuslsw  48dd9e3f
-    ◉    c  vruxwmqv  c41e416e
+    ○  d  znkkpsqq  cca70ee1
+    ○  e  kmkuslsw  48dd9e3f
+    ○    c  vruxwmqv  c41e416e
     ├─╮
-    │ ◉  b2  royxmykx  903ab0d6
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b2  royxmykx  903ab0d6
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -2144,16 +2144,16 @@ fn test_rebase_revisions_after_before() {
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @    f  lylxulpl  22f0323c
     ├─╮
-    │ ◉  d  znkkpsqq  61388bb6
-    ◉ │  e  kmkuslsw  48dd9e3f
-    ◉ │    c  vruxwmqv  c41e416e
+    │ ○  d  znkkpsqq  61388bb6
+    ○ │  e  kmkuslsw  48dd9e3f
+    ○ │    c  vruxwmqv  c41e416e
     ├───╮
-    │ │ ◉  b2  royxmykx  903ab0d6
+    │ │ ○  b2  royxmykx  903ab0d6
     │ ├─╯
-    ◉ │  b1  zsuskuln  072d5ae1
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -2175,16 +2175,16 @@ fn test_rebase_revisions_after_before() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  lylxulpl  e37682c5
-    ◉      e  kmkuslsw  9bbc9e53
+    ○      e  kmkuslsw  9bbc9e53
     ├─┬─╮
-    │ │ ◉  c  vruxwmqv  e11c7c95
-    │ │ ◉  d  znkkpsqq  37869bd5
+    │ │ ○  c  vruxwmqv  e11c7c95
+    │ │ ○  d  znkkpsqq  37869bd5
     ╭─┬─╯
-    │ ◉  b2  royxmykx  903ab0d6
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b2  royxmykx  903ab0d6
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -2212,16 +2212,16 @@ fn test_rebase_revisions_after_before() {
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @        f  lylxulpl  868f6c61
     ├─┬─┬─╮
-    │ │ │ ◉  e  kmkuslsw  a55a6779
-    │ │ ◉ │  d  znkkpsqq  ae6181e6
+    │ │ │ ○  e  kmkuslsw  a55a6779
+    │ │ ○ │  d  znkkpsqq  ae6181e6
     │ │ ├─╯
-    │ │ ◉  c  vruxwmqv  22540859
-    │ ◉ │  b2  royxmykx  903ab0d6
+    │ │ ○  c  vruxwmqv  22540859
+    │ ○ │  b2  royxmykx  903ab0d6
     │ ├─╯
-    ◉ │  b1  zsuskuln  072d5ae1
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
 
@@ -2251,12 +2251,12 @@ fn test_rebase_skip_emptied() {
     // Test the setup
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]), @r###"
     @  also already empty
-    ◉  already empty
-    ◉  will become empty
-    │ ◉  b
+    ○  already empty
+    ○  will become empty
+    │ ○  b
     ├─╯
-    ◉  a
-    ◉
+    ○  a
+    ◆
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-d=b", "--skip-emptied"]);
@@ -2271,10 +2271,10 @@ fn test_rebase_skip_emptied() {
     // were kept
     insta::assert_snapshot!(test_env.jj_cmd_success(&repo_path, &["log", "-T", "description"]), @r###"
     @  also already empty
-    ◉  already empty
-    ◉  b
-    ◉  a
-    ◉
+    ○  already empty
+    ○  b
+    ○  a
+    ◆
     "###);
 }
 
@@ -2294,16 +2294,16 @@ fn test_rebase_skip_if_on_destination() {
     // Test the setup
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  lylxulpl  88f778c5
-    ◉  e  kmkuslsw  48dd9e3f
-    │ ◉  d  znkkpsqq  92438fc9
+    ○  e  kmkuslsw  48dd9e3f
+    │ ○  d  znkkpsqq  92438fc9
     ├─╯
-    ◉    c  vruxwmqv  c41e416e
+    ○    c  vruxwmqv  c41e416e
     ├─╮
-    │ ◉  b2  royxmykx  903ab0d6
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b2  royxmykx  903ab0d6
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-b", "d", "-d", "a"]);
@@ -2314,16 +2314,16 @@ fn test_rebase_skip_if_on_destination() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  lylxulpl  88f778c5
-    ◉  e  kmkuslsw  48dd9e3f
-    │ ◉  d  znkkpsqq  92438fc9
+    ○  e  kmkuslsw  48dd9e3f
+    │ ○  d  znkkpsqq  92438fc9
     ├─╯
-    ◉    c  vruxwmqv  c41e416e
+    ○    c  vruxwmqv  c41e416e
     ├─╮
-    │ ◉  b2  royxmykx  903ab0d6
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b2  royxmykx  903ab0d6
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
 
     let (stdout, stderr) =
@@ -2335,16 +2335,16 @@ fn test_rebase_skip_if_on_destination() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  lylxulpl  88f778c5
-    ◉  e  kmkuslsw  48dd9e3f
-    │ ◉  d  znkkpsqq  92438fc9
+    ○  e  kmkuslsw  48dd9e3f
+    │ ○  d  znkkpsqq  92438fc9
     ├─╯
-    ◉    c  vruxwmqv  c41e416e
+    ○    c  vruxwmqv  c41e416e
     ├─╮
-    │ ◉  b2  royxmykx  903ab0d6
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b2  royxmykx  903ab0d6
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "d", "-d", "c"]);
@@ -2356,16 +2356,16 @@ fn test_rebase_skip_if_on_destination() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  lylxulpl  88f778c5
-    ◉  e  kmkuslsw  48dd9e3f
-    │ ◉  d  znkkpsqq  92438fc9
+    ○  e  kmkuslsw  48dd9e3f
+    │ ○  d  znkkpsqq  92438fc9
     ├─╯
-    ◉    c  vruxwmqv  c41e416e
+    ○    c  vruxwmqv  c41e416e
     ├─╮
-    │ ◉  b2  royxmykx  903ab0d6
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b2  royxmykx  903ab0d6
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "e", "-d", "c"]);
@@ -2380,17 +2380,17 @@ fn test_rebase_skip_if_on_destination() {
     "###);
     insta::assert_snapshot!(get_long_log_output(&test_env, &repo_path), @r###"
     @  f  lylxulpl  77cb229f
-    │ ◉  e  kmkuslsw  48dd9e3f
+    │ ○  e  kmkuslsw  48dd9e3f
     ├─╯
-    │ ◉  d  znkkpsqq  92438fc9
+    │ ○  d  znkkpsqq  92438fc9
     ├─╯
-    ◉    c  vruxwmqv  c41e416e
+    ○    c  vruxwmqv  c41e416e
     ├─╮
-    │ ◉  b2  royxmykx  903ab0d6
-    ◉ │  b1  zsuskuln  072d5ae1
+    │ ○  b2  royxmykx  903ab0d6
+    ○ │  b1  zsuskuln  072d5ae1
     ├─╯
-    ◉  a  rlvkpnrz  2443ea76
-    ◉    zzzzzzzz  00000000
+    ○  a  rlvkpnrz  2443ea76
+    ◆    zzzzzzzz  00000000
     "###);
 }
 

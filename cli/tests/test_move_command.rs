@@ -56,13 +56,13 @@ fn test_move() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  a847ab4967fe f
-    ◉  c2f9de87325d e
-    ◉  e0dac715116f d
-    │ ◉  59597b34a0d8 c
-    │ ◉  12d6103dc0c8 b
+    ○  c2f9de87325d e
+    ○  e0dac715116f d
+    │ ○  59597b34a0d8 c
+    │ ○  12d6103dc0c8 b
     ├─╯
-    ◉  b7b767179c44 a
-    ◉  000000000000
+    ○  b7b767179c44 a
+    ◆  000000000000
     "###);
 
     // Errors out without arguments
@@ -95,12 +95,12 @@ fn test_move() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  a45950b1b7ff f
-    ◉  c2f9de87325d e
-    ◉  e0dac715116f d
-    │ ◉  12d6103dc0c8 b c
+    ○  c2f9de87325d e
+    ○  e0dac715116f d
+    │ ○  12d6103dc0c8 b c
     ├─╯
-    ◉  b7b767179c44 a
-    ◉  000000000000
+    ○  b7b767179c44 a
+    ◆  000000000000
     "###);
     // The change from the source has been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1"]);
@@ -127,12 +127,12 @@ fn test_move() {
     // became empty and was abandoned)
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  5e5727af3d75 f
-    ◉  ed9c41643a77 e
-    │ ◉  59597b34a0d8 c
-    │ ◉  12d6103dc0c8 b
+    ○  ed9c41643a77 e
+    │ ○  59597b34a0d8 c
+    │ ○  12d6103dc0c8 b
     ├─╯
-    ◉  b7b767179c44 a d
-    ◉  000000000000
+    ○  b7b767179c44 a d
+    ◆  000000000000
     "###);
     // The change from the source has been applied (the file contents were already
     // "f", as is typically the case when moving changes from an ancestor)
@@ -156,12 +156,12 @@ fn test_move() {
     // became empty and was abandoned)
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  e21f6bb01bae f
-    ◉  3cf0fa772663 d e
-    │ ◉  59597b34a0d8 c
-    │ ◉  12d6103dc0c8 b
+    ○  3cf0fa772663 d e
+    │ ○  59597b34a0d8 c
+    │ ○  12d6103dc0c8 b
     ├─╯
-    ◉  b7b767179c44 a
-    ◉  000000000000
+    ○  b7b767179c44 a
+    ◆  000000000000
     "###);
     // The change from the source has been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file2", "-r", "d"]);
@@ -200,11 +200,11 @@ fn test_move_partial() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  e0dac715116f d
-    │ ◉  087591be5a01 c
-    │ ◉  12d6103dc0c8 b
+    │ ○  087591be5a01 c
+    │ ○  12d6103dc0c8 b
     ├─╯
-    ◉  b7b767179c44 a
-    ◉  000000000000
+    ○  b7b767179c44 a
+    ◆  000000000000
     "###);
 
     let edit_script = test_env.set_up_fake_diff_editor();
@@ -221,10 +221,10 @@ fn test_move_partial() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  987bcfb2eb62 d
-    │ ◉  12d6103dc0c8 b c
+    │ ○  12d6103dc0c8 b c
     ├─╯
-    ◉  b7b767179c44 a
-    ◉  000000000000
+    ○  b7b767179c44 a
+    ◆  000000000000
     "###);
     // The changes from the source has been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1"]);
@@ -255,11 +255,11 @@ fn test_move_partial() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  576244e87883 d
-    │ ◉  6f486f2f4539 c
-    │ ◉  12d6103dc0c8 b
+    │ ○  6f486f2f4539 c
+    │ ○  12d6103dc0c8 b
     ├─╯
-    ◉  b7b767179c44 a
-    ◉  000000000000
+    ○  b7b767179c44 a
+    ◆  000000000000
     "###);
     // The selected change from the source has been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1"]);
@@ -292,11 +292,11 @@ fn test_move_partial() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  5b407c249fa7 d
-    │ ◉  724d64da1487 c
-    │ ◉  12d6103dc0c8 b
+    │ ○  724d64da1487 c
+    │ ○  12d6103dc0c8 b
     ├─╯
-    ◉  b7b767179c44 a
-    ◉  000000000000
+    ○  b7b767179c44 a
+    ◆  000000000000
     "###);
     // The selected change from the source has been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1"]);
@@ -327,12 +327,12 @@ fn test_move_partial() {
     Rebased 1 descendant commits
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  d2a587ae205d c
-    ◉  a53394306362 b
+    ○  d2a587ae205d c
+    ○  a53394306362 b
     │ @  e0dac715116f d
     ├─╯
-    ◉  b7b767179c44 a
-    ◉  000000000000
+    ○  b7b767179c44 a
+    ◆  000000000000
     "###);
     // The selected change from the source has been applied
     let stdout = test_env.jj_cmd_success(&repo_path, &["file", "show", "file1", "-r", "b"]);

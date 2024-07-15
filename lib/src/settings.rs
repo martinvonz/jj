@@ -236,16 +236,16 @@ impl UserSettings {
     pub fn commit_node_template(&self) -> String {
         self.node_template_for_key(
             "templates.log_node",
-            r#"if(self, if(current_working_copy, "@", "◉"), "◌")"#,
-            r#"if(self, if(current_working_copy, "@", "o"), ".")"#,
+            "builtin_log_node",
+            "builtin_log_node_ascii",
         )
     }
 
     pub fn op_node_template(&self) -> String {
         self.node_template_for_key(
             "templates.op_log_node",
-            r#"if(current_operation, "@", "◉")"#,
-            r#"if(current_operation, "@", "o")"#,
+            "builtin_op_log_node",
+            "builtin_op_log_node_ascii",
         )
     }
 

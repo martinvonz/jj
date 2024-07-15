@@ -57,11 +57,11 @@ fn test_chmod_regular_conflict() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    conflict
     ├─╮
-    │ ◉  n
-    ◉ │  x
+    │ ○  n
+    ○ │  x
     ├─╯
-    ◉  base
-    ◉
+    ○  base
+    ◆
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["debug", "tree"]);
     insta::assert_snapshot!(stdout, 
@@ -163,15 +163,15 @@ fn test_chmod_file_dir_deletion_conflicts() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    file_deletion
     ├─╮
-    │ ◉  deletion
-    │ │ ◉  file_dir
+    │ ○  deletion
+    │ │ ×  file_dir
     ╭───┤
-    │ │ ◉  dir
+    │ │ ○  dir
     │ ├─╯
-    ◉ │  file
+    ○ │  file
     ├─╯
-    ◉  base
-    ◉
+    ○  base
+    ◆
     "###);
 
     // The file-dir conflict cannot be chmod-ed
