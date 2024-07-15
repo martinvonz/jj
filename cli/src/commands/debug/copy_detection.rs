@@ -12,21 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#![allow(unused, dead_code)]
-
 use std::fmt::Debug;
 use std::io::Write as _;
-use std::path::{Path, PathBuf};
 
 use futures::executor::block_on_stream;
-use futures::StreamExt;
-use jj_lib::backend::{Backend, CopyRecord, CopySource, CopySources};
-use jj_lib::default_index::{AsCompositeIndex as _, DefaultIndexStore};
-use jj_lib::op_walk;
-use jj_lib::repo_path::{RepoPath, RepoPathBuf};
+use jj_lib::backend::{Backend, CopyRecord};
 
 use crate::cli_util::{CommandHelper, RevisionArg};
-use crate::command_error::{internal_error, user_error, CommandError};
+use crate::command_error::CommandError;
 use crate::ui::Ui;
 
 /// Rebuild commit index
@@ -48,32 +41,18 @@ pub fn cmd_debug_copy_detection(
         return Ok(());
     };
     let commit = ws.resolve_single_rev(&args.revision)?;
-    let tree = commit.tree()?;
-
-    let paths: Vec<RepoPathBuf> = tree.entries().map(|(path, _)| path).collect();
-    let commits = [commit.id().clone()];
-    let parents = commit.parent_ids();
-    for copy_record in
-        block_on_stream(git.get_copy_records(&paths, parents, &commits)?).filter_map(|r| r.ok())
-    {
-        match copy_record.sources {
-            CopySources::Resolved(CopySource { path, .. }) => {
-                write!(ui.stdout(), "{}", path.as_internal_file_string());
-            }
-            CopySources::Conflict(conflicting) => {
-                let mut sorted: Vec<_> = conflicting
-                    .iter()
-                    .map(|s| s.path.as_internal_file_string())
-                    .collect();
-                sorted.sort();
-                write!(ui.stdout(), "{{ {} }}", sorted.join(", "));
-            }
+    for parent_id in commit.parent_ids() {
+        for CopyRecord { target, source, .. } in
+            block_on_stream(git.get_copy_records(&[], parent_id, commit.id())?)
+                .filter_map(|r| r.ok())
+        {
+            writeln!(
+                ui.stdout(),
+                "{} -> {}",
+                source.as_internal_file_string(),
+                target.as_internal_file_string()
+            )?;
         }
-        writeln!(
-            ui.stdout(),
-            " -> {}",
-            copy_record.target.as_internal_file_string()
-        );
     }
     Ok(())
 }

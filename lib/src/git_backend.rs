@@ -26,7 +26,7 @@ use std::{fs, io, str};
 
 use async_trait::async_trait;
 use futures::stream::BoxStream;
-use gix::bstr::{BStr, BString};
+use gix::bstr::BString;
 use gix::objs::{CommitRef, CommitRefIter, WriteTo};
 use itertools::Itertools;
 use pollster::FutureExt;
@@ -36,9 +36,9 @@ use thiserror::Error;
 
 use crate::backend::{
     make_root_commit, Backend, BackendError, BackendInitError, BackendLoadError, BackendResult,
-    ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictTerm, CopyRecord, CopySource,
-    CopySources, FileId, MergedTreeId, MillisSinceEpoch, SecureSig, Signature, SigningFn,
-    SymlinkId, Timestamp, Tree, TreeId, TreeValue,
+    ChangeId, Commit, CommitId, Conflict, ConflictId, ConflictTerm, CopyRecord, FileId,
+    MergedTreeId, MillisSinceEpoch, SecureSig, Signature, SigningFn, SymlinkId, Timestamp, Tree,
+    TreeId, TreeValue,
 };
 use crate::file_util::{IoResultExt as _, PathError};
 use crate::index::Index;
@@ -1256,28 +1256,13 @@ impl Backend for GitBackend {
     fn get_copy_records(
         &self,
         paths: &[RepoPathBuf],
-        roots: &[CommitId],
-        heads: &[CommitId],
+        root_id: &CommitId,
+        head_id: &CommitId,
     ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>> {
-        if paths.is_empty() || roots.is_empty() || heads.is_empty() {
-            return Ok(Box::pin(futures::stream::empty()));
-        }
-        if roots.len() != 1 || heads.len() != 1 {
-            return Err(BackendError::Unsupported(
-                "GitBackend does not support getting copy records for multiple commits".into(),
-            ));
-        }
-        let root_id = &roots[0];
-        let head_id = &heads[0];
-
         let repo = self.git_repo();
         let root_tree = self.read_tree_for_commit(&repo, root_id)?;
         let head_tree = self.read_tree_for_commit(&repo, head_id)?;
 
-        let paths: HashSet<&BStr> = paths
-            .iter()
-            .map(|p| BStr::new(p.as_internal_file_string()))
-            .collect();
         let change_to_copy_record =
             |change: gix::object::tree::diff::Change| -> BackendResult<Option<CopyRecord>> {
                 let gix::object::tree::diff::Change {
@@ -1293,22 +1278,23 @@ impl Backend for GitBackend {
                 else {
                     return Ok(None);
                 };
-                if !paths.contains(dest_location) {
-                    return Ok(None);
-                }
 
                 let source = str::from_utf8(source_location)
                     .map_err(|err| to_invalid_utf8_err(err, root_id))?;
                 let dest = str::from_utf8(dest_location)
                     .map_err(|err| to_invalid_utf8_err(err, head_id))?;
+
+                let target = RepoPathBuf::from_internal_string(dest);
+                if !paths.is_empty() && !paths.contains(&target) {
+                    return Ok(None);
+                }
+
                 Ok(Some(CopyRecord {
-                    target: RepoPathBuf::from_internal_string(dest),
-                    id: head_id.clone(),
-                    sources: CopySources::Resolved(CopySource {
-                        path: RepoPathBuf::from_internal_string(source),
-                        file: FileId::from_bytes(source_id.as_bytes()),
-                        commit: Some(root_id.clone()),
-                    }),
+                    target,
+                    target_commit: head_id.clone(),
+                    source: RepoPathBuf::from_internal_string(source),
+                    source_file: FileId::from_bytes(source_id.as_bytes()),
+                    source_commit: root_id.clone(),
                 }))
             };
 
