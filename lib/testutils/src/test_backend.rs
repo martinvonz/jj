@@ -304,8 +304,8 @@ impl Backend for TestBackend {
     fn get_copy_records(
         &self,
         _paths: &[RepoPathBuf],
-        _roots: &[CommitId],
-        _heads: &[CommitId],
+        _root: &CommitId,
+        _head: &CommitId,
     ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>> {
         Err(BackendError::Unsupported("get_copy_records".into()))
     }
