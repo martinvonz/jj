@@ -43,13 +43,13 @@ fn test_basics() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    [znk] e
     ├─╮
-    │ ◉  [vru] d
-    │ ◉  [roy] c
-    │ │ ◉  [zsu] b
+    │ ○  [vru] d
+    │ ○  [roy] c
+    │ │ ○  [zsu] b
     ├───╯
-    ◉ │  [rlv] a
+    ○ │  [rlv] a
     ├─╯
-    ◉  [zzz]
+    ◆  [zzz]
     "###);
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "d"]);
@@ -65,12 +65,12 @@ fn test_basics() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    [znk] e
     ├─╮
-    │ ◉  [roy] c d
-    │ │ ◉  [zsu] b
+    │ ○  [roy] c d
+    │ │ ○  [zsu] b
     ├───╯
-    ◉ │  [rlv] a
+    ○ │  [rlv] a
     ├─╯
-    ◉  [zzz]
+    ◆  [zzz]
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -86,13 +86,13 @@ fn test_basics() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    [nkm]
     ├─╮
-    │ ◉  [vru] d e??
-    │ ◉  [roy] c
-    │ │ ◉  [zsu] b
+    │ ○  [vru] d e??
+    │ ○  [roy] c
+    │ │ ○  [zsu] b
     ├───╯
-    ◉ │  [rlv] a e??
+    ○ │  [rlv] a e??
     ├─╯
-    ◉  [zzz]
+    ◆  [zzz]
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["undo"]);
@@ -110,12 +110,12 @@ fn test_basics() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    [xtn]
     ├─╮
-    │ ◉  [roy] c d e??
-    │ │ ◉  [zsu] b
+    │ ○  [roy] c d e??
+    │ │ ○  [zsu] b
     ├───╯
-    ◉ │  [rlv] a e??
+    ○ │  [rlv] a e??
     ├─╯
-    ◉  [zzz]
+    ◆  [zzz]
     "###);
 
     // Test abandoning the same commit twice directly
@@ -128,11 +128,11 @@ fn test_basics() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    [znk] e
     ├─╮
-    │ ◉  [vru] d
-    │ ◉  [roy] c
-    ◉ │  [rlv] a b
+    │ ○  [vru] d
+    │ ○  [roy] c
+    ○ │  [rlv] a b
     ├─╯
-    ◉  [zzz]
+    ◆  [zzz]
     "###);
 
     // Test abandoning the same commit twice indirectly
@@ -151,12 +151,12 @@ fn test_basics() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    [xlz]
     ├─╮
-    │ ◉  [roy] c d e??
-    │ │ ◉  [zsu] b
+    │ ○  [roy] c d e??
+    │ │ ○  [zsu] b
     ├───╯
-    ◉ │  [rlv] a e??
+    ○ │  [rlv] a e??
     ├─╯
-    ◉  [zzz]
+    ◆  [zzz]
     "###);
 
     let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "none()"]);
@@ -185,13 +185,13 @@ fn test_bug_2600() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  [znk] c
-    ◉    [vru] b
+    ○    [vru] b
     ├─╮
-    │ ◉  [roy] a
+    │ ○  [roy] a
     ├─╯
-    ◉  [zsu] base
-    ◉  [rlv] nottherootcommit
-    ◉  [zzz]
+    ○  [zsu] base
+    ○  [rlv] nottherootcommit
+    ◆  [zzz]
     "###);
     let setup_opid = test_env.current_operation_id(&repo_path);
 
@@ -209,12 +209,12 @@ fn test_bug_2600() {
     // should keep "a" as second parent.
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  [znk] c
-    ◉    [vru] b
+    ○    [vru] b
     ├─╮
-    │ ◉  [roy] a
+    │ ○  [roy] a
     ├─╯
-    ◉  [rlv] base nottherootcommit
-    ◉  [zzz]
+    ○  [rlv] base nottherootcommit
+    ◆  [zzz]
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
@@ -232,10 +232,10 @@ fn test_bug_2600() {
     // "a".
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  [znk] c
-    ◉  [vru] b
-    ◉  [zsu] a base
-    ◉  [rlv] nottherootcommit
-    ◉  [zzz]
+    ○  [vru] b
+    ○  [zsu] a base
+    ○  [rlv] nottherootcommit
+    ◆  [zzz]
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
@@ -253,24 +253,24 @@ fn test_bug_2600() {
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @    [znk] c
     ├─╮
-    │ ◉  [roy] a b??
+    │ ○  [roy] a b??
     ├─╯
-    ◉  [zsu] b?? base
-    ◉  [rlv] nottherootcommit
-    ◉  [zzz]
+    ○  [zsu] b?? base
+    ○  [rlv] nottherootcommit
+    ◆  [zzz]
     "###);
 
     test_env.jj_cmd_ok(&repo_path, &["op", "restore", &setup_opid]);
     // ========= Reminder of the setup ===========
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  [znk] c
-    ◉    [vru] b
+    ○    [vru] b
     ├─╮
-    │ ◉  [roy] a
+    │ ○  [roy] a
     ├─╯
-    ◉  [zsu] base
-    ◉  [rlv] nottherootcommit
-    ◉  [zzz]
+    ○  [zsu] base
+    ○  [rlv] nottherootcommit
+    ◆  [zzz]
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["abandon", "a", "b"]);
     insta::assert_snapshot!(stdout, @"");
@@ -287,9 +287,9 @@ fn test_bug_2600() {
     // not have two parent pointers to the same commit.
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  [znk] c
-    ◉  [zsu] a b base
-    ◉  [rlv] nottherootcommit
-    ◉  [zzz]
+    ○  [zsu] a b base
+    ○  [rlv] nottherootcommit
+    ◆  [zzz]
     "###);
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "list", "b"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -313,12 +313,12 @@ fn test_bug_2600_rootcommit_special_case() {
     // Setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  [vru] c
-    ◉    [roy] b
+    ○    [roy] b
     ├─╮
-    │ ◉  [zsu] a
+    │ ○  [zsu] a
     ├─╯
-    ◉  [rlv] base
-    ◉  [zzz]
+    ○  [rlv] base
+    ◆  [zzz]
     "###);
 
     // Now, the test

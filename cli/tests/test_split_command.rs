@@ -38,7 +38,7 @@ fn test_split_by_paths() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  qpvuntsmwlqt false
-    ◉  zzzzzzzzzzzz true
+    ◆  zzzzzzzzzzzz true
     "###);
     insta::assert_snapshot!(get_recorded_dates(&test_env, &repo_path,"@"), @r###"
     Author date:  2001-02-03 04:05:08.000 +07:00
@@ -72,8 +72,8 @@ fn test_split_by_paths() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  zsuskulnrvyr false
-    ◉  qpvuntsmwlqt false
-    ◉  zzzzzzzzzzzz true
+    ○  qpvuntsmwlqt false
+    ◆  zzzzzzzzzzzz true
     "###);
 
     // The author dates of the new commits should be inherited from the commit being
@@ -111,9 +111,9 @@ fn test_split_by_paths() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  zsuskulnrvyr false
-    ◉  znkkpsqqskkl true
-    ◉  qpvuntsmwlqt false
-    ◉  zzzzzzzzzzzz true
+    ○  znkkpsqqskkl true
+    ○  qpvuntsmwlqt false
+    ◆  zzzzzzzzzzzz true
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@--"]);
@@ -139,9 +139,9 @@ fn test_split_by_paths() {
 
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  zsuskulnrvyr false
-    ◉  lylxulplsnyw false
-    ◉  qpvuntsmwlqt true
-    ◉  zzzzzzzzzzzz true
+    ○  lylxulplsnyw false
+    ○  qpvuntsmwlqt true
+    ◆  zzzzzzzzzzzz true
     "###);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@-"]);
@@ -206,8 +206,8 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     );
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @  kkmpptxzrspx false part 2
-    ◉  qpvuntsmwlqt false part 1
-    ◉  zzzzzzzzzzzz true
+    ○  qpvuntsmwlqt false part 1
+    ◆  zzzzzzzzzzzz true
     "###);
 }
 
@@ -259,8 +259,8 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
     assert!(!test_env.env_root().join("editor2").exists());
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @  kkmpptxzrspx false test_branch
-    ◉  qpvuntsmwlqt false TESTED=TODO
-    ◉  zzzzzzzzzzzz true
+    ○  qpvuntsmwlqt false TESTED=TODO
+    ◆  zzzzzzzzzzzz true
     "###);
 }
 
@@ -282,10 +282,10 @@ fn test_split_with_merge_child() {
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @    zsuskulnrvyr true 2
     ├─╮
-    │ ◉  kkmpptxzrspx false a
-    ◉ │  qpvuntsmwlqt true 1
+    │ ○  kkmpptxzrspx false a
+    ○ │  qpvuntsmwlqt true 1
     ├─╯
-    ◉  zzzzzzzzzzzz true
+    ◆  zzzzzzzzzzzz true
     "###);
 
     // Set up the editor and do the split.
@@ -309,11 +309,11 @@ fn test_split_with_merge_child() {
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @    zsuskulnrvyr true 2
     ├─╮
-    │ ◉  royxmykxtrkr false Add file2
-    │ ◉  kkmpptxzrspx false Add file1
-    ◉ │  qpvuntsmwlqt true 1
+    │ ○  royxmykxtrkr false Add file2
+    │ ○  kkmpptxzrspx false Add file1
+    ○ │  qpvuntsmwlqt true 1
     ├─╯
-    ◉  zzzzzzzzzzzz true
+    ◆  zzzzzzzzzzzz true
     "###);
 }
 
@@ -334,7 +334,7 @@ fn test_split_siblings_no_descendants() {
     test_env.jj_cmd_ok(&workspace_path, &["branch", "create", "test_branch"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @  qpvuntsmwlqt false test_branch
-    ◉  zzzzzzzzzzzz true
+    ◆  zzzzzzzzzzzz true
     "###);
 
     let edit_script = test_env.set_up_fake_editor();
@@ -354,9 +354,9 @@ fn test_split_siblings_no_descendants() {
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @  zsuskulnrvyr false test_branch
-    │ ◉  qpvuntsmwlqt false TESTED=TODO
+    │ ○  qpvuntsmwlqt false TESTED=TODO
     ├─╯
-    ◉  zzzzzzzzzzzz true
+    ◆  zzzzzzzzzzzz true
     "###);
 
     // Since the commit being split has no description, the user will only be
@@ -401,10 +401,10 @@ fn test_split_siblings_with_descendants() {
     test_env.jj_cmd_ok(&workspace_path, &["prev", "--edit"]);
     test_env.jj_cmd_ok(&workspace_path, &["prev", "--edit"]);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    ◉  kkmpptxzrspx false Add file4
-    ◉  rlvkpnrzqnoo false Add file3
+    ○  kkmpptxzrspx false Add file4
+    ○  rlvkpnrzqnoo false Add file3
     @  qpvuntsmwlqt false Add file1 & file2
-    ◉  zzzzzzzzzzzz true
+    ◆  zzzzzzzzzzzz true
     "###);
 
     // Set up the editor and do the split.
@@ -432,13 +432,13 @@ fn test_split_siblings_with_descendants() {
     Added 0 files, modified 0 files, removed 1 files
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
-    ◉  kkmpptxzrspx false Add file4
-    ◉    rlvkpnrzqnoo false Add file3
+    ○  kkmpptxzrspx false Add file4
+    ○    rlvkpnrzqnoo false Add file3
     ├─╮
     │ @  vruxwmqvtpmx false Add file2
-    ◉ │  qpvuntsmwlqt false Add file1
+    ○ │  qpvuntsmwlqt false Add file1
     ├─╯
-    ◉  zzzzzzzzzzzz true
+    ◆  zzzzzzzzzzzz true
     "###);
 
     // The commit we're splitting has a description, so the user will be
@@ -485,10 +485,10 @@ fn test_split_siblings_with_merge_child() {
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @    zsuskulnrvyr true 2
     ├─╮
-    │ ◉  kkmpptxzrspx false a
-    ◉ │  qpvuntsmwlqt true 1
+    │ ○  kkmpptxzrspx false a
+    ○ │  qpvuntsmwlqt true 1
     ├─╯
-    ◉  zzzzzzzzzzzz true
+    ◆  zzzzzzzzzzzz true
     "###);
 
     // Set up the editor and do the split.
@@ -515,12 +515,12 @@ fn test_split_siblings_with_merge_child() {
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @      zsuskulnrvyr true 2
     ├─┬─╮
-    │ │ ◉  royxmykxtrkr false Add file2
-    │ ◉ │  kkmpptxzrspx false Add file1
+    │ │ ○  royxmykxtrkr false Add file2
+    │ ○ │  kkmpptxzrspx false Add file1
     │ ├─╯
-    ◉ │  qpvuntsmwlqt true 1
+    ○ │  qpvuntsmwlqt true 1
     ├─╯
-    ◉  zzzzzzzzzzzz true
+    ◆  zzzzzzzzzzzz true
     "###);
 }
 

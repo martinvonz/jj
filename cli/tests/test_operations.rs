@@ -39,11 +39,11 @@ fn test_op_log() {
     @  c1851f1c3d90 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj describe -m 'description 0'
-    ◉  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ○  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ○  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
-    ◉  000000000000 root()
+    ○  000000000000 root()
     "###);
     let op_log_lines = stdout.lines().collect_vec();
     let add_workspace_id = op_log_lines[3].split(' ').nth(2).unwrap();
@@ -51,21 +51,21 @@ fn test_op_log() {
 
     // Can load the repo at a specific operation ID
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path, initialize_repo_id), @r###"
-    ◉  0000000000000000000000000000000000000000
+    ◆  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path, add_workspace_id), @r###"
     @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    ◉  0000000000000000000000000000000000000000
+    ◆  0000000000000000000000000000000000000000
     "###);
     // "@" resolves to the head operation
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path, "@"), @r###"
     @  19611c995a342c01f525583e5fcafdd211f6d009
-    ◉  0000000000000000000000000000000000000000
+    ◆  0000000000000000000000000000000000000000
     "###);
     // "@-" resolves to the parent of the head operation
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path, "@-"), @r###"
     @  230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    ◉  0000000000000000000000000000000000000000
+    ◆  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(
         test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "@----"]), @r###"
@@ -212,22 +212,22 @@ fn test_op_log_template() {
 
     insta::assert_snapshot!(render(r#"id ++ "\n""#), @r###"
     @  b51416386f2685fd5493f2b20e8eec3c24a1776d9e1a7cb5ed7e30d2d9c88c0c1e1fe71b0b7358cba60de42533d1228ed9878f2f89817d892c803395ccf9fe92
-    ◉  9a7d829846af88a2f7a1e348fb46ff58729e49632bc9c6a052aec8501563cb0d10f4a4e6010ffde529f84a2b9b5b3a4c211a889106a41f6c076dfdacc79f6af7
-    ◉  00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    ○  9a7d829846af88a2f7a1e348fb46ff58729e49632bc9c6a052aec8501563cb0d10f4a4e6010ffde529f84a2b9b5b3a4c211a889106a41f6c076dfdacc79f6af7
+    ○  00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(
         render(r#"separate(" ", id.short(5), current_operation, user,
                                 time.start(), time.end(), time.duration()) ++ "\n""#), @r###"
     @  b5141 true test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
-    ◉  9a7d8 false test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
-    ◉  00000 false @ 1970-01-01 00:00:00.000 +00:00 1970-01-01 00:00:00.000 +00:00 less than a microsecond
+    ○  9a7d8 false test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 2001-02-03 04:05:07.000 +07:00 less than a microsecond
+    ○  00000 false @ 1970-01-01 00:00:00.000 +00:00 1970-01-01 00:00:00.000 +00:00 less than a microsecond
     "###);
 
     // Negative length shouldn't cause panic.
     insta::assert_snapshot!(render(r#"id.short(-1) ++ "|""#), @r###"
     @  <Error: out of range integral type conversion attempted>|
-    ◉  <Error: out of range integral type conversion attempted>|
-    ◉  <Error: out of range integral type conversion attempted>|
+    ○  <Error: out of range integral type conversion attempted>|
+    ○  <Error: out of range integral type conversion attempted>|
     "###);
 
     // Test the default template, i.e. with relative start time and duration. We
@@ -244,9 +244,9 @@ fn test_op_log_template() {
     insta::assert_snapshot!(regex.replace_all(&stdout, "NN years"), @r###"
     @  b51416386f26 test-username@host.example.com NN years ago, lasted less than a microsecond
     │  add workspace 'default'
-    ◉  9a7d829846af test-username@host.example.com NN years ago, lasted less than a microsecond
+    ○  9a7d829846af test-username@host.example.com NN years ago, lasted less than a microsecond
     │  initialize repo
-    ◉  000000000000 root()
+    ○  000000000000 root()
     "###);
 }
 
@@ -314,9 +314,9 @@ fn test_op_log_word_wrap() {
     insta::assert_snapshot!(render(&["op", "log"], 40, false), @r###"
     @  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ○  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
-    ◉  000000000000 root()
+    ○  000000000000 root()
     "###);
     insta::assert_snapshot!(render(&["op", "log"], 40, true), @r###"
     @  b51416386f26
@@ -324,12 +324,12 @@ fn test_op_log_word_wrap() {
     │  2001-02-03 04:05:07.000 +07:00 -
     │  2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  9a7d829846af
+    ○  9a7d829846af
     │  test-username@host.example.com
     │  2001-02-03 04:05:07.000 +07:00 -
     │  2001-02-03 04:05:07.000 +07:00
     │  initialize repo
-    ◉  000000000000 root()
+    ○  000000000000 root()
     "###);
 }
 
@@ -365,14 +365,14 @@ fn test_op_abandon_ancestors() {
     @  c2878c428b1c test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
     │  commit 81a4ef3dd421f3184289df1c58bd3a16ea1e3d8e
     │  args: jj commit -m 'commit 2'
-    ◉  5d0ab09ab0fa test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    ○  5d0ab09ab0fa test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
     │  commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj commit -m 'commit 1'
-    ◉  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ○  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
-    ◉  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    ○  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  initialize repo
-    ◉  000000000000 root()
+    ○  000000000000 root()
     "###);
 
     // Abandon old operations. The working-copy operation id should be updated.
@@ -389,7 +389,7 @@ fn test_op_abandon_ancestors() {
     @  8545e0137524 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
     │  commit 81a4ef3dd421f3184289df1c58bd3a16ea1e3d8e
     │  args: jj commit -m 'commit 2'
-    ◉  000000000000 root()
+    ○  000000000000 root()
     "###);
 
     // Abandon operation range.
@@ -404,10 +404,10 @@ fn test_op_abandon_ancestors() {
     @  d92d0753399f test-username@host.example.com 2001-02-03 04:05:16.000 +07:00 - 2001-02-03 04:05:16.000 +07:00
     │  commit c5f7dd51add0046405055336ef443f882a0a8968
     │  args: jj commit -m 'commit 5'
-    ◉  8545e0137524 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    ○  8545e0137524 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
     │  commit 81a4ef3dd421f3184289df1c58bd3a16ea1e3d8e
     │  args: jj commit -m 'commit 2'
-    ◉  000000000000 root()
+    ○  000000000000 root()
     "###);
 
     // Can't abandon the current operation.
@@ -438,10 +438,10 @@ fn test_op_abandon_ancestors() {
     @  0699d720d0ce test-username@host.example.com 2001-02-03 04:05:21.000 +07:00 - 2001-02-03 04:05:21.000 +07:00
     │  undo operation d92d0753399f732e438bdd88fa7e5214cba2a310d120ec1714028a514c7116bcf04b4a0b26c04dbecf0a917f1d4c8eb05571b8816dd98b0502aaf321e92500b3
     │  args: jj undo
-    ◉  8545e0137524 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    ○  8545e0137524 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
     │  commit 81a4ef3dd421f3184289df1c58bd3a16ea1e3d8e
     │  args: jj commit -m 'commit 2'
-    ◉  000000000000 root()
+    ○  000000000000 root()
     "###);
 
     // Abandon empty range.

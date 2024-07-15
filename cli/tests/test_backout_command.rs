@@ -46,7 +46,7 @@ fn test_backout() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  2443ea76b0b1 a
-    ◉  000000000000
+    ◆  000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -58,11 +58,11 @@ fn test_backout() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  6d845ed9fb6a Back out "a"
+    ○  6d845ed9fb6a Back out "a"
     │
     │  This backs out commit 2443ea76b0b1c531326908326aab7020abab8e6c.
     @  2443ea76b0b1 a
-    ◉  000000000000
+    ◆  000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@+"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -75,14 +75,14 @@ fn test_backout() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  79555ea9040b Back out "Back out "a""
+    ○  79555ea9040b Back out "Back out "a""
     │
     │  This backs out commit 6d845ed9fb6a3d367e2d7068ef0256b1a10705a9.
     @  6d845ed9fb6a Back out "a"
     │
     │  This backs out commit 2443ea76b0b1c531326908326aab7020abab8e6c.
-    ◉  2443ea76b0b1 a
-    ◉  000000000000
+    ○  2443ea76b0b1 a
+    ◆  000000000000
     "###);
     let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "-r", "@+"]);
     insta::assert_snapshot!(stdout, @r###"
@@ -111,11 +111,11 @@ fn test_backout_multiple() {
     // Test the setup
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
     @  208f8612074a e
-    ◉  ceeec03be46b d
-    ◉  413337bbd11f c
-    ◉  46cc97af6802 b
-    ◉  2443ea76b0b1 a
-    ◉  000000000000
+    ○  ceeec03be46b d
+    ○  413337bbd11f c
+    ○  46cc97af6802 b
+    ○  2443ea76b0b1 a
+    ◆  000000000000
     "###);
 
     // Backout multiple commits
@@ -124,21 +124,21 @@ fn test_backout_multiple() {
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(get_log_output(&test_env, &repo_path), @r###"
-    ◉  6504c4ded177 Back out "b"
+    ○  6504c4ded177 Back out "b"
     │
     │  This backs out commit 46cc97af6802301d8db381386e8485ff3ff24ae6.
-    ◉  d31d42e0267f Back out "c"
+    ○  d31d42e0267f Back out "c"
     │
     │  This backs out commit 413337bbd11f7a6636c010d9e196acf801d8df2f.
-    ◉  8ff3fbc2ccb0 Back out "e"
+    ○  8ff3fbc2ccb0 Back out "e"
     │
     │  This backs out commit 208f8612074af4c219d06568a8e1f04f2e80dc25.
     @  208f8612074a e
-    ◉  ceeec03be46b d
-    ◉  413337bbd11f c
-    ◉  46cc97af6802 b
-    ◉  2443ea76b0b1 a
-    ◉  000000000000
+    ○  ceeec03be46b d
+    ○  413337bbd11f c
+    ○  46cc97af6802 b
+    ○  2443ea76b0b1 a
+    ◆  000000000000
     "###);
     // View the output of each backed out commit
     let stdout = test_env.jj_cmd_success(&repo_path, &["show", "@+"]);

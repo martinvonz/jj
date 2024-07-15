@@ -20,6 +20,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   branches aren't managed by you. Therefore, untracked branches are no longer
   displayed in `jj log` by default.
 
+* Updated defaults for graph node symbol templates `templates.log_node` and
+  `templates.op_log_node`.
+
 ### Deprecations
 
 ### New features
