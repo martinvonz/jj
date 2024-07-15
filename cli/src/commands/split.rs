@@ -47,7 +47,7 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub(crate) struct SplitArgs {
     /// Interactively choose which parts to split. This is the default if no
-    /// paths are provided.
+    /// paths are provided and `--from` is not used.
     #[arg(long, short)]
     interactive: bool,
     /// Specify diff editor to be used (implies --interactive)
@@ -60,6 +60,31 @@ pub(crate) struct SplitArgs {
         add = ArgValueCandidates::new(complete::mutable_revisions)
     )]
     revision: RevisionArg,
+    /// The revision to copy as the first part of the split (Experimental)
+    ///
+    /// This option's behavior may change in the future. Experience reports and
+    /// feedback are appreciated.
+    ///
+    /// With this option, the first part of the split will contain the changes
+    /// between the parent of the REVISION and the FROM revision. The second
+    /// part of the split will contain the changes between the FROM revision and
+    /// the REVISION revision.
+    ///
+    /// This is especially useful if the FROM revision is a past version of
+    /// REVISION, with its commit id obtained via `jj obslog` or `jj log
+    /// --at-operation`.
+    //
+    // TODO(ilyagr): We could allow `--interactive --from`. It's unclear how
+    // useful that would be. It would mostly require writing tests and
+    // JJ-INSTRUCTIONS. More ambitiously, we could have a 3-pane interactive view
+    // with the FROM commit in the middle and the REVISION commit on the RHS.
+    #[arg(
+        long,
+        conflicts_with = "interactive",
+        visible_alias = "from",
+        value_name = "FROM"
+    )]
+    restore_from: Option<RevisionArg>,
     /// Split the revision into two parallel revisions instead of a parent and
     /// child.
     // TODO: Delete `--siblings` alias in jj 0.25+
@@ -84,6 +109,11 @@ pub(crate) fn cmd_split(
             "Use `jj new` if you want to create another empty commit.",
         ));
     }
+    let from_revision = args
+        .restore_from
+        .as_ref()
+        .map(|revstr| workspace_command.resolve_single_rev(ui, revstr))
+        .transpose()?;
 
     workspace_command.check_rewritable([commit.id()])?;
     let matcher = workspace_command
@@ -92,11 +122,12 @@ pub(crate) fn cmd_split(
     let diff_selector = workspace_command.diff_selector(
         ui,
         args.tool.as_deref(),
-        args.interactive || args.paths.is_empty(),
+        args.interactive || (args.paths.is_empty() && args.restore_from.is_none()),
     )?;
     let mut tx = workspace_command.start_transaction();
     let end_tree = commit.tree()?;
     let base_tree = commit.parent_tree(tx.repo())?;
+    // Note: --from --interactive is currently forbidden, ensured by `clap`
     let format_instructions = || {
         format!(
             "\
@@ -111,9 +142,15 @@ The remainder will be in the second commit.
         )
     };
 
-    // Prompt the user to select the changes they want for the first commit.
-    let selected_tree_id =
-        diff_selector.select(&base_tree, &end_tree, matcher.as_ref(), format_instructions)?;
+    // Figure out what changes should go into the first commit (possibly
+    // interactively)
+    let from_revision_tree = from_revision.as_ref().map(|rev| rev.tree()).transpose()?;
+    let selected_tree_id = diff_selector.select(
+        &base_tree,
+        from_revision_tree.as_ref().unwrap_or(&end_tree),
+        matcher.as_ref(),
+        format_instructions,
+    )?;
     if &selected_tree_id == commit.tree_id() {
         // The user selected everything from the original commit.
         writeln!(
@@ -136,6 +173,11 @@ The remainder will be in the second commit.
             .rewrite_commit(command.settings(), &commit)
             .detach();
         commit_builder.set_tree_id(selected_tree_id);
+        // TODO(ilyagr): When --from is used, we could show either both descriptions or
+        // one of the descriptions and a diff.
+        if let Some(from_revision) = from_revision {
+            commit_builder.set_description(from_revision.description());
+        };
         if commit_builder.description().is_empty() {
             commit_builder.set_description(command.settings().default_description());
         }
