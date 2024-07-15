@@ -246,7 +246,7 @@ impl<'a> DiffRenderer<'a> {
         to_tree: &MergedTree,
         matcher: &dyn Matcher,
     ) -> Result<(), DiffRenderError> {
-        let repo = self.repo;
+        let store = self.repo.store();
         let path_converter = self.path_converter;
         for format in &self.formats {
             match format {
@@ -258,7 +258,7 @@ impl<'a> DiffRenderer<'a> {
                     let tree_diff = from_tree.diff_stream(to_tree, matcher);
                     // TODO: In graph log, graph width should be subtracted
                     let width = usize::from(ui.term_width().unwrap_or(80));
-                    show_diff_stat(repo, formatter, tree_diff, path_converter, width)?;
+                    show_diff_stat(formatter, store, tree_diff, path_converter, width)?;
                 }
                 DiffFormat::Types => {
                     let tree_diff = from_tree.diff_stream(to_tree, matcher);
@@ -270,11 +270,11 @@ impl<'a> DiffRenderer<'a> {
                 }
                 DiffFormat::Git { context } => {
                     let tree_diff = from_tree.diff_stream(to_tree, matcher);
-                    show_git_diff(repo, formatter, *context, tree_diff)?;
+                    show_git_diff(formatter, store, tree_diff, *context)?;
                 }
                 DiffFormat::ColorWords { context } => {
                     let tree_diff = from_tree.diff_stream(to_tree, matcher);
-                    show_color_words_diff(repo, formatter, *context, tree_diff, path_converter)?;
+                    show_color_words_diff(formatter, store, tree_diff, path_converter, *context)?;
                 }
                 DiffFormat::Tool(tool) => {
                     match tool.diff_invocation_mode {
@@ -282,11 +282,11 @@ impl<'a> DiffRenderer<'a> {
                             let tree_diff = from_tree.diff_stream(to_tree, matcher);
                             show_file_by_file_diff(
                                 ui,
-                                repo,
                                 formatter,
-                                tool,
+                                store,
                                 tree_diff,
                                 path_converter,
+                                tool,
                             )
                         }
                         DiffToolMode::Dir => {
@@ -527,14 +527,14 @@ fn basic_diff_file_type(value: &MaterializedTreeValue) -> &'static str {
 }
 
 pub fn show_color_words_diff(
-    repo: &dyn Repo,
     formatter: &mut dyn Formatter,
-    num_context_lines: usize,
+    store: &Store,
     tree_diff: TreeDiffStream,
     path_converter: &RepoPathUiConverter,
+    num_context_lines: usize,
 ) -> Result<(), DiffRenderError> {
     formatter.push_label("diff")?;
-    let mut diff_stream = materialized_diff_stream(repo.store(), tree_diff);
+    let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
         while let Some((path, diff)) = diff_stream.next().await {
             let ui_path = path_converter.format_file_path(&path);
@@ -662,11 +662,11 @@ pub fn show_color_words_diff(
 
 pub fn show_file_by_file_diff(
     ui: &Ui,
-    repo: &dyn Repo,
     formatter: &mut dyn Formatter,
-    tool: &ExternalMergeTool,
+    store: &Store,
     tree_diff: TreeDiffStream,
     path_converter: &RepoPathUiConverter,
+    tool: &ExternalMergeTool,
 ) -> Result<(), DiffRenderError> {
     fn create_file(
         path: &RepoPath,
@@ -683,7 +683,7 @@ pub fn show_file_by_file_diff(
     let temp_dir = new_utf8_temp_dir("jj-diff-")?;
     let left_wc_dir = temp_dir.path().join("left");
     let right_wc_dir = temp_dir.path().join("right");
-    let mut diff_stream = materialized_diff_stream(repo.store(), tree_diff);
+    let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
         while let Some((path, diff)) = diff_stream.next().await {
             let ui_path = path_converter.format_file_path(&path);
@@ -1020,14 +1020,14 @@ fn materialized_diff_stream<'a>(
 }
 
 pub fn show_git_diff(
-    repo: &dyn Repo,
     formatter: &mut dyn Formatter,
-    num_context_lines: usize,
+    store: &Store,
     tree_diff: TreeDiffStream,
+    num_context_lines: usize,
 ) -> Result<(), DiffRenderError> {
     formatter.push_label("diff")?;
 
-    let mut diff_stream = materialized_diff_stream(repo.store(), tree_diff);
+    let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
         while let Some((path, diff)) = diff_stream.next().await {
             let path_string = path.as_internal_file_string();
@@ -1163,8 +1163,8 @@ fn get_diff_stat(
 }
 
 pub fn show_diff_stat(
-    repo: &dyn Repo,
     formatter: &mut dyn Formatter,
+    store: &Store,
     tree_diff: TreeDiffStream,
     path_converter: &RepoPathUiConverter,
     display_width: usize,
@@ -1173,7 +1173,7 @@ pub fn show_diff_stat(
     let mut max_path_width = 0;
     let mut max_diffs = 0;
 
-    let mut diff_stream = materialized_diff_stream(repo.store(), tree_diff);
+    let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
         while let Some((repo_path, diff)) = diff_stream.next().await {
             let (left, right) = diff?;
