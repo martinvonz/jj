@@ -21,11 +21,12 @@ use std::io::Read;
 use std::sync::{Arc, RwLock};
 use std::time::SystemTime;
 
+use futures::stream::BoxStream;
 use pollster::FutureExt;
 
 use crate::backend::{
-    self, Backend, BackendResult, ChangeId, CommitId, ConflictId, FileId, MergedTreeId, SigningFn,
-    SymlinkId, TreeId,
+    self, Backend, BackendResult, ChangeId, CommitId, ConflictId, CopyRecord, FileId, MergedTreeId,
+    SigningFn, SymlinkId, TreeId,
 };
 use crate::commit::Commit;
 use crate::index::Index;
@@ -80,6 +81,15 @@ impl Store {
     /// Whether new tree should be written using the tree-level format.
     pub fn use_tree_conflict_format(&self) -> bool {
         self.use_tree_conflict_format
+    }
+
+    pub fn get_copy_records(
+        &self,
+        paths: &[RepoPathBuf],
+        roots: &[CommitId],
+        heads: &[CommitId],
+    ) -> BackendResult<BoxStream<BackendResult<CopyRecord>>> {
+        self.backend.get_copy_records(paths, roots, heads)
     }
 
     pub fn commit_id_length(&self) -> usize {

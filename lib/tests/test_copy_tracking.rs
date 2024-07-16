@@ -15,22 +15,22 @@
 use std::collections::HashMap;
 
 use futures::executor::block_on_stream;
-use jj_lib::backend::{Backend, CommitId, CopySource, CopySources};
+use jj_lib::backend::{CommitId, CopySource, CopySources};
 use jj_lib::commit::Commit;
-use jj_lib::git_backend::GitBackend;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::settings::UserSettings;
+use jj_lib::store::Store;
 use jj_lib::transaction::Transaction;
 use testutils::{create_tree, TestRepo, TestRepoBackend};
 
 fn get_copy_records(
-    backend: &GitBackend,
+    store: &Store,
     paths: &[RepoPathBuf],
     a: &Commit,
     b: &Commit,
 ) -> HashMap<String, Vec<String>> {
-    let stream = backend
+    let stream = store
         .get_copy_records(paths, &[a.id().clone()], &[b.id().clone()])
         .unwrap();
     let mut res: HashMap<String, Vec<String>> = HashMap::new();
@@ -96,25 +96,25 @@ fn test_git_detection() {
         &[(&paths[2], "content")],
     );
 
-    let backend: &GitBackend = repo.store().backend_impl().downcast_ref().unwrap();
+    let store = repo.store();
     assert_eq!(
-        get_copy_records(backend, paths, &commit_a, &commit_b),
+        get_copy_records(store, paths, &commit_a, &commit_b),
         HashMap::from([("file1".to_string(), vec!["file0".to_string()])])
     );
     assert_eq!(
-        get_copy_records(backend, paths, &commit_b, &commit_c),
+        get_copy_records(store, paths, &commit_b, &commit_c),
         HashMap::from([("file2".to_string(), vec!["file1".to_string()])])
     );
     assert_eq!(
-        get_copy_records(backend, paths, &commit_a, &commit_c),
+        get_copy_records(store, paths, &commit_a, &commit_c),
         HashMap::from([("file2".to_string(), vec!["file0".to_string()])])
     );
     assert_eq!(
-        get_copy_records(backend, &[], &commit_a, &commit_c),
+        get_copy_records(store, &[], &commit_a, &commit_c),
         HashMap::default(),
     );
     assert_eq!(
-        get_copy_records(backend, paths, &commit_c, &commit_c),
+        get_copy_records(store, paths, &commit_c, &commit_c),
         HashMap::default(),
     );
 }
