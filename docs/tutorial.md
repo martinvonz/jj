@@ -117,7 +117,7 @@ working copy. Any further changes in the working copy will then amend the
 commit. Whether you choose to create a new change and squash, or to edit,
 typically depends on how done you are with the change; if the change is almost
 done, it makes sense to use `jj new` so you can easily review your adjustments
-with `jj diff` before running `jj squash`. 
+with `jj diff` before running `jj squash`.
 
 To view how a change has evolved over time, we can use `jj obslog` to see each
 recorded change for the current commit. This records changes to the working
@@ -233,7 +233,7 @@ New conflicts appeared in these commits:
 To resolve the conflicts, start by updating to the first one:
   jj new puqltuttzvly
 Then use `jj resolve`, or edit the conflict markers in the file directly.
-Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
 Then run `jj squash` to move the resolution into the conflicted commit.
 Working copy now at: qzvqqupx 1978b534 (conflict) C
 Parent commit      : puqltutt f7fb5943 (conflict) B2
@@ -360,7 +360,7 @@ New conflicts appeared in these commits:
 To resolve the conflicts, start by updating to the first one:
   jj new puqltuttzvly
 Then use `jj resolve`, or edit the conflict markers in the file directly.
-Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
 Then run `jj squash` to move the resolution into the conflicted commit.
 Working copy now at: zxoosnnp 63874fe6 (no description set)
 Parent commit      : puqltutt f7fb5943 (conflict) B2
@@ -485,7 +485,7 @@ New conflicts appeared in these commits:
 To resolve the conflicts, start by updating to it:
   jj new mrxqplykmyqv
 Then use `jj resolve`, or edit the conflict markers in the file directly.
-Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
 Then run `jj squash` to move the resolution into the conflicted commit.
 Working copy now at: mrxqplyk 1c72cd50 (conflict) ABCD
 Parent commit      : kwtuwqnm 70985eaa (empty) ABC

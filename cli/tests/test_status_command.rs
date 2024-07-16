@@ -172,7 +172,7 @@ fn test_status_display_rebase_instructions() {
     To resolve the conflicts, start by updating to the first one:
       jj new mzvwutvlkqwt
     Then use `jj resolve`, or edit the conflict markers in the file directly.
-    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
     "###);
 }
@@ -220,7 +220,7 @@ fn test_status_simplify_conflict_sides() {
       jj new lylxulplsnyw
       jj new kmkuslswpqwq
     Then use `jj resolve`, or edit the conflict markers in the file directly.
-    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
     "###);
 }

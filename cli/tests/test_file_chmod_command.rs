@@ -221,7 +221,7 @@ fn test_chmod_file_dir_deletion_conflicts() {
     To resolve the conflicts, start by updating to it:
       jj new kmkuslswpqwq
     Then use `jj resolve`, or edit the conflict markers in the file directly.
-    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: kmkuslsw 1b2ef84c file_deletion | (conflict) file_deletion
     Parent commit      : zsuskuln c51c9c55 file | file

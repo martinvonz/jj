@@ -691,7 +691,7 @@ fn test_squash_from_multiple() {
     To resolve the conflicts, start by updating to it:
       jj new yqosqzytrlsw
     Then use `jj resolve`, or edit the conflict markers in the file directly.
-    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: kpqxywon 3e25ee21 f | (no description set)
     Parent commit      : yostqsxw abb5a4ea e | (no description set)
@@ -816,7 +816,7 @@ fn test_squash_from_multiple_partial() {
     To resolve the conflicts, start by updating to it:
       jj new yqosqzytrlsw
     Then use `jj resolve`, or edit the conflict markers in the file directly.
-    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: kpqxywon 056dc38b f | (no description set)
     Parent commit      : yostqsxw 45069475 e | (no description set)

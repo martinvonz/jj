@@ -66,7 +66,7 @@ fn test_restore() {
     To resolve the conflicts, start by updating to it:
       jj new kkmpptxzrspx
     Then use `jj resolve`, or edit the conflict markers in the file directly.
-    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: kkmpptxz d05c4d2a (conflict) (no description set)
     Parent commit      : rlvkpnrz b9b6011e (empty) (no description set)

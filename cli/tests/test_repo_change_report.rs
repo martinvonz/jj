@@ -38,7 +38,7 @@ fn test_report_conflicts() {
     To resolve the conflicts, start by updating to the first one:
       jj new rlvkpnrzqnoo
     Then use `jj resolve`, or edit the conflict markers in the file directly.
-    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: zsuskuln aa73e2ae (conflict) (empty) (no description set)
     Parent commit      : kkmpptxz 64bdec0c (conflict) C
@@ -73,7 +73,7 @@ fn test_report_conflicts() {
       jj new kkmpptxzrspx
       jj new rlvkpnrzqnoo
     Then use `jj resolve`, or edit the conflict markers in the file directly.
-    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: zsuskuln 99fb9018 (conflict) (empty) (no description set)
     Parent commit      : kkmpptxz 17c72220 (conflict) C
@@ -131,7 +131,7 @@ fn test_report_conflicts_with_divergent_commits() {
     To resolve the conflicts, start by updating to the first one:
       jj new kkmpptxzrspx
     Then use `jj resolve`, or edit the conflict markers in the file directly.
-    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: zsuskuln?? 97ce1783 (conflict) C2
     Parent commit      : kkmpptxz eb93a73d (conflict) B
@@ -164,7 +164,7 @@ fn test_report_conflicts_with_divergent_commits() {
     To resolve the conflicts, start by updating to it:
       jj new zsuskulnrvyr
     Then use `jj resolve`, or edit the conflict markers in the file directly.
-    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: zsuskuln?? b15416ac (conflict) C2
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
@@ -183,7 +183,7 @@ fn test_report_conflicts_with_divergent_commits() {
     To resolve the conflicts, start by updating to it:
       jj new zsuskulnrvyr
     Then use `jj resolve`, or edit the conflict markers in the file directly.
-    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
     "###);
 
