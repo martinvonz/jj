@@ -1785,12 +1785,14 @@ given <a href="#string-patterns">string pattern</a>.</p>
   user modifications and <code>root()</code>.</p>
 </li>
 <li>
-<p><code>file(pattern[, pattern]...)</code>: Commits modifying paths matching one of the
-  given <a href="../filesets/#file-patterns">file patterns</a>.</p>
+<p><code>file(expression)</code>: Commits modifying paths matching the given <a href="../filesets/">fileset
+  expression</a>.</p>
 <p>Paths are relative to the directory <code>jj</code> was invoked from. A directory name
 will match all files in that directory and its subdirectories.</p>
 <p>For example, <code>file(foo)</code> will match files <code>foo</code>, <code>foo/bar</code>, <code>foo/bar/baz</code>.
 It will <em>not</em> match <code>foobar</code> or <code>bar/foo</code>.</p>
+<p>Some file patterns might need quoting because the <code>expression</code> must also be
+parsable as a revset. For example, <code>.</code> has to be quoted in <code>file(".")</code>.</p>
 </li>
 <li>
 <p><code>conflict()</code>: Commits with conflicts.</p>
