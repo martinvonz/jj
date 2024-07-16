@@ -1545,7 +1545,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             writeln!(
                 fmt,
                 r#"Then use `jj resolve`, or edit the conflict markers in the file directly.
-Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
 Then run `jj squash` to move the resolution into the conflicted commit."#,
             )?;
             fmt.pop_label()?;

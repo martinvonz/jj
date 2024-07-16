@@ -242,7 +242,7 @@ fn test_resolution() {
     To resolve the conflicts, start by updating to it:
       jj new vruxwmqvtpmx
     Then use `jj resolve`, or edit the conflict markers in the file directly.
-    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: vruxwmqv 7699b9c3 conflict | (conflict) conflict
     Parent commit      : zsuskuln aa493daf a | a
@@ -597,7 +597,7 @@ fn test_simplify_conflict_sides() {
     To resolve the conflicts, start by updating to it:
       jj new nkmrtpmomlro
     Then use `jj resolve`, or edit the conflict markers in the file directly.
-    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: nkmrtpmo 4b14662a conflict | (conflict) conflict
     Parent commit      : kmkuslsw 18c1fb00 conflictA | (conflict) (empty) conflictA
@@ -867,7 +867,7 @@ fn test_multiple_conflicts() {
     To resolve the conflicts, start by updating to it:
       jj new vruxwmqvtpmx
     Then use `jj resolve`, or edit the conflict markers in the file directly.
-    Once the conflicts are resolved, you may want inspect the result with `jj diff`.
+    Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
     Working copy now at: vruxwmqv 6a90e546 conflict | (conflict) conflict
     Parent commit      : zsuskuln de7553ef a | a
