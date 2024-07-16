@@ -63,7 +63,9 @@ a comparison with Git, including how workflows are different, see the
   copies backed by a single repo. See the `jj workspace` family of commands.
 * **Sparse checkouts: No.** However, there's native support for sparse
   checkouts. See the `jj sparse` command.
-* **Signed commits: No.** ([#58](https://github.com/martinvonz/jj/issues/58))
+* **Signed commits: Partial.**
+  So far only [by configuration](https://github.com/martinvonz/jj/blob/main/docs/config.md#commit-signing),
+  later perhaps [a command](https://github.com/martinvonz/jj/pull/3142).
 * **Git LFS: No.** ([#80](https://github.com/martinvonz/jj/issues/80))
 
 
