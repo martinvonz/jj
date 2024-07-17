@@ -25,7 +25,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::SystemTime;
-use std::{fs, str};
+use std::{fs, mem, str};
 
 use bstr::ByteVec as _;
 use clap::builder::{
@@ -1314,7 +1314,12 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
 
     pub fn start_transaction(&mut self) -> WorkspaceCommandTransaction {
         let tx = start_repo_transaction(self.repo(), &self.settings, &self.string_args);
-        WorkspaceCommandTransaction { helper: self, tx }
+        let id_prefix_context = mem::take(&mut self.user_repo.id_prefix_context);
+        WorkspaceCommandTransaction {
+            helper: self,
+            tx,
+            id_prefix_context,
+        }
     }
 
     fn finish_transaction(
@@ -1605,6 +1610,8 @@ Then run `jj squash` to move the resolution into the conflicted commit."#,
 pub struct WorkspaceCommandTransaction<'a> {
     helper: &'a mut WorkspaceCommandHelper,
     tx: Transaction,
+    /// Cache of index built against the current MutableRepo state.
+    id_prefix_context: OnceCell<IdPrefixContext>,
 }
 
 impl WorkspaceCommandTransaction<'_> {
@@ -1622,17 +1629,20 @@ impl WorkspaceCommandTransaction<'_> {
     }
 
     pub fn mut_repo(&mut self) -> &mut MutableRepo {
+        self.id_prefix_context.take(); // invalidate
         self.tx.mut_repo()
     }
 
     pub fn check_out(&mut self, commit: &Commit) -> Result<Commit, CheckOutCommitError> {
         let workspace_id = self.helper.workspace_id().to_owned();
         let settings = &self.helper.settings;
+        self.id_prefix_context.take(); // invalidate
         self.tx.mut_repo().check_out(workspace_id, settings, commit)
     }
 
     pub fn edit(&mut self, commit: &Commit) -> Result<(), EditCommitError> {
         let workspace_id = self.helper.workspace_id().to_owned();
+        self.id_prefix_context.take(); // invalidate
         self.tx.mut_repo().edit(workspace_id, commit)
     }
 
@@ -1650,15 +1660,15 @@ impl WorkspaceCommandTransaction<'_> {
         commit: &Commit,
     ) -> std::io::Result<()> {
         let id_prefix_context = self
-            .helper
-            .new_id_prefix_context()
+            .id_prefix_context
+            .get_or_try_init(|| self.helper.new_id_prefix_context())
             .expect("parse error should be confined by WorkspaceCommandHelper::new()");
         let language = CommitTemplateLanguage::new(
             self.tx.repo(),
             &self.helper.path_converter,
             self.helper.workspace_id(),
             self.helper.revset_parse_context(),
-            &id_prefix_context,
+            id_prefix_context,
             &self.helper.commit_template_extensions,
         );
         let template = self
