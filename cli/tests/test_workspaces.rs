@@ -252,6 +252,42 @@ fn test_workspaces_add_workspace_multiple_revisions() {
     "###);
 }
 
+#[test]
+fn test_workspaces_add_workspace_from_subdir() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "main"]);
+    let main_path = test_env.env_root().join("main");
+    let subdir_path = main_path.join("subdir");
+    let secondary_path = test_env.env_root().join("secondary");
+
+    std::fs::create_dir(&subdir_path).unwrap();
+    std::fs::write(subdir_path.join("file"), "contents").unwrap();
+    test_env.jj_cmd_ok(&main_path, &["commit", "-m", "initial"]);
+
+    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    default: rlvkpnrz e1038e77 (empty) (no description set)
+    "###);
+
+    // Create workspace while in sub-directory of current workspace
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&subdir_path, &["workspace", "add", "../../secondary"]);
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @"");
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
+    Created workspace in "../../secondary"
+    Working copy now at: rzvqmyuk 7ad84461 (empty) (no description set)
+    Parent commit      : qpvuntsm a3a43d9e initial
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+
+    // Both workspaces show up when we list them
+    let stdout = test_env.jj_cmd_success(&secondary_path, &["workspace", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    default: rlvkpnrz e1038e77 (empty) (no description set)
+    secondary: rzvqmyuk 7ad84461 (empty) (no description set)
+    "###);
+}
+
 /// Test making changes to the working copy in a workspace as it gets rewritten
 /// from another workspace
 #[test]

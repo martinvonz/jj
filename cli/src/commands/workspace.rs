@@ -169,8 +169,7 @@ fn cmd_workspace_add(
     writeln!(
         ui.status(),
         "Created workspace in \"{}\"",
-        file_util::relative_path(old_workspace_command.workspace_root(), &destination_path)
-            .display()
+        file_util::relative_path(command.cwd(), &destination_path).display()
     )?;
 
     // Copy sparse patterns from workspace where the command was run
