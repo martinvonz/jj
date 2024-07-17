@@ -905,7 +905,11 @@ fn test_short_prefix_in_transaction() {
     }
 
     // Short prefix should be used for commit summary inside the transaction
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["new", "--no-edit", "-m", "test"]);
+    let parent_id = "58731d"; // Force id lookup to build index before mutation.
+                              // If the cached index wasn't invalidated, the
+                              // newly created commit wouldn't be found in it.
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["new", parent_id, "--no-edit", "-m", "test"]);
     insta::assert_snapshot!(stdout, @"");
     insta::assert_snapshot!(stderr, @r###"
     Created new commit km[kuslswpqwq] 7[4ac55dd119b] test
