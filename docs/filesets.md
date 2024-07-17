@@ -21,6 +21,11 @@ if the expression has no operators nor function calls. For example:
 * `jj diff '~"Foo Bar"'` (both shell and inner quotes are required)
 * `jj diff '"Foo(1)"'` (both shell and inner quotes are required)
 
+Glob characters aren't considered meta characters, but shell quotes are still
+required:
+
+* `jj diff '~glob:**/*.rs'`
+
 [string-literals]: templates.md#string-literals
 
 ## File patterns
