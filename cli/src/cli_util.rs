@@ -1659,27 +1659,43 @@ impl WorkspaceCommandTransaction<'_> {
         formatter: &mut dyn Formatter,
         commit: &Commit,
     ) -> std::io::Result<()> {
+        self.commit_summary_template().format(commit, formatter)
+    }
+
+    /// Template for one-line summary of a commit within transaction.
+    pub fn commit_summary_template(&self) -> TemplateRenderer<'_, Commit> {
+        self.parse_commit_template(&self.helper.commit_summary_template_text)
+            .expect("parse error should be confined by WorkspaceCommandHelper::new()")
+    }
+
+    /// Creates commit template language environment capturing the current
+    /// transaction state.
+    pub fn commit_template_language(&self) -> CommitTemplateLanguage<'_> {
         let id_prefix_context = self
             .id_prefix_context
             .get_or_try_init(|| self.helper.new_id_prefix_context())
             .expect("parse error should be confined by WorkspaceCommandHelper::new()");
-        let language = CommitTemplateLanguage::new(
+        CommitTemplateLanguage::new(
             self.tx.repo(),
             &self.helper.path_converter,
             self.helper.workspace_id(),
             self.helper.revset_parse_context(),
             id_prefix_context,
             &self.helper.commit_template_extensions,
-        );
-        let template = self
-            .helper
-            .parse_template(
-                &language,
-                &self.helper.commit_summary_template_text,
-                CommitTemplateLanguage::wrap_commit,
-            )
-            .expect("parse error should be confined by WorkspaceCommandHelper::new()");
-        template.format(commit, formatter)
+        )
+    }
+
+    /// Parses commit template with the current transaction state.
+    pub fn parse_commit_template(
+        &self,
+        template_text: &str,
+    ) -> Result<TemplateRenderer<'_, Commit>, CommandError> {
+        let language = self.commit_template_language();
+        self.helper.parse_template(
+            &language,
+            template_text,
+            CommitTemplateLanguage::wrap_commit,
+        )
     }
 
     pub fn finish(self, ui: &mut Ui, description: impl Into<String>) -> Result<(), CommandError> {
