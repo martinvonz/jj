@@ -990,6 +990,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#treediff-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      TreeDiff type
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1779,6 +1788,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#treediff-type" class="md-nav__link">
+    <span class="md-ellipsis">
+      TreeDiff type
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1890,6 +1908,9 @@ type</a> are available as keywords. For example,
 <li><code>contained_in(revset: String) -&gt; Boolean</code>: True if the commit is included in <a href="../revsets/">the provided revset</a>.</li>
 <li><code>conflict() -&gt; Boolean</code>: True if the commit contains merge conflicts.</li>
 <li><code>empty() -&gt; Boolean</code>: True if the commit modifies no files.</li>
+<li><code>diff([files: String]) -&gt; TreeDiff</code>: Changes from the parents within <a href="../filesets/">the
+  <code>files</code> expression</a>. All files are compared by default, but it is
+  likely to change in future version to respect the command line path arguments.</li>
 <li><code>root() -&gt; Boolean</code>: True if the commit is the root commit.</li>
 </ul>
 <h3 id="commitid-changeid-type">CommitId / ChangeId type<a class="headerlink" href="#commitid-changeid-type" title="Permanent link">&para;</a></h3>
@@ -2034,6 +2055,15 @@ inside a single-quoted string literal.</p>
 <li><code>.start() -&gt; Timestamp</code></li>
 <li><code>.end() -&gt; Timestamp</code></li>
 <li><code>.duration() -&gt; String</code></li>
+</ul>
+<h3 id="treediff-type">TreeDiff type<a class="headerlink" href="#treediff-type" title="Permanent link">&para;</a></h3>
+<p>This type cannot be printed. The following methods are defined.</p>
+<ul>
+<li><code>.color_words([context: Integer]) -&gt; Template</code>: Format as a word-level diff
+  with changes indicated only by color.</li>
+<li><code>.git([context: Integer]) -&gt; Template</code>: Format as a Git diff.</li>
+<li><code>.stat(width: Integer) -&gt; Template</code>: Format as a histogram of the changes.</li>
+<li><code>.summary() -&gt; Template</code>: Format as a list of status code and path pairs.</li>
 </ul>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <p>The default templates and aliases() are defined in the <code>[templates]</code> and
