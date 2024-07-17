@@ -458,6 +458,10 @@ mod tests {
             parse_into_kind(r#"Windows\Path"#),
             Ok(ExpressionKind::Identifier(r#"Windows\Path"#))
         );
+        assert_eq!(
+            parse_into_kind("glob*[chars]?"),
+            Ok(ExpressionKind::Identifier("glob*[chars]?"))
+        );
     }
 
     #[test]
@@ -500,6 +504,13 @@ mod tests {
             Ok(ExpressionKind::StringPattern {
                 kind: "foo",
                 value: "bar".to_owned()
+            })
+        );
+        assert_eq!(
+            parse_into_kind(" foo:glob*[chars]? "),
+            Ok(ExpressionKind::StringPattern {
+                kind: "foo",
+                value: "glob*[chars]?".to_owned()
             })
         );
         assert_eq!(
@@ -643,6 +654,13 @@ mod tests {
             Ok(ExpressionKind::StringPattern {
                 kind: "foo",
                 value: " bar baz".to_owned()
+            })
+        );
+        assert_eq!(
+            parse_maybe_bare_into_kind("foo:glob * [chars]?"),
+            Ok(ExpressionKind::StringPattern {
+                kind: "foo",
+                value: "glob * [chars]?".to_owned()
             })
         );
         assert_eq!(

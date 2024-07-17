@@ -204,7 +204,7 @@ fn test_diff_basic() {
             "diff",
             "--config-toml=ui.allow-filesets=true",
             "-s",
-            r#"glob:"file[12]""#,
+            "glob:file[12]",
         ],
     );
     insta::assert_snapshot!(stdout, @r###"

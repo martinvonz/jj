@@ -16,22 +16,21 @@ whitespace = _{ " " | "\t" | "\r" | "\n" | "\x0c" }
 
 // XID_CONTINUE: https://www.unicode.org/reports/tr31/#Default_Identifier_Syntax
 // +, -, ., @, _: commonly used in file name including "." and ".."
+// *, ?, [, ]: glob characters (not extended glob)
 // /: path separator
 // \: path separator (Windows)
-// TODO: accept glob characters as identifier?
 identifier = @{
-  (XID_CONTINUE | "+" | "-" | "." | "@" | "_" | "/" | "\\")+
+  (XID_CONTINUE | "+" | "-" | "." | "@" | "_" | "*" | "?" | "[" | "]" | "/" | "\\")+
 }
 strict_identifier_part = @{ (ASCII_ALPHANUMERIC | "_")+ }
 strict_identifier = @{
   strict_identifier_part ~ ("-" ~ strict_identifier_part)*
 }
 
-// TODO: accept glob characters?
 // TODO: accept more ASCII meta characters such as "#" and ","?
 bare_string = @{
   ( ASCII_ALPHANUMERIC
-  | " " | "+" | "-" | "." | "@" | "_" | "/" | "\\"
+  | " " | "+" | "-" | "." | "@" | "_" | "*" | "?" | "[" | "]" | "/" | "\\"
   | '\u{80}'..'\u{10ffff}' )+
 }
 
