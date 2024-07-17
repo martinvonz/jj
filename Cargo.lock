@@ -1868,7 +1868,6 @@ dependencies = [
  "futures 0.3.30",
  "git2",
  "gix",
- "gix-filter",
  "hex",
  "indexmap",
  "indoc",
