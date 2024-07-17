@@ -141,8 +141,15 @@ impl<'a> Iterator for DiffLineIterator<'a> {
     }
 }
 
+// TODO: Maybe ContentHunk can be replaced with BString?
 #[derive(PartialEq, Eq, Clone)]
 pub struct ContentHunk(pub Vec<u8>);
+
+impl AsRef<[u8]> for ContentHunk {
+    fn as_ref(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
 
 impl Debug for ContentHunk {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
@@ -156,7 +163,7 @@ pub enum MergeResult {
     Conflict(Vec<Merge<ContentHunk>>),
 }
 
-pub fn merge(slices: &Merge<&[u8]>) -> MergeResult {
+pub fn merge<T: AsRef<[u8]>>(slices: &Merge<T>) -> MergeResult {
     // TODO: Using the first remove as base (first in the inputs) is how it's
     // usually done for 3-way conflicts. Are there better heuristics when there are
     // more than 3 parts?
@@ -213,7 +220,7 @@ mod tests {
     }
 
     fn merge(removes: &[&[u8]], adds: &[&[u8]]) -> MergeResult {
-        super::merge(&Merge::from_removes_adds(removes.to_vec(), adds.to_vec()))
+        super::merge(&Merge::from_removes_adds(removes, adds))
     }
 
     #[test]

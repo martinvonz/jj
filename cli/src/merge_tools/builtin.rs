@@ -601,8 +601,7 @@ pub fn edit_merge_builtin(
     path: &RepoPath,
     content: Merge<ContentHunk>,
 ) -> Result<MergedTreeId, BuiltinToolError> {
-    let slices = content.map(|ContentHunk(v)| v.as_slice());
-    let merge_result = files::merge(&slices);
+    let merge_result = files::merge(&content);
     let sections = make_merge_sections(merge_result)?;
     let mut input = scm_record::helpers::CrosstermInput;
     let recorder = scm_record::Recorder::new(
@@ -1014,8 +1013,7 @@ mod tests {
         let content = extract_as_single_hunk(&merge, store, path)
             .block_on()
             .unwrap();
-        let slices = content.map(|ContentHunk(buf)| buf.as_slice());
-        let merge_result = files::merge(&slices);
+        let merge_result = files::merge(&content);
         let sections = make_merge_sections(merge_result).unwrap();
         insta::assert_debug_snapshot!(sections, @r###"
         [

@@ -454,8 +454,7 @@ pub fn try_resolve_file_conflict(
                 })?;
             Ok(content)
         })?;
-    let slices = contents.map(|content| content.as_slice());
-    let merge_result = files::merge(&slices);
+    let merge_result = files::merge(&contents);
     match merge_result {
         MergeResult::Resolved(merged_content) => {
             let id = store.write_file(filename, &mut merged_content.0.as_slice())?;
