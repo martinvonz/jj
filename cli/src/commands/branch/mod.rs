@@ -24,6 +24,7 @@ mod untrack;
 
 use itertools::Itertools as _;
 use jj_lib::backend::CommitId;
+use jj_lib::git;
 use jj_lib::op_store::{RefTarget, RemoteRef};
 use jj_lib::repo::Repo;
 use jj_lib::str_util::StringPattern;
@@ -163,6 +164,7 @@ fn find_remote_branches<'a>(
 /// local branch.)
 fn has_tracked_remote_branches(view: &View, branch: &str) -> bool {
     view.remote_branches_matching(&StringPattern::exact(branch), &StringPattern::everything())
+        .filter(|&((_, remote_name), _)| remote_name != git::REMOTE_NAME_FOR_LOCAL_GIT_REPO)
         .any(|(_, remote_ref)| remote_ref.is_tracking())
 }
 

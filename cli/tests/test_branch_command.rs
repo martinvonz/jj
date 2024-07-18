@@ -449,6 +449,21 @@ fn test_branch_rename() {
 }
 
 #[test]
+fn test_branch_rename_colocated() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo", "--colocate"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m=commit-0"]);
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "blocal"]);
+
+    // Make sure that git tracking branches don't cause a warning
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["branch", "rename", "blocal", "blocal1"]);
+    insta::assert_snapshot!(stderr, @"");
+}
+
+#[test]
 fn test_branch_forget_glob() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
