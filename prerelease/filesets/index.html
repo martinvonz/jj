@@ -1412,6 +1412,11 @@ if the expression has no operators nor function calls. For example:</p>
 <li><code>jj diff '~"Foo Bar"'</code> (both shell and inner quotes are required)</li>
 <li><code>jj diff '"Foo(1)"'</code> (both shell and inner quotes are required)</li>
 </ul>
+<p>Glob characters aren't considered meta characters, but shell quotes are still
+required:</p>
+<ul>
+<li><code>jj diff '~glob:**/*.rs'</code></li>
+</ul>
 <h2 id="file-patterns">File patterns<a class="headerlink" href="#file-patterns" title="Permanent link">&para;</a></h2>
 <p>The following patterns are supported:</p>
 <ul>
