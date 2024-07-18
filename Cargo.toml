@@ -96,7 +96,7 @@ syn = "2.0.71"
 tempfile = "3.10.1"
 test-case = "3.3.1"
 textwrap = "0.16.1"
-thiserror = "1.0.62"
+thiserror = "1.0.63"
 timeago = { version = "0.4.2", default-features = false }
 tokio = { version = "1.38.1" }
 toml_edit = { version = "0.19.15", features = ["serde"] }
