@@ -30,7 +30,7 @@ use tracing::instrument;
 use self::dirty_cell::DirtyCell;
 use crate::backend::{
     Backend, BackendError, BackendInitError, BackendLoadError, BackendResult, ChangeId, CommitId,
-    MergedTreeId, SigningFn,
+    MergedTreeId,
 };
 use crate::commit::{Commit, CommitByCommitterTimestamp};
 use crate::commit_builder::CommitBuilder;
@@ -58,7 +58,7 @@ use crate::store::Store;
 use crate::submodule_store::SubmoduleStore;
 use crate::transaction::Transaction;
 use crate::view::View;
-use crate::{backend, dag_walk, op_store, revset};
+use crate::{dag_walk, op_store, revset};
 
 pub trait Repo {
     fn store(&self) -> &Arc<Store>;
@@ -829,17 +829,6 @@ impl MutableRepo {
         CommitBuilder::for_rewrite_from(self, settings, predecessor)
         // CommitBuilder::write will record the rewrite in
         // `self.rewritten_commits`
-    }
-
-    /// Only called from [`CommitBuilder::write`]. Use that function instead.
-    pub(crate) fn write_commit(
-        &mut self,
-        commit: backend::Commit,
-        sign_with: Option<&mut SigningFn>,
-    ) -> BackendResult<Commit> {
-        let commit = self.store().write_commit(commit, sign_with)?;
-        self.add_head(&commit)?;
-        Ok(commit)
     }
 
     /// Record a commit as having been rewritten to another commit in this
