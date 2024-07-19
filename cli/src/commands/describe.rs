@@ -88,12 +88,12 @@ pub(crate) fn cmd_describe(
     } else if args.no_edit {
         commit.description().to_owned()
     } else {
-        let template = description_template_for_describe(
-            ui,
-            command.settings(),
-            tx.base_workspace_helper(),
-            &commit,
-        )?;
+        if commit_builder.description().is_empty() {
+            commit_builder.set_description(command.settings().default_description());
+        }
+        let temp_commit = commit_builder.write_hidden()?;
+        let template =
+            description_template_for_describe(ui, tx.base_workspace_helper(), &temp_commit)?;
         edit_description(tx.base_repo(), &template, command.settings())?
     };
     commit_builder.set_description(description);
