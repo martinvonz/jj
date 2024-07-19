@@ -205,9 +205,8 @@ impl CommitBuilder<'_> {
         // if we're rewriting a signed commit
         self.commit.secure_sig = None;
 
-        let commit = self
-            .mut_repo
-            .write_commit(self.commit, signing_fn.as_deref_mut())?;
+        let commit = store.write_commit(self.commit, signing_fn.as_deref_mut())?;
+        self.mut_repo.add_head(&commit)?;
         if let Some(rewrite_source) = self.rewrite_source {
             if rewrite_source.change_id() == commit.change_id() {
                 self.mut_repo
