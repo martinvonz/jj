@@ -11,6 +11,8 @@
         <link rel="canonical" href="https://martinvonz.github.io/jj/latest/design/copy-tracking/">
       
       
+        <link rel="prev" href="../tracking-branches/">
+      
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
@@ -18,7 +20,7 @@
     
     
       
-        <title>Copy Tracking and Tracing Design - Jujutsu docs</title>
+        <title>Copy tracking and tracing - Jujutsu docs</title>
       
     
     
@@ -110,7 +112,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Copy Tracking and Tracing Design
+              Copy tracking and tracing
             
           </span>
         </div>
@@ -1092,17 +1094,19 @@
       
   
   
+    
   
   
+  
     
     
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" checked>
         
           
           <label class="md-nav__link" for="__nav_12" id="__nav_12_label" tabindex="0">
@@ -1116,7 +1120,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_12">
             <span class="md-nav__icon md-icon"></span>
             Design docs
@@ -1223,6 +1227,256 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Copy tracking and tracing
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  <span class="md-ellipsis">
+    Copy tracking and tracing
+  </span>
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#objective" class="md-nav__link">
+    <span class="md-ellipsis">
+      Objective
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#interface-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      Interface Design
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Interface Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#read-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      Read API
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#write-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      Write API
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#behavioral-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Behavioral Changes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Behavioral Changes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rebase-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rebase Changes
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Rebase Changes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rename-of-an-added-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      Rename of an added file
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#conflicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Conflicts
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Conflicts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#split-conflicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Split conflicts
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#merge-commit-conflicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Merge commit conflicts
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#squash-conflicts" class="md-nav__link">
+    <span class="md-ellipsis">
+      Squash conflicts
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Squash conflicts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#track-replacements-explicitly" class="md-nav__link">
+    <span class="md-ellipsis">
+      Track replacements explicitly
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#always-assume-replacement" class="md-nav__link">
+    <span class="md-ellipsis">
+      Always assume replacement
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#future-changes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Future Changes
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      Non-goals
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Non-goals">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tracking-copies-in-git" class="md-nav__link">
+    <span class="md-ellipsis">
+      Tracking copies in Git
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#directory-copiesmoves" class="md-nav__link">
+    <span class="md-ellipsis">
+      Directory copies/moves
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
