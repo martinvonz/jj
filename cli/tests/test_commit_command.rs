@@ -169,18 +169,17 @@ fn test_commit_with_default_description() {
     ○  573b6df51aea TESTED=TODO
     ◆  000000000000
     "###);
-    assert_eq!(
-        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(),
-        r#"
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r###"
 
-TESTED=TODO
-JJ: This commit contains the following changes:
-JJ:     A file1
-JJ:     A file2
 
-JJ: Lines starting with "JJ: " (like this one) will be removed.
-"#
-    );
+    TESTED=TODO
+    JJ: This commit contains the following changes:
+    JJ:     A file1
+    JJ:     A file2
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
 }
 
 #[test]
