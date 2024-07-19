@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::io::{self, Read, Write};
+use std::io::{self, Read};
 
 use jj_lib::object_id::ObjectId;
 use tracing::instrument;
@@ -69,6 +69,16 @@ pub(crate) fn cmd_describe(
     let mut workspace_command = command.workspace_helper(ui)?;
     let commit = workspace_command.resolve_single_rev(&args.revision)?;
     workspace_command.check_rewritable([commit.id()])?;
+
+    let mut tx = workspace_command.start_transaction();
+    let mut commit_builder = tx
+        .mut_repo()
+        .rewrite_commit(command.settings(), &commit)
+        .detach();
+    if args.reset_author {
+        commit_builder.set_author(commit_builder.committer().clone());
+    }
+
     let description = if args.stdin {
         let mut buffer = String::new();
         io::stdin().read_to_string(&mut buffer)?;
@@ -78,24 +88,19 @@ pub(crate) fn cmd_describe(
     } else if args.no_edit {
         commit.description().to_owned()
     } else {
-        let template =
-            description_template_for_describe(ui, command.settings(), &workspace_command, &commit)?;
-        edit_description(workspace_command.repo(), &template, command.settings())?
+        let template = description_template_for_describe(
+            ui,
+            command.settings(),
+            tx.base_workspace_helper(),
+            &commit,
+        )?;
+        edit_description(tx.base_repo(), &template, command.settings())?
     };
-    if description == *commit.description() && !args.reset_author {
-        writeln!(ui.status(), "Nothing changed.")?;
-    } else {
-        let mut tx = workspace_command.start_transaction();
-        let mut commit_builder = tx
-            .mut_repo()
-            .rewrite_commit(command.settings(), &commit)
-            .set_description(description);
-        if args.reset_author {
-            let new_author = commit_builder.committer().clone();
-            commit_builder = commit_builder.set_author(new_author);
-        }
-        commit_builder.write()?;
-        tx.finish(ui, format!("describe commit {}", commit.id().hex()))?;
+    commit_builder.set_description(description);
+
+    if commit_builder.description() != commit.description() || args.reset_author {
+        commit_builder.write(tx.mut_repo())?;
     }
+    tx.finish(ui, format!("describe commit {}", commit.id().hex()))?;
     Ok(())
 }
