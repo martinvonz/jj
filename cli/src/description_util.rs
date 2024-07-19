@@ -92,7 +92,6 @@ pub fn join_message_paragraphs(paragraphs: &[String]) -> String {
 
 pub fn description_template_for_describe(
     ui: &Ui,
-    settings: &UserSettings,
     workspace_command: &WorkspaceCommandHelper,
     commit: &Commit,
 ) -> Result<String, CommandError> {
@@ -104,11 +103,7 @@ pub fn description_template_for_describe(
         commit,
         &EverythingMatcher,
     )?;
-    let description = if commit.description().is_empty() {
-        settings.default_description()
-    } else {
-        commit.description().to_owned()
-    };
+    let description = commit.description().to_owned();
     if diff_summary_bytes.is_empty() {
         Ok(description)
     } else {
