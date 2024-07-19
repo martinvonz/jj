@@ -192,19 +192,8 @@ impl CommitBuilder<'_> {
         self
     }
 
-    pub fn write(mut self) -> BackendResult<Commit> {
-        let sign_settings = &self.sign_settings;
-        let store = &self.store;
-
-        let should_sign = store.signer().can_sign() && sign_settings.should_sign(&self.commit);
-        let sign_fn = |data: &[u8]| store.signer().sign(data, sign_settings.key.as_deref());
-
-        // Commit backend doesn't use secure_sig for writing and enforces it with an
-        // assert, but sign_settings.should_sign check above will want to know
-        // if we're rewriting a signed commit
-        self.commit.secure_sig = None;
-
-        let commit = store.write_commit(self.commit, should_sign.then_some(&mut &sign_fn))?;
+    pub fn write(self) -> BackendResult<Commit> {
+        let commit = write_to_store(&self.store, self.commit, &self.sign_settings)?;
         self.mut_repo.add_head(&commit)?;
         if let Some(rewrite_source) = self.rewrite_source {
             if rewrite_source.change_id() == commit.change_id() {
@@ -214,4 +203,20 @@ impl CommitBuilder<'_> {
         }
         Ok(commit)
     }
+}
+
+fn write_to_store(
+    store: &Arc<Store>,
+    mut commit: backend::Commit,
+    sign_settings: &SignSettings,
+) -> BackendResult<Commit> {
+    let should_sign = store.signer().can_sign() && sign_settings.should_sign(&commit);
+    let sign_fn = |data: &[u8]| store.signer().sign(data, sign_settings.key.as_deref());
+
+    // Commit backend doesn't use secure_sig for writing and enforces it with an
+    // assert, but sign_settings.should_sign check above will want to know
+    // if we're rewriting a signed commit
+    commit.secure_sig = None;
+
+    store.write_commit(commit, should_sign.then_some(&mut &sign_fn))
 }
