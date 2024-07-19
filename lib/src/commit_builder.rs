@@ -26,11 +26,7 @@ use crate::store::Store;
 #[must_use]
 pub struct CommitBuilder<'repo> {
     mut_repo: &'repo mut MutableRepo,
-    store: Arc<Store>,
-    rng: Arc<JJRng>,
-    commit: backend::Commit,
-    rewrite_source: Option<Commit>,
-    sign_settings: SignSettings,
+    inner: DetachedCommitBuilder,
 }
 
 impl CommitBuilder<'_> {
@@ -41,7 +37,125 @@ impl CommitBuilder<'_> {
         parents: Vec<CommitId>,
         tree_id: MergedTreeId,
     ) -> CommitBuilder<'repo> {
-        let store = mut_repo.store().clone();
+        let inner = DetachedCommitBuilder::for_new_commit(mut_repo, settings, parents, tree_id);
+        CommitBuilder { mut_repo, inner }
+    }
+
+    /// Only called from [`MutRepo::rewrite_commit`]. Use that function instead.
+    pub(crate) fn for_rewrite_from<'repo>(
+        mut_repo: &'repo mut MutableRepo,
+        settings: &UserSettings,
+        predecessor: &Commit,
+    ) -> CommitBuilder<'repo> {
+        let inner = DetachedCommitBuilder::for_rewrite_from(mut_repo, settings, predecessor);
+        CommitBuilder { mut_repo, inner }
+    }
+
+    pub fn parents(&self) -> &[CommitId] {
+        self.inner.parents()
+    }
+
+    pub fn set_parents(mut self, parents: Vec<CommitId>) -> Self {
+        self.inner.set_parents(parents);
+        self
+    }
+
+    pub fn predecessors(&self) -> &[CommitId] {
+        self.inner.predecessors()
+    }
+
+    pub fn set_predecessors(mut self, predecessors: Vec<CommitId>) -> Self {
+        self.inner.set_predecessors(predecessors);
+        self
+    }
+
+    pub fn tree_id(&self) -> &MergedTreeId {
+        self.inner.tree_id()
+    }
+
+    pub fn set_tree_id(mut self, tree_id: MergedTreeId) -> Self {
+        self.inner.set_tree_id(tree_id);
+        self
+    }
+
+    pub fn change_id(&self) -> &ChangeId {
+        self.inner.change_id()
+    }
+
+    pub fn set_change_id(mut self, change_id: ChangeId) -> Self {
+        self.inner.set_change_id(change_id);
+        self
+    }
+
+    pub fn generate_new_change_id(mut self) -> Self {
+        self.inner.generate_new_change_id();
+        self
+    }
+
+    pub fn description(&self) -> &str {
+        self.inner.description()
+    }
+
+    pub fn set_description(mut self, description: impl Into<String>) -> Self {
+        self.inner.set_description(description);
+        self
+    }
+
+    pub fn author(&self) -> &Signature {
+        self.inner.author()
+    }
+
+    pub fn set_author(mut self, author: Signature) -> Self {
+        self.inner.set_author(author);
+        self
+    }
+
+    pub fn committer(&self) -> &Signature {
+        self.inner.committer()
+    }
+
+    pub fn set_committer(mut self, committer: Signature) -> Self {
+        self.inner.set_committer(committer);
+        self
+    }
+
+    pub fn sign_settings(&self) -> &SignSettings {
+        self.inner.sign_settings()
+    }
+
+    pub fn set_sign_behavior(mut self, sign_behavior: SignBehavior) -> Self {
+        self.inner.set_sign_behavior(sign_behavior);
+        self
+    }
+
+    pub fn set_sign_key(mut self, sign_key: Option<String>) -> Self {
+        self.inner.set_sign_key(sign_key);
+        self
+    }
+
+    pub fn write(self) -> BackendResult<Commit> {
+        self.inner.write(self.mut_repo)
+    }
+}
+
+/// Like `CommitBuilder`, but doesn't mutably borrow `MutableRepo`.
+#[derive(Debug)]
+pub struct DetachedCommitBuilder {
+    store: Arc<Store>,
+    rng: Arc<JJRng>,
+    commit: backend::Commit,
+    rewrite_source: Option<Commit>,
+    sign_settings: SignSettings,
+}
+
+impl DetachedCommitBuilder {
+    fn for_new_commit(
+        repo: &dyn Repo,
+        settings: &UserSettings,
+        parents: Vec<CommitId>,
+        tree_id: MergedTreeId,
+    ) -> Self {
+        let store = repo.store().clone();
         let signature = settings.signature();
         assert!(!parents.is_empty());
         let rng = settings.get_rng();
@@ -56,8 +170,7 @@ impl CommitBuilder<'_> {
             committer: signature,
             secure_sig: None,
         };
-        CommitBuilder {
-            mut_repo,
+        DetachedCommitBuilder {
             store,
             rng,
             commit,
@@ -66,13 +179,8 @@ impl CommitBuilder<'_> {
         }
     }
 
-    /// Only called from [`MutRepo::rewrite_commit`]. Use that function instead.
-    pub(crate) fn for_rewrite_from<'repo>(
-        mut_repo: &'repo mut MutableRepo,
-        settings: &UserSettings,
-        predecessor: &Commit,
-    ) -> CommitBuilder<'repo> {
-        let store = mut_repo.store().clone();
+    fn for_rewrite_from(repo: &dyn Repo, settings: &UserSettings, predecessor: &Commit) -> Self {
+        let store = repo.store().clone();
         let mut commit = predecessor.store_commit().clone();
         commit.predecessors = vec![predecessor.id().clone()];
         commit.committer = settings.signature();
@@ -94,13 +202,12 @@ impl CommitBuilder<'_> {
         // with no description in our repo, we'd like to be extra safe.
         if commit.author.name == commit.committer.name
             && commit.author.email == commit.committer.email
-            && predecessor.is_discardable(mut_repo).unwrap_or_default()
+            && predecessor.is_discardable(repo).unwrap_or_default()
         {
             commit.author.timestamp = commit.committer.timestamp.clone();
         }
 
-        CommitBuilder {
-            mut_repo,
+        DetachedCommitBuilder {
             store,
             commit,
             rng: settings.get_rng(),
@@ -113,7 +220,7 @@ impl CommitBuilder<'_> {
         &self.commit.parents
     }
 
-    pub fn set_parents(mut self, parents: Vec<CommitId>) -> Self {
+    pub fn set_parents(&mut self, parents: Vec<CommitId>) -> &mut Self {
         assert!(!parents.is_empty());
         self.commit.parents = parents;
         self
@@ -123,7 +230,7 @@ impl CommitBuilder<'_> {
         &self.commit.predecessors
     }
 
-    pub fn set_predecessors(mut self, predecessors: Vec<CommitId>) -> Self {
+    pub fn set_predecessors(&mut self, predecessors: Vec<CommitId>) -> &mut Self {
         self.commit.predecessors = predecessors;
         self
     }
@@ -132,7 +239,7 @@ impl CommitBuilder<'_> {
         &self.commit.root_tree
     }
 
-    pub fn set_tree_id(mut self, tree_id: MergedTreeId) -> Self {
+    pub fn set_tree_id(&mut self, tree_id: MergedTreeId) -> &mut Self {
         self.commit.root_tree = tree_id;
         self
     }
@@ -141,12 +248,12 @@ impl CommitBuilder<'_> {
         &self.commit.change_id
     }
 
-    pub fn set_change_id(mut self, change_id: ChangeId) -> Self {
+    pub fn set_change_id(&mut self, change_id: ChangeId) -> &mut Self {
         self.commit.change_id = change_id;
         self
     }
 
-    pub fn generate_new_change_id(mut self) -> Self {
+    pub fn generate_new_change_id(&mut self) -> &mut Self {
         self.commit.change_id = self.rng.new_change_id(self.store.change_id_length());
         self
     }
@@ -155,7 +262,7 @@ impl CommitBuilder<'_> {
         &self.commit.description
     }
 
-    pub fn set_description(mut self, description: impl Into<String>) -> Self {
+    pub fn set_description(&mut self, description: impl Into<String>) -> &mut Self {
         self.commit.description = description.into();
         self
     }
@@ -164,7 +271,7 @@ impl CommitBuilder<'_> {
         &self.commit.author
     }
 
-    pub fn set_author(mut self, author: Signature) -> Self {
+    pub fn set_author(&mut self, author: Signature) -> &mut Self {
         self.commit.author = author;
         self
     }
@@ -173,7 +280,7 @@ impl CommitBuilder<'_> {
         &self.commit.committer
     }
 
-    pub fn set_committer(mut self, committer: Signature) -> Self {
+    pub fn set_committer(&mut self, committer: Signature) -> &mut Self {
         self.commit.committer = committer;
         self
     }
@@ -182,23 +289,22 @@ impl CommitBuilder<'_> {
         &self.sign_settings
     }
 
-    pub fn set_sign_behavior(mut self, sign_behavior: SignBehavior) -> Self {
+    pub fn set_sign_behavior(&mut self, sign_behavior: SignBehavior) -> &mut Self {
         self.sign_settings.behavior = sign_behavior;
         self
     }
 
-    pub fn set_sign_key(mut self, sign_key: Option<String>) -> Self {
+    pub fn set_sign_key(&mut self, sign_key: Option<String>) -> &mut Self {
         self.sign_settings.key = sign_key;
         self
     }
 
-    pub fn write(self) -> BackendResult<Commit> {
+    pub fn write(self, mut_repo: &mut MutableRepo) -> BackendResult<Commit> {
         let commit = write_to_store(&self.store, self.commit, &self.sign_settings)?;
-        self.mut_repo.add_head(&commit)?;
+        mut_repo.add_head(&commit)?;
         if let Some(rewrite_source) = self.rewrite_source {
             if rewrite_source.change_id() == commit.change_id() {
-                self.mut_repo
-                    .set_rewritten_commit(rewrite_source.id().clone(), commit.id().clone());
+                mut_repo.set_rewritten_commit(rewrite_source.id().clone(), commit.id().clone());
             }
         }
         Ok(commit)
