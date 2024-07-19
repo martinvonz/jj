@@ -182,28 +182,26 @@ fn test_split_with_non_empty_description() {
     Parent commit      : qpvuntsm 231a3c00 part 1
     "###);
 
-    assert_eq!(
-        std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(),
-        r#"JJ: Enter a description for the first commit.
-test
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(), @r###"
+    JJ: Enter a description for the first commit.
+    test
 
-JJ: This commit contains the following changes:
-JJ:     A file1
+    JJ: This commit contains the following changes:
+    JJ:     A file1
 
-JJ: Lines starting with "JJ: " (like this one) will be removed.
-"#
-    );
-    assert_eq!(
-        std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(),
-        r#"JJ: Enter a description for the second commit.
-test
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(), @r###"
+    JJ: Enter a description for the second commit.
+    test
 
-JJ: This commit contains the following changes:
-JJ:     A file2
+    JJ: This commit contains the following changes:
+    JJ:     A file2
 
-JJ: Lines starting with "JJ: " (like this one) will be removed.
-"#
-    );
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @  kkmpptxzrspx false part 2
     ○  qpvuntsmwlqt false part 1
@@ -244,18 +242,17 @@ fn test_split_with_default_description() {
     // prompted to add a description to the first commit, which will use the
     // default value we set. The second commit will inherit the empty
     // description from the commit being split.
-    assert_eq!(
-        std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(),
-        r#"JJ: Enter a description for the first commit.
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(), @r###"
+    JJ: Enter a description for the first commit.
 
 
-TESTED=TODO
-JJ: This commit contains the following changes:
-JJ:     A file1
+    TESTED=TODO
+    JJ: This commit contains the following changes:
+    JJ:     A file1
 
-JJ: Lines starting with "JJ: " (like this one) will be removed.
-"#
-    );
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
     assert!(!test_env.env_root().join("editor2").exists());
     insta::assert_snapshot!(get_log_output(&test_env, &workspace_path), @r###"
     @  kkmpptxzrspx false test_branch
@@ -363,18 +360,17 @@ fn test_split_siblings_no_descendants() {
     // prompted to add a description to the first commit, which will use the
     // default value we set. The second commit will inherit the empty
     // description from the commit being split.
-    assert_eq!(
-        std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(),
-        r#"JJ: Enter a description for the first commit.
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(), @r###"
+    JJ: Enter a description for the first commit.
 
 
-TESTED=TODO
-JJ: This commit contains the following changes:
-JJ:     A file1
+    TESTED=TODO
+    JJ: This commit contains the following changes:
+    JJ:     A file1
 
-JJ: Lines starting with "JJ: " (like this one) will be removed.
-"#
-    );
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
     assert!(!test_env.env_root().join("editor2").exists());
 }
 
@@ -443,28 +439,26 @@ fn test_split_siblings_with_descendants() {
 
     // The commit we're splitting has a description, so the user will be
     // prompted to enter a description for each of the sibling commits.
-    assert_eq!(
-        std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(),
-        r#"JJ: Enter a description for the first commit.
-Add file1 & file2
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor1")).unwrap(), @r###"
+    JJ: Enter a description for the first commit.
+    Add file1 & file2
 
-JJ: This commit contains the following changes:
-JJ:     A file1
+    JJ: This commit contains the following changes:
+    JJ:     A file1
 
-JJ: Lines starting with "JJ: " (like this one) will be removed.
-"#
-    );
-    assert_eq!(
-        std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(),
-        r#"JJ: Enter a description for the second commit.
-Add file1 & file2
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor2")).unwrap(), @r###"
+    JJ: Enter a description for the second commit.
+    Add file1 & file2
 
-JJ: This commit contains the following changes:
-JJ:     A file2
+    JJ: This commit contains the following changes:
+    JJ:     A file2
 
-JJ: Lines starting with "JJ: " (like this one) will be removed.
-"#
-    );
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
 }
 
 // This test makes sure that the children of the commit being split retain any

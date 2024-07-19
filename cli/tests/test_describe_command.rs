@@ -266,18 +266,17 @@ fn test_describe_default_description() {
     Working copy now at: qpvuntsm 573b6df5 TESTED=TODO
     Parent commit      : zzzzzzzz 00000000 (empty) (no description set)
     "###);
-    assert_eq!(
-        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(),
-        r#"
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r###"
 
-TESTED=TODO
-JJ: This commit contains the following changes:
-JJ:     A file1
-JJ:     A file2
 
-JJ: Lines starting with "JJ: " (like this one) will be removed.
-"#
-    );
+    TESTED=TODO
+    JJ: This commit contains the following changes:
+    JJ:     A file1
+    JJ:     A file2
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
 }
 
 #[test]
