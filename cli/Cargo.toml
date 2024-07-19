@@ -115,6 +115,7 @@ bench = ["dep:criterion"]
 packaging = []
 test-fakes = ["jj-lib/testing"]
 vendored-openssl = ["git2/vendored-openssl", "jj-lib/vendored-openssl"]
+vendored-libgit2 = ["git2/vendored-libgit2", "jj-lib/vendored-libgit2"]
 watchman = ["jj-lib/watchman"]
 
 [package.metadata.binstall]

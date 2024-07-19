@@ -95,5 +95,6 @@ tokio = { workspace = true, features = ["full"] }
 default = ["git"]
 git = ["dep:git2", "dep:gix", "dep:gix-filter"]
 vendored-openssl = ["git2/vendored-openssl"]
+vendored-libgit2 = ["git2/vendored-libgit2"]
 watchman = ["dep:tokio", "dep:watchman_client"]
 testing = ["git"]
