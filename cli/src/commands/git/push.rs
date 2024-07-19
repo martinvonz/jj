@@ -93,6 +93,9 @@ pub struct GitPushArgs {
     /// Allow pushing commits with empty descriptions
     #[arg(long)]
     allow_empty_description: bool,
+    /// Allow pushing commits that are private
+    #[arg(long)]
+    allow_private: bool,
     /// Push branches pointing to these commits (can be repeated)
     #[arg(long, short)]
     revisions: Vec<RevisionArg>,
@@ -400,7 +403,7 @@ fn validate_commits_ready_to_push(
         if commit.has_conflict()? {
             reasons.push("it has conflicts");
         }
-        if is_private(commit.id()) {
+        if !args.allow_private && is_private(commit.id()) {
             reasons.push("it is private");
         }
         if !reasons.is_empty() {

@@ -97,6 +97,34 @@ fn test_git_private_commits_block_pushing() {
 }
 
 #[test]
+fn test_git_private_commits_can_be_overridden() {
+    let (test_env, workspace_root) = set_up();
+
+    test_env.jj_cmd_ok(&workspace_root, &["new", "main", "-m=private 1"]);
+    test_env.jj_cmd_ok(&workspace_root, &["branch", "set", "main"]);
+
+    // Will not push when a pushed commit is contained in git.private-commits
+    test_env.add_config(r#"git.private-commits = "description(glob:'private*')""#);
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["git", "push", "--all"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Won't push commit aa3058ff8663 since it is private
+    "###);
+
+    // May push when the commit is removed from git.private-commits
+    let (_, stderr) = test_env.jj_cmd_ok(
+        &workspace_root,
+        &["git", "push", "--all", "--allow-private"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Branch changes to push to origin:
+      Move forward branch main from 7eb97bf230ad to aa3058ff8663
+    Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
+    Working copy now at: znkkpsqq 2e1adf47 (empty) (no description set)
+    Parent commit      : yqosqzyt aa3058ff main | (empty) private 1
+    "###);
+}
+
+#[test]
 fn test_git_private_commits_are_not_checked_if_immutable() {
     let (test_env, workspace_root) = set_up();
 

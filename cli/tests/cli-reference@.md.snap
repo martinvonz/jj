@@ -945,6 +945,7 @@ Before the command actually moves, creates, or deletes a remote branch, it makes
 
    Only tracked branches can be successfully deleted on the remote. A warning will be printed if any untracked branches on the remote correspond to missing local branches.
 * `--allow-empty-description` — Allow pushing commits with empty descriptions
+* `--allow-private` — Allow pushing commits that are private
 * `-r`, `--revisions <REVISIONS>` — Push branches pointing to these commits (can be repeated)
 * `-c`, `--change <CHANGE>` — Push this commit by creating a branch based on its change ID (can be repeated)
 * `--dry-run` — Only display what will change on the remote
