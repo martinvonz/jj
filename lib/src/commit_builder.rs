@@ -51,6 +51,12 @@ impl CommitBuilder<'_> {
         CommitBuilder { mut_repo, inner }
     }
 
+    /// Detaches from `&'repo mut` lifetime. The returned builder can be used in
+    /// order to obtain a temporary commit object.
+    pub fn detach(self) -> DetachedCommitBuilder {
+        self.inner
+    }
+
     pub fn parents(&self) -> &[CommitId] {
         self.inner.parents()
     }
@@ -216,6 +222,15 @@ impl DetachedCommitBuilder {
         }
     }
 
+    /// Attaches the underlying `mut_repo`.
+    pub fn attach(self, mut_repo: &mut MutableRepo) -> CommitBuilder<'_> {
+        assert!(Arc::ptr_eq(&self.store, mut_repo.store()));
+        CommitBuilder {
+            mut_repo,
+            inner: self,
+        }
+    }
+
     pub fn parents(&self) -> &[CommitId] {
         &self.commit.parents
     }
@@ -299,6 +314,7 @@ impl DetachedCommitBuilder {
         self
     }
 
+    /// Writes new commit and makes it visible in the `mut_repo`.
     pub fn write(self, mut_repo: &mut MutableRepo) -> BackendResult<Commit> {
         let commit = write_to_store(&self.store, self.commit, &self.sign_settings)?;
         mut_repo.add_head(&commit)?;
@@ -308,6 +324,14 @@ impl DetachedCommitBuilder {
             }
         }
         Ok(commit)
+    }
+
+    /// Writes new commit without making it visible in the repo.
+    ///
+    /// This does not consume the builder, so you can reuse the current
+    /// configuration to create another commit later.
+    pub fn write_hidden(&mut self) -> BackendResult<Commit> {
+        write_to_store(&self.store, self.commit.clone(), &self.sign_settings)
     }
 }
 
