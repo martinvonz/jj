@@ -21,10 +21,12 @@ use crate::commit::Commit;
 use crate::repo::{MutableRepo, Repo};
 use crate::settings::{JJRng, SignSettings, UserSettings};
 use crate::signing::SignBehavior;
+use crate::store::Store;
 
 #[must_use]
 pub struct CommitBuilder<'repo> {
     mut_repo: &'repo mut MutableRepo,
+    store: Arc<Store>,
     rng: Arc<JJRng>,
     commit: backend::Commit,
     rewrite_source: Option<Commit>,
@@ -39,10 +41,11 @@ impl CommitBuilder<'_> {
         parents: Vec<CommitId>,
         tree_id: MergedTreeId,
     ) -> CommitBuilder<'repo> {
+        let store = mut_repo.store().clone();
         let signature = settings.signature();
         assert!(!parents.is_empty());
         let rng = settings.get_rng();
-        let change_id = rng.new_change_id(mut_repo.store().change_id_length());
+        let change_id = rng.new_change_id(store.change_id_length());
         let commit = backend::Commit {
             parents,
             predecessors: vec![],
@@ -55,6 +58,7 @@ impl CommitBuilder<'_> {
         };
         CommitBuilder {
             mut_repo,
+            store,
             rng,
             commit,
             rewrite_source: None,
@@ -68,6 +72,7 @@ impl CommitBuilder<'_> {
         settings: &UserSettings,
         predecessor: &Commit,
     ) -> CommitBuilder<'repo> {
+        let store = mut_repo.store().clone();
         let mut commit = predecessor.store_commit().clone();
         commit.predecessors = vec![predecessor.id().clone()];
         commit.committer = settings.signature();
@@ -96,6 +101,7 @@ impl CommitBuilder<'_> {
 
         CommitBuilder {
             mut_repo,
+            store,
             commit,
             rng: settings.get_rng(),
             rewrite_source: Some(predecessor.clone()),
@@ -141,9 +147,7 @@ impl CommitBuilder<'_> {
     }
 
     pub fn generate_new_change_id(mut self) -> Self {
-        self.commit.change_id = self
-            .rng
-            .new_change_id(self.mut_repo.store().change_id_length());
+        self.commit.change_id = self.rng.new_change_id(self.store.change_id_length());
         self
     }
 
@@ -190,7 +194,7 @@ impl CommitBuilder<'_> {
 
     pub fn write(mut self) -> BackendResult<Commit> {
         let sign_settings = &self.sign_settings;
-        let store = self.mut_repo.store();
+        let store = &self.store;
 
         let should_sign = store.signer().can_sign() && sign_settings.should_sign(&self.commit);
         let sign_fn = |data: &[u8]| store.signer().sign(data, sign_settings.key.as_deref());
