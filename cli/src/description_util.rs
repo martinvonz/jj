@@ -1,15 +1,15 @@
+use std::io::Write as _;
+
+use bstr::ByteVec as _;
 use itertools::Itertools;
 use jj_lib::commit::Commit;
-use jj_lib::matchers::EverythingMatcher;
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::settings::UserSettings;
 
-use crate::cli_util::{edit_temp_file, WorkspaceCommandHelper};
+use crate::cli_util::{edit_temp_file, WorkspaceCommandTransaction};
 use crate::command_error::CommandError;
-use crate::diff_util::DiffFormat;
 use crate::formatter::PlainTextFormatter;
 use crate::text_util;
-use crate::ui::Ui;
 
 pub fn edit_description(
     repo: &ReadonlyRepo,
@@ -89,37 +89,30 @@ pub fn join_message_paragraphs(paragraphs: &[String]) -> String {
         .join("\n")
 }
 
+/// Renders commit description template, which will be edited by user.
 pub fn description_template(
-    ui: &Ui,
-    workspace_command: &WorkspaceCommandHelper,
+    tx: &WorkspaceCommandTransaction,
     intro: &str,
     commit: &Commit,
 ) -> Result<String, CommandError> {
-    let mut diff_summary_bytes = Vec::new();
-    let diff_renderer = workspace_command.diff_renderer(vec![DiffFormat::Summary]);
-    diff_renderer.show_patch(
-        ui,
-        &mut PlainTextFormatter::new(&mut diff_summary_bytes),
-        commit,
-        &EverythingMatcher,
-    )?;
-    let mut template_chunks = Vec::new();
-    if !intro.is_empty() {
-        template_chunks.push(format!("JJ: {intro}\n"));
-    }
-    template_chunks.push(commit.description().to_owned());
-    if !diff_summary_bytes.is_empty() {
-        template_chunks.push("\n".to_owned());
-        template_chunks.push(diff_summary_to_description(&diff_summary_bytes));
-    }
-    Ok(template_chunks.concat())
-}
+    // TODO: Should "ui.default-description" be deprecated?
+    // We might want default description templates per command instead. For
+    // example, "backout_description" template will be rendered against the
+    // commit to be backed out, and the generated description could be set
+    // without spawning editor.
 
-pub fn diff_summary_to_description(bytes: &[u8]) -> String {
-    let text = std::str::from_utf8(bytes).expect(
-        "Summary diffs and repo paths must always be valid UTF8.",
-        // Double-check this assumption for diffs that include file content.
-    );
-    "JJ: This commit contains the following changes:\n".to_owned()
-        + &textwrap::indent(text, "JJ:     ")
+    // Named as "draft" because the output can contain "JJ: " comment lines.
+    let template_key = "templates.draft_commit_description";
+    let template_text = tx.settings().config().get_string(template_key)?;
+    let template = tx.parse_commit_template(&template_text)?;
+
+    let mut output = Vec::new();
+    if !intro.is_empty() {
+        writeln!(output, "JJ: {intro}").unwrap();
+    }
+    template
+        .format(commit, &mut PlainTextFormatter::new(&mut output))
+        .expect("write() to vec backed formatter should never fail");
+    // Template output is usually UTF-8, but it can contain file content.
+    Ok(output.into_string_lossy())
 }

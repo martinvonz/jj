@@ -90,7 +90,7 @@ pub(crate) fn cmd_describe(
             commit_builder.set_description(command.settings().default_description());
         }
         let temp_commit = commit_builder.write_hidden()?;
-        let template = description_template(ui, tx.base_workspace_helper(), "", &temp_commit)?;
+        let template = description_template(&tx, "", &temp_commit)?;
         edit_description(tx.base_repo(), &template, command.settings())?
     };
     commit_builder.set_description(description);

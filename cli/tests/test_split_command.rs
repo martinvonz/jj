@@ -248,6 +248,7 @@ fn test_split_with_default_description() {
 
 
     TESTED=TODO
+
     JJ: This commit contains the following changes:
     JJ:     A file1
 
@@ -366,6 +367,7 @@ fn test_split_siblings_no_descendants() {
 
 
     TESTED=TODO
+
     JJ: This commit contains the following changes:
     JJ:     A file1
 

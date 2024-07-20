@@ -1638,6 +1638,10 @@ impl WorkspaceCommandTransaction<'_> {
         self.helper
     }
 
+    pub fn settings(&self) -> &UserSettings {
+        &self.helper.settings
+    }
+
     pub fn base_repo(&self) -> &Arc<ReadonlyRepo> {
         self.tx.base_repo()
     }

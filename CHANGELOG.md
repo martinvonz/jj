@@ -82,6 +82,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * New config setting `git.private-commits` to prevent commits from being pushed.
 
+* [The default commit description template](docs/config.md#default-description)
+  can now be configured by `templates.draft_commit_description`.
+
 ### Fixed bugs
 
 * `jj diff --git` no longer shows the contents of binary files.
