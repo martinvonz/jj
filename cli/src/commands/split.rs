@@ -128,10 +128,12 @@ the operation will be aborted.
             .rewrite_commit(command.settings(), &commit)
             .detach();
         commit_builder.set_tree_id(selected_tree_id);
+        if commit_builder.description().is_empty() {
+            commit_builder.set_description(command.settings().default_description());
+        }
         let temp_commit = commit_builder.write_hidden()?;
         let template = description_template_for_commit(
             ui,
-            command.settings(),
             tx.base_workspace_helper(),
             "Enter a description for the first commit.",
             &temp_commit,
@@ -175,7 +177,6 @@ the operation will be aborted.
             let temp_commit = commit_builder.write_hidden()?;
             let template = description_template_for_commit(
                 ui,
-                command.settings(),
                 tx.base_workspace_helper(),
                 "Enter a description for the second commit.",
                 &temp_commit,

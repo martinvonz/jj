@@ -112,7 +112,6 @@ pub fn description_template_for_describe(
 
 pub fn description_template_for_commit(
     ui: &Ui,
-    settings: &UserSettings,
     workspace_command: &WorkspaceCommandHelper,
     intro: &str,
     commit: &Commit,
@@ -129,11 +128,7 @@ pub fn description_template_for_commit(
     if !intro.is_empty() {
         template_chunks.push(format!("JJ: {intro}\n"));
     }
-    template_chunks.push(if commit.description().is_empty() {
-        settings.default_description()
-    } else {
-        commit.description().to_owned()
-    });
+    template_chunks.push(commit.description().to_owned());
     if !diff_summary_bytes.is_empty() {
         template_chunks.push("\n".to_owned());
         template_chunks.push(diff_summary_to_description(&diff_summary_bytes));
