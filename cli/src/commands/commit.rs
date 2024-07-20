@@ -98,6 +98,15 @@ new working-copy commit.
         )?;
     }
 
+    let mut commit_builder = tx
+        .mut_repo()
+        .rewrite_commit(command.settings(), &commit)
+        .detach();
+    commit_builder.set_tree_id(tree_id);
+    if args.reset_author {
+        commit_builder.set_author(commit_builder.committer().clone());
+    }
+
     let template = description_template_for_commit(
         ui,
         command.settings(),
@@ -113,17 +122,9 @@ new working-copy commit.
     } else {
         edit_description(tx.base_repo(), &template, command.settings())?
     };
+    commit_builder.set_description(description);
+    let new_commit = commit_builder.write(tx.mut_repo())?;
 
-    let mut commit_builder = tx
-        .mut_repo()
-        .rewrite_commit(command.settings(), &commit)
-        .set_tree_id(tree_id)
-        .set_description(description);
-    if args.reset_author {
-        let new_author = commit_builder.committer().clone();
-        commit_builder = commit_builder.set_author(new_author);
-    }
-    let new_commit = commit_builder.write()?;
     let workspace_ids = tx
         .mut_repo()
         .view()
