@@ -158,9 +158,24 @@ ui.default-command = ["log", "--reversed"]
 
 ### Default description
 
-The value of the `ui.default-description` setting will be used to prepopulate
-the editor when describing changes with an empty description. This could be a
-useful reminder to fill in things like BUG=, TESTED= etc.
+The editor content of a commit description can be populated by the
+`draft_commit_description` template.
+
+```toml
+[templates]
+draft_commit_description = '''
+concat(
+  description,
+  surround(
+    "\nJJ: This commit contains the following changes:\n", "",
+    indent("JJ:     ", diff.stat(72)),
+  ),
+)
+'''
+```
+
+The value of the `ui.default-description` setting can also be used in order to
+fill in things like BUG=, TESTED= etc.
 
 ```toml
 ui.default-description = "\n\nTESTED=TODO"

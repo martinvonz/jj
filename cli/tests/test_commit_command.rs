@@ -174,9 +174,71 @@ fn test_commit_with_default_description() {
 
 
     TESTED=TODO
+
     JJ: This commit contains the following changes:
     JJ:     A file1
     JJ:     A file2
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
+}
+
+#[test]
+fn test_commit_with_description_template() {
+    let mut test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    test_env.add_config(
+        r#"
+        [templates]
+        draft_commit_description = '''
+        concat(
+          description,
+          "\n",
+          indent(
+            "JJ: ",
+            concat(
+              "Author: " ++ format_detailed_signature(author) ++ "\n",
+              "Committer: " ++ format_detailed_signature(committer)  ++ "\n",
+              "\n",
+              diff.stat(76),
+            ),
+          ),
+        )
+        '''
+        "#,
+    );
+    let workspace_path = test_env.env_root().join("repo");
+
+    let edit_script = test_env.set_up_fake_editor();
+    std::fs::write(edit_script, ["dump editor"].join("\0")).unwrap();
+
+    std::fs::write(workspace_path.join("file1"), "foo\n").unwrap();
+    std::fs::write(workspace_path.join("file2"), "bar\n").unwrap();
+
+    // Only file1 should be included in the diff
+    test_env.jj_cmd_ok(&workspace_path, &["commit", "file1"]);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r###"
+
+    JJ: Author: Test User <test.user@example.com> (2001-02-03 08:05:08)
+    JJ: Committer: Test User <test.user@example.com> (2001-02-03 08:05:08)
+
+    JJ: file1 | 1 +
+    JJ: 1 file changed, 1 insertion(+), 0 deletions(-)
+
+    JJ: Lines starting with "JJ: " (like this one) will be removed.
+    "###);
+
+    // Timestamp after the reset should be available to the template
+    test_env.jj_cmd_ok(&workspace_path, &["commit", "--reset-author"]);
+    insta::assert_snapshot!(
+        std::fs::read_to_string(test_env.env_root().join("editor")).unwrap(), @r###"
+
+    JJ: Author: Test User <test.user@example.com> (2001-02-03 08:05:09)
+    JJ: Committer: Test User <test.user@example.com> (2001-02-03 08:05:09)
+
+    JJ: file2 | 1 +
+    JJ: 1 file changed, 1 insertion(+), 0 deletions(-)
 
     JJ: Lines starting with "JJ: " (like this one) will be removed.
     "###);

@@ -133,8 +133,7 @@ the operation will be aborted.
         }
         let temp_commit = commit_builder.write_hidden()?;
         let template = description_template(
-            ui,
-            tx.base_workspace_helper(),
+            &tx,
             "Enter a description for the first commit.",
             &temp_commit,
         )?;
@@ -176,8 +175,7 @@ the operation will be aborted.
         } else {
             let temp_commit = commit_builder.write_hidden()?;
             let template = description_template(
-                ui,
-                tx.base_workspace_helper(),
+                &tx,
                 "Enter a description for the second commit.",
                 &temp_commit,
             )?;

@@ -21,6 +21,18 @@ if(overridden,
 ) ++ "\n"
 '''
 
+# TODO: Provide hook point for diff customization (#1946)? We might want a
+# syntax to comment out full text diffs without using the "JJ: " prefix.
+draft_commit_description = '''
+concat(
+  description,
+  surround(
+    "\nJJ: This commit contains the following changes:\n", "",
+    indent("JJ:     ", diff.summary()),
+  ),
+)
+'''
+
 log = 'builtin_log_compact'
 op_log = 'builtin_op_log_compact'
 show = 'builtin_log_detailed'

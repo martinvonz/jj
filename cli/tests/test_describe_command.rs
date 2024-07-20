@@ -271,6 +271,7 @@ fn test_describe_default_description() {
 
 
     TESTED=TODO
+
     JJ: This commit contains the following changes:
     JJ:     A file1
     JJ:     A file2
