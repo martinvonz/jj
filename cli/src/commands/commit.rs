@@ -89,8 +89,7 @@ new working-copy commit.
         matcher.as_ref(),
         format_instructions,
     )?;
-    let middle_tree = tx.repo().store().get_root_tree(&tree_id)?;
-    if !args.paths.is_empty() && middle_tree.id() == base_tree.id() {
+    if !args.paths.is_empty() && tree_id == base_tree.id() {
         writeln!(
             ui.warning_default(),
             "The given paths do not match any file: {}",
@@ -107,19 +106,17 @@ new working-copy commit.
         commit_builder.set_author(commit_builder.committer().clone());
     }
 
-    let template = description_template_for_commit(
-        ui,
-        command.settings(),
-        tx.base_workspace_helper(),
-        "",
-        commit.description(),
-        &base_tree,
-        &middle_tree,
-    )?;
-
     let description = if !args.message_paragraphs.is_empty() {
         join_message_paragraphs(&args.message_paragraphs)
     } else {
+        let temp_commit = commit_builder.write_hidden()?;
+        let template = description_template_for_commit(
+            ui,
+            command.settings(),
+            tx.base_workspace_helper(),
+            "",
+            &temp_commit,
+        )?;
         edit_description(tx.base_repo(), &template, command.settings())?
     };
     commit_builder.set_description(description);

@@ -1,7 +1,6 @@
 use itertools::Itertools;
 use jj_lib::commit::Commit;
 use jj_lib::matchers::EverythingMatcher;
-use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::ReadonlyRepo;
 use jj_lib::settings::UserSettings;
 
@@ -116,27 +115,24 @@ pub fn description_template_for_commit(
     settings: &UserSettings,
     workspace_command: &WorkspaceCommandHelper,
     intro: &str,
-    overall_commit_description: &str,
-    from_tree: &MergedTree,
-    to_tree: &MergedTree,
+    commit: &Commit,
 ) -> Result<String, CommandError> {
     let mut diff_summary_bytes = Vec::new();
     let diff_renderer = workspace_command.diff_renderer(vec![DiffFormat::Summary]);
-    diff_renderer.show_diff(
+    diff_renderer.show_patch(
         ui,
         &mut PlainTextFormatter::new(&mut diff_summary_bytes),
-        from_tree,
-        to_tree,
+        commit,
         &EverythingMatcher,
     )?;
     let mut template_chunks = Vec::new();
     if !intro.is_empty() {
         template_chunks.push(format!("JJ: {intro}\n"));
     }
-    template_chunks.push(if overall_commit_description.is_empty() {
+    template_chunks.push(if commit.description().is_empty() {
         settings.default_description()
     } else {
-        overall_commit_description.to_owned()
+        commit.description().to_owned()
     });
     if !diff_summary_bytes.is_empty() {
         template_chunks.push("\n".to_owned());
