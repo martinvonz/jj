@@ -63,8 +63,6 @@ impl CommitBuilder<'_> {
     }
 
     /// Only called from [`MutRepo::rewrite_commit`]. Use that function instead.
-    #[allow(unknown_lints)] // XXX FIXME (aseipp): nightly bogons; re-test this occasionally
-    #[allow(clippy::assigning_clones)]
     pub(crate) fn for_rewrite_from<'repo>(
         mut_repo: &'repo mut MutableRepo,
         settings: &UserSettings,
@@ -78,12 +76,12 @@ impl CommitBuilder<'_> {
         if commit.author.name.is_empty()
             || commit.author.name == UserSettings::USER_NAME_PLACEHOLDER
         {
-            commit.author.name = commit.committer.name.clone();
+            commit.author.name.clone_from(&commit.committer.name);
         }
         if commit.author.email.is_empty()
             || commit.author.email == UserSettings::USER_EMAIL_PLACEHOLDER
         {
-            commit.author.email = commit.committer.email.clone();
+            commit.author.email.clone_from(&commit.committer.email);
         }
 
         // Reset author timestamp on discardable commits if the author is the
