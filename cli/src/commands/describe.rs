@@ -71,7 +71,7 @@ pub(crate) fn cmd_describe(
     workspace_command.check_rewritable([commit.id()])?;
     let description = if args.stdin {
         let mut buffer = String::new();
-        io::stdin().read_to_string(&mut buffer).unwrap();
+        io::stdin().read_to_string(&mut buffer)?;
         buffer
     } else if !args.message_paragraphs.is_empty() {
         join_message_paragraphs(&args.message_paragraphs)
