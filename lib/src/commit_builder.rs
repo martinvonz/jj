@@ -30,27 +30,6 @@ pub struct CommitBuilder<'repo> {
 }
 
 impl CommitBuilder<'_> {
-    /// Only called from [`MutRepo::new_commit`]. Use that function instead.
-    pub(crate) fn for_new_commit<'repo>(
-        mut_repo: &'repo mut MutableRepo,
-        settings: &UserSettings,
-        parents: Vec<CommitId>,
-        tree_id: MergedTreeId,
-    ) -> CommitBuilder<'repo> {
-        let inner = DetachedCommitBuilder::for_new_commit(mut_repo, settings, parents, tree_id);
-        CommitBuilder { mut_repo, inner }
-    }
-
-    /// Only called from [`MutRepo::rewrite_commit`]. Use that function instead.
-    pub(crate) fn for_rewrite_from<'repo>(
-        mut_repo: &'repo mut MutableRepo,
-        settings: &UserSettings,
-        predecessor: &Commit,
-    ) -> CommitBuilder<'repo> {
-        let inner = DetachedCommitBuilder::for_rewrite_from(mut_repo, settings, predecessor);
-        CommitBuilder { mut_repo, inner }
-    }
-
     /// Detaches from `&'repo mut` lifetime. The returned builder can be used in
     /// order to obtain a temporary commit object.
     pub fn detach(self) -> DetachedCommitBuilder {
@@ -155,7 +134,8 @@ pub struct DetachedCommitBuilder {
 }
 
 impl DetachedCommitBuilder {
-    fn for_new_commit(
+    /// Only called from [`MutRepo::new_commit`]. Use that function instead.
+    pub(crate) fn for_new_commit(
         repo: &dyn Repo,
         settings: &UserSettings,
         parents: Vec<CommitId>,
@@ -185,7 +165,12 @@ impl DetachedCommitBuilder {
         }
     }
 
-    fn for_rewrite_from(repo: &dyn Repo, settings: &UserSettings, predecessor: &Commit) -> Self {
+    /// Only called from [`MutRepo::rewrite_commit`]. Use that function instead.
+    pub(crate) fn for_rewrite_from(
+        repo: &dyn Repo,
+        settings: &UserSettings,
+        predecessor: &Commit,
+    ) -> Self {
         let store = repo.store().clone();
         let mut commit = predecessor.store_commit().clone();
         commit.predecessors = vec![predecessor.id().clone()];
