@@ -128,14 +128,13 @@ the operation will be aborted.
             .rewrite_commit(command.settings(), &commit)
             .detach();
         commit_builder.set_tree_id(selected_tree_id);
+        let temp_commit = commit_builder.write_hidden()?;
         let template = description_template_for_commit(
             ui,
             command.settings(),
             tx.base_workspace_helper(),
             "Enter a description for the first commit.",
-            commit.description(),
-            &base_tree,
-            &selected_tree,
+            &temp_commit,
         )?;
         let description = edit_description(tx.base_repo(), &template, command.settings())?;
         commit_builder.set_description(description);
@@ -145,13 +144,13 @@ the operation will be aborted.
     // Create the second commit, which includes everything the user didn't
     // select.
     let second_commit = {
-        let (new_tree, base_tree) = if args.parallel {
+        let new_tree = if args.parallel {
             // Merge the original commit tree with its parent using the tree
             // containing the user selected changes as the base for the merge.
             // This results in a tree with the changes the user didn't select.
-            (end_tree.merge(&selected_tree, &base_tree)?, &base_tree)
+            end_tree.merge(&selected_tree, &base_tree)?
         } else {
-            (end_tree, &selected_tree)
+            end_tree
         };
         let parents = if args.parallel {
             commit.parent_ids().to_vec()
@@ -173,14 +172,13 @@ the operation will be aborted.
             // second commit.
             "".to_string()
         } else {
+            let temp_commit = commit_builder.write_hidden()?;
             let template = description_template_for_commit(
                 ui,
                 command.settings(),
                 tx.base_workspace_helper(),
                 "Enter a description for the second commit.",
-                commit.description(),
-                base_tree,
-                &new_tree,
+                &temp_commit,
             )?;
             edit_description(tx.base_repo(), &template, command.settings())?
         };
