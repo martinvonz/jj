@@ -109,14 +109,12 @@ new working-copy commit.
     let description = if !args.message_paragraphs.is_empty() {
         join_message_paragraphs(&args.message_paragraphs)
     } else {
+        if commit_builder.description().is_empty() {
+            commit_builder.set_description(command.settings().default_description());
+        }
         let temp_commit = commit_builder.write_hidden()?;
-        let template = description_template_for_commit(
-            ui,
-            command.settings(),
-            tx.base_workspace_helper(),
-            "",
-            &temp_commit,
-        )?;
+        let template =
+            description_template_for_commit(ui, tx.base_workspace_helper(), "", &temp_commit)?;
         edit_description(tx.base_repo(), &template, command.settings())?
     };
     commit_builder.set_description(description);
