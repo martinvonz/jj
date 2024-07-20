@@ -19,7 +19,7 @@ use tracing::instrument;
 
 use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::{user_error_with_hint, CommandError};
-use crate::description_util::{description_template_for_commit, edit_description};
+use crate::description_util::{description_template, edit_description};
 use crate::ui::Ui;
 
 /// Split a revision in two
@@ -132,7 +132,7 @@ the operation will be aborted.
             commit_builder.set_description(command.settings().default_description());
         }
         let temp_commit = commit_builder.write_hidden()?;
-        let template = description_template_for_commit(
+        let template = description_template(
             ui,
             tx.base_workspace_helper(),
             "Enter a description for the first commit.",
@@ -175,7 +175,7 @@ the operation will be aborted.
             "".to_string()
         } else {
             let temp_commit = commit_builder.write_hidden()?;
-            let template = description_template_for_commit(
+            let template = description_template(
                 ui,
                 tx.base_workspace_helper(),
                 "Enter a description for the second commit.",
