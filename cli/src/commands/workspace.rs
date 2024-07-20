@@ -171,6 +171,15 @@ fn cmd_workspace_add(
         "Created workspace in \"{}\"",
         file_util::relative_path(command.cwd(), &destination_path).display()
     )?;
+    // Show a warning if the user passed a path without a separator, since they
+    // may have intended the argument to only be the name for the workspace.
+    if !args.destination.contains(std::path::is_separator) {
+        writeln!(
+            ui.warning_default(),
+            r#"Workspace created inside current directory. If this was unintentional, delete the "{}" directory and run `jj workspace forget {name}` to remove it."#,
+            args.destination
+        )?;
+    }
 
     // Copy sparse patterns from workspace where the command was run
     let mut new_workspace_command = command.for_workable_repo(ui, new_workspace, repo)?;
