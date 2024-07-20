@@ -89,28 +89,7 @@ pub fn join_message_paragraphs(paragraphs: &[String]) -> String {
         .join("\n")
 }
 
-pub fn description_template_for_describe(
-    ui: &Ui,
-    workspace_command: &WorkspaceCommandHelper,
-    commit: &Commit,
-) -> Result<String, CommandError> {
-    let mut diff_summary_bytes = Vec::new();
-    let diff_renderer = workspace_command.diff_renderer(vec![DiffFormat::Summary]);
-    diff_renderer.show_patch(
-        ui,
-        &mut PlainTextFormatter::new(&mut diff_summary_bytes),
-        commit,
-        &EverythingMatcher,
-    )?;
-    let description = commit.description().to_owned();
-    if diff_summary_bytes.is_empty() {
-        Ok(description)
-    } else {
-        Ok(description + "\n" + &diff_summary_to_description(&diff_summary_bytes))
-    }
-}
-
-pub fn description_template_for_commit(
+pub fn description_template(
     ui: &Ui,
     workspace_command: &WorkspaceCommandHelper,
     intro: &str,

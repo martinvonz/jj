@@ -18,9 +18,7 @@ use tracing::instrument;
 
 use crate::cli_util::CommandHelper;
 use crate::command_error::{user_error, CommandError};
-use crate::description_util::{
-    description_template_for_commit, edit_description, join_message_paragraphs,
-};
+use crate::description_util::{description_template, edit_description, join_message_paragraphs};
 use crate::ui::Ui;
 
 /// Update the description and create a new change on top.
@@ -113,8 +111,7 @@ new working-copy commit.
             commit_builder.set_description(command.settings().default_description());
         }
         let temp_commit = commit_builder.write_hidden()?;
-        let template =
-            description_template_for_commit(ui, tx.base_workspace_helper(), "", &temp_commit)?;
+        let template = description_template(ui, tx.base_workspace_helper(), "", &temp_commit)?;
         edit_description(tx.base_repo(), &template, command.settings())?
     };
     commit_builder.set_description(description);
