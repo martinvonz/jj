@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 
-use crate::backend::{self, BackendResult, ChangeId, CommitId, MergedTreeId, Signature, SigningFn};
+use crate::backend::{self, BackendResult, ChangeId, CommitId, MergedTreeId, Signature};
 use crate::commit::Commit;
 use crate::repo::{MutableRepo, Repo};
 use crate::settings::{JJRng, SignSettings, UserSettings};
@@ -192,18 +192,15 @@ impl CommitBuilder<'_> {
         let sign_settings = &self.sign_settings;
         let store = self.mut_repo.store();
 
-        let mut signing_fn = (store.signer().can_sign() && sign_settings.should_sign(&self.commit))
-            .then(|| -> Box<SigningFn> {
-                let store = store.clone();
-                Box::new(move |data: &_| store.signer().sign(data, sign_settings.key.as_deref()))
-            });
+        let should_sign = store.signer().can_sign() && sign_settings.should_sign(&self.commit);
+        let sign_fn = |data: &[u8]| store.signer().sign(data, sign_settings.key.as_deref());
 
         // Commit backend doesn't use secure_sig for writing and enforces it with an
         // assert, but sign_settings.should_sign check above will want to know
         // if we're rewriting a signed commit
         self.commit.secure_sig = None;
 
-        let commit = store.write_commit(self.commit, signing_fn.as_deref_mut())?;
+        let commit = store.write_commit(self.commit, should_sign.then_some(&mut &sign_fn))?;
         self.mut_repo.add_head(&commit)?;
         if let Some(rewrite_source) = self.rewrite_source {
             if rewrite_source.change_id() == commit.change_id() {
