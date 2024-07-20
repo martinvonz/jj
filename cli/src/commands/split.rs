@@ -123,6 +123,11 @@ the operation will be aborted.
     // Create the first commit, which includes the changes selected by the user.
     let selected_tree = tx.repo().store().get_root_tree(&selected_tree_id)?;
     let first_commit = {
+        let mut commit_builder = tx
+            .mut_repo()
+            .rewrite_commit(command.settings(), &commit)
+            .detach();
+        commit_builder.set_tree_id(selected_tree_id);
         let template = description_template_for_commit(
             ui,
             command.settings(),
@@ -133,11 +138,8 @@ the operation will be aborted.
             &selected_tree,
         )?;
         let description = edit_description(tx.base_repo(), &template, command.settings())?;
-        tx.mut_repo()
-            .rewrite_commit(command.settings(), &commit)
-            .set_tree_id(selected_tree_id)
-            .set_description(description)
-            .write()?
+        commit_builder.set_description(description);
+        commit_builder.write(tx.mut_repo())?
     };
 
     // Create the second commit, which includes everything the user didn't
@@ -156,6 +158,16 @@ the operation will be aborted.
         } else {
             vec![first_commit.id().clone()]
         };
+        let mut commit_builder = tx
+            .mut_repo()
+            .rewrite_commit(command.settings(), &commit)
+            .detach();
+        commit_builder
+            .set_parents(parents)
+            .set_tree_id(new_tree.id())
+            // Generate a new change id so that the commit being split doesn't
+            // become divergent.
+            .generate_new_change_id();
         let description = if commit.description().is_empty() {
             // If there was no description before, don't ask for one for the
             // second commit.
@@ -172,15 +184,8 @@ the operation will be aborted.
             )?;
             edit_description(tx.base_repo(), &template, command.settings())?
         };
-        tx.mut_repo()
-            .rewrite_commit(command.settings(), &commit)
-            .set_parents(parents)
-            .set_tree_id(new_tree.id())
-            // Generate a new change id so that the commit being split doesn't
-            // become divergent.
-            .generate_new_change_id()
-            .set_description(description)
-            .write()?
+        commit_builder.set_description(description);
+        commit_builder.write(tx.mut_repo())?
     };
 
     // Mark the commit being split as rewritten to the second commit. As a
