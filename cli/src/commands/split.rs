@@ -122,63 +122,67 @@ the operation will be aborted.
 
     // Create the first commit, which includes the changes selected by the user.
     let selected_tree = tx.repo().store().get_root_tree(&selected_tree_id)?;
-    let first_template = description_template_for_commit(
-        ui,
-        command.settings(),
-        tx.base_workspace_helper(),
-        "Enter a description for the first commit.",
-        commit.description(),
-        &base_tree,
-        &selected_tree,
-    )?;
-    let first_description = edit_description(tx.base_repo(), &first_template, command.settings())?;
-    let first_commit = tx
-        .mut_repo()
-        .rewrite_commit(command.settings(), &commit)
-        .set_tree_id(selected_tree_id)
-        .set_description(first_description)
-        .write()?;
-
-    // Create the second commit, which includes everything the user didn't
-    // select.
-    let (second_tree, second_base_tree) = if args.parallel {
-        // Merge the original commit tree with its parent using the tree
-        // containing the user selected changes as the base for the merge.
-        // This results in a tree with the changes the user didn't select.
-        (end_tree.merge(&selected_tree, &base_tree)?, &base_tree)
-    } else {
-        (end_tree, &selected_tree)
-    };
-    let second_commit_parents = if args.parallel {
-        commit.parent_ids().to_vec()
-    } else {
-        vec![first_commit.id().clone()]
-    };
-    let second_description = if commit.description().is_empty() {
-        // If there was no description before, don't ask for one for the second commit.
-        "".to_string()
-    } else {
-        let second_template = description_template_for_commit(
+    let first_commit = {
+        let first_template = description_template_for_commit(
             ui,
             command.settings(),
             tx.base_workspace_helper(),
-            "Enter a description for the second commit.",
+            "Enter a description for the first commit.",
             commit.description(),
-            second_base_tree,
-            &second_tree,
+            &base_tree,
+            &selected_tree,
         )?;
-        edit_description(tx.base_repo(), &second_template, command.settings())?
+        let first_description =
+            edit_description(tx.base_repo(), &first_template, command.settings())?;
+        tx.mut_repo()
+            .rewrite_commit(command.settings(), &commit)
+            .set_tree_id(selected_tree_id)
+            .set_description(first_description)
+            .write()?
     };
-    let second_commit = tx
-        .mut_repo()
-        .rewrite_commit(command.settings(), &commit)
-        .set_parents(second_commit_parents)
-        .set_tree_id(second_tree.id())
-        // Generate a new change id so that the commit being split doesn't
-        // become divergent.
-        .generate_new_change_id()
-        .set_description(second_description)
-        .write()?;
+
+    // Create the second commit, which includes everything the user didn't
+    // select.
+    let second_commit = {
+        let (second_tree, second_base_tree) = if args.parallel {
+            // Merge the original commit tree with its parent using the tree
+            // containing the user selected changes as the base for the merge.
+            // This results in a tree with the changes the user didn't select.
+            (end_tree.merge(&selected_tree, &base_tree)?, &base_tree)
+        } else {
+            (end_tree, &selected_tree)
+        };
+        let second_commit_parents = if args.parallel {
+            commit.parent_ids().to_vec()
+        } else {
+            vec![first_commit.id().clone()]
+        };
+        let second_description = if commit.description().is_empty() {
+            // If there was no description before, don't ask for one for the
+            // second commit.
+            "".to_string()
+        } else {
+            let second_template = description_template_for_commit(
+                ui,
+                command.settings(),
+                tx.base_workspace_helper(),
+                "Enter a description for the second commit.",
+                commit.description(),
+                second_base_tree,
+                &second_tree,
+            )?;
+            edit_description(tx.base_repo(), &second_template, command.settings())?
+        };
+        tx.mut_repo()
+            .rewrite_commit(command.settings(), &commit)
+            .set_parents(second_commit_parents)
+            .set_tree_id(second_tree.id())
+            // Generate a new change id so that the commit being split doesn't
+            // become divergent.
+            .generate_new_change_id()
+            .set_description(second_description)
+            .write()?
+    };
 
     // Mark the commit being split as rewritten to the second commit. As a
     // result, if @ points to the commit being split, it will point to the
