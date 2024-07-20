@@ -123,7 +123,7 @@ the operation will be aborted.
     // Create the first commit, which includes the changes selected by the user.
     let selected_tree = tx.repo().store().get_root_tree(&selected_tree_id)?;
     let first_commit = {
-        let first_template = description_template_for_commit(
+        let template = description_template_for_commit(
             ui,
             command.settings(),
             tx.base_workspace_helper(),
@@ -132,19 +132,18 @@ the operation will be aborted.
             &base_tree,
             &selected_tree,
         )?;
-        let first_description =
-            edit_description(tx.base_repo(), &first_template, command.settings())?;
+        let description = edit_description(tx.base_repo(), &template, command.settings())?;
         tx.mut_repo()
             .rewrite_commit(command.settings(), &commit)
             .set_tree_id(selected_tree_id)
-            .set_description(first_description)
+            .set_description(description)
             .write()?
     };
 
     // Create the second commit, which includes everything the user didn't
     // select.
     let second_commit = {
-        let (second_tree, second_base_tree) = if args.parallel {
+        let (new_tree, base_tree) = if args.parallel {
             // Merge the original commit tree with its parent using the tree
             // containing the user selected changes as the base for the merge.
             // This results in a tree with the changes the user didn't select.
@@ -152,35 +151,35 @@ the operation will be aborted.
         } else {
             (end_tree, &selected_tree)
         };
-        let second_commit_parents = if args.parallel {
+        let parents = if args.parallel {
             commit.parent_ids().to_vec()
         } else {
             vec![first_commit.id().clone()]
         };
-        let second_description = if commit.description().is_empty() {
+        let description = if commit.description().is_empty() {
             // If there was no description before, don't ask for one for the
             // second commit.
             "".to_string()
         } else {
-            let second_template = description_template_for_commit(
+            let template = description_template_for_commit(
                 ui,
                 command.settings(),
                 tx.base_workspace_helper(),
                 "Enter a description for the second commit.",
                 commit.description(),
-                second_base_tree,
-                &second_tree,
+                base_tree,
+                &new_tree,
             )?;
-            edit_description(tx.base_repo(), &second_template, command.settings())?
+            edit_description(tx.base_repo(), &template, command.settings())?
         };
         tx.mut_repo()
             .rewrite_commit(command.settings(), &commit)
-            .set_parents(second_commit_parents)
-            .set_tree_id(second_tree.id())
+            .set_parents(parents)
+            .set_tree_id(new_tree.id())
             // Generate a new change id so that the commit being split doesn't
             // become divergent.
             .generate_new_change_id()
-            .set_description(second_description)
+            .set_description(description)
             .write()?
     };
 
