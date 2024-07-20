@@ -374,6 +374,61 @@ fn test_workspaces_add_workspace_from_subdir() {
     "###);
 }
 
+#[test]
+fn test_workspaces_add_workspace_in_current_workspace() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "main"]);
+    let main_path = test_env.env_root().join("main");
+
+    std::fs::write(main_path.join("file"), "contents").unwrap();
+    test_env.jj_cmd_ok(&main_path, &["commit", "-m", "initial"]);
+
+    // Try to create workspace using name instead of path
+    let (stdout, stderr) = test_env.jj_cmd_ok(&main_path, &["workspace", "add", "secondary"]);
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @"");
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
+    Created workspace in "secondary"
+    Warning: Workspace created inside current directory. If this was unintentional, delete the "secondary" directory and run `jj workspace forget secondary` to remove it.
+    Working copy now at: pmmvwywv 0a77a39d (empty) (no description set)
+    Parent commit      : qpvuntsm 751b12b7 initial
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+
+    // Workspace created despite warning
+    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    default: rlvkpnrz 46d9ba8b (no description set)
+    secondary: pmmvwywv 0a77a39d (empty) (no description set)
+    "###);
+
+    // Use explicit path instead (no warning)
+    let (stdout, stderr) = test_env.jj_cmd_ok(&main_path, &["workspace", "add", "./third"]);
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @"");
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
+    Created workspace in "third"
+    Working copy now at: zxsnswpr 64746d4b (empty) (no description set)
+    Parent commit      : qpvuntsm 751b12b7 initial
+    Added 1 files, modified 0 files, removed 0 files
+    "###);
+
+    // Both workspaces created
+    let stdout = test_env.jj_cmd_success(&main_path, &["workspace", "list"]);
+    insta::assert_snapshot!(stdout, @r###"
+    default: rlvkpnrz 477c647f (no description set)
+    secondary: pmmvwywv 0a77a39d (empty) (no description set)
+    third: zxsnswpr 64746d4b (empty) (no description set)
+    "###);
+
+    // Can see files from the other workspaces in main workspace, since they are
+    // child directories and will therefore be snapshotted
+    let stdout = test_env.jj_cmd_success(&main_path, &["file", "list"]);
+    insta::assert_snapshot!(stdout.replace('\\', "/"), @r###"
+    file
+    secondary/file
+    third/file
+    "###);
+}
+
 /// Test making changes to the working copy in a workspace as it gets rewritten
 /// from another workspace
 #[test]
