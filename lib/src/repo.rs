@@ -33,7 +33,7 @@ use crate::backend::{
     MergedTreeId,
 };
 use crate::commit::{Commit, CommitByCommitterTimestamp};
-use crate::commit_builder::CommitBuilder;
+use crate::commit_builder::{CommitBuilder, DetachedCommitBuilder};
 use crate::default_index::{DefaultIndexStore, DefaultMutableIndex};
 use crate::default_submodule_store::DefaultSubmoduleStore;
 use crate::file_util::{IoResultExt as _, PathError};
@@ -843,7 +843,7 @@ impl MutableRepo {
         parents: Vec<CommitId>,
         tree_id: MergedTreeId,
     ) -> CommitBuilder {
-        CommitBuilder::for_new_commit(self, settings, parents, tree_id)
+        DetachedCommitBuilder::for_new_commit(self, settings, parents, tree_id).attach(self)
     }
 
     /// Returns a [`CommitBuilder`] to rewrite an existing commit in the repo.
@@ -852,7 +852,7 @@ impl MutableRepo {
         settings: &UserSettings,
         predecessor: &Commit,
     ) -> CommitBuilder {
-        CommitBuilder::for_rewrite_from(self, settings, predecessor)
+        DetachedCommitBuilder::for_rewrite_from(self, settings, predecessor).attach(self)
         // CommitBuilder::write will record the rewrite in
         // `self.rewritten_commits`
     }
