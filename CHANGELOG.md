@@ -20,6 +20,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * A tilde (`~`) at the start of the path will now be expanded to the user's home
   directory when configuring a `signing.key` for SSH commit signing.
+  
+* When reconfiguring the author, warn that the working copy won't be updated
 
 ### Fixed bugs
 

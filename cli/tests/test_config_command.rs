@@ -857,6 +857,43 @@ fn test_config_show_paths() {
     "###);
 }
 
+#[test]
+fn test_config_author_change_warning() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["config", "set", "--repo", "user.email", "'Foo'"],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Warning: This setting will only impact future commits.
+    The author of the working copy will stay "Test User <test.user@example.com>".
+    To change the working copy author, use "jj describe --reset-author --no-edit"
+    "###);
+
+    // test_env.jj_cmd resets state for every invocation
+    // for this test, the state (user.email) is needed
+    let mut log_cmd = test_env.jj_cmd(&repo_path, &["describe", "--reset-author", "--no-edit"]);
+    log_cmd.env_remove("JJ_EMAIL");
+    log_cmd.assert().success();
+
+    let (stdout, _) = test_env.jj_cmd_ok(&repo_path, &["log"]);
+    assert!(stdout.contains("Foo"));
+}
+
+#[test]
+fn test_config_author_change_warning_root_env() {
+    let mut test_env = TestEnvironment::default();
+    let user_config_path = test_env.config_path().join("config.toml");
+    test_env.set_config_path(user_config_path);
+    test_env.jj_cmd_success(
+        test_env.env_root(),
+        &["config", "set", "--user", "user.email", "'Foo'"],
+    );
+}
+
 fn find_stdout_lines(keyname_pattern: &str, stdout: &str) -> String {
     let key_line_re = Regex::new(&format!(r"(?m)^{keyname_pattern} = .*$")).unwrap();
     key_line_re
