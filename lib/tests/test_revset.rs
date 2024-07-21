@@ -2015,6 +2015,14 @@ fn test_evaluate_expression_branches() {
         resolve_commit_ids(mut_repo, r#"branches(glob-i:"Branch?")"#),
         vec![commit2.id().clone(), commit1.id().clone()]
     );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "branches(regex:'ranch')"),
+        vec![commit2.id().clone(), commit1.id().clone()]
+    );
+    assert_eq!(
+        resolve_commit_ids(mut_repo, "branches(regex:'^[Bb]ranch1$')"),
+        vec![commit1.id().clone()]
+    );
     // Can silently resolve to an empty set if there's no matches
     assert_eq!(resolve_commit_ids(mut_repo, "branches(branch3)"), vec![]);
     assert_eq!(

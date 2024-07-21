@@ -30,6 +30,9 @@ pub enum StringPatternParseError {
     /// Failed to parse glob pattern.
     #[error(transparent)]
     GlobPattern(glob::PatternError),
+    /// Failed to parse regular expression.
+    #[error(transparent)]
+    Regex(regex::Error),
 }
 
 fn parse_glob(src: &str) -> Result<glob::Pattern, StringPatternParseError> {
@@ -52,6 +55,9 @@ pub enum StringPattern {
     Glob(glob::Pattern),
     /// Matches with a case‐insensitive Unix‐style shell wildcard pattern.
     GlobI(glob::Pattern),
+    /// Matches substrings with a regular expression.
+    Regex(regex::Regex),
+    // TODO: Should we add RegexI and "regex-i" prefix?
 }
 
 impl StringPattern {
@@ -107,6 +113,12 @@ impl StringPattern {
         Ok(StringPattern::GlobI(parse_glob(src)?))
     }
 
+    /// Parses the given string as a regular expression.
+    pub fn regex(src: &str) -> Result<Self, StringPatternParseError> {
+        let pattern = regex::Regex::new(src).map_err(StringPatternParseError::Regex)?;
+        Ok(StringPattern::Regex(pattern))
+    }
+
     /// Parses the given string as a pattern of the specified `kind`.
     pub fn from_str_kind(src: &str, kind: &str) -> Result<Self, StringPatternParseError> {
         match kind {
@@ -116,6 +128,7 @@ impl StringPattern {
             "substring-i" => Ok(StringPattern::substring_i(src)),
             "glob" => StringPattern::glob(src),
             "glob-i" => StringPattern::glob_i(src),
+            "regex" => StringPattern::regex(src),
             _ => Err(StringPatternParseError::InvalidKind(kind.to_owned())),
         }
     }
@@ -147,14 +160,13 @@ impl StringPattern {
             StringPattern::SubstringI(needle) => needle,
             StringPattern::Glob(pattern) => pattern.as_str(),
             StringPattern::GlobI(pattern) => pattern.as_str(),
+            StringPattern::Regex(pattern) => pattern.as_str(),
         }
     }
 
     /// Converts this pattern to a glob string. Returns `None` if the pattern
     /// can't be represented as a glob.
     pub fn to_glob(&self) -> Option<Cow<'_, str>> {
-        // TODO: If we add Regex pattern, it will return None.
-        //
         // TODO: Handle trivial case‐insensitive patterns here? It might make people
         // expect they can use case‐insensitive patterns in contexts where they
         // generally can’t.
@@ -171,6 +183,7 @@ impl StringPattern {
             StringPattern::ExactI(_) => None,
             StringPattern::SubstringI(_) => None,
             StringPattern::GlobI(_) => None,
+            StringPattern::Regex(_) => None,
         }
     }
 
@@ -209,6 +222,7 @@ impl StringPattern {
                     ..glob::MatchOptions::new()
                 },
             ),
+            StringPattern::Regex(pattern) => pattern.is_match(haystack),
         }
     }
 
@@ -291,6 +305,14 @@ mod tests {
         assert_matches!(
             StringPattern::from_str_kind("foo", "substring-i"),
             Ok(StringPattern::SubstringI(s)) if s == "foo"
+        );
+        assert_matches!(
+            StringPattern::parse("regex:foo"),
+            Ok(StringPattern::Regex(p)) if p.as_str() == "foo"
+        );
+        assert_matches!(
+            StringPattern::from_str_kind("foo", "regex"),
+            Ok(StringPattern::Regex(p)) if p.as_str() == "foo"
         );
 
         // Parse a pattern that contains a : itself.

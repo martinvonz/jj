@@ -621,7 +621,7 @@ fn test_branch_delete_glob() {
     error: invalid value 'whatever:branch' for '<NAMES>...': Invalid string pattern kind "whatever:"
 
     For more information, try '--help'.
-    Hint: Try prefixing with one of `exact:`, `glob:` or `substring:`
+    Hint: Try prefixing with one of `exact:`, `glob:`, `regex:`, or `substring:`
     "###);
 }
 
