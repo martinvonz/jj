@@ -173,7 +173,7 @@ fn cmd_util_gc(
     command: &CommandHelper,
     args: &UtilGcArgs,
 ) -> Result<(), CommandError> {
-    if command.global_args().at_operation != "@" {
+    if !command.is_at_head_operation() {
         return Err(user_error(
             "Cannot garbage collect from a non-head operation",
         ));

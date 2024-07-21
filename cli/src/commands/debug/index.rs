@@ -35,7 +35,10 @@ pub fn cmd_debug_index(
     // merge concurrent operations and update the index.
     let workspace = command.load_workspace()?;
     let repo_loader = workspace.repo_loader();
-    let op = op_walk::resolve_op_for_load(repo_loader, &command.global_args().at_operation)?;
+    let op = op_walk::resolve_op_for_load(
+        repo_loader,
+        command.global_args().at_operation.as_deref().unwrap_or("@"),
+    )?;
     let index_store = repo_loader.index_store();
     let index = index_store
         .get_index_at_op(&op, repo_loader.store())

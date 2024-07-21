@@ -301,8 +301,7 @@ impl CommandHelper {
         let workspace = self.load_workspace()?;
         let op_head = self.resolve_operation(ui, workspace.repo_loader())?;
         let repo = workspace.repo_loader().load_at(&op_head)?;
-        let loaded_at_head = self.global_args.at_operation == "@";
-        WorkspaceCommandHelper::new(ui, self, workspace, repo, loaded_at_head)
+        WorkspaceCommandHelper::new(ui, self, workspace, repo, self.is_at_head_operation())
     }
 
     pub fn get_working_copy_factory(&self) -> Result<&dyn WorkingCopyFactory, CommandError> {
@@ -329,13 +328,26 @@ impl CommandHelper {
             .map_err(|err| map_workspace_load_error(err, self.global_args.repository.as_deref()))
     }
 
+    /// Returns true if the current operation is considered to be the head.
+    pub fn is_at_head_operation(&self) -> bool {
+        // TODO: should we accept --at-op=<head_id> as the head op? or should we
+        // make --at-op=@ imply --ignore-workign-copy (i.e. not at the head.)
+        matches!(self.global_args.at_operation.as_deref(), None | Some("@"))
+    }
+
+    /// Resolves the current operation from the command-line argument.
+    ///
+    /// If no `--at-operation` is specified, the head operations will be
+    /// loaded. If there are multiple heads, they'll be merged.
     #[instrument(skip_all)]
     pub fn resolve_operation(
         &self,
         ui: &mut Ui,
         repo_loader: &RepoLoader,
     ) -> Result<Operation, CommandError> {
-        if self.global_args.at_operation == "@" {
+        if let Some(op_str) = &self.global_args.at_operation {
+            Ok(op_walk::resolve_op_for_load(repo_loader, op_str)?)
+        } else {
             op_heads_store::resolve_op_heads(
                 repo_loader.op_heads_store().as_ref(),
                 repo_loader.op_store(),
@@ -366,10 +378,6 @@ impl CommandHelper {
                         .clone())
                 },
             )
-        } else {
-            let operation =
-                op_walk::resolve_op_for_load(repo_loader, &self.global_args.at_operation)?;
-            Ok(operation)
         }
     }
 
@@ -2429,10 +2437,14 @@ pub struct GlobalArgs {
     /// Operation to load the repo at
     ///
     /// Operation to load the repo at. By default, Jujutsu loads the repo at the
-    /// most recent operation. You can use `--at-op=<operation ID>` to see what
-    /// the repo looked like at an earlier operation. For example `jj
-    /// --at-op=<operation ID> st` will show you what `jj st` would have
-    /// shown you when the given operation had just finished.
+    /// most recent operation, or at the merge of the concurrent operations if
+    /// any.
+    ///
+    /// You can use `--at-op=<operation ID>` to see what the repo looked like at
+    /// an earlier operation. For example `jj --at-op=<operation ID> st` will
+    /// show you what `jj st` would have shown you when the given operation had
+    /// just finished. `--at-op=@` is pretty much the same as the default except
+    /// that concurrent operations will never be merged.
     ///
     /// Use `jj op log` to find the operation ID you want. Any unambiguous
     /// prefix of the operation ID is enough.
@@ -2444,8 +2456,8 @@ pub struct GlobalArgs {
     /// earlier operation. Doing that is equivalent to having run concurrent
     /// commands starting at the earlier operation. There's rarely a reason to
     /// do that, but it is possible.
-    #[arg(long, visible_alias = "at-op", global = true, default_value = "@")]
-    pub at_operation: String,
+    #[arg(long, visible_alias = "at-op", global = true)]
+    pub at_operation: Option<String>,
     /// Enable debug logging
     #[arg(long, global = true)]
     pub debug: bool,

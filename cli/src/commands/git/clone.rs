@@ -85,7 +85,7 @@ pub fn cmd_git_clone(
     command: &CommandHelper,
     args: &GitCloneArgs,
 ) -> Result<(), CommandError> {
-    if command.global_args().at_operation != "@" {
+    if command.global_args().at_operation.is_some() {
         return Err(cli_error("--at-op is not respected"));
     }
     let remote_name = "origin";

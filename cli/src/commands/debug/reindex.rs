@@ -35,7 +35,10 @@ pub fn cmd_debug_reindex(
     // be rebuilt while loading the repo.
     let workspace = command.load_workspace()?;
     let repo_loader = workspace.repo_loader();
-    let op = op_walk::resolve_op_for_load(repo_loader, &command.global_args().at_operation)?;
+    let op = op_walk::resolve_op_for_load(
+        repo_loader,
+        command.global_args().at_operation.as_deref().unwrap_or("@"),
+    )?;
     let index_store = repo_loader.index_store();
     if let Some(default_index_store) = index_store.as_any().downcast_ref::<DefaultIndexStore>() {
         default_index_store.reinit().map_err(internal_error)?;

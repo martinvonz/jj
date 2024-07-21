@@ -30,6 +30,13 @@ fn test_concurrent_operation_divergence() {
         &["describe", "-m", "message 2", "--at-op", "@-"],
     );
 
+    // "--at-op=@" disables op heads merging
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "--at-op=@"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: The "@" expression resolved to more than one operation
+    Hint: Try specifying one of the operations by ID: e31015019d90, 48f4a48f3f70
+    "###);
+
     // "op log" doesn't merge the concurrent operations
     let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
     insta::assert_snapshot!(stdout, @r###"
