@@ -328,6 +328,12 @@ impl CommandHelper {
             .map_err(|err| map_workspace_load_error(err, self.global_args.repository.as_deref()))
     }
 
+    /// Returns true if the working copy to be loaded is writable, and therefore
+    /// should usually be snapshotted.
+    pub fn is_working_copy_writable(&self) -> bool {
+        self.is_at_head_operation() && !self.global_args.ignore_working_copy
+    }
+
     /// Returns true if the current operation is considered to be the head.
     pub fn is_at_head_operation(&self) -> bool {
         // TODO: should we accept --at-op=<head_id> as the head op? or should we

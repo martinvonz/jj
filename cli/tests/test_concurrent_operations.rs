@@ -30,22 +30,19 @@ fn test_concurrent_operation_divergence() {
         &["describe", "-m", "message 2", "--at-op", "@-"],
     );
 
-    // "--at-op=@" disables op heads merging
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "--at-op=@"]);
+    // "--at-op=@" disables op heads merging, and prints head operation ids.
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["op", "log", "--at-op=@"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: The "@" expression resolved to more than one operation
     Hint: Try specifying one of the operations by ID: e31015019d90, 48f4a48f3f70
     "###);
 
-    // "op log" doesn't merge the concurrent operations
-    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log"]);
+    // "op log --at-op" should work without merging the head operations
+    let stdout = test_env.jj_cmd_success(&repo_path, &["op", "log", "--at-op=48f4a48f3f70"]);
     insta::assert_snapshot!(stdout, @r###"
-    ○  48f4a48f3f70 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    @  48f4a48f3f70 test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
     │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
     │  args: jj describe -m 'message 2' --at-op @-
-    │ ○  e31015019d90 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
-    ├─╯  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
-    │    args: jj describe -m 'message 1'
     ○  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
     │  add workspace 'default'
     ○  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
