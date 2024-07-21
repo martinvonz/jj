@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::slice;
+
 use jj_lib::op_walk;
 
 use crate::cli_util::{format_template, CommandHelper, LogContentFormat};
@@ -21,6 +23,10 @@ use crate::operation_templater::OperationTemplateLanguage;
 use crate::ui::Ui;
 
 /// Show the operation log
+///
+/// Like other commands, `jj op log` snapshots the current working-copy changes
+/// and merges concurrent operations. Use `--at-op=@ --ignore-working-copy` to
+/// inspect the current state without mutation.
 #[derive(clap::Args, Clone, Debug)]
 pub struct OperationLogArgs {
     /// Limit number of operations to show
@@ -49,40 +55,26 @@ pub fn cmd_op_log(
     command: &CommandHelper,
     args: &OperationLogArgs,
 ) -> Result<(), CommandError> {
-    // Don't load the repo so that the operation history can be inspected even
-    // with a corrupted repo state. For example, you can find the first bad
-    // operation id to be abandoned.
-    let workspace = command.load_workspace()?;
-    let repo_loader = workspace.repo_loader();
-    let head_op_str = command.global_args().at_operation.as_deref().unwrap_or("@");
-    let head_ops = if head_op_str == "@" {
-        // If multiple head ops can't be resolved without merging, let the
-        // current op be empty. Beware that resolve_op_for_load() will eliminate
-        // redundant heads whereas get_current_head_ops() won't.
-        let current_op = op_walk::resolve_op_for_load(repo_loader, head_op_str).ok();
-        if let Some(op) = current_op {
-            vec![op]
-        } else {
-            op_walk::get_current_head_ops(
-                repo_loader.op_store(),
-                repo_loader.op_heads_store().as_ref(),
-            )?
-        }
+    let current_op = if command.is_working_copy_writable() {
+        let workspace_command = command.workspace_helper(ui)?;
+        workspace_command.repo().operation().clone()
     } else {
-        vec![op_walk::resolve_op_for_load(repo_loader, head_op_str)?]
+        // Don't load the repo so that the operation history can be inspected
+        // even with a corrupted repo state. For example, you can find the first
+        // bad operation id to be abandoned.
+        let workspace = command.load_workspace()?;
+        command.resolve_operation(ui, workspace.repo_loader())?
     };
-    let current_op_id = match &*head_ops {
-        [op] => Some(op.id()),
-        _ => None,
-    };
+    let op_store = current_op.op_store();
+
     let with_content_format = LogContentFormat::new(ui, command.settings())?;
 
     let template;
     let op_node_template;
     {
         let language = OperationTemplateLanguage::new(
-            repo_loader.op_store().root_operation_id(),
-            current_op_id,
+            op_store.root_operation_id(),
+            Some(current_op.id()),
             command.operation_template_extensions(),
         );
         let text = match &args.template {
@@ -117,7 +109,7 @@ pub fn cmd_op_log(
         )?;
     }
     let limit = args.limit.or(args.deprecated_limit).unwrap_or(usize::MAX);
-    let iter = op_walk::walk_ancestors(&head_ops).take(limit);
+    let iter = op_walk::walk_ancestors(slice::from_ref(&current_op)).take(limit);
     if !args.no_graph {
         let mut graph = get_graphlog(command.settings(), formatter.raw());
         for op in iter {

@@ -563,7 +563,7 @@ fn test_op_recover_from_bad_gc() {
     "###);
 
     // "op log" should still be usable.
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "log"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "log", "--ignore-working-copy"]);
     insta::assert_snapshot!(stdout, @r###"
     @  43d51d9b0c0c test-username@host.example.com 2001-02-03 04:05:12.000 +07:00 - 2001-02-03 04:05:12.000 +07:00
     │  describe commit 37bb762e5dc08073ec4323bdffc023a0f0cc901e
