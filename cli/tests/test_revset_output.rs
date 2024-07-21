@@ -208,7 +208,23 @@ fn test_bad_function_call() {
       |
       = Invalid string pattern
     2: Invalid string pattern kind "bad:"
-    Hint: Try prefixing with one of `exact:`, `glob:` or `substring:`
+    Hint: Try prefixing with one of `exact:`, `glob:`, `regex:`, or `substring:`
+    "###);
+
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "branches(regex:'(')"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Failed to parse revset: Invalid string pattern
+    Caused by:
+    1:  --> 1:10
+      |
+    1 | branches(regex:'(')
+      |          ^-------^
+      |
+      = Invalid string pattern
+    2: regex parse error:
+        (
+        ^
+    error: unclosed group
     "###);
 
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", "-r", "root()::whatever()"]);

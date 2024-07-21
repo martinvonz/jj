@@ -353,6 +353,8 @@ Functions that perform string matching support the following pattern syntax:
 * `exact:"string"`: Matches strings exactly equal to `string`.
 * `glob:"pattern"`: Matches strings with Unix-style shell [wildcard
   `pattern`](https://docs.rs/glob/latest/glob/struct.Pattern.html).
+* `regex:"pattern"`: Matches substrings with [regular
+  expression `pattern`](https://docs.rs/regex/latest/regex/#syntax).
 
 You can append `-i` after the kind to match case‐insensitively (e.g.
 `glob-i:"fix*jpeg*"`).

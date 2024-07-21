@@ -851,7 +851,7 @@ fn test_log_contained_in() {
       |
       = Invalid string pattern
     3: Invalid string pattern kind "x:"
-    Hint: Try prefixing with one of `exact:`, `glob:` or `substring:`
+    Hint: Try prefixing with one of `exact:`, `glob:`, `regex:`, or `substring:`
     "###);
 
     let stderr = test_env.jj_cmd_failure(
