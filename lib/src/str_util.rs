@@ -234,6 +234,8 @@ impl fmt::Display for StringPattern {
 
 #[cfg(test)]
 mod tests {
+    use assert_matches::assert_matches;
+
     use super::*;
 
     #[test]
@@ -258,39 +260,55 @@ mod tests {
     #[test]
     fn test_parse() {
         // Parse specific pattern kinds.
-        assert_eq!(
-            StringPattern::parse("exact:foo").unwrap(),
-            StringPattern::from_str_kind("foo", "exact").unwrap()
+        assert_matches!(
+            StringPattern::parse("exact:foo"),
+            Ok(StringPattern::Exact(s)) if s == "foo"
         );
-        assert_eq!(
-            StringPattern::parse("glob:foo*").unwrap(),
-            StringPattern::from_str_kind("foo*", "glob").unwrap()
+        assert_matches!(
+            StringPattern::from_str_kind("foo", "exact"),
+            Ok(StringPattern::Exact(s)) if s == "foo"
         );
-        assert_eq!(
-            StringPattern::parse("substring:foo").unwrap(),
-            StringPattern::from_str_kind("foo", "substring").unwrap()
+        assert_matches!(
+            StringPattern::parse("glob:foo*"),
+            Ok(StringPattern::Glob(p)) if p.as_str() == "foo*"
         );
-        assert_eq!(
-            StringPattern::parse("substring-i:foo").unwrap(),
-            StringPattern::from_str_kind("foo", "substring-i").unwrap()
+        assert_matches!(
+            StringPattern::from_str_kind("foo*", "glob"),
+            Ok(StringPattern::Glob(p)) if p.as_str() == "foo*"
+        );
+        assert_matches!(
+            StringPattern::parse("substring:foo"),
+            Ok(StringPattern::Substring(s)) if s == "foo"
+        );
+        assert_matches!(
+            StringPattern::from_str_kind("foo", "substring"),
+            Ok(StringPattern::Substring(s)) if s == "foo"
+        );
+        assert_matches!(
+            StringPattern::parse("substring-i:foo"),
+            Ok(StringPattern::SubstringI(s)) if s == "foo"
+        );
+        assert_matches!(
+            StringPattern::from_str_kind("foo", "substring-i"),
+            Ok(StringPattern::SubstringI(s)) if s == "foo"
         );
 
         // Parse a pattern that contains a : itself.
-        assert_eq!(
-            StringPattern::parse("exact:foo:bar").unwrap(),
-            StringPattern::from_str_kind("foo:bar", "exact").unwrap()
+        assert_matches!(
+            StringPattern::parse("exact:foo:bar"),
+            Ok(StringPattern::Exact(s)) if s == "foo:bar"
         );
 
         // If no kind is specified, the input is treated as an exact pattern.
-        assert_eq!(
-            StringPattern::parse("foo").unwrap(),
-            StringPattern::from_str_kind("foo", "exact").unwrap()
+        assert_matches!(
+            StringPattern::parse("foo"),
+            Ok(StringPattern::Exact(s)) if s == "foo"
         );
 
         // Parsing an unknown prefix results in an error.
-        assert!(matches! {
+        assert_matches!(
             StringPattern::parse("unknown-prefix:foo"),
             Err(StringPatternParseError::InvalidKind(_))
-        });
+        );
     }
 }
