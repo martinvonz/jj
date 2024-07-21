@@ -505,6 +505,8 @@ mod tests {
 
     fn insta_settings() -> insta::Settings {
         let mut settings = insta::Settings::clone_current();
+        // Elide parsed glob tokens, which aren't interesting.
+        settings.add_filter(r"\b(tokens): \[[^]]*\],", "$1: _,");
         // Collapse short "Thing(_,)" repeatedly to save vertical space and make
         // the output more readable.
         for _ in 0..4 {
@@ -791,47 +793,41 @@ mod tests {
             })
         };
 
-        insta::assert_debug_snapshot!(glob_expr("", "*").to_matcher(), @r###"
+        insta::assert_debug_snapshot!(glob_expr("", "*").to_matcher(), @r#"
         FileGlobsMatcher {
             tree: [
                 Pattern {
                     original: "*",
-                    tokens: [
-                        AnySequence,
-                    ],
+                    tokens: _,
                     is_recursive: false,
                 },
             ] {},
         }
-        "###);
+        "#);
 
         let expr =
             FilesetExpression::union_all(vec![glob_expr("foo", "*"), glob_expr("foo/bar", "*")]);
-        insta::assert_debug_snapshot!(expr.to_matcher(), @r###"
+        insta::assert_debug_snapshot!(expr.to_matcher(), @r#"
         FileGlobsMatcher {
             tree: [] {
                 "foo": [
                     Pattern {
                         original: "*",
-                        tokens: [
-                            AnySequence,
-                        ],
+                        tokens: _,
                         is_recursive: false,
                     },
                 ] {
                     "bar": [
                         Pattern {
                             original: "*",
-                            tokens: [
-                                AnySequence,
-                            ],
+                            tokens: _,
                             is_recursive: false,
                         },
                     ] {},
                 },
             },
         }
-        "###);
+        "#);
     }
 
     #[test]
