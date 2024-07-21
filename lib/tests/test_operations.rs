@@ -580,14 +580,14 @@ fn test_resolve_op_parents_children() {
     assert_matches!(
         op_walk::resolve_op_with_repo(&repo, &format!("{op5_id_hex}-")),
         Err(OpsetEvaluationError::OpsetResolution(
-            OpsetResolutionError::MultipleOperations(_)
+            OpsetResolutionError::MultipleOperations { .. }
         ))
     );
     let op2_id_hex = operations[2].id().hex();
     assert_matches!(
         op_walk::resolve_op_with_repo(&repo, &format!("{op2_id_hex}+")),
         Err(OpsetEvaluationError::OpsetResolution(
-            OpsetResolutionError::MultipleOperations(_)
+            OpsetResolutionError::MultipleOperations { .. }
         ))
     );
 }
