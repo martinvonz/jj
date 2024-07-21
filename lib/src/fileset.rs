@@ -67,7 +67,7 @@ pub enum FilePatternParseError {
 }
 
 /// Basic pattern to match `RepoPath`.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum FilePattern {
     /// Matches file (or exact) path.
     FilePath(RepoPathBuf),
@@ -198,7 +198,7 @@ fn split_glob_path(input: &str) -> (&str, &str) {
 }
 
 /// AST-level representation of the fileset expression.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum FilesetExpression {
     /// Matches nothing.
     None,
