@@ -166,15 +166,15 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
    This option only affects the check. It does not affect the `immutable_heads()` revset or the `immutable` template keyword.
 * `--at-operation <AT_OPERATION>` — Operation to load the repo at
 
-   Operation to load the repo at. By default, Jujutsu loads the repo at the most recent operation. You can use `--at-op=<operation ID>` to see what the repo looked like at an earlier operation. For example `jj --at-op=<operation ID> st` will show you what `jj st` would have shown you when the given operation had just finished.
+   Operation to load the repo at. By default, Jujutsu loads the repo at the most recent operation, or at the merge of the concurrent operations if any.
+
+   You can use `--at-op=<operation ID>` to see what the repo looked like at an earlier operation. For example `jj --at-op=<operation ID> st` will show you what `jj st` would have shown you when the given operation had just finished. `--at-op=@` is pretty much the same as the default except that concurrent operations will never be merged.
 
    Use `jj op log` to find the operation ID you want. Any unambiguous prefix of the operation ID is enough.
 
    When loading the repo at an earlier operation, the working copy will be ignored, as if `--ignore-working-copy` had been specified.
 
    It is possible to run mutating commands when loading the repo at an earlier operation. Doing that is equivalent to having run concurrent commands starting at the earlier operation. There's rarely a reason to do that, but it is possible.
-
-  Default value: `@`
 * `--debug` — Enable debug logging
 * `--color <WHEN>` — When to colorize output (always, never, debug, auto)
 * `--quiet` — Silence non-primary command output

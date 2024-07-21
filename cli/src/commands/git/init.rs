@@ -76,7 +76,7 @@ pub fn cmd_git_init(
     if command.global_args().ignore_working_copy {
         return Err(cli_error("--ignore-working-copy is not respected"));
     }
-    if command.global_args().at_operation != "@" {
+    if command.global_args().at_operation.is_some() {
         return Err(cli_error("--at-op is not respected"));
     }
     let cwd = command.cwd();

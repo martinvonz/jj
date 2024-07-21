@@ -36,6 +36,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   preserved. If a checked-out named branch gets deleted locally or remotely, the
   corresponding commits will be abandoned.
 
+* `jj --at-op=@` no longer merges concurrent operations if explicitly specified.
+
 ### Deprecations
 
 * The original configuration syntax for `jj fix` is now deprecated in favor of

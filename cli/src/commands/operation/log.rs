@@ -54,7 +54,7 @@ pub fn cmd_op_log(
     // operation id to be abandoned.
     let workspace = command.load_workspace()?;
     let repo_loader = workspace.repo_loader();
-    let head_op_str = &command.global_args().at_operation;
+    let head_op_str = command.global_args().at_operation.as_deref().unwrap_or("@");
     let head_ops = if head_op_str == "@" {
         // If multiple head ops can't be resolved without merging, let the
         // current op be empty. Beware that resolve_op_for_load() will eliminate

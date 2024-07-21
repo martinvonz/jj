@@ -53,11 +53,10 @@ pub fn cmd_op_abandon(
     let op_store = repo_loader.op_store();
     // It doesn't make sense to create concurrent operations that will be merged
     // with the current head.
-    let head_op_str = &command.global_args().at_operation;
-    if head_op_str != "@" {
+    if command.global_args().at_operation.is_some() {
         return Err(cli_error("--at-op is not respected"));
     }
-    let current_head_op = op_walk::resolve_op_for_load(repo_loader, head_op_str)?;
+    let current_head_op = op_walk::resolve_op_for_load(repo_loader, "@")?;
     let resolve_op = |op_str| op_walk::resolve_op_at(op_store, &current_head_op, op_str);
     let (abandon_root_op, abandon_head_op) =
         if let Some((root_op_str, head_op_str)) = args.operation.split_once("..") {
