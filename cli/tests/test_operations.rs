@@ -90,6 +90,7 @@ fn test_op_log() {
     );
     insta::assert_snapshot!(test_env.jj_cmd_failure(&repo_path, &["log", "--at-op", "@-"]), @r###"
     Error: The "@" expression resolved to more than one operation
+    Hint: Try specifying one of the operations by ID: 5f690688f7d7, cfb67eb2b65c
     "###);
 }
 

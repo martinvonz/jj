@@ -50,8 +50,13 @@ pub enum OpsetResolutionError {
     // TODO: Maybe empty/multiple operations should be allowed, and rejected by
     // caller as needed.
     /// Expression resolved to multiple operations.
-    #[error(r#"The "{0}" expression resolved to more than one operation"#)]
-    MultipleOperations(String),
+    #[error(r#"The "{expr}" expression resolved to more than one operation"#)]
+    MultipleOperations {
+        /// Source expression.
+        expr: String,
+        /// Matched operation ids.
+        candidates: Vec<OperationId>,
+    },
     /// Expression resolved to no operations.
     #[error(r#"The "{0}" expression resolved to no operations"#)]
     EmptyOperations(String),
@@ -74,8 +79,12 @@ pub fn resolve_op_for_load(
     let op_store = repo_loader.op_store();
     let op_heads_store = repo_loader.op_heads_store().as_ref();
     let get_current_op = || {
-        op_heads_store::resolve_op_heads(op_heads_store, op_store, |_| {
-            Err(OpsetResolutionError::MultipleOperations("@".to_owned()).into())
+        op_heads_store::resolve_op_heads(op_heads_store, op_store, |op_heads| {
+            Err(OpsetResolutionError::MultipleOperations {
+                expr: "@".to_owned(),
+                candidates: op_heads.iter().map(|op| op.id().clone()).collect(),
+            }
+            .into())
         })
     };
     let get_head_ops = || get_current_head_ops(op_store, op_heads_store);
@@ -127,7 +136,10 @@ fn resolve_single_op(
         operation = match neighbor_ops.len() {
             0 => Err(OpsetResolutionError::EmptyOperations(op_str.to_owned()))?,
             1 => neighbor_ops.pop().unwrap(),
-            _ => Err(OpsetResolutionError::MultipleOperations(op_str.to_owned()))?,
+            _ => Err(OpsetResolutionError::MultipleOperations {
+                expr: op_str.to_owned(),
+                candidates: neighbor_ops.iter().map(|op| op.id().clone()).collect(),
+            })?,
         };
     }
     Ok(operation)
