@@ -91,7 +91,7 @@ pub fn cmd_op_diff(
 
     // Create a new transaction starting from `to_repo`.
     let mut workspace_command =
-        command.for_loaded_repo(ui, command.load_workspace()?, to_repo.clone())?;
+        command.for_temporary_repo(ui, command.load_workspace()?, to_repo.clone())?;
     let mut tx = workspace_command.start_transaction();
     // Merge index from `from_repo` to `to_repo`, so commits in `from_repo` are
     // accessible.

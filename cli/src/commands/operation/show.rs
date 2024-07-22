@@ -59,7 +59,8 @@ pub fn cmd_op_show(
     let parent_repo = repo_loader.load_at(&parent_op)?;
     let repo = repo_loader.load_at(&op)?;
 
-    let workspace_command = command.for_loaded_repo(ui, command.load_workspace()?, repo.clone())?;
+    let workspace_command =
+        command.for_temporary_repo(ui, command.load_workspace()?, repo.clone())?;
     let commit_summary_template = workspace_command.commit_summary_template();
 
     let with_content_format = LogContentFormat::new(ui, command.settings())?;

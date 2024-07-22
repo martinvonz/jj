@@ -173,9 +173,7 @@ fn cmd_workspace_add(
     )?;
 
     // Copy sparse patterns from workspace where the command was run
-    let loaded_at_head = true;
-    let mut new_workspace_command =
-        WorkspaceCommandHelper::new(ui, command, new_workspace, repo, loaded_at_head)?;
+    let mut new_workspace_command = command.for_workable_repo(ui, new_workspace, repo)?;
     let (mut locked_ws, _wc_commit) = new_workspace_command.start_working_copy_mutation()?;
     let sparse_patterns = old_workspace_command
         .working_copy()
@@ -374,7 +372,7 @@ fn for_stale_working_copy(
             Err(e) => return Err(e.into()),
         }
     };
-    Ok((command.for_loaded_repo(ui, workspace, repo)?, recovered))
+    Ok((command.for_workable_repo(ui, workspace, repo)?, recovered))
 }
 
 #[instrument(skip_all)]
