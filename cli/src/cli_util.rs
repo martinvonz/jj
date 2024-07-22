@@ -300,7 +300,8 @@ impl CommandHelper {
         let workspace = self.load_workspace()?;
         let op_head = self.resolve_operation(ui, workspace.repo_loader())?;
         let repo = workspace.repo_loader().load_at(&op_head)?;
-        self.for_loaded_repo(ui, workspace, repo)
+        let loaded_at_head = self.global_args.at_operation == "@";
+        WorkspaceCommandHelper::new(ui, self, workspace, repo, loaded_at_head)
     }
 
     pub fn get_working_copy_factory(&self) -> Result<&dyn WorkingCopyFactory, CommandError> {
@@ -371,14 +372,30 @@ impl CommandHelper {
         }
     }
 
+    /// Creates helper for the repo whose view is supposed to be in sync with
+    /// the working copy. If `--ignore-working-copy` is not specified, the
+    /// returned helper will attempt to update the working copy.
     #[instrument(skip_all)]
-    pub fn for_loaded_repo(
+    pub fn for_workable_repo(
         &self,
         ui: &mut Ui,
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<WorkspaceCommandHelper, CommandError> {
-        let loaded_at_head = self.global_args.at_operation == "@";
+        let loaded_at_head = true;
+        WorkspaceCommandHelper::new(ui, self, workspace, repo, loaded_at_head)
+    }
+
+    /// Creates helper for the repo whose view might be out of sync with
+    /// the working copy. Therefore, the working copy should not be updated.
+    #[instrument(skip_all)]
+    pub fn for_temporary_repo(
+        &self,
+        ui: &mut Ui,
+        workspace: Workspace,
+        repo: Arc<ReadonlyRepo>,
+    ) -> Result<WorkspaceCommandHelper, CommandError> {
+        let loaded_at_head = false;
         WorkspaceCommandHelper::new(ui, self, workspace, repo, loaded_at_head)
     }
 }
@@ -495,7 +512,7 @@ pub struct WorkspaceCommandHelper {
 
 impl WorkspaceCommandHelper {
     #[instrument(skip_all)]
-    pub fn new(
+    fn new(
         ui: &mut Ui,
         command: &CommandHelper,
         workspace: Workspace,

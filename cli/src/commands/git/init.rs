@@ -149,7 +149,7 @@ pub fn do_init(
         GitInitMode::Colocate => {
             let (workspace, repo) =
                 Workspace::init_colocated_git(command.settings(), workspace_root)?;
-            let workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
+            let workspace_command = command.for_workable_repo(ui, workspace, repo)?;
             maybe_add_gitignore(&workspace_command)?;
         }
         GitInitMode::External(git_repo_path) => {
@@ -159,7 +159,7 @@ pub fn do_init(
             // chronological order.
             let colocated = is_colocated_git_workspace(&workspace, &repo);
             let repo = init_git_refs(ui, command, repo, colocated)?;
-            let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
+            let mut workspace_command = command.for_workable_repo(ui, workspace, repo)?;
             maybe_add_gitignore(&workspace_command)?;
             workspace_command.maybe_snapshot(ui)?;
             maybe_set_repository_level_trunk_alias(ui, workspace_command.repo())?;

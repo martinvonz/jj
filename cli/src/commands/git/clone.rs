@@ -195,7 +195,7 @@ fn do_git_clone(
         r#"Fetching into new repo in "{}""#,
         wc_path.display()
     )?;
-    let mut workspace_command = command.for_loaded_repo(ui, workspace, repo)?;
+    let mut workspace_command = command.for_workable_repo(ui, workspace, repo)?;
     maybe_add_gitignore(&workspace_command)?;
     git_repo.remote(remote_name, source).unwrap();
     let mut fetch_tx = workspace_command.start_transaction();
