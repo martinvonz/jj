@@ -12,6 +12,7 @@ This document contains the help content for the `jj` command-line program.
 
 * [`jj`↴](#jj)
 * [`jj abandon`↴](#jj-abandon)
+* [`jj annotate`↴](#jj-annotate)
 * [`jj backout`↴](#jj-backout)
 * [`jj branch`↴](#jj-branch)
 * [`jj branch create`↴](#jj-branch-create)
@@ -111,6 +112,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 ###### **Subcommands:**
 
 * `abandon` — Abandon a revision
+* `annotate` — Display information for each line of file, showing the source change of each line
 * `backout` — Apply the reverse of a revision on top of another revision
 * `branch` — Manage branches
 * `commit` — Update the description and create a new change on top
@@ -206,6 +208,20 @@ If a working-copy commit gets abandoned, it will be given a new, empty commit. T
 ###### **Options:**
 
 * `-s`, `--summary` — Do not print every abandoned commit on a separate line
+
+
+
+## `jj annotate`
+
+Display information for each line of file, showing the source change of each line.
+
+Annotates a revision line by line. Each line includes the source change that committed the associated line. A path to the desired file must be provided and this command will fail if the file is in a conflicted state currently or in previous changes. The per line prefix for each line can be customized via template with the `templates.annotate_commit_summary` config variable
+
+**Usage:** `jj annotate <PATH>`
+
+###### **Arguments:**
+
+* `<PATH>` — the file to annotate
 
 
 
