@@ -1,152 +1,152 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/FAQ/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/FAQ/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/branches/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/branches/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/cli-reference/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/cli-reference/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/code-of-conduct/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/code-of-conduct/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/config/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/config/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/conflicts/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/conflicts/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/contributing/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/contributing/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/git-comparison/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/git-comparison/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/git-compatibility/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/git-compatibility/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/github/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/github/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/glossary/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/glossary/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/install-and-setup/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/install-and-setup/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/operation-log/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/operation-log/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/related-work/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/related-work/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/revsets/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/revsets/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/sapling-comparison/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/sapling-comparison/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/templates/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/templates/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/testimonials/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/testimonials/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/tutorial/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/tutorial/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/windows/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/windows/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/working-copy/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/working-copy/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/design/git-submodule-storage/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/design/git-submodule-storage/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/design/git-submodules/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/design/git-submodules/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/design/run/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/design/run/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/design/sparse-v2/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/design/sparse-v2/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/design/tracking-branches/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/design/tracking-branches/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/technical/architecture/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/technical/architecture/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/technical/concurrency/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/technical/concurrency/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.16.0/technical/conflicts/</loc>
+         <loc>https://martinvonz.github.io/jj/latest/technical/conflicts/</loc>
          <lastmod>2024-05-07</lastmod>
          <changefreq>daily</changefreq>
     </url>
