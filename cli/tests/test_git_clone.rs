@@ -442,6 +442,61 @@ fn test_git_clone_remote_default_branch() {
     "###);
 }
 
+#[test]
+fn test_git_clone_ignore_working_copy() {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("source");
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+    set_up_non_empty_git_repo(&git_repo);
+
+    // Should not update working-copy files
+    let (_stdout, stderr) = test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &["git", "clone", "--ignore-working-copy", "source", "clone"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Fetching into new repo in "$TEST_ENV/clone"
+    branch: main@origin [new] untracked
+    Setting the revset alias "trunk()" to "main@origin"
+    "###);
+    let clone_path = test_env.env_root().join("clone");
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&clone_path, &["status", "--ignore-working-copy"]);
+    insta::assert_snapshot!(stdout, @r###"
+    The working copy is clean
+    Working copy : sqpuoqvx cad212e1 (empty) (no description set)
+    Parent commit: mzyxwzks 9f01a0e0 main | message
+    "###);
+    insta::assert_snapshot!(stderr, @"");
+
+    // TODO: Correct, but might be better to check out the root commit?
+    let stderr = test_env.jj_cmd_failure(&clone_path, &["status"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: The working copy is stale (not updated since operation b51416386f26).
+    Hint: Run `jj workspace update-stale` to update it.
+    See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
+    "###);
+}
+
+#[test]
+fn test_git_clone_at_operation() {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("source");
+    let git_repo = git2::Repository::init(git_repo_path).unwrap();
+    set_up_non_empty_git_repo(&git_repo);
+
+    // TODO: just error out? no operation should exist
+    let (_stdout, stderr) = test_env.jj_cmd_ok(
+        test_env.env_root(),
+        &["git", "clone", "--at-op=@-", "source", "clone"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Fetching into new repo in "$TEST_ENV/clone"
+    branch: main@origin [new] untracked
+    Setting the revset alias "trunk()" to "main@origin"
+    "###);
+}
+
 fn get_branch_output(test_env: &TestEnvironment, repo_path: &Path) -> String {
     test_env.jj_cmd_success(repo_path, &["branch", "list", "--all-remotes"])
 }

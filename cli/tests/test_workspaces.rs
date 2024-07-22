@@ -128,6 +128,90 @@ fn test_workspaces_add_second_workspace_on_merge() {
     "###);
 }
 
+/// Test that --ignore-working-copy is respected
+#[test]
+fn test_workspaces_add_ignore_working_copy() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "main"]);
+    let main_path = test_env.env_root().join("main");
+
+    // TODO: maybe better to error out early?
+    let stderr = test_env.jj_cmd_failure(
+        &main_path,
+        &["workspace", "add", "--ignore-working-copy", "../secondary"],
+    );
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
+    Created workspace in "../secondary"
+    Error: This command must be able to update the working copy.
+    Hint: Don't use --ignore-working-copy.
+    "###);
+}
+
+/// Test that --at-op is respected
+#[test]
+fn test_workspaces_add_at_operation() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "main"]);
+    let main_path = test_env.env_root().join("main");
+
+    std::fs::write(main_path.join("file1"), "").unwrap();
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&main_path, &["commit", "-m1"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: rlvkpnrz 18d8b994 (empty) (no description set)
+    Parent commit      : qpvuntsm 3364a7ed 1
+    "###);
+
+    std::fs::write(main_path.join("file2"), "").unwrap();
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&main_path, &["commit", "-m2"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Working copy now at: kkmpptxz 2e7dc5ab (empty) (no description set)
+    Parent commit      : rlvkpnrz 0dbaa19a 2
+    "###);
+
+    // FIXME: --at-op should disable snapshot in the main workspace, but the
+    // newly created workspace should still be writable.
+    std::fs::write(main_path.join("file3"), "").unwrap();
+    let stderr = test_env.jj_cmd_failure(
+        &main_path,
+        &["workspace", "add", "--at-op=@-", "../secondary"],
+    );
+    insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
+    Created workspace in "../secondary"
+    Error: This command must be able to update the working copy.
+    Hint: Don't use --at-op.
+    "###);
+    let secondary_path = test_env.env_root().join("secondary");
+
+    // New snapshot can be taken in the secondary workspace.
+    std::fs::write(secondary_path.join("file4"), "").unwrap();
+    let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["status"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy changes:
+    A file4
+    Working copy : zsuskuln 7df5cfc8 (no description set)
+    Parent commit: zzzzzzzz 00000000 (empty) (no description set)
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Concurrent modification detected, resolving automatically.
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&secondary_path, &["op", "log", "-Tdescription"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  snapshot working copy
+    ○    resolve concurrent operations
+    ├─╮
+    ○ │  commit cd06097124e3e5860867e35c2bb105902c28ea38
+    │ ○  add workspace 'secondary'
+    ├─╯
+    ○  snapshot working copy
+    ○  commit 1c867a0762e30de4591890ea208849f793742c1b
+    ○  snapshot working copy
+    ○  add workspace 'default'
+    ○  initialize repo
+    ○
+    "###);
+}
+
 /// Test adding a workspace, but at a specific revision using '-r'
 #[test]
 fn test_workspaces_add_workspace_at_revision() {
