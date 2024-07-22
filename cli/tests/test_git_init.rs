@@ -94,6 +94,43 @@ fn test_git_init_internal() {
     assert_eq!(read_git_target(&workspace_root), "git");
 }
 
+#[test]
+fn test_git_init_internal_ignore_working_copy() {
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    std::fs::create_dir(&workspace_root).unwrap();
+    std::fs::write(workspace_root.join("file1"), "").unwrap();
+
+    // No snapshot should be taken
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--ignore-working-copy"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Initialized repo in "."
+    "###);
+
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&workspace_root, &["status", "--ignore-working-copy"]);
+    insta::assert_snapshot!(stdout, @r###"
+    The working copy is clean
+    Working copy : qpvuntsm 230dd059 (empty) (no description set)
+    Parent commit: zzzzzzzz 00000000 (empty) (no description set)
+    "###);
+    insta::assert_snapshot!(stderr, @"");
+}
+
+#[test]
+fn test_git_init_internal_at_operation() {
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    std::fs::create_dir(&workspace_root).unwrap();
+
+    // TODO: just error out? no operation should exist
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["git", "init", "--at-op=@-"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Initialized repo in "."
+    "###);
+}
+
 #[test_case(false; "full")]
 #[test_case(true; "bare")]
 fn test_git_init_external(bare: bool) {
@@ -205,6 +242,74 @@ fn test_git_init_external_import_trunk(bare: bool) {
     revset-aliases."trunk()" = "trunk@origin"
     "###);
     }
+}
+
+#[test]
+fn test_git_init_external_ignore_working_copy() {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("git-repo");
+    init_git_repo(&git_repo_path, false);
+    let workspace_root = test_env.env_root().join("repo");
+    std::fs::create_dir(&workspace_root).unwrap();
+    std::fs::write(workspace_root.join("file1"), "").unwrap();
+
+    // No snapshot should be taken
+    let (_stdout, stderr) = test_env.jj_cmd_ok(
+        &workspace_root,
+        &[
+            "git",
+            "init",
+            "--ignore-working-copy",
+            "--git-repo",
+            git_repo_path.to_str().unwrap(),
+        ],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Done importing changes from the underlying Git repo.
+    Initialized repo in "."
+    "###);
+
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&workspace_root, &["status", "--ignore-working-copy"]);
+    insta::assert_snapshot!(stdout, @r###"
+    The working copy is clean
+    Working copy : sqpuoqvx f6950fc1 (empty) (no description set)
+    Parent commit: mwrttmos 8d698d4a my-branch | My commit message
+    "###);
+    insta::assert_snapshot!(stderr, @"");
+
+    // TODO: Correct, but might be better to check out the root commit?
+    let stderr = test_env.jj_cmd_failure(&workspace_root, &["status"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: The working copy is stale (not updated since operation b51416386f26).
+    Hint: Run `jj workspace update-stale` to update it.
+    See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-working-copy for more information.
+    "###);
+}
+
+#[test]
+fn test_git_init_external_at_operation() {
+    let test_env = TestEnvironment::default();
+    let git_repo_path = test_env.env_root().join("git-repo");
+    init_git_repo(&git_repo_path, false);
+    let workspace_root = test_env.env_root().join("repo");
+    std::fs::create_dir(&workspace_root).unwrap();
+
+    // TODO: just error out? no operation should exist
+    let (_stdout, stderr) = test_env.jj_cmd_ok(
+        &workspace_root,
+        &[
+            "git",
+            "init",
+            "--at-op=@-",
+            "--git-repo",
+            git_repo_path.to_str().unwrap(),
+        ],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Done importing changes from the underlying Git repo.
+    Initialized repo in "."
+    "###);
 }
 
 #[test]
@@ -561,6 +666,61 @@ fn test_git_init_colocated_dirty_working_copy() {
     Status(INDEX_NEW) new-staged-file
     Status(INDEX_MODIFIED) some-file
     Status(WT_NEW) unstaged-file
+    "###);
+}
+
+#[test]
+fn test_git_init_colocated_ignore_working_copy() {
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    init_git_repo(&workspace_root, false);
+    std::fs::write(workspace_root.join("file1"), "").unwrap();
+
+    // No snapshot should be taken
+    let (_stdout, stderr) = test_env.jj_cmd_ok(
+        &workspace_root,
+        &["git", "init", "--ignore-working-copy", "--colocate"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Done importing changes from the underlying Git repo.
+    Initialized repo in "."
+    "###);
+
+    // FIXME: wrong HEAD, but fixing this would result in stale working copy
+    let (stdout, stderr) =
+        test_env.jj_cmd_ok(&workspace_root, &["status", "--ignore-working-copy"]);
+    insta::assert_snapshot!(stdout, @r###"
+    The working copy is clean
+    Working copy : qpvuntsm 230dd059 (empty) (no description set)
+    Parent commit: zzzzzzzz 00000000 (empty) (no description set)
+    "###);
+    insta::assert_snapshot!(stderr, @"");
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&workspace_root, &["status"]);
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy changes:
+    A file1
+    D some-file
+    Working copy : kkmpptxz 7864ea63 (no description set)
+    Parent commit: mwrttmos 8d698d4a my-branch | My commit message
+    "###);
+    insta::assert_snapshot!(stderr, @"");
+}
+
+#[test]
+fn test_git_init_colocated_at_operation() {
+    let test_env = TestEnvironment::default();
+    let workspace_root = test_env.env_root().join("repo");
+    init_git_repo(&workspace_root, false);
+
+    // TODO: just error out? no operation should exist
+    let (_stdout, stderr) = test_env.jj_cmd_ok(
+        &workspace_root,
+        &["git", "init", "--at-op=@-", "--colocate"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Done importing changes from the underlying Git repo.
+    Initialized repo in "."
     "###);
 }
 
