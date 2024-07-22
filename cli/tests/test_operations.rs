@@ -17,7 +17,7 @@ use std::path::Path;
 use itertools::Itertools;
 use regex::Regex;
 
-use crate::common::{get_stdout_string, TestEnvironment};
+use crate::common::{get_stdout_string, strip_last_line, TestEnvironment};
 
 #[test]
 fn test_op_log() {
@@ -505,6 +505,105 @@ fn test_op_abandon_without_updating_working_copy() {
     │  commit 220cb0b1b5d1c03cc0d351139d824598bb3c1967
     │  args: jj commit -m 'commit 3'
     "###);
+}
+
+#[test]
+fn test_op_recover_from_bad_gc() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo", "--colocate"]);
+    let repo_path = test_env.env_root().join("repo");
+    let git_object_path = |hex: &str| {
+        let (shard, file_name) = hex.split_at(2);
+        let mut file_path = repo_path.to_owned();
+        file_path.extend([".git", "objects", shard, file_name]);
+        file_path
+    };
+
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m1"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m2"]); // victim
+    test_env.jj_cmd_ok(&repo_path, &["abandon"]); // break predecessors chain
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m3"]);
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m4"]);
+
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["op", "log", "--no-graph", r#"-Tid.short() ++ "\n""#],
+    );
+    let (head_op_id, _, _, bad_op_id) = stdout.lines().next_tuple().unwrap();
+    insta::assert_snapshot!(head_op_id, @"43d51d9b0c0c");
+    insta::assert_snapshot!(bad_op_id, @"e02cba71e65d");
+
+    // Corrupt the repo by removing hidden but reachable commit object.
+    let bad_commit_id = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "--at-op",
+            bad_op_id,
+            "--no-graph",
+            "-r@",
+            "-Tcommit_id",
+        ],
+    );
+    insta::assert_snapshot!(bad_commit_id, @"ddf84fc5e0dd314092b3dfb13e09e37fa7d04ef9");
+    std::fs::remove_file(git_object_path(&bad_commit_id)).unwrap();
+
+    // Do concurrent modification to make the situation even worse. At this
+    // point, the index can be loaded, so this command succeeds.
+    // TODO: test_env.jj_cmd_ok(&repo_path, &["--at-op=@-", "describe", "-m4.1"]);
+    // TODO: "op abandon" doesn't work if there are multiple op heads.
+
+    let stderr =
+        test_env.jj_cmd_internal_error(&repo_path, &["--at-op", head_op_id, "debug", "reindex"]);
+    insta::assert_snapshot!(strip_last_line(&stderr), @r###"
+    Internal error: Failed to index commits at operation e02cba71e65dc9b58bb46e4a31500d94c31ce217f19459883fc85c2d1cfde7124f556565be4f8a3bcd059fe1faee317c3e3eacd3034d419083fd6b85aea396f4
+    Caused by:
+    1: Object ddf84fc5e0dd314092b3dfb13e09e37fa7d04ef9 of type commit not found
+    "###);
+
+    // "op log" should still be usable.
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "log"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  43d51d9b0c0c test-username@host.example.com 2001-02-03 04:05:12.000 +07:00 - 2001-02-03 04:05:12.000 +07:00
+    │  describe commit 37bb762e5dc08073ec4323bdffc023a0f0cc901e
+    │  args: jj describe -m4
+    ○  13035304f7d6 test-username@host.example.com 2001-02-03 04:05:11.000 +07:00 - 2001-02-03 04:05:11.000 +07:00
+    │  new empty commit
+    │  args: jj new -m3
+    ○  fcf34f8ae8ac test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
+    │  abandon commit ddf84fc5e0dd314092b3dfb13e09e37fa7d04ef9
+    │  args: jj abandon
+    ○  e02cba71e65d test-username@host.example.com 2001-02-03 04:05:09.000 +07:00 - 2001-02-03 04:05:09.000 +07:00
+    │  describe commit 8b64ddff700dc214dec05d915e85ac692233e6e3
+    │  args: jj describe -m2
+    ○  0d7016e495d7 test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  describe commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    │  args: jj describe -m1
+    ○  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    ○  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  initialize repo
+    ○  000000000000 root()
+    "###);
+    insta::assert_snapshot!(stderr, @"");
+
+    // "op abandon" should work.
+    let (_stdout, stderr) =
+        test_env.jj_cmd_ok(&repo_path, &["op", "abandon", &format!("..{bad_op_id}")]);
+    insta::assert_snapshot!(stderr, @r###"
+    Abandoned 4 operations and reparented 3 descendant operations.
+    "###);
+
+    // The repo should no longer be corrupt.
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @  mzvwutvl test.user@example.com 2001-02-03 08:05:12 6d868f04
+    │  (empty) 4
+    ○  zsuskuln test.user@example.com 2001-02-03 08:05:10 HEAD@git f652c321
+    │  (empty) (no description set)
+    ◆  zzzzzzzz root() 00000000
+    "###);
+    insta::assert_snapshot!(stderr, @"");
 }
 
 #[test]
