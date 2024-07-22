@@ -1,122 +1,122 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/FAQ.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/FAQ.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/branches.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/branches.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/code-of-conduct.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/code-of-conduct.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/config.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/config.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/conflicts.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/conflicts.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/contributing.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/contributing.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/git-comparison.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/git-comparison.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/git-compatibility.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/git-compatibility.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/github.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/github.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/glossary.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/glossary.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/install-and-setup.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/install-and-setup.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/operation-log.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/operation-log.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/related-work.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/related-work.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/revsets.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/revsets.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/sapling-comparison.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/sapling-comparison.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/templates.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/templates.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/tutorial.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/tutorial.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/working-copy.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/working-copy.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/design/git-submodule-storage.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/design/git-submodule-storage.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/design/git-submodules.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/design/git-submodules.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/design/tracking-branches.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/design/tracking-branches.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/technical/architecture.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/technical/architecture.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/technical/concurrency.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/technical/concurrency.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
-         <loc>https://martinvonz.github.io/jj/v0.9.0/technical/conflicts.html</loc>
+         <loc>https://martinvonz.github.io/jj/latest/technical/conflicts.html</loc>
          <lastmod>2023-09-08</lastmod>
          <changefreq>daily</changefreq>
     </url>
