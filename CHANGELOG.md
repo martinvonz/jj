@@ -46,6 +46,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * `jj git clone` now accepts a `--depth <DEPTH>` option, which
   allows to clone the repository with a given depth.
 
+* New command `jj file annotate` that annotates files line by line. This is similar
+  in functionality to git's blame. Invoke the command with `jj file annotate <file_path>`.
+  The output can be customized via the `templates.annotate_commit_summary`
+  config variable.
+
 ### Fixed bugs
 
 * Error on `trunk()` revset resolution is now handled gracefully.

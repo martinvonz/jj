@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+pub mod annotate;
 pub mod chmod;
 pub mod list;
 pub mod show;
@@ -25,6 +26,7 @@ use crate::ui::Ui;
 /// File operations.
 #[derive(clap::Subcommand, Clone, Debug)]
 pub enum FileCommand {
+    Annotate(annotate::FileAnnotateArgs),
     Chmod(chmod::FileChmodArgs),
     List(list::FileListArgs),
     Show(show::FileShowArgs),
@@ -38,6 +40,7 @@ pub fn cmd_file(
     subcommand: &FileCommand,
 ) -> Result<(), CommandError> {
     match subcommand {
+        FileCommand::Annotate(args) => annotate::cmd_file_annotate(ui, command, args),
         FileCommand::Chmod(args) => chmod::cmd_file_chmod(ui, command, args),
         FileCommand::List(args) => list::cmd_file_list(ui, command, args),
         FileCommand::Show(args) => show::cmd_file_show(ui, command, args),

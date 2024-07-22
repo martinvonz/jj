@@ -12,6 +12,7 @@ mod test_abandon_command;
 mod test_acls;
 mod test_advance_bookmarks;
 mod test_alias;
+mod test_annotate_command;
 mod test_backout_command;
 mod test_bookmark_command;
 mod test_builtin_aliases;
