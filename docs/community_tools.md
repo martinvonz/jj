@@ -18,6 +18,12 @@ workflows quite easy. Take a look at its README.md as it quite descriptive.
 
 Find it [here][gg].
 
+## Hunk.nvim
+
+Hunk.nvim is a Neovim based diff-editor for Jujutsu which can be used as an
+alternative to the default `:builtin` diff-editor.
+
+Find it [here][hunk.nvim].
 
 ## LazyJJ
 
@@ -49,6 +55,7 @@ You can find other community contributed tools and integrations in our
 [cultivate]: https://github.com/benbrittain/cultivate
 [diffedit3]: https://github.com/ilyagr/diffedit3
 [gg]: https://github.com/gulbanana/gg 
+[hunk.nvim]: https://github.com/julienvincent/hunk.nvim
 [jj_tui]: https://github.com/faldor20/jj_tui
 [lazyjj]: https://github.com/Cretezy/lazyjj
 [vjj]: https://github.com/noahmayr/vjj
