@@ -149,6 +149,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj describe` can now update the description of multiple commits.
 
+* New command `jj annotate` that annotates files line by line. This is similar
+  in functionality to git's blame. Invoke the command with `jj annotate <file_path>`.
+  The output can be customized via the `templates.annotate_commit_summary`
+  config variable.
+
 ### Fixed bugs
 
 * `jj status` will show different messages in a conflicted tree, depending
