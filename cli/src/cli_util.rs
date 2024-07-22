@@ -378,7 +378,8 @@ impl CommandHelper {
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
     ) -> Result<WorkspaceCommandHelper, CommandError> {
-        WorkspaceCommandHelper::new(ui, self, workspace, repo)
+        let loaded_at_head = self.global_args.at_operation == "@";
+        WorkspaceCommandHelper::new(ui, self, workspace, repo, loaded_at_head)
     }
 }
 
@@ -499,13 +500,13 @@ impl WorkspaceCommandHelper {
         command: &CommandHelper,
         workspace: Workspace,
         repo: Arc<ReadonlyRepo>,
+        loaded_at_head: bool,
     ) -> Result<Self, CommandError> {
         let settings = command.settings.clone();
         let commit_summary_template_text =
             settings.config().get_string("templates.commit_summary")?;
         let revset_aliases_map = revset_util::load_revset_aliases(ui, &command.layered_configs)?;
         let template_aliases_map = command.load_template_aliases(ui)?;
-        let loaded_at_head = command.global_args.at_operation == "@";
         let may_update_working_copy = loaded_at_head && !command.global_args.ignore_working_copy;
         let working_copy_shared_with_git = is_colocated_git_workspace(&workspace, &repo);
         let path_converter = RepoPathUiConverter::Fs {
