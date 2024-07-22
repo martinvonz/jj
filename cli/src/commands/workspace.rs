@@ -173,7 +173,9 @@ fn cmd_workspace_add(
     )?;
 
     // Copy sparse patterns from workspace where the command was run
-    let mut new_workspace_command = WorkspaceCommandHelper::new(ui, command, new_workspace, repo)?;
+    let loaded_at_head = true;
+    let mut new_workspace_command =
+        WorkspaceCommandHelper::new(ui, command, new_workspace, repo, loaded_at_head)?;
     let (mut locked_ws, _wc_commit) = new_workspace_command.start_working_copy_mutation()?;
     let sparse_patterns = old_workspace_command
         .working_copy()

@@ -168,17 +168,18 @@ fn test_workspaces_add_at_operation() {
     Parent commit      : rlvkpnrz 0dbaa19a 2
     "###);
 
-    // FIXME: --at-op should disable snapshot in the main workspace, but the
-    // newly created workspace should still be writable.
+    // --at-op should disable snapshot in the main workspace, but the newly
+    // created workspace should still be writable.
     std::fs::write(main_path.join("file3"), "").unwrap();
-    let stderr = test_env.jj_cmd_failure(
+    let (_stdout, stderr) = test_env.jj_cmd_ok(
         &main_path,
         &["workspace", "add", "--at-op=@-", "../secondary"],
     );
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
     Created workspace in "../secondary"
-    Error: This command must be able to update the working copy.
-    Hint: Don't use --at-op.
+    Working copy now at: rzvqmyuk a4d1cbc9 (empty) (no description set)
+    Parent commit      : qpvuntsm 3364a7ed 1
+    Added 1 files, modified 0 files, removed 0 files
     "###);
     let secondary_path = test_env.env_root().join("secondary");
 
@@ -188,8 +189,8 @@ fn test_workspaces_add_at_operation() {
     insta::assert_snapshot!(stdout, @r###"
     Working copy changes:
     A file4
-    Working copy : zsuskuln 7df5cfc8 (no description set)
-    Parent commit: zzzzzzzz 00000000 (empty) (no description set)
+    Working copy : rzvqmyuk 2ba74f85 (no description set)
+    Parent commit: qpvuntsm 3364a7ed 1
     "###);
     insta::assert_snapshot!(stderr, @r###"
     Concurrent modification detected, resolving automatically.
@@ -201,6 +202,7 @@ fn test_workspaces_add_at_operation() {
     ○    resolve concurrent operations
     ├─╮
     ○ │  commit cd06097124e3e5860867e35c2bb105902c28ea38
+    │ ○  create initial working-copy commit in workspace secondary
     │ ○  add workspace 'secondary'
     ├─╯
     ○  snapshot working copy
