@@ -14,6 +14,15 @@ if(remote,
 
 commit_summary = 'format_commit_summary_with_refs(self, bookmarks)'
 
+annotate_commit_summary = '''
+separate(" ",
+  format_short_id(change_id),
+  format_short_id(commit_id),
+  format_short_signature(author),
+  format_timestamp(committer.timestamp()),
+)
+'''
+
 config_list = '''
 if(overridden,
   label("overridden", indent("# ", name ++ " = " ++ value)),

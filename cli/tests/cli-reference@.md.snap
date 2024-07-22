@@ -37,6 +37,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj edit`↴](#jj-edit)
 * [`jj evolog`↴](#jj-evolog)
 * [`jj file`↴](#jj-file)
+* [`jj file annotate`↴](#jj-file-annotate)
 * [`jj file chmod`↴](#jj-file-chmod)
 * [`jj file list`↴](#jj-file-list)
 * [`jj file show`↴](#jj-file-show)
@@ -760,11 +761,30 @@ File operations
 
 ###### **Subcommands:**
 
+* `annotate` — Show the source change for each line of the target file
 * `chmod` — Sets or removes the executable bit for paths in the repo
 * `list` — List files in a revision
 * `show` — Print contents of files in a revision
 * `track` — Start tracking specified paths in the working copy
 * `untrack` — Stop tracking specified paths in the working copy
+
+
+
+## `jj file annotate`
+
+Show the source change for each line of the target file.
+
+Annotates a revision line by line. Each line includes the source change that introduced the associated line. A path to the desired file must be provided. The per-line prefix for each line can be customized via template with the `templates.annotate_commit_summary` config variable.
+
+**Usage:** `jj file annotate [OPTIONS] <PATH>`
+
+###### **Arguments:**
+
+* `<PATH>` — the file to annotate
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>` — an optional revision to start at
 
 
 
