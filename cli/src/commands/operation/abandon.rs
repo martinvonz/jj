@@ -13,15 +13,14 @@
 // limitations under the License.
 
 use std::io::Write as _;
-use std::slice;
+use std::{iter, slice};
 
 use itertools::Itertools as _;
-use jj_lib::op_store::OperationId;
 use jj_lib::op_walk;
 use jj_lib::operation::Operation;
 
 use crate::cli_util::{short_operation_hash, CommandHelper};
-use crate::command_error::{cli_error, user_error, user_error_with_hint, CommandError};
+use crate::command_error::{cli_error, user_error, CommandError};
 use crate::ui::Ui;
 
 /// Abandon operation history
@@ -51,15 +50,15 @@ pub fn cmd_op_abandon(
     let mut workspace = command.load_workspace()?;
     let repo_loader = workspace.repo_loader();
     let op_store = repo_loader.op_store();
+    let op_heads_store = repo_loader.op_heads_store();
     // It doesn't make sense to create concurrent operations that will be merged
     // with the current head.
     if command.global_args().at_operation.is_some() {
         return Err(cli_error("--at-op is not respected"));
     }
-    let current_head_op = op_walk::resolve_op_for_load(repo_loader, "@")?;
-    let resolve_op =
-        |op_str| op_walk::resolve_op_at(op_store, slice::from_ref(&current_head_op), op_str);
-    let (abandon_root_op, abandon_head_op) =
+    let current_head_ops = op_walk::get_current_head_ops(op_store, op_heads_store.as_ref())?;
+    let resolve_op = |op_str| op_walk::resolve_op_at(op_store, &current_head_ops, op_str);
+    let (abandon_root_op, abandon_head_ops) =
         if let Some((root_op_str, head_op_str)) = args.operation.split_once("..") {
             let root_op = if root_op_str.is_empty() {
                 let id = op_store.root_operation_id();
@@ -68,12 +67,12 @@ pub fn cmd_op_abandon(
             } else {
                 resolve_op(root_op_str)?
             };
-            let head_op = if head_op_str.is_empty() {
-                current_head_op.clone()
+            let head_ops = if head_op_str.is_empty() {
+                current_head_ops.clone()
             } else {
-                resolve_op(head_op_str)?
+                vec![resolve_op(head_op_str)?]
             };
-            (root_op, head_op)
+            (root_op, head_ops)
         } else {
             let op = resolve_op(&args.operation)?;
             let parent_ops: Vec<_> = op.parents().try_collect()?;
@@ -82,25 +81,37 @@ pub fn cmd_op_abandon(
                 1 => parent_ops.into_iter().next().unwrap(),
                 _ => return Err(user_error("Cannot abandon a merge operation")),
             };
-            (parent_op, op)
+            (parent_op, vec![op])
         };
 
-    if abandon_head_op == current_head_op {
-        return Err(user_error_with_hint(
-            "Cannot abandon the current operation",
-            "Run `jj undo` to revert the current operation, then use `jj op abandon`",
+    if let Some(op) = abandon_head_ops
+        .iter()
+        .find(|op| current_head_ops.contains(op))
+    {
+        let mut err = user_error(format!(
+            "Cannot abandon the current operation {}",
+            short_operation_hash(op.id())
         ));
+        if current_head_ops.len() == 1 {
+            err.add_hint("Run `jj undo` to revert the current operation, then use `jj op abandon`");
+        }
+        return Err(err);
     }
 
     // Reparent descendants, count the number of abandoned operations.
     let stats = op_walk::reparent_range(
         op_store.as_ref(),
-        slice::from_ref(&abandon_head_op),
-        slice::from_ref(&current_head_op),
+        &abandon_head_ops,
+        &current_head_ops,
         &abandon_root_op,
     )?;
-    let [new_head_id]: [OperationId; 1] = stats.new_head_ids.try_into().unwrap();
-    if current_head_op.id() == &new_head_id {
+    assert_eq!(
+        current_head_ops.len(),
+        stats.new_head_ids.len(),
+        "all current_head_ops should be reparented as they aren't included in abandon_head_ops"
+    );
+    let reparented_head_ops = || iter::zip(&current_head_ops, &stats.new_head_ids);
+    if reparented_head_ops().all(|(old, new_id)| old.id() == new_id) {
         writeln!(ui.status(), "Nothing changed.")?;
         return Ok(());
     }
@@ -110,23 +121,26 @@ pub fn cmd_op_abandon(
         stats.unreachable_count,
         stats.rewritten_count,
     )?;
-    repo_loader
-        .op_heads_store()
-        .update_op_heads(slice::from_ref(current_head_op.id()), &new_head_id);
+    for (old, new_id) in reparented_head_ops().filter(|&(old, new_id)| old.id() != new_id) {
+        op_heads_store.update_op_heads(slice::from_ref(old.id()), new_id);
+    }
     // Remap the operation id of the current workspace. If there were any
     // concurrent operations, user will need to re-abandon their ancestors.
     if !command.global_args().ignore_working_copy {
         let mut locked_ws = workspace.start_working_copy_mutation()?;
         let old_op_id = locked_ws.locked_wc().old_operation_id();
-        if old_op_id != current_head_op.id() {
+        if let Some((_, new_id)) = reparented_head_ops().find(|(old, _)| old.id() == old_op_id) {
+            locked_ws.finish(new_id.clone())?
+        } else {
             writeln!(
                 ui.warning_default(),
                 "The working copy operation {} is not updated because it differs from the repo {}.",
                 short_operation_hash(old_op_id),
-                short_operation_hash(current_head_op.id()),
+                current_head_ops
+                    .iter()
+                    .map(|op| short_operation_hash(op.id()))
+                    .join(", "),
             )?;
-        } else {
-            locked_ws.finish(new_head_id)?
         }
     }
     Ok(())
