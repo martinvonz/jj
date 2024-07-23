@@ -485,15 +485,12 @@ fn test_git_clone_at_operation() {
     let git_repo = git2::Repository::init(git_repo_path).unwrap();
     set_up_non_empty_git_repo(&git_repo);
 
-    // TODO: just error out? no operation should exist
-    let (_stdout, stderr) = test_env.jj_cmd_ok(
+    let stderr = test_env.jj_cmd_cli_error(
         test_env.env_root(),
         &["git", "clone", "--at-op=@-", "source", "clone"],
     );
     insta::assert_snapshot!(stderr, @r###"
-    Fetching into new repo in "$TEST_ENV/clone"
-    branch: main@origin [new] untracked
-    Setting the revset alias "trunk()" to "main@origin"
+    Error: --at-op is not respected
     "###);
 }
 
