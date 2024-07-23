@@ -1107,6 +1107,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#set-of-private-commits" class="md-nav__link">
+    <span class="md-ellipsis">
+      Set of private commits
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2232,6 +2241,15 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#set-of-private-commits" class="md-nav__link">
+    <span class="md-ellipsis">
+      Set of private commits
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2909,6 +2927,18 @@ example:</p>
 <div class="codehilite"><pre><span></span><code>git.push-branch-prefix = &quot;martinvonz/push-&quot;
 </code></pre></div>
 
+<h3 id="set-of-private-commits">Set of private commits<a class="headerlink" href="#set-of-private-commits" title="Permanent link">&para;</a></h3>
+<p>You can configure the set of private commits by setting <code>git.private-commits</code> to
+a revset. The value is a revset of commits that Jujutsu will refuse to push. If
+unset, all commits are eligible to be pushed.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Prevent pushing work in progress or anything explicitly labeled &quot;private&quot;</span>
+<span class="n">git</span><span class="p">.</span><span class="n">private-commits</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;description(glob:&#39;wip:*&#39;) | description(glob:&#39;private:*&#39;)&quot;</span>
+</code></pre></div>
+<p>If a commit is in <code>git.private-commits</code> but is already on the remote, then it is
+not considered a private commit. Commits that are immutable are also excluded
+from the private set.</p>
+<p>Private commits prevent their descendants from being pushed, since doing so
+would require pushing the private commit as well.</p>
 <h2 id="filesystem-monitor">Filesystem monitor<a class="headerlink" href="#filesystem-monitor" title="Permanent link">&para;</a></h2>
 <p>In large repositories, it may be beneficial to use a "filesystem monitor" to
 track changes to the working copy. This allows <code>jj</code> to take working copy
