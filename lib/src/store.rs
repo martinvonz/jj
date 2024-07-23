@@ -200,7 +200,7 @@ impl Store {
         match &id {
             MergedTreeId::Legacy(id) => {
                 let tree = self.get_tree(RepoPath::root(), id)?;
-                Ok(MergedTree::Legacy(tree))
+                MergedTree::from_legacy_tree(tree)
             }
             MergedTreeId::Merge(ids) => {
                 let trees = ids.try_map(|id| self.get_tree(RepoPath::root(), id))?;
