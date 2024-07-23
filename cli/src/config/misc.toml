@@ -9,7 +9,8 @@ unamend = ["unsquash"]
 tree-level-conflicts = true
 
 [ui]
-allow-filesets = false
+# TODO: delete ui.allow-filesets in jj 0.26+
+allow-filesets = true
 always-allow-large-revsets = false
 diff-instructions = true
 paginate = "auto"
