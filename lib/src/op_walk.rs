@@ -250,7 +250,7 @@ pub fn walk_ancestors(head_ops: &[Operation]) -> impl Iterator<Item = OpStoreRes
 /// Stats about `reparent_range()`.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReparentStats {
-    /// New head operation ids.
+    /// New head operation ids in order of the old `head_ops`.
     pub new_head_ids: Vec<OperationId>,
     /// The number of rewritten operations.
     pub rewritten_count: usize,

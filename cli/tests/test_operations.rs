@@ -414,7 +414,7 @@ fn test_op_abandon_ancestors() {
     // Can't abandon the current operation.
     let stderr = test_env.jj_cmd_failure(&repo_path, &["op", "abandon", "..@"]);
     insta::assert_snapshot!(stderr, @r###"
-    Error: Cannot abandon the current operation
+    Error: Cannot abandon the current operation d92d0753399f
     Hint: Run `jj undo` to revert the current operation, then use `jj op abandon`
     "###);
 
@@ -509,6 +509,82 @@ fn test_op_abandon_without_updating_working_copy() {
 }
 
 #[test]
+fn test_op_abandon_multiple_heads() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    // Create 1 base operation + 2 operations to be diverged.
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 1"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 2"]);
+    test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "commit 3"]);
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["op", "log", "--no-graph", r#"-Tid.short() ++ "\n""#],
+    );
+    let (head_op_id, prev_op_id) = stdout.lines().next_tuple().unwrap();
+    insta::assert_snapshot!(head_op_id, @"cd2b4690faf2");
+    insta::assert_snapshot!(prev_op_id, @"c2878c428b1c");
+
+    // Create 1 other concurrent operation.
+    test_env.jj_cmd_ok(&repo_path, &["commit", "--at-op=@--", "-m", "commit 4"]);
+
+    // Can't resolve operation relative to @.
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["op", "abandon", "@-"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: The "@" expression resolved to more than one operation
+    Hint: Try specifying one of the operations by ID: cd2b4690faf2, 603773cdd351
+    "###);
+    let (_, other_head_op_id) = stderr.trim_end().rsplit_once(", ").unwrap();
+    insta::assert_snapshot!(other_head_op_id, @"603773cdd351");
+    assert_ne!(head_op_id, other_head_op_id);
+
+    // Can't abandon one of the head operations.
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["op", "abandon", head_op_id]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot abandon the current operation cd2b4690faf2
+    "###);
+
+    // Can't abandon the other head operation.
+    let stderr = test_env.jj_cmd_failure(&repo_path, &["op", "abandon", other_head_op_id]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: Cannot abandon the current operation 603773cdd351
+    "###);
+
+    // Can abandon the operation which is not an ancestor of the other head.
+    // This would crash if we attempted to remap the unchanged op in the op
+    // heads store.
+    let (_stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "abandon", prev_op_id]);
+    insta::assert_snapshot!(stderr, @r###"
+    Abandoned 1 operations and reparented 2 descendant operations.
+    "###);
+
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "log"]);
+    insta::assert_snapshot!(stdout, @r###"
+    @    a232d055d331 test-username@host.example.com 2001-02-03 04:05:17.000 +07:00 - 2001-02-03 04:05:17.000 +07:00
+    ├─╮  resolve concurrent operations
+    │ │  args: jj op log
+    ○ │  467d42715f00 test-username@host.example.com 2001-02-03 04:05:10.000 +07:00 - 2001-02-03 04:05:10.000 +07:00
+    │ │  commit 220cb0b1b5d1c03cc0d351139d824598bb3c1967
+    │ │  args: jj commit -m 'commit 3'
+    │ ○  603773cdd351 test-username@host.example.com 2001-02-03 04:05:12.000 +07:00 - 2001-02-03 04:05:12.000 +07:00
+    ├─╯  commit 81a4ef3dd421f3184289df1c58bd3a16ea1e3d8e
+    │    args: jj commit '--at-op=@--' -m 'commit 4'
+    ○  5d0ab09ab0fa test-username@host.example.com 2001-02-03 04:05:08.000 +07:00 - 2001-02-03 04:05:08.000 +07:00
+    │  commit 230dd059e1b059aefc0da06a2e5a7dbf22362f22
+    │  args: jj commit -m 'commit 1'
+    ○  b51416386f26 test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  add workspace 'default'
+    ○  9a7d829846af test-username@host.example.com 2001-02-03 04:05:07.000 +07:00 - 2001-02-03 04:05:07.000 +07:00
+    │  initialize repo
+    ○  000000000000 root()
+    "###);
+    insta::assert_snapshot!(stderr, @r###"
+    Concurrent modification detected, resolving automatically.
+    "###);
+}
+
+#[test]
 fn test_op_recover_from_bad_gc() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo", "--colocate"]);
@@ -551,8 +627,7 @@ fn test_op_recover_from_bad_gc() {
 
     // Do concurrent modification to make the situation even worse. At this
     // point, the index can be loaded, so this command succeeds.
-    // TODO: test_env.jj_cmd_ok(&repo_path, &["--at-op=@-", "describe", "-m4.1"]);
-    // TODO: "op abandon" doesn't work if there are multiple op heads.
+    test_env.jj_cmd_ok(&repo_path, &["--at-op=@-", "describe", "-m4.1"]);
 
     let stderr =
         test_env.jj_cmd_internal_error(&repo_path, &["--at-op", head_op_id, "debug", "reindex"]);
@@ -563,7 +638,10 @@ fn test_op_recover_from_bad_gc() {
     "###);
 
     // "op log" should still be usable.
-    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["op", "log", "--ignore-working-copy"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &["op", "log", "--ignore-working-copy", "--at-op", head_op_id],
+    );
     insta::assert_snapshot!(stdout, @r###"
     @  43d51d9b0c0c test-username@host.example.com 2001-02-03 04:05:12.000 +07:00 - 2001-02-03 04:05:12.000 +07:00
     │  describe commit 37bb762e5dc08073ec4323bdffc023a0f0cc901e
@@ -592,19 +670,23 @@ fn test_op_recover_from_bad_gc() {
     let (_stdout, stderr) =
         test_env.jj_cmd_ok(&repo_path, &["op", "abandon", &format!("..{bad_op_id}")]);
     insta::assert_snapshot!(stderr, @r###"
-    Abandoned 4 operations and reparented 3 descendant operations.
+    Abandoned 4 operations and reparented 4 descendant operations.
     "###);
 
     // The repo should no longer be corrupt.
     let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["log"]);
     insta::assert_snapshot!(stdout, @r###"
-    @  mzvwutvl test.user@example.com 2001-02-03 08:05:12 6d868f04
-    │  (empty) 4
+    ○  mzvwutvl?? test.user@example.com 2001-02-03 08:05:15 dc2c6d52
+    │  (empty) 4.1
+    │ @  mzvwutvl?? test.user@example.com 2001-02-03 08:05:12 6d868f04
+    ├─╯  (empty) 4
     ○  zsuskuln test.user@example.com 2001-02-03 08:05:10 HEAD@git f652c321
     │  (empty) (no description set)
     ◆  zzzzzzzz root() 00000000
     "###);
-    insta::assert_snapshot!(stderr, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Concurrent modification detected, resolving automatically.
+    "###);
 }
 
 #[test]
