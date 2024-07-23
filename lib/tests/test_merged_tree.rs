@@ -23,7 +23,6 @@ use jj_lib::merged_tree::{
 };
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
-use jj_lib::tree::merge_trees;
 use pollster::FutureExt as _;
 use pretty_assertions::assert_eq;
 use testutils::{create_single_tree, write_file, TestRepo};
@@ -455,9 +454,7 @@ fn test_resolve_success() {
     );
 
     let tree = MergedTree::new(Merge::from_removes_adds(vec![base1], vec![side1, side2]));
-    let MergedTree::Merge(resolved) = tree.resolve().unwrap() else {
-        unreachable!()
-    };
+    let MergedTree::Merge(resolved) = tree.resolve().unwrap();
     let resolved_tree = resolved.as_resolved().unwrap().clone();
     assert_eq!(
         resolved_tree,
@@ -662,13 +659,8 @@ fn test_conflict_iterator() {
             ),
         ]
     );
-
-    let merged_legacy_tree = merge_trees(&side1, &base1, &side2).unwrap();
-    let legacy_conflicts = MergedTree::legacy(merged_legacy_tree)
-        .conflicts()
-        .collect_vec();
-    assert_eq!(legacy_conflicts, conflicts);
 }
+
 #[test]
 fn test_conflict_iterator_higher_arity() {
     let test_repo = TestRepo::init();
@@ -720,29 +712,6 @@ fn test_conflict_iterator_higher_arity() {
         conflicts,
         vec![
             (two_sided_path.to_owned(), conflict_at(two_sided_path)),
-            (three_sided_path.to_owned(), conflict_at(three_sided_path))
-        ]
-    );
-    // Iterating over conflicts in a legacy tree yields the simplified conflict at
-    // each path
-    let merged_legacy_tree = merge_trees(&side1, &base1, &side2).unwrap();
-    let merged_legacy_tree = merge_trees(&merged_legacy_tree, &base2, &side3).unwrap();
-    let legacy_conflicts = MergedTree::legacy(merged_legacy_tree)
-        .conflicts()
-        .collect_vec();
-    assert_eq!(
-        legacy_conflicts,
-        vec![
-            (
-                two_sided_path.to_owned(),
-                Merge::from_removes_adds(
-                    vec![base2.path_value(two_sided_path).unwrap()],
-                    vec![
-                        side1.path_value(two_sided_path).unwrap(),
-                        side3.path_value(two_sided_path).unwrap(),
-                    ],
-                )
-            ),
             (three_sided_path.to_owned(), conflict_at(three_sided_path))
         ]
     );
@@ -1227,30 +1196,6 @@ fn test_merge_partial_resolution() {
         vec![expected_base1],
         vec![expected_side1, expected_side2],
     ));
-
-    let merged = side1_merged.merge(&base1_merged, &side2_merged).unwrap();
-    assert_eq!(merged, expected_merged);
-}
-
-/// Merge 3 resolved trees, including one empty legacy tree
-#[test]
-fn test_merge_with_empty_legacy_tree() {
-    let test_repo = TestRepo::init();
-    let repo = &test_repo.repo;
-
-    let path1 = RepoPath::from_internal_string("dir1/file");
-    let path2 = RepoPath::from_internal_string("dir2/file");
-    let base1 = repo
-        .store()
-        .get_tree(RepoPath::root(), repo.store().empty_tree_id())
-        .unwrap();
-    let side1 = create_single_tree(repo, &[(path1, "side1")]);
-    let side2 = create_single_tree(repo, &[(path2, "side2")]);
-    let expected = create_single_tree(repo, &[(path1, "side1"), (path2, "side2")]);
-    let base1_merged = MergedTree::legacy(base1);
-    let side1_merged = MergedTree::new(Merge::resolved(side1));
-    let side2_merged = MergedTree::new(Merge::resolved(side2));
-    let expected_merged = MergedTree::new(Merge::resolved(expected));
 
     let merged = side1_merged.merge(&base1_merged, &side2_merged).unwrap();
     assert_eq!(merged, expected_merged);
