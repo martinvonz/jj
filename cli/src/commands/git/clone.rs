@@ -22,7 +22,7 @@ use jj_lib::str_util::StringPattern;
 use jj_lib::workspace::Workspace;
 
 use crate::cli_util::{CommandHelper, WorkspaceCommandHelper};
-use crate::command_error::{user_error, user_error_with_message, CommandError};
+use crate::command_error::{cli_error, user_error, user_error_with_message, CommandError};
 use crate::commands::git::{map_git_error, maybe_add_gitignore};
 use crate::config::{write_config_value_to_file, ConfigNamePathBuf};
 use crate::git_util::{get_git_repo, print_git_import_stats, with_remote_git_callbacks};
@@ -85,6 +85,9 @@ pub fn cmd_git_clone(
     command: &CommandHelper,
     args: &GitCloneArgs,
 ) -> Result<(), CommandError> {
+    if command.global_args().at_operation != "@" {
+        return Err(cli_error("--at-op is not respected"));
+    }
     let remote_name = "origin";
     let source = absolute_git_source(command.cwd(), &args.source);
     let wc_path_str = args

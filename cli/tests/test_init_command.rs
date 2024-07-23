@@ -546,4 +546,17 @@ fn test_init_local() {
     assert!(store_path.join("files").is_dir());
     assert!(store_path.join("symlinks").is_dir());
     assert!(store_path.join("conflicts").is_dir());
+
+    let stderr = test_env.jj_cmd_cli_error(
+        test_env.env_root(),
+        &["init", "--ignore-working-copy", "repo2"],
+    );
+    insta::assert_snapshot!(stderr, @r###"
+    Error: --ignore-working-copy is not respected
+    "###);
+
+    let stderr = test_env.jj_cmd_cli_error(test_env.env_root(), &["init", "--at-op=@-", "repo3"]);
+    insta::assert_snapshot!(stderr, @r###"
+    Error: --at-op is not respected
+    "###);
 }

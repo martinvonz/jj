@@ -21,7 +21,9 @@ use tracing::instrument;
 
 use super::git;
 use crate::cli_util::CommandHelper;
-use crate::command_error::{user_error_with_hint, user_error_with_message, CommandError};
+use crate::command_error::{
+    cli_error, user_error_with_hint, user_error_with_message, CommandError,
+};
 use crate::ui::Ui;
 
 /// Create a new repo in the given directory
@@ -50,6 +52,12 @@ pub(crate) fn cmd_init(
     command: &CommandHelper,
     args: &InitArgs,
 ) -> Result<(), CommandError> {
+    if command.global_args().ignore_working_copy {
+        return Err(cli_error("--ignore-working-copy is not respected"));
+    }
+    if command.global_args().at_operation != "@" {
+        return Err(cli_error("--at-op is not respected"));
+    }
     let cwd = command.cwd();
     let wc_path = cwd.join(&args.destination);
     let wc_path = file_util::create_or_reuse_dir(&wc_path)
