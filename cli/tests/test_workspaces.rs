@@ -577,14 +577,14 @@ fn test_workspaces_current_op_discarded_by_other() {
         ],
     );
     insta::assert_snapshot!(stdout, @r###"
-    @  78e49a9ae1 abandon commit 3540d386892997a2a927078635a2d933e37499fb8691938a2f540c25bccffd9e8a60b2d5a8cb94bb3eeab17e1c56f96aafa2bcb66fa1e4eb96911d093d7a579e
-    ○  083b1fe855 create initial working-copy commit in workspace secondary
-    ○  aacb3bda7d add workspace 'secondary'
-    ○  46bcf7d75e new empty commit
-    ○  4d2f5d7cbf snapshot working copy
-    ○  2f863a1573 new empty commit
-    ○  f01631d976 snapshot working copy
-    ○  17dbb2fe40 add workspace 'default'
+    @  7337338f0b abandon commit 20dd439c4bd12c6ad56c187ac490bd0141804618f638dc5c4dc92ff9aecba20f152b23160db9dcf61beb31a5cb14091d9def5a36d11c9599cc4d2e5689236af1
+    ○  f4bd4d046b create initial working-copy commit in workspace secondary
+    ○  0f99641958 add workspace 'secondary'
+    ○  5641361f60 new empty commit
+    ○  3a6c319c59 snapshot working copy
+    ○  42c6005842 new empty commit
+    ○  6a45045541 snapshot working copy
+    ○  a9e6630bf0 add workspace 'default'
     ○  cecfee9647 initialize repo
     ○  0000000000
     "###);
@@ -594,10 +594,10 @@ fn test_workspaces_current_op_discarded_by_other() {
     test_env.jj_cmd_ok(&main_path, &["util", "gc", "--expire=now"]);
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    @  cc0b087cb874 default@
-    │ ○  376eee1462a7 secondary@
+    ○  96b31dafdc41 secondary@
+    │ @  6c051bd1ccd5 default@
     ├─╯
-    ○  7788883a847c
+    ○  7c5b25a4fc8f
     ◆  000000000000
     "###);
 
@@ -610,17 +610,17 @@ fn test_workspaces_current_op_discarded_by_other() {
 
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["workspace", "update-stale"]);
     insta::assert_snapshot!(stderr, @r###"
-    Failed to read working copy's current operation; attempting recovery. Error message from read attempt: Object 083b1fe855c23361b504fc78eb827aaa6099067d5ccba28b4e8cd89ed35d850be68ea557f03aaeaa37a09cc91b185c03c7ac638fff1fd8234b2e2a9cc62dc2cf of type operation not found
-    Created and checked out recovery commit 6803354995e6
+    Failed to read working copy's current operation; attempting recovery. Error message from read attempt: Object f4bd4d046b3cdf61b0fda7738a0b1414c0aedc6c8229d39a35ee26facc358cad8b588b04d7eba1302a82409c529f69dbb1ff9ea28789d935b74f123f377aa30b of type operation not found
+    Created and checked out recovery commit 62f70695e3b0
     "###);
     insta::assert_snapshot!(stdout, @"");
 
     insta::assert_snapshot!(get_log_output(&test_env, &main_path), @r###"
-    ○  a8f7db7868c1 secondary@
-    ○  376eee1462a7
-    │ @  cc0b087cb874 default@
+    ○  b0b400439a82 secondary@
+    ○  96b31dafdc41
+    │ @  6c051bd1ccd5 default@
     ├─╯
-    ○  7788883a847c
+    ○  7c5b25a4fc8f
     ◆  000000000000
     "###);
 
@@ -638,8 +638,8 @@ fn test_workspaces_current_op_discarded_by_other() {
     A added
     D deleted
     M modified
-    Working copy : kmkuslsw a8f7db78 (no description set)
-    Parent commit: rzvqmyuk 376eee14 (empty) (no description set)
+    Working copy : kmkuslsw b0b40043 (no description set)
+    Parent commit: rzvqmyuk 96b31daf (empty) (no description set)
     "###);
     // The modified file should have the same contents it had before (not reset to
     // the base contents)
@@ -650,9 +650,9 @@ fn test_workspaces_current_op_discarded_by_other() {
     let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["obslog"]);
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(stdout, @r###"
-    @  kmkuslsw test.user@example.com 2001-02-03 08:05:18 secondary@ a8f7db78
+    @  kmkuslsw test.user@example.com 2001-02-03 08:05:18 secondary@ b0b40043
     │  (no description set)
-    ○  kmkuslsw hidden test.user@example.com 2001-02-03 08:05:18 68033549
+    ○  kmkuslsw hidden test.user@example.com 2001-02-03 08:05:18 62f70695
        (empty) (no description set)
     "###);
 }
