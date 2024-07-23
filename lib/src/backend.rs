@@ -380,7 +380,7 @@ pub fn make_root_commit(root_change_id: ChangeId, empty_tree_id: TreeId) -> Comm
     Commit {
         parents: vec![],
         predecessors: vec![],
-        root_tree: MergedTreeId::Legacy(empty_tree_id),
+        root_tree: MergedTreeId::resolved(empty_tree_id),
         change_id: root_change_id,
         description: String::new(),
         author: signature.clone(),
