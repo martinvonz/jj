@@ -21,7 +21,7 @@ use jj_lib::op_walk;
 use jj_lib::operation::Operation;
 
 use crate::cli_util::{short_operation_hash, CommandHelper};
-use crate::command_error::{user_error, user_error_with_hint, CommandError};
+use crate::command_error::{cli_error, user_error, user_error_with_hint, CommandError};
 use crate::ui::Ui;
 
 /// Abandon operation history
@@ -55,7 +55,7 @@ pub fn cmd_op_abandon(
     // with the current head.
     let head_op_str = &command.global_args().at_operation;
     if head_op_str != "@" {
-        return Err(user_error("--at-op is not respected"));
+        return Err(cli_error("--at-op is not respected"));
     }
     let current_head_op = op_walk::resolve_op_for_load(repo_loader, head_op_str)?;
     let resolve_op = |op_str| op_walk::resolve_op_at(op_store, &current_head_op, op_str);

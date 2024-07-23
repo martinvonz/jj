@@ -418,7 +418,7 @@ fn test_op_abandon_ancestors() {
     "###);
 
     // Can't create concurrent abandoned operations explicitly.
-    let stderr = test_env.jj_cmd_failure(&repo_path, &["op", "abandon", "--at-op=@-", "@"]);
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["op", "abandon", "--at-op=@-", "@"]);
     insta::assert_snapshot!(stderr, @r###"
     Error: --at-op is not respected
     "###);
