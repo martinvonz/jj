@@ -46,7 +46,7 @@ fn run_custom_command(
                 .rewrite_commit(command_helper.settings(), &commit)
                 .set_description("Frobnicated!")
                 .write()?;
-            tx.finish(ui, "Frobnicate")?;
+            tx.finish(ui, "frobnicate")?;
             writeln!(
                 ui.status(),
                 "Frobnicated revision: {}",

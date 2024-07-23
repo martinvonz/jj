@@ -223,7 +223,7 @@ fn cmd_workspace_add(
     tx.edit(&new_wc_commit)?;
     tx.finish(
         ui,
-        format!("Create initial working-copy commit in workspace {}", &name),
+        format!("create initial working-copy commit in workspace {name}"),
     )?;
     Ok(())
 }
