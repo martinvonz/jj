@@ -233,8 +233,6 @@ fn test_bad_path() {
     let subdir = repo_path.join("dir");
     std::fs::create_dir_all(&subdir).unwrap();
 
-    test_env.add_config("ui.allow-filesets = true");
-
     // cwd == workspace_root
     let stderr = test_env.jj_cmd_failure(&repo_path, &["file", "show", "../out"]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
@@ -450,8 +448,16 @@ fn test_color_ui_messages() {
     // error source
     let stderr = test_env.jj_cmd_failure(&repo_path, &["log", ".."]);
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
-    [1m[38;5;1mError: [39mPath ".." is not in the repo "."[0m
-    [1m[39mCaused by: [0m[39mInvalid component ".." in repo-relative path "../"[39m
+    [1m[38;5;1mError: [39mFailed to parse fileset: Invalid file pattern[0m
+    [1m[39mCaused by:[0m
+    [1m[39m1: [0m[39m --> 1:1[39m
+    [39m  |[39m
+    [39m1 | ..[39m
+    [39m  | ^^[39m
+    [39m  |[39m
+    [39m  = Invalid file pattern[39m
+    [1m[39m2: [0m[39mPath ".." is not in the repo "."[39m
+    [1m[39m3: [0m[39mInvalid component ".." in repo-relative path "../"[39m
     "###);
 
     // warning

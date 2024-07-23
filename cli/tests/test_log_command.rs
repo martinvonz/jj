@@ -825,17 +825,21 @@ fn test_log_filtered_by_path() {
     A file2
     "###);
 
-    // Fileset/pattern syntax is disabled by default.
+    // Fileset/pattern syntax can be disabled.
     let stderr = test_env.jj_cmd_failure(
         test_env.env_root(),
-        &["log", "-R", repo_path.to_str().unwrap(), "all()"],
+        &[
+            "log",
+            "--config-toml=ui.allow-filesets=false",
+            "-R",
+            repo_path.to_str().unwrap(),
+            "all()",
+        ],
     );
     insta::assert_snapshot!(stderr.replace('\\', "/"), @r###"
     Error: Path "all()" is not in the repo "repo"
     Caused by: Invalid component ".." in repo-relative path "../all()"
     "###);
-
-    test_env.add_config("ui.allow-filesets = true");
 
     // empty revisions are filtered out by "all()" fileset.
     let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-Tdescription", "-s", "all()"]);

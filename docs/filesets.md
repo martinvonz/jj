@@ -5,13 +5,6 @@ Expressions in this language are called "filesets" (the idea comes from
 [Mercurial](https://repo.mercurial-scm.org/hg/help/filesets)). The language
 consists of file patterns, operators, and functions.
 
-**Filesets support is still experimental.** It can be enabled by
-`ui.allow-filesets`.
-
-```toml
-ui.allow-filesets = true
-```
-
 Many `jj` commands accept fileset expressions as positional arguments. File
 names passed to these commands [must be quoted][string-literals] if they contain
 whitespace or meta characters. However, as a special case, quotes can be omitted

@@ -198,15 +198,7 @@ fn test_diff_basic() {
     "###);
 
     // Filter by glob pattern
-    let stdout = test_env.jj_cmd_success(
-        &repo_path,
-        &[
-            "diff",
-            "--config-toml=ui.allow-filesets=true",
-            "-s",
-            "glob:file[12]",
-        ],
-    );
+    let stdout = test_env.jj_cmd_success(&repo_path, &["diff", "-s", "glob:file[12]"]);
     insta::assert_snapshot!(stdout, @r###"
     D file1
     M file2

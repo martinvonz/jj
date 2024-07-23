@@ -23,6 +23,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Updated defaults for graph node symbol templates `templates.log_node` and
   `templates.op_log_node`.
 
+* [The "fileset" language](docs/filesets.md) is now enabled by default. It can
+  still be disable by setting `ui.allow-filesets=false`.
+
 ### Deprecations
 
 ### New features
