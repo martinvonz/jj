@@ -1420,10 +1420,6 @@
 Expressions in this language are called "filesets" (the idea comes from
 <a href="https://repo.mercurial-scm.org/hg/help/filesets">Mercurial</a>). The language
 consists of file patterns, operators, and functions.</p>
-<p><strong>Filesets support is still experimental.</strong> It can be enabled by
-<code>ui.allow-filesets</code>.</p>
-<div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">allow-filesets</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
-</code></pre></div>
 <p>Many <code>jj</code> commands accept fileset expressions as positional arguments. File
 names passed to these commands <a href="../templates/#string-literals">must be quoted</a> if they contain
 whitespace or meta characters. However, as a special case, quotes can be omitted
