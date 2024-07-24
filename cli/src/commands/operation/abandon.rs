@@ -57,7 +57,8 @@ pub fn cmd_op_abandon(
         return Err(cli_error("--at-op is not respected"));
     }
     let current_head_op = op_walk::resolve_op_for_load(repo_loader, "@")?;
-    let resolve_op = |op_str| op_walk::resolve_op_at(op_store, &current_head_op, op_str);
+    let resolve_op =
+        |op_str| op_walk::resolve_op_at(op_store, slice::from_ref(&current_head_op), op_str);
     let (abandon_root_op, abandon_head_op) =
         if let Some((root_op_str, head_op_str)) = args.operation.split_once("..") {
             let root_op = if root_op_str.is_empty() {

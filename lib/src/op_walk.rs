@@ -98,17 +98,25 @@ pub fn resolve_op_with_repo(
     repo: &ReadonlyRepo,
     op_str: &str,
 ) -> Result<Operation, OpsetEvaluationError> {
-    resolve_op_at(repo.op_store(), repo.operation(), op_str)
+    resolve_op_at(repo.op_store(), slice::from_ref(repo.operation()), op_str)
 }
 
-/// Resolves operation set expression at the given head operation.
+/// Resolves operation set expression at the given head operations.
 pub fn resolve_op_at(
     op_store: &Arc<dyn OpStore>,
-    head_op: &Operation,
+    head_ops: &[Operation],
     op_str: &str,
 ) -> Result<Operation, OpsetEvaluationError> {
-    let get_current_op = || Ok(head_op.clone());
-    let get_head_ops = || Ok(vec![head_op.clone()]);
+    let get_current_op = || match head_ops {
+        [head_op] => Ok(head_op.clone()),
+        [] => Err(OpsetResolutionError::EmptyOperations("@".to_owned()).into()),
+        _ => Err(OpsetResolutionError::MultipleOperations {
+            expr: "@".to_owned(),
+            candidates: head_ops.iter().map(|op| op.id().clone()).collect(),
+        }
+        .into()),
+    };
+    let get_head_ops = || Ok(head_ops.to_vec());
     resolve_single_op(op_store, get_current_op, get_head_ops, op_str)
 }
 
