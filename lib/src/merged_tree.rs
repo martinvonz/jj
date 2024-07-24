@@ -556,18 +556,15 @@ impl From<&Merge<Tree>> for ConflictsDirItem {
     }
 }
 
-// TODO: replace by a struct
-enum ConflictIterator {
-    Merge {
-        store: Arc<Store>,
-        stack: Vec<ConflictsDirItem>,
-    },
+struct ConflictIterator {
+    store: Arc<Store>,
+    stack: Vec<ConflictsDirItem>,
 }
 
 impl ConflictIterator {
     fn new(tree: &MergedTree) -> Self {
         match tree {
-            MergedTree::Merge(trees) => ConflictIterator::Merge {
+            MergedTree::Merge(trees) => ConflictIterator {
                 store: tree.store().clone(),
                 stack: vec![ConflictsDirItem::from(trees)],
             },
@@ -579,27 +576,23 @@ impl Iterator for ConflictIterator {
     type Item = (RepoPathBuf, MergedTreeValue);
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            ConflictIterator::Merge { store, stack } => {
-                while let Some(top) = stack.last_mut() {
-                    if let Some((path, tree_values)) = top.entries.pop() {
-                        // TODO: propagate errors
-                        if let Some(trees) = tree_values.to_tree_merge(store, &path).unwrap() {
-                            // If all sides are trees or missing, descend into the merged tree
-                            stack.push(ConflictsDirItem::from(&trees));
-                        } else {
-                            // Otherwise this is a conflict between files, trees, etc. If they could
-                            // be automatically resolved, they should have been when the top-level
-                            // tree conflict was written, so we assume that they can't be.
-                            return Some((path, tree_values));
-                        }
-                    } else {
-                        stack.pop();
-                    }
+        while let Some(top) = self.stack.last_mut() {
+            if let Some((path, tree_values)) = top.entries.pop() {
+                // TODO: propagate errors
+                if let Some(trees) = tree_values.to_tree_merge(&self.store, &path).unwrap() {
+                    // If all sides are trees or missing, descend into the merged tree
+                    self.stack.push(ConflictsDirItem::from(&trees));
+                } else {
+                    // Otherwise this is a conflict between files, trees, etc. If they could
+                    // be automatically resolved, they should have been when the top-level
+                    // tree conflict was written, so we assume that they can't be.
+                    return Some((path, tree_values));
                 }
-                None
+            } else {
+                self.stack.pop();
             }
         }
+        None
     }
 }
 
