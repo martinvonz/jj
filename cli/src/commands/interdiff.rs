@@ -28,7 +28,7 @@ use crate::ui::Ui;
 ///
 /// This excludes changes from other commits by temporarily rebasing `--from`
 /// onto `--to`'s parents. If you wish to compare the same change across
-/// versions, consider `jj obslog -p` instead.
+/// versions, consider `jj evolog -p` instead.
 #[derive(clap::Args, Clone, Debug)]
 #[command(group(ArgGroup::new("to_diff").args(&["from", "to"]).multiple(true).required(true)))]
 pub(crate) struct InterdiffArgs {

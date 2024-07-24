@@ -26,6 +26,7 @@ mod diff;
 mod diffedit;
 mod duplicate;
 mod edit;
+mod evolog;
 mod file;
 mod fix;
 mod git;
@@ -36,7 +37,6 @@ mod merge;
 mod r#move;
 mod new;
 mod next;
-mod obslog;
 mod operation;
 mod parallelize;
 mod prev;
@@ -96,6 +96,8 @@ enum Command {
     Diffedit(diffedit::DiffeditArgs),
     Duplicate(duplicate::DuplicateArgs),
     Edit(edit::EditArgs),
+    #[command(alias = "obslog", visible_alias = "evolution-log")]
+    Evolog(evolog::EvologArgs),
     #[command(subcommand)]
     File(file::FileCommand),
     /// List files in a revision (DEPRECATED use `jj file list`)
@@ -123,7 +125,6 @@ enum Command {
     Move(r#move::MoveArgs),
     New(new::NewArgs),
     Next(next::NextArgs),
-    Obslog(obslog::ObslogArgs),
     #[command(subcommand)]
     #[command(visible_alias = "op")]
     Operation(operation::OperationCommand),
@@ -213,7 +214,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Move(args) => r#move::cmd_move(ui, command_helper, args),
         Command::New(args) => new::cmd_new(ui, command_helper, args),
         Command::Next(args) => next::cmd_next(ui, command_helper, args),
-        Command::Obslog(args) => obslog::cmd_obslog(ui, command_helper, args),
+        Command::Evolog(args) => evolog::cmd_evolog(ui, command_helper, args),
         Command::Operation(args) => operation::cmd_operation(ui, command_helper, args),
         Command::Parallelize(args) => parallelize::cmd_parallelize(ui, command_helper, args),
         Command::Prev(args) => prev::cmd_prev(ui, command_helper, args),

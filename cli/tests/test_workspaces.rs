@@ -702,7 +702,7 @@ fn test_workspaces_current_op_discarded_by_other() {
     secondary
     "###);
 
-    let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["obslog"]);
+    let (stdout, stderr) = test_env.jj_cmd_ok(&secondary_path, &["evolog"]);
     insta::assert_snapshot!(stderr, @"");
     insta::assert_snapshot!(stdout, @r###"
     @  kmkuslsw test.user@example.com 2001-02-03 08:05:18 secondary@ b0b40043

@@ -646,7 +646,7 @@ fn builtin_commit_methods<'repo>() -> CommitTemplateBuildMethodFnMap<'repo, Comm
             function.expect_no_arguments()?;
             let repo = language.repo;
             let out_property = self_property.map(|commit| {
-                // The given commit could be hidden in e.g. obslog.
+                // The given commit could be hidden in e.g. `jj evolog`.
                 let maybe_entries = repo.resolve_change_id(commit.change_id());
                 maybe_entries.map_or(0, |entries| entries.len()) > 1
             });

@@ -35,6 +35,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj diffedit`↴](#jj-diffedit)
 * [`jj duplicate`↴](#jj-duplicate)
 * [`jj edit`↴](#jj-edit)
+* [`jj evolog`↴](#jj-evolog)
 * [`jj file`↴](#jj-file)
 * [`jj file chmod`↴](#jj-file-chmod)
 * [`jj file list`↴](#jj-file-list)
@@ -59,7 +60,6 @@ This document contains the help content for the `jj` command-line program.
 * [`jj log`↴](#jj-log)
 * [`jj new`↴](#jj-new)
 * [`jj next`↴](#jj-next)
-* [`jj obslog`↴](#jj-obslog)
 * [`jj operation`↴](#jj-operation)
 * [`jj operation abandon`↴](#jj-operation-abandon)
 * [`jj operation diff`↴](#jj-operation-diff)
@@ -120,6 +120,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `diffedit` — Touch up the content changes in a revision with a diff editor
 * `duplicate` — Create a new change with the same content as an existing one
 * `edit` — Sets the specified revision as the working-copy revision
+* `evolog` — Show how a change has evolved over time
 * `file` — File operations
 * `fix` — Update files with formatting fixes or other changes
 * `git` — Commands for working with Git remotes and the underlying Git repo
@@ -128,7 +129,6 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `log` — Show revision history
 * `new` — Create a new, empty change and (by default) edit it in the working copy
 * `next` — Move the working-copy commit to the child revision
-* `obslog` — Show how a change has evolved over time
 * `operation` — Commands for working with the operation log
 * `parallelize` — Parallelize revisions by making them siblings
 * `prev` — Change the working copy revision relative to the parent revision
@@ -692,6 +692,42 @@ For more information, see https://martinvonz.github.io/jj/latest/FAQ#how-do-i-re
 
 
 
+## `jj evolog`
+
+Show how a change has evolved over time
+
+Lists the previous commits which a change has pointed to. The current commit of a change evolves when the change is updated, rebased, etc.
+
+**Usage:** `jj evolog [OPTIONS]`
+
+###### **Options:**
+
+* `-r`, `--revision <REVISION>`
+
+  Default value: `@`
+* `-n`, `--limit <LIMIT>` — Limit number of revisions to show
+* `--no-graph` — Don't show the graph, show a flat list of revisions
+* `-T`, `--template <TEMPLATE>` — Render each revision using the given template
+
+   For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
+* `-p`, `--patch` — Show patch compared to the previous version of this change
+
+   If the previous version has different parents, it will be temporarily rebased to the parents of the new version, so the diff is not contaminated by unrelated changes.
+* `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
+* `--stat` — Show a histogram of the changes
+* `--types` — For each path, show only its type before and after
+
+   The diff is shown as two letters. The first letter indicates the type before and the second letter indicates the type after. '-' indicates that the path was not present, 'F' represents a regular file, `L' represents a symlink, 'C' represents a conflict, and 'G' represents a Git submodule.
+* `--name-only` — For each path, show only its path
+
+   Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
+* `--git` — Show a Git-format diff
+* `--color-words` — Show a word-level diff with changes indicated only by color
+* `--tool <TOOL>` — Generate diff by external command
+* `--context <CONTEXT>` — Number of lines of context to show
+
+
+
 ## `jj file`
 
 File operations
@@ -1105,7 +1141,7 @@ If the given directory does not exist, it will be created. If no directory is gi
 
 Compare the changes of two commits
 
-This excludes changes from other commits by temporarily rebasing `--from` onto `--to`'s parents. If you wish to compare the same change across versions, consider `jj obslog -p` instead.
+This excludes changes from other commits by temporarily rebasing `--from` onto `--to`'s parents. If you wish to compare the same change across versions, consider `jj evolog -p` instead.
 
 **Usage:** `jj interdiff [OPTIONS] <--from <FROM>|--to <TO>> [PATHS]...`
 
@@ -1250,44 +1286,6 @@ implied.
 
    Takes precedence over config in `ui.movement.edit`; i.e. will negate `ui.movement.edit = true`
 * `--conflict` — Jump to the next conflicted descendant
-
-
-
-## `jj obslog`
-
-Show how a change has evolved over time
-
-Lists the previous commits which a change has pointed to. The current commit of a change evolves when the change is updated, rebased, etc.
-
-Name is derived from Merciual's obsolescence markers.
-
-**Usage:** `jj obslog [OPTIONS]`
-
-###### **Options:**
-
-* `-r`, `--revision <REVISION>`
-
-  Default value: `@`
-* `-n`, `--limit <LIMIT>` — Limit number of revisions to show
-* `--no-graph` — Don't show the graph, show a flat list of revisions
-* `-T`, `--template <TEMPLATE>` — Render each revision using the given template
-
-   For the syntax, see https://github.com/martinvonz/jj/blob/main/docs/templates.md
-* `-p`, `--patch` — Show patch compared to the previous version of this change
-
-   If the previous version has different parents, it will be temporarily rebased to the parents of the new version, so the diff is not contaminated by unrelated changes.
-* `-s`, `--summary` — For each path, show only whether it was modified, added, or deleted
-* `--stat` — Show a histogram of the changes
-* `--types` — For each path, show only its type before and after
-
-   The diff is shown as two letters. The first letter indicates the type before and the second letter indicates the type after. '-' indicates that the path was not present, 'F' represents a regular file, `L' represents a symlink, 'C' represents a conflict, and 'G' represents a Git submodule.
-* `--name-only` — For each path, show only its path
-
-   Typically useful for shell commands like: `jj diff -r @- --name_only | xargs perl -pi -e's/OLD/NEW/g`
-* `--git` — Show a Git-format diff
-* `--color-words` — Show a word-level diff with changes indicated only by color
-* `--tool <TOOL>` — Generate diff by external command
-* `--context <CONTEXT>` — Number of lines of context to show
 
 
 

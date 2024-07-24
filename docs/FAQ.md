@@ -50,15 +50,15 @@ parent-child relationships between commits you can see in `jj log`, this is
 simply not what they mean. What you can see in `jj log` is that after the
 working copy commit gets amended (after any edit), the commit ID changes.
 
-You can see the actual history of working copy changes using `jj obslog`. This
+You can see the actual history of working copy changes using `jj evolog`. This
 will show the history of the commits that were previously the "working-copy
 commit", since the last time the change id of the working copy commit changed.
 The obsolete changes will be marked as "hidden". They are still accessible with
 any `jj` command (`jj diff`, for example), but you will need to use the commit
 id to refer to hidden commits.
 
-You can also use `jj obslog -r` on revisions that were previously the
-working-copy revisions (or on any other revisions). Use `jj obslog -p` as an
+You can also use `jj evolog -r` on revisions that were previously the
+working-copy revisions (or on any other revisions). Use `jj evolog -p` as an
 easy way to see the evolution of the commit's contents.
 
 ### Can I prevent Jujutsu from recording my unfinished work? I'm not ready to commit it.
@@ -200,7 +200,7 @@ $ jj config set --user git.private-commits 'description(glob:"private:*")'
 
 ### I accidentally changed files in the wrong commit, how do I move the recent changes into another commit?
 
-Use `jj obslog -p` to see how your working-copy commit has evolved. Find the
+Use `jj evolog -p` to see how your working-copy commit has evolved. Find the
 commit you want to restore the contents to. Let's say the current commit (with
 the changes intended for a new commit) are in commit X and the state you wanted
 is in commit Y. Note the commit id (normally in blue at the end of the line in
