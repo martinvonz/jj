@@ -315,7 +315,7 @@ impl DetachedCommitBuilder {
     ///
     /// This does not consume the builder, so you can reuse the current
     /// configuration to create another commit later.
-    pub fn write_hidden(&mut self) -> BackendResult<Commit> {
+    pub fn write_hidden(&self) -> BackendResult<Commit> {
         write_to_store(&self.store, self.commit.clone(), &self.sign_settings)
     }
 }
