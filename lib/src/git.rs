@@ -19,7 +19,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::default::Default;
 use std::io::Read;
 use std::path::PathBuf;
-use std::{fmt, iter, str};
+use std::{fmt, str};
 
 use git2::Oid;
 use itertools::Itertools;
@@ -496,16 +496,15 @@ fn default_remote_ref_state_for(ref_name: &RefName, git_settings: &GitSettings) 
     }
 }
 
-/// Commits referenced by local branches, tags, or HEAD@git.
+/// Commits referenced by local branches or tags.
 ///
 /// On `import_refs()`, this is similar to collecting commits referenced by
 /// `view.git_refs()`. Main difference is that local branches can be moved by
 /// tracking remotes, and such mutation isn't applied to `view.git_refs()` yet.
 fn pinned_commit_ids(view: &View) -> Vec<CommitId> {
-    itertools::chain!(
+    itertools::chain(
         view.local_branches().map(|(_, target)| target),
         view.tags().values(),
-        iter::once(view.git_head()),
     )
     .flat_map(|target| target.added_ids())
     .cloned()

@@ -281,8 +281,8 @@ fn test_git_colocated_rebase_on_import() {
     // refs/heads/master we just exported
     test_env.jj_cmd_ok(&workspace_root, &["st"]);
 
-    // Move `master` and HEAD backwards, which should result in commit2 getting
-    // hidden, and a new working-copy commit at the new position.
+    // Move `master` backwards, which should result in commit2 getting hidden,
+    // and the working-copy commit rebased.
     let commit2_oid = git_repo
         .find_branch("master", git2::BranchType::Local)
         .unwrap()
@@ -292,16 +292,18 @@ fn test_git_colocated_rebase_on_import() {
     let commit2 = git_repo.find_commit(commit2_oid).unwrap();
     let commit1 = commit2.parents().next().unwrap();
     git_repo.branch("master", &commit1, true).unwrap();
-    git_repo.set_head("refs/heads/master").unwrap();
     let (stdout, stderr) = get_log_output_with_stderr(&test_env, &workspace_root);
     insta::assert_snapshot!(stdout, @r###"
-    @  5539e55eb3690b85a7ebd4a37a5e3b57f469ee94
+    @  15b1d70c5e33b5d2b18383292b85324d5153ffed
     ○  47fe984daf66f7bf3ebf31b9cb3513c995afb857 master HEAD@git add a file
     ◆  0000000000000000000000000000000000000000
     "###);
     insta::assert_snapshot!(stderr, @r###"
-    Reset the working copy parent to the new Git HEAD.
     Abandoned 1 commits that are no longer reachable.
+    Rebased 1 descendant commits off of commits rewritten from git
+    Working copy now at: zsuskuln 15b1d70c (empty) (no description set)
+    Parent commit      : qpvuntsm 47fe984d master | add a file
+    Added 0 files, modified 1 files, removed 0 files
     Done importing changes from the underlying Git repo.
     "###);
 }

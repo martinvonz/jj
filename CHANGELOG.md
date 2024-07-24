@@ -26,6 +26,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * [The "fileset" language](docs/filesets.md) is now enabled by default. It can
   still be disable by setting `ui.allow-filesets=false`.
 
+* On `jj git fetch`/`import`, commits referred to by `HEAD@git` are no longer
+  preserved. If a checked-out named branch gets deleted locally or remotely, the
+  corresponding commits will be abandoned.
+
 ### Deprecations
 
 ### New features
