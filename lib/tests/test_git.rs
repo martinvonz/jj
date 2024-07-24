@@ -352,9 +352,9 @@ fn test_import_refs_reimport_head_removed() {
 }
 
 #[test]
-fn test_import_refs_reimport_git_head_counts() {
-    // Test that if a branch is removed but the Git HEAD points to the commit (or a
-    // descendant of it), we still keep it alive.
+fn test_import_refs_reimport_git_head_does_not_count() {
+    // Test that if a branch is removed, the corresponding commit is abandoned
+    // no matter if the Git HEAD points to the commit (or a descendant of it.)
     let settings = testutils::user_settings();
     let git_settings = GitSettings::default();
     let test_repo = TestRepo::init_with_backend(TestRepoBackend::Git);
@@ -379,7 +379,7 @@ fn test_import_refs_reimport_git_head_counts() {
     git::import_head(tx.mut_repo()).unwrap();
     git::import_refs(tx.mut_repo(), &git_settings).unwrap();
     tx.mut_repo().rebase_descendants(&settings).unwrap();
-    assert!(tx.mut_repo().view().heads().contains(&jj_id(&commit)));
+    assert!(!tx.mut_repo().view().heads().contains(&jj_id(&commit)));
 }
 
 #[test]
