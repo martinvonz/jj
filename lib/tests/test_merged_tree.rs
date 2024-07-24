@@ -306,7 +306,7 @@ fn test_path_value_and_entries() {
             (file_dir_conflict_sub_path, "1"),
         ],
     );
-    let merged_tree = MergedTree::Merge(Merge::from_removes_adds(
+    let merged_tree = MergedTree::new(Merge::from_removes_adds(
         vec![tree1.clone()],
         vec![tree2.clone(), tree3.clone()],
     ));
@@ -454,7 +454,7 @@ fn test_resolve_success() {
     );
 
     let tree = MergedTree::new(Merge::from_removes_adds(vec![base1], vec![side1, side2]));
-    let MergedTree::Merge(resolved) = tree.resolve().unwrap();
+    let resolved = tree.resolve().unwrap().take();
     let resolved_tree = resolved.as_resolved().unwrap().clone();
     assert_eq!(
         resolved_tree,
