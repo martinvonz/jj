@@ -13,6 +13,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Deprecations
 
+* `jj obslog` is now called `jj evolution-log`/`jj evolog`. `jj obslog` remains
+  as an alias.
+
 ### New features
 
 ### Fixed bugs

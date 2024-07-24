@@ -966,7 +966,7 @@ fn test_squash_from_multiple_partial_no_op() {
     let stdout = test_env.jj_cmd_success(
         &repo_path,
         &[
-            "obslog",
+            "evolog",
             "-T",
             r#"separate(" ", commit_id.short(), description)"#,
         ],

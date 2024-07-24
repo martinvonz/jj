@@ -14,7 +14,7 @@ object can be referenced as `self`.
 
 ### Commit keywords
 
-In `jj log`/`jj obslog` templates, all 0-argument methods of [the `Commit`
+In `jj log`/`jj evolog` templates, all 0-argument methods of [the `Commit`
 type](#commit-type) are available as keywords. For example, `commit_id` is
 equivalent to `self.commit_id()`.
 

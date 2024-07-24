@@ -37,10 +37,8 @@ use crate::ui::Ui;
 ///
 /// Lists the previous commits which a change has pointed to. The current commit
 /// of a change evolves when the change is updated, rebased, etc.
-///
-/// Name is derived from Merciual's obsolescence markers.
 #[derive(clap::Args, Clone, Debug)]
-pub(crate) struct ObslogArgs {
+pub(crate) struct EvologArgs {
     #[arg(long, short, default_value = "@")]
     revision: RevisionArg,
     /// Limit number of revisions to show
@@ -74,10 +72,10 @@ pub(crate) struct ObslogArgs {
 }
 
 #[instrument(skip_all)]
-pub(crate) fn cmd_obslog(
+pub(crate) fn cmd_evolog(
     ui: &mut Ui,
     command: &CommandHelper,
-    args: &ObslogArgs,
+    args: &EvologArgs,
 ) -> Result<(), CommandError> {
     let workspace_command = command.workspace_helper(ui)?;
     let repo = workspace_command.repo().as_ref();
