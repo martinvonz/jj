@@ -204,7 +204,7 @@ impl Store {
             }
             MergedTreeId::Merge(ids) => {
                 let trees = ids.try_map(|id| self.get_tree(RepoPath::root(), id))?;
-                Ok(MergedTree::Merge(trees))
+                Ok(MergedTree::new(trees))
             }
         }
     }
