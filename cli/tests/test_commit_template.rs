@@ -431,7 +431,7 @@ fn test_log_builtin_templates_colored_debug() {
 }
 
 #[test]
-fn test_log_obslog_divergence() {
+fn test_log_evolution_divergence() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
@@ -473,8 +473,8 @@ fn test_log_obslog_divergence() {
     [1m[38;5;14m◆[0m  [1m[38;5;5mz[0m[38;5;8mzzzzzzz[39m [38;5;2mroot()[39m [1m[38;5;4m0[0m[38;5;8m0000000[39m
     "###);
 
-    // Obslog and hidden divergent
-    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog"]);
+    // Evolution and hidden divergent
+    let stdout = test_env.jj_cmd_success(&repo_path, &["evolution"]);
     insta::assert_snapshot!(stdout, @r###"
     @  qpvuntsm?? test.user@example.com 2001-02-03 08:05:08 ff309c29
     │  description 1
@@ -484,8 +484,8 @@ fn test_log_obslog_divergence() {
        (empty) (no description set)
     "###);
 
-    // Colored obslog
-    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--color=always"]);
+    // Colored evolution
+    let stdout = test_env.jj_cmd_success(&repo_path, &["evolution", "--color=always"]);
     insta::assert_snapshot!(stdout, @r###"
     [1m[38;5;2m@[0m  [1m[4m[38;5;1mq[24mpvuntsm[38;5;9m??[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 08:05:08[39m [38;5;12mf[38;5;8mf309c29[39m[0m
     │  [1mdescription 1[0m

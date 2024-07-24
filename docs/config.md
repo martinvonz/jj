@@ -282,7 +282,7 @@ op_log_node = 'if(current_operation, "@", "○")'
 
 ### Wrap log content
 
-If enabled, `log`/`obslog`/`op log` content will be wrapped based on
+If enabled, `log`/`evolution`/`op log` content will be wrapped based on
 the terminal width.
 
 ```toml
