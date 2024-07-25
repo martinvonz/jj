@@ -2465,9 +2465,21 @@ subcommand name, subcommand alias, or user-defined alias (defaults to <code>"log
 <div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">default-command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;log&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--reversed&quot;</span><span class="p">]</span>
 </code></pre></div>
 <h3 id="default-description">Default description<a class="headerlink" href="#default-description" title="Permanent link">&para;</a></h3>
-<p>The value of the <code>ui.default-description</code> setting will be used to prepopulate
-the editor when describing changes with an empty description. This could be a
-useful reminder to fill in things like BUG=, TESTED= etc.</p>
+<p>The editor content of a commit description can be populated by the
+<code>draft_commit_description</code> template.</p>
+<div class="highlight"><pre><span></span><code><span class="k">[templates]</span>
+<span class="n">draft_commit_description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;&#39;&#39;</span>
+<span class="s1">concat(</span>
+<span class="s1">  description,</span>
+<span class="s1">  surround(</span>
+<span class="s1">    &quot;\nJJ: This commit contains the following changes:\n&quot;, &quot;&quot;,</span>
+<span class="s1">    indent(&quot;JJ:     &quot;, diff.stat(72)),</span>
+<span class="s1">  ),</span>
+<span class="s1">)</span>
+<span class="s1">&#39;&#39;&#39;</span>
+</code></pre></div>
+<p>The value of the <code>ui.default-description</code> setting can also be used in order to
+fill in things like BUG=, TESTED= etc.</p>
 <div class="highlight"><pre><span></span><code><span class="n">ui</span><span class="p">.</span><span class="n">default-description</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;</span><span class="se">\n\n</span><span class="s2">TESTED=TODO&quot;</span>
 </code></pre></div>
 <h3 id="diff-colors-and-styles">Diff colors and styles<a class="headerlink" href="#diff-colors-and-styles" title="Permanent link">&para;</a></h3>
