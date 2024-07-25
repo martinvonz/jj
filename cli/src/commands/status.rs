@@ -92,21 +92,36 @@ pub(crate) fn cmd_status(
             writeln!(formatter)?;
         }
 
-        let wc_revset = RevsetExpression::commit(wc_commit.id().clone());
-        // Ancestors with conflicts, excluding the current working copy commit.
-        let ancestors_conflicts = workspace_command
-            .attach_revset_evaluator(
-                wc_revset
-                    .parents()
-                    .ancestors()
-                    .filtered(RevsetFilterPredicate::HasConflict)
-                    .minus(&revset_util::parse_immutable_expression(
-                        &workspace_command.revset_parse_context(),
-                    )?),
-            )?
-            .evaluate_to_commit_ids()?
-            .collect();
-        workspace_command.report_repo_conflicts(formatter, repo, ancestors_conflicts)?;
+        if wc_commit.has_conflict()? {
+            let wc_revset = RevsetExpression::commit(wc_commit.id().clone());
+
+            // Ancestors with conflicts, excluding the current working copy commit.
+            let ancestors_conflicts = workspace_command
+                .attach_revset_evaluator(
+                    wc_revset
+                        .parents()
+                        .ancestors()
+                        .filtered(RevsetFilterPredicate::HasConflict)
+                        .minus(&revset_util::parse_immutable_expression(
+                            &workspace_command.revset_parse_context(),
+                        )?),
+                )?
+                .evaluate_to_commit_ids()?
+                .collect();
+
+            workspace_command.report_repo_conflicts(formatter, repo, ancestors_conflicts)?;
+        } else {
+            for parent in wc_commit.parents() {
+                let parent = parent?;
+                if parent.has_conflict()? {
+                    writeln!(
+                        formatter.labeled("hint"),
+                        "Conflict in parent commit has been resolved in working copy"
+                    )?;
+                    break;
+                }
+            }
+        }
     } else {
         writeln!(formatter, "No working copy")?;
     }

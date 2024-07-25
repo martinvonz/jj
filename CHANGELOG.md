@@ -101,6 +101,11 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed bugs
 
+* `jj status` will show different messages in a conflicted tree, depending
+  on the state of the working commit. In particular, if a child commit fixes
+  a conflict in the parent, this will be reflected in the hint provided
+  by `jj status`
+
 * `jj diff --git` no longer shows the contents of binary files.
 
 * Windows binaries no longer require `vcruntime140.dll` to be installed
