@@ -23,16 +23,16 @@ assert_matches = "1.5.0"
 async-trait = "0.1.81"
 backoff = "0.4.0"
 blake2 = "0.10.6"
-bstr = "1.9.1"
+bstr = "1.9.2"
 cargo_metadata = "0.17.0"
-clap = { version = "4.5.10", features = [
+clap = { version = "4.5.11", features = [
     "derive",
     "deprecated",
     "wrap_help",
     "string",
 ] }
-clap_complete = "4.5.9"
-clap_complete_nushell = "4.5.2"
+clap_complete = "4.5.10"
+clap_complete_nushell = "4.5.3"
 clap-markdown = "0.1.4"
 clap_mangen = "0.2.10"
 chrono = { version = "0.4.38", default-features = false, features = [
