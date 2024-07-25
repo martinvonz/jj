@@ -34,6 +34,7 @@ use crate::conflicts::{materialized_diff_stream, MaterializedTreeValue};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexPosition};
 use crate::graph::GraphEdge;
 use crate::matchers::{Matcher, Visit};
+use crate::merged_tree::TreeDiffEntry;
 use crate::repo_path::RepoPath;
 use crate::revset::{
     ResolvedExpression, ResolvedPredicateExpression, Revset, RevsetEvaluationError,
@@ -1148,8 +1149,10 @@ fn has_diff_from_parent(
     let mut tree_diff = from_tree.diff_stream(&to_tree, matcher);
     async {
         match tree_diff.next().await {
-            Some((_, Ok(_))) => Ok(true),
-            Some((_, Err(err))) => Err(err),
+            Some(TreeDiffEntry { value: Ok(_), .. }) => Ok(true),
+            Some(TreeDiffEntry {
+                value: Err(err), ..
+            }) => Err(err),
             None => Ok(false),
         }
     }

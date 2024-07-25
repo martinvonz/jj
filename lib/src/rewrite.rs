@@ -27,7 +27,7 @@ use crate::commit::Commit;
 use crate::commit_builder::CommitBuilder;
 use crate::index::Index;
 use crate::matchers::{Matcher, Visit};
-use crate::merged_tree::{MergedTree, MergedTreeBuilder};
+use crate::merged_tree::{MergedTree, MergedTreeBuilder, TreeDiffEntry};
 use crate::repo::{MutableRepo, Repo};
 use crate::repo_path::RepoPath;
 use crate::settings::UserSettings;
@@ -88,7 +88,11 @@ pub fn restore_tree(
         let mut tree_builder = MergedTreeBuilder::new(destination.id().clone());
         async {
             let mut diff_stream = source.diff_stream(destination, matcher);
-            while let Some((repo_path, diff)) = diff_stream.next().await {
+            while let Some(TreeDiffEntry {
+                target: repo_path,
+                value: diff,
+            }) = diff_stream.next().await
+            {
                 let (source_value, _destination_value) = diff?;
                 tree_builder.set_or_remove(repo_path, source_value);
             }
