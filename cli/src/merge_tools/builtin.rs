@@ -10,7 +10,7 @@ use jj_lib::diff::{Diff, DiffHunk};
 use jj_lib::files::{self, ContentHunk, MergeResult};
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::Merge;
-use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder};
+use jj_lib::merged_tree::{MergedTree, MergedTreeBuilder, TreeDiffEntry};
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::store::Store;
@@ -496,7 +496,12 @@ pub fn edit_diff_builtin(
     let store = left_tree.store().clone();
     let changed_files: Vec<_> = left_tree
         .diff_stream(right_tree, matcher)
-        .map(|(path, diff)| diff.map(|_| path))
+        .map(
+            |TreeDiffEntry {
+                 target: path,
+                 value: diff,
+             }| diff.map(|_| path),
+        )
         .try_collect()
         .block_on()?;
     let files = make_diff_files(&store, left_tree, right_tree, &changed_files)?;

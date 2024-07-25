@@ -14,14 +14,11 @@
 
 use itertools::Itertools;
 use jj_lib::backend::CopyRecords;
-use jj_lib::commit::Commit;
 use jj_lib::repo::Repo;
 use jj_lib::rewrite::merge_commit_trees;
 use tracing::instrument;
 
-use crate::cli_util::{
-    print_unmatched_explicit_paths, CommandHelper, RevisionArg, WorkspaceCommandHelper,
-};
+use crate::cli_util::{print_unmatched_explicit_paths, CommandHelper, RevisionArg};
 use crate::command_error::CommandError;
 use crate::diff_util::DiffFormatArgs;
 use crate::ui::Ui;

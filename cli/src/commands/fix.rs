@@ -22,7 +22,7 @@ use itertools::Itertools;
 use jj_lib::backend::{BackendError, CommitId, FileId, TreeValue};
 use jj_lib::fileset::{self, FilesetExpression};
 use jj_lib::matchers::{EverythingMatcher, Matcher};
-use jj_lib::merged_tree::MergedTreeBuilder;
+use jj_lib::merged_tree::{MergedTreeBuilder, TreeDiffEntry};
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPathBuf, RepoPathUiConverter};
 use jj_lib::revset::{RevsetExpression, RevsetIteratorExt};
@@ -174,7 +174,11 @@ pub(crate) fn cmd_fix(
         let parent_tree = commit.parent_tree(tx.repo())?;
         let mut diff_stream = parent_tree.diff_stream(&tree, &matcher);
         async {
-            while let Some((repo_path, diff)) = diff_stream.next().await {
+            while let Some(TreeDiffEntry {
+                target: repo_path,
+                value: diff,
+            }) = diff_stream.next().await
+            {
                 let (_before, after) = diff?;
                 // Deleted files have no file content to fix, and they have no terms in `after`,
                 // so we don't add any tool inputs for them. Conflicted files produce one tool
