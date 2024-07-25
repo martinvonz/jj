@@ -15,7 +15,7 @@
 use crate::common::{get_stdout_string, TestEnvironment};
 
 #[test]
-fn test_obslog_with_or_without_diff() {
+fn test_evolution_with_or_without_diff() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
@@ -27,7 +27,7 @@ fn test_obslog_with_or_without_diff() {
     test_env.jj_cmd_ok(&repo_path, &["rebase", "-r", "@", "-d", "root()"]);
     std::fs::write(repo_path.join("file1"), "resolved\n").unwrap();
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["evolution"]);
     insta::assert_snapshot!(stdout, @r###"
     @  rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
     │  my description
@@ -40,7 +40,7 @@ fn test_obslog_with_or_without_diff() {
     "###);
 
     // Color
-    let stdout = test_env.jj_cmd_success(&repo_path, &["--color=always", "obslog"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["--color=always", "evolution"]);
     insta::assert_snapshot!(stdout, @r###"
     [1m[38;5;2m@[0m  [1m[38;5;13mr[38;5;8mlvkpnrz[39m [38;5;3mtest.user@example.com[39m [38;5;14m2001-02-03 08:05:10[39m [38;5;12m6[38;5;8m6b42ad3[39m[0m
     │  [1mmy description[0m
@@ -54,7 +54,7 @@ fn test_obslog_with_or_without_diff() {
 
     // There should be no diff caused by the rebase because it was a pure rebase
     // (even even though it resulted in a conflict).
-    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "-p"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["evolution", "-p"]);
     insta::assert_snapshot!(stdout, @r###"
     @  rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
     │  my description
@@ -80,7 +80,7 @@ fn test_obslog_with_or_without_diff() {
     "###);
 
     // Test `--limit`
-    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--limit=2"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["evolution", "--limit=2"]);
     insta::assert_snapshot!(stdout, @r###"
     @  rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
     │  my description
@@ -89,7 +89,7 @@ fn test_obslog_with_or_without_diff() {
     "###);
 
     // Test `--no-graph`
-    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--no-graph"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["evolution", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"
     rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
     my description
@@ -102,7 +102,7 @@ fn test_obslog_with_or_without_diff() {
     "###);
 
     // Test `--git` format, and that it implies `-p`
-    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--no-graph", "--git"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["evolution", "--no-graph", "--git"]);
     insta::assert_snapshot!(stdout, @r###"
     rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
     my description
@@ -143,7 +143,7 @@ fn test_obslog_with_or_without_diff() {
 }
 
 #[test]
-fn test_obslog_with_custom_symbols() {
+fn test_evolution_with_custom_symbols() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
@@ -157,7 +157,7 @@ fn test_obslog_with_custom_symbols() {
 
     let toml = concat!("templates.log_node = 'if(current_working_copy, \"$\", \"┝\")'\n",);
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "--config-toml", toml]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["evolution", "--config-toml", toml]);
 
     insta::assert_snapshot!(stdout, @r###"
     $  rlvkpnrz test.user@example.com 2001-02-03 08:05:10 66b42ad3
@@ -172,7 +172,7 @@ fn test_obslog_with_custom_symbols() {
 }
 
 #[test]
-fn test_obslog_word_wrap() {
+fn test_evolution_word_wrap() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
@@ -193,13 +193,13 @@ fn test_obslog_word_wrap() {
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "first"]);
 
     // ui.log-word-wrap option applies to both graph/no-graph outputs
-    insta::assert_snapshot!(render(&["obslog"], 40, false), @r###"
+    insta::assert_snapshot!(render(&["evolution"], 40, false), @r###"
     @  qpvuntsm test.user@example.com 2001-02-03 08:05:08 fa15625b
     │  (empty) first
     ○  qpvuntsm hidden test.user@example.com 2001-02-03 08:05:07 230dd059
        (empty) (no description set)
     "###);
-    insta::assert_snapshot!(render(&["obslog"], 40, true), @r###"
+    insta::assert_snapshot!(render(&["evolution"], 40, true), @r###"
     @  qpvuntsm test.user@example.com
     │  2001-02-03 08:05:08 fa15625b
     │  (empty) first
@@ -207,13 +207,13 @@ fn test_obslog_word_wrap() {
        2001-02-03 08:05:07 230dd059
        (empty) (no description set)
     "###);
-    insta::assert_snapshot!(render(&["obslog", "--no-graph"], 40, false), @r###"
+    insta::assert_snapshot!(render(&["evolution", "--no-graph"], 40, false), @r###"
     qpvuntsm test.user@example.com 2001-02-03 08:05:08 fa15625b
     (empty) first
     qpvuntsm hidden test.user@example.com 2001-02-03 08:05:07 230dd059
     (empty) (no description set)
     "###);
-    insta::assert_snapshot!(render(&["obslog", "--no-graph"], 40, true), @r###"
+    insta::assert_snapshot!(render(&["evolution", "--no-graph"], 40, true), @r###"
     qpvuntsm test.user@example.com
     2001-02-03 08:05:08 fa15625b
     (empty) first
@@ -224,7 +224,7 @@ fn test_obslog_word_wrap() {
 }
 
 #[test]
-fn test_obslog_squash() {
+fn test_evolution_squash() {
     let mut test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
@@ -244,7 +244,7 @@ fn test_obslog_squash() {
     std::fs::write(&edit_script, "write\nsquashed 2").unwrap();
     test_env.jj_cmd_ok(&repo_path, &["squash"]);
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "-p", "-r", "@-"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["evolution", "-p", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
     ○    qpvuntsm test.user@example.com 2001-02-03 08:05:12 1408a0a7
     ├─╮  squashed 2
@@ -286,12 +286,12 @@ fn test_obslog_squash() {
 }
 
 #[test]
-fn test_obslog_with_no_template() {
+fn test_evolution_with_no_template() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
-    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["obslog", "-T"]);
+    let stderr = test_env.jj_cmd_cli_error(&repo_path, &["evolution", "-T"]);
     insta::assert_snapshot!(stderr, @r###"
     error: a value is required for '--template <TEMPLATE>' but none was supplied
 

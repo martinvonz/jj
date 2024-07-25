@@ -32,6 +32,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Deprecations
 
+* `jj obslog` is now called `jj evolution`. `jj obslog` remains as an alias.
+
 ### New features
 
 * External diff tools can now be configured to invoke the tool on each file
