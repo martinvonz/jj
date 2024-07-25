@@ -105,8 +105,9 @@ fn test_status_filtered() {
 }
 
 // See <https://github.com/martinvonz/jj/issues/3108>
+// See <https://github.com/martinvonz/jj/issues/4147>
 #[test]
-fn test_status_display_rebase_instructions() {
+fn test_status_display_relevant_working_commit_conflict_hints() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
 
@@ -143,7 +144,7 @@ fn test_status_display_rebase_instructions() {
     test_env.jj_cmd_ok(&repo_path, &["new", "--message", "boom-cont"]);
     test_env.jj_cmd_ok(&repo_path, &["new", "--message", "boom-cont-2"]);
 
-    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "::@"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "::"]);
 
     insta::assert_snapshot!(stdout, @r###"
     @  yqosqzyt test.user@example.com 2001-02-03 08:05:13 65143fef conflict
@@ -174,6 +175,116 @@ fn test_status_display_rebase_instructions() {
     Then use `jj resolve`, or edit the conflict markers in the file directly.
     Once the conflicts are resolved, you may want to inspect the result with `jj diff`.
     Then run `jj squash` to move the resolution into the conflicted commit.
+    "###);
+
+    // Resolve conflict
+    test_env.jj_cmd_ok(&repo_path, &["new", "--message", "fixed 1"]);
+    std::fs::write(&conflicted_path, "first commit to fix conflict").unwrap();
+
+    // Add one more commit atop the commit that resolves the conflict.
+    test_env.jj_cmd_ok(&repo_path, &["new", "--message", "fixed 2"]);
+    std::fs::write(&conflicted_path, "edit not conflict").unwrap();
+
+    // wc is now conflict free, parent is also conflict free
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "::"]);
+
+    insta::assert_snapshot!(stdout, @r###"
+    @  kpqxywon test.user@example.com 2001-02-03 08:05:18 3432159f
+    │  fixed 2
+    ○  znkkpsqq test.user@example.com 2001-02-03 08:05:17 897d589f
+    │  fixed 1
+    ×  yqosqzyt test.user@example.com 2001-02-03 08:05:13 65143fef conflict
+    │  (empty) boom-cont-2
+    ×  royxmykx test.user@example.com 2001-02-03 08:05:12 a4e88714 conflict
+    │  (empty) boom-cont
+    ×    mzvwutvl test.user@example.com 2001-02-03 08:05:11 538415e7 conflict
+    ├─╮  (empty) boom
+    │ ○  kkmpptxz test.user@example.com 2001-02-03 08:05:10 1e8c2956
+    │ │  First part of conflicting change
+    ○ │  zsuskuln test.user@example.com 2001-02-03 08:05:11 2c8b19fd
+    ├─╯  Second part of conflicting change
+    ○  qpvuntsm test.user@example.com 2001-02-03 08:05:08 aade7195
+    │  Initial contents
+    ◆  zzzzzzzz root() 00000000
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["status"]);
+
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy changes:
+    M conflicted.txt
+    Working copy : kpqxywon 3432159f fixed 2
+    Parent commit: znkkpsqq 897d589f fixed 1
+    "###);
+
+    // Step back one.
+    // wc is still conflict free, parent has a conflict.
+    test_env.jj_cmd_ok(&repo_path, &["edit", "@-"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "::"]);
+
+    insta::assert_snapshot!(stdout, @r###"
+    ○  kpqxywon test.user@example.com 2001-02-03 08:05:18 3432159f
+    │  fixed 2
+    @  znkkpsqq test.user@example.com 2001-02-03 08:05:17 897d589f
+    │  fixed 1
+    ×  yqosqzyt test.user@example.com 2001-02-03 08:05:13 65143fef conflict
+    │  (empty) boom-cont-2
+    ×  royxmykx test.user@example.com 2001-02-03 08:05:12 a4e88714 conflict
+    │  (empty) boom-cont
+    ×    mzvwutvl test.user@example.com 2001-02-03 08:05:11 538415e7 conflict
+    ├─╮  (empty) boom
+    │ ○  kkmpptxz test.user@example.com 2001-02-03 08:05:10 1e8c2956
+    │ │  First part of conflicting change
+    ○ │  zsuskuln test.user@example.com 2001-02-03 08:05:11 2c8b19fd
+    ├─╯  Second part of conflicting change
+    ○  qpvuntsm test.user@example.com 2001-02-03 08:05:08 aade7195
+    │  Initial contents
+    ◆  zzzzzzzz root() 00000000
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["status"]);
+
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy changes:
+    M conflicted.txt
+    Working copy : znkkpsqq 897d589f fixed 1
+    Parent commit: yqosqzyt 65143fef (conflict) (empty) boom-cont-2
+    Conflict in parent commit has been resolved in working copy
+    "###);
+
+    // Step back to all the way to `root()+` so that wc has no conflict, even though
+    // there is a conflict later in the tree. So that we can confirm
+    // our hinting logic doesn't get confused.
+    test_env.jj_cmd_ok(&repo_path, &["edit", "root()+"]);
+    let stdout = test_env.jj_cmd_success(&repo_path, &["log", "-r", "::"]);
+
+    insta::assert_snapshot!(stdout, @r###"
+    ○  kpqxywon test.user@example.com 2001-02-03 08:05:18 3432159f
+    │  fixed 2
+    ○  znkkpsqq test.user@example.com 2001-02-03 08:05:17 897d589f
+    │  fixed 1
+    ×  yqosqzyt test.user@example.com 2001-02-03 08:05:13 65143fef conflict
+    │  (empty) boom-cont-2
+    ×  royxmykx test.user@example.com 2001-02-03 08:05:12 a4e88714 conflict
+    │  (empty) boom-cont
+    ×    mzvwutvl test.user@example.com 2001-02-03 08:05:11 538415e7 conflict
+    ├─╮  (empty) boom
+    │ ○  kkmpptxz test.user@example.com 2001-02-03 08:05:10 1e8c2956
+    │ │  First part of conflicting change
+    ○ │  zsuskuln test.user@example.com 2001-02-03 08:05:11 2c8b19fd
+    ├─╯  Second part of conflicting change
+    @  qpvuntsm test.user@example.com 2001-02-03 08:05:08 aade7195
+    │  Initial contents
+    ◆  zzzzzzzz root() 00000000
+    "###);
+
+    let stdout = test_env.jj_cmd_success(&repo_path, &["status"]);
+
+    insta::assert_snapshot!(stdout, @r###"
+    Working copy changes:
+    A conflicted.txt
+    Working copy : qpvuntsm aade7195 Initial contents
+    Parent commit: zzzzzzzz 00000000 (empty) (no description set)
     "###);
 }
 
