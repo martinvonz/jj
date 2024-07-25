@@ -315,16 +315,19 @@ impl MergedTree {
     }
 }
 
+/// A single entry in a tree diff.
+pub struct TreeDiffEntry {
+    // pub source: RepoPathBuf,
+    /// The target path.
+    pub target: RepoPathBuf,
+    /// The resolved tree values if available.
+    pub value: BackendResult<(MergedTreeValue, MergedTreeValue)>,
+}
+
 /// Type alias for the result from `MergedTree::diff_stream()`. We use a
 /// `Stream` instead of an `Iterator` so high-latency backends (e.g. cloud-based
 /// ones) can fetch trees asynchronously.
-pub type TreeDiffStream<'matcher> = BoxStream<
-    'matcher,
-    (
-        RepoPathBuf,
-        BackendResult<(MergedTreeValue, MergedTreeValue)>,
-    ),
->;
+pub type TreeDiffStream<'matcher> = BoxStream<'matcher, TreeDiffEntry>;
 
 fn all_tree_basenames(trees: &Merge<Tree>) -> impl Iterator<Item = &RepoPathComponent> {
     trees
@@ -603,7 +606,7 @@ pub struct TreeDiffIterator<'matcher> {
 }
 
 struct TreeDiffDirItem {
-    entries: Vec<(RepoPathBuf, MergedTreeValue, MergedTreeValue)>,
+    entries: Vec<TreeDiffEntry>,
 }
 
 enum TreeDiffItem {
@@ -680,7 +683,10 @@ impl TreeDiffDirItem {
             if before.is_absent() && after.is_absent() {
                 continue;
             }
-            entries.push((path, before, after));
+            entries.push(TreeDiffEntry {
+                target: path,
+                value: Ok((before, after)),
+            });
         }
         entries.reverse();
         Self { entries }
@@ -688,14 +694,11 @@ impl TreeDiffDirItem {
 }
 
 impl Iterator for TreeDiffIterator<'_> {
-    type Item = (
-        RepoPathBuf,
-        BackendResult<(MergedTreeValue, MergedTreeValue)>,
-    );
+    type Item = TreeDiffEntry;
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(top) = self.stack.last_mut() {
-            let (path, before, after) = match top {
+            let entry = match top {
                 TreeDiffItem::Dir(dir) => match dir.entries.pop() {
                     Some(entry) => entry,
                     None => {
@@ -705,23 +708,39 @@ impl Iterator for TreeDiffIterator<'_> {
                 },
                 TreeDiffItem::File(..) => {
                     if let TreeDiffItem::File(path, before, after) = self.stack.pop().unwrap() {
-                        return Some((path, Ok((before, after))));
+                        return Some(TreeDiffEntry {
+                            target: path,
+                            value: Ok((before, after)),
+                        });
                     } else {
                         unreachable!();
                     }
                 }
             };
 
+            let path = entry.target;
+            let (before, after) = entry.value.unwrap();
+
             let tree_before = before.is_tree();
             let tree_after = after.is_tree();
             let post_subdir = if tree_before || tree_after {
-                let before_tree = match Self::trees(&self.store, &path, &before) {
-                    Ok(tree) => tree,
-                    Err(err) => return Some((path, Err(err))),
-                };
-                let after_tree = match Self::trees(&self.store, &path, &after) {
-                    Ok(tree) => tree,
-                    Err(err) => return Some((path, Err(err))),
+                let (before_tree, after_tree) = match (
+                    Self::trees(&self.store, &path, &before),
+                    Self::trees(&self.store, &path, &after),
+                ) {
+                    (Ok(before_tree), Ok(after_tree)) => (before_tree, after_tree),
+                    (Err(before_err), _) => {
+                        return Some(TreeDiffEntry {
+                            target: path,
+                            value: Err(before_err),
+                        })
+                    }
+                    (_, Err(after_err)) => {
+                        return Some(TreeDiffEntry {
+                            target: path,
+                            value: Err(after_err),
+                        })
+                    }
                 };
                 let subdir =
                     TreeDiffDirItem::from_trees(&path, &before_tree, &after_tree, self.matcher);
@@ -732,7 +751,10 @@ impl Iterator for TreeDiffIterator<'_> {
             };
             if !tree_before && tree_after {
                 if before.is_present() {
-                    return Some((path, Ok((before, Merge::absent()))));
+                    return Some(TreeDiffEntry {
+                        target: path,
+                        value: Ok((before, Merge::absent())),
+                    });
                 }
             } else if tree_before && !tree_after {
                 if after.is_present() {
@@ -742,7 +764,10 @@ impl Iterator for TreeDiffIterator<'_> {
                     );
                 }
             } else if !tree_before && !tree_after {
-                return Some((path, Ok((before, after))));
+                return Some(TreeDiffEntry {
+                    target: path,
+                    value: Ok((before, after)),
+                });
             }
         }
         None
@@ -960,10 +985,7 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
 }
 
 impl Stream for TreeDiffStreamImpl<'_> {
-    type Item = (
-        RepoPathBuf,
-        BackendResult<(MergedTreeValue, MergedTreeValue)>,
-    );
+    type Item = TreeDiffEntry;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         // Go through all pending tree futures and poll them.
@@ -975,12 +997,30 @@ impl Stream for TreeDiffStreamImpl<'_> {
                 Err(_) => {
                     // File or tree with error
                     let (key, result) = entry.remove_entry();
-                    Poll::Ready(Some((key.path, result)))
+                    Poll::Ready(Some(match result {
+                        Err(err) => TreeDiffEntry {
+                            target: key.path,
+                            value: Err(err),
+                        },
+                        Ok((before, after)) => TreeDiffEntry {
+                            target: key.path,
+                            value: Ok((before, after)),
+                        },
+                    }))
                 }
                 Ok((before, after)) if !before.is_tree() && !after.is_tree() => {
                     // A diff with no trees involved
                     let (key, result) = entry.remove_entry();
-                    Poll::Ready(Some((key.path, result)))
+                    Poll::Ready(Some(match result {
+                        Err(err) => TreeDiffEntry {
+                            target: key.path,
+                            value: Err(err),
+                        },
+                        Ok((before, after)) => TreeDiffEntry {
+                            target: key.path,
+                            value: Ok((before, after)),
+                        },
+                    }))
                 }
                 _ => {
                     // The first entry has a tree on at least one side (before or after). We need to

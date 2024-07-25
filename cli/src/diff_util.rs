@@ -27,7 +27,7 @@ use jj_lib::diff::{Diff, DiffHunk};
 use jj_lib::files::DiffLine;
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::MergedTreeValue;
-use jj_lib::merged_tree::{MergedTree, TreeDiffStream};
+use jj_lib::merged_tree::{MergedTree, TreeDiffEntry, TreeDiffStream};
 use jj_lib::object_id::ObjectId;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathUiConverter};
@@ -1110,7 +1110,11 @@ pub fn show_diff_summary(
     path_converter: &RepoPathUiConverter,
 ) -> io::Result<()> {
     async {
-        while let Some((repo_path, diff)) = tree_diff.next().await {
+        while let Some(TreeDiffEntry {
+            target: repo_path,
+            value: diff,
+        }) = tree_diff.next().await
+        {
             let (before, after) = diff.unwrap();
             let ui_path = path_converter.format_file_path(&repo_path);
             if before.is_present() && after.is_present() {
@@ -1241,7 +1245,11 @@ pub fn show_types(
     path_converter: &RepoPathUiConverter,
 ) -> io::Result<()> {
     async {
-        while let Some((repo_path, diff)) = tree_diff.next().await {
+        while let Some(TreeDiffEntry {
+            target: repo_path,
+            value: diff,
+        }) = tree_diff.next().await
+        {
             let (before, after) = diff.unwrap();
             writeln!(
                 formatter.labeled("modified"),
@@ -1275,7 +1283,10 @@ pub fn show_names(
     path_converter: &RepoPathUiConverter,
 ) -> io::Result<()> {
     async {
-        while let Some((repo_path, _)) = tree_diff.next().await {
+        while let Some(TreeDiffEntry {
+            target: repo_path, ..
+        }) = tree_diff.next().await
+        {
             writeln!(formatter, "{}", path_converter.format_file_path(&repo_path))?;
         }
         Ok(())

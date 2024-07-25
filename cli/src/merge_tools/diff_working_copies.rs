@@ -10,7 +10,7 @@ use jj_lib::fsmonitor::FsmonitorSettings;
 use jj_lib::gitignore::GitIgnoreFile;
 use jj_lib::local_working_copy::{TreeState, TreeStateError};
 use jj_lib::matchers::Matcher;
-use jj_lib::merged_tree::MergedTree;
+use jj_lib::merged_tree::{MergedTree, TreeDiffEntry};
 use jj_lib::repo_path::RepoPathBuf;
 use jj_lib::store::Store;
 use jj_lib::working_copy::{CheckoutError, SnapshotOptions};
@@ -132,7 +132,7 @@ pub(crate) fn check_out_trees(
 ) -> Result<DiffWorkingCopies, DiffCheckoutError> {
     let changed_files: Vec<_> = left_tree
         .diff_stream(right_tree, matcher)
-        .map(|(path, _diff)| path)
+        .map(|TreeDiffEntry { target, .. }| target)
         .collect()
         .block_on();
 

@@ -26,7 +26,7 @@ use crate::diff::{Diff, DiffHunk};
 use crate::files;
 use crate::files::{ContentHunk, MergeResult};
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
-use crate::merged_tree::TreeDiffStream;
+use crate::merged_tree::{TreeDiffEntry, TreeDiffStream};
 use crate::repo_path::{RepoPath, RepoPathBuf};
 use crate::store::Store;
 
@@ -335,17 +335,22 @@ pub fn materialized_diff_stream<'a>(
     ),
 > + 'a {
     tree_diff
-        .map(|(path, diff)| async {
-            match diff {
-                Err(err) => (path, Err(err)),
-                Ok((before, after)) => {
-                    let before_future = materialize_tree_value(store, &path, before);
-                    let after_future = materialize_tree_value(store, &path, after);
-                    let values = try_join!(before_future, after_future);
-                    (path, values)
+        .map(
+            |TreeDiffEntry {
+                 target: path,
+                 value: diff,
+             }| async {
+                match diff {
+                    Err(err) => (path, Err(err)),
+                    Ok((before, after)) => {
+                        let before_future = materialize_tree_value(store, &path, before);
+                        let after_future = materialize_tree_value(store, &path, after);
+                        let values = try_join!(before_future, after_future);
+                        (path, values)
+                    }
                 }
-            }
-        })
+            },
+        )
         .buffered((store.concurrency() / 2).max(1))
 }
 
