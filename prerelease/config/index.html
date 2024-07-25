@@ -1029,6 +1029,48 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#code-formatting-and-other-file-content-transformations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Code formatting and other file content transformations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Code formatting and other file content transformations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#enforce-coding-style-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Enforce coding style rules
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sort-and-remove-duplicate-lines-from-a-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sort and remove duplicate lines from a file
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#execution-order-of-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      Execution order of tools
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#commit-signing" class="md-nav__link">
     <span class="md-ellipsis">
       Commit Signing
@@ -2163,6 +2205,48 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#code-formatting-and-other-file-content-transformations" class="md-nav__link">
+    <span class="md-ellipsis">
+      Code formatting and other file content transformations
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Code formatting and other file content transformations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#enforce-coding-style-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      Enforce coding style rules
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sort-and-remove-duplicate-lines-from-a-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      Sort and remove duplicate lines from a file
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#execution-order-of-tools" class="md-nav__link">
+    <span class="md-ellipsis">
+      Execution order of tools
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#commit-signing" class="md-nav__link">
     <span class="md-ellipsis">
       Commit Signing
@@ -2845,6 +2929,49 @@ tool fill it in). To do that, set the
 the conflict is done, <code>jj</code> assumes that the conflict was only partially resolved
 and parses the conflict markers to get the new state of the conflict. The
 conflict is considered fully resolved when there are no conflict markers left.</p>
+<h2 id="code-formatting-and-other-file-content-transformations">Code formatting and other file content transformations<a class="headerlink" href="#code-formatting-and-other-file-content-transformations" title="Permanent link">&para;</a></h2>
+<p>The <code>jj fix</code> command allows you to efficiently rewrite files in complex commit
+graphs with no risk of introducing conflicts, using tools like <code>clang-format</code> or
+<code>prettier</code>. The tools run as subprocesses that take file content on standard
+input and repeat it, with any desired changes, on standard output. The file is
+only rewritten if the subprocess produces a successful exit code.</p>
+<h3 id="enforce-coding-style-rules">Enforce coding style rules<a class="headerlink" href="#enforce-coding-style-rules" title="Permanent link">&para;</a></h3>
+<p>Suppose you want to use <code>clang-format</code> to format your <code>*.c</code> and <code>*.h</code> files,
+as well as sorting their <code>#include</code> directives.</p>
+<p><code>jj fix</code> provides the file content anonymously on standard input, but the name
+of the file being formatted may be important for include sorting or other output
+like error messages. To address this, you can use the <code>$path</code> substitution to
+provide the name of the file in a command argument.</p>
+<div class="highlight"><pre><span></span><code><span class="k">[fix.tools.clang-format]</span>
+<span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/usr/bin/clang-format&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--sort-includes&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--assume-filename=$path&quot;</span><span class="p">]</span>
+<span class="n">patterns</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;glob:&#39;**/*.c&#39;&quot;</span><span class="p">,</span>
+<span class="w">            </span><span class="s2">&quot;glob:&#39;**/*.h&#39;&quot;</span><span class="p">]</span>
+</code></pre></div>
+<h3 id="sort-and-remove-duplicate-lines-from-a-file">Sort and remove duplicate lines from a file<a class="headerlink" href="#sort-and-remove-duplicate-lines-from-a-file" title="Permanent link">&para;</a></h3>
+<p><code>jj fix</code> can also be used with tools that are not considered code formatters.</p>
+<p>Suppose you have a list of words in a text file in your repository, and you want
+to keep the file sorted alphabetically and remove any duplicate words.</p>
+<div class="highlight"><pre><span></span><code><span class="k">[fix.tools.sort-word-list]</span>
+<span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;sort&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-u&quot;</span><span class="p">]</span>
+<span class="n">patterns</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;word_list.txt&quot;</span><span class="p">]</span>
+</code></pre></div>
+<h3 id="execution-order-of-tools">Execution order of tools<a class="headerlink" href="#execution-order-of-tools" title="Permanent link">&para;</a></h3>
+<p>If two or more tools affect the same file, they are executed in the ascending
+lexicographical order of their configured names. This will remain as a tie
+breaker if other ordering mechanisms are introduced in the future. If you use
+numbers in tool names to control execution order, remember to include enough
+leading zeros so that, for example, <code>09</code> sorts before <code>10</code>.</p>
+<p>Suppose you want to keep only the 10 smallest numbers in a text file that
+contains one number on each line. This can be accomplished with <code>sort</code> and
+<code>head</code>, but execution order is important.</p>
+<div class="highlight"><pre><span></span><code><span class="k">[fix.tools.1-sort-numbers-file]</span>
+<span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;sort&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-n&quot;</span><span class="p">]</span>
+<span class="n">patterns</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;numbers.txt&quot;</span><span class="p">]</span>
+
+<span class="k">[fix.tools.2-truncate-numbers-file]</span>
+<span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;head&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;-n&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;10&quot;</span><span class="p">]</span>
+<span class="n">patterns</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;numbers.txt&quot;</span><span class="p">]</span>
+</code></pre></div>
 <h2 id="commit-signing">Commit Signing<a class="headerlink" href="#commit-signing" title="Permanent link">&para;</a></h2>
 <p><code>jj</code> can be configured to sign and verify the commits it creates using either 
 GnuPG or SSH signing keys.</p>
