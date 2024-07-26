@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Note to packagers
+
+* `jj` now links `libgit2` statically by default. To use dynamic linking, you
+  need to set the environment variable `LIBGIT2_NO_VENDOR=1` while compiling.
+  ([#4163](https://github.com/martinvonz/jj/pull/4163))
+
 ### Breaking changes
 
 * `jj rebase --skip-empty` has been renamed to `jj rebase --skip-emptied`
