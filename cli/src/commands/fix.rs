@@ -175,6 +175,7 @@ pub(crate) fn cmd_fix(
         let mut diff_stream = parent_tree.diff_stream(&tree, &matcher);
         async {
             while let Some(TreeDiffEntry {
+                source: _, // TODO handle copy tracking
                 target: repo_path,
                 value: diff,
             }) = diff_stream.next().await

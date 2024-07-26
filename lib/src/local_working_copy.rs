@@ -1355,6 +1355,7 @@ impl TreeState {
                 .diff_stream(new_tree, matcher)
                 .map(
                     |TreeDiffEntry {
+                         source: _, // TODO handle copy tracking
                          target: path,
                          value: diff,
                      }| async {
@@ -1454,6 +1455,7 @@ impl TreeState {
         let mut deleted_files = HashSet::new();
         let mut diff_stream = old_tree.diff_stream(new_tree, matcher.as_ref());
         while let Some(TreeDiffEntry {
+            source: _, // TODO handle copy tracking
             target: path,
             value: diff,
         }) = diff_stream.next().await

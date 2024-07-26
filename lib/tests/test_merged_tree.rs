@@ -39,6 +39,7 @@ fn diff_stream_equals_iter(tree1: &MergedTree, tree2: &MergedTree, matcher: &dyn
     let iter_diff: Vec<_> = TreeDiffIterator::new(tree1.as_merge(), tree2.as_merge(), matcher)
         .map(
             |TreeDiffEntry {
+                 source: _, // TODO handle copy tracking
                  target: path,
                  value: diff,
              }| (path, diff.unwrap()),
@@ -49,6 +50,7 @@ fn diff_stream_equals_iter(tree1: &MergedTree, tree2: &MergedTree, matcher: &dyn
         TreeDiffStreamImpl::new(tree1.clone(), tree2.clone(), matcher, max_concurrent_reads)
             .map(
                 |TreeDiffEntry {
+                     source: _, // TODO handle copy tracking
                      target: path,
                      value: diff,
                  }| (path, diff.unwrap()),
@@ -761,6 +763,7 @@ fn test_diff_resolved() {
         .diff_stream(&after_merged, &EverythingMatcher)
         .map(
             |TreeDiffEntry {
+                 source: _, // TODO handle copy tracking
                  target: path,
                  value: diff,
              }| (path, diff.unwrap()),
@@ -876,6 +879,7 @@ fn test_diff_conflicted() {
         .diff_stream(&right_merged, &EverythingMatcher)
         .map(
             |TreeDiffEntry {
+                 source: _, // TODO handle copy tracking
                  target: path,
                  value: diff,
              }| (path, diff.unwrap()),
@@ -901,6 +905,7 @@ fn test_diff_conflicted() {
         .diff_stream(&left_merged, &EverythingMatcher)
         .map(
             |TreeDiffEntry {
+                 source: _, // TODO handle copy tracking
                  target: path,
                  value: diff,
              }| (path, diff.unwrap()),
@@ -1024,6 +1029,7 @@ fn test_diff_dir_file() {
             .diff_stream(&right_merged, &EverythingMatcher)
             .map(
                 |TreeDiffEntry {
+                     source: _, // TODO handle copy tracking
                      target: path,
                      value: diff,
                  }| (path, diff.unwrap()),
@@ -1074,6 +1080,7 @@ fn test_diff_dir_file() {
             .diff_stream(&left_merged, &EverythingMatcher)
             .map(
                 |TreeDiffEntry {
+                     source: _, // TODO handle copy tracking
                      target: path,
                      value: diff,
                  }| (path, diff.unwrap()),
@@ -1125,6 +1132,7 @@ fn test_diff_dir_file() {
             .diff_stream(&right_merged, &matcher)
             .map(
                 |TreeDiffEntry {
+                     source: _, // TODO handle copy tracking
                      target: path,
                      value: diff,
                  }| (path, diff.unwrap()),
@@ -1146,6 +1154,7 @@ fn test_diff_dir_file() {
             .diff_stream(&right_merged, &matcher)
             .map(
                 |TreeDiffEntry {
+                     source: _, // TODO handle copy tracking
                      target: path,
                      value: diff,
                  }| (path, diff.unwrap()),
@@ -1170,6 +1179,7 @@ fn test_diff_dir_file() {
             .diff_stream(&right_merged, &matcher)
             .map(
                 |TreeDiffEntry {
+                     source: _, // TODO handle copy tracking
                      target: path,
                      value: diff,
                  }| (path, diff.unwrap()),
@@ -1197,6 +1207,7 @@ fn test_diff_dir_file() {
             .diff_stream(&right_merged, &matcher)
             .map(
                 |TreeDiffEntry {
+                     source: _, // TODO handle copy tracking
                      target: path,
                      value: diff,
                  }| (path, diff.unwrap()),
