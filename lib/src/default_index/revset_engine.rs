@@ -30,7 +30,9 @@ use super::rev_walk::{EagerRevWalk, PeekableRevWalk, RevWalk, RevWalkBuilder};
 use super::revset_graph_iterator::RevsetGraphWalk;
 use crate::backend::{BackendError, BackendResult, ChangeId, CommitId, MillisSinceEpoch};
 use crate::commit::Commit;
-use crate::conflicts::{materialized_diff_stream, MaterializedTreeValue};
+use crate::conflicts::{
+    materialized_diff_stream, MaterializedTreeDiffEntry, MaterializedTreeValue,
+};
 use crate::default_index::{AsCompositeIndex, CompositeIndex, IndexPosition};
 use crate::graph::GraphEdge;
 use crate::matchers::{Matcher, Visit};
@@ -1175,7 +1177,12 @@ fn matches_diff_from_parent(
     // pairs can be compared one by one. #4062
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
-        while let Some((path, diff)) = diff_stream.next().await {
+        while let Some(MaterializedTreeDiffEntry {
+            source: _, // TODO handle copy tracking
+            target: path,
+            value: diff,
+        }) = diff_stream.next().await
+        {
             let (left_value, right_value) = diff?;
             let left_content = to_file_content(&path, left_value)?;
             let right_content = to_file_content(&path, right_value)?;
