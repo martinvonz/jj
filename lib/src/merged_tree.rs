@@ -323,7 +323,8 @@ impl MergedTree {
 
 /// A single entry in a tree diff.
 pub struct TreeDiffEntry {
-    // pub source: RepoPathBuf,
+    /// The source path.
+    pub source: RepoPathBuf,
     /// The target path.
     pub target: RepoPathBuf,
     /// The resolved tree values if available.
@@ -712,6 +713,7 @@ impl Iterator for TreeDiffIterator<'_> {
                 TreeDiffItem::File(..) => {
                     if let TreeDiffItem::File(path, before, after) = self.stack.pop().unwrap() {
                         return Some(TreeDiffEntry {
+                            source: path.clone(),
                             target: path,
                             value: Ok((before, after)),
                         });
@@ -731,12 +733,14 @@ impl Iterator for TreeDiffIterator<'_> {
                     (Ok(before_tree), Ok(after_tree)) => (before_tree, after_tree),
                     (Err(before_err), _) => {
                         return Some(TreeDiffEntry {
+                            source: path.clone(),
                             target: path,
                             value: Err(before_err),
                         })
                     }
                     (_, Err(after_err)) => {
                         return Some(TreeDiffEntry {
+                            source: path.clone(),
                             target: path,
                             value: Err(after_err),
                         })
@@ -752,6 +756,7 @@ impl Iterator for TreeDiffIterator<'_> {
             if !tree_before && tree_after {
                 if before.is_present() {
                     return Some(TreeDiffEntry {
+                        source: path.clone(),
                         target: path,
                         value: Ok((before, Merge::absent())),
                     });
@@ -765,6 +770,7 @@ impl Iterator for TreeDiffIterator<'_> {
                 }
             } else if !tree_before && !tree_after {
                 return Some(TreeDiffEntry {
+                    source: path.clone(),
                     target: path,
                     value: Ok((before, after)),
                 });
@@ -999,10 +1005,12 @@ impl Stream for TreeDiffStreamImpl<'_> {
                     let (key, result) = entry.remove_entry();
                     Poll::Ready(Some(match result {
                         Err(err) => TreeDiffEntry {
+                            source: key.path.clone(),
                             target: key.path,
                             value: Err(err),
                         },
                         Ok((before, after)) => TreeDiffEntry {
+                            source: key.path.clone(),
                             target: key.path,
                             value: Ok((before, after)),
                         },
@@ -1013,10 +1021,12 @@ impl Stream for TreeDiffStreamImpl<'_> {
                     let (key, result) = entry.remove_entry();
                     Poll::Ready(Some(match result {
                         Err(err) => TreeDiffEntry {
+                            source: key.path.clone(),
                             target: key.path,
                             value: Err(err),
                         },
                         Ok((before, after)) => TreeDiffEntry {
+                            source: key.path.clone(),
                             target: key.path,
                             value: Ok((before, after)),
                         },
