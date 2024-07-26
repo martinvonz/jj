@@ -325,29 +325,38 @@ fn diff_size(hunks: &[DiffHunk]) -> usize {
         .sum()
 }
 
+pub struct MaterializedTreeDiffEntry {
+    pub source: RepoPathBuf,
+    pub target: RepoPathBuf,
+    pub value: BackendResult<(MaterializedTreeValue, MaterializedTreeValue)>,
+}
+
 pub fn materialized_diff_stream<'a>(
     store: &'a Store,
     tree_diff: TreeDiffStream<'a>,
-) -> impl Stream<
-    Item = (
-        RepoPathBuf,
-        BackendResult<(MaterializedTreeValue, MaterializedTreeValue)>,
-    ),
-> + 'a {
+) -> impl Stream<Item = MaterializedTreeDiffEntry> + 'a {
     tree_diff
         .map(
             |TreeDiffEntry {
-                 source: _, // TODO handle copy tracking
-                 target: path,
-                 value: diff,
+                 source,
+                 target,
+                 value,
              }| async {
-                match diff {
-                    Err(err) => (path, Err(err)),
+                match value {
+                    Err(err) => MaterializedTreeDiffEntry {
+                        source,
+                        target,
+                        value: Err(err),
+                    },
                     Ok((before, after)) => {
-                        let before_future = materialize_tree_value(store, &path, before);
-                        let after_future = materialize_tree_value(store, &path, after);
+                        let before_future = materialize_tree_value(store, &source, before);
+                        let after_future = materialize_tree_value(store, &target, after);
                         let values = try_join!(before_future, after_future);
-                        (path, values)
+                        MaterializedTreeDiffEntry {
+                            source,
+                            target,
+                            value: values,
+                        }
                     }
                 }
             },
