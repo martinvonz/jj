@@ -1111,6 +1111,7 @@ pub fn show_diff_summary(
 ) -> io::Result<()> {
     async {
         while let Some(TreeDiffEntry {
+            source: _, // TODO handle copy tracking
             target: repo_path,
             value: diff,
         }) = tree_diff.next().await
@@ -1246,6 +1247,7 @@ pub fn show_types(
 ) -> io::Result<()> {
     async {
         while let Some(TreeDiffEntry {
+            source: _, // TODO handle copy tracking
             target: repo_path,
             value: diff,
         }) = tree_diff.next().await

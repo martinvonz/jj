@@ -337,6 +337,7 @@ pub fn materialized_diff_stream<'a>(
     tree_diff
         .map(
             |TreeDiffEntry {
+                 source: _, // TODO handle copy tracking
                  target: path,
                  value: diff,
              }| async {

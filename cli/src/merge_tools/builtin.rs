@@ -498,6 +498,7 @@ pub fn edit_diff_builtin(
         .diff_stream(right_tree, matcher)
         .map(
             |TreeDiffEntry {
+                 source: _, // TODO handle copy tracking
                  target: path,
                  value: diff,
              }| diff.map(|_| path),
