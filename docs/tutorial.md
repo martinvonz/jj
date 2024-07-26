@@ -15,9 +15,12 @@ Let's start by cloning GitHub's Hello-World repo using `jj`:
 # Note the "git" before "clone" (there is no support for cloning native jj
 # repos yet)
 $ jj git clone https://github.com/octocat/Hello-World
-Fetching into new repo in "/tmp/tmp.O1DWMiaKd4/Hello-World"
-Working copy now at: kntqzsqt d7439b06 (empty) (no description set)
-Parent commit      : orrkosyo 7fd1a60b master | (empty) Merge pull request #6 from Spaceghost/patch-1
+branch: master@origin          [new] untracked
+branch: octocat-patch-1@origin [new] untracked
+branch: test@origin            [new] untracked
+Setting the revset alias "trunk()" to "master@origin"
+Working copy now at: kntqzs d7439b0 (empty) (no description set)
+Parent commit      : orrkos 7fd1a60 master| (empty) Merge pull request #6 from Spaceghost/patch-1
 Added 1 files, modified 0 files, removed 0 files
 $ cd Hello-World
 ```
@@ -65,8 +68,8 @@ Parent commit: orrkosyo 7fd1a60b master | (empty) Merge pull request #6 from Spa
 
 Note that you didn't have to tell Jujutsu to add the change like you would with
 `git add`. You actually don't even need to tell it when you add new files or
-remove existing files. To untrack a path, add it to your `.gitignore` and run
-`jj untrack <path>`.
+remove existing files. To untrack a path, you will first need to add it to your
+`.gitignore`. Then, you can run `jj untrack <path>`.
 
 To see the diff, run `jj diff`:
 
@@ -132,13 +135,9 @@ in its `jj log` command:
 $ jj log
 @  mpqrykyp martinvonz@google.com 2023-02-12 15:00:22.000 -08:00 aef4df99
 │  (empty) (no description set)
-◉  kntqzsqt martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19d
+○  kntqzsqt martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19d
 │  Say goodbye
-│ ◉  tpstlust support+octocat@github.com 2018-05-10 12:55:19.000 -05:00 octocat-patch-1@origin b1b3f972
-├─╯  sentence case
-│ ◉  kowxouwz octocat@nowhere.com 2014-06-10 15:22:26.000 -07:00 test@origin b3cbd5bb
-├─╯  Create CONTRIBUTING.md
-◉  orrkosyo octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b
+◆  orrkosyo octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b
 │  (empty) Merge pull request #6 from Spaceghost/patch-1
 ~
 ```
@@ -150,24 +149,35 @@ commit ID, which changes when you rewrite the commit. You can give either ID
 to commands that take revisions as arguments. We will generally prefer change
 IDs because they stay the same when the commit is rewritten.
 
-By default, `jj log` lists your local commits, with some remote commits added
-for context.  The `~` indicates that the commit has parents that are not
-included in the graph. We can use the `--revisions`/`-r` flag to select a
-different set of revisions to list. The flag accepts a ["revset"](revsets.md),
-which is an expression in a simple language for specifying revisions. For
-example, `@` refers to the working-copy commit, `root()` refers to the root
-commit, `branches()` refers to all commits pointed to by branches. We can
-combine expressions with `|` for union, `&` for intersection and `~` for
-difference. For example:
+By default, `jj log` lists your local commits.  The `~` indicates that the
+commit has parents that are not included in the graph. We can use the
+`--revisions`/`-r` flag to select a different set of revisions to list. The flag
+accepts a ["revset"](revsets.md), which is an expression in a simple language
+for specifying revisions. For example, `@` refers to the working-copy commit,
+`root()` refers to the root commit, `trunk()` refers to the repo's main branch
+(`master` in this case, as determined by `jj git clone`), and `trunk()..` refers
+to all commits that are not ancestors of the main branch. We can combine
+expressions with `|` for union, `&` for intersection and `~` for difference. For
+example:
 
 ```shell
-$ jj log -r '@ | root() | branches()'
+$ jj log -r 'root() | trunk() | trunk().. | @'
 @  mpqrykyp martinvonz@google.com 2023-02-12 15:00:22.000 -08:00 aef4df99
 ╷  (empty) (no description set)
-◉  orrkosyo octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b
+○  kntqzsqt martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19d
+│  Say goodbye
+│ ◆  tpstlust support+octocat@github.com 2018-05-10 12:55:19.000 -05:00 octocat-patch-1@origin b1b3f972
+├─╯  sentence case
+│ ◆  kowxouwz octocat@nowhere.com 2014-06-10 15:22:26.000 -07:00 test@origin b3cbd5bb
+├─╯  Create CONTRIBUTING.md
+○  orrkosyo octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b
 ╷  (empty) Merge pull request #6 from Spaceghost/patch-1
-◉  zzzzzzzz root() 00000000
+~  (elided revisions)
+◆  zzzzzzzz root() 00000000
 ```
+
+You can later configure shorter ["revset aliases"](revsets.md#aliases) or use
+predefined ones to avoid having to type out long revsets.
 
 The `00000000` commit (change ID `zzzzzzzz`) is a virtual commit that's
 called the "root commit". It's the root commit of every repo. The `root()`
@@ -177,6 +187,8 @@ There are also operators for getting the parents (`foo-`), children (`foo+`),
 ancestors (`::foo`), descendants (`foo::`), DAG range (`foo::bar`, like
 `git log --ancestry-path`), range (`foo..bar`, same as Git's). See
 [the revset documentation](revsets.md) for all revset operators and functions.
+
+<!-- TODO: Include some explanation of immutable commits -->
 
 ## Conflicts
 
@@ -202,19 +214,15 @@ Parent commit      : puqltutt daa6ffd5 B2
 $ jj log
 @  qzvqqupx martinvonz@google.com 2023-02-12 15:07:41.946 -08:00 2370ddf3
 │  C
-◉  puqltutt martinvonz@google.com 2023-02-12 15:07:33.000 -08:00 daa6ffd5
+○  puqltutt martinvonz@google.com 2023-02-12 15:07:33.000 -08:00 daa6ffd5
 │  B2
-◉  ovknlmro martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6b
+○  ovknlmro martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6b
 │  B1
-◉  nuvyytnq martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f09
+○  nuvyytnq martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f09
 │  A
-│ ◉  kntqzsqt martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19d
+│ ○  kntqzsqt martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19d
 ├─╯  Say goodbye
-│ ◉  tpstlust support+octocat@github.com 2018-05-10 12:55:19.000 -05:00 octocat-patch-1@origin b1b3f972
-├─╯  sentence case
-│ ◉  kowxouwz octocat@nowhere.com 2014-06-10 15:22:26.000 -07:00 test@origin b3cbd5bb
-├─╯  Create CONTRIBUTING.md
-◉  orrkosyo octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b
+◆  orrkosyo octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b
 │  (empty) Merge pull request #6 from Spaceghost/patch-1
 ~
 ```
@@ -241,19 +249,15 @@ Added 0 files, modified 1 files, removed 0 files
 $ jj log
 @  qzvqqupx martinvonz@google.com 2023-02-12 15:08:33.000 -08:00 1978b534 conflict
 │  C
-◉  puqltutt martinvonz@google.com 2023-02-12 15:08:33.000 -08:00 f7fb5943 conflict
+×  puqltutt martinvonz@google.com 2023-02-12 15:08:33.000 -08:00 f7fb5943 conflict
 │  B2
-│ ◉  ovknlmro martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6b
+│ ○  ovknlmro martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6b
 ├─╯  B1
-◉  nuvyytnq martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f09
+○  nuvyytnq martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f09
 │  A
-│ ◉  kntqzsqt martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19d
+│ ○  kntqzsqt martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19d
 ├─╯  Say goodbye
-│ ◉  tpstlust support+octocat@github.com 2018-05-10 12:55:19.000 -05:00 octocat-patch-1@origin b1b3f972
-├─╯  sentence case
-│ ◉  kowxouwz octocat@nowhere.com 2014-06-10 15:22:26.000 -07:00 test@origin b3cbd5bb
-├─╯  Create CONTRIBUTING.md
-◉  orrkosyo octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b
+◆  orrkosyo octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b
 │  (empty) Merge pull request #6 from Spaceghost/patch-1
 ~
 ```
@@ -275,12 +279,8 @@ $ jj new puqltutt  # Replace the ID by what you have for B2
 Working copy now at: zxoosnnp c7068d1c (conflict) (empty) (no description set)
 Parent commit      : puqltutt f7fb5943 (conflict) B2
 Added 0 files, modified 0 files, removed 1 files
-$ jj st
-The working copy is clean
 There are unresolved conflicts at these paths:
 file1    2-sided conflict
-Working copy : zxoosnnp c7068d1c (conflict) (empty) (no description set)
-Parent commit: puqltutt f7fb5943 (conflict) B2
 $ cat file1
 <<<<<<<
 %%%%%%%
@@ -300,21 +300,17 @@ Parent commit      : puqltutt 2c7a658e B2
 $ jj log
 @  ntxxqymr martinvonz@google.com 2023-02-12 19:34:09.000 -08:00 e3c279cc
 │  (empty) (no description set)
-│ ◉  qzvqqupx martinvonz@google.com 2023-02-12 19:34:09.000 -08:00 b9da9d28
+│ ○  qzvqqupx martinvonz@google.com 2023-02-12 19:34:09.000 -08:00 b9da9d28
 ├─╯  C
-◉  puqltutt martinvonz@google.com 2023-02-12 19:34:09.000 -08:00 2c7a658e
+○  puqltutt martinvonz@google.com 2023-02-12 19:34:09.000 -08:00 2c7a658e
 │  B2
-│ ◉  ovknlmro martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6b
+│ ○  ovknlmro martinvonz@google.com 2023-02-12 15:07:24.000 -08:00 7d7c6e6b
 ├─╯  B1
-◉  nuvyytnq martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f09
+○  nuvyytnq martinvonz@google.com 2023-02-12 15:07:05.000 -08:00 5dda2f09
 │  A
-│ ◉  kntqzsqt martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19d
+│ ○  kntqzsqt martinvonz@google.com 2023-02-12 14:56:59.000 -08:00 5d39e19d
 ├─╯  Say goodbye
-│ ◉  tpstlust support+octocat@github.com 2018-05-10 12:55:19.000 -05:00 octocat-patch-1@origin b1b3f972
-├─╯  sentence case
-│ ◉  kowxouwz octocat@nowhere.com 2014-06-10 15:22:26.000 -07:00 test@origin b3cbd5bb
-├─╯  Create CONTRIBUTING.md
-◉  orrkosyo octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b
+◆  orrkosyo octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b
 │  (empty) Merge pull request #6 from Spaceghost/patch-1
 ~
 ```
@@ -348,6 +344,8 @@ $ jj op log
 │  args: jj rebase -s puqltutt -d nuvyytnq
 [many more lines]
 ```
+
+<!-- TODO: Suggest `jj op restore @-` instead? -->
 
 The most useful command is `jj undo` (alias for `jj op undo`), which will undo
 an operation. By default, it will undo the most recent operation. Let's try it:
@@ -417,11 +415,11 @@ Parent commit      : kwtuwqnm 30aecc08 ABC
 $ jj log -r master::@
 @  mrxqplyk martinvonz@google.com 2023-02-12 19:38:21.000 -08:00 b98c607b
 │  ABCD
-◉  kwtuwqnm martinvonz@google.com 2023-02-12 19:38:12.000 -08:00 30aecc08
+○  kwtuwqnm martinvonz@google.com 2023-02-12 19:38:12.000 -08:00 30aecc08
 │  ABC
-◉  ztqrpvnw martinvonz@google.com 2023-02-12 19:38:03.000 -08:00 51002261
+○  ztqrpvnw martinvonz@google.com 2023-02-12 19:38:03.000 -08:00 51002261
 │  abc
-◉  orrkosyo octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b
+◆  orrkosyo octocat@nowhere.com 2012-03-06 15:06:50.000 -08:00 master 7fd1a60b
 │  (empty) Merge pull request #6 from Spaceghost/patch-1
 ~
 ```
