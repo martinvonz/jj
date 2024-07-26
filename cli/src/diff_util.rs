@@ -22,7 +22,9 @@ use futures::StreamExt;
 use itertools::Itertools;
 use jj_lib::backend::{BackendError, CopyRecords, TreeValue};
 use jj_lib::commit::Commit;
-use jj_lib::conflicts::{materialized_diff_stream, MaterializedTreeValue};
+use jj_lib::conflicts::{
+    materialized_diff_stream, MaterializedTreeDiffEntry, MaterializedTreeValue,
+};
 use jj_lib::diff::{Diff, DiffHunk};
 use jj_lib::files::DiffLine;
 use jj_lib::matchers::Matcher;
@@ -567,7 +569,12 @@ pub fn show_color_words_diff(
 ) -> Result<(), DiffRenderError> {
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
-        while let Some((path, diff)) = diff_stream.next().await {
+        while let Some(MaterializedTreeDiffEntry {
+            source: _, // TODO handle copy tracking
+            target: path,
+            value: diff,
+        }) = diff_stream.next().await
+        {
             let ui_path = path_converter.format_file_path(&path);
             let (left_value, right_value) = diff?;
 
@@ -714,7 +721,12 @@ pub fn show_file_by_file_diff(
     let right_wc_dir = temp_dir.path().join("right");
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
-        while let Some((path, diff)) = diff_stream.next().await {
+        while let Some(MaterializedTreeDiffEntry {
+            source: _, // TODO handle copy tracking
+            target: path,
+            value: diff,
+        }) = diff_stream.next().await
+        {
             let ui_path = path_converter.format_file_path(&path);
             let (left_value, right_value) = diff?;
 
@@ -1032,10 +1044,15 @@ pub fn show_git_diff(
 ) -> Result<(), DiffRenderError> {
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
-        while let Some((path, diff)) = diff_stream.next().await {
+        while let Some(MaterializedTreeDiffEntry {
+            source: _, // TODO handle copy tracking
+            target: path,
+            value: diff,
+        }) = diff_stream.next().await
+        {
             let path_string = path.as_internal_file_string();
             let (left_value, right_value) = diff?;
-            let left_part = git_diff_part(&path, left_value)?;
+            let left_part = git_digf_part(&path, left_value)?;
             let right_part = git_diff_part(&path, right_value)?;
             formatter.with_label("file_header", |formatter| {
                 writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;
@@ -1179,7 +1196,12 @@ pub fn show_diff_stat(
 
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
-        while let Some((repo_path, diff)) = diff_stream.next().await {
+        while let Some(MaterializedTreeDiffEntry {
+            source: _, // TODO handle copy tracking
+            target: repo_path,
+            value: diff,
+        }) = diff_stream.next().await
+        {
             let (left, right) = diff?;
             let path = path_converter.format_file_path(&repo_path);
             let left_content = diff_content(&repo_path, left)?;
