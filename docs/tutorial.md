@@ -149,7 +149,7 @@ commit ID, which changes when you rewrite the commit. You can give either ID
 to commands that take revisions as arguments. We will generally prefer change
 IDs because they stay the same when the commit is rewritten.
 
-By default, `jj log` lists your local commits.  The `~` indicates that the
+By default, `jj log` lists your local commits. The `~` indicates that the
 commit has parents that are not included in the graph. We can use the
 `--revisions`/`-r` flag to select a different set of revisions to list. The flag
 accepts a ["revset"](revsets.md), which is an expression in a simple language
@@ -270,9 +270,8 @@ it resulted in conflicts, as the output indicates. Third, the conflicts
 did not prevent the rebase from completing successfully, nor did it prevent C
 from getting rebased on top.
 
-Now let's resolve the conflict in B2. We'll do that by creating a new commit on
-top of B2. Once we've resolved the conflict, we'll squash the conflict
-resolution into the conflicted B2. That might look like this:
+Now let's resolve the conflict in B2. We'll first create a new commit on top of
+B2 and see what that looks like:
 
 ```shell
 $ jj new puqltutt  # Replace the ID by what you have for B2
@@ -282,14 +281,26 @@ Added 0 files, modified 0 files, removed 1 files
 There are unresolved conflicts at these paths:
 file1    2-sided conflict
 $ cat file1
-<<<<<<<
-%%%%%%%
+<<<<<<< Conflict 1 of 1
+%%%%%%% Changes from base to side #1
 -b1
 +a
-+++++++
++++++++ Contents of side #2
 b2
->>>>>>>
-$ echo resolved > file1
+>>>>>>> Conflict 1 of 1 ends
+```
+
+`file1` now contains a [representation of the
+conflict](conflicts.md#conflict-markers). We can resolve the conflict by editing
+the file[^resolve] to remove all the conflict markers and making it into what
+the resolved version should look like. Once we've resolved the conflict, we'll
+squash the conflict resolution into the conflicted B2. That might look like
+this:
+
+[^resolve]: Another way to resolve the conflict would be to set up a [merge tool](config.md#3-way-merge-tools-for-conflict-resolution) and then use `jj resolve`.
+
+```shell
+$ echo resolved > file1  # You'd normally use a text editor here instead of `echo`
 $ jj squash
 Rebased 1 descendant commits
 Existing conflicts were resolved or abandoned from these commits:
