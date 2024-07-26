@@ -23,7 +23,7 @@ assert_matches = "1.5.0"
 async-trait = "0.1.81"
 backoff = "0.4.0"
 blake2 = "0.10.6"
-bstr = "1.9.1"
+bstr = "1.10.0"
 cargo_metadata = "0.17.0"
 clap = { version = "4.5.11", features = [
     "derive",
@@ -109,7 +109,7 @@ tracing-subscriber = { version = "0.3.18", default-features = false, features = 
     "fmt",
 ] }
 unicode-width = "0.1.13"
-version_check = "0.9.4"
+version_check = "0.9.5"
 watchman_client = { version = "0.9.0" }
 whoami = "1.5.1"
 winreg = "0.52"
