@@ -15,6 +15,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New features
 
+* `jj fix` now allows fixing unchanged files with the `--include-unchanged-files` flag. This
+  can be used to more easily introduce automatic formatting changes in a new
+  commit separate from other changes.
+
 ### Fixed bugs
 
 ## [0.21.0] - 2024-09-04

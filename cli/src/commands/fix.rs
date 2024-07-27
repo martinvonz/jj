@@ -28,6 +28,7 @@ use jj_lib::fileset;
 use jj_lib::fileset::FilesetExpression;
 use jj_lib::matchers::EverythingMatcher;
 use jj_lib::matchers::Matcher;
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::merged_tree::MergedTreeBuilder;
 use jj_lib::merged_tree::TreeDiffEntry;
 use jj_lib::repo::Repo;
@@ -36,6 +37,7 @@ use jj_lib::repo_path::RepoPathUiConverter;
 use jj_lib::revset::RevsetExpression;
 use jj_lib::revset::RevsetIteratorExt;
 use jj_lib::store::Store;
+use jj_lib::tree::Tree;
 use pollster::FutureExt;
 use rayon::iter::IntoParallelIterator;
 use rayon::prelude::ParallelIterator;
@@ -125,6 +127,10 @@ pub(crate) struct FixArgs {
     /// Fix only these paths
     #[arg(value_hint = clap::ValueHint::AnyPath)]
     paths: Vec<String>,
+    /// Fix unchanged files in addition to changed ones. If no paths are
+    /// specified, all files in the repo will be fixed.
+    #[arg(long)]
+    include_unchanged_files: bool,
 }
 
 #[instrument(skip_all)]
@@ -177,19 +183,22 @@ pub(crate) fn cmd_fix(
     for commit in commits.iter().rev() {
         let mut paths: HashSet<RepoPathBuf> = HashSet::new();
 
-        // Fix all paths that were fixed in ancestors, so we don't lose those changes.
-        // We do this instead of rebasing onto those changes, to avoid merge conflicts.
-        for parent_id in commit.parent_ids() {
-            if let Some(parent_paths) = commit_paths.get(parent_id) {
-                paths.extend(parent_paths.iter().cloned());
+        // If --include-unchanged-files, we always fix every matching file in the tree.
+        // Otherwise, we fix the matching changed files in this commit, plus any that
+        // were fixed in ancestors, so we don't lose those changes. We do this
+        // instead of rebasing onto those changes, to avoid merge conflicts.
+        let parent_tree = if args.include_unchanged_files {
+            MergedTree::resolved(Tree::empty(tx.repo().store().clone(), RepoPathBuf::root()))
+        } else {
+            for parent_id in commit.parent_ids() {
+                if let Some(parent_paths) = commit_paths.get(parent_id) {
+                    paths.extend(parent_paths.iter().cloned());
+                }
             }
-        }
-
-        // Also fix any new paths that were changed in this commit.
-        let tree = commit.tree()?;
-        let parent_tree = commit.parent_tree(tx.repo())?;
+            commit.parent_tree(tx.repo())?
+        };
         // TODO: handle copy tracking
-        let mut diff_stream = parent_tree.diff_stream(&tree, &matcher);
+        let mut diff_stream = parent_tree.diff_stream(&commit.tree()?, &matcher);
         async {
             while let Some(TreeDiffEntry {
                 path: repo_path,

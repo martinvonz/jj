@@ -1123,3 +1123,150 @@ fn test_fix_resolve_conflict() {
     CONTENT
     "###);
 }
+
+#[test]
+fn test_all_files() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    let formatter_path = assert_cmd::cargo::cargo_bin("fake-formatter");
+    assert!(formatter_path.is_file());
+    let escaped_formatter_path = formatter_path.to_str().unwrap().replace('\\', r"\\");
+
+    // Consider a few cases:
+    // File A:     in patterns,     changed in child
+    // File B:     in patterns, NOT changed in child
+    // File C: NOT in patterns, NOT changed in child
+    // File D: NOT in patterns,     changed in child
+    // Some files will be in subdirectories to make sure we're covering that aspect
+    // of matching.
+    test_env.add_config(&format!(
+        r###"
+        [fix.tools.tool]
+        command = ["{formatter}", "--append", "fixed"]
+        patterns = ["a/a", "b/b"]
+        "###,
+        formatter = escaped_formatter_path.as_str()
+    ));
+
+    std::fs::create_dir(repo_path.join("a")).unwrap();
+    std::fs::create_dir(repo_path.join("b")).unwrap();
+    std::fs::create_dir(repo_path.join("c")).unwrap();
+    std::fs::write(repo_path.join("a/a"), "parent aaa\n").unwrap();
+    std::fs::write(repo_path.join("b/b"), "parent bbb\n").unwrap();
+    std::fs::write(repo_path.join("c/c"), "parent ccc\n").unwrap();
+    std::fs::write(repo_path.join("ddd"), "parent ddd\n").unwrap();
+    let (_stdout, _stderr) = test_env.jj_cmd_ok(&repo_path, &["commit", "-m", "parent"]);
+
+    std::fs::write(repo_path.join("a/a"), "child aaa\n").unwrap();
+    std::fs::write(repo_path.join("ddd"), "child ddd\n").unwrap();
+    let (_stdout, _stderr) = test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "child"]);
+
+    // Specifying files means exactly those files will be fixed in each revision,
+    // although some like file C won't have any tools configured to make changes to
+    // them. Specified but unfixed files are silently skipped, whether they lack
+    // configuration, are ignored, don't exist, aren't normal files, etc.
+    let (stdout, stderr) = test_env.jj_cmd_ok(
+        &repo_path,
+        &[
+            "fix",
+            "--include-unchanged-files",
+            "b/b",
+            "c/c",
+            "does_not.exist",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Fixed 2 commits of 2 checked.
+    Working copy now at: rlvkpnrz c098d165 child
+    Parent commit      : qpvuntsm 0bb31627 parent
+    Added 0 files, modified 1 files, removed 0 files
+    "###);
+
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "a/a", "-r", "@-"]);
+    insta::assert_snapshot!(content, @r###"
+    parent aaa
+    "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "b/b", "-r", "@-"]);
+    insta::assert_snapshot!(content, @r###"
+    parent bbb
+    fixed
+    "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "c/c", "-r", "@-"]);
+    insta::assert_snapshot!(content, @r###"
+    parent ccc
+    "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "ddd", "-r", "@-"]);
+    insta::assert_snapshot!(content, @r###"
+    parent ddd
+    "###);
+
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "a/a", "-r", "@"]);
+    insta::assert_snapshot!(content, @r###"
+    child aaa
+    "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "b/b", "-r", "@"]);
+    insta::assert_snapshot!(content, @r###"
+    parent bbb
+    fixed
+    "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "c/c", "-r", "@"]);
+    insta::assert_snapshot!(content, @r###"
+    parent ccc
+    "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "ddd", "-r", "@"]);
+    insta::assert_snapshot!(content, @r###"
+    child ddd
+    "###);
+
+    // Not specifying files means all files will be fixed in each revision.
+    let (stdout, stderr) = test_env.jj_cmd_ok(&repo_path, &["fix", "--include-unchanged-files"]);
+    insta::assert_snapshot!(stdout, @"");
+    insta::assert_snapshot!(stderr, @r###"
+    Fixed 2 commits of 2 checked.
+    Working copy now at: rlvkpnrz c5d0aa1d child
+    Parent commit      : qpvuntsm b4d02ca9 parent
+    Added 0 files, modified 2 files, removed 0 files
+    "###);
+
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "a/a", "-r", "@-"]);
+    insta::assert_snapshot!(content, @r###"
+    parent aaa
+    fixed
+    "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "b/b", "-r", "@-"]);
+    insta::assert_snapshot!(content, @r###"
+    parent bbb
+    fixed
+    fixed
+    "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "c/c", "-r", "@-"]);
+    insta::assert_snapshot!(content, @r###"
+    parent ccc
+    "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "ddd", "-r", "@-"]);
+    insta::assert_snapshot!(content, @r###"
+    parent ddd
+    "###);
+
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "a/a", "-r", "@"]);
+    insta::assert_snapshot!(content, @r###"
+    child aaa
+    fixed
+    "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "b/b", "-r", "@"]);
+    insta::assert_snapshot!(content, @r###"
+    parent bbb
+    fixed
+    fixed
+    "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "c/c", "-r", "@"]);
+    insta::assert_snapshot!(content, @r###"
+    parent ccc
+    "###);
+    let content = test_env.jj_cmd_success(&repo_path, &["file", "show", "ddd", "-r", "@"]);
+    insta::assert_snapshot!(content, @r###"
+    child ddd
+    "###);
+}
