@@ -22,7 +22,7 @@ use std::sync::Arc;
 
 use thiserror::Error;
 
-use crate::backend::{BackendError, MergedTreeId};
+use crate::backend::{BackendError, MergedTreeId, SnapshotResult};
 use crate::commit::Commit;
 use crate::fsmonitor::FsmonitorSettings;
 use crate::gitignore::{GitIgnoreError, GitIgnoreFile};
@@ -99,7 +99,7 @@ pub trait LockedWorkingCopy {
     fn old_tree_id(&self) -> &MergedTreeId;
 
     /// Snapshot the working copy and return the tree id.
-    fn snapshot(&mut self, options: SnapshotOptions) -> Result<MergedTreeId, SnapshotError>;
+    fn snapshot(&mut self, options: SnapshotOptions) -> Result<SnapshotResult, SnapshotError>;
 
     /// Check out the specified commit in the working copy.
     fn check_out(&mut self, commit: &Commit) -> Result<CheckoutStats, CheckoutError>;
@@ -175,6 +175,19 @@ pub enum SnapshotError {
         #[source]
         err: Box<dyn std::error::Error + Send + Sync>,
     },
+}
+
+#[derive(Debug, Error)]
+/// A file was larger than the specified maximum file size for new
+/// (previously untracked) files.
+#[error("New file {path} of size ~{size} exceeds snapshot.max-new-file-size ({max_size})")]
+pub struct NewFileTooLarge {
+    /// The path of the large file.
+    pub path: PathBuf,
+    /// The size of the large file.
+    pub size: HumanByteSize,
+    /// The maximum allowed size.
+    pub max_size: HumanByteSize,
 }
 
 /// Options used when snapshotting the working copy. Some of them may be ignored

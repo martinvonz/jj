@@ -26,6 +26,7 @@ use thiserror::Error;
 
 use crate::content_hash::ContentHash;
 use crate::index::Index;
+use crate::local_working_copy::SnapshotStats;
 use crate::merge::Merge;
 use crate::object_id::{id_type, ObjectId};
 use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent, RepoPathComponentBuf};
@@ -87,6 +88,11 @@ pub struct SecureSig {
 }
 
 pub type SigningFn<'a> = dyn FnMut(&[u8]) -> SignResult<Vec<u8>> + 'a;
+
+pub struct SnapshotResult {
+    pub tree_id: MergedTreeId,
+    pub snapshot_stats: SnapshotStats,
+}
 
 /// Identifies a single legacy tree, which may have path-level conflicts, or a
 /// merge of multiple trees, where the individual trees do not have conflicts.
@@ -241,7 +247,8 @@ pub enum BackendError {
         hash: String,
         source: Box<dyn std::error::Error + Send + Sync>,
     },
-    #[error("Error when reading file content for file {} with id {}", path.as_internal_file_string(), id.hex())]
+    #[error("Error when reading file content for file {} with id {}", path.as_internal_file_string(), id.hex()
+    )]
     ReadFile {
         path: RepoPathBuf,
         id: FileId,

@@ -42,6 +42,7 @@ use jj_lib::git_backend::GitBackend;
 use jj_lib::gitignore::{GitIgnoreError, GitIgnoreFile};
 use jj_lib::hex_util::to_reverse_hex;
 use jj_lib::id_prefix::IdPrefixContext;
+use jj_lib::local_working_copy::SnapshotStats;
 use jj_lib::matchers::Matcher;
 use jj_lib::merge::MergedTreeValue;
 use jj_lib::merged_tree::MergedTree;
@@ -574,7 +575,7 @@ impl WorkspaceCommandHelper {
     /// Snapshot the working copy if allowed, and import Git refs if the working
     /// copy is collocated with Git.
     #[instrument(skip_all)]
-    pub fn maybe_snapshot(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
+    pub fn maybe_snapshot(&mut self, ui: &mut Ui) -> Result<SnapshotStats, CommandError> {
         if self.may_update_working_copy {
             if self.working_copy_shared_with_git {
                 self.import_git_head(ui)?;
@@ -583,13 +584,26 @@ impl WorkspaceCommandHelper {
             // pointing to the new working-copy commit might not be exported.
             // In that situation, the ref would be conflicted anyway, so export
             // failure is okay.
-            self.snapshot_working_copy(ui)?;
+            let stats = self.snapshot_working_copy(ui)?;
+            if !stats.files_to_large().is_empty() {
+                writeln!(
+                    ui.status(),
+                    "Some files are too large to be snapshotted. They will be ignored."
+                )?;
+                writeln!(
+                    ui.status(),
+                    "Use `jj purge` to remove them from the working copy."
+                )?;
+            }
+
             // import_git_refs() can rebase the working-copy commit.
             if self.working_copy_shared_with_git {
                 self.import_git_refs(ui)?;
             }
+            Ok(stats)
+        } else {
+            Ok(SnapshotStats::default())
         }
-        Ok(())
     }
 
     /// Imports new HEAD from the colocated Git repo.
@@ -1186,7 +1200,7 @@ impl WorkspaceCommandHelper {
     }
 
     #[instrument(skip_all)]
-    fn snapshot_working_copy(&mut self, ui: &mut Ui) -> Result<(), CommandError> {
+    fn snapshot_working_copy(&mut self, ui: &mut Ui) -> Result<SnapshotStats, CommandError> {
         let workspace_id = self.workspace_id().to_owned();
         let get_wc_commit = |repo: &ReadonlyRepo| -> Result<Option<_>, _> {
             repo.view()
@@ -1198,7 +1212,7 @@ impl WorkspaceCommandHelper {
         let Some(wc_commit) = get_wc_commit(&repo)? else {
             // If the workspace has been deleted, it's unclear what to do, so we just skip
             // committing the working copy.
-            return Ok(());
+            return Ok(SnapshotStats::default());
         };
         let base_ignores = self.base_ignores()?;
 
@@ -1210,12 +1224,13 @@ impl WorkspaceCommandHelper {
                 Ok(WorkingCopyFreshness::Fresh) => (repo, wc_commit),
                 Ok(WorkingCopyFreshness::Updated(wc_operation)) => {
                     let repo = repo.reload_at(&wc_operation)?;
-                    let wc_commit = if let Some(wc_commit) = get_wc_commit(&repo)? {
-                        wc_commit
-                    } else {
-                        return Ok(()); // The workspace has been deleted (see
-                                       // above)
-                    };
+                    let wc_commit =
+                        if let Some(wc_commit) = get_wc_commit(&repo)? {
+                            wc_commit
+                        } else {
+                            return Ok(SnapshotStats::default()); // The workspace has been deleted (see
+                                                                 // above)
+                        };
                     (repo, wc_commit)
                 }
                 Ok(WorkingCopyFreshness::WorkingCopyStale) => {
@@ -1249,13 +1264,15 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             };
         self.user_repo = ReadonlyUserRepo::new(repo);
         let progress = crate::progress::snapshot_progress(ui);
-        let new_tree_id = locked_ws.locked_wc().snapshot(SnapshotOptions {
+        let snapshot_result = locked_ws.locked_wc().snapshot(SnapshotOptions {
             base_ignores,
             fsmonitor_settings: self.settings.fsmonitor_settings()?,
             progress: progress.as_ref().map(|x| x as _),
             max_new_file_size: self.settings.max_new_file_size()?,
         })?;
         drop(progress);
+
+        let new_tree_id = snapshot_result.tree_id;
         if new_tree_id != *wc_commit.tree_id() {
             let mut tx =
                 start_repo_transaction(&self.user_repo.repo, &self.settings, &self.string_args);
@@ -1284,7 +1301,7 @@ See https://github.com/martinvonz/jj/blob/main/docs/working-copy.md#stale-workin
             self.user_repo = ReadonlyUserRepo::new(tx.commit("snapshot working copy"));
         }
         locked_ws.finish(self.user_repo.repo.op_id().clone())?;
-        Ok(())
+        Ok(snapshot_result.snapshot_stats)
     }
 
     fn update_working_copy(

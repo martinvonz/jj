@@ -238,10 +238,13 @@ impl TestWorkspace {
     /// new operation).
     pub fn snapshot(&mut self) -> Result<MergedTree, SnapshotError> {
         let mut locked_ws = self.workspace.start_working_copy_mutation().unwrap();
-        let tree_id = locked_ws.locked_wc().snapshot(SnapshotOptions {
-            max_new_file_size: self.settings.max_new_file_size().unwrap(),
-            ..SnapshotOptions::empty_for_test()
-        })?;
+        let tree_id = locked_ws
+            .locked_wc()
+            .snapshot(SnapshotOptions {
+                max_new_file_size: self.settings.max_new_file_size().unwrap(),
+                ..SnapshotOptions::empty_for_test()
+            })?
+            .tree_id;
         // arbitrary operation id
         locked_ws.finish(self.repo.op_id().clone()).unwrap();
         Ok(self.repo.store().get_root_tree(&tree_id).unwrap())

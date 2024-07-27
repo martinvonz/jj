@@ -41,8 +41,8 @@ use thiserror::Error;
 use tracing::{instrument, trace_span};
 
 use crate::backend::{
-    BackendError, BackendResult, FileId, MergedTreeId, MillisSinceEpoch, SymlinkId, TreeId,
-    TreeValue,
+    BackendError, BackendResult, FileId, MergedTreeId, MillisSinceEpoch, SnapshotResult, SymlinkId,
+    TreeId, TreeValue,
 };
 use crate::commit::Commit;
 use crate::conflicts::{self, materialize_tree_value, MaterializedTreeValue};
@@ -64,8 +64,8 @@ use crate::settings::HumanByteSize;
 use crate::store::Store;
 use crate::tree::Tree;
 use crate::working_copy::{
-    CheckoutError, CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions,
-    SnapshotProgress, WorkingCopy, WorkingCopyFactory, WorkingCopyStateError,
+    CheckoutError, CheckoutStats, LockedWorkingCopy, NewFileTooLarge, ResetError, SnapshotError,
+    SnapshotOptions, SnapshotProgress, WorkingCopy, WorkingCopyFactory, WorkingCopyStateError,
 };
 
 #[cfg(unix)]
@@ -758,7 +758,7 @@ impl TreeState {
     /// Look for changes to the working copy. If there are any changes, create
     /// a new tree from it and return it, and also update the dirstate on disk.
     #[instrument(skip_all)]
-    pub fn snapshot(&mut self, options: SnapshotOptions) -> Result<bool, SnapshotError> {
+    pub fn snapshot(&mut self, options: SnapshotOptions) -> Result<SnapshotStats, SnapshotError> {
         let SnapshotOptions {
             base_ignores,
             fsmonitor_settings,
@@ -783,12 +783,14 @@ impl TreeState {
         if matcher.visit(RepoPath::root()).is_nothing() {
             // No need to iterate file states to build empty deleted_files.
             self.watchman_clock = watchman_clock;
-            return Ok(is_dirty);
+            return Ok(SnapshotStats::with_status(is_dirty));
         }
 
         let (tree_entries_tx, tree_entries_rx) = channel();
         let (file_states_tx, file_states_rx) = channel();
         let (present_files_tx, present_files_rx) = channel();
+
+        let (files_to_big_tx, files_to_big_rx) = channel();
 
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
             let current_tree = self.current_tree()?;
@@ -807,6 +809,7 @@ impl TreeState {
                 directory_to_visit,
                 progress,
                 max_new_file_size,
+                files_to_big_tx,
             )
         })?;
 
@@ -865,8 +868,13 @@ impl TreeState {
             let state_paths: HashSet<_> = file_states.paths().map(|path| path.to_owned()).collect();
             assert_eq!(state_paths, tree_paths);
         }
+        let files_to_large: Vec<_> = files_to_big_rx.iter().collect();
+
         self.watchman_clock = watchman_clock;
-        Ok(is_dirty)
+        Ok(SnapshotStats {
+            success: is_dirty,
+            files_to_large,
+        })
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -880,6 +888,7 @@ impl TreeState {
         directory_to_visit: DirectoryToVisit,
         progress: Option<&SnapshotProgress>,
         max_new_file_size: u64,
+        files_to_big: Sender<NewFileTooLarge>,
     ) -> Result<(), SnapshotError> {
         let DirectoryToVisit {
             dir,
@@ -989,6 +998,7 @@ impl TreeState {
                             directory_to_visit,
                             progress,
                             max_new_file_size,
+                            files_to_big.clone(),
                         )?;
                     }
                 } else if matcher.matches(&path) {
@@ -1008,11 +1018,13 @@ impl TreeState {
                         })?;
                         if maybe_current_file_state.is_none() && metadata.len() > max_new_file_size
                         {
-                            return Err(SnapshotError::NewFileTooLarge {
-                                path: entry.path().clone(),
-                                size: HumanByteSize(metadata.len()),
-                                max_size: HumanByteSize(max_new_file_size),
-                            });
+                            files_to_big
+                                .send(NewFileTooLarge {
+                                    path: entry.path().clone(),
+                                    size: HumanByteSize(metadata.len()),
+                                    max_size: HumanByteSize(max_new_file_size),
+                                })
+                                .ok();
                         }
                         if let Some(new_file_state) = file_state(&metadata) {
                             present_files_tx.send(path.clone()).ok();
@@ -1498,6 +1510,29 @@ impl TreeState {
     }
 }
 
+#[derive(Default)]
+pub struct SnapshotStats {
+    files_to_large: Vec<NewFileTooLarge>,
+    success: bool,
+}
+
+impl SnapshotStats {
+    fn with_status(success: bool) -> Self {
+        SnapshotStats {
+            files_to_large: Vec::new(),
+            success,
+        }
+    }
+
+    pub fn success(&self) -> bool {
+        self.success
+    }
+
+    pub fn files_to_large(&self) -> &[NewFileTooLarge] {
+        &self.files_to_large
+    }
+}
+
 fn checkout_error_for_stat_error(err: std::io::Error, path: &Path) -> CheckoutError {
     CheckoutError::Other {
         message: format!("Failed to stat file {}", path.display()),
@@ -1789,7 +1824,7 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
         &self.old_tree_id
     }
 
-    fn snapshot(&mut self, options: SnapshotOptions) -> Result<MergedTreeId, SnapshotError> {
+    fn snapshot(&mut self, options: SnapshotOptions) -> Result<SnapshotResult, SnapshotError> {
         let tree_state = self
             .wc
             .tree_state_mut()
@@ -1797,8 +1832,13 @@ impl LockedWorkingCopy for LockedLocalWorkingCopy {
                 message: "Failed to read the working copy state".to_string(),
                 err: err.into(),
             })?;
-        self.tree_state_dirty |= tree_state.snapshot(options)?;
-        Ok(tree_state.current_tree_id().clone())
+        let snapshot_stats = tree_state.snapshot(options)?;
+        self.tree_state_dirty |= snapshot_stats.success();
+
+        Ok(SnapshotResult {
+            snapshot_stats,
+            tree_id: tree_state.current_tree_id().clone(),
+        })
     }
 
     fn check_out(&mut self, commit: &Commit) -> Result<CheckoutStats, CheckoutError> {

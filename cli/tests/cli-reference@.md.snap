@@ -68,6 +68,7 @@ This document contains the help content for the `jj` command-line program.
 * [`jj operation undo`↴](#jj-operation-undo)
 * [`jj parallelize`↴](#jj-parallelize)
 * [`jj prev`↴](#jj-prev)
+* [`jj purge`↴](#jj-purge)
 * [`jj rebase`↴](#jj-rebase)
 * [`jj resolve`↴](#jj-resolve)
 * [`jj restore`↴](#jj-restore)
@@ -132,6 +133,7 @@ To get started, see the tutorial at https://github.com/martinvonz/jj/blob/main/d
 * `operation` — Commands for working with the operation log
 * `parallelize` — Parallelize revisions by making them siblings
 * `prev` — Change the working copy revision relative to the parent revision
+* `purge` — Removes files not tracked by Jujutsu Note: snapshot won't be taken before purging, so there is no way to undo this operation
 * `rebase` — Move revisions to different parent(s)
 * `resolve` — Resolve a conflicted file with an external merge tool
 * `restore` — Restore paths from another revision
@@ -1525,6 +1527,20 @@ implied.
 
 * `-e`, `--edit` — Edit the parent directly, instead of moving the working-copy commit
 * `--conflict` — Jump to the previous conflicted ancestor
+
+
+
+## `jj purge`
+
+Removes files not tracked by Jujutsu Note: snapshot won't be taken before purging, so there is no way to undo this operation
+
+**Usage:** `jj purge [OPTIONS]`
+
+###### **Options:**
+
+* `-n`, `--no-dry-run` — Do actual removal of files, instead of just listing them
+
+  Default value: `false`
 
 
 

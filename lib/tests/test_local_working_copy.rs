@@ -735,7 +735,8 @@ fn test_snapshot_racy_timestamps() {
         let new_tree_id = locked_ws
             .locked_wc()
             .snapshot(SnapshotOptions::empty_for_test())
-            .unwrap();
+            .unwrap()
+            .tree_id;
         assert_ne!(new_tree_id, previous_tree_id);
         previous_tree_id = new_tree_id;
     }
@@ -769,7 +770,8 @@ fn test_snapshot_special_file() {
     let tree_id = locked_ws
         .locked_wc()
         .snapshot(SnapshotOptions::empty_for_test())
-        .unwrap();
+        .unwrap()
+        .tree_id;
     locked_ws.finish(OperationId::from_hex("abc123")).unwrap();
     let tree = store.get_root_tree(&tree_id).unwrap();
     // Only the regular files should be in the tree
@@ -1189,6 +1191,7 @@ fn test_fsmonitor() {
                 ..SnapshotOptions::empty_for_test()
             })
             .unwrap()
+            .tree_id
     };
 
     {
