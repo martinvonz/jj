@@ -183,9 +183,8 @@ pub(crate) fn cmd_fix(
                     // We currently only support fixing the content of normal files, so we skip
                     // directories and symlinks, and we ignore the executable bit.
                     if let TreeValue::File { id, executable: _ } = term {
-                        // TODO: Consider filename arguments and tool configuration instead of
-                        // passing every changed file into the tool. Otherwise, the tool has to
-                        // be modified to implement that kind of stuff.
+                        // TODO: Skip the file if its content is larger than some configured size,
+                        // preferably without actually reading it yet.
                         let tool_input = ToolInput {
                             file_id: id.clone(),
                             repo_path: repo_path.clone(),
