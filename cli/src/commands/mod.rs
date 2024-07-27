@@ -40,6 +40,7 @@ mod obslog;
 mod operation;
 mod parallelize;
 mod prev;
+mod purge;
 mod rebase;
 mod resolve;
 mod restore;
@@ -123,6 +124,7 @@ enum Command {
     Operation(operation::OperationCommand),
     Parallelize(parallelize::ParallelizeArgs),
     Prev(prev::PrevArgs),
+    Purge(purge::PurgeArgs),
     Rebase(rebase::RebaseArgs),
     Resolve(resolve::ResolveArgs),
     Restore(restore::RestoreArgs),
@@ -204,6 +206,7 @@ pub fn run_command(ui: &mut Ui, command_helper: &CommandHelper) -> Result<(), Co
         Command::Resolve(args) => resolve::cmd_resolve(ui, command_helper, args),
         Command::Restore(args) => restore::cmd_restore(ui, command_helper, args),
         Command::Revert(_args) => revert(),
+        Command::Purge(args) => purge::cmd_purge(ui, command_helper, args),
         Command::Root(args) => root::cmd_root(ui, command_helper, args),
         Command::Run(args) => run::cmd_run(ui, command_helper, args),
         Command::Show(args) => show::cmd_show(ui, command_helper, args),

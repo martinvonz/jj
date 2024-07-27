@@ -32,7 +32,7 @@ use jj_lib::revset::{
 };
 use jj_lib::signing::SignInitError;
 use jj_lib::str_util::StringPatternParseError;
-use jj_lib::working_copy::{ResetError, SnapshotError, WorkingCopyStateError};
+use jj_lib::working_copy::{NewFileTooLarge, ResetError, SnapshotError, WorkingCopyStateError};
 use jj_lib::workspace::WorkspaceInitError;
 use thiserror::Error;
 
@@ -301,11 +301,12 @@ impl From<OpsetEvaluationError> for CommandError {
 impl From<SnapshotError> for CommandError {
     fn from(err: SnapshotError) -> Self {
         match err {
-            SnapshotError::NewFileTooLarge {
-                path,
-                size,
-                max_size,
-            } => {
+            SnapshotError::NewFileTooLarge(ref e) => {
+                let NewFileTooLarge {
+                    path,
+                    size,
+                    max_size,
+                } = e.first().unwrap();
                 // if the size difference is < 1KiB, then show exact bytes.
                 // otherwise, show in human-readable form; this avoids weird cases
                 // where a file is 400 bytes too large but the error says something
@@ -320,12 +321,16 @@ impl From<SnapshotError> for CommandError {
                     format!("it is {}; the maximum size allowed is ~{}.", size, max_size,)
                 };
 
-                user_error(format!(
-                    "Failed to snapshot the working copy\nThe file '{}' is too large to be \
-                     snapshotted: {}",
-                    path.display(),
-                    err_str,
-                ))
+                let size = size.0;
+                user_error_with_message(
+                    format!(
+                        "Failed to snapshot the working copy\nThe file '{}' is too large to be \
+                         snapshotted: {}",
+                        path.display(),
+                        err_str,
+                    ),
+                    err,
+                )
                 .hinted(format!(
                     "This is to prevent large files from being added on accident. You can fix \
                      this error by:
@@ -334,7 +339,7 @@ impl From<SnapshotError> for CommandError {
     This will increase the maximum file size allowed for new files, in this repository only.
   - Run `jj --config-toml 'snapshot.max-new-file-size={}' st`
     This will increase the maximum file size allowed for new files, for this command only.",
-                    size.0, size.0
+                    size, size
                 ))
             }
             err => internal_error_with_message("Failed to snapshot the working copy", err),

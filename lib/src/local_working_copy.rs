@@ -64,8 +64,8 @@ use crate::settings::HumanByteSize;
 use crate::store::Store;
 use crate::tree::Tree;
 use crate::working_copy::{
-    CheckoutError, CheckoutStats, LockedWorkingCopy, ResetError, SnapshotError, SnapshotOptions,
-    SnapshotProgress, WorkingCopy, WorkingCopyFactory, WorkingCopyStateError,
+    CheckoutError, CheckoutStats, LockedWorkingCopy, NewFileTooLarge, ResetError, SnapshotError,
+    SnapshotOptions, SnapshotProgress, WorkingCopy, WorkingCopyFactory, WorkingCopyStateError,
 };
 
 #[cfg(unix)]
@@ -790,6 +790,8 @@ impl TreeState {
         let (file_states_tx, file_states_rx) = channel();
         let (present_files_tx, present_files_rx) = channel();
 
+        let (files_to_big_tx, files_to_big_rx) = channel();
+
         trace_span!("traverse filesystem").in_scope(|| -> Result<(), SnapshotError> {
             let current_tree = self.current_tree()?;
             let directory_to_visit = DirectoryToVisit {
@@ -807,6 +809,7 @@ impl TreeState {
                 directory_to_visit,
                 progress,
                 max_new_file_size,
+                files_to_big_tx,
             )
         })?;
 
@@ -865,6 +868,11 @@ impl TreeState {
             let state_paths: HashSet<_> = file_states.paths().map(|path| path.to_owned()).collect();
             assert_eq!(state_paths, tree_paths);
         }
+        let failed_files: Vec<_> = files_to_big_rx.iter().collect();
+        if !failed_files.is_empty() {
+            return Err(SnapshotError::NewFileTooLarge(failed_files));
+        }
+
         self.watchman_clock = watchman_clock;
         Ok(is_dirty)
     }
@@ -880,6 +888,7 @@ impl TreeState {
         directory_to_visit: DirectoryToVisit,
         progress: Option<&SnapshotProgress>,
         max_new_file_size: u64,
+        files_to_big: Sender<NewFileTooLarge>,
     ) -> Result<(), SnapshotError> {
         let DirectoryToVisit {
             dir,
@@ -989,6 +998,7 @@ impl TreeState {
                             directory_to_visit,
                             progress,
                             max_new_file_size,
+                            files_to_big.clone(),
                         )?;
                     }
                 } else if matcher.matches(&path) {
@@ -1008,11 +1018,13 @@ impl TreeState {
                         })?;
                         if maybe_current_file_state.is_none() && metadata.len() > max_new_file_size
                         {
-                            return Err(SnapshotError::NewFileTooLarge {
-                                path: entry.path().clone(),
-                                size: HumanByteSize(metadata.len()),
-                                max_size: HumanByteSize(max_new_file_size),
-                            });
+                            files_to_big
+                                .send(NewFileTooLarge {
+                                    path: entry.path().clone(),
+                                    size: HumanByteSize(metadata.len()),
+                                    max_size: HumanByteSize(max_new_file_size),
+                                })
+                                .ok();
                         }
                         if let Some(new_file_state) = file_state(&metadata) {
                             present_files_tx.send(path.clone()).ok();
