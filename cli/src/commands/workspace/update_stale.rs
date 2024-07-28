@@ -34,73 +34,6 @@ use crate::ui::Ui;
 #[derive(clap::Args, Clone, Debug)]
 pub struct WorkspaceUpdateStaleArgs {}
 
-fn create_and_check_out_recovery_commit(
-    ui: &mut Ui,
-    command: &CommandHelper,
-) -> Result<Arc<ReadonlyRepo>, CommandError> {
-    let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
-    let workspace_id = workspace_command.workspace_id().clone();
-    let mut tx = workspace_command.start_transaction().into_inner();
-
-    let (mut locked_workspace, commit) =
-        workspace_command.unchecked_start_working_copy_mutation()?;
-    let commit_id = commit.id();
-
-    let mut_repo = tx.mut_repo();
-    let new_commit = mut_repo
-        .new_commit(
-            command.settings(),
-            vec![commit_id.clone()],
-            commit.tree_id().clone(),
-        )
-        .write()?;
-    mut_repo.set_wc_commit(workspace_id, new_commit.id().clone())?;
-    let repo = tx.commit("recovery commit");
-
-    locked_workspace.locked_wc().recover(&new_commit)?;
-    locked_workspace.finish(repo.op_id().clone())?;
-
-    writeln!(
-        ui.status(),
-        "Created and checked out recovery commit {}",
-        short_commit_hash(new_commit.id())
-    )?;
-
-    Ok(repo)
-}
-
-/// Loads workspace that will diverge from the last working-copy operation.
-fn for_stale_working_copy(
-    ui: &mut Ui,
-    command: &CommandHelper,
-) -> Result<(WorkspaceCommandHelper, bool), CommandError> {
-    let workspace = command.load_workspace()?;
-    let op_store = workspace.repo_loader().op_store();
-    let (repo, recovered) = {
-        let op_id = workspace.working_copy().operation_id();
-        match op_store.read_operation(op_id) {
-            Ok(op_data) => (
-                workspace.repo_loader().load_at(&Operation::new(
-                    op_store.clone(),
-                    op_id.clone(),
-                    op_data,
-                ))?,
-                false,
-            ),
-            Err(e @ OpStoreError::ObjectNotFound { .. }) => {
-                writeln!(
-                    ui.status(),
-                    "Failed to read working copy's current operation; attempting recovery. Error \
-                     message from read attempt: {e}"
-                )?;
-                (create_and_check_out_recovery_commit(ui, command)?, true)
-            }
-            Err(e) => return Err(e.into()),
-        }
-    };
-    Ok((command.for_workable_repo(ui, workspace, repo)?, recovered))
-}
-
 #[instrument(skip_all)]
 pub fn cmd_workspace_update_stale(
     ui: &mut Ui,
@@ -167,4 +100,71 @@ pub fn cmd_workspace_update_stale(
         }
     }
     Ok(())
+}
+
+fn create_and_check_out_recovery_commit(
+    ui: &mut Ui,
+    command: &CommandHelper,
+) -> Result<Arc<ReadonlyRepo>, CommandError> {
+    let mut workspace_command = command.workspace_helper_no_snapshot(ui)?;
+    let workspace_id = workspace_command.workspace_id().clone();
+    let mut tx = workspace_command.start_transaction().into_inner();
+
+    let (mut locked_workspace, commit) =
+        workspace_command.unchecked_start_working_copy_mutation()?;
+    let commit_id = commit.id();
+
+    let mut_repo = tx.mut_repo();
+    let new_commit = mut_repo
+        .new_commit(
+            command.settings(),
+            vec![commit_id.clone()],
+            commit.tree_id().clone(),
+        )
+        .write()?;
+    mut_repo.set_wc_commit(workspace_id, new_commit.id().clone())?;
+    let repo = tx.commit("recovery commit");
+
+    locked_workspace.locked_wc().recover(&new_commit)?;
+    locked_workspace.finish(repo.op_id().clone())?;
+
+    writeln!(
+        ui.status(),
+        "Created and checked out recovery commit {}",
+        short_commit_hash(new_commit.id())
+    )?;
+
+    Ok(repo)
+}
+
+/// Loads workspace that will diverge from the last working-copy operation.
+fn for_stale_working_copy(
+    ui: &mut Ui,
+    command: &CommandHelper,
+) -> Result<(WorkspaceCommandHelper, bool), CommandError> {
+    let workspace = command.load_workspace()?;
+    let op_store = workspace.repo_loader().op_store();
+    let (repo, recovered) = {
+        let op_id = workspace.working_copy().operation_id();
+        match op_store.read_operation(op_id) {
+            Ok(op_data) => (
+                workspace.repo_loader().load_at(&Operation::new(
+                    op_store.clone(),
+                    op_id.clone(),
+                    op_data,
+                ))?,
+                false,
+            ),
+            Err(e @ OpStoreError::ObjectNotFound { .. }) => {
+                writeln!(
+                    ui.status(),
+                    "Failed to read working copy's current operation; attempting recovery. Error \
+                     message from read attempt: {e}"
+                )?;
+                (create_and_check_out_recovery_commit(ui, command)?, true)
+            }
+            Err(e) => return Err(e.into()),
+        }
+    };
+    Ok((command.for_workable_repo(ui, workspace, repo)?, recovered))
 }
