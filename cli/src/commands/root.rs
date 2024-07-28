@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::io::Write as _;
+
 use tracing::instrument;
 
 use crate::cli_util::CommandHelper;
-use crate::command_error::CommandError;
-use crate::commands::workspace;
+use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
 /// Show the current workspace root directory
@@ -29,9 +30,11 @@ pub(crate) fn cmd_root(
     command: &CommandHelper,
     RootArgs {}: &RootArgs,
 ) -> Result<(), CommandError> {
-    workspace::cmd_workspace(
-        ui,
-        command,
-        &workspace::WorkspaceCommand::Root(workspace::WorkspaceRootArgs {}),
-    )
+    let root = command
+        .workspace_loader()?
+        .workspace_root()
+        .to_str()
+        .ok_or_else(|| user_error("The workspace root is not valid UTF-8"))?;
+    writeln!(ui.stdout(), "{root}")?;
+    Ok(())
 }
