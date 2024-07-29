@@ -145,18 +145,20 @@ pub(crate) fn cmd_obslog(
             for predecessor in commit.predecessors() {
                 edges.push(Edge::Direct(predecessor?.id().clone()));
             }
+            let graph_width = || graph.width(commit.id(), &edges);
             let mut buffer = vec![];
             with_content_format.write_graph_text(
                 ui.new_formatter(&mut buffer).as_mut(),
                 |formatter| template.format(&commit, formatter),
-                || graph.width(commit.id(), &edges),
+                graph_width,
             )?;
             if !buffer.ends_with(b"\n") {
                 buffer.push(b'\n');
             }
             if let Some(renderer) = &diff_renderer {
                 let mut formatter = ui.new_formatter(&mut buffer);
-                show_predecessor_patch(ui, repo, renderer, formatter.as_mut(), &commit)?;
+                let width = usize::saturating_sub(ui.term_width(), graph_width());
+                show_predecessor_patch(ui, repo, renderer, formatter.as_mut(), &commit, width)?;
             }
             let node_symbol = format_template(ui, &Some(commit.clone()), &node_template);
             graph.add_node(
@@ -171,7 +173,8 @@ pub(crate) fn cmd_obslog(
             with_content_format
                 .write(formatter, |formatter| template.format(&commit, formatter))?;
             if let Some(renderer) = &diff_renderer {
-                show_predecessor_patch(ui, repo, renderer, formatter, &commit)?;
+                let width = ui.term_width();
+                show_predecessor_patch(ui, repo, renderer, formatter, &commit, width)?;
             }
         }
     }
@@ -185,6 +188,7 @@ fn show_predecessor_patch(
     renderer: &DiffRenderer,
     formatter: &mut dyn Formatter,
     commit: &Commit,
+    width: usize,
 ) -> Result<(), CommandError> {
     let mut predecessors = commit.predecessors();
     let predecessor = match predecessors.next() {
@@ -193,6 +197,13 @@ fn show_predecessor_patch(
     };
     let predecessor_tree = rebase_to_dest_parent(repo, &predecessor, commit)?;
     let tree = commit.tree()?;
-    renderer.show_diff(ui, formatter, &predecessor_tree, &tree, &EverythingMatcher)?;
+    renderer.show_diff(
+        ui,
+        formatter,
+        &predecessor_tree,
+        &tree,
+        &EverythingMatcher,
+        width,
+    )?;
     Ok(())
 }

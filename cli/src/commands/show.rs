@@ -56,6 +56,6 @@ pub(crate) fn cmd_show(
     let mut formatter = ui.stdout_formatter();
     let formatter = formatter.as_mut();
     template.format(&commit, formatter)?;
-    diff_renderer.show_patch(ui, formatter, &commit, &EverythingMatcher)?;
+    diff_renderer.show_patch(ui, formatter, &commit, &EverythingMatcher, ui.term_width())?;
     Ok(())
 }

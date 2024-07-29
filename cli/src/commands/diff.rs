@@ -84,6 +84,7 @@ pub(crate) fn cmd_diff(
         &from_tree,
         &to_tree,
         matcher.as_ref(),
+        ui.term_width(),
     )?;
     print_unmatched_explicit_paths(
         ui,

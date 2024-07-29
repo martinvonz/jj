@@ -224,6 +224,7 @@ pub fn show_op_diff(
                     .iter()
                     .map(|edge| Edge::Direct(edge.target.clone()))
                     .collect_vec();
+                let graph_width = || graph.width(&change_id, &edges);
 
                 let mut buffer = vec![];
                 with_content_format.write_graph_text(
@@ -236,19 +237,21 @@ pub fn show_op_diff(
                             modified_change,
                         )
                     },
-                    || graph.width(&change_id, &edges),
+                    graph_width,
                 )?;
                 if !buffer.ends_with(b"\n") {
                     buffer.push(b'\n');
                 }
                 if let Some(diff_renderer) = &diff_renderer {
                     let mut formatter = ui.new_formatter(&mut buffer);
+                    let width = usize::saturating_sub(ui.term_width(), graph_width());
                     show_change_diff(
                         ui,
                         formatter.as_mut(),
                         current_repo,
                         diff_renderer,
                         modified_change,
+                        width,
                     )?;
                 }
 
@@ -271,7 +274,15 @@ pub fn show_op_diff(
                     modified_change,
                 )?;
                 if let Some(diff_renderer) = &diff_renderer {
-                    show_change_diff(ui, formatter, current_repo, diff_renderer, modified_change)?;
+                    let width = ui.term_width();
+                    show_change_diff(
+                        ui,
+                        formatter,
+                        current_repo,
+                        diff_renderer,
+                        modified_change,
+                        width,
+                    )?;
                 }
             }
         }
@@ -543,20 +554,28 @@ fn show_change_diff(
     repo: &dyn Repo,
     diff_renderer: &DiffRenderer,
     modified_change: &ModifiedChange,
+    width: usize,
 ) -> Result<(), CommandError> {
     if modified_change.added_commits.len() == 1 && modified_change.removed_commits.len() == 1 {
         let commit = &modified_change.added_commits[0];
         let predecessor = &modified_change.removed_commits[0];
         let predecessor_tree = rebase_to_dest_parent(repo, predecessor, commit)?;
         let tree = commit.tree()?;
-        diff_renderer.show_diff(ui, formatter, &predecessor_tree, &tree, &EverythingMatcher)?;
+        diff_renderer.show_diff(
+            ui,
+            formatter,
+            &predecessor_tree,
+            &tree,
+            &EverythingMatcher,
+            width,
+        )?;
     } else if modified_change.added_commits.len() == 1 {
         let commit = &modified_change.added_commits[0];
-        diff_renderer.show_patch(ui, formatter, commit, &EverythingMatcher)?;
+        diff_renderer.show_patch(ui, formatter, commit, &EverythingMatcher, width)?;
     } else if modified_change.removed_commits.len() == 1 {
         // TODO: Should we show a reverse diff?
         let commit = &modified_change.removed_commits[0];
-        diff_renderer.show_patch(ui, formatter, commit, &EverythingMatcher)?;
+        diff_renderer.show_patch(ui, formatter, commit, &EverythingMatcher, width)?;
     }
 
     Ok(())

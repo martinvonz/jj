@@ -193,17 +193,25 @@ pub(crate) fn cmd_log(
                 let mut buffer = vec![];
                 let key = (commit_id, false);
                 let commit = store.get_commit(&key.0)?;
+                let graph_width = || graph.width(&key, &graphlog_edges);
                 with_content_format.write_graph_text(
                     ui.new_formatter(&mut buffer).as_mut(),
                     |formatter| template.format(&commit, formatter),
-                    || graph.width(&key, &graphlog_edges),
+                    graph_width,
                 )?;
                 if !buffer.ends_with(b"\n") {
                     buffer.push(b'\n');
                 }
                 if let Some(renderer) = &diff_renderer {
                     let mut formatter = ui.new_formatter(&mut buffer);
-                    renderer.show_patch(ui, formatter.as_mut(), &commit, matcher.as_ref())?;
+                    let width = usize::saturating_sub(ui.term_width(), graph_width());
+                    renderer.show_patch(
+                        ui,
+                        formatter.as_mut(),
+                        &commit,
+                        matcher.as_ref(),
+                        width,
+                    )?;
                 }
 
                 let node_symbol = format_template(ui, &Some(commit), &node_template);
@@ -243,7 +251,8 @@ pub(crate) fn cmd_log(
                 with_content_format
                     .write(formatter, |formatter| template.format(&commit, formatter))?;
                 if let Some(renderer) = &diff_renderer {
-                    renderer.show_patch(ui, formatter, &commit, matcher.as_ref())?;
+                    let width = ui.term_width();
+                    renderer.show_patch(ui, formatter, &commit, matcher.as_ref(), width)?;
                 }
             }
         }

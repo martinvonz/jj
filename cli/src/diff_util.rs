@@ -245,6 +245,7 @@ impl<'a> DiffRenderer<'a> {
         from_tree: &MergedTree,
         to_tree: &MergedTree,
         matcher: &dyn Matcher,
+        width: usize,
     ) -> Result<(), DiffRenderError> {
         let store = self.repo.store();
         let path_converter = self.path_converter;
@@ -256,8 +257,6 @@ impl<'a> DiffRenderer<'a> {
                 }
                 DiffFormat::Stat => {
                     let tree_diff = from_tree.diff_stream(to_tree, matcher);
-                    // TODO: In graph log, graph width should be subtracted
-                    let width = ui.term_width();
                     show_diff_stat(formatter, store, tree_diff, path_converter, width)?;
                 }
                 DiffFormat::Types => {
@@ -307,10 +306,11 @@ impl<'a> DiffRenderer<'a> {
         formatter: &mut dyn Formatter,
         commit: &Commit,
         matcher: &dyn Matcher,
+        width: usize,
     ) -> Result<(), DiffRenderError> {
         let from_tree = commit.parent_tree(self.repo)?;
         let to_tree = commit.tree()?;
-        self.show_diff(ui, formatter, &from_tree, &to_tree, matcher)
+        self.show_diff(ui, formatter, &from_tree, &to_tree, matcher, width)
     }
 }
 

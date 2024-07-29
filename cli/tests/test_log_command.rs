@@ -1378,6 +1378,53 @@ fn test_log_word_wrap() {
 }
 
 #[test]
+fn test_log_diff_stat_width() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    let render = |args: &[&str], columns: u32| {
+        let assert = test_env
+            .jj_cmd(&repo_path, args)
+            .env("COLUMNS", columns.to_string())
+            .assert()
+            .success()
+            .stderr("");
+        get_stdout_string(&assert)
+    };
+
+    std::fs::write(repo_path.join("file1"), "foo\n".repeat(100)).unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["new", "root()"]);
+    std::fs::write(repo_path.join("file2"), "foo\n".repeat(100)).unwrap();
+
+    insta::assert_snapshot!(render(&["log", "--stat", "--no-graph"], 30), @r###"
+    rlvkpnrz test.user@example.com 2001-02-03 08:05:09 287520bf
+    (no description set)
+    file2 | 100 +++++++++++++++
+    1 file changed, 100 insertions(+), 0 deletions(-)
+    qpvuntsm test.user@example.com 2001-02-03 08:05:08 e292def1
+    (no description set)
+    file1 | 100 +++++++++++++++
+    1 file changed, 100 insertions(+), 0 deletions(-)
+    zzzzzzzz root() 00000000
+    0 files changed, 0 insertions(+), 0 deletions(-)
+    "###);
+
+    // Graph width should be subtracted
+    insta::assert_snapshot!(render(&["log", "--stat"], 30), @r###"
+    @  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 287520bf
+    │  (no description set)
+    │  file2 | 100 ++++++++++++
+    │  1 file changed, 100 insertions(+), 0 deletions(-)
+    │ ○  qpvuntsm test.user@example.com 2001-02-03 08:05:08 e292def1
+    ├─╯  (no description set)
+    │    file1 | 100 ++++++++++
+    │    1 file changed, 100 insertions(+), 0 deletions(-)
+    ◆  zzzzzzzz root() 00000000
+       0 files changed, 0 insertions(+), 0 deletions(-)
+    "###);
+}
+
+#[test]
 fn test_elided() {
     // Test that elided commits are shown as synthetic nodes.
     let test_env = TestEnvironment::default();
