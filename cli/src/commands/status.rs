@@ -66,7 +66,8 @@ pub(crate) fn cmd_status(
         } else {
             writeln!(formatter, "Working copy changes:")?;
             let diff_renderer = workspace_command.diff_renderer(vec![DiffFormat::Summary]);
-            diff_renderer.show_diff(ui, formatter, &parent_tree, &tree, &matcher)?;
+            let width = ui.term_width();
+            diff_renderer.show_diff(ui, formatter, &parent_tree, &tree, &matcher, width)?;
         }
 
         // TODO: Conflicts should also be filtered by the `matcher`. See the related
