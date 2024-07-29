@@ -257,7 +257,7 @@ impl<'a> DiffRenderer<'a> {
                 DiffFormat::Stat => {
                     let tree_diff = from_tree.diff_stream(to_tree, matcher);
                     // TODO: In graph log, graph width should be subtracted
-                    let width = usize::from(ui.term_width().unwrap_or(80));
+                    let width = ui.term_width();
                     show_diff_stat(formatter, store, tree_diff, path_converter, width)?;
                 }
                 DiffFormat::Types => {

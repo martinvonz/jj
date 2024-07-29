@@ -2139,7 +2139,7 @@ pub enum LogContentFormat {
 impl LogContentFormat {
     pub fn new(ui: &Ui, settings: &UserSettings) -> Result<Self, config::ConfigError> {
         if settings.config().get_bool("ui.log-word-wrap")? {
-            let term_width = usize::from(ui.term_width().unwrap_or(80));
+            let term_width = ui.term_width();
             Ok(LogContentFormat::Wrap { term_width })
         } else {
             Ok(LogContentFormat::NoWrap)
