@@ -578,8 +578,8 @@ impl Ui {
         rpassword::prompt_password(format!("{prompt}: "))
     }
 
-    pub fn term_width(&self) -> Option<u16> {
-        term_width()
+    pub fn term_width(&self) -> usize {
+        term_width().unwrap_or(80).into()
     }
 }
 
