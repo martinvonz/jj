@@ -38,7 +38,8 @@ fn set_up() -> (TestEnvironment, PathBuf) {
             "git",
             "clone",
             "--config-toml=git.auto-local-branch=true",
-            origin_git_repo_path.to_str().unwrap(),
+            // Git and libgit2 > 1.8 do not allow backslashes in remote names
+            &origin_git_repo_path.to_str().unwrap().replace("\\", "/"),
             "local",
         ],
     );
