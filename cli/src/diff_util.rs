@@ -984,7 +984,7 @@ fn show_unified_diff_hunks(
                             .with_label("token", |formatter| formatter.write_all(content))?,
                     }
                 }
-                Ok(())
+                io::Result::Ok(())
             })?;
             let (_, content) = tokens.last().expect("hunk line must not be empty");
             if !content.ends_with(b"\n") {
@@ -1036,7 +1036,7 @@ pub fn show_git_diff(
                     }
                     (None, None) => panic!("either left or right part should be present"),
                 }
-                Ok(())
+                io::Result::Ok(())
             })?;
 
             if left_part.content.contents == right_part.content.contents {
@@ -1061,7 +1061,7 @@ pub fn show_git_diff(
                 formatter.with_label("file_header", |formatter| {
                     writeln!(formatter, "--- {left_path}")?;
                     writeln!(formatter, "+++ {right_path}")?;
-                    Ok(())
+                    io::Result::Ok(())
                 })?;
                 show_unified_diff_hunks(
                     formatter,
@@ -1210,7 +1210,7 @@ pub fn show_diff_stat(
             total_removed,
             if total_removed == 1 { "" } else { "s" },
         )?;
-        Ok(())
+        io::Result::Ok(())
     })?;
     Ok(())
 }

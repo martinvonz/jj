@@ -42,15 +42,15 @@ impl dyn Formatter + '_ {
         }
     }
 
-    pub fn with_label(
+    pub fn with_label<E: From<io::Error>>(
         &mut self,
         label: &str,
-        write_inner: impl FnOnce(&mut dyn Formatter) -> io::Result<()>,
-    ) -> io::Result<()> {
+        write_inner: impl FnOnce(&mut dyn Formatter) -> Result<(), E>,
+    ) -> Result<(), E> {
         self.push_label(label)?;
         // Call `pop_label()` whether or not `write_inner()` fails, but don't let
         // its error replace the one from `write_inner()`.
-        write_inner(self).and(self.pop_label())
+        write_inner(self).and(self.pop_label().map_err(Into::into))
     }
 }
 
