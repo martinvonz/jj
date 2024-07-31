@@ -1008,6 +1008,46 @@ fn test_log_diff_predefined_formats() {
     [38;5;6mM file2[39m
     "###);
 
+    // color labels
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "--no-graph", "--color=debug", "-r@", "-T", template],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    <<log::=== color_words ===>>
+    [38;5;3m<<log diff color_words diff header::Modified regular file file1:>>[39m
+    [38;5;1m<<log diff color_words diff removed line_number::   1>>[39m<<log diff color_words diff:: >>[38;5;2m<<log diff color_words diff added line_number::   1>>[39m<<log diff color_words diff::: a>>
+    [38;5;1m<<log diff color_words diff removed line_number::   2>>[39m<<log diff color_words diff:: >>[38;5;2m<<log diff color_words diff added line_number::   2>>[39m<<log diff color_words diff::: b>>
+    <<log diff color_words diff::     >>[38;5;2m<<log diff color_words diff added line_number::   3>>[39m<<log diff color_words diff::: >>[4m[38;5;2m<<log diff color_words diff added token::c>>[24m[39m
+    [38;5;3m<<log diff color_words diff header::Modified regular file file2:>>[39m
+    [38;5;1m<<log diff color_words diff removed line_number::   1>>[39m<<log diff color_words diff:: >>[38;5;2m<<log diff color_words diff added line_number::   1>>[39m<<log diff color_words diff::: >>[4m[38;5;1m<<log diff color_words diff removed token::a>>[38;5;2m<<log diff color_words diff added token::b>>[24m[39m<<log diff color_words diff::>>
+    <<log diff color_words diff::     >>[38;5;2m<<log diff color_words diff added line_number::   2>>[39m<<log diff color_words diff::: >>[4m[38;5;2m<<log diff color_words diff added token::c>>[24m[39m
+    <<log::=== git ===>>
+    [1m<<log diff git diff file_header::diff --git a/file1 b/file1>>[0m
+    [1m<<log diff git diff file_header::index 422c2b7ab3..de980441c3 100644>>[0m
+    [1m<<log diff git diff file_header::--- a/file1>>[0m
+    [1m<<log diff git diff file_header::+++ b/file1>>[0m
+    [38;5;6m<<log diff git diff hunk_header::@@ -1,2 +1,3 @@>>[39m
+    <<log diff git diff context:: a>>
+    <<log diff git diff context:: b>>
+    [38;5;2m<<log diff git diff added::+>>[4m<<log diff git diff added token::c>>[24m[39m
+    [1m<<log diff git diff file_header::diff --git a/file2 b/file2>>[0m
+    [1m<<log diff git diff file_header::index 7898192261..9ddeb5c484 100644>>[0m
+    [1m<<log diff git diff file_header::--- a/file2>>[0m
+    [1m<<log diff git diff file_header::+++ b/file2>>[0m
+    [38;5;6m<<log diff git diff hunk_header::@@ -1,1 +1,2 @@>>[39m
+    [38;5;1m<<log diff git diff removed::->>[4m<<log diff git diff removed token::a>>[24m<<log diff git diff removed::>>[39m
+    [38;5;2m<<log diff git diff added::+>>[4m<<log diff git diff added token::b>>[24m<<log diff git diff added::>>[39m
+    [38;5;2m<<log diff git diff added::+>>[4m<<log diff git diff added token::c>>[24m[39m
+    <<log::=== stat ===>>
+    <<log diff stat diff::file1 | 1 >>[38;5;2m<<log diff stat diff added::+>>[38;5;1m<<log diff stat diff removed::>>[39m
+    <<log diff stat diff::file2 | 3 >>[38;5;2m<<log diff stat diff added::++>>[38;5;1m<<log diff stat diff removed::->>[39m
+    <<log diff stat diff stat-summary::2 files changed, 3 insertions(+), 1 deletion(-)>>
+    <<log::=== summary ===>>
+    [38;5;6m<<log diff summary diff modified::M file1>>[39m
+    [38;5;6m<<log diff summary diff modified::M file2>>[39m
+    "###);
+
     // cwd != workspace root
     let stdout = test_env.jj_cmd_success(
         test_env.env_root(),
