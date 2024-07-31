@@ -17,6 +17,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use itertools::Itertools as _;
+use path_slash::PathBufExt;
 use regex::{Captures, Regex};
 use tempfile::TempDir;
 
@@ -320,13 +321,14 @@ impl TestEnvironment {
     pub fn normalize_output(&self, text: &str) -> String {
         let text = text.replace("jj.exe", "jj");
         let regex = Regex::new(&format!(
-            r"{}(\S+)",
-            regex::escape(&self.env_root.display().to_string())
+            r"({}|{})(\S+)",
+            regex::escape(&self.env_root.display().to_string()),
+            regex::escape(&self.env_root.to_slash_lossy())
         ))
         .unwrap();
         regex
             .replace_all(&text, |caps: &Captures| {
-                format!("$TEST_ENV{}", caps[1].replace('\\', "/"))
+                format!("$TEST_ENV{}", caps[2].replace('\\', "/"))
             })
             .to_string()
     }

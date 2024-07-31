@@ -20,6 +20,7 @@ use jj_lib::git::{self, GitFetchError, GitFetchStats};
 use jj_lib::repo::Repo;
 use jj_lib::str_util::StringPattern;
 use jj_lib::workspace::Workspace;
+use path_slash::PathBufExt;
 
 use crate::cli_util::{CommandHelper, WorkspaceCommandHelper};
 use crate::command_error::{cli_error, user_error, user_error_with_message, CommandError};
@@ -53,12 +54,17 @@ fn absolute_git_source(cwd: &Path, source: &str) -> String {
     // be tedious to copy the exact git (or libgit2) behavior, we simply assume a
     // source containing ':' is a URL, SSH remote, or absolute path with Windows
     // drive letter.
+    // TODO: Match "This syntax is only recognized if there are no slashes before the first colon" from https://git-scm.com/docs/git-clone#_git_urls
+    // TODO: Pass paths like `c:\qq` to path_slash
     if !source.contains(':') && Path::new(source).exists() {
-        // It's less likely that cwd isn't utf-8, so just fall back to original source.
-        cwd.join(source)
-            .into_os_string()
-            .into_string()
-            .unwrap_or_else(|_| source.to_owned())
+        // TODO: This won't work for Windows UNC path or (less importantly) if the
+        // original source is a non-UTF Windows path. For Windows UNC paths, we
+        // could use dunce, though see also https://gitlab.com/kornelski/dunce/-/issues/7
+        cwd.join(source).to_slash().map_or_else(
+            // It's less likely that cwd isn't utf-8, so just fall back to original source.
+            || source.to_owned(),
+            |s| s.to_string(),
+        )
     } else {
         source.to_owned()
     }
