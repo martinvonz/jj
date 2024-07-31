@@ -1932,6 +1932,7 @@ dependencies = [
  "maplit",
  "num_cpus",
  "once_cell",
+ "path-slash",
  "pest",
  "pest_derive",
  "pollster",

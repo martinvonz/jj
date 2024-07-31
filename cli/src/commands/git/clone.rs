@@ -16,11 +16,10 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-use jj_lib::git::{self, GitFetchError, GitFetchStats};
+use jj_lib::git::{self, sanitize_git_url_if_path, GitFetchError, GitFetchStats};
 use jj_lib::repo::Repo;
 use jj_lib::str_util::StringPattern;
 use jj_lib::workspace::Workspace;
-use path_slash::PathBufExt;
 
 use crate::cli_util::{CommandHelper, WorkspaceCommandHelper};
 use crate::command_error::{cli_error, user_error, user_error_with_message, CommandError};
@@ -48,37 +47,6 @@ pub struct GitCloneArgs {
     colocate: bool,
 }
 
-fn looks_like_a_path_to_git(source: &str) -> bool {
-    source.chars().nth(1) == Some(':') || // Looks like a Windows C:... path
-    // Match Git's behavior, the URL syntax [is only recognized if there are no
-    // slashes before the first
-    // colon](https://git-scm.com/docs/git-clone#_git_urls)
-    !source
-        .split_once("/")  
-        .map_or(source, |(first, _)| first)
-        .contains(":")
-}
-
-fn absolute_git_source(cwd: &Path, source: &str) -> String {
-    // Git appears to turn URL-like source to absolute path if local git directory
-    // exits, and fails because '$PWD/https' is unsupported protocol. Since it would
-    // be tedious to copy the exact git (or libgit2) behavior, we simply assume a
-    // source containing ':' is a URL, SSH remote, or absolute path with Windows
-    // drive letter.
-    if looks_like_a_path_to_git(source) && Path::new(source).exists() {
-        // TODO: This won't work for Windows UNC path or (less importantly) if the
-        // original source is a non-UTF Windows path. For Windows UNC paths, we
-        // could use dunce, though see also https://gitlab.com/kornelski/dunce/-/issues/7
-        cwd.join(source).to_slash().map_or_else(
-            // It's less likely that cwd isn't utf-8, so just fall back to original source.
-            || source.to_owned(),
-            |s| s.to_string(),
-        )
-    } else {
-        source.to_owned()
-    }
-}
-
 fn clone_destination_for_source(source: &str) -> Option<&str> {
     let destination = source.strip_suffix(".git").unwrap_or(source);
     let destination = destination.strip_suffix('/').unwrap_or(destination);
@@ -104,7 +72,7 @@ pub fn cmd_git_clone(
         return Err(cli_error("--at-op is not respected"));
     }
     let remote_name = "origin";
-    let source = absolute_git_source(command.cwd(), &args.source);
+    let source = sanitize_git_url_if_path(command.cwd(), &args.source);
     let wc_path_str = args
         .destination
         .as_deref()
