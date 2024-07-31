@@ -295,6 +295,79 @@ fn test_log_with_or_without_diff() {
 }
 
 #[test]
+fn test_diff_revisions_restriction() {
+    let test_env = TestEnvironment::default();
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+
+    std::fs::write(repo_path.join("file1"), "foo\n").unwrap();
+    test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "add a file"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m", "a new commit"]);
+    std::fs::write(repo_path.join("file1"), "foo\nbar\n").unwrap();
+
+    // diff-revisions doesn't affect output when summary or patch is not requested.
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-T", "description", "--diff-revisions=@"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @  a new commit
+    ◉  add a file
+    ◉
+    "###);
+
+    // `-p` for default diff output, restrict to @
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-T", "description", "-p", "--diff-revisions=@"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @  a new commit
+    │  Modified regular file file1:
+    │     1    1: foo
+    │          2: bar
+    ◉  add a file
+    ◉
+    "###);
+
+    // `-p` for default diff output, `-s` for summary, restrict to @
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &["log", "-T", "description", "-p", "-s", "--diff-revisions=@"],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @  a new commit
+    │  M file1
+    │  Modified regular file file1:
+    │     1    1: foo
+    │          2: bar
+    ◉  add a file
+    ◉
+    "###);
+
+    // `-s` for summary, restrict to @-
+    let stdout = test_env.jj_cmd_success(
+        &repo_path,
+        &[
+            "log",
+            "-T",
+            "description",
+            "-p",
+            "-s",
+            "--diff-revisions=@-",
+        ],
+    );
+    insta::assert_snapshot!(stdout, @r###"
+    @  a new commit
+    ◉  add a file
+    │  A file1
+    │  Added regular file file1:
+    │          1: foo
+    ◉
+    "###);
+}
+
+#[test]
 fn test_log_null_terminate_multiline_descriptions() {
     let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
