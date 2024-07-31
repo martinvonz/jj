@@ -15,6 +15,7 @@
 use std::io::{IsTerminal as _, Stderr, StderrLock, Stdout, StdoutLock, Write};
 use std::process::{Child, ChildStdin, Stdio};
 use std::str::FromStr;
+use std::sync::{Arc, RwLock};
 use std::thread::JoinHandle;
 use std::{env, fmt, io, mem};
 
@@ -45,7 +46,7 @@ enum UiOutput {
 
 /// A builtin pager
 pub struct BuiltinPager {
-    pager: MinusPager,
+    pager: Arc<RwLock<Option<MinusPager>>>,
     dynamic_pager_thread: JoinHandle<()>,
 }
 
@@ -56,8 +57,14 @@ impl Write for &BuiltinPager {
     }
 
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let pager = self
+            .pager
+            .read()
+            .unwrap()
+            .clone()
+            .ok_or_else(|| io::Error::from(io::ErrorKind::BrokenPipe))?;
         let string = std::str::from_utf8(buf).map_err(io::Error::other)?;
-        self.pager.push_str(string).map_err(io::Error::other)?;
+        pager.push_str(string).map_err(io::Error::other)?;
         Ok(buf.len())
     }
 }
@@ -70,6 +77,7 @@ impl Default for BuiltinPager {
 
 impl BuiltinPager {
     pub fn finalize(self) {
+        self.pager.write().unwrap().take();
         let dynamic_pager_thread = self.dynamic_pager_thread;
         dynamic_pager_thread.join().unwrap();
     }
@@ -81,13 +89,24 @@ impl BuiltinPager {
         pager
             .set_exit_strategy(minus::ExitStrategy::PagerQuit)
             .expect("Able to set the exit strategy");
-        let pager_handle = pager.clone();
+        let pager_handle = Arc::new(RwLock::new(Some(pager.clone())));
+
+        pager
+            .add_exit_callback(Box::new({
+                let pager_handle = pager_handle.clone();
+                move || {
+                    pager_handle.write().unwrap().take();
+                }
+            }))
+            .unwrap();
 
         BuiltinPager {
-            pager,
+            pager: pager_handle.clone(),
             dynamic_pager_thread: std::thread::spawn(move || {
                 // This thread handles the actual paging.
-                minus::dynamic_paging(pager_handle).unwrap();
+                let res = minus::dynamic_paging(pager);
+                pager_handle.write().unwrap().take();
+                res.unwrap();
             }),
         }
     }
