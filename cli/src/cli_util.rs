@@ -1971,7 +1971,7 @@ pub fn print_conflicted_paths(
                     }
                 };
             }
-            Ok(())
+            io::Result::Ok(())
         })?;
         writeln!(formatter)?;
     }

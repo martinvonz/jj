@@ -136,8 +136,7 @@ pub fn cmd_op_diff(
                 &to_op.metadata().description
             }
         )?;
-        writeln!(formatter)?;
-        Ok(())
+        writeln!(formatter)
     })?;
 
     show_op_diff(

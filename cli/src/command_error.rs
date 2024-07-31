@@ -738,7 +738,6 @@ fn print_error_hints(ui: &Ui, hints: &[ErrorHint]) -> io::Result<()> {
             match hint {
                 ErrorHint::PlainText(message) => {
                     writeln!(formatter, "{message}")?;
-                    Ok(())
                 }
                 ErrorHint::Formatted(recorded) => {
                     recorded.replay(formatter)?;
@@ -747,9 +746,9 @@ fn print_error_hints(ui: &Ui, hints: &[ErrorHint]) -> io::Result<()> {
                     if !recorded.data().ends_with(b"\n") {
                         writeln!(formatter)?;
                     }
-                    Ok(())
                 }
             }
+            io::Result::Ok(())
         })?;
     }
     Ok(())
