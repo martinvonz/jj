@@ -131,17 +131,29 @@ fn init_working_copy(
 }
 
 impl Workspace {
-    fn new(
+    pub fn new(
         workspace_root: &Path,
         working_copy: Box<dyn WorkingCopy>,
         repo_loader: RepoLoader,
     ) -> Result<Workspace, PathError> {
         let workspace_root = workspace_root.canonicalize().context(workspace_root)?;
-        Ok(Workspace {
+        Ok(Self::new_no_canonicalize(
+            workspace_root,
+            working_copy,
+            repo_loader,
+        ))
+    }
+
+    pub fn new_no_canonicalize(
+        workspace_root: PathBuf,
+        working_copy: Box<dyn WorkingCopy>,
+        repo_loader: RepoLoader,
+    ) -> Self {
+        Self {
             workspace_root,
             repo_loader,
             working_copy,
-        })
+        }
     }
 
     pub fn init_local(
