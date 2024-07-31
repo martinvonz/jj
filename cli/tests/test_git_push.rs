@@ -1235,8 +1235,6 @@ fn test_git_push_moved_sideways_untracked() {
 }
 
 #[test]
-// TODO: This test fails with libgit2 v1.8.1 on Windows.
-#[cfg(not(target_os = "windows"))]
 fn test_git_push_to_remote_named_git() {
     let (test_env, workspace_root) = set_up();
     let git_repo = {

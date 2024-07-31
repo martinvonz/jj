@@ -136,30 +136,31 @@ fn test_immutable_heads_set_to_working_copy() {
 #[test]
 fn test_new_wc_commit_when_wc_immutable_multi_workspace() {
     let test_env = TestEnvironment::default();
-    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init"]);
-    test_env.jj_cmd_ok(test_env.env_root(), &["branch", "create", "main"]);
+    test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
+    let repo_path = test_env.env_root().join("repo");
+    test_env.jj_cmd_ok(&repo_path, &["branch", "create", "main"]);
     test_env.add_config(r#"revset-aliases."immutable_heads()" = "main""#);
-    test_env.jj_cmd_ok(test_env.env_root(), &["new", "-m=a"]);
-    test_env.jj_cmd_ok(test_env.env_root(), &["workspace", "add", "workspace1"]);
+    test_env.jj_cmd_ok(&repo_path, &["new", "-m=a"]);
+    test_env.jj_cmd_ok(&repo_path, &["workspace", "add", "../workspace1"]);
     let workspace1_envroot = test_env.env_root().join("workspace1");
-    test_env.jj_cmd_ok(workspace1_envroot.as_path(), &["edit", "default@"]);
-    let (_, stderr) = test_env.jj_cmd_ok(test_env.env_root(), &["branch", "set", "main"]);
+    test_env.jj_cmd_ok(&workspace1_envroot, &["edit", "default@"]);
+    let (_, stderr) = test_env.jj_cmd_ok(&repo_path, &["branch", "set", "main"]);
     insta::assert_snapshot!(stderr, @r###"
-    Moved 1 branches to kkmpptxz 40cbbd52 main | a
+    Moved 1 branches to kkmpptxz 7796c4df main | (empty) a
     Warning: The working-copy commit in workspace 'default' became immutable, so a new commit has been created on top of it.
     Warning: The working-copy commit in workspace 'workspace1' became immutable, so a new commit has been created on top of it.
-    Working copy now at: royxmykx 5bcb7da6 (empty) (no description set)
-    Parent commit      : kkmpptxz 40cbbd52 main | a
+    Working copy now at: royxmykx 896465c4 (empty) (no description set)
+    Parent commit      : kkmpptxz 7796c4df main | (empty) a
     "###);
-    test_env.jj_cmd_ok(workspace1_envroot.as_path(), &["workspace", "update-stale"]);
-    let (stdout, _) = test_env.jj_cmd_ok(workspace1_envroot.as_path(), &["log", "--no-graph"]);
+    test_env.jj_cmd_ok(&workspace1_envroot, &["workspace", "update-stale"]);
+    let (stdout, _) = test_env.jj_cmd_ok(&workspace1_envroot, &["log", "--no-graph"]);
     insta::assert_snapshot!(stdout, @r###"
-    nppvrztz test.user@example.com 2001-02-03 08:05:11 workspace1@ 44082ceb
+    nppvrztz test.user@example.com 2001-02-03 08:05:11 workspace1@ ee0671fd
     (empty) (no description set)
-    royxmykx test.user@example.com 2001-02-03 08:05:12 default@ 5bcb7da6
+    royxmykx test.user@example.com 2001-02-03 08:05:12 default@ 896465c4
     (empty) (no description set)
-    kkmpptxz test.user@example.com 2001-02-03 08:05:12 main 40cbbd52
-    a
+    kkmpptxz test.user@example.com 2001-02-03 08:05:09 main 7796c4df
+    (empty) a
     zzzzzzzz root() 00000000
     "###);
 }

@@ -16,7 +16,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::{fs, io};
 
-use jj_lib::git::{self, GitFetchError, GitFetchStats};
+use jj_lib::git::{self, sanitize_git_url_if_path, GitFetchError, GitFetchStats};
 use jj_lib::repo::Repo;
 use jj_lib::str_util::StringPattern;
 use jj_lib::workspace::Workspace;
@@ -47,23 +47,6 @@ pub struct GitCloneArgs {
     colocate: bool,
 }
 
-fn absolute_git_source(cwd: &Path, source: &str) -> String {
-    // Git appears to turn URL-like source to absolute path if local git directory
-    // exits, and fails because '$PWD/https' is unsupported protocol. Since it would
-    // be tedious to copy the exact git (or libgit2) behavior, we simply assume a
-    // source containing ':' is a URL, SSH remote, or absolute path with Windows
-    // drive letter.
-    if !source.contains(':') && Path::new(source).exists() {
-        // It's less likely that cwd isn't utf-8, so just fall back to original source.
-        cwd.join(source)
-            .into_os_string()
-            .into_string()
-            .unwrap_or_else(|_| source.to_owned())
-    } else {
-        source.to_owned()
-    }
-}
-
 fn clone_destination_for_source(source: &str) -> Option<&str> {
     let destination = source.strip_suffix(".git").unwrap_or(source);
     let destination = destination.strip_suffix('/').unwrap_or(destination);
@@ -89,7 +72,7 @@ pub fn cmd_git_clone(
         return Err(cli_error("--at-op is not respected"));
     }
     let remote_name = "origin";
-    let source = absolute_git_source(command.cwd(), &args.source);
+    let source = sanitize_git_url_if_path(command.cwd(), &args.source);
     let wc_path_str = args
         .destination
         .as_deref()
