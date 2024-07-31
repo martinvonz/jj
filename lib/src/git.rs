@@ -1165,6 +1165,7 @@ pub fn sanitize_git_url_if_path(cwd: &Path, source: &str) -> String {
         // TODO: This won't work for Windows UNC path or (less importantly) if the
         // original source is a non-UTF Windows path. For Windows UNC paths, we
         // could use dunce, though see also https://gitlab.com/kornelski/dunce/-/issues/7
+        // TODO: double-check about UNC paths; what does Git do?
         cwd.join(source).to_slash().map_or_else(
             // It's less likely that cwd isn't utf-8, so just fall back to original source.
             || source.to_owned(),

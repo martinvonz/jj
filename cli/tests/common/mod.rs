@@ -14,6 +14,7 @@
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use itertools::Itertools as _;
@@ -54,7 +55,7 @@ impl Default for TestEnvironment {
         testutils::hermetic_libgit2();
 
         let tmp_dir = testutils::new_temp_dir();
-        let env_root = tmp_dir.path().canonicalize().unwrap();
+        let env_root = dunce::canonicalize(tmp_dir.path()).unwrap();
         let home_dir = env_root.join("home");
         std::fs::create_dir(&home_dir).unwrap();
         let config_dir = env_root.join("config");
@@ -321,9 +322,15 @@ impl TestEnvironment {
     pub fn normalize_output(&self, text: &str) -> String {
         let text = text.replace("jj.exe", "jj");
         let regex = Regex::new(&format!(
-            r"({}|{})(\S+)",
+            r"({}|{}|{})(\S+)",
             regex::escape(&self.env_root.display().to_string()),
-            regex::escape(&self.env_root.to_slash_lossy())
+            regex::escape(&self.env_root.to_slash_lossy()),
+            regex::escape(
+                &fs::canonicalize(&self.env_root)
+                    .unwrap()
+                    .display()
+                    .to_string()
+            )
         ))
         .unwrap();
         regex
