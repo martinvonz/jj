@@ -247,6 +247,20 @@ impl<'a> DiffRenderer<'a> {
         matcher: &dyn Matcher,
         width: usize,
     ) -> Result<(), DiffRenderError> {
+        formatter.with_label("diff", |formatter| {
+            self.show_diff_inner(ui, formatter, from_tree, to_tree, matcher, width)
+        })
+    }
+
+    fn show_diff_inner(
+        &self,
+        ui: &Ui,
+        formatter: &mut dyn Formatter,
+        from_tree: &MergedTree,
+        to_tree: &MergedTree,
+        matcher: &dyn Matcher,
+        width: usize,
+    ) -> Result<(), DiffRenderError> {
         let store = self.repo.store();
         let path_converter = self.path_converter;
         for format in &self.formats {
@@ -533,7 +547,6 @@ pub fn show_color_words_diff(
     path_converter: &RepoPathUiConverter,
     num_context_lines: usize,
 ) -> Result<(), DiffRenderError> {
-    formatter.push_label("diff")?;
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
         while let Some((path, diff)) = diff_stream.next().await {
@@ -653,11 +666,9 @@ pub fn show_color_words_diff(
                 }
             }
         }
-        Ok::<(), DiffRenderError>(())
+        Ok(())
     }
-    .block_on()?;
-    formatter.pop_label()?;
-    Ok(())
+    .block_on()
 }
 
 pub fn show_file_by_file_diff(
@@ -1001,8 +1012,6 @@ pub fn show_git_diff(
     tree_diff: TreeDiffStream,
     num_context_lines: usize,
 ) -> Result<(), DiffRenderError> {
-    formatter.push_label("diff")?;
-
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
         while let Some((path, diff)) = diff_stream.next().await {
@@ -1071,11 +1080,9 @@ pub fn show_git_diff(
                 )?;
             }
         }
-        Ok::<(), DiffRenderError>(())
+        Ok(())
     }
-    .block_on()?;
-    formatter.pop_label()?;
-    Ok(())
+    .block_on()
 }
 
 #[instrument(skip_all)]
@@ -1084,24 +1091,22 @@ pub fn show_diff_summary(
     mut tree_diff: TreeDiffStream,
     path_converter: &RepoPathUiConverter,
 ) -> io::Result<()> {
-    formatter.with_label("diff", |formatter| -> io::Result<()> {
-        async {
-            while let Some((repo_path, diff)) = tree_diff.next().await {
-                let (before, after) = diff.unwrap();
-                let ui_path = path_converter.format_file_path(&repo_path);
-                if before.is_present() && after.is_present() {
-                    writeln!(formatter.labeled("modified"), "M {ui_path}")?;
-                } else if before.is_absent() {
-                    writeln!(formatter.labeled("added"), "A {ui_path}")?;
-                } else {
-                    // `R` could be interpreted as "renamed"
-                    writeln!(formatter.labeled("removed"), "D {ui_path}")?;
-                }
+    async {
+        while let Some((repo_path, diff)) = tree_diff.next().await {
+            let (before, after) = diff.unwrap();
+            let ui_path = path_converter.format_file_path(&repo_path);
+            if before.is_present() && after.is_present() {
+                writeln!(formatter.labeled("modified"), "M {ui_path}")?;
+            } else if before.is_absent() {
+                writeln!(formatter.labeled("added"), "A {ui_path}")?;
+            } else {
+                // `R` could be interpreted as "renamed"
+                writeln!(formatter.labeled("removed"), "D {ui_path}")?;
             }
-            Ok(())
         }
-        .block_on()
-    })
+        Ok(())
+    }
+    .block_on()
 }
 
 struct DiffStat {
@@ -1178,40 +1183,37 @@ pub fn show_diff_stat(
         max_bar_length as f64 / max_diffs as f64
     };
 
-    formatter.with_label("diff", |formatter| {
-        let mut total_added = 0;
-        let mut total_removed = 0;
-        let total_files = stats.len();
-        for stat in &stats {
-            total_added += stat.added;
-            total_removed += stat.removed;
-            let bar_added = (stat.added as f64 * factor).ceil() as usize;
-            let bar_removed = (stat.removed as f64 * factor).ceil() as usize;
-            // replace start of path with ellipsis if the path is too long
-            let (path, path_width) = text_util::elide_start(&stat.path, "...", max_path_width);
-            let path_pad_width = max_path_width - path_width;
-            write!(
-                formatter,
-                "{path}{:path_pad_width$} | {:>number_padding$}{}",
-                "", // pad to max_path_width
-                stat.added + stat.removed,
-                if bar_added + bar_removed > 0 { " " } else { "" },
-            )?;
-            write!(formatter.labeled("added"), "{}", "+".repeat(bar_added))?;
-            writeln!(formatter.labeled("removed"), "{}", "-".repeat(bar_removed))?;
-        }
-        writeln!(
-            formatter.labeled("stat-summary"),
-            "{} file{} changed, {} insertion{}(+), {} deletion{}(-)",
-            total_files,
-            if total_files == 1 { "" } else { "s" },
-            total_added,
-            if total_added == 1 { "" } else { "s" },
-            total_removed,
-            if total_removed == 1 { "" } else { "s" },
+    let mut total_added = 0;
+    let mut total_removed = 0;
+    let total_files = stats.len();
+    for stat in &stats {
+        total_added += stat.added;
+        total_removed += stat.removed;
+        let bar_added = (stat.added as f64 * factor).ceil() as usize;
+        let bar_removed = (stat.removed as f64 * factor).ceil() as usize;
+        // replace start of path with ellipsis if the path is too long
+        let (path, path_width) = text_util::elide_start(&stat.path, "...", max_path_width);
+        let path_pad_width = max_path_width - path_width;
+        write!(
+            formatter,
+            "{path}{:path_pad_width$} | {:>number_padding$}{}",
+            "", // pad to max_path_width
+            stat.added + stat.removed,
+            if bar_added + bar_removed > 0 { " " } else { "" },
         )?;
-        io::Result::Ok(())
-    })?;
+        write!(formatter.labeled("added"), "{}", "+".repeat(bar_added))?;
+        writeln!(formatter.labeled("removed"), "{}", "-".repeat(bar_removed))?;
+    }
+    writeln!(
+        formatter.labeled("stat-summary"),
+        "{} file{} changed, {} insertion{}(+), {} deletion{}(-)",
+        total_files,
+        if total_files == 1 { "" } else { "s" },
+        total_added,
+        if total_added == 1 { "" } else { "s" },
+        total_removed,
+        if total_removed == 1 { "" } else { "s" },
+    )?;
     Ok(())
 }
 
@@ -1220,22 +1222,20 @@ pub fn show_types(
     mut tree_diff: TreeDiffStream,
     path_converter: &RepoPathUiConverter,
 ) -> io::Result<()> {
-    formatter.with_label("diff", |formatter| {
-        async {
-            while let Some((repo_path, diff)) = tree_diff.next().await {
-                let (before, after) = diff.unwrap();
-                writeln!(
-                    formatter.labeled("modified"),
-                    "{}{} {}",
-                    diff_summary_char(&before),
-                    diff_summary_char(&after),
-                    path_converter.format_file_path(&repo_path)
-                )?;
-            }
-            Ok(())
+    async {
+        while let Some((repo_path, diff)) = tree_diff.next().await {
+            let (before, after) = diff.unwrap();
+            writeln!(
+                formatter.labeled("modified"),
+                "{}{} {}",
+                diff_summary_char(&before),
+                diff_summary_char(&after),
+                path_converter.format_file_path(&repo_path)
+            )?;
         }
-        .block_on()
-    })
+        Ok(())
+    }
+    .block_on()
 }
 
 fn diff_summary_char(value: &MergedTreeValue) -> char {
