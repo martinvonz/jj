@@ -604,6 +604,26 @@ pub struct RepoLoader {
 }
 
 impl RepoLoader {
+    pub fn new(
+        repo_path: PathBuf,
+        repo_settings: RepoSettings,
+        store: Arc<Store>,
+        op_store: Arc<dyn OpStore>,
+        op_heads_store: Arc<dyn OpHeadsStore>,
+        index_store: Arc<dyn IndexStore>,
+        submodule_store: Arc<dyn SubmoduleStore>,
+    ) -> Self {
+        Self {
+            repo_path,
+            repo_settings,
+            store,
+            op_store,
+            op_heads_store,
+            index_store,
+            submodule_store,
+        }
+    }
+
     pub fn init(
         user_settings: &UserSettings,
         repo_path: &Path,
