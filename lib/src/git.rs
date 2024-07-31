@@ -1180,6 +1180,7 @@ pub fn set_remote_url(
     git_repo: &git2::Repository,
     remote_name: &str,
     new_remote_url: &str,
+    cwd: &Path,
 ) -> Result<(), GitRemoteManagementError> {
     if remote_name == REMOTE_NAME_FOR_LOCAL_GIT_REPO {
         return Err(GitRemoteManagementError::RemoteReservedForLocalGitRepo);
@@ -1197,7 +1198,7 @@ pub fn set_remote_url(
     })?;
 
     git_repo
-        .remote_set_url(remote_name, new_remote_url)
+        .remote_set_url(remote_name, &sanitize_git_url_if_path(cwd, new_remote_url))
         .map_err(GitRemoteManagementError::InternalGitError)?;
     Ok(())
 }
