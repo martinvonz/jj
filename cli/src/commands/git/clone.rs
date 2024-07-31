@@ -48,15 +48,24 @@ pub struct GitCloneArgs {
     colocate: bool,
 }
 
+fn looks_like_a_path_to_git(source: &str) -> bool {
+    source.chars().nth(1) == Some(':') || // Looks like a Windows C:... path
+    // Match Git's behavior, the URL syntax [is only recognized if there are no
+    // slashes before the first
+    // colon](https://git-scm.com/docs/git-clone#_git_urls)
+    !source
+        .split_once("/")  
+        .map_or(source, |(first, _)| first)
+        .contains(":")
+}
+
 fn absolute_git_source(cwd: &Path, source: &str) -> String {
     // Git appears to turn URL-like source to absolute path if local git directory
     // exits, and fails because '$PWD/https' is unsupported protocol. Since it would
     // be tedious to copy the exact git (or libgit2) behavior, we simply assume a
     // source containing ':' is a URL, SSH remote, or absolute path with Windows
     // drive letter.
-    // TODO: Match "This syntax is only recognized if there are no slashes before the first colon" from https://git-scm.com/docs/git-clone#_git_urls
-    // TODO: Pass paths like `c:\qq` to path_slash
-    if !source.contains(':') && Path::new(source).exists() {
+    if looks_like_a_path_to_git(source) && Path::new(source).exists() {
         // TODO: This won't work for Windows UNC path or (less importantly) if the
         // original source is a non-UTF Windows path. For Windows UNC paths, we
         // could use dunce, though see also https://gitlab.com/kornelski/dunce/-/issues/7
