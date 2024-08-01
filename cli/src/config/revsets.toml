@@ -18,6 +18,7 @@ latest(
 )
 '''
 
-'immutable_heads()' = 'trunk() | tags() | untracked_remote_branches()'
+'builtin_immutable_heads()' = 'trunk() | tags() | untracked_remote_branches()'
+'immutable_heads()' = 'builtin_immutable_heads()'
 'immutable()' = '::(immutable_heads() | root())'
 'mutable()' = '~immutable()'

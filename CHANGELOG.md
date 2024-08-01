@@ -65,6 +65,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New features
 
+* Define `immutable_heads()` revset alias in terms of a new `builtin_immutable_heads()`.
+  This enables users to redefine `immutable_heads()` as they wish, but still
+  have `builtin_immutable_heads()` which should not be redefined.
+
 * External diff tools can now be configured to invoke the tool on each file
   individually instead of being passed a directory by setting
   `merge-tools.$TOOL.diff-invocation-mode="file-by-file"` in config.toml.
