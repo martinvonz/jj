@@ -1731,10 +1731,6 @@ use their <a href="../glossary/#commit-id">commit ID</a>. Most commonly, the way
 this is to abandon the unneeded commits (using <code>jj abandon &lt;commit ID&gt;</code>). If you
 would like to keep both commits with this change ID, you can <code>jj duplicate</code> one
 of them before abandoning it.</p>
-<p>Usually, the different commits associated with the divergent change ID should all
-appear in the log, but due to #2476, they may not. If that happens, you can
-either use <code>jj log -r 'all()' | grep &lt;change id&gt;</code> or disable the
-<code>revsets.short-prefixes</code> config option.</p>
 <h3 id="how-do-i-deal-with-conflicted-branches-after-branch-name">How do I deal with conflicted branches ('??' after branch name)?<a class="headerlink" href="#how-do-i-deal-with-conflicted-branches-after-branch-name" title="Permanent link">&para;</a></h3>
 <p>A <a href="../branches/#conflicts">conflicted branch</a> is a branch that refers to multiple
 different commits because jj couldn't fully resolve its desired position.
