@@ -31,12 +31,12 @@ use jj_lib::settings::ConfigResultExt as _;
 use thiserror::Error;
 
 use crate::command_error::{user_error, CommandError};
-use crate::config::LayeredConfigs;
+use crate::config::{ConfigSource, LayeredConfigs};
 use crate::formatter::Formatter;
 use crate::templater::TemplateRenderer;
 use crate::ui::Ui;
 
-const BUILTIN_IMMUTABLE_HEADS: &str = "immutable_heads";
+const USER_IMMUTABLE_HEADS: &str = "immutable_heads";
 
 #[derive(Debug, Error)]
 pub enum UserRevsetEvaluationError {
@@ -107,6 +107,30 @@ impl<'repo> RevsetExpressionEvaluator<'repo> {
     }
 }
 
+fn warn_user_redefined_builtin(
+    ui: &Ui,
+    source: &ConfigSource,
+    name: &str,
+) -> Result<(), CommandError> {
+    match source {
+        ConfigSource::Default => (),
+        ConfigSource::Env | ConfigSource::User | ConfigSource::Repo | ConfigSource::CommandArg => {
+            let checked_mutability_builtins =
+                ["mutable()", "immutable()", "builtin_immutable_heads()"];
+
+            if checked_mutability_builtins.contains(&name) {
+                writeln!(
+                    ui.warning_default(),
+                    "Redefining `revset-aliases.{name}` is not recommended; redefine \
+                     `immutable_heads()` instead",
+                )?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 pub fn load_revset_aliases(
     ui: &Ui,
     layered_configs: &LayeredConfigs,
@@ -115,17 +139,20 @@ pub fn load_revset_aliases(
     let mut aliases_map = RevsetAliasesMap::new();
     // Load from all config layers in order. 'f(x)' in default layer should be
     // overridden by 'f(a)' in user.
-    for (_, config) in layered_configs.sources() {
+    for (source, config) in layered_configs.sources() {
         let table = if let Some(table) = config.get_table(TABLE_KEY).optional()? {
             table
         } else {
             continue;
         };
         for (decl, value) in table.into_iter().sorted_by(|a, b| a.0.cmp(&b.0)) {
+            warn_user_redefined_builtin(ui, &source, &decl)?;
+
             let r = value
                 .into_string()
                 .map_err(|e| e.to_string())
                 .and_then(|v| aliases_map.insert(&decl, v).map_err(|e| e.to_string()));
+
             if let Err(s) = r {
                 writeln!(
                     ui.warning_default(),
@@ -167,7 +194,7 @@ pub fn parse_immutable_heads_expression(
 ) -> Result<Rc<RevsetExpression>, RevsetParseError> {
     let (_, _, immutable_heads_str) = context
         .aliases_map()
-        .get_function(BUILTIN_IMMUTABLE_HEADS, 0)
+        .get_function(USER_IMMUTABLE_HEADS, 0)
         .unwrap();
     let heads = revset::parse(immutable_heads_str, context)?;
     Ok(heads.union(&RevsetExpression::root()))

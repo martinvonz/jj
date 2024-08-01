@@ -426,19 +426,24 @@ for a comprehensive list.
   'trunk()' = 'your-branch@your-remote'
   ```
 
+* `builtin_immutable_heads()`: Resolves to `trunk() | tags() | untracked_remote_branches()`.
+   It is used as the default definition for `immutable_heads()` below. it is not
+   recommended to redefined this alias. Prefer to redefine `immutable_heads()` instead.
+
 * `immutable_heads()`: Resolves to `trunk() | tags() |
-  untracked_remote_branches()` by default. See
-  [here](config.md#set-of-immutable-commits) for details.
+  untracked_remote_branches()` by default. It is actually defined as `builtin_immutable_heads()`,
+  and can be overridden as required.
+  See [here](config.md#set-of-immutable-commits) for details.
 
 * `immutable()`: The set of commits that `jj` treats as immutable. This is
-  equivalent to `::(immutable_heads() | root())`. Note that modifying this will
-  *not* change whether a commit is immutable. To do that, edit
-  `immutable_heads()`.
+  equivalent to `::(immutable_heads() | root())`. It is not recommended to redefine
+  this alias. Note that modifying this will *not* change whether a commit is immutable.
+  To do that, edit `immutable_heads()`. 
 
 * `mutable()`: The set of commits that `jj` treats as mutable. This is
-  equivalent to `~immutable()`. Note that modifying this will
-  *not* change whether a commit is immutable. To do that, edit
-  `immutable_heads()`.
+  equivalent to `~immutable()`. It is not recommended to redefined this alias.
+  Note that modifying this will *not* change whether a commit is immutable.
+  To do that, edit `immutable_heads()`.
 
 
 ## The `all:` modifier
