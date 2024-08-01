@@ -25,13 +25,13 @@ backoff = "0.4.0"
 blake2 = "0.10.6"
 bstr = "1.10.0"
 cargo_metadata = "0.17.0"
-clap = { version = "4.5.11", features = [
+clap = { version = "4.5.13", features = [
     "derive",
     "deprecated",
     "wrap_help",
     "string",
 ] }
-clap_complete = "4.5.11"
+clap_complete = "4.5.12"
 clap_complete_nushell = "4.5.3"
 clap-markdown = "0.1.4"
 clap_mangen = "0.2.10"
@@ -67,7 +67,7 @@ gix-filter = "0.11.3"
 glob = "0.3.1"
 hex = "0.4.3"
 ignore = "0.4.20"
-indexmap = "2.2.5"
+indexmap = "2.3.0"
 indoc = "2.0.4"
 insta = { version = "1.39.0", features = ["filters"] }
 itertools = "0.13.0"
