@@ -162,11 +162,6 @@ this is to abandon the unneeded commits (using `jj abandon <commit ID>`). If you
 would like to keep both commits with this change ID, you can `jj duplicate` one
 of them before abandoning it.
 
-Usually, the different commits associated with the divergent change ID should all
-appear in the log, but due to #2476, they may not. If that happens, you can
-either use `jj log -r 'all()' | grep <change id>` or disable the
-`revsets.short-prefixes` config option.
-
 ### How do I deal with conflicted branches ('??' after branch name)?
 
 A [conflicted branch][branches_conflicts] is a branch that refers to multiple
