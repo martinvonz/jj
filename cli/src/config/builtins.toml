@@ -1,0 +1,3 @@
+[revset-aliases]
+'builtin_immutable_heads()' = 'trunk() | tags() | untracked_remote_branches()'
+

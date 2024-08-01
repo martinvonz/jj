@@ -2960,6 +2960,7 @@ impl CliRunner {
 
         // Apply workspace configs and --config-toml arguments.
         let config = layered_configs.merge();
+
         ui.reset(&config)?;
 
         // If -R is specified, check if the expanded arguments differ. Aliases

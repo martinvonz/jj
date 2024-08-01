@@ -404,10 +404,11 @@ For example:
 
 ### Built-in Aliases
 
-The following aliases are built-in and used for certain operations. These functions
+The following aliases are built-in and used for certain operations. Most of these functions
 are defined as aliases in order to allow you to overwrite them as needed. 
 See [revsets.toml](https://github.com/martinvonz/jj/blob/main/cli/src/config/revsets.toml)
-for a comprehensive list.
+for a comprehensive list. There are however [builtins](https://github.com/martinvonz/jj/blob/main/cli/src/config/builtins.toml)
+that can not be overridden nor redefined.
 
 * `trunk()`: Resolves to the head commit for the trunk branch of the remote
   named `origin` or `upstream`. The branches `main`, `master`, and `trunk` are
@@ -426,9 +427,14 @@ for a comprehensive list.
   'trunk()' = 'your-branch@your-remote'
   ```
 
+* `builtin_immutable_heads()`: Resolves to `trunk() | tags() | untracked_remote_branches()`.
+   This builtin **can not** be overridden. It is used as the default definition for
+   `immutable_heads()` below.
+
 * `immutable_heads()`: Resolves to `trunk() | tags() |
-  untracked_remote_branches()` by default. See
-  [here](config.md#set-of-immutable-commits) for details.
+  untracked_remote_branches()` by default. It is actually defined as `builtin_immutable_heads()`,
+  and can be overridden as required.
+  See [here](config.md#set-of-immutable-commits) for details.
 
 * `immutable()`: The set of commits that `jj` treats as immutable. This is
   equivalent to `::(immutable_heads() | root())`. Note that modifying this will
