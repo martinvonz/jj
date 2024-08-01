@@ -792,6 +792,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#date-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      Date patterns
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#aliases" class="md-nav__link">
     <span class="md-ellipsis">
       Aliases
@@ -1473,6 +1482,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#date-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      Date patterns
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#aliases" class="md-nav__link">
     <span class="md-ellipsis">
       Aliases
@@ -1802,6 +1820,14 @@ aren't included in <code>remote_branches()</code>.</p>
 given <a href="#string-patterns">string pattern</a>.</p>
 </li>
 <li>
+<p><code>author_date(pattern)</code>: Commits with author dates matching the specified <a href="#date-patterns">date
+  pattern</a>.</p>
+</li>
+<li>
+<p><code>committer_date(pattern)</code>: Commits with committer dates matching the specified
+  <a href="#date-patterns">date pattern</a>.</p>
+</li>
+<li>
 <p><code>empty()</code>: Commits modifying no files. This also includes <code>merges()</code> without
   user modifications and <code>root()</code>.</p>
 </li>
@@ -1894,6 +1920,25 @@ o root()
 </ul>
 <p>You can append <code>-i</code> after the kind to match case‐insensitively (e.g.
 <code>glob-i:"fix*jpeg*"</code>).</p>
+<h2 id="date-patterns">Date patterns<a class="headerlink" href="#date-patterns" title="Permanent link">&para;</a></h2>
+<p>Functions that perform date matching support the following pattern syntax:</p>
+<ul>
+<li><code>after:"string"</code>: Matches dates exactly at or after the given date.</li>
+<li><code>before:"string"</code>: Matches dates before, but not including, the given date.</li>
+</ul>
+<p>Date strings can be specified in several forms, including:</p>
+<ul>
+<li>2024-02-01</li>
+<li>2024-02-01T12:00:00</li>
+<li>2024-02-01T12:00:00-08:00</li>
+<li>2024-02-01 12:00:00</li>
+<li>2 days ago</li>
+<li>5 minutes ago</li>
+<li>yesterday</li>
+<li>yesterday 5pm</li>
+<li>yesterday 10:30</li>
+<li>yesterday 15:30</li>
+</ul>
 <h2 id="aliases">Aliases<a class="headerlink" href="#aliases" title="Permanent link">&para;</a></h2>
 <p>New symbols and functions can be defined in the config file, by using any
 combination of the predefined symbols/functions and other aliases.</p>
