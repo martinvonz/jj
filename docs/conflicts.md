@@ -62,15 +62,15 @@ style](https://git-scm.com/docs/git-merge#_how_conflicts_are_presented):
   apple
   grapefruit
   orange
-  ======= base
+  ||||||| base
   apple
   grape
   orange
-  ||||||| right
+  =======
   APPLE
   GRAPE
   ORANGE
-  >>>>>>>
+  >>>>>>> right
 ```
 
 In this example, the left side changed "grape" to "grapefruit", and the right
