@@ -319,31 +319,29 @@ impl Ui {
             PaginationChoice::Never => return,
             PaginationChoice::Auto => {}
         }
+        if !matches!(&self.output, UiOutput::Terminal { stdout, .. } if stdout.is_terminal()) {
+            return;
+        }
 
-        match self.output {
-            UiOutput::Terminal { .. } if io::stdout().is_terminal() => {
-                if self.pager_cmd == CommandNameAndArgs::String(BUILTIN_PAGER_NAME.into()) {
-                    self.output = UiOutput::new_builtin();
-                    return;
-                }
-
-                match UiOutput::new_paged(&self.pager_cmd) {
-                    Ok(pager_output) => {
-                        self.output = pager_output;
-                    }
-                    Err(e) => {
-                        // The pager executable couldn't be found or couldn't be run
-                        writeln!(
-                            self.warning_default(),
-                            "Failed to spawn pager '{name}': {e}. Consider using the `:builtin` \
-                             pager.",
-                            name = self.pager_cmd.split_name(),
-                        )
-                        .ok();
-                    }
-                }
-            }
-            UiOutput::Terminal { .. } | UiOutput::BuiltinPaged { .. } | UiOutput::Paged { .. } => {}
+        let use_builtin_pager = matches!(
+            &self.pager_cmd, CommandNameAndArgs::String(name) if name == BUILTIN_PAGER_NAME);
+        let new_output = if use_builtin_pager {
+            Some(UiOutput::new_builtin())
+        } else {
+            UiOutput::new_paged(&self.pager_cmd)
+                .inspect_err(|e| {
+                    // The pager executable couldn't be found or couldn't be run
+                    writeln!(
+                        self.warning_default(),
+                        "Failed to spawn pager '{name}': {e}. Consider using the `:builtin` pager.",
+                        name = self.pager_cmd.split_name(),
+                    )
+                    .ok();
+                })
+                .ok()
+        };
+        if let Some(output) = new_output {
+            self.output = output;
         }
     }
 
