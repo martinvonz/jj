@@ -18,7 +18,8 @@ use std::str::FromStr;
 use std::thread::JoinHandle;
 use std::{env, fmt, io, mem};
 
-use minus::Pager as MinusPager;
+use indoc::indoc;
+use minus::{MinusError, Pager as MinusPager};
 use tracing::instrument;
 
 use crate::command_error::{config_error_with_message, CommandError};
@@ -46,7 +47,7 @@ enum UiOutput {
 /// A builtin pager
 pub struct BuiltinPager {
     pager: MinusPager,
-    dynamic_pager_thread: JoinHandle<()>,
+    dynamic_pager_thread: JoinHandle<Result<(), MinusError>>,
 }
 
 impl Write for &BuiltinPager {
@@ -69,9 +70,9 @@ impl Default for BuiltinPager {
 }
 
 impl BuiltinPager {
-    pub fn finalize(self) {
+    pub fn finalize(self) -> Result<(), MinusError> {
         let dynamic_pager_thread = self.dynamic_pager_thread;
-        dynamic_pager_thread.join().unwrap();
+        dynamic_pager_thread.join().unwrap()
     }
 
     pub fn new() -> Self {
@@ -87,7 +88,7 @@ impl BuiltinPager {
             pager,
             dynamic_pager_thread: std::thread::spawn(move || {
                 // This thread handles the actual paging.
-                minus::dynamic_paging(pager_handle).unwrap();
+                minus::dynamic_paging(pager_handle)
             }),
         }
     }
@@ -130,7 +131,44 @@ impl UiOutput {
                 }
             }
             UiOutput::BuiltinPaged { pager } => {
-                pager.finalize();
+                if let Err(minus_error) = pager.finalize() {
+                    writeln!(
+                        ui.warning_default(),
+                        "Built-in pager failed to start: {minus_error}",
+                    )
+                    .ok();
+                    writeln!(ui.warning_default(), "The output of this command is lost.").ok();
+                    if matches!(
+                        minus_error,
+                        MinusError::Setup(minus::error::SetupError::InvalidTerminal)
+                    ) {
+                        if cfg!(windows) {
+                            writeln!(
+                                ui.hint_default(),
+                                indoc! {r#"
+                                    jj's builtin pager is likely incompatible with this terminal
+
+                                    This is known to happen with `mintty`, the default Git Bash terminal on Windows.
+
+                                    Possible workarounds:
+                                    - Use `jj --no-pager`
+                                    - Configure a different pager, see https://martinvonz.github.io/jj/latest/windows/#pagination for Git Bash on Windows
+                                    - Use a different terminal (e.g. Windows Terminal or the Command Prompt)
+                                    - Use `winpty jj ...`; `winpty` comes with Git Bash or Cygwin."#
+                                }
+                            ).ok();
+                        } else {
+                            writeln!(
+                                ui.hint_default(),
+                                "Try `jj --no-pager`. You can also try `TERM=xterm` or setting up \
+                                 a different pager."
+                            )
+                            .ok();
+                        }
+                    }
+                    // We do not cause a panic or another error so that the exit
+                    // code of the command is preserved.
+                }
             }
         }
     }
