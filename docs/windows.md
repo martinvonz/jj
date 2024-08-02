@@ -33,9 +33,10 @@ especially IDEs, preserve LF line endings.
 
 ## Pagination
 
-On Windows, `jj` will use its integrated pager called `minus` by default, unless
-the environment variable `%PAGER%` or the config `ui.pager` is explicitly set.
-See the [pager section of the config docs](config.md#pager) for more details.
+On Windows, `jj` will use its integrated pager called `streampager` by default,
+unless the environment variable `%PAGER%` or the config `ui.pager` is explicitly
+set. See the [pager section of the config docs](config.md#pager) for more
+details.
 
 If the built-in pager doesn't meet your needs and you have Git installed, you
 can switch to using Git's pager as follows:

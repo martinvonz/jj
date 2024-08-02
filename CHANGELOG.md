@@ -10,6 +10,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Breaking changes
 
+* The builtin pager is switched to
+  [streampager](https://github.com/markbt/streampager/). It can handle large
+  inputs better.
+
 ### Deprecations
 
 ### New features
