@@ -101,6 +101,7 @@ smallvec = { version = "1.13.2", features = [
     "const_new",
     "union",
 ] }
+streampager = "0.10.3"
 strsim = "0.11.1"
 syn = "2.0.74"
 tempfile = "3.12.0"
