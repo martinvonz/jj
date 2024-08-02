@@ -647,8 +647,8 @@ where
         {
             // Align the current "add" value to the `remove_index/2`-th diff, then
             // delete the diff pair.
-            simplified_to_original_indices.swap(remove_index + 1, add_index);
-            simplified_to_original_indices.drain(remove_index..remove_index + 2);
+            simplified_to_original_indices.swap(remove_index - 1, add_index);
+            simplified_to_original_indices.drain(remove_index - 1..remove_index + 1);
         } else {
             add_index += 2;
         }
@@ -940,7 +940,7 @@ mod tests {
         assert_eq!(c(&[0, 0], &[1, 1, 0]).simplify(), c(&[0], &[1, 1]));
         assert_eq!(c(&[0, 0], &[1, 1, 1]).simplify(), c(&[0, 0], &[1, 1, 1]));
         assert_eq!(c(&[0, 0], &[1, 1, 2]).simplify(), c(&[0, 0], &[1, 1, 2]));
-        assert_eq!(c(&[0, 0], &[1, 2, 0]).simplify(), c(&[0], &[1, 2]));
+        assert_eq!(c(&[0, 0], &[1, 2, 0]).simplify(), c(&[0], &[2, 1]));
         assert_eq!(c(&[0, 0], &[1, 2, 1]).simplify(), c(&[0, 0], &[1, 2, 1]));
         assert_eq!(c(&[0, 0], &[1, 2, 2]).simplify(), c(&[0, 0], &[1, 2, 2]));
         assert_eq!(c(&[0, 0], &[1, 2, 3]).simplify(), c(&[0, 0], &[1, 2, 3]));
@@ -959,11 +959,11 @@ mod tests {
         assert_eq!(c(&[0, 1], &[1, 0, 2]).simplify(), c(&[], &[2]));
         assert_eq!(c(&[0, 1], &[1, 1, 0]).simplify(), c(&[], &[1]));
         assert_eq!(c(&[0, 1], &[1, 1, 1]).simplify(), c(&[0], &[1, 1]));
-        assert_eq!(c(&[0, 1], &[1, 1, 2]).simplify(), c(&[0], &[2, 1]));
+        assert_eq!(c(&[0, 1], &[1, 1, 2]).simplify(), c(&[0], &[1, 2]));
         assert_eq!(c(&[0, 1], &[1, 2, 0]).simplify(), c(&[], &[2]));
-        assert_eq!(c(&[0, 1], &[1, 2, 1]).simplify(), c(&[0], &[1, 2]));
+        assert_eq!(c(&[0, 1], &[1, 2, 1]).simplify(), c(&[0], &[2, 1]));
         assert_eq!(c(&[0, 1], &[1, 2, 2]).simplify(), c(&[0], &[2, 2]));
-        assert_eq!(c(&[0, 1], &[1, 2, 3]).simplify(), c(&[0], &[3, 2]));
+        assert_eq!(c(&[0, 1], &[1, 2, 3]).simplify(), c(&[0], &[2, 3]));
         assert_eq!(c(&[0, 1], &[2, 0, 0]).simplify(), c(&[1], &[2, 0]));
         assert_eq!(c(&[0, 1], &[2, 0, 1]).simplify(), c(&[], &[2]));
         assert_eq!(c(&[0, 1], &[2, 0, 2]).simplify(), c(&[1], &[2, 2]));
@@ -976,14 +976,14 @@ mod tests {
         assert_eq!(c(&[0, 1], &[2, 2, 1]).simplify(), c(&[0], &[2, 2]));
         assert_eq!(c(&[0, 1], &[2, 2, 2]).simplify(), c(&[0, 1], &[2, 2, 2]));
         assert_eq!(c(&[0, 1], &[2, 2, 3]).simplify(), c(&[0, 1], &[2, 2, 3]));
-        assert_eq!(c(&[0, 1], &[2, 3, 0]).simplify(), c(&[1], &[2, 3]));
+        assert_eq!(c(&[0, 1], &[2, 3, 0]).simplify(), c(&[1], &[3, 2]));
         assert_eq!(c(&[0, 1], &[2, 3, 1]).simplify(), c(&[0], &[2, 3]));
         assert_eq!(c(&[0, 1], &[2, 3, 2]).simplify(), c(&[0, 1], &[2, 3, 2]));
         assert_eq!(c(&[0, 1], &[2, 3, 3]).simplify(), c(&[0, 1], &[2, 3, 3]));
         assert_eq!(c(&[0, 1], &[2, 3, 4]).simplify(), c(&[0, 1], &[2, 3, 4]));
         assert_eq!(
             c(&[0, 1, 2], &[3, 4, 5, 0]).simplify(),
-            c(&[1, 2], &[3, 5, 4])
+            c(&[1, 2], &[4, 5, 3])
         );
     }
 
@@ -1018,7 +1018,7 @@ mod tests {
         );
         assert_eq!(
             c(&[1, 0], &[0, 0, 0]).update_from_simplified(c(&[3], &[2, 1])),
-            c(&[3, 0], &[0, 1, 2])
+            c(&[3, 0], &[0, 2, 1])
         );
         assert_eq!(
             c(&[0, 1], &[2, 3, 4]).update_from_simplified(c(&[1, 2], &[3, 4, 5])),
