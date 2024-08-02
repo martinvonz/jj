@@ -113,6 +113,27 @@ impl UiOutput {
         let child_stdin = child.stdin.take().unwrap();
         Ok(UiOutput::Paged { child, child_stdin })
     }
+
+    fn finalize(self, ui: &Ui) {
+        match self {
+            UiOutput::Terminal { .. } => { /* no-op */ }
+            UiOutput::Paged {
+                mut child,
+                child_stdin,
+            } => {
+                drop(child_stdin);
+                if let Err(e) = child.wait() {
+                    // It's possible (though unlikely) that this write fails, but
+                    // this function gets called so late that there's not much we
+                    // can do about it.
+                    writeln!(ui.warning_default(), "Failed to wait on pager: {e}").ok();
+                }
+            }
+            UiOutput::BuiltinPaged { pager } => {
+                pager.finalize();
+            }
+        }
+    }
 }
 
 pub enum UiStdout<'a> {
@@ -468,24 +489,8 @@ impl Ui {
     /// Waits for the pager exits.
     #[instrument(skip_all)]
     pub fn finalize_pager(&mut self) {
-        match mem::replace(&mut self.output, UiOutput::new_terminal()) {
-            UiOutput::Paged {
-                mut child,
-                child_stdin,
-            } => {
-                drop(child_stdin);
-                if let Err(e) = child.wait() {
-                    // It's possible (though unlikely) that this write fails, but
-                    // this function gets called so late that there's not much we
-                    // can do about it.
-                    writeln!(self.warning_default(), "Failed to wait on pager: {e}").ok();
-                }
-            }
-            UiOutput::BuiltinPaged { pager } => {
-                pager.finalize();
-            }
-            _ => { /* no-op */ }
-        }
+        let old_output = mem::replace(&mut self.output, UiOutput::new_terminal());
+        old_output.finalize(self);
     }
 
     pub fn can_prompt() -> bool {
