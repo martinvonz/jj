@@ -69,6 +69,7 @@ git2 = { workspace = true }
 gix = { workspace = true }
 hex = { workspace = true }
 indexmap = { workspace = true }
+indoc = { workspace = true }
 itertools = { workspace = true }
 jj-lib = { workspace = true }
 maplit = { workspace = true }
@@ -102,7 +103,6 @@ anyhow = { workspace = true }
 assert_cmd = { workspace = true }
 assert_matches = { workspace = true }
 async-trait = { workspace = true }
-indoc = { workspace = true }
 insta = { workspace = true }
 test-case = { workspace = true }
 testutils = { workspace = true }
