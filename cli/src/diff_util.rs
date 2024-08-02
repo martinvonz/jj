@@ -240,6 +240,7 @@ impl<'a> DiffRenderer<'a> {
     }
 
     /// Generates diff between `from_tree` and `to_tree`.
+    #[allow(clippy::too_many_arguments)]
     pub fn show_diff(
         &self,
         ui: &Ui, // TODO: remove Ui dependency if possible
@@ -263,6 +264,7 @@ impl<'a> DiffRenderer<'a> {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn show_diff_inner(
         &self,
         ui: &Ui,
@@ -278,33 +280,41 @@ impl<'a> DiffRenderer<'a> {
         for format in &self.formats {
             match format {
                 DiffFormat::Summary => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    let no_copy_tracking = Default::default();
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
                     show_diff_summary(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::Stat => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    let no_copy_tracking = Default::default();
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
                     show_diff_stat(formatter, store, tree_diff, path_converter, width)?;
                 }
                 DiffFormat::Types => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    let no_copy_tracking = Default::default();
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
                     show_types(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::NameOnly => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    let no_copy_tracking = Default::default();
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
                     show_names(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::Git { context } => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    let no_copy_tracking = Default::default();
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
                     show_git_diff(formatter, store, tree_diff, *context)?;
                 }
                 DiffFormat::ColorWords { context } => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    let no_copy_tracking = Default::default();
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
                     show_color_words_diff(formatter, store, tree_diff, path_converter, *context)?;
                 }
                 DiffFormat::Tool(tool) => {
                     match tool.diff_invocation_mode {
                         DiffToolMode::FileByFile => {
-                            let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                            let no_copy_tracking = Default::default();
+                            let tree_diff =
+                                from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
                             show_file_by_file_diff(
                                 ui,
                                 formatter,
@@ -1052,7 +1062,7 @@ pub fn show_git_diff(
         {
             let path_string = path.as_internal_file_string();
             let (left_value, right_value) = diff?;
-            let left_part = git_digf_part(&path, left_value)?;
+            let left_part = git_diff_part(&path, left_value)?;
             let right_part = git_diff_part(&path, right_value)?;
             formatter.with_label("file_header", |formatter| {
                 writeln!(formatter, "diff --git a/{path_string} b/{path_string}")?;

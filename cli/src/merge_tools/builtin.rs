@@ -495,7 +495,7 @@ pub fn edit_diff_builtin(
 ) -> Result<MergedTreeId, BuiltinToolError> {
     let store = left_tree.store().clone();
     let changed_files: Vec<_> = left_tree
-        .diff_stream(right_tree, matcher)
+        .diff_stream(right_tree, matcher, &Default::default())
         .map(
             |TreeDiffEntry {
                  source: _, // TODO handle copy tracking

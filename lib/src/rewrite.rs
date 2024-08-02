@@ -86,8 +86,9 @@ pub fn restore_tree(
         // TODO: We should be able to not traverse deeper in the diff if the matcher
         // matches an entire subtree.
         let mut tree_builder = MergedTreeBuilder::new(destination.id().clone());
+        let copy_records = Default::default();
         async {
-            let mut diff_stream = source.diff_stream(destination, matcher);
+            let mut diff_stream = source.diff_stream(destination, matcher, &copy_records);
             while let Some(TreeDiffEntry {
                 source: _, // TODO handle copy tracking
                 target: repo_path,
