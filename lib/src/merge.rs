@@ -666,6 +666,29 @@ where
     mapping.iter().map(|index| values[*index].clone()).collect()
 }
 
+fn get_optimize_for_distance_swaps<T>(
+    values: &[T],
+    distance: impl Fn(&T, &T) -> usize,
+) -> Vec<(usize, usize)> {
+    let mut new_removes_order: Vec<usize> = (0..values.len() / 2).map(|x| 2 * x + 1).collect_vec();
+    let mut swaps: Vec<(usize, usize)> = Vec::with_capacity(values.len() / 2);
+    for pair_index in 0..values.len() / 2 {
+        let best_remove_index = (pair_index..values.len() / 2)
+            .min_by_key(|remove_index| {
+                distance(
+                    &values[2 * pair_index],
+                    &values[new_removes_order[*remove_index]],
+                )
+            })
+            .unwrap();
+        if pair_index != best_remove_index {
+            new_removes_order.swap(pair_index, best_remove_index);
+            swaps.push((pair_index * 2 + 1, best_remove_index * 2 + 1));
+        }
+    }
+    swaps
+}
+
 fn describe_conflict_term(value: &TreeValue) -> String {
     match value {
         TreeValue::File {
@@ -756,6 +779,23 @@ impl<T> DiffOfMerges<T> {
     {
         self.values = simplify_internal(self.values);
         self
+    }
+
+    /// Rearranges the removes so that every pair of add and remove has as small
+    /// a distance as possible.
+    ///
+    /// TODO: Currently, this uses inefficient greedy algorithm that may not
+    /// give optimal results
+    ///
+    /// TODO: Consider generalizing this so that it's also used to optimize
+    /// conflict presentation when materializing conflicts.
+    pub fn rearranged_to_optimize_for_distance(self, distance: impl Fn(&T, &T) -> usize) -> Self {
+        let Self { mut values } = self;
+        let swaps = get_optimize_for_distance_swaps(&values, distance);
+        for (i, j) in swaps {
+            values.swap(i, j);
+        }
+        Self::from_vec(values)
     }
 }
 
@@ -1066,6 +1106,39 @@ mod tests {
         assert_eq!(d(&[1, 1], &[0, 1]).simplify(), d(&[1], &[0]));
         assert_eq!(d(&[1, 0], &[0, 2]).simplify(), d(&[1], &[2]));
         assert_eq!(d(&[1, 0], &[3, 2]).simplify(), d(&[1, 0], &[3, 2]));
+    }
+
+    #[test]
+    fn test_rearrange_for_distance() {
+        let dist = |x: &usize, y: &usize| x.abs_diff(*y);
+        assert_eq!(
+            d::<usize>(&[], &[]).rearranged_to_optimize_for_distance(dist),
+            d(&[], &[])
+        );
+        assert_eq!(
+            d(&[1], &[2]).rearranged_to_optimize_for_distance(dist),
+            d(&[1], &[2])
+        );
+        assert_eq!(
+            d(&[1, 20], &[2, 21]).rearranged_to_optimize_for_distance(dist),
+            d(&[1, 20], &[2, 21])
+        );
+        assert_eq!(
+            d(&[1, 20], &[21, 2]).rearranged_to_optimize_for_distance(dist),
+            d(&[1, 20], &[2, 21])
+        );
+        assert_eq!(
+            d(&[1, 20, 200], &[2, 201, 21]).rearranged_to_optimize_for_distance(dist),
+            d(&[1, 20, 200], &[2, 21, 201])
+        );
+        assert_eq!(
+            d(&[1, 20, 200], &[201, 21, 2]).rearranged_to_optimize_for_distance(dist),
+            d(&[1, 20, 200], &[2, 21, 201])
+        );
+        assert_eq!(
+            d(&[1, 20, 200], &[201, 2, 21]).rearranged_to_optimize_for_distance(dist),
+            d(&[1, 20, 200], &[2, 21, 201])
+        );
     }
 
     #[test]
