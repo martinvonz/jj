@@ -333,10 +333,11 @@ impl Ui {
                     // The pager executable couldn't be found or couldn't be run
                     writeln!(
                         self.warning_default(),
-                        "Failed to spawn pager '{name}': {e}. Consider using the `:builtin` pager.",
+                        "Failed to spawn pager '{name}': {e}",
                         name = self.pager_cmd.split_name(),
                     )
                     .ok();
+                    writeln!(self.hint_default(), "Consider using the `:builtin` pager.").ok();
                 })
                 .ok()
         };
