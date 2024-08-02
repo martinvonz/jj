@@ -40,15 +40,22 @@ fn diff_entry_tuple(diff: TreeDiffEntry) -> (RepoPathBuf, (MergedTreeValue, Merg
 }
 
 fn diff_stream_equals_iter(tree1: &MergedTree, tree2: &MergedTree, matcher: &dyn Matcher) {
-    let iter_diff: Vec<_> = TreeDiffIterator::new(tree1.as_merge(), tree2.as_merge(), matcher)
-        .map(diff_entry_tuple)
-        .collect();
-    let max_concurrent_reads = 10;
-    let stream_diff: Vec<_> =
-        TreeDiffStreamImpl::new(tree1.clone(), tree2.clone(), matcher, max_concurrent_reads)
+    let copy_records = Default::default();
+    let iter_diff: Vec<_> =
+        TreeDiffIterator::new(tree1.as_merge(), tree2.as_merge(), matcher, &copy_records)
             .map(diff_entry_tuple)
-            .collect()
-            .block_on();
+            .collect();
+    let max_concurrent_reads = 10;
+    let stream_diff: Vec<_> = TreeDiffStreamImpl::new(
+        tree1.clone(),
+        tree2.clone(),
+        matcher,
+        &copy_records,
+        max_concurrent_reads,
+    )
+    .map(diff_entry_tuple)
+    .collect()
+    .block_on();
     assert_eq!(stream_diff, iter_diff);
 }
 
@@ -752,7 +759,7 @@ fn test_diff_resolved() {
     let after_merged = MergedTree::new(Merge::resolved(after.clone()));
 
     let diff: Vec<_> = before_merged
-        .diff_stream(&after_merged, &EverythingMatcher)
+        .diff_stream(&after_merged, &EverythingMatcher, &Default::default())
         .map(diff_entry_tuple)
         .collect()
         .block_on();
@@ -862,7 +869,7 @@ fn test_diff_conflicted() {
 
     // Test the forwards diff
     let actual_diff: Vec<_> = left_merged
-        .diff_stream(&right_merged, &EverythingMatcher)
+        .diff_stream(&right_merged, &EverythingMatcher, &Default::default())
         .map(diff_entry_tuple)
         .collect()
         .block_on();
@@ -882,7 +889,7 @@ fn test_diff_conflicted() {
     diff_stream_equals_iter(&left_merged, &right_merged, &EverythingMatcher);
     // Test the reverse diff
     let actual_diff: Vec<_> = right_merged
-        .diff_stream(&left_merged, &EverythingMatcher)
+        .diff_stream(&left_merged, &EverythingMatcher, &Default::default())
         .map(diff_entry_tuple)
         .collect()
         .block_on();
@@ -1000,7 +1007,7 @@ fn test_diff_dir_file() {
     // Test the forwards diff
     {
         let actual_diff: Vec<_> = left_merged
-            .diff_stream(&right_merged, &EverythingMatcher)
+            .diff_stream(&right_merged, &EverythingMatcher, &Default::default())
             .map(diff_entry_tuple)
             .collect()
             .block_on();
@@ -1045,7 +1052,7 @@ fn test_diff_dir_file() {
     // Test the reverse diff
     {
         let actual_diff: Vec<_> = right_merged
-            .diff_stream(&left_merged, &EverythingMatcher)
+            .diff_stream(&left_merged, &EverythingMatcher, &Default::default())
             .map(diff_entry_tuple)
             .collect()
             .block_on();
@@ -1091,7 +1098,7 @@ fn test_diff_dir_file() {
     {
         let matcher = FilesMatcher::new([&path1]);
         let actual_diff: Vec<_> = left_merged
-            .diff_stream(&right_merged, &matcher)
+            .diff_stream(&right_merged, &matcher, &Default::default())
             .map(diff_entry_tuple)
             .collect()
             .block_on();
@@ -1107,7 +1114,7 @@ fn test_diff_dir_file() {
     {
         let matcher = FilesMatcher::new([path1.join(file)]);
         let actual_diff: Vec<_> = left_merged
-            .diff_stream(&right_merged, &matcher)
+            .diff_stream(&right_merged, &matcher, &Default::default())
             .map(diff_entry_tuple)
             .collect()
             .block_on();
@@ -1126,7 +1133,7 @@ fn test_diff_dir_file() {
     {
         let matcher = PrefixMatcher::new([&path1]);
         let actual_diff: Vec<_> = left_merged
-            .diff_stream(&right_merged, &matcher)
+            .diff_stream(&right_merged, &matcher, &Default::default())
             .map(diff_entry_tuple)
             .collect()
             .block_on();
@@ -1148,7 +1155,7 @@ fn test_diff_dir_file() {
     {
         let matcher = FilesMatcher::new([&path6]);
         let actual_diff: Vec<_> = left_merged
-            .diff_stream(&right_merged, &matcher)
+            .diff_stream(&right_merged, &matcher, &Default::default())
             .map(diff_entry_tuple)
             .collect()
             .block_on();
