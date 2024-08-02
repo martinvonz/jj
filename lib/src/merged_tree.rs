@@ -29,7 +29,7 @@ use futures::{Stream, TryStreamExt};
 use itertools::{EitherOrBoth, Itertools};
 
 use crate::backend;
-use crate::backend::{BackendResult, MergedTreeId, TreeId, TreeValue};
+use crate::backend::{BackendResult, CopyRecords, MergedTreeId, TreeId, TreeValue};
 use crate::matchers::{EverythingMatcher, Matcher};
 use crate::merge::{Merge, MergeBuilder, MergedTreeValue};
 use crate::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
@@ -283,6 +283,7 @@ impl MergedTree {
         &self,
         other: &MergedTree,
         matcher: &'matcher dyn Matcher,
+        copy_records: &'matcher CopyRecords,
     ) -> TreeDiffStream<'matcher> {
         let concurrency = self.store().concurrency();
         if concurrency <= 1 {
@@ -290,12 +291,14 @@ impl MergedTree {
                 &self.trees,
                 &other.trees,
                 matcher,
+                copy_records,
             )))
         } else {
             Box::pin(TreeDiffStreamImpl::new(
                 self.clone(),
                 other.clone(),
                 matcher,
+                copy_records,
                 concurrency,
             ))
         }
@@ -604,6 +607,7 @@ pub struct TreeDiffIterator<'matcher> {
     store: Arc<Store>,
     stack: Vec<TreeDiffItem>,
     matcher: &'matcher dyn Matcher,
+    copy_records: &'matcher CopyRecords,
 }
 
 struct TreeDiffDirItem {
@@ -621,7 +625,12 @@ enum TreeDiffItem {
 impl<'matcher> TreeDiffIterator<'matcher> {
     /// Creates a iterator over the differences between two trees. Generally
     /// prefer `MergedTree::diff()` of calling this directly.
-    pub fn new(trees1: &Merge<Tree>, trees2: &Merge<Tree>, matcher: &'matcher dyn Matcher) -> Self {
+    pub fn new(
+        trees1: &Merge<Tree>,
+        trees2: &Merge<Tree>,
+        matcher: &'matcher dyn Matcher,
+        copy_records: &'matcher CopyRecords,
+    ) -> Self {
         assert!(Arc::ptr_eq(trees1.first().store(), trees2.first().store()));
         let root_dir = RepoPath::root();
         let mut stack = Vec::new();
@@ -634,6 +643,7 @@ impl<'matcher> TreeDiffIterator<'matcher> {
             store: trees1.first().store().clone(),
             stack,
             matcher,
+            copy_records,
         }
     }
 
@@ -784,6 +794,7 @@ impl Iterator for TreeDiffIterator<'_> {
 /// Stream of differences between two trees.
 pub struct TreeDiffStreamImpl<'matcher> {
     matcher: &'matcher dyn Matcher,
+    copy_records: &'matcher CopyRecords,
     /// Pairs of tree values that may or may not be ready to emit, sorted in the
     /// order we want to emit them. If either side is a tree, there will be
     /// a corresponding entry in `pending_trees`.
@@ -858,10 +869,12 @@ impl<'matcher> TreeDiffStreamImpl<'matcher> {
         tree1: MergedTree,
         tree2: MergedTree,
         matcher: &'matcher dyn Matcher,
+        copy_records: &'matcher CopyRecords,
         max_concurrent_reads: usize,
     ) -> Self {
         let mut stream = Self {
             matcher,
+            copy_records,
             items: BTreeMap::new(),
             pending_trees: VecDeque::new(),
             max_concurrent_reads,

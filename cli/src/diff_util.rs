@@ -240,6 +240,7 @@ impl<'a> DiffRenderer<'a> {
     }
 
     /// Generates diff between `from_tree` and `to_tree`.
+    #[allow(clippy::too_many_arguments)]
     pub fn show_diff(
         &self,
         ui: &Ui, // TODO: remove Ui dependency if possible
@@ -263,6 +264,7 @@ impl<'a> DiffRenderer<'a> {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn show_diff_inner(
         &self,
         ui: &Ui,
@@ -270,7 +272,7 @@ impl<'a> DiffRenderer<'a> {
         from_tree: &MergedTree,
         to_tree: &MergedTree,
         matcher: &dyn Matcher,
-        _copy_records: &CopyRecords,
+        copy_records: &CopyRecords,
         width: usize,
     ) -> Result<(), DiffRenderError> {
         let store = self.repo.store();
@@ -278,33 +280,33 @@ impl<'a> DiffRenderer<'a> {
         for format in &self.formats {
             match format {
                 DiffFormat::Summary => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
                     show_diff_summary(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::Stat => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
                     show_diff_stat(formatter, store, tree_diff, path_converter, width)?;
                 }
                 DiffFormat::Types => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
                     show_types(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::NameOnly => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
                     show_names(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::Git { context } => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
                     show_git_diff(formatter, store, tree_diff, *context)?;
                 }
                 DiffFormat::ColorWords { context } => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
                     show_color_words_diff(formatter, store, tree_diff, path_converter, *context)?;
                 }
                 DiffFormat::Tool(tool) => {
                     match tool.diff_invocation_mode {
                         DiffToolMode::FileByFile => {
-                            let tree_diff = from_tree.diff_stream(to_tree, matcher);
+                            let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
                             show_file_by_file_diff(
                                 ui,
                                 formatter,

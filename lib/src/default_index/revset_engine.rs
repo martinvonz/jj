@@ -1147,7 +1147,8 @@ fn has_diff_from_parent(
     }
     let from_tree = rewrite::merge_commit_trees_without_repo(store, &index, &parents)?;
     let to_tree = commit.tree()?;
-    let mut tree_diff = from_tree.diff_stream(&to_tree, matcher);
+    let copy_records = Default::default();
+    let mut tree_diff = from_tree.diff_stream(&to_tree, matcher, &copy_records);
     async {
         match tree_diff.next().await {
             Some(TreeDiffEntry { value: Ok(_), .. }) => Ok(true),
@@ -1167,10 +1168,11 @@ fn matches_diff_from_parent(
     text_pattern: &StringPattern,
     files_matcher: &dyn Matcher,
 ) -> BackendResult<bool> {
+    let copy_records = Default::default();
     let parents: Vec<_> = commit.parents().try_collect()?;
     let from_tree = rewrite::merge_commit_trees_without_repo(store, &index, &parents)?;
     let to_tree = commit.tree()?;
-    let tree_diff = from_tree.diff_stream(&to_tree, files_matcher);
+    let tree_diff = from_tree.diff_stream(&to_tree, files_matcher, &copy_records);
     // Conflicts are compared in materialized form. Alternatively, conflict
     // pairs can be compared one by one. #4062
     let mut diff_stream = materialized_diff_stream(store, tree_diff);

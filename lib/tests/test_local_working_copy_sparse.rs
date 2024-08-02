@@ -197,7 +197,7 @@ fn test_sparse_commit() {
     // tree.
     let modified_tree = test_workspace.snapshot().unwrap();
     let diff: Vec<_> = tree
-        .diff_stream(&modified_tree, &EverythingMatcher)
+        .diff_stream(&modified_tree, &EverythingMatcher, &Default::default())
         .collect()
         .block_on();
     assert_eq!(diff.len(), 1);
@@ -219,7 +219,7 @@ fn test_sparse_commit() {
     // updated in the tree.
     let modified_tree = test_workspace.snapshot().unwrap();
     let diff: Vec<_> = tree
-        .diff_stream(&modified_tree, &EverythingMatcher)
+        .diff_stream(&modified_tree, &EverythingMatcher, &Default::default())
         .collect()
         .block_on();
     assert_eq!(diff.len(), 2);

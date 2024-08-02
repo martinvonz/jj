@@ -19,7 +19,7 @@ use std::io;
 use std::rc::Rc;
 
 use itertools::Itertools as _;
-use jj_lib::backend::{BackendResult, ChangeId, CommitId};
+use jj_lib::backend::{BackendResult, ChangeId, CommitId, CopyRecords};
 use jj_lib::commit::Commit;
 use jj_lib::extensions_map::ExtensionsMap;
 use jj_lib::fileset::{self, FilesetExpression};
@@ -1278,6 +1278,7 @@ pub struct TreeDiff {
     from_tree: MergedTree,
     to_tree: MergedTree,
     matcher: Rc<dyn Matcher>,
+    copy_records: CopyRecords,
 }
 
 impl TreeDiff {
@@ -1290,11 +1291,13 @@ impl TreeDiff {
             from_tree: commit.parent_tree(repo)?,
             to_tree: commit.tree()?,
             matcher,
+            copy_records: Default::default(),
         })
     }
 
     fn diff_stream(&self) -> TreeDiffStream<'_> {
-        self.from_tree.diff_stream(&self.to_tree, &*self.matcher)
+        self.from_tree
+            .diff_stream(&self.to_tree, &*self.matcher, &self.copy_records)
     }
 
     fn into_formatted<F, E>(self, show: F) -> TreeDiffFormatted<F>
