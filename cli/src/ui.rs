@@ -16,9 +16,10 @@ use std::io::{IsTerminal as _, Stderr, StderrLock, Stdout, StdoutLock, Write};
 use std::process::{Child, ChildStdin, Stdio};
 use std::str::FromStr;
 use std::thread::JoinHandle;
-use std::{env, fmt, io, mem};
+use std::{env, error, fmt, io, iter, mem};
 
 use indoc::indoc;
+use itertools::Itertools as _;
 use minus::{MinusError, Pager as MinusPager};
 use tracing::instrument;
 
@@ -123,18 +124,24 @@ impl UiOutput {
                 child_stdin,
             } => {
                 drop(child_stdin);
-                if let Err(e) = child.wait() {
+                if let Err(err) = child.wait() {
                     // It's possible (though unlikely) that this write fails, but
                     // this function gets called so late that there's not much we
                     // can do about it.
-                    writeln!(ui.warning_default(), "Failed to wait on pager: {e}").ok();
+                    writeln!(
+                        ui.warning_default(),
+                        "Failed to wait on pager: {err}",
+                        err = format_error_with_sources(&err),
+                    )
+                    .ok();
                 }
             }
             UiOutput::BuiltinPaged { pager } => {
                 if let Err(minus_error) = pager.finalize() {
                     writeln!(
                         ui.warning_default(),
-                        "Built-in pager failed to start: {minus_error}",
+                        "Built-in pager failed to start: {err}",
+                        err = format_error_with_sources(&minus_error),
                     )
                     .ok();
                     writeln!(ui.warning_default(), "The output of this command is lost.").ok();
@@ -367,12 +374,13 @@ impl Ui {
             Some(UiOutput::new_builtin())
         } else {
             UiOutput::new_paged(&self.pager_cmd)
-                .inspect_err(|e| {
+                .inspect_err(|err| {
                     // The pager executable couldn't be found or couldn't be run
                     writeln!(
                         self.warning_default(),
-                        "Failed to spawn pager '{name}': {e}",
+                        "Failed to spawn pager '{name}': {err}",
                         name = self.pager_cmd.split_name(),
+                        err = format_error_with_sources(err),
                     )
                     .ok();
                     writeln!(self.hint_default(), "Consider using the `:builtin` pager.").ok();
@@ -677,6 +685,10 @@ fn duplicate_child_stdin(stdin: &ChildStdin) -> io::Result<std::os::fd::OwnedFd>
 fn duplicate_child_stdin(stdin: &ChildStdin) -> io::Result<std::os::windows::io::OwnedHandle> {
     use std::os::windows::io::AsHandle as _;
     stdin.as_handle().try_clone_to_owned()
+}
+
+fn format_error_with_sources(err: &dyn error::Error) -> impl fmt::Display + '_ {
+    iter::successors(Some(err), |&err| err.source()).format(": ")
 }
 
 fn term_width() -> Option<u16> {
