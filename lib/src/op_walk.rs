@@ -174,14 +174,17 @@ pub fn get_current_head_ops(
     op_store: &Arc<dyn OpStore>,
     op_heads_store: &dyn OpHeadsStore,
 ) -> OpStoreResult<Vec<Operation>> {
-    op_heads_store
+    let mut head_ops: Vec<_> = op_heads_store
         .get_op_heads()
         .into_iter()
         .map(|id| -> OpStoreResult<Operation> {
             let data = op_store.read_operation(&id)?;
             Ok(Operation::new(op_store.clone(), id, data))
         })
-        .try_collect()
+        .try_collect()?;
+    // To stabilize output, sort in the same order as resolve_op_heads()
+    head_ops.sort_by_key(|op| op.metadata().end_time.timestamp);
+    Ok(head_ops)
 }
 
 /// Looks up children of the `root_op_id` by traversing from the `head_ops`.
