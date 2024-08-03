@@ -101,7 +101,8 @@ smallvec = { version = "1.13.2", features = [
     "const_new",
     "union",
 ] }
-streampager = "0.10.3"
+# FIXME: streampager = "0.10.3"
+streampager = { git = "https://github.com/facebook/sapling/", rev = "c8c7f1d06f715775cee7509e3cc4065e5447b2b9" }
 strsim = "0.11.1"
 syn = "2.0.74"
 tempfile = "3.12.0"
