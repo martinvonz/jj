@@ -224,6 +224,9 @@ fn test_describe_multiple_commits() {
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
     JJ: Enter or edit commit descriptions after the `JJ: describe` lines.
+    JJ: Warning:
+    JJ: - The text you enter will be lost on a syntax error.
+    JJ: - The syntax of the separator lines may change in the future.
 
     JJ: describe 8d650510daad -------
 
@@ -238,6 +241,10 @@ fn test_describe_multiple_commits() {
         &edit_script,
         indoc! {"
             write
+            JJ: Enter or edit commit descriptions after the `JJ: describe` lines.
+
+            JJ: More header tests. Library tests verify parsing in other situations.
+
             JJ: describe 8d650510daad -------
             description from editor of @-
 
