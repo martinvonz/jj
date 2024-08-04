@@ -64,8 +64,11 @@ pub fn edit_multiple_descriptions(
     let mut bulk_message = String::new();
 
     bulk_message.push_str(indoc! {r#"
-    JJ: Enter or edit commit descriptions after the `JJ: describe` lines.
-    
+        JJ: Enter or edit commit descriptions after the `JJ: describe` lines.
+        JJ: Warning:
+        JJ: - The text you enter will be lost on a syntax error.
+        JJ: - The syntax of the separator lines may change in the future.
+
     "#});
     for (commit_id, temp_commit) in commits.iter() {
         let commit_hash = short_commit_hash(commit_id);
