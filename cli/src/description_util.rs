@@ -3,6 +3,7 @@ use std::io::Write as _;
 
 use bstr::ByteVec as _;
 use indexmap::IndexMap;
+use indoc::indoc;
 use itertools::Itertools;
 use jj_lib::backend::CommitId;
 use jj_lib::commit::Commit;
@@ -62,6 +63,10 @@ pub fn edit_multiple_descriptions(
     let mut commits_map = IndexMap::new();
     let mut bulk_message = String::new();
 
+    bulk_message.push_str(indoc! {r#"
+    JJ: Enter or edit commit descriptions after the `JJ: describe` lines.
+    
+    "#});
     for (commit_id, temp_commit) in commits.iter() {
         let commit_hash = short_commit_hash(commit_id);
         bulk_message.push_str("JJ: describe ");
