@@ -6256,19 +6256,25 @@ Martin von Zweigbergk</p>
 </ul>
 <h2 id="jj-describe"><code>jj describe</code><a class="headerlink" href="#jj-describe" title="Permanent link">&para;</a></h2>
 <p>Update the change description or other metadata</p>
-<p>Starts an editor to let you edit the description of a change. The editor will be $EDITOR, or <code>pico</code> if that's not defined (<code>Notepad</code> on Windows).</p>
-<p><strong>Usage:</strong> <code>jj describe [OPTIONS] [REVISION]</code></p>
+<p>Starts an editor to let you edit the description of changes. The editor will be $EDITOR, or <code>pico</code> if that's not defined (<code>Notepad</code> on Windows).</p>
+<p><strong>Usage:</strong> <code>jj describe [OPTIONS] [REVISIONS]...</code></p>
 <h6 id="arguments_14"><strong>Arguments:</strong><a class="headerlink" href="#arguments_14" title="Permanent link">&para;</a></h6>
 <ul>
 <li>
-<p><code>&lt;REVISION&gt;</code> — The revision whose description to edit</p>
+<p><code>&lt;REVISIONS&gt;</code> — The revision(s) whose description to edit</p>
 <p>Default value: <code>@</code></p>
 </li>
 </ul>
 <h6 id="options_12"><strong>Options:</strong><a class="headerlink" href="#options_12" title="Permanent link">&para;</a></h6>
 <ul>
-<li><code>-m</code>, <code>--message &lt;MESSAGE&gt;</code> — The change description to use (don't open editor)</li>
-<li><code>--stdin</code> — Read the change description from stdin</li>
+<li>
+<p><code>-m</code>, <code>--message &lt;MESSAGE&gt;</code> — The change description to use (don't open editor)</p>
+<p>If multiple revisions are specified, the same description will be used for all of them.</p>
+</li>
+<li>
+<p><code>--stdin</code> — Read the change description from stdin</p>
+<p>If multiple revisions are specified, the same description will be used for all of them.</p>
+</li>
 <li>
 <p><code>--no-edit</code> — Don't open an editor</p>
 <p>This is mainly useful in combination with e.g. <code>--reset-author</code>.</p>
