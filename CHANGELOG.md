@@ -117,6 +117,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 * Windows binaries no longer require `vcruntime140.dll` to be installed
   (normally through Visual Studio.)
 
+* On quit, the builtin pager no longer waits for all outputs to be discarded.
+
 * `jj branch rename` no longer shows a warning in colocated repos.
 
 ## [0.19.0] - 2024-07-03
