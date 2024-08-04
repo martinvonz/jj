@@ -223,6 +223,8 @@ fn test_describe_multiple_commits() {
     "###);
     insta::assert_snapshot!(
         std::fs::read_to_string(test_env.env_root().join("editor0")).unwrap(), @r###"
+    JJ: Enter or edit commit descriptions after the `JJ: describe` lines.
+
     JJ: describe 8d650510daad -------
 
     JJ: describe 41659b846096 -------
