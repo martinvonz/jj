@@ -58,6 +58,11 @@ impl Write for &BuiltinPager {
     }
 
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        // Since minus::Pager holds the rx end internally, push_str() doesn't
+        // fail even after the paging thread gets terminated.
+        if self.dynamic_pager_thread.is_finished() {
+            return Err(io::ErrorKind::BrokenPipe.into());
+        }
         let string = std::str::from_utf8(buf).map_err(io::Error::other)?;
         self.pager.push_str(string).map_err(io::Error::other)?;
         Ok(buf.len())
