@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use futures::executor::block_on;
 use futures::StreamExt;
 use itertools::Itertools;
 use jj_lib::backend::{FileId, MergedTreeId, TreeValue};
@@ -25,6 +24,7 @@ use jj_lib::merged_tree::{
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathBuf, RepoPathComponent};
 use jj_lib::tree::merge_trees;
+use pollster::FutureExt as _;
 use pretty_assertions::assert_eq;
 use testutils::{create_single_tree, write_file, TestRepo};
 
@@ -40,11 +40,11 @@ fn diff_stream_equals_iter(tree1: &MergedTree, tree2: &MergedTree, matcher: &dyn
         .map(|(path, diff)| (path, diff.unwrap()))
         .collect();
     let max_concurrent_reads = 10;
-    let stream_diff: Vec<_> = block_on(
+    let stream_diff: Vec<_> =
         TreeDiffStreamImpl::new(tree1.clone(), tree2.clone(), matcher, max_concurrent_reads)
             .map(|(path, diff)| (path, diff.unwrap()))
-            .collect(),
-    );
+            .collect()
+            .block_on();
     assert_eq!(stream_diff, iter_diff);
 }
 
