@@ -12,15 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use futures::StreamExt as _;
 use itertools::Itertools;
 use jj_lib::backend::{ChangeId, MillisSinceEpoch, Signature, Timestamp};
 use jj_lib::matchers::EverythingMatcher;
-use jj_lib::merged_tree::DiffSummary;
+use jj_lib::merged_tree::MergedTree;
 use jj_lib::repo::Repo;
 use jj_lib::repo_path::{RepoPath, RepoPathBuf};
 use jj_lib::settings::UserSettings;
+use pollster::FutureExt as _;
 use test_case::test_case;
 use testutils::{assert_rebased_onto, create_tree, CommitGraphBuilder, TestRepo, TestRepoBackend};
+
+fn diff_paths(from_tree: &MergedTree, to_tree: &MergedTree) -> Vec<RepoPathBuf> {
+    from_tree
+        .diff_stream(to_tree, &EverythingMatcher)
+        .map(|(path, diff)| {
+            let _ = diff.unwrap();
+            path
+        })
+        .collect()
+        .block_on()
+}
 
 fn to_owned_path_vec(paths: &[&RepoPath]) -> Vec<RepoPathBuf> {
     paths.iter().map(|&path| path.to_owned()).collect()
@@ -85,17 +98,11 @@ fn test_initial(backend: TestRepoBackend) {
     assert_eq!(commit.author(), &author_signature);
     assert_eq!(commit.committer(), &committer_signature);
     assert_eq!(
-        store
-            .root_commit()
-            .tree()
-            .unwrap()
-            .diff_summary(&commit.tree().unwrap(), &EverythingMatcher)
-            .unwrap(),
-        DiffSummary {
-            modified: vec![],
-            added: to_owned_path_vec(&[dir_file_path, root_file_path]),
-            removed: vec![],
-        }
+        diff_paths(
+            &store.root_commit().tree().unwrap(),
+            &commit.tree().unwrap(),
+        ),
+        to_owned_path_vec(&[dir_file_path, root_file_path]),
     );
 }
 
@@ -169,29 +176,18 @@ fn test_rewrite(backend: TestRepoBackend) {
         rewrite_settings.user_email()
     );
     assert_eq!(
-        store
-            .root_commit()
-            .tree()
-            .unwrap()
-            .diff_summary(&rewritten_commit.tree().unwrap(), &EverythingMatcher)
-            .unwrap(),
-        DiffSummary {
-            modified: vec![],
-            added: to_owned_path_vec(&[dir_file_path, root_file_path]),
-            removed: vec![],
-        }
+        diff_paths(
+            &store.root_commit().tree().unwrap(),
+            &rewritten_commit.tree().unwrap(),
+        ),
+        to_owned_path_vec(&[dir_file_path, root_file_path]),
     );
     assert_eq!(
-        initial_commit
-            .tree()
-            .unwrap()
-            .diff_summary(&rewritten_commit.tree().unwrap(), &EverythingMatcher)
-            .unwrap(),
-        DiffSummary {
-            modified: to_owned_path_vec(&[dir_file_path]),
-            added: vec![],
-            removed: vec![],
-        }
+        diff_paths(
+            &initial_commit.tree().unwrap(),
+            &rewritten_commit.tree().unwrap(),
+        ),
+        to_owned_path_vec(&[dir_file_path]),
     );
 }
 
