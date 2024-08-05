@@ -21,12 +21,14 @@ use std::io::BufRead;
 use thiserror::Error;
 
 use crate::backend::{BackendError, BackendResult, CommitId, FileId, TreeValue};
-use crate::commit::Commit;
 use crate::diff::{Diff, DiffHunk};
+use crate::fileset::FilesetExpression;
+use crate::graph::{GraphEdge, GraphEdgeType};
 use crate::merged_tree::MergedTree;
 use crate::object_id::ObjectId;
 use crate::repo::{ReadonlyRepo, Repo};
 use crate::repo_path::RepoPath;
+use crate::revset::{RevsetExpression, RevsetFilterPredicate};
 use crate::store::Store;
 
 /// Various errors that can arise from annotation
@@ -161,10 +163,6 @@ impl PartialResults {
         }
     }
 
-    fn get_next_commit(&self) -> Option<CommitId> {
-        return self.local_line_map.keys().next().cloned();
-    }
-
     fn convert_to_results(self, original_contents: &[u8]) -> AnnotateResults {
         let original_content_lines: Vec<String> =
             original_contents.lines().map(|s| s.unwrap()).collect();
@@ -223,7 +221,13 @@ pub fn get_annotation_for_file(
     let num_lines = original_contents.split_inclusive(|b| *b == b'\n').count();
     let mut partial_results = PartialResults::new(starting_commit_id, num_lines);
 
-    process_commits(&mut partial_results, repo, current_commit.id(), file_path)?;
+    process_commits(
+        &mut partial_results,
+        repo,
+        current_commit.id(),
+        file_path,
+        num_lines,
+    )?;
 
     Ok(partial_results.convert_to_results(&original_contents))
 }
@@ -237,16 +241,24 @@ fn process_commits(
     repo: &ReadonlyRepo,
     starting_commit_id: &CommitId,
     file_name: &RepoPath,
+    num_lines: usize,
 ) -> Result<(), AnnotateError> {
-    let mut current_commit = repo.store().get_commit(starting_commit_id)?;
-    loop {
-        process_commit(results, &current_commit, repo, file_name)?;
-        let next_commit_id = results.get_next_commit();
-        match next_commit_id {
-            None => break,
-            Some(next_id) => {
-                current_commit = repo.store().get_commit(&next_id)?;
-            }
+    let predicate = RevsetFilterPredicate::File(FilesetExpression::file_path(file_name.to_owned()));
+    let revset = RevsetExpression::commit(starting_commit_id.clone())
+        .ancestors()
+        .filtered(predicate)
+        .evaluate_programmatic(repo)
+        .unwrap();
+    let mut is_first = true;
+
+    for (cid, edge_list) in revset.iter_graph() {
+        if is_first {
+            results.swap_full_commit_id(starting_commit_id, &cid);
+            is_first = false;
+        }
+        process_commit(results, repo, file_name, &cid, &edge_list)?;
+        if results.original_line_map.len() >= num_lines {
+            break;
         }
     }
     Ok(())
@@ -260,31 +272,34 @@ fn process_commits(
 /// original_line_map is updated for the leftover lines.
 fn process_commit(
     results: &mut PartialResults,
-    commit: &Commit,
     repo: &ReadonlyRepo,
     file_name: &RepoPath,
+    current_commit_id: &CommitId,
+    edges: &Vec<GraphEdge<CommitId>>,
 ) -> Result<(), AnnotateError> {
-    let current_tree = repo.store().get_commit(commit.id())?.tree()?;
-    let current_file_id = get_file_id(commit.id(), &current_tree, file_name)?.unwrap();
+    let current_tree = repo.store().get_commit(current_commit_id)?.tree()?;
+    let current_file_id = get_file_id(current_commit_id, &current_tree, file_name)?.unwrap();
 
-    for parent in commit.parents() {
-        let parent_commit = parent?;
-        let parent_tree = parent_commit.tree()?;
-        let parent_file_id = get_file_id(parent_commit.id(), &parent_tree, file_name)?;
+    for parent_edge in edges {
+        if parent_edge.edge_type != GraphEdgeType::Missing {
+            let parent_commit = repo.store().get_commit(&parent_edge.target)?;
+            let parent_tree = parent_commit.tree()?;
+            let parent_file_id = get_file_id(parent_commit.id(), &parent_tree, file_name)?;
 
-        if let Some(pfid) = parent_file_id {
-            process_file_ids(
-                results,
-                repo.store(),
-                file_name,
-                &current_file_id,
-                commit.id(),
-                &pfid,
-                parent_commit.id(),
-            )?;
+            if let Some(pfid) = parent_file_id {
+                process_file_ids(
+                    results,
+                    repo.store(),
+                    file_name,
+                    &current_file_id,
+                    current_commit_id,
+                    &pfid,
+                    parent_commit.id(),
+                )?;
+            }
         }
     }
-    results.drain_remaining_for_commit_id(commit.id());
+    results.drain_remaining_for_commit_id(current_commit_id);
 
     Ok(())
 }
@@ -318,7 +333,7 @@ fn process_file_ids(
     let current_contents = results.get_file_from_cache(current_commit_id);
     let parent_contents = results.get_file_from_cache(parent_commit_id);
 
-    let same_lines = get_same_line_map(&current_contents, &parent_contents);
+    let same_lines = get_same_line_map(current_contents, parent_contents);
     for (current_line_no, parent_line_no) in same_lines {
         results.forward_to_new_commit(
             current_commit_id,
