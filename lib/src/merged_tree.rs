@@ -308,19 +308,10 @@ impl MergedTree {
         TreeEntriesIterator::new(self.clone(), matcher)
     }
 
-    /// Iterate over the differences between this tree and another tree.
+    /// Stream of the differences between this tree and another tree.
     ///
     /// The files in a removed tree will be returned before a file that replaces
     /// it.
-    pub fn diff<'matcher>(
-        &self,
-        other: &MergedTree,
-        matcher: &'matcher dyn Matcher,
-    ) -> TreeDiffIterator<'matcher> {
-        TreeDiffIterator::new(self.clone(), other.clone(), matcher)
-    }
-
-    /// Stream of the differences between this tree and another tree.
     pub fn diff_stream<'matcher>(
         &self,
         other: &MergedTree,
