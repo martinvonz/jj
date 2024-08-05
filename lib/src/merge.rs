@@ -301,6 +301,22 @@ impl<T> Merge<T> {
         trivial_merge_inner(self.values.iter(), self.values.len())
     }
 
+    /// Simplify the conflict to a resolved conflict, if possible, or leave it
+    /// unchanged
+    pub fn simplify_trivial(self) -> Self
+    where
+        T: Eq + Hash,
+    {
+        match self.resolve_trivial() {
+            None => self,
+            Some(_) => {
+                let values_len = self.values.len();
+                // TODO: Is it better to clone or to run through the trivial merge twice?
+                Merge::resolved(trivial_merge_inner(self.values.into_iter(), values_len).unwrap())
+            }
+        }
+    }
+
     /// Pads this merge with to the specified number of sides with the specified
     /// value. No-op if the requested size is not larger than the current size.
     pub fn pad_to(&mut self, num_sides: usize, value: &T)
