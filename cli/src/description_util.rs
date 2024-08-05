@@ -135,12 +135,9 @@ where
     }
 
     for (commit_id_prefix, description_lines) in messages {
-        let commit_id = match commit_ids_map.get(commit_id_prefix) {
-            Some(&commit_id) => commit_id,
-            None => {
-                unexpected.push(commit_id_prefix.to_string());
-                continue;
-            }
+        let Some(&commit_id) = commit_ids_map.get(commit_id_prefix) else {
+            unexpected.push(commit_id_prefix.to_string());
+            continue;
         };
         if descriptions.contains_key(commit_id) {
             duplicates.push(commit_id_prefix.to_string());
@@ -154,13 +151,8 @@ where
 
     let missing: Vec<_> = commit_ids_map
         .iter()
-        .filter_map(|(commit_id_prefix, commit_id)| {
-            if !descriptions.contains_key(*commit_id) {
-                Some(commit_id_prefix.to_string())
-            } else {
-                None
-            }
-        })
+        .filter(|(_, commit_id)| !descriptions.contains_key(*commit_id))
+        .map(|(commit_id_prefix, _)| commit_id_prefix.to_string())
         .collect();
 
     Ok(ParsedBulkEditMessage {
