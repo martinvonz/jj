@@ -121,7 +121,8 @@ where
     let mut messages: Vec<(&str, Vec<&str>)> = vec![];
     for line in message.lines() {
         if let Some(commit_id_prefix) = line.strip_prefix("JJ: describe ") {
-            let commit_id_prefix = commit_id_prefix.trim_end_matches(" -------");
+            let commit_id_prefix =
+                commit_id_prefix.trim_end_matches(|c: char| c.is_ascii_whitespace() || c == '-');
             messages.push((commit_id_prefix, vec![]));
         } else if let Some((_, lines)) = messages.last_mut() {
             lines.push(line);
@@ -257,12 +258,16 @@ mod tests {
                 JJ: describe 1 -------
                 Description 1
 
-                JJ: describe 2 -------
+                JJ: describe 2
                 Description 2
+
+                JJ: describe 3 --
+                Description 3
             "},
             &indexmap! {
                 "1".to_string() => &1,
                 "2".to_string() => &2,
+                "3".to_string() => &3,
             },
         )
         .unwrap();
@@ -271,6 +276,7 @@ mod tests {
             hashmap! {
                 1 => "Description 1\n".to_string(),
                 2 => "Description 2\n".to_string(),
+                3 => "Description 3\n".to_string(),
             }
         );
         assert!(result.missing.is_empty());
