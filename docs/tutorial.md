@@ -1,5 +1,9 @@
 # Tutorial
 
+>  **Hint:** This tutorial has become somewhat out of date. Many people find
+>   the alternative (not quite finished) [tutorial by Steve
+>   Klabnik](https://steveklabnik.github.io/jujutsu-tutorial/) helpful. 
+
 This text assumes that the reader is familiar with Git.
 
 ## Preparation
@@ -177,6 +181,10 @@ There are also operators for getting the parents (`foo-`), children (`foo+`),
 ancestors (`::foo`), descendants (`foo::`), DAG range (`foo::bar`, like
 `git log --ancestry-path`), range (`foo..bar`, same as Git's). See
 [the revset documentation](revsets.md) for all revset operators and functions.
+
+> **Hint:** If the default `jj log` omits some commits you expect to see, you
+> can always run `jj log -r ::` (or, equivalently, `jj log -r 'all()'`) to see
+> all the commits.
 
 ## Conflicts
 
