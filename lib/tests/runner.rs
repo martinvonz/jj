@@ -11,7 +11,6 @@ mod test_commit_builder;
 mod test_commit_concurrent;
 mod test_conflicts;
 mod test_default_revset_graph_iterator;
-mod test_diff_summary;
 mod test_git;
 mod test_git_backend;
 mod test_gpg;
