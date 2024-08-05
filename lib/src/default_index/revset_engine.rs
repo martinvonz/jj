@@ -1144,7 +1144,15 @@ fn has_diff_from_parent(
     }
     let from_tree = rewrite::merge_commit_trees_without_repo(store, &index, &parents)?;
     let to_tree = commit.tree()?;
-    Ok(from_tree.diff(&to_tree, matcher).next().is_some())
+    let mut tree_diff = from_tree.diff_stream(&to_tree, matcher);
+    async {
+        match tree_diff.next().await {
+            Some((_, Ok(_))) => Ok(true),
+            Some((_, Err(err))) => Err(err),
+            None => Ok(false),
+        }
+    }
+    .block_on()
 }
 
 fn matches_diff_from_parent(
