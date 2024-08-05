@@ -210,11 +210,21 @@ impl<T> Merge<T> {
         self.values.get(index * 2 + 1)
     }
 
+    /// Returns the `index`-th removed value mutably
+    pub fn get_remove_mut(&mut self, index: usize) -> Option<&mut T> {
+        self.values.get_mut(index * 2 + 1)
+    }
+
     /// Returns the `index`-th added value, which is considered belonging to the
     /// `index-1`-th diff pair. The zeroth add is a diff from the non-existent
     /// state.
     pub fn get_add(&self, index: usize) -> Option<&T> {
         self.values.get(index * 2)
+    }
+
+    /// Returns the `index`-th added value mutably
+    pub fn get_add_mut(&mut self, index: usize) -> Option<&mut T> {
+        self.values.get_mut(index * 2)
     }
 
     /// Removes the specified "removed"/"added" values. The removed slots are
@@ -769,6 +779,16 @@ impl<T> DiffOfMerges<T> {
         DiffOfMerges { values }
     }
 
+    /// Diff of the `left` conflict ("from" side) and the `right` conflict
+    /// ("to") side
+    pub fn diff_of(left: Merge<T>, right: Merge<T>) -> DiffOfMerges<T> {
+        // The last element of right's vector is an add and should stay an add.
+        // The first element of left's vector should become a remove.
+        let mut result_vec = right.values.into_vec();
+        result_vec.append(&mut left.values.into_vec());
+        DiffOfMerges::from_vec(result_vec)
+    }
+
     /// Simplify the diff by removing equal positive and negative terms.
     ///
     /// The positive terms are allowed to be reordered freely, as are the
@@ -779,6 +799,17 @@ impl<T> DiffOfMerges<T> {
     {
         self.values = simplify_internal(self.values);
         self
+    }
+
+    /// Pairs of diffs presented as (positive term, negative term)
+    ///
+    /// Note that operations such as simplifications do *not* preserve these
+    /// pairs.
+    pub fn pairs(&self) -> impl ExactSizeIterator<Item = (&T, &T)> {
+        zip(
+            self.values.iter().step_by(2),
+            self.values.iter().skip(1).step_by(2),
+        )
     }
 
     /// Rearranges the removes so that every pair of add and remove has as small
@@ -797,6 +828,198 @@ impl<T> DiffOfMerges<T> {
         }
         Self::from_vec(values)
     }
+}
+
+/// Given two conflicts, compute the corresponding set of
+/// [`DiffExplanationAtom<T>`].
+///
+/// The diffs in the set are picked to minimize `distance`.
+///
+/// This returns a Vec, but the order of the resulting set is not significant.
+//
+// TODO(ilyagr): There is a question of whether we want to bias the diffs
+// towards the diffs that match the way the conflicts are presented to the user,
+// or to bias to the diffs that come from the rebased commits after a rebase.
+// Note that this can have implication on how `blame` works. I currently think
+// that we should try to improve the optimization algorithm first and see how
+// far that gets us.
+pub fn explain_diff_of_merges<T: PartialEq + Clone>(
+    left: Merge<T>,
+    right: Merge<T>,
+    distance: impl Fn(&T, &T) -> usize,
+) -> Vec<DiffExplanationAtom<T>> {
+    let left = left.simplify();
+    let right = right.simplify();
+    let optimized_diff_of_merges = DiffOfMerges::diff_of(left.clone(), right.clone())
+        .simplify()
+        .rearranged_to_optimize_for_distance(distance);
+    let mut left_seen = left.map(|_| false);
+    let mut right_seen = right.map(|_| false);
+
+    let mut result = optimized_diff_of_merges
+        .pairs()
+        .map(|(add, remove)| {
+            // The order of `if`-s does not matter since the diff_of_merges is simplified as
+            // is each conflict, so the "add" could not come from both conflicts.
+            let add_comes_from_right = if let Some((ix, _)) = right
+                .adds()
+                .enumerate()
+                .find(|(ix, elt)| !right_seen.get_add(*ix).unwrap() && *elt == add)
+            {
+                *right_seen.get_add_mut(ix).unwrap() = true;
+                true
+            } else if let Some((ix, _)) = left
+                .removes()
+                .enumerate()
+                .find(|(ix, elt)| !left_seen.get_remove(*ix).unwrap() && *elt == add)
+            {
+                *left_seen.get_remove_mut(ix).unwrap() = true;
+                false
+            } else {
+                panic!(
+                    "adds of (right - left) should be either adds on the right or removes on the \
+                     left."
+                )
+            };
+
+            let remove_comes_from_right = if let Some((ix, _)) = right
+                .removes()
+                .enumerate()
+                .find(|(ix, elt)| !right_seen.get_remove(*ix).unwrap() && *elt == remove)
+            {
+                *right_seen.get_remove_mut(ix).unwrap() = true;
+                true
+            } else if let Some((ix, _)) = left
+                .adds()
+                .enumerate()
+                .find(|(ix, elt)| !left_seen.get_add(*ix).unwrap() && *elt == remove)
+            {
+                *left_seen.get_add_mut(ix).unwrap() = true;
+                false
+            } else {
+                panic!(
+                    "removes of (right - left) should be either removes on the right or adds on \
+                     the left."
+                )
+            };
+
+            // TODO(ilyagr): Consider refactoring this to have fewer unnecessary clones.
+            match (add_comes_from_right, remove_comes_from_right) {
+                (true, true) => DiffExplanationAtom::AddedConflictDiff {
+                    conflict_add: add.clone(),
+                    conflict_remove: remove.clone(),
+                },
+                (false, false) => DiffExplanationAtom::RemovedConflictDiff {
+                    /* Instead of adding an upside-down conflict, consider this a removal of the
+                     * opposite conflict */
+                    conflict_add: remove.clone(),
+                    conflict_remove: add.clone(),
+                },
+                (true, false) => DiffExplanationAtom::ChangedConflictAdd {
+                    left_version: remove.clone(),
+                    right_version: add.clone(),
+                },
+                (false, true) => DiffExplanationAtom::ChangedConflictRemove {
+                    left_version: remove.clone(),
+                    right_version: add.clone(),
+                },
+            }
+        })
+        .collect_vec();
+
+    // Since the conflicts were simplified, and any sides we didn't yet see must
+    // have cancelled out in the diff,they are present on both left and right.
+    // So, we can forget about the left side.
+
+    // TODO(ilyagr): We might be able to have more structure, e.g. have an
+    // `UnchangedConflictDiff` category if there is both an unchanged add and an
+    // unchanged remove *and* they are reasonably close. This should be considered
+    // separately for showing to the user (where it might look confusingly similar
+    // to other diffs that mean something else) and for blame/absorb.
+    result.extend(
+        zip(right.adds(), right_seen.adds())
+            .filter(|&(_elt, seen)| (!seen))
+            .map(|(elt, _seen)| DiffExplanationAtom::UnchangedConflictAdd(elt.clone())),
+    );
+    result.extend(
+        zip(right.removes(), right_seen.removes())
+            .filter(|&(_elt, seen)| (!seen))
+            .map(|(elt, _seen)| DiffExplanationAtom::UnchangedConflictRemove(elt.clone())),
+    );
+    result
+}
+
+/// A statement about a difference of two conflicts of type `Merge<T>`
+///
+/// A (conceptually unordered) set of `DiffExplanationAtom<T>` describes a
+/// conflict `left: Merge<T>` and a sequence of operations to turn it into a
+/// different conflict `right: Merge<T>`. This is designed so that this
+/// information can be presented to the user.
+///
+/// This description is far from unique. We usually pick one by trying to
+/// minimize the complexity of the diffs in those operations that involve diffs.
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub enum DiffExplanationAtom<T> {
+    /// Adds one more pair of an add + a remove to the conflict, making it more
+    /// complicated (more sides than before)
+    AddedConflictDiff {
+        /// Add of the added diff.
+        ///
+        /// This is an "add" of the right conflict that is not an "add" of the
+        /// left conflict.
+        conflict_add: T,
+        /// Remove of the added diff
+        ///
+        /// This is a "remove" of the right conflict that is not a "remove" of
+        /// the left conflict.
+        conflict_remove: T,
+    },
+    /// Removes one of the add + remove pairs in the conflict, making it less
+    /// complicated (fewer sides than before)
+    ///
+    /// In terms of conflict theory, this is equivalent to adding the opposite
+    /// diff and then simplifying the conflict. However, for the user, the
+    /// difference between these presentations is significant.
+    RemovedConflictDiff {
+        /// Add of the removed diff
+        ///
+        /// This is an "add" of the left conflict that is not an "add" of the
+        /// right conflict.
+        conflict_add: T,
+        /// Remove of the removed diff
+        ///
+        /// This is a "remove" of the left conflict that is not a "remove" of
+        /// the right conflict.
+        conflict_remove: T,
+    },
+    /// Modifies one of the adds of the conflict
+    ///
+    /// This does not change the number of sides in the conflict.
+    ChangedConflictAdd {
+        /// Add of the left conflict
+        left_version: T,
+        /// Add of the right conflict
+        right_version: T,
+    },
+    /// Modifies one of the removes of the conflict
+    ///
+    /// This does not change the number of sides in the conflict.
+    // TODO(ilyagr): While this operation is very natural from the perspective of conflict
+    // theory, I find it hard to come up with an example where it is an
+    // intuitive result of some operation. If it's too unintuitive to users, we could try to
+    // replace it with a composition of "removed diff" and "added diff".
+    ChangedConflictRemove {
+        /// Remove of the left conflict
+        left_version: T,
+        /// Remove of the right conflict
+        right_version: T,
+    },
+    /// Declares that both the left and the right conflict contain this value as
+    /// an "add"
+    UnchangedConflictAdd(T),
+    /// Declares that both the left and the right conflict contain this value as
+    /// a "remove"
+    UnchangedConflictRemove(T),
 }
 
 #[cfg(test)]
@@ -1354,6 +1577,123 @@ mod tests {
         assert_eq!(
             c(&[c(&[0], &[1, 2])], &[c(&[3], &[4, 5]), c(&[6], &[7, 8])]).flatten(),
             c(&[3, 2, 1, 6], &[4, 5, 0, 7, 8])
+        );
+    }
+
+    #[test]
+    fn test_explain_diff_of_merges() {
+        let dist = |x: &usize, y: &usize| x.abs_diff(*y);
+        insta::assert_debug_snapshot!(
+            explain_diff_of_merges(c(&[], &[1]), c(&[], &[1]), dist),
+            @r#"
+        [
+            UnchangedConflictAdd(
+                1,
+            ),
+        ]
+        "#
+        );
+        insta::assert_debug_snapshot!(
+            explain_diff_of_merges(c(&[], &[1]), c(&[], &[2]), dist),
+            @r#"
+        [
+            ChangedConflictAdd {
+                left_version: 1,
+                right_version: 2,
+            },
+        ]
+        "#
+        );
+        insta::assert_debug_snapshot!(
+            // One of the conflicts gets simplified to the same case as above
+            explain_diff_of_merges(c(&[], &[1]), c(&[1], &[1,2]), dist),
+            @r#"
+        [
+            ChangedConflictAdd {
+                left_version: 1,
+                right_version: 2,
+            },
+        ]
+        "#
+        );
+        insta::assert_debug_snapshot!(
+            explain_diff_of_merges(c(&[], &[1]), c(&[0], &[1, 2]), dist),
+            @r#"
+        [
+            AddedConflictDiff {
+                conflict_add: 2,
+                conflict_remove: 0,
+            },
+            UnchangedConflictAdd(
+                1,
+            ),
+        ]
+        "#
+        );
+        insta::assert_debug_snapshot!(
+            explain_diff_of_merges(c(&[0], &[1,2]), c(&[], &[1]), dist),
+            @r#"
+        [
+            RemovedConflictDiff {
+                conflict_add: 2,
+                conflict_remove: 0,
+            },
+            UnchangedConflictAdd(
+                1,
+            ),
+        ]
+        "#
+        );
+        insta::assert_debug_snapshot!(
+            explain_diff_of_merges(c(&[0], &[1,2]), c(&[3], &[1,2]), dist),
+            @r#"
+        [
+            ChangedConflictRemove {
+                left_version: 3,
+                right_version: 0,
+            },
+            UnchangedConflictAdd(
+                1,
+            ),
+            UnchangedConflictAdd(
+                2,
+            ),
+        ]
+        "#
+        );
+        // TODO: Should the unchanged add+remove become "UnchangedConflictDiff" for
+        // nicer presentation?
+        insta::assert_debug_snapshot!(
+            explain_diff_of_merges(c(&[0], &[1,2]), c(&[0], &[1,3]), dist),
+            @r#"
+        [
+            ChangedConflictAdd {
+                left_version: 2,
+                right_version: 3,
+            },
+            UnchangedConflictAdd(
+                1,
+            ),
+            UnchangedConflictRemove(
+                0,
+            ),
+        ]
+        "#
+        );
+        insta::assert_debug_snapshot!(
+            // Simplifies
+            explain_diff_of_merges(c(&[0], &[1,2]), c(&[2], &[1,2]), dist),
+            @r#"
+        [
+            RemovedConflictDiff {
+                conflict_add: 2,
+                conflict_remove: 0,
+            },
+            UnchangedConflictAdd(
+                1,
+            ),
+        ]
+        "#
         );
     }
 }
