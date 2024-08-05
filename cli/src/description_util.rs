@@ -17,11 +17,15 @@ use crate::text_util;
 
 /// Cleanup a description by normalizing line endings, and removing leading and
 /// trailing blank lines.
-fn cleanup_description(description: &str) -> String {
-    let description = description
-        .lines()
-        .filter(|line| !line.starts_with("JJ: "))
-        .join("\n");
+fn cleanup_description_lines<I>(lines: I) -> String
+where
+    I: IntoIterator,
+    I::Item: AsRef<str>,
+{
+    let description = lines
+        .into_iter()
+        .filter(|line| !line.as_ref().starts_with("JJ: "))
+        .fold(String::new(), |acc, line| acc + line.as_ref() + "\n");
     text_util::complete_newline(description.trim_matches('\n'))
 }
 
@@ -45,7 +49,7 @@ JJ: Lines starting with "JJ: " (like this one) will be removed.
         settings,
     )?;
 
-    Ok(cleanup_description(&description))
+    Ok(cleanup_description_lines(description.lines()))
 }
 
 /// Edits the descriptions of the given commits in a single editor session.
@@ -144,7 +148,7 @@ where
         }
         descriptions.insert(
             commit_id.clone(),
-            cleanup_description(&description_lines.join("\n")),
+            cleanup_description_lines(&description_lines),
         );
     }
 
