@@ -695,12 +695,80 @@ fn describe_conflict_term(value: &TreeValue) -> String {
     }
 }
 
+// TODO(ilyagr): DiffOfMerges might not need to be public, might need renaming
+
+/// A sequence of diffs forming a "conflicted diff"
+///
+/// Conceptually, this is very similar to a merge, except it has the same number
+/// of positive terms (corresponding to "adds" in a merge) and negative terms
+/// (corresponding to "removes" in a merge).
+///
+/// This can represent a diff of two merges, with corresponding terms cancelling
+/// out. The adds of the negative (left-hand side) merge will then become a
+/// negative term of the DiffOfMerges. However, in this case, it is not
+/// remembered which term comes from which merge. By itself, a sequence of diffs
+/// resulting from a diff of two merges cannot tell the difference between the
+/// a) right-hand merge adding a diff (X-Y) to the left-hand side, or b) the
+/// right-hand merge subtracting the opposite diff (Y-X) that was present on the
+/// left-hand side.
+#[derive(PartialEq, Eq, Hash, Clone, Debug)]
+pub struct DiffOfMerges<T> {
+    /// Alternates between positive and negative terms, starting with positive.
+    values: Vec<T>,
+}
+impl<T> DiffOfMerges<T> {
+    /// Creates a `DiffOfMerges` from the given values, in which positive and
+    /// negative terms alternate.
+    pub fn from_vec(values: impl Into<Vec<T>>) -> Self {
+        let values = values.into();
+        assert!(
+            values.len() & 1 == 0,
+            "must have equal numbers of adds and removes"
+        );
+        DiffOfMerges { values }
+    }
+
+    /// Creates a new merge object from the given removes and adds.
+    // TODO: Rename to `from_negatives_positives` (?)
+    pub fn from_removes_adds(
+        removes: impl IntoIterator<Item = T>,
+        adds: impl IntoIterator<Item = T>,
+    ) -> Self {
+        let removes = removes.into_iter();
+        let adds = adds.into_iter();
+        let mut values = Vec::with_capacity(removes.size_hint().0 * 2);
+        for diff in removes.zip_longest(adds) {
+            let (remove, add) = diff
+                .both()
+                .expect("must have the same number of adds and removes");
+            values.extend([remove, add]);
+        }
+        DiffOfMerges { values }
+    }
+
+    /// Simplify the diff by removing equal positive and negative terms.
+    ///
+    /// The positive terms are allowed to be reordered freely, as are the
+    /// negative terms. The pairing of them into diffs is **not** preserved.
+    pub fn simplify(mut self) -> Self
+    where
+        T: PartialEq + Clone,
+    {
+        self.values = simplify_internal(self.values);
+        self
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn c<T: Clone>(removes: &[T], adds: &[T]) -> Merge<T> {
         Merge::from_removes_adds(removes.to_vec(), adds.to_vec())
+    }
+
+    fn d<T: Clone>(removes: &[T], adds: &[T]) -> DiffOfMerges<T> {
+        DiffOfMerges::from_removes_adds(removes.to_vec(), adds.to_vec())
     }
 
     #[test]
@@ -919,7 +987,7 @@ mod tests {
     }
 
     #[test]
-    fn test_simplify() {
+    fn test_simplify_merge() {
         // 1-way merge
         assert_eq!(c(&[], &[0]).simplify(), c(&[], &[0]));
         // 3-way merge
@@ -985,6 +1053,19 @@ mod tests {
             c(&[0, 1, 2], &[3, 4, 5, 0]).simplify(),
             c(&[1, 2], &[4, 5, 3])
         );
+    }
+
+    #[test]
+    fn test_simplify_diff_of_merges() {
+        assert_eq!(d::<usize>(&[], &[]).simplify(), d(&[], &[]));
+        assert_eq!(d(&[0], &[0]).simplify(), d(&[], &[]));
+        assert_eq!(d(&[1], &[0]).simplify(), d(&[1], &[0]));
+        assert_eq!(d(&[0, 0], &[0, 0]).simplify(), d(&[], &[]));
+        assert_eq!(d(&[0, 1], &[1, 0]).simplify(), d(&[], &[]));
+        assert_eq!(d(&[0, 1], &[0, 1]).simplify(), d(&[], &[]));
+        assert_eq!(d(&[1, 1], &[0, 1]).simplify(), d(&[1], &[0]));
+        assert_eq!(d(&[1, 0], &[0, 2]).simplify(), d(&[1], &[2]));
+        assert_eq!(d(&[1, 0], &[3, 2]).simplify(), d(&[1, 0], &[3, 2]));
     }
 
     #[test]
