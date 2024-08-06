@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package jj_api.objects;
+
+// A RevisionMask controls how much of a revision is returned.
+// For example, `jj log` will likely not care about files, while `jj status`
+// will want to know what files changed in a revision, and `jj diff` will want
+// to know both the content of the file and the content of the file in the
+// parent revision.
+message RevisionMask {
+  // Which files will be returned.
+  enum FilePathMask {
+    NONE = 0;
+    MODIFIED_FILES = 1;
+    ALL_FILES = 3;
+    // Include all files that were matched by the RevisionMask containing this
+    // RevisionMask. For example, if we had:
+    // RevisionMask(
+    //   files_to_include = MODIFIED_FILES,
+    //   files = FileMask(content = True),
+    //   parents = RevisionMask(
+    //     files_to_include = PARENT_FILES
+    //     files = FileMask(content = True),
+    //   ),
+    // )
+    // And we returned the revision @, which modfied the file foo, then both
+    // r.files["foo"].content and r.parent.files["foo"].content would be filled.
+    PARENT_FILES = 4;
+  };
+  FilePathMask files_to_include = 1;
+  repeated string additional_files = 2;
+  
+  bool rendered = 3;
+
+  bool file_content = 4;
+  bool file_hash = 5;
+  bool file_metadata = 6;
+
+  // How much of the parent revision to fill in.
+  RevisionMask parents = 7;
+}
+
+message File {
+  // If you query for MODIFIED_FILES, you may get a file that's been deleted.
+  bool exists = 1;
+  string hash = 2;
+  bytes content = 3;
+  // TODO: file metadata (eg. permissions)?
+}
+
+
+// By default, 
+message Revision {
+  string change_id = 1;
+  string commit_id = 2;
+  string description = 3;
+  bool empty = 4;
+  bool conflicts = 5;
+  bool mutable = 6;
+  
+  // The rendered template.
+  // Open question: Is a template a first-class citizen of jj, or is it specific
+  // to jj-cli?
+  string rendered = 7;
+
+  map<string, File> files = 8;
+
+  // revision.parents[*].parents is always empty, to avoid recursion.
+  repeated Revision parents = 9;
+}
