@@ -225,7 +225,7 @@ fn test_obslog_word_wrap() {
 
 #[test]
 fn test_obslog_squash() {
-    let mut test_env = TestEnvironment::default();
+    let test_env = TestEnvironment::default();
     test_env.jj_cmd_ok(test_env.env_root(), &["git", "init", "repo"]);
     let repo_path = test_env.env_root().join("repo");
 
@@ -234,15 +234,12 @@ fn test_obslog_squash() {
     test_env.jj_cmd_ok(&repo_path, &["new", "-m", "second"]);
     std::fs::write(repo_path.join("file1"), "foo\nbar\n").unwrap();
 
-    let edit_script = test_env.set_up_fake_editor();
-    std::fs::write(&edit_script, "write\nsquashed 1").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["squash"]);
+    test_env.jj_cmd_ok(&repo_path, &["squash", "-m", "squashed 1"]);
 
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "third"]);
     std::fs::write(repo_path.join("file1"), "foo\nbar\nbaz\n").unwrap();
 
-    std::fs::write(&edit_script, "write\nsquashed 2").unwrap();
-    test_env.jj_cmd_ok(&repo_path, &["squash"]);
+    test_env.jj_cmd_ok(&repo_path, &["squash", "-m", "squashed 2"]);
 
     let stdout = test_env.jj_cmd_success(&repo_path, &["obslog", "-p", "-r", "@-"]);
     insta::assert_snapshot!(stdout, @r###"
