@@ -552,30 +552,31 @@ fn show_change_diff(
     formatter: &mut dyn Formatter,
     repo: &dyn Repo,
     diff_renderer: &DiffRenderer,
-    modified_change: &ModifiedChange,
+    change: &ModifiedChange,
     width: usize,
 ) -> Result<(), CommandError> {
-    if modified_change.added_commits.len() == 1 && modified_change.removed_commits.len() == 1 {
-        let commit = &modified_change.added_commits[0];
-        let predecessor = &modified_change.removed_commits[0];
-        let predecessor_tree = rebase_to_dest_parent(repo, predecessor, commit)?;
-        let tree = commit.tree()?;
-        diff_renderer.show_diff(
-            ui,
-            formatter,
-            &predecessor_tree,
-            &tree,
-            &EverythingMatcher,
-            width,
-        )?;
-    } else if modified_change.added_commits.len() == 1 {
-        let commit = &modified_change.added_commits[0];
-        diff_renderer.show_patch(ui, formatter, commit, &EverythingMatcher, width)?;
-    } else if modified_change.removed_commits.len() == 1 {
-        // TODO: Should we show a reverse diff?
-        let commit = &modified_change.removed_commits[0];
-        diff_renderer.show_patch(ui, formatter, commit, &EverythingMatcher, width)?;
+    match (&*change.removed_commits, &*change.added_commits) {
+        ([predecessor], [commit]) => {
+            let predecessor_tree = rebase_to_dest_parent(repo, predecessor, commit)?;
+            let tree = commit.tree()?;
+            diff_renderer.show_diff(
+                ui,
+                formatter,
+                &predecessor_tree,
+                &tree,
+                &EverythingMatcher,
+                width,
+            )?;
+        }
+        ([], [commit]) => {
+            diff_renderer.show_patch(ui, formatter, commit, &EverythingMatcher, width)?;
+        }
+        ([commit], []) => {
+            // TODO: Should we show a reverse diff?
+            diff_renderer.show_patch(ui, formatter, commit, &EverythingMatcher, width)?;
+        }
+        ([_, _, ..], _) | (_, [_, _, ..]) => {}
+        ([], []) => panic!("ModifiedChange should have at least one entry"),
     }
-
     Ok(())
 }
