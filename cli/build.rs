@@ -31,6 +31,7 @@ fn main() -> std::io::Result<()> {
     let root = meta.root_package().unwrap();
     let version = &root.version;
 
+    // version information
     if Path::new(GIT_HEAD_PATH).exists() {
         // In colocated repo, .git/HEAD should reflect the working-copy parent.
         println!("cargo:rerun-if-changed={GIT_HEAD_PATH}");
@@ -41,10 +42,21 @@ fn main() -> std::io::Result<()> {
     }
     println!("cargo:rerun-if-env-changed=NIX_JJ_GIT_HASH");
 
+    // build information
+    println!(
+        "cargo:rustc-env=JJ_CARGO_TARGET={}",
+        std::env::var("TARGET").unwrap()
+    );
+
+    println!("cargo:rustc-env=JJ_VERSION={}", version);
+
     if let Some(git_hash) = get_git_hash() {
-        println!("cargo:rustc-env=JJ_VERSION={}-{}", version, git_hash);
-    } else {
-        println!("cargo:rustc-env=JJ_VERSION={}", version);
+        println!("cargo:rustc-env=JJ_GIT_COMMIT=g{}", git_hash);
+    }
+
+    // if JJ_RELEASE_BUILD, propagate
+    if std::env::var("JJ_RELEASE_BUILD").is_ok() {
+        println!("cargo:rustc-env=JJ_RELEASE_BUILD=1");
     }
 
     Ok(())

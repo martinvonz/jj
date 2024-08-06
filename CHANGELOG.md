@@ -203,6 +203,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj squash` now accepts a `--keep-emptied` option to keep the source commit.
 
+* `jj version` now takes a `--numeric-only` flag to print only the version
+  number.
+
+* `jj version` now takes a `--build-info` flag to print information about
+  how the binary was built.
+
 ### Fixed bugs
 
 * `jj git push` now ignores immutable commits when checking whether a
