@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use std::cmp::max;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::{io, mem};
@@ -284,29 +284,36 @@ impl<'a> DiffRenderer<'a> {
                     show_diff_summary(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::Stat => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
+                    let no_copy_tracking = Default::default();
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
                     show_diff_stat(formatter, store, tree_diff, path_converter, width)?;
                 }
                 DiffFormat::Types => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
+                    let no_copy_tracking = Default::default();
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
                     show_types(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::NameOnly => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
+                    let no_copy_tracking = Default::default();
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
                     show_names(formatter, tree_diff, path_converter)?;
                 }
                 DiffFormat::Git { context } => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
+                    let no_copy_tracking = Default::default();
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
                     show_git_diff(formatter, store, tree_diff, *context)?;
                 }
                 DiffFormat::ColorWords { context } => {
-                    let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
+                    let no_copy_tracking = Default::default();
+                    let tree_diff = from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
                     show_color_words_diff(formatter, store, tree_diff, path_converter, *context)?;
                 }
                 DiffFormat::Tool(tool) => {
                     match tool.diff_invocation_mode {
                         DiffToolMode::FileByFile => {
-                            let tree_diff = from_tree.diff_stream(to_tree, matcher, copy_records);
+                            let no_copy_tracking = Default::default();
+                            let tree_diff =
+                                from_tree.diff_stream(to_tree, matcher, &no_copy_tracking);
                             show_file_by_file_diff(
                                 ui,
                                 formatter,
@@ -572,20 +579,28 @@ pub fn show_color_words_diff(
     let mut diff_stream = materialized_diff_stream(store, tree_diff);
     async {
         while let Some(MaterializedTreeDiffEntry {
-            source: _,
-            target: path,
+            source: left_path,
+            target: right_path,
             value: diff,
         }) = diff_stream.next().await
         {
-            let ui_path = path_converter.format_file_path(&path);
+            let left_ui_path = path_converter.format_file_path(&left_path);
+            let right_ui_path = path_converter.format_file_path(&right_path);
             let (left_value, right_value) = diff?;
 
             match (&left_value, &right_value) {
-                (_, MaterializedTreeValue::AccessDenied(source))
-                | (MaterializedTreeValue::AccessDenied(source), _) => {
+                (MaterializedTreeValue::AccessDenied(source), _) => {
                     write!(
                         formatter.labeled("access-denied"),
-                        "Access denied to {ui_path}:"
+                        "Access denied to {left_ui_path}:"
+                    )?;
+                    writeln!(formatter, " {source}")?;
+                    continue;
+                }
+                (_, MaterializedTreeValue::AccessDenied(source)) => {
+                    write!(
+                        formatter.labeled("access-denied"),
+                        "Access denied to {right_ui_path}:"
                     )?;
                     writeln!(formatter, " {source}")?;
                     continue;
@@ -596,9 +611,9 @@ pub fn show_color_words_diff(
                 let description = basic_diff_file_type(&right_value);
                 writeln!(
                     formatter.labeled("header"),
-                    "Added {description} {ui_path}:"
+                    "Added {description} {right_ui_path}:"
                 )?;
-                let right_content = diff_content(&path, right_value)?;
+                let right_content = diff_content(&right_path, right_value)?;
                 if right_content.is_empty() {
                     writeln!(formatter.labeled("empty"), "    (empty)")?;
                 } else if right_content.is_binary {
@@ -659,9 +674,19 @@ pub fn show_color_words_diff(
                         )
                     }
                 };
-                let left_content = diff_content(&path, left_value)?;
-                let right_content = diff_content(&path, right_value)?;
-                writeln!(formatter.labeled("header"), "{description} {ui_path}:")?;
+                let left_content = diff_content(&left_path, left_value)?;
+                let right_content = diff_content(&right_path, right_value)?;
+                if left_path == right_path {
+                    writeln!(
+                        formatter.labeled("header"),
+                        "{description} {right_ui_path}:"
+                    )?;
+                } else {
+                    writeln!(
+                        formatter.labeled("header"),
+                        "{description} {right_ui_path} ({left_ui_path} => {right_ui_path}):"
+                    )?;
+                }
                 if left_content.is_binary || right_content.is_binary {
                     writeln!(formatter.labeled("binary"), "    (binary)")?;
                 } else {
@@ -676,9 +701,9 @@ pub fn show_color_words_diff(
                 let description = basic_diff_file_type(&left_value);
                 writeln!(
                     formatter.labeled("header"),
-                    "Removed {description} {ui_path}:"
+                    "Removed {description} {right_ui_path}:"
                 )?;
-                let left_content = diff_content(&path, left_value)?;
+                let left_content = diff_content(&left_path, left_value)?;
                 if left_content.is_empty() {
                     writeln!(formatter.labeled("empty"), "    (empty)")?;
                 } else if left_content.is_binary {
@@ -1128,27 +1153,73 @@ pub fn show_diff_summary(
     mut tree_diff: TreeDiffStream,
     path_converter: &RepoPathUiConverter,
 ) -> io::Result<()> {
+    #[derive(Debug)]
+    enum Type {
+        Copy(String, String),
+        Rename(String, String),
+        Modification(String),
+        Addition(String),
+        Deletion(String),
+    }
+
+    let mut file_modifications = Vec::<Type>::new();
+    let mut unresolved_renames = HashMap::<String, usize>::new();
     async {
         while let Some(TreeDiffEntry {
-            source: _, // TODO handle copy tracking
-            target: repo_path,
+            source: before_path,
+            target: after_path,
             value: diff,
         }) = tree_diff.next().await
         {
             let (before, after) = diff.unwrap();
-            let ui_path = path_converter.format_file_path(&repo_path);
-            if before.is_present() && after.is_present() {
-                writeln!(formatter.labeled("modified"), "M {ui_path}")?;
-            } else if before.is_absent() {
-                writeln!(formatter.labeled("added"), "A {ui_path}")?;
+            let before_ui_path = path_converter.format_file_path(&before_path);
+            let after_ui_path = path_converter.format_file_path(&after_path);
+            if before_path != after_path {
+                if let Some(&idx) = unresolved_renames.get(&before_ui_path) {
+                    if let Some(Type::Deletion(_)) = file_modifications.get(idx) {
+                        file_modifications[idx] = Type::Rename(before_ui_path, after_ui_path);
+                    }
+                } else {
+                    unresolved_renames.insert(before_ui_path.clone(), file_modifications.len());
+                    file_modifications.push(Type::Copy(before_ui_path, after_ui_path));
+                }
             } else {
-                // `R` could be interpreted as "renamed"
-                writeln!(formatter.labeled("removed"), "D {ui_path}")?;
+                match (before.is_present(), after.is_present()) {
+                    (true, true) => file_modifications.push(Type::Modification(before_ui_path)),
+                    (false, true) => file_modifications.push(Type::Addition(before_ui_path)),
+                    (true, false) => {
+                        if let Some(&idx) = unresolved_renames.get(&before_ui_path) {
+                            if let Some(Type::Copy(before, after)) = file_modifications.get(idx) {
+                                file_modifications[idx] =
+                                    Type::Rename(before.clone(), after.clone());
+                            }
+                        } else {
+                            unresolved_renames
+                                .insert(before_ui_path.clone(), file_modifications.len());
+                            file_modifications.push(Type::Deletion(before_ui_path));
+                        }
+                    }
+                    _ => {}
+                }
             }
         }
-        Ok(())
     }
-    .block_on()
+    .block_on();
+
+    for modification in file_modifications {
+        match modification {
+            Type::Copy(before, after) => {
+                writeln!(formatter.labeled("copied"), "C {before} => {after}")?
+            }
+            Type::Rename(before, after) => {
+                writeln!(formatter.labeled("renamed"), "R {before} => {after}")?
+            }
+            Type::Modification(path) => writeln!(formatter.labeled("modified"), "M {path}")?,
+            Type::Addition(path) => writeln!(formatter.labeled("added"), "A {path}")?,
+            Type::Deletion(path) => writeln!(formatter.labeled("removed"), "D {path}")?,
+        }
+    }
+    Ok(())
 }
 
 struct DiffStat {

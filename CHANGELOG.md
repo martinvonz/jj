@@ -14,6 +14,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### New features
 
+* The following diff formats now include information about copies and moves if supported by the backend (the Git backend does): `--summary`
+
 ### Fixed bugs
 
 ## [0.20.0] - 2024-08-07
