@@ -20,7 +20,7 @@ use crate::cli_util::{CommandHelper, RevisionArg};
 use crate::command_error::{user_error, CommandError};
 use crate::ui::Ui;
 
-/// Run a command across a set of revisions.
+/// (**Stub**, does not work yet) Run a command across a set of revisions.
 ///
 ///
 /// All recorded state will be persisted in the `.jj` directory, so occasionally
