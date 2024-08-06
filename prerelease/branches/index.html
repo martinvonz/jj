@@ -1705,9 +1705,9 @@ have conflicts. Both can end up in that state if concurrent operations were run
 in the repo. The local branch more typically becomes conflicted because it was
 updated both locally and on a remote.</p>
 <p>To resolve a conflicted state in a local branch (e.g. <code>main</code>), you can move the
-branch to the desired target with <code>jj branch</code>. You may want to first either
-merge the conflicted targets with <code>jj merge</code>, or you may want to rebase one side
-on top of the other with <code>jj rebase</code>.</p>
+branch to the desired target with <code>jj branch move</code>. You may want to first either
+merge the conflicted targets with <code>jj new</code> (e.g. <code>jj new 'all:main'</code>), or you may
+want to rebase one side on top of the other with <code>jj rebase</code>.</p>
 <p>To resolve a conflicted state in a remote branch (e.g. <code>main@origin</code>), simply
 pull from the remote (e.g. <code>jj git fetch</code>). The conflict resolution will also
 propagate to the local branch (which was presumably also conflicted).</p>
