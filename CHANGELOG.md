@@ -38,6 +38,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj --at-op=@` no longer merges concurrent operations if explicitly specified.
 
+* `jj obslog -p` no longer shows diffs at non-partial squash operations.
+  Previously, it showed the same diffs as the second predecessor.
+
 ### Deprecations
 
 * The original configuration syntax for `jj fix` is now deprecated in favor of

@@ -303,20 +303,25 @@ pub fn rebase_commit_with_options(
     }
 }
 
+/// Moves changes from `sources` to the `destination` parent, returns new tree.
 pub fn rebase_to_dest_parent(
     repo: &dyn Repo,
-    source: &Commit,
+    sources: &[Commit],
     destination: &Commit,
 ) -> BackendResult<MergedTree> {
-    if source.parent_ids() == destination.parent_ids() {
-        Ok(source.tree()?)
-    } else {
-        let destination_parent_tree = destination.parent_tree(repo)?;
-        let source_parent_tree = source.parent_tree(repo)?;
-        let source_tree = source.tree()?;
-        let rebased_tree = destination_parent_tree.merge(&source_parent_tree, &source_tree)?;
-        Ok(rebased_tree)
+    if let [source] = sources {
+        if source.parent_ids() == destination.parent_ids() {
+            return source.tree();
+        }
     }
+    sources.iter().try_fold(
+        destination.parent_tree(repo)?,
+        |destination_tree, source| {
+            let source_parent_tree = source.parent_tree(repo)?;
+            let source_tree = source.tree()?;
+            destination_tree.merge(&source_parent_tree, &source_tree)
+        },
+    )
 }
 
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]

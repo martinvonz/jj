@@ -190,12 +190,8 @@ fn show_predecessor_patch(
     commit: &Commit,
     width: usize,
 ) -> Result<(), CommandError> {
-    let mut predecessors = commit.predecessors();
-    let predecessor = match predecessors.next() {
-        Some(predecessor) => predecessor?,
-        None => return Ok(()),
-    };
-    let predecessor_tree = rebase_to_dest_parent(repo, &predecessor, commit)?;
+    let predecessors: Vec<_> = commit.predecessors().try_collect()?;
+    let predecessor_tree = rebase_to_dest_parent(repo, &predecessors, commit)?;
     let tree = commit.tree()?;
     renderer.show_diff(
         ui,
