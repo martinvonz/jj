@@ -280,6 +280,38 @@ mod tests {
         assert!(result.missing.is_empty());
         assert!(result.duplicates.is_empty());
         assert!(result.unexpected.is_empty());
+
+        // Headers with arbitrary text and newlines are ignored.
+        let result = parse_bulk_edit_message(
+            indoc! {"
+                
+                JJ: I am a header
+
+                JJ: More header
+
+                JJ: Still more header
+                JJ: describe 1 -------
+                Description 1
+
+                JJ: describe 2 -------
+                Description 2
+            "},
+            &indexmap! {
+                "1".to_string() => &1,
+                "2".to_string() => &2,
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            result.descriptions,
+            hashmap! {
+                1 => "Description 1\n".to_string(),
+                2 => "Description 2\n".to_string(),
+            }
+        );
+        assert!(result.missing.is_empty());
+        assert!(result.duplicates.is_empty());
+        assert!(result.unexpected.is_empty());
     }
 
     #[test]
