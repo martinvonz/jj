@@ -27,10 +27,11 @@ mod tests {
     use std::{fs, thread};
 
     use super::*;
+    use crate::tests_common::new_temp_dir;
 
     #[test]
     fn lock_basic() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let lock_path = temp_dir.path().join("test.lock");
         assert!(!lock_path.exists());
         {
@@ -42,7 +43,7 @@ mod tests {
 
     #[test]
     fn lock_concurrent() {
-        let temp_dir = testutils::new_temp_dir();
+        let temp_dir = new_temp_dir();
         let data_path = temp_dir.path().join("test");
         let lock_path = temp_dir.path().join("test.lock");
         fs::write(&data_path, 0_u32.to_le_bytes()).unwrap();
