@@ -1274,14 +1274,20 @@ fn test_diff_external_file_by_file_tool() {
     // diff without file patterns
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["diff", config]), @r###"
+
+    JJ (#1 of 3): comparing file1
     ==
     file1
     --
     file1
+
+    JJ (#2 of 3): comparing file2
     ==
     file2
     --
     file2
+
+    JJ (#3 of 3): comparing file3
     ==
     file3
     --
@@ -1291,6 +1297,7 @@ fn test_diff_external_file_by_file_tool() {
     // diff with file patterns
     insta::assert_snapshot!(
         test_env.jj_cmd_success(&repo_path, &["diff", config, "file1"]), @r###"
+    JJ (#1 of 1): comparing file1
     ==
     file1
     --
@@ -1301,24 +1308,32 @@ fn test_diff_external_file_by_file_tool() {
         test_env.jj_cmd_success(&repo_path, &["log", "-p", config]), @r###"
     @  rlvkpnrz test.user@example.com 2001-02-03 08:05:09 39d9055d
     │  (no description set)
+    │  JJ (#1 of 3): comparing file1
     │  ==
     │  file1
     │  --
     │  file1
+    │
+    │  JJ (#2 of 3): comparing file2
     │  ==
     │  file2
     │  --
     │  file2
+    │
+    │  JJ (#3 of 3): comparing file3
     │  ==
     │  file3
     │  --
     │  file3
     ○  qpvuntsm test.user@example.com 2001-02-03 08:05:08 0ad4ef22
     │  (no description set)
+    │  JJ (#1 of 2): comparing file1
     │  ==
     │  file1
     │  --
     │  file1
+    │
+    │  JJ (#2 of 2): comparing file2
     │  ==
     │  file2
     │  --
@@ -1335,14 +1350,19 @@ fn test_diff_external_file_by_file_tool() {
 
         (no description set)
 
+    JJ (#1 of 3): comparing file1
     ==
     file1
     --
     file1
+
+    JJ (#2 of 3): comparing file2
     ==
     file2
     --
     file2
+
+    JJ (#3 of 3): comparing file3
     ==
     file3
     --
