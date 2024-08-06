@@ -314,6 +314,11 @@
                     "type": "string",
                     "description": "The remote to which commits are pushed",
                     "default": "origin"
+                },
+                "colocate": {
+                    "type": "boolean",
+                    "description": "Whether to colocate the working copy with the git repository",
+                    "default": false
                 }
             }
         },
