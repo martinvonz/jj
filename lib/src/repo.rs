@@ -39,7 +39,7 @@ use crate::file_util::{IoResultExt as _, PathError};
 use crate::index::{ChangeIdIndex, Index, IndexReadError, IndexStore, MutableIndex, ReadonlyIndex};
 use crate::local_backend::LocalBackend;
 use crate::object_id::{HexPrefix, ObjectId, PrefixResolution};
-use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadsStore};
+use crate::op_heads_store::{self, OpHeadResolutionError, OpHeadStoreError, OpHeadsStore};
 use crate::op_store::{
     OpStore, OpStoreError, OperationId, RefTarget, RemoteRef, RemoteRefState, WorkspaceId,
 };
@@ -588,6 +588,8 @@ pub enum RepoLoaderError {
     IndexRead(#[from] IndexReadError),
     #[error(transparent)]
     OpHeadResolution(#[from] OpHeadResolutionError),
+    #[error(transparent)]
+    OpHeadStore(#[from] OpHeadStoreError),
     #[error(transparent)]
     OpStore(#[from] OpStoreError),
 }

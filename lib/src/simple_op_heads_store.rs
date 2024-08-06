@@ -19,9 +19,10 @@ use std::fmt::{Debug, Formatter};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::file_util::PathError;
 use crate::lock::FileLock;
 use crate::object_id::ObjectId;
-use crate::op_heads_store::{OpHeadsStore, OpHeadsStoreLock};
+use crate::op_heads_store::{OpHeadStoreError, OpHeadStoreResult, OpHeadsStore, OpHeadsStoreLock};
 use crate::op_store::OperationId;
 
 pub struct SimpleOpHeadsStore {
@@ -88,16 +89,20 @@ impl OpHeadsStore for SimpleOpHeadsStore {
         }
     }
 
-    fn get_op_heads(&self) -> Vec<OperationId> {
+    fn get_op_heads(&self) -> OpHeadStoreResult<Vec<OperationId>> {
         let mut op_heads = vec![];
-        for op_head_entry in std::fs::read_dir(&self.dir).unwrap() {
-            let op_head_file_name = op_head_entry.unwrap().file_name();
+        for op_head_entry in std::fs::read_dir(&self.dir)
+            .map_err(|err| io_to_op_head_store_error(err, self.dir.clone()))?
+        {
+            let op_head_file_name = op_head_entry
+                .map_err(|err| io_to_op_head_store_error(err, self.dir.clone()))?
+                .file_name();
             let op_head_file_name = op_head_file_name.to_str().unwrap();
             if let Ok(op_head) = hex::decode(op_head_file_name) {
                 op_heads.push(OperationId::new(op_head));
             }
         }
-        op_heads
+        Ok(op_heads)
     }
 
     fn lock(&self) -> Box<dyn OpHeadsStoreLock + '_> {
@@ -105,4 +110,9 @@ impl OpHeadsStore for SimpleOpHeadsStore {
             _lock: FileLock::lock(self.dir.join("lock")),
         })
     }
+}
+
+fn io_to_op_head_store_error(error: std::io::Error, path: PathBuf) -> OpHeadStoreError {
+    let err = PathError { path, error };
+    err.into()
 }
