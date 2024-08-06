@@ -16,11 +16,10 @@ use std::io::{IsTerminal as _, Stderr, StderrLock, Stdout, StdoutLock, Write};
 use std::process::{Child, ChildStdin, Stdio};
 use std::str::FromStr;
 use std::thread::JoinHandle;
-use std::{env, error, fmt, io, iter, mem};
+use std::{env, error, fmt, io, iter, mem, thread};
 
-use indoc::indoc;
 use itertools::Itertools as _;
-use minus::{MinusError, Pager as MinusPager};
+use os_pipe::PipeWriter;
 use tracing::instrument;
 
 use crate::command_error::{config_error_with_message, CommandError};
@@ -41,71 +40,13 @@ enum UiOutput {
         child_stdin: ChildStdin,
     },
     BuiltinPaged {
-        pager: BuiltinPager,
+        out_wr: PipeWriter,
+        err_wr: PipeWriter,
+        pager_thread: JoinHandle<streampager::Result<()>>,
     },
 }
 
-/// A builtin pager
-pub struct BuiltinPager {
-    pager: MinusPager,
-    dynamic_pager_thread: JoinHandle<Result<(), MinusError>>,
-}
-
-impl Write for &BuiltinPager {
-    fn flush(&mut self) -> io::Result<()> {
-        // no-op since this is being run in a dynamic pager mode.
-        Ok(())
-    }
-
-    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        // Since minus::Pager holds the rx end internally, push_str() doesn't
-        // fail even after the paging thread gets terminated.
-        if self.dynamic_pager_thread.is_finished() {
-            return Err(io::ErrorKind::BrokenPipe.into());
-        }
-        let string = std::str::from_utf8(buf).map_err(io::Error::other)?;
-        self.pager.push_str(string).map_err(io::Error::other)?;
-        Ok(buf.len())
-    }
-}
-
-impl Default for BuiltinPager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl BuiltinPager {
-    pub fn finalize(self) -> Result<(), MinusError> {
-        let dynamic_pager_thread = self.dynamic_pager_thread;
-        dynamic_pager_thread.join().unwrap()
-    }
-
-    pub fn new() -> Self {
-        let pager = MinusPager::new();
-        // Prefer to be cautious and only kill the pager instead of the whole process
-        // like minus does by default.
-        pager
-            .set_exit_strategy(minus::ExitStrategy::PagerQuit)
-            .expect("Able to set the exit strategy");
-        let pager_handle = pager.clone();
-
-        BuiltinPager {
-            pager,
-            dynamic_pager_thread: std::thread::spawn(move || {
-                // This thread handles the actual paging.
-                minus::dynamic_paging(pager_handle)
-            }),
-        }
-    }
-}
-
 impl UiOutput {
-    fn new_builtin() -> UiOutput {
-        UiOutput::BuiltinPaged {
-            pager: BuiltinPager::new(),
-        }
-    }
     fn new_terminal() -> UiOutput {
         UiOutput::Terminal {
             stdout: io::stdout(),
@@ -119,6 +60,26 @@ impl UiOutput {
         let mut child = cmd.stdin(Stdio::piped()).spawn()?;
         let child_stdin = child.stdin.take().unwrap();
         Ok(UiOutput::Paged { child, child_stdin })
+    }
+
+    fn new_builtin_paged() -> streampager::Result<UiOutput> {
+        let mut pager = streampager::Pager::new_using_stdio()?;
+        // TODO: should we set the interface mode to be "less -FRX" like?
+        // It will override the user-configured values.
+
+        // Use native pipe, which can be attached to child process. The stdout
+        // stream could be an in-process channel, but the cost of extra syscalls
+        // wouldn't matter.
+        let (out_rd, out_wr) = os_pipe::pipe()?;
+        let (err_rd, err_wr) = os_pipe::pipe()?;
+        pager.add_stream(out_rd, "")?;
+        pager.add_error_stream(err_rd, "stderr")?;
+
+        Ok(UiOutput::BuiltinPaged {
+            out_wr,
+            err_wr,
+            pager_thread: thread::spawn(|| pager.run()),
+        })
     }
 
     fn finalize(self, ui: &Ui) {
@@ -141,45 +102,26 @@ impl UiOutput {
                     .ok();
                 }
             }
-            UiOutput::BuiltinPaged { pager } => {
-                if let Err(minus_error) = pager.finalize() {
-                    writeln!(
-                        ui.warning_default(),
-                        "Built-in pager failed to start: {err}",
-                        err = format_error_with_sources(&minus_error),
-                    )
-                    .ok();
-                    writeln!(ui.warning_default(), "The output of this command is lost.").ok();
-                    if matches!(
-                        minus_error,
-                        MinusError::Setup(minus::error::SetupError::InvalidTerminal)
-                    ) {
-                        if cfg!(windows) {
-                            writeln!(
-                                ui.hint_default(),
-                                indoc! {r#"
-                                    jj's builtin pager is likely incompatible with this terminal
-
-                                    This is known to happen with `mintty`, the default Git Bash terminal on Windows.
-
-                                    Possible workarounds:
-                                    - Use `jj --no-pager`
-                                    - Configure a different pager, see https://martinvonz.github.io/jj/latest/windows/#pagination for Git Bash on Windows
-                                    - Use a different terminal (e.g. Windows Terminal or the Command Prompt)
-                                    - Use `winpty jj ...`; `winpty` comes with Git Bash or Cygwin."#
-                                }
-                            ).ok();
-                        } else {
-                            writeln!(
-                                ui.hint_default(),
-                                "Try `jj --no-pager`. You can also try `TERM=xterm` or setting up \
-                                 a different pager."
-                            )
-                            .ok();
-                        }
+            UiOutput::BuiltinPaged {
+                out_wr,
+                err_wr,
+                pager_thread,
+            } => {
+                drop(out_wr);
+                drop(err_wr);
+                match pager_thread.join() {
+                    Ok(Ok(())) => {}
+                    Ok(Err(err)) => {
+                        writeln!(
+                            ui.warning_default(),
+                            "Failed to run builtin pager: {err}",
+                            err = format_error_with_sources(&err),
+                        )
+                        .ok();
                     }
-                    // We do not cause a panic or another error so that the exit
-                    // code of the command is preserved.
+                    Err(_) => {
+                        writeln!(ui.warning_default(), "Builtin pager crashed.").ok();
+                    }
                 }
             }
         }
@@ -189,13 +131,13 @@ impl UiOutput {
 pub enum UiStdout<'a> {
     Terminal(StdoutLock<'static>),
     Paged(&'a ChildStdin),
-    Builtin(&'a BuiltinPager),
+    Builtin(&'a PipeWriter),
 }
 
 pub enum UiStderr<'a> {
     Terminal(StderrLock<'static>),
     Paged(&'a ChildStdin),
-    Builtin(&'a BuiltinPager),
+    Builtin(&'a PipeWriter),
 }
 
 macro_rules! for_outputs {
@@ -376,7 +318,16 @@ impl Ui {
         let use_builtin_pager = matches!(
             &self.pager_cmd, CommandNameAndArgs::String(name) if name == BUILTIN_PAGER_NAME);
         let new_output = if use_builtin_pager {
-            Some(UiOutput::new_builtin())
+            UiOutput::new_builtin_paged()
+                .inspect_err(|err| {
+                    writeln!(
+                        self.warning_default(),
+                        "Failed to set up builtin pager: {err}",
+                        err = format_error_with_sources(err),
+                    )
+                    .ok();
+                })
+                .ok()
         } else {
             UiOutput::new_paged(&self.pager_cmd)
                 .inspect_err(|err| {
@@ -413,7 +364,7 @@ impl Ui {
         match &self.output {
             UiOutput::Terminal { stdout, .. } => UiStdout::Terminal(stdout.lock()),
             UiOutput::Paged { child_stdin, .. } => UiStdout::Paged(child_stdin),
-            UiOutput::BuiltinPaged { pager } => UiStdout::Builtin(pager),
+            UiOutput::BuiltinPaged { out_wr, .. } => UiStdout::Builtin(out_wr),
         }
     }
 
@@ -430,7 +381,7 @@ impl Ui {
         match &self.output {
             UiOutput::Terminal { stderr, .. } => UiStderr::Terminal(stderr.lock()),
             UiOutput::Paged { child_stdin, .. } => UiStderr::Paged(child_stdin),
-            UiOutput::BuiltinPaged { pager } => UiStderr::Builtin(pager),
+            UiOutput::BuiltinPaged { err_wr, .. } => UiStderr::Builtin(err_wr),
         }
     }
 
@@ -444,8 +395,7 @@ impl Ui {
         match &self.output {
             UiOutput::Terminal { .. } => Ok(Stdio::inherit()),
             UiOutput::Paged { child_stdin, .. } => Ok(duplicate_child_stdin(child_stdin)?.into()),
-            // Stderr does not get redirected through the built-in pager.
-            UiOutput::BuiltinPaged { .. } => Ok(Stdio::inherit()),
+            UiOutput::BuiltinPaged { err_wr, .. } => Ok(err_wr.try_clone()?.into()),
         }
     }
 

@@ -38,6 +38,10 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 * `jj --at-op=@` no longer merges concurrent operations if explicitly specified.
 
+* The builtin pager is switched to
+  [streampager](https://github.com/markbt/streampager/). It can handle large
+  inputs better.
+
 ### Deprecations
 
 * The original configuration syntax for `jj fix` is now deprecated in favor of
