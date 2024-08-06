@@ -556,8 +556,8 @@ fn show_change_diff(
     width: usize,
 ) -> Result<(), CommandError> {
     match (&*change.removed_commits, &*change.added_commits) {
-        ([predecessor], [commit]) => {
-            let predecessor_tree = rebase_to_dest_parent(repo, predecessor, commit)?;
+        (predecessors @ [_], [commit]) => {
+            let predecessor_tree = rebase_to_dest_parent(repo, predecessors, commit)?;
             let tree = commit.tree()?;
             diff_renderer.show_diff(
                 ui,

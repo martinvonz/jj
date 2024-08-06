@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use std::slice;
+
 use clap::ArgGroup;
 use jj_lib::rewrite::rebase_to_dest_parent;
 use tracing::instrument;
@@ -53,7 +55,11 @@ pub(crate) fn cmd_interdiff(
         workspace_command.resolve_single_rev(args.from.as_ref().unwrap_or(&RevisionArg::AT))?;
     let to = workspace_command.resolve_single_rev(args.to.as_ref().unwrap_or(&RevisionArg::AT))?;
 
-    let from_tree = rebase_to_dest_parent(workspace_command.repo().as_ref(), &from, &to)?;
+    let from_tree = rebase_to_dest_parent(
+        workspace_command.repo().as_ref(),
+        slice::from_ref(&from),
+        &to,
+    )?;
     let to_tree = to.tree()?;
     let matcher = workspace_command
         .parse_file_patterns(&args.paths)?

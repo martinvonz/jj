@@ -234,7 +234,7 @@ fn test_obslog_squash() {
     test_env.jj_cmd_ok(&repo_path, &["new", "-m", "second"]);
     std::fs::write(repo_path.join("file1"), "foo\nbar\n").unwrap();
 
-    // full
+    // not partial
     test_env.jj_cmd_ok(&repo_path, &["squash", "-m", "squashed 1"]);
 
     test_env.jj_cmd_ok(&repo_path, &["describe", "-m", "third"]);
@@ -267,10 +267,6 @@ fn test_obslog_squash() {
     insta::assert_snapshot!(stdout, @r###"
     ○      qpvuntsm test.user@example.com 2001-02-03 08:05:15 d49749bf
     ├─┬─╮  squashed 3
-    │ │ │  Added regular file file4:
-    │ │ │          1: foo4
-    │ │ │  Added regular file file5:
-    │ │ │          1: foo5
     │ │ ○  vruxwmqv hidden test.user@example.com 2001-02-03 08:05:15 8f2ae2b5
     │ │ │  fifth
     │ │ │  Added regular file file5:
@@ -285,10 +281,10 @@ fn test_obslog_squash() {
     │    (empty) fourth
     ○    qpvuntsm hidden test.user@example.com 2001-02-03 08:05:12 1408a0a7
     ├─╮  squashed 2
-    │ │  Modified regular file file1:
-    │ │     1    1: foo
-    │ │     2    2: bar
-    │ │          3: baz
+    │ │  Removed regular file file2:
+    │ │     1     : foo2
+    │ │  Removed regular file file3:
+    │ │     1     : foo3
     │ ○  zsuskuln hidden test.user@example.com 2001-02-03 08:05:12 c9460789
     │ │  third
     │ │  Modified regular file file1:
@@ -305,9 +301,6 @@ fn test_obslog_squash() {
     │    (empty) (no description set)
     ○    qpvuntsm hidden test.user@example.com 2001-02-03 08:05:10 e3c2a446
     ├─╮  squashed 1
-    │ │  Modified regular file file1:
-    │ │     1    1: foo
-    │ │          2: bar
     │ ○  kkmpptxz hidden test.user@example.com 2001-02-03 08:05:10 46acd22a
     │ │  second
     │ │  Modified regular file file1:
