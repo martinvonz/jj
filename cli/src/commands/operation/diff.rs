@@ -556,7 +556,9 @@ fn show_change_diff(
     width: usize,
 ) -> Result<(), CommandError> {
     match (&*change.removed_commits, &*change.added_commits) {
-        (predecessors @ [_], [commit]) => {
+        (predecessors @ ([] | [_]), [commit]) => {
+            // New or modified change. If the modification involved a rebase,
+            // show diffs from the rebased tree.
             let predecessor_tree = rebase_to_dest_parent(repo, predecessors, commit)?;
             let tree = commit.tree()?;
             diff_renderer.show_diff(
@@ -567,9 +569,6 @@ fn show_change_diff(
                 &EverythingMatcher,
                 width,
             )?;
-        }
-        ([], [commit]) => {
-            diff_renderer.show_patch(ui, formatter, commit, &EverythingMatcher, width)?;
         }
         ([commit], []) => {
             // TODO: Should we show a reverse diff?
