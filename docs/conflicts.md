@@ -85,22 +85,30 @@ you, making it easier to spot the differences to apply to the other side. Here's
 how that would look for the same example as above:
 
 ```
-  <<<<<<<
-  %%%%%%%
+  <<<<<<< Conflict 1 of 1
+  %%%%%%% Changes from base to side #1
    apple
   -grape
   +grapefruit
    orange
-  +++++++
+  +++++++ Contents of side #2
   APPLE
   GRAPE
   ORANGE
-  >>>>>>>
+  >>>>>>> Conflict 1 of 1 ends
 ```
 
 As in Git, the `<<<<<<<` and `>>>>>>>` lines mark the start and end of the
-conflict. The `%%%%%%%` line indicates the start of a diff. The `+++++++`
-line indicates the start of a snapshot (not a diff).
+conflict. The `%%%%%%%` line indicates the start of a diff. The `+++++++` line
+indicates the start of a snapshot (not a diff). The text after the conflict
+markers is merely a guide for the human reader.
+
+The base of the conflict corresponds to the base of Git's conflict, and the two
+sides correspond to the left/right sides of Git's conflict in some order.
+Currently, jj's conflict markers do not say which of the sides is the "left"
+side and which is the "right" side, nor do they say which commit each side comes
+from, see [#1176](https://github.com/martinvonz/jj/issues/1176) for progress on
+this issue. For now, `jj` merely calls the two sides "side #1" and "side #2".
 
 There is another reason for this format (in addition to helping you spot the
 differences): The format supports more complex conflicts involving more than 3
